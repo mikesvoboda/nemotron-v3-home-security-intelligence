@@ -593,25 +593,20 @@ services:
       - USE_AI_GATEWAY=true
       - AI_GATEWAY_URL=http://ai-gateway:8090
       - YOLO26_URL=http://ai-gateway:8090/yolo26
-      - FLORENCE_URL=http://ai-gateway:8090/florence
-      - CLIP_URL=http://ai-gateway:8090/clip
-      - ENRICHMENT_URL=http://ai-gateway:8090/enrichment
+      # R8 S3 (owner rulings 1/4/5) retired the florence, clip and heavy
+      # enrichment routes: their Triton models are pruned and their gateway
+      # adapters are swept, so the three URL lines left with the settings
+      # fields they fed. ENRICHMENT_LIGHT_URL stays — /enrich-lt is the shipped
+      # light lane for the KEPT reid and threat models.
       - ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
       # go2rtc RTSP-to-WebRTC streaming service (NEM-4958)
       - GO2RTC_API_URL=http://go2rtc:1984
       # WebRTC URL is the external URL browsers use to connect (via localhost port mapping)
       - GO2RTC_WEBRTC_URL=${GO2RTC_WEBRTC_URL:-http://localhost:8555}
-      # Enrichment model assignment (determines request routing)
-      # Set to 'light' for GPU 1 (A400) or 'heavy' for GPU 0 (A5500)
-      - ENRICHMENT_POSE_SERVICE=${ENRICHMENT_POSE_SERVICE:-light}
-      - ENRICHMENT_THREAT_SERVICE=${ENRICHMENT_THREAT_SERVICE:-light}
-      - ENRICHMENT_REID_SERVICE=${ENRICHMENT_REID_SERVICE:-light}
-      - ENRICHMENT_PET_SERVICE=${ENRICHMENT_PET_SERVICE:-light}
-      - ENRICHMENT_DEPTH_SERVICE=${ENRICHMENT_DEPTH_SERVICE:-light}
-      - ENRICHMENT_VEHICLE_SERVICE=${ENRICHMENT_VEHICLE_SERVICE:-heavy}
-      - ENRICHMENT_CLOTHING_SERVICE=${ENRICHMENT_CLOTHING_SERVICE:-heavy}
-      - ENRICHMENT_ACTION_SERVICE=${ENRICHMENT_ACTION_SERVICE:-heavy}
-      - ENRICHMENT_DEMOGRAPHICS_SERVICE=${ENRICHMENT_DEMOGRAPHICS_SERVICE:-heavy}
+      # R8 S3 deleted the nine ENRICHMENT_*_SERVICE heavy/light assignment
+      # knobs (their Settings fields and both readers are gone, and every model
+      # but threat/reid they could name was pruned from the Triton repository).
+      # The shipped enrichment wiring is the one line above.
       # YOLO26_URL is set above in the AI Gateway routes block
       - DETECTOR_TYPE=${DETECTOR_TYPE:-yolo26}
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}

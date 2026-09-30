@@ -161,24 +161,31 @@ class TestCollectTritonConfigs:
     def test_simple_form(self) -> None:
         from ai.gateway.patch_triton_configs import collect_triton_configs
 
-        models = [{"name": "clip", "triton_name": "clip", "triton_kind": "KIND_GPU"}]
-        assert collect_triton_configs(models) == [("clip", "KIND_GPU")]
+        models = [{"name": "alpha", "triton_name": "alpha", "triton_kind": "KIND_GPU"}]
+        assert collect_triton_configs(models) == [("alpha", "KIND_GPU")]
 
     def test_triton_models_list(self) -> None:
+        """One catalogue row mapping to TWO Triton directories, order preserved.
+
+        The synthetic names are deliberately placeholders: this is a parser test
+        for a pure function, and pre-S3 it used the real (now-retired) CLIP pair
+        as its example data — which made a name with no repository directory look
+        like sanctioned test data. Neutral names say what the test means.
+        """
         from ai.gateway.patch_triton_configs import collect_triton_configs
 
         models = [
             {
-                "name": "siglip",
+                "name": "multi",
                 "triton_models": [
-                    {"triton_name": "clip", "triton_kind": "KIND_GPU"},
-                    {"triton_name": "clip_text", "triton_kind": "KIND_CPU"},
+                    {"triton_name": "one", "triton_kind": "KIND_GPU"},
+                    {"triton_name": "two", "triton_kind": "KIND_CPU"},
                 ],
             }
         ]
         assert collect_triton_configs(models) == [
-            ("clip", "KIND_GPU"),
-            ("clip_text", "KIND_CPU"),
+            ("one", "KIND_GPU"),
+            ("two", "KIND_CPU"),
         ]
 
     def test_triton_models_first_then_top_level(self) -> None:
@@ -332,51 +339,64 @@ instance_group [ { count: 1
         assert "verified" in captured.out
 
 
-def _entry_triton_names(entry: dict) -> set[str]:
-    """All triton names a catalogue entry maps to (nested triton_models or top-level)."""
-    names = {
-        str(tm["triton_name"])
-        for tm in entry.get("triton_models") or []
-        if isinstance(tm, dict) and tm.get("triton_name")
-    }
-    if entry.get("triton_name"):
-        names.add(str(entry["triton_name"]))
-    return names
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3] / "ai" / "triton" / "model_repository"
+
+
+def _collected() -> list[tuple[str, str]]:
+    """(triton_name, triton_kind) pairs the real catalogue yields."""
+    from setup_lib.models_config import load_models_yaml
+
+    from ai.gateway.patch_triton_configs import collect_triton_configs
+
+    return collect_triton_configs(load_models_yaml())
 
 
 class TestModelsYamlConsistency:
     """Validation tests for models.yml vs Triton model repository."""
 
-    def test_all_triton_names_map_to_existing_config(self) -> None:
-        from setup_lib.models_config import load_models_yaml
+    def test_every_triton_name_maps_to_a_shipped_config(self) -> None:
+        """A catalogue row naming a Triton directory the repository does not
+        ship is the residency trap this slice exists to close.
 
-        from ai.gateway.patch_triton_configs import collect_triton_configs
+        This replaced an exempted loop: ``deliberately_retired = {"xclip_action"}``
+        forgave a missing config for a name whose catalogue row has since been
+        deleted (ruling 2's legacy-row deletion, and X-CLIP's own retirement), so
+        the exemption had become a standing loophole — any future row pointing at
+        a swept directory would be waved through by the same shape of argument
+        ("it's just history"). R8 S3 rulings 2 and 4 removed both sides of that
+        pair: rows for pruned models are DELETED from models.yml and their
+        repository dirs are ``git rm``'d, so there is nothing left to excuse.
+        ``collect_triton_configs`` is not filtered by ``enabled``, so a disabled
+        keeper row still has to point at a real directory — which is correct:
+        entrypoint.sh runs this patcher against every collected name.
+        """
+        pairs = _collected()
+        # Non-vacuity: a collection that came back empty would pass the loop.
+        assert len(pairs) >= 2, f"catalogue collected {pairs}"
 
-        models = load_models_yaml()
-        pairs = collect_triton_configs(models)
-        repo_root = Path(__file__).resolve().parents[3] / "ai" / "triton" / "model_repository"
+        missing = [
+            name
+            for name, _kind in pairs
+            if not (_repo_root() / name / "config.pbtxt").exists()
+        ]
+        assert not missing, f"catalogue names Triton dirs the repository does not ship: {missing}"
 
-        # An enabled:false catalogue entry may keep its triton_name as
-        # provisioning/registry history while its repository dir is retired to
-        # archive/ (owner ruling 2026-09-22: models.yml is immutable history of
-        # a disabled model). That is NOT a mapping drift — but it must stay a
-        # *deliberate* pair, so the disabled exemption is pinned by name.
-        deliberately_retired = {"xclip_action"}
-        disabled = {str(m.get("name")) for m in models if m.get("enabled") is False}
+    def test_every_shipped_directory_is_claimed_by_the_catalogue(self) -> None:
+        """The inverse direction, which is the half a forward loop cannot see.
 
-        for triton_name, _ in pairs:
-            cfg_path = repo_root / triton_name / "config.pbtxt"
-            if not cfg_path.exists() and triton_name in deliberately_retired:
-                owners = [
-                    m.get("name")
-                    for m in models
-                    if _entry_triton_names(m) and triton_name in _entry_triton_names(m)
-                ]
-                assert owners and all(str(o) in disabled for o in owners), (
-                    f"{triton_name} dir is archived but catalogue owner(s) {owners} are not all enabled:false"
-                )
-                continue
-            assert cfg_path.exists(), f"Config missing for triton_name={triton_name}"
+        A directory on disk that no catalogue row claims is never instance-group
+        patched by entrypoint.sh and is invisible to the model registry — it just
+        gets scanned by Triton and served. That is the same drift class as the
+        forward one, from the other side, and it is what an unpruned repository
+        under a narrowed residency set looks like.
+        """
+        claimed = {name for name, _kind in _collected()}
+        present = {p.name for p in _repo_root().iterdir() if p.is_dir()}
+        assert present == claimed, (
+            f"repository dirs {sorted(present)} != catalogue names {sorted(claimed)}"
+        )
+        assert len(present) >= 2, sorted(present)
 
     def test_all_triton_kinds_valid(self) -> None:
         from setup_lib.models_config import load_models_yaml
@@ -421,20 +441,43 @@ class TestModelsYamlConsistency:
 class TestConfigRoundTrip:
     """Config.pbtxt ↔ models.yml consistency tests."""
 
-    def test_round_trip_idempotent_for_all_models(self) -> None:
-        """For each model in models.yml, set_instance_group with its kind yields same content."""
-        from setup_lib.models_config import load_models_yaml
+    def test_round_trip_idempotent_for_every_collected_name(self) -> None:
+        """For every catalogue name, its shipped config is already in the kind
+        the catalogue declares.
 
-        from ai.gateway.patch_triton_configs import collect_triton_configs, set_instance_group
+        The ``if not cfg_path.exists(): pytest.skip(...)`` this replaced was the
+        unit tier's only imperative skip, and it was load-bearing in the wrong
+        direction: a missing config made the assertion VANISH rather than fail,
+        which is exactly how a catalogue that names a swept Triton directory
+        stays green. R8 S3 (rulings 2 + 4) deleted the rows and the directories
+        that produced the skip, so the property can now be asserted absolutely —
+        the absence of a config is a failure of the same pin that used to excuse
+        it (``test_every_triton_name_maps_to_a_shipped_config``), and this loop
+        runs over the full collection with no escape hatch.
+        """
+        from ai.gateway.patch_triton_configs import set_instance_group
 
-        models = load_models_yaml()
-        pairs = collect_triton_configs(models)
-        repo_root = Path(__file__).resolve().parents[3] / "ai" / "triton" / "model_repository"
+        pairs = _collected()
+        # Non-vacuity: the loop must actually iterate.
+        assert len(pairs) >= 2, f"catalogue collected {pairs}"
 
         for triton_name, triton_kind in pairs:
-            cfg_path = repo_root / triton_name / "config.pbtxt"
-            if not cfg_path.exists():
-                pytest.skip(f"Config not found: {cfg_path}")
+            cfg_path = _repo_root() / triton_name / "config.pbtxt"
+            # No skip: a name the catalogue declares MUST have its config.
+            assert cfg_path.exists(), (
+                f"{triton_name} is collected from models.yml but its repository "
+                "directory has no config.pbtxt — entrypoint.sh would patch a "
+                "directory that does not exist"
+            )
             original = cfg_path.read_text()
             result = set_instance_group(original, triton_kind)
             assert result == original, f"Config {triton_name} not idempotent for {triton_kind}"
+            # Round-trip in the other direction too: patching to the opposite
+            # kind and back returns the original bytes, so the patcher is a
+            # switch and not a one-way rewrite.
+            other = "KIND_CPU" if triton_kind == "KIND_GPU" else "KIND_GPU"
+            flipped = set_instance_group(original, other)
+            assert flipped != original, f"{triton_name}: flipping {triton_kind} changed nothing"
+            assert set_instance_group(flipped, triton_kind) == original, (
+                f"{triton_name} did not round-trip back to its committed bytes"
+            )

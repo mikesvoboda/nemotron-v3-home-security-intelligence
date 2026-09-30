@@ -65,38 +65,53 @@ async def async_client(test_app: FastAPI) -> AsyncClient:
         yield client
 
 
+#: The settings field each shipped table row probes, read off the live table in
+#: table order. R8 S3 deleted the florence/clip/enrichment rows and their
+#: settings fields together (owner rulings 1 + 5), so "which url attrs does the
+#: mock need" now has a one-word answer: whichever ones the table names.
+_URL_ATTRS: list[str] = [cfg["url_attr"] for cfg in AI_SERVICES_CONFIG]
+
+
 def create_mock_settings(
     yolo26_url: str = "http://ai-yolo26:8095",
     ai_vlm_url: str = "http://ai-vlm:8098",
-    florence_url: str = "http://florence-service:8091",
-    clip_url: str = "http://clip-service:8092",
-    enrichment_url: str = "http://enrichment-service:8093",
+    **extra_url_attrs: str,
 ) -> MagicMock:
     """Create mock settings with AI service URLs.
 
-    One url attr per row of the shipped table — there is no ``nemotron_url``
-    arg because R8 S2 deleted that setting along with the retired LLM's row.
+    One url attr per row of the shipped table, derived from
+    ``AI_SERVICES_CONFIG`` above — there is no ``nemotron_url`` arg because
+    R8 S2 deleted that setting along with the retired LLM's row, and no
+    ``florence_url`` / ``clip_url`` / ``enrichment_url`` arg because R8 S3
+    deleted those three settings along with their providers. Handing a real
+    ``Settings`` one of those names is silently inert (``extra="ignore"``), so
+    the honest mock is one that does not answer them at all.
 
     Args:
         yolo26_url: URL for YOLO26 service (empty string for unconfigured)
         ai_vlm_url: URL for the VLM verdict service (empty for unconfigured)
-        florence_url: URL for Florence service
-        clip_url: URL for CLIP service
-        enrichment_url: URL for Enrichment service
+        **extra_url_attrs: override for a url_attr this signature has not
+            caught up with yet; a name no shipped row reads is a loud TypeError
 
     Returns:
         MagicMock configured with the specified URLs
     """
+    values = {"yolo26_url": yolo26_url, "ai_vlm_url": ai_vlm_url, **extra_url_attrs}
+    unknown = set(values) - set(_URL_ATTRS)
+    if unknown:
+        raise TypeError(
+            f"create_mock_settings: no shipped AI-services row reads {sorted(unknown)}; "
+            f"the table reads {_URL_ATTRS}"
+        )
+    missing = [attr for attr in _URL_ATTRS if attr not in values]
+    assert not missing, f"shipped AI-services row has no mock url attr: {missing}"
     mock = MagicMock()
     # Handle empty strings as None for "unconfigured" behavior
-    mock.yolo26_url = yolo26_url if yolo26_url else None
-    mock.ai_vlm_url = ai_vlm_url if ai_vlm_url else None
-    mock.florence_url = florence_url if florence_url else None
-    mock.clip_url = clip_url if clip_url else None
-    mock.enrichment_url = enrichment_url if enrichment_url else None
-    # No `pipeline_mode` on the mock (R8 left one mode) and ai_vlm_url spelled:
-    # the shipped table's verdict-engine row reads settings.ai_vlm_url, so a
-    # bare MagicMock attr would leak a mock object into AIServiceHealthDetail.url.
+    for attr in _URL_ATTRS:
+        setattr(mock, attr, values[attr] if values[attr] else None)
+    # No `pipeline_mode` on the mock (R8 left one mode) and every url attr
+    # spelled: the shipped table's rows read settings.<url_attr>, so a bare
+    # MagicMock attr would leak a mock object into AIServiceHealthDetail.url.
     return mock
 
 
@@ -435,79 +450,69 @@ class TestQueueDepths:
 class TestOverallStatusCalculation:
     """Tests for overall status calculation."""
 
-    # The five keys below are the SHIPPED table's names (R8 S2: ai-vlm took the
-    # retired Nemotron row), and yolo26 is the only critical one — so the
-    # CRITICAL cases pin yolo26 and the DEGRADED cases pin a non-critical row.
+    # Every case below builds its health map from the SHIPPED table: one entry
+    # per row, all healthy, with named rows overridden. R8 S3 retired florence,
+    # clip and enrichment (owner rulings 1 + 5), and because
+    # ``_calculate_overall_status`` treats any key that is not a critical row as
+    # non-critical, hand-typed keys for those three used to be what made the
+    # DEGRADED cases fire — a table drift would have kept them green while
+    # testing a topology that no longer ships. The critical/non-critical split
+    # now comes from the live ``critical`` flags.
+    @staticmethod
+    def _health(overrides: dict[str, AIServiceStatus]) -> dict[str, AIServiceHealthDetail]:
+        """A health entry for every shipped table row, HEALTHY by default."""
+        names = {cfg["name"] for cfg in AI_SERVICES_CONFIG}
+        assert names, "AI_SERVICES_CONFIG has no rows to build health for"
+        unknown = set(overrides) - names
+        assert not unknown, (
+            f"override names a row the shipped table does not have: {sorted(unknown)}"
+        )
+        return {
+            name: AIServiceHealthDetail(status=overrides.get(name, AIServiceStatus.HEALTHY))
+            for name in names
+        }
+
     def test_all_healthy(self) -> None:
         """Test overall status is healthy when all services are healthy."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-        }
-
-        assert _calculate_overall_status(services) == AIServiceOverallStatus.HEALTHY
+        assert _calculate_overall_status(self._health({})) == AIServiceOverallStatus.HEALTHY
 
     def test_critical_service_unhealthy(self) -> None:
-        """Test overall status is critical when critical service is unhealthy."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-        }
+        """Test overall status is critical when the critical service is unhealthy."""
+        critical = {cfg["name"] for cfg in AI_SERVICES_CONFIG if cfg["critical"]}
+        assert critical, "shipped table has no critical row: nothing could ever be CRITICAL"
+        victim = sorted(critical)[0]
+        services = self._health({victim: AIServiceStatus.UNHEALTHY})
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.CRITICAL
 
     def test_critical_service_unknown(self) -> None:
-        """Test overall status is critical when critical service is unknown."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.UNKNOWN),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-        }
+        """Test overall status is critical when the critical service is unknown."""
+        victim = sorted({cfg["name"] for cfg in AI_SERVICES_CONFIG if cfg["critical"]})[0]
+        services = self._health({victim: AIServiceStatus.UNKNOWN})
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.CRITICAL
 
     def test_non_critical_service_unhealthy(self) -> None:
-        """Test overall status is degraded when non-critical service is unhealthy."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-        }
+        """Test overall status is degraded when a non-critical service is unhealthy."""
+        non_critical = {cfg["name"] for cfg in AI_SERVICES_CONFIG if not cfg["critical"]}
+        assert non_critical, "shipped table has no non-critical row: nothing could ever DEGRADE"
+        victim = sorted(non_critical)[0]
+        services = self._health({victim: AIServiceStatus.UNHEALTHY})
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.DEGRADED
 
     def test_ai_vlm_down_is_degraded_not_critical(self) -> None:
         """ai-vlm is the table's non-critical verdict-engine row: down alone
         costs a DEGRADED badge, never the 503 a critical row earns (R8 S2)."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-        }
+        services = self._health({"ai-vlm": AIServiceStatus.UNHEALTHY})
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.DEGRADED
 
     def test_non_critical_service_degraded(self) -> None:
-        """Test overall status is degraded when non-critical service is degraded."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.DEGRADED),
-        }
+        """Test overall status is degraded when a non-critical service is degraded."""
+        non_critical = {cfg["name"] for cfg in AI_SERVICES_CONFIG if not cfg["critical"]}
+        victim = sorted(non_critical)[0]
+        services = self._health({victim: AIServiceStatus.DEGRADED})
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.DEGRADED
 
@@ -562,11 +567,7 @@ class TestAIServicesHealthEndpoint:
     @pytest.mark.asyncio
     async def test_endpoint_returns_503_when_critical(self, async_client: AsyncClient) -> None:
         """Test endpoint returns 503 when critical services are unhealthy."""
-        mock_settings = create_mock_settings(
-            florence_url="",
-            clip_url="",
-            enrichment_url="",
-        )
+        mock_settings = create_mock_settings()
         with patch(
             "backend.api.routes.health_ai_services.get_settings", autospec=True
         ) as mock_get_settings:
@@ -592,10 +593,12 @@ class TestAIServicesHealthEndpoint:
 
     @pytest.mark.asyncio
     async def test_endpoint_includes_all_services(self, async_client: AsyncClient) -> None:
-        """Test endpoint includes all 5 services of the SHIPPED table.
+        """Test endpoint reports exactly the rows of the SHIPPED table.
 
-        ai-vlm is a row of AI_SERVICES_CONFIG itself (R8 S2), so this asserts
-        the shipped five and proves nemotron is absent.
+        ai-vlm is a row of AI_SERVICES_CONFIG itself (R8 S2), so the key set is
+        the live two rows; every retired name is asserted absent. The literal
+        expected set is deliberate here -- pinning WHICH rows ship is the point,
+        and it is non-vacuous because the table still has rows to report.
         """
         mock_settings = create_mock_settings()
         with patch(
@@ -631,10 +634,14 @@ class TestAIServicesHealthEndpoint:
                     services = data["services"]
                     assert "yolo26" in services
                     assert "ai-vlm" in services
-                    assert "nemotron" not in services
-                    assert "florence" in services
-                    assert "clip" in services
-                    assert "enrichment" in services
+                    # Absence, not presence, for every retired row: the endpoint
+                    # reports AI_SERVICES_CONFIG, and R8 S3 (owner rulings 1 + 5)
+                    # deleted the florence/clip/enrichment rows along with the LLM
+                    # row S2b took. A row reappearing here means a service name
+                    # came back without a ruling.
+                    assert set(services) == {"yolo26", "ai-vlm"}, sorted(services)
+                    for retired in ("nemotron", "florence", "clip", "enrichment"):
+                        assert retired not in services
 
     @pytest.mark.asyncio
     async def test_endpoint_includes_queue_info(self, async_client: AsyncClient) -> None:
@@ -642,9 +649,6 @@ class TestAIServicesHealthEndpoint:
         mock_settings = create_mock_settings(
             yolo26_url="",
             ai_vlm_url="",
-            florence_url="",
-            clip_url="",
-            enrichment_url="",
         )
         with patch(
             "backend.api.routes.health_ai_services.get_settings", autospec=True

@@ -246,9 +246,8 @@ services:
       - USE_AI_GATEWAY=true
       - AI_GATEWAY_URL=http://ai-gateway:8090
       - YOLO26_URL=http://ai-gateway:8090/yolo26
-      - FLORENCE_URL=http://ai-gateway:8090/florence
-      - CLIP_URL=http://ai-gateway:8090/clip
-      - ENRICHMENT_URL=http://ai-gateway:8090/enrichment
+      # R8 S3 retired the florence/clip/heavy-enrichment routes with their
+      # Triton models and gateway adapters; only the light lane survives.
       - ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
       - GO2RTC_API_URL=http://go2rtc:1984
       - GO2RTC_WEBRTC_URL=${GO2RTC_WEBRTC_URL:-http://localhost:8555}

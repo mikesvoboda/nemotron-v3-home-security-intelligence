@@ -178,9 +178,23 @@ def find_test_file(source_file: str) -> str | None:
         test_unit_alt = test_unit.with_name(f"test_{test_unit.name}")
         test_integration_alt = test_integration.with_name(f"test_{test_integration.name}")
 
-        for test_path in [test_unit, test_unit_alt, test_integration, test_integration_alt]:
-            if test_path.exists():
-                return str(test_path.relative_to(project_root))
+        # The FLAT form: tests/<tier>/test_<basename>.py with NO mirror of the
+        # source's subpath. 203 backend suites are written this way (measured on
+        # the tree), including both files PR #6733's gate run falsely accused of
+        # being untested: backend/tests/integration/test_plate_reads.py and
+        # backend/tests/integration/test_alpr_service.py.
+        stem = Path(relative_path).stem
+        flat_unit = project_root / f"backend/tests/unit/test_{stem}.py"
+        flat_integration = project_root / f"backend/tests/integration/test_{stem}.py"
+
+        candidates = [
+            test_unit,
+            test_unit_alt,
+            test_integration,
+            test_integration_alt,
+            flat_unit,
+            flat_integration,
+        ]
 
     elif source_file.startswith("frontend/src/"):
         # For frontend files, look in same directory with .test.ts/tsx
@@ -193,14 +207,34 @@ def find_test_file(source_file: str) -> str | None:
         # useTopEventsQuery.ts to a nonexistent .test.ts and the required
         # Test Coverage Gate failed the PR for OBEYING the rule (#6681).
         source_path_obj = Path(source_file)
-        candidates = [
+        candidates: list[Path] = [
             source_path_obj.with_name(f"{source_path_obj.stem}.test{suffix}")
             for suffix in ("".join(source_path_obj.suffixes), ".ts", ".tsx")
         ]
 
-        for test_path in dict.fromkeys(candidates):  # dedupe, keep order
-            if (project_root / test_path).exists():
-                return str(test_path)
+        # The same three extension forms colocated in __tests__/ beside the
+        # source: 21 frontend suites live that way, among them
+        # hooks/__tests__/useFaceRecognitionApi.test.ts -- the third file
+        # #6733's gate run reported as "None found".
+        candidates += [
+            source_path_obj.parent / "__tests__" / f"{source_path_obj.stem}.test{suffix}"
+            for suffix in ("".join(source_path_obj.suffixes), ".ts", ".tsx")
+        ]
+        candidates = [project_root / c for c in candidates]
+
+    else:
+        return None
+
+    # The candidate list is a SUPERSET of the historical probes and the change
+    # is purely ADDITIVE: the original candidates stay first, so a source that
+    # resolved before resolves to the SAME path -- no existing verdict can
+    # flip, only a false "None found" can become a found. Pinned by
+    # scripts/test_check_coverage_diff.py::test_resolver_still_sees_the_existing_two_conventions,
+    # with test_resolver_does_not_invent_a_test as the anti-rubber-stamp arm:
+    # every candidate is an existence check, never a match-anything rule.
+    for test_path in dict.fromkeys(candidates):  # dedupe, keep order
+        if test_path.exists():
+            return str(test_path.relative_to(project_root))
 
     return None
 

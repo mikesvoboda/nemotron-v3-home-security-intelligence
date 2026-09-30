@@ -613,52 +613,6 @@ class IdentifyFaceEventResponse(BaseModel):
 
 
 # =============================================================================
-# Face Similarity Comparison Schemas (NEM-4955)
-# =============================================================================
-
-
-class FaceSimilarityCompareResponse(BaseModel):
-    """Schema for face similarity comparison response.
-
-    Returns the result of comparing two face images:
-    - similarity_score: Cosine similarity between embeddings (0-1)
-    - is_match: Whether similarity exceeds the threshold
-    - threshold: The threshold used for matching
-    - embedding_dimension: Dimension of the embeddings used (768 for CLIP)
-    - processing_time_ms: Time taken to process both images
-
-    Note: This debug tool uses CLIP embeddings (768-dim) for visual similarity,
-    not ArcFace embeddings (512-dim) used in production face recognition.
-    """
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "similarity_score": 0.85,
-                "is_match": True,
-                "threshold": 0.7,
-                "embedding_dimension": 768,
-                "processing_time_ms": 245,
-                "error": None,
-            }
-        }
-    )
-
-    similarity_score: float = Field(
-        ..., ge=0.0, le=1.0, description="Cosine similarity score between the two faces"
-    )
-    is_match: bool = Field(
-        ..., description="Whether the similarity exceeds the threshold (same person)"
-    )
-    threshold: float = Field(..., ge=0.0, le=1.0, description="The threshold used for matching")
-    embedding_dimension: int = Field(..., description="Dimension of the embeddings (768 for CLIP)")
-    processing_time_ms: int = Field(
-        ..., ge=0, description="Time taken to process both images in milliseconds"
-    )
-    error: str | None = Field(None, description="Error message if comparison failed")
-
-
-# =============================================================================
 # Bulk Enrollment Schemas (NEM-4954)
 # =============================================================================
 

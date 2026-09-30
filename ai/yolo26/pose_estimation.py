@@ -248,7 +248,12 @@ def detect_fall(keypoints: NDArray[np.floating]) -> dict[str, Any]:
     Returns:
         Dict with is_fallen (bool) and confidence (float)
     """
-    result = {"is_fallen": False, "confidence": 0.0, "reason": None}
+    # Annotated to match this function's declared return (dict[str, Any]).
+    # Unannotated, mypy infers the value type from the literal alone —
+    # bool | float | None — and then flags the two `result["reason"] = "<str>"`
+    # branches below as [assignment]. Those branches are the function's whole
+    # explanation of WHY it says fallen, so the field is genuinely str-typed.
+    result: dict[str, Any] = {"is_fallen": False, "confidence": 0.0, "reason": None}
 
     if keypoints.size == 0 or keypoints.shape[0] < 17:
         return result

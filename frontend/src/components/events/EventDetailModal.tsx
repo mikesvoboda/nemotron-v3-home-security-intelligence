@@ -21,9 +21,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import ActionEventsPanel from './ActionEventsPanel';
 import ConfidenceIndicators from './ConfidenceIndicators';
 import DetectionQualityBadge from './DetectionQualityBadge';
-import { EnrichmentViewer } from '../enrichment';
 import EntityTrackingPanel from './EntityTrackingPanel';
-import EventEnrichmentSummary from './EventEnrichmentSummary';
 import EventVerificationSection from './EventVerificationSection';
 import EventVideoPlayer from './EventVideoPlayer';
 import LLMReasoningExplorer from './LLMReasoningExplorer';
@@ -688,15 +686,12 @@ export default function EventDetailModal({
                   {activeTab === 'clip' ? (
                     <EventVideoPlayer eventId={parseInt(event.id, 10)} />
                   ) : activeTab === 'analysis' ? (
-                    /* AI Analysis Tab - LLM Reasoning + Enrichment Summary */
+                    /* AI Analysis Tab - LLM Reasoning */
                     <div className="space-y-6" data-testid="ai-analysis-tab-content">
                       {/* LLM Reasoning Explorer - Shows <think> blocks, risk factors, enrichment sources */}
                       {!isNaN(eventIdNumber) && (
                         <LLMReasoningExplorer eventId={eventIdNumber} defaultExpanded={true} />
                       )}
-
-                      {/* Event Enrichment Summary - Aggregated enrichment data from all detections */}
-                      {!isNaN(eventIdNumber) && <EventEnrichmentSummary eventId={eventIdNumber} />}
                     </div>
                   ) : activeTab === 'details' ? (
                     <>
@@ -1036,45 +1031,19 @@ export default function EventDetailModal({
                         </div>
                       )}
 
-                      {/* Event-level Enrichment Summary (aggregated from all detections) */}
-                      {!isNaN(eventIdNumber) && (
-                        <div className="mb-6" data-testid="enrichment-summary-section">
-                          <EventEnrichmentSummary eventId={eventIdNumber} />
-                        </div>
-                      )}
-
-                      {/* AI Enrichment Analysis */}
-                      {event.detections.some((d) => d.enrichment_data) ? (
-                        <div className="mb-6">
-                          {event.detections
-                            .filter((d) => d.enrichment_data)
-                            .map((detection, index) => (
-                              <EnrichmentViewer
-                                key={`enrichment-${index}`}
-                                enrichmentData={detection.enrichment_data}
-                                variant="full"
-                                className="mb-3"
-                              />
-                            ))}
-                        </div>
-                      ) : (
-                        /* 1.6 spec §4: in VLM mode the enrichment models
-                           retired (D3), so a vlm-mode event (it carries a
-                           verification row - legacy events carry none) shows
-                           WHY the pose/clothing/demographics panels are empty.
-                           R8: empty states, not deletions - the panel slot
-                           stays and names its silence. */
-                        event.verification !== undefined &&
-                        event.verification !== null && (
-                          <div
-                            className="mb-6 rounded-lg border border-dashed border-gray-700 bg-black/20 p-4 text-sm text-gray-500"
-                            data-testid="enrichment-retired-state"
-                          >
-                            Enrichment analysis (pose skeleton, clothing, demographics) is not
-                            analyzed in VLM mode.
-                          </div>
-                        )
-                      )}
+                      {/* R8 S5: the AI Enrichment Analysis block retired here.
+                          Its two panels drew their content from the pose /
+                          demographics / re-ID enrichment models, which the VLM
+                          path does not run (the storage side of the same
+                          retirement is slice S4), and the owner ruling of
+                          2026-09-29 turned 1.6's empty state into this deletion
+                          too - roadmap
+                          docs/vss-integration/12-postponed-roadmap.md:120-121,
+                          "the design's empty states become deletions". A
+                          detection's enrichment_data member stays on this
+                          type and on the API surface -- a pipeline that ran
+                          the models still fills it -- it is just no longer
+                          rendered. */}
 
                       {/* Action Recognition Events (ST-GCN++) - NEM-5024 Phase 7 */}
                       {!isNaN(eventIdNumber) && event.camera_id && (
