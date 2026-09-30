@@ -33,6 +33,7 @@ Unit tests for `synthbench/generate/` (the durable generation stack: pinned weig
 | `test_cli_camera.py`          | `python -m synthbench camera`: writes, exit codes                                                                                                  |
 | `test_cli_triage.py`          | `python -m synthbench triage`: verdicts, reroll scheduling, the cap                                                                                |
 | `test_cli_report.py`          | `python -m synthbench report`: `report.md` and `sheet.html`                                                                                        |
+| `test_host_agent.py`          | `synthbench/host/agent.py`: `up` and `down` refuse before changing anything, keep the agent's notes, run the steps in order                        |
 | `test_host_guard.py`          | `synthbench/host/guard.py`: the guard loop, `window.open` deference                                                                                |
 | `test_host_renderer.py`       | `synthbench/host/`: the renderer unit's pre-start checks                                                                                           |
 | `test_host_units.py`          | `synthbench/host/units.py`: unit-file rendering and install                                                                                        |
