@@ -350,7 +350,7 @@ There is no pilot gate (spec C13): a round may take every ready still.
    - Recreate the agent's sandbox from the same commit ("Create the agent's sandbox"). Its
      workspace is a clone, so the new commands and `.claude/skills/synthbench-generation/`
      arrive together.
-2. **Start the renderer** (`systemctl --user start synthbench-renderer`, "The renderer").
+2. **Start the renderer** (`systemctl --user start synthbench-renderer.service`, "The renderer").
 3. **Ask for the round:** "Make clips of every ready still, round clips-1; follow 'Clip rounds'
    in docs/synthbench/agent-handoff.md." About 328 s per clip beside the flagship: 459 clips
    take about 42 hours, and flagship users are slower while a clip renders.

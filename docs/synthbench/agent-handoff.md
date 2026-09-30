@@ -252,9 +252,9 @@ size open, prefer rounds of about 50.
 | `morphing`           | bodies, faces or objects melt, merge or change shape unphysically |
 | `scene_cut`          | the scene changes to a different place or shot                    |
 
-Everything else is `ok`, including a dull clip or an action you would not have chosen: the
-owner's audit judges faithfulness and plausibility. A clip may use 3 seeds; a reroll verdict on
-its third attempt fails it.
+Everything else is `ok`, including a dull clip or an action you would not have chosen: triage
+removes only mechanical failures; nothing audits clips yet, and the owner watches them in
+`sheet.html`. A clip may use 3 seeds; a reroll verdict on its third attempt fails it.
 
 ## Stop and ask the owner when
 
