@@ -292,7 +292,6 @@ Event-related components:
 - `ExportPanel.tsx` - Event data export functionality
 - `ThumbnailStrip.tsx` - Horizontal strip of event thumbnails
 - `DeletedEventCard.tsx` - Card for deleted events
-- `EnrichmentPanel.tsx` - Detection enrichment display panel
 - `EntityTrackingPanel.tsx` - Entity tracking display
 - `EventClusterCard.tsx` - Clustered events card
 - `EventListView.tsx` - List view of events
@@ -770,7 +769,6 @@ Note: Tests are co-located with type files (e.g., `*.test.ts`).
 | `groupBy.ts`               | Group by utility function                                                    |
 | `memoization.ts`           | Memoization utilities                                                        |
 | `pipeline.ts`              | Pipeline utilities                                                           |
-| `poseVisualization.ts`     | Pose visualization utilities                                                 |
 | `promptDiff.ts`            | Prompt diff utilities                                                        |
 | `sanitize.ts`              | Sanitization utilities                                                       |
 | `severityCalculator.ts`    | Severity calculation utilities                                               |
