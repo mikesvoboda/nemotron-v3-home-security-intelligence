@@ -394,14 +394,24 @@ describe('FaceRecognitionPage', () => {
       const tablist = screen.getByRole('tablist');
       expect(tablist).toBeInTheDocument();
 
-      const tabs = screen.getAllByRole('tab');
-      expect(tabs).toHaveLength(4);
+      // R8 S3 (2026-09-29) retired the Debug Tools tab with its only member
+      // (the CLIP face-similarity panel, owner ruling 5), and this line was
+      // still reading `toHaveLength(4)`. A literal count is a second copy of
+      // the tab list, so it rotted the moment the list changed -- the count is
+      // now DERIVED from the documented tab names, one copy, same as the
+      // sibling "displays all three tabs" case pins them by name.
+      const documentedTabs = ['Known Persons', 'Face Events', 'Person Tracking'];
 
-      // Selected tab should have aria-selected=true
-      expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
-      expect(tabs[1]).toHaveAttribute('aria-selected', 'false');
-      expect(tabs[2]).toHaveAttribute('aria-selected', 'false');
-      expect(tabs[3]).toHaveAttribute('aria-selected', 'false');
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs).toHaveLength(documentedTabs.length);
+      for (const name of documentedTabs) {
+        expect(screen.getByRole('tab', { name: new RegExp(name, 'i') })).toBeInTheDocument();
+      }
+
+      // Exactly one tab is selected, and it is the first (the page's default).
+      const selected = tabs.filter((t) => t.getAttribute('aria-selected') === 'true');
+      expect(selected).toHaveLength(1);
+      expect(selected[0]).toBe(tabs[0]);
     });
 
     it('has proper tabpanel roles', () => {

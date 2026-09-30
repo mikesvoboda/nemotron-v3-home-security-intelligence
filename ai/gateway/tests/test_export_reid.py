@@ -27,6 +27,25 @@ from torch import nn
 
 from ai.gateway.export import export_reid
 
+# The 5s tier default (pyproject.toml:584) is too tight for this module. Every
+# test needs `build_reference`, whose module-scoped fixture cold-imports
+# torchreid's real model factory (:66, behind a tensorboard stub the backend
+# loader also needs) and builds osnet_ain_x1_0 — the module has no module-level
+# torchreid import, so that cost lands inside the timed setup, once per xdist
+# worker. Measured here: 1.1-1.4s per setup on an idle 16-core box. GitHub's
+# ubuntu-latest runner under `-n 8` contention is slower, and the CI run of
+# this PR showed exactly the failure that predicts: 246 passed, 6 errors, every
+# one `Failed: Timeout (>5.0s)` in this file, while all six pass locally. main's
+# run of the same file passed — so the 5s line is borderline, not clearly
+# crossed; contention tipped this run, and would tip others.
+# 60s is not invented: it is this repo's own declared budget for model loading
+# (`e2e: ... 60s timeout for model loading`, pyproject.toml:601; the sibling
+# ai/tests/test_module_hygiene.py already uses an explicit per-file timeout for
+# the same reason). The watchdog stays armed for a real hang, and this touches
+# nothing in .github/flake-allowlist.yml — that file is empty by policy and
+# registering an id there is a quarantine, which is off-limits.
+pytestmark = pytest.mark.timeout(60)
+
 # The MSMT17 checkpoint's identity-head width (classifier.weight is [4101, 512]).
 MSMT17_NUM_CLASSES = 4101
 

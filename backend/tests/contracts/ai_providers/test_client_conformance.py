@@ -1026,10 +1026,13 @@ async def test_detector_client_carries_every_wire_key_onto_the_db_row(
     assert len(body["detections"]) == 3, "fake shape changed: re-read the dump"
 
     session = _mock_db_session()
+    # _drive_detector reads only ctx.client/ctx.big_image_file (it builds its
+    # own DB session), so the ctx here has exactly those two fields -- no
+    # `settings`: an earlier revision of this line carried a dead `if False`
+    # arm that passed settings=None, which vulture flagged as an unsatisfiable
+    # ternary. The other _drive_detector drive (:1404) passes the same two.
     rows = await _drive_detector(
-        _Ctx(client=detector_client, big_image_file=big_image_file, captured=[], settings=None)
-        if False
-        else _Ctx(client=detector_client, big_image_file=big_image_file, captured=[])
+        _Ctx(client=detector_client, big_image_file=big_image_file, captured=[])
     )
     assert len(rows) == 3, (
         f"detector dropped rows: {len(rows)}/3 fake detections (fake "
