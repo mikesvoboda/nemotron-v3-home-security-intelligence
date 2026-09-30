@@ -13,7 +13,8 @@ in `synthbench/`.
 | `agent-handoff.md`     | the flagship agent | start here if you drive generation: the loop, prompt rules, triage, limits, stop-and-ask |
 | `command-reference.md` | the agent          | each command's options, files and exit codes                                             |
 | `operator-runbook.md`  | the owner          | host units, the renderer, snapshot holds, the agent's sandbox, reviewing a batch         |
-| `prompt-notes.md`      | the flagship agent | living log: wording that works with FLUX.2 [dev], defects seen, triage judgment calls    |
+| `flux-prompt-notes.md` | the flagship agent | living log for stills: wording that works with FLUX.2 [dev], defects seen, triage calls  |
+| `h3-prompt-notes.md`   | the flagship agent | living log for clips: motion wording that works with MiniMax-H3 turbo, defects, triage   |
 
 ## Rules
 
