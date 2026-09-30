@@ -180,7 +180,8 @@ def _render_todo(
     sys.stdout.write(
         "Next: run clip render again.\n"
         if left
-        else f"Next: open each new strip, write triage.jsonl, then clip triage --round {record.name}\n"
+        else f"Next: open each new strip, write triage.jsonl, then clip triage --round "
+        f"{record.name}\n"
     )
     if stuck:
         raise AskOwner(_stuck_message(stuck))
