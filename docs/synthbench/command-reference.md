@@ -225,7 +225,8 @@ and never writes it.
   and a `synthbench` block with the event's facts.
 - **Prints:** how many sets were written and how many were unchanged, and how many events were not
   exported, by reason.
-- **Exit 1:** the corpus has no events.
+- **Exit 1:** the corpus has no events, or `--out` lies inside the corpus
+  (`$SYNTHBENCH_ROOT/corpus`, which is append-only).
 - **Exit 2:** a set on disk differs from the corpus, a still no longer matches its sha256, a ready
   event has no still, an event's label disagrees with its group, or a corpus file cannot be read
   or written.

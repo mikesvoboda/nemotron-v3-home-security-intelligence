@@ -19,7 +19,8 @@ The command is `synthbench/commands/export.py` (`python -m synthbench export vss
 - Never import `backend` here (spec §7.1); a test pins `CATEGORY_LABEL` equal to the importer's
   `_CATEGORY_LABELS`.
 - Exports go under `$SYNTHBENCH_ROOT/exports/`, never into the append-only corpus or the repo (the
-  eval store refuses repo-resident media).
+  eval store refuses repo-resident media). `export vss` refuses an `--out` that resolves inside
+  `$SYNTHBENCH_ROOT/corpus` (exit 1).
 - A set is create-once: identical content is skipped, different content is an `ExportConflict`
   (exit 2). A new set is staged beside the export directory, never under it, because the importer
   reads every `*/*/expected_labels.json` there.

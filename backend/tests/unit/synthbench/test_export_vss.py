@@ -201,3 +201,18 @@ def test_the_export_round_trips_through_the_importer(
             assert item.snapshot.specialist_outputs == {}
             assert item.snapshot.detections == exported.labels["detections"]
             assert item.media_paths == [str(exported.still)]
+
+
+@pytest.mark.parametrize(
+    "out", ["corpus", "corpus/exports", f"exports/../corpus/{h.VERSION}/vss"], ids=str
+)
+def test_an_out_inside_the_corpus_is_refused(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], out: str
+) -> None:
+    """The corpus is append-only: an export (and its staging directory, written beside it) never
+    lands inside it."""
+    _ready_batch(tmp_path, MIXED, 4)
+    before = _tree(tmp_path / "corpus")
+    assert h.run(tmp_path, "export", "vss", "--out", str(tmp_path / out)) == cli.EXIT_ERROR
+    assert "inside the corpus" in capsys.readouterr().err
+    assert _tree(tmp_path / "corpus") == before

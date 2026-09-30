@@ -58,10 +58,17 @@ def export_dir(version: str, env: Mapping[str, str]) -> Path:
 def run_vss(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     tax = taxonomy()
     store = CorpusStore.from_env(tax.version, env)
+    out: Path = args.out if args.out is not None else export_dir(tax.version, env)
+    # The corpus is append-only: no export, nor the staging directory written beside it, goes
+    # inside it (resolved, so `..` and symlinks cannot slip one in).
+    if out.resolve().is_relative_to(store.root.resolve()):
+        raise RequestError(
+            f"--out {out} is inside the corpus ({store.root}), which is append-only; export "
+            "under $SYNTHBENCH_ROOT/exports/"
+        )
     if not store.index_file.exists():
         raise RequestError(f"corpus version {tax.version} has no events; nothing to export")
     check_manifest(store)
-    out: Path = args.out if args.out is not None else export_dir(tax.version, env)
     written = unchanged = 0
     skipped: Counter[str] = Counter()
     for event_id, row in sorted(read_index(store).items()):
