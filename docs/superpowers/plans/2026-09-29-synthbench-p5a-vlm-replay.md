@@ -113,6 +113,11 @@ plan; it is the authority). Parent: `docs/superpowers/specs/2026-09-27-synthetic
   miss, a false alarm or a refusal is wrong. Agreement is equal outcomes (`hit`, `miss`,
   `false_alarm`, `clear`, `refused`) over the items both models replayed.
 
+- **P5a-R15. The ideal detector (spec A6, added during execution).** Task 1's probe showed the
+  VLM declining to judge stills with no detections; the owner chose declared detections. Task 3a
+  adds them to the export; the probe's export, eval store and replays made before it are moved
+  aside, not reused.
+
 ## Files
 
 | Path                                                                                 | Task | Responsibility                                                            |
@@ -1150,6 +1155,72 @@ import_generated_items. Synthbench P5a design section 2.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
+
+---
+
+### Task 3a: Declared detections (plan amendment, owner decision 2026-09-29)
+
+**Why.** Task 1's live probe found that with stills only (`Detections: []` in the prompt), the
+shipped VLM prompt makes Qwen3-VL-8B and the flagship answer `uncertain`, risk 0 on most stills
+("No detections provided; cannot verify or assess risk"): 5 of 6 incident stills and 4 of 5
+benign ones. In production the VLM runs only after the detector fires. The owner chose the
+**ideal detector**: each exported set carries the event's declared subjects and props as
+detections, and the importer (which already reads a top-level `detections` key,
+`backend/evaluation/label_import.py:557`) stores them in the item's snapshot, so the replay
+prompt shows them.
+
+**The rows.** One row per declared subject, then one per declared prop, in the spec's order:
+`{"object_type": <the subject's or prop's class>, "confidence": 1.0}`. Nothing else: no `bbox`
+(the renderer draws no boxes; the shipped prompt treats boxes as optional localization aids), no
+`id`, and never a role, attribute or `held_by` (a detector reports a class, not intent). An event
+with no subjects and no props gets `[]`. Classes are used verbatim (`person`, `child`, `knife`,
+`handgun`, `car`, `package`, `fire`, …).
+
+**Files:**
+
+- Modify: `synthbench/export/vss.py` — a new `declared_detections(spec: Spec) -> list[dict[str, Any]]`
+  beside `labels_document`; `labels_document` adds top-level `"detections": declared_detections(spec)`.
+- Modify: `backend/tests/unit/synthbench/test_export_vss.py` — tests below.
+- Modify: `docs/synthbench/command-reference.md` — the `export vss` section's
+  `expected_labels.json` bullet names `detections` (the declared subjects and props as an ideal
+  detector reports them: object type and confidence 1.0, no box).
+- Modify: `synthbench/export/AGENTS.md` — `vss.py`'s row mentions the declared detections.
+- Modify: `synthbench/score/report.py` — `CONDITIONS`: replace the sentence "Stills only: the VLM
+  gets no detector or specialist context, which is harder than production." with "Stills with an
+  ideal detector: the VLM gets each event's declared subjects and props as detections (object type
+  and confidence 1.0, no box) and no specialist context; a real detector misses some of them, so
+  this is optimistic." Keep the other sentences.
+
+**Interfaces:**
+
+- Consumes: `synthbench.contract.spec.Spec` (`subjects: list[Subject]`, `props: list[Prop]`; each
+  has `cls`, serialized as `class`).
+- Produces: `expected_labels.json` gains top-level `detections`; after import,
+  `EvalItem.snapshot.detections` equals it; `vlm_replay.replay_item` passes
+  `snapshot.detections` to the shipped client (unchanged code).
+
+- [ ] **Step 1: Write the failing tests** in `backend/tests/unit/synthbench/test_export_vss.py`:
+  1. `declared_detections` on a spec with one `person` subject and one `knife` prop returns exactly
+     `[{"object_type": "person", "confidence": 1.0}, {"object_type": "knife", "confidence": 1.0}]`,
+     and on a spec with neither returns `[]`. Build the specs the way the module's other tests do
+     (sample a batch with `h.run(..., "sample", ...)` and read them, or construct via the helpers);
+     pick real specs with and without props from a `MIXED` batch rather than hand-building a
+     `Spec` if that is simpler.
+  2. The exported `expected_labels.json` of a ready event carries `detections` equal to
+     `declared_detections` of its spec, with no key other than `object_type` and `confidence` in
+     any row.
+  3. Extend `test_the_export_round_trips_through_the_importer`: each imported item's
+     `snapshot.detections` equals its set's `detections`.
+- [ ] **Step 2: Run them and see them fail** (`AttributeError`/`ImportError` for
+      `declared_detections`, a missing key for the others).
+- [ ] **Step 3: Implement** `declared_detections` and the `labels_document` key.
+- [ ] **Step 4: Run** `uv run pytest backend/tests/unit/synthbench/test_export_vss.py -q -n0 -p randomly`,
+      then `uv run pytest backend/tests/unit/synthbench/ -q -n auto -p randomly` and
+      `uv run mypy synthbench/ backend/tests/unit/synthbench/`.
+- [ ] **Step 5: The docs and the report's stated condition** (Files above).
+- [ ] **Step 6: Gate and commit**: `SKIP=semgrep uvx pre-commit run --files <changed files>` exits 0;
+      commit `feat(synthbench): export declared subjects and props as detections` ending with the
+      `Co-Authored-By` line.
 
 ---
 

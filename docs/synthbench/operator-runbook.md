@@ -198,6 +198,82 @@ want (for example: a 10-event pilot `pilot-1`, then a 50-event `batch-1`).
    in the agent's workspace on the host: its `.git/config` is the agent's to write, and some
    settings there (`core.fsmonitor`) run commands.
 
+## Serve a model for replay (P5a)
+
+`python -m synthbench replay` scores one model that is already served
+(`docs/superpowers/specs/2026-09-29-synthbench-p5a-vlm-replay-design.md` §3). Serve one model at a
+time, only while the renderer is stopped (`systemctl --user is-active synthbench-renderer` prints
+`inactive`), and keep each well under 50 GiB so a flagship restart still passes its util gate.
+Commands run from the repo checkout. The evidence behind them is
+`docs/benchmarks/synthbench/p5a-probes.md`.
+
+**Once: the weights and the images.**
+
+```bash
+SRC=/agents/agent-vss1/gpu/models/vlm DST=/export/models/ai_models/vlm
+mkdir -p "$DST"
+for f in Qwen3VL-8B-Instruct-Q4_K_M.gguf mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf \
+         Qwen3VL-4B-Instruct-Q4_K_M.gguf mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf \
+         NVIDIA-Nemotron-Nano-12B-v2-VL-Q4_K_M.gguf NVIDIA-Nemotron-Nano-12B-v2-VL-BF16-mmproj.gguf; do
+  cp "$SRC/$f" "$DST/"
+done
+chmod 0755 /export/models/ai_models "$DST"; chmod 0644 "$DST"/*.gguf
+(cd "$DST" && sha256sum *.gguf > SHA256SUMS)      # `score` reads it for the run identity
+
+as_gpu() { (cd / && sudo -u agent-gpu env XDG_RUNTIME_DIR=/run/user/1001 \
+  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus podman "$@"); }
+for tag in sm103-v12 sm103-b11090; do as_gpu save "localhost/agent-vss1/ai-vlm:$tag" | podman load; done
+podman tag localhost/agent-vss1/ai-vlm:sm103-v12 localhost/nemotron-v3-home-security-intelligence_ai-vlm:latest
+```
+
+`sm103-v12` (llama.cpp `b7972-e06088da0`) is the product's build; `sm103-b11090` is the one
+Nemotron-12B-VL needs. The copy only reads the VSS agent's folder.
+
+**`ai-vlm` (the three llama.cpp models).** `.env.bench` holds this host's values. Start the
+service with `podman-compose`, not `podman compose`: the latter goes through the docker-compose
+plugin and podman's Docker API, which drops the CDI GPU device, so `llama-server` exits 127 on
+`libcuda.so.1`. Compose also demands `POSTGRES_PASSWORD` for the backend service; `ai-vlm` never
+reads it, so pass a placeholder on the command line and never write one into `.env.bench`.
+
+```bash
+export POSTGRES_PASSWORD=not-used-by-ai-vlm
+podman-compose --env-file .env.bench -f docker-compose.prod.yml up -d --no-deps --no-build ai-vlm
+curl -s 127.0.0.1:8098/props | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['build_info'], d['model_path'])"
+podman-compose --env-file .env.bench -f docker-compose.prod.yml stop ai-vlm      # when done
+```
+
+The first command serves `qwen3-vl-8b` (`b7972-e06088da0 /models/Qwen3VL-8B-Instruct-Q4_K_M.gguf`,
+about 11 GB). Not yet run in P5a: for `qwen3-vl-4b`, set `VLM_MODEL_PATH`, `VLM_MMPROJ_PATH` and
+`VLM_MODEL_ALIAS` to the 4B pair and recreate the container; for `nemotron-12b-vl`, also re-tag
+`sm103-b11090` as `localhost/nemotron-v3-home-security-intelligence_ai-vlm:latest` first. `replay`
+refuses a served model other than the one named, so a wrong switch cannot score silently.
+
+**Cosmos-Reason2-8B (vLLM, synthbench's podman store).** Stop `ai-vlm` first.
+
+```bash
+P="$(uv run python -m synthbench.generate.podman)"
+V=docker.io/vllm/vllm-openai@sha256:c2b7c425d4a30d26bc2097ac6b28331fbe1b8aee11b8bfbb02bc3295de6f642d
+$P pull "$V"                                     # once; the flagship's image, 22.4 GB
+$P run -d --name synthbench-cosmos --device nvidia.com/gpu=all -p 127.0.0.1:8099:8000 \
+  -v /export/models:/export/models -e HF_HOME=/export/models -e HF_HUB_OFFLINE=1 "$V" \
+  --model nvidia/Cosmos-Reason2-8B --served-model-name nvidia/Cosmos-Reason2-8B \
+  --gpu-memory-utilization 0.10 --max-model-len 16384 --limit-mm-per-prompt '{"image": 4}' \
+  --reasoning-parser qwen3
+for i in $(seq 1 90); do curl -sf 127.0.0.1:8099/v1/models >/dev/null && break; sleep 10; done
+$P rm -f synthbench-cosmos                       # when done
+```
+
+It is ready in about 3 minutes and holds about 25 GiB. Cosmos is a reasoning model: without room
+to reason it loops inside the verdict's first text field. So, for Cosmos only (the owner's
+choice), `replay` adds the model card's `<think>` format instruction as a system message and gives
+it a 4096-token budget and a 120 s read timeout, and `--reasoning-parser qwen3` keeps its reasoning
+out of the JSON. Without that flag its answers do not parse and every item is refused. The product
+model and the flagship keep the shipped prompt, 1024 tokens and 25 s.
+
+**The flagship** is already served on `127.0.0.1:8000`. It is shared with the agents: replay it in
+a quiet period. `replay` turns its thinking off, which keeps it inside the product's 1024-token
+budget.
+
 ## The agent's stop-and-ask questions
 
 | The agent reports                          | You                                                                                     |

@@ -3,6 +3,8 @@
 - **Date:** 2026-09-29
 - **Status:** design approved section by section by the owner on 2026-09-29; this document awaits
   the owner's review before the plan.
+- **Amended:** 2026-09-29, decisions A6 (the ideal detector) and A7 (Cosmos reasons first), the
+  owner's answers to the plan's Task 1 live probe.
 - **Parent spec:** `docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md`
   (§2.7 export, §4.3 audit, §5 runner, §6 scorer). This design splits the parent's P5 into P5a
   (this document) and P5b (the live `hsi-bench` instance, designed later).
@@ -19,28 +21,30 @@ detector, the specialists or the live pipeline; P5b does.
 
 ## Decisions (owner, 2026-09-29)
 
-| #   | Decision                                                                                                                                                                                                                                                                                           |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A1  | **The GB300 hosts the benchmark.** It measures accuracy only: latency and memory fit on the shared GB300 do not represent the owner's deployment, and the report says so.                                                                                                                          |
-| A2  | **Declared truth plus an owner audit.** P5a scores the sampler's declared facts, labelled unverified, with an audit of 60 stills that measures the truth's error rate. This overrides parent §6.1's "only `verified` and `audited` facts are scored" for P5a; P4's verifier is not a prerequisite. |
-| A3  | **Staged P5.** P5a replays the VLM on stills (this document). P5b brings up the live pipeline on arm64 and scores every stage. P5a is a direct-call harness, which parent D1 kept out of scope; the owner chose it as the first stage.                                                             |
-| A4  | **Comparison models:** the flagship and Cosmos-Reason2-8B replay the same items. Cosmos is served with vLLM.                                                                                                                                                                                       |
-| A5  | **Bring up what exists.** The product's `ai-vlm` service, its sm_103 image and its weights already exist on this host from the VSS work. P5a brings them online; it builds no new VLM service.                                                                                                     |
+| #   | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1  | **The GB300 hosts the benchmark.** It measures accuracy only: latency and memory fit on the shared GB300 do not represent the owner's deployment, and the report says so.                                                                                                                                                                                                                                                                 |
+| A2  | **Declared truth plus an owner audit.** P5a scores the sampler's declared facts, labelled unverified, with an audit of 60 stills that measures the truth's error rate. This overrides parent §6.1's "only `verified` and `audited` facts are scored" for P5a; P4's verifier is not a prerequisite.                                                                                                                                        |
+| A3  | **Staged P5.** P5a replays the VLM on stills (this document). P5b brings up the live pipeline on arm64 and scores every stage. P5a is a direct-call harness, which parent D1 kept out of scope; the owner chose it as the first stage.                                                                                                                                                                                                    |
+| A4  | **Comparison models:** the flagship and Cosmos-Reason2-8B replay the same items. Cosmos is served with vLLM.                                                                                                                                                                                                                                                                                                                              |
+| A5  | **Bring up what exists.** The product's `ai-vlm` service, its sm_103 image and its weights already exist on this host from the VSS work. P5a brings them online; it builds no new VLM service.                                                                                                                                                                                                                                            |
+| A6  | **Ideal detector** (owner, after the Task 1 probe). Each exported set carries the event's declared subjects and props as detections: object type, confidence 1.0, no box. With `Detections: []` the shipped prompt made the VLM answer `uncertain`, 0 on most stills; in production the VLM runs only after the detector fires. Optimistic: a real detector misses some objects.                                                          |
+| A7  | **Cosmos reasons first** (owner, after the Task 1 probe). Cosmos-Reason2-8B looped inside the verdict's first text field under the schema. For Cosmos only, the replay adds its model card's `<think>` format instruction as a system message, gives it 4096 tokens and 120 s, and vLLM serves it with `--reasoning-parser qwen3`. The product prompt is unchanged for Qwen3-VL-8B and the flagship; the flagship runs with thinking off. |
 
 ## Measurements this design rests on (2026-09-29)
 
-| Fact                                          | Value                                                                                                                                                            |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ready events by group                         | threat 196, suspicious 45, hard_negative 145, benign 64, ambiguous 9                                                                                             |
-| Exported items (ready, not ambiguous)         | 450: 241 incidents (S3's denominator), 209 benign (S2's)                                                                                                         |
-| IR-night events                               | 53 threat, 53 hard negative                                                                                                                                      |
-| The product VLM's weights                     | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` (5.0 GB) and `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` (0.8 GB) in `/agents/agent-vss1/gpu/models/vlm/`, the compose default pair |
-| Other VSS bake-off weights in the same folder | Qwen3VL-4B-Instruct Q4_K_M, NVIDIA-Nemotron-Nano-12B-v2-VL Q4_K_M                                                                                                |
-| The `ai-vlm` image for sm_103                 | `localhost/agent-vss1/ai-vlm:sm103`, `:sm103-b11090`, `:sm103-v12` in the agent-gpu store (uid 1001), built 2026-09-25                                           |
-| Cosmos-Reason2-8B                             | `/export/models/hub/models--nvidia--Cosmos-Reason2-8B` (17 GB)                                                                                                   |
-| The flagship                                  | `nvidia/Qwen3.8-Flash-Next-NVFP4`, served as `claude-flagship` by `vllm/vllm-openai:nightly-aarch64` on `127.0.0.1:8000`                                         |
-| GPU                                           | 256.7 GB total; flagship 191.5 GB; renderer 52.1 GB while it runs, so 12 GB free then and about 64 GB free with it stopped                                       |
-| The importer's timestamp                      | `import_generated_items` stamps every item `1970-01-01T00:00:00+00:00`; with `CAMERA_TIMEZONE` set the prompt reads 19:00 the previous evening                   |
+| Fact                                          | Value                                                                                                                                                                                                                        |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ready events by group                         | threat 196, suspicious 45, hard_negative 145, benign 64, ambiguous 9                                                                                                                                                         |
+| Exported items (ready, not ambiguous)         | 450: 241 incidents (S3's denominator), 209 benign (S2's)                                                                                                                                                                     |
+| IR-night events                               | 53 threat, 53 hard negative                                                                                                                                                                                                  |
+| The product VLM's weights                     | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` (5.0 GB) and `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` (0.8 GB) in `/agents/agent-vss1/gpu/models/vlm/`, the compose default pair                                                             |
+| Other VSS bake-off weights in the same folder | Qwen3VL-4B-Instruct Q4_K_M, NVIDIA-Nemotron-Nano-12B-v2-VL Q4_K_M                                                                                                                                                            |
+| The `ai-vlm` image for sm_103                 | `localhost/agent-vss1/ai-vlm:sm103-v12` (llama.cpp `b7972-e06088da0`) is the product's build; `:sm103-b11090` is Nemotron-12B-VL's; both in the agent-gpu store (uid 1001), built 2026-09-25                                 |
+| Cosmos-Reason2-8B                             | `/export/models/hub/models--nvidia--Cosmos-Reason2-8B` (17 GB)                                                                                                                                                               |
+| The flagship                                  | `nvidia/Qwen3.8-Flash-Next-NVFP4`, served as `claude-flagship` by `vllm/vllm-openai:nightly-aarch64` on `127.0.0.1:8000`                                                                                                     |
+| GPU                                           | 256.7 GB total; flagship 191.5 GB; renderer 52.1 GB while it runs, so 12 GB free then and about 64 GB free with it stopped                                                                                                   |
+| The importer's timestamp                      | `import_generated_items` stamps every item `1970-01-01T00:00:00+00:00`; replay pins `camera_timezone=None`, so the prompt shows that string (midnight UTC) for every scene. P5a's export declares each scene's time (Task 2) |
 
 ## §1 Flow
 
@@ -58,7 +62,8 @@ detector, the specialists or the live pipeline; P5b does.
 **Stated conditions**, printed on the report's first line:
 
 - the truth is declared by the sampler, with the audit's error bar;
-- stills only: the VLM gets no detector or specialist context, which is harder than production;
+- stills with an ideal detector (A6): the VLM gets each event's declared subjects and props as
+  detections, and no specialist context; detection is optimistic, specialists are absent;
 - accuracy only (A1);
 - ambiguous events are excluded, because S2 and S3 do not count them.
 
@@ -96,6 +101,9 @@ ever differ: that would be a taxonomy bug.
   keys the importer reads today (it takes the band's midpoint as the expected score).
 - `timestamp`: the scene time on a fixed date in the camera timezone (`America/New_York`). Snow
   scenes use 2026-01-15, every other scene 2026-04-15, so the date never contradicts the weather.
+- `detections` (A6): one row per declared subject, then per declared prop,
+  `{"object_type": <class>, "confidence": 1.0}`: no box, no role or attribute. The importer
+  already reads this key into the item's snapshot, so the replay prompt shows it.
 - `synthbench`: the event id, corpus version, cell, label, risk band, subjects, props and the
   still's sha256. The importer ignores it; the scorer reads it.
 
@@ -132,8 +140,9 @@ sentinel, so every existing import behaves as before.
 - The image is the same Dockerfile at the llama.cpp build the VSS bake-off pinned. The plan's first
   task reads that pin from the VSS ledger and either copies the VSS agent's image into our store
   (`podman save | podman load`) or rebuilds it.
-- Only `ai-vlm` starts (`up --no-deps ai-vlm`): a plain `--profile vlm up` also starts the retired
-  `ai-llm` (A5500 checklist, "No legacy LLM").
+- Only `ai-vlm` starts (`up --no-deps ai-vlm`), so compose starts nothing else. (`ai-llm` left
+  compose in R8 S2b, main `aaf29361`.) On this host it starts through `podman-compose`: the
+  docker-compose plugin drops the CDI GPU device (Task 1's probe; the operator runbook).
 
 **The comparison adapter** (`synthbench/run/`). vLLM has no llama.cpp `/props`, which the shipped
 client reads to pin the build, so the flagship and Cosmos cannot go through `VlmClient`. The
@@ -287,8 +296,10 @@ and benign items scored too high, each with its still, its declared facts and th
 - **Declared-truth errors.** The generation agent reported count drift in about 3% of events
   (11/460), a forced hood in 18 of 19 hooded-jogger events, and undeclared motion blur or lit lamps
   in 6. P5a scores none of those facts except counts, and the audit measures them.
-- **Stills only.** Without detector and specialist context, S3 will likely read lower than
-  production's. P5b measures the production condition.
+- **An ideal detector (A6).** The declared detections name every subject and prop, including
+  props a real detector may miss (a handgun, a ski mask), so S3 may read higher than production's;
+  without specialist context it may read lower. P5b measures the production condition. Without any
+  detections (the design before A6) the VLM mostly declined to judge: Task 1's probe.
 - **Structured outputs differ.** vLLM's structured outputs may constrain differently from
   llama.cpp's grammar; parse failures and refusals are reported per model.
 - **The flagship is shared.** Replay adds load to the model the agents use; it runs at
