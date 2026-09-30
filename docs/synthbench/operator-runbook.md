@@ -128,50 +128,66 @@ same 6 h is in no snapshot. ComfyUI keeps its own copy of every render under
 
 ## Create the agent's sandbox
 
-Run this from the repository checkout at the commit the agent should use. Its workspace is a
-clone of that checkout.
-
-That commit must be the host checkout's commit. The owner's host `check` re-applies the host's
-own `synthbench/prompt/` (the rules, the blocklist, the camera suffix) and
-`synthbench/taxonomy/` (the taxonomy and the sampler) to the batch. If they differ from the
-agent's, the host `check` exits 2 on every frozen prompt. The command below creates the sandbox
-only when the two commits match.
+One command retires the old agent and creates a ready one. Run it from your checkout at the
+commit the agent should use, inside a herdr pane, with the renderer stopped:
 
 ```bash
 cd ~/github/nemotron-v3-home-security-intelligence
-if [ "$(git rev-parse HEAD)" = "$(git -C /synthbench/host-checkout rev-parse HEAD)" ]; then
-  agent-dgx run synthbench-gen --agent claude --endpoint dgx \
-    --mount /synthbench/corpus:rw --mount /synthbench/status:ro
-else
-  echo "commits differ: update the host checkout or this one first; no sandbox created"
-fi
+uv run python -m synthbench.host.agent up --dry-run   # the checks, and the steps it would run
+uv run python -m synthbench.host.agent up
 ```
 
-After it is created, prepare the sandbox (`agent-synthbench-gen`, workspace
+It checks everything before it changes anything. It refuses with exit 2, changing nothing,
+outside herdr, while the renderer runs, when the host checkout has uncommitted changes
+(agent-dgx would copy them into the agent's clone), and while the old agent holds notes the
+commit lacks (see `down` below). Then it:
+
+1. Retires the old agent, as `down` does.
+2. Puts the host checkout on the commit (`--ref`, default `HEAD`), syncs it, reinstalls the units
+   and restarts the guard ("Install or update the host checkout and units").
+3. Creates the agent from the host checkout, so its clone is the host's commit, and checks the
+   new manifest's source commit. The agent opens in a new herdr pane and waits.
+4. Prepares the sandbox with `sbx exec`: the libraries OpenCV needs (the sandbox image lacks
+   them, and `import cv2` fails with `libxcb.so.1` missing, verified 2026-09-28;
+   `docs/benchmarks/synthbench/p3-probes.md`), `uv sync --frozen`, and an import check.
+5. Starts the renderer (`--no-renderer` leaves it stopped), then runs `doctor` in the sandbox:
+   every line ok.
+
+A failed step stops it with exit 2 and names the step; fix the cause and run `up` again, which
+starts over. It ends by printing the line to give the agent.
+
+The two commits must match because the owner's host `check` re-applies the host's own
+`synthbench/prompt/` (the rules, the blocklist, the camera suffix) and `synthbench/taxonomy/`
+(the taxonomy and the sampler) to the batch. If they differ from the agent's, the host `check`
+exits 2 on every frozen prompt.
+
+**Retire the agent only:** `uv run python -m synthbench.host.agent down`. It first copies the old
+workspace's `docs/synthbench/` to `~/synthbench-gen-backups/<UTC time>/`. It then refuses while
+the agent holds notes the commit lacks: a file the agent changed since it was created, whose
+content the commit does not already have, such as its additions to `flux-prompt-notes.md` or
+`h3-prompt-notes.md`. Commit them and run it again, or pass `--discard-notes`. It reads the
+workspace's files but never runs git there.
+
+By hand, `up` is these commands (the sandbox is `agent-synthbench-gen`, its workspace
 `/agents/agent-synthbench-gen/workspace`):
 
-1. Install the libraries OpenCV needs. The sandbox image lacks them, and `import cv2` fails
-   with `libxcb.so.1` missing (verified 2026-09-28; `docs/benchmarks/synthbench/p3-probes.md`):
-
-   ```bash
-   sbx exec agent-synthbench-gen sudo apt-get install -y libxcb1 libgl1 libglib2.0-0
-   ```
-
-2. Sync the dependencies. The first sync is long:
-
-   ```bash
-   sbx exec agent-synthbench-gen bash -lc \
-     'cd /agents/agent-synthbench-gen/workspace && uv sync --frozen'
-   ```
-
-3. Confirm that the commands import:
-
-   ```bash
-   sbx exec agent-synthbench-gen bash -lc \
-     'cd /agents/agent-synthbench-gen/workspace && uv run python -c "import synthbench.cli"'
-   ```
-
-4. `sbx exec agent-synthbench-gen bash -lc 'cd /agents/agent-synthbench-gen/workspace && uv run python -m synthbench doctor'`: every line ok, or a FAIL line naming what to fix. The owner can also run `doctor` from the host checkout.
+```bash
+agent-dgx stop synthbench-gen && agent-dgx session rm synthbench-gen --force
+git -C /synthbench/host-checkout checkout --detach <commit>
+cd /synthbench/host-checkout && uv sync --frozen
+.venv/bin/python -m synthbench.host.units install
+systemctl --user restart synthbench-guard.service
+agent-dgx run synthbench-gen --agent claude --endpoint dgx \
+  --mount /synthbench/corpus:rw --mount /synthbench/status:ro --split
+sbx exec agent-synthbench-gen sudo apt-get install -y libxcb1 libgl1 libglib2.0-0
+sbx exec agent-synthbench-gen bash -lc \
+  'cd /agents/agent-synthbench-gen/workspace && uv sync --frozen'
+sbx exec agent-synthbench-gen bash -lc \
+  'cd /agents/agent-synthbench-gen/workspace && uv run python -c "import synthbench.cli, av"'
+systemctl --user start synthbench-renderer.service
+sbx exec agent-synthbench-gen bash -lc \
+  'cd /agents/agent-synthbench-gen/workspace && uv run python -m synthbench doctor'
+```
 
 Then tell the agent: "Read docs/synthbench/agent-handoff.md and follow it", with the batches you
 want (for example: a 10-event pilot `pilot-1`, then a 50-event `batch-1`).
@@ -184,7 +200,6 @@ want (for example: a 10-event pilot `pilot-1`, then a 50-event `batch-1`).
   `docs/benchmarks/synthbench/p3-probes.md`).
 - The agent sometimes ends a turn mid-task after a line such as "Now rendering:". If its
   transcript goes quiet mid-batch, type "continue"; every command resumes.
-- To remove the sandbox: `agent-dgx stop synthbench-gen && agent-dgx session rm synthbench-gen --force`.
 - Never run `agent-dgx help` or `agent-dgx ls`: an unknown word starts a real session.
 
 ## Review a batch
@@ -336,6 +351,32 @@ flagship's timing. A model is served as the section above says.
 
 7. **Stop what you served** (`ai-vlm`, `synthbench-cosmos`). Commit `report.md` as
    `docs/benchmarks/synthbench/p5a-<date>.md`, with the acceptance record.
+
+## Clip rounds (the owner's part)
+
+Clips render beside the flagship through the same renderer. `clip render` switches ComfyUI
+from FLUX.2 to H3 (`/free`, then a warm-up clip), and the stills' `render` switches it back.
+The guard covers both. Design: `docs/superpowers/specs/2026-09-30-synthbench-h3-clips-design.md`.
+There is no pilot gate (spec C13): a round may take every ready still.
+
+1. **Recreate the agent at the commit with the clip commands** ("Create the agent's sandbox"):
+   `uv run python -m synthbench.host.agent up`, with the renderer stopped. It retires the old
+   agent once its notes are safe, updates the host checkout, creates the agent (its clone brings
+   the commands and `.claude/skills/synthbench-generation/` together), and starts the renderer.
+2. **Ask for the round:** "Make clips of every ready still, round clips-1; follow 'Clip rounds'
+   in docs/synthbench/agent-handoff.md." About 328 s per clip beside the flagship: 459 clips
+   take about 42 hours, and flagship users are slower while a clip renders.
+3. **Watch it:**
+
+   - `rounds/clips-1/report.md` and `sheet.html` under `/synthbench/corpus/<version>/`;
+   - `clip-index.jsonl`;
+   - the guard (`journalctl --user -u synthbench-guard`).
+
+   Stop the renderer at any time. The agent's next `clip render` then exits 2, and every
+   command resumes later.
+
+4. **Confirm the round on the host:**
+   `uv run python -m synthbench clip check --round clips-1`.
 
 ## The agent's stop-and-ask questions
 

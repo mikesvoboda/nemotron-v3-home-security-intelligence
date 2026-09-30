@@ -8,7 +8,9 @@
  *
  * This test suite covers:
  * - Page rendering with proper structure
- * - Tab navigation (Known Persons, Face Events, Person Tracking, Debug Tools)
+ * - Tab navigation (Known Persons, Face Events, Person Tracking; R8 S3
+ *   retired the Debug Tools tab with its only member, the CLIP face-
+ *   similarity panel, whose endpoint died with the Triton prune)
  * - Tab switching behavior
  * - Accessibility requirements
  * - Unknown stranger alert integration (Phase 4)
@@ -193,13 +195,16 @@ describe('FaceRecognitionPage', () => {
   // ==========================================================================
 
   describe('tab navigation', () => {
-    it('displays all four tabs', () => {
+    it('displays all three tabs', () => {
       renderWithProviders(<FaceRecognitionPage />);
 
       expect(screen.getByRole('tab', { name: /Known Persons/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /Face Events/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /Person Tracking/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /Debug Tools/i })).toBeInTheDocument();
+      // R8 S3: the Debug Tools tab is gone with its only member. Asserted as
+      // absent, not silently dropped -- a tab that comes back with no member
+      // is the empty-group failure the same slice refused in MODEL_CATEGORIES.
+      expect(screen.queryByRole('tab', { name: /Debug Tools/i })).not.toBeInTheDocument();
     });
 
     it('has Known Persons tab selected by default', () => {
@@ -389,14 +394,29 @@ describe('FaceRecognitionPage', () => {
       const tablist = screen.getByRole('tablist');
       expect(tablist).toBeInTheDocument();
 
-      const tabs = screen.getAllByRole('tab');
-      expect(tabs).toHaveLength(4);
+      // R8 S3 (2026-09-29) retired the Debug Tools tab with its only member
+      // (the CLIP face-similarity panel, owner ruling 5), and this line was
+      // still reading `toHaveLength(4)`. A literal count is a second copy of
+      // the tab list, so it rotted the moment the list changed -- the count is
+      // now DERIVED from the documented tab names, one copy, same as the
+      // sibling "displays all three tabs" case pins them by name.
+      // Regex literals, not `new RegExp(name)`: the repo's lint runs
+      // `eslint --max-warnings 0` and `security/detect-non-literal-regexp`
+      // warns on the constructed form, which fails the Frontend Lint job.
+      // These are the same matchers the sibling "displays all three tabs"
+      // case uses, so the derivations stay semantically identical.
+      const documentedTabs = [/Known Persons/i, /Face Events/i, /Person Tracking/i];
 
-      // Selected tab should have aria-selected=true
-      expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
-      expect(tabs[1]).toHaveAttribute('aria-selected', 'false');
-      expect(tabs[2]).toHaveAttribute('aria-selected', 'false');
-      expect(tabs[3]).toHaveAttribute('aria-selected', 'false');
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs).toHaveLength(documentedTabs.length);
+      for (const name of documentedTabs) {
+        expect(screen.getByRole('tab', { name })).toBeInTheDocument();
+      }
+
+      // Exactly one tab is selected, and it is the first (the page's default).
+      const selected = tabs.filter((t) => t.getAttribute('aria-selected') === 'true');
+      expect(selected).toHaveLength(1);
+      expect(selected[0]).toBe(tabs[0]);
     });
 
     it('has proper tabpanel roles', () => {

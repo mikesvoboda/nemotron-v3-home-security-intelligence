@@ -1,12 +1,24 @@
 """Unit tests for HTTP connection pooling in AI service clients (NEM-1721).
 
-Tests verify that AI service clients:
+Tests verify that an AI service client:
 1. Create a persistent httpx.AsyncClient in __init__
 2. Configure proper connection limits (max_connections=10, max_keepalive_connections=5)
 3. Reuse the HTTP client across requests
 4. Implement proper cleanup via close() method
 
 These tests use TDD approach - written BEFORE implementation to define expected behavior.
+
+R8 S3 (2026-09-29) leaves DetectorClient as the only subject: this file's other
+two classes (TestCLIPClientConnectionPooling, TestFlorenceClientConnectionPooling)
+and TestGlobalClientCleanup were deleted with their modules — backend/services/
+clip_client.py (ruling 5's CLIP prune) and florence_client.py (ruling 1) are both
+gone, and a pooling test for a client that does not ship is a test of nothing.
+Their properties are not lost: the pooling contract is pinned here on the
+survivor, and the shutdown-cleanup half of it has no surviving shipped mechanism
+to pin (grep: no `def reset_*_client` remains in backend/services/, and nothing
+in backend/core/ or backend/main.py calls one — DetectorClient is a plain
+container-registered singleton with close(), which property 4 above still
+covers).
 """
 
 import inspect
@@ -14,7 +26,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from PIL import Image
 
 # =============================================================================
 # DetectorClient Connection Pooling Tests
@@ -135,298 +146,3 @@ class TestDetectorClientConnectionPooling:
                 client._health_http_client.get.assert_called_once()
 
             await client.close()
-
-
-# =============================================================================
-# CLIPClient Connection Pooling Tests
-# =============================================================================
-
-
-class TestCLIPClientConnectionPooling:
-    """Tests for CLIPClient HTTP connection pooling."""
-
-    @pytest.fixture
-    def mock_settings(self):
-        """Create mock settings for CLIPClient."""
-        settings = MagicMock()
-        settings.clip_url = "http://test-clip:8093"
-        settings.ai_connect_timeout = 10.0
-        settings.ai_health_timeout = 5.0
-        settings.clip_cb_failure_threshold = 5
-        settings.clip_cb_recovery_timeout = 60.0
-        settings.clip_cb_half_open_max_calls = 3
-        return settings
-
-    @pytest.fixture
-    def sample_image(self):
-        """Create a sample PIL image for testing."""
-        return Image.new("RGB", (100, 100), color="red")
-
-    def test_init_creates_http_client(self, mock_settings):
-        """Test that __init__ creates a persistent httpx.AsyncClient."""
-        with patch(
-            "backend.services.clip_client.get_settings", return_value=mock_settings, autospec=True
-        ):
-            from backend.services.clip_client import CLIPClient
-
-            client = CLIPClient()
-
-            # Should have a persistent HTTP client
-            assert hasattr(client, "_http_client")
-            assert isinstance(client._http_client, httpx.AsyncClient)
-
-    def test_init_configures_connection_limits(self, mock_settings):
-        """Test that __init__ configures proper connection limits."""
-        with patch(
-            "backend.services.clip_client.get_settings", return_value=mock_settings, autospec=True
-        ):
-            from backend.services.clip_client import CLIPClient
-
-            client = CLIPClient()
-
-            # Should have configured limits (stored in transport pool)
-            pool = client._http_client._transport._pool
-            assert pool._max_connections == 10
-            assert pool._max_keepalive_connections == 5
-
-    @pytest.mark.asyncio
-    async def test_close_method_exists_and_works(self, mock_settings):
-        """Test that close() method properly closes the HTTP client."""
-        with patch(
-            "backend.services.clip_client.get_settings", return_value=mock_settings, autospec=True
-        ):
-            from backend.services.clip_client import CLIPClient
-
-            client = CLIPClient()
-
-            # Should have close method
-            assert hasattr(client, "close")
-            assert inspect.iscoroutinefunction(client.close)
-
-            # Should be able to close without error
-            await client.close()
-
-            # Client should be closed
-            assert client._http_client.is_closed
-
-    @pytest.mark.asyncio
-    async def test_embed_reuses_http_client(self, mock_settings, sample_image):
-        """Test that embed() reuses the persistent HTTP client."""
-        with patch(
-            "backend.services.clip_client.get_settings", return_value=mock_settings, autospec=True
-        ):
-            from backend.services.clip_client import EMBEDDING_DIMENSION, CLIPClient
-
-            client = CLIPClient()
-
-            # Mock the HTTP client's post method
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.raise_for_status = MagicMock()
-            mock_response.json.return_value = {"embedding": [0.1] * EMBEDDING_DIMENSION}
-
-            with patch.object(
-                client._http_client, "post", new_callable=AsyncMock, return_value=mock_response
-            ):
-                await client.embed(sample_image)
-
-                # Should use the persistent client
-                client._http_client.post.assert_called_once()
-
-            await client.close()
-
-
-# =============================================================================
-# FlorenceClient Connection Pooling Tests
-# =============================================================================
-
-
-class TestFlorenceClientConnectionPooling:
-    """Tests for FlorenceClient HTTP connection pooling."""
-
-    @pytest.fixture
-    def mock_settings(self):
-        """Create mock settings for FlorenceClient."""
-        settings = MagicMock()
-        settings.florence_url = "http://test-florence:8092"
-        settings.ai_connect_timeout = 10.0
-        settings.ai_health_timeout = 5.0
-        settings.florence_cb_failure_threshold = 5
-        settings.florence_cb_recovery_timeout = 60.0
-        settings.florence_cb_half_open_max_calls = 3
-        return settings
-
-    @pytest.fixture
-    def sample_image(self):
-        """Create a sample PIL image for testing."""
-        return Image.new("RGB", (100, 100), color="blue")
-
-    def test_init_creates_http_client(self, mock_settings):
-        """Test that __init__ creates a persistent httpx.AsyncClient."""
-        with patch(
-            "backend.services.florence_client.get_settings",
-            return_value=mock_settings,
-            autospec=True,
-        ):
-            from backend.services.florence_client import FlorenceClient
-
-            client = FlorenceClient()
-
-            # Should have a persistent HTTP client
-            assert hasattr(client, "_http_client")
-            assert isinstance(client._http_client, httpx.AsyncClient)
-
-    def test_init_configures_connection_limits(self, mock_settings):
-        """Test that __init__ configures proper connection limits."""
-        with patch(
-            "backend.services.florence_client.get_settings",
-            return_value=mock_settings,
-            autospec=True,
-        ):
-            from backend.services.florence_client import FlorenceClient
-
-            client = FlorenceClient()
-
-            # Should have configured limits (stored in transport pool)
-            pool = client._http_client._transport._pool
-            assert pool._max_connections == 10
-            assert pool._max_keepalive_connections == 5
-
-    @pytest.mark.asyncio
-    async def test_close_method_exists_and_works(self, mock_settings):
-        """Test that close() method properly closes the HTTP client."""
-        with patch(
-            "backend.services.florence_client.get_settings",
-            return_value=mock_settings,
-            autospec=True,
-        ):
-            from backend.services.florence_client import FlorenceClient
-
-            client = FlorenceClient()
-
-            # Should have close method
-            assert hasattr(client, "close")
-            assert inspect.iscoroutinefunction(client.close)
-
-            # Should be able to close without error
-            await client.close()
-
-            # Client should be closed
-            assert client._http_client.is_closed
-
-    @pytest.mark.asyncio
-    async def test_extract_reuses_http_client(self, mock_settings, sample_image):
-        """Test that extract() reuses the persistent HTTP client."""
-        with patch(
-            "backend.services.florence_client.get_settings",
-            return_value=mock_settings,
-            autospec=True,
-        ):
-            from backend.services.florence_client import FlorenceClient
-
-            client = FlorenceClient()
-
-            # Mock the HTTP client's post method
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.raise_for_status = MagicMock()
-            mock_response.json.return_value = {"result": "A caption"}
-
-            with patch.object(
-                client._http_client, "post", new_callable=AsyncMock, return_value=mock_response
-            ):
-                await client.extract(sample_image, "<CAPTION>")
-
-                # Should use the persistent client
-                client._http_client.post.assert_called_once()
-
-            await client.close()
-
-
-# =============================================================================
-# Global Client Instance Cleanup Tests
-#
-# R8 (2026-09-29) retired the enrichment tier, so EnrichmentClient's pooling
-# and cleanup pins died with backend/services/enrichment_client.py; the
-# surviving clients (Detector/CLIP/Florence) keep their pins below.
-# =============================================================================
-
-
-class TestGlobalClientCleanup:
-    """Tests for global client instance cleanup on application shutdown."""
-
-    @pytest.mark.asyncio
-    async def test_clip_client_cleanup_on_reset(self):
-        """Test that reset_clip_client properly cleans up resources."""
-        import backend.services.clip_client as clip_mod
-
-        # Discard (never close) any singleton an earlier test leaked: its
-        # pooled proxy connection may be bound to a since-closed event loop,
-        # and aclose()ing it from THIS loop raises RuntimeError('Event loop
-        # is closed') once a real socket was actually pooled (tier/proxy
-        # environments). Plain assignment — no restore — matches the None
-        # state reset_clip_client itself leaves behind.
-        clip_mod._clip_client = None
-
-        with patch("backend.services.clip_client.get_settings", autospec=True) as mock_get_settings:
-            mock_get_settings.return_value = MagicMock(
-                clip_url="http://test:8093",
-                ai_connect_timeout=10.0,
-                ai_health_timeout=5.0,
-                clip_cb_failure_threshold=5,
-                clip_cb_recovery_timeout=60.0,
-                clip_cb_half_open_max_calls=3,
-            )
-
-            from backend.services.clip_client import get_clip_client, reset_clip_client
-
-            # Get a client instance
-            client = get_clip_client()
-            assert not client._http_client.is_closed
-
-            # Store reference before reset
-            http_client_ref = client._http_client
-
-            # Reset should close the HTTP client
-            await reset_clip_client()
-
-            # The HTTP client should be closed
-            assert http_client_ref.is_closed
-
-    @pytest.mark.asyncio
-    async def test_florence_client_cleanup_on_reset(self):
-        """Test that reset_florence_client properly cleans up resources."""
-        import backend.services.florence_client as florence_mod
-
-        # Same leaked-singleton discard as the CLIP cleanup test above.
-        florence_mod._florence_client = None
-
-        with patch(
-            "backend.services.florence_client.get_settings", autospec=True
-        ) as mock_get_settings:
-            mock_get_settings.return_value = MagicMock(
-                florence_url="http://test:8092",
-                ai_connect_timeout=10.0,
-                ai_health_timeout=5.0,
-                florence_cb_failure_threshold=5,
-                florence_cb_recovery_timeout=60.0,
-                florence_cb_half_open_max_calls=3,
-            )
-
-            from backend.services.florence_client import (
-                get_florence_client,
-                reset_florence_client,
-            )
-
-            # Get a client instance
-            client = get_florence_client()
-            assert not client._http_client.is_closed
-
-            # Store reference before reset
-            http_client_ref = client._http_client
-
-            # Reset should close the HTTP client
-            await reset_florence_client()
-
-            # The HTTP client should be closed
-            assert http_client_ref.is_closed

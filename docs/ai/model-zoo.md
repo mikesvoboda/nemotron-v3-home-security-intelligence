@@ -1,5 +1,18 @@
 # AI Model Zoo Architecture
 
+> [!WARNING] > **Partly superseded — R8 legacy retirement, 2026-09-29.** The shipped stack
+> boots two GPU AI services: `ai-gateway` (Triton routers `/yolo26` +
+> `/enrich-lt` only) and the `ai-vlm` llama.cpp engine — see
+> [docs/ai/AGENTS.md](AGENTS.md) for the current topology and the current VRAM
+> semantics. What this page still describes as the deployment topology — the
+> `ai-florence` / `ai-clip` / `ai-enrichment` / `ai-enrichment-light` containers
+> and the VRAM-budget **LRU eviction** they ran — is gone: those images, serve
+> dirs and routers were deleted with R8 S1–S3, and the shipped backend
+> `ModelManager` (`backend/services/model_zoo.py`) has no unload path and no
+> eviction pass at all (`never_evict`/`priority` are parsed but have no
+> consumer; `backend/main.py`'s preload note records it). The per-model
+> sections below are kept as the historical record of the pre-R8 zoo.
+
 ## Overview
 
 The AI model zoo provides comprehensive visual analysis for home security through multiple specialized models working together.

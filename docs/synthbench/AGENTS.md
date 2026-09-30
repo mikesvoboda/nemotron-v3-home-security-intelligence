@@ -13,11 +13,12 @@ in `synthbench/`.
 | `agent-handoff.md`     | the flagship agent | start here if you drive generation: the loop, prompt rules, triage, limits, stop-and-ask |
 | `command-reference.md` | the agent          | each command's options, files and exit codes                                             |
 | `operator-runbook.md`  | the owner          | host units, the renderer, snapshot holds, the agent's sandbox, reviewing a batch         |
-| `prompt-notes.md`      | the flagship agent | living log: wording that works with FLUX.2 [dev], defects seen, triage judgment calls    |
+| `flux-prompt-notes.md` | the flagship agent | living log for stills: wording that works with FLUX.2 [dev], defects seen, triage calls  |
+| `h3-prompt-notes.md`   | the flagship agent | living log for clips: motion wording that works with MiniMax-H3 turbo, defects, triage   |
 
 ## Rules
 
 - `command-reference.md` must list exactly each command's options: the options table under each command's heading is checked against argparse by `backend/tests/unit/synthbench/test_command_reference.py`.
   Change the document with the parser.
-- `agent-handoff.md` names only the seven agent commands (same test). It never describes GPU
+- `agent-handoff.md` names only the eight agent commands (same test). It never describes GPU
   windows or host units (design G11); those belong in `operator-runbook.md`.

@@ -264,8 +264,12 @@ async def recognize_plate(
 ) -> PlateRecognizeResponse:
     """Recognize plate text from an uploaded image.
 
-    Processes the image through PaddleOCR to extract plate text.
+    Processes the image through the plate-OCR engine to extract plate text.
     Optionally stores the result in the database.
+
+    R8 S3 retired the OCR model module (owner ruling 4 swept the enrichment
+    serving dir), so on a shipped build this endpoint answers 503 — the plate
+    RECORD half stays live, which is why the endpoint itself stays.
 
     The image should be base64-encoded JPEG or PNG data, optionally
     prefixed with a data URL scheme (e.g., "data:image/jpeg;base64,").
@@ -280,6 +284,7 @@ async def recognize_plate(
 
     Raises:
         HTTPException: 400 if image decoding fails.
+        HTTPException: 503 if no plate-OCR engine is available.
         HTTPException: 500 if OCR processing fails.
 
     Example:
@@ -318,10 +323,14 @@ async def recognize_plate(
             await db.commit()
         return result
     except ImportError as e:
-        logger.error(f"PaddleOCR not available: {e}")
+        # The service raises ImportError for a retired OCR leg as well as for a
+        # missing optional dependency, and this mapping is the wire contract:
+        # 503 either way. Grep-verified that no test pins the detail string, so
+        # it says what is true now instead of the pre-S3 install advice.
+        logger.error(f"Plate OCR backend not available: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="ALPR service not available (PaddleOCR not installed)",
+            detail="ALPR recognition not available (no plate-OCR engine in this build)",
         ) from e
     except Exception as e:
         logger.error(f"Plate recognition failed: {e}", exc_info=True)

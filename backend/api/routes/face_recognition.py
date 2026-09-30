@@ -30,7 +30,6 @@ Endpoints:
 - GET /api/auto-enrollment/settings - Get auto-enrollment settings
 """
 
-import time
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -57,7 +56,6 @@ from backend.api.schemas.face_recognition import (
     FaceEventsStatsResponse,
     FaceMatchRequest,
     FaceMatchResponse,
-    FaceSimilarityCompareResponse,
     IdentifyFaceEventRequest,
     IdentifyFaceEventResponse,
     KnownPersonCreate,
@@ -1436,148 +1434,6 @@ async def identify_face_event(
 # =============================================================================
 # Face Similarity Debug Tool (NEM-4955)
 # =============================================================================
-
-
-@router.post("/face-events/compare", response_model=FaceSimilarityCompareResponse)
-async def compare_faces(
-    image1: UploadFile = File(..., description="First face image (JPEG/PNG)"),
-    image2: UploadFile = File(..., description="Second face image (JPEG/PNG)"),
-    threshold: float = Form(
-        default=0.7,
-        ge=0.0,
-        le=1.0,
-        description="Similarity threshold for match decision",
-    ),
-) -> FaceSimilarityCompareResponse:
-    """Compare similarity between two face images (Debug Tool).
-
-    This is a developer debug tool for testing face similarity detection.
-    Upload two face images and get a similarity score indicating whether
-    they are likely the same person.
-
-    **Note:** This debug tool uses CLIP embeddings (768-dimensional) for
-    visual similarity comparison. Production face recognition uses ArcFace
-    embeddings (512-dimensional) which are optimized specifically for face
-    recognition tasks.
-
-    The similarity score is computed using cosine similarity between the
-    two image embeddings. A higher score indicates more visual similarity.
-
-    Recommended thresholds:
-    - 0.70: Lenient matching (may have false positives)
-    - 0.75: Balanced matching
-    - 0.80: Strict matching (fewer false positives, may miss matches)
-
-    Args:
-        image1: First face image (JPEG or PNG format)
-        image2: Second face image (JPEG or PNG format)
-        threshold: Minimum similarity score to consider a match (default: 0.7)
-
-    Returns:
-        FaceSimilarityCompareResponse with similarity score and match decision
-
-    Raises:
-        HTTPException: 400 if images are invalid or CLIP service unavailable
-    """
-    import io
-
-    import numpy as np
-    from PIL import Image
-
-    from backend.services.clip_client import CLIPUnavailableError, get_clip_client
-
-    start_time = time.time()
-
-    # Validate file types
-    allowed_content_types = {"image/jpeg", "image/png", "image/jpg"}
-    for idx, img_file in enumerate([image1, image2], 1):
-        content_type = img_file.content_type or ""
-        if content_type not in allowed_content_types:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Image {idx} has invalid content type: {content_type}. "
-                f"Allowed types: JPEG, PNG",
-            )
-
-    try:
-        # Read and convert images to PIL
-        img1_bytes = await image1.read()
-        img2_bytes = await image2.read()
-
-        try:
-            pil_image1 = Image.open(io.BytesIO(img1_bytes)).convert("RGB")
-            pil_image2 = Image.open(io.BytesIO(img2_bytes)).convert("RGB")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to decode image: {e}",
-            ) from e
-
-        # Get CLIP client and generate embeddings
-        clip_client = get_clip_client()
-
-        try:
-            embedding1 = await clip_client.embed(pil_image1)
-            embedding2 = await clip_client.embed(pil_image2)
-        except CLIPUnavailableError as e:
-            logger.warning(f"CLIP service unavailable for face comparison: {e}")
-            processing_time_ms = int((time.time() - start_time) * 1000)
-            return FaceSimilarityCompareResponse(
-                similarity_score=0.0,
-                is_match=False,
-                threshold=threshold,
-                embedding_dimension=768,
-                processing_time_ms=processing_time_ms,
-                error=f"CLIP service unavailable: {e}",
-            )
-
-        # Compute cosine similarity
-        vec1 = np.array(embedding1, dtype=np.float32)
-        vec2 = np.array(embedding2, dtype=np.float32)
-
-        norm1 = np.linalg.norm(vec1)
-        norm2 = np.linalg.norm(vec2)
-
-        if norm1 == 0 or norm2 == 0:
-            similarity = 0.0
-        else:
-            similarity = float(np.dot(vec1, vec2) / (norm1 * norm2))
-
-        # Clamp to [0, 1] since cosine similarity can be negative
-        similarity = max(0.0, min(1.0, similarity))
-
-        # Determine if it's a match
-        is_match = similarity >= threshold
-
-        processing_time_ms = int((time.time() - start_time) * 1000)
-
-        logger.info(
-            f"Face comparison completed: similarity={similarity:.3f}, "
-            f"is_match={is_match}, threshold={threshold}, time={processing_time_ms}ms"
-        )
-
-        return FaceSimilarityCompareResponse(
-            similarity_score=round(similarity, 4),
-            is_match=is_match,
-            threshold=threshold,
-            embedding_dimension=768,
-            processing_time_ms=processing_time_ms,
-            error=None,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(f"Unexpected error in face comparison: {e}")
-        processing_time_ms = int((time.time() - start_time) * 1000)
-        return FaceSimilarityCompareResponse(
-            similarity_score=0.0,
-            is_match=False,
-            threshold=threshold,
-            embedding_dimension=768,
-            processing_time_ms=processing_time_ms,
-            error=f"Unexpected error: {e}",
-        )
 
 
 # =============================================================================

@@ -5119,27 +5119,9 @@ AI_SERVICES_CONFIG = [
         "circuit_breaker_name": "ai-vlm",
         "critical": False,
     },
-    {
-        "name": "florence",
-        "display_name": "Florence-2 Vision Language",
-        "url_attr": "florence_url",
-        "circuit_breaker_name": "florence",
-        "critical": False,
-    },
-    {
-        "name": "clip",
-        "display_name": "CLIP Embedding Service",
-        "url_attr": "clip_url",
-        "circuit_breaker_name": "clip",
-        "critical": False,
-    },
-    {
-        "name": "enrichment",
-        "display_name": "Enrichment Service",
-        "url_attr": "enrichment_url",
-        "circuit_breaker_name": "enrichment",
-        "critical": False,
-    },
+    # R8 S3 (2026-09-29, owner rulings 1 + 5): florence/clip/enrichment rows
+    # DELETED IN THE DATA -- each url_attr pointed at a gateway router the
+    # Triton prune unmounts. Mirrors health_ai_services.py's table, same reason.
 ]
 
 

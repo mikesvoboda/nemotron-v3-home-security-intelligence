@@ -1,5 +1,19 @@
 # Nemotron HuggingFace BuildKit Secrets - Implementation Guide
 
+> **Retired — R8 slices S1/S2, 2026-09-29.** Every artifact this guide builds
+> for is deleted: `ai/nemotron/` (including `Dockerfile.hf` and its README —
+> the `ai-llm` compose service was built from that context) and with it the
+> whole legacy serving path. (The proposed `nemotron-hf` GHCR image below was
+> never merged — its matrix entry referenced `ai/nemotron/Dockerfile.hf`.)
+> The Nemotron LLM path retired in R8 S1/S2 and `pipeline_mode: legacy` now
+> hard-raises at `backend/core/config.py:1080` ("Only 'vlm' is supported");
+> risk reasoning ships on the `ai-vlm` llama.cpp engine (model identity is
+> config, ledger D5), which needs no HF-token build secret. The general
+> BuildKit-secrets pattern stays documented and live at
+> `docs/developer/buildkit-secrets.md`; this page is kept as the historical
+> record of the NEM-3806 implementation. Do not follow its build commands —
+> the referenced files no longer exist.
+
 This guide provides step-by-step instructions for implementing BuildKit secrets in the Nemotron HuggingFace deployment pipeline.
 
 ## Overview

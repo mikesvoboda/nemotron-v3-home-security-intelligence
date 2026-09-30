@@ -19,6 +19,7 @@ from pathlib import Path
 
 import yaml
 
+from synthbench.contract.clip import ClipSpec
 from synthbench.contract.spec import Spec
 from synthbench.taxonomy.model import Taxonomy
 
@@ -115,7 +116,7 @@ def prompt_sha256(spec: Spec) -> str:
     return hashlib.sha256(render_text(spec).encode()).hexdigest()
 
 
-def problems(spec: Spec, prompt: str, tax: Taxonomy) -> list[str]:
+def problems(spec: Spec | ClipSpec, prompt: str, tax: Taxonomy) -> list[str]:
     """Every rule the prompt breaks for this spec, one line each; empty when it passes."""
     if not prompt.strip():
         return ["rule 1: the prompt is empty"]

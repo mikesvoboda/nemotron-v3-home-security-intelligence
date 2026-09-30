@@ -1,0 +1,26 @@
+# Clip rule 5 for `python -m synthbench clip check` (clips design §3.2): the camera never moves
+# and the shot never cuts. A phrase matches as whole words, in order; its last word may be
+# plural (s/es). No fact term of the taxonomy may appear here (test_clip_check.py).
+camera_moves:
+  - pan
+  - panning
+  - zoom
+  - zooming
+  - tilt
+  - tilting
+  - dolly
+  - tracking shot
+  - camera moves
+  - camera follows
+  - close up
+  - cut to
+  - cuts to
+  - meanwhile
+  - later
+  - flashback
+  - montage
+  - crossfade
+  - fade to
+  - slow motion
+  - time lapse
+  - handheld

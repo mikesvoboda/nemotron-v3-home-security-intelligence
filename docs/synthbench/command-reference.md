@@ -80,7 +80,9 @@ prompts against the rules, every recorded image against its sha256, and the tria
 
 Renders each frozen event's pending attempt at 1280x720 through ComfyUI (design §3 step 4).
 Before every image it reads `/synthbench/status/flagship.json`, and waits, polling every
-5 s, while the flagship is unhealthy or has requests waiting.
+5 s, while the flagship is unhealthy or has requests waiting. Before its first image, if the
+renderer's last job was H3 or another non-FLUX.2 model (`clip render` left it in that state),
+it frees the renderer and waits for FLUX.2's room, so FLUX.2 loads with the first image.
 
 | Option                 | Default  | Meaning                                             |
 | ---------------------- | -------- | --------------------------------------------------- |
@@ -104,7 +106,9 @@ Before every image it reads `/synthbench/status/flagship.json`, and waits, polli
   - the status file is missing or older than 30 s;
   - an attempt failed its third job. Its event is now `failed`: render marks it in
     `index.jsonl`, renders the rest, and exits 2 once. Later runs skip the event;
-  - an unrecorded file is in the way.
+  - an unrecorded file is in the way;
+  - after freeing an H3 renderer, too little GPU memory for FLUX.2;
+  - switching the renderer back to FLUX.2 failed.
 
 ## `camera`
 
@@ -160,6 +164,134 @@ replaces them.
   - one row per event.
 - **sheet.html:** a contact sheet of every event's current still.
 - **Exit 1:** no batch `<b>` (run `sample` first).
+- **Exit 2:** a corpus file cannot be read or written.
+
+## `clip sample`
+
+Draws ready stills that have no clip yet into a new clip round (clips design §3.1). Writes
+`rounds/<r>/round.json`, one `events/C/C-<r>-NNN/spec.json` per clip (the source still's facts,
+its ready attempt and its render's sha256), and `clip-index.jsonl` rows with status `sampled`.
+The split is even across scenario groups, then spread across lighting within each group.
+
+| Option        | Default                     | Meaning                                               |
+| ------------- | --------------------------- | ----------------------------------------------------- |
+| `--round <r>` | required                    | new round name: lowercase letters, digits and hyphens |
+| `--n <n>`     | required                    | clips, 1-500                                          |
+| `--seed <s>`  | derived from the round name | the draw's seed; the same seed gives the same clips   |
+
+- **Exit 1:**
+  - more clips than ready stills without a clip;
+  - an existing round with another seed or `--n`;
+  - a corpus with no stills.
+- **Exit 2:**
+  - a clip spec was changed by hand;
+  - a ready still whose last attempt has no render or no ok verdict.
+
+## `clip check`
+
+Validates `rounds/<r>/motions.jsonl` and freezes each passing motion into its clip's
+`spec.json` with the fixed clip suffix; opens `provenance.json` with attempt 1 and appends
+`clip-index.jsonl` rows with status `prompted` (clips design §3.2). Each row is
+`{"event_id": "C-<r>-NNN", "prompt": "<the motion>"}`. Rules 1-4 are the still prompt rules;
+rule 5 bars camera moves and cuts (`synthbench/prompt/camera_moves.yaml`).
+
+| Option        | Default  | Meaning    |
+| ------------- | -------- | ---------- |
+| `--round <r>` | required | round name |
+
+- **Verifies:**
+  - each source still is still ready at the pinned attempt, with its render's bytes unchanged;
+  - the copied facts;
+  - every recorded clip and strip against its sha256;
+  - the triage chain.
+- **Exit 1:**
+  - a motion that breaks a rule;
+  - a missing, malformed, duplicated or unknown row;
+  - a changed frozen motion;
+  - a round whose specs were never written (run `clip sample` again);
+  - no round `<r>`.
+- **Exit 2:**
+  - a source still that changed or is no longer ready;
+  - copied facts that differ;
+  - a modified or unexpected clip file;
+  - a broken triage chain.
+
+## `clip render`
+
+Renders each frozen clip's pending attempt with MiniMax-H3 turbo (1344×768, 243 frames at
+24 fps, with H3's audio track), then writes its 6-frame strip (clips design §4).
+
+| Option        | Default  | Meaning    |
+| ------------- | -------- | ---------- |
+| `--round <r>` | required | round name |
+
+- **Before the first clip:** like `render`, it first waits for the flagship. Unless H3 ran
+  last, it then:
+  - frees the renderer (`POST /free`) - only when another model family ran; an empty history
+    (nothing has rendered yet) warms up without freeing;
+  - checks the GPU's free memory against H3's peak;
+  - renders a 22-frame warm-up clip;
+  - logs the switch in `rounds/<r>/switches.jsonl`.
+- **The input:** the source's render, fitted to 1344×768. Its sha256 is recorded as the
+  attempt's `input_sha256`.
+- **Yield:** it waits while the flagship is unhealthy or has requests waiting. It starts a clip
+  only while the clip's timeout still fits in a 600 s call. Run it again until it prints
+  `0 still to render`.
+- **Writes:**
+  - `events/C/<id>/clips/a<k>-s<seed>.mp4` and `strips/a<k>-s<seed>.jpg`;
+  - `provenance.json`;
+  - `clip-index.jsonl` rows with status `rendered`, or `failed` after 3 failed jobs.
+- **Exit 1:** a clip with no frozen motion (run `clip check`); no round `<r>`.
+- **Exit 2:**
+  - the renderer is down or stops answering;
+  - the flagship's status is stale;
+  - too little free GPU memory for H3;
+  - the switch failed;
+  - a clip failed 3 jobs;
+  - a source render changed.
+
+## `clip triage`
+
+Records the verdicts in `rounds/<r>/triage.jsonl` and schedules rerolls (clips design §3.3).
+Each row is `{"event_id": "C-<r>-NNN", "k": <attempt>, "verdict": "ok"}` or
+`{…, "verdict": "reroll", "reason": <reason>}`. The reason is one of `camera_moved`,
+`subject_lost`, `subject_duplicated`, `prop_lost`, `morphing` or `scene_cut`.
+
+| Option        | Default  | Meaning    |
+| ------------- | -------- | ---------- |
+| `--round <r>` | required | round name |
+
+- **Rerolls:** a clip may use 3 seeds. A reroll verdict on attempt 3 fails it. There is no
+  per-round cap.
+- **Writes:**
+  - `provenance.json`: the verdict, and attempt `k + 1` for a reroll;
+  - `clip-index.jsonl` rows with status `ready`, `rerolled` or `failed`.
+- **Exit 1:**
+  - a malformed, unknown or duplicated row, or a reason not on the list;
+  - an attempt that does not exist or has no clip;
+  - a changed verdict (verdicts are final);
+  - no round `<r>`.
+
+## `clip report`
+
+Writes `rounds/<r>/report.md` and `rounds/<r>/sheet.html` (clips design §3.4).
+
+- **`report.md`:**
+  - counts by state;
+  - the draw by group and lighting;
+  - rerolls by reason;
+  - failed clips;
+  - render timing;
+  - the renderer switches from `switches.jsonl`.
+- **`sheet.html`:** shows each clip's strip beside its source still, the strip linking to the
+  clip itself (not a `<video>` per card: hundreds of cards would exceed the browser's per-page
+  media-player cap).
+
+| Option        | Default  | Meaning    |
+| ------------- | -------- | ---------- |
+| `--round <r>` | required | round name |
+
+- **Exit 1:** no round `<r>`.
 - **Exit 2:** a corpus file cannot be read or written.
 
 ## `corpus coverage`

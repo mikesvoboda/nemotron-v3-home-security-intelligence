@@ -4,9 +4,21 @@ This module contains SQLAlchemy models for storing enrichment results from
 the on-demand model loading system. These models store outputs from:
 - Pose estimation (YOLOv8n-pose)
 - Threat detection (Threat-Detection-YOLOv8n)
-- Demographics (Age-Gender prediction)
-- Re-identification embeddings (OSNet)
 - Action recognition (X-CLIP)
+
+RETIRED (R8 S4, owner ruling 2026-09-30): `DemographicsResult`
+(`demographics_results`) and `ReIDEmbedding` (`reid_embeddings`) — zero live
+readers and zero shipped writers (the sole writer was `enrichment_pipeline.py`,
+deleted in S2b; the surviving reference is `scripts/seed-events.py`, which
+shipped code never invokes). The dated DROP SQL is
+`docs/api/migrations/2026-09-30-retire-demographics-reid-tables.sql`.
+`pose_results`/`action_results` STAY: unlike the retired pair they are READ on
+the shipped alert-test path, the same reachability class as `threat_detections`
+(kept). `PoseResult`/`ThreatDetection`/`ActionResult` stay below; guard:
+`backend/tests/unit/models/test_r8_s4_demographics_reid_retirement.py`.
+The name-trap twin `household.PersonEmbedding` (`person_embeddings`, the LIVE
+VLM re-ID gallery) and the JSONB key `detections.enrichment_data["reid_embedding"]`
+are NOT this module's business and stay exactly as they are.
 
 See: docs/plans/2026-01-19-model-zoo-prompt-improvements-design.md Section 6
 Related Linear issue: NEM-3042
@@ -145,110 +157,6 @@ class ThreatDetection(Base):
         return (
             f"<ThreatDetection(id={self.id}, detection_id={self.detection_id}, "
             f"threat_type={self.threat_type!r}, severity={self.severity!r})>"
-        )
-
-
-class DemographicsResult(Base):
-    """Stores demographics prediction results from Age-Gender model.
-
-    Each demographics result is associated with a detection and contains:
-    - Estimated age range
-    - Predicted gender
-    - Confidence scores for each prediction
-    """
-
-    __tablename__ = "demographics_results"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    detection_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("detections.id", ondelete="CASCADE"), nullable=False, unique=True
-    )
-    age_range: Mapped[str | None] = mapped_column(
-        String(20), nullable=True, comment="Age range: 0-10, 11-20, etc."
-    )
-    age_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
-    gender: Mapped[str | None] = mapped_column(
-        String(20), nullable=True, comment="Gender: male, female, unknown"
-    )
-    gender_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
-    )
-
-    # Relationships
-    detection: Mapped[Detection] = relationship("Detection", back_populates="demographics_result")
-
-    __table_args__ = (
-        Index("idx_demographics_results_detection_id", "detection_id"),
-        Index("idx_demographics_results_created_at", "created_at"),
-        CheckConstraint(
-            "age_confidence IS NULL OR (age_confidence >= 0.0 AND age_confidence <= 1.0)",
-            name="ck_demographics_results_age_confidence_range",
-        ),
-        CheckConstraint(
-            "gender_confidence IS NULL OR (gender_confidence >= 0.0 AND gender_confidence <= 1.0)",
-            name="ck_demographics_results_gender_confidence_range",
-        ),
-        CheckConstraint(
-            "gender IS NULL OR gender IN ('male', 'female', 'unknown')",
-            name="ck_demographics_results_gender",
-        ),
-        CheckConstraint(
-            "age_range IS NULL OR age_range IN ('0-10', '11-20', '21-30', '31-40', '41-50', "
-            "'51-60', '61-70', '71-80', '81+', 'unknown')",
-            name="ck_demographics_results_age_range",
-        ),
-    )
-
-    def __repr__(self) -> str:
-        return (
-            f"<DemographicsResult(id={self.id}, detection_id={self.detection_id}, "
-            f"age_range={self.age_range!r}, gender={self.gender!r})>"
-        )
-
-
-class ReIDEmbedding(Base):
-    """Stores person re-identification embeddings from OSNet model.
-
-    Each embedding is associated with a detection and contains:
-    - 512-dimensional feature vector as JSON array
-    - Hash of the embedding for fast similarity lookups
-    """
-
-    __tablename__ = "reid_embeddings"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    detection_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("detections.id", ondelete="CASCADE"), nullable=False, unique=True
-    )
-    embedding: Mapped[list | None] = mapped_column(
-        JSONB, nullable=True, comment="512-dim feature vector as JSON array"
-    )
-    embedding_hash: Mapped[str | None] = mapped_column(
-        String(64), nullable=True, index=True, comment="SHA256 hash for quick lookup"
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
-    )
-
-    # Relationships
-    detection: Mapped[Detection] = relationship("Detection", back_populates="reid_embedding")
-
-    __table_args__ = (
-        Index("idx_reid_embeddings_detection_id", "detection_id"),
-        Index("idx_reid_embeddings_created_at", "created_at"),
-        # embedding_hash is already indexed via index=True in column definition
-    )
-
-    def __repr__(self) -> str:
-        embedding_preview = (
-            f"[{self.embedding[0]:.4f}, ...]"
-            if self.embedding and len(self.embedding) > 0
-            else None
-        )
-        return (
-            f"<ReIDEmbedding(id={self.id}, detection_id={self.detection_id}, "
-            f"embedding={embedding_preview})>"
         )
 
 

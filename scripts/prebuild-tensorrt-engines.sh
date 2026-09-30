@@ -83,56 +83,26 @@ build_yolo26() {
 }
 
 build_clip() {
-    info "=== Building CLIP TensorRT Engine ==="
-    CLIP_MODEL_PATH="${AI_MODELS_PATH}/model-zoo/siglip2-base-patch16-224"
-    CLIP_ENGINE_PATH="${AI_MODELS_PATH}/model-zoo/siglip2-base-patch16-224/vision_encoder_fp16.engine"
-
-    if [ ! -d "$CLIP_MODEL_PATH" ]; then
-        warn "CLIP model not found at $CLIP_MODEL_PATH"
-        warn "Download models first: ./ai/download_models.sh"
-        return 1
-    fi
-
-    python3 "$PROJECT_ROOT/ai/clip/build_engine.py" \
-        --model-path "$CLIP_MODEL_PATH" \
-        --output "$CLIP_ENGINE_PATH" \
-        --precision fp16
-
-    if [ -f "$CLIP_ENGINE_PATH" ]; then
-        info "CLIP engine built: $CLIP_ENGINE_PATH"
-    else
-        error "CLIP engine build failed"
-        return 1
-    fi
+    info "=== CLIP engine build retired (R8 S3) ==="
+    # R8 S3 owner ruling 5 retired CLIP's whole surface as a prune consequence:
+    # the Triton clip/clip_text dirs are gone, so an engine built here would
+    # serve nothing, and the exporter that produced it was swept in the same
+    # slice. The function stays as the refusal point so `all` still runs clean.
+    warn "CLIP retired in R8 S3; nothing to build"
+    return 0
 }
 
 build_enrichment() {
     info "=== Building Enrichment TensorRT Engines ==="
 
-    # Pose model
-    POSE_PT_PATH="${AI_MODELS_PATH}/model-zoo/yolov8n-pose/yolov8n-pose.pt"
-    POSE_ENGINE_PATH="${AI_MODELS_PATH}/model-zoo/yolov8n-pose/yolov8n-pose.engine"
-    if [ -f "$POSE_PT_PATH" ]; then
-        info "Building pose TensorRT engine..."
-        python3 "$PROJECT_ROOT/ai/enrichment/scripts/export_pose_tensorrt.py" \
-            --model "$POSE_PT_PATH" \
-            --output "$POSE_ENGINE_PATH" \
-            --precision fp16 2>/dev/null || warn "Pose engine build failed"
-    else
-        warn "Pose model not found: $POSE_PT_PATH"
-    fi
-
-    # Threat model
-    THREAT_PT_PATH="${AI_MODELS_PATH}/model-zoo/threat-detection-yolov8n/weights/best.pt"
-    THREAT_ENGINE_PATH="${AI_MODELS_PATH}/model-zoo/threat-detection-yolov8n/weights/best.engine"
-    if [ -f "$THREAT_PT_PATH" ]; then
-        info "Building threat TensorRT engine..."
-        python3 "$PROJECT_ROOT/ai/enrichment/scripts/export_threat_tensorrt.py" \
-            --model "$THREAT_PT_PATH" \
-            --precision fp16 2>/dev/null || warn "Threat engine build failed"
-    else
-        warn "Threat model not found: $THREAT_PT_PATH"
-    fi
+    # R8 S3 owner rulings 3+4: the pose model is pruned from the Triton
+    # repository (GATEWAY_MODEL_SET hard-raises, so no deployment boots it) and
+    # the enrichment export scripts were swept with their serving dir. The
+    # threat engine is KEPT, and its exporter lives in the surviving gateway
+    # export pipeline, not here: ai/gateway/export/export_yolo_threat.py (the
+    # DEPRECATED header above points at ai/gateway/export/export_all.sh, which
+    # drives it). So this function no longer execs anything.
+    warn "R8 S3: pose retired; threat exports via ai/gateway/export/export_all.sh"
 }
 
 main() {

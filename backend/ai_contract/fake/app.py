@@ -4,7 +4,8 @@ One route per registry operation, mounted from the GENERATED registry itself
 (method + path come from OPERATIONS, so a registry rename moves the fake's
 surface with it - the fake cannot drift to a surface that no longer exists).
 Responses come from generators.py: snapshot-walked where a WP7.2 snapshot
-exists, literal-from-deployed-surface for the seven GEN_GAPS ops.
+exists, literal-from-deployed-surface for the GEN_GAPS ops (the yolo family;
+R8 S3 pruned the four enrichment-server members with their ops).
 
 THE determinism mechanism, in one line: every response is
 create_response_bytes(value generated from sha256(op_id | path | profile)) -

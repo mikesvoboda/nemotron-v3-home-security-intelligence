@@ -68,27 +68,13 @@ AI_SERVICES_CONFIG: list[dict[str, Any]] = [
         "circuit_breaker_name": "ai-vlm",
         "critical": False,
     },
-    {
-        "name": "florence",
-        "display_name": "Florence-2 Vision Language",
-        "url_attr": "florence_url",
-        "circuit_breaker_name": "florence",
-        "critical": False,
-    },
-    {
-        "name": "clip",
-        "display_name": "CLIP Embedding Service",
-        "url_attr": "clip_url",
-        "circuit_breaker_name": "clip",
-        "critical": False,
-    },
-    {
-        "name": "enrichment",
-        "display_name": "Enrichment Service",
-        "url_attr": "enrichment_url",
-        "circuit_breaker_name": "enrichment",
-        "critical": False,
-    },
+    # R8 S3 (2026-09-29, owner rulings 1 + 5): the florence, clip and
+    # enrichment rows are DELETED IN THE DATA. Each url_attr pointed at a
+    # gateway router the Triton prune unmounts; a probe row for a router that
+    # cannot boot reports UNKNOWN forever -- a green assertion about nothing.
+    # The two remaining rows cover the whole shipped set (yolo26 + ai-vlm);
+    # the resident light specialists ride inside ai-gateway, which the S1
+    # monitor set already tracks as one container.
 ]
 
 
@@ -390,8 +376,9 @@ error rates, latency metrics, and queue depths.
 The response includes:
 - **overall_status**: healthy/degraded/critical based on service availability
 - **services**: Individual health status for each shipped AI service (yolo26,
-  ai-vlm, florence, clip, enrichment). The retired Nemotron LLM is not probed
-  or reported (R8, 2026-09-29).
+  ai-vlm). The retired Nemotron LLM is not probed or reported (R8 S1/S2,
+  2026-09-29), and neither are the florence/clip/enrichment routers R8 S3's
+  Triton prune unmounts.
 - **queues**: Current depth of detection and analysis queues with DLQ counts
 
 HTTP Status Codes:

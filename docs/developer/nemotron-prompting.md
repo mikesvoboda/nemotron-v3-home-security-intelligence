@@ -1,5 +1,19 @@
 # Nemotron Prompting Best Practices
 
+> **Retired — R8 slices S1/S2, 2026-09-29.** The Nemotron LLM path this page
+> documents is deleted: the `ai-llm` compose service, the `nemotron_analyzer`
+> service module (and with it `extract_reasoning_and_response()` and the
+> `CALIBRATED_SYSTEM_PROMPT` template), and the 30B GGUF it served are gone,
+> and `pipeline_mode: legacy` now hard-raises at `backend/core/config.py:1080`
+> ("Only 'vlm' is supported"). Risk reasoning ships on the `ai-vlm` llama.cpp
+> engine (VLMAnalyzer; model identity is config, ledger D5). Of the Reference
+> Files table, `prompts.py` and `llm_response.py` are live VLM-path imports;
+> the rubric/constraint and A/B modules still exist but the
+> `nemotron_analyzer` call sites below are dead. The body is kept as the
+> historical record of the 30B-era prompt design; do not treat its model-spec
+> table, ChatML/`'detailed thinking on'` recipes, or NIM `guided_json`
+> configuration as current serving guidance.
+
 This guide documents prompt engineering techniques and best practices for working with NVIDIA Nemotron models in the home security monitoring system.
 
 ## Table of Contents

@@ -239,38 +239,14 @@
             }
           },
           "services": {
-            "clip": {
-              "circuit_state": "closed",
-              "error_rate_1h": 0.0,
-              "last_health_check": "2026-01-20T12:00:00Z",
-              "latency_p99_ms": 200,
-              "status": "healthy",
-              "url": "http://clip-service:8092"
-            },
-            "enrichment": {
+            "ai-vlm": {
               "circuit_state": "half_open",
               "error": "Intermittent connection issues",
               "error_rate_1h": 0.15,
               "last_health_check": "2026-01-20T11:55:00Z",
               "latency_p99_ms": 1200,
               "status": "degraded",
-              "url": "http://enrichment-service:8093"
-            },
-            "florence": {
-              "circuit_state": "closed",
-              "error_rate_1h": 0.0,
-              "last_health_check": "2026-01-20T12:00:00Z",
-              "latency_p99_ms": 350,
-              "status": "healthy",
-              "url": "http://florence-service:8091"
-            },
-            "nemotron": {
-              "circuit_state": "closed",
-              "error_rate_1h": 0.01,
-              "last_health_check": "2026-01-20T12:00:00Z",
-              "latency_p99_ms": 2500,
-              "status": "healthy",
-              "url": "http://llm-analyzer:8080"
+              "url": "http://ai-vlm:8098"
             },
             "yolo26": {
               "circuit_state": "closed",
@@ -6232,36 +6208,6 @@
           "images"
         ],
         "title": "Body_face-recognition_bulk_enroll_faces",
-        "type": "object"
-      },
-      "Body_face-recognition_compare_faces": {
-        "properties": {
-          "image1": {
-            "contentMediaType": "application/octet-stream",
-            "description": "First face image (JPEG/PNG)",
-            "title": "Image1",
-            "type": "string"
-          },
-          "image2": {
-            "contentMediaType": "application/octet-stream",
-            "description": "Second face image (JPEG/PNG)",
-            "title": "Image2",
-            "type": "string"
-          },
-          "threshold": {
-            "default": 0.7,
-            "description": "Similarity threshold for match decision",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Threshold",
-            "type": "number"
-          }
-        },
-        "required": [
-          "image1",
-          "image2"
-        ],
-        "title": "Body_face-recognition_compare_faces",
         "type": "object"
       },
       "BudgetUtilization": {
@@ -18109,69 +18055,6 @@
         "title": "FaceMatchResponse",
         "type": "object"
       },
-      "FaceSimilarityCompareResponse": {
-        "description": "Schema for face similarity comparison response.\n\nReturns the result of comparing two face images:\n- similarity_score: Cosine similarity between embeddings (0-1)\n- is_match: Whether similarity exceeds the threshold\n- threshold: The threshold used for matching\n- embedding_dimension: Dimension of the embeddings used (768 for CLIP)\n- processing_time_ms: Time taken to process both images\n\nNote: This debug tool uses CLIP embeddings (768-dim) for visual similarity,\nnot ArcFace embeddings (512-dim) used in production face recognition.",
-        "example": {
-          "embedding_dimension": 768,
-          "is_match": true,
-          "processing_time_ms": 245,
-          "similarity_score": 0.85,
-          "threshold": 0.7
-        },
-        "properties": {
-          "embedding_dimension": {
-            "description": "Dimension of the embeddings (768 for CLIP)",
-            "title": "Embedding Dimension",
-            "type": "integer"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Error message if comparison failed",
-            "title": "Error"
-          },
-          "is_match": {
-            "description": "Whether the similarity exceeds the threshold (same person)",
-            "title": "Is Match",
-            "type": "boolean"
-          },
-          "processing_time_ms": {
-            "description": "Time taken to process both images in milliseconds",
-            "minimum": 0.0,
-            "title": "Processing Time Ms",
-            "type": "integer"
-          },
-          "similarity_score": {
-            "description": "Cosine similarity score between the two faces",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Similarity Score",
-            "type": "number"
-          },
-          "threshold": {
-            "description": "The threshold used for matching",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Threshold",
-            "type": "number"
-          }
-        },
-        "required": [
-          "similarity_score",
-          "is_match",
-          "threshold",
-          "embedding_dimension",
-          "processing_time_ms"
-        ],
-        "title": "FaceSimilarityCompareResponse",
-        "type": "object"
-      },
       "FeatureSettings": {
         "description": "Feature toggle settings for enabling/disabling AI pipeline components.\n\nControls which AI processing features are active in the detection pipeline.",
         "example": {
@@ -26086,7 +25969,7 @@
         "type": "object"
       },
       "ModelListResponse": {
-        "description": "Response schema for GET /api/system/models.\n\nReturns all models from the registry with their runtime state,\nplus service health status for both enrichment services.",
+        "description": "Response schema for GET /api/system/models.\n\nReturns all models from the registry with their runtime state, plus a\nhealth status per service the endpoint could actually answer for (after\nR8 S3: the light router and the gateway root).",
         "example": {
           "models": [
             {
@@ -26104,21 +25987,21 @@
               "service": "ai-enrichment-light"
             },
             {
-              "category": "classification",
+              "category": "detection",
               "enabled": true,
-              "estimated_vram_mb": 1500,
-              "gpu_id": 0,
-              "name": "vehicle-segment-classification",
+              "estimated_vram_mb": 500,
+              "gpu_id": 1,
+              "name": "yolo26",
               "runtime": {
                 "load_count": 0,
-                "loaded": false
+                "loaded": true
               },
-              "service": "ai-enrichment"
+              "service": "ai-gateway"
             }
           ],
           "service_status": {
-            "ai-enrichment": "healthy",
-            "ai-enrichment-light": "healthy"
+            "ai-enrichment-light": "healthy",
+            "ai-gateway": "healthy"
           }
         },
         "properties": {
@@ -26134,7 +26017,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Health status of each enrichment service (healthy/unhealthy/unknown)",
+            "description": "Health status of each serving surface (healthy/unhealthy/unknown)",
             "title": "Service Status",
             "type": "object"
           }
@@ -26369,7 +26252,7 @@
             "type": "integer"
           },
           "gpu_id": {
-            "description": "GPU index assigned to this model (0 for heavy, 1 for light)",
+            "description": "GPU index assigned to this model (the AI-services GPU; one lane after R8 S3)",
             "minimum": 0.0,
             "title": "Gpu Id",
             "type": "integer"
@@ -26386,7 +26269,7 @@
             "description": "Runtime state from enrichment service"
           },
           "service": {
-            "description": "Enrichment service handling this model (ai-enrichment or ai-enrichment-light)",
+            "description": "Service serving this model (ai-enrichment-light or ai-gateway)",
             "title": "Service",
             "type": "string"
           }
@@ -40085,7 +39968,6 @@
         "example": {
           "freed_vram_mb": 2550,
           "services": {
-            "ai-enrichment": 2,
             "ai-enrichment-light": 2
           },
           "success": true,
@@ -40745,16 +40627,16 @@
       "VramGpuInfo": {
         "description": "VRAM information for a single GPU.\n\nProvides detailed VRAM breakdown for one GPU including\nbudget, usage, and loaded models.",
         "example": {
-          "available_mb": 4700,
-          "budget_mb": 6800,
-          "gpu_id": 0,
+          "available_mb": 750,
+          "budget_mb": 1200,
+          "gpu_id": 1,
           "loaded_models": [
-            "fashion-clip",
-            "vehicle-segment-classification"
+            "threat-detection-yolov8n",
+            "osnet-ain-x1-0"
           ],
-          "service": "ai-enrichment",
-          "used_mb": 2100,
-          "utilization_percent": 30.9
+          "service": "ai-enrichment-light",
+          "used_mb": 450,
+          "utilization_percent": 37.5
         },
         "properties": {
           "available_mb": {
@@ -40817,18 +40699,6 @@
         "description": "Response schema for GET /api/system/models/vram-summary.\n\nReturns per-GPU VRAM breakdown plus aggregate totals.",
         "example": {
           "gpus": [
-            {
-              "available_mb": 4700,
-              "budget_mb": 6800,
-              "gpu_id": 0,
-              "loaded_models": [
-                "fashion-clip",
-                "vehicle-segment-classification"
-              ],
-              "service": "ai-enrichment",
-              "used_mb": 2100,
-              "utilization_percent": 30.9
-            },
             {
               "available_mb": 750,
               "budget_mb": 1200,
@@ -56184,48 +56054,6 @@
         ]
       }
     },
-    "/api/face-events/compare": {
-      "post": {
-        "description": "Compare similarity between two face images (Debug Tool).\n\nThis is a developer debug tool for testing face similarity detection.\nUpload two face images and get a similarity score indicating whether\nthey are likely the same person.\n\n**Note:** This debug tool uses CLIP embeddings (768-dimensional) for\nvisual similarity comparison. Production face recognition uses ArcFace\nembeddings (512-dimensional) which are optimized specifically for face\nrecognition tasks.\n\nThe similarity score is computed using cosine similarity between the\ntwo image embeddings. A higher score indicates more visual similarity.\n\nRecommended thresholds:\n- 0.70: Lenient matching (may have false positives)\n- 0.75: Balanced matching\n- 0.80: Strict matching (fewer false positives, may miss matches)\n\nArgs:\n    image1: First face image (JPEG or PNG format)\n    image2: Second face image (JPEG or PNG format)\n    threshold: Minimum similarity score to consider a match (default: 0.7)\n\nReturns:\n    FaceSimilarityCompareResponse with similarity score and match decision\n\nRaises:\n    HTTPException: 400 if images are invalid or CLIP service unavailable",
-        "operationId": "face-recognition_compare_faces",
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_face-recognition_compare_faces"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FaceSimilarityCompareResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Compare Faces",
-        "tags": [
-          "face-recognition"
-        ]
-      }
-    },
     "/api/face-events/match": {
       "post": {
         "deprecated": true,
@@ -56551,7 +56379,7 @@
     },
     "/api/health/ai-services": {
       "get": {
-        "description": "Get a unified view of all AI service health including circuit breaker states,\nerror rates, latency metrics, and queue depths.\n\nThe response includes:\n- **overall_status**: healthy/degraded/critical based on service availability\n- **services**: Individual health status for each shipped AI service (yolo26,\n  ai-vlm, florence, clip, enrichment). The retired Nemotron LLM is not probed\n  or reported (R8, 2026-09-29).\n- **queues**: Current depth of detection and analysis queues with DLQ counts\n\nHTTP Status Codes:\n- **200**: All services operational or system is degraded but functional\n- **503**: Critical services (yolo26) are unhealthy",
+        "description": "Get a unified view of all AI service health including circuit breaker states,\nerror rates, latency metrics, and queue depths.\n\nThe response includes:\n- **overall_status**: healthy/degraded/critical based on service availability\n- **services**: Individual health status for each shipped AI service (yolo26,\n  ai-vlm). The retired Nemotron LLM is not probed or reported (R8 S1/S2,\n  2026-09-29), and neither are the florence/clip/enrichment routers R8 S3's\n  Triton prune unmounts.\n- **queues**: Current depth of detection and analysis queues with DLQ counts\n\nHTTP Status Codes:\n- **200**: All services operational or system is degraded but functional\n- **503**: Critical services (yolo26) are unhealthy",
         "operationId": "health_get_ai_services_health",
         "responses": {
           "200": {
@@ -61442,7 +61270,7 @@
     },
     "/api/plate-reads/recognize": {
       "post": {
-        "description": "Recognize plate text from an uploaded image.\n\nProcesses the image through PaddleOCR to extract plate text.\nOptionally stores the result in the database.\n\nThe image should be base64-encoded JPEG or PNG data, optionally\nprefixed with a data URL scheme (e.g., \"data:image/jpeg;base64,\").\n\nArgs:\n    request: PlateRecognizeRequest with image data.\n    db: Database session.\n    store: Whether to store the result (default true).\n\nReturns:\n    PlateRecognizeResponse with recognition results.\n\nRaises:\n    HTTPException: 400 if image decoding fails.\n    HTTPException: 500 if OCR processing fails.\n\nExample:\n    POST /api/plate-reads/recognize?store=true\n    {\n        \"camera_id\": \"driveway\",\n        \"image_base64\": \"data:image/jpeg;base64,/9j/4AAQSkZ...\",\n        \"detection_bbox\": [100.0, 200.0, 250.0, 240.0],\n        \"detection_confidence\": 0.95\n    }",
+        "description": "Recognize plate text from an uploaded image.\n\nProcesses the image through the plate-OCR engine to extract plate text.\nOptionally stores the result in the database.\n\nR8 S3 retired the OCR model module (owner ruling 4 swept the enrichment\nserving dir), so on a shipped build this endpoint answers 503 \u2014 the plate\nRECORD half stays live, which is why the endpoint itself stays.\n\nThe image should be base64-encoded JPEG or PNG data, optionally\nprefixed with a data URL scheme (e.g., \"data:image/jpeg;base64,\").\n\nArgs:\n    request: PlateRecognizeRequest with image data.\n    db: Database session.\n    store: Whether to store the result (default true).\n\nReturns:\n    PlateRecognizeResponse with recognition results.\n\nRaises:\n    HTTPException: 400 if image decoding fails.\n    HTTPException: 503 if no plate-OCR engine is available.\n    HTTPException: 500 if OCR processing fails.\n\nExample:\n    POST /api/plate-reads/recognize?store=true\n    {\n        \"camera_id\": \"driveway\",\n        \"image_base64\": \"data:image/jpeg;base64,/9j/4AAQSkZ...\",\n        \"detection_bbox\": [100.0, 200.0, 250.0, 240.0],\n        \"detection_confidence\": 0.95\n    }",
         "operationId": "plate-reads_recognize_plate",
         "parameters": [
           {
@@ -64300,7 +64128,7 @@
     },
     "/api/system/models/vram-summary": {
       "get": {
-        "description": "Get per-lane VRAM summary from gateway readiness plus registry estimates.\n\nused_mb is the sum of registry vram_mb estimates for the router's\nTriton-ready models (see module docstring \u2014 the VRAM-manager accounting\nthat previously backed this endpoint was retired with the standalone\nenrichment containers).\n\nReturns:\n    Per-lane VRAM breakdown plus aggregate totals",
+        "description": "Get per-lane VRAM summary from gateway readiness plus registry estimates.\n\nused_mb is the sum of registry vram_mb estimates for the router's\nTriton-ready models (see module docstring \u2014 the VRAM-manager accounting\nthat previously backed this endpoint was retired with the standalone\nenrichment containers).\n\nR8 S3: one lane, so one entry in ``gpus``. The heavy lane's row would\nreport a budget of 6800 MB against a router that no longer mounts, which\nis a number nobody can act on.\n\nReturns:\n    Per-lane VRAM breakdown plus aggregate totals",
         "operationId": "model-management_get_vram_summary",
         "responses": {
           "200": {

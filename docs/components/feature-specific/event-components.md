@@ -227,7 +227,7 @@ Full event detail modal.
 **Content:**
 
 - Full-size detection image with threat bounding boxes (`ThreatBoundingBox`)
-- AI enrichment (`EnrichmentPanel` / `EnrichmentBadges`)
+- AI enrichment (retired with R8 slice S5 — see [Enrichment Components](#enrichment-components))
 - Risk factors breakdown (`RiskFactorsBreakdown`, `RiskFactorsList`) and LLM reasoning explorer
 - Entity tracking (`EntityTrackingPanel`), matched entities (`MatchedEntitiesSection`), Re-ID matches (`ReidMatchesPanel`)
 - Notes, flagging, media download, and snooze controls
@@ -273,36 +273,23 @@ Video playback for an event's clip; the player fetches the clip itself from the 
 
 ## Enrichment Components
 
-### EnrichmentBadges
-
-Compact badges showing what AI enrichment data is available for an event (face count, license plate read).
-
-**Location:** `frontend/src/components/events/EnrichmentBadges.tsx`
-
-**Props:**
-
-| Prop                | Type                        | Default | Description                                   |
-| ------------------- | --------------------------- | ------- | --------------------------------------------- |
-| enrichmentSummary   | `EnrichmentSummary \| null` | -       | Summary data for badge display                |
-| enrichmentData      | `EnrichmentData \| null`    | -       | Full enrichment data (alternative to summary) |
-| isEnrichmentPending | `boolean`                   | -       | Enrichment still processing                   |
-| onExpandEnrichment  | `() => void`                | -       | Badge click opens the full `EnrichmentPanel`  |
-| className           | `string`                    | -       | Additional CSS classes                        |
-
----
-
-### EnrichmentPanel
-
-Detailed enrichment display panel.
-
-**Location:** `frontend/src/components/events/EnrichmentPanel.tsx`
-
-**Props:**
-
-| Prop            | Type                     | Default | Description            |
-| --------------- | ------------------------ | ------- | ---------------------- |
-| enrichment_data | `EnrichmentData \| null` | -       | Enrichment data        |
-| className       | `string`                 | -       | Additional CSS classes |
+> **Retired — R8 slice S5, 2026-09-30.** `EnrichmentBadges.tsx`,
+> `EnrichmentPanel.tsx`, `EnrichmentViewer.tsx` (and the
+> `components/enrichment/` barrel) and `EventEnrichmentSummary.tsx` are
+> deleted. They rendered the pose / clothing / demographics / licence-plate
+> attributes that the retired enrichment models produced; the shipped VLM path
+> does not run those models, and the sibling slice S4 retires the
+> `demographics_results` and `reid_embeddings` tables that stored two of the
+> results. The owner ruling turned slice 1.6's "not analyzed in VLM mode" empty
+> state into this deletion as well. The `EnrichmentData` TypeScript model in
+> `frontend/src/types/enrichment.ts` stays — the API still returns an
+> `enrichment_data` object on detections produced by a pipeline that ran the
+> models — but nothing renders it.
+>
+> The enrichment *progress* surface is a separate thing and still ships:
+> `EnrichmentProgressBadge.tsx` plus the `useDetectionEnrichment`,
+> `useEventEnrichmentsQuery`, `useEnrichmentProgress` and
+> `useEventEnrichmentWebSocket` hooks.
 
 ---
 

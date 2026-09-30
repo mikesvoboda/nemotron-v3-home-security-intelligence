@@ -19,8 +19,6 @@ Utility functions for common operations across the frontend application, includi
 | `groupBy.test.ts`            | Tests for groupBy utility                              |
 | `pipeline.ts`                | Function pipeline composition utilities                |
 | `pipeline.test.ts`           | Tests for pipeline utilities                           |
-| `poseVisualization.ts`       | Pose skeleton visualization utilities                  |
-| `poseVisualization.test.ts`  | Tests for pose visualization utilities                 |
 | `promptDiff.ts`              | Prompt diff generation and suggestion application      |
 | `promptDiff.test.ts`         | Tests for prompt diff utilities                        |
 | `risk.ts`                    | Risk scoring utilities for security events             |

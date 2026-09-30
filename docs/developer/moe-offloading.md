@@ -1,5 +1,17 @@
 # MoE-Aware Tensor Offloading for Nemotron
 
+> **Retired — R8 slices S1/S2, 2026-09-29.** The Nemotron-30B path this
+> strategy targets is deleted: the `ai-llm` service, its GGUF, and
+> `pipeline_mode: legacy` (which now hard-raises at
+> `backend/core/config.py:1080`). `ai/cpu_offloading.py` survives in the tree,
+> but its entry point `load_model_with_offloading()` has no caller outside
+> `ai/__init__.py`'s re-export and the tests — nothing in the shipped stack
+> calls it. The shipped reasoning engine is the `ai-vlm` llama.cpp container
+> (model identity is config, ledger D5), which sizes itself with
+> `VLM_GPU_LAYERS=auto` rather than a MoE-tensor plan. The body is kept as the
+> historical record of the NEM-3813 implementation; its architecture tables
+> and 30B VRAM figures describe weights the stack no longer loads.
+
 This document describes the Mixture of Experts (MoE) offloading strategy for the Nemotron-3-Nano-30B-A3B model, which selectively moves expert FFN weights to CPU RAM to free GPU VRAM with minimal performance impact.
 
 ## Nemotron-3-Nano Architecture
