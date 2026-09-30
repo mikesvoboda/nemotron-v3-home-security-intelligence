@@ -191,6 +191,34 @@ The split is even across scenario groups, then spread across lighting within eac
   - the gate file is unreadable;
   - a clip spec was changed by hand.
 
+## `clip check`
+
+Validates `rounds/<r>/motions.jsonl` and freezes each passing motion into its clip's
+`spec.json` with the fixed clip suffix; opens `provenance.json` with attempt 1 and appends
+`clip-index.jsonl` rows with status `prompted` (clips design §3.2). Each row is
+`{"event_id": "C-<r>-NNN", "prompt": "<the motion>"}`. Rules 1-4 are the still prompt rules;
+rule 5 bars camera moves and cuts (`synthbench/prompt/camera_moves.yaml`).
+
+| Option        | Default  | Meaning    |
+| ------------- | -------- | ---------- |
+| `--round <r>` | required | round name |
+
+- **Verifies:**
+  - each source still is still ready at the pinned attempt, with its render's bytes unchanged;
+  - the copied facts;
+  - every recorded clip and strip against its sha256;
+  - the triage chain.
+- **Exit 1:**
+  - a motion that breaks a rule;
+  - a missing, malformed, duplicated or unknown row;
+  - a changed frozen motion;
+  - no round `<r>`.
+- **Exit 2:**
+  - a source still that changed or is no longer ready;
+  - copied facts that differ;
+  - a modified or unexpected clip file;
+  - a broken triage chain.
+
 ## `corpus coverage`
 
 Shows how the corpus is spread across the taxonomy, what the next n events will add, and what a

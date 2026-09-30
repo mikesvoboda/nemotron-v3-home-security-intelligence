@@ -8,11 +8,12 @@ turbo clips of ready Tier B stills, kept for a future video VLM. The commands ar
 
 ## Files
 
-| File          | What                                                                     |
-| ------------- | ------------------------------------------------------------------------ |
-| `settings.py` | the clip settings a pilot gate approves; the H3 turbo weights' hashes    |
-| `gate.py`     | `status/clip-gate.json`: the model, the 80% bar, what a new round may be |
-| `sample.py`   | the draw: the even split across groups, the seeded per-lighting sample   |
+| File          | What                                                                      |
+| ------------- | ------------------------------------------------------------------------- |
+| `settings.py` | the clip settings a pilot gate approves; the H3 turbo weights' hashes     |
+| `gate.py`     | `status/clip-gate.json`: the model, the 80% bar, what a new round may be  |
+| `sample.py`   | the draw: the even split across groups, the seeded per-lighting sample    |
+| `rules.py`    | the motion rules: the still rules 1-4 and rule 5, no camera moves or cuts |
 
 ## Rules
 

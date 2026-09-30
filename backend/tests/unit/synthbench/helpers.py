@@ -11,6 +11,7 @@ from typing import Any
 
 from PIL import Image
 from synthbench import cli
+from synthbench.contract.clip import ClipSpec, RoundRecord
 from synthbench.contract.corpus import BatchRecord
 from synthbench.contract.provenance import OutputFile, Provenance, Triage, render_name, still_name
 from synthbench.contract.spec import Spec
@@ -150,3 +151,35 @@ def ready_batch(root: Path, batch: str = "pilot-1", n: int = 4) -> list[Spec]:
         row = s.latest_index()[spec.event_id]
         s.append_index([row.model_copy(update={"status": "ready", "time": NOW.isoformat()})])
     return specs
+
+
+def clip_round(root: Path, n: int = 4, name: str = "clips-pilot-1") -> list[ClipSpec]:
+    """A ready batch of n stills, sampled whole into clip round `name`."""
+    ready_batch(root, n=n)
+    assert run(root, "clip", "sample", "--round", name, "--n", str(n)) == cli.EXIT_OK
+    s = store(root)
+    record = s.read(s.round_file(name), RoundRecord)
+    return [s.read(s.spec_file(event), ClipSpec) for event in record.event_ids]
+
+
+def good_motion(spec: ClipSpec) -> str:
+    """A motion that passes every rule: each subject's and prop's first term, no camera words."""
+    nouns = [TAX.terms[item.cls][0] for item in (*spec.subjects, *spec.props)]
+    if not nouns:
+        return "Leaves move a little in the wind."
+    return f"The {', '.join(nouns)} stay in place and move a little."
+
+
+def write_motions(root: Path, name: str, motions: dict[str, str]) -> None:
+    path = store(root).round_dir(name) / "motions.jsonl"
+    rows = [json.dumps({"event_id": event, "prompt": text}) for event, text in motions.items()]
+    path.write_text("".join(f"{row}\n" for row in rows), encoding="utf-8")
+
+
+def frozen_round(root: Path, n: int = 4, name: str = "clips-pilot-1") -> list[ClipSpec]:
+    """A clip round whose motions `clip check` has frozen; returns the frozen specs."""
+    specs = clip_round(root, n, name)
+    write_motions(root, name, {spec.event_id: good_motion(spec) for spec in specs})
+    assert run(root, "clip", "check", "--round", name) == cli.EXIT_OK
+    s = store(root)
+    return [s.read(s.spec_file(spec.event_id), ClipSpec) for spec in specs]
