@@ -13,65 +13,49 @@
 #
 #     download_method != "skip"  AND  (hf_repo OR download_method)
 #
-# That rule yields 25 of the 30 catalogue entries and 33579 MB = 32.79 GiB
-# (~32.8GB) of models.yml size_mb estimates.  The 5 excluded entries are the
-# download_method: skip ones (brisque-quality, fast-alpr, paddleocr,
-# yolo26-general, zero-dce-plus-plus) — their libraries fetch what they need at
-# runtime.  The script itself fetches 24 of the 25 (32979 MB = 32.21 GiB ≈
-# ~32.2GB): the rule-selected xclip-base row was removed on 2026-09-23 under
-# the owner's full X-CLIP removal ruling (see the HF_DOWNLOADS table), so this
-# script is one deliberate deviation ahead of the owner-owned models.yml until
-# that keeps its provenance entry dropped too.
+# That rule yields 5 of the 10 catalogue entries and 763 MB of models.yml
+# size_mb estimates — figures a reader can re-measure (parse models.yml, or
+# run backend/tests/unit/setup_lib/test_download_models_script_vlm_retirement.py,
+# which re-derives them and pins this script's fetch list to the rule).  The 5
+# excluded entries are the download_method: skip ones (face-detector-scrfd,
+# face-recognizer, fast-alpr, paddleocr, yolo26-general) — their libraries
+# fetch what they need at runtime.
+#
+# R8 (slices S1-S3, 2026-09-29, ledger items 46-55) retired the ~32GB legacy
+# zoo this script used to provision: the Nemotron GGUF (the text-only LLM path
+# — deleted; the shipped reasoning engine is the profiled ai-vlm llama.cpp
+# container, whose identity is config per ledger D5, so this script never
+# provisions or names a VLM), Florence x2, SigLIP/CLIP, vehicle-segment, pet,
+# depth, age/gender, weather, violence, smoke-fire, pose (vitpose/yolov8n-
+# pose), segformer, vehicle-damage, stgcn, yolo-world and fashion-clip.  Each
+# row's death was re-measured against live readers before deletion (nothing
+# populates enrichment_data["violence_detection"]; smoke_fire_loader.py no
+# longer exists and alert_engine's _check_smoke_fire is documented mock; the
+# gateway serves only the yolo26/reid/threat Triton names under
+# GATEWAY_MODEL_SET=vlm, so the other exports could never load).
 #
 # The `enabled` flag governs backend model_zoo VRAM slots, NOT disk
-# provisioning — so the two `enabled: false` entries still downloaded here are
-# downloaded because live code reads their files off disk (yolo26:
-# ai/gateway/export/export_yolo26.py + export_all.sh and
-# scripts/prebuild-tensorrt-engines.sh need model-zoo/yolo26/*.pt;
-# florence-2-large: backend/services/florence_extractor.py goes through the
-# model_zoo loader map).  xclip-base is no longer fetched: every reader is
-# retired (enrichment action_recognizer → archive/ai-enrichment/; backend
-# chain → archive/xclip-backend-chain/).
+# provisioning — yolo26 is `enabled: false` yet is still fetched because live
+# code reads its .pt files off disk: ai/gateway/export/export_yolo26.py +
+# export_all.sh read model-zoo/yolo26/yolo26m.pt and
+# scripts/prebuild-tensorrt-engines.sh builds the TensorRT engine from it.
 #
-# Models downloaded (24 entries, 32.21 GiB by models.yml size_mb):
-#   PHASE 0 — required (~16.2GB):
-#     - Nemotron-3-Nano-30B (Q4_K_M) - ~14.7GB - Risk reasoning LLM
-#     - Florence-2-Base - ~1GB - Vision-language captions (ai-gateway)
-#     - SigLIP 2 Base ONNX - ~400MB - Entity re-identification embeddings
-#     - YOLO26 (n/s/m) - ~67MB - Object detection (enabled: false but the
-#         gateway export/TensorRT-prebuild path needs the .pt files on disk)
-#   PHASE 1 — core enrichment (~543MB):
-#     - Vehicle-Segment-Classification (ResNet-50) - ~358MB - Vehicle types
-#     - Pet-Classifier (ResNet-18) - ~46MB - Cat/dog detection
-#     - Depth-Anything-V2-Tiny - ~98MB - Depth estimation
-#     - OSNet-AIN x1.0 - ~10MB - Person re-identification
-#     - YOLOv8n-pose - ~6MB - Human pose estimation
-#     - Threat-Detection-YOLOv8n - ~25MB - Weapon detection
-#   PHASE 2 — demographics and action recognition (~740MB):
-#     - ViT-Age / ViT-Gender classifiers - ~358MB each
-#     - ST-GCN++ - ~20MB - Skeleton action recognition (the only live action
-#         recognizer: Triton stgcn_action behind the gateway /action-classify
-#         adapter).  X-CLIP Base ~600MB REMOVED 2026-09-23 (owner full-removal
-#         ruling) — every reader is retired: enrichment action_recognizer →
-#         archive/ai-enrichment/, backend chain (action_recognition_service.py,
-#         xclip_loader.py, model_zoo map entry, /api/action-events/analyze
-#         route) → archive/xclip-backend-chain/.  The owner-owned models.yml
-#         still keeps the xclip-base provenance entry; drop it there in the
-#         same ruling that deletes archive/xclip-backend-chain/.
-#   PHASE 3 — specialized (~14.8GB):
-#     - Fashion-CLIP (Marqo FashionSigLIP) - ~4.4GB - Clothing classification
-#     - Florence-2-Large - ~3GB - VLM attribute extraction (enabled: false —
-#         still in the model_zoo loader map)
-#     - Weather / Violence classifiers - ~200MB / ~350MB
-#     - YOLO11 face / license-plate detectors - ~11MB / ~650MB
-#     - Smoke-Fire-YOLOv8n - ~25MB - CRITICAL safety model
-#     - YOLO-World-S - ~1.5GB - Open-vocabulary detection
-#     - ViTPose+ Small - ~1.5GB - Pose estimation
-#     - SegFormer-B2-Clothes - ~1.5GB - Clothing segmentation
-#     - Vehicle-Damage-Detection - ~2GB - Damage segmentation
-#   Not fetched here (models.yml download_method: skip — the library fetches them):
-#     - brisque-quality (piq), fast-alpr (ONNX), paddleocr, yolo26-general,
-#       zero-dce-plus-plus
+# Models fetched (5 entries, 763 MB by models.yml size_mb):
+#   - YOLO26 n/s/m .pt - 67MB - object detection (gateway Triton export input)
+#   - OSNet-AIN x1.0 - 10MB - person re-ID (Triton `reid`; osnet_loader.py
+#       reads the short-name link this script creates)
+#   - Threat-Detection-YOLOv8n - 25MB - weapon detection (Triton `threat`)
+#   - YOLO11 face - 11MB - face detection on person crops
+#   - YOLO11 license-plate - 650MB - plate detection
+#
+# Deliberately NOT provisioned by anything in this repo: the shipped reasoning
+# engine's GGUF pair.  VLM_MODEL_PATH + VLM_MMPROJ_PATH (one identity — the
+# projector file is part of it; without it the serve is text-only and every
+# vlm_assess degrades silently) are read from ${AI_MODELS_PATH}/vlm, which
+# compose mounts read-only into ai-vlm at /models.  Identity is operator config
+# (.env), so no script fetches it and this one never will (ledger D5).  The
+# opt-in ai-llm-vllm benchmarking harness (--profile vllm) is separate again:
+# it wants HF-format models under ${AI_MODELS_PATH}/huggingface.
 #
 # Security:
 #   - Direct downloads: SHA256 checksum verification
@@ -119,11 +103,6 @@ echo ""
 # Checksums here are primarily for direct file downloads (wget/curl).
 
 declare -A MODEL_CHECKSUMS=(
-    # Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf (~14.7GB)
-    # From: https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF (models.yml hf_repo)
-    # Verified from known-good download on 2026-01-18; matches the LFS oid published
-    # by the unsloth repo, so it still verifies against the models.yml source repo.
-    ["Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"]="0e7f6e51fdd9039928749d07eed9e846dbfd97681646544c5406bcdd788e5940"  # pragma: allowlist secret
     # YOLO26 ultralytics weights (GitHub release v8.4.0 assets).  Computed with
     # sha256sum from the v8.4.0 assets downloaded 2026-09-22; the v8.4.0 release
     # is immutable so these hold unless a maintainer changes the pinned release.
@@ -136,23 +115,9 @@ declare -A MODEL_CHECKSUMS=(
 # These provide an additional layer of integrity verification beyond Git LFS
 # Leave empty to skip commit verification (Git LFS still provides integrity)
 declare -A HF_REPO_COMMITS=(
-    ["microsoft/Florence-2-base"]=""
-    ["microsoft/Florence-2-large"]=""
-    ["onnx-community/siglip2-base-patch16-224-ONNX"]=""
-    ["AventIQ-AI/ResNet-50-Vehicle-Segment-classification"]=""
-    ["microsoft/resnet-18"]=""
-    ["depth-anything/Depth-Anything-V2-Small-hf"]=""
     ["Subh775/Threat-Detection-YOLOv8n"]=""
-    ["nateraw/vit-age-classifier"]=""
-    ["rizvandwiki/gender-classification"]=""
-    ["prithivMLmods/Weather-Image-Classification"]=""
-    ["jaranohaal/vit-base-violence-detection"]=""
     ["AdamCodd/YOLOv11n-face-detection"]=""
     ["morsetechlab/yolov11-license-plate-detection"]=""
-    ["SHOU-ISD/fire-and-smoke"]=""
-    ["usyd-community/vitpose-plus-small"]=""
-    ["mattmdjaga/segformer_b2_clothes"]=""
-    ["harpreetsahota/car-dd-segmentation-yolov11"]=""
 )
 
 # ==========================================
@@ -343,8 +308,11 @@ human_size() {
     fi
 }
 
-# Create directory structure
-mkdir -p "${AI_MODELS_PATH}/nemotron"
+# Create directory structure.  The vlm/ dir is where the operator places the
+# GGUF pair consumed by VLM_MODEL_PATH/VLM_MMPROJ_PATH (compose mounts it
+# read-only into ai-vlm at /models); this script creates the directory but
+# never fetches or names the weights — identity is operator config (ledger D5).
+mkdir -p "${AI_MODELS_PATH}/vlm"
 mkdir -p "${AI_MODELS_PATH}/model-zoo"
 
 # Check for required tools
@@ -417,147 +385,26 @@ download_file() {
 # models.yml download set — HuggingFace snapshots
 # ==========================================
 # One row per models.yml entry that the rule selects and that is fetched as a
-# plain HuggingFace snapshot (no download_method, or a hf_repo with no method):
+# plain HuggingFace snapshot (no download_method, but a non-empty hf_repo):
 #   name | hf_repo | local_path | size_mb
 # Keep in sync with models.yml — regenerate with the same filter setup_lib uses:
 #   download_method != "skip" and (hf_repo or download_method)
-# Entries with a custom download_method, plus yolov8n-pose (whose hf_repo
-# ultralytics/yolov8n-pose is not a public HF repo — its section below mirrors
-# setup_lib's ultralytics release path instead), are handled in their own
-# sections.  florence-2-large is enabled: false — kept because the rule (disk
-# provisioning) not `enabled` (backend VRAM slots) governs.  The rule also
-# selects xclip-base, but its row was REMOVED 2026-09-23 under the owner's
-# full X-CLIP removal ruling: every code reader is retired
-# (archive/ai-enrichment/, archive/xclip-backend-chain/) and no live loader
-# reads model-zoo/xclip-base/ off disk.  The owner-owned models.yml keeps the
-# xclip-base entry as provenance — delete the row here together with that
-# entry when the provenance ruling lands.
+# The two custom-method rows the rule selects (yolo26, osnet-ain-x1-0) are
+# fetched in their own sections below.  R8 retired the other 13 rows this
+# array used to carry (their readers died with slices S1-S3; see the header).
+# test_download_models_script_vlm_retirement.py pins this array to a
+# re-derivation of the rule, so a models.yml row that changes selection fails
+# a test instead of quietly over- or under-provisioning a deploy.
 HF_DOWNLOADS=(
-    # PHASE 0 — required
-    "florence-2-base|microsoft/Florence-2-base|model-zoo/florence-2-base|1024"
-    "siglip2-base-patch16-224|onnx-community/siglip2-base-patch16-224-ONNX|model-zoo/siglip2-base-patch16-224|400"
-    # PHASE 1 — core enrichment
-    "vehicle-segment-classification|AventIQ-AI/ResNet-50-Vehicle-Segment-classification|model-zoo/vehicle-segment-classification|358"
-    "pet-classifier|microsoft/resnet-18|model-zoo/pet-classifier|46"
-    "depth-anything-v2-tiny|depth-anything/Depth-Anything-V2-Small-hf|model-zoo/depth-anything-v2-tiny|98"
     "threat-detection-yolov8n|Subh775/Threat-Detection-YOLOv8n|model-zoo/threat-detection-yolov8n|25"
-    # PHASE 2 — demographics and action recognition
-    "vit-age-classifier|nateraw/vit-age-classifier|model-zoo/vit-age-classifier|358"
-    "vit-gender-classifier|rizvandwiki/gender-classification|model-zoo/vit-gender-classifier|358"
-    # xclip-base row removed 2026-09-23 (full X-CLIP removal, owner ruling) —
-    # models.yml's enabled:false provenance entry is owner-owned; sweep both.
-    # PHASE 3 — specialized
-    "weather-classification|prithivMLmods/Weather-Image-Classification|model-zoo/weather-classification|200"
-    "violence-detection|jaranohaal/vit-base-violence-detection|model-zoo/violence-detection|350"
     "yolo11-face|AdamCodd/YOLOv11n-face-detection|model-zoo/yolo11-face-detection|11"
     "yolo11-license-plate|morsetechlab/yolov11-license-plate-detection|model-zoo/yolo11-license-plate|650"
-    "smoke-fire-yolov8n|SHOU-ISD/fire-and-smoke|model-zoo/smoke-fire-yolov8n|25"
-    "vitpose-small|usyd-community/vitpose-plus-small|model-zoo/vitpose-small|1500"
-    "segformer-b2-clothes|mattmdjaga/segformer_b2_clothes|model-zoo/segformer-b2-clothes|1500"
-    "vehicle-damage-detection|harpreetsahota/car-dd-segmentation-yolov11|model-zoo/vehicle-damage-detection|2000"
-    "florence-2-large|microsoft/Florence-2-large|model-zoo/florence-2-large|3000"
 )
 
-# 1 nemotron + HF snapshot rows + 6 custom-method sections
-# (yolo26 / yolov8n-pose / osnet / stgcn / yolo-world / fashion-clip)
-TOTAL=$(( 1 + ${#HF_DOWNLOADS[@]} + 6 ))
+# 2 custom-method sections (yolo26, osnet) + the HF snapshot rows above.
+# Nothing else: R8 retired pose/stgcn/yolo-world/fashion-clip/nemotron.
+TOTAL=$(( 2 + ${#HF_DOWNLOADS[@]} ))
 STEP=0
-
-# ==========================================
-# Nemotron-3-Nano-30B (Risk Reasoning LLM)
-# models.yml: service ai-llm, download_method nemotron_gguf
-# ==========================================
-STEP=$(( STEP + 1 ))
-echo ""
-echo "=========================================="
-echo "${STEP}/${TOTAL} - Nemotron-3-Nano-30B (Risk Reasoning LLM)"
-echo "=========================================="
-echo ""
-
-NEMOTRON_DIR="${AI_MODELS_PATH}/nemotron/nemotron-3-nano-30b-a3b-q4km"
-NEMOTRON_MODEL="${NEMOTRON_DIR}/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
-NEMOTRON_URL="https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
-NEMOTRON_CHECKSUM="${MODEL_CHECKSUMS[Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf]:-}"
-
-mkdir -p "$NEMOTRON_DIR"
-
-if [ -f "$NEMOTRON_MODEL" ]; then
-    echo "[SKIP] Nemotron model already exists: $NEMOTRON_MODEL"
-    # Verify checksum of existing file
-    verify_checksum "$NEMOTRON_MODEL" "$NEMOTRON_CHECKSUM"
-else
-    # Check for existing model in common locations
-    FOUND_MODEL=""
-    for search_path in \
-        "${NEMOTRON_GGUF_PATH:-}" \
-        "/export/ai_models/weights/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf" \
-        "$HOME/.cache/huggingface/hub/models--unsloth--Nemotron-3-Nano-30B-A3B-GGUF/snapshots/*/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"; do
-        if [ -n "$search_path" ] && [ -f "$search_path" ]; then
-            FOUND_MODEL="$search_path"
-            break
-        fi
-    done
-
-    if [ -n "$FOUND_MODEL" ]; then
-        echo "[FOUND] Existing Nemotron model: $FOUND_MODEL"
-
-        # Verify checksum of found file before linking
-        verify_checksum "$FOUND_MODEL" "$NEMOTRON_CHECKSUM"
-
-        echo "        Creating symlink to: $NEMOTRON_MODEL"
-
-        # NEM-1091: Improved symlink error handling
-        # Check if target already exists and is a symlink pointing to the same file
-        if [ -L "$NEMOTRON_MODEL" ]; then
-            EXISTING_TARGET=$(readlink -f "$NEMOTRON_MODEL" 2>/dev/null || true)
-            FOUND_MODEL_RESOLVED=$(readlink -f "$FOUND_MODEL" 2>/dev/null || echo "$FOUND_MODEL")
-            if [ "$EXISTING_TARGET" = "$FOUND_MODEL_RESOLVED" ]; then
-                echo "[SKIP] Symlink already exists and points to the correct target"
-            else
-                echo "[INFO] Updating symlink (was pointing to: $EXISTING_TARGET)"
-                rm -f "$NEMOTRON_MODEL"
-                ln -sf "$FOUND_MODEL" "$NEMOTRON_MODEL" || {
-                    echo "[ERROR] Failed to create symlink"
-                    echo "        Source: $FOUND_MODEL"
-                    echo "        Target: $NEMOTRON_MODEL"
-                    echo "        Check permissions and that the target directory exists"
-                    exit 1
-                }
-                echo "[OK] Nemotron model linked"
-            fi
-        elif [ -e "$NEMOTRON_MODEL" ]; then
-            # Target exists but is not a symlink (regular file)
-            echo "[ERROR] Target path exists and is not a symlink: $NEMOTRON_MODEL"
-            echo "        Remove or rename the existing file first"
-            exit 1
-        else
-            # Create new symlink
-            ln -sf "$FOUND_MODEL" "$NEMOTRON_MODEL" || {
-                echo "[ERROR] Failed to create symlink"
-                echo "        Source: $FOUND_MODEL"
-                echo "        Target: $NEMOTRON_MODEL"
-                echo "        Check permissions and that the target directory exists"
-                exit 1
-            }
-            echo "[OK] Nemotron model linked"
-        fi
-    else
-        echo "[DOWNLOAD] Nemotron-3-Nano-30B-A3B (Q4_K_M) - ~14.7GB"
-        echo "           This may take 10-30 minutes depending on connection speed"
-        echo "           URL: $NEMOTRON_URL"
-        wget --progress=bar:force -O "$NEMOTRON_MODEL" "$NEMOTRON_URL" || {
-            echo "[ERROR] Nemotron download failed"
-            echo "        You can manually download from: https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF"
-            echo "        Place the .gguf file at: $NEMOTRON_MODEL"
-            rm -f "$NEMOTRON_MODEL"
-            exit 1
-        }
-
-        # Verify checksum after download
-        echo ""
-        verify_checksum "$NEMOTRON_MODEL" "$NEMOTRON_CHECKSUM"
-    fi
-fi
 
 # ==========================================
 # yolo26 — models.yml download_method: yolo26
@@ -588,23 +435,6 @@ download_file "${YOLO26_RELEASE}/yolo26m.pt" \
 # Single-file downloads (models.yml custom download_method)
 # ==========================================
 
-# Ultralytics weights are served from GitHub releases, not HuggingFace
-ULTRALYTICS_RELEASE="https://github.com/ultralytics/assets/releases/download/v8.2.0"
-
-# yolov8n-pose — models.yml download_method: (runtime_file yolov8n-pose.pt)
-# models.yml hf_repo (ultralytics/yolov8n-pose) is not a public HF repo, so this
-# mirrors setup_lib/model_downloader.download_yolov8n_pose() instead.
-STEP=$(( STEP + 1 ))
-echo ""
-echo "=========================================="
-echo "${STEP}/${TOTAL} - YOLOv8n-pose (Human Pose Estimation)"
-echo "=========================================="
-echo ""
-POSE_DIR="${AI_MODELS_PATH}/model-zoo/yolov8n-pose"
-mkdir -p "$POSE_DIR"
-download_file "${ULTRALYTICS_RELEASE}/yolov8n-pose.pt" \
-    "${POSE_DIR}/yolov8n-pose.pt" "YOLOv8n-pose (~6MB)" "6MB"
-
 # osnet-ain-x1-0 — models.yml download_method: osnet
 # The MSMT17 checkpoint lives in kaiyangzhou/osnet under a long filename; the
 # runtime (backend/services/osnet_loader.py) looks for the short name.
@@ -623,59 +453,6 @@ download_file "https://huggingface.co/kaiyangzhou/osnet/resolve/main/${OSNET_LON
 if [ ! -e "$OSNET_LINK" ]; then
     ln -s "$OSNET_LONG" "$OSNET_LINK"
     echo "[OK] Linked: $(basename "$OSNET_LINK")"
-fi
-
-# stgcn-plus-plus — models.yml download_method: stgcn
-STEP=$(( STEP + 1 ))
-echo ""
-echo "=========================================="
-echo "${STEP}/${TOTAL} - ST-GCN++ (Skeleton Action Recognition)"
-echo "=========================================="
-echo ""
-STGCN_DIR="${AI_MODELS_PATH}/model-zoo/stgcn-plus-plus"
-mkdir -p "$STGCN_DIR"
-download_file "http://download.openmmlab.com/mmaction/pyskl/ckpt/stgcnpp/stgcnpp_ntu60_xsub_hrnet/j.pth" \
-    "${STGCN_DIR}/stgcnpp_ntu60_xsub_hrnet_j.pth" "ST-GCN++ (~20MB)" "20MB"
-
-# yolo-world-s — models.yml download_method: yolo_world
-STEP=$(( STEP + 1 ))
-echo ""
-echo "=========================================="
-echo "${STEP}/${TOTAL} - YOLO-World-S (Open-Vocabulary Detection)"
-echo "=========================================="
-echo ""
-YOLO_WORLD_DIR="${AI_MODELS_PATH}/model-zoo/yolo-world-s"
-mkdir -p "$YOLO_WORLD_DIR"
-download_file "${ULTRALYTICS_RELEASE}/yolov8s-worldv2.pt" \
-    "${YOLO_WORLD_DIR}/yolov8s-worldv2.pt" "YOLO-World-S (~46MB)" "46MB"
-
-# ==========================================
-# fashion-clip (Marqo FashionSigLIP) — models.yml download_method: hf_cache
-# open_clip loads this as "hf-hub:Marqo/marqo-fashionSigLIP", which requires the
-# standard HuggingFace hub cache layout — it is deliberately NOT stored under
-# model-zoo (see setup_lib/model_downloader.download_marqo_fashionsiglip()).
-# ==========================================
-STEP=$(( STEP + 1 ))
-echo ""
-echo "=========================================="
-echo "${STEP}/${TOTAL} - Fashion-CLIP / FashionSigLIP (Clothing)"
-echo "=========================================="
-echo ""
-HF_CACHE="${HF_HOME:-$HOME/.cache/huggingface}/hub"
-MARQO_SNAPSHOTS="${HF_CACHE}/models--Marqo--marqo-fashionSigLIP/snapshots"
-if [ -d "$MARQO_SNAPSHOTS" ] && [ -n "$(ls -A "$MARQO_SNAPSHOTS" 2>/dev/null)" ]; then
-    echo "[SKIP] FashionSigLIP already in HuggingFace hub cache: $MARQO_SNAPSHOTS"
-elif command -v hf &> /dev/null; then
-    echo "[DOWNLOAD] Marqo/marqo-fashionSigLIP (~4.4GB) into ${HF_CACHE}"
-    hf download Marqo/marqo-fashionSigLIP
-elif command -v huggingface-cli &> /dev/null; then
-    echo "[DOWNLOAD] Marqo/marqo-fashionSigLIP (~4.4GB) into ${HF_CACHE}"
-    huggingface-cli download Marqo/marqo-fashionSigLIP
-else
-    echo "[WARN] Neither 'hf' nor 'huggingface-cli' found — open_clip needs this"
-    echo "       model in the HuggingFace hub cache, which only the CLI can"
-    echo "       populate. Install it (pip install -U huggingface_hub) or run"
-    echo "       'python setup.py' and re-run this step."
 fi
 
 # ==========================================
@@ -701,56 +478,39 @@ echo "=========================================="
 echo ""
 echo "Models installed to: ${AI_MODELS_PATH}"
 echo ""
-echo "Directory structure (24 entries fetched, 32.21 GiB — the rule selects 25;"
-echo "the xclip-base row was removed 2026-09-23, full X-CLIP removal ruling):"
+echo "Directory structure (5 entries fetched, 763 MB by models.yml size_mb;"
+echo "the rule selects exactly these — see the header re-derivation):"
 echo "  ${AI_MODELS_PATH}/"
-echo "  ├── nemotron/"
-echo "  │   └── nemotron-3-nano-30b-a3b-q4km/  (Nemotron LLM)"
 echo "  ├── model-zoo/"
 echo "  │   ├── yolo26/                        (Detection — n/s/m .pt; gateway export)"
-echo "  │   ├── florence-2-base/               (Vision-language)"
-echo "  │   ├── florence-2-large/              (Vision-language — enabled: false)"
-echo "  │   ├── siglip2-base-patch16-224/      (Re-ID embeddings)"
-echo "  │   ├── vehicle-segment-classification/ (Vehicles)"
-echo "  │   ├── pet-classifier/                (Pets)"
-echo "  │   ├── depth-anything-v2-tiny/        (Depth)"
-echo "  │   ├── osnet-ain-x1-0/                (Person Re-ID)"
-echo "  │   ├── yolov8n-pose/                  (Pose)"
-echo "  │   ├── threat-detection-yolov8n/      (Weapons)"
-echo "  │   ├── vit-age-classifier/            (Age)"
-echo "  │   ├── vit-gender-classifier/         (Gender)"
-echo "  │   ├── stgcn-plus-plus/               (Action recognition — the only"
-echo "  │   │                                   action model fetched since the"
-echo "  │   │                                   2026-09-23 X-CLIP removal)"
-echo "  │   ├── weather-classification/        (Weather)"
-echo "  │   ├── violence-detection/            (Violence)"
+echo "  │   ├── osnet-ain-x1-0/                (Person Re-ID — Triton reid)"
+echo "  │   ├── threat-detection-yolov8n/      (Weapons — Triton threat)"
 echo "  │   ├── yolo11-face-detection/         (Faces)"
-echo "  │   ├── yolo11-license-plate/          (License plates)"
-echo "  │   ├── smoke-fire-yolov8n/            (Smoke/fire)"
-echo "  │   ├── yolo-world-s/                  (Open-vocab detection)"
-echo "  │   ├── vitpose-small/                 (Pose)"
-echo "  │   ├── segformer-b2-clothes/          (Clothing segmentation)"
-echo "  │   └── vehicle-damage-detection/      (Damage segmentation)"
+echo "  │   └── yolo11-license-plate/          (License plates)"
 echo "  ├── triton/                            (TensorRT/ONNX engine cache)"
 echo "  └── quantized/                         (INT8 variants)"
 echo ""
-echo "  fashion-clip lives in the HuggingFace hub cache, not in model-zoo:"
-echo "    ${MARQO_SNAPSHOTS}"
+echo "Reasoning engine (the shipped ai-vlm llama.cpp container) — NOT fetched"
+echo "by this script; its identity is operator config (ledger D5):"
+echo "  Place the GGUF pair named by VLM_MODEL_PATH + VLM_MMPROJ_PATH (they are"
+echo "  one identity — the mmproj projector is required, without it the serve"
+echo "  is text-only and every vlm_assess call degrades silently) under:"
+echo "    ${AI_MODELS_PATH}/vlm/"
+echo "  which compose mounts read-only into ai-vlm at /models. Enable it with"
+echo "  the vlm profile:  podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm"
+echo "  (The opt-in --profile vllm benchmarking harness is separate: it wants"
+echo "  HF-format models under ${AI_MODELS_PATH}/huggingface.)"
 echo ""
 echo "Not downloaded (models.yml download_method: skip — their library fetches"
 echo "them at runtime, so the download rule excludes them):"
-echo "  - brisque-quality (piq), fast-alpr (ONNX), paddleocr"
-echo "  - yolo26-general (weights not released), zero-dce-plus-plus (TF/"
-echo "    PyTorch mismatch — see the models.yml comment)"
+echo "  - face-detector-scrfd, face-recognizer (insightface/onnxruntime),"
+echo "    fast-alpr (ONNX auto-download), paddleocr"
+echo "  - yolo26-general (weights not released yet — models.yml comment)"
 echo ""
 echo "Note: \`enabled\` in models.yml governs backend model_zoo VRAM slots, not"
-echo "disk provisioning — yolo26 and florence-2-large are enabled: false yet"
-echo "still downloaded here because live loaders/exporters read them off disk."
-echo "xclip-base stopped being downloaded 2026-09-23 (full X-CLIP removal,"
-echo "owner ruling): every code reader (enrichment action_recognizer; backend"
-echo "action_recognition_service.py + xclip_loader.py + model_zoo map) is"
-echo "retired to archive/. The owner-owned models.yml entry stays as"
-echo "provenance — sweep both together when that entry is ruled."
+echo "disk provisioning — yolo26 and yolo26-general are enabled: false; yolo26"
+echo "is still downloaded here because the gateway export/TensorRT-prebuild"
+echo "path reads its .pt files off disk."
 echo ""
 echo "Security verification:"
 echo "  - Direct downloads: SHA256 checksum verification"
@@ -759,6 +519,7 @@ echo ""
 echo "Next steps:"
 echo "  1. Ensure docker-compose.prod.yml has correct AI_MODELS_PATH"
 echo "  2. Start services: podman-compose -f docker-compose.prod.yml up -d"
+echo "     (+ --profile vlm up -d ai-vlm if you provisioned the GGUF pair)"
 echo "  3. Wait for AI models to load (~2-3 minutes)"
 echo "  4. Check health: curl http://localhost:8000/api/system/health/ready"
 echo ""
