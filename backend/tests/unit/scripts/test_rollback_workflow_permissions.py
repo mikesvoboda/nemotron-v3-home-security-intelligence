@@ -65,8 +65,7 @@ def test_issue_filing_job_has_issues_write(jobs: dict) -> None:
     offenders = sorted(
         job_id
         for job_id, job in jobs.items()
-        if _calls_issue_api(job)
-        and (job.get("permissions") or {}).get("issues") != "write"
+        if _calls_issue_api(job) and (job.get("permissions") or {}).get("issues") != "write"
     )
     assert not offenders, (
         f"jobs call the Issues API without issues: write, so GITHUB_TOKEN "
