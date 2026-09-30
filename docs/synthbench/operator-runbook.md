@@ -280,6 +280,49 @@ replays' results live there) and replay again.
 a quiet period. `replay` turns its thinking off, which keeps it inside the product's 1024-token
 budget.
 
+## Score the models (P5a)
+
+The full scored run, as it was done on 2026-09-29/30. It needs the owner for the audit and for the
+flagship's timing. A model is served as the section above says.
+
+1. **Record the start.** Keep the time for the guard check in step 6.
+
+   ```bash
+   date '+%F %T' | tee ~/p5a-start
+   docker inspect -f '{{.State.StartedAt}} restarts={{.RestartCount}}' dgx-inference-vllm-1 | tee ~/p5a-flagship
+   systemctl --user is-active synthbench-renderer synthbench-guard    # inactive, active
+   uv run python -m synthbench export vss                             # 450 unchanged
+   ```
+
+2. **The audit (owner, about 20 minutes).** Run `uv run python -m synthbench audit` and answer all
+   60 stills at `http://127.0.0.1:8765/`. From another machine, tunnel the same port first:
+   `ssh -L 8765:127.0.0.1:8765 <host>`. The page refuses answers from any other origin or port.
+3. **The product model:** serve `ai-vlm`, then run
+   `uv run python -m synthbench replay --model qwen3-vl-8b`. It takes about 19 minutes.
+4. **The comparison models.** Stop `ai-vlm` and start `synthbench-cosmos`, then run
+   `replay --model cosmos-reason2-8b` (about 1¾ hours). The flagship replay,
+   `replay --model flagship` (about 35 minutes), loads nothing, so it can run alongside Cosmos in
+   a quiet period the owner picks. The eval store takes both writers (SQLite, 30 s busy timeout).
+   If any replay refuses more than 5% of its items, stop and show the owner its refusal classes.
+   (On 2026-09-30 Cosmos refused about 13% and the owner stopped it; the flagship was the
+   comparison.)
+5. **Score.** Run
+   `uv run python -m synthbench score --replay <qwen id> --replay <cosmos id> --replay <flagship id>`.
+   To view the gallery, serve the tree:
+   `cd /synthbench && python3 -m http.server 8766 --bind 127.0.0.1`, then open
+   `runs/scores/<score_id>/report.html`.
+6. **Check the flagship stayed healthy.**
+
+   ```bash
+   journalctl --user -u synthbench-renderer -u synthbench-guard --since "$(cat ~/p5a-start)" --no-pager
+   docker inspect -f '{{.State.StartedAt}} restarts={{.RestartCount}}' dgx-inference-vllm-1 | diff - ~/p5a-flagship
+   ```
+
+   Expected: no entries, and no difference.
+
+7. **Stop what you served** (`ai-vlm`, `synthbench-cosmos`). Commit `report.md` as
+   `docs/benchmarks/synthbench/p5a-<date>.md`, with the acceptance record.
+
 ## The agent's stop-and-ask questions
 
 | The agent reports                          | You                                                                                     |
