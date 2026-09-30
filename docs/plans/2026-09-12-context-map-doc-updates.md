@@ -12827,3 +12827,124 @@ still needs its module-filtered recovery runs.
 **NOT PUBLISHED FROM:** the mid-run live reads (kt 1,163/surv 40 census at
 02:21Z), sweep/red-check counts as badge claims, or any completed=false read.
 Command + snapshots listed; every number measured THIS session.
+
+## 2026-09-30 — MILESTONE 9 PUBLISHES: 67.65226604212845% completed=true (+0.7709143629849535 pts vs M8's 66.88135167914349%) — campaign #7 `clip_client` CLOSES at 99.42583732057416%: the 20-test battery G converts 554 of the module's 559 survivors AND closes a 48-key STALE-VERDICT family the survivor census could not see, the 6 survivors are EXACTLY the six pre-registered EQUIVALENTs, UNEXPLAINED 0, denominator Δ+0 keys (the cleanest denominator of the campaign series — clip row byte-stable at 1,045)
+
+**THE NUMBER (measured THIS session, `scripts/mutation-score.py` rc=0 from the
+repo root → `/home/agent/runs/b33-score-M9.json`; publish chain: TWO
+`MUTMAX=14 ./scripts/mutation-run.sh clip_client` runs — logs
+`/home/agent/runs/b33-c7-run.log` + `/home/agent/runs/b33-c7-run2.log`,
+`guard-module.sh` held `outside-holes=0` at every tick of both runs, final
+`module run exited`):** killed 48,237 + timeout 292 = **48,529** of **71,733**
+→ **score 67.65226604212845%**, survived 22,421, no_tests 783 (UNCHANGED sticky
+set — the clip row carries ZERO exit-33 keys), unchecked 0, torn 0,
+**completed=true** (checked 71,733/71,733), 205 module rows with results / 244
+target rows. vs M8: **+553 kt** (47,976→48,529 = exactly the clip row's
+486→1,039 gain), survivors −553. **STRICT-> holds vs M8: +0.7709143629849535
+pts.** History appended ONCE: `--history .github/mutation-history.json
+--date 2026-09-30` (run #13 of `runs`).
+
+**CAMPAIGN #7 CLOSE — `backend/services/clip_client.py`** (pre-campaign:
+486 kt / 1,045 = 46.507177%, surv 559): now **1,039 / 1,045 =
+99.42583732057416%**, surv 6. ONE battery file, 20 tests
+(`grep -c "def test_"` = 20), `# TARGET-MODULE:` marker, the b30-sweep zero-arg
+contract (module-level `test_*` only, `_run(coro)` loop runner). Kill
+mechanisms (every observation crosses a boundary the mutant cannot fake): a
+recording httpx stub pins the EXACT `(url, kwargs)` of every `post`/`get`; a
+deterministic stub clock (`cc.time` swap, +1000.0 s per call) makes every
+duration EXACT (success `duration_ms` == 3,000,000, error arms == 2,000,000,
+`ai_duration` == 1000.0 — the `*1001` divisor-flip, the `+ start_time` swaps
+and the `= None` families all die in arithmetic); module-scope spy swaps pin
+`get_correlation_headers`/`observe_ai_request_duration`/`record_pipeline_error`
+labels+counts; the shipped `ContextFilter` rides the capture handler (batteries
+D/F idiom, extras read by VALUE, bogus renames proven ABSENT); per-endpoint
+circuit breakers make the `_get_breaker` routing observable (named-breaker
+`failure_count` after each arm + the embed-alias `is`-identity asymmetry + the
+OPEN-rejection endpoint label). Sweep: single-process trampoline sweep
+(`/home/agent/runs/b30-sweep.py`), 607 keys — the 559 survivors PLUS the 48
+stale-verdict keys recovered from the bank reconcile (see incident 1) — over
+`/home/agent/runs/b33-c7-sweep4.log`: shipped-green control OK (20 tests),
+RED=601 GREEN=6, the 6 GREEN = EXACTLY the six pre-registered EQUIVALENTs
+(`_encode_image_to_base64__7/__13` byte-identical by measurement; `embed__5/6/7`
+via the `_breakers.get` fallback `is`-identity; `__init____mutmut_18` the
+`is True`-default `dropped-kwarg` shape). **RECONCILE (bank verdicts = source of
+truth, `/home/agent/runs/b33-c7-audit-scoped.py`): 554 flips all sweep-predicted,
+the 6 survivors EXACTLY the 6 GREEN, UNEXPLAINED 0.**
+
+**SCOPED AUDIT (contract vs `/home/agent/runs/b33-preC7`): CLEAN** — every
+NON-clip row byte-identical (244 rows both sides, 0 viol); clip keys
+1,045→1,045 (0 lost, 0 added — no coverage-growth re-enumeration because battery
+G's coverage edges sat inside already-covered functions), 0 vanished. Of the 48
+stale kills: 47 were re-killed by the six new `__init__` construction tests in
+run 2 — they round-trip 1→0→1 and so read UNCHANGED in the pre-vs-now matrix —
+and 1 (`__18`) regressed to 0 as the whitelisted equivalent. Transitions also
+show 62 KT→KT re-verdicts: EVERY one is an era timeout (`-24`) re-decided as a
+killed failure (`1`) by the strengthened battery — clip now carries ZERO `-24`
+rows (pre: 62) — no score delta, both endpoints are kt.
+
+**DENOMINATOR DISCLOSURE vs the M8 row (71,733 → 71,733; Δ+0 keys / +553 kt;
+mover census both metas trees: 243 rows byte-identical, 1 mover (clip, the
++553 above), 0 rows gone, 0 added; UNEXPLAINED 0). SANCTIONED: the two module
+runs are the protocol step (run 1 closed the survivors + REVEALED the stale-
+verdict family the census is blind to; run 2 closed it); no floor/widened-set/
+policy touch anywhere.**
+
+**INCIDENTS + DISCOVERIES (disclosed):** (1) **STALE-VERDICT FAMILY** (the
+campaign's central find — NEW memory `bank-verdicts-can-be-stale-source-era`):
+run 1 regressed 48 `__init__` keys 1/-24→0 — long-STABLE bank kills (clip held
+486 kt for 10 runs) that the CURRENT tree provably does not make: measured
+`__init__` `function_hash` identical era-vs-now, and `__init___14` passes the
+FULL unit suite WITHOUT battery G installed (and the shipped gateway tests pass
+standalone) — so the era kills were casualties of since-changed source/tests,
+NOT a regression this campaign introduced. Mechanism: `rstrip("/")` →
+`rstrip("XX/XX")` strips the CHAR-SET {X, /}, and no shipped test ever passed a
+URL ending in `X`; nothing read the timeouts, breaker names/configs, pool
+limits, or the init log line. The survivor census (`exit_code` == 0) is BLIND
+to these, so a "kill the survivors" plan silently leaves 48 holes the module
+run re-opens. Fixed by 6 construction tests:
+`test_init_explicit_base_url_keeps_trailing_x`
+pins the rstrip on an X-terminated URL; the timeouts/breaker-names/
+shared-config/pool-limits/init-log tests pin the rest; `__24` killed by the
+attr-ABSENT polarity). (2) **GREEN-SCAN FAKE-REDS via the LAUNCH FLAGS** (the
+`greenscan-launch-path-fake-reds` lesson extended from PATH to FLAGS): scans
+launched with the repo `addopts` (`-n 8 --dist=worksteal` + `timeout=5 signal`)
+showed 2 then 1 reds in `test_route_mounting.py` — an execnet worker crash and
+an `ast.parse` over the 5 s signal ceiling under xdist load. Per-file repro 4/4
+pass ×3; under `mutmut`'s OWN runner flags (serial `-x -q --tb=short -m "not
+gpu" -p no:randomly -p no:benchmark -o addopts= --timeout=120`,
+`/home/agent/runs/b33-c7-greenscan4.log`): 27,831 passed, 0 failed — the exact
+environment the run's coverage/stats gather uses. Gate met on the runner's own
+flags. (3) **SWEEP KEY-LIST PREFIX BUG (self-caught twice)**: the first 607-key
+run fed the 48 stale keys as DOTTED names, which the sweep prefix-appends → they
+never activated → 48 false GREENs; and `b33-c7-audit-scoped.py` chopped the
+prefix unconditionally, corrupting the bare ledger keys (the same double-strip
+that had flagged run 1's 554 legit flips as UNEXPLAINED). Both caught by their
+own impossible GREEN counts; rebuilt with bare mangled names → RED=601/GREEN=6.
+(4) Guards: `guard-module.sh` held `outside-holes=0` AND `global-holes=0` at
+every clip tick (58 ticks across both runs), restore target stayed the current
+era (denominator unchanged).
+
+**R8 SHIELD (pre-campaign gate, re-run this session):** `git diff --name-only
+origin/main...<r8 branch> -- backend/services backend/api/routes` cleared
+`clip_client` before the campaign (absent from the S2B `DEAD_MODULES`/
+`DEAD_LOADERS` list). FYI mid-campaign: PR 6733 (r8-s3 gateway-provider
+retirement, OPEN) REMOVES `clip_client.py` (+ `florence_client`/`scene_baseline`/
+`scene_ocr_service`) — M9 is banked history regardless; the post-S3 re-bank will
+prune those rows (the four sit at 59.2% kt, below the badge, so the recomputed
+badge RISES even as clip's gain retires with the module) — memory
+`r8-s3-pr6733-death-list`.
+
+**TIER STATE:** 85% target from 67.65% → kt ≥ 60,973 on 71,733 — gap
+**12,444** kills. Post-#7 queue re-censused on the M9 bank (R8-shielded, <80%):
+`baseline` 368 surv / 51.96% (campaign #8 head), `file_watcher` 339 / 49.78%,
+`redis_json` 338 / 43.10%, `cleanup_service` 337 / 50.51%, `vlm_specialists`
+336 / 56.76%, then descending (`vlm_client` 324, `prompt_service` 320,
+`system_broadcaster` 320, `florence_client` 313 — but `florence_client` is on
+the S3 death list, SKIP). The sticky-713 trio (`trajectory_analyzer` 452 +
+`calibration_monitor` 201 + `session_service` 60) still needs its
+module-filtered recovery runs.
+
+**NOT PUBLISHED FROM:** the run-1 intermediate read (67.58674529156734%, clip kt
+992, before the stale-verdict family was found and closed), the mid-run live
+reads, sweep/red-check counts as badge claims, or any completed=false read.
+Command + snapshots listed; every number measured THIS session.
