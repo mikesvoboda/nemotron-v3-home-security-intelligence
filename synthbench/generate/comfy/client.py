@@ -66,14 +66,44 @@ class ComfyClient:
         info: dict[str, Any] = resp.json()
         return info
 
-    def upload_image(self, path: Path) -> str:
+    def upload_png(self, name: str, data: bytes) -> str:
+        """Upload PNG bytes to ComfyUI's input folder; returns the name graphs load it by."""
         resp = self._http.post(
             "/upload/image",
-            files={"image": (path.name, path.read_bytes(), "image/png")},
+            files={"image": (name, data, "image/png")},
             data={"overwrite": "true"},
         )
         resp.raise_for_status()
         return str(resp.json()["name"])
+
+    def upload_image(self, path: Path) -> str:
+        return self.upload_png(path.name, path.read_bytes())
+
+    def last_prompt(self) -> Graph | None:
+        """The graph of the newest prompt in ComfyUI's history, or None when it is empty.
+
+        An entry's `prompt` is [number, prompt_id, graph, extra_data, outputs] (ComfyUI v0.37.0,
+        confirmed live by the clips probe).
+        """
+        resp = self._http.get("/history", params={"max_items": 1})
+        resp.raise_for_status()
+        entries = list(resp.json().values())
+        if not entries:
+            return None
+        prompt = entries[-1].get("prompt") if isinstance(entries[-1], dict) else None
+        if isinstance(prompt, list) and len(prompt) > 2 and isinstance(prompt[2], dict):
+            graph: Graph = prompt[2]
+            return graph
+        raise ComfyError(f"unexpected history entry shape: {str(prompt)[:200]}")
+
+    def free_vram_gib(self) -> float:
+        """The GPU's free memory as ComfyUI reports it: /system_stats devices[0].vram_free."""
+        resp = self._http.get("/system_stats")
+        resp.raise_for_status()
+        devices = resp.json().get("devices") or []
+        if not devices:
+            raise ComfyError("/system_stats lists no device")
+        return float(devices[0]["vram_free"]) / 2**30
 
     def queue(self, graph: Graph) -> str:
         resp = self._http.post("/prompt", json={"prompt": graph, "client_id": self._client_id})

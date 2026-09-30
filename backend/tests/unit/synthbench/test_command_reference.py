@@ -11,7 +11,7 @@ from synthbench import cli
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 DOCS = REPO_ROOT / "docs" / "synthbench"
-AGENT_COMMANDS = {"sample", "check", "render", "camera", "triage", "report", "doctor"}
+AGENT_COMMANDS = {"sample", "check", "render", "camera", "triage", "report", "doctor", "clip"}
 
 
 def _leaves(

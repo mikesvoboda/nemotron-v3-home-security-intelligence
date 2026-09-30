@@ -1,8 +1,9 @@
 """Where a corpus version's files live, and how they are written (agent-driven design §2).
 
 The corpus is append-only. Images and clips are created once and never replaced. JSON files
-and the batch views (report.md, sheet.html) change only by atomic replace. index.jsonl only
-grows. Every file is mode 0644 so the owner can read what the sandbox agent wrote.
+and the batch views (report.md, sheet.html) change only by atomic replace. index.jsonl,
+clip-index.jsonl and rounds' switches.jsonl only grow. Every file is mode 0644 so the owner can
+read what the sandbox agent wrote.
 """
 
 from __future__ import annotations
@@ -17,14 +18,17 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import TypeVar
 
+from synthbench.contract.clip import ClipIndexRow
 from synthbench.contract.common import SLUG, ContractModel
 from synthbench.contract.corpus import IndexRow
 
 M = TypeVar("M", bound=ContractModel)
+R = TypeVar("R", IndexRow, ClipIndexRow)
 
 DEFAULT_SYNTHBENCH_ROOT = Path("/synthbench")
-# A tier letter, then no path separators or dot segments: the id never leaves version_dir.
-_EVENT_ID = re.compile(r"[AB]-[A-Za-z0-9][A-Za-z0-9_-]*")
+# A kind letter (A, B or C), then no path separators or dot segments: the id never leaves
+# version_dir.
+_EVENT_ID = re.compile(r"[ABC]-[A-Za-z0-9][A-Za-z0-9_-]*")
 _FILE_MODE = 0o644
 _REPLACEABLE = frozenset({".json", ".md", ".html"})
 # A filesystem that refuses hard links (the sandbox's virtiofs mount may: P3 Task 1) gets an
@@ -105,10 +109,15 @@ class CorpusStore:
     def index_file(self) -> Path:
         return self.version_dir / "index.jsonl"
 
+    @property
+    def clip_index_file(self) -> Path:
+        return self.version_dir / "clip-index.jsonl"
+
     def event_dir(self, event_id: str) -> Path:
         if not _EVENT_ID.fullmatch(event_id):
             raise ValueError(
-                f"event_id must be A- or B- followed by letters, digits, '_' or '-': {event_id!r}"
+                "event_id must be A-, B- or C- followed by letters, digits, '_' or '-': "
+                f"{event_id!r}"
             )
         return self.version_dir / "events" / event_id[0] / event_id
 
@@ -125,6 +134,14 @@ class CorpusStore:
 
     def batch_file(self, name: str) -> Path:
         return self.batch_dir(name) / "batch.json"
+
+    def round_dir(self, name: str) -> Path:
+        if not SLUG.fullmatch(name):
+            raise ValueError(f"round name {name!r} must match {SLUG.pattern}")
+        return self.version_dir / "rounds" / name
+
+    def round_file(self, name: str) -> Path:
+        return self.round_dir(name) / "round.json"
 
     def _check_inside(self, path: Path) -> None:
         if not path.resolve().is_relative_to(self.version_dir.resolve()):
@@ -177,35 +194,51 @@ class CorpusStore:
         return model.model_validate_json(path.read_text(encoding="utf-8"))
 
     def append_index(self, rows: Iterable[IndexRow]) -> None:
-        """Append rows in one O_APPEND write, so no other append splits a row (ruling P3-R15)."""
+        self.append_jsonl(self.index_file, rows)
+
+    def append_clip_index(self, rows: Iterable[ClipIndexRow]) -> None:
+        self.append_jsonl(self.clip_index_file, rows)
+
+    def append_jsonl(self, path: Path, rows: Iterable[ContractModel]) -> None:
+        """Append rows to a .jsonl log in one O_APPEND write, so no other append splits a row
+        (ruling P3-R15)."""
+        self._check_inside(path)
+        if path.suffix != ".jsonl":
+            raise ValueError(f"only .jsonl logs are appended to, not {path.name}")
         data = "".join(
             json.dumps(row.model_dump(mode="json", exclude_none=True), sort_keys=True) + "\n"
             for row in rows
         ).encode()
         if not data:
             return
-        self.index_file.parent.mkdir(parents=True, exist_ok=True)
-        created = not self.index_file.exists()
-        fd = os.open(self.index_file, os.O_WRONLY | os.O_APPEND | os.O_CREAT, _FILE_MODE)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        created = not path.exists()
+        fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, _FILE_MODE)
         try:
             if created:
                 os.fchmod(fd, _FILE_MODE)
             written = os.write(fd, data)
             if written != len(data):
-                raise OSError(
-                    errno.EIO, f"short append to {self.index_file}: {written} of {len(data)} bytes"
-                )
+                raise OSError(errno.EIO, f"short append to {path}: {written} of {len(data)} bytes")
             os.fsync(fd)
         finally:
             os.close(fd)
 
     def latest_index(self) -> dict[str, IndexRow]:
         """The latest row per event. The index is append-only, so later rows win."""
-        if not self.index_file.exists():
+        return self._latest(self.index_file, IndexRow)
+
+    def latest_clip_index(self) -> dict[str, ClipIndexRow]:
+        """The latest row per clip event, from clip-index.jsonl."""
+        return self._latest(self.clip_index_file, ClipIndexRow)
+
+    @staticmethod
+    def _latest(path: Path, model: type[R]) -> dict[str, R]:
+        if not path.exists():
             return {}
-        latest: dict[str, IndexRow] = {}
-        for line in self.index_file.read_text(encoding="utf-8").splitlines():
+        latest: dict[str, R] = {}
+        for line in path.read_text(encoding="utf-8").splitlines():
             if line.strip():
-                row = IndexRow.model_validate_json(line)
+                row = model.model_validate_json(line)
                 latest[row.event_id] = row
         return latest
