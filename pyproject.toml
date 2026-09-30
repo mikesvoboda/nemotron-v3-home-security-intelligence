@@ -926,6 +926,21 @@ also_copy = [
     # files; the sibling reader test_cli_doctor.py reads REPO_ROOT only as a
     # subprocess cwd, satisfied by the existing synthbench/ + backend/ copies.
     "docs/synthbench/",
+    # 2026-09-30 pre-run gate (campaign #10, thirteenth member of this family,
+    # caught by the pristine-window scan BEFORE any run): the R8-S4 merge added
+    # backend/tests/unit/models/test_r8_s4_demographics_reid_retirement.py,
+    # whose TestDocsTrackTheDrop path-reads docs/architecture/data-model/
+    # {README,core-entities,auxiliary-tables}.md + docs/guides/face-recognition.md
+    # at REPO_ROOT = parents[4] -- absent in the mutant home -> FileNotFoundError
+    # red under -x -> coverage-gather truncation (the fill#2/#3 mass-strip
+    # mechanism; this exact red fired in the recreated pristine window today).
+    # Static census over every REPO_ROOT/_src/read_repo literal in
+    # backend/tests/unit: these 4 are the ONLY root-present/mutant-absent read
+    # targets post-mirror. Both dirs sit OUTSIDE source_paths (generate ZERO
+    # mutants -- the copies are inert), 71K + 113K; docs/ as a whole is still
+    # NOT copied (432MB, per the tenth member's note).
+    "docs/architecture/data-model/",
+    "docs/guides/",
     # 2026-09-30 stats-abort repair (campaign #8 baseline run 08:28Z, twelfth
     # member of this family): the PR-6732 synthbench tests entered mutants/ at
     # this generation ("Found 130 new tests") and the incremental stats re-run
