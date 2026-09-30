@@ -12337,3 +12337,252 @@ kill credit lands at the next full re-bank.
 snapshot (/home/agent/runs/score-postrestart.json completed=false unchecked
 1447; score-repair.json completed=false unchecked 563). Command +
 snapshots above; all numbers measured THIS session.
+
+## 2026-09-29 — MILESTONE 6 PUBLISHES: 68.9482506662082% completed=true (+0.9316 pts vs M5) — campaign #4 `prompts` CLOSES at 95.96727060198714% (+915 kt vs M5); the 9-file/334-test batch-30 battery set delivers 757 of the module's 845 sweep-actionable survivors; fill-run chain survives TWO silent bank-strips by a coverage-gather that ignores pytest's exit code (both root-caused, repaired from backup, disclosed below); denominator disclosed row-by-row, zero unexplained re-decides
+
+**THE NUMBER (measured THIS session, `uv run python scripts/mutation-score.py`
+rc=0; publish chain: module run `MUTMAX=14 ./scripts/mutation-run.sh prompts`
+(log b30-run.log, rc=0) then sanctioned full-set fill
+`MUTMAX=14 ./scripts/mutation-run.sh` — fill#4 (log /home/agent/runs/
+b30-fill4.log, exited 09:28Z; fill#2/#3 DIED mid-run, see INCIDENTS);
+snapshots /home/agent/runs/score-b30-full.txt (pre-fill 63,665/91,733 =
+69.4025% completed=false — NOT publishable, unchecked 8) +
+/home/agent/runs/score-b30-final.txt):** killed 61,606 + timeout 2,560 =
+**64,166** of **93,064** → **score 68.9482506662082%**, survived 28,157,
+no_tests 741 (the sticky trio 713 + reid_service 24 + 4 singletons), unchecked
+0, torn 0, **completed=True** (checked 93,064/93,064), 231 module rows
+(M5: 230; +`inotify_probe`). M5 was 62,844/92,395 = 68.01666756859137%.
+**STRICT-> holds on EVERY candidate denominator** (measured): as-published
+68.9482506662082%; at the M5-era total 92,395 with the same kt 69.44748092429244%;
+restoring the two disclosed key-prunings (+18 reid survivors +8 osnet holes)
+68.92899344720163%. All > 68.01666756859137. History entry appended once:
+`uv run python scripts/mutation-score.py --history .github/mutation-history.json
+--date 2026-09-29` (run #9).
+
+**CAMPAIGN #4 CLOSE — `backend/services/prompts.py`** (M5: 2,369 kt / 3,224 =
+73.4801488833747%): now **3,284 / 3,422 = 95.96727060198714%**; survivors
+855 → 138. Batteries: 9 files / 334 tests, committed 568390d4; final-bytes
+single-process trampoline sweeps (/home/agent/runs/b30-final-{a..i}.txt +
+b30-cross2.txt): 756/845 RED owner + 0 cross extra = **757 bank-killed**
+(bank-vs-sweep agreement EXACT: the 88 bank-survivors == the 88 sweep-GREEN,
+b30-reconcile.txt; the 89th sweep-GREEN was bank-killed by a pre-existing
+test). The 88 equivalence-ledgered per battery headers (falsy-default swaps,
+dead branches, compared-never-rendered sentinels, unreachable arms,
+trailing-comma-getattr polarity). All gates green on committed bytes (ruff/
+mypy/vulture/WP4.2/vulture, both trees, venv-PATH lesson applied).
+Denominator inside the module: 3,224 → 3,422 (+198 = +172 from the module run's
+newly-covered lines + 26 more keys the fill's fuller coverage re-enumerated;
+`mutate_only_covered_lines` re-enumeration, NO policy change).
+
+**DENOMINATOR DISCLOSURE tree-wide vs the M5 history entry (measured row-by-row,
+script /home/agent/runs/b30-rowdiff.json; M5 92,395 → 93,064, Δ+669 keys /
++1,322 kt; 13 rows move, all 218 others byte-identical):**
+prompts +198 keys/+915 kt (above); vlm_client +203/+180, system +119/+86,
+`inotify_probe` (NEW FILE, merge) +66/+52, file_watcher +62/+50,
+system_broadcaster +7/+11, health_ai_services +10/+10, vlm_analyzer +8/+8,
+container_orchestrator +8/+6, cleanup_service +2/+2, orphan_scanner +2/+1,
+thumbnail_generator +1/0 — merge code-changes + merge-tests' coverage (every
+delta file is on the 14-file merge-touched set or newly-covered);
+vlm_specialists −17 keys (28→10 mutants of `_collect_reid_text` re-enumerated
+by the merged coverage; the 18 gone verdicts were ALL survivors, kt 0 — the
+row still nets +1 kt). The 8 pre-fill unchecked osnet holes were PRUNED by
+fill#4's re-enumeration (they leave both sides; the row lands EXACTLY at M5's
+509/288). Trio + auth rows re-decided to the M5 shape (sticky no_tests 713,
+auth_service 124, auth 9) — the fill2-era def-prune self-healed; the recovery
+item stays folded into the next FULL RE-BANK with the sticky-713 class.
+Re-enumeration is NOT a policy change: source_paths / do_not_mutate /
+`mutate_only_covered_lines` untouched since the 09-25 ruling.
+
+**NO-REDECIDE AUDIT (script /home/agent/runs/b30-audit-redecide.py vs
+backup-metas-b30post.tgz, run THIS session):** all verdict changes live on the
+14 merge-touched files (vlm_client 109, system_broadcaster 18, system 18,
+file_watcher 26, container_orchestrator 14, cleanup 3, orphan_scanner 1 —
+merge-code re-decides, disclosed above); new keys 1,296 = the merge-touched
+files' growth + the disclosed self-heal family (trio 713, auth 129,
+`inotify_probe` 66, prompts 26, +174-new-tests coverage singletons
+(thumbnail_generator `generate_thumbnail__49`, vlm_specialists
+`person_crops__62`, api/routes/auth `get_current_user` ×8 — measured to EXACT M5
+shape for auth). **UNEXPLAINED: 0** after disclosing exactly the two
+singleton coverage-enumeration keys named above (the audit's own basename bug
+and the guard's workspace-rooted restore were both caught by re-measuring,
+family lesson held: suspect the measuring tool before the bank).
+
+**INCIDENTS — TWO SILENT BANK-STRIPS by fill#2/#3 (detected, quantified,
+repaired; NOTHING published on a stripped bank; root causes mutmut-source-
+measured):** mutmut's coverage gather for `mutate_only_covered_lines` runs the
+unit suite and DISCARDS pytest's exit code (runners/harness.py:175-178 →
+`gather_coverage` in `code_coverage`) — under `-x` one red test truncates the
+session
+and generation then writes metas+defs from the PARTIAL covered set. fill#2
+(22:32Z generation) met the offline-pi_heif red (fixed test-side by the
+CI-parity shim 179a7bd9): bank 91,733 → 86,828 keys (−4,971 kt −3,842 worst
+rows webhook −990/−770, worker_supervisor −650/−407, the zone family); its
+clean gate then died on the stale shimless mutant copy. fill#3 (06:35Z) met a
+SECOND merge-imported hazard — test_check_vss_docs_currency.py::TestRepoItself
+(main #6714) path-reads REPO_ROOT/docs/vss-integration, absent in the mutant
+home (10th member of the also_copy abort family) — generation "done" in 219 s
+(ZERO mutants = empty covered set): bank stripped to 12,072 keys before stats
+died "runner returned 1". NO external green scan can catch this class: a
+merge's NEW test enters the mutant home only at generation (copy_src_dir
+never re-adds, but generation does), so scan2's honest 32,904-passed green
+(06:16Z, post-merge) was structurally blind to it. Fixes: also_copy +=
+docs/vss-integration/ (334K, inert, measured census: sole repo-root docs
+reader; commit 84554682, pushed; merged-green re-probe in mutant home: gate
+test 10 passed, all 23 merge-changed unit files 1,837 passed). Repair both
+times: metas+stats restored EXACT from backup-metas-b30post.tgz INSIDE
+mutants/ (91,733/8/kt 63,391 re-measured), mutant .py/.spans deleted for
+UNIFORM hash-merge re-generation (skip-early would have kept stripped files
+and stale pre-merge verdicts), fill relaunched. Guard UPGRADED (kill-line
+3,000 → 5,500 for this merge's measured 2,292+ re-queue, hash-diff-measured;
+NEW key-floor <78,000 — strips DELETE keys so hole-count-only guards sailed
+through BOTH incidents; extract cwd fixed to mutants/). fill#4 ran the whole
+chain clean: generation 271 files/27.6 min, stats+clean-gate+forced-fail pass
+(docs copy proven end-to-end), hole walk 2,292 → 0, rc=0.
+
+**MERGE STATE:** origin/main merged BEFORE the fill (c6720c0b, 57 commits incl.
+PR #6682 itself; 14 mutated-tree files + `inotify_probe` new) and origin/branch
+after (8d83cb00, carries the docs-currency test + this campaign's shim);
+merge-touched keys legitimately re-queued by the hash-merge (measured 1,484
+hash-changed + 870 new), all re-decided by fill#4 this publish.
+
+**TIER STATE:** tier-72 bar kt ≥ 66,524 — gap after this publish: **2,358**
+kills. Next pools (M5 census): `event_broadcaster` 723 surv, `batch_aggregator`
+644, `clip_client` 559, `enrichment_pipeline` 420, `florence_client` 394,
+`vision_extractor` 392, baseline 368.
+
+**NOT PUBLISHED FROM:** any stripped-bank snapshot (86,828/12,072-era),
+red-check counts, or the pre-fill completed=false snapshot (69.4025% printed
+there is NOT the badge number — 8 unchecked + pre-fill kt). Command +
+snapshots above; all numbers measured THIS session.
+
+## 2026-09-29 — MILESTONE 7 PUBLISHES: 69.63474975582007% completed=true (+0.6865 pts vs M6) — campaign #5 `event_broadcaster` CLOSES at 92.00896191187454%; the 5-file/99-test batch-31 battery set delivers 621 of the module's 723 survivors, 107 left on the equivalence ledger; a self-inflicted ORDER-DEPENDENT red in a campaign-#6 battery silently stripped the bank mid-fill — 12th member of the coverage-gather family, caught by the guard key-floor, repaired, published on nothing stripped; denominator disclosed row-by-row (3 movers, 228 rows byte-identical); the R8 merge landed ON this branch mid-close — ordering and pricing disclosed
+
+**THE NUMBER (measured THIS session, `uv run python scripts/mutation-score.py`
+rc=0; publish chain: campaign run `MUTMAX=14 ./scripts/mutation-run.sh
+event_broadcaster` (run 2, log /home/agent/runs/b31-run2.log) then the
+sanctioned full-set hole-fill `./scripts/mutation-run.sh` (fill#2, log
+/home/agent/runs/b32-fill2.log, terminal line `[mutation-run] done`, guard
+`run exited` 22:34Z; fill#1 DIED BY A SILENT STRIP, see INCIDENTS; snapshot
+pre-fill /home/agent/runs/b32-score-preM7reread.json = 64,835/93,125 =
+69.62147651006711% completed=false, unchecked 8 — NOT publishable, disclosed,
+published on nothing but the post-fill read):** killed 62,316 + timeout 2,562
+= **64,878** of **93,169** → **score 69.63474975582007%**, survived 27,550,
+no_tests 741 (the sticky trio 713 + reid_service 24 + 4 singletons — UNMOVED
+vs M6), unchecked 0, torn 0, **completed=true** (checked 93,169/93,169), 231
+module rows (M6: 231). M6 was 64,166/93,064 = 68.9482506662082%; **STRICT->
+holds: +0.68649909 pts**. History appended ONCE:
+`uv run python scripts/mutation-score.py --history
+.github/mutation-history.json --date 2026-09-29` (run #10 of `runs`).
+
+**CAMPAIGN #5 CLOSE — `backend/services/event_broadcaster.py`** (M6: 563 kt /
+1,286 = 43.77916018662519%): now **1,232 / 1,339 = 92.00896191187454%**
+(measured on the live metas AND the score row, this session); survivors
+723 → 107. Batteries: 5 files / 99 tests (a 24 / b 33 / c1 11 / c2a 13 /
+c2b 18 — per-file `--collect-only -o addopts=` counts), single-process
+trampoline final sweeps (b31-sweep2-{a,b,c1,c2a,c2b}.txt + b31-sweep3-b.txt):
+RED 94+276+85+92+74 = **621 of 723** survivors killable; the 102
+sweep-GREENs dispositioned in the b31 ledger + this session's re-adjudication.
+The five M6-killed→now-survived KEY NAMES (broadcast_alert_7/8/9,
+\_send_to_all_clients_8/25) are NOT lost kills — per-function key counts prove
+RENUMBERING (broadcast_alert 31→43, \_send_to_all_clients 44→49 from
+newly-covered lines; the M6-era mutation TEXTS are ABSENT from the new span
+set, AST-diffed this session); the current occupants of those names are
+EQUIVALENTS proven by construction (model_dump(mode=) deep-equal across
+None/'XXjsonXX'/'JSON' spellings with str-only DeletedData fields;
+json.dumps(None) on a dead store a TypeError-raising dict kills identically;
+track_stats=True value-equal to its own default). Set-identity measured this
+session (bank meta keys vs the sweep files, bare-key match): the 107
+bank-survivors are EXACTLY the 102 sweep-GREEN keys + those 5 renumbered-name
+keys; the 14 sweep-GREEN keys the bank holds KILLED are test-side kills by the
+suite during the filtered run's full re-check — direction of disagreement is
+bank-greener, which is the sound direction (bank verdicts are the score's
+source of truth).
+
+**DENOMINATOR DISCLOSURE vs the M6 history entry (row-by-row, script
+/home/agent/runs/b32-rowdiff-M7.py → b32-rowdiff-M7.json; M6 93,064 → 93,169,
+Δ+105 keys / +712 kt; 3 rows move, ALL 228 others byte-identical):**
+
+- event_broadcaster 1,286→1,339 keys (+53 mutants of newly-covered lines),
+  kt 563→1,232 — the campaign, SANCTIONED. Its within-row verdict churn
+  vs M6 (618 `0→1`, 5 `1→0`, 3 `0→-24`, 1 `-24→1`) is the fresh full re-check
+  by the FILTERED campaign run ("Rerun mutant if it's explicitly mentioned" —
+  mutmut `__main__.py` ~:1029): the 5 `1→0` names ARE the renumbered
+  equivalences above, individually adjudicated this session; NO verdict was
+  carried blind.
+- batch_aggregator 1,155→1,199 (+44; per-function key-count diff measured:
+  close_batch_for_size_limit 149→153, create_batch_metadata_atomic 38→52,
+  check_batch_timeouts 129→145, broadcast_detection_batch 27→37), kt
+  511→553 (+42 kills / 2 survivals, all on the 44 NEW keys — zero old verdicts
+  touched, NO-REDECIDE-AUDIT-measured). Cause: campaign #6's batch-32
+  batteries A–D fed the coverage gather for the FIRST time at fill#2's
+  generation (their mutant-home probe-copies were present; battery E was
+  installed AFTER that generation and is NOT part of this publish — its
+  sweep/ordering gates are owed before campaign #6's filtered run). This is
+  coverage-growth re-enumeration, not a policy change, and #6's filtered run
+  will re-decide every key of this row fresh.
+- osnet_loader 509→517 (+8 = x_load_osnet_model\_\_mutmut_194..201, source hash
+  UNCHANGED measured ad1d9ff264b4 across eras): these are the SAME 8 sites
+  the M6 row disclosed as PRUNED by fill#4 ("the row lands EXACTLY at M5's
+  509/288") — run 2's fuller gather re-enumerated them, they sat as the
+  publish-blocking unchecked-8, and fill#2 decided them (7 survived + 1
+  killed: kt 288→289, surv 221→228).
+- **NO-REDECIDE AUDIT** (script /home/agent/runs/b32-audit-redecide.py vs
+  backup-metas-preM7.tgz = the run-2-era bank minutes before fill#1 launched):
+  exactly 2 rows moved vs the backup — batch_aggregator (44 `ABSENT→verdict`,
+  the new keys only) and osnet (8 `None→verdict`) — **kills lost: 0**,
+  no mass name-shift flip families.
+
+**MERGE ORDERING (owner instruction this session: bring origin/main in):**
+origin/main advanced 26 commits WHILE this close was in flight, INCLUDING the
+R8 nemotron teardown (PR #6719). M7's number is measured on the PRE-merge
+tree/bank it was actually checked against — and it is the LAST moment this
+denominator can beat M6: the R8 deletions remove **17,876 keys / 14,222
+kills across 28 bank rows** (measured this session by pricing origin/main's
+175 deleted `.py` files against the score JSON's 231 rows; at frozen verdicts
+the badge lands at 50,613/75,293 = **67.2214%**, −2.37 pts, matching the R8
+impact brief's warned −4.4-pt-family before re-bank coverage effects). The
+merge commit lands on this branch in the SAME session, immediately after this
+row's commit; it gets its own disclosed baseline-reset/denominator row + the
+FULL RE-BANK interlude (shield steps 1–3: mutant sweep-prune of all 231
+measured dead-tree files FIRST — R8's own deletion-guard test is RED against
+the stale tree and would arm the 13th strip family member; guard key-floor
+re-calibrated 78,000 → 64,000 for the ~75.3k era; guard-restore refreshed
+post-prune), after which strict-> resumes from the new baseline.
+
+**INCIDENTS — ONE SILENT BANK-STRIP by fill#1 (12th member of the
+coverage-gather family; DETECTED by the guard key-floor, repaired, published
+on nothing stripped):** mutmut's coverage gather runs the unit selection with
+`-x` and DISCARDS pytest's rc. MY OWN campaign-#6 battery-A test
+`test_set_gpu_monitor_assigns_the_object_it_was_given` asserted
+`ba._gpu_monitor is None` after a context-manager restore — a FOREIGN suite
+test earlier in the FULL-SELECTION order leaks a MagicMock into that global,
+so the assert fired only at position ~15k: GREEN in both isolation runs (repo
+root 178 passed AND per-file in the mutant home). The gather truncated,
+generation PRUNED the bank 93,125 → 18,783 keys, and the guard key-floor
+(<78,000) fired 19:56Z, killed the run and restored — but guard-restore.tgz
+still pointed at the M6 era; the run-2-era verdicts survived ONLY because a
+named pre-run backup (backup-metas-preM7.tgz) had been taken minutes before
+launch. Repairs + new rules: the test now asserts restore-to-AMBIENT
+identity, never `is None`; full mutant-home serial re-probe with mutmut's
+exact flags **33,299 passed, 0 failed, rc=0** (b32-gather-repro2.log, 12m05s)
+= precondition met; strip-era mutant .py/.spans deleted for uniform
+hash-merge re-generation (metas kept — source hashes unchanged, verdicts
+carry); NEW RULES (memory-updated): a new battery's gate is a FULL
+mutant-home serial run, not per-file probes; refresh guard-restore.tgz to the
+CURRENT era BEFORE every launch (done); named pre-run meta backup on EVERY
+launch. fill#2 relaunched under setsid, guard attached to the live
+orchestrator pid, key-floor held.
+
+**TIER STATE:** tier-72 bar kt ≥ 66,524 — gap after this publish: **1,646**
+kills. Post-re-bank queue (R8-shielded, per the impact brief's SAFE head):
+`batch_aggregator` (campaign #6 IN FLIGHT — batteries A–E authored,
+42 kills already banked incidentally), `clip_client` 559,
+`florence_client` 394, baseline 368, `file_watcher` 339, `redis_json` 338,
+`cleanup_service` 337, `vlm_specialists` 336, `onvif_service` 312 — all
+re-census after the post-merge re-bank; `prompts` and the deleted tier are
+OFF the ladder (R8 shield).
+
+**NOT PUBLISHED FROM:** the fill#1 stripped-era reads (a 32,338-key
+mid-generation score read, the 18,783-key final), sweep/red-check counts, or
+any completed=false snapshot (incl. the 69.6215% pre-fill read above).
+Command + snapshots listed; every number measured THIS session.

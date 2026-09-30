@@ -39,6 +39,8 @@ Unit tests for `synthbench/generate/` (the durable generation stack: pinned weig
 | `test_corpus_snapshot.py`     | `python -m synthbench corpus snapshot`: the prune rule, holds                                                                                      |
 | `test_cli_doctor.py`          | `python -m synthbench doctor`: each check's ok/FAIL/WAIT line, exit codes, the cv2 lazy import                                                     |
 | `test_command_reference.py`   | `docs/synthbench/command-reference.md` and `agent-handoff.md` against argparse                                                                     |
+| `test_taxonomy_coverage.py`   | `synthbench/taxonomy/coverage.py`: the coverage model against real sampler draws                                                                   |
+| `test_cli_coverage.py`        | `python -m synthbench corpus coverage`: tables, next-n allocation, `--only`, `--against`                                                           |
 | `test_export_vss.py`          | `python -m synthbench export vss`: categories, ready-only, reruns, the importer round trip                                                         |
 | `test_audit.py`               | `synthbench/audit/`: the stratified sample, the questions, the page's handler and answer log                                                       |
 | `test_replay.py`              | `python -m synthbench replay`: the pre-run checks (stale store included), the import gate, both client paths, the recorded conditions, the summary |

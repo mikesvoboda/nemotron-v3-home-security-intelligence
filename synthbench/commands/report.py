@@ -132,13 +132,16 @@ def markdown(record: BatchRecord, events: Sequence[Event], snapshots: str, gener
     reasons = Counter(a.triage.reason for a in attempts if a.triage and a.triage.reason)
     failed = [event for event in events if event.state == "failed"]
     seconds = sorted(a.render_seconds for a in attempts if a.render_seconds is not None)
-    job_failures = [
+    all_failures = [
         (event.spec.event_id, failure)
         for event in events
         if event.prov
         for a in event.prov.attempts
         for failure in a.render_failures
     ]
+    # Only a failed job counts toward render's limit; an unreachable renderer is the owner's.
+    job_failures = [(event, failure) for event, failure in all_failures if failure.kind == "job"]
+    unreachable = len(all_failures) - len(job_failures)
     only = f", only {', '.join(record.only)}" if record.only else ""
     lines = [
         f"# Batch {record.name} (corpus {record.version})",
@@ -191,6 +194,8 @@ def markdown(record: BatchRecord, events: Sequence[Event], snapshots: str, gener
         lines.append("No image rendered yet.")
     lines.append(f"Failed render jobs: {len(job_failures)}.")
     lines += [f"- {event_id}: {failure.error}" for event_id, failure in job_failures[:20]]
+    if unreachable:
+        lines.append(f"Renderer unreachable: {unreachable} time(s).")
     lines += ["", "## Snapshot holds", "", snapshots, "", "## Events", ""]
     lines += [
         "| Event | Scenario | Label | Lighting | Weather | Attempt | State | Still |",

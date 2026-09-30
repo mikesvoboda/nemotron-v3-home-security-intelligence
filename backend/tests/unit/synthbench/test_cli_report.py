@@ -8,7 +8,7 @@ from pathlib import Path
 from synthbench import cli
 from synthbench.commands import report
 from synthbench.contract.corpus import BatchRecord
-from synthbench.contract.provenance import Provenance
+from synthbench.contract.provenance import Provenance, RenderFailure
 from synthbench.status import SnapshotHold, SnapshotStatus, snapshots_file, write_status
 
 from backend.tests.unit.synthbench import helpers as h
@@ -89,3 +89,25 @@ def test_the_report_shows_a_snapshot_hold_and_can_be_rewritten(tmp_path: Path) -
     )
     assert f"**Held:** `{name}`" in _report(tmp_path)
     assert "**Held:**" in _report(tmp_path)  # a second run replaces the views
+
+
+def test_failed_render_jobs_leave_out_an_unreachable_renderer(tmp_path: Path) -> None:
+    """Only `job` failures count toward render's three; an unreachable renderer (the guard may
+    have stopped it) is reported on its own line."""
+    (spec,) = h.frozen_batch(tmp_path, n=1)
+    store = h.store(tmp_path)
+    path = store.provenance_file(spec.event_id)
+    prov = store.read(path, Provenance)
+    failures = (
+        RenderFailure(time="2026-09-29T00:00:00+00:00", error="ComfyError: out of memory"),
+        RenderFailure(
+            time="2026-09-29T00:01:00+00:00", error="ConnectError: refused", kind="unreachable"
+        ),
+    )
+    store.replace_json(
+        path, prov.updated(attempts=(prov.attempts[0].updated(render_failures=failures),))
+    )
+    text = _report(tmp_path)
+    assert "Failed render jobs: 1." in text
+    assert "Renderer unreachable: 1 time(s)." in text
+    assert "ConnectError" not in text.split("Renderer unreachable")[0]

@@ -23,9 +23,12 @@ reader for /etc.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import math
 import re
+import sys
+import types
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -38,6 +41,30 @@ from pydantic import ValidationError
 from backend.services import vlm_client as vc
 from backend.services.constrained_decoding import ConstrainedDecodingNotEnforced
 from backend.services.vlm_verdict import VlmAssessRequest, VlmVerdict
+
+
+# CI-parity shim, file-local: this module's fixtures write synthetic JPEG
+# bytes that plain PIL rejects with UnidentifiedImageError (production
+# catches that -- the green path). But when ANY earlier test in the same
+# serial process has imported ultralytics, PIL.Image.open is globally
+# replaced (ultralytics.utils.patches.image_open, an import-time
+# side-effect), and its HEIC fallback lazily does `from pi_heif import
+# register_heif_opener` -- pi_heif is in no dependency set; on networked CI
+# ultralytics pip-installs it on demand, offline (mutant-home bank runs: uv
+# venvs carry no pip) the import itself becomes an uncaught error and the
+# clean-test gate dies here (measured 2026-09-29: fill2 repros, both trees).
+# Registering a no-op module ONLY when the real package is absent restores
+# CI's exact state: the fallback retries, plain PIL still rejects the fake
+# bytes, UnidentifiedImageError propagates, production handles it. If the
+# real pi_heif is installed, setdefault() is a no-op and nothing changes.
+def _noop_register_heif_opener() -> None:
+    """Stand-in for pi_heif's real opener: registers nothing."""
+
+
+if importlib.util.find_spec("pi_heif") is None:
+    _pi_heif_stub = types.ModuleType("pi_heif")
+    _pi_heif_stub.register_heif_opener = _noop_register_heif_opener
+    sys.modules.setdefault("pi_heif", _pi_heif_stub)
 
 # ---------------------------------------------------------------------------
 # The fake llama-server. Modes mirror what the REAL server was observed to
