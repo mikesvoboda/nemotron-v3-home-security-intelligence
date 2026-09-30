@@ -191,6 +191,15 @@ def test_the_keys_ignore_modifier_combinations(tmp_path: Path) -> None:
     assert guard < page.index("e.key") and guard < page.index("fetch(")
 
 
+def test_a_refused_answer_is_shown_not_silently_dropped(tmp_path: Path) -> None:
+    """A 403/400 reply is `text/plain`: `r.json()` on it would throw and the keypress would do
+    nothing. The script must check `r.ok` and show the reply's text before reading it as JSON."""
+    page = _app(tmp_path).handle("GET", "/", b"").body.decode()
+    fetch = page.index("fetch(")
+    check = page.index("if (!r.ok) { alert(await r.text()); return; }")
+    assert fetch < check < page.index("r.json()")
+
+
 def test_every_still_answered_says_so(tmp_path: Path) -> None:
     app = _app(tmp_path, n=1)
     for q in app.items[0].questions:

@@ -165,6 +165,7 @@ document.addEventListener('keydown', async (e) => {
   if (!'ynu'.includes(e.key) || e.key === '') return;
   const r = await fetch('/answer', {method: 'POST', body: JSON.stringify(
     {index: %(index)d, question: items[selected].dataset.key, answer: e.key})});
+  if (!r.ok) { alert(await r.text()); return; }
   const next = (await r.json()).next;
   const open = items.some((li, i) => i !== selected && li.querySelector('b').textContent === '·');
   location.href = open ? '/item/%(index)d' : (next < 0 ? '/' : '/item/' + next);

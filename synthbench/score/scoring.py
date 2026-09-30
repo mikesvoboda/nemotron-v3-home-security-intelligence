@@ -43,6 +43,7 @@ _REPLAY_KEYS = (
     "max_tokens",
     "read_timeout",
     "system_message",
+    "thinking",
 )
 
 

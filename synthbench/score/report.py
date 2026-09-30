@@ -104,9 +104,10 @@ def _identity(identity: Mapping[str, Any], root: Path | None) -> list[str]:
     return lines + _table(header, rows)
 
 
-def _thinking(extra: Mapping[str, Any] | None) -> str:
-    switch = ((extra or {}).get("chat_template_kwargs") or {}).get("enable_thinking")
-    return "model default" if switch is None else ("on" if switch else "off")
+def _thinking(value: str | None) -> str:
+    """The model's declared thinking condition (`Model.thinking`, recorded in `run.json` as
+    `thinking`, decision A7). A run.json from before it was recorded has no key."""
+    return "—" if value is None else value
 
 
 def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
@@ -121,7 +122,7 @@ def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
             r.get("model"),
             r.get("transport"),
             "shipped + system message (A7)" if r.get("system_message") else "shipped",
-            _thinking(r.get("request_extra")),
+            _thinking(r.get("thinking")),
             shown(r.get("max_tokens"), str),
             shown(r.get("read_timeout"), lambda seconds: f"{seconds:g} s"),
             shown(r.get("enforcement_probe"), lambda on: "on" if on else "off"),

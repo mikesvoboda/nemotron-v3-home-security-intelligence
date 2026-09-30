@@ -18,6 +18,8 @@ class Model:
     the shipped prompt or schema. `read_timeout` (seconds) replaces the shipped per-attempt
     `ai_vlm_read_timeout` when set. `system_message`, when set, goes ahead of the shipped user
     message in every chat body the replay sends a vLLM model. `run.json` records all three.
+    `thinking` is a declared, human-readable condition (never derived from `request_extra`);
+    `run.json` records it and the report prints it verbatim.
     """
 
     name: str
@@ -28,6 +30,7 @@ class Model:
     request_extra: Mapping[str, Any] = field(default_factory=dict, hash=False)
     read_timeout: float | None = None
     system_message: str | None = None
+    thinking: str = "—"
 
 
 MODELS: dict[str, Model] = {
@@ -76,6 +79,7 @@ MODELS: dict[str, Model] = {
                 "Answer the question using the following format:\n\n<think>\nYour reasoning.\n"
                 "</think>\n\nWrite your final answer immediately after the </think> tag."
             ),
+            thinking="on (asked by its system message; parsed by vLLM)",
         ),
         # The flagship thinks before it answers, and spent the shipped 1024-token budget thinking
         # (Task 1 Step 7: empty content, finish_reason length); with thinking off it answered
@@ -87,6 +91,7 @@ MODELS: dict[str, Model] = {
             "SYNTHBENCH_FLAGSHIP_URL",
             "http://127.0.0.1:8000",
             request_extra={"chat_template_kwargs": {"enable_thinking": False}},
+            thinking="off",
         ),
     )
 }

@@ -310,6 +310,7 @@ CONDITIONS = {
         "max_tokens": 1024,
         "read_timeout": 25.0,
         "system_message": None,
+        "thinking": "—",
     },
     "cosmos-reason2-8b": {
         "transport": "vllm",
@@ -318,6 +319,7 @@ CONDITIONS = {
         "max_tokens": 4096,
         "read_timeout": 120.0,
         "system_message": COSMOS_FORMAT,
+        "thinking": "on (asked by its system message; parsed by vLLM)",
     },
     "flagship": {
         "transport": "vllm",
@@ -326,6 +328,7 @@ CONDITIONS = {
         "max_tokens": 1024,
         "read_timeout": 25.0,
         "system_message": None,
+        "thinking": "off",
     },
 }
 
@@ -346,9 +349,9 @@ def test_the_report_states_each_models_conditions(tmp_path: Path) -> None:
     text = (out / "report.md").read_text(encoding="utf-8")
     assert "Comparison models may run under different conditions" in text
     rows = {
-        "| qwen3-vl-8b | ai-vlm | shipped | model default | 1024 | 25 s | on |",
-        "| cosmos-reason2-8b | vllm | shipped + system message (A7) | model default | 4096 "
-        "| 120 s | off |",
+        "| qwen3-vl-8b | ai-vlm | shipped | — | 1024 | 25 s | on |",
+        "| cosmos-reason2-8b | vllm | shipped + system message (A7) | on (asked by its system "
+        "message; parsed by vLLM) | 4096 | 120 s | off |",
         "| flagship | vllm | shipped | off | 1024 | 25 s | off |",
     }
     assert rows <= set(text.splitlines())

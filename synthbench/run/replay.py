@@ -212,6 +212,7 @@ def conditions(model: Model, export: Path) -> dict[str, Any]:
         "max_tokens": int(extra.get("max_tokens", shipped_budget)),
         "read_timeout": settings.ai_vlm_read_timeout,
         "system_message": model.system_message if applied else None,
+        "thinking": model.thinking,
     }
 
 

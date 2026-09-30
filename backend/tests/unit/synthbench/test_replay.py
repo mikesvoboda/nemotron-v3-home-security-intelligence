@@ -183,6 +183,7 @@ def test_a_replay_reads_the_exports_stills_and_records_the_run(tmp_path: Path) -
     assert record["system_message"] is None
     assert record["read_timeout"] == get_settings().ai_vlm_read_timeout
     assert record["max_tokens"] == vc._ASSESS_MAX_TOKENS
+    assert record["thinking"] == "—"
     assert len(recording.verdicts) == 2
     for body, timeout in recording.verdicts:
         assert (body["max_tokens"], timeout["read"]) == (
@@ -313,6 +314,13 @@ def test_only_the_vllm_comparison_models_change_the_shipped_request() -> None:
     assert {name: m for name, m in systems.items() if m is not None} == {
         "cosmos-reason2-8b": COSMOS_FORMAT
     }
+    # The declared thinking condition the report prints (decision A7): never derived, so it must
+    # be pinned directly.
+    assert (QWEN.thinking, FLAGSHIP.thinking, COSMOS.thinking) == (
+        "—",
+        "off",
+        "on (asked by its system message; parsed by vLLM)",
+    )
 
 
 @pytest.mark.parametrize("name", ["flagship", "cosmos-reason2-8b"])
@@ -338,7 +346,7 @@ def test_a_vllm_request_keeps_the_clients_timeouts(tmp_path: Path, name: str) ->
 
 
 @pytest.mark.parametrize(
-    ("name", "extra", "read_timeout", "max_tokens", "system_message"),
+    ("name", "extra", "read_timeout", "max_tokens", "system_message", "thinking"),
     [
         (
             "flagship",
@@ -346,8 +354,16 @@ def test_a_vllm_request_keeps_the_clients_timeouts(tmp_path: Path, name: str) ->
             None,  # the shipped read timeout
             vc._ASSESS_MAX_TOKENS,
             None,
+            "off",
         ),
-        ("cosmos-reason2-8b", {"max_tokens": 4096}, 120.0, 4096, COSMOS_FORMAT),
+        (
+            "cosmos-reason2-8b",
+            {"max_tokens": 4096},
+            120.0,
+            4096,
+            COSMOS_FORMAT,
+            "on (asked by its system message; parsed by vLLM)",
+        ),
     ],
     ids=["flagship", "cosmos-reason2-8b"],
 )
@@ -358,6 +374,7 @@ def test_a_vllm_replay_records_the_conditions_it_ran_under(
     read_timeout: float | None,
     max_tokens: int,
     system_message: str | None,
+    thinking: str,
 ) -> None:
     """The effective values, as the requests carried them: the report states each model's."""
     model = MODELS[name]
@@ -372,6 +389,7 @@ def test_a_vllm_replay_records_the_conditions_it_ran_under(
     assert record["enforcement_probe"] is False
     assert record["request_extra"] == extra
     assert record["system_message"] == system_message
+    assert record["thinking"] == thinking
     shipped = get_settings().ai_vlm_read_timeout
     assert record["read_timeout"] == (shipped if read_timeout is None else read_timeout)
     assert record["max_tokens"] == max_tokens
