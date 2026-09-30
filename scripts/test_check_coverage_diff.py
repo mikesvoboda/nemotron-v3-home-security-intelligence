@@ -59,6 +59,144 @@ def get_diff_fn():
     return get_gate_module().check_coverage_diff
 
 
+@pytest.fixture()
+def synthetic_root(tmp_path, monkeypatch):
+    """A gate module whose project root is `tmp_path`, not this repo.
+
+    find_test_file() derives its root from `Path(__file__).parent.parent`
+    (check-test-coverage-gate.py:164), so pointing the LOADED module's
+    `__file__` at <tmp>/scripts/x.py relocates every candidate it probes.
+
+    The fixture YIELDS THE PATCHED MODULE itself: a test that called
+    get_gate_module() again loaded a FRESH UNPATCHED one and silently
+    resolved against the real repo — the first draft of the resolver cluster
+    did exactly that, and its "cameras" arm went green because the REAL tree
+    happens to hold that file. An assertion measured against the repo instead
+    of the rule is the vacuity these rows exist to catch; the module you
+    patch must be the module you call.
+    """
+    mod = get_gate_module()
+    (tmp_path / "scripts").mkdir()
+    monkeypatch.setattr(mod, "__file__", str(tmp_path / "scripts" / "gate.py"))
+    # Non-vacuity, checked HERE so no arm can quietly re-target the real tree:
+    # the module the tests receive must resolve to tmp_path.
+    assert Path(mod.__file__).parent.parent == tmp_path
+    return tmp_path, mod
+
+
+def _mk(root: Path, rel: str) -> None:
+    p = root / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("export {}\n")
+
+
+# ---------------------------------------------------------------------------
+# Resolver reach (PR #6733, R8 S3). The gate audits CHANGED files, so a slice
+# that edits backend/api/routes/plate_reads.py, backend/services/alpr_service.py
+# and frontend/src/hooks/useFaceRecognitionApi.ts puts all three under audit --
+# and find_test_file() reported "None found" for all three while all three
+# tests exist:
+#
+#   backend/api/routes/plate_reads.py        -> backend/tests/integration/test_plate_reads.py
+#   backend/services/alpr_service.py         -> backend/tests/integration/test_alpr_service.py
+#   frontend/src/hooks/useFaceRecognitionApi.ts
+#                                            -> frontend/src/hooks/__tests__/useFaceRecognitionApi.test.ts
+#
+# The resolver probed only the MIRRORED backend layout
+# (backend/tests/<tier>/<same-path-as-source>) and only the SIBLING frontend
+# form. Both conventions are load-bearing in this repo, measured on the tree:
+# backend flat test_*.py at the tier root 203 files vs mirrored 412; frontend
+# sibling *.test.* 200 files vs colocated __tests__/ 21. A resolver that
+# recognises one of each calls the other kind absent -- the same class as the
+# #6681 bug the comment below documents (a single-candidate resolver that
+# "failed the PR for OBEYING the rule", because the suite's extension follows
+# what the TEST needs). Fixing the resolver rather than the three files is the
+# point: the alternative is either writing tests nobody asked for or editing
+# REQUIREMENTS, and editing REQUIREMENTS to unsee a file IS gate-widening.
+# ---------------------------------------------------------------------------
+
+
+def test_resolver_sees_flat_backend_test_layout(synthetic_root):
+    """backend/api/routes/X.py is covered by tests/<tier>/test_X.py (flat)."""
+    root, mod = synthetic_root
+    _mk(root, "backend/api/routes/plate_reads.py")
+    _mk(root, "backend/tests/integration/test_plate_reads.py")
+
+    found = mod.find_test_file("backend/api/routes/plate_reads.py")
+    assert found == "backend/tests/integration/test_plate_reads.py", (
+        f"flat integration test exists but the resolver reported {found!r}; "
+        "a changed file with a real test must never be reported as MISSING"
+    )
+
+
+def test_resolver_sees_flat_backend_unit_test_for_a_service(synthetic_root):
+    root, mod = synthetic_root
+    _mk(root, "backend/services/alpr_service.py")
+    _mk(root, "backend/tests/unit/test_alpr_service.py")
+
+    found = mod.find_test_file("backend/services/alpr_service.py")
+    assert found == "backend/tests/unit/test_alpr_service.py", (
+        f"flat unit test exists but the resolver reported {found!r}"
+    )
+
+
+def test_resolver_sees_colocated_frontend_test_directory(synthetic_root):
+    """frontend/src/hooks/X.ts is covered by hooks/__tests__/X.test.ts."""
+    root, mod = synthetic_root
+    _mk(root, "frontend/src/hooks/useFaceRecognitionApi.ts")
+    _mk(root, "frontend/src/hooks/__tests__/useFaceRecognitionApi.test.ts")
+
+    found = mod.find_test_file("frontend/src/hooks/useFaceRecognitionApi.ts")
+    assert found == "frontend/src/hooks/__tests__/useFaceRecognitionApi.test.ts", (
+        f"colocated __tests__ suite exists but the resolver reported {found!r}"
+    )
+
+
+def test_resolver_still_sees_the_existing_two_conventions(synthetic_root):
+    """The repair is ADDITIVE: the mirrored backend and sibling frontend forms
+    that already resolved must keep resolving, and the exact-string form
+    (`test_<name>.py` next to a same-named dir) too. Regression guard for the
+    rewrite, since the same function carries the #6681 dual-extension rule."""
+    root, mod = synthetic_root
+
+    _mk(root, "backend/api/routes/cameras.py")
+    _mk(root, "backend/tests/unit/api/routes/test_cameras.py")
+    assert mod.find_test_file("backend/api/routes/cameras.py") == (
+        "backend/tests/unit/api/routes/test_cameras.py"
+    ), "mirrored unit layout regressed"
+
+    _mk(root, "backend/services/widget_service.py")
+    _mk(root, "backend/tests/integration/services/test_widget_service.py")
+    assert mod.find_test_file("backend/services/widget_service.py") == (
+        "backend/tests/integration/services/test_widget_service.py"
+    ), "mirrored integration layout regressed"
+
+    _mk(root, "frontend/src/hooks/useTopEventsQuery.ts")
+    _mk(root, "frontend/src/hooks/useTopEventsQuery.test.tsx")
+    assert mod.find_test_file("frontend/src/hooks/useTopEventsQuery.ts") == (
+        "frontend/src/hooks/useTopEventsQuery.test.tsx"
+    ), "#6681's .tsx-suffix rule regressed"
+
+
+def test_resolver_does_not_invent_a_test(synthetic_root):
+    """Non-vacuity for the whole cluster above: a source with NO test anywhere
+    must still report None. Without this arm, "make the resolver find
+    something" could be satisfied by a rule that matches anything -- which is
+    how a coverage gate turns into a rubber stamp."""
+    root, mod = synthetic_root
+    _mk(root, "backend/services/untested_service.py")
+
+    assert mod.find_test_file("backend/services/untested_service.py") is None, (
+        "the resolver matched a test that does not exist"
+    )
+    # And the same file, seen through the caller, still carries its
+    # requirement as a real failure rather than silently vanishing.
+    req = mod.check_file_requirements(
+        mod.FileChange("backend/services/untested_service.py", "modified", 40, 10)
+    )
+    assert req is not None and req.has_tests is False
+
+
 # ---------------------------------------------------------------------------
 # Self-reference contract (WP0.6 CI truth, PR #6549 second run): with the
 # parser repaired, the gate flagged the very TEST files it had demanded —
