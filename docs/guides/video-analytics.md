@@ -2,21 +2,34 @@
 
 Comprehensive guide to the AI-powered video analytics features in Home Security Intelligence.
 
+> **R8 (2026-09-29).** The legacy enrichment/LLM tier retired: the
+> `ai-llm` Nemotron service and the gateway's `/florence`, `/clip` and
+> `/enrichment` routers are deleted, and with them the Florence captioning,
+> SigLIP anomaly embeddings, pose, demographics, clothing and vehicle-classifier
+> features this guide documented (the S5 slice also removed their dashboard
+> panels). What ships today: YOLO26 detection + a small identity/specialist
+> lane (`/enrich-lt`: threat + re-ID) + the `ai-vlm` vision-language engine.
+
 ## Overview
 
-Home Security Intelligence provides a multi-model AI pipeline that transforms raw camera footage into actionable security insights. The video analytics system processes images through multiple specialized models to detect, classify, track, and assess security risks in real-time.
+Home Security Intelligence runs one AI pipeline: a generalist vision-language
+model reasons over what the camera saw, backed by a small lane of specialists
+for the questions a single model can't be trusted to answer precisely. The
+per-attribute specialist zoo (age, gender, clothing, vehicle type, pose,
+action, pet, depth) is retired — the VLM describes what it sees instead of
+re-perceiving it with one model per attribute (ledger ruling D5: model
+identity is config).
 
 ### Key Capabilities
 
-| Feature                 | Description                                     | Models Used               |
-| ----------------------- | ----------------------------------------------- | ------------------------- |
-| **Object Detection**    | Detect people, vehicles, animals, and objects   | YOLO26                    |
-| **Scene Understanding** | Generate captions and descriptions              | Florence-2-base           |
-| **Anomaly Detection**   | Compare against learned baselines               | SigLIP 2 Base (as `clip`) |
-| **Threat Detection**    | Identify weapons and dangerous items            | Threat-Detection-YOLOv8n  |
-| **Person Analysis**     | Pose, demographics, clothing, re-identification | Multiple models           |
-| **Vehicle Analysis**    | Vehicle type, damage, license plates            | Multiple models           |
-| **Risk Assessment**     | LLM-based contextual risk analysis              | Nemotron-3-Nano-30B       |
+| Feature                 | Description                                   | Serves it                               |
+| ----------------------- | --------------------------------------------- | --------------------------------------- |
+| **Object Detection**    | Detect people, vehicles, animals, and objects | YOLO26 (`/yolo26`)                      |
+| **Scene Understanding** | Describe and assess each event visually       | `ai-vlm` engine (identity is config)    |
+| **Threat Detection**    | Identify weapons and dangerous items          | Threat-Detection-YOLOv8n (`/enrich-lt`) |
+| **Person Re-ID**        | Embeddings matched against your registrations | OSNet-AIN x1.0 (`/enrich-lt`)           |
+| **Anomaly Detection**   | Compare against learned per-zone baselines    | backend statistical baselines           |
+| **Risk Assessment**     | VLM-based contextual risk analysis            | `ai-vlm` engine                         |
 
 ---
 
@@ -25,8 +38,8 @@ Home Security Intelligence provides a multi-model AI pipeline that transforms ra
 ### Detection Pipeline
 
 ```
-Camera Upload -> File Watcher -> Object Detection -> Batch Aggregator -> Enrichment -> Risk Analysis -> Event
-     (1)            (2)              (3)                  (4)              (5)            (6)          (7)
+Camera Upload -> File Watcher -> Object Detection -> Batch Aggregator -> VLM Reasoning -> Event
+     (1)            (2)              (3)                  (4)                (5)         (6)
 ```
 
 ```mermaid
@@ -60,14 +73,12 @@ flowchart LR
         AQ[(analysis_queue)]
     end
 
-    subgraph Enrichment["4. Context Enrichment"]
-        FLOR[Florence-2-base<br/>Scene captions<br/>ai-gateway /florence]
-        CLIP[SigLIP 2 Base<br/>Anomaly detection<br/>ai-gateway /clip]
-        MZ[Model Zoo<br/>On-demand models<br/>ai-gateway /enrichment]
+    subgraph Lookups["4. Identity Lookups"]
+        LT[enrich-lt specialists<br/>threat + re-ID<br/>backend + gateway /enrich-lt]
     end
 
-    subgraph Analysis["5. Risk Assessment"]
-        NEM[Nemotron-3-Nano-30B<br/>LLM risk scoring]
+    subgraph Analysis["5. Risk Reasoning"]
+        VLM[ai-vlm llama.cpp engine<br/>port AI_VLM_PORT default 8098<br/>model identity is config]
     end
 
     subgraph Output["6. Event Output"]
@@ -82,14 +93,10 @@ flowchart LR
     DQ --> YOLO
     YOLO -->|detections| BA
     BA -->|batch ready| AQ
-    AQ --> FLOR
-    AQ --> CLIP
-    AQ --> MZ
-    FLOR -->|captions| NEM
-    CLIP -->|embeddings| NEM
-    MZ -->|enrichment| NEM
-    NEM -->|risk score| DB
-    NEM -->|event| WS
+    AQ --> LT
+    LT -->|detections + lookups| VLM
+    VLM -->|verdict| DB
+    VLM -->|event| WS
     WS --> UI
 ```
 
@@ -97,49 +104,52 @@ flowchart LR
 2. **File Watcher**: Monitors directories for new images with deduplication
 3. **Object Detection**: YOLO26 identifies objects and their bounding boxes
 4. **Batch Aggregator**: Groups detections into 90-second time windows
-5. **Enrichment**: Model Zoo extracts additional context (clothing, pose, etc.)
-6. **Risk Analysis**: Nemotron LLM evaluates the complete context
+5. **Identity Lookups**: re-ID embeddings and the weapon detector run on the
+   specialist lane; the VLM prompt is built from the batch and its detections
+6. **Risk Reasoning**: The `ai-vlm` engine describes the scene and returns the
+   verdict (risk score + summary)
 7. **Event Creation**: Security events are created and broadcast via WebSocket
+
+> Note: as of this writing the shipped backend builds the VLM prompt from the
+> batch itself; nothing in the event path calls `/enrich-lt/threat-detect` or
+> `/enrich-lt/person-reid` — those endpoints are live on the gateway (served,
+> health-checked, and pinned by the `ai_contract` tier) but their per-event
+> callers retired with the enrichment tier. re-ID matching still runs
+> (`reid_service.py`) on embeddings from its own loader.
 
 ### Where the Models Run
 
-All detection, vision-language, embedding and enrichment models run inside one
-container, `ai-gateway`. A FastAPI front on port 8090 translates HTTP to gRPC
-for a Triton Inference Server that runs in the same container on the GPU. The
-backend reaches each model through a router prefix:
+Two GPU services (see `docker-compose.prod.yml`):
 
-| Router        | Models served                                              |
-| ------------- | ---------------------------------------------------------- |
-| `/yolo26`     | YOLO26 object detection                                    |
-| `/florence`   | Florence-2-base                                            |
-| `/clip`       | SigLIP 2 Base (registered as `clip` / `clip_text`)         |
-| `/enrichment` | vehicle, fashion-clip, demographics, action (heavy models) |
-| `/enrich-lt`  | pose, threat, reid, pet, depth (light models)              |
+| Service                                                       | What runs                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai-gateway` (port 8090)                                      | FastAPI front for a Triton Inference Server in the same container. Exactly two routers: `/yolo26` (detection, segmentation) and `/enrich-lt` (`/threat-detect`, `/person-reid`). `GATEWAY_MODEL_SET` resolves only `vlm` — any other value hard-raises. Triton loads its models at container start; the compose healthcheck allows three minutes. |
+| `ai-vlm` (`AI_VLM_PORT`, default 8098; compose profile `vlm`) | llama.cpp serving the configured GGUF pair (`VLM_MODEL_PATH` + `VLM_MMPROJ_PATH`). The backend soft-depends only: with the profile off the stack boots and events degrade (no verdicts) instead of failing.                                                                                                                                       |
 
-Triton loads its whole model list when the container starts; the compose
-healthcheck allows three minutes for it. The list lives in
-`ai/gateway/main.py` (`ALL_MODELS`), and `models.yml` decides whether each
-model lands on the GPU or the CPU.
+The retired lanes — `/florence`, `/clip`, `/enrichment`, and the `ai-llm`
+(:8091) / enrichment (:8094, :8096) containers — no longer exist in any
+compose file.
 
 ### Models Used Per Analysis Step
 
-Per-model VRAM from `models.yml`:
+Per-model VRAM from `models.yml` (the live catalogue; retired rows deleted):
 
-| Model                          | Purpose                  | VRAM (MB) | Served under  |
-| ------------------------------ | ------------------------ | --------- | ------------- |
-| threat-detection-yolov8n       | Weapon detection         | 300       | `/enrich-lt`  |
-| yolov8n-pose                   | Body posture analysis    | 200       | `/enrich-lt`  |
-| osnet-ain-x1-0                 | Person re-identification | 100       | `/enrich-lt`  |
-| pet-classifier                 | Cat/dog detection        | 200       | `/enrich-lt`  |
-| depth-anything-v2-tiny         | Distance estimation      | 100       | `/enrich-lt`  |
-| vit-age-classifier             | Age estimation           | 200       | `/enrichment` |
-| vit-gender-classifier          | Gender estimation        | 200       | `/enrichment` |
-| fashion-clip                   | Clothing analysis        | 500       | `/enrichment` |
-| vehicle-segment-classification | Vehicle type             | 1500      | `/enrichment` |
-| stgcn-plus-plus                | Action recognition       | 20 (CPU)  | `/enrichment` |
+| Model                    | Purpose                       | VRAM (MB)           | Where it runs        |
+| ------------------------ | ----------------------------- | ------------------- | -------------------- |
+| yolo26                   | Object detection              | 0 (Triton-resident) | gateway `/yolo26`    |
+| threat-detection-yolov8n | Weapon detection              | 300                 | gateway `/enrich-lt` |
+| osnet-ain-x1-0           | Person re-identification      | 100                 | gateway `/enrich-lt` |
+| yolo11-face              | Face detection on crops       | 200                 | backend model zoo    |
+| face-detector-scrfd      | Face detection (CPU)          | 0 (CPU)             | backend model zoo    |
+| face-recognizer          | Face matching (CPU)           | 0 (CPU)             | backend model zoo    |
+| yolo11-license-plate     | Plate detection               | 300                 | backend model zoo    |
+| fast-alpr                | Plate read (end-to-end)       | 28                  | backend model zoo    |
+| paddleocr                | Plate read (fallback OCR)     | 100                 | backend model zoo    |
+| yolo26-general           | Alternate detector (disabled) | 400                 | backend model zoo    |
 
-Set `ENRICHMENT_<TASK>_SERVICE` in `.env` to move a task between the heavy and
-light endpoints; the defaults are in `.env.example`.
+The old heavy/light task switches are gone too: R8 S3 deleted the nine
+`ENRICHMENT_*_SERVICE` variables (see the note at `.env.example:337`) — there
+is one lane and no routing choice left.
 
 ---
 
@@ -198,51 +208,19 @@ Detections are filtered by:
 
 ## Scene Understanding
 
-### Florence-2 Captioning
+### VLM Captioning and Reasoning
 
-Florence-2-base provides rich scene descriptions. The gateway exposes it as a
-task-token prompt API, not a per-task endpoint — you post an image and a
-Florence task token:
+Scene description moved from the retired Florence adapter to the shipped
+`ai-vlm` llama.cpp engine: the analyzer (`backend/services/vlm_analyzer.py`,
+built only through `build_pipeline_analyzer`) builds one prompt per batch —
+the key frames plus their detections — and the engine answers with the scene
+description and the risk verdict in one pass. Model identity is operator
+config (`VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`); this guide names no model.
+
+Inspect the prompt and response a finished event produced:
 
 ```bash
-# Health check
-curl http://localhost:8090/florence/health
-
-# Caption a frame
-curl -X POST http://localhost:8090/florence/extract \
-  -H 'Content-Type: application/json' \
-  -d '{"image": "<base64>", "prompt": "<MORE_DETAILED_CAPTION>"}'
-```
-
-**Task tokens the backend sends to `/extract`:**
-
-| Token                     | Description                   |
-| ------------------------- | ----------------------------- |
-| `<CAPTION>`               | Brief scene description       |
-| `<DETAILED_CAPTION>`      | Comprehensive scene analysis  |
-| `<MORE_DETAILED_CAPTION>` | Extended detailed description |
-
-**Other Florence endpoints on the same router:**
-
-| Endpoint                            | Description                |
-| ----------------------------------- | -------------------------- |
-| `/florence/ocr`                     | Text recognition           |
-| `/florence/ocr-with-regions`        | Text with bounding boxes   |
-| `/florence/detect`                  | Bounding box detection     |
-| `/florence/dense-caption`           | Per-region descriptions    |
-| `/florence/describe-region`         | Caption one region         |
-| `/florence/phrase-grounding`        | Ground a phrase to boxes   |
-| `/florence/detect_security_objects` | Fixed security vocabulary  |
-| `/florence/batch-extract`           | Many images in one request |
-
-**Response Example:**
-
-```json
-{
-  "result": "A person in a blue jacket approaches the front door carrying a package",
-  "prompt_used": "<MORE_DETAILED_CAPTION>",
-  "inference_time_ms": 145.2
-}
+curl http://localhost:8000/api/llm-reasoning/events/{event_id}
 ```
 
 ---
@@ -252,7 +230,9 @@ curl -X POST http://localhost:8090/florence/extract \
 ### Zone Baseline Comparison
 
 The system learns normal activity patterns per zone and flags deviations from
-them (`backend/services/zone_anomaly_service.py`):
+them (`backend/services/zone_anomaly_service.py`). Baselines are statistical —
+per-zone metric distributions, not embeddings (the retired SigLIP lane
+contributed nothing to them):
 
 1. Detections accumulate into per-zone baselines
 2. Each new detection is scored against the baseline in standard deviations
@@ -354,67 +334,12 @@ API endpoints for programmatic control are documented in [Baseline Configuration
 
 ## Person Analysis
 
-### Pose Estimation
-
-`POST http://localhost:8090/enrich-lt/pose-analyze` runs yolov8n-pose (17 COCO
-keypoints) and derives a posture from the keypoint geometry:
-
-```json
-{
-  "keypoints": [
-    { "name": "nose", "x": 0.45, "y": 0.12, "confidence": 0.95 },
-    { "name": "left_shoulder", "x": 0.42, "y": 0.25, "confidence": 0.92 }
-  ],
-  "posture": "standing",
-  "alerts": [],
-  "num_people": 1,
-  "inference_time_ms": 12.4
-}
-```
-
-**Posture values the gateway emits:** `standing`, `crouching`, `lying`,
-`bending`, `unknown`. A `crouching` or `lying` posture adds a text alert to the
-`alerts` list.
-
-### Demographics
-
-`POST http://localhost:8090/enrichment/demographics` estimates age and gender
-from a face crop:
-
-```json
-{
-  "age_range": "21-30",
-  "age_confidence": 0.81,
-  "gender": "male",
-  "gender_confidence": 0.93,
-  "inference_time_ms": 22.1
-}
-```
-
-**Age Ranges:** 0-10, 11-20, 21-30, 31-40, 41-50, 51-60, 61-70, 71+ — the
-labels the heavy enrichment adapter mapped `demographics_age` class indices
-onto. The `age_range` check constraint on the old `demographics_results` table
-also accepted `71-80`, `81+` and `unknown`; R8 S4 dropped that table and its
-constraint, so the list above is the only vocabulary left in the shipped tree.
-
-### Clothing Analysis
-
-`POST http://localhost:8090/enrichment/clothing-classify` runs the Marqo
-FashionSigLIP zero-shot clothing classifier:
-
-```json
-{
-  "clothing_type": "jacket",
-  "color": "blue",
-  "style": "casual",
-  "confidence": 0.74,
-  "top_category": "outerwear",
-  "description": "Blue jacket, dark trousers",
-  "is_suspicious": false,
-  "is_service_uniform": false,
-  "inference_time_ms": 31.0
-}
-```
+> Retired with R8: pose estimation (yolov8n-pose posture alerts,
+> `enrich-lt/pose-analyze`), demographics (`enrichment/demographics`, and its
+> table dropped by R8 S4), and clothing analysis (Marqo FashionSigLIP,
+> `enrichment/clothing-classify`). The VLM path describes what it sees;
+> demographic or clothing labels are prompt-level output, not per-attribute
+> model columns. The dashboard's enrichment panels retired with them (R8 S5).
 
 ### Person Re-Identification
 
@@ -429,7 +354,8 @@ returns a normalized 512-dimensional embedding for tracking across cameras:
 }
 ```
 
-Matching and match thresholds are applied in the backend, not by the gateway.
+Matching and match thresholds are applied in the backend
+(`backend/services/reid_service.py`), not by the gateway.
 
 **Use Cases:**
 
@@ -441,25 +367,9 @@ Matching and match thresholds are applied in the backend, not by the gateway.
 
 ## Vehicle Analysis
 
-### Vehicle Classification
-
-`POST http://localhost:8090/enrichment/vehicle-classify` runs a ResNet-50
-trained on MIO-TCD. It scores eleven labels, drops `background` and
-`pedestrian`, and returns the best remaining one:
-
-```json
-{
-  "vehicle_type": "car",
-  "display_name": "car/sedan",
-  "confidence": 0.91,
-  "is_commercial": false,
-  "all_scores": { "car": 0.91, "pickup_truck": 0.05 },
-  "inference_time_ms": 18.3
-}
-```
-
-**Vehicle Classes:** articulated_truck, bicycle, bus, car, motorcycle,
-non_motorized_vehicle, pickup_truck, single_unit_truck, work_van
+> Retired with R8: the MIO-TCD vehicle classifier
+> (`enrichment/vehicle-classify`). Vehicle _detection_ (class + box) is YOLO26's
+> job and unaffected.
 
 ### License Plate Detection
 
@@ -486,8 +396,7 @@ produces plate text plus a box for the pipeline's `license_plates` list:
 
 ### Weapon Detection
 
-The enrichment pipeline routes threat checks to
-`POST http://localhost:8090/enrich-lt/threat-detect`, which runs
+`POST http://localhost:8090/enrich-lt/threat-detect` runs
 threat-detection-yolov8n:
 
 ```json
@@ -506,30 +415,30 @@ threat-detection-yolov8n:
 ```
 
 **Detection classes the gateway post-processes:** `knife`, `pistol`, `rifle`,
-`threat_object`. The backend applies severity separately — see
-`ai/enrichment/models/threat_detector.py`, which maps gun/rifle/pistol to
-critical, knife and sword-type items to high, and bat/crowbar/hammer to medium.
+`threat_object`. The backend maps threat types to alert severity in
+`backend/services/threat_monitor_service.py` (`get_threat_severity`: firearms —
+gun/pistol/rifle/handgun — are CRITICAL, bladed weapons HIGH, and so on; the
+category enum lives in `backend/services/threat_categories.py`).
 
 ---
 
 ## Risk Assessment
 
-### Nemotron LLM Analysis
+### VLM Analysis
 
-The Nemotron-3-Nano-30B model provides contextual risk assessment. It runs in
-its own container, `ai-llm`, on llama.cpp at port 8091 (`NEMOTRON_URL`); the
-optional `vllm` compose profile swaps in `ai-llm-vllm` instead. Inspect a
+Risk reasoning runs on the `ai-vlm` llama.cpp engine — compose profile `vlm`,
+host port `AI_VLM_PORT` (default 8098); model identity is config
+(`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`, D5). The optional `vllm` compose profile
+exists for benchmarking (`ai-llm-vllm`), not for serving events. Inspect a
 finished event's prompt and response through the backend at
 `/api/llm-reasoning/events/{event_id}`.
 
 **Input Context:**
 
-- All detections in the batch
-- Florence captions and descriptions
+- The batch's key frames (stills) and their detections
 - Zone information and types
-- Historical baseline comparison
-- Household member matching
-- Time of day and patterns
+- Household member matching (face/re-ID lookups)
+- Time of day and baseline context
 
 **Output:**
 
@@ -602,48 +511,51 @@ curl "http://localhost:8000/api/analytics/detection-trends?start_date=2026-01-01
 ## Model Status API
 
 Model status and loading go through the backend under `/api/system/models`
-(`backend/api/routes/model_management.py`). Do not call the enrichment service
-ports directly.
+(`backend/api/routes/model_management.py`). Do not call gateway routers
+directly for status.
 
 ```bash
 # Every model in the registry, with runtime state
 curl http://localhost:8000/api/system/models
 
 # One model
-curl http://localhost:8000/api/system/models/pet-classifier/status
+curl http://localhost:8000/api/system/models/yolo11-license-plate/status
 
 # Combined VRAM totals
 curl http://localhost:8000/api/system/models/vram-summary
 
 # Load / unload / reload
-curl -X POST http://localhost:8000/api/system/models/pet-classifier/load
-curl -X POST http://localhost:8000/api/system/models/pet-classifier/unload
-curl -X POST http://localhost:8000/api/system/models/pet-classifier/reload
+curl -X POST http://localhost:8000/api/system/models/yolo11-license-plate/load
+curl -X POST http://localhost:8000/api/system/models/yolo11-license-plate/unload
+curl -X POST http://localhost:8000/api/system/models/yolo11-license-plate/reload
 ```
 
-`GET /api/system/models` returns one entry per registry model:
+`GET /api/system/models` returns one entry per registry model. Since R8 S3 the
+`service` labels are lane names of the one serving lane
+(`ai-enrichment-light` = the `/enrich-lt` router; `ai-gateway` = everything the
+root health answers), and `service_status` carries exactly those two rows:
 
 ```json
 {
   "models": [
     {
-      "name": "pet-classifier",
-      "category": "classification",
-      "estimated_vram_mb": 200,
+      "name": "osnet-ain-x1-0",
+      "category": "embedding",
+      "estimated_vram_mb": 100,
       "enabled": true,
       "service": "ai-enrichment-light",
       "gpu_id": 1,
       "runtime": {
         "loaded": true,
-        "actual_vram_mb": 187,
+        "actual_vram_mb": 96,
         "last_used": "2026-09-22T10:30:00Z",
         "load_count": 5
       }
     }
   ],
   "service_status": {
-    "ai-enrichment": "healthy",
-    "ai-enrichment-light": "healthy"
+    "ai-enrichment-light": "healthy",
+    "ai-gateway": "healthy"
   }
 }
 ```
@@ -666,9 +578,10 @@ model. `model_management.py` is registered first, so it answers the bare
 
 ### Managing VRAM
 
-1. **Priority Models**: Keep critical models (threat detection) always ready
+1. **VLM sizing**: `VLM_GPU_LAYERS=auto` (default) fits the engine to the card;
+   set an explicit layer count to reserve headroom for the gateway
 2. **Preloading**: Preload expected models before high-activity periods
-3. **Monitoring**: Watch VRAM utilization via `/models/status`
+3. **Monitoring**: Watch VRAM utilization via `/api/system/models/vram-summary`
 
 ### Reducing False Positives
 

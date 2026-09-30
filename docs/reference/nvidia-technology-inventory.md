@@ -9,6 +9,13 @@
 > record of that audit's own changes; their line numbers describe the tree as it stood then. The
 > 2026-09-22 pass re-verified the live tables (versions, line references, container images, CI
 > workflows) against the current tree.
+>
+> **R8 supersession note (2026-09-29).** The legacy LLM path retired after the
+> 2026-09-22 pass: the `ai-llm` container, the Nemotron-30B GGUF rows, the
+> 8091 endpoint and the A5500 VRAM tables describe deleted services. The
+> shipped reasoning engine is the profiled `ai-vlm` llama.cpp container (model
+> identity is config, ledger D5). The gateway containers' CUDA/Triton rows
+> remain accurate; treat every `ai-llm` row as history.
 
 ---
 

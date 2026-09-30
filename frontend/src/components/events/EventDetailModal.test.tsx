@@ -473,6 +473,12 @@ describe('EventDetailModal', () => {
       // who "just restores the panel".
       const enriched = {
         ...vlmEvent,
+        // Numeric id on purpose: base gates the summary block on
+        // !isNaN(parseInt(event.id)), and mockEvent.id is 'event-123' → NaN,
+        // which would let a stale enrichment-summary-section hide behind the
+        // NaN at base and make the first assertion below vacuous. With '123'
+        // this fixture WOULD have rendered the summary at base.
+        id: '123',
         detections: [
           {
             label: 'person',

@@ -44,21 +44,20 @@ Turn "dumb" security cameras into an intelligent threat detection system — **1
 
 ## What You Get: AI-Powered Risk Reasoning
 
-The brain of this system is [Nemotron-3-Nano-30B-A3B](https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF) — the reasoning model that scores every event. It runs entirely on your hardware:
+The brain of this system is a vision-language model that assesses every event — the `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is config, ledger D5. R8 retired the legacy Nemotron text-only path, 2026-09-29). It runs entirely on your hardware:
 
-| Specification        | Value                              | Why It Matters                                    |
-| -------------------- | ---------------------------------- | ------------------------------------------------- |
-| **Parameters**       | 30B total, ~3B active (MoE)        | Big-model reasoning at small-model speed          |
-| **Quantization**     | Q4_K_M (4-bit GGUF, ~15GB on disk) | Cuts memory ~4x with minimal quality loss         |
-| **VRAM Required**    | ~21GB resident                     | Fits on RTX 3090, 4090, A5000, A5500, A6000       |
-| **Context Window**   | 262,144 tokens (`CTX_SIZE`)        | Split 8 ways: 32K per slot, 8 concurrent analyses |
-| **Inference Engine** | llama.cpp                          | Optimized C++ with CUDA acceleration              |
+| Specification        | Value                                     | Why It Matters                                  |
+| -------------------- | ----------------------------------------- | ----------------------------------------------- |
+| **Weights**          | GGUF pair, host-mounted, never baked      | `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` in `.env`  |
+| **VRAM Required**    | see the bring-up record — config-driven   | sized per card; `VLM_GPU_LAYERS=auto` offloads  |
+| **Context Window**   | 32,768 tokens (`VLM_CTX_SIZE`)            | Split 2 ways: 16K per slot, concurrent analyses |
+| **Inference Engine** | llama.cpp (`ai-vlm`, container port 8098) | Optimized C++ with CUDA acceleration            |
 
 **Also included:**
 
 - **Real-time dashboard** — camera grid, activity feed, risk gauge, telemetry
 - **Detections → events** — time-window batching turns many frames into one explained "event"
-- **Model zoo enrichment** — captions, re-ID, license plates, faces, clothing/vehicle/pet context
+- **Identity lookups** — re-ID, license plates and faces matched against your own registrations (DB lookups; the enrichment attribute models retired with R8)
 - **Local-first** — runs on your hardware; footage stays on your network
 - **First run** — the API returns 503 for everything except setup and health until you register the
   first admin in the dashboard; that's the setup guard working, not a broken install
@@ -76,8 +75,8 @@ The system provides comprehensive video analytics capabilities:
 | Feature                 | Description                                       | Documentation                                                             |
 | ----------------------- | ------------------------------------------------- | ------------------------------------------------------------------------- |
 | **Object Detection**    | YOLO26 detects people, vehicles, animals, objects | [Object detection](docs/guides/video-analytics.md#object-detection)       |
-| **Scene Understanding** | Florence-2 generates captions and descriptions    | [Scene understanding](docs/guides/video-analytics.md#scene-understanding) |
-| **Anomaly Detection**   | CLIP baselines detect unusual activity            | [Anomaly detection](docs/guides/video-analytics.md#anomaly-detection)     |
+| **Scene Understanding** | The VLM describes and assesses each event         | [Scene understanding](docs/guides/video-analytics.md#scene-understanding) |
+| **Anomaly Detection**   | Learned activity baselines flag unusual patterns  | [Anomaly detection](docs/guides/video-analytics.md#anomaly-detection)     |
 | **Threat Detection**    | Weapon and dangerous item detection               | [Threat detection](docs/guides/video-analytics.md#threat-detection)       |
 
 ### Zone Intelligence
@@ -118,17 +117,22 @@ All four live on the [Analytics API](docs/api/analytics-endpoints.md):
 
 ### Always-Loaded Models
 
-These stay resident because every detection path touches them:
+The two engines every event path talks to. The VLM runs under the `vlm` compose
+profile and the backend only soft-depends on it (`docker-compose.prod.yml:127`
+— a profiled service can never sit in a `depends_on`, so the backend
+degrades instead of failing to boot):
 
-| Model                     | Purpose                    | VRAM                                | Where it runs                          |
-| ------------------------- | -------------------------- | ----------------------------------- | -------------------------------------- |
-| Nemotron-3-Nano-30B (LLM) | Risk reasoning             | ~21GB resident (~15GB on-disk GGUF) | `ai-llm` container, port 8091          |
-| YOLO26                    | Primary object detection   | ~2GB (Triton; not in `models.yml`)  | `ai-gateway` Triton, route `/yolo26/*` |
-| SigLIP 2 Base             | Re-ID / anomaly embeddings | ~200MB                              | `ai-gateway` Triton, route `/clip/*`   |
+| Model                                          | Purpose                            | VRAM                                                             | Where it runs                        |
+| ---------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------- | ------------------------------------ |
+| VLM engine (GGUF pair; identity is config, D5) | Scene description + risk reasoning | see the bring-up record — config-driven                          | `ai-vlm` llama.cpp container, 8098   |
+| YOLO26                                         | Primary object detection           | `vram_mb: 0` in `models.yml` (gateway-resident, not backend-zoo) | `ai-gateway` Triton, route `/yolo26` |
 
-> Since the gateway consolidation (bc7d6101), detection and enrichment models run inside `ai-gateway` on
-> port **8090** as path-prefixed routers — `/yolo26` `/florence` `/clip` `/enrichment` `/enrich-lt`. There are
-> no separate 8092/8093/8095 server containers. Only the Nemotron LLM keeps its own port (8091).
+> Since the gateway consolidation (bc7d6101) and the R8 legacy retirement
+> (2026-09-29), `ai-gateway` publishes exactly two routers on port **8090** —
+> `/yolo26` and `/enrich-lt` (weapon/threat + person re-ID; `GATEWAY_MODEL_SET`
+> is a closed set — an unexpected member hard-raises). The `/florence`, `/clip`
+> and `/enrichment` routers, their containers and the legacy text-only LLM
+> (the old `ai-llm` service) were all deleted with it.
 
 ### Object Detector
 
@@ -140,41 +144,48 @@ Three YOLO26 variants ship (`n`/`s`/`m`; `m` is the default). Measured end-to-en
 | YOLO26s | 73.74ms           | 13.6 | Maximum throughput per frame |
 | YOLO26n | 44.83ms           | 22.3 | Lightweight, edge deployment |
 
-### On-Demand Models
+### Lookup Models
 
-The rest of `models.yml`: these load when a detection needs them (inside the gateway's Triton process or the backend model zoo) and evict by LRU when VRAM runs short. Representative entries (VRAM from `models.yml`):
+Since R8 the enrichment attribute zoo is retired — what remains answers
+_identity_ questions (who/what is this face, plate, person) against your own
+registrations, plus the weapon/plate detectors that feed the verdict. These
+load when a detection needs them (gateway Triton or the backend model zoo) and
+evict by LRU under VRAM pressure. Complete `models.yml` inventory (VRAM and
+phase from the rows themselves):
 
-| Model                    | Purpose            | VRAM   |
-| ------------------------ | ------------------ | ------ |
-| Florence-2-base          | Scene captions     | Triton |
-| Threat-Detection-YOLOv8n | Weapon detection   | ~300MB |
-| Smoke/Fire-YOLOv8n       | Fire and smoke     | ~350MB |
-| YOLOv8n-pose             | Pose estimation    | ~200MB |
-| ViT age + gender         | Demographics       | ~200MB |
-| OSNet-AIN x1.0           | Person re-ID       | ~100MB |
-| FashionCLIP              | Clothing analysis  | ~500MB |
-| Vehicle-Segment          | Vehicle type       | ~1.5GB |
-| Pet Classifier           | Cat/dog detection  | ~200MB |
-| Depth Anything v2 tiny   | Spatial reasoning  | ~100MB |
-| X-CLIP Base / ST-GCN++   | Action recognition | Triton |
+| Model                    | Purpose                               | VRAM              | Phase | Notes                                                              |
+| ------------------------ | ------------------------------------- | ----------------- | ----- | ------------------------------------------------------------------ |
+| yolo26                   | Primary object detection              | Triton (`yolo26`) | 0     | `enabled: false` in the zoo; gateway export reads the .pt off disk |
+| osnet-ain-x1-0           | Person re-ID embeddings               | ~100MB            | 1     | Triton `reid`; `preload: true`                                     |
+| threat-detection-yolov8n | Weapon detection (knives, guns, bats) | ~300MB            | 1     | Triton `threat`                                                    |
+| face-detector-scrfd      | Face detection (CPU onnxruntime)      | 0 (CPU)           | 3     | `low` priority; `preload: true`                                    |
+| face-recognizer          | Face embeddings (CPU onnxruntime)     | 0 (CPU)           | 3     | `low` priority; `preload: true`                                    |
+| yolo11-face              | Face detection on person crops        | ~200MB            | 3     | backend                                                            |
+| yolo11-license-plate     | License plate detection               | ~300MB            | 3     | backend                                                            |
+| fast-alpr                | Plate detection + OCR (ONNX)          | ~28MB             | 3     | library fetches at runtime                                         |
+| paddleocr                | Text recognition                      | ~100MB            | 3     | superseded by fast-alpr                                            |
+| yolo26-general           | General scene detection               | ~400MB            | 3     | `enabled: false` — weights not released                            |
 
-Full list: `models.yml` (grouped by `download_phase`: 0 required, 1 core enrichment, 2 extended, 3 optional).
+Retired with R8 (2026-09-29): Florence, SigLIP/CLIP, pose (ViTPose /
+yolov8n-pose / ST-GCN++ / X-CLIP), demographics (ViT age+gender), clothing
+(FashionCLIP / SegFormer), vehicle-segment, vehicle-damage, pet, depth,
+weather, violence, smoke/fire — the VLM path describes what it sees instead of
+re-perceiving it with a specialist per attribute.
 
 ### Model Priority System
 
 Every model carries a priority in `models.yml` that sets its eviction order under VRAM pressure:
 
-- **CRITICAL**: never evicted if any VRAM can be freed (smoke/fire detection is the one marked today)
-- **HIGH** / **MEDIUM** / **LOW**: evicted in that order; most models ship at **medium** default
-- `never_evict: true` pins a model outright; `preload: true` loads it at startup
+- **CRITICAL**: never evicted if any VRAM can be freed (no shipped `models.yml` row is marked today — the safety model that carried it retired with R8)
+- **HIGH** / **MEDIUM** / **LOW**: evicted in that order; most models ship at **medium** default (the two CPU face rows are `low`)
+- `never_evict: true` pins a model outright (no live row sets it); `preload: true` loads it at startup (osnet + the two face rows)
 
 ### Downloading Models
 
 ```bash
-# Download the models the setup_lib rule selects (rule selects 25 entries,
-# ~33GB sum of models.yml size_mb; the script fetches 24, ~32.2GB — the
-# xclip-base row was removed 2026-09-23, full X-CLIP removal owner ruling;
-# the script header carries the exact re-derivation).
+# Download the models the setup_lib rule selects (since R8: 5 of the 10 live
+# models.yml rows, 763MB of models.yml size_mb — the script header carries the
+# exact re-derivation, and a guard test pins the fetch list to the rule).
 # Reads only the AI_MODELS_PATH shell variable (not .env — export it to match
 # setup.py's choice, below) and the target must already exist and be writable:
 # setup.py sudo-creates it; otherwise sudo mkdir -p + chown first.
@@ -186,11 +197,12 @@ AI_MODELS_PATH=/path/to/models ./ai/download_models.sh
 
 ### VRAM Budget
 
-| Configuration | VRAM Needed | What Runs                                                             |
-| ------------- | ----------- | --------------------------------------------------------------------- |
-| Minimum       | 8–12GB      | LLM partially offloaded via `GPU_LAYERS` (slow) + YOLO26 + embeddings |
-| Recommended   | 16GB        | LLM with reduced `GPU_LAYERS` + on-demand                             |
-| Optimal       | 24GB        | Full stack, LLM fully on GPU                                          |
+Sizing is dominated by the VLM identity in `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`:
+`VLM_GPU_LAYERS=auto` (default) offloads as many layers as the card allows, so
+there is no fixed tier table any more. Budget the GGUF pair's layers, the
+gateway's Triton process, and ~1.0GB of lookup-model headroom — the full table
+lives in [VRAM Requirements](docs/_includes/vram-requirements.md). The retired
+30B-LLM tiers this table published died with the legacy path in R8 (2026-09-29).
 
 The on-demand model manager loads and unloads models based on VRAM availability using LRU eviction with priority-based ordering.
 
@@ -394,27 +406,30 @@ wrong; the server really binds 8444 per `frontend/vite.config.ts`.)
 <summary><strong>Host-run AI servers</strong></summary>
 
 Useful when iterating on AI model code directly on the host. The host-run detector
-replaces only the gateway's `/yolo26` router — Florence/CLIP/enrichment still need the
-`ai-gateway` container. (The standalone `ai-yolo26` GPU image was retired 2026-09-23 —
+replaces only the gateway's `/yolo26` router — the `/enrich-lt` specialists still need
+the `ai-gateway` container. (The standalone `ai-yolo26` GPU image was retired 2026-09-23 —
 Triton inside `ai-gateway` serves yolo26; the build recipe lives at
-`archive/ai-yolo26-image/Dockerfile`.)
+`archive/ai-yolo26-image/Dockerfile`. The gateway's `/florence`, `/clip` and `/enrichment`
+routers were retired with R8 S3, 2026-09-29, along with the `FLORENCE_URL` / `CLIP_URL` /
+`ENRICHMENT_URL` settings they fed.)
 
 ```bash
 # Start the AI servers on the host (separate terminals)
 ./ai/start_detector.sh   # YOLO26 — reads PORT/YOLO26_PORT, defaults to 8090
-./ai/start_llm.sh        # Nemotron llama.cpp server, port 8091
+# (The reasoning engine has no host-run script: the shipped llama.cpp server is the
+#  ai-vlm container — start it with: podman compose -f docker-compose.prod.yml
+#  --profile vlm up -d ai-vlm. The old ./ai/start_llm.sh Nemotron server was retired
+#  with the legacy path in R8 S2.)
 
 # Then point the HOST-RUN backend (dev.sh) at them. The host detector serves its
 # endpoints at the root (/health, /detect), so no router suffix — and these exports
 # never reach a containerized backend (compose hardcodes the AI URLs; no env_file).
 export YOLO26_URL=http://localhost:8090
-export NEMOTRON_URL=http://localhost:8091
-# Florence/CLIP/enrichment come from the ai-gateway container, published on
-# 127.0.0.1:8090 — point the remaining clients at its routers. Leave
+# The light-enrichment lane (threat + re-ID) comes from the ai-gateway container,
+# published on 127.0.0.1:8090 — point its client at the router. Leave
 # USE_AI_GATEWAY=false (the default): with it true the detector client ignores
 # YOLO26_URL and sends detection back to the gateway.
-export FLORENCE_URL=http://localhost:8090/florence CLIP_URL=http://localhost:8090/clip
-export ENRICHMENT_URL=http://localhost:8090/enrichment ENRICHMENT_LIGHT_URL=http://localhost:8090/enrich-lt
+export ENRICHMENT_LIGHT_URL=http://localhost:8090/enrich-lt
 ```
 
 If instead the backend itself runs in a container, `host.docker.internal` resolves

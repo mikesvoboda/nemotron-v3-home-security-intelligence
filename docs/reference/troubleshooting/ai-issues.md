@@ -238,12 +238,13 @@ All gateway models share one GPU. Check utilization:
 ```bash
 nvidia-smi
 
-# Expected VRAM usage:
-# - YOLO26 (TensorRT): ~2GB
-# - Nemotron LLM: ~14.7GB (30B Q4_K_M), ~3GB (host-run mini 4B)
-# - Florence-2: ~1.5GB
-# - SigLIP 2 embeddings: ~0.2GB
-# (full table: docs/_includes/vram-requirements.md)
+# Expected VRAM usage (post-R8):
+# - ai-gateway (Triton): YOLO26 + re-ID/threat specialists — see
+#   docs/_includes/vram-requirements.md for the lookup-model table
+# - ai-vlm (llama.cpp, compose profile `vlm`): scale follows the GGUF pair
+#   set in VLM_MODEL_PATH / VLM_MMPROJ_PATH; VLM_GPU_LAYERS=auto (default)
+#   fits as many layers as the card allows
+# No measured residency figure is published for the shipped VLM identity yet.
 ```
 
 If GPU is overloaded, consider:

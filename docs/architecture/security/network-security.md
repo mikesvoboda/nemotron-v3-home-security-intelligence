@@ -362,8 +362,8 @@ Since the gateway consolidation, detection, CLIP, Florence and the enrichment
 models all run inside the single `ai-gateway` service on port 8090 under
 path prefixes (`/yolo26`, `/clip`, `/florence`, `/enrichment`, `/enrich-lt`);
 only Nemotron stays on its own `ai-llm` container (port 8091). The
-`ai_gateway_url` / `use_ai_gateway` settings (`config.py:1309-1319`) route all
-AI clients through the gateway — both are enabled in the deployed stack
+`ai_gateway_url` / `use_ai_gateway` settings (`backend/core/config.py:1510-1520`)
+route all AI clients through the gateway — both are enabled in the deployed stack
 (`docker-compose.prod.yml:456-457`, `.env.example:200-201`).
 
 ### Optional API Key Authentication for AI Services
@@ -371,15 +371,13 @@ AI clients through the gateway — both are enabled in the deployed stack
 AI services can require API key authentication:
 
 ```python
-# From backend/core/config.py:1036-1043
+# From backend/core/config.py:1087-1090
 yolo26_api_key: SecretStr | None = Field(
     default=None,
     description="Optional API key for YOLO26 service authentication",
 )
-nemotron_api_key: SecretStr | None = Field(
-    default=None,
-    description="API key for Nemotron service authentication (optional, sent via X-API-Key header)",
-)
+# (The nemotron_api_key sibling field was deleted with the legacy LLM path in
+# R8 slice S2, 2026-09-29; the shipped engine is ai-vlm, which takes no key.)
 ```
 
 ## Network Isolation Recommendations

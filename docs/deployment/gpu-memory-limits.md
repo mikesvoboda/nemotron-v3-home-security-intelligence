@@ -91,12 +91,20 @@ From `docker-compose.prod.yml` (host RAM/CPU caps + GPU assignment):
 
 | Service                        | CPU limit | RAM limit / reservation           | GPU assignment                                         |
 | ------------------------------ | --------- | --------------------------------- | ------------------------------------------------------ |
-| `ai-llm`                       | 4         | 12G / 8G                          | `device_ids: GPU_LLM` (default 0)                      |
+| `ai-vlm` (profile `vlm`)       | 4         | 10G / 4G                          | `device_ids: GPU_LLM` (default 0)                      |
 | `ai-gateway`                   | 8         | 20G / 10G                         | `device_ids: GPU_AI_SERVICES` (default 1)              |
 | `backend`                      | 2         | 10G (raised from 6G for NEM-3890) | GPU reservation, no device_ids (any GPU)               |
 | `ai-llm-vllm` (profile `vllm`) | 4         | 24G / 16G                         | all GPUs visible; selection via `CUDA_VISIBLE_DEVICES` |
 
-VRAM demand per model lives in the gateway/backend model registry, not in compose. Estimates per service: [Multi-GPU guide, VRAM Requirements by Service](../developer/multi-gpu.md#vram-requirements-by-service) — roughly ~14-18GB for the 30B LLM and ~10GB summed across the gateway's models. With the full stack on one 24GB card the measured steady state is ~23GB used.
+VRAM demand per model lives in the gateway/backend model registry, not in
+compose — see [VRAM Requirements](../_includes/vram-requirements.md). What the
+table above caps is host RAM only. No measured steady-state figure exists for
+the post-R8 stack: VRAM demand is dominated by the `ai-vlm` GGUF pair the
+operator configures (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`), and `VLM_GPU_LAYERS=auto`
+(default) trades layers against whatever the card has free. The pre-R8 figures
+this page carried — a 30B LLM's ~14-18GB, the gateway's ~10GB, ~23GB steady
+state on one 24GB card — retired with the legacy path on 2026-09-29 and are not
+reproducible against the shipped stack.
 
 ---
 

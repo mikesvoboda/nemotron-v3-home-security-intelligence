@@ -1,18 +1,39 @@
-### Always-Loaded Core Services
+### Always-Loaded Services
 
-| Service    | Container  | Model                          | VRAM    | Purpose                                 |
-| ---------- | ---------- | ------------------------------ | ------- | --------------------------------------- |
-| YOLO26     | ai-gateway | YOLO26 (TensorRT)              | ~2GB    | Primary object detection                |
-| Nemotron   | ai-llm     | Nemotron-3-Nano-30B-A3B Q4_K_M | ~14.7GB | Risk reasoning and analysis             |
-| Florence-2 | ai-gateway | Florence-2-base                | ~1.5GB  | Scene understanding, OCR                |
-| Embeddings | ai-gateway | SigLIP 2 base (Triton `clip`)  | ~200MB  | Entity re-ID embeddings, anomaly detect |
+| Service    | Container  | Model                                                            | VRAM                                               | Purpose                             |
+| ---------- | ---------- | ---------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------- |
+| VLM engine | ai-vlm     | GGUF pair — operator config (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`) | config-driven; `VLM_GPU_LAYERS=auto` fits the card | Scene description + risk reasoning  |
+| Detection  | ai-gateway | YOLO26 (Triton) + re-ID/threat specialists                       | Triton set `yolo26`/`reid`/`threat` (opt-in)       | Object detection + identity lookups |
 
-Florence-2, YOLO26 and the embedding models all run inside the single `ai-gateway` container (host port `AI_GATEWAY_PORT`, default 8090) through routers `/yolo26`, `/florence`, `/clip`, `/enrichment` and `/enrich-lt`.
+The `ai-vlm` container sits behind the `vlm` compose profile — the stack runs
+without it and events degrade (no verdicts) rather than fail to boot. No
+measured 24 GB-class residency figure exists yet for the shipped identity; the
+bring-up record owns the per-card numbers. The gateway serves exactly two
+routers (`/yolo26`, `/enrich-lt`) since R8 S3; `GATEWAY_MODEL_SET` resolves
+only `vlm`.
 
-### VRAM Tiers
+### On-Demand Lookup Models (backend model zoo)
 
-| Tier            | Min VRAM | Models Loaded                                                         | Use Case         |
-| --------------- | -------- | --------------------------------------------------------------------- | ---------------- |
-| **Minimum**     | ~8–12GB  | LLM partially offloaded via `GPU_LAYERS` (slow) + YOLO26 + embeddings | Development only |
-| **Recommended** | 16GB     | LLM with reduced `GPU_LAYERS` + on-demand models                      | Production       |
-| **Optimal**     | 24GB+    | All core models, LLM fully on GPU                                     | Full model zoo   |
+VRAM is from `models.yml` `vram_mb`; the enabled, GPU-resident rows sum to
+~1.0GB under full pressure (evicted in priority order — medium first, the two
+CPU face rows are `low` and cost 0 VRAM):
+
+| Model                    | VRAM    |
+| ------------------------ | ------- |
+| osnet-ain-x1-0           | ~100MB  |
+| threat-detection-yolov8n | ~300MB  |
+| yolo11-face              | ~200MB  |
+| yolo11-license-plate     | ~300MB  |
+| fast-alpr                | ~28MB   |
+| paddleocr                | ~100MB  |
+| face-detector-scrfd      | 0 (CPU) |
+| face-recognizer          | 0 (CPU) |
+
+### Sizing Guidance
+
+Sizing is dominated by the VLM identity you configure, so there is no fixed
+tier table any more: `VLM_GPU_LAYERS=auto` (default) offloads as many layers as
+the card allows, and the GGUF pair's disk size and layer count set the floor.
+On top of that budget the gateway's Triton process and ~1.0GB of lookup-model
+headroom. The retired 30B-LLM-based tiers this page used to publish (8/16/24GB
+against a ~14.7GB GGUF) died with the legacy path in R8 (2026-09-29).
