@@ -314,6 +314,7 @@ def execute(
     # Resolved before the import: the importer stores media paths as joined from the export.
     export = export.resolve()
     build = check(model, url, deps)
+    ran_under = conditions(model, export)  # before the replay: nothing after it may fail first
     started = deps.now()
     replay_id = f"{started:%Y%m%dT%H%M%SZ}-{model.name}"
     run_dir = runs_dir / replay_id
@@ -347,7 +348,7 @@ def execute(
         "transport": model.transport,
         "url": url,
         "build": build,
-        **conditions(model, export),
+        **ran_under,
         "export": str(export),
         "store": str(store_path),
         "eval_run_id": report["run_id"],
