@@ -29,7 +29,7 @@ def model_hashes() -> dict[str, str]:
 
 
 def current() -> ClipSettings:
-    """The settings `clip sample` records in a new round and the gate compares."""
+    """The settings `clip sample` records in each round's `round.json` (clips design §2.3)."""
     pairs = sorted(model_hashes().items())
     return ClipSettings(
         frames=CLIP_FRAMES,

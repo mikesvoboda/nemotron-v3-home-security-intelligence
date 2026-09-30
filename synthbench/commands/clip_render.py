@@ -1,6 +1,7 @@
 """`clip render --round <r>`: render each frozen clip's pending attempt with MiniMax-H3 turbo.
 
-Clips design §4. Before its first clip it reads ComfyUI's history. Unless H3 ran last:
+Clips design §4. Before its first clip it reads ComfyUI's history. Unless H3 ran last, it waits
+for the flagship before switching models, then:
 
 - it frees the renderer;
 - it checks that the GPU has room for H3's peak;
@@ -8,9 +9,11 @@ Clips design §4. Before its first clip it reads ComfyUI's history. Unless H3 ra
 - it logs the switch in the round's switches.jsonl.
 
 It yields to the flagship before every clip, and starts a clip only while the clip's timeout
-still fits in the agent's 600 s call (H3-R6). Each run resumes where the last one stopped.
-Failures are handled as `render` handles them: three failed jobs fail the clip, and an
-unreachable renderer stops the run. Each clip gets a 6-frame strip for the agent's triage.
+still fits in the agent's 600 s call (H3-R6). It renders at most one clip per call, whatever the
+outcome, so a fault that fails every job costs at most one clip before the owner is asked. Each
+run resumes where the last one stopped. Failures are handled as `render` handles them: three
+failed jobs fail the clip, and an unreachable renderer stops the run. Each clip gets a 6-frame
+strip for the agent's triage.
 """
 
 from __future__ import annotations
@@ -81,6 +84,8 @@ CLIP_TIMEOUT_S = 500.0  # 1.5 x 328.7 s, rounded up to 10 (ruling H3-R7, amended
 WARMUP_TIMEOUT_S = 240.0  # 61.2 s with warm page cache; room for a cold load of the weights
 H3_PEAK_GIB = 49.0  # 48.3 GiB, rounded up
 RESERVE_GIB = 4.0  # the renderer's --reserve-vram 4 (agent-driven design §1)
+# A stalled HTTP request must not outlive the 600 s call; a clip is ~4 MB on loopback.
+REQUEST_TIMEOUT_S = 15.0
 
 
 def add_parser(actions: argparse._SubParsersAction[Parser]) -> None:
@@ -144,25 +149,29 @@ def _render_todo(
     status_file = flagship_file(env)
     latest_start = deps.clock() + CALL_LIMIT_S - CLIP_TIMEOUT_S
     rendered = failed_jobs = 0
-    client = ComfyClient(url, transport=deps.transport)
+    client = ComfyClient(url, transport=deps.transport, timeout_s=REQUEST_TIMEOUT_S)
     try:
         # §5.2: the switch is GPU work like a render, so it waits for the flagship too - a busy
         # or unknown flagship must not see the renderer freed and warmed up on its behalf.
         if _flagship_ready(status_file, latest_start, deps):
             _enter_clip_mode(store, record, client, deps)
-            for spec, prov in todo:
-                if deps.clock() > latest_start:
-                    break
-                if not _flagship_ready(status_file, latest_start, deps):
-                    break
-                done, failures = _render_one(store, spec, prov, client, deps)
-                if done:
-                    rendered += 1
-                else:
-                    failed_jobs += 1
-                    if failures >= MAX_RENDER_FAILURES:
-                        _mark_failed(store, [spec])
-                        stuck.append(spec)
+            # One attempt per call (H3-R6, review Important #1): a job that fails fast (an OOM,
+            # a sticky CUDA fault) must not let the loop reach every pending clip within the
+            # 70 s start window and fail all of them before the owner is asked. A successful
+            # clip already ends the call by the budget (one clip runs far longer than the start
+            # window); rendering at most one attempt, whatever its outcome, bounds a fast-failing
+            # fault at one clip per call too.
+            if todo and deps.clock() <= latest_start:
+                if _flagship_ready(status_file, latest_start, deps):
+                    spec, prov = todo[0]
+                    done, failures = _render_one(store, spec, prov, client, deps)
+                    if done:
+                        rendered += 1
+                    else:
+                        failed_jobs += 1
+                        if failures >= MAX_RENDER_FAILURES:
+                            _mark_failed(store, [spec])
+                            stuck.append(spec)
     finally:
         client.close()
     left = len(pending) - len(stuck) - rendered
@@ -170,12 +179,13 @@ def _render_todo(
         f"clip render {record.name}: {rendered} rendered now, {left} still to render, "
         f"{failed_jobs} failed job(s) this run (ComfyUI at {url})\n"
     )
-    sys.stdout.write(
-        "Next: run clip render again.\n"
-        if left
-        else f"Next: open each new strip, write triage.jsonl, then clip triage --round "
-        f"{record.name}\n"
-    )
+    if not stuck:  # about to raise AskOwner below: "Next" would be misleading
+        sys.stdout.write(
+            "Next: run clip render again.\n"
+            if left
+            else f"Next: open each new strip, write triage.jsonl, then clip triage --round "
+            f"{record.name}\n"
+        )
     if stuck:
         raise AskOwner(_stuck_message(stuck))
     return EXIT_OK

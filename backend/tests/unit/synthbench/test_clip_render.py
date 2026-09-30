@@ -28,7 +28,7 @@ from synthbench.commands.common import AskOwner, RequestError
 from synthbench.contract.clip import ClipProvenance, ClipSpec, SwitchRow, clip_name, strip_name
 from synthbench.contract.provenance import Provenance
 from synthbench.generate.comfy import graphs
-from synthbench.generate.render import family
+from synthbench.generate.render import FREE_WAIT_S, family
 
 from backend.tests.unit.synthbench import helpers as h
 
@@ -179,21 +179,23 @@ def test_a_flux_renderer_is_freed_warmed_to_h3_once_then_renders(
     specs, clock = _ready(tmp_path, 3)
     fake = FakeComfy(clock, last=_flux())
     assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_OK
-    # warm-up at 0-30 s; clips start at 30 and 180; the next would start at 330 > 570 - 360
+    # warm-up at 0-30 s, then the switch call also renders the round's first clip (30-180 s):
+    # one attempt per call (Important #1), so the second and third clips wait for later calls.
     assert fake.freed == 1
-    assert [_length(g) for g in fake.graphs] == [WARMUP_FRAMES, 243, 243]
+    assert [_length(g) for g in fake.graphs] == [WARMUP_FRAMES, 243]
     out = capsys.readouterr().out
-    assert "2 rendered now, 1 still to render" in out
+    assert "1 rendered now, 2 still to render" in out
     store = h.store(tmp_path)
     (switch,) = [
         SwitchRow.model_validate_json(line)
         for line in (store.round_dir(PILOT) / "switches.jsonl").read_text().splitlines()
     ]
     assert (switch.previous, switch.warmup_seconds) == ("flux2", 30.0)
-    # a second call: H3 is resident, so no switch
+    # two more calls: H3 stays resident, one clip rendered per call
+    assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_OK
     assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_OK
     assert fake.freed == 1
-    assert [_length(g) for g in fake.graphs[3:]] == [243]
+    assert [_length(g) for g in fake.graphs[1:]] == [243, 243, 243]
     assert {row.status for row in store.latest_clip_index().values()} == {"rendered"}
     for spec in specs:
         attempt = _prov(tmp_path, spec).attempts[-1]
@@ -203,6 +205,73 @@ def test_a_flux_renderer_is_freed_warmed_to_h3_once_then_renders(
         event_dir = store.event_dir(spec.event_id)
         assert (event_dir / attempt.clip.path).read_bytes() == CLIP
         assert attempt.models == clip_settings.model_hashes()
+
+
+def test_a_run_of_fast_failing_jobs_fails_at_most_one_clip_in_three_calls(
+    tmp_path: Path,
+) -> None:
+    """Important #1: a fault that fails every job (an OOM, a rejected graph) must cost at most
+    one clip before the owner is asked, not every clip the call could otherwise reach."""
+    specs, clock = _ready(tmp_path, 4)
+    fake = FakeComfy(clock, last=_h3(), seconds=5.0, fail=frozenset({1, 2, 3}))
+    assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_OK
+    assert len(fake.graphs) == 1  # one job queued this call, not one per pending clip
+    (failure,) = _prov(tmp_path, specs[0]).attempts[-1].render_failures
+    assert failure.kind == "job"
+    assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_OK
+    with pytest.raises(AskOwner, match="failed to render 3 times"):
+        _render(tmp_path, _deps(clock, fake))
+    assert len(fake.graphs) == 3  # three calls, three jobs, every one against the same clip
+    store = h.store(tmp_path)
+    assert store.latest_clip_index()[specs[0].event_id].status == "failed"
+    for spec in specs[1:]:
+        assert _prov(tmp_path, spec).attempts[-1].render_failures == ()
+
+
+def test_a_transport_error_mid_clip_is_unreachable_and_never_counts_toward_the_cap(
+    tmp_path: Path,
+) -> None:
+    specs, clock = _ready(tmp_path, 1)
+    fake = FakeComfy(clock, last=_h3())
+
+    def flaky(request: httpx.Request) -> httpx.Response:
+        if request.url.path.startswith("/history/p"):
+            raise httpx.ConnectError("connection refused", request=request)
+        return fake(request)
+
+    for _ in range(4):  # more than MAX_RENDER_FAILURES: unreachable must never add up to it
+        with pytest.raises(AskOwner, match="stopped answering"):
+            _render(tmp_path, _deps(clock, flaky))
+    failures = _prov(tmp_path, specs[0]).attempts[-1].render_failures
+    assert len(failures) == 4
+    assert {failure.kind for failure in failures} == {"unreachable"}
+    # still "prompted" (clip check's own row): never advanced to rendered, and never failed
+    assert h.store(tmp_path).latest_clip_index()[specs[0].event_id].status == "prompted"
+
+
+def test_a_failed_warmup_stops_before_any_clip_and_writes_no_switch(tmp_path: Path) -> None:
+    _, clock = _ready(tmp_path, 1)
+    fake = FakeComfy(clock, last=_flux(), fail=frozenset({1}))  # the warm-up is prompt 1
+    with pytest.raises(AskOwner, match="switching the renderer to H3 failed"):
+        _render(tmp_path, _deps(clock, fake))
+    assert fake.freed == 1
+    assert not (h.store(tmp_path).round_dir(PILOT) / "switches.jsonl").exists()
+
+
+class TestShippedTimingConstants:
+    """Minor #3: an invariant test on the constants as shipped, not the autouse fixture's
+    stand-ins - this class's own `_timeouts` overrides the module's autouse fixture with a
+    no-op, so these assertions see `clip_render`'s real module attributes."""
+
+    @pytest.fixture(autouse=True)
+    def _timeouts(self) -> None:
+        return None
+
+    def test_the_shipped_constants_fit_inside_the_600_s_call(self) -> None:
+        start_window = clip_render.CALL_LIMIT_S - clip_render.CLIP_TIMEOUT_S
+        assert start_window > 0  # a clip can still start after the switch
+        assert clip_render.CALL_LIMIT_S <= 580  # room for start-up, downloads, the last poll
+        assert FREE_WAIT_S + clip_render.WARMUP_TIMEOUT_S + start_window < 600
 
 
 def test_the_input_is_the_fitted_source_render(tmp_path: Path) -> None:

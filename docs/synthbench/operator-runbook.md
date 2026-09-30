@@ -345,6 +345,8 @@ The guard covers both. Design: `docs/superpowers/specs/2026-09-30-synthbench-h3-
 There is no pilot gate (spec C13): a round may take every ready still.
 
 1. **Give the agent the code and the skill.**
+   - Retire the current session first: `agent-dgx stop synthbench-gen && agent-dgx session rm synthbench-gen --force` ("Create the agent's sandbox"). Recreating the sandbox without this leaves the old session's container behind.
+   - Before the fresh clone replaces it, copy out anything uncommitted in the old workspace: its `docs/synthbench/prompt-notes.md` and any drafts, from `/agents/agent-synthbench-gen/workspace/docs/synthbench/`.
    - Update the host checkout to the commit with the clip commands ("Install or update the host
      checkout and units").
    - Recreate the agent's sandbox from the same commit ("Create the agent's sandbox"). Its

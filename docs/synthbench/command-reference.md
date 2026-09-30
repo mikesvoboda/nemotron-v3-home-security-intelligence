@@ -208,6 +208,7 @@ rule 5 bars camera moves and cuts (`synthbench/prompt/camera_moves.yaml`).
   - a motion that breaks a rule;
   - a missing, malformed, duplicated or unknown row;
   - a changed frozen motion;
+  - a round whose specs were never written (run `clip sample` again);
   - no round `<r>`.
 - **Exit 2:**
   - a source still that changed or is no longer ready;
@@ -282,7 +283,9 @@ Writes `rounds/<r>/report.md` and `rounds/<r>/sheet.html` (clips design §3.4).
   - failed clips;
   - render timing;
   - the renderer switches from `switches.jsonl`.
-- **`sheet.html`:** plays each clip beside its source still.
+- **`sheet.html`:** shows each clip's strip beside its source still, the strip linking to the
+  clip itself (not a `<video>` per card: hundreds of cards would exceed the browser's per-page
+  media-player cap).
 
 | Option        | Default  | Meaning    |
 | ------------- | -------- | ---------- |

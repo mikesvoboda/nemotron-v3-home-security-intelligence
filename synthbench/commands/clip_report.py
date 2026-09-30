@@ -238,7 +238,7 @@ figure.ready {{ border-color: #3a3; }}
 figure.failed {{ border-color: #c33; }}
 figure.awaiting-verdict {{ border-color: #ca3; }}
 .pair {{ display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }}
-video, img {{ width: 100%; height: auto; }}
+img {{ width: 100%; height: auto; }}
 .none {{ padding: 40px; text-align: center; color: #777; }}
 </style></head><body><h1>{title}</h1><main>
 {cards}
@@ -247,14 +247,19 @@ video, img {{ width: 100%; height: auto; }}
 
 
 def sheet(record: RoundRecord, clips: Sequence[Clip]) -> str:
+    """A contact sheet with the clip's strip (not a `<video>`): hundreds of cards on one page
+    would otherwise exceed Chromium's per-page media-player cap (clip design review, Minor #2).
+    The strip links to the clip itself, so the owner still reaches every clip from the sheet.
+    """
     cards: list[str] = []
     for clip in clips:
         spec = clip.spec
         last = clip.prov.attempts[-1] if clip.prov else None
-        video = _media(clip, "clip")
+        video, sheet_img = _media(clip, "clip"), _media(clip, "strip")
         player = (
-            f'<video src="{escape(video)}" controls loop muted preload="metadata"></video>'
-            if video
+            f'<a href="{escape(video)}">'
+            f'<img src="{escape(sheet_img)}" loading="lazy" alt="clip strip"></a>'
+            if video and sheet_img
             else '<div class="none">no clip yet</div>'
         )
         still = (

@@ -106,5 +106,6 @@ def test_the_report_counts_states_switches_and_links_the_media(tmp_path: Path) -
     assert "| scene_cut | 1 |" in report
     assert "| flux2 | 62.1 | 95.5 |" in report
     sheet = (store.round_dir(PILOT) / "sheet.html").read_text(encoding="utf-8")
-    assert f'src="../../events/C/{specs[0].event_id}/clips/' in sheet
+    assert f'href="../../events/C/{specs[0].event_id}/clips/' in sheet
+    assert f'src="../../events/C/{specs[0].event_id}/strips/' in sheet
     assert f'src="../../events/B/{specs[0].source.event_id}/stills/' in sheet
