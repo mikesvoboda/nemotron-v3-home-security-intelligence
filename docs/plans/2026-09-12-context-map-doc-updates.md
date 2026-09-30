@@ -12586,3 +12586,149 @@ OFF the ladder (R8 shield).
 mid-generation score read, the 18,783-key final), sweep/red-check counts, or
 any completed=false snapshot (incl. the 69.6215% pre-fill read above).
 Command + snapshots listed; every number measured THIS session.
+
+## 2026-09-30 — BASELINE RESET (denominator event, NOT a milestone): 65.99841068466031% completed=true on the post-R8 bank — 47,340 kt / 71,729 keys — the same bank's verdicts RE-MEASURED against the post-R8 codebase; M7's 69.63474975582007% (64,878/93,169) stays published as the ladder's last milestone and the strict-> rule restarts FROM THIS NUMBER; denominator disclosed two-stage (28 R8-pruned rows −17,876 keys/−14,222 kt, then 23 merge/coverage movers −3,564 keys/−3,316 kt; UNEXPLAINED: 0); ERRATUM vs L:12542 (the R8 price restated 50,656/75,293 = 67.2784986652146%, +43 kt / +0.057 pts vs the row's two-frame 50,613/67.2214%); the full re-bank interlude (sticky-713) is DISCHARGED by the post-merge generations
+
+**THE NUMBER (measured THIS session, `.venv/bin/python3 scripts/mutation-score.py`
+rc=0 → /home/agent/runs/b33-score-final.json; the FULL post-merge RE-BANK run 2,
+`./scripts/mutation-run.sh` no-arg full widened set, log
+/home/agent/runs/b33-rebank2.log, terminal line `[mutation-run] done`
+01:23:05Z / `[exited with code 0]`, guard `run exited` — TWO runs: run 1
+completed generation (244 files, 594 s, verdicts preserved on unchanged
+functions) then DIED in the stats pass, see INCIDENTS; run 2 relaunched off
+backup-metas-prerelaunch.tgz with fresh guard-restore.tgz):** killed 46,986 +
+timeout 354 = **47,340** of **71,729** → **score 65.99841068466031%**,
+survived 23,606, no_tests 783 (sticky trio 713 — trajectory_analyzer 452 +
+calibration_monitor 201 + session_service 60, EXACTLY M7's trio — + reid 24 +
+constrained_decoding 40 + ha_discovery 2 + 4 singletons; = M7's 741 + the 42
+hole-fills that landed on exit-33), unchecked 0, torn 0, **completed=true**
+(checked 71,729/71,729), 244 module rows. History appended ONCE: `--history
+.github/mutation-history.json --date 2026-09-30` (run #11 of `runs`).
+**THIS IS NOT A MILESTONE** — the score's denominator moved (the R8 merge,
+below); 65.9984… on 71,729 keys and M7's 69.6347… on 93,169 keys are the SAME
+verdicts on two different codebases, neither greater. The ladder's strict->
+rule now runs against 65.99841068466031%: the next close must exceed IT.
+**AUDIT (pre-registered contract, /home/agent/runs/b33-audit-redecide2.py vs
+backup-metas-prerelaunch.tgz): CLEAN** — keys constant 71,729, ZERO verdict
+flips, holes 1,863→0 with every one of the 1,863 moves a hole→verdict fill
+(1,474 → killed + 347 → survived + 42 → no_tests; kt +1,474 = 45,866→47,340
+exactly). The fills are the 235-new-tests stats re-run landing its edges
+(battery E's fast-path sites included).
+
+**DENOMINATOR DISCLOSURE, row-by-row, two stages (M7 64,878/93,169 →
+47,340/71,729; Δ −21,440 keys / −17,538 kt; script
+/home/agent/runs/b33-rowdiff-reset.py → b33-rowdiff-reset.json +
+b33-rowcensus3.py, ALL measured THIS session, UNEXPLAINED: 0):**
+
+- **STAGE A — the R8 sweep-prune, −17,876 keys / −14,222 kt (28 rows).** The
+  merge deleted 33 modules; the pre-bank prune (`rm -f` of
+  b32-postmerge-prune-files.txt, 231 mutant paths) deleted 231 files, of
+  which 203 had LIVE rows that the post-merge sources legitimately regenerated
+  (byte-identical metas ride the hash-merge, not movers) and **28 were the
+  dead modules' rows** — enumerated individually THIS session (enrichment\_
+  pipeline 6,353 keys/5,933 kt, enrichment_client 2,684/2,512, vision_extractor
+  1,446/1,054, stgcn_loader 749/621, depth_anything_loader 595/428,
+  vitpose_loader 624/307, pose_analysis_service 465/310, + 21 more): sum
+  **17,876 keys / 14,222 kt**. R8's price, as the shield brief promised.
+- **STAGE B — the re-bank's 23 movers, −3,564 keys / −3,316 kt; the other 221
+  rows byte-identical** (exact census THIS session over both metas trees: 243
+  baseline rows = 221 identical keys-AND-verdicts + 22 movers [19 with
+  key-set changes + 3 verdict-churn-only, keys constant]; +1 added row = 244;
+  0 gone; mover-key delta −3,564 = bank delta exactly). Tag census by CAUSE, each source cross-checked against
+  `git diff 8739b9d7..c0050179 -- backend/services backend/api/routes` THIS
+  session: **15 R8-MERGE** rows whose SOURCE the merge changed (prompts.py
+  3,422→142 keys/3,284→142 kt — the nemotron prompt bodies deleted; system.py
+  2,064→1,928/1,713→1,600; + `ai_fallback`, `ai_services`,
+  `container_discovery`, `container_orchestrator`, `model_zoo`,
+  `pipeline_factory`, `health_ai_services`, `scene_ocr_service`,
+  `summary_generator`, `system_broadcaster`,
+  `pipeline_quality_audit_service` +1 kt, `prompt_service` +1 kt,
+  `batch_aggregator` +4 kt). The 3
+  verdict-churn-only rows are MECHANISM-PROVEN, not hand-waved: every flipped
+  key (6 total, snapshot-traced pruned→prerelaunch→now) is a class
+  `__init__` mutant the merge's source edit hash-changed — survived in the
+  pruned era, HOLE (None) at prerelaunch, freshly KILLED by run 2 — i.e. the
+  merge's own code re-decided, zero carried-blind verdicts); **7
+  COVERAGE** rows whose source is UNCHANGED and whose keys contracted as
+  batch-30/25-era test files the merge DELETED left the coverage map (test-
+  side reference census at both commits: token_counter 24→2 importing test
+  files −8 keys/−8 kt, cost_tracker 8→2 −2/−2, batch_coalescer 5→2 −3/−2,
+  florence_client −85/−4, fast_alpr_loader −19/−4, osnet_loader −8/−1,
+  ha_discovery 0→2 +2 keys first coverage + 2 no_tests); **1 NEWROW**
+  constrained_decoding 0→89 keys/42 kt (the merge's added tests gave it first
+  coverage; its 40 no_tests keys are fresh uncovered sites). Mover sum −3,564
+  keys/−3,316 kt EQUALS the bank total delta; the 290 survivals and 42
+  no_tests fills are inside it (kt + surv + no_tests = keys).
+- **ERRATUM vs L:12542 (the M7 row's R8-price restatement):** that row quoted
+  the pruned era as "50,613/75,293 = 67.2214%". Two independent measurements
+  THIS session AGREE the true figure is **50,656 kt / 75,293 keys =
+  67.2784986652146%**: (a) direct metas census of the re-derived pruned era
+  (backup-metas-preprune-postmerge.tgz minus the 231 prune paths — 243 rows,
+  holes=0): killed(1) 49,301 + killed(3) 34 + timeout 1,321 = 50,656; (b) the
+  published M7 history entry's own totals minus the 28 dead rows above:
+  64,878 − 14,222 = 50,656, 93,169 − 17,876 = 75,293. The 50,613 came from a
+  TWO-FRAME subtraction (a mid-run totals read, b32-score-nowpost.json at
+  64,835 kt with 52 holes still open, minus final-JSON row sums). Delta +43 kt
+  / +0.057 pts. L:12542 left as written (historical text); corrected here.
+- **NOT A POLICY CHANGE:** no floor moved, no widened-set edit, no continue-
+  on-error, no quarantine — the denominators moved because origin/main deleted
+  shipped code (R8, landed c0050179 AFTER M7 published 8739b9d7, shield step 4
+  honored) and mutmut re-enumerated mutants for the changed/new sources.
+
+**RE-BANK RUNS + THE FIFTH MEMBER OF THE RED-GATE FAMILY (wall-clock;
+disclosed, INCIDENTS):** run 1 died "failed to collect stats. runner returned
+1" AFTER a clean generation. Root cause measured: the merge's ADDED whole-tree
+AST-scan gates (`test_no_legacy_pipeline_branches.py`,
+`test_r8_s2b_nemotron_deletion.py::test_no_analyzer_type_remains_anywhere_in_shipped_code`)
+ast.parse every `mutants/backend/**.py` copy — 244 all-mutants files (prompts.py
+alone 3,422 mutants) — ~190 s against the harness `--timeout=120` → pytest-
+timeout red → `-x` aborts stats. The pre-generation greenscan (27,799 passed
+rc=0, b32-greenscan2) was STRUCTURALLY BLIND: `copy_src_dir` SKIPS existing
+targets, so merge-ADDED test files enter mutants/ only AT generation (memory
+updated: red-suite family member 5 = wall-clock, and the honest precondition
+is a POST-generation full serial scan — run this session: **27,799 passed,
+124 skipped, 8 xfailed, rc=0, 19 m 42 s**, b33-postgen-greenscan.log). Fix:
+`@pytest.mark.timeout(600)` on the two scan tests ONLY (commit f061f6e3,
+pushed; marker > CLI is pytest-timeout's own precedence). VERDICT-SAFE by
+measurement, not assertion: the two files associate with ZERO functions in
+BOTH eras' stats maps (`tests_by_mangled_function_name` measured over the
+pre-run and live maps) — they import no backend module and never run under a
+mutant, so the raise cannot alter a verdict; same ruling class as the existing
+mutmut-stats hypothesis-deadline profile (backend/tests/conftest.py:335-352).
+Rejected alternative: raising `[tool.mutmut]` timeout — `timeout` is a
+config_fingerprint group, it would invalidate ALL 71,729 stored verdicts.
+Verified under mutmut's exact stats flags: gate 3 passed 186.24 s
+(b33-legacygate-fixed.log). Stats-map shrink 63,543→43,791 edges exonerated:
+save_stats() ran BEFORE the failed re-run; the delta is the R8-deleted test
+files leaving the map ("Removed 5736 obsolete test names").
+
+**STICKY-713 INTERLUDE DISCHARGED:** exit-33 census measured IDENTICAL pre- and
+post-generation (741 keys, same 8 rows; trio 713 intact); recovery for the
+trio comes from module-filtered runs (a filtered run re-checks EVERY key of
+the named module), and the owed full re-bank interlude inside the first 5
+closes is discharged by these post-merge generations (244 files, uniform).
+
+**CAMPAIGN #6 STATE (in flight, NOT closed by this row):** battery F authored +
+committed this session (83727d4f: A-residual trio should_apply_backpressure 17
+/ \_create_batch_metadata_atomic 20 / recover_orphaned_detections 48 — mutant-
+home sweep RED=85 GREEN=0 of 85, shipped-green 12/12, all authoring gates
+rc=0). Sweep ledger A–E post-generation (b33-sweep-{a,b,c,d,e}.txt): RED
+78/163 + 124/126 + 158/162 + 62/66 + 125/125; the 642 ba survivors are EXACTLY
+the 5 disjoint sweep scopes (163+126+162+66+125); 10 battery-GREENs
+adjudicated (2 stable B + 8 EQUIVALENT-by-construction, b33-ba-sweep-summary.
+md). Run 2 already banked 4 kt on the batch_aggregator row (553→557; merge-
+source re-decides). The campaign's filtered run
+(`MUTMAX=14 ./scripts/mutation-run.sh batch_aggregator`) with A–F installed
+follows this publish.
+
+**TIER STATE:** target 85% from the NEW baseline 47,340/71,729 → 85% needs
+kt ≥ 60,970 — gap **13,630** kills (battery kills: ~632 campaign-#6 potential +
+the queue below). Post-reset queue (R8-shielded; `b33-queue-census.py` on the
+FINAL metas): batch_aggregator 642 (campaign #6 IN FLIGHT), clip_client 559,
+baseline 368, file_watcher 339, redis_json 338, cleanup_service 337,
+vlm_specialists 336 — re-census after every close.
+
+**NOT PUBLISHED FROM:** mid-run snapshots (the 45,866-kt prerelaunch state,
+the run-1-era 71,729/1,863-holes read), sweep/red-check counts, or any
+completed=false read. Command + snapshots listed; every number measured THIS
+session.
