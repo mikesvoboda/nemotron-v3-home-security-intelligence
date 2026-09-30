@@ -182,15 +182,13 @@ The `enrichment_data` JSONB column stores results from 18+ vision models:
 ### Relationships
 
 ```python
-# backend/models/detection.py:81-108
+# backend/models/detection.py:77-120
 camera: Mapped[Camera]                      # Many-to-one
 event_records: Mapped[list[EventDetection]] # Junction table records
 
 # Enrichment result relationships
 pose_result: Mapped[PoseResult | None]
 threat_detections: Mapped[list[ThreatDetection]]
-demographics_result: Mapped[DemographicsResult | None]
-reid_embedding: Mapped[ReIDEmbedding | None]
 action_result: Mapped[ActionResult | None]
 ```
 

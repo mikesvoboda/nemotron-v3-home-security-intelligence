@@ -392,10 +392,10 @@ from a face crop:
 ```
 
 **Age Ranges:** 0-10, 11-20, 21-30, 31-40, 41-50, 51-60, 61-70, 71+ — the
-labels the gateway maps `demographics_age` class indices onto in
-`ai/gateway/adapters/enrichment.py`. The `DemographicsResults.age_range` check
-constraint in `backend/models/enrichment.py` accepts those plus `71-80`, `81+`
-and `unknown`.
+labels the heavy enrichment adapter mapped `demographics_age` class indices
+onto. The `age_range` check constraint on the old `demographics_results` table
+also accepted `71-80`, `81+` and `unknown`; R8 S4 dropped that table and its
+constraint, so the list above is the only vocabulary left in the shipped tree.
 
 ### Clothing Analysis
 

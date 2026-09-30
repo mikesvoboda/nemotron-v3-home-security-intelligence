@@ -20,13 +20,7 @@ from .camera_zone import (
 )
 from .detection import Detection
 from .dwell_time import DwellTimeRecord
-from .enrichment import (
-    ActionResult,
-    DemographicsResult,
-    PoseResult,
-    ReIDEmbedding,
-    ThreatDetection,
-)
+from .enrichment import ActionResult, PoseResult, ThreatDetection
 from .entity import Entity
 from .enums import CameraStatus, EntityType, IngestionMode, Severity, StreamProfile, TrustStatus
 from .event import Event
@@ -125,7 +119,6 @@ __all__ = [
     "CameraZoneType",
     "ClassBaseline",
     "DayOfWeek",
-    "DemographicsResult",
     "Detection",
     "DwellTimeRecord",
     "EnrollmentCandidate",
@@ -182,7 +175,6 @@ __all__ = [
     "PromptVersion",
     "Property",
     "QuietHoursPeriod",
-    "ReIDEmbedding",
     "RegisteredVehicle",
     "ReportFormat",
     "ReportFrequency",

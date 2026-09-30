@@ -32,8 +32,6 @@ erDiagram
     alert_rules ||--o{ alerts : "generates"
     detections ||--o{ pose_results : "has one"
     detections ||--o{ threat_detections : "has many"
-    detections ||--o{ demographics_results : "has one"
-    detections ||--o{ reid_embeddings : "has one"
     detections ||--o{ action_results : "has one"
     household_members ||--o{ registered_vehicles : "owns"
     household_members ||--o{ person_embeddings : "has many"
@@ -172,13 +170,18 @@ Events support PostgreSQL full-text search via `search_vector` TSVECTOR column:
 
 ### Enrichment Tables
 
-| Table                  | Purpose                  | Primary Key | Source                         |
-| ---------------------- | ------------------------ | ----------- | ------------------------------ |
-| `pose_results`         | Body posture detection   | `id` (int)  | `backend/models/enrichment.py` |
-| `threat_detections`    | Weapon detection         | `id` (int)  | `backend/models/enrichment.py` |
-| `demographics_results` | Age/gender estimation    | `id` (int)  | `backend/models/enrichment.py` |
-| `reid_embeddings`      | Person re-identification | `id` (int)  | `backend/models/enrichment.py` |
-| `action_results`       | Action recognition       | `id` (int)  | `backend/models/enrichment.py` |
+| Table               | Purpose                | Primary Key | Source                         |
+| ------------------- | ---------------------- | ----------- | ------------------------------ |
+| `pose_results`      | Body posture detection | `id` (int)  | `backend/models/enrichment.py` |
+| `threat_detections` | Weapon detection       | `id` (int)  | `backend/models/enrichment.py` |
+| `action_results`    | Action recognition     | `id` (int)  | `backend/models/enrichment.py` |
+
+`demographics_results` and `reid_embeddings` were dropped by R8 S4 (owner
+ruling 2026-09-30): neither had a live reader or a shipped writer. See
+`docs/api/migrations/2026-09-30-retire-demographics-reid-tables.sql`. Do not
+confuse the dropped `reid_embeddings` table with the live `person_embeddings`
+table below, or with the `reid_embedding` key inside
+`detections.enrichment_data` -- all three survive or perish independently.
 
 ### System Tables
 
