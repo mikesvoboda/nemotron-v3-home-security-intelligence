@@ -17,6 +17,7 @@ from typing import NoReturn, TypeVar
 import yaml
 from pydantic import ValidationError
 
+from synthbench.contract.clip import ClipIndexRow, RoundRecord
 from synthbench.contract.common import SLUG, ContractModel
 from synthbench.contract.corpus import BatchRecord, CorpusManifest, IndexRow
 from synthbench.contract.store import CorpusStore
@@ -76,6 +77,13 @@ def batch_name(text: str) -> str:
     """argparse type for --batch: a slug, so no batch path can leave the corpus."""
     if not SLUG.fullmatch(text):
         raise argparse.ArgumentTypeError(f"batch name must match {SLUG.pattern}: {text!r}")
+    return text
+
+
+def round_name(text: str) -> str:
+    """argparse type for --round: a slug, so no round path can leave the corpus."""
+    if not SLUG.fullmatch(text):
+        raise argparse.ArgumentTypeError(f"round name must match {SLUG.pattern}: {text!r}")
     return text
 
 
@@ -161,3 +169,35 @@ def open_batch(
         raise RequestError(f"no batch {batch} in corpus version {tax.version}; run sample first")
     check_manifest(store)
     return store, read(store, store.batch_file(batch), BatchRecord)
+
+
+def read_clip_index(store: CorpusStore) -> dict[str, ClipIndexRow]:
+    try:
+        return store.latest_clip_index()
+    except (OSError, UnicodeDecodeError, ValidationError) as error:
+        raise CorpusError("read", store.clip_index_file, error) from error
+
+
+def append_clip_index(store: CorpusStore, rows: Iterable[ClipIndexRow]) -> None:
+    try:
+        store.append_clip_index(rows)
+    except OSError as error:
+        raise CorpusError("write", store.clip_index_file, error) from error
+
+
+def append_jsonl(store: CorpusStore, path: Path, rows: Iterable[ContractModel]) -> None:
+    try:
+        store.append_jsonl(path, rows)
+    except OSError as error:
+        raise CorpusError("write", path, error) from error
+
+
+def open_round(tax: Taxonomy, env: Mapping[str, str], name: str) -> tuple[CorpusStore, RoundRecord]:
+    """The store and record of a clip round that `clip sample` created (exit 1 if none)."""
+    store = CorpusStore.from_env(tax.version, env)
+    if not store.round_file(name).exists():
+        raise RequestError(
+            f"no clip round {name} in corpus version {tax.version}; run clip sample first"
+        )
+    check_manifest(store)
+    return store, read(store, store.round_file(name), RoundRecord)

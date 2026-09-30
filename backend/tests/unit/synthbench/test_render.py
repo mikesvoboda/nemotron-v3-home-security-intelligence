@@ -24,6 +24,7 @@ from synthbench.contract.provenance import (
     render_name,
 )
 from synthbench.contract.spec import Spec
+from synthbench.generate.comfy import graphs
 from synthbench.generate.render import (
     RendererUnreachable,
     check_png,
@@ -62,11 +63,20 @@ class FakeComfy:
         self.fail = fail
         self.image = h.png()
         self.graphs: list[dict[str, Any]] = []
+        self.history: dict[str, Any] = {}
+        self.freed = 0
+        self.free_gib = 200.0
 
-    def __call__(self, request: httpx.Request) -> httpx.Response:
+    def __call__(self, request: httpx.Request) -> httpx.Response:  # noqa: PLR0911
         path = request.url.path
         if path == "/system_stats":
-            return httpx.Response(200, json={"system": {}})
+            devices = [{"vram_free": int(self.free_gib * 2**30)}]
+            return httpx.Response(200, json={"system": {}, "devices": devices})
+        if path == "/history":
+            return httpx.Response(200, json=self.history)
+        if path == "/free":
+            self.freed += 1
+            return httpx.Response(200, json={})
         if path == "/prompt":
             self.graphs.append(json.loads(request.content)["prompt"])
             self.clock.now += self.seconds
@@ -465,3 +475,39 @@ def test_check_png_wants_a_1280x720_png() -> None:
         check_png(h.png(640, 360))
     with pytest.raises(ValueError, match="not an image"):
         check_png(b"<html>error</html>")
+
+
+def _last(graph: dict[str, Any]) -> dict[str, Any]:
+    return {"p0": {"prompt": [0, "p0", graph, {}, []]}}
+
+
+def test_render_frees_a_renderer_that_last_ran_h3(tmp_path: Path) -> None:
+    _, clock = _ready(tmp_path, 1)
+    fake = FakeComfy(clock)
+    fake.history = _last(
+        graphs.minimax_h3_turbo_i2v("x", image="i", seed=0, width=1344, height=768, frames=22)
+    )
+    assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_OK
+    assert fake.freed == 1
+
+
+def test_render_leaves_a_flux_renderer_alone(tmp_path: Path) -> None:
+    _, clock = _ready(tmp_path, 1)
+    fake = FakeComfy(clock)
+    fake.history = _last(graphs.flux2_dev_t2i("x", seed=0, width=1280, height=720))
+    assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_OK
+    assert fake.freed == 0
+
+
+def test_a_freed_renderer_without_room_for_flux_stops_render(tmp_path: Path) -> None:
+    """`_render` calls `render.execute` directly, so a stop is a raised AskOwner: `cli.main` is
+    what maps exceptions to exit codes."""
+    _, clock = _ready(tmp_path, 1)
+    fake = FakeComfy(clock)
+    fake.history = _last(
+        graphs.minimax_h3_turbo_i2v("x", image="i", seed=0, width=1344, height=768, frames=22)
+    )
+    fake.free_gib = 10.0
+    with pytest.raises(AskOwner, match=r"FLUX\.2 needs 60 GiB"):
+        _render(tmp_path, _deps(clock, fake))
+    assert fake.graphs == []
