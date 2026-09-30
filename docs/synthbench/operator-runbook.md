@@ -267,8 +267,14 @@ It is ready in about 3 minutes and holds about 25 GiB. Cosmos is a reasoning mod
 to reason it loops inside the verdict's first text field. So, for Cosmos only (the owner's
 choice), `replay` adds the model card's `<think>` format instruction as a system message and gives
 it a 4096-token budget and a 120 s read timeout, and `--reasoning-parser qwen3` keeps its reasoning
-out of the JSON. Without that flag its answers do not parse and every item is refused. The product
+out of the JSON. Without that flag the reasoning would land in the answer, which would then
+likely fail to parse (not tested). The product
 model and the flagship keep the shipped prompt, 1024 tokens and 25 s.
+
+**A rebuilt export needs a fresh eval store.** Items in `eval/<version>/eval.sqlite` are
+immutable, so `replay` refuses a store whose items differ from the export (label, score,
+timestamp or detections). Move `$SYNTHBENCH_ROOT/eval/<version>/` aside (never delete: other
+replays' results live there) and replay again.
 
 **The flagship** is already served on `127.0.0.1:8000`. It is shared with the agents: replay it in
 a quiet period. `replay` turns its thinking off, which keeps it inside the product's 1024-token

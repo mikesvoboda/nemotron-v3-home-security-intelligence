@@ -209,7 +209,6 @@ GPU_LLM=0
 AI_VLM_PORT=8098
 CAMERA_TIMEZONE=America/New_York
 PODMAN_SOCKET=/run/user/1000/podman/podman.sock
-SYNTHBENCH_COSMOS_PORT=8099
 ```
 
 - [ ] **Step 4: Render compose, then start only `ai-vlm`**
@@ -4093,7 +4092,7 @@ Expected: `inactive`, `active`, `flagship 200`, about 64 GB free; the export wri
 
 - [ ] **Step 2: The owner audits 60 stills (owner)**
 
-The owner runs `uv run python -m synthbench audit` (from another machine:
+The controller serves the page in the background (or the owner runs `uv run python -m synthbench audit`) (from another machine:
 `ssh -L 8765:127.0.0.1:8765 <this host>`, then `http://127.0.0.1:8765/`) and answers every
 question on every still, about 20 minutes. The page says when all 60 are answered. The
 controller waits for the owner's word; nothing else in this task needs the owner until Step 5.
@@ -4106,9 +4105,11 @@ Serve `qwen3-vl-8b` as the runbook's serving section says, then:
 time uv run python -m synthbench replay --model qwen3-vl-8b
 ```
 
-Expected: `450 items`, the printed S2, S3 and refusals, and a `run.json` path. Record the replay
-id. Refusals above 5% stop the task: read their classes (`s5.by_error_class` in `run.json`) and
-bring them to the owner before going on.
+Expected: `450 items`, the printed S2, S3 and refusals (with their classes), and a `run.json`
+path. Record the replay id. For this and every later replay (Steps 4 and 5), refusals above 5%
+stop the task: read their classes (`s5.by_error_class` in `run.json`) and bring them to the owner
+before going on. The Task 1 probe saw Cosmos refuse 3 of 20 (length at 4096 tokens), so expect
+that stop for Cosmos; the owner decides whether its column stands.
 
 - [ ] **Step 4: Cosmos-Reason2-8B over every item**
 

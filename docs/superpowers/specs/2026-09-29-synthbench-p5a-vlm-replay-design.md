@@ -121,12 +121,12 @@ sentinel, so every existing import behaves as before.
 
 ## §3 Serving and replaying the models
 
-| Model                                   | Served by                                                                                                                                                                                     | Client                                                                                   | GPU memory |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------- |
-| **Qwen3-VL-8B** (the product)           | the product's `ai-vlm` compose service (`docker-compose.prod.yml`, profile `vlm`), with its shipped settings: 32k context, 2 slots, q8_0 KV cache, flash attention                            | the shipped `VlmClient`, unchanged: build pin through `/props`, JSON enforced by grammar | ~8–10 GB   |
-| **Cosmos-Reason2-8B**                   | vLLM (`vllm/vllm-openai:nightly-aarch64`, the flagship's image) in our rootless podman store, `--gpu-memory-utilization` sized to about 20 GB, on `127.0.0.1:${SYNTHBENCH_COSMOS_PORT:-8099}` | the comparison adapter                                                                   | ~20 GB     |
-| **The flagship**                        | the running flagship (`127.0.0.1:8000`)                                                                                                                                                       | the comparison adapter                                                                   | none extra |
-| Qwen3-VL-4B, Nemotron-12B-VL (optional) | `ai-vlm`, as the product model                                                                                                                                                                | the shipped `VlmClient`                                                                  | ~5–10 GB   |
+| Model                                   | Served by                                                                                                                                                                                                    | Client                                                                                   | GPU memory        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- | ----------------- |
+| **Qwen3-VL-8B** (the product)           | the product's `ai-vlm` compose service (`docker-compose.prod.yml`, profile `vlm`), with its shipped settings: 32k context, 2 slots, q8_0 KV cache, flash attention                                           | the shipped `VlmClient`, unchanged: build pin through `/props`, JSON enforced by grammar | ~11 GB (measured) |
+| **Cosmos-Reason2-8B**                   | vLLM (`vllm/vllm-openai:nightly-aarch64`, the flagship's image) in our rootless podman store, `--gpu-memory-utilization` sized to about 20 GB, on `127.0.0.1:8099` (`replay` reads `$SYNTHBENCH_COSMOS_URL`) | the shipped `VlmClient`, probe off, per-model conditions (below)                         | ~25 GB (measured) |
+| **The flagship**                        | the running flagship (`127.0.0.1:8000`)                                                                                                                                                                      | the shipped `VlmClient`, probe off, per-model conditions (below)                         | none extra        |
+| Qwen3-VL-4B, Nemotron-12B-VL (optional) | `ai-vlm`, as the product model                                                                                                                                                                               | the shipped `VlmClient`                                                                  | ~5–10 GB          |
 
 **Bringing up `ai-vlm`.**
 
@@ -144,12 +144,18 @@ sentinel, so every existing import behaves as before.
   compose in R8 S2b, main `aaf29361`.) On this host it starts through `podman-compose`: the
   docker-compose plugin drops the CDI GPU device (Task 1's probe; the operator runbook).
 
-**The comparison adapter** (`synthbench/run/`). vLLM has no llama.cpp `/props`, which the shipped
-client reads to pin the build, so the flagship and Cosmos cannot go through `VlmClient`. The
-adapter builds the prompt with the shipped prompt code, asks vLLM for the same JSON schema through
-its structured outputs, and parses the answer with the shipped verdict parser. Only the transport
-differs; the report records each model's transport. The plan names the shipped functions it
-reuses.
+**The comparison path** (`synthbench/run/`; plan ruling P5a-R2). The flagship and Cosmos go
+through the shipped `VlmClient` too, with its llama.cpp-only enforcement probe (`/props`) turned
+off and a transport that names the served model; vLLM serves the same JSON schema through its
+structured outputs, and the shipped parser reads the answer. The probe found two models that
+cannot answer inside the product's contract, so each comparison model has its own conditions,
+recorded per run and printed in the report:
+
+| Model             | Prompt                                  | Thinking           | Budget, read timeout |
+| ----------------- | --------------------------------------- | ------------------ | -------------------- |
+| Qwen3-VL-8B       | shipped                                 | —                  | 1024 tokens, 25 s    |
+| The flagship      | shipped                                 | off                | 1024 tokens, 25 s    |
+| Cosmos-Reason2-8B | shipped, plus its `<think>` format (A7) | on, parsed by vLLM | 4096 tokens, 120 s   |
 
 **Replay.** `synthbench replay --model <name>` runs `vlm_replay.run_replay` against the eval store
 (for the `ai-vlm` models) or the adapter (for the vLLM models), and writes
@@ -235,7 +241,9 @@ makes that another catches.
 and benign items scored too high, each with its still, its declared facts and the VLM's reasoning.
 
 **Run identity:** the platform's git SHA, each weight file's sha256, the llama.cpp build (from
-`/props`), the vLLM image digest, and the corpus, export, audit and scoring versions.
+`/props`), the vLLM image digest (pinned in the runbook's start command; no endpoint reports it),
+each model's conditions (prompt, thinking, budget, read timeout, enforcement probe), the eval
+store, and the corpus, export, audit and scoring versions.
 
 **Committed:** the aggregate report, without images or per-item rows, as
 `docs/benchmarks/synthbench/p5a-<date>.md`.
@@ -245,7 +253,7 @@ and benign items scored too high, each with its still, its declared facts and th
 | Path                                 | What                                                                                        |
 | ------------------------------------ | ------------------------------------------------------------------------------------------- |
 | `synthbench/export/vss.py`           | the export; writes files only and imports nothing from `backend`                            |
-| `synthbench/run/`                    | `replay` (wraps `vlm_replay`) and the comparison adapter; may import `backend` (spec §7.1)  |
+| `synthbench/run/`                    | `replay` (wraps `vlm_replay`) and the comparison path; may import `backend` (spec §7.1)     |
 | `synthbench/score/`                  | `score` and the report; may import `backend`                                                |
 | `synthbench/audit/`                  | the audit sampler and its loopback page                                                     |
 | `synthbench/commands/`               | `export`, `replay`, `audit`, `score`: owner commands, not in the generation agent's handoff |
@@ -261,7 +269,7 @@ and benign items scored too high, each with its still, its declared facts and th
 | Export     | on a throwaway corpus: the category mapping; ambiguous excluded; a label that disagrees with its directory exits 2; a re-export changes nothing; sidecars; the timestamp rule |
 | Importer   | an optional `timestamp` is accepted; a malformed one refuses the set; no key keeps the epoch sentinel                                                                         |
 | Round trip | export, then `import_generated_items` into a throwaway eval store; each item's label, expected score, timestamp and media match its event                                     |
-| Replay     | `vlm_replay` with an injected fake client; the comparison adapter against a fake vLLM, parsed by the shipped parser; the three pre-run checks                                 |
+| Replay     | `vlm_replay` with an injected fake client; the comparison path against a fake vLLM, parsed by the shipped parser; the three pre-run checks                                    |
 | Score      | on constructed results: S2 and S3 equal `s_metrics`' own output; slicing; audit exclusions; the "insufficient" rule                                                           |
 | Audit      | the sample is deterministic and fills each stratum; the page's answer and resume handlers, through a test client                                                              |
 
