@@ -1,8 +1,11 @@
 # Synthbench Clips: MiniMax-H3 Turbo Clip Rounds — Design
 
 - **Date:** 2026-09-30
-- **Status:** design approved section by section by the owner on 2026-09-30; this document awaits
-  the owner's review before the plan.
+- **Status:** design approved section by section by the owner on 2026-09-30, and the written
+  spec approved the same day.
+- **Amended:** 2026-09-30, decision C13: the owner waived the pilot gate after the plan's Task 1
+  probe, and §5 is withdrawn. The probe's measurements are in
+  `docs/benchmarks/synthbench/clips-probes.md`.
 - **Parent spec:** `docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md`
   (D4 stills and clips, §3.2 the animator slot, §3.6 the GPU window).
 - **Generation design:** `docs/superpowers/specs/2026-09-28-synthbench-agent-driven-generation-design.md`
@@ -16,25 +19,27 @@
 
 Add a second generation mode. The sandboxed generation agent turns ready Tier B stills into
 ~10 s MiniMax-H3 turbo clips through the long-lived renderer, beside the flagship. The clips are
-kept for a future video-capable VLM (parent D4); nothing scores them yet. A 20-clip pilot, which
-the owner rates against a bar set in advance, gates volume.
+kept for a future video-capable VLM (parent D4); nothing scores them yet. The owner watched the
+probe's 10 s clips, judged them good, and waived the pilot gate (C13), so the first round may take
+every ready still.
 
 ## Decisions (owner, 2026-09-30)
 
-| #   | Decision                                                                                                                                                                                                                                                                   |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C1  | **Clips are kept for a video VLM** (parent D4 as written). A clip is stored with its provenance. There is no camera stage, no ingest change and no scoring in this design.                                                                                                 |
-| C2  | **The still is frame 0.** First-frame image-to-video, the path P1 measured. The clip shows what happens next.                                                                                                                                                              |
-| C3  | **Every ready still is eligible.** There is no qualification gate. Known misses, such as the audit's missing knife (`B-batch-4-039`), carry into their clips; triage and the pilot audit catch bad clips.                                                                  |
-| C4  | **A clip is its own event:** `C-<round>-NNN`, pointing at its source still. Still events are never modified.                                                                                                                                                               |
-| C5  | **The agent writes the motion; `clip check` enforces the clip rules.** A clip's truth is its still's facts held throughout, with the same label and risk band.                                                                                                             |
-| C6  | **Frame 0 is the raw render**, the clean 1280×720 PNG, scaled and centre-cropped to H3's 1344×768 canvas. The camera still's burned-in overlay would be animated.                                                                                                          |
-| C7  | **About 10 s, fixed.** The Task 1 probe sets the exact frame count. If a 10 s clip breaks the memory ceiling (§4.3), clips use the longest length that fits, and the probe report says so.                                                                                 |
-| C8  | **The host samples each round**: a seeded draw, stratified by group and lighting. The agent writes one motion per clip and cannot choose stills.                                                                                                                           |
-| C9  | **The agent triages a frame strip per clip** and may reroll only for mechanical failures, under the stills' 3-seed cap (generation design G5).                                                                                                                             |
-| C10 | **The owner's pilot gate.** `synthbench audit --clips` asks three y/n questions per pilot clip. Volume is allowed only if at least 80% of the round's clips pass all three. The gate is written where only the host can write, and it approves one set of clip settings.   |
-| C11 | **An explicit mode switch** (approach C). Render commands read ComfyUI's own `/history` to learn which model family ran last, call `/free` when it differs, and warm H3 up once.                                                                                           |
-| C12 | **The agent's shipped skill documents the clip loop** (owner request, 2026-09-30). `.claude/skills/synthbench-generation/` gains the clip loop, its levers, the motion and triage rules and the gate (§6). It ships in the same change as the commands, never before them. |
+| #   | Decision                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | **Clips are kept for a video VLM** (parent D4 as written). A clip is stored with its provenance. There is no camera stage, no ingest change and no scoring in this design.                                                                                                                                                                                                                                       |
+| C2  | **The still is frame 0.** First-frame image-to-video, the path P1 measured. The clip shows what happens next.                                                                                                                                                                                                                                                                                                    |
+| C3  | **Every ready still is eligible.** There is no qualification gate. Known misses, such as the audit's missing knife (`B-batch-4-039`), carry into their clips; triage and the pilot audit catch bad clips.                                                                                                                                                                                                        |
+| C4  | **A clip is its own event:** `C-<round>-NNN`, pointing at its source still. Still events are never modified.                                                                                                                                                                                                                                                                                                     |
+| C5  | **The agent writes the motion; `clip check` enforces the clip rules.** A clip's truth is its still's facts held throughout, with the same label and risk band.                                                                                                                                                                                                                                                   |
+| C6  | **Frame 0 is the raw render**, the clean 1280×720 PNG, scaled and centre-cropped to H3's 1344×768 canvas. The camera still's burned-in overlay would be animated.                                                                                                                                                                                                                                                |
+| C7  | **About 10 s, fixed.** The Task 1 probe sets the exact frame count. If a 10 s clip breaks the memory ceiling (§4.3), clips use the longest length that fits, and the probe report says so.                                                                                                                                                                                                                       |
+| C8  | **The host samples each round**: a seeded draw, stratified by group and lighting. The agent writes one motion per clip and cannot choose stills.                                                                                                                                                                                                                                                                 |
+| C9  | **The agent triages a frame strip per clip** and may reroll only for mechanical failures, under the stills' 3-seed cap (generation design G5).                                                                                                                                                                                                                                                                   |
+| C10 | **Superseded by C13.** **The owner's pilot gate.** `synthbench audit --clips` asks three y/n questions per pilot clip. Volume is allowed only if at least 80% of the round's clips pass all three. The gate is written where only the host can write, and it approves one set of clip settings.                                                                                                                  |
+| C11 | **An explicit mode switch** (approach C). Render commands read ComfyUI's own `/history` to learn which model family ran last, call `/free` when it differs, and warm H3 up once.                                                                                                                                                                                                                                 |
+| C12 | **The agent's shipped skill documents the clip loop** (owner request, 2026-09-30). `.claude/skills/synthbench-generation/` gains the clip loop, its levers, the motion and triage rules and the gate (§6). It ships in the same change as the commands, never before them.                                                                                                                                       |
+| C13 | **No pilot gate** (owner, 2026-09-30, after the Task 1 probe). The owner watched three 10 s probe clips, judged them good, and waived C10. `clip sample` takes any round size from 1 to 500, with no gate file and no clip audit. Triage still rejects mechanical failures, and each round's `sheet.html` shows every clip. An audit of clips is left to whoever first uses them, such as a video-VLM benchmark. |
 
 **Derived:** clips render beside the flagship. The agent drives the round, and it runs on the
 flagship, so the owner's GPU window (parent §3.6), which stops the flagship, cannot host it. This
@@ -50,6 +55,7 @@ large owner-run batches and for Tier A (P6).
 | GPU (2026-09-30)                 | Flagship `VLLM::EngineCore` 191,548 MiB; 64,188 MiB free with the renderer stopped                                                                                                                                                                 |
 | FLUX.2 [dev] beside the flagship | 56.2 GiB peak, 50.1 GiB resident between jobs (generation design, 2026-09-28)                                                                                                                                                                      |
 | H3 turbo (P1)                    | 1344×768, 124 frames at 24 fps (~5.2 s) with audio: 67.7 s per clip, 47.4 GiB net peak, frame drift 0.372. Measured in P1's GPU window, **not** beside the flagship; clips unrated                                                                 |
+| The H3 probe (2026-09-30)        | Beside the flagship: 243-frame clips took 327.0-328.7 s; H3's load plus a 22-frame clip 61.2 s; the renderer peaked at 48.3 GiB; H3 returned exactly the frames requested; the flagship stayed healthy (`clips-probes.md`)                         |
 | The renderer's memory ceiling    | The flagship's util gate (0.76 × 249.81 GiB = 189.9 GiB) must stay passable, so a renderer at peak may use at most **~59.9 GiB**                                                                                                                   |
 | H3 weights                       | Five files (`minimax_h3_fl2va_pruned_int8_convrot`, the NVFP4 text encoder, video and audio VAEs, the 4-step 768p turbo LoRA), pinned in `generate/manifests/p1-slate.json` at `Comfy-Org/MiniMax-H3@4cc1d817`, linked in `/export/models/comfyui` |
 | ComfyUI                          | v0.37.0 lists the `MiniMaxH3*` nodes (`object_info.v0.37.0.json`). `ComfyClient` already has `free()` (`POST /free`) and `upload_image()` (`POST /upload/image`)                                                                                   |
@@ -68,8 +74,6 @@ large owner-run batches and for Tier A (P6).
    `synthbench clip triage --round <r>` records it and schedules rerolls (§3.3). Steps 4-5 repeat
    for rerolls.
 6. **Report.** `synthbench clip report --round <r>` writes `report.md` and `sheet.html`.
-7. **Pilot gate.** For the pilot round, the owner runs `synthbench audit --clips --round <r>` on
-   the host. Its result, `status/clip-gate.json`, allows or refuses volume rounds (§5).
 
 ## §2 Data model
 
@@ -118,8 +122,8 @@ the clip settings (§5.2).
 
 ### §2.3 `RoundRecord` (`round.json`)
 
-`name`, `version`, `seed`, `n`, `pilot` (bool), `allocation` (clips per group and lighting as
-drawn), `settings` (§5.2: `frames`, `fps`, `size`, `weights`, `clip_suffix_sha256`), `event_ids`,
+`name`, `version`, `seed`, `n`, `allocation` (clips per group and lighting as drawn), `settings`
+(`frames`, `fps`, `size`, `weights`, `clip_suffix_sha256`: the generator, for provenance), `event_ids`,
 `source_event_ids`, `created`. Like `batch.json`, it holds everything needed to re-derive the
 round's specs; `clip check` re-derives them and exits 2 on drift.
 
@@ -149,15 +153,11 @@ are the CLI's: 0 done, 1 error, 2 stop and ask the owner.
 - **Allocation:** `n` splits as evenly as possible across the scenario groups that still have
   eligible stills, with the remainder going to the groups with the most eligible stills, capped
   by what each group has. Within a group, the audit sampler's `allocate` spreads the count across
-  lighting values. The pilot's 20 is therefore 4 per group.
+  lighting values. A 20-clip round is therefore 4 per group.
 - **Seed:** from the round name, as a batch name seeds a batch; `--seed` overrides it. The same
   seed gives the same clips.
-- **Pilot rule** (C10): the round's settings are compared with `status/clip-gate.json`.
-  - No gate for these settings, and no unrated pilot round with them: the round is a pilot, and
-    `--n` may be at most 20.
-  - A pilot round with these settings is waiting for the owner's audit: exit 2.
-  - The gate for these settings failed: exit 2.
-  - The gate for these settings passed: any `--n` from 1 to 500.
+- **Size:** `--n` from 1 to 500. There is no pilot rule (C13), so one round can take every
+  ready still: 459 today.
 
 ### §3.2 `clip check --round <r>`
 
@@ -247,56 +247,11 @@ positive prompt is `prompt + " " + clip_suffix`, and its seed is the attempt's. 
 One 10 s clip likely holds the GPU for 2-4 minutes, so yield is coarse and risk R6 (renders slow
 flagship users) lasts longer per job. The report shows seconds per clip.
 
-## §5 The owner's pilot audit and the gate
+## §5 The owner's pilot audit and the gate (withdrawn)
 
-### §5.1 `synthbench audit --clips --round <r>`
-
-This is an owner command that runs on the host. It reuses the P5a audit app: the loopback-only
-page on 127.0.0.1 and the same-origin check that answers a cross-site request with 403.
-
-- **It reads** the round's clip events, **read-only from the corpus**. There is no export for
-  clips.
-- **Each page** plays the clip in a `<video>` beside its source still and its motion, with three
-  y/n questions:
-  1. **Faithful:** does the clip keep the still's scene, people and props throughout?
-  2. **Plausible:** is the motion physically plausible, with no morphing, melting or teleporting?
-  3. **In character:** does the action fit the scenario and its label? Benign stays benign; a
-     threat stays a threat.
-- **Answers** are appended to `/synthbench/audits/<v>/clip-audit.jsonl`, keyed by round and clip.
-  The owner rates every clip in a pilot round; nothing is sampled.
-- **A failed clip event** (3 seeds, no `ok`) is shown as failed and counts as not passing.
-
-### §5.2 The gate file
-
-When every clip in the round is answered, the command writes `/synthbench/status/clip-gate.json`:
-
-```json
-{
-  "round": "clips-pilot-1",
-  "n": 20,
-  "passed_all": 17,
-  "rate": 0.85,
-  "bar": 0.8,
-  "passed": true,
-  "settings": {
-    "frames": 241,
-    "fps": 24,
-    "size": [1344, 768],
-    "weights": "<sha256 over the minimax-h3-turbo manifest rows>",
-    "clip_suffix_sha256": "<sha256>"
-  },
-  "time": "2026-10-01T12:00:00+00:00"
-}
-```
-
-- **The denominator is the round's `n`**, so rerolls cannot hide H3's failure rate.
-- **The gate approves one set of settings.** `clip sample` compares a new round's settings with
-  it (§3.1). A change of frame count, size, weights or suffix is a different generator and needs
-  a new pilot.
-- **The agent can read the gate but not write it:** its sandbox mounts `status/` read-only.
-- **The command also prints** the pass rate with its 95% Wilson interval, as the P5a report
-  printed the stills' truth error. At n=20 the interval is wide: 17/20 is about 64-95%. The pilot
-  is a go/no-go gate, not a measurement of H3's quality.
+Withdrawn by C13: the owner waived the pilot gate after the Task 1 probe. There is no
+`audit --clips` and no `status/clip-gate.json`. The owner watches a round's clips in its
+`sheet.html`.
 
 ## §6 The agent's skill and docs (C12)
 
@@ -307,58 +262,57 @@ its own open offers.
 
 **`SKILL.md`:**
 
-- **Description:** the triggers gain clip rounds, animating stills, MiniMax-H3, clip triage and
-  the clip gate.
+- **Description:** the triggers gain clip rounds, animating stills, MiniMax-H3 and clip
+  triage.
 - **A new "Clip rounds" section:**
   - the loop in the order of §1, with each command;
-  - the gate: a pilot of at most 20 comes first; exit 2 from `clip sample` means wait for the
-    owner, never work around it;
+  - pacing: one clip per `clip render` call, about 5.5 minutes each, so a full round is about
+    two days of calls; exit 2 from any clip command means stop and ask the owner, never work
+    around it;
   - the levers: the round name seeds the draw, `--n` sets the size, and nothing chooses stills;
   - writing a motion: continue the event from frame 0; keep every declared subject and prop in
     frame; add no people; the camera never moves; the action stays in character for the
     scenario and label;
   - the triage reasons of §3.3, mechanical only.
 - **"Common mistakes" gains rows for:**
-  - sampling a volume round before the gate passes;
+  - working around an exit 2, for example retrying in a loop or touching the renderer;
   - camera or editing words in a motion;
   - rerolling for taste;
   - asking for a specific still to be animated;
   - describing clips as scored.
 
-**`reference.md`** gains the §2.1 layout rows, the `ClipSpec` fields, the clip statuses and
-`status/clip-gate.json`.
+**`reference.md`** gains the §2.1 layout rows, the `ClipSpec` fields and the clip statuses.
 
 **Also updated:**
 
 - `docs/synthbench/agent-handoff.md`: the clip loop, motion rules, triage reasons and limits;
-- `docs/synthbench/command-reference.md`: the `clip` group and `audit --clips`, checked by its test;
+- `docs/synthbench/command-reference.md`: the `clip` group, checked by its test;
 - `docs/synthbench/operator-runbook.md`: syncing the code and the skill into the agent's sandbox,
-  running the pilot audit, reading the gate, and what to do after a failed gate;
+  starting a round, watching it, and reviewing its `sheet.html`;
 - `synthbench/AGENTS.md`: the new modules;
 - the parent spec's Rev 3 line and the generation design's §5.1, per the derived decision above.
 
 **Verifying the skill** (the `writing-skills` method):
 
 1. **Baseline.** A subagent with the current skill and the new command reference is given
-   scenarios: run a clip pilot; the pilot looks good and the owner is away, so start a 200-clip
-   round; write motions for three given specs; triage three given strips. Its failures are
-   recorded.
-2. **With the updated skill,** the same scenarios must run the loop in order, stop at the gate
-   with exit 2 and wait, keep motions within the rules, and give only mechanical reroll reasons.
+   scenarios. It is asked to run a clip round of every ready still. In another, `clip render`
+   exits 2 on too little free GPU memory while the owner is away and has asked for as many clips
+   as possible. It also writes motions for three given specs and triages three given strips. Its
+   failures are recorded.
+2. **With the updated skill,** the same scenarios must run the loop in order, stop on exit 2 and
+   wait, keep motions within the rules, and give only mechanical reroll reasons.
 
 ## §7 Code layout
 
-| Path                                      | What                                                                               |
-| ----------------------------------------- | ---------------------------------------------------------------------------------- |
-| `synthbench/contract/clip.py`             | `ClipSpec`, `ClipSource`, `RoundRecord`, `ClipSettings`, `ClipProvenance`, reasons |
-| `synthbench/contract/store.py`            | round paths and the clip index                                                     |
-| `synthbench/clips/sample.py`              | eligibility, allocation, the pilot rule                                            |
-| `synthbench/clips/rules.py`               | `clip_suffix`, the camera-word list, the clip rules                                |
-| `synthbench/clips/render.py`              | the mode switch, the crop, the memory check, the strip                             |
-| `synthbench/clips/gate.py`                | reading, writing and matching `clip-gate.json`                                     |
-| `synthbench/commands/clip.py`             | the `clip` command group: `sample`, `check`, `render`, `triage`, `report`          |
-| `synthbench/audit/` + `commands/audit.py` | the `--clips` mode: its page, questions, answer log and gate writing               |
-| `synthbench/generate/render.py`           | the stills' `render` gains the same history check (§4.1)                           |
+| Path                            | What                                                                               |
+| ------------------------------- | ---------------------------------------------------------------------------------- |
+| `synthbench/contract/clip.py`   | `ClipSpec`, `ClipSource`, `RoundRecord`, `ClipSettings`, `ClipProvenance`, reasons |
+| `synthbench/contract/store.py`  | round paths and the clip index                                                     |
+| `synthbench/clips/sample.py`    | eligibility and allocation                                                         |
+| `synthbench/clips/rules.py`     | `clip_suffix`, the camera-word list, the clip rules                                |
+| `synthbench/clips/render.py`    | the mode switch, the crop, the memory check, the strip                             |
+| `synthbench/commands/clip.py`   | the `clip` command group: `sample`, `check`, `render`, `triage`, `report`          |
+| `synthbench/generate/render.py` | the stills' `render` gains the same history check (§4.1)                           |
 
 None of this imports `backend` (the import rule).
 
@@ -377,7 +331,7 @@ ComfyUI.
   - the same seed gives the same clips;
   - the split across groups and lighting;
   - stills that already have a clip are skipped;
-  - each branch of the pilot rule, including exit 2 on a missing, failed or mismatched gate.
+  - any `--n` from 1 to 500, with no pilot rule (C13).
 - **`clip check`:** one failing case per rule, plus drift from `round.json`.
 - **`clip render`:**
   - `/free` is called only when the last family in `/history` differs;
@@ -388,13 +342,6 @@ ComfyUI.
   - the strip is built from a tiny synthetic mp4.
 - **Stills' `render`:** frees after an H3 history entry.
 - **`clip triage`:** the reasons and the 3-seed cap.
-- **`audit --clips`:**
-  - the same-origin check;
-  - answers are appended;
-  - the gate file appears only once every clip is answered;
-  - a failed clip counts in the denominator;
-  - the settings are recorded;
-  - the Wilson interval.
 - **Existing tests:** the command reference matches argparse, and only `run/` and `score/`
   import `backend`.
 
@@ -415,30 +362,33 @@ It runs before any code relies on H3. Its evidence goes to
 5. `/history?max_items=1` has the shape §4.1 reads, before and after `/free`.
 6. The flagship stays healthy throughout, and the guard journal stays empty.
 
-### §8.3 Acceptance: the pilot
+**Result (2026-09-30):** every check passed except time. A 243-frame clip took about 328 s, so
+the clip timeout is 1.5× rather than 2×. The owner watched the clips, judged them good, and waived
+the pilot gate (C13). Details: `docs/benchmarks/synthbench/clips-probes.md`.
+
+### §8.3 Acceptance: the first round
 
 - The owner syncs the code and the skill into the agent's sandbox.
-- The agent runs `clips-pilot-1` (n=20) through the loop without owner edits.
-- `report.md` and `sheet.html` exist, and the owner's host `clip check --round clips-pilot-1`
-  passes.
+- The agent runs one round of every ready still, `clips-1` (459 today), through the loop without
+  owner edits.
+- `report.md` and `sheet.html` exist, and the owner's host `clip check --round clips-1` passes.
 - The mode switches appear in the report at the points §4.1 predicts.
 - The flagship stays healthy, with no guard stops.
-- The owner's audit is complete, and `clip-gate.json` is written.
 
-A failed gate does not fail acceptance. Acceptance tests the tooling; the gate is H3's result.
-The record goes to `docs/benchmarks/synthbench/clips-acceptance.md`.
+The record goes to `docs/benchmarks/synthbench/clips-acceptance.md`: counts, rerolls by reason,
+seconds per clip, switches, and anything the owner noticed in `sheet.html`.
 
 ## Risks
 
-| Risk                                                                                        | Mitigation                                                                                          |
-| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| H3's 10 s peak exceeds the 59.9 GiB ceiling                                                 | C7: clips use the longest length under it, and the probe report says so                             |
-| `/free` does not return the memory to the GPU                                               | Fall back to a renderer restart between modes (approach B), which the owner runs                    |
-| The 4-step LoRA degrades at 10 s                                                            | The probe's owner look, then the pilot's bar                                                        |
-| Flagship users slow down for minutes per clip (R6)                                          | Yield between clips; the report shows seconds per clip; the owner can stop the renderer at any time |
-| Clips inherit their stills' errors (C3)                                                     | Triage and the pilot audit catch them; they are accepted by the owner's decision                    |
-| A 6-frame strip misses short morphing                                                       | The owner's pilot audit watches the whole clip                                                      |
-| H3's licence excludes the US, EU, UK and KR, and bars using outputs to improve other models | The owner's P1 decision, with the terms known; the clips are used for evaluation only               |
+| Risk                                                                                        | Mitigation                                                                                                                                              |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H3's 10 s peak exceeds the 59.9 GiB ceiling                                                 | C7: clips use the longest length under it, and the probe report says so                                                                                 |
+| `/free` does not return the memory to the GPU                                               | Fall back to a renderer restart between modes (approach B), which the owner runs                                                                        |
+| The 4-step LoRA degrades at 10 s                                                            | The probe's owner look: passed (C13)                                                                                                                    |
+| Flagship users slow down for minutes per clip (R6)                                          | Yield between clips; the report shows seconds per clip; the owner can stop the renderer at any time. A full round of 459 is about 42 h of renderer time |
+| Clips inherit their stills' errors (C3)                                                     | Triage catches mechanical failures; the rest is accepted (C3, C13)                                                                                      |
+| A 6-frame strip misses short morphing                                                       | Accepted (C13); any clip plays in `sheet.html`                                                                                                          |
+| H3's licence excludes the US, EU, UK and KR, and bars using outputs to improve other models | The owner's P1 decision, with the terms known; the clips are used for evaluation only                                                                   |
 
 ## Out of scope
 
@@ -447,7 +397,7 @@ The record goes to `docs/benchmarks/synthbench/clips-acceptance.md`.
 - Tier A clips (P6).
 - Several motions per still.
 - Last-frame and reference-image (Ref2V) modes.
-- The audit design for volume rounds.
+- An audit of clips (C13): left to the first user of the clips.
 - Audio as truth: H3's audio track is kept but asserts nothing.
 
 ## Rejected
@@ -456,7 +406,7 @@ The record goes to `docs/benchmarks/synthbench/clips-acceptance.md`.
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | Clips sampled into still bursts, scored by the product VLM      | The owner kept clips for a video VLM (C1)                                      |
 | Clips uploaded through the platform's video path                | Needs P5b's live instance; the product ingests FTP stills by default           |
-| Look first, choose the clips' role later                        | C1 was chosen; the pilot gate still makes the first round a look               |
+| Look first, choose the clips' role later                        | C1 was chosen; the probe's clips were the look                                 |
 | The last frame, first-and-last frames, or reference only        | Each needs an unverified extra frame or keeps no verified frame (C2)           |
 | Qualification by the flagship's verdict, the agent or the owner | The owner chose every ready still (C3)                                         |
 | The clip added to the still's event                             | It rewrites ready, already-scored events (C4)                                  |
