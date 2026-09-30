@@ -80,7 +80,9 @@ prompts against the rules, every recorded image against its sha256, and the tria
 
 Renders each frozen event's pending attempt at 1280x720 through ComfyUI (design §3 step 4).
 Before every image it reads `/synthbench/status/flagship.json`, and waits, polling every
-5 s, while the flagship is unhealthy or has requests waiting.
+5 s, while the flagship is unhealthy or has requests waiting. Before its first image, if the
+renderer's last job was H3 or another non-FLUX.2 model (`clip render` left it in that state),
+it frees the renderer and waits for FLUX.2's room, so FLUX.2 loads with the first image.
 
 | Option                 | Default  | Meaning                                             |
 | ---------------------- | -------- | --------------------------------------------------- |
@@ -104,7 +106,9 @@ Before every image it reads `/synthbench/status/flagship.json`, and waits, polli
   - the status file is missing or older than 30 s;
   - an attempt failed its third job. Its event is now `failed`: render marks it in
     `index.jsonl`, renders the rest, and exits 2 once. Later runs skip the event;
-  - an unrecorded file is in the way.
+  - an unrecorded file is in the way;
+  - after freeing an H3 renderer, too little GPU memory for FLUX.2;
+  - switching the renderer back to FLUX.2 failed.
 
 ## `camera`
 
@@ -220,8 +224,10 @@ Renders each frozen clip's pending attempt with MiniMax-H3 turbo (1344×768, 243
 | ------------- | -------- | ---------- |
 | `--round <r>` | required | round name |
 
-- **Before the first clip:** unless H3 ran last, it:
-  - frees the renderer (`POST /free`);
+- **Before the first clip:** like `render`, it first waits for the flagship. Unless H3 ran
+  last, it then:
+  - frees the renderer (`POST /free`) - only when another model family ran; an empty history
+    (nothing has rendered yet) warms up without freeing;
   - checks the GPU's free memory against H3's peak;
   - renders a 22-frame warm-up clip;
   - logs the switch in `rounds/<r>/switches.jsonl`.

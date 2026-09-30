@@ -157,7 +157,7 @@ def _leave_clip_mode(client: ComfyClient, deps: Deps) -> None:
         raise AskOwner(
             f"the renderer stopped answering ({type(error).__name__}: {error})."
         ) from error
-    except (httpx.HTTPStatusError, ComfyError, KeyError) as error:
+    except (httpx.HTTPStatusError, ComfyError, KeyError, ValueError) as error:
         raise AskOwner(
             f"cannot switch the renderer back to FLUX.2 ({type(error).__name__}: {error})."
         ) from error

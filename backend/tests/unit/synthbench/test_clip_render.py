@@ -243,9 +243,8 @@ def test_the_switch_waits_for_the_freed_memory(tmp_path: Path) -> None:
 
 
 def test_too_little_free_memory_stops_before_the_warmup(tmp_path: Path) -> None:
-    """Deviation from the brief: `_render` calls `clip_render.execute` directly (as it does
-    throughout this file, mirroring test_render.py), so a stop is a raised AskOwner, not a
-    returned exit code - the same correction test_render.py needed."""
+    """`_render` calls `execute` directly, so a stop is a raised AskOwner: `cli.main` is what
+    maps exceptions to exit codes."""
     _, clock = _ready(tmp_path, 1)
     fake = FakeComfy(clock, last=_flux(), free_gib=1.0)
     with pytest.raises(AskOwner, match="GiB free"):
@@ -295,8 +294,35 @@ def test_clip_render_needs_frozen_motions(tmp_path: Path) -> None:
 def test_an_unknown_flagship_stops_clip_render(tmp_path: Path) -> None:
     h.frozen_round(tmp_path, n=1)  # no status/flagship.json
     clock = h.FakeClock()
-    with pytest.raises(AskOwner):
-        _render(tmp_path, _deps(clock, FakeComfy(clock, last=_h3())))
+    fake = FakeComfy(clock, last=_h3())
+    with pytest.raises(AskOwner, match="guard"):
+        _render(tmp_path, _deps(clock, fake))
+    assert fake.graphs == []
+
+
+def test_an_unknown_flagship_stops_the_switch_too(tmp_path: Path) -> None:
+    """The flagship check runs before the switch (§5.2): with the guard down, a busy renderer
+    is never freed or warmed up. `last=_flux()` makes a wrongly-ordered check visible - if the
+    switch ran first it would free the renderer before the FlagshipUnknown stop."""
+    h.frozen_round(tmp_path, n=1)  # no status/flagship.json
+    clock = h.FakeClock()
+    fake = FakeComfy(clock, last=_flux())
+    with pytest.raises(AskOwner, match="guard"):
+        _render(tmp_path, _deps(clock, fake))
+    assert fake.freed == 0
+    assert fake.graphs == []
+
+
+def test_a_waiting_flagship_holds_the_switch_for_the_whole_call(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _, clock = _ready(tmp_path, 1)
+    h.flagship(tmp_path, waiting=1)  # never becomes ready
+    fake = FakeComfy(clock, last=_flux())
+    assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_OK
+    assert fake.freed == 0
+    assert fake.graphs == []
+    assert "0 rendered now" in capsys.readouterr().out
 
 
 def test_no_renderer_is_a_stop(tmp_path: Path) -> None:

@@ -19,6 +19,7 @@ import argparse
 import hashlib
 import sys
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 
 import httpx
 
@@ -71,9 +72,8 @@ from synthbench.generate.render import (
 )
 from synthbench.status import FlagshipUnknown, flagship_file
 
-CALL_LIMIT_S = (
-    570.0  # the agent's Bash call is 600 s (P3-R10); start-up and downloads take the rest
-)
+# The agent's Bash call is 600 s (P3-R10); start-up and downloads take the rest.
+CALL_LIMIT_S = 570.0
 # Measured by the clips probe beside the flagship (docs/benchmarks/synthbench/clips-probes.md):
 # 243-frame clips took 327.0-328.7 s; H3's load plus a 22-frame clip 61.2 s; the renderer's
 # peak was 48.3 GiB.
@@ -146,30 +146,23 @@ def _render_todo(
     rendered = failed_jobs = 0
     client = ComfyClient(url, transport=deps.transport)
     try:
-        _enter_clip_mode(store, record, client, deps)
-        for spec, prov in todo:
-            if deps.clock() > latest_start:
-                break
-            try:
-                ready = wait_for_flagship(
-                    status_file,
-                    deadline=latest_start,
-                    clock=deps.clock,
-                    sleep=deps.sleep,
-                    now=deps.now,
-                )
-            except FlagshipUnknown as error:
-                raise AskOwner(f"{error}.") from error
-            if not ready:
-                break
-            done, failures = _render_one(store, spec, prov, client, deps)
-            if done:
-                rendered += 1
-            else:
-                failed_jobs += 1
-                if failures >= MAX_RENDER_FAILURES:
-                    _mark_failed(store, [spec])
-                    stuck.append(spec)
+        # §5.2: the switch is GPU work like a render, so it waits for the flagship too - a busy
+        # or unknown flagship must not see the renderer freed and warmed up on its behalf.
+        if _flagship_ready(status_file, latest_start, deps):
+            _enter_clip_mode(store, record, client, deps)
+            for spec, prov in todo:
+                if deps.clock() > latest_start:
+                    break
+                if not _flagship_ready(status_file, latest_start, deps):
+                    break
+                done, failures = _render_one(store, spec, prov, client, deps)
+                if done:
+                    rendered += 1
+                else:
+                    failed_jobs += 1
+                    if failures >= MAX_RENDER_FAILURES:
+                        _mark_failed(store, [spec])
+                        stuck.append(spec)
     finally:
         client.close()
     left = len(pending) - len(stuck) - rendered
@@ -186,6 +179,22 @@ def _render_todo(
     if stuck:
         raise AskOwner(_stuck_message(stuck))
     return EXIT_OK
+
+
+def _flagship_ready(status_file: Path, latest_start: float, deps: Deps) -> bool:
+    """Wait while the flagship is unhealthy or busy; False once the next poll would pass
+    latest_start. FlagshipUnknown (a missing or stale status file: the guard is down) is an
+    AskOwner, as elsewhere in this module."""
+    try:
+        return wait_for_flagship(
+            status_file,
+            deadline=latest_start,
+            clock=deps.clock,
+            sleep=deps.sleep,
+            now=deps.now,
+        )
+    except FlagshipUnknown as error:
+        raise AskOwner(f"{error}.") from error
 
 
 def _enter_clip_mode(

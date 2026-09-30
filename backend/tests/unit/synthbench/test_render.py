@@ -500,12 +500,8 @@ def test_render_leaves_a_flux_renderer_alone(tmp_path: Path) -> None:
 
 
 def test_a_freed_renderer_without_room_for_flux_stops_render(tmp_path: Path) -> None:
-    """Deviation from the brief: every other stop in this file is asserted with
-    pytest.raises(AskOwner, ...), since `_render` here calls `render.execute` directly rather
-    than through `cli.main` (which is what maps AskOwner to EXIT_ASK and writes stderr). The
-    brief's draft compared `_render(...)` to `cli.EXIT_ASK` and checked capsys stderr, which
-    cannot pass: `execute()` raises, it never returns, and nothing in this path writes to
-    stderr."""
+    """`_render` calls `render.execute` directly, so a stop is a raised AskOwner: `cli.main` is
+    what maps exceptions to exit codes."""
     _, clock = _ready(tmp_path, 1)
     fake = FakeComfy(clock)
     fake.history = _last(
