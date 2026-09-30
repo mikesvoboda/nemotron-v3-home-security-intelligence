@@ -289,6 +289,7 @@ Writes `rounds/<r>/report.md` and `rounds/<r>/sheet.html` (clips design §3.4).
 | `--round <r>` | required | round name |
 
 - **Exit 1:** no round `<r>`.
+- **Exit 2:** a corpus file cannot be read or written.
 
 ## `corpus coverage`
 
