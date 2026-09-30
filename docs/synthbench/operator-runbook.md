@@ -56,8 +56,18 @@ restart the guard only while the renderer is stopped.
   stuck there. The unit's `ExecStopPost` runs `serve cleanup` after every stop, and after a
   failed start too: it force-removes a stopped leftover, but leaves a running container alone —
   for example, one started by hand (`serve up`) or by an owner GPU window reusing the same
-  container name, which is also the usual reason the pre-check itself refuses. The guard's own
-  fallback does the same. The command below is the manual fallback for whatever gets past both:
+  container name, which is also the usual reason the pre-check itself refuses. The guard is
+  different: after it stops the unit, it stops a container that is still running. For whatever
+  gets past both, look at the container's state first:
+
+  ```bash
+  podman --root /export/models/containers/storage --runroot /run/user/1000/synthbench-containers \
+    ps -a --filter name=synthbench-comfyui --format '{{.Status}}'
+  ```
+
+  A running container is deliberate until you know otherwise: stop it with
+  `.venv/bin/python -m synthbench.generate.comfy.serve down` from the host checkout. Force-remove
+  only one that is not running:
 
   ```bash
   podman --root /export/models/containers/storage --runroot /run/user/1000/synthbench-containers \
@@ -124,13 +134,17 @@ clone of that checkout.
 That commit must be the host checkout's commit. The owner's host `check` re-applies the host's
 own `synthbench/prompt/` (the rules, the blocklist, the camera suffix) and
 `synthbench/taxonomy/` (the taxonomy and the sampler) to the batch. If they differ from the
-agent's, the host `check` exits 2 on every frozen prompt. The first command below checks it.
+agent's, the host `check` exits 2 on every frozen prompt. The command below creates the sandbox
+only when the two commits match.
 
 ```bash
 cd ~/github/nemotron-v3-home-security-intelligence
-test "$(git rev-parse HEAD)" = "$(git -C /synthbench/host-checkout rev-parse HEAD)" && echo same
-agent-dgx run synthbench-gen --agent claude --endpoint dgx \
-  --mount /synthbench/corpus:rw --mount /synthbench/status:ro
+if [ "$(git rev-parse HEAD)" = "$(git -C /synthbench/host-checkout rev-parse HEAD)" ]; then
+  agent-dgx run synthbench-gen --agent claude --endpoint dgx \
+    --mount /synthbench/corpus:rw --mount /synthbench/status:ro
+else
+  echo "commits differ: update the host checkout or this one first; no sandbox created"
+fi
 ```
 
 After it is created, prepare the sandbox (`agent-synthbench-gen`, workspace

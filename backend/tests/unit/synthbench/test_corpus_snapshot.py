@@ -214,3 +214,19 @@ def test_a_zfs_failure_asks_the_owner_and_destroys_nothing(
 
     monkeypatch.setattr(subprocess, "run", failing_run)
     assert cli.main(["corpus", "snapshot"], env=h.env(tmp_path)) == cli.EXIT_ASK
+
+
+def test_an_unexpected_snapshot_error_keeps_its_traceback(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The timer's journal is the only record of a host run, so an unexpected error keeps its
+    traceback there, beside cli.main's one-line `unexpected error` and exit 2."""
+
+    def boom(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(corpus, "snapshot_and_prune", boom)
+    assert h.run(tmp_path, "corpus", "snapshot") == cli.EXIT_ASK
+    err = capsys.readouterr().err
+    assert "Traceback (most recent call last)" in err
+    assert "unexpected error: RuntimeError: boom" in err
