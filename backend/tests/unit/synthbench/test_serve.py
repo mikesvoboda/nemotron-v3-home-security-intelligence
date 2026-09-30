@@ -398,6 +398,25 @@ class TestFailuresSurface:
         assert len(calls) == 2  # exists, inspect - rm -f never runs
         assert "a running synthbench-comfyui container is left alone" in capsys.readouterr().err
 
+    def test_cleanup_that_cannot_tell_leaves_the_container_alone(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """A failed running check is treated as running: removing blind could kill a renderer
+        started by hand or an owner GPU window's ComfyUI."""
+        calls: list[list[str]] = []
+
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            raise OSError("podman: storage is locked")  # the inspect itself fails
+
+        serve.cleanup(run=run)  # must not raise
+        assert all("rm" not in argv for argv in calls)
+        err = capsys.readouterr().err
+        assert "storage is locked" in err
+        assert "left alone" in err
+
     def test_cleanup_swallows_errors(self, capsys: pytest.CaptureFixture[str]) -> None:
         def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
             if argv[-3:] == ["container", "exists", serve.CONTAINER]:

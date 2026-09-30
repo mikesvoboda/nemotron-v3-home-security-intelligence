@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+import traceback
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 
@@ -42,6 +43,10 @@ def execute_snapshot(env: Mapping[str, str], *, run: Runner, now: datetime) -> i
         status = snapshot_and_prune(env, run=run, now=now)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError, ValueError) as error:
         raise AskOwner(f"the corpus snapshot failed ({type(error).__name__}: {error}).") from error
+    except Exception:
+        # The timer's journal is the only record of this host run; cli.main prints one line.
+        traceback.print_exc(file=sys.stderr)
+        raise
     if status.hold is not None:
         raise AskOwner(
             f"{status.hold.snapshot} holds the only copy of {status.hold.count} removed or changed "
