@@ -60,23 +60,29 @@ class Deps:
 
 
 class ModelField(httpx.AsyncBaseTransport):
-    """Names the served model in each chat request (vLLM's OpenAI server routes by `model`) and
-    merges in the model's `request_extra`."""
+    """Names the served model in each chat request (vLLM's OpenAI server routes by `model`),
+    merges in the model's `request_extra` and puts its `system_message`, if any, ahead of the
+    shipped messages."""
 
     def __init__(
         self,
         model: str,
         inner: httpx.AsyncBaseTransport | None = None,
         extra: Mapping[str, Any] | None = None,
+        system_message: str | None = None,
     ) -> None:
         self._model = model
         self._inner = inner or httpx.AsyncHTTPTransport()
         self._extra = dict(extra or {})
+        self._system_message = system_message
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         if request.method == "POST" and request.url.path.endswith("/v1/chat/completions"):
             body = json.loads(request.content)
             body |= self._extra
+            if self._system_message is not None:
+                system = {"role": "system", "content": self._system_message}
+                body["messages"] = [system, *body["messages"]]
             body["model"] = self._model
             headers = [
                 (key, value)
@@ -168,7 +174,9 @@ def client_factory(
                 "vlm_model_id": model.served_id,
                 "nemotron_verification_engine": "vllm",
             }
-            transport = ModelField(model.served_id, inner, model.request_extra)
+            transport = ModelField(
+                model.served_id, inner, model.request_extra, model.system_message
+            )
         settings = get_settings().model_copy(update=update)
         return VlmClient(settings=settings, base_url=url, transport=transport)
 
@@ -258,6 +266,7 @@ def execute(
         "enforcement_probe": model.transport == "ai-vlm",
         "request_extra": dict(model.request_extra),
         "read_timeout": model.read_timeout,
+        "system_message": model.system_message,
         "export": str(export),
         "store": str(store_path),
         "eval_run_id": report["run_id"],

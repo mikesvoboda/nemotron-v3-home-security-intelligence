@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import dataclasses
 import json
 import subprocess
 from collections.abc import Iterator
@@ -34,6 +35,11 @@ from backend.tests.unit.synthbench import helpers as h
 QWEN = MODELS["qwen3-vl-8b"]
 FLAGSHIP = MODELS["flagship"]
 COSMOS = MODELS["cosmos-reason2-8b"]
+# Cosmos-Reason2's model card instruction: it reasons only when the system prompt asks for this.
+COSMOS_FORMAT = (
+    "Answer the question using the following format:\n\n<think>\nYour reasoning.\n</think>\n\n"
+    "Write your final answer immediately after the </think> tag."
+)
 URL = "http://fake-vlm:8098"
 
 
@@ -148,6 +154,7 @@ def test_a_replay_reads_the_exports_stills_and_records_the_run(tmp_path: Path) -
     assert record["enforcement_probe"] is True
     assert record["request_extra"] == {}
     assert record["read_timeout"] is None
+    assert record["system_message"] is None
     with EvalStore(tmp_path / "eval" / "eval.sqlite") as store:
         rows = store.replay(record["eval_run_id"])
     assert [row["risk_score"] for row in rows] == [50, 50]  # the fake's schema-filled verdict
@@ -205,10 +212,11 @@ def test_a_vllm_model_gets_its_name_the_schema_and_no_probe(tmp_path: Path) -> N
     # thinking (Task 1 Step 7): it runs with thinking off, at the shipped budget.
     assert seen[0]["chat_template_kwargs"]["enable_thinking"] is False
     assert seen[0]["max_tokens"] == 1024
+    assert [message["role"] for message in seen[0]["messages"]] == ["user"]  # no system message
 
 
 def test_cosmos_gets_the_budget_its_long_evidence_needs(tmp_path: Path) -> None:
-    """Cosmos does not think, but one evidence string alone ran past the shipped 1024 tokens
+    """Cosmos's answers ran past the shipped 1024 tokens
     (Task 1 Step 8); with 4096 it finished in 1326 tokens, in about 17 s."""
     export = _export(tmp_path, n=1)
     seen: list[dict[str, Any]] = []
@@ -227,6 +235,35 @@ def test_cosmos_gets_the_budget_its_long_evidence_needs(tmp_path: Path) -> None:
     assert "chat_template_kwargs" not in seen[0]
 
 
+def _chat_bodies(model: Any, export: Path) -> list[dict[str, Any]]:
+    """The chat bodies one `assess` over the export's first still sends `model`."""
+    seen: list[dict[str, Any]] = []
+
+    def vllm(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        return _vllm_reply()
+
+    _assess_first_still(client_factory(model, URL, export, httpx.MockTransport(vllm))(), export)
+    return seen
+
+
+def test_cosmos_is_asked_for_its_reasoning_format_ahead_of_the_shipped_prompt(
+    tmp_path: Path,
+) -> None:
+    """Cosmos reasons only when the system prompt asks for its format; without it, under the
+    JSON schema, the reasoning spilled into the first evidence string and looped (owner, Task 1
+    Step 8). The system message comes first; the shipped user message follows unchanged."""
+    export = _export(tmp_path, n=1)
+    [body] = _chat_bodies(COSMOS, export)
+    [shipped] = _chat_bodies(dataclasses.replace(COSMOS, system_message=None), export)
+    assert body["messages"][0] == {"role": "system", "content": COSMOS_FORMAT}
+    assert body["messages"][1:] == shipped["messages"]
+    assert [message["role"] for message in shipped["messages"]] == ["user"]
+    assert body["model"] == "nvidia/Cosmos-Reason2-8B"
+    assert body["max_tokens"] == 4096
+    assert body["response_format"]["type"] == "json_schema"
+
+
 def test_only_the_vllm_comparison_models_change_the_shipped_request() -> None:
     """The ai-vlm models send the shipped body at the shipped timeout (P5a-R2)."""
     extras = {name: dict(model.request_extra) for name, model in MODELS.items()}
@@ -237,6 +274,10 @@ def test_only_the_vllm_comparison_models_change_the_shipped_request() -> None:
     timeouts = {name: model.read_timeout for name, model in MODELS.items()}
     assert {name: t for name, t in timeouts.items() if t is not None} == {
         "cosmos-reason2-8b": 120.0
+    }
+    systems = {name: model.system_message for name, model in MODELS.items()}
+    assert {name: m for name, m in systems.items() if m is not None} == {
+        "cosmos-reason2-8b": COSMOS_FORMAT
     }
 
 
@@ -263,14 +304,19 @@ def test_a_vllm_request_keeps_the_clients_timeouts(tmp_path: Path, name: str) ->
 
 
 @pytest.mark.parametrize(
-    ("name", "extra", "read_timeout"),
+    ("name", "extra", "read_timeout", "system_message"),
     [
-        ("flagship", {"chat_template_kwargs": {"enable_thinking": False}}, None),
-        ("cosmos-reason2-8b", {"max_tokens": 4096}, 120.0),
+        ("flagship", {"chat_template_kwargs": {"enable_thinking": False}}, None, None),
+        ("cosmos-reason2-8b", {"max_tokens": 4096}, 120.0, COSMOS_FORMAT),
     ],
+    ids=["flagship", "cosmos-reason2-8b"],
 )
 def test_a_vllm_replay_records_the_fields_it_adds(
-    tmp_path: Path, name: str, extra: dict[str, Any], read_timeout: float | None
+    tmp_path: Path,
+    name: str,
+    extra: dict[str, Any],
+    read_timeout: float | None,
+    system_message: str | None,
 ) -> None:
     model = MODELS[name]
     export = _export(tmp_path, n=1)
@@ -287,6 +333,7 @@ def test_a_vllm_replay_records_the_fields_it_adds(
     assert record["enforcement_probe"] is False
     assert record["request_extra"] == extra
     assert record["read_timeout"] == read_timeout
+    assert record["system_message"] == system_message
 
 
 def test_a_relative_export_is_resolved_before_the_import(
