@@ -12732,3 +12732,98 @@ vlm_specialists 336 — re-census after every close.
 the run-1-era 71,729/1,863-holes read), sweep/red-check counts, or any
 completed=false read. Command + snapshots listed; every number measured THIS
 session.
+
+## 2026-09-30 — MILESTONE 8 PUBLISHES: 66.88135167914349% completed=true (+0.8829 pts vs the post-R8 baseline 65.99841068466031%; M7's 69.63% is NOT the comparison — the reset row above re-anchored the ladder) — campaign #6 `batch_aggregator` CLOSES at 99.16874480465503%: the 6-file/103-test battery set A–F converts 632 of the module's 642 survivors to bank-KILLED in one filtered run, the 10 survivors are EXACTLY the adjudicated EQUIVALENTs, 0 battery gaps, 0 unexplained anything; denominator Δ+4 keys disclosed row-by-row (1 mover, 243 rows byte-identical); the green-scan gate was nearly faked red by my own launcher's PATH
+
+**THE NUMBER (measured THIS session, `scripts/mutation-score.py` rc=0 from the
+repo root → /home/agent/runs/b33-score-M8.json; publish chain: campaign run
+`MUTMAX=14 ./scripts/mutation-run.sh batch_aggregator` (log
+/home/agent/runs/b33-c6.log, terminal line `[mutation-run] done` 02:26Z-ish,
+guard-module final `outside-holes=0 global-holes=0 stats=yes`):** killed
+47,622 + timeout 354 = **47,976** of **71,733** → **score
+66.88135167914349%**, survived 22,974, no_tests 783 (UNCHANGED: sticky trio
+713 + reid 24 + constrained_decoding 40 + ha_discovery 2 + 4 singletons —
+the ba row carries ZERO exit-33 keys, measured), unchecked 0, torn 0,
+**completed=true** (checked 71,733/71,733), 244 module rows. vs the new
+baseline: **+636 kt** (47,340→47,976 = exactly the ba row's 557→1,193 gain),
+survivors −632 = the battery kills exactly. **STRICT-> holds vs the baseline:
++0.8829409945 pts.** History appended ONCE: `--history
+.github/mutation-history.json --date 2026-09-30` (run #12 of `runs`).
+
+**CAMPAIGN #6 CLOSE — `backend/services/batch_aggregator.py`** (baseline-era:
+557 kt / 1,199 = 46.45537948290242%, surv 642): now **1,193 / 1,203 =
+99.16874480465503%**, surv 10. Batteries 6 files / 103 tests (a 25 / b 16 /
+c 18 / d 20 / e 12 / f 12 — `grep -c "def test_"` this session), their
+survivor-scoped key sets a MEASURED FULL PARTITION of the 642:
+`A-residual 163 + B 126 + C 162 + D 66 + E 125` = 642 disjoint (F covers the 85
+A-residual keys inside A's scope). Single-process trampoline sweeps,
+post-generation
+(b33-sweep-{a,b,c,d,e}.txt; F pools in-line this session): RED 78+124+158+
+62+125 = 547 of the A–E scopes + F 85/85 = **632 of 642** killable.
+**RECONCILE, the cleanest partition of the campaign series (script
+/home/agent/runs/b33-c6-reconcile.py, bank verdicts = source of truth): after
+the filtered run the 642 pre-run survivors moved EXACTLY as the sweeps
+predicted — 632 sweep-RED keys are bank-KILLED (0 battery gaps), the 10
+sweep-GREEN keys are bank-SURVIVED (the adjudicated EQUIVALENTs stand:
+`add_detection__92/__119` cross-era stable; `close_batch__46/47/48` +
+`_close_batch_for_size_limit__45` dead-init;
+`check_batch_timeouts__80/92/94/95` construction + b32-probe-d
+fingerprints), 0 test-side kills, no_tests 0.**
+**SCOPED AUDIT (b33-c6-audit-scoped.py vs backup-metas-preC6.tgz): CLEAN** —
+every NON-ba row byte-identical (244 rows both sides, 0 viol); ba keys
+1,199→1,203 (+4, 0 lost), all four new keys are
+`_create_batch_metadata_atomic__mutmut_53..56` — mutants RE-ENUMERATED when
+battery F's coverage edges entered the stats map (the same coverage-growth
+family as M7's batch_aggregator disclosure), each born bank-KILLED in the
+battery-installed re-check; 632 verdict flips, every one explained by a
+sweep-RED key surviving→killed (unexplained-by-sweep: 0); module-filter
+semantics per M7's measurement (mutmut re-runs EVERY explicitly matched key
+— `__main__.py` ~:1029), so the whole ba row was re-decided fresh. (The
+generic no-flip audit3 script flagged these expected module-filter moves —
+correctly: its contract is for no-arg runs; the campaign instrument is the
+scoped audit above.)
+
+**DENOMINATOR DISCLOSURE vs the baseline row (71,729 → 71,733; Δ+4 keys /
++636 kt; mover census both metas trees: 243 rows byte-identical, 1 mover
+(ba, the +4/+636 above), 0 rows gone, 0 added; UNEXPLAINED: 0). SANCTIONED:
+the module campaign run is the protocol step; no floor/widened-set/policy
+touch anywhere.**
+
+**INCIDENTS + DISCOVERIES (disclosed):** (1) GREEN-SCAN NEAR-FAKE-RED: the
+pre-launch full mutant-tree scan WITH F installed returned 11 FAILED /
+27,800 passed — ALL in `test_check_api_breaking_changes.py`, ALL
+`FileNotFoundError: 'python'` (the tests subprocess-spawn `python`; my nohup
+launcher put the venv bin NOT on PATH — the system carries only python3).
+Per-file repro with venv PATH: 11/11 pass; under `uv run pytest` with
+mutmut's EXACT flags: 23/23 (incl. F). Collection arithmetic proves it:
+`27,800 - 11 = 27,799` (prior uv-run scan) plus F's 12 = same collection, red
+only in the launcher axis. Gate met on the runner's own environment; NEW RULE
+(memory `greenscan-launch-path-fake-reds`): launches go through `uv run`, never a bare
+interpreter with stripped PATH; suspect the measuring tool before the bank.
+(2) AUDIT-STALENESS SELF-CATCH: audit3 was sed-copied from audit2 and REUSED
+b33-run2-base — its "CLEAN-looking" first run reported the PRERELAUNCH-era
+holes census (baseline never re-extracted because the dir existed); caught by
+its own impossible numbers (fills == run 2's exactly), re-extraction dir
+renamed b33-c6-base, then the scoped audit replaced it (the right contract
+for filtered runs). (3) Battery F shipped-green falsified TWICE on first run
+and fixed to match shipped truth: `get_memory_pressure_level` swallows
+monitor exceptions (the bp except arm needs a helper swap, not a raising
+monitor), and stub `_Col` needs `__eq__` returning a recording tuple or the
+outerjoin on-clause ->None mutant is indistinguishable from shipped (both
+fold to False). (4) Guards: guard-module.sh held `outside-holes=0` for the
+WHOLE run (peak global-holes 4 = the new keys pre-fill); restore target =
+fresh guard-restore.tgz (M8-era refresh below).
+
+**TIER STATE:** 85% target from 66.88% → kt ≥ 60,973 on 71,733 — gap
+**12,997** kills. Post-#6 queue re-censused on the M8 bank (R8-shielded):
+`clip_client` 559 surv / 46.5% (campaign #7 head — 5 methods hold 529 of
+559: similarity 111 / anomaly_score 109 / classify 108 / batch_similarity
+108 / embed 93), `baseline` 368, `file_watcher` 339, `redis_json` 338,
+`cleanup_service` 337, `vlm_specialists` 336; system.py 328 surv is at 83.0%
+(≥80 → OFF the head per the ordering rule); then descending. The sticky-713
+trio (trajectory_analyzer 452 + calibration_monitor 201 + session_service 60)
+still needs its module-filtered recovery runs.
+
+**NOT PUBLISHED FROM:** the mid-run live reads (kt 1,163/surv 40 census at
+02:21Z), sweep/red-check counts as badge claims, or any completed=false read.
+Command + snapshots listed; every number measured THIS session.
