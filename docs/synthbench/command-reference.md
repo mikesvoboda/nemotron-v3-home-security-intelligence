@@ -162,6 +162,35 @@ replaces them.
 - **Exit 1:** no batch `<b>` (run `sample` first).
 - **Exit 2:** a corpus file cannot be read or written.
 
+## `clip sample`
+
+Draws ready stills that have no clip yet into a new clip round (clips design §3.1). Writes
+`rounds/<r>/round.json`, one `events/C/C-<r>-NNN/spec.json` per clip (the source still's facts,
+its ready attempt and its render's sha256), and `clip-index.jsonl` rows with status `sampled`.
+The split is even across scenario groups, then spread across lighting within each group.
+
+| Option        | Default                     | Meaning                                               |
+| ------------- | --------------------------- | ----------------------------------------------------- |
+| `--round <r>` | required                    | new round name: lowercase letters, digits and hyphens |
+| `--n <n>`     | required                    | clips, 1-500; a pilot takes at most 20                |
+| `--seed <s>`  | derived from the round name | the draw's seed; the same seed gives the same clips   |
+
+- **The pilot rule:**
+  - With no gate for the current clip settings in `status/clip-gate.json`, the round is the
+    pilot.
+  - A pilot waiting for the owner's `audit --clips`, or a failed gate, stops every new round.
+  - A passed gate allows volume rounds.
+- **Exit 1:**
+  - `--n` over 20 for a pilot;
+  - more clips than ready stills without a clip;
+  - an existing round with another seed or `--n`;
+  - a corpus with no stills.
+- **Exit 2:**
+  - a pilot awaits its audit;
+  - the gate failed;
+  - the gate file is unreadable;
+  - a clip spec was changed by hand.
+
 ## `corpus coverage`
 
 Shows how the corpus is spread across the taxonomy, what the next n events will add, and what a
