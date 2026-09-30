@@ -329,6 +329,7 @@ Three tabs with underline indicator:
    enrichment models that the shipped VLM path does not run. The detection's
    `enrichment_data` field remains on the API response; nothing displays it.
    See [Enrichment Components](../components/feature-specific/event-components.md#enrichment-components).
+
    - Image quality assessment
    - Pet classification
 
