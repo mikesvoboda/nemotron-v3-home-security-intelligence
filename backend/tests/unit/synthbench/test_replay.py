@@ -6,6 +6,7 @@ import ast
 import asyncio
 import dataclasses
 import json
+import re
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
@@ -438,6 +439,20 @@ def test_the_model_table_imports_no_backend() -> None:
         if isinstance(node, ast.ImportFrom) and node.module
     ]
     assert not [module for module in imported if module.startswith("backend")]
+
+
+def test_every_bench_env_key_is_one_compose_reads() -> None:
+    """`.env.bench` is compose's `--env-file` for ai-vlm; a key nothing reads misleads (replay
+    finds Cosmos through `SYNTHBENCH_COSMOS_URL`, never a port variable)."""
+    repo = Path(cli.__file__).parents[1]
+    keys = [
+        line.partition("=")[0].strip()
+        for line in (repo / ".env.bench").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    compose = (repo / "docker-compose.prod.yml").read_text(encoding="utf-8")
+    assert keys
+    assert [key for key in keys if not re.search(rf"\$\{{?{key}\b", compose)] == []
 
 
 def test_replay_needs_an_export(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
