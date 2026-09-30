@@ -13134,3 +13134,183 @@ still pending.
 tree), the 121/130-test repro partials, the r1/r2 sweep counts as badge
 claims, or any completed=false / mid-run read. Commands + snapshots listed;
 every number measured THIS session.
+
+## 2026-09-30 — MILESTONE 11 PUBLISHES: 68.62010363849112% completed=true (+0.477634829680909 pts vs M10's 68.14246880881021%) — campaign #9 `file_watcher` CLOSES at 98.21428571428571% across TWO sanctioned runs: battery I (49 tests) took the module 336/675 → 639/704 (90.77%, BELOW the series standard), by-construction probes of the 65 survivors found 52 REAL GAPS (not equivalents), battery J (21 tests) converted 52 of them + its own coverage growth BORN 24 new `start` keys all killed, the 13 final survivors are EXACTLY the pre-registered EQUIVALENTs, denominator 71,735 → 71,788 (+53, every key named below) — and the bank∩sweep reconciled 65/65 after run 1 and 13/13 after run 2, both by BODY identity, never by key number
+
+**THE NUMBER** (measured THIS session, `scripts/mutation-score.py` rc=0 from the
+repo root → `/home/agent/runs/b33-score-M11.json`). `totals` row by row:
+killed 48,969 + timeout 292 = kt 49,261; survived 21,744; no_tests 783;
+suspicious 0; skipped 0; not_checked 0; total 71,788;
+score 49,261/71,788 = **68.62010363849112%**. `progress`: total 71,788,
+checked 71,788, not_checked 0, torn_metas 0, **completed=true**. History:
+`scripts/mutation-score.py --history .github/mutation-history.json
+--date 2026-09-30` appended as run #15 (15 entries verified, tail M9 → M10 →
+M11). vs M10: kt 48,882 → 49,261 = **+379 kills** (+332 battery conversions
+(280 run-1 + 52 run-2) + 47 birth kills (23 + 24)).
+
+**DENOMINATOR DISCLOSURE** (Δ = +53 keys, every one named, BOTH runs):
+file_watcher's row measured 675 (kt 336 / surv 339) pre-campaign, 704
+(kt 639 / surv 65) after run 1, 728 (kt 715 / surv 13) final. The +29 run-1
+births — battery I's coverage growth at generation — are
+`xǁFileWatcherǁ_process_file__mutmut_87…109` (23 keys; 17 killed, 6 survived:
+95/97 duration-arithmetic and 102–105 error-arm extra renames, all killed by
+run 2) and `xǁFileWatcherǁ_queue_for_detection__mutmut_125…130` (6 keys, all
+killed). The +24 run-2 births are `xǁFileWatcherǁstart__mutmut_95…118` —
+battery J's dead-loop / None-loop drivers wrote coverage onto `start()` lines
+previously uncovered (the guard arms behind loop capture), and ALL 24 are
+killed. No sibling row moved: both scoped audits
+(`/home/agent/runs/b33-c9-audit-scoped.py`, `b33-c9b-audit-run2.py`) compared
+all 243 non-file_watcher `.py.meta` rows against their pre-run whole-tree
+snapshots (`/home/agent/runs/b33-preC9/`, `b33-preC9b/`) and printed
+"non-file_watcher rows identical: CLEAN" (244 rows both sides, both eras).
+no_tests 783 unchanged (sticky-713 family still no_tests — pending recovery
+runs, per M10 row).
+
+**THE RUNS** (sanctioned runner only, never raw mutmut): run 1
+`MUTMAX=14 ./scripts/mutation-run.sh file_watcher` —
+`/home/agent/runs/b33-c9-run.log`, generation done 244 files / 579,314 ms,
+TOTAL 68.5% done-line, rc=0. Run 2 (battery J pass, same command) —
+`/home/agent/runs/b33-c9b-run.log`, generation 244 files / 575,468 ms, "Found
+21 new tests, rerunning stats collection", 715 🎉 kill lines, TOTAL 68.6%
+done-line, rc=0. Guard: `guard-module2.sh` attached to each live runner pid,
+`RESTORE=/home/agent/runs/guard-restore-c9b.tgz` (NEW env override this
+campaign) pointing at the post-run-1 tree, ARCHIVE-VERIFIED against the
+published score BEFORE launch (metas=244 / keys 71,764 / kt 48,882+… = the
+after-run-1 bank byte-census match). Every tick both runs:
+`sibling-drop=0 worst=0@- holes=0 nonmod-holes=0 stats=yes` — zero strip
+events, zero restore events.
+
+**THE BATTERIES**
+`backend/tests/unit/services/test_file_watcher_batch33_i.py` (49 tests,
+1,649 lines) + `test_file_watcher_batch33_j.py` (21 tests, 1,047 lines, the
+v2 pass — the two extra lines are the sanctioned nosemgrep
+`path-traversal-open` comments on the tmp_path JPEG-padding helpers, added
+when the Semgrep hook fired at the close commit). Gates at authoring (protocol):
+repo-root pytest green both; mutant home serial green both; `ruff check` rc=0 + `ruff format --check` clean;
+`vulture` rc=0 with the CI invocation (`uv run vulture backend/
+vulture_whitelist.py --config pyproject.toml`); `mypy` pre-commit hook Passed
+(battery J; 0 diagnostics in the file); WP4.2 — every `patch.object` site
+`autospec=True` (7/7 in J, 3/3 in I: `record_pipeline_stage_latency`,
+`get_detection_stream_service`, `PollingObserver`); full-suite green scans as
+run preconditions: 28,010 passed / 124 skipped / 8 xfailed / rc=0 pre-run-1
+(`/home/agent/runs/b33-c9-fullscan.log`), 28,030 passed / 125 skipped /
+rc=0 pre-run-2 (`b33-j-fullscan.log`); batteries byte-identical md5 in both
+trees (also_copy mid-generation window neutralized). Kill channels the ledger
+credits (each sweep-proven, never diff-shape): battery I — complete `extra=`
+attr sets on every record driven (ContextFilter ambient-key audit: the module
+has NO log_context call sites, so every `file_path`/`camera_id`/… key is
+non-ambient and rename-observable), recorder objects for exact-arg forwarding
+(the camera_creator is awaited DIRECTLY → `_CallableRecorder`), real-file size
+gates (0 B / 1 B / EXACT-MIN padded JPEG), `fw.Path` PermissionError-race
+subclass, module-scoped `fw.time`/`fw.asyncio` clock pinning (a GLOBAL
+asyncio.sleep swap freezes the test body's own awaits — scoped-to-module is
+the fix); battery J closes battery I's residual gaps found BY CONSTRUCTION —
+message ATTRIBUTION not fragment counts (the `== 0 → != 0`/`== 1` gate flips
+SWAP "Empty image file detected" vs "too small" between the 0-byte and 1-byte
+files; 1+1 counts stay 1+1, attribution does not), bytes-`src_path` on
+`on_created` (`or True` keeps bytes — `Path(b'…').suffix` still validates —
+so the mutant schedules RAW BYTES, caught by tuple equality), a DIRECTORY
+`on_modified` with a supported suffix (`and → or` schedules it), the init-log
+else-arm `"XXXX"` (passes `"interval=" not in msg` — J pins `, interval=7.5s`
+present on polling and absent on native), duration arithmetic under a clock
+advanced EXACTLY 1.0 s inside the stability stub (`duration_ms == 1000` kills
+`/1000` → 0 and `*1001` → 1001 on BOTH success and error arms; frozen
+elapsed == 0 hid the whole family from battery I), streams-side zero/1-ms
+delay gates on BOTH arms (battery I's zero-delay test was legacy-only), the
+`file_hash or True` mutant on the streams path WITHOUT dedupe (file_hash
+None → key must be ABSENT from extra_fields), 1-BYTE file stability (init
+`-1 → +1` mutant never sets stable_since → gives up False; orig returns True
+at 2.0 s), start()'s dead-looking guards REACHED with a module-scope asyncio
+proxy returning a DEAD loop / None (the `not is_running()` / `is None`
+RuntimeError arms DO execute — their extra payloads became observable), the
+`!= "native" or errno is None → and` gate pinned from POLLING mode (orig must
+RAISE ENOSPC; the mutant falls back silently), and the OSError-arm
+re-schedule args asserted by patching `fw.PollingObserver` autospec → the
+REPLACED observer is where 80/82/85–87's `schedule(handler, str(root), True)`
+lives (battery I's `_FakeObs` never saw it).
+
+**DISPOSITION** (single-process trampoline sweep per the standing rule; BARE
+mangled names; shipped-green + known-KILLED + foreign controls at every
+stage): battery I over the 339 survivors + 2 controls —
+`/home/agent/runs/b33-c9-sweep.log` RED 281 / GREEN 60, bank killed 280 of
+the 281 (1 sweep-RED stayed 0 → adjudicated a renumber body-move to a killed
+slot). NEW-tree sweep of the 65 bank survivors with battery I —
+`b33-c9-sweep2.log` RED 1 (control only) / GREEN 65 — bank∩sweep 65/65
+exactly. Battery J over those 65 + 2 controls — `b33-j-sweep.log` and the
+format-stable re-run `b33-j-sweep2.log` identical: RED 53 (52 survivors +
+control) / GREEN 14 (13 survivors + foreign control). FINAL sweep of the
+13 bank survivors with battery J — `b33-c9b-final-sweep.log` RED 1 (control)
+/ GREEN 14 (13 survivors + foreign) — bank∩sweep 13/13, RECONCILE: CLEAN.
+
+**THE 13 SURVIVORS = THE PRE-REGISTERED EQUIVALENTS** (battery J docstring
+carries each argument; new-tree numbers verified against the final bank):
+`_create_event_handler__mutmut_33` (`if _loop else False` → `and False` —
+inside the else-arm `_loop` is falsy on entry, both sides False),
+`_wait_for_file_stability__mutmut_6/8/9` (last_size init `-1` → None/−2: no
+real stat size equals them, first check takes the changed-branch identically;
+stable_since init None → "" is overwritten before any read; the +1 variant =
+key 7 was REGISTERED then converted by the 1-byte-file test),
+`_schedule_file_processing__mutmut_10` (`pop(file_path, None)` →
+`pop(file_path, )` — the cleanup `is t` guard guarantees presence),
+`_queue_for_detection__mutmut_6` (`file_hash` init → `""`, both falsy, only
+feeds `if file_hash:`) + `_71/73/76` (streams `.get("pipeline_start_time",
+DEFAULT)` — the key is ALWAYS present in detection_data, the default is
+unreachable), `start__mutmut_68/70/72` (mkdir `exist_ok=True` → False/None/
+dropped — the branch runs only when the directory is MISSING; NUMBER-MOVED
+from pre-era 44/46/48, see AUDIT), `stop__mutmut_13` (gather(\*tasks) arg-drop
+— tasks are cancel()d synchronously before the gather and every later await
+yields, no in-process channel distinguishes). Registration honesty: the J
+ledger started at 13 candidates and the sweep CONFIRMED all 13 GREEN — the
+first by-construction probe of battery I's GREENs (async 6/7, handler 4/12,
+init 62) that CONTRADICTED my diff-shape instincts resolved the other way
+each time: a hand-picked test SUBSET fakes GREEN (my probe guessed a
+directory-test name that never existed); the full-battery sweep is the arbiter.
+
+**AUDIT + RENUMBER, BOTH RUNS** (bank verdicts are the score's source of
+truth; BODY identity adjudicates, key NUMBER never): run 1's scoped audit
+flagged 6 same-number transitions; a full bijection of the 675 pre-era bodies
+(ast-extracted from the pre-era generated file in the guard archive ↔ the
+new-era generated file, numbers+whitespace normalized) moved **78 keys to new
+numbers with verdicts intact — violations 0** (`b33-c9-reconcile-body.txt`):
+every pre-kill's body still killed at its new home, every sweep-RED body
+killed, every sweep-GREEN body surviving, 29 births named. Run 2's audit
+flagged 4 same-number artifacts (`start__mutmut_44/46/48` flipped 0→1 while
+their J-GREEN bodies sat at new numbers 68/70/72; `start__mutmut_70` stayed 0
+while its `and`-gate body moved to number 94, killed); the run-2 bijection
+(`b33-c9b-reconcile-body.txt`) adjudicates **586 kills same-number preserved,
+53 kills NUMBER-MOVED (the start-family tail renumbered by battery J's
+coverage growth), all 52 J-RED claims landed at their body homes, all 13
+equivalents preserved, 24 births killed, violations 0 — RECONCILE: CLEAN**.
+The same-number flag pattern is now DOCUMENTED BEHAVIOR of coverage growth
+(campaigns #8/#9 twice each) — the audit scripts' same-number sections are
+kept as tripwires, body identity is the ruling.
+
+**GUARD UPGRADE THIS CAMPAIGN** (between runs, `/home/agent/runs/
+guard-module2.sh`): the old kill path was `pkill -P $WPID` — DIRECT children
+only — while the runner tree is wrapper → mutation-run.sh → uv → mutmut → 14
+pytest grandchildren; a strip response would have restored the bank WHILE
+grandchildren kept writing verdicts into the restored tree (the documented
+fallback hazard, now closed). New `hardkill()`: PGID lookup on the wrapper
+(fresh-shell launches own their group), suicide-refusal if the group == the
+guard's own (the pgrep-self-match family), TERM → VERIFY empty via `pgrep -g`
+→ KILL → verify, and restore gated STRICTLY on verified group death. Tested
+against a pidfile-based dummy (first two tests died to the very self-match
+trap the docstring warns about — pidfile form passed, rc=0, group dead).
+`RESTORE` is now an env override (was hardcoded) so per-era archives are
+possible without editing the guard; `guard-restore-c9b.tgz` archive-verified
+against the published score BEFORE attaching.
+
+**PROCESS HONESTY — one milestone per close**: after run 1 the M11 candidate
+(68.53714954573323) was scored and even appended to the history file; when
+the by-construction probes showed the 65 survivors held 52 real gaps and a v2
+run was owed, the appended entry was REVERTED (`git checkout --`, backup
+`/home/agent/runs/mutation-history.pre-M11.json` byte-matched HEAD, so the
+revert was provably lossless) and run 2's numbers re-stamped run #15 above.
+The M11 badge claim is the FINAL number only; the 68.5% interim is disclosed
+here, never published.
+
+**NOT PUBLISHED FROM:** the run-1 interim score (68.53714954573323), the
+sweep RED counts as badge claims, the 4 flagged same-number transitions
+before body adjudication, any mid-generation or completed=false read, or my
+first probe's hand-picked test-subset results (wrong names, fake GREENs).
+Commands + snapshots listed; every number measured THIS session.
