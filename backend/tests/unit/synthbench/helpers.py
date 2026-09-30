@@ -12,7 +12,7 @@ from typing import Any
 from PIL import Image
 from synthbench import cli
 from synthbench.contract.corpus import BatchRecord
-from synthbench.contract.provenance import OutputFile, Provenance, render_name, still_name
+from synthbench.contract.provenance import OutputFile, Provenance, Triage, render_name, still_name
 from synthbench.contract.spec import Spec
 from synthbench.contract.store import CorpusStore
 from synthbench.status import FlagshipStatus, flagship_file, write_status
@@ -133,4 +133,20 @@ def stilled_batch(root: Path, batch: str = "pilot-1", n: int = 4) -> list[Spec]:
     for spec in specs:
         tag = spec.event_id.encode()
         record_output(root, spec, render=b"png " + tag, still=b"jpeg " + tag)
+    return specs
+
+
+def ready_batch(root: Path, batch: str = "pilot-1", n: int = 4) -> list[Spec]:
+    """A batch whose every event is ready, as triage leaves it: a real 1280x720 PNG render, a
+    stand-in still and an ok verdict on attempt 1."""
+    specs = frozen_batch(root, batch, n)
+    s = store(root)
+    for spec in specs:
+        record_output(root, spec, render=png(), still=b"jpeg " + spec.event_id.encode())
+        path = s.provenance_file(spec.event_id)
+        prov = s.read(path, Provenance)
+        last = prov.attempts[-1].updated(triage=Triage(verdict="ok"))
+        s.replace_json(path, prov.updated(attempts=(*prov.attempts[:-1], last)))
+        row = s.latest_index()[spec.event_id]
+        s.append_index([row.model_copy(update={"status": "ready", "time": NOW.isoformat()})])
     return specs
