@@ -8,11 +8,12 @@ turbo clips of ready Tier B stills, kept for a future video VLM. The commands ar
 
 ## Files
 
-| File          | What                                                                      |
-| ------------- | ------------------------------------------------------------------------- |
-| `settings.py` | the clip settings recorded in each round; the H3 turbo weights' hashes    |
-| `sample.py`   | the draw: the even split across groups, the seeded per-lighting sample    |
-| `rules.py`    | the motion rules: the still rules 1-4 and rule 5, no camera moves or cuts |
+| File          | What                                                                                                                        |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `settings.py` | the clip settings recorded in each round; the H3 turbo weights' hashes                                                      |
+| `sample.py`   | the draw: the even split across groups, the seeded per-lighting sample                                                      |
+| `rules.py`    | the motion rules: the still rules 1-4 and rule 5, no camera moves or cuts                                                   |
+| `render.py`   | the input fit, the clip check, the frame strip and the H3 graphs; `commands/clip_render.py` drives them and the mode switch |
 
 ## Rules
 

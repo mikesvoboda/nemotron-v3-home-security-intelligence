@@ -183,3 +183,25 @@ def frozen_round(root: Path, n: int = 4, name: str = "clips-pilot-1") -> list[Cl
     assert run(root, "clip", "check", "--round", name) == cli.EXIT_OK
     s = store(root)
     return [s.read(s.spec_file(spec.event_id), ClipSpec) for spec in specs]
+
+
+def mp4(width: int = 1344, height: int = 768, frames: int = 243, value: int = 90) -> bytes:
+    """A real H.264 mp4 of flat frames at 24 fps. 1344x768x243 encodes in about 0.3 s, so tests
+    build theirs at import."""
+    import av
+    import numpy as np
+
+    out = io.BytesIO()
+    with av.open(out, "w", format="mp4") as container:
+        stream = container.add_stream("libx264", rate=24, options={"preset": "ultrafast"})
+        stream.width = width
+        stream.height = height
+        stream.pix_fmt = "yuv420p"
+        pixels = np.full((height, width, 3), value, np.uint8)
+        for _ in range(frames):
+            frame = av.VideoFrame.from_ndarray(pixels, format="rgb24")
+            for packet in stream.encode(frame):
+                container.mux(packet)
+        for packet in stream.encode():
+            container.mux(packet)
+    return out.getvalue()

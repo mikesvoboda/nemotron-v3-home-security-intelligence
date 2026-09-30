@@ -228,3 +228,44 @@ class TestComfyClient:
         fake = FakeComfy()
         _client(httpx.MockTransport(fake)).free()
         assert fake.control == [("/free", {"unload_models": True, "free_memory": True})]
+
+
+def test_last_prompt_is_the_newest_history_entrys_graph() -> None:
+    graph = {"1": {"class_type": "UNETLoader", "inputs": {"unet_name": "x"}}}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/history"
+        assert request.url.params["max_items"] == "1"
+        return httpx.Response(200, json={"p9": {"prompt": [9, "p9", graph, {}, []]}})
+
+    assert _client(httpx.MockTransport(handler)).last_prompt() == graph
+
+
+def test_an_empty_history_has_no_last_prompt() -> None:
+    client = _client(httpx.MockTransport(lambda _request: httpx.Response(200, json={})))
+    assert client.last_prompt() is None
+
+
+def test_an_unexpected_history_entry_is_a_comfy_error() -> None:
+    body = {"p1": {"prompt": "?"}}
+    client = _client(httpx.MockTransport(lambda _request: httpx.Response(200, json=body)))
+    with pytest.raises(ComfyError, match="history entry"):
+        client.last_prompt()
+
+
+def test_free_vram_is_the_first_devices_in_gib() -> None:
+    body = {"system": {}, "devices": [{"vram_free": 3 * 2**30}]}
+    client = _client(httpx.MockTransport(lambda _request: httpx.Response(200, json=body)))
+    assert client.free_vram_gib() == 3.0
+
+
+def test_upload_png_sends_the_bytes_and_returns_the_stored_name() -> None:
+    seen: list[bytes] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.content)
+        return httpx.Response(200, json={"name": "stored.png"})
+
+    client = _client(httpx.MockTransport(handler))
+    assert client.upload_png("in.png", b"\x89PNG payload") == "stored.png"
+    assert b"\x89PNG payload" in seen[0]

@@ -211,6 +211,38 @@ rule 5 bars camera moves and cuts (`synthbench/prompt/camera_moves.yaml`).
   - a modified or unexpected clip file;
   - a broken triage chain.
 
+## `clip render`
+
+Renders each frozen clip's pending attempt with MiniMax-H3 turbo (1344×768, 243 frames at
+24 fps, with H3's audio track), then writes its 6-frame strip (clips design §4).
+
+| Option        | Default  | Meaning    |
+| ------------- | -------- | ---------- |
+| `--round <r>` | required | round name |
+
+- **Before the first clip:** unless H3 ran last, it:
+  - frees the renderer (`POST /free`);
+  - checks the GPU's free memory against H3's peak;
+  - renders a 22-frame warm-up clip;
+  - logs the switch in `rounds/<r>/switches.jsonl`.
+- **The input:** the source's render, fitted to 1344×768. Its sha256 is recorded as the
+  attempt's `input_sha256`.
+- **Yield:** it waits while the flagship is unhealthy or has requests waiting. It starts a clip
+  only while the clip's timeout still fits in a 600 s call. Run it again until it prints
+  `0 still to render`.
+- **Writes:**
+  - `events/C/<id>/clips/a<k>-s<seed>.mp4` and `strips/a<k>-s<seed>.jpg`;
+  - `provenance.json`;
+  - `clip-index.jsonl` rows with status `rendered`, or `failed` after 3 failed jobs.
+- **Exit 1:** a clip with no frozen motion (run `clip check`); no round `<r>`.
+- **Exit 2:**
+  - the renderer is down or stops answering;
+  - the flagship's status is stale;
+  - too little free GPU memory for H3;
+  - the switch failed;
+  - a clip failed 3 jobs;
+  - a source render changed.
+
 ## `corpus coverage`
 
 Shows how the corpus is spread across the taxonomy, what the next n events will add, and what a

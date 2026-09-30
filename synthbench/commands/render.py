@@ -49,12 +49,15 @@ from synthbench.contract.spec import Spec
 from synthbench.contract.store import CorpusStore
 from synthbench.generate.comfy.client import ComfyClient, ComfyError
 from synthbench.generate.render import (
+    FLUX2_NEED_GIB,
     RendererUnreachable,
     attempt_graph,
     check_png,
     comfy_url,
+    last_family,
     model_hashes,
     wait_for_flagship,
+    wait_for_free,
 )
 from synthbench.status import FlagshipUnknown, flagship_file
 
@@ -140,6 +143,35 @@ def execute(batch: str, budget_s: float, env: Mapping[str, str], deps: Deps) -> 
         raise
 
 
+def _leave_clip_mode(client: ComfyClient, deps: Deps) -> None:
+    """Free the renderer when its last job was not FLUX.2 (ruling H3-R13), and wait until the
+    memory is back (H3-R16). FLUX.2 then loads with the first image: the unit's warm-up
+    measured 24-48 s, inside RENDER_TIMEOUT_S."""
+    try:
+        last = last_family(client)
+        if last not in ("h3", "other"):
+            return
+        client.free()
+        free = wait_for_free(client, FLUX2_NEED_GIB, clock=deps.clock, sleep=deps.sleep)
+    except httpx.TransportError as error:
+        raise AskOwner(
+            f"the renderer stopped answering ({type(error).__name__}: {error})."
+        ) from error
+    except (httpx.HTTPStatusError, ComfyError, KeyError) as error:
+        raise AskOwner(
+            f"cannot switch the renderer back to FLUX.2 ({type(error).__name__}: {error})."
+        ) from error
+    if free < FLUX2_NEED_GIB:
+        raise AskOwner(
+            f"after freeing the renderer the GPU has {free:.1f} GiB free; FLUX.2 needs "
+            f"{FLUX2_NEED_GIB:.0f} GiB: something else holds GPU memory."
+        )
+    sys.stdout.write(
+        f"render: the renderer last ran {last} models; freed them ({free:.1f} GiB free), so "
+        "FLUX.2 loads with the first image\n"
+    )
+
+
 def _render_todo(
     store: CorpusStore,
     batch: str,
@@ -160,6 +192,7 @@ def _render_todo(
     rendered = failed_jobs = 0
     client = ComfyClient(url, transport=deps.transport)
     try:
+        _leave_clip_mode(client, deps)
         for spec, prov in todo:
             if deps.clock() >= deadline:
                 break
