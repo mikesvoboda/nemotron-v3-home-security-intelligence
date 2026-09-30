@@ -1352,8 +1352,11 @@ const { data, isLoading, error, refetch } = useDetectionEnrichment(detectionId);
 if (isLoading) return <Spinner />;
 if (error) return <ErrorMessage error={error} />;
 if (data) {
-  // Display enrichment results from vision models
-  return <EnrichmentPanel enrichment_data={data} />;
+  // The enrichment display panels retired with R8 slice S5 (they rendered the
+  // pose/clothing/demographics attributes of models the VLM path does not run).
+  // The hook still ships and still returns the vision-model results; render
+  // them wherever you need them, or drop the call if nothing consumes them.
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 

@@ -638,7 +638,7 @@ Re-identification technology has privacy implications:
 
 ## See Also
 
-- [Enrichment Panel](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/events/EnrichmentPanel.tsx) - UI component
+- [Re-ID Matches Panel](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/events/ReidMatchesPanel.tsx) - UI component (the enrichment panels that used to sit beside it retired with R8 slice S5)
 - [Entities API Schema](api/core-resources.md) - OpenAPI spec
 - [AI Overview](../operator/ai-overview.md) - Model zoo details (including the OSNet re-ID row)
 
