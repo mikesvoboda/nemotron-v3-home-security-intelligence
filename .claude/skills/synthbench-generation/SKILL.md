@@ -14,9 +14,10 @@ from here and from `corpus coverage`. Do not re-derive them from `sampler.py` or
 ## Every session
 
 1. `uv run python -m synthbench doctor`. On exit 2, send the owner the `FAIL` lines and wait.
-2. Read `docs/synthbench/agent-handoff.md` (the loop, prompt rules, triage limits) and
-   `docs/synthbench/prompt-notes.md` (what worked in earlier batches, and the owner's notes).
-   Add to it at the end of every batch; the owner commits it.
+2. Read `docs/synthbench/agent-handoff.md` (the loop, prompt rules, triage limits) and the
+   notes for the work in hand: `docs/synthbench/flux-prompt-notes.md` before a stills batch,
+   `docs/synthbench/h3-prompt-notes.md` before a clip round (what worked before, and the
+   owner's notes). Add to that file at the end of every batch or round; the owner commits it.
 
 ## What you can steer
 
@@ -104,7 +105,7 @@ labels and the false-alarm bucket, §1.3.
 | `tax.property_types` (AttributeError)                                    | `tax.properties`. The spec field is `cell.property_type`.                                                                                                       |
 | Treating lighting and weather as uniform                                 | They are weighted. Run `corpus coverage` instead of computing shares.                                                                                           |
 | Ignoring `cell.artifacts` in a prompt                                    | Describe each declared artifact (headlight glare, droplets on the lens, motion blur) in scene terms.                                                            |
-| One giant batch                                                          | Prompts freeze before any image exists. Batches of 50-100 let `prompt-notes.md` lessons reach the next batch.                                                   |
+| One giant batch                                                          | Prompts freeze before any image exists. Batches of 50-100 let `flux-prompt-notes.md` lessons reach the next batch.                                              |
 | Editing corpus files, or running `check` for the owner                   | Change the corpus only through commands. The owner's host `check` is the owner's to run.                                                                        |
 | Implying coverage the corpus lacks                                       | Say what a batch cannot measure. `tierb-v0` has no vehicle attribute, so vehicle type is unscorable, and its commercial properties are a few percent of events. |
 | Recording an owner decision you were not given                           | Write down only what the owner said. Mark your own proposals as proposals.                                                                                      |

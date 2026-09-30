@@ -3,7 +3,7 @@
 Design §9: a flagship agent in a fresh sandbox, given only `docs/synthbench/agent-handoff.md`,
 completes a 10-event pilot and a 50-event batch. Plan Task 14. Recorded on 2026-09-29, after the
 run, from the batch reports, the host checks, the guard's journal and the agent's
-`docs/synthbench/prompt-notes.md`.
+`docs/synthbench/prompt-notes.md` (renamed `flux-prompt-notes.md` on 2026-09-30).
 
 | Criterion (design §9)                                  | Result                                                                                                                                                                                                     |
 | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
