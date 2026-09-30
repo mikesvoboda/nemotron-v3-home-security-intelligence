@@ -316,8 +316,9 @@ Benchmark _runs_ (§5) do not open a window: the platform fits beside the flagsh
 **Rev 3: generation beside the flagship.** Since the flagship's KV pin dropped from 70 to 55 GiB
 (2026-09-28, about 63 GiB free), FLUX.2 [dev] renders fully resident beside it. Tier B generation
 now runs that way, driven by a flagship agent, with a guard, yield-to-flagship and a lowered util
-gate (agent-driven design §5). The window above stays for the owner: clips and large overnight
-batches.
+gate (agent-driven design §5). The window above stays for the owner: large overnight batches and
+Tier A (P6). Agent-driven clip rounds of Tier B stills render beside the flagship
+(`docs/superpowers/specs/2026-09-30-synthbench-h3-clips-design.md`, 2026-09-30).
 
 ### §3.7 Bake-off (phase P1, throwaway)
 

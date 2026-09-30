@@ -186,6 +186,11 @@ stage-major: stills, then clips. H3 has not run beside the flagship. P6 probes i
 FLUX.2 was probed on 2026-09-28, before relying on it. One clip holds the GPU for a minute or
 more, so yield is coarser for clips.
 
+**Clips design (2026-09-30).** `clip render` implements this swap at explicit points: it reads
+ComfyUI's history, frees the renderer, checks the room and warms H3 up. The stills' `render`
+frees an H3 renderer. The probe that ran H3 beside the flagship is
+`docs/benchmarks/synthbench/clips-probes.md`.
+
 ### §5.2 Yield
 
 Before each image, `synthbench render` reads `status/flagship.json`. It waits, polling every 5 s,

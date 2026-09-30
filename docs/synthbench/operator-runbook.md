@@ -337,6 +337,35 @@ flagship's timing. A model is served as the section above says.
 7. **Stop what you served** (`ai-vlm`, `synthbench-cosmos`). Commit `report.md` as
    `docs/benchmarks/synthbench/p5a-<date>.md`, with the acceptance record.
 
+## Clip rounds (the owner's part)
+
+Clips render beside the flagship through the same renderer. `clip render` switches ComfyUI
+from FLUX.2 to H3 (`/free`, then a warm-up clip), and the stills' `render` switches it back.
+The guard covers both. Design: `docs/superpowers/specs/2026-09-30-synthbench-h3-clips-design.md`.
+There is no pilot gate (spec C13): a round may take every ready still.
+
+1. **Give the agent the code and the skill.**
+   - Update the host checkout to the commit with the clip commands ("Install or update the host
+     checkout and units").
+   - Recreate the agent's sandbox from the same commit ("Create the agent's sandbox"). Its
+     workspace is a clone, so the new commands and `.claude/skills/synthbench-generation/`
+     arrive together.
+2. **Start the renderer** (`systemctl --user start synthbench-renderer`, "The renderer").
+3. **Ask for the round:** "Make clips of every ready still, round clips-1; follow 'Clip rounds'
+   in docs/synthbench/agent-handoff.md." About 328 s per clip beside the flagship: 459 clips
+   take about 42 hours, and flagship users are slower while a clip renders.
+4. **Watch it:**
+
+   - `rounds/clips-1/report.md` and `sheet.html` under `/synthbench/corpus/<version>/`;
+   - `clip-index.jsonl`;
+   - the guard (`journalctl --user -u synthbench-guard`).
+
+   Stop the renderer at any time. The agent's next `clip render` then exits 2, and every
+   command resumes later.
+
+5. **Confirm the round on the host:**
+   `uv run python -m synthbench clip check --round clips-1`.
+
 ## The agent's stop-and-ask questions
 
 | The agent reports                          | You                                                                                     |
