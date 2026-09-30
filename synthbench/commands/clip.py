@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import argparse
 
-from synthbench.commands import clip_check, clip_render, clip_sample
+from synthbench.commands import (
+    clip_check,
+    clip_render,
+    clip_report,
+    clip_sample,
+    clip_triage,
+)
 from synthbench.commands.common import Parser
 
 
@@ -22,3 +28,5 @@ def add_parser(commands: argparse._SubParsersAction[Parser]) -> None:
     clip_sample.add_parser(actions)
     clip_check.add_parser(actions)
     clip_render.add_parser(actions)
+    clip_triage.add_parser(actions)
+    clip_report.add_parser(actions)

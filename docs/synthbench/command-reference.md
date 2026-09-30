@@ -249,6 +249,47 @@ Renders each frozen clip's pending attempt with MiniMax-H3 turbo (1344×768, 243
   - a clip failed 3 jobs;
   - a source render changed.
 
+## `clip triage`
+
+Records the verdicts in `rounds/<r>/triage.jsonl` and schedules rerolls (clips design §3.3).
+Each row is `{"event_id": "C-<r>-NNN", "k": <attempt>, "verdict": "ok"}` or
+`{…, "verdict": "reroll", "reason": <reason>}`. The reason is one of `camera_moved`,
+`subject_lost`, `subject_duplicated`, `prop_lost`, `morphing` or `scene_cut`.
+
+| Option        | Default  | Meaning    |
+| ------------- | -------- | ---------- |
+| `--round <r>` | required | round name |
+
+- **Rerolls:** a clip may use 3 seeds. A reroll verdict on attempt 3 fails it. There is no
+  per-round cap.
+- **Writes:**
+  - `provenance.json`: the verdict, and attempt `k + 1` for a reroll;
+  - `clip-index.jsonl` rows with status `ready`, `rerolled` or `failed`.
+- **Exit 1:**
+  - a malformed, unknown or duplicated row, or a reason not on the list;
+  - an attempt that does not exist or has no clip;
+  - a changed verdict (verdicts are final);
+  - no round `<r>`.
+
+## `clip report`
+
+Writes `rounds/<r>/report.md` and `rounds/<r>/sheet.html` (clips design §3.4).
+
+- **`report.md`:**
+  - counts by state;
+  - the draw by group and lighting;
+  - rerolls by reason;
+  - failed clips;
+  - render timing;
+  - the renderer switches from `switches.jsonl`.
+- **`sheet.html`:** plays each clip beside its source still.
+
+| Option        | Default  | Meaning    |
+| ------------- | -------- | ---------- |
+| `--round <r>` | required | round name |
+
+- **Exit 1:** no round `<r>`.
+
 ## `corpus coverage`
 
 Shows how the corpus is spread across the taxonomy, what the next n events will add, and what a
