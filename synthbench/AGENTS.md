@@ -27,7 +27,7 @@ Phase plans live in `docs/superpowers/plans/*-synthbench-*.md`.
 | `status.py`                                   | the host status files (`status/flagship.json`, `status/snapshots.json`)                                         |
 | `generate/render.py`                          | ComfyUI discovery, yield to the flagship, the per-attempt FLUX.2 graph                                          |
 | `generate/camera/`                            | the camera stage and its committed default parameters                                                           |
-| `host/`                                       | host-only: the guard, the renderer unit's checks, the unit files, snapshots and pruning                         |
+| `host/`                                       | host-only: the guard, the renderer unit's checks, the unit files, snapshots and pruning, the agent's sandbox    |
 | `spikes/p1_bakeoff/`                          | throwaway P1 bake-off harness (not a pattern to copy)                                                           |
 
 ## Rules
@@ -38,4 +38,4 @@ Phase plans live in `docs/superpowers/plans/*-synthbench-*.md`.
 - Only `uv run python -m synthbench.generate.window run -- ...` may stop the flagship; never `docker compose up` on the dgx-inference stack.
 - Our containers are podman, in a dedicated store under `SYNTHBENCH_PODMAN_ROOT` (default `/export/models/containers`), never the default one. Code builds podman argv from `podman_argv()`; shell commands use `$(uv run python -m synthbench.generate.podman) ...`. The flagship is rootful docker.
 - The corpus lives at `$SYNTHBENCH_ROOT/corpus` (the ZFS dataset `primary/export/synthbench/corpus`) and is append-only; tests write only under `tmp_path`.
-- `synthbench/host/` runs only on the host, under systemd, from `/synthbench/host-checkout`; the sandbox agent never runs it. The agent's document is `docs/synthbench/agent-handoff.md`.
+- `synthbench/host/` runs only on the host, under systemd, from `/synthbench/host-checkout`; the sandbox agent never runs it. The exception is `host/agent.py`, which the owner runs from a checkout to retire and recreate the agent's sandbox. The agent's document is `docs/synthbench/agent-handoff.md`.
