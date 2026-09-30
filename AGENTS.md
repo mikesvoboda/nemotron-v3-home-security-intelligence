@@ -218,12 +218,12 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 ├── ai/                   # AI model scripts and configs
 │   ├── yolo26/           # YOLO26 detection code (prod: ai-gateway router /yolo26)
 │   ├── vlm/              # The shipped LLM engine: llama.cpp `ai-vlm` container, port 8098 (R8 S2)
-│   ├── florence/         # Florence-2 dense captioning (prod: ai-gateway router /florence)
-│   ├── clip/             # CLIP embeddings (prod: ai-gateway router /clip)
-│   ├── enrichment/       # Heavy enrichment models (prod: ai-gateway router /enrichment)
-│   ├── enrichment-light/ # Light enrichment models (prod: router /enrich-lt)
-│   ├── gateway/          # AI Gateway: the single AI entrypoint, port 8090
-│   └── triton/           # Triton client + model repository
+│   ├── gateway/          # AI Gateway: the single AI entrypoint, port 8090 (routers /yolo26
+│   │                     #   + /enrich-lt only — R8 S3 pruned the florence/clip/enrichment
+│   │                     #   router mounts; see Service Ports below)
+│   ├── triton/           # Triton client + model repository
+│   ├── common/           # Reusable TensorRT inference infrastructure
+│   └── shared/           # Shared utility modules (gpu_profiler)
 ├── backend/              # FastAPI backend (Python)
 │   ├── api/              # REST endpoints and WebSocket routes
 │   │   ├── routes/       # FastAPI route handlers
@@ -348,7 +348,7 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 ## Key Design Decisions
 
 - **Database:** PostgreSQL (migrated from SQLite for concurrent write support)
-- **Risk scoring:** LLM-determined (Nemotron analyzes detections and assigns 0-100 score)
+- **Risk scoring:** LLM-determined (the `ai-vlm` llama.cpp engine — VLMAnalyzer — analyzes detections and assigns 0-100 score; the Nemotron path retired in R8 S2, 2026-09-29)
 - **Batch processing:** 90-second time windows with 30-second idle timeout (`batch_window_seconds` / `batch_idle_timeout_seconds` defaults in `backend/core/config.py`)
 - **Auth model:** Single-user local deployment. First-time admin registration required — `SetupGuardMiddleware` returns 503 for all non-whitelisted requests until the first user exists (`backend/api/middleware/setup_guard.py`). After registration, API endpoints are open — no per-request login required. Network binding to `127.0.0.1` is the primary security boundary. Admin/destructive operations are guarded by per-route dependencies (`verify_api_key`, `require_admin_access`). The global `AuthMiddleware` class exists for future multi-user support but is **not active** (disabled per NEM-5527).
 - **Retention:** 30 days (`retention_days` default)
@@ -359,7 +359,7 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 1. Cameras FTP upload images/videos to `/export/foscam/{camera_name}/`
 2. File watcher detects new files, sends to YOLO26
 3. Detections accumulate in Redis queue
-4. Every 90 seconds (or 30s idle), batch sent to Nemotron for risk assessment
+4. Every 90 seconds (or 30s idle), batch sent to the `ai-vlm` VLMAnalyzer for risk assessment
 5. Results stored in PostgreSQL, pushed to dashboard via WebSocket
 
 ## Entry Points for Agents
@@ -453,11 +453,10 @@ Host ports come from `.env` (defaults shown below are from `.env.example`); `doc
 
 | Service              | Host Port | Description                                                                                         |
 | -------------------- | --------- | --------------------------------------------------------------------------------------------------- |
-| AI Gateway           | 8090      | Single AI entrypoint (Triton) with routers `/yolo26` `/florence` `/clip` `/enrichment` `/enrich-lt` |
+| AI Gateway           | 8090      | Single AI entrypoint (Triton); routers `/yolo26` + `/enrich-lt` only (the rest were deleted, R8 S3) |
 | AI Gateway metrics   | 8002      | Gateway Prometheus metrics (`AI_GATEWAY_METRICS_PORT`)                                              |
-| Nemotron (llama.cpp) | 8091      | LLM risk analysis container (GPU)                                                                   |
-| vLLM (optional)      | 8097      | Alternative LLM engine — compose profile `vllm`, off by default                                     |
-| VLM (`AI_VLM_PORT`)  | 8098      | VLM verification server — compose profile `vlm`, off by default (container port fixed at 8098)      |
+| vLLM (optional)      | 8097      | LLM benchmark harness (NEM-5441) — compose profile `vllm`, off by default                           |
+| VLM llama.cpp engine | 8098      | `ai-vlm` llama.cpp engine (VLMAnalyzer; model identity is config, ledger D5) — profile `vlm`        |
 
 Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `YOLO26_PORT=8095`, `FLORENCE_PORT=8092`, `CLIP_PORT=8093`, `ENRICHMENT_PORT=8094` and `ENRICHMENT_LIGHT_PORT=8096` in `.env.example` are legacy values kept for reference and local dev scripts only. The `JAEGER_*` and `ELASTICSEARCH_*` port vars were removed — tracing is Grafana Tempo (NEM-5545) on `TEMPO_PORT=3200`, and Tempo is self-contained (no Jaeger/Elasticsearch storage backend).
 

@@ -4,153 +4,35 @@
 
 **Target Audiences:** Developers, Operators, ML Engineers
 
-> **Deployment topology:** In production (`docker-compose.prod.yml`) the models are served by two AI services: **ai-gateway** — Triton + FastAPI on port **8090** with routers `/yolo26` `/clip` `/florence` `/enrichment` `/enrich-lt` (`ai/gateway/main.py`) — and **ai-llm** (llama.cpp) on port **8091**. Heavy enrichment models are loaded **in-process by the backend** from `models.yml` via `backend/services/model_zoo.py`. The standalone containers (`ai-yolo26` :8095, `ai-florence` :8092, `ai-clip` :8093, `ai-enrichment` :8094, `ai-enrichment-light` :8096) are built from `ai/*/Dockerfile` but are **not in the production compose file**; their ports are the local-development defaults in `backend/core/config.py`.
+> **Deployment topology:** In production (`docker-compose.prod.yml`) the shipped AI surface is two services: **ai-gateway** — Triton + FastAPI on port **8090**, mounting exactly two routers, `/yolo26` and `/enrich-lt` (`ai/gateway/main.py`) — and **ai-vlm** (llama.cpp) on container port **8098**, behind the `vlm` compose profile. The models the backend loads in-process come from `models.yml` via `backend/services/model_zoo.py`. R8 slices S2/S3 (2026-09-29) retired everything else on this surface: the legacy `ai-llm` LLM container, the `/florence` `/clip` `/enrichment` routers, and the standalone `ai-florence` :8092 / `ai-clip` :8093 / `ai-enrichment` :8094 / `ai-enrichment-light` :8096 servers — `ai/florence/`, `ai/clip/`, `ai/enrichment/` and `ai/enrichment-light/` are gone from the tree, and so are their Dockerfiles. The standalone YOLO26 server was retired earlier (2026-09-23): `ai/yolo26/model.py` still runs as a host-side debug server (`ai/start_detector.sh`), but its GPU image lives at `archive/ai-yolo26-image/` and production detection is Triton inside ai-gateway.
 
 ---
 
 ## Quick Reference
 
-### Summary Table
+Service column: **ai-vlm** = llama.cpp container :8098 (compose profile `vlm`) · **gateway** = Triton via ai-gateway (:8090) · **backend** = loaded in-process by `backend/services/model_zoo.py` from `models.yml`.
 
-Service column: **ai-llm** = llama.cpp container (:8091) · **gateway** = Triton via ai-gateway (:8090) · **backend** = loaded in-process by `backend/services/model_zoo.py` from `models.yml`.
+| Model                    | Purpose                                   | VRAM      | Service           | Framework    | Context/Embedding     |
+| ------------------------ | ----------------------------------------- | --------- | ----------------- | ------------ | --------------------- |
+| YOLO26m                  | Object detection                          | ~0.1 GB   | gateway           | Ultralytics  | -                     |
+| Threat Detection YOLOv8n | Weapon/threat detection                   | ~0.3 GB   | gateway + backend | Ultralytics  | opt-in, see below     |
+| OSNet-AIN x1.0           | Person re-identification (lookup support) | ~0.1 GB   | gateway + backend | torchreid    | 512-dim embedding     |
+| SCRFD-10G-KPS            | Face detection (boxes + 5 landmarks)      | 0 (CPU)   | backend           | ONNX Runtime | ArcFace alignment     |
+| ArcFace w600k_r50        | Face embedding (DB lookup)                | 0 (CPU)   | backend           | ONNX Runtime | 512-dim embedding     |
+| YOLO11 Face              | Face detection on person crops            | ~0.2 GB   | backend           | Ultralytics  | -                     |
+| YOLO11 License Plate     | License plate detection                   | ~0.3 GB   | backend           | Ultralytics  | -                     |
+| FastALPR                 | End-to-end license plate OCR              | ~28 MB    | backend           | ONNX         | Detection + OCR       |
+| PaddleOCR                | OCR text extraction                       | ~0.1 GB   | backend           | PaddlePaddle | -                     |
+| YOLO26-general           | General detection (future, TBD)           | ~0.4 GB   | disabled          | Ultralytics  | `enabled: false`      |
+| VLM (llama.cpp engine)   | Risk reasoning (the shipped pipeline)     | see below | ai-vlm :8098      | llama.cpp    | 16384 tokens per slot |
 
-| Model                          | Purpose                                  | VRAM     | Service                | Framework    | Context/Embedding            |
-| ------------------------------ | ---------------------------------------- | -------- | ---------------------- | ------------ | ---------------------------- |
-| Nemotron-3-Nano-30B-A3B        | Risk reasoning (production)              | ~14.7 GB | ai-llm                 | llama.cpp    | 32768/slot (see ai/nemotron) |
-| Nemotron Mini 4B               | Risk reasoning (development)             | ~3 GB    | ai-llm                 | llama.cpp    | 4,096 tokens                 |
-| YOLO26m                        | Object detection                         | ~0.1 GB  | gateway                | Ultralytics  | -                            |
-| Florence-2-Base                | Dense captioning, OCR                    | ~1.0 GB  | gateway                | HuggingFace  | -                            |
-| SigLIP 2 Base                  | Scene/fashion embeddings                 | ~0.2 GB  | gateway + backend      | HuggingFace  | 768-dim embedding            |
-| CLIP ViT-L                     | Embeddings (legacy standalone)           | ~0.8 GB  | standalone :8093 (dev) | HuggingFace  | 768-dim embedding            |
-| FashionSigLIP                  | Clothing classification                  | ~0.5 GB  | gateway + backend      | OpenCLIP     | Zero-shot                    |
-| Vehicle Classifier (ResNet-50) | Vehicle type classification              | ~1.5 GB  | gateway + backend      | HuggingFace  | 11 classes                   |
-| Pet Classifier                 | Pet detection (dogs, cats)               | ~0.2 GB  | gateway + backend      | HuggingFace  | 2 classes                    |
-| Depth Anything V2 Tiny         | Depth estimation                         | ~0.1 GB  | gateway + backend      | HuggingFace  | Monocular depth              |
-| ViTPose+ Small                 | Human pose estimation                    | ~1.5 GB  | backend                | HuggingFace  | 17 keypoints (COCO)          |
-| YOLO11 License Plate           | License plate detection                  | ~0.3 GB  | backend                | Ultralytics  | -                            |
-| YOLO11 Face                    | Face detection                           | ~0.2 GB  | backend                | Ultralytics  | -                            |
-| FastALPR                       | End-to-end license plate OCR             | ~28 MB   | backend                | ONNX         | Detection + OCR              |
-| PaddleOCR                      | OCR text extraction                      | ~0.1 GB  | backend                | PaddlePaddle | -                            |
-| YOLO-World-S                   | Open-vocabulary detection                | ~1.5 GB  | backend                | Ultralytics  | Zero-shot                    |
-| Smoke/Fire YOLOv8n             | Smoke and fire detection                 | ~0.35 GB | backend                | Ultralytics  | never evicted                |
-| Violence Detection             | Violence classification                  | ~0.5 GB  | backend                | HuggingFace  | Binary                       |
-| Weather Classification         | Weather condition detection              | ~0.2 GB  | backend                | HuggingFace  | 5 classes                    |
-| SegFormer B2 Clothes           | Clothing segmentation                    | ~1.5 GB  | backend                | HuggingFace  | 18 categories                |
-| ST-GCN++                       | Skeleton action recognition              | ~20 MB   | gateway + backend      | ONNX         | 60 classes (NTU60)           |
-| X-CLIP Base                    | Temporal action recognition (deprecated) | --       | disabled               | HuggingFace  | Video sequences              |
-| BRISQUE Quality                | Image quality assessment                 | 0 (CPU)  | backend                | piq          | No-reference                 |
-| Vehicle Damage Detection       | Vehicle damage segmentation              | ~2.0 GB  | backend                | Ultralytics  | 6 damage types               |
-| OSNet-AIN x1.0                 | Person re-identification                 | ~0.1 GB  | gateway + backend      | torchreid    | 512-dim embedding            |
-| Threat Detection YOLOv8n       | Weapon/threat detection                  | ~0.3 GB  | gateway + backend      | Ultralytics  | -                            |
-| ViT Age Classifier             | Age estimation                           | ~0.2 GB  | gateway + backend      | HuggingFace  | age groups                   |
-| ViT Gender Classifier          | Gender classification                    | ~0.2 GB  | gateway + backend      | HuggingFace  | Binary                       |
-| YOLOv8n Pose                   | Pose estimation (Triton `pose`)          | ~0.2 GB  | gateway + backend      | Ultralytics  | 17 keypoints                 |
-| Qwen3-VL-8B-Instruct           | Serving VLM (`vlm` mode)                 | ~11 GB¹  | ai-vlm :8098           | llama.cpp    | 16384/slot (see below)       |
+The reasoning engine's model identity is config, not a fact of this document — see [Serving VLM](#serving-vlm-the-ai-vlm-llamacpp-engine).
+
+> **Retired — R8 slices S2/S3, 2026-09-29.** The model rows this table used to carry for Nemotron-3-Nano-30B-A3B, Nemotron Mini 4B, Florence-2, CLIP ViT-L, SigLIP 2 Base, FashionSigLIP, the vehicle/pet/weather/violence classifiers, Depth Anything V2, ViTPose+, YOLOv8n Pose, ST-GCN++, X-CLIP, YOLO-World-S, SegFormer B2 Clothes, Smoke/Fire YOLOv8n, BRISQUE, Vehicle Damage Detection and the ViT age/gender classifiers are **deleted from `models.yml`** (owner rulings 1/4/5, 2026-09-29: deleted, not flipped to `enabled: false`). Their loaders are gone from `backend/services/`, their Triton model directories are pruned from `ai/triton/model_repository/` — which now holds `yolo26`, `reid`, `threat` and nothing else — and `GATEWAY_MODEL_SET` hard-raises, so no deployment can boot them. Provenance is git history plus the ledger; the rows are not coming back. The face/re-ID/plate lookups above stay deliberately: the VLM path keeps lookups, not perception.
 
 ---
 
 ## Core Models
-
-### Nemotron-3-Nano-30B-A3B (Production LLM)
-
-The production model for AI-driven risk reasoning and security analysis. Uses NVIDIA's state-of-the-art reasoning model with massive context capability.
-
-| Specification      | Value                                                                                                                                                              |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **HuggingFace**    | [unsloth/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF) (downloaded by `models.yml` / `setup_lib/model_downloader.py`) |
-| **Filename**       | `Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf`                                                                                                                              |
-| **Parameters**     | 30 billion total / ~3.5B active (A3B MoE routing)                                                                                                                  |
-| **Architecture**   | Hybrid Mamba-Transformer with Mixture-of-Experts (MoE) routing                                                                                                     |
-| **Quantization**   | Q4_K_M (4-bit, medium quality)                                                                                                                                     |
-| **File Size**      | ~15 GB (models.yml `size_mb: 15073`)                                                                                                                               |
-| **VRAM Required**  | ~14.7 GB                                                                                                                                                           |
-| **Context Window** | 131,072 tokens model maximum; served window is `CTX_SIZE` (compose: 262,144 total = 8 slots × 32,768)                                                              |
-| **Format**         | ChatML with `<\|im_start\|>` / `<\|im_end\|>` delimiters                                                                                                           |
-| **Server**         | llama.cpp with CUDA (tag b7972, `ai/nemotron/Dockerfile`)                                                                                                          |
-| **Port**           | 8091 (`LLM_PORT`, compose service `ai-llm`)                                                                                                                        |
-| **Inference Time** | 2-5 seconds per analysis                                                                                                                                           |
-
-**Purpose in Pipeline:**
-
-- Analyzes batches of object detections from YOLO26
-- Generates risk scores (0-100) and natural language summaries
-- Considers zone analysis, baseline comparison, and cross-camera correlation
-- Processes enrichment data (clothing, vehicles, behavior, scene descriptions)
-
-**Why a large context matters:**
-
-- Analyze all detections across extended time windows (hours of activity)
-- Include rich historical baselines ("Is this normal for 3am on Tuesday?")
-- Correlate activity across multiple cameras in a single prompt
-- Process detailed enrichment data from the model zoo
-
-**Environment Variables:**
-
-| Variable     | Dockerfile default                            | Compose default (`docker-compose.prod.yml`)                      | Description         |
-| ------------ | --------------------------------------------- | ---------------------------------------------------------------- | ------------------- |
-| `MODEL_PATH` | `/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf` | `${LLM_MODEL_PATH:-/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf}` | GGUF model path     |
-| `PORT`       | `8091`                                        | host mapping `${LLM_PORT:-8091}`                                 | Server port         |
-| `GPU_LAYERS` | `35`                                          | `auto` (llama.cpp --fit determines layer count)                  | Layers on GPU       |
-| `CTX_SIZE`   | `32768`                                       | `262144` (8 slots × 32768)                                       | Context window size |
-| `PARALLEL`   | `2`                                           | `8`                                                              | Parallel requests   |
-
----
-
-### Nemotron Mini 4B Instruct (Development LLM)
-
-A smaller, faster model for development and resource-constrained environments.
-
-> **Status:** Not part of the managed download set — `models.yml` has no entry for it. It is referenced as an optional vLLM test model (`docker-compose.prod.yml` `ai-llm-vllm` comments: `nvidia/Nemotron-Mini-4B-Instruct`) and survives in code as a metrics label default (`backend/core/otel_metrics.py`: `model_version="nemotron-mini-4b-instruct"`). To use it, download the GGUF manually and point `LLM_MODEL_PATH` at it.
-
-| Specification      | Value                                                                                                       |
-| ------------------ | ----------------------------------------------------------------------------------------------------------- |
-| **HuggingFace**    | [bartowski/nemotron-mini-4b-instruct-GGUF](https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF) |
-| **Filename**       | `nemotron-mini-4b-instruct-q4_k_m.gguf`                                                                     |
-| **Parameters**     | 4 billion                                                                                                   |
-| **Quantization**   | Q4_K_M (4-bit, medium quality)                                                                              |
-| **File Size**      | ~2.5 GB                                                                                                     |
-| **VRAM Required**  | ~3 GB                                                                                                       |
-| **Context Window** | 4,096 tokens                                                                                                |
-| **Format**         | ChatML with `<\|im_start\|>` / `<\|im_end\|>` delimiters                                                    |
-| **Server**         | llama.cpp with CUDA                                                                                         |
-| **Port**           | 8091                                                                                                        |
-| **Inference Time** | 1-3 seconds per analysis                                                                                    |
-
-**Use Cases:**
-
-- Local development without high-end GPU
-- Testing prompt templates and integration flows
-- CI/CD pipeline testing (faster iteration)
-
----
-
-### Qwen3-VL-8B-Instruct (serving VLM, `vlm` mode)
-
-The vision-language model that grades events in the shipped `vlm` pipeline mode. llama.cpp serves
-it with an `mmproj` projector file — without the projector the serve is **text-only and every
-`vlm_assess` degrades silently**, so the two files are one identity and are configured as a pair.
-
-| Specification | Value                                                                                                                                      |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Source**    | [Qwen/Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) (Apache-2.0)                                       |
-| **Files**     | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` + `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`, host-mounted read-only at `/models`                            |
-| **Config**    | `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` / `VLM_MODEL_ID` / `VLM_MODEL_ALIAS` (`.env.example`; `docker-compose.prod.yml` profile `vlm`)        |
-| **Service**   | `ai-vlm` :8098 (llama.cpp, `--jinja`, `--sleep-idle-seconds`) — backend reaches it at `http://ai-vlm:8098`                                 |
-| **Context**   | `VLM_CTX_SIZE` 32768 ÷ `VLM_PARALLEL` 2 = **16384 tokens per slot**; the backend derives its prompt budget from the same pair              |
-| **Status**    | **Provisional pick** — owner ruling 2026-09-28, spec rev 7, ledger item 35. Open S1/S4 (24 GB hardware) and the real-corpus S2/S3 close it |
-| **Fallback**  | `Qwen3VL-4B-Instruct-Q4_K_M` + its mmproj — the measured fallback row in the A5500 handout, same KV geometry                               |
-
-¹ The ~11 GB figure is the bake-off's broker-actual reading on a GB300 (`vram_actual_mib 11216`,
-9376 projected), **indicative only** — S1's bar is measured on 24 GB-class hardware with the whole
-stack resident and has not been taken for this model. Weights alone are 5.03 GB + 0.75 GB. The KV
-pool is a function of architecture and ctx/slot settings, not of weight size: 4B and 8B share
-`block_count 36` / `head_count 32`, so the 8B buys no KV relief.
-
-The `ai-llm` rows above (Nemotron-3-Nano-30B-A3B, Nemotron Mini 4B) belong to the **legacy serving
-path, which is unsupported** (spec rev 5, ledger F10) — in `vlm` mode `ai-llm` is not running at all.
-Their figures are kept for the code that still exists, not as a current deployment target.
-
----
 
 ### YOLO26 (Object Detection)
 
@@ -199,606 +81,106 @@ SECURITY_CLASSES = {
 - Outputs bounding boxes, class labels, and confidence scores
 - Filters detections to security-relevant classes only
 
+**How it is served:** the Triton `yolo26` model (ONNX Runtime, CUDA execution provider, FP32, `ai/triton/model_repository/yolo26/config.pbtxt`) behind the gateway's `/yolo26` adapter. `models.yml` keeps the `yolo26` row `enabled: false` on purpose — the backend never loads it in-process; the row exists so the download and export/TensorRT-prebuild paths can find the `.pt` files on disk.
+
 **Environment Variables:**
 
-| Variable            | Default                                      | Description              |
-| ------------------- | -------------------------------------------- | ------------------------ |
-| `YOLO26_MODEL_PATH` | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path     |
-| `YOLO26_CONFIDENCE` | `0.5`                                        | Min confidence threshold |
-| `HOST`              | `0.0.0.0`                                    | Bind address             |
-| `PORT`              | `8095`                                       | Server port              |
+| Variable            | Default                                      | Description                           |
+| ------------------- | -------------------------------------------- | ------------------------------------- |
+| `YOLO26_MODEL_PATH` | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path (dev server)     |
+| `YOLO26_CONFIDENCE` | `0.5`                                        | Min confidence threshold              |
+| `HOST`              | `0.0.0.0`                                    | Bind address (dev server)             |
+| `PORT`              | `8095`                                       | Server port (dev server, not shipped) |
+
+---
+
+### Serving VLM: the `ai-vlm` llama.cpp engine
+
+Risk reasoning in the shipped pipeline is the `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29). Because identity is config, this entry documents the **serve**; the weight names below are the compose/`.env.example` defaults, not a claim that this model is required.
+
+| Specification     | Value                                                                                                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Service**       | `ai-vlm` :8098 (llama.cpp, `--jinja`, `--sleep-idle-seconds`), behind compose profile `vlm`                                                                                                |
+| **Port mapping**  | `127.0.0.1:${AI_VLM_PORT:-8098}:8098` — host var configurable, container `PORT` fixed at 8098                                                                                              |
+| **Backend URL**   | `AI_VLM_URL` — `http://localhost:8098` (dev default) / `http://ai-vlm:8098` (compose)                                                                                                      |
+| **Files**         | `VLM_MODEL_PATH` + `VLM_MMPROJ_PATH`, default `Qwen3VL-8B-Instruct-Q4_K_M.gguf` + `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`, host-mounted read-only from `${AI_MODELS_PATH}/vlm` at `/models` |
+| **Identity vars** | `VLM_MODEL_ID` / `VLM_MODEL_ALIAS` (keep them matched to `VLM_MODEL_PATH`; override together)                                                                                              |
+| **Context**       | `VLM_CTX_SIZE` 32768 ÷ `VLM_PARALLEL` 2 = **16384 tokens per slot**; the backend derives its prompt budget from the same pair                                                              |
+| **Vision cap**    | `LLAMA_ARG_IMAGE_MAX_TOKENS=1280` per still — uncapped, a fitted batch overruns the slot                                                                                                   |
+| **Projector**     | The `mmproj` file is part of the identity: without it the serve is **text-only and every `vlm_assess` degrades silently**, so the two files are configured as one pair                     |
+
+The default identity is a **provisional pick** (owner ruling 2026-09-28, spec rev 7, ledger item
+35); the 4B identity is the measured fallback row in the A5500 handout, same KV geometry. There is
+**no measured 24 GB-class residency figure for this model** — the bake-off's `vram_actual_mib 11216`
+reading is a GB300 single-container floor and is not transferable. For residency numbers see
+`.env.example` / the bring-up record.
+
+---
+
+> **Retired — R8 slices S1/S2/S3, 2026-09-29.** This section used to carry spec tables for
+> **Nemotron-3-Nano-30B-A3B** (the production LLM), **Nemotron Mini 4B Instruct** (the dev LLM) and
+> **Qwen3-VL-8B-Instruct** as a named serving model. All three are gone as deployables: the
+> `ai-llm` compose service, the `nemotron_analyzer` service, its `Settings` fields, the
+> `ai/nemotron/` serving tree and the Nemotron `models.yml` rows are deleted; `pipeline_mode` set to
+> `legacy` hard-raises (`backend/core/config.py` — only `vlm` is supported); and the VLM's weight
+> identity moved to config (the paragraph above). The names survive only where they are wire
+> shapes or opt-in tooling, and those are **not** stale: the `ai-llm-vllm` compose service (the
+> vLLM benchmarking harness behind `--profile vllm`, refused by `RETIRED_LLM_SERVICES`), the
+> `NemotronMetrics` / `PerformanceUpdate.nemotron` / `collect_nemotron_metrics` API shapes the
+> frontend consumes, and the repository name. Nothing in the shipped pipeline dials port 8091, and
+> `ai/start_llm.sh` / `ai/start_nemotron.sh` no longer exist (`ai/start_detector.sh` is the only
+> script left).
 
 ---
 
 ## Enrichment Models
 
-These models provide additional context for detected objects. In production they are served through **ai-gateway** (Triton models, reached via `:8090/enrichment` and `:8090/enrich-lt`) and/or loaded **in-process by the backend** from `models.yml` via `backend/services/model_zoo.py` (`ai/enrichment` standalone on :8094 and `ai-enrichment-light` :8096 exist as buildable dev services but are not in the production compose).
+> **Retired — R8 slice S3, 2026-09-29.** This section documented the enrichment zoo: Florence-2
+> (dense captioning/OCR), CLIP ViT-L and SigLIP 2 Base (embeddings), FashionSigLIP (clothing),
+> the vehicle classifier, pet classifier, Depth Anything V2, ViTPose+, YOLO-World-S, violence and
+> weather classifiers, SegFormer B2 Clothes, ST-GCN++ / X-CLIP action recognition, Smoke/Fire
+> YOLOv8n, BRISQUE quality, vehicle-damage segmentation and the ViT age/gender classifiers. Every
+> one of those rows is deleted from `models.yml`, its `backend/services/*_loader.py` is deleted,
+> and its Triton model is pruned from the gateway repository. The serving routes are gone too:
+> the gateway mounts `/yolo26` and `/enrich-lt` only, `/florence` `/clip` `/enrichment` are not
+> mounted, and the `FLORENCE_URL` / `CLIP_URL` / `ENRICHMENT_URL` settings and compose injections
+> were removed with them. Anomaly detection is not an embedding feature: activity baselines are
+> COUNT-based EWMA per camera/zone/hour (`backend/models/baseline.py`,
+> `backend/services/zone_baseline_service.py`). What remains under `/enrich-lt` is its two
+> routes — `/threat-detect` and `/person-reid` (`ai/gateway/adapters/enrichment_light.py`) — and
+> the DB-lookup models below, which stay by owner ruling (the VLM path keeps lookups, not
+> perception).
 
-### Florence-2 (Dense Captioning)
+### Threat Detection YOLOv8n
 
-Vision-language model for extracting detailed visual attributes from security camera images. Production runs **Florence-2-Base** as a Triton Python-backend model in ai-gateway (`models.yml`: `florence-2-base`, required). Florence-2-**Large** remains a model-zoo entry (`florence-2-large`) that is `enabled: false` in `models.yml`; the standalone `ai/florence` server (dev, port 8092) also defaults to Base (`FLORENCE_MODEL_PATH=/models/florence-2-base`).
+Weapon and threat object detection for high-priority security alerts.
 
-| Specification      | Value                                                                                                                                                                                                  |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **HuggingFace**    | [microsoft/Florence-2-base](https://huggingface.co/microsoft/Florence-2-base) (production; Large variant available at [microsoft/Florence-2-large](https://huggingface.co/microsoft/Florence-2-large)) |
-| **Architecture**   | Vision-language transformer with task-specific prompts                                                                                                                                                 |
-| **VRAM Required**  | ~1.0 GB (Base; ~1.2 GB Large)                                                                                                                                                                          |
-| **Port**           | ai-gateway `:8090/florence` (production) — standalone dev server :8092                                                                                                                                 |
-| **Inference Time** | 100-300ms per query                                                                                                                                                                                    |
-| **Framework**      | HuggingFace Transformers                                                                                                                                                                               |
+| Specification     | Value                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------- |
+| **HuggingFace**   | [Subh775/Threat-Detection-YOLOv8n](https://huggingface.co/Subh775/Threat-Detection-YOLOv8n) |
+| **Architecture**  | YOLOv8n detection                                                                           |
+| **VRAM Required** | ~0.3 GB (`models.yml` `vram_mb: 300`)                                                       |
+| **Port**          | ai-gateway `/enrich-lt` (`/threat-detect`) + backend                                        |
+| **Framework**     | Ultralytics                                                                                 |
 
-**Supported Prompts:**
-
-| Prompt                    | Output                        | Use Case                     |
-| ------------------------- | ----------------------------- | ---------------------------- |
-| `<CAPTION>`               | Brief 1-sentence description  | Quick scene summary          |
-| `<DETAILED_CAPTION>`      | Detailed paragraph            | Event logging                |
-| `<MORE_DETAILED_CAPTION>` | Very detailed multi-paragraph | Full scene analysis          |
-| `<OD>`                    | Objects with bounding boxes   | Object localization          |
-| `<DENSE_REGION_CAPTION>`  | Caption per detected region   | Detailed scene understanding |
-| `<OCR>`                   | Detected text                 | License plates, signs        |
-| `<OCR_WITH_REGION>`       | Text with bounding boxes      | Text localization            |
-
-**Purpose in Pipeline:**
-
-- Scene understanding and captioning
-- License plate and sign text extraction (OCR)
-- Detailed attribute extraction for Nemotron risk analysis
-
-**Environment Variables:**
-
-| Variable              | Default                   | Description                                                |
-| --------------------- | ------------------------- | ---------------------------------------------------------- |
-| `FLORENCE_MODEL_PATH` | `/models/florence-2-base` | HuggingFace model path (standalone `ai/florence/model.py`) |
-| `PORT`                | `8092`                    | Standalone server port                                     |
-
----
-
-### CLIP ViT-L (Vision-Language)
-
-> **Status:** Superseded in production. The Triton gateway `clip`/`clip_text` models and the backend embedding service now use **SigLIP 2 Base** (`models.yml`: `siglip2-base-patch16-224`, ONNX from `onnx-community/siglip2-base-patch16-224-ONNX`, same 768-dim embedding output — `backend/services/clip_loader.py`). This ViT-L entry documents the standalone `ai/clip` server, which still loads it when `CLIP_MODEL_PATH` points at a CLIP checkpoint.
-
-Generates 768-dimensional embeddings for scene anomaly detection and zero-shot classification.
-
-| Specification     | Value                                                                                 |
-| ----------------- | ------------------------------------------------------------------------------------- |
-| **HuggingFace**   | [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14) |
-| **Architecture**  | ViT-L/14 (Vision Transformer Large, patch 14)                                         |
-| **VRAM Required** | ~0.8 GB                                                                               |
-| **Port**          | 8093                                                                                  |
-| **Embedding Dim** | 768 floats (L2-normalized)                                                            |
-| **Framework**     | HuggingFace Transformers                                                              |
-
-**Use Cases:**
-
-1. **Scene Anomaly Detection**: Compare current frame embedding against baseline to detect unusual changes
-2. **Zero-shot Classification**: Classify images against text labels without retraining
-
-Person re-identification no longer rides here: it moved to OSNet-AIN x1.0 (below) with the
-full swap (ledger item 20), and the `/clip` router is left to the scene-baseline and fashion
-consumers that still use it.
-
-**Environment Variables:**
-
-| Variable          | Default              | Description            |
-| ----------------- | -------------------- | ---------------------- |
-| `CLIP_MODEL_PATH` | `/models/clip-vit-l` | HuggingFace model path |
-| `PORT`            | `8093`               | Server port            |
-
----
-
-### SigLIP 2 Base (Production Embeddings)
-
-The embedding model actually deployed in production (Triton `clip` + `clip_text` models, and the backend `siglip2-base-patch16-224` model-zoo entry).
-
-| Specification     | Value                                                                                                               |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **HuggingFace**   | [onnx-community/siglip2-base-patch16-224-ONNX](https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX) |
-| **Architecture**  | SigLIP 2 Base patch16-224 (ONNX export)                                                                             |
-| **VRAM Required** | ~200 MB (models.yml `vram_mb: 200`)                                                                                 |
-| **Embedding Dim** | 768 floats (L2-normalized)                                                                                          |
-| **Served by**     | ai-gateway Triton — `clip` (KIND_GPU) + `clip_text` (KIND_CPU, INT8-quantized text tower)                           |
-
-The text tower runs on CPU because its INT8 quantization uses `MatMulInteger` ops that the ONNX Runtime CUDA execution provider does not support (`models.yml` triton_models comment).
-
----
-
-### FashionSigLIP (Clothing Classification)
-
-Zero-shot clothing classifier for identifying suspicious clothing patterns (hoodies, face coverings) and service uniforms. Uses Marqo FashionSigLIP for 57% improved accuracy over FashionCLIP.
-
-| Specification     | Value                                                                         |
-| ----------------- | ----------------------------------------------------------------------------- |
-| **HuggingFace**   | [Marqo/marqo-fashionSigLIP](https://huggingface.co/Marqo/marqo-fashionSigLIP) |
-| **Architecture**  | SigLIP fine-tuned on fashion dataset                                          |
-| **VRAM Required** | ~0.5 GB                                                                       |
-| **Port**          | ai-gateway + backend                                                          |
-| **Framework**     | OpenCLIP                                                                      |
-
-**Performance Improvement over FashionCLIP:**
-
-- Text-to-Image MRR: 0.239 vs 0.165 (45% improvement)
-- Text-to-Image Recall@1: 0.121 vs 0.077 (57% improvement)
-- Text-to-Image Recall@10: 0.340 vs 0.249 (37% improvement)
-
-**Security-Focused Clothing Prompts:**
+**Threat Classes (Triton `threat` post-processing, `ai/gateway/adapters/enrichment_light.py`):**
 
 ```python
-SECURITY_CLOTHING_PROMPTS = [
-    "person wearing dark hoodie",
-    "person wearing face mask",
-    "person wearing ski mask or balaclava",
-    "delivery uniform", "Amazon delivery vest",
-    "FedEx uniform", "UPS uniform", "USPS postal worker uniform",
-    "casual clothing", "business attire or suit", ...
-]
+THREAT_CLASSES = ["knife", "pistol", "rifle", "threat_object"]
 ```
 
 **Purpose in Pipeline:**
 
-- Identify suspicious clothing (dark hoodies, face coverings)
-- Detect service workers (delivery uniforms) for lower risk scoring
-- Provide clothing attributes to Nemotron for context-aware analysis
-
----
-
-### Vehicle Classifier
-
-Classifies vehicle types from cropped detection images.
-
-> `models.yml` (single source of truth) pins `AventIQ-AI/ResNet-50-Vehicle-Segment-classification`; the legacy `ai/download_models.sh` script still references the older `lxyuan/vit-base-patch16-224-vehicle-segment-classification` ViT checkpoint for its manual download path. The Triton `vehicle` model is the exported ONNX ResNet-50.
-
-| Specification     | Value                                                                                                                             |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **HuggingFace**   | [AventIQ-AI/ResNet-50-Vehicle-Segment-classification](https://huggingface.co/AventIQ-AI/ResNet-50-Vehicle-Segment-classification) |
-| **Architecture**  | ResNet-50 fine-tuned for vehicle classification                                                                                   |
-| **VRAM Required** | ~1.5 GB                                                                                                                           |
-| **Port**          | ai-gateway + backend                                                                                                              |
-| **Framework**     | HuggingFace Transformers                                                                                                          |
-
-**Vehicle Classes (11 total):**
-
-```python
-VEHICLE_SEGMENT_CLASSES = [
-    "articulated_truck", "background", "bicycle", "bus", "car",
-    "motorcycle", "non_motorized_vehicle", "pedestrian",
-    "pickup_truck", "single_unit_truck", "work_van"
-]
-```
-
-**Purpose in Pipeline:**
-
-- Distinguish between personal vehicles and commercial vehicles
-- Identify delivery vehicles (work vans, trucks) for context
-- Provide vehicle type to Nemotron for risk assessment
-
----
-
-### Pet Classifier
-
-Classifies detected animals as cats or dogs (household pets).
-
-| Specification     | Value                                                             |
-| ----------------- | ----------------------------------------------------------------- |
-| **HuggingFace**   | [microsoft/resnet-18](https://huggingface.co/microsoft/resnet-18) |
-| **Architecture**  | ResNet-18 (fine-tuned or base for transfer)                       |
-| **VRAM Required** | ~0.2 GB                                                           |
-| **Port**          | ai-gateway + backend                                              |
-| **Framework**     | HuggingFace Transformers                                          |
-
-**Purpose in Pipeline:**
-
-- Identify household pets to reduce false positives
-- Distinguish resident pets from wildlife
-- Filter pet detections from security alerts
-
----
-
-### Depth Anything V2 Tiny
-
-Monocular depth estimation for understanding spatial relationships in camera images.
-
-> Production uses the **Tiny** variant (5.8 M params, 518×518 input; `models.yml`: `depth-anything-v2-tiny`, downloaded from `depth-anything/Depth-Anything-V2-Small-hf` per that entry's `hf_repo` — `ai/download_models.sh` clones the Tiny repo into `model-zoo/depth-anything-v2-tiny`). The standalone enrichment service reads `DEPTH_MODEL_PATH=/models/depth-anything-v2-tiny`.
-
-| Specification     | Value                                                                                                                                                       |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **HuggingFace**   | [depth-anything/Depth-Anything-V2-Tiny-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Tiny-hf) (script path; `models.yml` pins the Small repo) |
-| **Architecture**  | DINOv2-based depth estimation                                                                                                                               |
-| **VRAM Required** | ~0.1 GB                                                                                                                                                     |
-| **Port**          | ai-gateway :8090/enrichment + backend                                                                                                                       |
-| **Framework**     | HuggingFace Transformers                                                                                                                                    |
-
-**Purpose in Pipeline:**
-
-- Estimate distance to detected objects
-- Understand spatial relationships (near entry point, far from camera)
-- Provide proximity context to Nemotron ("person approaching front door")
-
-**Environment Variables:**
-
-| Variable           | Default                          | Description |
-| ------------------ | -------------------------------- | ----------- |
-| `DEPTH_MODEL_PATH` | `/models/depth-anything-v2-tiny` | Model path  |
-
----
-
-### ViTPose+ Small (Pose Estimation)
-
-Human pose estimation for posture analysis and security-relevant behavior detection.
-
-| Specification     | Value                                                                                         |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| **HuggingFace**   | [usyd-community/vitpose-plus-small](https://huggingface.co/usyd-community/vitpose-plus-small) |
-| **Architecture**  | ViTPose+ (Vision Transformer for Pose)                                                        |
-| **VRAM Required** | Loaded on-demand                                                                              |
-| **Port**          | backend (`model_zoo`, on-demand)                                                              |
-| **Framework**     | HuggingFace Transformers                                                                      |
-
-**COCO Keypoints (17):**
-
-```python
-COCO_KEYPOINT_NAMES = [
-    "nose", "left_eye", "right_eye", "left_ear", "right_ear",
-    "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
-    "left_wrist", "right_wrist", "left_hip", "right_hip",
-    "left_knee", "right_knee", "left_ankle", "right_ankle"
-]
-```
-
-**Posture Classifications:**
-
-| Posture      | Description                    |
-| ------------ | ------------------------------ |
-| `standing`   | Upright posture                |
-| `walking`    | Movement detected              |
-| `running`    | Fast movement                  |
-| `sitting`    | Seated position                |
-| `crouching`  | Low position (security alert)  |
-| `lying_down` | On ground (medical emergency?) |
-| `unknown`    | Cannot determine               |
-
-**Security Alerts:**
-
-| Alert             | Interpretation                       |
-| ----------------- | ------------------------------------ |
-| `crouching`       | Potential hiding/break-in behavior   |
-| `lying_down`      | Possible medical emergency           |
-| `hands_raised`    | Potential surrender/robbery scenario |
-| `fighting_stance` | Aggressive posture                   |
-
----
-
-### YOLO11 License Plate Detection
-
-Detects license plates on vehicles for OCR text extraction.
-
-| Specification     | Value                                                                                                                                                 |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Model**         | [morsetechlab/yolov11-license-plate-detection](https://huggingface.co/morsetechlab/yolov11-license-plate-detection) (`license-plate-finetune-v1n.pt`) |
-| **Architecture**  | YOLOv11n detection                                                                                                                                    |
-| **VRAM Required** | ~0.3 GB                                                                                                                                               |
-| **Port**          | backend (`model_zoo`, on-demand)                                                                                                                      |
-| **Framework**     | Ultralytics                                                                                                                                           |
-
-**Purpose in Pipeline:**
-
-- Detect license plate regions on vehicle detections
-- Extract plate crops for OCR processing
-- Provide plate locations for downstream text extraction
-
----
-
-### YOLO11 Face Detection
-
-Detects faces on person detections for demographic analysis and re-identification.
-
-| Specification     | Value                                                                                                    |
-| ----------------- | -------------------------------------------------------------------------------------------------------- |
-| **Model**         | [AdamCodd/YOLOv11n-face-detection](https://huggingface.co/AdamCodd/YOLOv11n-face-detection) (`model.pt`) |
-| **Architecture**  | YOLOv11n detection                                                                                       |
-| **VRAM Required** | ~0.2 GB                                                                                                  |
-| **Port**          | backend (`model_zoo`, on-demand)                                                                         |
-| **Framework**     | Ultralytics                                                                                              |
-
-**Purpose in Pipeline:**
-
-- Detect face regions on person detections
-- Extract face crops for age/gender classification
-- Enable face-based re-identification across cameras
-
----
-
-### PaddleOCR
-
-Optical Character Recognition for extracting text from license plates and signs.
-
-| Specification     | Value                                                         |
-| ----------------- | ------------------------------------------------------------- |
-| **Model**         | [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)        |
-| **Architecture**  | PP-OCRv4 (detection + recognition + direction classification) |
-| **VRAM Required** | ~0.1 GB                                                       |
-| **Port**          | backend (`model_zoo`, on-demand)                              |
-| **Framework**     | PaddlePaddle                                                  |
-
-**Purpose in Pipeline:**
-
-- Extract text from detected license plates
-- Read text on signs and packages (delivery identification)
-- Provide textual context for Nemotron analysis
-
-**Note:** Optional dependency. OCR features disabled if PaddlePaddle not installed.
-
----
-
-### YOLO-World-S (Open-Vocabulary Detection)
-
-Zero-shot object detection using text prompts for security-relevant objects not in COCO.
-
-| Specification     | Value                                                                                                                    |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Model**         | [YOLO-World-S](https://github.com/AILab-CVC/YOLO-World) (`yolov8s-worldv2.pt`, models.yml `download_method: yolo_world`) |
-| **Architecture**  | YOLO with vision-language pre-training                                                                                   |
-| **VRAM Required** | ~1.5 GB                                                                                                                  |
-| **Port**          | backend (`model_zoo`, on-demand)                                                                                         |
-| **Framework**     | Ultralytics                                                                                                              |
-
-**Purpose in Pipeline:**
-
-- Detect objects not in COCO dataset (knives, packages, tools)
-- Enable text-prompt-based detection for custom security scenarios
-- Zero-shot detection without model retraining
-
-**Security Prompts:**
-
-```python
-SECURITY_PROMPTS = [
-    "knife", "gun", "weapon", "package", "box",
-    "backpack", "suitcase", "crowbar", "flashlight"
-]
-```
-
----
-
-### Violence Detection
-
-Binary classification for detecting violent content in video frames.
-
-| Specification     | Value                                                                                                   |
-| ----------------- | ------------------------------------------------------------------------------------------------------- |
-| **HuggingFace**   | [jaranohaal/vit-base-violence-detection](https://huggingface.co/jaranohaal/vit-base-violence-detection) |
-| **Architecture**  | Vision Transformer (ViT) binary classifier                                                              |
-| **VRAM Required** | ~0.5 GB                                                                                                 |
-| **Accuracy**      | 98.80% reported                                                                                         |
-| **Port**          | backend (`model_zoo`, on-demand)                                                                        |
-| **Framework**     | HuggingFace Transformers                                                                                |
-
-**Purpose in Pipeline:**
-
-- Detect violent activity when 2+ persons detected
-- Trigger high-priority alerts for physical altercations
-- Provide violence context for Nemotron risk analysis
-
-**Output:**
-
-```json
-{
-  "is_violent": true,
-  "confidence": 0.94,
-  "label": "violence"
-}
-```
-
----
-
-### Weather Classification
-
-Classifies weather conditions for environmental context in risk assessment.
-
-| Specification     | Value                                                                                                           |
-| ----------------- | --------------------------------------------------------------------------------------------------------------- |
-| **HuggingFace**   | [prithivMLmods/Weather-Image-Classification](https://huggingface.co/prithivMLmods/Weather-Image-Classification) |
-| **Architecture**  | Vision-language model fine-tuned for weather                                                                    |
-| **VRAM Required** | ~0.2 GB                                                                                                         |
-| **Port**          | backend (`model_zoo`, on-demand)                                                                                |
-| **Framework**     | HuggingFace Transformers                                                                                        |
-
-**Weather Classes (5):**
-
-```python
-WEATHER_CLASSES = [
-    "cloudy/overcast",
-    "foggy/hazy",
-    "rain/storm",
-    "snow/frosty",
-    "sun/clear"
-]
-```
-
-**Purpose in Pipeline:**
-
-- Provide environmental context for risk calibration
-- Adjust visibility expectations (foggy = reduced detection confidence)
-- Runs once per batch on full frame (not per detection)
-
----
-
-### SegFormer B2 Clothes
-
-Semantic segmentation of clothing and body parts for person description and re-identification.
-
-| Specification     | Value                                                                                     |
-| ----------------- | ----------------------------------------------------------------------------------------- |
-| **HuggingFace**   | [mattmdjaga/segformer_b2_clothes](https://huggingface.co/mattmdjaga/segformer_b2_clothes) |
-| **Architecture**  | SegFormer B2 semantic segmentation                                                        |
-| **VRAM Required** | ~1.5 GB                                                                                   |
-| **Port**          | backend (`model_zoo`, on-demand)                                                          |
-| **Framework**     | HuggingFace Transformers                                                                  |
-
-**Clothing Categories (18):**
-
-```python
-CLOTHING_CATEGORIES = [
-    "Background", "Hat", "Hair", "Sunglasses", "Upper-clothes",
-    "Skirt", "Pants", "Dress", "Belt", "Left-shoe", "Right-shoe",
-    "Face", "Left-leg", "Right-leg", "Left-arm", "Right-arm",
-    "Bag", "Scarf"
-]
-```
-
-**Purpose in Pipeline:**
-
-- Enable clothing-based person matching across cameras
-- Detect suspicious attire (masks, gloves, all-black)
-- Provide detailed person descriptions for Nemotron
-
----
-
-### X-CLIP Base (Temporal Action Recognition — Deprecated)
-
-> **Status: deprecated / disabled.** `models.yml` marks `xclip-base` as "DEPRECATED: replaced by stgcn-plus-plus" with `enabled: false` and `vram_mb: 0`. Skeleton-based **ST-GCN++** (below) now handles action recognition. The Triton `xclip_action` model (Python backend, CPU) has been retired from `ai/triton/model_repository/` — its config and model.py now live at `archive/triton-model-repository/xclip_action/` — and is absent from the gateway's `ALL_MODELS` and adapters.
-
-Video-based action classification using multiple frames for temporal understanding.
-
-| Specification     | Value                                                                               |
-| ----------------- | ----------------------------------------------------------------------------------- |
-| **HuggingFace**   | [microsoft/xclip-base-patch32](https://huggingface.co/microsoft/xclip-base-patch32) |
-| **Architecture**  | X-CLIP (CLIP extended for video understanding)                                      |
-| **VRAM Required** | ~2.0 GB                                                                             |
-| **Port**          | disabled (X-CLIP deprecated)                                                        |
-| **Framework**     | HuggingFace Transformers                                                            |
-
-**Purpose in Pipeline:**
-
-- Classify security-relevant actions from video sequences
-- Detect loitering, approaching door, running away
-- Analyze behavior patterns over multiple frames
-
-**Security Actions:**
-
-```python
-SECURITY_ACTIONS = [
-    "loitering", "approaching door", "running away",
-    "suspicious behavior", "fighting", "falling",
-    "walking normally", "standing still"
-]
-```
-
----
-
-### ST-GCN++ (Skeleton Action Recognition)
-
-Replaces X-CLIP as the production action-recognition model: ~14 MB ONNX export of pyskl ST-GCN++ trained on NTU RGB+D 60 (60 action classes), consuming COCO 17-keypoint tracks from the pose models instead of raw video frames.
-
-| Specification     | Value                                                            |
-| ----------------- | ---------------------------------------------------------------- |
-| **Source**        | OpenMMLab pyskl checkpoint (models.yml `download_method: stgcn`) |
-| **Architecture**  | Spatial-Temporal Graph Convolutional Network++ (ONNX)            |
-| **VRAM Required** | ~20 MB (models.yml `vram_mb: 20`)                                |
-| **Port**          | ai-gateway (Triton `stgcn_action`, KIND_CPU) + backend           |
-| **Framework**     | ONNX Runtime (CPU — 14 MB skeleton model, no GPU benefit)        |
-
-**Purpose in Pipeline:**
-
-- Classify security-relevant actions from skeleton sequences (loitering, falling, fighting)
-- Far cheaper than X-CLIP: no frame buffering, CPU-only inference
-
----
-
-### Smoke/Fire Detection (YOLOv8n)
-
-| Specification     | Value                                                                     |
-| ----------------- | ------------------------------------------------------------------------- |
-| **HuggingFace**   | [SHOU-ISD/fire-and-smoke](https://huggingface.co/SHOU-ISD/fire-and-smoke) |
-| **Architecture**  | YOLOv8n detection                                                         |
-| **VRAM Required** | ~0.35 GB                                                                  |
-| **Port**          | backend (`model_zoo`, on-demand)                                          |
-| **Framework**     | Ultralytics                                                               |
-
-Critical-priority model: `models.yml` sets `priority: critical`, `preload: true`, `never_evict: true` — it is the only model the VRAM evictor will not unload.
-
----
-
-### FastALPR (End-to-End License Plate OCR)
-
-| Specification     | Value                                                  |
-| ----------------- | ------------------------------------------------------ |
-| **Model**         | FastALPR ONNX (auto-downloaded by the library, ~28 MB) |
-| **Architecture**  | Detection + OCR in one ONNX pipeline                   |
-| **VRAM Required** | ~28 MB                                                 |
-| **Port**          | backend (`model_zoo`, on-demand)                       |
-| **Framework**     | ONNX Runtime                                           |
-
-`models.yml` describes PaddleOCR as "superseded by fast-alpr for license plates"; PaddleOCR remains enabled for general sign/package text.
-
----
-
-### BRISQUE Image Quality Assessment
-
-No-reference image quality metric for detecting camera tampering or motion blur.
-
-| Specification     | Value                                               |
-| ----------------- | --------------------------------------------------- |
-| **Library**       | [piq](https://github.com/photosynthesis-team/piq)   |
-| **Architecture**  | BRISQUE (Blind/Referenceless Image Spatial Quality) |
-| **VRAM Required** | 0 (CPU-based)                                       |
-| **Port**          | backend (`model_zoo`, on-demand)                    |
-| **Framework**     | piq (NumPy-based)                                   |
-
-**Purpose in Pipeline:**
-
-- Detect camera obstruction or tampering (sudden quality drop)
-- Identify motion blur (fast movement detection)
-- Monitor general quality degradation (noise, artifacts)
-
-**Output:**
-
-```json
-{
-  "brisque_score": 23.5,
-  "quality_label": "good",
-  "is_degraded": false
-}
-```
-
-**Score Interpretation:**
-
-- 0-20: Excellent quality
-- 20-40: Good quality
-- 40-60: Fair quality
-- 60+: Poor quality (potential tampering)
-
----
-
-### Vehicle Damage Detection
-
-Segmentation model for detecting various types of vehicle damage.
-
-| Specification     | Value                                                                                                                         |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Model**         | [harpreetsahota/car-dd-segmentation-yolov11](https://huggingface.co/harpreetsahota/car-dd-segmentation-yolov11) (YOLOv11 seg) |
-| **Architecture**  | YOLOv11x instance segmentation                                                                                                |
-| **VRAM Required** | ~2.0 GB                                                                                                                       |
-| **Port**          | backend (`model_zoo`, on-demand)                                                                                              |
-| **Framework**     | Ultralytics                                                                                                                   |
-
-**Damage Classes (6):**
-
-```python
-DAMAGE_CLASSES = [
-    "crack",
-    "dent",
-    "glass_shatter",
-    "lamp_broken",
-    "scratch",
-    "tire_flat",
-]
-```
-
-**Purpose in Pipeline:**
-
-- Detect suspicious vehicle damage (glass_shatter + lamp_broken at night = break-in)
-- Monitor for vandalism or accidents in parking areas
-- Provide damage context for security incidents
+- Detect weapons on full frame when suspicious activity detected
+- Trigger immediate critical-priority alerts
+- Triton `threat` runs at instance priority 1 (high)
+
+> **Served, but out of the VLM prompt.** The `/enrich-lt` router always mounts `/threat-detect`,
+> but `threat` is not in the default Triton residency set: `VLM_MODEL_BASE` is `yolo26` + `reid`
+> and `threat` joins only when `GATEWAY_ENABLE_THREAT=true` (`ai/gateway/residency.py`;
+> `.env.example` ships `false`). `vlm_specialists.SPECIALIST_KEYS` is `{faces, plates, person_reid}`
+> — threat is deliberately absent from what the verdict reads (the F12 call on the
+> checkpoint's provenance), and weapon hints return as a later YOLOE-26 feature.
 
 ---
 
@@ -812,7 +194,7 @@ Lightweight model for generating person embeddings for cross-camera tracking.
 | **Architecture**   | Lightweight CNN for re-identification               |
 | **VRAM Required**  | ~0.1 GB                                             |
 | **Embedding Dim**  | 512 floats (L2-normalized)                          |
-| **Port**           | ai-gateway + backend                                |
+| **Port**           | ai-gateway `/enrich-lt` (`/person-reid`) + backend  |
 | **Framework**      | torchreid                                           |
 | **Weights file**   | `osnet_ain_x1_0_msmt17.pth`                         |
 | **model_id (F11)** | `osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894` |
@@ -825,14 +207,20 @@ Lightweight model for generating person embeddings for cross-camera tracking.
 - Match individuals across multiple cameras
 - Enable temporal tracking of persons throughout property
 
+The shipped verdict path computes re-ID **in-process** (`vlm_specialists` → `reid_service` →
+`osnet_loader`); the Triton `reid` producer behind `/enrich-lt/person-reid` keeps the same wire
+shape and the same `model_id` stamp, and is what the AI contract harness exercises.
+
 `backend/services/osnet_loader.py` loads the `osnet-ain-x1-0` row of `models.yml`, verifies the
-weights sha256 before loading, and stamps every vector with the `model_id` above. A stored row
-that predates provenance decodes to the sentinel `legacy-unknown-provenance` and is **never
-scored** — it reads as "unavailable (re-enroll)", so re-enroll rather than backfill. When the
-weights are not resident, `reid_service.generate_embedding()` raises `ReIDUnavailableError`
-(the enrollment route answers 503 naming the cause) — never a zero-vector stub. Vehicle identity
-is separate: no vehicle embedding producer ships in resident mode, so it rides license-plate
-match; vehicle-specific re-ID is a named follow-up.
+weights sha256 before loading, and stamps every vector with the `model_id` above. That id is
+**derived** from the row (`role@weightsfile@sha[:12]`) — never a literal — so the backend handle,
+the Triton `reid` producer and the safe-extract payloads all stamp one string. A stored row that
+predates provenance decodes to the sentinel `legacy-unknown-provenance` and is **never scored** —
+it reads as "unavailable (re-enroll)", so re-enroll rather than backfill. When the weights are not
+resident, `reid_service.generate_embedding()` raises `ReIDUnavailableError` (the enrollment route
+answers 503 naming the cause) — never a zero-vector stub. Vehicle identity is separate: no vehicle
+embedding producer ships in resident mode, so it rides license-plate match; vehicle-specific re-ID
+is a named follow-up.
 
 **Output:**
 
@@ -851,116 +239,110 @@ provisional pending calibration against real household galleries.
 
 ---
 
-### Threat Detection YOLOv8n
+### Face Leg: SCRFD-10G-KPS + ArcFace w600k_r50
 
-Weapon and threat object detection for high-priority security alerts.
+The face leg of the VLM specialist stage (`models.yml` rows `face-detector-scrfd` and
+`face-recognizer`; `backend/services/face_recognizer_loader.py`). These are DB-lookup models —
+they identify enrolled household members against a gallery, they do not perceive attributes.
 
-| Specification     | Value                                                                                       |
-| ----------------- | ------------------------------------------------------------------------------------------- |
-| **HuggingFace**   | [Subh775/Threat-Detection-YOLOv8n](https://huggingface.co/Subh775/Threat-Detection-YOLOv8n) |
-| **Architecture**  | YOLOv8n detection                                                                           |
-| **VRAM Required** | ~0.3 GB                                                                                     |
-| **Port**          | ai-gateway + backend                                                                        |
-| **Framework**     | Ultralytics                                                                                 |
+| Specification  | Value                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Detector**   | SCRFD-10G-KPS — boxes + 5 landmarks for ArcFace 5-point alignment (`det_10g.onnx`, WIDER easy/med/hard 95.16/93.87/83.05)                          |
+| **Recognizer** | ArcFace `w600k_r50` — aligned 112×112 crop in, L2-normalized 512-d vector out (IJB-C TAR@FAR 1e-4 97.25)                                           |
+| **Source**     | The two ONNX files extracted from InsightFace `buffalo_l.zip` (owner-pinned 2026-09-26, sha256 over the whole file)                                |
+| **Runtime**    | CPU `onnxruntime` directly — never the `insightface` package's `FaceAnalysis`, which drags in all five pack models                                 |
+| **Residency**  | Both rows are `preload: true`: the leg never triggers a load, so `get_face_leg_handles` answers "unavailable" unless **both** are resident at boot |
+| **local_path** | `model-zoo/face-recognizer/` (keep only these two files there, renaming `det_10g.onnx` → `scrfd_10g_bnkps.onnx`)                                   |
 
-**Threat Classes:**
-
-```python
-THREAT_CLASSES = [
-    "knife", "gun", "rifle", "pistol", "bat", "crowbar"
-]
-```
-
-**Purpose in Pipeline:**
-
-- Detect weapons on full frame when suspicious activity detected
-- Trigger immediate critical-priority alerts
-- Triton `threat` model runs at instance priority 1 (high) — the never-evicted model is Smoke/Fire YOLOv8n (`models.yml`: `never_evict: true`), not this one
+A missing detector, a missing recognizer, or weights that fail the sha256 pin raise
+`FaceRecognizerUnavailable` and the specialist stage renders "unavailable" — the same shape the
+`yolo11-face` row relies on when its weights are absent.
 
 ---
 
-### ViT Age Classifier
+### YOLO11 Face Detection
 
-Age range estimation from face or person crops.
+Detects faces on person detections. A lookup-support row that stays in `models.yml`; note that the
+**shipped** VLM face leg runs the SCRFD detector above, not this model
+(`backend/services/vlm_specialists.py`), so this row feeds the standalone face-detection service
+(`backend/services/face_detector.py`) rather than the verdict path.
 
-| Specification     | Value                                                                           |
-| ----------------- | ------------------------------------------------------------------------------- |
-| **HuggingFace**   | [nateraw/vit-age-classifier](https://huggingface.co/nateraw/vit-age-classifier) |
-| **Architecture**  | Vision Transformer for classification                                           |
-| **VRAM Required** | ~0.2 GB                                                                         |
-| **Port**          | ai-gateway + backend                                                            |
-| **Framework**     | HuggingFace Transformers                                                        |
-
-**Age Groups (6, per `backend/services/age_classifier_loader.py`):**
-
-```python
-AGE_GROUPS = [
-    "child",        # 0-12
-    "teenager",     # 13-19
-    "young_adult",  # 20-35
-    "adult",        # 36-50
-    "middle_aged",  # 51-65
-    "senior",       # 65+
-]
-```
-
-The loader also maps a second, finer label scheme some checkpoints emit (`"0-2": infant, "3-9": child, "10-19": teenager, "20-29": young_adult, "30-39"/"40-49": adult, "50-59": middle_aged, "60-69"/"70+": senior`) onto these display groups.
+| Specification     | Value                                                                                                    |
+| ----------------- | -------------------------------------------------------------------------------------------------------- |
+| **Model**         | [AdamCodd/YOLOv11n-face-detection](https://huggingface.co/AdamCodd/YOLOv11n-face-detection) (`model.pt`) |
+| **Architecture**  | YOLOv11n detection                                                                                       |
+| **VRAM Required** | ~0.2 GB (`models.yml` `vram_mb: 200`)                                                                    |
+| **Port**          | backend (`model_zoo`, on-demand)                                                                         |
+| **Framework**     | Ultralytics                                                                                              |
 
 **Purpose in Pipeline:**
 
-- Provide demographic context for person descriptions
-- Combined with gender for comprehensive person profiles
-- Support security analysis (child alone, unusual age for time)
+- Detect face regions on person detections
+- Enable face-based re-identification across cameras
 
 ---
 
-### ViT Gender Classifier
+### YOLO11 License Plate Detection
 
-Gender classification from face or person crops.
+Detects license plates on vehicles for OCR text extraction.
 
-| Specification     | Value                                                                                         |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| **HuggingFace**   | [rizvandwiki/gender-classification](https://huggingface.co/rizvandwiki/gender-classification) |
-| **Architecture**  | Vision Transformer for binary classification                                                  |
-| **VRAM Required** | ~0.2 GB                                                                                       |
-| **Port**          | ai-gateway + backend                                                                          |
-| **Framework**     | HuggingFace Transformers                                                                      |
-
-**Output:**
-
-```json
-{
-  "gender": "male",
-  "confidence": 0.94
-}
-```
+| Specification     | Value                                                                                                                                                 |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Model**         | [morsetechlab/yolov11-license-plate-detection](https://huggingface.co/morsetechlab/yolov11-license-plate-detection) (`license-plate-finetune-v1n.pt`) |
+| **Architecture**  | YOLOv11n detection                                                                                                                                    |
+| **VRAM Required** | ~0.3 GB (`models.yml` `vram_mb: 300`)                                                                                                                 |
+| **Port**          | backend (`model_zoo`, on-demand)                                                                                                                      |
+| **Framework**     | Ultralytics                                                                                                                                           |
 
 **Purpose in Pipeline:**
 
-- Complete demographic profile for person descriptions
-- Support cross-camera person matching
-- Provide gender context for security reports
+- Detect license plate regions on vehicle detections
+- Extract plate crops for OCR processing
+- Provide plate locations for downstream text extraction
 
 ---
 
-### YOLOv8n Pose (Pose Estimation)
+### FastALPR (End-to-End License Plate OCR)
 
-Pose estimation model serving the ai-gateway Triton `pose` model; feeds the 17-keypoint skeletons that ST-GCN++ consumes.
+| Specification     | Value                                                  |
+| ----------------- | ------------------------------------------------------ |
+| **Model**         | FastALPR ONNX (auto-downloaded by the library, ~28 MB) |
+| **Architecture**  | Detection + OCR in one ONNX pipeline                   |
+| **VRAM Required** | ~28 MB                                                 |
+| **Port**          | backend (`model_zoo`, on-demand)                       |
+| **Framework**     | ONNX Runtime                                           |
 
-| Specification     | Value                            |
-| ----------------- | -------------------------------- |
-| **Model**         | YOLOv8n-pose                     |
-| **Architecture**  | YOLOv8 with pose estimation head |
-| **VRAM Required** | ~0.2 GB                          |
-| **Keypoints**     | 17 COCO keypoints                |
-| **Port**          | ai-gateway + backend             |
-| **Framework**     | Ultralytics                      |
+This is the shipped plate leg: `vlm_specialists.collect_plate_text()` runs `fast-alpr` over the
+key frames and then does the household-vehicle lookup. The `[alpr]` extra is optional — where the
+package is absent (sandbox/CI) `fast_alpr_loader` raises and the specialist line reads
+"unavailable", never a false "0 plates".
 
-**Purpose in Pipeline:**
+`models.yml` describes PaddleOCR as "superseded by fast-alpr for license plates"; PaddleOCR remains enabled for general sign/package text.
 
-- Fast pose detection on the gateway GPU (the default Triton pose path)
-- Same 17 COCO keypoint output format as ViTPose+ (the higher-accuracy, backend-side alternative)
-- Provides the skeleton sequences for ST-GCN++ action recognition
+---
+
+### PaddleOCR
+
+Optical Character Recognition for extracting text from signs and packages.
+
+| Specification     | Value                                                         |
+| ----------------- | ------------------------------------------------------------- |
+| **Model**         | [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)        |
+| **Architecture**  | PP-OCRv4 (detection + recognition + direction classification) |
+| **VRAM Required** | ~0.1 GB (`models.yml` `vram_mb: 100`)                         |
+| **Port**          | backend (`model_zoo`, on-demand)                              |
+| **Framework**     | PaddlePaddle                                                  |
+
+**Note:** Optional dependency. OCR features disabled if PaddlePaddle not installed. For license
+plates, FastALPR superseded it.
+
+---
+
+### YOLO26-general (Disabled)
+
+`models.yml` keeps a `yolo26-general` row marked "future release, TBD" with `enabled: false` and
+`download_method: skip`. It has no artifact to download and nothing loads it; it is a placeholder,
+not a deployment option.
 
 ---
 
@@ -968,51 +350,48 @@ Pose estimation model serving the ai-gateway Triton `pose` model; feeds the 17-k
 
 ### Production Configuration (Reference Hardware: RTX A5500 24 GB + RTX A400 4 GB)
 
-| Component                         | Models                                                                                                                                                                                                                                                                              | VRAM (approx)                                                                                                                                                                             |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ai-llm` (GPU 0)                  | Nemotron-3-Nano-30B-A3B Q4_K_M + KV cache                                                                                                                                                                                                                                           | ~14.7 GB                                                                                                                                                                                  |
-| `ai-gateway` Triton (GPU 1, A400) | 14 model repos (yolo26, clip, florence2, pose, threat, reid, pet, depth, clip_text, fashion_clip, vehicle, demographics_age/gender, stgcn_action) — 12 on GPU, 2 CPU-only (`clip_text`, `stgcn_action`); `xclip_action` retired to `archive/triton-model-repository/` with NEM-5563 | per-model estimates in [NVIDIA Technology Inventory](nvidia-technology-inventory.md); the older "~76.5% of 4 GB" claim was computed when 5 models ran on CPU and has not been re-measured |
-| backend model_zoo (GPU 0)         | Heavy enrichment models, on-demand (loaded per use, unloaded after)                                                                                                                                                                                                                 | typically 1-2 models resident; see table below                                                                                                                                            |
+| Component                                    | Models                                                                                                                                                          | VRAM (approx)                                                                           |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `ai-vlm` (GPU 0, profile `vlm`)              | The configured GGUF + `mmproj` + KV cache                                                                                                                       | see `.env.example` / the bring-up record — no measured 24 GB-class figure exists yet    |
+| `ai-gateway` Triton (GPU 1, A400)            | 3 model repos on disk (`yolo26`, `reid`, `threat`), all `KIND_GPU`; the default `vlm` set serves `yolo26` + `reid`, `threat` joins with `GATEWAY_ENABLE_THREAT` | per-model estimates in [NVIDIA Technology Inventory](nvidia-technology-inventory.md)    |
+| backend model_zoo (1 GPU reserved, unpinned) | `osnet-ain-x1-0`, `face-detector-scrfd`, `face-recognizer` preload at boot; lookup models load per use                                                          | ~100 MB resident at boot (OSNet); the face leg is CPU ONNX (0 GB VRAM); see table below |
 
 The gateway VRAM split is documented in [NVIDIA Technology Inventory](nvidia-technology-inventory.md) (VRAM Budget Summary).
 
 ### Backend Model-Zoo VRAM (On-Demand, from `models.yml`)
 
-`backend/services/model_zoo.py` loads these lazily and **unloads them right after each use** (async context manager with reference counting, CUDA cache cleared on unload), so typically only one or a few models are resident at a time rather than a budget-capped working set (23 enabled entries, ~11.7 GB total `vram_mb` if all were somehow resident). `smoke-fire-yolov8n` is the only `never_evict` model; the `vram_mb`/`priority` fields drive reporting and preload decisions. (Priority-ordered LRU eviction under a VRAM budget is the sibling manager in `ai/enrichment/model_manager.py`, which belongs to the undeployed standalone container.)
+`backend/services/model_zoo.py` builds its registry from `models.yml` (rows without a
+`_LOADER_MAP` entry are skipped at init), loads lazily and **unloads right after each use** (async
+context manager with reference counting, CUDA cache cleared on unload), so typically only one or a
+few models are resident at a time. The `vram_mb`/`priority` fields drive reporting and the
+`BACKEND_MODEL_PRELOAD` boot sweep (`preload: true` rows: OSNet and the two face-leg files). There
+is no VRAM-budget eviction pass in this manager, so nothing consults `never_evict` — the flag is
+the intended contract for the day eviction exists (ledger item 32 notes it), and no shipped row
+sets it.
 
-| Model                          | VRAM (MB) | Category           | Priority |
-| ------------------------------ | --------- | ------------------ | -------- |
-| yolo11-license-plate           | 300       | detection          | medium   |
-| yolo11-face                    | 200       | detection          | medium   |
-| paddleocr                      | 100       | ocr                | medium   |
-| fast-alpr                      | 28        | alpr               | medium   |
-| siglip2-base-patch16-224       | 200       | embedding          | medium   |
-| yolo-world-s                   | 1500      | detection          | medium   |
-| vitpose-small                  | 1500      | pose               | medium   |
-| depth-anything-v2-tiny         | 100       | depth-estimation   | medium   |
-| violence-detection             | 500       | classification     | medium   |
-| weather-classification         | 200       | classification     | medium   |
-| segformer-b2-clothes           | 1500      | segmentation       | medium   |
-| stgcn-plus-plus                | 20        | action-recognition | medium   |
-| fashion-clip (FashionSigLIP)   | 500       | classification     | medium   |
-| brisque-quality                | 0 (CPU)   | quality-assessment | medium   |
-| vehicle-segment-classification | 1500      | classification     | medium   |
-| vehicle-damage-detection       | 2000      | detection          | medium   |
-| pet-classifier                 | 200       | classification     | medium   |
-| osnet-ain-x1-0                 | 100       | embedding          | medium   |
-| threat-detection-yolov8n       | 300       | detection          | medium   |
-| vit-age-classifier             | 200       | classification     | medium   |
-| vit-gender-classifier          | 200       | classification     | medium   |
-| yolov8n-pose                   | 200       | pose               | medium   |
-| smoke-fire-yolov8n             | 350       | detection          | critical |
+| Model                    | VRAM (MB) | Category  | Priority | Enabled | Preload |
+| ------------------------ | --------- | --------- | -------- | ------- | ------- |
+| yolo26                   | 0         | detection | medium   | no      | no      |
+| osnet-ain-x1-0           | 100       | embedding | medium   | yes     | yes     |
+| face-detector-scrfd      | 0 (CPU)   | detection | low      | yes     | yes     |
+| face-recognizer          | 0 (CPU)   | embedding | low      | yes     | yes     |
+| threat-detection-yolov8n | 300       | detection | medium   | yes     | no      |
+| yolo11-face              | 200       | detection | medium   | yes     | no      |
+| yolo11-license-plate     | 300       | detection | medium   | yes     | no      |
+| fast-alpr                | 28        | alpr      | medium   | yes     | no      |
+| paddleocr                | 100       | ocr       | medium   | yes     | no      |
+| yolo26-general           | 400       | detection | medium   | no      | no      |
+
+Total `vram_mb` across the ten rows: 1.428 GB. The single heaviest entry (`yolo26-general`, 400)
+is `enabled: false`, and so is `yolo26` — the backend never loads the primary detector in-process.
 
 ### Development Configuration (Minimal)
 
-| Service   | Models                  | VRAM      |
-| --------- | ----------------------- | --------- |
-| Nemotron  | Nemotron Mini 4B        | ~3 GB     |
-| YOLO26    | YOLO26m (TensorRT FP16) | ~0.1 GB   |
-| **Total** |                         | **~3 GB** |
+| Service       | Models                   | VRAM                                     |
+| ------------- | ------------------------ | ---------------------------------------- |
+| `ai-vlm`      | Configured GGUF identity | see `.env.example` / the bring-up record |
+| YOLO26        | YOLO26m (TensorRT FP16)  | ~0.1 GB                                  |
+| Lookup models | OSNet + face leg         | ~0.1 GB                                  |
 
 ### Hardware Recommendations
 
@@ -1027,7 +406,7 @@ The gateway VRAM split is documented in [NVIDIA Technology Inventory](nvidia-tec
 
 ## Model Download
 
-The primary path is `setup.py deploy` → `setup_lib/model_downloader.py`, which downloads everything declared in `models.yml` (repo-root file). The standalone script covers the same first-generation set manually:
+The primary path is `setup.py deploy` → `setup_lib/model_downloader.py`, which downloads everything declared in `models.yml` (repo-root file).
 
 ```bash
 # Download all models to default path (/export/ai_models)
@@ -1037,47 +416,46 @@ The primary path is `setup.py deploy` → `setup_lib/model_downloader.py`, which
 AI_MODELS_PATH=./models ./ai/download_models.sh
 ```
 
+> **Fetch list.** What `setup_lib/models_config.get_downloadable_models()` selects — rule
+> `download_method != "skip"` AND (`hf_repo` OR `download_method`) — is five artifacts today:
+> `yolo26`, `osnet-ain-x1-0`, `threat-detection-yolov8n`, `yolo11-face`, `yolo11-license-plate`.
+> The rest of the live inventory is `download_method: skip`: the face leg's two ONNX files are
+> unpacked from `buffalo_l.zip` by hand (sha256-pinned rows), `fast-alpr` and `paddleocr` fetch at
+> runtime, and the VLM weights are host-mounted. `ai/download_models.sh` is supposed to mirror that
+> rule; when it names anything outside those five it is carrying a pre-S3 artifact, and `models.yml`
+> is the authority.
+
 ### Download Directory Structure
 
-`models.yml` is the single source of truth for what `setup.py deploy` (`setup_lib/model_downloader.py`) fetches and where. `ai/download_models.sh` is the legacy manual path (it still clones some first-generation artifacts such as `model-zoo/florence-2-large`, `model-zoo/clip-vit-l` and `model-zoo/fashion-clip` that the current production set replaced with `florence-2-base`, the SigLIP 2 ONNX export and the open_clip hf-hub FashionSigLIP cache).
+`models.yml` is the single source of truth for what `setup.py deploy` (`setup_lib/model_downloader.py`) fetches and where.
 
 ```
 ${AI_MODELS_PATH}/
-├── nemotron/
-│   └── nemotron-3-nano-30b-a3b-q4km/
-│       └── Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
+├── vlm/                            # the configured GGUF + mmproj (compose mounts :ro at /models)
 └── model-zoo/
-    ├── yolo26/                       # yolo26n/s/m .pt (Ultralytics releases)
-    ├── florence-2-base/              # production Triton model
-    ├── siglip2-base-patch16-224/     # ONNX embeddings (clip / clip_text)
-    ├── vehicle-segment-classification/
-    ├── pet-classifier/
-    ├── depth-anything-v2-tiny/
-    ├── osnet-ain-x1-0/
-    ├── yolov8n-pose/
+    ├── yolo26/                     # yolo26n/s/m .pt (Ultralytics releases)
+    ├── osnet-ain-x1-0/             # osnet_ain_x1_0_msmt17.pth
+    ├── face-recognizer/            # scrfd_10g_bnkps.onnx + w600k_r50.onnx (from buffalo_l.zip)
     ├── threat-detection-yolov8n/
-    ├── vit-age-classifier/           # + vit-gender-classifier, stgcn-plus-plus,
-    │                                 #   yolo11-face-detection, yolo11-license-plate,
-    │                                 #   smoke-fire-yolov8n, yolo-world-s,
-    │                                 #   vitpose-small, segformer-b2-clothes,
-    │                                 #   vehicle-damage-detection, weather-classification,
-    │                                 #   violence-detection, xclip-base (disabled) ...
-    └── (fashion-clip downloads into ~/.cache/huggingface/hub via download_method: hf_cache)
+    ├── yolo11-face-detection/      # model.pt
+    ├── yolo11-license-plate/       # license-plate-finetune-v1n.pt
+    └── paddleocr/                  # fast-alpr needs no directory (library auto-download)
 ```
 
 ### Manual Downloads
 
-For manual downloads or air-gapped environments (rows marked _script_ are what `ai/download_models.sh` clones; production model sources are the `hf_repo` values in `models.yml`):
+For manual downloads or air-gapped environments (production model sources are the `hf_repo` /
+`download_method` values in `models.yml`):
 
-| Model               | Direct Download                                                                                                                                                                                                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Nemotron-3-Nano-30B | [Download GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf) — `setup_lib/model_downloader.py` pulls the same quant from [unsloth/...-GGUF](https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF) |
-| YOLO26              | Ultralytics GitHub releases (`models.yml` `download_method: yolo26`): `yolo26n/s/m.pt` from `github.com/ultralytics/assets/releases/download/v8.4.0`                                                                                                                     |
-| Florence-2          | script: `git clone https://huggingface.co/microsoft/Florence-2-large` — production: `microsoft/Florence-2-base`                                                                                                                                                          |
-| CLIP / embeddings   | script: `git clone https://huggingface.co/openai/clip-vit-large-patch14` — production: `onnx-community/siglip2-base-patch16-224-ONNX`                                                                                                                                    |
-| FashionSigLIP       | open_clip hf-hub cache download of `Marqo/marqo-fashionSigLIP` (script still clones legacy `patrickjohncyh/fashion-clip`)                                                                                                                                                |
-| Depth Anything V2   | script: `git clone https://huggingface.co/depth-anything/Depth-Anything-V2-Tiny-hf` (`models.yml` pins `depth-anything/Depth-Anything-V2-Small-hf`)                                                                                                                      |
-| ViTPose+ Small      | `git clone https://huggingface.co/usyd-community/vitpose-plus-small`                                                                                                                                                                                                     |
+| Model                | Direct Download                                                                                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VLM weights          | Host-mounted, never downloaded by `models.yml` — place the GGUF + `mmproj` under `${AI_MODELS_PATH}/vlm` and point `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` at them                 |
+| YOLO26               | Ultralytics GitHub releases (`models.yml` `download_method: yolo26`): `yolo26n/s/m.pt`                                                                                          |
+| OSNet-AIN x1.0       | `models.yml` `download_method: osnet` — `huggingface.co/kaiyangzhou/osnet` (the long-dated MSMT17 checkpoint, renamed to `osnet_ain_x1_0_msmt17.pth`); sha256-pinned in the row |
+| Face leg             | Unpack `buffalo_l.zip`, keep `det_10g.onnx` (→ `scrfd_10g_bnkps.onnx`) and `w600k_r50.onnx`; both rows are `download_method: skip` with a sha256 pin                            |
+| Threat YOLOv8n       | `Subh775/Threat-Detection-YOLOv8n` (`hf_repo`)                                                                                                                                  |
+| YOLO11 face / plate  | `AdamCodd/YOLOv11n-face-detection`, `morsetechlab/yolov11-license-plate-detection` (`hf_repo`)                                                                                  |
+| FastALPR / PaddleOCR | `download_method: skip` — the libraries fetch what they need at runtime                                                                                                         |
 
 ---
 
@@ -1085,32 +463,40 @@ For manual downloads or air-gapped environments (rows marked _script_ are what `
 
 ### Model Paths
 
-| Variable              | Default Path                                                                                     | Model                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| `LLM_MODEL_PATH`      | `/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf`                                                    | Nemotron LLM (compose → `MODEL_PATH`)                        |
-| `NEMOTRON_GGUF_PATH`  | — (search hint read by `ai/download_models.sh` when locating a pre-downloaded GGUF)              | Nemotron LLM                                                 |
-| `YOLO26_MODEL_PATH`   | `/models/yolo26/exports/yolo26m_fp16.engine`                                                     | YOLO26 (standalone server)                                   |
-| `FLORENCE_MODEL_PATH` | `/models/florence-2-base`                                                                        | Florence-2                                                   |
-| `CLIP_MODEL_PATH`     | `/models/clip-vit-l`                                                                             | CLIP ViT-L (standalone; production uses SigLIP 2 via Triton) |
-| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                                                                           | FashionSigLIP                                                |
-| `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification`                                                         | Vehicle Classifier                                           |
-| `PET_MODEL_PATH`      | `/models/pet-classifier`                                                                         | Pet Classifier                                               |
-| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-tiny`                                                                 | Depth Anything V2 Tiny                                       |
-| `POSE_MODEL_PATH`     | `/models/yolov8n-pose/yolov8n-pose.pt` (registry) / `/models/vitpose-plus-small` (heavy service) | Pose                                                         |
+| Variable            | Default Path                                               | Model                                             |
+| ------------------- | ---------------------------------------------------------- | ------------------------------------------------- |
+| `VLM_MODEL_PATH`    | `/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf` (`.env.example`) | The `ai-vlm` engine's GGUF (identity is config)   |
+| `VLM_MMPROJ_PATH`   | `/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`             | Its vision projector (same identity)              |
+| `VLM_MODEL_ID`      | `Qwen3VL-8B-Instruct-Q4_K_M`                               | Identity label — keep matched to `VLM_MODEL_PATH` |
+| `VLM_MODEL_ALIAS`   | `Qwen3VL-8B`                                               | Serve-side alias                                  |
+| `YOLO26_MODEL_PATH` | `/models/yolo26/exports/yolo26m_fp16.engine`               | YOLO26 (dev server; production uses Triton ONNX)  |
+| `YOLO26_CONFIDENCE` | `0.5`                                                      | YOLO26 min confidence threshold                   |
 
-Backend model-zoo paths resolve as `MODEL_ZOO_PATH` (default `/models/model-zoo`, the container mount of `${AI_MODELS_PATH}/model-zoo`) + the `local_path` from `models.yml`.
+Backend model-zoo paths resolve as `MODEL_ZOO_PATH` (default `/models/model-zoo`, the container mount of `${AI_MODELS_PATH}/model-zoo`) + the `local_path` from `models.yml`. The `ai-gateway` container mounts that same host directory read-only at `/models/zoo`.
 
 ### Service Configuration
 
-| Variable         | Default (code)                                                                          | Production value (`docker-compose.prod.yml`) | Description                    |
-| ---------------- | --------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------ |
-| `AI_MODELS_PATH` | `/export/ai_models`                                                                     | same (host path)                             | Base path for all models       |
-| `HF_HOME`        | `/root/.cache/huggingface` in AI containers; backend mounts `/models/huggingface-cache` | —                                            | HuggingFace cache directory    |
-| `YOLO26_URL`     | `http://ai-gateway:8090/yolo26`                                                         | `http://ai-gateway:8090/yolo26`              | YOLO26 detection endpoint      |
-| `NEMOTRON_URL`   | `http://localhost:8091`                                                                 | `http://ai-llm:8091`                         | Nemotron LLM service URL       |
-| `FLORENCE_URL`   | `http://localhost:8092` (dev)                                                           | `http://ai-gateway:8090/florence`            | Florence-2 endpoint            |
-| `CLIP_URL`       | `http://localhost:8093` (dev)                                                           | `http://ai-gateway:8090/clip`                | CLIP/SigLIP embedding endpoint |
-| `ENRICHMENT_URL` | `http://localhost:8094` (dev)                                                           | `http://ai-gateway:8090/enrichment`          | Heavy enrichment endpoint      |
+| Variable                | Default (code)                                                                          | Production value (`docker-compose.prod.yml`)       | Description                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `AI_MODELS_PATH`        | `/export/ai_models`                                                                     | same (host path)                                   | Base path for all models                                                            |
+| `HF_HOME`               | `/root/.cache/huggingface` in AI containers; backend mounts `/models/huggingface-cache` | —                                                  | HuggingFace cache directory                                                         |
+| `YOLO26_URL`            | `http://ai-gateway:8090/yolo26`                                                         | `http://ai-gateway:8090/yolo26`                    | YOLO26 detection endpoint                                                           |
+| `AI_GATEWAY_URL`        | unset                                                                                   | `http://ai-gateway:8090`                           | Triton gateway base URL (`USE_AI_GATEWAY=true`)                                     |
+| `ENRICHMENT_LIGHT_URL`  | `http://ai-gateway:8090/enrich-lt` (`.env.example` ships the `localhost:8090` dev form) | `http://ai-gateway:8090/enrich-lt`                 | Threat + re-ID lane                                                                 |
+| `AI_VLM_URL`            | `http://localhost:8098`                                                                 | `http://ai-vlm:8098`                               | `ai-vlm` (llama.cpp) endpoint                                                       |
+| `AI_VLM_PORT`           | not a `Settings` field (compose interpolation only)                                     | host mapping `127.0.0.1:${AI_VLM_PORT:-8098}:8098` | Host-side port for the VLM serve                                                    |
+| `GATEWAY_MODEL_SET`     | hard-raises when unset                                                                  | `${GATEWAY_MODEL_SET:-vlm}`                        | Triton residency set; `vlm` = yolo26 + reid (+ threat when `GATEWAY_ENABLE_THREAT`) |
+| `VLM_CTX_SIZE`          | `32768`                                                                                 | `${VLM_CTX_SIZE:-32768}`                           | Shared context pool                                                                 |
+| `VLM_PARALLEL`          | `2`                                                                                     | `${VLM_PARALLEL:-2}`                               | llama.cpp slots (per-slot = ctx ÷ parallel)                                         |
+| `BACKEND_MODEL_PRELOAD` | `false`                                                                                 | per-host (true when the GPU has ≥ 24 GB)           | Boot sweep for `preload: true` rows                                                 |
+
+> **Retired — R8 slices S2/S3, 2026-09-29.** `NEMOTRON_URL`, `LLM_MODEL_PATH`,
+> `NEMOTRON_GGUF_PATH`, `NEMOTRON_API_KEY`, `FLORENCE_URL` / `FLORENCE_MODEL_PATH`, `CLIP_URL` /
+> `CLIP_MODEL_PATH`, `ENRICHMENT_URL`, `CLOTHING_MODEL_PATH`, `VEHICLE_MODEL_PATH`,
+> `PET_MODEL_PATH`, `DEPTH_MODEL_PATH` and `POSE_MODEL_PATH` are no longer read by any `Settings`
+> field or shipped service. `.env.example` says so where the three gateway routes used to be, and a
+> test pins that `FLORENCE_URL=`, `CLIP_URL=` and `ENRICHMENT_URL=` are not injected by any compose
+> file. Setting one is inert, not a way to bring a model back.
 
 ---
 
@@ -1122,49 +508,46 @@ flowchart TD
 
     subgraph Gateway["ai-gateway :8090 (Triton + FastAPI)"]
         YOLO["/yolo26<br/>YOLO26m"]
-        FLO["/florence<br/>Florence-2-Base"]
-        CLIP["/clip<br/>SigLIP 2"]
-        ENR["/enrichment + /enrich-lt<br/>vehicle, pet, pose, threat, reid, depth, ..."]
+        ENRLT["/enrich-lt<br/>reid + threat<br/>(threat is opt-in)"]
     end
 
     subgraph Zoo["backend model_zoo (in-process, models.yml)"]
-        HEAVY["smoke/fire, vitpose, segformer,<br/>violence, weather, damage, OCR ...<br/>(load on demand,<br/>unload after use)"]
+        LOOKUP["face leg (SCRFD + ArcFace),<br/>yolo11-face, yolo11-license-plate,<br/>fast-alpr, paddle<br/>(load on demand, unload after use)"]
     end
 
-    subgraph Analysis["Analysis Layer"]
-        NEM["ai-llm :8091<br/>Nemotron LLM<br/>Risk Analysis & Scoring"]
+    subgraph Reasoning["Reasoning"]
+        VLM["ai-vlm :8098<br/>llama.cpp engine<br/>(VLMAnalyzer; identity is config)"]
     end
 
     BE -->|images| YOLO
-    BE -->|detections| ENR
-    BE -->|frames| FLO
-    BE -->|crops| CLIP
-    BE --> HEAVY
-    BE -->|enriched batch| NEM
-    NEM --> OUT[Risk Events]
+    BE -->|crops| ENRLT
+    BE --> LOOKUP
+    BE -->|batch + specialist lines| VLM
+    VLM --> OUT[Risk Events]
 
     style YOLO fill:#22C55E,color:#fff
-    style ENR fill:#3B82F6,color:#fff
-    style FLO fill:#3B82F6,color:#fff
-    style CLIP fill:#3B82F6,color:#fff
-    style NEM fill:#A855F7,color:#fff
+    style ENRLT fill:#3B82F6,color:#fff
+    style VLM fill:#A855F7,color:#fff
 ```
 
 ### Pipeline Flow
 
-1. **YOLO26** (gateway `/yolo26`): Detects objects in camera images (30-50ms)
-2. **Enrichment** (gateway `/enrichment`, `/enrich-lt` + backend model_zoo): Classifies detections (vehicle type, clothing, pet, depth, pose, threats)
-3. **Florence-2** (gateway `/florence`): Generates scene captions and OCR text (optional)
-4. **SigLIP 2** (gateway `/clip`): Scene-baseline and fashion-similarity embeddings (optional) — person re-ID vectors come from **OSNet-AIN x1.0** (`osnet-ain-x1-0`, 512-dim), not from `/clip`
-5. **Nemotron** (`ai-llm` :8091): Analyzes enriched detections and generates risk scores (2-5s)
+1. **YOLO26** (gateway `/yolo26`): Detects objects in camera images
+2. **Specialists** (gateway `/enrich-lt`): Threat detection and person re-ID embeddings on crops
+3. **Lookups** (backend model_zoo): Face recognition against the enrolled gallery, plate detection and ALPR/OCR text
+4. **Reasoning** (`ai-vlm` :8098): The llama.cpp engine grades the batch and generates risk scores and summaries
+
+The retired chain — Florence-2 captioning, CLIP/SigLIP embeddings and the Nemotron scoring pass —
+is gone from all four steps.
 
 ---
 
 ## Related Documentation
 
 - [AI Pipeline Architecture](../architecture/ai-pipeline.md)
-- [Enrichment Service Documentation](../../ai/enrichment/AGENTS.md)
-- [Nemotron LLM Configuration](../../ai/nemotron/AGENTS.md)
+- [AI Services Guide](../../ai/AGENTS.md)
+- [AI Gateway](../../ai/gateway/AGENTS.md)
+- [Triton Model Repository](../../ai/triton/AGENTS.md)
 - [YOLO26 Detection Server](../../ai/yolo26/AGENTS.md)
 - [Risk Levels Configuration](config/risk-levels.md)
 - [GPU Troubleshooting](troubleshooting/gpu-issues.md)

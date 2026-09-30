@@ -1,5 +1,21 @@
 # LLM Inference Performance Optimization
 
+> **Partly retired — R8 slices S1/S2, 2026-09-29.** The serving stack this
+> page documents as "current" is gone: the Nemotron `ai-llm` service, its 30B
+> GGUF and the 8091 endpoint retired with the legacy path
+> (`pipeline_mode: legacy` now hard-raises at `backend/core/config.py:1080`),
+> so every port/env/VRAM figure below describes a container that no longer
+> exists. What survived: the shipped reasoning engine is `ai-vlm`, a llama.cpp
+> container whose CMD applies the same NEM-5369 techniques (flash-attn,
+> ctx-size, parallel slots — see `ai/vlm/Dockerfile` and `VLM_CTX_SIZE` /
+> `VLM_PARALLEL` / `VLM_FLASH_ATTENTION` in compose), and the
+> `TokenCounter` (§4) is live — `vlm_client` and `main.py` import it. The
+> `ai/` tuning modules (`flash_attention_config.py`, `cuda_graph_manager.py`,
+> `quantization_config.py`) survive unreferenced except `ai/__init__.py`'s
+> re-export. Model identity on `ai-vlm` is config (ledger D5). Read §1-§2 and
+> the VRAM/throughput tables as the NEM-5369 historical record, not as
+> `ai-vlm` tuning guidance.
+
 This document describes the current Nemotron LLM inference configuration, recent performance optimizations, observed characteristics, known limitations, and recommended next steps.
 
 ## Current LLM Configuration

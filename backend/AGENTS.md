@@ -11,7 +11,7 @@ _Sequence diagram showing typical request flow through Browser, Nginx, FastAPI, 
 The backend is a FastAPI-based REST API server for an AI-powered home security monitoring system. It orchestrates:
 
 - **Camera management** - Track cameras, zones, and their upload directories
-- **AI detection pipeline** - File watching, YOLO26 object detection, batch aggregation, Nemotron risk analysis
+- **AI detection pipeline** - File watching, YOLO26 object detection, batch aggregation, VLM risk analysis (the `ai-vlm` llama.cpp engine; model identity is config, ledger D5)
 - **Data persistence** - PostgreSQL database for structured data (cameras, detections, events, GPU stats, logs)
 - **Real-time capabilities** - Redis for queues, pub/sub, and caching with backpressure handling
 - **Media serving** - Secure file serving with path traversal protection
@@ -26,12 +26,12 @@ The backend is a FastAPI-based REST API server for an AI-powered home security m
 | Component           | Count | Description                                     |
 | ------------------- | ----- | ----------------------------------------------- |
 | API Routes          | 60    | REST endpoints organized by domain              |
-| Services            | 204   | Business logic, AI pipeline, background workers |
-| Models              | 53    | SQLAlchemy ORM model modules                    |
-| Schemas             | 85    | Pydantic request/response schemas               |
+| Services            | 177   | Business logic, AI pipeline, background workers |
+| Models              | 54    | SQLAlchemy ORM model modules                    |
+| Schemas             | 86    | Pydantic request/response schemas               |
 | Middleware          | 23    | Request processing pipeline                     |
 | Repositories        | 8     | Data access layer (base + 7 repositories)       |
-| Core Infrastructure | 52    | Database, Redis, config, logging, etc.          |
+| Core Infrastructure | 54    | Database, Redis, config, logging, etc.          |
 
 ## Running the Backend
 
@@ -51,25 +51,25 @@ podman-compose -f docker-compose.prod.yml up -d backend
 
 ```
 backend/
-├── main.py                 # FastAPI application entry point (600+ lines)
+├── main.py                 # FastAPI application entry point (1,800+ lines)
 ├── __init__.py             # Package initialization
 ├── Dockerfile              # Container configuration (uv-based, works with Docker/Podman)
 ├── .dockerignore           # Docker build exclusions
 ├── ai_contract/            # Generated AI-tier operation registry (plan P)
 ├── api/                    # REST API layer
 │   ├── routes/             # 60 API route modules
-│   ├── schemas/            # 85 Pydantic schema modules
+│   ├── schemas/            # 86 Pydantic schema modules
 │   ├── middleware/         # 23 middleware components
 │   └── utils/              # API utility modules
 ├── config/                 # Prompt A/B rollout, experiments, shadow deployment
-├── core/                   # Infrastructure (52 modules)
+├── core/                   # Infrastructure (54 modules)
 │   ├── websocket/          # WebSocket event infrastructure
 │   └── middleware/         # Core middleware components
 ├── evaluation/             # Prompt-evaluation harness (datasets, metrics, runner)
-├── models/                 # SQLAlchemy ORM models (53 model modules)
+├── models/                 # SQLAlchemy ORM models (54 model modules)
 ├── repositories/           # Data access layer (base + 7 repositories)
 ├── jobs/                   # Background job modules (3 jobs)
-├── services/               # Business logic and AI pipeline (204 modules)
+├── services/               # Business logic and AI pipeline (177 modules)
 │   ├── data/               # Service data helpers
 │   └── orchestrator/       # Service orchestration subsystem
 ├── tests/                  # Unit and integration tests
@@ -169,7 +169,7 @@ backend/
 
 ## Core Infrastructure (`core/`)
 
-See `core/AGENTS.md` for detailed documentation. The core layer contains 52 modules (top-level plus the websocket and middleware subsystems) providing foundational infrastructure.
+See `core/AGENTS.md` for detailed documentation. The core layer contains 54 modules (top-level plus the websocket and middleware subsystems) providing foundational infrastructure.
 
 ### Configuration and Settings
 
@@ -181,7 +181,7 @@ See `core/AGENTS.md` for detailed documentation. The core layer contains 52 modu
 - API settings (host, port, CORS, rate limiting)
 - File watching settings (Foscam base path, polling options)
 - Retention and batch processing timings
-- AI service endpoints (YOLO26, Nemotron)
+- AI service endpoints (YOLO26 via `yolo26_url`, the `ai-vlm` engine via `ai_vlm_url`, plus the `ai-gateway` / `enrich-lt` routing URLs)
 - Detection and fast path thresholds
 - Logging configuration (file, database, rotation)
 - TLS/HTTPS settings (mode-based: disabled, self_signed, provided)
@@ -245,7 +245,7 @@ See `core/AGENTS.md` for detailed documentation. The core layer contains 52 modu
 - Queue depth gauges (detection, analysis)
 - Stage duration histograms (detect, batch, analyze)
 - Event/detection counters
-- AI request duration tracking (yolo26, nemotron)
+- AI request duration tracking (the only `service` label the pipeline still records is `yolo26`; the `hsi_nemotron_*` histograms stay defined because the Grafana dashboards and `monitoring/*.yml` alert rules query them — API surface, not a live engine)
 - Error counters by type
 - `PipelineLatencyTracker` - In-memory latency tracking with percentile calculations
 
@@ -293,14 +293,14 @@ See `core/AGENTS.md` for detailed documentation. The core layer contains 52 modu
 
 ## Database Models (`models/`)
 
-See `models/AGENTS.md` for detailed documentation. The data layer contains 53 SQLAlchemy model modules using 2.0 `Mapped` type hints.
+See `models/AGENTS.md` for detailed documentation. The data layer contains 54 SQLAlchemy model modules using 2.0 `Mapped` type hints.
 
 ### Core Domain Models
 
 - **`Camera`** - Camera entity with detections/events relationships
 - **`Detection`** - Object detection results with bounding boxes and video metadata
 - **`Event`** - Security events with LLM risk analysis
-- **`Zone`** - Camera monitoring zones/areas
+- **`CameraZone`** - Camera monitoring zones (`models/zone.py` re-exports it as `Zone`; import from `models/camera_zone.py`)
 - **`Entity`** - Tracked entities (people, vehicles) across cameras
 
 ### Event and Detection Extensions
@@ -314,22 +314,22 @@ See `models/AGENTS.md` for detailed documentation. The data layer contains 53 SQ
 
 - **`PromptConfig`** - LLM prompt configuration storage
 - **`PromptVersion`** - Prompt versioning for A/B testing
-- **`Baseline`** - Scene baseline for anomaly detection
+- **`ActivityBaseline` / `ClassBaseline`** (`models/baseline.py`) - Count-based EWMA activity and per-class frequency baselines for anomaly detection
 - **`SceneChange`** - Detected scene changes
 - **`LLMInteraction`** - LLM interaction logging
-- **`Enrichment`** - Detection enrichment data
+- **`PoseResult` / `ThreatDetection` / `ActionResult`** (`models/enrichment.py`) - Per-detection specialist rows; the module's `DemographicsResult` / `ReIDEmbedding` pair is gone (R8 S4, 2026-09-30, dated DROP runbook)
 - **`SmokeFireResult`** - Smoke/fire detection results
 - **`ExperimentResult`** - A/B experiment results
 
 ### Zone and Area Models
 
-- **`AnalyticsZone`** - Analytics zone configuration
+- **`LineZone` / `PolygonZone`** (`models/analytics_zone.py`) - Analytics zone geometry
 - **`CameraZone`** - Camera-zone associations
 - **`Area`** - Area definitions
 - **`ZoneAnomaly`** - Zone anomaly records
-- **`ZoneBaseline`** - Zone baseline data
+- **`ZoneActivityBaseline`** (`models/zone_baseline.py`) - Zone activity baseline data
 - **`ZoneHouseholdConfig`** - Zone-household configuration
-- **`Heatmap`** - Heatmap data
+- **`HeatmapData`** (`models/heatmap.py`) - Heatmap data
 
 ### User and System
 
@@ -346,9 +346,9 @@ See `models/AGENTS.md` for detailed documentation. The data layer contains 53 SQ
 ### Monitoring
 
 - **`GPUStats`** - GPU performance time-series data
-- **`GPUConfig`** - GPU configuration settings
+- **`GpuConfiguration` / `GpuDevice`** (`models/gpu_config.py`) - GPU configuration settings
 - **`Log`** - Structured application logs
-- **`Audit`** - Security audit records
+- **`AuditLog`** (`models/audit.py`) - Security audit records
 
 ### Background Jobs
 
@@ -362,12 +362,12 @@ See `models/AGENTS.md` for detailed documentation. The data layer contains 53 SQ
 
 ### Household and Tracking
 
-- **`Household`** - Household entity
-- **`HouseholdOrg`** - Household organization
-- **`FaceIdentity`** - Face recognition identities
+- **`Household`** (`models/household_org.py`) - Household entity
+- **`HouseholdMember` / `PersonEmbedding` / `RegisteredVehicle`** (`models/household.py`) - Members, the live VLM re-ID gallery vectors, registered vehicles
+- **`KnownPerson` / `FaceEmbedding`** (`models/face_identity.py`) - Face recognition identities
 - **`PlateRead`** - License plate reads
 - **`Track`** - Object tracking data
-- **`DwellTime`** - Dwell time records
+- **`DwellTimeRecord`** (`models/dwell_time.py`) - Dwell time records
 - **`PackageEvent`** - Package detection events
 - **`Summary`** - Event summaries
 - **`CameraCalibration`** - Camera calibration data
@@ -523,7 +523,7 @@ The middleware layer contains 23 components for request processing:
 
 ## API Schemas (`api/schemas/`)
 
-The schema layer contains 85 Pydantic schema modules for request/response validation (load-bearing examples below; full list in `api/schemas/AGENTS.md`):
+The schema layer contains 86 Pydantic schema modules for request/response validation (load-bearing examples below; full list in `api/schemas/AGENTS.md`):
 
 - **Domain schemas:** `camera.py`, `detections.py`, `events.py`, `zone.py`, `entities.py`
 - **AI schemas:** `ai_audit.py`, `llm.py`, `llm_response.py`, `enrichment.py`, `enrichment_data.py`
@@ -550,72 +550,95 @@ The repository layer provides data access abstraction with a generic base class:
   - `merge()` - Upsert operations
   - `save()` - Persist changes
 
+- **`alert_repository.py`** - Alert rule queries
 - **`camera_repository.py`** - Camera-specific queries
 - **`detection_repository.py`** - Detection-specific queries
 - **`entity_repository.py`** - Entity tracking queries
 - **`event_repository.py`** - Event-specific queries
+- **`summary_repository.py`** - Summary queries
+- **`zone_repository.py`** - Zone queries
 
 ## Services (`services/`)
 
-See `services/AGENTS.md` for detailed documentation. The service layer contains 204 modules (including the orchestrator and data subsystems) organized by function.
+See `services/AGENTS.md` for detailed documentation. The service layer contains 177 modules (including the orchestrator and data subsystems) organized by function.
 
 ### Core AI Pipeline
 
-| Service                  | Purpose                                     |
-| ------------------------ | ------------------------------------------- |
-| `file_watcher.py`        | Monitors camera directories for new uploads |
-| `detector_client.py`     | YOLO26 HTTP client for object detection     |
-| `batch_aggregator.py`    | Groups detections into time-based batches   |
-| `nemotron_analyzer.py`   | LLM risk analysis via llama.cpp             |
-| `nemotron_streaming.py`  | Streaming LLM responses                     |
-| `thumbnail_generator.py` | Detection visualization with bounding boxes |
-| `dedupe.py`              | File deduplication using content hashes     |
-| `vision_extractor.py`    | Visual feature extraction                   |
+| Service                  | Purpose                                                                         |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| `file_watcher.py`        | Monitors camera directories for new uploads                                     |
+| `detector_client.py`     | YOLO26 HTTP client for object detection                                         |
+| `batch_aggregator.py`    | Groups detections into time-based batches                                       |
+| `pipeline_factory.py`    | Builds the analyzer; `build_pipeline_analyzer` returns VlmAnalyzer              |
+| `vlm_analyzer.py`        | VLM risk analysis via the `ai-vlm` engine (model identity is config, ledger D5) |
+| `vlm_client.py`          | llama.cpp transport (`POST /v1/chat/completions`) + the one retry               |
+| `vlm_specialists.py`     | Face / plate / re-ID text legs rendered into the VLM prompt                     |
+| `thumbnail_generator.py` | Detection visualization with bounding boxes                                     |
+| `dedupe.py`              | File deduplication using content hashes                                         |
+
+R8 S2 (2026-09-29) deleted the legacy analyzer tier — `nemotron_analyzer.py`,
+`nemotron_streaming.py` and `vision_extractor.py` are gone, and
+`config.py` hard-raises on `pipeline_mode: legacy`, so there is no second
+analysis path to document here.
 
 ### AI Model Loaders (Lazy Loading)
 
-| Service                        | Model                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `clip_loader.py`               | CLIP embeddings                                                                                                                                                                                                                                                                                                                      |
-| `clip_client.py`               | CLIP client interface                                                                                                                                                                                                                                                                                                                |
-| `florence_loader.py`           | Florence-2 vision-language                                                                                                                                                                                                                                                                                                           |
-| `florence_client.py`           | Florence client interface                                                                                                                                                                                                                                                                                                            |
-| `florence_extractor.py`        | Florence feature extraction                                                                                                                                                                                                                                                                                                          |
-| `depth_anything_loader.py`     | Depth estimation                                                                                                                                                                                                                                                                                                                     |
-| `segformer_loader.py`          | Semantic segmentation                                                                                                                                                                                                                                                                                                                |
-| `vitpose_loader.py`            | Pose estimation                                                                                                                                                                                                                                                                                                                      |
-| `yolo_world_loader.py`         | YOLO-World detection                                                                                                                                                                                                                                                                                                                 |
-| `stgcn_loader.py`              | ST-GCN++ skeleton action recognition (NEM-5563 successor to X-CLIP; the old `xclip_loader.py`/`action_recognition_service.py` chain — including the `/api/action-events` analyze route it backed — was archived 2026-09-23 to `archive/xclip-backend-chain/`; models.yml keeps `xclip-base` as an `enabled: false` provenance entry) |
-| `fashion_clip_loader.py`       | Fashion-specific CLIP                                                                                                                                                                                                                                                                                                                |
-| `pet_classifier_loader.py`     | Pet/animal classification                                                                                                                                                                                                                                                                                                            |
-| `vehicle_classifier_loader.py` | Vehicle classification                                                                                                                                                                                                                                                                                                               |
-| `vehicle_damage_loader.py`     | Vehicle damage detection                                                                                                                                                                                                                                                                                                             |
-| `violence_loader.py`           | Violence detection                                                                                                                                                                                                                                                                                                                   |
-| `weather_loader.py`            | Weather classification                                                                                                                                                                                                                                                                                                               |
-| `image_quality_loader.py`      | Image quality assessment                                                                                                                                                                                                                                                                                                             |
-| `model_loader_base.py`         | Base class for model loaders                                                                                                                                                                                                                                                                                                         |
-| `model_zoo.py`                 | Model registry and management                                                                                                                                                                                                                                                                                                        |
+| Service                     | Model                                                 |
+| --------------------------- | ----------------------------------------------------- |
+| `osnet_loader.py`           | OSNet-AIN x1.0 person re-ID embeddings                |
+| `face_recognizer_loader.py` | SCRFD face detector + ArcFace embedder (buffalo_l)    |
+| `fast_alpr_loader.py`       | FastALPR end-to-end plate detection + OCR             |
+| `model_loader_base.py`      | Base class for model loaders                          |
+| `model_zoo.py`              | Model registry and management (registry = models.yml) |
+
+This table once listed nineteen rows. Only its last two survive — the seventeen
+above them are deleted, fifteen in R8 S2 (2026-09-29): `clip_loader.py`,
+`florence_loader.py`, `florence_extractor.py`, `depth_anything_loader.py`,
+`segformer_loader.py`, `vitpose_loader.py`, `yolo_world_loader.py`,
+`stgcn_loader.py`, `fashion_clip_loader.py`, `pet_classifier_loader.py`,
+`vehicle_classifier_loader.py`, `vehicle_damage_loader.py`,
+`violence_loader.py`, `weather_loader.py` and `image_quality_loader.py`; the two
+thin clients (`clip_client.py`, `florence_client.py`) went in R8 S3 the same day.
+The three loaders that joined above — `osnet_loader.py`,
+`face_recognizer_loader.py` and `fast_alpr_loader.py` — are the ones
+`model_zoo.py`'s `_LOADER_MAP` actually binds today, which is why the old table
+never listed them. The X-CLIP chain
+(`xclip_loader.py`/`action_recognition_service.py`, including the
+`/api/action-events` analyze route it backed) was archived 2026-09-23 to
+`archive/xclip-backend-chain/`, and the models.yml rows for the deleted models
+were deleted, not flipped to `enabled: false` (R8 S3 owner ruling — provenance
+is git history plus the ledger).
 
 ### Detection Enrichment Pipeline
 
-| Service                  | Purpose                            |
-| ------------------------ | ---------------------------------- |
-| `enrichment_pipeline.py` | Detection enrichment orchestration |
-| `enrichment_client.py`   | Enrichment service client          |
-| `context_enricher.py`    | Context-aware enrichment           |
-| `face_detector.py`       | Face detection                     |
-| `plate_detector.py`      | License plate detection            |
-| `ocr_service.py`         | Optical character recognition      |
-| `reid_service.py`        | Person re-identification           |
-| `bbox_validation.py`     | Bounding box validation            |
+| Service               | Purpose                       |
+| --------------------- | ----------------------------- |
+| `context_enricher.py` | Context-aware enrichment      |
+| `face_detector.py`    | Face detection                |
+| `plate_detector.py`   | License plate detection       |
+| `ocr_service.py`      | Optical character recognition |
+| `reid_service.py`     | Person re-identification      |
+| `bbox_validation.py`  | Bounding box validation       |
+
+The heavy-perception orchestrator is gone: R8 S2 deleted
+`enrichment_pipeline.py` and its `enrichment_client.py` service client. What
+reaches the shipped prompt instead is `vlm_specialists.py`, which dials the
+three surviving loaders directly (face via `face_recognizer_loader.py`, plate
+via `fast_alpr_loader.py`, re-ID via `osnet_loader.py`). The four legs above
+survive as the DI-reachable lookup services they always were — wrapped by
+`ai_services.py` for the container, with `reid_service.py` behind the
+entity/re-ID routes.
 
 ### Scene Analysis
 
-| Service                    | Purpose                   |
-| -------------------------- | ------------------------- |
-| `scene_baseline.py`        | Scene baseline management |
-| `scene_change_detector.py` | Scene change detection    |
-| `baseline.py`              | Baseline calculation      |
+| Service                    | Purpose                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| `scene_change_detector.py` | Scene change detection (SSIM against an in-memory baseline image per camera) |
+| `baseline.py`              | Activity baseline calculation (count-based EWMA)                             |
+| `zone_baseline_service.py` | Zone activity baselines                                                      |
+
+`scene_baseline.py` (the DB-backed image baseline store) was deleted with R8 S3
+on 2026-09-29; the SSIM detector keeps its baselines in process memory.
 
 ### Pipeline Workers
 
@@ -741,22 +764,24 @@ Camera uploads -> FileWatcher -> detection_queue (Redis)
                                       |
                               DetectionQueueWorker
                                       |
-                               DetectorClient -> YOLO26
+                               DetectorClient -> YOLO26 (/yolo26 on ai-gateway)
                                       |
                                Detection (DB)
                                       |
-                    ┌─────────────────┼─────────────────┐
-                    |                 |                 |
-           ThumbnailGenerator   BatchAggregator   EnrichmentPipeline
-                                      |                 |
-                               analysis_queue     [CLIP, Florence,
-                                      |            Face, Plate, OCR]
-                                      |
-                          AnalysisQueueWorker
-                                      |
-                             NemotronAnalyzer -> Nemotron LLM
-                                      |
-                                 Event (DB)
+                    ┌─────────────────┴─────────────────┐
+             ThumbnailGenerator                  BatchAggregator
+                                                           |
+                                                    analysis_queue
+                                                           |
+                                                AnalysisQueueWorker
+                                                           |
+                                     build_pipeline_analyzer -> VlmAnalyzer
+                                                           |
+                    [vlm_specialists: Face / Plate / Re-ID lookups]
+                                                           |
+                                      VlmAnalyzer -> ai-vlm (llama.cpp, 8098)
+                                                           |
+                                                      Event (DB)
                                       |
                     ┌─────────────────┼─────────────────┐
                     |                 |                 |
@@ -765,6 +790,12 @@ Camera uploads -> FileWatcher -> detection_queue (Redis)
               Alert (DB)              |           [Email, Webhook]
                              WebSocket clients
 ```
+
+The enrichment fork that used to sit on this diagram (`EnrichmentPipeline` →
+CLIP / Florence / face / plate / OCR) is gone: R8 S2 deleted the tier, so the
+lookups the shipped prompt actually carries run inside `VlmAnalyzer` through
+`vlm_specialists.py`, and the analyzer itself is mode-built
+(`pipeline_factory.build_pipeline_analyzer`) rather than named at the call site.
 
 ### System Monitoring Flow
 
@@ -781,7 +812,11 @@ Performance -> PerformanceCollector -> Prometheus metrics -> /api/metrics
 ```
 Scheduled cleanup -> CleanupService -> Delete old records -> Remove files
 
-Scene analysis -> SceneChangeDetector -> SceneBaseline -> Anomaly detection
+Scene analysis -> SceneChangeDetector -> SSIM vs in-memory baseline image -> SceneChangeResult
+
+Activity anomaly -> BaselineService (count-based EWMA per camera/hour)
+                   -> ActivityBaseline / ClassBaseline
+                   -> ZoneActivityBaseline (zone_baseline_service)
 
 Cost tracking -> CostTracker -> Usage metrics -> /api/ai-audit
 ```
@@ -891,18 +926,21 @@ Test structure mirrors source code with comprehensive coverage:
 
 ```
 backend/tests/
-├── unit/                  # 8,229 unit tests
+├── unit/                  # 27,901 collected unit tests
 │   ├── api/               # API route tests
 │   ├── core/              # Core infrastructure tests
 │   ├── models/            # Model tests
 │   ├── services/          # Service tests
 │   └── repositories/      # Repository tests
-└── integration/           # 1,556 integration tests (4 shards)
+└── integration/           # 4,059 collected integration tests (4 shards)
     ├── api/               # API integration tests
     ├── websocket/         # WebSocket tests
     ├── services/          # Service integration tests
     └── models/            # Model integration tests
 ```
+
+Both counts are `pytest --collect-only -q` totals on the 2026-09-30 tree, not
+run-time pass counts.
 
 **Running Tests:**
 
@@ -939,13 +977,15 @@ REDIS_URL=redis://localhost:6379/0
 # Camera configuration
 FOSCAM_BASE_PATH=/export/foscam
 
-# AI service endpoints - all vision models run behind the single ai-gateway
-# container on port 8090 (routers: /yolo26 /florence /clip /enrichment /enrich-lt).
-# Nemotron stays separate on llama.cpp (LLM_PORT 8091). Values below match .env.example.
+# AI service endpoints - the ai-gateway container on port 8090 serves ONLY
+# /yolo26 and /enrich-lt (R8 S3 pruned the /florence /clip /enrichment router
+# mounts on 2026-09-29). The shipped LLM engine is the separate `ai-vlm`
+# llama.cpp container, host loopback port 8098 (compose profile `vlm`).
+# Values below match .env.example.
 USE_AI_GATEWAY=true
 AI_GATEWAY_URL=http://ai-gateway:8090
 YOLO26_URL=http://localhost:8090/yolo26
-NEMOTRON_URL=http://localhost:8091
+AI_VLM_URL=http://localhost:8098
 
 # Detection settings
 DETECTION_CONFIDENCE_THRESHOLD=0.5
@@ -996,17 +1036,17 @@ The backend provides three health endpoints for different use cases:
 | `/backend/ai_contract/AGENTS.md`    | AI-tier operation registry (generated)           |
 | `/backend/api/AGENTS.md`            | API layer overview                               |
 | `/backend/api/routes/AGENTS.md`     | API endpoints (60 routes)                        |
-| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (85 modules)                    |
+| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (86 modules)                    |
 | `/backend/api/middleware/AGENTS.md` | Middleware components (23 modules)               |
 | `/backend/api/utils/AGENTS.md`      | API utility modules                              |
-| `/backend/core/AGENTS.md`           | Core infrastructure (52 modules)                 |
+| `/backend/core/AGENTS.md`           | Core infrastructure (54 modules)                 |
 | `/backend/config/AGENTS.md`         | Prompt A/B rollout and experiments               |
 | `/backend/core/websocket/AGENTS.md` | WebSocket event infrastructure                   |
 | `/backend/evaluation/AGENTS.md`     | Prompt-evaluation harness                        |
 | `/backend/jobs/AGENTS.md`           | Background job modules                           |
-| `/backend/models/AGENTS.md`         | Database models (52 models)                      |
+| `/backend/models/AGENTS.md`         | Database models (54 models)                      |
 | `/backend/repositories/AGENTS.md`   | Repository pattern (base + 7 repos)              |
-| `/backend/services/AGENTS.md`       | Service layer (204 modules)                      |
+| `/backend/services/AGENTS.md`       | Service layer (177 modules)                      |
 | `/backend/tests/AGENTS.md`          | Test infrastructure                              |
 | `/backend/examples/AGENTS.md`       | Example scripts (Redis usage)                    |
 | `/backend/scripts/AGENTS.md`        | Utility scripts (VRAM benchmarking)              |

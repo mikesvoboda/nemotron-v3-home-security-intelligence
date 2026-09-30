@@ -21,13 +21,13 @@ This deployment does **not** set hard per-container GPU memory caps — the comp
 
 1. **Whole-GPU assignment.** Each GPU consumer is pinned to a specific GPU via `deploy.resources.reservations.devices.device_ids` plus a matching `CUDA_VISIBLE_DEVICES`, so containers cannot drift onto each other's card.
 2. **Host RAM limits.** `deploy.resources.limits.memory` / `reservations.memory` cap **system memory** (not VRAM) per container — measured values below.
-3. **Managed sharing inside the gateway.** All vision models share one process (`ai-gateway`'s Triton), where the on-demand model manager enforces a VRAM budget with priority-ordered LRU eviction instead of per-container caps.
+3. **Resident sharing inside the gateway.** All vision models share one process (`ai-gateway`'s Triton) started with `--model-control-mode=none`, so its models are resident — sized at container start, not budgeted or evicted at runtime. The backend `ModelManager` likewise has no eviction pass (see `backend/main.py`'s preload note).
 
 ### Key Properties
 
-- **No cross-container contention:** the LLM and the gateway sit on separate cards by default (`GPU_LLM=0`, `GPU_AI_SERVICES=1`).
-- **Predictable eviction:** under VRAM pressure inside the gateway, models evict by priority (`CRITICAL` models carry `never_evict: true` — today only smoke/fire detection).
-- **Graceful degradation:** the LLM offloads layers to system RAM via `GPU_LAYERS` when its card is smaller than ~24GB.
+- **No cross-container contention:** the VLM engine and the gateway sit on separate cards by default (`GPU_LLM=0`, `GPU_AI_SERVICES=1`).
+- **No runtime eviction anywhere:** gateway models are Triton-resident and the backend zoo has no eviction pass — `priority`/`never_evict` rows in `models.yml` are parsed but unread. VRAM headroom is a sizing decision made before boot, not a runtime safety net.
+- **Graceful degradation:** the VLM engine offloads layers to system RAM via `VLM_GPU_LAYERS` (default `auto`) when its card is smaller than the GGUF pair it was configured with.
 
 ---
 
@@ -65,13 +65,13 @@ services:
               capabilities: [gpu]
 ```
 
-Set `GPU_LLM` and `GPU_AI_SERVICES` in `.env`. On a single-GPU box, set both to the same index and size the LLM down with `GPU_LAYERS` (see below).
+Set `GPU_LLM` and `GPU_AI_SERVICES` in `.env`. On a single-GPU box, set both to the same index and size the VLM down with `VLM_GPU_LAYERS` (see below).
 
 > **Note:** the `memory:` values above are host RAM, not VRAM. There is no `options.memory` GPU-memory field in this project's compose file despite what older versions of this guide claimed.
 
-### 2. LLM VRAM Sizing (GPU_LAYERS)
+### 2. VLM VRAM Sizing (VLM_GPU_LAYERS)
 
-The production LLM is Nemotron-3-Nano-30B Q4_K_M (~14.7GB GGUF, ~21GB resident fully offloaded to GPU). `GPU_LAYERS` (in `.env`, default `auto`) controls how many transformer layers live in VRAM; the rest run from system RAM. `auto` fits the available card. This — not a container cap — is the knob for small-VRAM hosts.
+The shipped reasoning engine is `ai-vlm` (llama.cpp, compose profile `vlm`); which GGUF pair it loads is operator config (`VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`, ledger D5 — this page names no model identity). `VLM_GPU_LAYERS` (in `.env`, default `auto`) controls how many transformer layers live in VRAM; the rest run from system RAM. `auto` fits the available card. This — not a container cap — is the knob for small-VRAM hosts.
 
 ### 3. PyTorch Memory Allocator
 
@@ -91,12 +91,20 @@ From `docker-compose.prod.yml` (host RAM/CPU caps + GPU assignment):
 
 | Service                        | CPU limit | RAM limit / reservation           | GPU assignment                                         |
 | ------------------------------ | --------- | --------------------------------- | ------------------------------------------------------ |
-| `ai-llm`                       | 4         | 12G / 8G                          | `device_ids: GPU_LLM` (default 0)                      |
+| `ai-vlm` (profile `vlm`)       | 4         | 10G / 4G                          | `device_ids: GPU_LLM` (default 0)                      |
 | `ai-gateway`                   | 8         | 20G / 10G                         | `device_ids: GPU_AI_SERVICES` (default 1)              |
 | `backend`                      | 2         | 10G (raised from 6G for NEM-3890) | GPU reservation, no device_ids (any GPU)               |
 | `ai-llm-vllm` (profile `vllm`) | 4         | 24G / 16G                         | all GPUs visible; selection via `CUDA_VISIBLE_DEVICES` |
 
-VRAM demand per model lives in the gateway/backend model registry, not in compose. Estimates per service: [Multi-GPU guide, VRAM Requirements by Service](../developer/multi-gpu.md#vram-requirements-by-service) — roughly ~14-18GB for the 30B LLM and ~10GB summed across the gateway's models. With the full stack on one 24GB card the measured steady state is ~23GB used.
+VRAM demand per model lives in the gateway/backend model registry, not in
+compose — see [VRAM Requirements](../_includes/vram-requirements.md). What the
+table above caps is host RAM only. No measured steady-state figure exists for
+the post-R8 stack: VRAM demand is dominated by the `ai-vlm` GGUF pair the
+operator configures (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`), and `VLM_GPU_LAYERS=auto`
+(default) trades layers against whatever the card has free. The pre-R8 figures
+this page carried — a 30B LLM's ~14-18GB, the gateway's ~10GB, ~23GB steady
+state on one 24GB card — retired with the legacy path on 2026-09-29 and are not
+reproducible against the shipped stack.
 
 ---
 

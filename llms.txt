@@ -7,15 +7,15 @@
 This file provides deployment and architecture context for LLM-powered coding assistants.
 
 **Key entry points:**
-- `docker-compose.prod.yml` - Container orchestration (core + monitoring stack; `ai-gateway` is the single AI entrypoint)
+- `docker-compose.prod.yml` - Container orchestration (core + monitoring stack; `ai-gateway` is the detection entrypoint, `ai-vlm` the shipped reasoning engine)
 - `backend/` - Python FastAPI backend (REST API, WebSocket, AI pipeline)
 - `frontend/` - React TypeScript dashboard (Tailwind + Tremor)
-- `ai/` - AI service code (`ai/gateway/` serves all detection/enrichment models via Triton; `ai/nemotron/` is the standalone llama.cpp LLM container)
+- `ai/` - AI service code (`ai/gateway/` serves detection via Triton — routers `/yolo26` + `/enrich-lt` only since R8 S3; `ai/vlm/` is the shipped llama.cpp `ai-vlm` engine. The retired `ai/nemotron/` serving dir was deleted in R8 S2)
 
 **Architecture:**
 ```
-Cameras (FTP) --> FileWatcher --> YOLO26 --> Batch Aggregator --> Nemotron --> Dashboard
-                                (via ai-gateway :8090)          (llama.cpp :8091)
+Cameras (FTP) --> FileWatcher --> YOLO26 --> Batch Aggregator --> ai-vlm --> Dashboard
+                                (via ai-gateway :8090)          (llama.cpp :8098)
 ```
 
 ## Quick Deploy (First Time)
@@ -28,11 +28,12 @@ cd nemotron-v3-home-security-intelligence
 # 2. Configure environment (setup.py generates .env interactively; or copy the template)
 python setup.py            # or: cp .env.example .env
 
-# 3. Download AI models (~33GB total per the setup_lib download rule; takes 30-90 min on fast connection)
+# 3. Download AI models (~763MB per the setup_lib download rule — see AI Models below; the shipped VLM's GGUF pair is operator-placed config, not fetched here)
 ./ai/download_models.sh
 
-# 4. Start all services (builds AI containers on first run)
-podman-compose -f docker-compose.prod.yml up -d
+# 4. Start all services (builds AI containers on first run; --profile vlm is
+#    required or the shipped ai-vlm engine stays down)
+podman-compose -f docker-compose.prod.yml --profile vlm up -d
 
 # 5. Wait for AI models to load (~2-3 min)
 watch -n 5 'curl -s http://localhost:8000/api/system/health/ready'
@@ -44,7 +45,7 @@ watch -n 5 'curl -s http://localhost:8000/api/system/health/ready'
 
 ## Update Deployment (GHCR)
 
-Pre-built frontend/backend/ai-llm containers are published to GitHub Container Registry (`docker-compose.ghcr.yml`). AI gateway images publish too; build locally when GPU-specific rebuilds are needed.
+Pre-built frontend/backend containers are published to GitHub Container Registry (`docker-compose.ghcr.yml`). The AI services are not published there — `ai-gateway` and `ai-vlm` build locally from `docker-compose.prod.yml` (`ai/gateway/Dockerfile` and `./ai/vlm`), and `docker-compose.ghcr.yml` has no `ai-vlm` service at all (a reported gap).
 
 ```bash
 # Pull latest frontend + backend from GHCR
@@ -52,11 +53,11 @@ podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:l
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
 
 # Rebuild AI containers if ai/ code changed
-podman-compose -f docker-compose.prod.yml build ai-gateway ai-llm
+podman-compose -f docker-compose.prod.yml --profile vlm build ai-gateway ai-vlm
 
-# Restart everything
+# Restart everything (--profile vlm: the shipped ai-vlm engine is profile-gated)
 podman-compose -f docker-compose.prod.yml down
-podman-compose -f docker-compose.prod.yml up -d
+podman-compose -f docker-compose.prod.yml --profile vlm up -d
 ```
 
 ## GPU Requirements
@@ -64,26 +65,32 @@ podman-compose -f docker-compose.prod.yml up -d
 | VRAM | Capability | Example GPUs |
 |------|------------|--------------|
 | **24GB** | Full stack, all models loaded | RTX 3090, 4090, A5000, A5500, A6000 |
-| **16GB** | Reduced GPU layers (`GPU_LAYERS`) | RTX 4080, A4000 |
+| **16GB** | Reduced GPU layers (`VLM_GPU_LAYERS`) | RTX 4080, A4000 |
 | **12GB** | Minimal mode, some CPU offload | RTX 3080, 4070 Ti |
 
-**VRAM budget:** Nemotron Q4_K_M GGUF is ~14.7GB on disk (`models.yml` size_mb 15073) and ~21GB resident when fully on GPU (`backend/services/model_zoo.py:36` — 21,700 MB); detection/enrichment models load on demand through the gateway with LRU eviction. `GPU_LAYERS=auto` (default) fits the LLM to available VRAM.
+**VRAM budget:** the shipped `ai-vlm` engine's model identity is operator config (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` in `.env`; `.env.example` defaults to `Qwen3VL-8B-Instruct-Q4_K_M`, see `.env.example` / the bring-up record — no measured 24 GB-class figure exists yet). The retired 30B Nemotron path's ~14.7GB on-disk / ~21GB resident figures are dead with it. Gateway Triton models are resident (`--model-control-mode=none`); backend-zoo models load lazily and nothing evicts (the zoo has no eviction pass — `priority`/`never_evict` rows are parsed but have no consumer). `VLM_GPU_LAYERS` (default `auto`) fits the engine to available VRAM.
 
-## AI Models (~33GB total — 25 entries per the setup_lib download rule)
+## AI Models (~763MB downloaded by the setup_lib rule — 5 entries of the 10 live `models.yml` rows)
 
-The download script (`./ai/download_models.sh`) fetches all required models:
+The download script (`./ai/download_models.sh`) fetches the models the shared
+rule selects (`download_method != "skip" AND (hf_repo OR download_method)`, the
+same filter `setup_lib/models_config.get_downloadable_models` uses):
 
 | Model | Size | Purpose |
 |-------|------|---------|
-| Nemotron-3-Nano-30B (Q4_K_M) | ~14.7GB | Risk reasoning LLM |
-| YOLO26 (n/s/m) | ~67MB | Object detection |
-| Florence-2-Large (legacy) | ~3GB | Vision-language (gateway loads Florence-2-base, ~1GB, `models.yml`) |
-| CLIP-ViT-L (legacy) | ~1.7GB | Re-ID (gateway's `/clip` router runs SigLIP 2 Base, ~400MB on disk / ~200MB VRAM) |
-| Fashion-CLIP | ~3.5GB | Clothing classification |
-| Vehicle-Segment-Classification | ~350MB | Vehicle types |
-| Pet-Classifier (resnet-18) | ~45MB | Cat/dog detection |
-| Depth-Anything-V2-Tiny | ~98MB | Depth estimation |
-| Model Zoo remainder | ~19GB | Weather, pose, violence, plate OCR, etc. |
+| YOLO26 (n/s/m .pt) | ~67MB | Object detection (gateway Triton export input) |
+| Threat-Detection-YOLOv8n | ~25MB | Weapon detection (Triton `threat`) |
+| OSNet-AIN x1.0 | ~10MB | Person re-ID (Triton `reid`) |
+| YOLO11 face | ~11MB | Face detection on person crops |
+| YOLO11 license-plate | ~650MB | Plate detection |
+
+R8 (slices S1-S3, 2026-09-29) retired the ~33GB legacy zoo this section used to
+list — the Nemotron GGUF, Florence x2, SigLIP/CLIP, fashion-clip, vehicle, pet,
+depth, age/gender, weather, violence, smoke-fire, pose, segformer, stgcn,
+yolo-world. The shipped reasoning engine is the profiled `ai-vlm` llama.cpp
+container; its GGUF pair is operator config (`VLM_MODEL_PATH`+`VLM_MMPROJ_PATH`
+under `${AI_MODELS_PATH}/vlm`), fetched by no script — see the download script's
+header note.
 
 ### Custom Model Path
 
@@ -103,16 +110,13 @@ AI_MODELS_PATH=/your/custom/path podman-compose -f docker-compose.prod.yml up -d
 
 ```
 ${AI_MODELS_PATH}/
-├── nemotron/
-│   └── nemotron-3-nano-30b-a3b-q4km/  # Nemotron LLM (.gguf)
+├── vlm/                               # operator-placed GGUF pair (VLM_MODEL_PATH + VLM_MMPROJ_PATH)
 └── model-zoo/
-    ├── florence-2-large/              # Vision-language
-    ├── clip-vit-l/                    # Embeddings
-    ├── fashion-clip/                  # Clothing
-    ├── vehicle-segment-classification/ # Vehicles
-    ├── pet-classifier/                # Pets
-    ├── vitpose-plus-small/            # Pose
-    └── depth-anything-v2-tiny/        # Depth
+    ├── yolo26/                        # Detection (n/s/m .pt; gateway export)
+    ├── osnet-ain-x1-0/                # Person re-ID (Triton reid)
+    ├── threat-detection-yolov8n/      # Weapons (Triton threat)
+    ├── yolo11-face-detection/         # Faces
+    └── yolo11-license-plate/          # License plates
 ```
 
 ## Services & Ports
@@ -130,11 +134,11 @@ Host port defaults come from `.env` / `.env.example`; `docs/reference/config/env
 | Redis | 6379 | redis | No | Queues and pub/sub |
 | go2rtc API | 1984 | go2rtc | No | Stream management API |
 | go2rtc WebRTC | 8555 | go2rtc | No | Browser WebRTC streaming |
-| AI Gateway | 8090 | ai-gateway | Yes | Triton routers: `/yolo26` `/florence` `/clip` `/enrichment` `/enrich-lt` |
-| Nemotron | 8091 | ai-llm | Yes | llama.cpp risk-analysis LLM |
-| vLLM (optional) | 8097 | ai-llm-vllm | Yes | Compose profile `vllm`, off by default |
+| AI Gateway | 8090 | ai-gateway | Yes | Triton routers: `/yolo26` `/enrich-lt` only (R8 S3 pruned the rest) |
+| ai-vlm | 8098 | ai-vlm | Yes | llama.cpp reasoning engine, compose profile `vlm`, off unless enabled |
+| vLLM (optional) | 8097 | ai-llm-vllm | Yes | Compose profile `vllm`, benchmarking harness, off by default |
 
-> Since commit bc7d6101 the standalone YOLO26/Florence/CLIP/enrichment containers are gone — those models run inside `ai-gateway`. The legacy `YOLO26_PORT=8095`, `FLORENCE_PORT=8092`, `CLIP_PORT=8093`, `ENRICHMENT_PORT=8094`, `ENRICHMENT_LIGHT_PORT=8096` values in `.env.example` are reference/local-dev only. `FRONTEND_PORT=5173` is likewise no longer mapped by prod compose.
+> Since commit bc7d6101 the standalone YOLO26/Florence/CLIP/enrichment containers are gone, and R8 S1-S3 (2026-09-29) retired the legacy `ai-llm` service (:8091) plus the `/florence` `/clip` `/enrichment` gateway routers — `GATEWAY_MODEL_SET` only resolves `vlm` (yolo26 + reid, threat opt-in) and hard-raises on anything else. The legacy `YOLO26_PORT=8095`, `FLORENCE_PORT=8092`, `CLIP_PORT=8093`, `ENRICHMENT_PORT=8094`, `ENRICHMENT_LIGHT_PORT=8096` values in `.env.example` are reference/local-dev only. `FRONTEND_PORT=5173` is likewise no longer mapped by prod compose.
 
 ### Monitoring Services
 
@@ -154,12 +158,12 @@ Host port defaults come from `.env` / `.env.example`; `docs/reference/config/env
 ## Common Commands
 
 ```bash
-# Start all services
-podman-compose -f docker-compose.prod.yml up -d
+# Start all services (--profile vlm brings up the shipped ai-vlm engine)
+podman-compose -f docker-compose.prod.yml --profile vlm up -d
 
 # View logs
 podman-compose -f docker-compose.prod.yml logs -f backend
-podman-compose -f docker-compose.prod.yml logs -f ai-llm
+podman-compose -f docker-compose.prod.yml logs -f ai-vlm
 
 # Check health
 curl http://localhost:8000/api/system/health/ready
@@ -183,9 +187,9 @@ Pull and redeploy using pre-built containers from GitHub Container Registry:
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
 
-# Redeploy
+# Redeploy (--profile vlm: the shipped ai-vlm engine is profile-gated)
 podman-compose -f docker-compose.prod.yml down
-podman-compose -f docker-compose.prod.yml up -d
+podman-compose -f docker-compose.prod.yml --profile vlm up -d
 ```
 
 ## Auto-Start on Boot
@@ -210,14 +214,14 @@ podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.4-base nvidia-smi
 
 **Out of VRAM:**
 ```bash
-# In .env: reduce LLM GPU layers (default: auto = fit to VRAM)
-GPU_LAYERS=30
+# In .env: reduce the ai-vlm engine's GPU layers (default: auto = fit to VRAM)
+VLM_GPU_LAYERS=30
 ```
 
 **AI service slow/not responding:**
 ```bash
 curl http://localhost:8090/health  # AI gateway
-curl http://localhost:8091/health  # Nemotron
+curl http://localhost:8098/health  # ai-vlm (host port = AI_VLM_PORT)
 # First request after startup is slow (model loading)
 ```
 
@@ -247,10 +251,10 @@ nemotron-v3-home-security-intelligence/
 │       ├── hooks/           # WebSocket + data hooks
 │       └── services/        # API client
 ├── ai/                       # AI service code
-│   ├── gateway/             # Single AI entrypoint :8090 (router-per-model since bc7d6101)
+│   ├── gateway/             # Detection entrypoint :8090 (routers /yolo26 + /enrich-lt only, R8 S3)
 │   ├── yolo26/              # Detection code (runs inside gateway in prod)
-│   ├── nemotron/            # Risk reasoning LLM (port 8091)
-│   └── florence/ clip/ enrichment/  # model code behind gateway routes
+│   ├── vlm/                 # Shipped llama.cpp ai-vlm engine (host port AI_VLM_PORT, default 8098)
+│   └── triton/ common/ shared/  # Triton client + model repository and shared code
 └── docs/                     # Documentation
 ```
 

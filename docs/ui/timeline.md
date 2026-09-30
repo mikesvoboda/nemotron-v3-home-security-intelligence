@@ -324,14 +324,12 @@ Three tabs with underline indicator:
 7. **AI Enrichment Analysis** — _retired with R8 slice S5 (2026-09-30)_
 
    The detail modal no longer renders an enrichment section. Its panels showed
-   license-plate OCR, vehicle classification and damage, clothing analysis
-   (FashionCLIP and SegFormer) and pose/violence attributes — all outputs of the
-   enrichment models that the shipped VLM path does not run. The detection's
+   license-plate OCR results, face detection information, vehicle classification
+   and damage, clothing analysis (FashionCLIP and SegFormer), violence detection,
+   image quality assessment and pet classification — all outputs of the enrichment
+   models that the shipped VLM path does not run. The detection's
    `enrichment_data` field remains on the API response; nothing displays it.
    See [Enrichment Components](../components/feature-specific/event-components.md#enrichment-components).
-
-   - Image quality assessment
-   - Pet classification
 
 8. **Re-ID Matches** (`ReidMatchesPanel` component, when detection selected)
 
