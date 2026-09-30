@@ -180,6 +180,17 @@ class TestDeadModulesAreGone:
                 hits.append(f"{path.relative_to(BACKEND)}: {match.group(0).strip()}")
         assert not hits, "surviving shipped modules still import retired code:\n" + "\n".join(hits)
 
+    # 600s, not the harness's --timeout=120: under mutmut this scan ast.parses the
+    # mutants/backend/** copies, and 244 of those are all-mutants files (prompts.py
+    # alone carries 3,422 mutants), which takes ~190s (measured 2026-09-29; it breaches
+    # 120s -> -x aborts mutmut's stats pass, "runner returned 1"). The raise cannot
+    # touch a verdict: mutmut's dependency tracking associates ZERO functions with this
+    # file in either era's stats map (measured over tests_by_mangled_function_name for
+    # both the pre-run and live maps), so per-mutant checks never run it -- the only
+    # passes it widens are the stats pass and the clean gate, which bank no verdicts
+    # (same ruling as the mutmut-stats hypothesis-deadline profile in
+    # tests/conftest.py). On the clean tree the scan takes seconds.
+    @pytest.mark.timeout(600)
     def test_no_analyzer_type_remains_anywhere_in_shipped_code(self) -> None:
         # The annotations are runtime-invisible (`from __future__ import annotations`)
         # but mypy resolves them, and a reader must not meet a class that no longer
