@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -14,7 +15,9 @@ CONDITIONS = (
     "subjects and props as detections (object type and confidence 1.0, no box) and no specialist "
     "context; a real detector misses some of them, so this is optimistic. Accuracy only: the "
     "GB300 is shared, so no latency or memory figure here stands for a deployment. Ambiguous "
-    "events are not scored."
+    "events are not scored. Comparison models may run under different conditions from the "
+    "product model (a system message, a token budget, a read timeout, thinking off): the "
+    "Conditions per model table in report.md lists each model's."
 )
 CELLS = (
     'Each cell reads rate [95% Wilson interval] (n); under n = 10 it reads "insufficient". '
@@ -55,15 +58,32 @@ def _headline(models: Mapping[str, Any], key: str) -> list[str]:
     return _table(header, rows)
 
 
-def _identity(identity: Mapping[str, Any]) -> list[str]:
+def shown_path(path: str | None, root: Path | None) -> str:
+    """A path as `report.md` shows it (the report is committed): relative to `$SYNTHBENCH_ROOT`,
+    never an absolute host path."""
+    if not path:
+        return "?"
+    target = Path(path)
+    if not target.is_absolute():
+        return target.as_posix()
+    for base in () if root is None else (root, root.resolve()):
+        if target.is_relative_to(base):
+            return target.relative_to(base).as_posix()
+    return f"{target.name} (outside $SYNTHBENCH_ROOT)"
+
+
+def _identity(identity: Mapping[str, Any], root: Path | None) -> list[str]:
     export, audit = identity.get("export", {}), identity.get("audit", {})
+    store = identity.get("eval_store", {})
     lines = [
         f"- Scored at commit `{identity.get('commit', '?')}`, scoring version "
         f"{identity.get('score_version', '?')}, {identity.get('created_utc', '?')}.",
         f"- Corpus {', '.join(identity.get('corpus_version', [])) or '?'}; export "
-        f"`{export.get('path', '?')}`: {export.get('items', '?')} sets, labels sha256 "
-        f"`{export.get('labels_sha256', '?')}`.",
-        f"- Audit log `{audit.get('path', '?')}`, sha256 `{audit.get('sha256') or 'none yet'}`.",
+        f"`{shown_path(export.get('path'), root)}`: {export.get('items', '?')} sets, labels "
+        f"sha256 `{export.get('labels_sha256', '?')}`; eval store "
+        f"`{shown_path(store.get('path'), root)}`.",
+        f"- Audit log `{shown_path(audit.get('path'), root)}`, sha256 "
+        f"`{audit.get('sha256') or 'none yet'}`.",
         "- vLLM models: the image is pinned by digest in the operator runbook's start command; "
         "no endpoint reports it.",
         "",
@@ -82,6 +102,50 @@ def _identity(identity: Mapping[str, Any]) -> list[str]:
         for r in identity.get("replays", [])
     ]
     return lines + _table(header, rows)
+
+
+def _thinking(extra: Mapping[str, Any] | None) -> str:
+    switch = ((extra or {}).get("chat_template_kwargs") or {}).get("enable_thinking")
+    return "model default" if switch is None else ("on" if switch else "off")
+
+
+def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
+    """Each model's conditions as its replay recorded them; older replays did not record
+    them all."""
+
+    def shown(value: Any, show: Callable[[Any], str]) -> str:
+        return "unrecorded" if value is None else show(value)
+
+    rows = [
+        [
+            r.get("model"),
+            r.get("transport"),
+            "shipped + system message (A7)" if r.get("system_message") else "shipped",
+            _thinking(r.get("request_extra")),
+            shown(r.get("max_tokens"), str),
+            shown(r.get("read_timeout"), lambda seconds: f"{seconds:g} s"),
+            shown(r.get("enforcement_probe"), lambda on: "on" if on else "off"),
+        ]
+        for r in replays
+    ]
+    header = (
+        "Model",
+        "Transport",
+        "Prompt",
+        "Thinking",
+        "Max tokens",
+        "Read timeout",
+        "Enforcement probe",
+    )
+    lines = _table(header, rows)
+    for r in replays:
+        if r.get("system_message"):
+            lines += [
+                "",
+                f"{r.get('model')}'s system message, sent ahead of the shipped prompt: "
+                f"`{json.dumps(r['system_message'])}`",
+            ]
+    return lines
 
 
 def _audit(audit: Mapping[str, Any]) -> list[str]:
@@ -171,8 +235,11 @@ def _comparison(pairs: Sequence[Mapping[str, Any]]) -> list[str]:
     return _table(header, rows)
 
 
-def markdown(metrics: Mapping[str, Any], identity: Mapping[str, Any]) -> str:
-    """The aggregate report: rates, n and intervals, never a per-item row."""
+def markdown(
+    metrics: Mapping[str, Any], identity: Mapping[str, Any], root: Path | None = None
+) -> str:
+    """The aggregate report: rates, n and intervals, never a per-item row. Paths show relative
+    to `root` ($SYNTHBENCH_ROOT)."""
     models = metrics["models"]
     lines = [
         f"# Synthbench P5a scores: {identity.get('score_id', '?')}",
@@ -181,9 +248,13 @@ def markdown(metrics: Mapping[str, Any], identity: Mapping[str, Any]) -> str:
         "",
         CELLS,
         "",
+        "## Conditions per model",
+        "",
+        *_conditions(identity.get("replays", [])),
+        "",
         "## Run identity",
         "",
-        *_identity(identity),
+        *_identity(identity, root),
         "",
         "## Headline: every scored item",
         "",

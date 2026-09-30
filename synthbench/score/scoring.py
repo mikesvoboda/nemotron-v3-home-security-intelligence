@@ -20,6 +20,7 @@ from backend.evaluation.vlm_replay import git_commit
 
 from synthbench.audit.page import load_answers
 from synthbench.audit.sample import sample as audit_sample
+from synthbench.contract.store import DEFAULT_SYNTHBENCH_ROOT
 from synthbench.export.vss import ExportedSet, read_sets
 from synthbench.score import report
 from synthbench.score.metrics import Item, result_rows, score_models
@@ -36,6 +37,12 @@ _REPLAY_KEYS = (
     "eval_run_id",
     "started_utc",
     "limit",
+    # The conditions each model ran under (decision A7): the report states them per model.
+    "enforcement_probe",
+    "request_extra",
+    "max_tokens",
+    "read_timeout",
+    "system_message",
 )
 
 
@@ -196,6 +203,7 @@ def execute(
             {str(item.facts.get("corpus_version")) for item in items.values()}
         ),
         "export": {"path": str(export), "items": len(sets), "labels_sha256": _labels_digest(sets)},
+        "eval_store": {"path": str(store_path)},
         "audit": {"path": str(audit_log), "sha256": _sha256(audit_log)},
         "replays": [
             {key: replay.record.get(key) for key in _REPLAY_KEYS}
@@ -219,6 +227,7 @@ def execute(
     (out_dir / "metrics.json").write_text(
         json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    (out_dir / "report.md").write_text(report.markdown(metrics, identity), encoding="utf-8")
+    root = Path(env.get("SYNTHBENCH_ROOT", str(DEFAULT_SYNTHBENCH_ROOT)))
+    (out_dir / "report.md").write_text(report.markdown(metrics, identity, root), encoding="utf-8")
     (out_dir / "report.html").write_text(report.html(identity, results, out_dir), encoding="utf-8")
     return ScoreResult(score_id, out_dir, document)

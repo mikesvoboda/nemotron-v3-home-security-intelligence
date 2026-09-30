@@ -173,8 +173,13 @@ def test_the_markdown_is_aggregate_with_n_intervals_and_insufficient() -> None:
 # The command, end to end, over a real export and eval store.
 
 
-def _world(root: Path, scores: dict[str, dict[str, int | None]]) -> list[str]:
-    """An export of three threats and twelve benign scenes, imported; one replay per model."""
+def _world(
+    root: Path,
+    scores: dict[str, dict[str, int | None]],
+    records: dict[str, dict[str, Any]] | None = None,
+) -> list[str]:
+    """An export of three threats and twelve benign scenes, imported; one replay per model,
+    its `run.json` updated with `records[model]`."""
     events = [(f"B-t-{i:03d}", "threat") for i in range(3)]
     events += [(f"B-b-{i:03d}", "benign") for i in range(12)]
     export = root / "exports" / h.VERSION / "vss"
@@ -222,7 +227,7 @@ def _world(root: Path, scores: dict[str, dict[str, int | None]]) -> list[str]:
                 "eval_run_id": run_id,
                 "commit": "abc",
                 "started_utc": "2026-09-30T10:00:00+00:00",
-            }
+            } | (records or {}).get(model, {})
             run_dir = root / "runs" / "replays" / replay_id
             run_dir.mkdir(parents=True)
             (run_dir / "run.json").write_text(json.dumps(record))
@@ -290,3 +295,81 @@ def test_weights_identity_reads_what_each_transport_left(tmp_path: Path) -> None
     assert weights_identity("ai-vlm", "Qwen3VL-4B-Instruct-Q4_K_M", env) == "unrecorded"
     assert weights_identity("vllm", "nvidia/Cosmos-Reason2-8B", env) == "revision:f00d"
     assert weights_identity("vllm", "claude-flagship", env) == "unrecorded"
+
+
+COSMOS_FORMAT = (
+    "Answer the question using the following format:\n\n<think>\nYour reasoning.\n</think>\n\n"
+    "Write your final answer immediately after the </think> tag."
+)
+# What each replay's run.json records about the conditions it ran under (decision A7).
+CONDITIONS = {
+    "qwen3-vl-8b": {
+        "transport": "ai-vlm",
+        "enforcement_probe": True,
+        "request_extra": {},
+        "max_tokens": 1024,
+        "read_timeout": 25.0,
+        "system_message": None,
+    },
+    "cosmos-reason2-8b": {
+        "transport": "vllm",
+        "enforcement_probe": False,
+        "request_extra": {"max_tokens": 4096},
+        "max_tokens": 4096,
+        "read_timeout": 120.0,
+        "system_message": COSMOS_FORMAT,
+    },
+    "flagship": {
+        "transport": "vllm",
+        "enforcement_probe": False,
+        "request_extra": {"chat_template_kwargs": {"enable_thinking": False}},
+        "max_tokens": 1024,
+        "read_timeout": 25.0,
+        "system_message": None,
+    },
+}
+
+
+def _scored(tmp_path: Path) -> Path:
+    """A score over three replays that ran under different conditions: its output dir."""
+    ids = _world(tmp_path, {model: {} for model in CONDITIONS}, CONDITIONS)
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
+    [out] = (tmp_path / "runs" / "scores").iterdir()
+    return out
+
+
+def test_the_report_states_each_models_conditions(tmp_path: Path) -> None:
+    """Cosmos's system message, budget and timeout and the flagship's thinking-off are the
+    price of their columns (decision A7): the report states them beside the product model's."""
+    out = _scored(tmp_path)
+    text = (out / "report.md").read_text(encoding="utf-8")
+    assert "Comparison models may run under different conditions" in text
+    rows = {
+        "| qwen3-vl-8b | ai-vlm | shipped | model default | 1024 | 25 s | on |",
+        "| cosmos-reason2-8b | vllm | shipped + system message (A7) | model default | 4096 "
+        "| 120 s | off |",
+        "| flagship | vllm | shipped | off | 1024 | 25 s | off |",
+    }
+    assert rows <= set(text.splitlines())
+    assert json.dumps(COSMOS_FORMAT) in text  # the system message, verbatim
+    identity = json.loads((out / "metrics.json").read_text())["identity"]
+    by_model = {replay["model"]: replay for replay in identity["replays"]}
+    for model, conditions in CONDITIONS.items():
+        assert {key: by_model[model][key] for key in conditions} == conditions
+    store = tmp_path / "eval" / h.VERSION / "eval.sqlite"
+    assert identity["eval_store"] == {"path": str(store)}
+
+
+def test_the_report_shows_no_absolute_host_path(tmp_path: Path) -> None:
+    """report.md is committed: paths under $SYNTHBENCH_ROOT read relative to it. The identity
+    in metrics.json keeps them absolute."""
+    out = _scored(tmp_path)
+    text = (out / "report.md").read_text(encoding="utf-8")
+    assert str(tmp_path) not in text
+    assert "/synthbench/" not in text
+    assert f"`exports/{h.VERSION}/vss`" in text
+    assert f"`eval/{h.VERSION}/eval.sqlite`" in text
+    assert f"`audits/{h.VERSION}/audit.jsonl`" in text
+    identity = json.loads((out / "metrics.json").read_text())["identity"]
+    assert identity["export"]["path"] == str(tmp_path / "exports" / h.VERSION / "vss")

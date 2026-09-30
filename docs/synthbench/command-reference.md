@@ -270,10 +270,13 @@ already be served: `replay` never starts, stops or reconfigures a model server.
   `cosmos-reason2-8b` at `$SYNTHBENCH_COSMOS_URL`, else `http://127.0.0.1:8099`; `flagship` at
   `$SYNTHBENCH_FLAGSHIP_URL`, else `http://127.0.0.1:8000`.
 - **Checks, before the first item:** the endpoint answers; the renderer is stopped
-  (`synthbench-renderer` is not active and no `synthbench-comfyui` container runs); the endpoint
-  serves the named model (for `ai-vlm`, the model file stem `/props` reports; for vLLM, an id in
-  `/v1/models`); after the import, every item in the eval store has its stills under the export
-  (a relative `--export` is resolved first).
+  (`systemctl --user is-active synthbench-renderer` prints `inactive` or `failed`, and no
+  `synthbench-comfyui` container runs; an empty answer or any other state counts as running);
+  the endpoint serves the named model (for `ai-vlm`, the model file stem `/props` reports; for
+  vLLM, an id in `/v1/models`); every item the eval store already holds has its stills under the
+  export (a relative `--export` is resolved first) and matches its set in the export (label,
+  expected risk score, timestamp, detections and stills: an export rebuilt in place needs a
+  fresh eval store); the run directory can be created.
 - **Client:** the shipped `VlmClient`, reading stills from the export. vLLM models run it with the
   enforcement probe off (vLLM has no `/props`), the served model's name added to each request, and
   the model's own request fields and timeout. `flagship` runs with thinking off
@@ -289,14 +292,19 @@ already be served: `replay` never starts, stops or reconfigures a model server.
   shipped prompt, budget and timeout (`AI_VLM_READ_TIMEOUT`, 25 s by default).
 - **Reads:** the export's sets.
 - **Writes:** imports the export into `$SYNTHBENCH_ROOT/eval/<version>/eval.sqlite` (a set
-  already imported is skipped), then the replay's results there under a new eval run id, and
-  `$SYNTHBENCH_ROOT/runs/replays/<replay_id>/run.json`: the model, endpoint, build, the request
-  fields, read timeout and system message the replay set, eval run id, commit and the replay's
-  report.
-- **Prints:** the items replayed, S2 false alarms, S3 incidents at level, refusals, and the path
-  of `run.json`.
+  already imported is skipped), creates `$SYNTHBENCH_ROOT/runs/replays/<replay_id>/` before the
+  first item, then writes the replay's results to the eval store under a new eval run id, and
+  `run.json` in that directory: the model, endpoint, build, the conditions it ran under as its
+  requests carried them (enforcement probe, request fields, `max_tokens`, read timeout, system
+  message), eval run id, commit and the replay's report.
+- **Prints:** the items replayed, S2 false alarms, S3 incidents at level, refusals with their
+  error classes when any (for example `2 refused (VlmTruncatedError 2)`), and the path of
+  `run.json`.
 - **Exit 1:** the export has no sets.
-- **Exit 2:** a check failed, or a set did not import for a reason other than "already imported".
+- **Exit 2:** a check failed (including an eval store that predates the export: move it aside),
+  a set did not import for a reason other than "already imported", or the importer refused the
+  export outright (a set's declared category contradicts its directory, or the eval store's
+  residence guard refused its media).
 
 ## `score`
 
@@ -317,9 +325,14 @@ truth error, and, with two or more replays, the comparison between models.
   scene the owner confirmed.
 - **Writes:** `$SYNTHBENCH_ROOT/runs/scores/<score_id>/`: `results.jsonl` (one row per item per
   model), `metrics.json` (with the run identity: commits, builds, weights, export and audit
-  digests), `report.md` (aggregate only, for committing) and `report.html` (the failure gallery:
-  incidents scored below their level and benign scenes scored medium or above, with the VLM's
-  reasoning).
+  digests, the eval store's path, and each replay's conditions), `report.md` (aggregate only, for
+  committing) and `report.html` (the failure gallery: incidents scored below their level and
+  benign scenes scored medium or above, with the VLM's reasoning).
+- **Conditions per model:** `report.md` states each model's transport, prompt (`shipped`, or
+  `shipped + system message (A7)` with the message quoted), thinking, max tokens, read timeout
+  and enforcement probe, as its replay recorded them (`unrecorded` for an older replay).
+- **Paths:** `report.md` shows paths under `$SYNTHBENCH_ROOT` relative to it (for example
+  `exports/<version>/vss`), never an absolute host path; `metrics.json` keeps them absolute.
 - **Cells:** rate, 95% Wilson interval and n; under n = 10 a cell reads "insufficient".
 - **Prints:** the audit's progress, each model's S2, S3 and refusals, and the path of `report.md`.
 - **Exit 1:** a replay id is unknown, two replays are of the same model, or the replays name

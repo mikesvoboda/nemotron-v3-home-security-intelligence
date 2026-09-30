@@ -15,6 +15,7 @@ import httpx
 import pytest
 from synthbench import cli
 from synthbench.export import vss
+from synthbench.run import replay as replay_module
 from synthbench.run.models import MODELS
 from synthbench.run.replay import (
     Deps,
@@ -28,6 +29,7 @@ from synthbench.run.replay import (
 
 from backend.core.config import get_settings
 from backend.evaluation.eval_store import EvalStore
+from backend.services import vlm_client as vc
 from backend.services.vlm_verdict import VlmAssessContext, VlmAssessRequest
 from backend.tests.unit.services.test_vlm_client import make_fake_llama
 from backend.tests.unit.synthbench import helpers as h
@@ -116,9 +118,17 @@ def test_an_endpoint_that_does_not_answer_is_refused() -> None:
         check(QWEN, URL, Deps(get=_get(status=503), run=_run()))
 
 
-def test_a_running_renderer_is_refused() -> None:
+@pytest.mark.parametrize("state", ["active", "", "activating", "deactivating", "reloading"])
+def test_a_renderer_that_is_not_plainly_stopped_is_refused(state: str) -> None:
+    """Fail closed: only `inactive` or `failed` counts as stopped. An empty answer (no user
+    D-Bus) or a state in motion counts as running, since replay needs the renderer's GPU."""
     with pytest.raises(ReplayRefused, match="renderer is running"):
-        check(QWEN, URL, Deps(get=_get(), run=_run("active")))
+        check(QWEN, URL, Deps(get=_get(), run=_run(state)))
+
+
+@pytest.mark.parametrize("state", ["inactive", "failed"])
+def test_a_stopped_renderer_passes(state: str) -> None:
+    assert check(QWEN, URL, Deps(get=_get(), run=_run(state))) == "b7972"
 
 
 def test_the_wrong_served_model_is_refused() -> None:
@@ -137,12 +147,28 @@ def test_the_import_is_idempotent_and_refuses_a_bad_set(tmp_path: Path) -> None:
         import_export(store, bad)
 
 
+class _Recording(httpx.AsyncBaseTransport):
+    """Passes requests on, keeping each verdict request's body and timeouts."""
+
+    def __init__(self, inner: httpx.AsyncBaseTransport) -> None:
+        self.inner = inner
+        self.verdicts: list[tuple[dict[str, Any], dict[str, Any]]] = []
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content) if request.content else {}
+        if body.get("response_format", {}).get("json_schema", {}).get("name") == "vlm_verdict":
+            self.verdicts.append((body, request.extensions["timeout"]))
+        return await self.inner.handle_async_request(request)
+
+
 def test_a_replay_reads_the_exports_stills_and_records_the_run(tmp_path: Path) -> None:
     """Every item is scored, none refused: the client's capture root is the export, so it can
-    read the stills (it refuses any image outside its root)."""
+    read the stills (it refuses any image outside its root). `run.json` records the budget and
+    read timeout the requests carried: the shipped client's, for an ai-vlm model."""
     export = _export(tmp_path)
     app = make_fake_llama(model_path="/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf")
-    deps = Deps(get=_get(), run=_run(), inner_transport=httpx.ASGITransport(app=app))
+    recording = _Recording(httpx.ASGITransport(app=app))
+    deps = Deps(get=_get(), run=_run(), inner_transport=recording)
     result = execute(
         QWEN, URL, export, tmp_path / "eval" / "eval.sqlite", tmp_path / "runs", None, deps
     )
@@ -153,8 +179,15 @@ def test_a_replay_reads_the_exports_stills_and_records_the_run(tmp_path: Path) -
     assert record["build"] == "b7972"
     assert record["enforcement_probe"] is True
     assert record["request_extra"] == {}
-    assert record["read_timeout"] is None
     assert record["system_message"] is None
+    assert record["read_timeout"] == get_settings().ai_vlm_read_timeout
+    assert record["max_tokens"] == vc._ASSESS_MAX_TOKENS
+    assert len(recording.verdicts) == 2
+    for body, timeout in recording.verdicts:
+        assert (body["max_tokens"], timeout["read"]) == (
+            record["max_tokens"],
+            record["read_timeout"],
+        )
     with EvalStore(tmp_path / "eval" / "eval.sqlite") as store:
         rows = store.replay(record["eval_run_id"])
     assert [row["risk_score"] for row in rows] == [50, 50]  # the fake's schema-filled verdict
@@ -304,27 +337,32 @@ def test_a_vllm_request_keeps_the_clients_timeouts(tmp_path: Path, name: str) ->
 
 
 @pytest.mark.parametrize(
-    ("name", "extra", "read_timeout", "system_message"),
+    ("name", "extra", "read_timeout", "max_tokens", "system_message"),
     [
-        ("flagship", {"chat_template_kwargs": {"enable_thinking": False}}, None, None),
-        ("cosmos-reason2-8b", {"max_tokens": 4096}, 120.0, COSMOS_FORMAT),
+        (
+            "flagship",
+            {"chat_template_kwargs": {"enable_thinking": False}},
+            None,  # the shipped read timeout
+            vc._ASSESS_MAX_TOKENS,
+            None,
+        ),
+        ("cosmos-reason2-8b", {"max_tokens": 4096}, 120.0, 4096, COSMOS_FORMAT),
     ],
     ids=["flagship", "cosmos-reason2-8b"],
 )
-def test_a_vllm_replay_records_the_fields_it_adds(
+def test_a_vllm_replay_records_the_conditions_it_ran_under(
     tmp_path: Path,
     name: str,
     extra: dict[str, Any],
     read_timeout: float | None,
+    max_tokens: int,
     system_message: str | None,
 ) -> None:
+    """The effective values, as the requests carried them: the report states each model's."""
     model = MODELS[name]
     export = _export(tmp_path, n=1)
-    deps = Deps(
-        get=_get(served=model.served_id),
-        run=_run(),
-        inner_transport=httpx.MockTransport(lambda _: _vllm_reply()),
-    )
+    recording = _Recording(httpx.MockTransport(lambda _: _vllm_reply()))
+    deps = Deps(get=_get(served=model.served_id), run=_run(), inner_transport=recording)
     result = execute(
         model, URL, export, tmp_path / "eval" / "eval.sqlite", tmp_path / "runs", None, deps
     )
@@ -332,8 +370,12 @@ def test_a_vllm_replay_records_the_fields_it_adds(
     record = json.loads((result.run_dir / "run.json").read_text(encoding="utf-8"))
     assert record["enforcement_probe"] is False
     assert record["request_extra"] == extra
-    assert record["read_timeout"] == read_timeout
     assert record["system_message"] == system_message
+    shipped = get_settings().ai_vlm_read_timeout
+    assert record["read_timeout"] == (shipped if read_timeout is None else read_timeout)
+    assert record["max_tokens"] == max_tokens
+    [(body, timeout)] = recording.verdicts
+    assert (body["max_tokens"], timeout["read"]) == (record["max_tokens"], record["read_timeout"])
 
 
 def test_a_relative_export_is_resolved_before_the_import(
@@ -401,3 +443,107 @@ def test_the_model_table_imports_no_backend() -> None:
 def test_replay_needs_an_export(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert h.run(tmp_path, "replay", "--model", "flagship") == cli.EXIT_ERROR
     assert "run `export vss` first" in capsys.readouterr().err
+
+
+def _refusing(requests: list[httpx.Request]) -> httpx.MockTransport:
+    """A VLM that answers nothing useful, and remembers being asked."""
+
+    def vlm(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(500)
+
+    return httpx.MockTransport(vlm)
+
+
+def test_a_store_imported_from_an_older_export_is_refused(tmp_path: Path) -> None:
+    """Items are immutable and the importer skips an id it holds, so an export rebuilt in place
+    (A6 added detections) would replay the old snapshots and score them against the new facts.
+    The replay compares what the store holds with what the export declares, and refuses first."""
+    export = _export(tmp_path)
+    store_path = tmp_path / "eval" / "eval.sqlite"
+    store_path.parent.mkdir()
+    with EvalStore(store_path) as store:
+        assert import_export(store, export) == (2, 0)
+    labels_file = export / "threats" / "B-t-001" / vss.LABELS_FILE
+    labels = json.loads(labels_file.read_text(encoding="utf-8"))
+    labels["detections"] = [{"object_type": "person", "confidence": 1.0}]
+    labels_file.write_text(json.dumps(labels), encoding="utf-8")
+    requests: list[httpx.Request] = []
+    deps = Deps(get=_get(), run=_run(), inner_transport=_refusing(requests))
+    refusal = r"predates this export: \S+B-t-001 .*snapshot\.detections.*move the eval store aside"
+    with pytest.raises(ReplayRefused, match=refusal):
+        execute(QWEN, URL, export, store_path, tmp_path / "runs", None, deps)
+    assert requests == []
+    assert not (tmp_path / "runs").exists()
+
+
+def test_the_run_dir_exists_before_the_first_request(tmp_path: Path) -> None:
+    """A failure after GPU time must not lose the run: its directory is made first."""
+    export = _export(tmp_path, n=1)
+    runs = tmp_path / "runs"
+    seen: list[list[Path]] = []
+
+    def vllm(request: httpx.Request) -> httpx.Response:
+        seen.append(list(runs.iterdir()) if runs.is_dir() else [])
+        return _vllm_reply()
+
+    deps = Deps(
+        get=_get(served=FLAGSHIP.served_id), run=_run(), inner_transport=httpx.MockTransport(vllm)
+    )
+    result = execute(FLAGSHIP, URL, export, tmp_path / "eval" / "eval.sqlite", runs, None, deps)
+    assert seen == [[result.run_dir]]
+    assert (result.run_dir / "run.json").is_file()
+
+
+def test_a_run_dir_that_cannot_be_made_is_refused_before_the_replay(tmp_path: Path) -> None:
+    export = _export(tmp_path, n=1)
+    blocked = tmp_path / "runs"
+    blocked.write_text("a file where the runs directory goes")
+    requests: list[httpx.Request] = []
+    deps = Deps(get=_get(), run=_run(), inner_transport=_refusing(requests))
+    with pytest.raises(ReplayRefused, match="cannot create the run directory"):
+        execute(QWEN, URL, export, tmp_path / "eval" / "eval.sqlite", blocked, None, deps)
+    assert requests == []
+
+
+def _fake_deps(monkeypatch: pytest.MonkeyPatch, transport: httpx.AsyncBaseTransport) -> None:
+    """The command builds `Deps()`: give it fakes, so no request leaves the test."""
+    monkeypatch.setattr(
+        replay_module,
+        "Deps",
+        lambda: Deps(get=_get(served=FLAGSHIP.served_id), run=_run(), inner_transport=transport),
+    )
+
+
+def test_replay_prints_the_refusal_classes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A run of refusals shows why at once: a budget (truncation) reads apart from plumbing."""
+    export = _export(tmp_path)
+    cut = {"message": {"content": '{"verdict": "rej'}, "finish_reason": "length"}
+    _fake_deps(
+        monkeypatch, httpx.MockTransport(lambda _: httpx.Response(200, json={"choices": [cut]}))
+    )
+    code = h.run(tmp_path, "replay", "--model", "flagship", "--export", str(export))
+    assert code == cli.EXIT_OK
+    assert "2 refused (VlmTruncatedError 2)" in capsys.readouterr().out
+
+
+def test_an_importer_refusal_is_the_owners_not_a_bug(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A set whose declared category contradicts its directory is a hard importer refusal
+    (`LabelImportError`): exit 2 with its message, not "unexpected error"."""
+    export = _export(tmp_path, n=1)
+    labels_file = export / "threats" / "B-t-000" / vss.LABELS_FILE
+    labels = json.loads(labels_file.read_text(encoding="utf-8"))
+    labels["category"] = "normal"
+    labels_file.write_text(json.dumps(labels), encoding="utf-8")
+    requests: list[httpx.Request] = []
+    _fake_deps(monkeypatch, _refusing(requests))
+    code = h.run(tmp_path, "replay", "--model", "flagship", "--export", str(export))
+    err = capsys.readouterr().err
+    assert code == cli.EXIT_ASK
+    assert "unexpected error" not in err
+    assert "did not import" in err and "B-t-000" in err
+    assert requests == []

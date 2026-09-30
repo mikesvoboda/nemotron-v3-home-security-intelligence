@@ -10,6 +10,7 @@ import argparse
 import sys
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from synthbench.commands.common import EXIT_OK, AskOwner, Parser, RequestError, taxonomy
 from synthbench.commands.export import export_dir
@@ -74,7 +75,16 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     s2, s3 = report["s2"], report["s3"]["all"]
     sys.stdout.write(
         f"replay {model.name}: {report['n_items']} items; S2 {s2['fp']}/{s2['n']} false alarms, "
-        f"S3 {s3['hit']}/{s3['n']} incidents at level; {report['s5']['refusals']} refused\n"
+        f"S3 {s3['hit']}/{s3['n']} incidents at level; {_refused(report['s5'])}\n"
         f"  {result.run_dir / 'run.json'}\n"
     )
     return EXIT_OK
+
+
+def _refused(s5: Mapping[str, Any]) -> str:
+    """ "n refused", with the error classes when any: a budget reads apart from plumbing (an
+    open breaker fails every later item as VlmUnavailableError)."""
+    classes = [f"{name} {count}" for name, count in sorted(s5["by_error_class"].items())]
+    if s5.get("unclassifiable"):
+        classes.append(f"no cause {s5['unclassifiable']}")
+    return f"{s5['refusals']} refused" + (f" ({', '.join(classes)})" if classes else "")

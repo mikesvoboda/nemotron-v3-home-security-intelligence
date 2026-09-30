@@ -26,4 +26,7 @@ package inside `run()`.
   come from the export.
 - `report.md` never names an item: it is committed. Per-item content lives in `results.jsonl`
   and `report.html`, under `$SYNTHBENCH_ROOT/runs/scores/`.
+- `report.md` states each model's conditions (prompt, thinking, max tokens, read timeout,
+  enforcement probe) from its `run.json` (decision A7), and shows paths relative to
+  `$SYNTHBENCH_ROOT`, never an absolute host path; `metrics.json`'s identity keeps them absolute.
 - Every rate is a `cell`: k, n, rate and the 95% Wilson interval, insufficient under n = 10.
