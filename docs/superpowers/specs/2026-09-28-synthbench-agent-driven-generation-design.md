@@ -175,8 +175,9 @@ rerolling until Qwen sees the prop would bias the corpus toward images Qwen find
 ### §5.1 Guard and renderer
 
 The guard (§1) is independent of the renderer, so the status file stays fresh whether or not the
-renderer runs. When the guard stops the renderer, a render in flight fails and is recorded like
-any failed job; `synthbench render` resumes it later.
+renderer runs. When the guard stops the renderer, a render in flight fails and is recorded as an
+`unreachable` failure, which does not count toward the three failed jobs that fail an event;
+`synthbench render` resumes it later.
 
 The guard acts on the renderer container, not on a model, so it covers anything ComfyUI loads,
 including MiniMax-H3 turbo for P6's clips. FLUX.2 (56.2 GiB peak) and H3-turbo (47.4 GiB, P1)

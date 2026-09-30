@@ -15,6 +15,7 @@ from synthbench.commands.common import (
     open_batch,
     read,
     read_bytes,
+    read_index,
     replace_json,
     taxonomy,
     write_new_bytes,
@@ -39,8 +40,12 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     tax = taxonomy()
     store, record = open_batch(tax, env, args.batch)
     params = load_params()
+    # An event `render` gave up on never gets a render; it is not waiting for one.
+    failed = {event for event, row in read_index(store).items() if row.status == "failed"}
     made = waiting = 0
     for event_id in record.event_ids:
+        if event_id in failed:
+            continue
         spec = read(store, store.spec_file(event_id), Spec)
         path = store.provenance_file(event_id)
         if not spec.frozen or not path.exists():
