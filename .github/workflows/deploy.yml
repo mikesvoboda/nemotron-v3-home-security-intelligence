@@ -388,15 +388,32 @@ jobs:
 
       - name: Sign container image
         run: |
-          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
-          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ github.sha }}
+          # Sign the manifest list BY DIGEST. The pushed tags are `latest`
+          # plus metadata-action's type=sha default — the 7-char SHORT sha —
+          # so the old `:${{ github.sha }}` (40 chars) named a manifest that
+          # was never pushed and died MANIFEST_UNKNOWN on every deploy
+          # (fail-fast then cancelled the backend sibling). A cosign
+          # signature attaches to a digest either way, so one digest sign
+          # covers every current and future tag; cosign v4 also warns that
+          # tag-based signing will stop working. Rollback resolves digests
+          # the same way (.github/workflows/rollback.yml).
+          DIGEST=$(docker buildx imagetools inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest \
+            --format '{{json .Manifest}}' | jq -r '.digest')
+          test -n "$DIGEST" && test "$DIGEST" != "null"
+          echo "Signing ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}@$DIGEST"
+          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}@$DIGEST
 
       - name: Attach SBOM to image
         run: |
-          # Attach SBOM as attestation to the container image
+          # Attach SBOM as attestation to the same digest (see above).
+          DIGEST=$(docker buildx imagetools inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest \
+            --format '{{json .Manifest}}' | jq -r '.digest')
+          test -n "$DIGEST" && test "$DIGEST" != "null"
           cosign attest --yes --predicate sbom-${{ matrix.image }}.spdx.json \
             --type spdxjson \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}@$DIGEST
 
   # Staging environment deployment
   # Deploys images to staging environment for pre-production validation
@@ -505,7 +522,8 @@ jobs:
           echo ""
           echo "Registry: ghcr.io"
           echo "Prefix: ${{ github.repository }}"
-          echo "Tags: latest, ${{ github.sha }}"
+          echo "Tags: latest, ${GITHUB_SHA:0:7}"
+          echo "Image signatures + SBOM attestations: attached to the manifest digest"
           echo ""
           echo "Validated Services:"
           echo "  - Backend API: Healthy"
