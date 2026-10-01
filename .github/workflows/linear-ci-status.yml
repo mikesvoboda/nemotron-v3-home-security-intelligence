@@ -584,6 +584,28 @@ jobs:
             }')
 
           ISSUES=$(echo "$SEARCH_RESULT" | jq -r '.data.issues.nodes')
+
+          # Prove the search actually returned a list before answering from its
+          # length. On an auth or transport error the envelope is {"errors":[...]}
+          # so `.data.issues.nodes` is null and `jq length` of null is 0 - an
+          # error body and a genuinely empty result are indistinguishable to a
+          # length test. Measured at 93a45f39: this step printed "No open CI
+          # failure issues found" at 17:26:09 on a push whose sibling job was
+          # 401-ing with the same key at 17:17:09 (runs 36899341707 /
+          # 36898232006). The all-clear is only owed when the extraction is
+          # provably an array.
+          if ! echo "$SEARCH_RESULT" | jq -e '.data.issues.nodes | type == "array"' > /dev/null 2>&1; then
+            # Warn loudly, do NOT exit 1: the only reason this branch is taken
+            # today is the invalid LINEAR_API_KEY, which is the owner's pending
+            # decision (ledger row 68 class B). Hard-failing here would split
+            # one dead-key red into two and make main redder without making it
+            # truer. What is removed is the FALSE STATEMENT, not the green.
+            echo "::warning::Could not query Linear for open CI-failure issues - response was not a list. Verdict is UNKNOWN, not 'none found'."
+            echo "Linear response:"
+            echo "$SEARCH_RESULT"
+            exit 0
+          fi
+
           ISSUE_COUNT=$(echo "$ISSUES" | jq 'length')
 
           if [ "$ISSUE_COUNT" = "0" ]; then
