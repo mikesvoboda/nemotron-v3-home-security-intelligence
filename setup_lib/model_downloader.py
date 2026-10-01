@@ -375,67 +375,6 @@ def check_model_exists(model_path: Path, model_name: str) -> bool:
     return any(list(model_dir.rglob(f"*{ext}")) for ext in model_extensions)
 
 
-def download_nemotron_gguf(model_path: Path) -> bool:
-    """Download Nemotron LLM GGUF file.
-
-    Args:
-        model_path: Base path for AI models.
-
-    Returns:
-        True if download successful, False otherwise.
-    """
-    nemotron_dir = model_path / "nemotron" / "nemotron-3-nano-30b-a3b-q4km"
-    nemotron_dir.mkdir(parents=True, exist_ok=True)
-
-    gguf_file = nemotron_dir / "Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
-
-    if gguf_file.exists():
-        print(f"    Already exists: {gguf_file.name}")
-        return True
-
-    # Check for existing file in common locations
-    search_paths = [
-        Path.home()
-        / ".cache/huggingface/hub"
-        / "models--unsloth--Nemotron-3-Nano-30B-A3B-GGUF/snapshots",
-    ]
-
-    for search_path in search_paths:
-        if search_path.exists():
-            for gguf in search_path.rglob("Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"):
-                print(f"    Found existing: {gguf}")
-                print(f"    Creating symlink to: {gguf_file}")
-                try:
-                    gguf_file.symlink_to(gguf)
-                    return True
-                except OSError as e:
-                    print(f"    ! Failed to create symlink: {e}")
-                    break
-
-    # Download using huggingface_hub
-    if not HF_HUB_AVAILABLE:
-        print("    ! huggingface_hub not installed, cannot download")
-        print("    Install with: pip install huggingface_hub")
-        return False
-
-    print("    Downloading Nemotron GGUF (~14.7GB, may take 10-30 minutes)...")
-    try:
-        from huggingface_hub import hf_hub_download
-
-        # huggingface_hub 1.x removed local_dir_use_symlinks; with local_dir set
-        # files are always copied rather than symlinked (the old False behavior).
-        downloaded = hf_hub_download(
-            repo_id="unsloth/Nemotron-3-Nano-30B-A3B-GGUF",
-            filename="Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
-            local_dir=nemotron_dir,
-        )
-        print(f"    Downloaded to: {downloaded}")
-        return True
-    except Exception as e:
-        print(f"    ! Download failed: {e}")
-        return False
-
-
 def download_yolo26_models(model_path: Path) -> bool:
     """Download YOLO26 models from ultralytics GitHub releases.
 
@@ -645,108 +584,6 @@ def download_osnet_reid(model_path: Path) -> bool:
         return True
     except Exception as e:
         print(f"    ! Failed to download: {e}")
-        return False
-
-
-def download_stgcnpp(model_path: Path) -> bool:
-    """Download ST-GCN++ checkpoint from OpenMMLab.
-
-    Args:
-        model_path: Base path for AI models.
-
-    Returns:
-        True if download successful.
-    """
-    stgcn_dir = model_path / "model-zoo" / "stgcn-plus-plus"
-    stgcn_dir.mkdir(parents=True, exist_ok=True)
-
-    # Joint checkpoint for NTU60 XSub with HRNet 2D keypoints
-    target = stgcn_dir / "stgcnpp_ntu60_xsub_hrnet_j.pth"
-
-    if target.exists():
-        print("    Already exists: stgcnpp_ntu60_xsub_hrnet_j.pth")
-        return True
-
-    url = "http://download.openmmlab.com/mmaction/pyskl/ckpt/stgcnpp/stgcnpp_ntu60_xsub_hrnet/j.pth"
-    print("    Downloading ST-GCN++ from OpenMMLab (~20MB)...")
-
-    try:
-        import urllib.request
-
-        urllib.request.urlretrieve(url, target)
-        print("    Downloaded: stgcnpp_ntu60_xsub_hrnet_j.pth")
-        return True
-    except Exception as e:
-        print(f"    ! Failed to download: {e}")
-        return False
-
-
-def download_yolo_world(model_path: Path) -> bool:
-    """Download YOLO-World-S from ultralytics GitHub releases.
-
-    Args:
-        model_path: Base path for AI models.
-
-    Returns:
-        True if download successful.
-    """
-    yolo_world_dir = model_path / "model-zoo" / "yolo-world-s"
-    yolo_world_dir.mkdir(parents=True, exist_ok=True)
-
-    target = yolo_world_dir / "yolov8s-worldv2.pt"
-
-    if target.exists():
-        print("    Already exists: yolov8s-worldv2.pt")
-        return True
-
-    release_url = "https://github.com/ultralytics/assets/releases/download/v8.2.0"
-    url = f"{release_url}/yolov8s-worldv2.pt"
-
-    print("    Downloading yolov8s-worldv2.pt (~46MB)...")
-
-    try:
-        import urllib.request
-
-        urllib.request.urlretrieve(url, target)  # noqa: S310
-        print("    Downloaded: yolov8s-worldv2.pt")
-        return True
-    except Exception as e:
-        print(f"    ! Failed to download: {e}")
-        return False
-
-
-def download_marqo_fashionsiglip() -> bool:
-    """Download Marqo FashionSigLIP into the standard HuggingFace hub cache.
-
-    open_clip loads this model via ``hf-hub:Marqo/marqo-fashionSigLIP`` which
-    requires the model to exist in the HF hub cache directory structure at
-    ``~/.cache/huggingface/hub/``.  Unlike other models, it is NOT stored under
-    model-zoo because open_clip does not support arbitrary local directory paths
-    for this model (meta-tensor loading issue).
-
-    Args:
-        None — always downloads to ``~/.cache/huggingface/hub/``.
-
-    Returns:
-        True if download successful or model already cached.
-    """
-    if not HF_HUB_AVAILABLE:
-        print("    ! huggingface_hub not installed, cannot download")
-        return False
-
-    hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
-    snapshots_dir = hf_cache / "models--Marqo--marqo-fashionSigLIP" / "snapshots"
-    if snapshots_dir.exists() and any(snapshots_dir.iterdir()):
-        print(f"    Already cached: {snapshots_dir}")
-        return True
-
-    print("    Downloading Marqo/marqo-fashionSigLIP to HF hub cache (~4.4GB)...")
-    try:
-        path = snapshot_download(repo_id="Marqo/marqo-fashionSigLIP")
-        print(f"    Cached at: {path}")
-        return True
-    except Exception as e:
-        print(f"    ! Download failed: {e}")
         return False
 
 
@@ -1034,14 +871,14 @@ def prompt_and_download_models(config: dict) -> None:
     for model in models_to_download:
         print(f"  [{model.phase}] {model.name}")
 
-        # Dispatch based on download_method from models.yml (falls back to name for legacy compat)
+        # Dispatch based on download_method from models.yml (falls back to name for legacy compat).
+        # R8 slice 7 (main-green, 2026-10-01) deleted the nemotron_gguf / stgcn / yolo_world /
+        # hf_cache branches and their handlers: models.yml (owner-owned, rulings 1/4/5) carries
+        # no row selecting them, so they were unreachable. Re-adding a row to models.yml makes
+        # the generic download_hf_model path below handle any HF repo; a row that needs a
+        # bespoke handler needs its handler re-added here together with the models.yml row.
         method = model.download_method or model.name
-        if method == "nemotron_gguf" or model.name == "nemotron-3-nano-30b-a3b-q4km":
-            if download_nemotron_gguf(ai_models_path):
-                success_count += 1
-            else:
-                fail_count += 1
-        elif method == "yolo26" or model.name == "yolo26":
+        if method == "yolo26" or model.name == "yolo26":
             if download_yolo26_models(ai_models_path):
                 success_count += 1
             else:
@@ -1053,21 +890,6 @@ def prompt_and_download_models(config: dict) -> None:
                 fail_count += 1
         elif method == "osnet" or model.name == "osnet-ain-x1-0":
             if download_osnet_reid(ai_models_path):
-                success_count += 1
-            else:
-                fail_count += 1
-        elif method == "stgcn" or model.name == "stgcn-plus-plus":
-            if download_stgcnpp(ai_models_path):
-                success_count += 1
-            else:
-                fail_count += 1
-        elif method == "yolo_world" or model.name == "yolo-world-s":
-            if download_yolo_world(ai_models_path):
-                success_count += 1
-            else:
-                fail_count += 1
-        elif method == "hf_cache" or model.name in ("fashion-clip", "marqo-fashionSigLIP"):
-            if download_marqo_fashionsiglip():
                 success_count += 1
             else:
                 fail_count += 1
