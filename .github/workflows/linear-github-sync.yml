@@ -56,7 +56,11 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PYTHON_VERSION: '3.12'
+  # Root pyproject.toml:5 requires >=3.14 and 41 uv jobs across the other
+  # 15 pinning workflows say 3.14; a 3.12 pin cannot load the tree's own
+  # uv.lock. Guarded by
+  # backend/tests/unit/scripts/test_workflow_uv_hygiene.py.
+  PYTHON_VERSION: '3.14'
   UV_VERSION: '0.9.18'
 
 jobs:
@@ -142,8 +146,18 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
 
+      # `uv pip install --system` targets the runner's Debian-managed /usr
+      # interpreter, which refuses system installs (PEP 668). Measured: 188 of
+      # the 190 recorded runs of workflow 220886700 failed, and the first
+      # failure's head_sha (2026-01-08) is the commit that introduced this
+      # line; the only two successes ran the previous `pip install httpx`
+      # shape. The audit step below has therefore never executed. The house
+      # pattern is `uv sync --extra dev --frozen` (identical in ci.yml:ai-tests,
+      # api-contract, ci-analytics, flaky-test-detection, test-coverage-gate,
+      # weekly-test-report) which builds .venv/, and scripts then run through
+      # `uv run` below.
       - name: Install dependencies
-        run: uv pip install --system httpx
+        run: uv sync --extra dev --frozen
 
       - name: Configure gh CLI
         run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
@@ -156,7 +170,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Running daily audit..."
-          python scripts/audit-linear-github-sync.py --output table
+          uv run python scripts/audit-linear-github-sync.py --output table
 
       # Manual audit mode
       - name: Manual Audit
@@ -172,7 +186,7 @@ jobs:
             LIMIT_ARG="--limit $INPUT_LIMIT"
           fi
 
-          python scripts/audit-linear-github-sync.py \
+          uv run python scripts/audit-linear-github-sync.py \
             --min-similarity "$INPUT_MIN_SIMILARITY" \
             --close-matched \
             $LIMIT_ARG \
@@ -195,7 +209,7 @@ jobs:
             LIMIT_ARG="--limit $INPUT_LIMIT"
           fi
 
-          python scripts/audit-linear-github-sync.py \
+          uv run python scripts/audit-linear-github-sync.py \
             --close-matched \
             --no-dry-run \
             --min-similarity "$INPUT_MIN_SIMILARITY" \
