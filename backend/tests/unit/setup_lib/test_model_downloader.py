@@ -25,12 +25,13 @@ def generic_hf_rows() -> set[str]:
     consumes — instead of naming rows. That way a row added later with no
     dedicated handler must show up here, and a row whose dispatch changes must
     disappear. `dedicated` mirrors the method dispatch in
-    prompt_and_download_models (setup_lib/model_downloader.py:1039-1073);
-    yolov8n-pose is matched there by name, not by download_method.
+    prompt_and_download_models — after main-green slice 7 deleted the
+    nemotron_gguf/stgcn/yolo_world/hf_cache branches, only yolo26 and osnet
+    have one; yolov8n-pose is matched there by name, not by download_method.
     """
     from setup_lib.model_downloader import build_model_specs
 
-    dedicated = {"nemotron_gguf", "yolo26", "osnet", "stgcn", "yolo_world", "hf_cache"}
+    dedicated = {"yolo26", "osnet"}
     return {
         m.name
         for m in build_model_specs()
@@ -715,11 +716,6 @@ class TestPromptAndDownloadModels:
                 autospec=True,
             ),
             patch(
-                "setup_lib.model_downloader.download_nemotron_gguf",
-                return_value=True,
-                autospec=True,
-            ),
-            patch(
                 "setup_lib.model_downloader.download_yolo26_models",
                 return_value=True,
                 autospec=True,
@@ -730,18 +726,6 @@ class TestPromptAndDownloadModels:
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
             ) as mock_osnet,
-            # Live alternative-download handlers: unreachable while models.yml has no
-            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
-            # never reach the network from a unit test.
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
-            patch(
-                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
-            ),
-            patch(
-                "setup_lib.model_downloader.download_marqo_fashionsiglip",
-                return_value=True,
-                autospec=True,
-            ),
             patch(
                 "setup_lib.model_downloader.download_brisque_weights",
                 return_value=True,
@@ -839,11 +823,6 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
             patch("setup_lib.model_downloader.download_hf_model", return_value=True, autospec=True),
             patch(
-                "setup_lib.model_downloader.download_nemotron_gguf",
-                return_value=True,
-                autospec=True,
-            ),
-            patch(
                 "setup_lib.model_downloader.download_yolo26_models",
                 return_value=True,
                 autospec=True,
@@ -853,18 +832,6 @@ class TestPromptAndDownloadModels:
             ),
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
-            ),
-            # Live alternative-download handlers: unreachable while models.yml has no
-            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
-            # never reach the network from a unit test.
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
-            patch(
-                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
-            ),
-            patch(
-                "setup_lib.model_downloader.download_marqo_fashionsiglip",
-                return_value=True,
-                autospec=True,
             ),
             patch(
                 "setup_lib.model_downloader.download_brisque_weights",
@@ -904,11 +871,6 @@ class TestPromptAndDownloadModels:
                 autospec=True,
             ),
             patch("subprocess.run", autospec=True) as mock_run,
-            patch(
-                "setup_lib.model_downloader.download_nemotron_gguf",
-                return_value=True,
-                autospec=True,
-            ),
             patch(
                 "setup_lib.model_downloader.download_yolo26_models",
                 return_value=True,
@@ -957,11 +919,6 @@ class TestPromptAndDownloadModels:
                 autospec=True,
             ),
             patch(
-                "setup_lib.model_downloader.download_nemotron_gguf",
-                return_value=True,
-                autospec=True,
-            ),
-            patch(
                 "setup_lib.model_downloader.download_yolo26_models",
                 return_value=False,
                 autospec=True,
@@ -971,18 +928,6 @@ class TestPromptAndDownloadModels:
             ),
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
-            ),
-            # Live alternative-download handlers: unreachable while models.yml has no
-            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
-            # never reach the network from a unit test.
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
-            patch(
-                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
-            ),
-            patch(
-                "setup_lib.model_downloader.download_marqo_fashionsiglip",
-                return_value=True,
-                autospec=True,
             ),
             patch(
                 "setup_lib.model_downloader.download_brisque_weights",
@@ -1035,11 +980,6 @@ class TestPromptAndDownloadModels:
                 autospec=True,
             ),
             patch(
-                "setup_lib.model_downloader.download_nemotron_gguf",
-                return_value=True,
-                autospec=True,
-            ),
-            patch(
                 "setup_lib.model_downloader.download_yolo26_models",
                 return_value=True,
                 autospec=True,
@@ -1049,18 +989,6 @@ class TestPromptAndDownloadModels:
             ),
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
-            ),
-            # Live alternative-download handlers: unreachable while models.yml has no
-            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
-            # never reach the network from a unit test.
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
-            patch(
-                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
-            ),
-            patch(
-                "setup_lib.model_downloader.download_marqo_fashionsiglip",
-                return_value=True,
-                autospec=True,
             ),
             patch(
                 "setup_lib.model_downloader.download_brisque_weights",
@@ -1128,11 +1056,6 @@ class TestPromptAndDownloadModels:
                 autospec=True,
             ),
             patch(
-                "setup_lib.model_downloader.download_nemotron_gguf",
-                return_value=True,
-                autospec=True,
-            ),
-            patch(
                 "setup_lib.model_downloader.download_yolo26_models",
                 return_value=True,
                 autospec=True,
@@ -1142,18 +1065,6 @@ class TestPromptAndDownloadModels:
             ),
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
-            ),
-            # Live alternative-download handlers: unreachable while models.yml has no
-            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
-            # never reach the network from a unit test.
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
-            patch(
-                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
-            ),
-            patch(
-                "setup_lib.model_downloader.download_marqo_fashionsiglip",
-                return_value=True,
-                autospec=True,
             ),
             patch(
                 "setup_lib.model_downloader.download_brisque_weights",
@@ -1225,11 +1136,6 @@ class TestPromptAndDownloadModels:
                 autospec=True,
             ),
             patch(
-                "setup_lib.model_downloader.download_nemotron_gguf",
-                return_value=True,
-                autospec=True,
-            ),
-            patch(
                 "setup_lib.model_downloader.download_yolo26_models",
                 return_value=True,
                 autospec=True,
@@ -1239,18 +1145,6 @@ class TestPromptAndDownloadModels:
             ),
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
-            ),
-            # Live alternative-download handlers: unreachable while models.yml has no
-            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
-            # never reach the network from a unit test.
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
-            patch(
-                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
-            ),
-            patch(
-                "setup_lib.model_downloader.download_marqo_fashionsiglip",
-                return_value=True,
-                autospec=True,
             ),
             patch(
                 "setup_lib.model_downloader.download_brisque_weights",
@@ -1301,11 +1195,6 @@ class TestPromptAndDownloadModels:
                 autospec=True,
             ),
             patch(
-                "setup_lib.model_downloader.download_nemotron_gguf",
-                return_value=True,
-                autospec=True,
-            ),
-            patch(
                 "setup_lib.model_downloader.download_yolo26_models",
                 return_value=True,
                 autospec=True,
@@ -1315,18 +1204,6 @@ class TestPromptAndDownloadModels:
             ),
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
-            ),
-            # Live alternative-download handlers: unreachable while models.yml has no
-            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
-            # never reach the network from a unit test.
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
-            patch(
-                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
-            ),
-            patch(
-                "setup_lib.model_downloader.download_marqo_fashionsiglip",
-                return_value=True,
-                autospec=True,
             ),
             patch(
                 "setup_lib.model_downloader.download_brisque_weights",
