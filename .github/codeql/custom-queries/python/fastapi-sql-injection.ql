@@ -40,10 +40,14 @@ class SqlAlchemyTextCall extends Call {
 
 /**
  * A formatted string (f-string) that may contain user input.
+ *
+ * The CodeQL Python library models an f-string literal as `Fstring`
+ * (codeql/python-all, semmle/python/Exprs.qll); `JoinedStr` is the CPython
+ * AST node name, not a CodeQL class.
  */
 class FormattedSqlString extends Expr {
   FormattedSqlString() {
-    this instanceof JoinedStr
+    this instanceof Fstring
     or
     exists(BinaryExpr be |
       this = be and
