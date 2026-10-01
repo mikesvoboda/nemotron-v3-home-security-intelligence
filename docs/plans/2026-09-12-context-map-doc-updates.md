@@ -13591,3 +13591,148 @@ run log `/home/agent/runs/b35-c11-run.log`, guard log `guard.log` (12 tight
 ticks, zero drops), sweeps `b35-c11-sweep-out2.txt`/`b35-c11-sweep-final.txt`/
 `b35-c11-new-survivors` run, gates `b35-c11-fulltier-gate2.txt`. Every number
 measured THIS session.
+
+## 2026-10-01 — MILESTONE 14 PUBLISHES: 69.76058771433135% completed=true (+0.5373178231725149 pts vs M13's 69.22326989115884%) — campaign #12 `vlm_specialists` CLOSES at 98.60215053763440% (917/930) over TWO RUNS (batteries M+N, batch-36): run 1 (M, 43 tests) converted 323 of the 336 survivors and BORN 153 new keys (141 killed), but re-verified ONE stale-era kill as green (`_person_crops` m55 — a shipped-test kill from an older era the current suite no longer lands); run 2 (N, 8 tests) closed all 13 run-1 survivors — the 12 birth test-gaps AND the m55 regression — leaving EXACTLY the 13 authoring-registered EQUIVALENTs, ZERO test-gap survivors
+
+## M14-MEASURED
+
+**THE NUMBER** (measured THIS session, `scripts/mutation-score.py` rc=0 from the
+repo root → `/home/agent/runs/b36-score-M14-live.json`; archived at append).
+`totals` row by row: killed 47,760 + timeout 289 = kt 48,049; survived 20,045;
+no_tests 783 (unchanged — the sticky rows ride on); suspicious 0; skipped 0;
+not_checked 0; total 68,877; score (47,760 + 289)/68,877 =
+**69.76058771433135%**. `progress`: total 68,877, checked 68,877, not_checked
+0, torn_metas 0, **completed=true**. History: `--history .github/
+mutation-history.json --date 2026-10-01` appended as run #18 (18 entries;
+17 old rows byte-verified unchanged, APPEND-ONLY check passed; 201 module
+rows). Badge decomposition, row-by-row: kt +476 = run 1's +463 (323 sweep-
+conversions + 141 of its 153 coverage-growth births killed − 1 stale-era kill
+re-verified green) + run 2's +13 (12 birth test-gaps + the m55 kill re-earned).
+Survivors 20,368 → 20,045 = −323 (module 336 → 13, every other `.py.meta`
+byte-identical both runs). Honest dilution disclosure: kt-only on the OLD
+68,724-key denominator reads 69.9159%; carrying the +153 newly-mutated keys
+into the denominator costs 0.155 pt, paid honestly (newly-measured mutations
+belong in the denominator — same contract as M13's +10).
+
+**DENOMINATOR DISCLOSURE** (Δ = +153 keys in run 1, 0 in run 2, every one
+counted): 68,724 → 68,877 = +153 battery-M coverage-growth births by BODY
+identity — new slots under `x__collect_face_texts` (45: 132–176), the wholly
+new `x__default_gallery_match` fn (21: 1–21, battery M's face wiring first
+EXECUTED its belt read), `x__default_person_gallery` (1), `x_collect_face_text`
+(15: 13–27), `x_collect_plate_text` (34: 24–57), `x_collect_reid_text` (18:
+11–28), `x_plate_text` (19: 51–69). Run 1 killed 141 of the 153; the 12 that
+survived were TEST GAPS (the new code paths had no asserts yet — break-twins
+at three face-leg skip sites, the gallery belt's two default/`or`-literal
+sites, four plate-leg image-identity sites, three reid-leg `detail=str(e)`
+sites) and are exactly what run 2 was authored to kill; run 2's sweep showed
+13/13 RED (its own 12 + m55) BEFORE launch, and its bank flips landed 13/13
+with ZERO new births (battery N exercised no line the M-era tree hadn't
+already mutated). The bank's 26→13 survivor set after run 2 equals the
+authoring-registered EQUIVALENT set key-for-key (bank == sweep == ledger,
+three-way identical; the 13: `format`-style falsy-default twins and the
+gather/zip lockstep family enumerated in battery M's honesty ledger).
+
+**THE TWO RUNS** (module-scoped, guarded end to end, exit 0 each): run 1
+generation 606.266s (240 files), "Found 43 new tests" (battery M, exact)
+absorbed with NO stats abort; run 2 generation 608.862s, "Found 8 new tests"
+(battery N, exact). Both watched by the two-regime strip guard from launch:
+generation regime zero gross churn, re-snapshot at the done-line, tight
+regime `sibling-drop=0 nonmod-holes=0` every tick (run 1: holes 153 → 0 as
+its own births judged; run 2: holes stayed 0 — same tree, no new slots).
+LAUNCH DISCIPLINE (the fifth member of the strip family — setsid on the LAUNCH
+breaks the guard's group-kill contract): both runs launched with PLAIN
+`nohup` from the sandbox bash (already a group leader) and the guard attached
+to the runner's REAL pgid, census-verified (guard.log wpid == the pgid the
+whole mutmut tree shares) before generation reached the merge.
+
+**PRE-RUN GATES** (all THIS session, against the FINAL formatted batteries —
+md5 M `f189775610ee6b26a5179d30281936a0` / N `2985d28ed5536627ee6b74146c451d76`,
+root == mutant home byte-identical both): (1) root pytest 43 + 8 passed;
+(2) both batteries green in the INSTRUMENTED mutant home under mutmut's
+args; (3) FULL serial unit tier: workspace tree 28,016 passed, exit 0,
+pre-run-1 (mutmut's exact selection tier + flags + DB env; the one
+first-launch red of the OLD broad-scope attempt was my own mis-scope — it
+swept in ai/triton + DB-bound load tests, retired, NOT a suite red) and the
+mutant-home tier pre-run-2 28,024 passed, exit 0 (the run-1 tier's single
+red was the documented LAUNCHER ARTIFACT — the breaking-changes test
+subprocesses bare `python` and FileNotFoundError's only when the venv bin
+is not on PATH; re-proved 11 passed with venv PATH, and run 2's gate ran
+WITH venv PATH and came back 0 red); (4) static census of both batteries:
+zero REPO_ROOT path-reads, zero sleeps (timeout-hook scan clean), no
+fixtures/parametrize/async-def tests, no `patch.object`, no `os.chdir`.
+
+**THE BATTERIES** (`test_vlm_specialists_batch36_m.py` 43 tests / 2,038
+lines; `test_vlm_specialists_batch36_n.py` 8 tests / 584 lines; N copies M's
+seams so each file stays independently runnable). The kill-real core:
+call-time SEAM SWAPS on already-imported modules reach the trampoline render
+worlds (every heavy import in the module is function-local); the exact
+`(level, message, extra-tuple, exc-class)` log lists through
+`handlers[:]=[cap]` + `propagate=False` + `setLevel(DEBUG)`; `exc_info`
+TUPLE-INDEXED (`r.exc_info[0]`) so the `False` mutant reddens; the metric
+recorder as sole discriminator for the seven degraded lines that share one
+phrase; FULL-STRING equality on every line (fragment asserts pass the
+XX-wrapped twins — the standing lesson); face-leg scan ORDER pinned with
+landmarks/gate/gallery answer tables; and run 2's additions: break-twins
+killed by placing the SKIP CASE FIRST with a survivor after it — including
+the subtle one the first pass missed (`_person_crops` m55 needs the
+UNREADABLE path INSIDE `picks`, or the selector filter skips it before the
+try/except the twin mutates — battery M's own blind spot, caught by its
+sweep GREEN, fixed before launch); the plate leg's image identity chain
+pinned path→convert→`np.asarray`→`run_fast_alpr` arg (None/`open(None)`/
+dropped-image all redden); `_default_gallery_match` belt asserted by exact
+forwarded-kwargs list in all three handle states (present/named, gone,
+present/unnamed → None, never ""/never "XXXX"); reid `leg_failed` detail
+sites by the exact two-record log list with `detail` string equality.
+Honesty ledger: M registers the 13 EQUIVALENTs (each adjudicated BY
+CONSTRUCTION in the header — including the `validate_and_clamp_bbox` pairing
+argument for the `or`→`and` twin); N registers ZERO (all 13 open keys
+killable by construction, proven by its 13/13 sweep RED). Gates at authoring:
+ruff + ruff-format clean, mypy clean, vulture rc=0 both files.
+
+**DISPOSITION** (single-process b30 trampoline sweeps): run 1 pre-launch —
+336 survivors: shipped-green control OK (43 tests), foreign-GREEN control
+OK, **323 RED / 13 GREEN** == the registered set (and the two bank-era
+disagreements — face m35/m115 — caught by the sweep KILLING what my draft
+ledger had wrongly called equivalent; the ledger was corrected before
+launch). Run 2 pre-launch — 26 bank survivors: battery N 13/13 RED on the
+13 open keys + battery N vs all 26 → exactly the 13 registered GREEN;
+negative control battery M vs all 26 → 0 RED (M owns none of what N owns);
+shipped-green controls OK (8 tests). Controls note: the run-1
+"known-KILLED" pick (`_unavailable_line` m1–3) reads GREEN against battery M
+ALONE by design — its killers are the SHIPPED suite, not the battery;
+activation evidence is the battery's own 323 REDs.
+
+**AUDIT + RECONCILE, ALL FOUR LEGS CLEAN** (bank verdicts are the score's
+source of truth; BODY identity adjudicates): run 1 scoped audit — non-target
+rows byte-identical 240/240, flips 319 same-number + 3 renumber-adjudicated,
+births 153 printed per fn, vanished 0, unjudged 0; its 9 UNEXPLAINED entries
+were 8 renumber artifacts (6 "M-RED but bank 0" = birth BODIES sitting at
+evicted numbers whose true homes the sweep had never claimed; 2 "M-GREEN but
+bank killed" = old numbers now holding a DIFFERENT renumbered body, the
+registered body itself alive at its new home) plus 1 real kill loss — all
+adjudicated by the body-bijection reconcile (338 same-number + 115
+number-moved preserved, 323 M-RED claims landed at body homes, 13 survivors
+preserved, births 153 judged — by slot 148 killed / 5 survived, by BODY
+141 of the 153 new bodies killed / 12 survived). The reconcile's ONE violation — `x__person_crops__mutmut_55`
+kill→0, body byte-identical across eras, no shipped test touching
+`_person_crops` in the CURRENT tree (grep-verified: battery M is the only
+test naming it) — is a STALE-ERA KILL LOSS: killed in an older bank era by a
+shipped test that has since been superseded; the honest answer per campaign
+#9's precedent is a SECOND RUN with a battery that re-earns the kill, never
+a floor bend. Run 2 audit: flips 13 ALL N-sweep-backed, kept-0 13 == ledger,
+births 0, UNEXPLAINED 0 — CLEAN; reconcile: 917 same-number preserved,
+violations 0 — CLEAN. vlm_specialists 441/777 (56.756757%) → 904/930
+(97.204301%) → **917/930 (98.60215053763440%)**; the 13 remaining survivors
+are the module's honest floor.
+
+**NOT PUBLISHED FROM:** the sweep RED counts as a badge claim (323/13 and
+13/26 reads were disposition, the bank is the score), any completed=false
+interim (run 1's 153-hole mid-run read), the mis-scoped first gate attempt's
+external reds or the mutant-home tier's launcher artifact, or old-era key
+numbers for any post-run claim. Commands + snapshots: pre-run banks
+`/home/agent/runs/b36-preC12` (240/68,724/47,573) and `b36-preC12r2`
+(240/68,877/48,036); run logs `b36-c12-run.log` / `b36-c12r2-run.log`; guard
+log `guard.log`; sweeps `b36-c12-sweep-final.txt` / `b36-c12-sweep-run2.txt` /
+`b36-c12-sweep-run2-all26.txt` / `b36-c12-sweep-m-vs26.txt`; gates
+`b36-c12-fulltier-gate2.txt` / `b36-c12-mutanthome-gate.txt` /
+`b36-c12r2-mutanthome-gate.txt`. Every number measured THIS session.
