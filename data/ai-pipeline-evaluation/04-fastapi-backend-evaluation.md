@@ -439,23 +439,11 @@ C. **Priority-based batching**: High-confidence detections (person detected at n
 
 ---
 
-### 14. [LOW] Merge Conflict Resolution in clip_client.py
+### 14. [RESOLVED BY DELETION] Merge Conflict Resolution in clip_client.py
 
-**What**: The file `backend/services/clip_client.py` has unresolved Git merge conflict markers at lines 135-158:
+**What (as originally found)**: `backend/services/clip_client.py` carried an unresolved three-way Git merge conflict at its lines 135-158: the HEAD side opened `_cb_config = CircuitBreakerConfig(` and the incoming side opened `_cb_kwargs = dict(`, separated by conflict markers and closed by a `>>>>>>> 95005836` line. At the time this was flagged as blocking, with the HEAD version (using `CircuitBreakerConfig`) named as the correct pattern.
 
-```python
-<<<<<<< HEAD
-        _cb_config = CircuitBreakerConfig(
-=======
-        _cb_kwargs = dict(
->>>>>>> 95005836
-```
-
-This is a blocking issue that must be resolved before the code can function. The HEAD version (using `CircuitBreakerConfig`) is the correct pattern matching the rest of the codebase.
-
-**Implementation effort**: LOW -- 5 minutes to resolve.
-
-**Risks**: Code will not run until resolved.
+**Resolution (2026-10-01)**: no resolution was ever needed — R8 S3 deleted the file outright in `3b73b9b6` ("retire the Florence provider and prune the gateway to the vlm set"), so the conflict retired with its host. The file no longer exists in the tree, and this document — the last place those raw markers survived anywhere in the repository — now describes the conflict in prose instead of quoting it, so `git grep -n '^<<<<<<< '` is empty across the tree.
 
 ---
 
