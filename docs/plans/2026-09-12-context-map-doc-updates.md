@@ -13451,3 +13451,143 @@ pre-merge key numbers for any post-merge claim, or the old planning note's
 "post-merge re-bank RAISES the badge ~+1.7 pt" (measured −0.39 pt; the note is
 corrected in memory, the M8-era estimate predated M9's own clip battery).
 Commands + snapshots listed; every number measured THIS session.
+
+## 2026-10-01 — MILESTONE 13 PUBLISHES: 69.22326989115884% completed=true (+0.48909636029176604 pts vs M12's 68.73417353086707%) — campaign #11 `cleanup_service` CLOSES at 99.42112879884226% (687/691): battery L (39 tests) converted 333 of the 337 survivors by the pre-run sweep, the FINAL 4 survivors are EXACTLY the authoring-registered EQUIVALENTs (`format_bytes` `size<0`→`<=0`/`<1` — same "0 B" output on the whole domain, negatives short-circuit before the guard; `run_cleanup`/orphan `run_cleanup` `job_id` init `None`→`""` — a dead store every reader guards past), ZERO test-gap survivors; battery L's own coverage growth BORN 10 new `run_cleanup` keys (the exception-path `fail_job`/`exc_info` sites, 179–188) ALL killed; reconcile violations 0 by BODY identity (334 same-number + 14 number-moved preserved)
+
+## M13-MEASURED
+
+**THE NUMBER** (measured THIS session, `scripts/mutation-score.py` rc=0 from the
+repo root → `/home/agent/runs/b35-score-M13.json`; archived at append).
+`totals` row by row: killed 47,284 + timeout 289 = kt 47,573; survived 20,368;
+no_tests 783 (unchanged — the sticky quartet rides on); suspicious 0; skipped 0
+(the bank's 32 exit-code-3 rows are KILLED under the pinned verdict map — an
+internal pytest error is a kill — and its 783 exit-code-33 rows are no_tests,
+so `skipped` is 0 in both M12's and this table); not_checked 0; total 68,724;
+score (47,284 killed + 289 timeout)/68,724 = **69.22326989115884%**.
+`progress`: total 68,724, checked 68,724, not_checked 0, torn_metas 0,
+**completed=true**. History: `--history .github/mutation-history.json
+--date 2026-10-01` appended as run #17 (17 entries verified; tail M11 → M12 →
+M13; 201 modules). Badge decomposition, row-by-row: +343 kt (333 sweep-
+conversions + 10 births, ALL killed) on +10 keys = +0.489 pt. Honest dilution
+disclosure: the +10 all-killed births are worth 69.2334% kt-only on the OLD
+denominator — carrying them into the denominator costs 0.010 pt, paid honestly
+(the alternative is hiding newly-measured mutations, which is not the series'
+contract).
+
+**DENOMINATOR DISCLOSURE** (Δ = +10 keys, every one named): 68,714 → 68,724
+= +10 battery-L coverage-growth births `xǁCleanupServiceǁrun_cleanup__mutmut_
+179…188` — mutmut newly mutated the exception-path lines (`logger.error(...,
+exc_info=True)` None/dropped/False twins, the L349 and-guard triple, and the
+four `fail_job(job_id, str(e))` arg twins) that battery L's failure tests
+EXECUTE; all 10 killed (the exc_info twins die on tuple-indexed
+`exc_info[0] is RuntimeError`, the guard twins on both-polarity zero-side-call
+asserts, the fail_job twins on the recorder's exact `(args, kwargs)` list — the
+trailing-comma `fail_job(job_id, )` 2-arg form raises TypeError, the
+`str(None)` twin fails the message-equality pin, all proven by sweep RED before
+launch). Survivors 20,701 → 20,368 = −333 conversions −0 elsewhere: the scoped
+audit verified every non-cleanup_service `.py.meta` BYTE-identical (240 rows
+pre = 240 now), so the whole ±10/±343 delta is this campaign, nothing else
+moved. cleanup_service renumber note: the pre-run survivor KEYS file is
+old-era; generation shifted 14 kill bodies' numbers (body-bijection
+`reconcile` proves 334 same-number + 14 number-moved preserved, the old m164
+body now sits at new m174 killed, new m164 is old m154's body killed — an
+earlier bank kill, never a battery-L claim), which is why disposition is
+adjudicated by BODY identity, never by key number.
+
+**THE RUN** (one module-scoped run, guarded end to end, exit 0 in ~23 min):
+generation 589.9s (240 files), "Found 39 new tests" (battery L, exact — 39
+tests) absorbed with NO stats abort, verdicts hash-preserving for every
+unchanged sibling (KT→KT re-verdicts 0, flips 333, kept-0 4, vanished 0,
+unjudged 0). The two-regime strip guard watched the whole run: generation
+regime zero gross churn (tree unmerged, nothing legitimately rewritten),
+re-snapshot at the done-line, tight regime `sibling-drop=0 nonmod-holes=0`
+every tick, holes 10 → 0 as the module's keys finished judging. LAUNCH
+HARNESS LESSON (recorded in memory, no bank harm): the FIRST attach pointed
+the guard at the harness wrapper's pid because `setsid` on the launch moved the
+RUN into its own process group — the guard's group-kill contract would then
+reach only the wrapper (the campaign-#9 grandchildren-keep-writing hazard
+reached a second way); fixed pre-generation by re-attaching to the run's real
+pgid without disturbing it, census rule written down (guard.log wpid must
+equal the pgid the whole mutmut tree shares).
+
+**PRE-RUN GATES** (all run THIS session against the FINAL formatted battery —
+the ruff Yoda-assert/format pass ran BEFORE the final gate set, md5
+`e589d3fb717e9a9f4c88237377b98c19` byte-identical root vs mutant home, 1,202
+lines): (1) root pytest 39 passed; (2) battery green in the INSTRUMENTED
+mutant home under mutmut's exact pytest args (`-x -q -m "not gpu"
+-o addopts= --timeout=120`, `MUTANT_UNDER_TEST=stats`); (3) the FULL serial
+unit tier in the mutant home under those args: 27,973 passed / 124 skipped / 8
+xfailed, GATE_EXIT=0 — the faithful superset of the "Found 39 new tests" stats
+rerun (abort-family members 1–13 pre-cleared; the ONE red of the first attempt
+was the documented LAUNCHER ARTIFACT — `test_check_api_breaking_changes`
+subprocesses bare `python`, FileNotFoundError only when the venv bin is not on
+PATH; re-proved 11 passed with venv PATH, which is what mutmut's `uv run`
+always has); (4) static census of the battery: zero REPO_ROOT/`_src`/`read_repo`
+reads, zero `.lineno` pins, zero module-global spy installs, zero
+`patch.object` (the K-era `_attr` swap pattern sidesteps the WP4.2 ratchet),
+no fixtures/parametrize/async-def tests (b30-sweep compatible), no `os.chdir`.
+
+**THE BATTERY** (`backend/tests/unit/services/test_cleanup_service_batch35_l.py`,
+39 tests, 1,202 lines): the kill-real core is the **call-time SQL digest** —
+every `session.execute`/`stream_scalars` argument is digested IN THE MUTANT
+WORLD as `(class, table, whitespace-normalized SQL, sorted compile().params
+reprs, column_descriptions (name,key) pairs)` and asserted EQUAL to the same
+digest recomputed at import in the test world over identically built
+statements (value identity, never mock-accepts-anything `call_args`; the
+digest channel was self-verified against its `<=` twin, `where(None)`, `None`,
+and the naive-cutoff twin before any claim was made). A tz-RECORDING fake
+clock swap (`cs.datetime`) spans each awaited call so the job-id strftime
+payload and both cutoffs are EXACT and `now(None)` mutants show in BOTH the
+recorded tz list and the params reprs; a `cs.asyncio` shim (real
+CancelledError) observes `sleep(60)`/`sleep(3600.0)` and `create_task(name=)`;
+job paths driven in BOTH job_id polarities with COMPLETE ordered recorder call
+lists (every and-guard twin reddens in one polarity; exc paths index the
+`exc_info` TUPLE — `is not None` passes the `False` mutant, indexing reddens
+the None/dropped/False family); log asserts are EXACT ordered
+`(level, message)` lists through `handlers[:]=[cap]` + `propagate=False`
+(K-era hermetic-capture lesson — the first sweep caught `run_cleanup` m157
+GREEN, a log line only reachable with `delete_images=True`, and the fix was
+capturing that path's full ordered list, not loosening an assert); failure
+branches forced deterministically via `cs.Path` SUBCLASSES raising on one
+marked name (`Path.is_file/is_dir` are os-path backed — an overriding `stat()`
+cannot fake the `and`→`or` twins, a real directory is needed; documented at
+the test). Honesty ledger: the 4 registered EQUIVALENTs above, each
+adjudicated BY CONSTRUCTION in the battery header. Gates at authoring: ruff +
+ruff-format clean, mypy clean, `vulture --min-confidence 80` rc=0; zero
+nosemgrep pragmas needed.
+
+**DISPOSITION** (single-process b30 trampoline sweep on the OLD tree, 337
+survivor keys): shipped-green control OK (39 tests), foreign control
+(`x_build_person_analysis_section__mutmut_20`) GREEN, killed controls
+(`run_cleanup`/`dry_run_cleanup`/`_wait_until_next_cleanup` `__mutmut_2`/`_1`)
+RED, then **333/337 RED / 4 GREEN** — the 4 GREENs exactly the registered
+candidates, re-swept GREEN on the NEW tree under the final battery (bank
+survivors == sweep GREENs == ledger, three-way identical). Controls note: the
+`format_bytes__mutmut_3` control is GREEN against battery L BY DESIGN (its
+killer is the shipped format_bytes suite, not L's indirect "6 B" message
+path) — controls were picked from functions L actually drives.
+
+**AUDIT + RECONCILE** (bank verdicts are the score's source of truth; BODY
+identity adjudicates): scoped audit (`b34-c10-audit-scoped.py` adapted →
+`b35-c11-audit-scoped.py`) — non-target rows byte-identical (240/240), flips
+0→KT 333 ALL L-sweep-RED-backed, kept-0 4 (= the ledger), KT→KT 0, vanished 0,
+unjudged 0, births 10 all killed, sweep-GREEN-but-killed 0, sweep-RED-but-0 0,
+UNEXPLAINED 0 — AUDIT: CLEAN. Body bijection (`b35-c11-reconcile-body.py`):
+334 same-number preserved, 14 number-moved preserved, 333 L-RED claims landed
+at body homes, 4 survivors preserved (never sweep-RED), births 10 judged,
+vanished 0 — **RECONCILE: CLEAN**. cleanup_service 344/681 (50.513950%) →
+687/691 (99.42112879884226%); kt +343 = 333 conversions + 10 births; the 4
+remaining survivors are the module's honest floor (equivalents are not
+failures, they are the mutation score telling us these three edits cannot be
+observed at all).
+
+**NOT PUBLISHED FROM:** the sweep RED counts as a badge claim (332/5 and
+333/4 reads were old-tree disposition, the bank is the score), any
+completed=false interim (the 10-hole mid-run read), the first full-tier
+gate's launcher-artifact red, or old-era key numbers for any post-run claim.
+Commands + snapshots: pre-run bank archived `/home/agent/runs/b35-preC11`
+(240 metas/68,714/47,230, == guard-restore.tgz census verified pre-launch),
+run log `/home/agent/runs/b35-c11-run.log`, guard log `guard.log` (12 tight
+ticks, zero drops), sweeps `b35-c11-sweep-out2.txt`/`b35-c11-sweep-final.txt`/
+`b35-c11-new-survivors` run, gates `b35-c11-fulltier-gate2.txt`. Every number
+measured THIS session.
