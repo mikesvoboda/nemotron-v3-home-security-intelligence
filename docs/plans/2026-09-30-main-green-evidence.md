@@ -201,7 +201,7 @@ secrets.LINEAR_API_KEY }}` (`:59`). (**There is no
 So **§3.2 is one owner-side fix, two reds.** I did not verify _why_ (unset vs
 expired vs scoped) — that is owner territory; do not probe by rotating.
 
-### 3.3 The two `Dependabot` check-runs are GitHub's, and they are failing upstream
+### 3.3 The two `Dependabot` check-runs are GitHub's, and they are failing upstream _(superseded on 2026-10-01 — the headline is wrong; see 3.3a at the end of this section)_
 
 They are **not** repo workflows: `path = dynamic/dependabot/dependabot-updates`,
 `event = dynamic`, and the run titles are real security-update jobs —
@@ -215,6 +215,39 @@ Dependabot security updates against `cryptography` (advisories listed up to
 `< 50.0.0`) and `ecdsa` are not landing. `gh run list --workflow Dependabot`
 finds nothing (it is not a repo workflow), so "is this new?" is **unverifiable**
 — it is not per-push and should not be charged to a main push.
+
+#### 3.3a. Correction, 2026-10-01 (ledger row 63, PR #6748) — the headline above is WRONG
+
+Row **63** on `chore/main-green-dependabot` fetched BOTH updater job logs
+(`gh api repos/$R/actions/jobs/110087949686/logs` — 2100+ lines) and read them
+end to end. The failure table at the end of the uv-job log names two errors,
+**neither one AccessDenied**:
+
+- `cryptography` — `dependency_file_not_resolvable`: the patched version for
+  CVE-2026-69247 (alert 305, high, affected `>= 44.0.0, < 50.0.0`, open since
+  2026-08-04) is 50.0.0, and **our** optional `nemo` extra blocks the bump —
+  `pyproject.toml:165` pins `data-designer>=0.9.2`, whose engine caps
+  `cryptography>=48.0.1,<=49` (`pyproject.toml:160` records the ceiling). The
+  resolution fails on the `python_full_version >= '3.15'` split, and
+  `uv.lock:710` sits at `cryptography==49.0.0` — INSIDE the advisory range, so
+  the repo stays exposed no matter how often Dependabot retries.
+- `ecdsa` — `security_update_not_found` at `dependency-version: 0.19.2`: the
+  lock ALREADY has `ecdsa==0.19.2` (`uv.lock:922`); alert 10's affected range
+  is `>= 0` — CVE-2024-23342, for which there IS no patched version. Nothing
+  can land because there is nothing to update.
+
+The 211 `AccessDenied` bodies are real but sit on the updater's proxy fetches of
+alternate index URLs (`403 https://download.pytorch.org:443/whl/cpu/httpx/`),
+which the job survived; the second job (`110087944118`, archive/npm) has **zero**
+AccessDenied lines and carries the same `GITHUB_REGISTRIES_PROXY` parse notice —
+that notice fires on a legitimately-empty env var and shows up in succeeding
+jobs too. What survives of the section above: these check-runs are GitHub's, not
+repo workflows, and not per-push. What does not survive: "nothing in this repo
+is at fault" — half the cause is OUR `cryptography` ceiling. Owner options 1/2/3
+(wait for a `data-designer` release; restructure the `nemo` extra; accept with
+who/when on the accepted-red list) are recorded in row 63, deliberately not
+executed. The paragraph above stays verbatim as what was measured on 2026-09-30;
+this section is what was measured on 2026-10-01.
 
 ## 4. Repo residue — verified, and two claims I could not reproduce
 
