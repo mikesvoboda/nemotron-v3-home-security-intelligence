@@ -290,3 +290,19 @@ AVD-DS-0002
 GHSA-6v7p-g79w-8964
 # CVE-2025-47273 - setuptools 70.3.0 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
 CVE-2025-47273
+
+# 2026-10-01 addendum, same class (ledger row 66, branch
+# chore/main-green-trivy-allowlist): the f9778503 scan
+# added two HIGH urllib3 findings installed "2.7.0" fixed "2.8.0" under the
+# bare "Python" target. NOT the app's urllib3 — the venv scanned
+# urllib3-2.8.0.dist-info with ZERO findings (uv.lock pins 2.8.0; the build
+# log line "+ urllib3==2.8.0" confirms what uv sync installed). The 2.7.0
+# pair is pip's vendored copy again: pip/_vendor/vendor.txt in the pip
+# 26.2.1 wheel reads "urllib3==2.7.0" (verified 2026-10-01 by downloading
+# pip==26.2.1 --no-deps and unzipping the wheel). Only upstream pip can
+# revendor; re-check when the base image ships a newer pip.
+#
+# CVE-2026-97687 - urllib3 2.7.0 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
+CVE-2026-97687
+# CVE-2026-97689 - urllib3 2.7.0 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
+CVE-2026-97689

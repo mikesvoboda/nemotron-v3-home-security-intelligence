@@ -14,36 +14,27 @@
 import python
 
 /**
- * A FastAPI route decorator (post, put, delete, patch) that modifies data.
+ * A FastAPI route decorator call (`@app.post(...)`, `@router.delete(...)`, ...)
+ * for a data-modifying HTTP method.
+ *
+ * The CodeQL Python library models the decorator expression of
+ * `@app.post("/x")` as a `Call` whose function is an `Attribute` named after
+ * the HTTP method; there is no `Decorator` class, and `Expr` has no
+ * `getValue()`. The endpoint binding goes through `Function.getADecorator()`
+ * (codeql/python-all, semmle/python/Function.qll) instead.
  */
-class FastApiModifyingDecorator extends Decorator {
-  string method;
-
+class FastApiModifyingDecorator extends Call {
   FastApiModifyingDecorator() {
-    exists(Call call, Attribute attr |
-      this.getValue() = call and
-      call.getFunc() = attr and
-      (
-        attr.getName() = "post" or
-        attr.getName() = "put" or
-        attr.getName() = "delete" or
-        attr.getName() = "patch"
-      ) and
-      method = attr.getName()
-    )
+    this.getFunc().(Attribute).getName() in ["post", "put", "delete", "patch"]
   }
 
-  string getMethod() { result = method }
+  string getMethod() { result = this.getFunc().(Attribute).getName() }
 
   /**
-   * Gets the path argument from the decorator.
+   * Gets the path argument from the decorator, if it is a string literal.
    */
   string getPath() {
-    exists(Call call, StringLiteral sl |
-      this.getValue() = call and
-      call.getArg(0) = sl and
-      result = sl.getText()
-    )
+    exists(StringLiteral sl | this.getArg(0) = sl | result = sl.getText())
   }
 }
 
@@ -51,11 +42,9 @@ class FastApiModifyingDecorator extends Decorator {
  * A function decorated with a FastAPI route.
  */
 class FastApiEndpoint extends Function {
-  FastApiModifyingDecorator decorator;
+  FastApiEndpoint() { this.getADecorator() instanceof FastApiModifyingDecorator }
 
-  FastApiEndpoint() { this.getADecorator() = decorator }
-
-  FastApiModifyingDecorator getRouteDecorator() { result = decorator }
+  FastApiModifyingDecorator getRouteDecorator() { result = this.getADecorator() }
 
   /**
    * Checks if this endpoint has a dependency that looks like authentication.
@@ -90,7 +79,7 @@ class FastApiEndpoint extends Function {
    * Checks if this is a health check or public endpoint that doesn't need auth.
    */
   predicate isExemptPath() {
-    exists(string path | path = decorator.getPath() |
+    exists(string path | path = this.getRouteDecorator().getPath() |
       path.matches("%health%") or
       path.matches("%ready%") or
       path.matches("%live%") or

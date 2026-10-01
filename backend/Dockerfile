@@ -153,6 +153,18 @@ WORKDIR /app
 # Install runtime dependencies only (no build tools like gcc)
 # ffmpeg for video processing, libgl1 and libglib2.0-0 for OpenCV (required by ultralytics)
 # procps for pgrep (needed by profiler)
+# libexpat1: the f9778503 Trivy scan found 2.5.0-1+deb12u3 installed in the
+# built image, flagged by six HIGH CVEs (CVE-2024-28757, CVE-2025-59375,
+# CVE-2026-25210, CVE-2026-45186, CVE-2026-66046, CVE-2026-93990; fixed in
+# 2.5.0-1+deb12u4). Measured against the current base digest: u3 is on no
+# mirror anymore — the only candidates are u2 (bookworm/12.15) and u4
+# (bookworm-security, already in these sources) — and the runtime install
+# below pulls libexpat1 transitively at u4; the -s simulation confirms
+# "Inst libexpat1 (2.5.0-1+deb12u4 Debian-Security...)". --only-upgrade
+# covers the other leg: when a base digest or cached layer DOES carry an
+# older installed copy, it moves it to the candidate, and once the base
+# absorbs the fix it no-ops (exit 0) — unlike a version pin it cannot rot
+# into a build failure. Guard: test_backend_image_trivy_clean.py
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
@@ -160,6 +172,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     procps \
     curl \
+    && apt-get install -y --only-upgrade libexpat1 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 

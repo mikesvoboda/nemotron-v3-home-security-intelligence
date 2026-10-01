@@ -15,8 +15,13 @@ import javascript
 
 /**
  * A JSX attribute setting dangerouslySetInnerHTML.
+ *
+ * The CodeQL JavaScript library models JSX attributes (including spread ones)
+ * as `JsxAttribute` (codeql/javascript-all, semmle/javascript/JSX.qll), whose
+ * `getName()` returns the attribute name; the capitalization `JSXAttribute`
+ * names no class in the library.
  */
-class DangerousHtmlAttribute extends JSXAttribute {
+class DangerousHtmlAttribute extends JsxAttribute {
   DangerousHtmlAttribute() { this.getName() = "dangerouslySetInnerHTML" }
 }
 
