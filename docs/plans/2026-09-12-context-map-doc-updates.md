@@ -13314,3 +13314,140 @@ sweep RED counts as badge claims, the 4 flagged same-number transitions
 before body adjudication, any mid-generation or completed=false read, or my
 first probe's hand-picked test-subset results (wrong names, fake GREENs).
 Commands + snapshots listed; every number measured THIS session.
+
+## 2026-10-01 — MILESTONE 12 PUBLISHES: 68.73417353086707% completed=true (+0.11406989237595155 pts vs M11's 68.62010363849112%) — campaign #10 `redis_json` CLOSES at 100.0% (596/596, zero survivors, zero equivalents): battery K (34 tests, ZERO registered EQUIVALENTs — the sweep disposed all 338 survivors RED, the module was pure test-gap) converted every survivor, its coverage growth BORN 2 `update_batch_field` keys both killed, reconcile violations 0 by BODY identity — AND the close absorbs the R8-S3/S4/S5 merge into the mutation lane: origin/main (63 commits) deleted `clip_client`/`florence_client`/`scene_baseline`/`scene_ocr_service` under the sanctioned death-list, so 3,037 fictional bank rows (kt 2,352, killed at 77.4% — ABOVE the bank average, so the prune LOWERS the badge −0.39 pt; an old planning note said otherwise and is corrected here) were pruned, the mutant home was rebuilt as an exact mirror of the merged tree, the orphaned batch-33-G battery was retired with its module, and a thirteenth `also_copy` path-read member was caught by a NEW pre-run instrument (replaying mutmut's own generation window + the exact unit-scoped gather) before it could strip a third time
+
+**THE NUMBER** (measured THIS session, `scripts/mutation-score.py` rc=0 from the
+repo root → `/tmp/ms-m12.json`; archived `/home/agent/runs/b34-score-M12.json`).
+`totals` row by row: killed 46,941 + timeout 289 = kt 47,230; survived 20,701;
+no_tests 783 (unchanged — the sticky quartet rides on, see FOLLOWING);
+suspicious 0; skipped 0; not_checked 0; total 68,714;
+score 47,230/68,714 = **68.73417353086707%**. `progress`: total 68,714,
+checked 68,714, not_checked 0, torn_metas 0, **completed=true**. History:
+`--history .github/mutation-history.json --date 2026-10-01` appended as run
+#16 (16 entries verified; tail M10 → M11 → M12; the entry carries 201 modules
+— 4 fewer than M11's 205, the pruned ghosts). Badge delta decomposition,
+row-by-row honest: the campaign ITSELF is redis_json +340 kt on +2 keys
+(+0.52 pt gross); the ghost prune is −2,352 kt on −3,037 keys (−0.39 pt,
+BECAUSE the four dying modules killed above average — clip 1,039/1,045 = 99.4%
+was M9's own battery payoff, evaporating with its module); merge re-generation
+churn on the modified siblings is −19 kt on −39 keys (ai_fallback 213→199 kt
+after its florence/clip code was deleted, model_management 141→136); net
++0.114. The published number is SMALLER in absolute kt than M11's because the
+bank is now 3,037 keys of REAL code smaller — the fiction is not carried
+forward.
+
+**DENOMINATOR DISCLOSURE** (Δ = −3,074 keys, every one named): 71,788 → 68,714
+= −3,037 (R8-S3 ghost prune: clip_client 1,045 + florence_client 1,081 +
+scene_baseline 224 + scene_ocr_service 687, metas+spans+renders deleted —
+measurement of deleted production code is not measurement) +2 (redis_json
+births `xǁBatchMetadataServiceǁupdate_batch_field__mutmut_72/73`, battery K's
+own coverage growth, both killed) −29 (ai_fallback re-enumeration at
+generation after the merge DELETED florence/clip call sites: 282 → 253 keys)
+−9 (model_management: 172 → 163, same mechanism — the heavy-lane route removal)
+−1 (model_zoo: 391 → 390, `x__init_model_zoo__mutmut_115` — the 115th of 115
+contiguous mutations, a SURVIVOR (exit 0), not re-created by generation; its
+covering-test set is byte-identical pre/post (50 tests, measured from both
+eras' `mutmut-stats.json`) and `model_zoo.py` is unchanged by the merge — a
+line-level coverage re-derivation lost the tail mutation site; disclosed, not
+hidden; kt unchanged). Survivors moved 21,744 → 20,701: −338 redis_json
+conversions −685 ghost survivors −1 model_zoo −20 merge churn (ai_fallback
++2, model_management +25 gross against re-judged siblings).
+
+**THE RUNS** (four, all guarded): (1) the FIRST campaign run (pre-merge tree,
+battery K installed) was STRIPPED at generation — the strip-guard hardkilled
+the group and restored the M11 bank byte-exactly (244 metas/71,788 keys
+verified); the red was later reproduced exactly: the merge-added R8-S4
+retirement test path-reads `docs/architecture/data-model/*.md` +
+`docs/guides/face-recognition.md` at REPO_ROOT — absent in the mutant home →
+FileNotFoundError under `-x` → truncated gather (also_copy 13th member,
+committed 93d3ba44 BEFORE any re-run; static census over every REPO_ROOT/`_src`/
+`read_repo` literal in `backend/tests/unit`: those 4 files were the ONLY
+root-present/mutant-absent read targets). (2) the first re-run on the merged
+tree was killed by MY OWN guard's stale contract — legitimate merge churn
+(ai_fallback −29 keys, total −39) tripped the tight sibling-drop tolerance
+DURING generation, when global re-generation legitimately rewrites
+merge-modified metas; bank verified intact after restore (240 metas/68,751/
+46,909 = exactly the post-prune expectation); the guard was rebuilt TWO-REGIME
+(gross-signature-only while generating — any sibling losing >800 keys or >50%
+of its keys, matching run-1's 17,274-key strip scale, order above merge churn
+and order below a strip; RE-SNAPSHOT at the generation done-line, then tight
+tol=20) — and `RESTORE` pointed at a fresh `guard-restore-postprune.tgz`,
+archive-censused to the post-prune bank (240 metas/68,751/46,909, ghosts
+absent — restoring the M11-era archive would now REINTRODUCE the fiction).
+(3) the campaign run completed: generation 591s (240 files), 292 new tests
+absorbed without a stats abort (the sixth-member interleaved-rerun hazard held
+clean — battery K's hermetic log-capture fix: handlers swapped to ONLY the
+recorder + `propagate=False`, since a foreign root handler can stamp volatile
+attrs on captured records under full-suite ordering), clean gate passed,
+178 holes filled. (4)+(5) two mini module runs (`ai_fallback`,
+`model_management`) judged the 46+132 keys that global generation reset for the
+merge-modified sources but the redis_json pattern never re-checked —
+`completed=true` restored, both modules RE-VERIFIED with EXISTING tests (no
+battery authoring, no R8-shield crossing).
+
+**THE MERGE RECONCILIATION** (the user-directed `origin/main` bring-in, 63
+commits, merge 80783fc7 clean): the post-merge duties from the R8-S3 ruling
+executed — root suite collect error found and retired at source (my own
+`test_clip_client_batch33_g.py`, target module deleted by main, sanctioned by
+the death-list: campaign #7's battery dies with its module; commit 4c9251b0;
+root unit collect 28,063/errors: 1 → 0); the mutant home was mirrored to the
+merged root with `rsync --delete` per also_copy root, protecting the 201
+LIVING renders (protect-list trap: a battery DOCSTRING containing `__mutmut_18`
+false-matched the naive detector — the correct predicate is a `def …__mutmut_N`
+regex under source_paths) and every cache file (`.py.meta`/`.py.spans`/stats
+excluded from rsync); 738 stale files pruned (600 backend incl. the four
+ghost renders, 120 `ai/` incl. the retired clip/enrichment providers, 14
+frontend panels — exactly what main's NEW s5 test asserts ABSENT, the
+stale-copy-as-strip-hazard made concrete); untracked `ai/{florence,clip,
+enrichment,enrichment-light}` `__pycache__`-only leftovers removed so the
+s3 retirement test is green in BOTH trees (51 passed ×2 — on a FRESH CI
+checkout they never exist; the workspace accumulated them); the four other
+merge-added retirement test files verified green in the mutant home (87 +
+1,004 synthbench + 52 shield). Battery K re-verified: 34 passed at root, 34
+passed serially in the mutant home.
+
+**THE BATTERY** (`backend/tests/unit/services/test_redis_json_batch34_k.py`,
+34 tests, 819 lines, md5 `bba6d142778e3cfc886762687ddb6318` byte-identical in
+both trees): recorder `_Client` asserting EXACT `(name,args,kwargs)` call lists
+across every service method's JSON arm + string-fallback arm (execute_command/
+expire/setex/get/exists/pipeline/scan_iter), complete log-message EQUALITY +
+complete attr sets through the REAL ContextFilter (ambient audited at import
+with the module's handlers REMOVED), `_Spy` subclass overriding the service's
+own get/set for exact positional forwarding of the update/append fallbacks,
+direct `rj.time`/`rj.get_settings` swaps spanning the awaited call (the
+await-time-getter rule), singleton reset via `rj._batch_metadata_service`,
+`_MISS`-sentinel spy semantics (get returns None for absent ids — own bug,
+fixed at authoring). Honesty ledger: registered EQUIVALENTs NONE — two early
+diff-shape EQUIVALENT candidates were WITHDRAWN after the sweep reddened them
+(the withdrawn-claims note is IN the battery header). Two nosemgrep
+`path-traversal-open` comments on tmp_path opens (the batch-13/28 precedent).
+
+**DISPOSITION** (single-process trampoline sweep, NEVER pytest-per-key in the
+mutant home): shipped-green control exit 3 OK (34 tests), killed control (the
+module-local `xǁBatchMetadataServiceǁ__init____mutmut_1`) RED, foreign control
+(`x_build_person_analysis_section__mutmut_20`) GREEN — then **338/338 survivor
+keys RED** (`/home/agent/runs/b34-k-sweep.log`): zero equivalents by sweep, so
+100% of the module was test-gap. The sweep predates the merge; the RECONCILE
+below re-anchors its claims to post-merge body homes, which is why its
+338/338 claim survives the renumber.
+
+**AUDIT + RECONCILE** (bank verdicts are the score's source of truth; BODY
+identity adjudicates, key NUMBER never): scoped audit (`b34-c10-audit-scoped.py`)
+— non-redis_json rows: every changed row classified (4 ghost prunes, the two
+merge-modified re-enumerations, the model_zoo tail, nothing UNEXPLAINED);
+redis_json: flips 0→KT 338 ALL ledger-backed, kept-0 0, KT→KT 0, vanished 0,
+unjudged 0, births 2 both killed, J-GREEN-but-killed 0 — UNEXPLAINED 0. The
+full body bijection (`b34-c10-reconcile-body.py`, ast-normalized bodies across
+eras): **241 kills same-number preserved, 15 kills NUMBER-MOVED preserved,
+338 K-RED claims landed at their body homes, 2 births judged, violations 0 —
+RECONCILE: CLEAN.** redis_json measured 256/594 (43.0976%) pre → **596/596
+(100.0%)** post; kt delta +340 = 338 conversions + 2 births.
+
+**NOT PUBLISHED FROM:** the mid-campaign 68.2303% post-prune read (honest but
+pre-campaign), any completed=false read (the 178-hole interim scored
+68.51878801990861 and is NOT a badge), sweep RED counts as badge claims,
+pre-merge key numbers for any post-merge claim, or the old planning note's
+"post-merge re-bank RAISES the badge ~+1.7 pt" (measured −0.39 pt; the note is
+corrected in memory, the M8-era estimate predated M9's own clip battery).
+Commands + snapshots listed; every number measured THIS session.
