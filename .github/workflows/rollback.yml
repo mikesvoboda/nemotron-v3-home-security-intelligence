@@ -292,6 +292,13 @@ jobs:
   rollback-summary:
     name: Rollback Summary
     runs-on: ubuntu-latest
+    # `needs` is required, not decorative: step 1 branches on
+    # needs.evaluate-rollback.outputs.should-rollback. Declaring no `needs`
+    # made that expression resolve EMPTY, so this job printed
+    # "ROLLBACK NOT NEEDED" on EVERY run — measured at 85673029, where its
+    # sibling had set should-rollback=true and filed issue #6755. Guarded by
+    # backend/tests/unit/scripts/test_workflow_needs_declared.py.
+    needs: evaluate-rollback
     if: always()
     permissions:
       contents: read
