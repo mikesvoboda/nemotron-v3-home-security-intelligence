@@ -13736,3 +13736,124 @@ log `guard.log`; sweeps `b36-c12-sweep-final.txt` / `b36-c12-sweep-run2.txt` /
 `b36-c12-sweep-run2-all26.txt` / `b36-c12-sweep-m-vs26.txt`; gates
 `b36-c12-fulltier-gate2.txt` / `b36-c12-mutanthome-gate.txt` /
 `b36-c12r2-mutanthome-gate.txt`. Every number measured THIS session.
+
+## 2026-10-01 — MILESTONE 15 PUBLISHES: 70.20479846727724% completed=true (+0.4442107529458923 pts vs M14's 69.76058771433135%) — campaign #13 `vlm_client` CLOSES at 97.27272727272728% (856/880) in ONE RUN (battery O, batch-37, 72 tests): the sweep converted 300 of the 324 survivors, the 24 bank survivors are EXACTLY the authoring-registered EQUIVALENTs (zero test-gap survivors), and battery O's own coverage growth BORN 20 new keys (12–13 under `x__content_of`, 149–166 under `_probe_enforcement` — the props-default/echo/raise arms the wire-pinning scenarios first executed) ALL KILLED; reconcile violations 0 by BODY identity (490 same-number + 70 number-moved preserved)
+
+## M15-MEASURED
+
+**THE NUMBER** (measured THIS session, `scripts/mutation-score.py` rc=0 from
+the repo root → `/home/agent/runs/b37-score-M15.json`; archived at append).
+`totals` row by row: killed 48,080 + timeout 289 = kt 48,369; survived 19,745;
+no_tests 783 (unchanged — the sticky rows ride on); suspicious 0; skipped 0;
+not_checked 0; total 68,897; score (48,080 + 289)/68,897 =
+**70.20479846727724%**. `progress`: total 68,897, checked 68,897, not_checked
+0, torn_metas 0, **completed=true**. History: `--history .github/
+mutation-history.json --date 2026-10-01` appended as run #19 (19 entries;
+18 old rows byte-verified unchanged, APPEND-ONLY check passed; 201 module
+rows). Badge decomposition, row-by-row: kt +320 = battery O's 300 sweep
+conversions (300 of its 324 survivors swept RED, and exactly 300 flipped in
+the bank) + 20 of its 20 coverage-growth births killed − 0 stale-era
+regressions (the reconcile found NO kill→0 anywhere in the module — unlike
+campaign #12, the shipped suite's kills here were all current-era
+re-verified). Survivors 20,045 → 19,745 = −300 (module 324 → 24, every other
+`.py.meta` byte-identical). Honest dilution disclosure: kt-only on the OLD
+68,877-key denominator reads 70.22518402369441%; carrying the +20
+newly-mutated keys costs 0.0204 pt, paid honestly (same contract as M13/M14).
+
+**DENOMINATOR DISCLOSURE** (Δ = +20 keys, every one counted): 68,877 →
+68,897 by BODY identity — the battery's wire-pinning scenarios first
+EXECUTED the /props-default, echo-mismatch and raise arms of
+`_probe_enforcement` (BORN 149–166: 18 keys) and two more `x__content_of`
+arms (12–13). All 20 bodies killed in the run. The key-level "one survivor
+birth" (`_probe_enforcement` m158) is a pure RENUMBER under body identity:
+its body is the registered-EQUIV m140 body (drop-`verdict="ignored"` →
+class default), evicted from its old number by the 18-slot insert and alive
+at m158 as a survivor — bank == sweep == ledger, three-way identical on all 24. The module's number-level 0→KT census reads 303 only because the renumber
+moves kills across numbers; BODY identity says 300 sweep conversions, 536
+retained kills, and 20 birth kills = 856 kt + 24 survivors, sum 880.
+
+**THE RUN** (module-scoped, guarded end to end, exit 0): generation absorbed
+"Found 72 new tests" (battery O, exact) with NO stats abort; the two-regime
+strip guard watched from launch — generation regime zero gross churn,
+re-snapshot at the done-line, tight regime `sibling-drop=0 nonmod-holes=0`
+every tick (holes 20 → 18 → 0 as its own births were judged); launched with
+PLAIN `nohup` (no setsid — the fifth-member discipline held again) and the
+guard attached to the runner's REAL pgid (752598, census-verified before
+generation reached the merge).
+
+**PRE-RUN GATES** (all THIS session, against the FINAL formatted battery —
+md5 `ece8dfb7aa933d4b86b70ea4a5742363`, 72 tests / 2,326 lines, root ==
+mutant home byte-identical): (1) root pytest 72 passed; (2) ruff check +
+format + mypy + vulture rc=0; (3) FULL serial unit tier in the MUTANT HOME
+under mutmut's exact selection tier + flags + DB env + venv bin on PATH:
+**28,096 passed, 124 skipped, 8 xfailed, GATE_EXIT=0** (18:44 wall — the
+cold-pyc grind precedent, not a slowdown claim); (4) sweep + controls:
+shipped-green OK (72 tests unmutated), foreign-GREEN OK
+(`x__person_crops__mutmut_55` — a foreign key the battery can't reach —
+GREEN), known-KILLED OK (`_fitted_prompt` m36 RED — the sibling of the
+registered m35 EQUIV), activation evidence = the battery's own 300 REDs.
+
+**THE BATTERY** (`test_vlm_client_batch37_o.py`, 72 tests / 2,326 lines).
+The shipped battery pins the wire at coarse level (retry COUNTS, breaker
+counts, finding-A triage) with fragment asserts — the standing repo trap —
+so the whole exact-shape layer had survived. O kills it: FULL rendered-prompt
+string equality (never a fragment), exact wire-BODY dicts, exact log
+signatures (level, RAW msg, args tuple, every `extra` attr, exc class),
+metric/degradation call tuples with kwargs-as-DICTS (a dropped kwarg is
+absent, never None), httpx timeout EXTENSIONS (client-level and per-request
+ride `request.extensions`), exception `str()` and `.verdict`, the m55
+continue→break doctrine at the retry twin (second-attempt-success), the
+binary-search fit boundaries measured from the renderer's OWN growth model
+(the `", "` join, the 192-char marker dominating a 137-char row — kept==n−1
+is DOMINATED in this shape, the scenarios sit at (13→11)/(3→1)/(3→0)), and
+the §3 probe's concurrency contract: an async PAUSING transport parks the
+first caller INSIDE its /props GET before `_enforced` is set, a second
+caller passes the OUTER gate, and the bank demands exactly ONE chat probe —
+the only construction that distinguishes the lock-held INNER double-check
+from its `is True`→`is False` twin (m6, RED). The reconcile loop between
+sweep runs 1 and 2 (same launch, no second campaign run needed): run 1
+swept 293 RED / 31 GREEN — 18 ledger EQUIVs plus 13 UNREGISTERED GREENs,
+adjudicated 6 EQUIV-by-construction (registered with proofs: the `"" += x`
+is `= x` accumulator, the `omitted < 0` unreachable arm, the m3 outer-gate
+dominated-by-inner pair, the two `echoed` initializer slots, the except-arm
+None — falsy-either-way reads) and 7 TEST GAPS, all closed BEFORE launch:
+the two `_image_parts` refusal messages pinned to FULL string (the guard's
+`str(root)`/`str(resolved)` evidence interpolated), the missing-`build_info`
+default pinned by `/props` returning `{}` (ENFORCED with `build_info == ""`
+in the INFO extra + the polar pin-mismatch raise), the `required and`→`or`
+twin pinned by a SATISFIED-pin ENFORCED scenario (the `and`/`or` formulas
+are indistinguishable on any refusal — "" is a substring of every string),
+and m6 by the pausing-transport test. Run 2: 300 RED / 24 GREEN == the
+registered set key-for-key. Honesty ledger: 24 EQUIVALENTs registered, each
+adjudicated BY CONSTRUCTION in the module docstring (dataclass-default
+drops, the ASCII-contract encoding twins, `ensure_ascii` falsy, the
+model-cap slice, the absolute-path join identity, the dead-ternary arms, the
+never-read initializers, the order-independent full-keep return, the
+monotone-prefix binary search, the unreachable loop-tail fallback), ZERO
+registered without a construction argument; the sweep then proved exactly
+those 24.
+
+**AUDIT + RECONCILE, ALL LEGS CLEAN** (bank verdicts are the score's source
+of truth; BODY identity adjudicates): scoped audit — non-target rows
+byte-identical 240/240, vanished 0, unjudged 0, births 20 printed per fn all
+judged; its number-keyed UNEXPLAINED list (11) was ENTIRELY renumber churn
+— 4 "O-RED but bank 0" were birth bodies sitting at evicted numbers, 7
+"O-GREEN but bank killed" were old numbers now holding DIFFERENT renumbered
+bodies while the registered bodies themselves sat survivor at their new
+homes (m42→m51, m89→m107, m93→m111, m96→m114, m97→m115, m104→m122,
+m140→m158) — every one adjudicated by the body-bijection reconcile:
+**violations 0** (490 same-number + 70 number-moved preserved, 300 O-RED
+claims landed at body homes, 24 survivors preserved — the 24 registered
+bodies, no stale-era kill loss anywhere).
+
+**NOT PUBLISHED FROM:** the sweep RED counts as a badge claim (293/31 and
+300/24 reads were disposition — the bank is the score), the number-keyed
+audit churn (303 "flips" — the BODY census says 300), any completed=false
+interim (the mid-run 20-hole window), or old-era key numbers for any
+post-run claim. Commands + snapshots: pre-run bank `/home/agent/runs/
+b37-preC13` (240 metas/68,877 keys/kt 48,049 + target meta 860 keys); run log
+`b37-c13-run.log`; guard log `guard.log`; sweeps `b37-c13-sweep-run1.txt` /
+`b37-c13-sweep-run2.txt` (+ `b37-controls.txt` mini-sweep); gates
+`b37-c13-fulltier-gate.txt`; score `b37-score-M15.json`; history append
+diff `b37-history-preM15.json` vs committed. Every number measured THIS
+session.
