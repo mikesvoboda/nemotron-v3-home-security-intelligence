@@ -61,18 +61,20 @@ class FileOperation extends Call {
 
 /**
  * A FastAPI path parameter that could contain malicious input.
+ *
+ * The decorator expression of ``@app.get("/x/{item}")`` is modeled as a
+ * ``Call`` reached via ``Function.getADecorator()`` (codeql/python-all,
+ * semmle/python/Function.qll); there is no ``Decorator`` class and ``Expr``
+ * has no ``getValue()``.
  */
 class FastApiPathParameter extends Parameter {
   FastApiPathParameter() {
-    exists(Function f, Decorator d |
+    exists(Function f, Call c |
       this = f.getAnArg() and
-      d = f.getADecorator() and
-      exists(Call c |
-        d.getValue() = c and
-        exists(StringLiteral sl |
-          c.getArg(0) = sl and
-          sl.getText().matches("%{" + this.getName() + "}%")
-        )
+      c = f.getADecorator() and
+      exists(StringLiteral sl |
+        c.getArg(0) = sl and
+        sl.getText().matches("%{" + this.getName() + "}%")
       )
     )
   }
@@ -80,12 +82,17 @@ class FastApiPathParameter extends Parameter {
 
 /**
  * An f-string that uses a variable for file paths.
+ *
+ * The CodeQL Python library models an f-string literal as `Fstring`
+ * (semmle/python/Exprs.qll); `JoinedStr` is the CPython AST node name, not a
+ * CodeQL class. Measured against a synthetic database with CLI 2.27.1: an
+ * f-string WITHOUT substitutions (`f"no braces here"`) is not an `Fstring`
+ * at all, so every `Fstring` has at least one substituted value —
+ * `getAValue()` returns those values flattened (no `FormattedValue` wrapper
+ * node appears among them).
  */
-class FormattedPathString extends JoinedStr {
-  FormattedPathString() {
-    // Contains at least one formatted value (not just literal strings)
-    exists(FormattedValue fv | fv.getParent+() = this)
-  }
+class FormattedPathString extends Fstring {
+  FormattedPathString() { exists(this.getAValue()) }
 }
 
 from FileOperation fileOp, FormattedPathString formattedPath
