@@ -68,7 +68,7 @@ graph TD
 ### Initialization
 
 `setup_telemetry(app, settings)` is called during application startup
-(`backend/main.py:839`; defined at `backend/core/telemetry.py:145-354`). It returns `True` when
+(`backend/main.py:839`; defined at `backend/core/telemetry.py:145-353`). It returns `True` when
 tracing is initialized, `False` when disabled or already active. In abbreviated form
 (`backend/core/telemetry.py:145-338`):
 
@@ -179,13 +179,13 @@ lifecycle tooling or init script is required.
 The system auto-instruments common libraries (`backend/core/telemetry.py:320-333` and `:338`, with
 the logging instrumentation at `backend/core/telemetry.py:381`):
 
-| Library      | Instrumentation           | What's Traced                          |
-| ------------ | ------------------------- | -------------------------------------- |
-| `fastapi`    | `FastAPIInstrumentor`     | Inbound HTTP requests                  |
-| `httpx`      | `HTTPXClientInstrumentor` | Outbound HTTP requests                 |
-| `sqlalchemy` | `SQLAlchemyInstrumentor`  | Database queries                       |
-| `redis`      | `RedisInstrumentor`       | Redis commands                         |
-| `logging`    | `LoggingInstrumentor`     | Log-trace correlation                  |
+| Library      | Instrumentation           | What's Traced          |
+| ------------ | ------------------------- | ---------------------- |
+| `fastapi`    | `FastAPIInstrumentor`     | Inbound HTTP requests  |
+| `httpx`      | `HTTPXClientInstrumentor` | Outbound HTTP requests |
+| `sqlalchemy` | `SQLAlchemyInstrumentor`  | Database queries       |
+| `redis`      | `RedisInstrumentor`       | Redis commands         |
+| `logging`    | `LoggingInstrumentor`     | Log-trace correlation  |
 
 The AI legs ride the HTTPX instrumentation: the detector client's `httpx` post to
 `{AI_GATEWAY_URL}/yolo26/detect` (`backend/services/detector_client.py:668`) and the VLM client's
@@ -229,11 +229,11 @@ Related helpers in the same module:
 Pipeline spans are created with `tracer.start_as_current_span(...)` and `trace_span(...)`, and
 annotated through the semantic-convention helpers in `backend/core/telemetry_ai_conventions.py`.
 
-| Span Name                    | Where                                                         | Key Attributes                                                                                                                                                     |
-| ---------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `detection_processing`       | `backend/services/pipeline_workers.py:499`                    | `pipeline.camera_id`, `pipeline.stage`, `camera_id`, `file_path`, `media_type`, `pipeline_stage`                                                                   |
-| `analysis_processing`        | `backend/services/pipeline_workers.py:1015`                   | `batch_id`, `detection_count`, `pipeline_stage`, `camera_id`                                                                                                       |
-| `yolo26_detection_request`   | `backend/services/detector_client.py:641-646`                 | `camera_id`, `image_path`, `image_size_bytes`, `retry_attempt`, `ai.model.name`, `ai.model.version`, `ai.model.provider`, `ai.inference.device`, `ai.inference.batch_size` |
+| Span Name                  | Where                                         | Key Attributes                                                                                                                                                             |
+| -------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `detection_processing`     | `backend/services/pipeline_workers.py:499`    | `pipeline.camera_id`, `pipeline.stage`, `camera_id`, `file_path`, `media_type`, `pipeline_stage`                                                                           |
+| `analysis_processing`      | `backend/services/pipeline_workers.py:1015`   | `batch_id`, `detection_count`, `pipeline_stage`, `camera_id`                                                                                                               |
+| `yolo26_detection_request` | `backend/services/detector_client.py:641-646` | `camera_id`, `image_path`, `image_size_bytes`, `retry_attempt`, `ai.model.name`, `ai.model.version`, `ai.model.provider`, `ai.inference.device`, `ai.inference.batch_size` |
 
 `detection_processing` wraps one detection job for a camera; `analysis_processing` wraps the
 batch's analysis call, which runs `VlmAnalyzer.analyze_batch()`

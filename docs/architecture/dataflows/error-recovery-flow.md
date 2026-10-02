@@ -130,13 +130,13 @@ register its own breaker on first use — `ai-vlm` does exactly that, with
 `failure_threshold=5` and `recovery_timeout=60.0`
 (`backend/services/vlm_client.py:247-249`).
 
-| Service           | Failure Threshold | Recovery Timeout | Source                                                  |
-| ----------------- | ----------------- | ---------------- | ------------------------------------------------------- |
-| yolo26            | 5                 | 30s              | AI config (`backend/main.py:321`)                       |
-| detector_yolo26   | 5                 | 60s              | `DetectorClient` (`backend/services/detector_client.py:336-345`) |
-| ai-vlm            | 5                 | 60s              | `VlmClient` (`backend/services/vlm_client.py:247-249`)  |
-| postgresql        | 10                | 60s              | Infrastructure config (`backend/main.py:325`)           |
-| redis             | 10                | 60s              | Infrastructure config (`backend/main.py:328`)           |
+| Service         | Failure Threshold | Recovery Timeout | Source                                                           |
+| --------------- | ----------------- | ---------------- | ---------------------------------------------------------------- |
+| yolo26          | 5                 | 30s              | AI config (`backend/main.py:321`)                                |
+| detector_yolo26 | 5                 | 60s              | `DetectorClient` (`backend/services/detector_client.py:336-345`) |
+| ai-vlm          | 5                 | 60s              | `VlmClient` (`backend/services/vlm_client.py:247-249`)           |
+| postgresql      | 10                | 60s              | Infrastructure config (`backend/main.py:325`)                    |
+| redis           | 10                | 60s              | Infrastructure config (`backend/main.py:328`)                    |
 
 The detector's own client-side breaker is `detector_yolo26` — the name is
 built from the detector type (`backend/services/detector_client.py:280`), so
@@ -201,12 +201,12 @@ sequenceDiagram
 
 ## YOLO26 Circuit Breaker
 
-**Source:** `backend/services/detector_client.py:295-309`
+**Source:** `backend/services/detector_client.py:336-345`
 
 ```python
-# backend/services/detector_client.py:295-309
+# backend/services/detector_client.py:336-345
 self._circuit_breaker = CircuitBreaker(
-    name="yolo26",
+    name=f"detector_{self._detector_type}",
     config=CircuitBreakerConfig(
         failure_threshold=5,        # Opens after 5 consecutive failures
         recovery_timeout=60.0,      # Waits 60 seconds before attempting recovery
@@ -269,14 +269,16 @@ for attempt, temperature in enumerate((None, 0.0)):
         body["temperature"] = temperature  # §6 step 1: retry at temp 0
 ```
 
-Transport failures (connection refused, timeout, HTTP 5xx) are retried; a
-schema violation that arrives complete is not (the retry would re-send the
-same bytes). A context-overflow refusal and a reply cut off at `max_tokens`
-raise on the spot — re-asking at the same budget cannot change either answer.
+Transport failures (connection refused, timeout, HTTP 5xx) and a complete
+reply that violates the verdict schema are both given the second attempt — at
+temperature 0 the model can answer differently. A context-overflow refusal and
+a reply cut off at `max_tokens` raise on the spot: re-asking at the same budget
+cannot change either answer (`backend/services/vlm_client.py:813-826, 833-866`).
 Each counted failure feeds the `ai-vlm` breaker
-(`backend/services/vlm_client.py:247-249`), and budget-exhaustion failures are
-recorded separately so a prompt sizing problem never opens the service breaker
-(`backend/services/vlm_client.py:897`).
+(`backend/services/vlm_client.py:247-249`), while budget-exhaustion failures are
+recorded WITHOUT feeding it — a reply truncated by a token count the backend
+chose is not evidence that the service is down
+(`backend/services/vlm_client.py:897-917`).
 
 ## Broadcast Retry
 
@@ -318,20 +320,35 @@ async def broadcast_with_retry[T](
 
 ### Analysis Pipeline Errors
 
-| Error            | Location         | Handling | Recovery           |
-| ---------------- | ---------------- | -------- | ------------------ |
-| Batch not found  | NemotronAnalyzer | Skip     | Data inconsistency |
-| LLM timeout      | NemotronAnalyzer | Retry 3x | Backoff            |
-| Parse error      | NemotronAnalyzer | No retry | Log and skip       |
-| Validation error | NemotronAnalyzer | No retry | Log and skip       |
+| Error                     | Location    | Handling                    | Recovery                                      |
+| ------------------------- | ----------- | --------------------------- | --------------------------------------------- |
+| No camera/detections      | VlmAnalyzer | Raise, skip the batch       | Payload bug — nothing to analyze              |
+| Transport failure         | VlmClient   | Retry once at temperature 0 | `verification_failed`, NULL score, event kept |
+| Schema violation          | VlmClient   | Retry once at temperature 0 | `verification_failed`, NULL score, event kept |
+| Reply truncated by budget | VlmClient   | No retry                    | `verification_failed`; breaker untouched      |
+| Context overflow          | VlmClient   | No retry                    | `verification_failed`; prompt fit is short    |
+| Breaker open              | VlmClient   | Refuse without I/O          | Wait 60s recovery                             |
 
-### Enrichment Pipeline Errors
+Every one of these lands as a written Event: `_DEGRADABLE_ERRORS` is caught in
+`analyze_batch()` and mapped to `verification_failed`
+(`backend/services/vlm_analyzer.py:556-560`), so a batch is never lost to an
+engine failure (`backend/services/vlm_analyzer.py:267-280`).
 
-| Error               | Location           | Handling      | Recovery              |
-| ------------------- | ------------------ | ------------- | --------------------- |
-| Service unavailable | EnrichmentPipeline | Skip model    | Continue with partial |
-| Timeout             | EnrichmentPipeline | Skip model    | Continue with partial |
-| All models fail     | EnrichmentPipeline | Return FAILED | LLM analyzes without  |
+### Specialist Lookup Errors
+
+The three prompt lookups (`faces`, `person_reid`, `plates`) degrade rather than
+fail:
+
+| Error                   | Location        | Handling                             | Recovery              |
+| ----------------------- | --------------- | ------------------------------------ | --------------------- |
+| Weights absent          | vlm_specialists | Line reads "unavailable"             | Verdict proceeds      |
+| Optional package absent | vlm_specialists | Line reads "unavailable"             | Verdict proceeds      |
+| Database hiccup         | vlm_specialists | Line reads "unavailable"             | Verdict proceeds      |
+| Vector space mismatch   | vlm_specialists | Line reads "unavailable (re-enroll)" | Re-enroll the gallery |
+
+The stage has no path that raises into the analyzer, and the analyzer keeps a
+belt catch so even a bug there yields three `unavailable` lines rather than a
+lost event (`backend/services/vlm_analyzer.py:514-523`).
 
 ### Broadcast Errors
 
@@ -477,7 +494,7 @@ class CircuitBreakerMetrics:
 
 ```
 Normal Flow:
-  Image -> YOLO26 -> Detection -> Batch -> LLM
+  Image -> YOLO26 -> Detection -> Batch -> VLM
 
 Degraded Flow (YOLO26 down):
   Image -> Queue (waiting) -> DLQ after max retries
@@ -486,31 +503,45 @@ Recovery:
   Circuit closes -> Process DLQ -> Resume normal flow
 ```
 
-### LLM Service Down
+### VLM Service Down
 
 ```
 Normal Flow:
-  Batch -> Nemotron LLM -> Event -> Broadcast
+  Batch -> ai-vlm verdict -> Event (+ EventVerification) -> Broadcast
 
-Degraded Flow (Nemotron down):
-  Batch -> Queue (waiting) -> DLQ after max retries
+Degraded Flow (ai-vlm down):
+  Batch -> one retry at temperature 0 -> Event written anyway:
+          verdict=verification_failed, risk_score=NULL
+  5 consecutive failures OPEN the ai-vlm breaker -> later batches refuse
+  without I/O and DegradationManager reports ai-vlm UNHEALTHY
 
 Recovery:
-  Circuit closes -> Process DLQ -> Resume normal flow
+  Breaker half-opens -> test calls succeed -> flag cleared -> verdicts resume
 ```
 
-### Enrichment Service Down
+The event is the point: a batch is never parked or discarded waiting for the
+engine, because the UI needs a row that reads "needs review"
+(`backend/services/vlm_analyzer.py:267-280`). The wake ping
+(`backend/services/vlm_client.py:946`) is the cold-start path — one
+`max_tokens: 1` request that loads llama.cpp's weights, and a failed wake is
+swallowed rather than retried.
+
+### Specialist Lookups Unavailable
 
 ```
 Normal Flow:
-  Detection -> Enrichment -> LLM (enriched prompt)
+  Key frames -> faces / person re-ID / plates lookups -> three prompt lines
 
-Degraded Flow (Enrichment down):
-  Detection -> LLM (basic prompt, no enrichment)
+Degraded Flow (a lookup cannot answer):
+  That line reads "unavailable" (or "unavailable (re-enroll)")
+  The assess call proceeds with the remaining lines
 
 Recovery:
-  Service available -> Full enrichment resumes
+  Weights present / gallery re-enrolled -> the line answers again
 ```
+
+A degraded lookup changes what the model is told, never whether the event
+exists (`backend/services/vlm_specialists.py:12-16`).
 
 ### Redis Down
 
