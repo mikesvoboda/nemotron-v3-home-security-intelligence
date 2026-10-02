@@ -171,10 +171,10 @@ sequenceDiagram
 
 ### Acknowledgment Requirements
 
-**Source:** `backend/services/event_broadcaster.py:296-323`
+**Source:** `backend/services/event_broadcaster.py:306-337`
 
 ```python
-# backend/services/event_broadcaster.py:296-323
+# backend/services/event_broadcaster.py:306-337 (docstring abridged)
 def requires_ack(message: dict[str, Any]) -> bool:
     """Determine if a message requires client acknowledgment.
 
@@ -189,9 +189,13 @@ def requires_ack(message: dict[str, Any]) -> bool:
     if not data:
         return False
 
-    # Check risk_score >= 80
-    risk_score = data.get("risk_score", 0)
-    if risk_score >= 80:
+    # Check risk_score >= 80. P0.25 (spec §6 step 3): a verification_failed
+    # event carries a PRESENT-None score - `.get(..., 0)`'s default only
+    # applies to an absent key, so None reached `>= 80` as a TypeError that
+    # would kill the subscriber loop. NULL never acks; the critical-level
+    # arm below still can.
+    risk_score = data.get("risk_score")
+    if risk_score is not None and risk_score >= 80:
         return True
 
     # Check risk_level == 'critical'
@@ -201,14 +205,14 @@ def requires_ack(message: dict[str, Any]) -> bool:
 
 ### Message Sequencing and Buffering
 
-**Source:** `backend/services/event_broadcaster.py:68-69, 398-401`
+**Source:** `backend/services/event_broadcaster.py:78-79, 412-415`
 
 ```python
-# backend/services/event_broadcaster.py:68-69
+# backend/services/event_broadcaster.py:78-79
 # Buffer size for message replay on reconnection (NEM-1688)
 MESSAGE_BUFFER_SIZE = 100
 
-# backend/services/event_broadcaster.py:398-401
+# backend/services/event_broadcaster.py:412-415
 # Message sequencing and buffering (NEM-1688)
 self._sequence_counter = 0
 self._message_buffer: deque[dict[str, Any]] = deque(maxlen=self.MESSAGE_BUFFER_SIZE)
@@ -226,7 +230,7 @@ self._client_acks: dict[WebSocket, int] = {}
 ### Review Flow
 
 "Viewing" an event has no backend effect; the dashboard marks events reviewed
-by PATCHing the event itself (`backend/api/routes/events.py:1869-2060`):
+by PATCHing the event itself (`backend/api/routes/events.py:1909-2110`):
 
 ```mermaid
 sequenceDiagram
@@ -305,13 +309,13 @@ Retention comes from settings, not constants
 (`backend/services/cleanup_service.py:141, 487`):
 
 ```python
-settings.retention_days        # default 30 — events, detections (config.py:927-932)
-settings.log_retention_days    # default 7  — logs (config.py:1948-1951)
+settings.retention_days        # default 30 — events, detections (config.py:918-922)
+settings.log_retention_days    # default 7  — logs (config.py:2083-2085)
 ```
 
 Cutoff is `now(UTC) - timedelta(days=retention_days)`; events are matched on
-`started_at`, detections on `detected_at` (`cleanup_service.py:266-298`). A dry
-run mode (`cleanup_service.py:398`) reports what would be deleted without
+`started_at`, detections on `detected_at` (`backend/services/cleanup_service.py:266, 294`). A dry
+run mode (`backend/services/cleanup_service.py:382`) reports what would be deleted without
 deleting it.
 
 ## Event Data Flow Summary
@@ -381,7 +385,7 @@ batch — there is no `batches` table or FK.
 
 ### Broadcast Failures
 
-**Source:** `backend/services/event_broadcaster.py:155-254`
+**Source:** `backend/services/event_broadcaster.py:155-192`
 
 ```python
 # backend/services/event_broadcaster.py:155-163 (abridged)
@@ -426,16 +430,14 @@ async def broadcast_with_retry[T](
 ### Broadcast Metrics
 
 ```python
-# backend/services/event_broadcaster.py:89-110 (abridged)
+# backend/services/event_broadcaster.py:89-108 (abridged)
 @dataclass
 class BroadcastRetryMetrics:
     total_attempts: int = 0
     successful_broadcasts: int = 0
     failed_broadcasts: int = 0
     retries_exhausted: int = 0
-    retry_counts: dict[int, int] = field(
-        default_factory=lambda: {0: 0, 1: 0, 2: 0, 3: 0}
-    )  # Count by retry attempts needed
+    retry_counts: dict[int, int] = field(default_factory=lambda: {0: 0, 1: 0, 2: 0, 3: 0})
 ```
 
 ## Related Documents

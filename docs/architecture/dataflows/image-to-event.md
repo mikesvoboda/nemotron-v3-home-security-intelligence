@@ -33,7 +33,7 @@ sequenceDiagram
 
     DQ->>DW: Dequeue job
     DW->>RT: POST /detect (with circuit breaker)
-    Note over RT: Timeout: 60s, Retries: 3
+    Note over RT: Read timeout 30s (settings), Retries: 3
     RT-->>DW: Detections JSON
     DW->>DB: Store Detection records
     DW->>BA: add_detection()
@@ -61,14 +61,14 @@ sequenceDiagram
 
 ## Stage 1: File Detection
 
-**Source:** `backend/services/file_watcher.py:330-400`
+**Source:** `backend/services/file_watcher.py:379-413`
 
 ### 1.1 Filesystem Monitoring
 
 The FileWatcher monitors camera directories using either inotify (Linux native) or polling mode (for Docker/NFS environments).
 
 ```python
-# backend/services/file_watcher.py:351-384
+# backend/services/file_watcher.py:400-413 (abridged)
 def __init__(
     self,
     camera_root: str | None = None,
@@ -94,7 +94,7 @@ def __init__(
 Before queuing, images are validated for integrity:
 
 ```python
-# backend/services/file_watcher.py:131-156
+# backend/services/file_watcher.py:139-164 (abridged from the body)
 def _validate_image_sync(file_path: str) -> bool:
     # Try to open and verify image header
     with Image.open(file_path) as img:
@@ -119,7 +119,7 @@ def _validate_image_sync(file_path: str) -> bool:
 Files are deduplicated using SHA256 content hashes stored in Redis:
 
 ```python
-# backend/services/file_watcher.py:13-19
+# backend/services/file_watcher.py:12-16
 # Files are deduplicated using SHA256 content hashes stored in Redis with TTL.
 # This prevents duplicate processing caused by:
 # - Watchdog create/modify event bursts
@@ -140,14 +140,14 @@ Files are deduplicated using SHA256 content hashes stored in Redis:
 
 ## Stage 2: Object Detection
 
-**Source:** `backend/services/detector_client.py:151-332`
+**Source:** `backend/services/detector_client.py:993` (`DetectorClient.detect_objects`)
 
 ### 2.1 Detection Queue Processing
 
 The detection worker dequeues image paths and sends them to YOLO26:
 
 ```python
-# backend/services/detector_client.py:1-35
+# backend/services/detector_client.py:12-20
 # Detection Flow:
 #     1. Read image file from filesystem
 #     2. Validate image integrity (catch truncated/corrupt images)
@@ -163,7 +163,7 @@ The detection worker dequeues image paths and sends them to YOLO26:
 ### 2.2 YOLO26 HTTP Request
 
 ```python
-# backend/services/detector_client.py:541-600
+# backend/services/detector_client.py:596-667 (abridged from the body)
 async def _send_detection_request(
     self,
     image_data: bytes,
@@ -171,37 +171,41 @@ async def _send_detection_request(
     camera_id: str,
     image_path: str,
 ) -> dict[str, Any]:
-    """Send detection request with retry logic and concurrency limiting."""
+    ...
+    explicit_timeout = self._read_timeout + settings.ai_connect_timeout  # :637
     ...
     # Use semaphore to limit concurrent GPU requests (NEM-1500)
-    async with semaphore:
-        async with asyncio.timeout(explicit_timeout):
-            files = {"file": (image_name, image_data, "image/jpeg")}
+    async with semaphore:                          # :663
+        async with asyncio.timeout(explicit_timeout):  # :665
+            response = await self._http_client.post(...)  # :667
 ```
 
 **Timing:**
 
-| Parameter        | Value | Source                                        |
-| ---------------- | ----- | --------------------------------------------- |
-| Connect timeout  | 10s   | `backend/services/detector_client.py:97`      |
-| Read timeout     | 60s   | `backend/services/detector_client.py:98`      |
-| Explicit timeout | 70s   | `backend/services/detector_client.py:582-583` |
+| Parameter        | Value                 | Source                                        |
+| ---------------- | --------------------- | --------------------------------------------- |
+| Read timeout     | `yolo26_read_timeout` | `backend/core/config.py:1105-1110`            |
+| Explicit timeout | read + connect        | `backend/services/detector_client.py:637`     |
+| Timeout wiring   | connect/read/pool     | `backend/services/detector_client.py:298-303` |
 
 ### 2.3 Circuit Breaker Protection
 
 ```python
-# backend/services/detector_client.py:295-309
+# backend/services/detector_client.py:336-345
 self._circuit_breaker = CircuitBreaker(
-    name="yolo26",
+    name=f"detector_{self._detector_type}",
     config=CircuitBreakerConfig(
-        failure_threshold=5,        # Opens after 5 consecutive failures
-        recovery_timeout=60.0,      # Wait 60s before attempting recovery
-        half_open_max_calls=3,      # Allow 3 test calls in half-open
-        success_threshold=2,        # 2 successes close the circuit
-        excluded_exceptions=(ValueError,),  # HTTP 4xx don't trip circuit
+        failure_threshold=5,
+        recovery_timeout=60.0,
+        half_open_max_calls=3,
+        success_threshold=2,
+        excluded_exceptions=(ValueError,),  # HTTP 4xx errors should not trip circuit
     ),
 )
 ```
+
+The breaker is named after the detector type (`detector_yolo26`), so each
+detector keeps its own failure state.
 
 ### Error Paths (Stage 2)
 
@@ -215,12 +219,12 @@ self._circuit_breaker = CircuitBreaker(
 
 ## Stage 3: Batch Aggregation
 
-**Source:** `backend/services/batch_aggregator.py:122-160`
+**Source:** `backend/services/batch_aggregator.py:172` (`BatchAggregator`)
 
 ### 3.1 Batch Creation and Management
 
 ```python
-# backend/services/batch_aggregator.py:1-40
+# backend/services/batch_aggregator.py:6-13
 # Batching Logic:
 #     - Create new batch when first detection arrives for a camera
 #     - Add subsequent detections within 90-second window
@@ -245,7 +249,7 @@ batch:{batch_id}:last_activity - Last activity timestamp
 ### 3.3 Atomic Operations
 
 ```python
-# backend/services/batch_aggregator.py:282-304
+# backend/services/batch_aggregator.py:334-356
 async def _atomic_list_append(self, key: str, value: int, ttl: int) -> int:
     """Atomically append a value to a Redis list and refresh TTL.
 
@@ -321,12 +325,14 @@ and stored plate records rather than re-examining the scene, and each one
 degrades to a single text line instead of failing the batch:
 
 ```python
-# backend/services/vlm_specialists.py:12-16
+# backend/services/vlm_specialists.py:12-18
 # 1. **Never block the verdict (spec §6).** A missing model, a missing optional
 #    package, a database hiccup, a failed inference — every one degrades to the
 #    text "unavailable". Nothing in this module raises into the analyzer; the
 #    entry points catch everything and there is deliberately no way for a
-#    specialist failure to fail a batch.
+#    specialist failure to fail a batch. "unavailable" is also never "unknown":
+#    the prompt shows which specialist did not run instead of a silently
+#    missing line.
 ```
 
 The analyzer keeps a belt-and-braces catch of its own, so even a bug in that
@@ -390,10 +396,10 @@ the event as needing review.
 
 ### 5.2 WebSocket Broadcast
 
-**Source:** `backend/services/event_broadcaster.py:335-400`
+**Source:** `backend/services/event_broadcaster.py:349-366`
 
 ```python
-# backend/services/event_broadcaster.py:347-352
+# backend/services/event_broadcaster.py:361-366
 # Message Delivery Guarantees (NEM-1688):
 # - All messages include monotonically increasing sequence numbers
 # - Last MESSAGE_BUFFER_SIZE messages are buffered for replay

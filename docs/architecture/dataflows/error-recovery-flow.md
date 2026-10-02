@@ -55,10 +55,10 @@ stateDiagram-v2
 
 ## CircuitState Enum
 
-**Source:** `backend/services/circuit_breaker.py:118-124`
+**Source:** `backend/services/circuit_breaker.py:130-136`
 
 ```python
-# backend/services/circuit_breaker.py:118-124
+# backend/services/circuit_breaker.py:130-136
 class CircuitState(StrEnum):
     """Circuit breaker states."""
 
@@ -69,10 +69,10 @@ class CircuitState(StrEnum):
 
 ## CircuitBreakerConfig
 
-**Source:** `backend/services/circuit_breaker.py:126-142`
+**Source:** `backend/services/circuit_breaker.py:138-154`
 
 ```python
-# backend/services/circuit_breaker.py:126-142
+# backend/services/circuit_breaker.py:138-154
 @dataclass(slots=True)
 class CircuitBreakerConfig:
     """Configuration for circuit breaker behavior.
@@ -101,22 +101,22 @@ class CircuitBreakerConfig:
 ```python
 # backend/main.py:302-307
 ai_service_config = CircuitBreakerConfig(
-    failure_threshold=5,        # Opens after 5 consecutive failures
-    recovery_timeout=30.0,      # Wait 30s before recovery attempt
-    half_open_max_calls=3,      # Allow 3 test calls in half-open
-    success_threshold=2,        # 2 successes close the circuit
+    failure_threshold=5,
+    recovery_timeout=30.0,
+    half_open_max_calls=3,
+    success_threshold=2,
 )
 ```
 
 ### Infrastructure Services (Tolerant)
 
 ```python
-# backend/main.py:273-278
+# backend/main.py:310-315
 infrastructure_config = CircuitBreakerConfig(
-    failure_threshold=10,       # More tolerant - 10 failures
-    recovery_timeout=60.0,      # Longer recovery - 60s
-    half_open_max_calls=5,      # More test calls
-    success_threshold=3,        # More successes needed
+    failure_threshold=10,
+    recovery_timeout=60.0,
+    half_open_max_calls=5,
+    success_threshold=3,
 )
 ```
 
@@ -208,11 +208,11 @@ sequenceDiagram
 self._circuit_breaker = CircuitBreaker(
     name=f"detector_{self._detector_type}",
     config=CircuitBreakerConfig(
-        failure_threshold=5,        # Opens after 5 consecutive failures
-        recovery_timeout=60.0,      # Waits 60 seconds before attempting recovery
-        half_open_max_calls=3,      # Allow 3 test calls in half-open
-        success_threshold=2,        # 2 successes close the circuit
-        excluded_exceptions=(ValueError,),  # HTTP 4xx errors don't trip circuit
+        failure_threshold=5,
+        recovery_timeout=60.0,
+        half_open_max_calls=3,
+        success_threshold=2,
+        excluded_exceptions=(ValueError,),  # HTTP 4xx errors should not trip circuit
     ),
 )
 ```
@@ -221,14 +221,15 @@ self._circuit_breaker = CircuitBreaker(
 
 ### Exponential Backoff with Jitter
 
-**Source:** `backend/services/event_broadcaster.py:145-244`
+**Source:** `backend/services/event_broadcaster.py:215-219`
 
 ```python
-# backend/services/event_broadcaster.py:204-209
-# Calculate exponential backoff with jitter
-delay = min(base_delay * (2**attempt), max_delay)
-jitter = delay * random.uniform(0.1, 0.3)  # 10-30% jitter
-total_delay = delay + jitter
+# backend/services/event_broadcaster.py:215-219
+                # Calculate exponential backoff with jitter
+                # Using random.uniform for timing jitter - not cryptographic
+                delay = min(base_delay * (2**attempt), max_delay)
+                jitter = delay * random.uniform(0.1, 0.3)  # noqa: S311
+                total_delay = delay + jitter
 ```
 
 ### Retry Timing
@@ -282,10 +283,10 @@ chose is not evidence that the service is down
 
 ## Broadcast Retry
 
-**Source:** `backend/services/event_broadcaster.py:145-182`
+**Source:** `backend/services/event_broadcaster.py:155-192`
 
 ```python
-# backend/services/event_broadcaster.py:145-182
+# backend/services/event_broadcaster.py:155-192 (abridged)
 async def broadcast_with_retry[T](
     broadcast_func: Callable[[], Awaitable[T]],
     message_type: str,
@@ -360,13 +361,13 @@ lost event (`backend/services/vlm_analyzer.py:514-523`).
 
 ## WebSocket Circuit Breaker
 
-**Source:** `backend/services/event_broadcaster.py:388-396`
+**Source:** `backend/services/event_broadcaster.py:403-410`
 
 ```python
-# backend/services/event_broadcaster.py:388-396
+# backend/services/event_broadcaster.py:403-410
 # Circuit breaker for WebSocket connection resilience
 self._circuit_breaker = WebSocketCircuitBreaker(
-    failure_threshold=self.MAX_RECOVERY_ATTEMPTS,  # 5
+    failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
     recovery_timeout=30.0,
     half_open_max_calls=1,
     success_threshold=1,
@@ -420,11 +421,11 @@ sequenceDiagram
 
 ## Prometheus Metrics
 
-**Source:** `backend/services/circuit_breaker.py:64-97`
+**Source:** `backend/services/circuit_breaker.py:80-127`
 
 ```python
-# backend/services/circuit_breaker.py:64-97
-# Legacy metrics
+# backend/services/circuit_breaker.py:80-127 (abridged)
+# Legacy metrics (without hsi_ prefix) - maintained for backward compatibility
 CIRCUIT_BREAKER_STATE = Gauge(
     "circuit_breaker_state",
     "Current state of the circuit breaker (0=closed, 1=open, 2=half_open)",
@@ -452,17 +453,17 @@ HSI_CIRCUIT_BREAKER_STATE = Gauge(
 
 HSI_CIRCUIT_BREAKER_TRIPS_TOTAL = Counter(
     "hsi_circuit_breaker_trips_total",
-    "Total number of times the circuit breaker has tripped",
+    "Total number of times the circuit breaker has tripped (transitioned to open)",
     labelnames=["service"],
 )
 ```
 
 ## CircuitBreakerMetrics
 
-**Source:** `backend/services/circuit_breaker.py:145-184`
+**Source:** `backend/services/circuit_breaker.py:157-179`
 
 ```python
-# backend/services/circuit_breaker.py:145-184
+# backend/services/circuit_breaker.py:157-179
 @dataclass(slots=True)
 class CircuitBreakerMetrics:
     """Metrics for circuit breaker monitoring.
@@ -560,19 +561,33 @@ Recovery:
 
 ## Dead Letter Queue
 
-When all retries are exhausted, messages go to the Dead Letter Queue:
+Detection jobs land in the dead-letter queue when retries are exhausted or the
+delivery ceiling is reached (`backend/services/pipeline_workers.py:403-404`,
+`backend/services/retry_handler.py`); queue overflow uses the same policy
+(`backend/core/config.py:2229-2232`). The queues are the `dlq:`-prefixed names
+built in `backend/core/constants.py:167-173`:
 
 ```python
 # DLQ structure
-DLQ:detection_queue -> [failed detection jobs]
-DLQ:analysis_queue -> [failed analysis batches]
+dlq:detection_queue -> [failed detection jobs]
+dlq:analysis_queue  -> [failed analysis batches]
 ```
+
+Analysis differs: an engine failure does not park a batch in the DLQ, because
+the analyzer converts it into a written `verification_failed` event. The
+analysis DLQ holds batches rejected before analysis (invalid payloads, queue
+overflow), not batches the VLM failed to score.
 
 ### DLQ Processing
 
-1. Manual inspection via `/api/dlq` endpoint
-2. Automatic retry after recovery
-3. Manual requeue via admin API
+1. Inspection via the `/api/dlq` endpoints (`backend/api/routes/dlq.py:38`)
+2. Requeue a single job via `POST /api/dlq/requeue/{queue_name}`
+   (`backend/api/routes/dlq.py:222`)
+3. Bulk requeue via `POST /api/dlq/requeue-all/{queue_name}`, bounded by
+   `settings.max_requeue_iterations` (`backend/api/routes/dlq.py:275`)
+
+Requeue is an admin action behind API-key authentication
+(`backend/api/routes/dlq.py:9`) — nothing re-drains the DLQ on a timer.
 
 ## Related Documents
 
