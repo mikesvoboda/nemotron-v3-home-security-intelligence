@@ -105,8 +105,16 @@ orig-vs-mutant equality on every polarity the module itself can reach:
   and its use is ``if header_name:`` — ``""`` and ``None`` are both falsy,
   so no header is written either way.
 
-All other 250 survivor keys carry an explicit kill polarity above; the
-run-1 sweep result against this ledger is disclosed here when known.
+All other 250 survivor keys carry an explicit kill polarity above.
+Run-1 outcome (measured): the sweep showed RED=250/250 scope keys and
+GREEN=12/12 ledger keys, and the RUN preserved exactly 11 of the 12 as
+survivors — ``__init__`` m1 was ADDITIONALLY killed by the pre-existing
+suite (some shipped test reads the attribute the sweep alone never saw).
+The run grew the target 1079 -> 1110 keys; all three adjudicated
+survivor-births (``test_webhook`` m59 success-flip, m60 and
+``retry_delivery`` m49 truncation twins) are KILLABLE, not equivalent,
+and are closed by this extension's 600-char full-dump arms — run 2's
+sweep result is disclosed in the milestone row.
 """
 
 from __future__ import annotations
@@ -1183,10 +1191,18 @@ def test_test_webhook_error_arms() -> None:
         "error_message": "b" * 500,
     }
     db3 = _DB([hook])
-    fake3 = _SendSpy(error=RuntimeError("kaboom"))
+    # 600-char message + FULL dump: the generic-except arm's success=False
+    # and the [:500] cap are both mutants (births m59/m60 of run 1)
+    fake3 = _SendSpy(error=RuntimeError("k" * 600))
     with _Env(utc_now=_fixed_now), fake3:
         r3 = asyncio.run(svc.test_webhook(db3, _WID, et))
-    assert r3.error_message == "Unexpected error: kaboom"
+    assert r3.model_dump() == {
+        "success": False,
+        "status_code": None,
+        "response_time_ms": None,
+        "response_body": None,
+        "error_message": "Unexpected error: " + "k" * 482,
+    }
     db4 = _DB([hook])
     fake4 = _SendSpy(result=(200, "", 5))
     with _Env(utc_now=_fixed_now), fake4:
@@ -1273,12 +1289,13 @@ def test_retry_delivery_network_error() -> None:
     delivery = _retryable()
     hook = _webhook(total_deliveries=5, successful_deliveries=2)
     db = _DB([delivery, hook])
-    fake = _SendSpy(error=httpx.RequestError("dns"))
+    # 600-char message: the arm's [:500] cap is a run-1 birth (m49)
+    fake = _SendSpy(error=httpx.RequestError("d" * 600))
     with _Env(utc_now=_fixed_now), fake:
         out = asyncio.run(svc.retry_delivery(db, "d1"))
     assert out is delivery
     assert delivery.status == WebhookDeliveryStatus.FAILED
-    assert delivery.error_message == "dns"
+    assert delivery.error_message == "d" * 500
     assert delivery.delivered_at is None
     assert hook.total_deliveries == 6
     assert hook.successful_deliveries == 2
