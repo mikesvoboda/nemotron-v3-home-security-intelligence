@@ -83,9 +83,17 @@ rules), `alerting-rules.yml`, `gpu-alerts.yml`, `ai-pipeline-alerts.yml`,
 | `AIDLQGrowing`          | DLQ grew > 5 in 15 min                                            | 5 min    | warning  |
 | `AIDLQCritical`         | `hsi_dlq_depth > 50`                                              | 2 min    | critical |
 
-> [!NOTE] > `AINemotronTimeout` and `AIDetectorSlow` are **commented out** in the rules file: the
-> `hsi_ai_request_duration_seconds_bucket` histogram they need is not exported by the
-> backend yet.
+> [!NOTE]
+> **Latency alerting on the shipped path.** The backend exports the
+> `hsi_ai_request_duration_seconds` histogram with `service="yolo26"`
+> (`backend/services/detector_client.py:1139` → `backend/core/metrics.py:323`), scraped at
+> `metrics_path: /api/metrics` (`monitoring/prometheus.yml:61-63`) — a p95 alert on it is
+> one `histogram_quantile` away; see _Adding Custom Alerts_ below. The reasoning stage
+> writes no per-request duration (`vlm_client.py` records none), so its latency signals are
+> the `hsi:analysis_latency:*` recording rules (fed by `hsi_stage_duration_seconds`) and
+> the `probe_success` blackbox probes. The `Latency and Performance Alerts` heading in
+> `monitoring/prometheus_rules.yml:59-69` is an empty placeholder inside a rule file —
+> nothing there fires.
 
 **Example alert definition** (measured, with the wiki runbook/dashboard URLs the rules
 actually use):
@@ -357,7 +365,12 @@ receivers:
 
 ### Adding Custom Alerts
 
-Edit `monitoring/prometheus_rules.yml`:
+Edit `monitoring/prometheus_rules.yml`. Every metric in the example below has a live
+writer on this tree: `hsi_ai_request_duration_seconds_bucket` is exported per AI request
+with `service="yolo26"` (`backend/services/detector_client.py:1139` →
+`backend/core/metrics.py:323`), and the recording rules in
+`monitoring/prometheus-rules.yml` already compute detection p95 from
+`hsi_stage_duration_seconds{stage="detect"}`.
 
 ```yaml
 groups:
@@ -367,7 +380,7 @@ groups:
       - alert: HighDetectionLatency
         expr: |
           histogram_quantile(0.95,
-            rate(hsi_detection_duration_seconds_bucket[5m])
+            sum(rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m])) by (le)
           ) > 10
         for: 5m
         labels:
@@ -384,12 +397,15 @@ groups:
 Use `promtool` to validate rules before deployment:
 
 ```bash
-# Validate rule file syntax (all files loaded via rule_files)
+# Validate rule file syntax — all seven files listed in rule_files
 podman compose -f docker-compose.prod.yml exec prometheus promtool check rules \
   /etc/prometheus/prometheus_rules.yml \
   /etc/prometheus/prometheus-rules.yml \
   /etc/prometheus/alerting-rules.yml \
-  /etc/prometheus/gpu-alerts.yml
+  /etc/prometheus/gpu-alerts.yml \
+  /etc/prometheus/ai-pipeline-alerts.yml \
+  /etc/prometheus/profiling-recording-rules.yml \
+  /etc/prometheus/profiling-regression-alerts.yml
 ```
 
 ### Reloading Configuration
@@ -404,11 +420,12 @@ curl -X POST http://localhost:9090/-/reload
 podman compose -f docker-compose.prod.yml restart alertmanager
 ```
 
-Remember that only the rule files bind-mounted in `docker-compose.prod.yml` exist inside the
-Prometheus container — editing `monitoring/profiling-recording-rules.yml`,
-`monitoring/profiling-regression-alerts.yml` or `monitoring/ai-pipeline-alerts.yml` on the host
-has no effect until those files are added to the `prometheus` service's `volumes:` and the
-container is recreated.
+All seven files in the `rule_files:` list are bind-mounted into the Prometheus container by
+`docker-compose.prod.yml:1012-1018`, so a host edit lands inside the container on the next
+bind read — but Prometheus only re-reads rules on the `/-/reload` above, on a config
+reload, or on container recreation. A rule file that is _not_ in both that mount list and
+the `rule_files:` list is never loaded: `promtool` will pass it and Prometheus will ignore
+it.
 
 ---
 
@@ -471,17 +488,17 @@ hsi:burn_rate:api_availability_6h
 1. Open Alertmanager UI: http://localhost:9093
 2. Click "Silences" tab
 3. Click "New Silence"
-4. Configure matchers (e.g., `alertname=AIDetectorSlow`)
+4. Configure matchers (e.g., `alertname=AIDetectorUnavailable`)
 5. Set duration and comment
 
 ### Silence via API
 
 ```bash
-# Create a 2-hour silence for detector slow alerts
+# Create a 2-hour silence for the detector-unavailable alert (planned gateway work)
 curl -X POST http://localhost:9093/api/v2/silences \
   -H "Content-Type: application/json" \
   -d '{
-    "matchers": [{"name": "alertname", "value": "AIDetectorSlow", "isRegex": false}],
+    "matchers": [{"name": "alertname", "value": "AIDetectorUnavailable", "isRegex": false}],
     "startsAt": "2025-01-09T00:00:00Z",
     "endsAt": "2025-01-09T02:00:00Z",
     "createdBy": "operator",
@@ -634,7 +651,7 @@ nvidia-smi
 | `monitoring/prometheus-rules.yml`                                              | SLI/SLO recording rules                                  |
 | `monitoring/alerting-rules.yml`                                                | HSI\* pipeline rules + Prometheus self-monitoring        |
 | `monitoring/gpu-alerts.yml`                                                    | DCGM-based GPU alerts                                    |
-| `monitoring/ai-pipeline-alerts.yml`                                            | Enrichment/LLM/risk-calibration alerts                   |
+| `monitoring/ai-pipeline-alerts.yml`                                            | Triton/GPU inference, prompt fit and `ai-vlm` analysis   |
 | `monitoring/profiling-recording-rules.yml` / `profiling-regression-alerts.yml` | Profiling metrics and regressions                        |
 | `monitoring/alertmanager.yml`                                                  | Alert routing and receivers                              |
 | `monitoring/json-exporter-config.yml`                                          | `hsi_*_healthy` / `hsi_gpu_*` gauges many alerts consume |

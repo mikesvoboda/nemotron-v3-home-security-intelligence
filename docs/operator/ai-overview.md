@@ -18,7 +18,9 @@ all of the GPU inference in production:
 | `ai-vlm`     | 8098                | llama.cpp        | Qwen3VL-8B multimodal verdicts (`/v1/chat/completions`) |
 
 `ai-vlm` is behind the compose profile `vlm` and is off until you start it with
-`--profile vlm`. ai-vlm is the only LLM service; there is no ai-llm.
+`--profile vlm`. It is the reasoning engine the pipeline calls. The optional `vllm`
+profile's `ai-llm-vllm` (host `VLLM_PORT`, default 8097) is a benchmarking target:
+nothing in the backend sends it traffic, and it appears in no `depends_on`.
 
 Everything else the pipeline needs runs **in-process in the backend**, not in a
 container: the face, license-plate and person-re-ID legs are database **lookups**
@@ -143,8 +145,8 @@ flowchart LR
 `setup.py` sets `BACKEND_MODEL_PRELOAD=true` only when it detects **>= 24 GB** of VRAM.
 Below that — or if you answer no — the `faces` and `person_reid` lines read
 `unavailable` on every event and nothing fails; the plate leg loads on demand. The
-counter that answers "has this ever run" is `hsi_specialist_unavailable_total` on
-`:8000/metrics`.
+counter that answers "has this ever run" is `hsi_specialist_unavailable_total`, exported
+at `GET /api/metrics` on the backend (`curl http://localhost:8000/api/metrics`).
 
 The default two-GPU split (`GPU_LLM=0`, `GPU_AI_SERVICES=1`) puts the VLM on GPU 0 and
 Triton on GPU 1. See [GPU Setup](gpu-setup.md) for the full breakdown.

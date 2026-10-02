@@ -1,8 +1,8 @@
 """Benchmark testing package.
 
 Tests for benchmark infrastructure including:
-- Benchmark orchestrator (run_benchmark.py)
+- Quality scoring (quality.py)
 - Benchmark comparison tools
-- Result analysis and reporting
-- Performance regression detection
+- Engine and quality comparison (engine_comparison.py, quality_comparison.py)
+- Load testing (load_test.py)
 """

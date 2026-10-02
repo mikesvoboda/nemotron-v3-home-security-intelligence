@@ -60,15 +60,19 @@ Compose threads GPU placement through exactly two variables: `GPU_LLM`
 (`ai-vlm`) and `GPU_AI_SERVICES` (`ai-gateway`), each defaulting to a card index
 (`docker-compose.prod.yml:158`, `docker-compose.prod.yml:393`).
 
-> **Limitation.** The GPU Configuration API and its Settings UI still present a
-> per-model assignment roster (`ai-llm`, `ai-yolo26`, `ai-enrichment`,
-> `ai-florence`, `ai-clip` — the `AI_SERVICE_VRAM_REQUIREMENTS_MB` dict at
-> `backend/services/gpu_detection_service.py:35` and `AI_SERVICE_METADATA` at
-> `backend/api/routes/gpu_config.py:1181`). Those keys do not correspond to the
-> two compose services above, so the per-model budget controls in that UI have
-> no effect on the shipped stack — production GPU placement is decided solely by
-> `GPU_LLM` and `GPU_AI_SERVICES`. Aligning the roster is an open
-> config-code task.
+> **Limitation.** The GPU Configuration API and its Settings UI present a per-model
+> assignment roster built from the `AI_SERVICE_VRAM_REQUIREMENTS_MB` dict at
+> `backend/services/gpu_detection_service.py:35` (display names and descriptions come
+> from `AI_SERVICE_METADATA` at `backend/api/routes/gpu_config.py:1181`). Every key in
+> that dict is a per-model container name, and none of them is a service
+> `docker-compose.prod.yml` declares — the shipped GPU services are the two in the table
+> above. The auto-assignment strategies take their input from those keys too
+> (`backend/api/routes/gpu_config.py:460-461`), and `ISOLATION_FIRST` special-cases one of
+> them by name (branch at `backend/api/routes/gpu_config.py:521`), so the per-model budget controls in that UI have no
+> effect on the shipped stack: production GPU placement is decided solely by `GPU_LLM` and
+> `GPU_AI_SERVICES`. Aligning the roster with the compose service names is an open
+> config-code task; until then, treat the per-model table in that UI as display-only and
+> size the two real services with the variables above.
 
 See [VRAM Requirements](../_includes/vram-requirements.md) for the
 lookup-model table and sizing guidance.
