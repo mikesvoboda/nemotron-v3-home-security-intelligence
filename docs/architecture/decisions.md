@@ -2,6 +2,8 @@
 
 This document captures the key architectural decisions made during the development of the Home Security Intelligence system. Each decision follows the ADR format: Context, Decision, Alternatives Considered, and Consequences.
 
+> **How to read this record (2026-10-02):** ADRs are dated records, and the AI-stack entries below were written against stacks that have since moved. For the system as it runs today use [AI Pipeline: Current State](./ai-pipeline-current-state.md): the LLM analyzing batches is `ai-vlm` (:8098, llama.cpp serving Qwen3VL-8B-Instruct), the detector ships inside `ai-gateway` (:8090), and those two are the only AI services in the stack.
+
 ---
 
 ## Table of Contents
@@ -182,6 +184,9 @@ Batch detections into time windows with idle timeout, then analyze the batch as 
 - Redis keys must have TTL for orphan cleanup if service crashes
 
 **Fast Path Exception:**
+
+> **Status (2026-10-02):** The shipped configuration disables the fast path — `fast_path_confidence_threshold` defaults to an impossible 2.0 with an empty `fast_path_object_types` (`backend/core/config.py:1892-1906`) and compose ships `FAST_PATH_ENABLED=false` (`docker-compose.prod.yml:615`). Every detection goes through the batch window; the exception below describes the mechanism, not shipped behavior.
+
 High-confidence critical detections (person >90%) bypass batching for immediate alerts:
 
 ```python
@@ -405,7 +410,8 @@ All other COCO classes (chairs, bottles, etc.) are filtered out.
 
 ## ADR-007: Nemotron for Risk Analysis
 
-**Status:** Accepted
+**Status:** Superseded (2026-10-02) — Risk analysis is LLM-determined exactly as decided here (ADR-010 stands), but the serving model and service are the ones named in the reading note at the top of this document; the model named below is a record of the 2024 choice.
+
 **Date:** 2024-12-21
 
 ### Context

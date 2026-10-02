@@ -40,12 +40,12 @@ The default view showing aggregate quality metrics and recommendations.
 
 Four stat cards display aggregate performance over the selected time period:
 
-| Metric                     | Description                                                                                                                                              |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Average Quality Score**  | Overall quality of AI analyses (1-5 scale, higher is better). Displayed as "X.X / 5" with a progress bar. Based on the number of fully evaluated events. |
-| **Consistency Rate**       | How consistent the AI is when re-analyzing the same events (1-5 scale). Measures risk score consistency on re-evaluation.                                |
-| **Enrichment Utilization** | Percentage of AI models contributing to analyses (0-100%). Indicates how many enrichment sources were available and used.                                |
-| **Evaluation Coverage**    | Percentage of events that have been fully evaluated. Shows "X of Y events evaluated".                                                                    |
+| Metric                     | Description                                                                                                                                                                                                                                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Average Quality Score**  | Overall quality of AI analyses (1-5 scale, higher is better). Displayed as "X.X / 5" with a progress bar. Based on the number of fully evaluated events.                                                                                                                                                     |
+| **Consistency Rate**       | How consistent the AI is when re-analyzing the same events (1-5 scale). Measures risk score consistency on re-evaluation.                                                                                                                                                                                    |
+| **Enrichment Utilization** | Percentage of enrichment sources used per analysis (0-100%). On the shipped pipeline this reads near 0 by construction: audits are recorded with `enriched_context=None` (`backend/api/routes/ai_audit.py`), because the VLM path has no enrichment stage to sample. A low value is not a fault signal here. |
+| **Evaluation Coverage**    | Percentage of events that have been fully evaluated. Shows "X of Y events evaluated".                                                                                                                                                                                                                        |
 
 **Score Interpretation:**
 
@@ -59,16 +59,20 @@ Four stat cards display aggregate performance over the selected time period:
 
 - **Average Quality Score:** 4.0 or higher
 - **Consistency Rate:** 4.0 or higher
-- **Enrichment Utilization:** 70% or higher
 - **Evaluation Coverage:** 80% or higher
 - **Recommendations:** Mostly low priority items
+
+(Enrichment Utilization is deliberately excluded: it reads near 0 on the shipped pipeline by
+construction — see the metric table above — so no target applies to it.)
 
 **Warning Signs to Watch For:**
 
 - **Low quality scores** - The AI may need configuration adjustments
 - **Low consistency** - Results vary too much; investigate why
-- **Low enrichment** - Some AI models may not be contributing
 - **High-priority recommendations** - Address these for better accuracy
+
+Low Enrichment Utilization is not on this list: it is pinned near 0 on the shipped pipeline (the
+metric table explains why), so it carries no diagnostic signal here.
 
 #### Model Contribution Breakdown
 
@@ -78,22 +82,19 @@ A horizontal bar chart showing the contribution rate of each AI model to event a
 - Number of events the model contributed to
 - Percentage contribution rate (0-100%)
 
-| Model              | Description                                                                                                          |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| YOLO26             | Object detection (always active)                                                                                     |
-| Florence-2         | Visual question-answering for scene details                                                                          |
-| X-CLIP             | Action recognition (walking, running, etc.) — model retired 2026-09-23, replaced by ST-GCN++ via Triton stgcn_action |
-| Violence Detection | Violence classifier for suspicious behavior                                                                          |
-| Clothing Analysis  | FashionCLIP clothing identification                                                                                  |
-| Vehicle Detection  | Vehicle type and color classification                                                                                |
-| Pet Detection      | Pet vs. wildlife classification                                                                                      |
-| Weather Analysis   | Environmental condition assessment                                                                                   |
-| Image Quality      | Camera image quality scoring                                                                                         |
-| Zone Analysis      | Entry point and security zone context                                                                                |
-| Baseline           | Historical activity pattern comparison                                                                               |
-| Cross-Camera       | Correlation with other camera detections                                                                             |
+These twelve rows are the `EventAudit.has_*` columns (`MODEL_NAMES` in
+`backend/services/pipeline_quality_audit_service.py`), and the chart is sorted by contribution rate
+in descending order. They are audit columns, not the shipped model list.
 
-Models are sorted by contribution rate in descending order. Higher contribution rates indicate the model data was available and used in analyses.
+**Read the chart as flat.** `model_contribution_rates` counts audits where each `has_*` flag is
+true, and the audits are built by `create_partial_audit()`, whose only call site
+(`backend/api/routes/ai_audit.py`) passes `enriched_context=None` and `enrichment_result=None`.
+Every flag except the hard-coded `has_yolo26=True` is therefore written `False`, and the chart's
+rates sit at 0 (or 100% for `yolo26`, which is what `Math.round(rate * audited_events)` turns the
+constant into). `avg_enrichment_utilization` is computed from the same two `None` arguments and
+reads 0. A flat chart says nothing about model health — the analysis path is `ai-gateway` detection,
+the in-process lookup legs, and `ai-vlm`. For what actually runs, use the
+[AI Performance](ai-performance.md) page and [current-state notes](../architecture/ai-pipeline-current-state.md).
 
 #### Prompt Improvement Recommendations
 
@@ -137,8 +138,17 @@ Each model has an accordion-style editor. The first model (Nemotron) is expanded
 | Nemotron     | Full text editor with syntax highlighting | System prompt with highlighted variables like `{detections}`, `{cross_camera_data}`, `{weather}`, `{time_context}`. Also includes Temperature slider (0-2) and Max Tokens input (100-8192). |
 | Florence-2   | Multi-line text (one per line)            | VQA queries for visual scene analysis                                                                                                                                                       |
 | YOLO-World   | Multi-line text + slider                  | Object classes (one per line) + confidence threshold slider (0-1)                                                                                                                           |
-| X-CLIP       | Multi-line text                           | Action recognition classes (one per line) — prompt-config editor remains; model retired 2026-09-23, replaced by ST-GCN++                                                                    |
+| X-CLIP       | Multi-line text                           | Action recognition classes (one per line)                                                                                                                                                   |
 | Fashion-CLIP | Two text areas                            | Clothing categories + suspicious indicators (one per line each)                                                                                                                             |
+
+The five labels are the prompt-store keys (`SUPPORTED_MODELS` / `AIModelEnum`), so saving a
+configuration writes a versioned row that shows up in version history and import/export, and the
+**Test** button posts it to `ai-vlm` and reports before/after against a real event
+(`PromptService._llm_url = settings.ai_vlm_url`; only the `nemotron` key is implemented for testing
+— the others return "Testing for model ... not yet implemented"). What it does not do is change the
+prompt the shipped analyzer sends: `ai-vlm` is the only LLM service, and its prompt is built in code
+by `VlmClient.prompt_text()` (`backend/services/vlm_client.py`). Treat this tab as a drafting and
+A/B-testing bench, not as a live knob.
 
 **Syntax Highlighting:** The Nemotron editor highlights prompt variables like `{variable_name}` in green with a subtle background, and includes line numbers.
 
@@ -281,7 +291,7 @@ View and restore previous prompt configurations.
 #### Version History Features
 
 - **Model Filter Dropdown** - Filter versions by specific model or view "All Models"
-  - Available options: All Models, Nemotron, Florence-2, YOLO-World, X-CLIP (prompt-config history only — model retired 2026-09-23, replaced by ST-GCN++), Fashion-CLIP
+  - Available options: All Models, Nemotron, Florence-2, YOLO-World, X-CLIP, Fashion-CLIP (the prompt-store keys)
 - **Refresh Button** - Reload the version history
 - **Version Table** - Shows version number, model, date, changes, status, and actions
 
@@ -334,7 +344,7 @@ This appears when no events have been processed through the audit system.
 
 - Events exist in the database
 - Events have AI analysis (risk scores)
-- Nemotron LLM service is running
+- `ai-vlm` is running (the audit evaluator POSTs to `settings.ai_vlm_url`)
 
 ### Quality Scores Show "N/A"
 
@@ -343,22 +353,22 @@ Quality scores are only available for fully evaluated events.
 **Possible causes:**
 
 - Batch audit hasn't run yet
-- Nemotron service was unavailable during evaluation
+- `ai-vlm` was unavailable during evaluation
 - Events don't have LLM prompts stored
 
 **Solution:** Run a batch audit with "Force Re-evaluate" enabled.
 
-### Model Contribution Rates Are Low
+### Model Contribution Rates Sit at Zero
 
-Low contribution rates indicate certain AI models aren't being used.
+This is the expected reading, not a symptom: the audit rows are created with
+`enriched_context=None` / `enrichment_result=None`, so every `has_*` flag except `has_yolo26` is
+written `False` (see [Model Contribution Breakdown](#model-contribution-breakdown)). Do not chase
+model health from this chart.
 
-**Possible causes:**
-
-- Model service is offline
-- No relevant detections (e.g., no vehicles for vehicle classification)
-- Model is disabled in configuration
-
-**Check:** Go to AI Performance page to verify model health status.
+**To check what actually ran:** open the event in the [Timeline](timeline.md) and read its
+verification record (`verdict`, `scene_description`, reasoning, score). A `verification_failed`
+verdict with no score is the signature that `ai-vlm` did not answer; the
+[AI Performance](ai-performance.md) page shows its health.
 
 ### Recommendations Are Empty
 
@@ -376,7 +386,7 @@ Test failures can occur when running tests or A/B tests.
 
 **Common causes:**
 
-- Nemotron LLM service is offline
+- `ai-vlm` is offline
 - Event no longer exists in database
 - Network timeout during inference
 - Invalid Event ID entered (must be a positive integer)
@@ -384,7 +394,7 @@ Test failures can occur when running tests or A/B tests.
 
 **Solution:**
 
-1. Check AI Performance page for Nemotron health
+1. Check the AI Performance page for `ai-vlm` health
 2. Verify the Event ID exists in the Timeline page
 3. Try a different event ID
 4. Wait and retry (inference takes 2-5 seconds)
@@ -420,7 +430,7 @@ For developers wanting to understand the underlying systems.
 
 ### Architecture
 
-- **AI Pipeline**: [AI Pipeline Architecture](../architecture/ai-pipeline.md)
+- **AI Pipeline**: [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md)
 - **Self-Evaluation Service**: `backend/services/pipeline_quality_audit_service.py`
 - **API Routes**: `backend/api/routes/ai_audit.py`
 - **Prompt Management**: `backend/api/routes/prompt_management.py` (consolidated from ai_audit.py in NEM-2695)
@@ -512,7 +522,7 @@ consistency_score = max(1.0, 5.0 - (risk_score_diff / 5))
 
 The `event_audits` table stores:
 
-- **Model contribution flags**: `has_yolo26`, `has_florence`, `has_clip`, `has_violence`, `has_clothing`, `has_vehicle`, `has_pet`, `has_weather`, `has_image_quality`, `has_zones`, `has_baseline`, `has_cross_camera`
+- **Model contribution flags**: `has_yolo26`, `has_florence`, `has_clip`, `has_violence`, `has_clothing`, `has_vehicle`, `has_pet`, `has_weather`, `has_image_quality`, `has_zones`, `has_baseline`, `has_cross_camera` — written by `create_partial_audit()`, and false-by-construction on every row today
 - **Quality scores**: `context_usage_score`, `reasoning_coherence_score`, `risk_justification_score`, `consistency_score`, `overall_quality_score`
 - **Consistency check results**: `consistency_risk_score`, `consistency_diff`
 - **Prompt metadata**: `prompt_length`, `prompt_token_estimate`, `enrichment_utilization`

@@ -25,7 +25,8 @@ class ProviderId(StrEnum):
     gateway / gateway-light / llamacpp-llm are deployed today; per-model-http
     is the native-host path (undeployed in prod compose); fake is the WP8.2
     conformance FakeProvider - declared so the matrix can state a CONFORMANCE
-    SPEC (fake must implement all 38) rather than a present-tense fact.
+    SPEC (fake implements every registry operation - the count is the
+    registry's, never a pinned number) rather than a present-tense fact.
     """
 
     GATEWAY = "gateway"
@@ -139,8 +140,9 @@ class RegisteredProvider:
         return dict(self._ops)
 
 
-# ProviderId -> matrix slot. FAKE maps to the fake column, which is pure
-# SPEC (all 38) until WP8.2 ships the fake app.
+# ProviderId -> matrix slot. FAKE maps to the fake column, a conformance SPEC
+# column: the fake app shipped in this package satisfies it for every
+# operation the registry declares.
 PROVIDER_SLOT: dict[ProviderId, str] = {
     ProviderId.GATEWAY: "gateway",
     ProviderId.GATEWAY_LIGHT: "enrichment_light_adapter",

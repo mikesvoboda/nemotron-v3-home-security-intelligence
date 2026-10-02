@@ -343,7 +343,7 @@ jobs:
           # Review prompt with tech stack context
           cat << 'PROMPT_END' > review_prompt.txt
           You are an expert code reviewer for a home security application.
-          Tech stack: Python FastAPI, React TypeScript, YOLO26, Nemotron.
+          Tech stack: Python FastAPI, React TypeScript, YOLO26, ai-vlm.
 
           Review for:
           1. Security Issues
@@ -405,7 +405,7 @@ cat backend/services/batch_aggregator.py | \
   "Suggest comprehensive test cases for this service"
 
 # Generate test file skeleton
-cat backend/services/nemotron_analyzer.py | \
+cat backend/services/vlm_analyzer.py | \
   gh models run mistral/codestral-2501 \
   "Generate pytest test file with fixtures and edge cases"
 ```
@@ -451,12 +451,11 @@ git diff --cached | \
 
 ### 7. Detection Prompt Refinement
 
-Improve Nemotron prompts for risk analysis:
+Improve the VLM risk-analysis prompt:
 
 ```bash
 # Refine risk analysis prompt
-cat docs/plans/2024-12-21-dashboard-mvp-design.md | \
-  grep -A 50 "Nemotron Prompt" | \
+cat backend/services/prompts.py | \
   gh models run openai/gpt-4o \
   "Suggest improvements for this security risk analysis prompt"
 ```
@@ -495,7 +494,7 @@ cat truncated.txt | gh models run openai/gpt-4o "..."
 gh models run openai/gpt-4o \
   --system "You are reviewing code for a home security system. \
             The stack is Python FastAPI, React TypeScript, PostgreSQL, Redis. \
-            AI models are YOLO26 (detection) and Nemotron (reasoning)." \
+            AI models are YOLO26 (detection) and ai-vlm (reasoning)." \
   "Review this code"
 ```
 

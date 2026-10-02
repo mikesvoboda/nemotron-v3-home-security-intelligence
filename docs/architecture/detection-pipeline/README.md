@@ -151,6 +151,6 @@ Pipeline stages record metrics via Prometheus:
 
 ## Related Documentation
 
-- **[AI Pipeline Overview](../ai-pipeline.md):** Broader AI processing context
+- **[AI Pipeline Overview](../ai-pipeline-current-state.md):** Broader AI processing context
 - **[Real-time Architecture](../real-time.md):** WebSocket and pub/sub details
 - **[Resilience Patterns](../resilience-patterns/README.md):** Circuit breakers and retry handlers

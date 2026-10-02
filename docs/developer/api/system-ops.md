@@ -22,7 +22,7 @@ flowchart TB
     subgraph Services["Monitored Services"]
         DB[(PostgreSQL)]
         REDIS[(Redis)]
-        AI[AI Services<br/>YOLO26 + Nemotron]
+        AI[AI Services<br/>YOLO26 + ai-vlm]
     end
 
     subgraph Workers["Pipeline Workers"]
@@ -149,7 +149,7 @@ GET /api/system/health
     "ai": {
       "status": "healthy",
       "message": "AI services operational",
-      "details": { "yolo26": "healthy", "nemotron": "healthy" }
+      "details": { "yolo26": "healthy", "ai-vlm": "healthy" }
     }
   },
   "timestamp": "2025-12-23T10:30:00Z"
@@ -241,31 +241,63 @@ GET /api/system/health/full
 
 **Response:** `200 OK` (healthy) or `503 Service Unavailable` (critical services unhealthy)
 
+The response is a `FullHealthResponse` (`backend/api/schemas/health.py:316`). AI
+services are a list of two entries — YOLO26 (`critical: true`) and the ai-vlm
+verdict service (`critical: false`) — from the service table at
+`backend/api/routes/system.py:5105`.
+
 ```json
 {
   "status": "healthy",
-  "infrastructure": {
-    "postgres": { "status": "healthy", "latency_ms": 5.2 },
-    "redis": { "status": "healthy", "latency_ms": 1.1 }
+  "ready": true,
+  "message": "All systems operational",
+  "postgres": {
+    "name": "postgres",
+    "status": "healthy",
+    "message": "Database operational",
+    "details": null
   },
-  "ai_services": {
-    "yolo26": { "status": "healthy", "loaded": true },
-    "nemotron": { "status": "healthy", "loaded": true },
-    "florence": { "status": "healthy", "loaded": false },
-    "clip": { "status": "healthy", "loaded": false },
-    "enrichment": { "status": "healthy" }
+  "redis": {
+    "name": "redis",
+    "status": "healthy",
+    "message": "Redis connected",
+    "details": { "redis_version": "7.4.0" }
   },
+  "ai_services": [
+    {
+      "name": "yolo26",
+      "display_name": "YOLO26 Object Detection",
+      "status": "healthy",
+      "url": "http://ai-gateway:8090/yolo26",
+      "response_time_ms": 45.2,
+      "circuit_state": "closed",
+      "error": null,
+      "last_check": "2026-10-02T10:30:00Z"
+    },
+    {
+      "name": "ai-vlm",
+      "display_name": "VLM Verdict Service",
+      "status": "healthy",
+      "url": "http://ai-vlm:8098",
+      "response_time_ms": 12.0,
+      "circuit_state": "closed",
+      "error": null,
+      "last_check": "2026-10-02T10:30:00Z"
+    }
+  ],
   "circuit_breakers": {
-    "yolo26": { "state": "closed", "failures": 0 },
-    "nemotron": { "state": "closed", "failures": 0 }
+    "total": 2,
+    "closed": 2,
+    "open": 0,
+    "half_open": 0,
+    "breakers": { "yolo26": "closed", "ai-vlm": "closed" }
   },
-  "workers": {
-    "gpu_monitor": { "running": true },
-    "cleanup_service": { "running": true },
-    "detection_worker": { "running": true },
-    "analysis_worker": { "running": true }
-  },
-  "timestamp": "2025-12-23T10:30:00Z"
+  "workers": [
+    { "name": "file_watcher", "running": true, "critical": true },
+    { "name": "detection_worker", "running": true, "critical": true }
+  ],
+  "timestamp": "2026-10-02T10:30:00Z",
+  "version": "0.1.0"
 }
 ```
 
@@ -594,7 +626,7 @@ GET /api/system/performance
   },
   "ai_models": {
     "yolo26": { "status": "loaded", "vram_mb": 2048 },
-    "nemotron": { "status": "loaded", "vram_mb": 8192 }
+    "ai-vlm": { "status": "loaded", "vram_mb": 8192 }
   },
   "inference": {
     "avg_latency_ms": 45.2,
@@ -690,12 +722,12 @@ GET /api/system/pipeline-latency?window_minutes=60
 
 **Pipeline Stages:**
 
-| Stage              | Description                                 |
-| ------------------ | ------------------------------------------- |
-| `watch_to_detect`  | File watcher to YOLO26 processing start     |
-| `detect_to_batch`  | Detection completion to batch aggregation   |
-| `batch_to_analyze` | Batch completion to Nemotron analysis start |
-| `total_pipeline`   | Total end-to-end processing time            |
+| Stage              | Description                               |
+| ------------------ | ----------------------------------------- |
+| `watch_to_detect`  | File watcher to YOLO26 processing start   |
+| `detect_to_batch`  | Detection completion to batch aggregation |
+| `batch_to_analyze` | Batch completion to VLM analysis start    |
+| `total_pipeline`   | Total end-to-end processing time          |
 
 ### Pipeline Latency History
 
@@ -913,7 +945,7 @@ flowchart TB
     end
 
     subgraph RiskAssessment["Risk Assessment"]
-        NEM[Nemotron LLM<br/>Risk Analysis]
+        NEM[ai-vlm<br/>VLM Verdict]
         SCORE{Risk Score<br/>0-100}
     end
 
@@ -1580,10 +1612,10 @@ GET /api/system/models
       "enabled": true
     },
     {
-      "name": "insightface",
-      "category": "recognition",
+      "name": "face-recognizer",
+      "category": "embedding",
       "status": "unloaded",
-      "vram_mb": 512,
+      "vram_mb": 0,
       "last_used": null,
       "enabled": true
     }
@@ -1593,14 +1625,17 @@ GET /api/system/models
 
 **Model Categories:**
 
-| Category           | Description                      |
-| ------------------ | -------------------------------- |
-| `detection`        | Object detection (YOLO variants) |
-| `recognition`      | Face/license plate recognition   |
-| `ocr`              | Optical character recognition    |
-| `embedding`        | Visual embeddings (CLIP)         |
-| `depth-estimation` | Depth estimation models          |
-| `pose`             | Human pose estimation            |
+The categories below are the values that appear in the `models.yml` registry
+rows (`models.yml`). Each row names an in-process lookup model the backend can
+load on demand; the face and re-ID legs are the ones the shipped pipeline's
+specialist lookups use.
+
+| Category    | Models                                                                                                               |
+| ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| `detection` | `yolo26`, `yolo26-general`, `threat-detection-yolov8n`, `yolo11-face`, `yolo11-license-plate`, `face-detector-scrfd` |
+| `embedding` | `osnet-ain-x1-0` (person re-ID), `face-recognizer`                                                                   |
+| `alpr`      | `fast-alpr` (plate character reading)                                                                                |
+| `ocr`       | `paddleocr`                                                                                                          |
 
 ### Get Model Status
 
@@ -1766,27 +1801,48 @@ GET /api/system/circuit-breakers
 
 **Response:**
 
+`circuit_breakers` is a map keyed by service name
+(`CircuitBreakersResponse`, `backend/api/schemas/system.py:1670`):
+
 ```json
 {
-  "circuit_breakers": [
-    {
+  "circuit_breakers": {
+    "yolo26": {
       "name": "yolo26",
       "state": "closed",
       "failure_count": 0,
       "success_count": 150,
-      "last_failure": null,
-      "last_state_change": "2025-12-23T08:00:00Z"
+      "total_calls": 150,
+      "rejected_calls": 0,
+      "last_failure_time": null,
+      "opened_at": null,
+      "config": {
+        "failure_threshold": 5,
+        "recovery_timeout": 30.0,
+        "half_open_max_calls": 3,
+        "success_threshold": 2
+      }
     },
-    {
-      "name": "nemotron",
+    "ai-vlm": {
+      "name": "ai-vlm",
       "state": "closed",
       "failure_count": 0,
       "success_count": 75,
-      "last_failure": null,
-      "last_state_change": "2025-12-23T08:00:00Z"
+      "total_calls": 75,
+      "rejected_calls": 0,
+      "last_failure_time": null,
+      "opened_at": null,
+      "config": {
+        "failure_threshold": 5,
+        "recovery_timeout": 30.0,
+        "half_open_max_calls": 3,
+        "success_threshold": 2
+      }
     }
-  ],
-  "timestamp": "2025-12-23T10:30:00Z"
+  },
+  "total_count": 2,
+  "open_count": 0,
+  "timestamp": "2026-10-02T10:30:00Z"
 }
 ```
 
@@ -1920,7 +1976,7 @@ GET /api/system/websocket/events
 
 ## Circuit Breaker Pattern
 
-The system uses circuit breakers to protect external services from cascading failures. This is critical for maintaining system stability when AI services (YOLO26, Nemotron) or Redis experience issues.
+The system uses circuit breakers to protect external services from cascading failures. This is critical for maintaining system stability when AI services (YOLO26, ai-vlm) or Redis experience issues.
 
 ### Circuit Breaker States
 
@@ -1971,6 +2027,6 @@ For detailed circuit breaker implementation and WebSocket resilience patterns, s
 
 - [System Monitoring API](system-monitoring.md) - Worker supervisor, pipeline status, Prometheus integration
 - [Core Resources API](core-resources.md) - Cameras, events, detections
-- [AI Pipeline API](ai-pipeline.md) - Enrichment and batch processing
+- [AI Pipeline API](ai-pipeline.md) - Batch aggregation and VLM analysis
 - [Real-time API](realtime.md) - WebSocket streams
 - [Resilience Architecture](../../architecture/resilience.md) - Circuit breakers, retry logic, DLQ management

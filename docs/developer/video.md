@@ -18,7 +18,7 @@ flowchart TD
     D -->|Video| F[ffprobe Validate]
     E --> G[SHA256 Dedupe]
     F --> G
-    G -->|New| H[detection_queue]
+    G -->|New| H[detections:stream]
     G -->|Duplicate| I[Skip]
     H --> J[DetectionQueueWorker]
     J -->|Image| K[YOLO26]
@@ -26,7 +26,7 @@ flowchart TD
     L --> K
     K --> M[Store Detections]
     M --> N[BatchAggregator]
-    N --> O[NemotronAnalyzer]
+    N --> O[VlmAnalyzer → ai-vlm]
     O --> P[WebSocket Broadcast]
 ```
 
@@ -34,9 +34,9 @@ flowchart TD
 
 1. Camera uploads via FTP to `/export/foscam/{camera}/`
 2. FileWatcher detects new files, validates, deduplicates
-3. Valid files queued to Redis `detection_queue`
+3. Valid files queued to the Redis `detections:stream`
 4. YOLO26 performs object detection
-5. Detections batched (90s window) and analyzed by Nemotron LLM
+5. Detections batched (90s window); `VlmAnalyzer` assembles key frames + specialist lookups and takes the `ai-vlm` verdict
 6. Events created and broadcast via WebSocket
 
 ---
@@ -255,8 +255,8 @@ QUEUE_MAX_SIZE=10000
 QUEUE_OVERFLOW_POLICY=dlq  # Dead-letter queue on overflow
 ```
 
-**Queues:** `detection_queue` -> `analysis_queue`
-**DLQ:** `dlq:detection_queue`, `dlq:analysis_queue`
+**Streams (default, `USE_REDIS_STREAMS=true`):** `detections:stream` -> `analysis:stream`
+**Stream DLQ:** `detections:stream:dlq`, `analysis:stream:dlq`
 
 ### Memory/I/O
 
@@ -270,15 +270,23 @@ QUEUE_OVERFLOW_POLICY=dlq  # Dead-letter queue on overflow
 
 ### Adding New Sources
 
-Implement the queue contract:
+Implement the queue contract. The shipped path (`USE_REDIS_STREAMS=true`, the
+default) writes to the `detections:stream` via the stream service, as the
+FileWatcher does (`backend/services/file_watcher.py:897`):
 
 ```python
-await redis.add_to_queue("detection_queue", {
-    "camera_id": "new_cam",
-    "file_path": "/path/to/file.jpg",
-    "timestamp": datetime.now().isoformat(),
-    "media_type": "image"
-})
+from backend.services.redis_streams import get_detection_stream_service
+
+stream_service = await get_detection_stream_service(redis_client)
+await stream_service.add_detection(
+    camera_id="new_cam",
+    detection_id=0,  # assigned downstream by the detector
+    file_path="/path/to/file.jpg",
+    extra_fields={
+        "timestamp": datetime.now(UTC).isoformat(),
+        "media_type": "image",
+    },
+)
 ```
 
 ### Custom Preprocessing

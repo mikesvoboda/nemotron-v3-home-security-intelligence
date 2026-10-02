@@ -227,7 +227,7 @@ Full event detail modal.
 **Content:**
 
 - Full-size detection image with threat bounding boxes (`ThreatBoundingBox`)
-- AI enrichment (retired with R8 slice S5 — see [Enrichment Components](#enrichment-components))
+- VLM verification record (`EventVerificationSection`) — verdict, scene description, reasoning and score from `EventVerification`
 - Risk factors breakdown (`RiskFactorsBreakdown`, `RiskFactorsList`) and LLM reasoning explorer
 - Entity tracking (`EntityTrackingPanel`), matched entities (`MatchedEntitiesSection`), Re-ID matches (`ReidMatchesPanel`)
 - Notes, flagging, media download, and snooze controls
@@ -271,25 +271,34 @@ Video playback for an event's clip; the player fetches the clip itself from the 
 
 ---
 
-## Enrichment Components
+## Enrichment Progress Components
 
-> **Retired — R8 slice S5, 2026-09-30.** `EnrichmentBadges.tsx`,
-> `EnrichmentPanel.tsx`, `EnrichmentViewer.tsx` (and the
-> `components/enrichment/` barrel) and `EventEnrichmentSummary.tsx` are
-> deleted. They rendered the pose / clothing / demographics / licence-plate
-> attributes that the retired enrichment models produced; the shipped VLM path
-> does not run those models, and the sibling slice S4 retires the
-> `demographics_results` and `reid_embeddings` tables that stored two of the
-> results. The owner ruling turned slice 1.6's "not analyzed in VLM mode" empty
-> state into this deletion as well. The `EnrichmentData` TypeScript model in
-> `frontend/src/types/enrichment.ts` stays — the API still returns an
-> `enrichment_data` object on detections produced by a pipeline that ran the
-> models — but nothing renders it.
->
-> The enrichment *progress* surface is a separate thing and still ships:
-> `EnrichmentProgressBadge.tsx` plus the `useDetectionEnrichment`,
-> `useEventEnrichmentsQuery`, `useEnrichmentProgress` and
-> `useEventEnrichmentWebSocket` hooks.
+### EnrichmentProgressBadge
+
+Inline badge for enrichment job progress: a status icon, an optional stage label and percentage, and
+an error line when the job failed. `status === "not_started"` renders nothing at all, so an idle
+detection shows no badge rather than an empty one.
+
+**Location:** `frontend/src/components/events/EnrichmentProgressBadge.tsx`
+
+**Props:**
+
+| Prop         | Type                       | Default | Description                                            |
+| ------------ | -------------------------- | ------- | ------------------------------------------------------ |
+| status       | `EnrichmentProgressStatus` | -       | `not_started` / `in_progress` / `completed` / `failed` |
+| progress     | `number`                   | -       | Percentage complete (0-100)                            |
+| stage        | `string`                   | -       | Current stage name                                     |
+| error        | `string`                   | -       | Failure reason                                         |
+| size         | `"sm" \| "md" \| "lg"`     | `sm`    | Badge size                                             |
+| showLabel    | `boolean`                  | `true`  | Show the stage/step label                              |
+| showProgress | `boolean`                  | `true`  | Show the percentage                                    |
+| tooltip      | `string`                   | -       | Tooltip override (defaults to stage or error)          |
+| className    | `string`                   | -       | Additional CSS classes                                 |
+
+`EnrichmentProgressStatus` is exported from this file and imported by
+`useEnrichmentProgress` (`frontend/src/hooks/useEnrichmentProgress.ts`), which drives the badge
+state along with `useDetectionEnrichment`, `useEventEnrichmentsQuery` and
+`useEventEnrichmentWebSocket`.
 
 ---
 

@@ -33,13 +33,16 @@ Design specification for reorganizing documentation into a hub-and-spoke archite
 ### grafana-integration.md
 
 **Date:** 2025-12-27
-**Status:** Decided
+**Status:** Partly superseded (monitoring pages now embed Grafana dashboards; Tremor remains for dashboard widgets)
 **Related Issues:** Beads 6fj, c3s (issue tracking has since moved to Linear — see [Linear Setup](../developer/contributing/linear-setup.md))
 
 **Decision Summary:**
 
 1. Use native Tremor charts for dashboard metrics visualization (not Grafana embeds)
 2. Link to standalone Grafana at `localhost:3002` for detailed metrics exploration
+
+The shipped UI embeds Grafana dashboards in several monitoring pages, so read this ADR's
+"not Grafana embeds" against its Status line.
 
 **Context:**
 

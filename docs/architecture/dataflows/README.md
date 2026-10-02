@@ -17,8 +17,8 @@ flowchart TB
     BA["Batch Aggregator<br/>(90s window)<br/>Idle timeout: 30s"]
     AQ["Analysis Queue<br/>(Redis)"]
     AW["Analysis Worker"]
-    EP["Enrichment Pipeline (opt.)<br/>Florence-2, CLIP, Depth, Pose"]
-    NEM["Nemotron Analyzer<br/>(LLM API)<br/>Timeout: 120s, Retries: 3"]
+    VA["VLM Analyzer<br/>(lookups: faces, re-ID, plates)<br/>Read timeout: 25s"]
+    VLM["ai-vlm<br/>(llama.cpp + Qwen3VL)<br/>Circuit Breaker"]
     DB[("Event Creation<br/>(PostgreSQL)")]
     EB["Event Broadcaster<br/>(Redis Pub/Sub)<br/>Message buffer: 100"]
     WS["WebSocket Clients"]
@@ -30,81 +30,81 @@ flowchart TB
     YOLO --> BA
     BA --> AQ
     AQ --> AW
-    AW --> EP
-    EP --> NEM
-    NEM --> DB
+    AW --> VA
+    VA --> VLM
+    VLM --> DB
     DB --> EB
     EB --> WS
 ```
 
 ## Quick Reference
 
-| Document                                               | Description                                                     |
-| ------------------------------------------------------ | --------------------------------------------------------------- |
-| [image-to-event.md](image-to-event.md)                 | Complete detection pipeline from camera image to security event |
-| [event-lifecycle.md](event-lifecycle.md)               | Event states from creation to archival                          |
-| [websocket-message-flow.md](websocket-message-flow.md) | Real-time WebSocket event broadcasting                          |
-| [api-request-flow.md](api-request-flow.md)             | REST API request processing                                     |
-| [batch-aggregation-flow.md](batch-aggregation-flow.md) | Detection batching with timing diagram                          |
-| [llm-analysis-flow.md](llm-analysis-flow.md)           | Nemotron LLM analysis request/response                          |
-| [enrichment-pipeline.md](enrichment-pipeline.md)       | Florence-2, CLIP, depth, pose enrichment                        |
-| [error-recovery-flow.md](error-recovery-flow.md)       | Circuit breaker and retry sequences                             |
-| [startup-shutdown-flow.md](startup-shutdown-flow.md)   | Application lifecycle sequences                                 |
+| Document                                                       | Description                                                     |
+| -------------------------------------------------------------- | --------------------------------------------------------------- |
+| [image-to-event.md](image-to-event.md)                         | Complete detection pipeline from camera image to security event |
+| [event-lifecycle.md](event-lifecycle.md)                       | Event states from creation to archival                          |
+| [websocket-message-flow.md](websocket-message-flow.md)         | Real-time WebSocket event broadcasting                          |
+| [api-request-flow.md](api-request-flow.md)                     | REST API request processing                                     |
+| [batch-aggregation-flow.md](batch-aggregation-flow.md)         | Detection batching with timing diagram                          |
+| [llm-analysis-flow.md](llm-analysis-flow.md)                   | LLM analysis request/response                                   |
+| [AI Pipeline — Current State](../ai-pipeline-current-state.md) | The shipped end-to-end AI path, detection to verdict            |
+| [error-recovery-flow.md](error-recovery-flow.md)               | Circuit breaker and retry sequences                             |
+| [startup-shutdown-flow.md](startup-shutdown-flow.md)           | Application lifecycle sequences                                 |
 
 ## Key Timing Parameters
 
-| Parameter                    | Default | Source                                      |
-| ---------------------------- | ------- | ------------------------------------------- |
-| File debounce delay          | 0.5s    | `backend/services/file_watcher.py:355`      |
-| File stability time          | 2.0s    | `backend/services/file_watcher.py:362`      |
-| Batch window                 | 90s     | `backend/services/batch_aggregator.py:145`  |
-| Batch idle timeout           | 30s     | `backend/services/batch_aggregator.py:146`  |
-| YOLO26 connect timeout       | 10s     | `backend/services/detector_client.py:97`    |
-| YOLO26 read timeout          | 60s     | `backend/services/detector_client.py:98`    |
-| Nemotron connect timeout     | 10s     | `backend/services/nemotron_analyzer.py:130` |
-| Nemotron read timeout        | 120s    | `backend/services/nemotron_analyzer.py:131` |
-| WebSocket idle timeout       | 300s    | Configurable in settings                    |
-| WebSocket heartbeat interval | 30s     | Configurable in settings                    |
+| Parameter                    | Default | Source                                     |
+| ---------------------------- | ------- | ------------------------------------------ |
+| File debounce delay          | 0.5s    | `backend/services/file_watcher.py:355`     |
+| File stability time          | 2.0s    | `backend/services/file_watcher.py:362`     |
+| Batch window                 | 90s     | `backend/services/batch_aggregator.py:145` |
+| Batch idle timeout           | 30s     | `backend/services/batch_aggregator.py:146` |
+| YOLO26 connect timeout       | 10s     | `backend/services/detector_client.py:97`   |
+| YOLO26 read timeout          | 60s     | `backend/services/detector_client.py:98`   |
+| AI VLM connect timeout       | 10s     | `settings.ai_connect_timeout`              |
+| AI VLM read timeout          | 25s     | `settings.ai_vlm_read_timeout`             |
+| WebSocket idle timeout       | 300s    | Configurable in settings                   |
+| WebSocket heartbeat interval | 30s     | Configurable in settings                   |
 
 ## Key Circuit Breaker Parameters
 
-| Service    | Failure Threshold | Recovery Timeout | Source                                        |
-| ---------- | ----------------- | ---------------- | --------------------------------------------- |
-| YOLO26     | 5                 | 60s              | `backend/services/detector_client.py:300-310` |
-| Nemotron   | 5                 | 30s              | `backend/main.py:265-270`                     |
-| PostgreSQL | 10                | 60s              | `backend/main.py:273-278`                     |
-| Redis      | 10                | 60s              | `backend/main.py:273-278`                     |
+| Service    | Failure Threshold | Recovery Timeout | Source                                    |
+| ---------- | ----------------- | ---------------- | ----------------------------------------- |
+| YOLO26     | 5                 | 60s              | `backend/services/detector_client.py:336` |
+| AI VLM     | 5                 | 60s              | `backend/services/vlm_client.py:247-249`  |
+| PostgreSQL | 10                | 60s              | `backend/main.py:310-328`                 |
+| Redis      | 10                | 60s              | `backend/main.py:310-328`                 |
 
 ## Concurrency Control
 
 The system uses a shared semaphore to prevent GPU/AI service overload:
 
 ```python
-# backend/services/nemotron_analyzer.py:19-22
-# Uses a shared asyncio.Semaphore to limit concurrent AI inference operations.
-# This prevents GPU/AI service overload under high traffic. The limit is
-# configurable via AI_MAX_CONCURRENT_INFERENCES setting (default: 4).
+# backend/services/inference_semaphore.py
+# A shared asyncio.Semaphore limits concurrent AI inference operations to
+# prevent GPU/AI service overload under high traffic. The limit is
+# configurable via AI_MAX_CONCURRENT_INFERENCES (default: 20 for
+# free-threaded Python, 4 for standard Python).
 ```
 
 ## Error Categories
 
-The enrichment pipeline classifies errors for observability:
+The analysis leg classifies VLM failures through the `VlmClientError`
+hierarchy (`backend/services/vlm_client.py`), and `vlm_analyzer.py` maps
+whatever survives the retry ladder into the event:
 
-| Category              | Description                     | Retry? |
-| --------------------- | ------------------------------- | ------ |
-| `SERVICE_UNAVAILABLE` | Connection errors, service down | Yes    |
-| `TIMEOUT`             | Request timed out               | Yes    |
-| `RATE_LIMITED`        | HTTP 429, back off              | Yes    |
-| `SERVER_ERROR`        | HTTP 5xx, transient issue       | Yes    |
-| `CLIENT_ERROR`        | HTTP 4xx, bad request           | No     |
-| `PARSE_ERROR`         | JSON/response parsing failed    | No     |
-| `VALIDATION_ERROR`    | Invalid input data              | No     |
-| `UNEXPECTED`          | Unknown error type              | Yes    |
+| Category            | Description                                                      | Retry?                                                                                           |
+| ------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `VlmTransportError` | Connection refused, timeout, HTTP 5xx                            | Once at temperature 0, then the event records `verification_failed`                              |
+| `VlmSchemaError`    | Reply violates `VlmVerdict` after validation                     | No — the event records `verification_failed`                                                     |
+| `VlmTruncatedError` | Reply cut off by its token budget (subclass of `VlmSchemaError`) | No — same `verification_failed` mapping; named apart because the cause and retry calculus differ |
 
-Source: `backend/services/enrichment_pipeline.py:170-189`
+A failed analysis still produces an event; it answers with
+`verification_failed` and a NULL risk score rather than dropping the
+detection (`backend/services/vlm_analyzer.py:561-563`).
 
 ## Related Documentation
 
-- [AI Pipeline Architecture](../ai-pipeline.md) - Detailed AI processing documentation
+- [AI Pipeline — Current State](../ai-pipeline-current-state.md) - Detailed AI processing documentation
 - [Real-time Architecture](../real-time.md) - WebSocket and event system details
 - [Resilience Patterns](../resilience-patterns/README.md) - Circuit breakers and fault tolerance

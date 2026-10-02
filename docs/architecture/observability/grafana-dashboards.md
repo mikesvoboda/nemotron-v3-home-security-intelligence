@@ -7,7 +7,7 @@
 - `monitoring/grafana/dashboards/consolidated.json` - Main operations dashboard
 - `monitoring/grafana/dashboards/tracing.json` - Distributed tracing dashboard (Tempo)
 - `monitoring/grafana/dashboards/logs.json` - Log aggregation dashboard (Loki)
-- Additional provisioned dashboards: `ai-service-health.json`, `ai-services.json`, `analytics.json`, `api-health.json`, `clip-florence-intelligence.json`, `enrichment-pipeline.json`, `hsi-gpu-metrics.json`, `hsi-profiling.json`, `hsi-request-profiling.json`, `nemotron-prompt-analytics.json`, `scene-ocr.json`, `video-analytics.json` (all in `monitoring/grafana/dashboards/`)
+- Additional provisioned dashboards: `ai-service-health.json`, `ai-services.json`, `analytics.json`, `api-health.json`, `hsi-gpu-metrics.json`, `hsi-profiling.json`, `hsi-request-profiling.json`, `scene-ocr.json`, `video-analytics.json` (all in `monitoring/grafana/dashboards/`)
 - `monitoring/grafana/provisioning/dashboards/dashboard.yml` - Dashboard provisioning
 - `monitoring/grafana/provisioning/datasources/prometheus.yml` (250 lines) - Datasource configuration
 

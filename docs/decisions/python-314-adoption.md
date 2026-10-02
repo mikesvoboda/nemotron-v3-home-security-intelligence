@@ -3,15 +3,18 @@
 **Date:** 2026-01-21
 **Status:** Implemented
 
-> **Implementation Status (Updated 2026-09-22):** Python 3.14 is the primary runtime.
+> **Implementation Status (Updated 2026-10-02):** Python 3.14 is the primary runtime.
 > `pyproject.toml` pins `requires-python = ">=3.14"`, `.python-version` is `3.14`, and
 > ruff (`target-version = "py314"`) and mypy (`python_version = "3.14"`) match.
-> `backend/Dockerfile` builds from `python:3.14-slim-bookworm` (GIL enabled). The
-> free-threaded `3.14t` image is available but opt-in: switching to it is a commented
-> `FROM` line in `backend/Dockerfile`, so production still runs with the GIL on.
-> Code detects free-threading at runtime via
-> `is_free_threaded()` (`backend/core/executors.py`), and new ID generation
-> already uses `uuid7()`.
+> `backend/Dockerfile` builds from `python:3.14-slim-bookworm` (GIL enabled; base at
+> `:36`, prod stage at `:139`). The free-threaded `3.14t` image
+> (`ghcr.io/mikesvoboda/python:3.14t-slim-bookworm`) is available but opt-in: the
+> image-switch instructions sit at `backend/Dockerfile:22-29`, so production runs with
+> the GIL on. Code detects free-threading at runtime via
+> `is_free_threaded()` (`backend/core/executors.py:43`;
+> `backend/core/free_threading.py` is the verification module), and new ID generation
+> already uses `uuid7()`. The "Background tasks: Risk scoring" workload in Context
+> ships on the `ai-vlm` VLM path (`docs/architecture/ai-pipeline-current-state.md`).
 
 ---
 

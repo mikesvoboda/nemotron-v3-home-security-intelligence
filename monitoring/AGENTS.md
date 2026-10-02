@@ -29,7 +29,7 @@ monitoring/
   dcgm/                        # NVIDIA DCGM GPU exporter (see dcgm/AGENTS.md)
   grafana/                     # Grafana configuration
     AGENTS.md                  # Grafana directory guide
-    dashboards/                # Dashboard JSON definitions (15 dashboards; see dashboards/AGENTS.md)
+    dashboards/                # Dashboard JSON definitions (14 dashboards; see dashboards/AGENTS.md)
       AGENTS.md                # Dashboards guide
     provisioning/              # Auto-provisioning configs
       AGENTS.md                # Provisioning guide
@@ -111,7 +111,7 @@ compose bind-mounts it read-only; nothing templates or substitutes into it at st
 | blackbox-http-health | backend /api/system/health                      | /probe (http_health) | 15s      |
 | blackbox-http-ready  | backend /api/system/health/ready                | /probe (http_ready)  | 15s      |
 | blackbox-http-live   | backend /health + frontend:8080                 | /probe (http_live)   | 10s      |
-| blackbox-http-2xx    | AI service health endpoints (7 probes)          | /probe (http_2xx)    | 30s      |
+| blackbox-http-2xx    | AI service health endpoints (4 probes)          | /probe (http_2xx)    | 30s      |
 | cadvisor             | host.containers.internal:8088                   | /metrics             | 15s      |
 | blackbox-tcp         | postgres:5432, redis:6379                       | /probe (tcp_connect) | 15s      |
 | dcgm-exporter        | host.containers.internal:9400                   | /metrics             | 15s      |
@@ -223,7 +223,7 @@ podman run --rm --entrypoint promtool \
 | blackbox-http-health | http_health | Backend health endpoint                | 15s      |
 | blackbox-http-ready  | http_ready  | Backend readiness endpoint             | 15s      |
 | blackbox-http-live   | http_live   | Backend/Frontend liveness endpoints    | 10s      |
-| blackbox-http-2xx    | http_2xx    | AI service health endpoints (7 probes) | 30s      |
+| blackbox-http-2xx    | http_2xx    | AI service health endpoints (4 probes) | 30s      |
 | blackbox-tcp         | tcp_connect | PostgreSQL, Redis                      | 15s      |
 
 **Validation:**

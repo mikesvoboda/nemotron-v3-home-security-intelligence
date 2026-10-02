@@ -50,7 +50,7 @@ flowchart LR
 
     subgraph Analyze["Analysis Stage"]
         A1[Analysis Queue]
-        A2[Nemotron LLM]
+        A2[ai-vlm VLM]
         A1 --> A2
     end
 
@@ -84,7 +84,7 @@ Worker types:
 - **Watcher** (file_watcher) - Monitors camera FTP directories for new images
 - **Detector** (detection_worker) - Processes the detection queue with YOLO26
 - **Aggregator** (batch_aggregator) - Groups related detections into batches (90-second windows)
-- **Analyzer** (analysis_worker) - Processes batches through Nemotron for risk analysis
+- **Analyzer** (analysis_worker) - Groups batch detections, runs the lookup legs and asks `ai-vlm` for the verdict
 - **Cleanup** (cleanup_service) - Removes old data based on retention policy
 
 Worker status dots:
@@ -492,13 +492,13 @@ Check Grafana dashboards for GPU utilization and system resource issues.
 
 ## Quick Reference: Troubleshooting by Symptom
 
-| Symptom                    | Check These Areas                                         |
-| -------------------------- | --------------------------------------------------------- |
-| Events not appearing       | Pipeline Visualization, Workers, Circuit Breakers         |
-| Dashboard feels slow       | Grafana dashboards for system metrics                     |
-| High risk scores incorrect | Circuit Breakers (Nemotron), AI Performance page          |
-| Cameras not processing     | Pipeline Visualization (Workers section), Detection queue |
-| High disk usage            | File Operations Panel, Run Cleanup                        |
+| Symptom                    | Check These Areas                                                 |
+| -------------------------- | ----------------------------------------------------------------- |
+| Events not appearing       | Pipeline Visualization, Workers, Circuit Breakers                 |
+| Dashboard feels slow       | Grafana dashboards for system metrics                             |
+| High risk scores incorrect | AI Performance page, `ai-vlm` health, event `verification_failed` |
+| Cameras not processing     | Pipeline Visualization (Workers section), Detection queue         |
+| High disk usage            | File Operations Panel, Run Cleanup                                |
 
 ---
 
@@ -508,7 +508,7 @@ For developers wanting to understand the underlying systems.
 
 ### Architecture
 
-- **AI Pipeline**: [AI Pipeline Architecture](../architecture/ai-pipeline.md) - How images flow through detection and analysis
+- **AI Pipeline**: [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md) - How images flow through detection and analysis
 - **Resilience Patterns**: [Circuit Breakers and Degradation](../architecture/resilience.md) - Fault tolerance and recovery strategies
 - **Real-time Updates**: [Real-time Architecture](../architecture/real-time.md) - WebSocket and event broadcasting
 - **System Overview**: [System Architecture Overview](../architecture/overview.md) - High-level system design

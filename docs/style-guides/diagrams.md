@@ -181,7 +181,7 @@ Use these consistent abbreviations across diagrams:
 | `DQ`         | detection_queue    | Redis Queue    |
 | `AQ`         | analysis_queue     | Redis Queue    |
 | `RT`         | YOLO26 (Real-Time) | AI Model       |
-| `NEM`        | Nemotron           | AI Model       |
+| `VLM`        | ai-vlm             | AI Service     |
 | `BA`         | BatchAggregator    | Service        |
 | `EB`         | EventBroadcaster   | Service        |
 | `WS`         | WebSocket          | Communication  |
@@ -204,7 +204,7 @@ flowchart TB
 
     subgraph Processing["AI Processing"]
         YOLO[YOLO26]
-        NEM[Nemotron]
+        VLM[ai-vlm]
     end
 
     subgraph Storage["Data Layer"]
@@ -219,13 +219,13 @@ flowchart TB
 
 ### Node Labels
 
-| Element       | Format                  | Example              |
-| ------------- | ----------------------- | -------------------- |
-| Service names | Title Case              | `Event Service`      |
-| Queue names   | snake_case in backticks | `detection_queue`    |
-| Model names   | Original casing         | `YOLO26`, `Nemotron` |
-| File paths    | Monospace               | `/api/events`        |
-| Ports         | Suffix in parentheses   | `FastAPI (8000)`     |
+| Element       | Format                  | Example            |
+| ------------- | ----------------------- | ------------------ |
+| Service names | Title Case              | `Event Service`    |
+| Queue names   | snake_case in backticks | `detection_queue`  |
+| Model names   | Original casing         | `YOLO26`, `ai-vlm` |
+| File paths    | Monospace               | `/api/events`      |
+| Ports         | Suffix in parentheses   | `FastAPI (8000)`   |
 
 ### Multi-line Labels
 
@@ -369,7 +369,7 @@ flowchart TB
 
     subgraph AI["AI Pipeline"]
         YOLO[YOLO26]
-        NEM[Nemotron]
+        VLM[ai-vlm]
     end
 
     subgraph Data["Data Layer"]
@@ -520,21 +520,23 @@ sequenceDiagram
     participant Camera as Foscam Camera
     participant FTP as FTP Server
     participant FW as FileWatcher
-    participant DQ as detection_queue
+    participant DQ as detections:stream
     participant DW as DetectionQueueWorker
     participant RT as ai-gateway /yolo26 (8090)
     participant DB as PostgreSQL
     participant BA as BatchAggregator
-    participant NEM as Nemotron LLM (8091)
+    participant AQ as analysis:stream
+    participant AW as AnalysisQueueWorker
+    participant VLM as ai-vlm (8098)
     participant WS as WebSocket
 
     Note over Camera,WS: Normal Path (batched)
     Camera->>FTP: Upload image via FTP
     FTP->>FW: inotify trigger
     FW->>FW: Debounce (0.5s)
-    FW->>DQ: Queue {camera_id, file_path}
+    FW->>DQ: XADD {camera_id, file_path}
 
-    DW->>DQ: BLPOP (5s timeout)
+    DW->>DQ: XREADGROUP (5s block)
     DQ-->>DW: Detection job
 
     DW->>RT: POST /detect
@@ -543,14 +545,22 @@ sequenceDiagram
     DW->>DB: INSERT Detection records
 
     DW->>BA: add_detection()
+    BA->>BA: Add to batch, update last_activity
 
-    alt Fast Path (confidence >= 0.90)
-        BA->>NEM: Immediate analysis
-        NEM-->>BA: Risk assessment
-        BA->>DB: INSERT Event (is_fast_path=true)
-        BA->>WS: Broadcast event
-    else Normal Batching
-        BA->>BA: Add to batch
+    Note over BA,AQ: 90s window / 30s idle / 500 detections
+    BA->>AQ: XADD {batch_id, camera_id, detection_ids}
+
+    AW->>AQ: XREADGROUP (5s block)
+    AQ-->>AW: Batch job
+    AW->>VLM: POST /v1/chat/completions<br/>key stills + detection rows + lookups
+    Note right of VLM: one verdict attempt,<br/>AI_VLM_READ_TIMEOUT
+    VLM-->>AW: JSON {risk_score, risk_level, summary}
+    AW->>AW: apply_verdict_invariants()
+    AW->>DB: INSERT Event
+    AW->>WS: Broadcast event
+
+    alt Specialist leg did not run
+        AW->>AW: record unavailable: specialist did not run
     end
 ```
 

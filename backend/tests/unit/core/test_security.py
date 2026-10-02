@@ -22,7 +22,6 @@ import pytest
 
 from backend.core.security import (
     ALLOWED_MODEL_EXTENSIONS,
-    ALLOWED_PRELOAD_MODELS,
     DEFAULT_ALLOWED_MODEL_DIRECTORIES,
     PathSecurityError,
     compute_file_checksum,
@@ -33,7 +32,6 @@ from backend.core.security import (
     validate_model_path,
     validate_model_path_env,
     validate_onnx_model_source,
-    validate_preload_models_env,
     verify_model_integrity,
 )
 
@@ -216,56 +214,6 @@ class TestIsSafePathForDeletion:
 # =============================================================================
 # Environment Variable Validation Tests (NEM-4513)
 # =============================================================================
-
-
-class TestValidatePreloadModelsEnv:
-    """Tests for validate_preload_models_env function."""
-
-    def test_empty_string_returns_empty_list(self) -> None:
-        """Empty string should return empty list."""
-        result = validate_preload_models_env("")
-        assert result == []
-
-    def test_whitespace_only_returns_empty_list(self) -> None:
-        """Whitespace-only string should return empty list."""
-        result = validate_preload_models_env("   ")
-        assert result == []
-
-    def test_single_valid_model(self) -> None:
-        """Single valid model name should be accepted."""
-        result = validate_preload_models_env("vehicle_classifier")
-        assert result == ["vehicle_classifier"]
-
-    def test_multiple_valid_models(self) -> None:
-        """Multiple valid model names should be accepted."""
-        result = validate_preload_models_env("vehicle_classifier,fashion_clip")
-        assert result == ["vehicle_classifier", "fashion_clip"]
-
-    def test_models_with_whitespace(self) -> None:
-        """Model names with surrounding whitespace should be trimmed."""
-        result = validate_preload_models_env(" vehicle_classifier , fashion_clip ")
-        assert result == ["vehicle_classifier", "fashion_clip"]
-
-    def test_invalid_model_rejected(self) -> None:
-        """Invalid model names should raise ValueError."""
-        with pytest.raises(ValueError, match="Invalid preload models"):
-            validate_preload_models_env("malicious_model")
-
-    def test_mixed_valid_invalid_rejected(self) -> None:
-        """Mix of valid and invalid models should raise ValueError."""
-        with pytest.raises(ValueError, match="Invalid preload models"):
-            validate_preload_models_env("vehicle_classifier,evil_model")
-
-    def test_all_allowed_models(self) -> None:
-        """All known allowed models should be accepted."""
-        for model in ALLOWED_PRELOAD_MODELS:
-            result = validate_preload_models_env(model)
-            assert result == [model]
-
-    def test_light_service_models(self) -> None:
-        """Light service models should be accepted."""
-        result = validate_preload_models_env("pose_estimator,threat_detector")
-        assert result == ["pose_estimator", "threat_detector"]
 
 
 class TestValidateModelPathEnv:
@@ -506,10 +454,3 @@ class TestSecurityConstants:
         assert ".engine" in ALLOWED_MODEL_EXTENSIONS
         assert ".bin" in ALLOWED_MODEL_EXTENSIONS
         assert ".safetensors" in ALLOWED_MODEL_EXTENSIONS
-
-    def test_allowed_preload_models(self) -> None:
-        """Allowed preload models should include expected names."""
-        assert "vehicle_classifier" in ALLOWED_PRELOAD_MODELS
-        assert "fashion_clip" in ALLOWED_PRELOAD_MODELS
-        assert "pose_estimator" in ALLOWED_PRELOAD_MODELS
-        assert "threat_detector" in ALLOWED_PRELOAD_MODELS

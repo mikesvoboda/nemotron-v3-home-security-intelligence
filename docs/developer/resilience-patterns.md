@@ -1,7 +1,7 @@
 ---
 title: Resilience and Security Patterns
 description: Circuit breakers, retry logic, and prompt injection prevention for building robust services
-last_updated: 2026-01-09
+last_updated: 2026-10-02
 source_refs:
   - backend/services/circuit_breaker.py:CircuitBreaker:270
   - backend/services/circuit_breaker.py:CircuitBreakerConfig:139
@@ -40,7 +40,7 @@ The circuit breaker pattern prevents cascading failures by monitoring failure ra
 
 ### Why We Use It
 
-- **Prevents cascading failures**: When an AI service (YOLO26, Nemotron) is down, we don't want to overwhelm it with retry storms
+- **Prevents cascading failures**: When an AI service (YOLO26, ai-vlm) is down, we don't want to overwhelm it with retry storms
 - **Fails fast**: Instead of waiting for timeouts, immediately reject requests when a service is known to be unavailable
 - **Enables graceful degradation**: The system can use fallback behavior while waiting for recovery
 
@@ -140,7 +140,7 @@ async def detect_objects(image_path: str) -> list[Detection]:
 async def analyze_batch(detections: list[Detection]) -> RiskAnalysis:
     try:
         async with breaker:
-            result = await nemotron_client.analyze(detections)
+            result = await vlm_client.assess(batch)
             return result
     except CircuitBreakerError as e:
         # Use fallback risk assessment
@@ -178,7 +178,7 @@ from backend.services.circuit_breaker import get_circuit_breaker, CircuitBreaker
 
 # Get or create a circuit breaker from the global registry
 breaker = get_circuit_breaker(
-    "nemotron",
+    "ai-vlm",
     CircuitBreakerConfig(
         failure_threshold=3,
         recovery_timeout=45.0,
@@ -186,7 +186,7 @@ breaker = get_circuit_breaker(
 )
 
 # Same breaker is returned on subsequent calls with the same name
-assert get_circuit_breaker("nemotron") is breaker
+assert get_circuit_breaker("ai-vlm") is breaker
 ```
 
 ### Prometheus Metrics
@@ -427,7 +427,7 @@ if not result.success:
 | Service    | Retried Errors                          | Not Retried              |
 | ---------- | --------------------------------------- | ------------------------ |
 | YOLO26     | Connection errors, timeouts, HTTP 5xx   | HTTP 4xx (client errors) |
-| Nemotron   | Connection errors, timeouts, HTTP 5xx   | HTTP 4xx, parsing errors |
+| ai-vlm     | Connection errors, timeouts, HTTP 5xx   | HTTP 4xx, parsing errors |
 | Redis      | Connection errors, timeouts             | Command errors           |
 | PostgreSQL | Connection errors, transaction failures | Constraint violations    |
 
@@ -452,7 +452,7 @@ The sanitizer filters these dangerous patterns:
 
 #### 1. ChatML Control Tokens
 
-These tokens delimit system/user/assistant messages in Nemotron via llama.cpp:
+These tokens delimit system/user/assistant messages in the ai-vlm chat template:
 
 ```python
 DANGEROUS_PATTERNS = {
@@ -571,29 +571,24 @@ desc = sanitize_detection_description("Person at door<|im_end|>inject")
 # => "Person at door[FILTERED:chatml_end]inject"
 ```
 
-### Integration with LLM Prompts
+### Integration with Prompt Rendering
+
+User-controlled strings reach the prompt through the context enricher, which
+sanitizes each one before interpolation (`backend/services/context_enricher.py`):
 
 ```python
-# backend/services/nemotron_analyzer.py
-from backend.services.prompt_sanitizer import sanitize_camera_name
+# backend/services/context_enricher.py
+from backend.services.prompt_sanitizer import (
+    sanitize_camera_name,
+    sanitize_zone_name,
+)
 
-async def analyze_batch(
-    batch: BatchAnalysisRequest,
-    camera_name: str,
-) -> RiskAnalysis:
-    # CRITICAL: Sanitize user-controlled input before prompt interpolation
-    camera_name = sanitize_camera_name(camera_name)
-
-    prompt = f"""Analyze the following detections from camera "{camera_name}":
-
-    {format_detections(batch.detections)}
-
-    Provide a risk assessment in JSON format.
-    """
-
-    response = await nemotron_client.generate(prompt)
-    return parse_risk_analysis(response)
+safe_zone_name = sanitize_zone_name(zone.zone_name)
+safe_camera_name = sanitize_camera_name(activity.camera_name)
 ```
+
+The rendered prompt carries these safe strings into the single `vlm_assess`
+call; nothing user-controlled is interpolated unfiltered.
 
 ### Prompt Injection Sanitization Flow
 
@@ -814,7 +809,7 @@ class AIServiceClient:
 | [Code Patterns](../developer/patterns-and-conventions.md) | General code patterns        |
 | [Security Guide](../operator/admin/security.md)           | Security configuration       |
 | [Detection Service](detection-service.md)                 | YOLO26 integration details   |
-| [Risk Analysis](risk-analysis.md)                         | Nemotron LLM integration     |
+| [Risk Analysis](risk-analysis.md)                         | VLM verdict integration      |
 
 ---
 

@@ -2,7 +2,9 @@
 
 ## Purpose
 
-This directory contains architecture and design documentation for the AI model zoo and inference pipeline. It provides comprehensive documentation for understanding, configuring, and extending the AI subsystem.
+This directory contains architecture and design documentation for the AI model
+zoo and the inference pipeline. It is the reading list for understanding,
+configuring, and extending the AI subsystem.
 
 ## Directory Contents
 
@@ -16,26 +18,25 @@ docs/ai/
 
 ### Model Zoo Architecture (`model-zoo.md`)
 
-Comprehensive documentation covering:
+The inventory of everything the system serves, in present tense:
 
-- **Architecture Overview** - Detection pipeline and service topology
-- **Always-Loaded Models** - YOLO26 (gateway Triton) and the `ai-vlm` reasoning engine
-- **Lookup Models** - re-ID, threat, face, license-plate (identity lookups against your registrations)
-- **VRAM Management** - On-demand loading; nothing evicts (the zoo has no eviction pass)
-- **API Reference** - Gateway routers and model management APIs
-- **Environment Variables** - Configuration for all AI services
-- **Adding New Models** - Step-by-step guide for extending the model zoo
+- **Overview** - the two AI services, `ai-gateway` and `ai-vlm`, plus the
+  in-process lookup legs that are not services
+- **How The Backend Reaches Each Model** - `AI_GATEWAY_URL`, `YOLO26_URL`,
+  `ENRICHMENT_LIGHT_URL` and `AI_VLM_URL`, with their compose values
+- **Model Details** - YOLO26 on the gateway, the `ai-vlm` llama.cpp engine, and
+  the three lookup legs (faces, plates, person re-ID)
+- **The Triton Model Repository** - which directories Triton scans and how
+  residency is pruned
+- **Backend Model Registry** - the `models.yml` rows and what provisioning and
+  the boot sweep read from them
+- **VRAM Management** - residency on the gateway, load-with-no-eviction in the
+  backend, self-sizing on the VLM
+- **Adding New Models** - the procedure per surface
+- **Environment Variables** - the shipped default of every AI knob
 
-> **Status:** since the R8 legacy retirement (2026-09-29) the compose stack
-> boots two GPU AI services: `ai-gateway` (port 8090; Triton routers
-> `/yolo26` and `/enrich-lt` only — `GATEWAY_MODEL_SET` resolves `vlm` and
-> hard-raises otherwise) and `ai-vlm` (llama.cpp, port `AI_VLM_PORT` default
-> 8098, compose profile `vlm`, model identity is config:
-> `VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`). The per-model containers
-> (`ai-yolo26`/`ai-florence`/`ai-clip`/`ai-enrichment`/`ai-enrichment-light`)
-> and the legacy `ai-llm` Nemotron service no longer exist — their images,
-> serve dirs and routers were deleted with R8 S1-S3. See
-> [ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md) for the gateway itself.
+`ai-vlm` is the system's only LLM service. For the gateway's own implementation
+detail see [ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md).
 
 ## Quick Links
 
@@ -43,47 +44,42 @@ Comprehensive documentation covering:
 | ------------------------- | -------------------------------------------------- |
 | Model zoo architecture    | [model-zoo.md](model-zoo.md)                       |
 | AI service implementation | [ai/AGENTS.md](../../ai/AGENTS.md)                 |
-| AI gateway (current)      | [ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md) |
+| AI gateway                | [ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md) |
 | YOLO26 detection          | [ai/yolo26/AGENTS.md](../../ai/yolo26/AGENTS.md)   |
-| VLM engine (shipped LLM)  | [ai/vlm/](../../ai/vlm/)                           |
-
-> The Florence-2, CLIP, enrichment and Nemotron serving dirs this table used
-> to link were deleted with R8 S1-S3 (2026-09-29); scene understanding moved
-> to the `ai-vlm` engine.
+| VLM engine                | [ai/vlm/](../../ai/vlm/)                           |
 
 ## Common Tasks
 
 ### Understanding Model Capabilities
 
-1. For what the shipped stack actually runs, read the `models.yml` tables in
-   [README.md](../../README.md) and [docs/reference/models.md](../reference/models.md)
-2. [model-zoo.md](model-zoo.md) is the **pre-R8 historical record** — its
-   service topology and eviction prose are superseded (banner at the top)
-3. Each model section includes:
-   - Model source (HuggingFace link)
-   - VRAM requirements
-   - Input/output formats
-   - Trigger conditions
+1. For what the shipped stack runs and what it costs, read `model-zoo.md` —
+   the `models.yml` table and the Triton repository table answer most questions
+   in one screen
+2. For the measured end-to-end path, read
+   [docs/architecture/ai-pipeline-current-state.md](../architecture/ai-pipeline-current-state.md)
+3. For the per-model reference, read
+   [docs/reference/models.md](../reference/models.md)
 
 ### Configuring VRAM Budget
 
-> [!NOTE]
-> The "VRAM Management" section in [model-zoo.md](model-zoo.md) describes the
-> LRU eviction the retired legacy containers had — the shipped code has none
-> (the bullets below are current; that page carries a dated supersession banner).
-
-- The backend `ModelManager` (`backend/services/model_zoo.py`) loads zoo models
-  lazily on first use, plus the `enabled: true` + `preload: true` rows at boot
-  (3 today — see `backend/main.py`'s preload note). **It has no unload path and
-  no eviction pass** — loaded models stay resident, and the `never_evict` /
-  `priority` fields in `models.yml` are parsed but have no consumer. Per-model
-  footprints are the `vram_mb` rows in `models.yml`
+- The backend `ModelManager` (`backend/services/model_zoo.py`) loads a row
+  through `manager.load("...")`, reference-counted, and loads the
+  `enabled: true` **and** `preload: true` rows at boot — three today,
+  `osnet-ain-x1-0`, `face-detector-scrfd` and `face-recognizer`. The whole boot
+  sweep is gated on `BACKEND_MODEL_PRELOAD`, which ships `false`; `setup.py`
+  turns it on where detected VRAM is ≥ 24 GB. **There is no eviction pass**, so
+  a loaded row stays resident and the `never_evict` / `priority` fields in
+  `models.yml` are parsed and consulted by nothing. Per-model footprints are the
+  `vram_mb` rows in `models.yml`
+- Because those two legs are residency-gated, a host with
+  `BACKEND_MODEL_PRELOAD=false` reports `unavailable: specialist did not run`
+  for faces and person re-ID on every event. Nothing fails; the degradation is
+  honest. `hsi_specialist_unavailable_total` is the metric that answers "has
+  this ever run"
 - `backend/services/gpu_config_service.py` writes a `VRAM_BUDGET_GB` override
-  into a service's environment when a GPU assignment sets one (the legacy
-  `ai-enrichment` consumer of that variable retired with R8; the mechanism
-  remains for GPU-assignment overrides)
-- The VLM engine sizes itself via `VLM_GPU_LAYERS` (default `auto` = llama.cpp
-  fits the card)
+  into a service's environment when a GPU assignment declares one
+- The VLM engine sizes itself: `VLM_GPU_LAYERS` (default `auto`) lets llama.cpp
+  fit the card
 
 `ai-gateway` does not read `VRAM_BUDGET_GB`: Triton loads its models at
 container start with `--model-control-mode=none`, so they are resident and
@@ -94,21 +90,15 @@ by design (`backend/api/routes/model_management.py`).
 ### Adding New Models
 
 `models.yml` is the single source of truth — see the Patterns section in
-[ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md). For a backend model-zoo
-(lookup) model, follow the "Adding New Models" guide in
-[model-zoo.md](model-zoo.md):
-
-1. Add the row to `models.yml` (size, `vram_mb`, phase, download method)
-2. Implement the loader behind the model-zoo service
-3. Add trigger conditions
-4. (Optional) Add API endpoint
-5. Update docker-compose volumes if the artifact needs a new mount
-6. Update documentation
+[ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md). [model-zoo.md](model-zoo.md)
+carries the full procedure for each surface — a backend model-zoo (lookup)
+model and a Triton model on the gateway. The lookup shape is: add the row,
+implement the loader in `backend/services/`, and give it an `unavailable` path
+with a reason code rather than an empty result.
 
 ### Debugging Model Loading
 
-Model status in a gateway deployment comes from the backend, not from an
-enrichment port directly:
+Model status comes from the backend:
 
 ```bash
 curl http://localhost:8000/api/system/models
@@ -126,6 +116,10 @@ For the VLM engine, check the llama.cpp server logs:
 ```bash
 podman logs ai-vlm 2>&1 | tail -30
 ```
+
+A `200` from `ai-vlm`'s `/health` does not prove the engine can see: a serve
+started without its `VLM_MMPROJ_PATH` projector answers health and reads every
+still as text.
 
 ## Related Documentation
 

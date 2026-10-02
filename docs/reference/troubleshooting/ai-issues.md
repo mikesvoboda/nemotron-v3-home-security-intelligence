@@ -1,17 +1,30 @@
 # AI Service Troubleshooting
 
-> Solving AI service and pipeline problems (YOLO26, Nemotron, and the enrichment models
-> — Florence-2, CLIP/SigLIP, enrichment — served by the Triton `ai-gateway` container).
+> Solving AI service and pipeline problems — the `ai-gateway` Triton container
+> (detection) and the `ai-vlm` llama.cpp container (per-event reasoning).
 
 **Time to read:** ~6 min
 **Prerequisites:** [GPU Issues](gpu-issues.md) for hardware problems
 
-In production, AI is two containers: `ai-gateway` (:8090, Triton serving YOLO26,
-Florence-2, CLIP and enrichment models behind path routers `/yolo26`, `/florence`,
-`/clip`, `/enrichment`, `/enrich-lt`) and `ai-llm` (:8091, llama.cpp). Standalone
-host-run servers exist for debugging: `./ai/start_detector.sh` (YOLO26) and
-`./ai/start_nemotron.sh` / `./ai/start_llm.sh` (llama.cpp). There is no
-`scripts/start-ai.sh` — that wrapper was removed.
+AI runs as two containers:
+
+- **`ai-gateway`** (:8090) — FastAPI in front of NVIDIA Triton. Two routers:
+  `/yolo26` (object detection) and `/enrich-lt` (a readiness lane for the two
+  resident specialists). Triton's model directory holds `{yolo26, reid, threat}`;
+  `reid` is always resident, `threat` only when `GATEWAY_ENABLE_THREAT=true`
+  (compose default `false`).
+- **`ai-vlm`** (:8098) — llama.cpp `llama-server`. It is behind the `vlm` compose
+  profile, so a bring-up must name the profile. The event path POSTs
+  `/v1/chat/completions` to it.
+
+Identity questions (faces, license plates, person re-identification) are answered
+**in-process in the backend** as database lookups against your own registrations,
+not by a separate AI service. When a lookup's weights are not resident it returns
+`unavailable: <why>` and the event is still written.
+
+For debugging a model outside a container there is one host-run helper:
+`./ai/start_detector.sh` (YOLO26 on the host; it binds :8090, so run it with
+`ai-gateway` down or set `YOLO26_PORT`).
 
 ---
 
@@ -19,66 +32,70 @@ host-run servers exist for debugging: `./ai/start_detector.sh` (YOLO26) and
 
 ### Symptoms
 
-- Health check: `"yolo26": "connection refused"`
-- Health check: `"nemotron": "connection refused"`
-- No detections being created
+- Detections stop being created
+- The backend readiness check reports the AI dependency failing
+- `ai-vlm` never reaches `healthy`
 
 ### Diagnosis
 
 ```bash
-# Check AI container status
-docker compose -f docker-compose.prod.yml ps ai-gateway ai-llm
+# Container status (ai-vlm is profiled — include the profile or it shows as stopped)
+podman compose -f docker-compose.prod.yml --profile vlm ps ai-gateway ai-vlm
 
-# Check host-run processes (only if you run AI on the host)
-pgrep -f "model.py"      # YOLO26 standalone
-pgrep -f "llama-server"  # Nemotron (llama.cpp)
+# Logs
+podman compose -f docker-compose.prod.yml logs --tail=50 ai-gateway
+podman compose -f docker-compose.prod.yml --profile vlm logs --tail=50 ai-vlm
 
-# Check logs
-docker compose -f docker-compose.prod.yml logs --tail=50 ai-gateway
-docker compose -f docker-compose.prod.yml logs --tail=50 ai-llm
-# Host-run: start_detector.sh logs to its terminal; start_nemotron.sh writes /tmp/nemotron.log
+# Host-run detector (only if you run it)
+pgrep -f "ai/yolo26/model.py"
 ```
 
-Per-model health through the gateway:
+Health through the gateway and the VLM:
 
 ```bash
-curl http://localhost:8090/health              # aggregate (all models)
+# Gateway: one aggregate over the active residency set (yolo26 + reid, + threat if enabled)
+curl http://localhost:8090/health
 curl http://localhost:8090/yolo26/health
-curl http://localhost:8090/florence/health
-curl http://localhost:8090/clip/health
-curl http://localhost:8090/enrichment/health
+curl http://localhost:8090/enrich-lt/health
+
+# VLM
+curl http://localhost:8098/health
 ```
+
+`GET /health` returns `"status": "degraded"` if Triton is not ready or any
+resident model is not ready — check the `models` object it returns for which one.
 
 ### Solutions
 
-**1. Start AI services:**
+**1. Start the AI services with the profile:**
 
 ```bash
-# Containerized (production)
-docker compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
-
-# Host-run (debug mode)
-./ai/start_detector.sh &
-./ai/start_nemotron.sh
+podman compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
 ```
+
+A `up -d` that omits `--profile vlm` starts `ai-gateway` but never `ai-vlm`, so
+the detector runs and events queue without verdicts.
 
 **2. Check for startup errors:**
 
 ```bash
-docker compose -f docker-compose.prod.yml logs ai-gateway | tail -50
+podman compose -f docker-compose.prod.yml logs ai-gateway | tail -50
 ```
 
 Common startup errors:
 
 - Missing model files (run `./ai/download_models.sh`)
-- Port already in use
+- Port already in use (the host-run `./ai/start_detector.sh` also binds :8090)
 - CUDA initialization failure (see [Triton Rootless CUDA](triton-rootless-cuda.md))
+- `GATEWAY_MODEL_SET` not `vlm` — the gateway refuses to start on any other value
 
-**3. Check model files exist:**
+**3. Check the VLM weights are mounted:**
+
+Weights are host-mounted, never baked. The shipped pair is
+`Qwen3VL-8B-Instruct-Q4_K_M.gguf` + `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`:
 
 ```bash
-# Production LLM (ai-llm container): Nemotron-3-Nano-30B-A3B Q4_K_M, ~14.7GB
-ls -la "${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km/"
+ls -la "${AI_MODELS_PATH:-/export/ai_models}/vlm/"
 ```
 
 ---
@@ -87,222 +104,110 @@ ls -la "${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4
 
 ### Symptoms
 
-- Health check shows `"ai": "degraded"`
-- One service healthy, one unhealthy
-- Partial functionality
+- `GET /api/system/health` shows the AI dependency degraded
+- Events land with `risk_score: null`
+- Detection works but nothing gets a risk verdict (or the reverse)
 
 ### Diagnosis
 
 ```bash
-# Check overall service health
+# Backend's own view
 curl http://localhost:8000/api/system/health | jq .services
-
-# Check the two AI services the backend health checks track
-curl http://localhost:8090/health  # AI Gateway (YOLO26 + enrichment models)
-curl http://localhost:8091/health  # Nemotron (llama.cpp)
-
-# Per-model detail from the backend's perspective (includes circuit-breaker state)
 curl http://localhost:8000/api/health/ai-services | jq .services
+
+# The two containers directly
+curl http://localhost:8090/health     # AI Gateway (detection)
+curl http://localhost:8098/health     # ai-vlm (reasoning)
 ```
 
-### Solutions
+### What each failure means
 
-**Understand degraded behavior:**
+| `ai-gateway` | `ai-vlm` | Result                                                             |
+| ------------ | -------- | ------------------------------------------------------------------ |
+| Up           | Up       | Full functionality                                                 |
+| Up           | Down     | Detections and events are created; each event lands `needs review` |
+| Down         | Up       | No new detections; the analysis path has nothing to work on        |
+| Down         | Down     | No events                                                          |
 
-| YOLO26 | Nemotron | Result                                                |
-| ------ | -------- | ----------------------------------------------------- |
-| Up     | Up       | Full functionality                                    |
-| Up     | Down     | Detections work, no risk analysis                     |
-| Down   | Up       | No new detections, existing events can be re-analyzed |
-| Down   | Down     | System unhealthy                                      |
+When the VLM cannot produce a valid verdict — transport, schema, or probe
+failure after its one retry — the analyzer still writes the event with
+`risk_score: null`, `risk_level: null`, and an honest "VLM verification failed;
+this event needs review" summary. It never fabricates a low score. A null score
+on a recent event is the signal that the VLM was down or slow, not that the scene
+was benign.
 
-> Optional enrichment services (Florence/CLIP/Enrichment) typically degrade **enrichment quality** rather than fully stopping event creation. The core “detections → batches → LLM → events” path can still function if YOLO26 and Nemotron are healthy.
+The identity lookups degrade independently: a face/plate/re-ID leg whose weights
+are not resident returns `unavailable: <why>` in the text handed to the VLM. With
+the compose default `BACKEND_MODEL_PRELOAD=false`, the face and person-re-ID legs
+come up `unavailable` until a host with enough VRAM opts in by setting it `true`.
 
 ---
 
-## Enrichment Issues (Florence / CLIP / Enrichment)
+## Specialist Lookups (Faces / Plates / Person Re-ID)
 
-The enrichment models (Florence-2, CLIP/SigLIP embeddings, enrichment) provide enhanced
-context for detections, including:
+Three lookup legs run per batch, in the backend process, and answer identity
+questions against your own registrations:
 
-- **Florence-2**: Visual attributes, OCR, dense captions
-- **CLIP** (SigLIP 2 in the Triton gateway): Scene-baseline and fashion-similarity embeddings — person re-ID vectors moved to OSNet-AIN x1.0 in the backend
-- **Enrichment**: Orchestrates and aggregates enrichment data (vehicle, clothing,
-  demographics, action, pose, pet, depth models)
+- **Faces** — SCRFD detection + w600k embeddings, matched against the enrolled
+  gallery
+- **Plates** — FastALPR detection + OCR, matched against registered plates
+- **Person re-ID** — OSNet embeddings, matched against the person gallery
 
-In production these all run inside the `ai-gateway` container (port 8090, routers
-`/florence`, `/clip`, `/enrichment`, `/enrich-lt`). The enrichment pipeline is
-**optional** — the core detection and risk analysis pipeline works without it.
+Each leg degrades to `unavailable: <why>` on its own. `unavailable` is a class,
+never a score — it is not "unknown person", it is "this lookup did not run".
 
 ### Symptoms
 
-- Events exist, but "extra context" fields are missing (no attributes, no re-identification hints, etc.)
-- Backend logs mention enrichment timeouts or connection errors
-- CPU spikes on the backend when enrichment is enabled
-- Circuit breakers open for enrichment services
+- Events exist but the specialist text reads `unavailable: ...`
+- Faces/re-ID are `unavailable` on every event even though you enrolled people
 
-### Quick Diagnosis
+### Diagnosis
 
 ```bash
-# Confirm the URLs the backend uses (gateway-routed in production)
-docker compose -f docker-compose.prod.yml exec -T backend env | grep -E 'FLORENCE_URL|CLIP_URL|ENRICHMENT_URL|AI_GATEWAY'
+# Are the lookup weights resident in the backend? BACKEND_MODEL_PRELOAD gates the
+# boot preload sweep; with it false (compose default) membership reads never load.
+podman compose -f docker-compose.prod.yml exec -T backend \
+  env | grep -E 'BACKEND_MODEL_PRELOAD|GATEWAY_ENABLE_THREAT'
 
-# Check feature toggles (are enrichment features enabled?)
-curl http://localhost:8000/api/v1/settings | jq '.features'
+# Backend logs show which leg went unavailable and why
+podman compose -f docker-compose.prod.yml logs backend 2>&1 | grep -i "specialist unavailable"
 
-# Check per-model health in the gateway
-curl http://localhost:8090/florence/health
-curl http://localhost:8090/clip/health
-curl http://localhost:8090/enrichment/health
-
-# Check circuit breaker status (breakers are named per operation, e.g. florence_extract,
-# clip_embed, enrichment_vehicle — see GET /api/system/circuit-breakers)
-curl http://localhost:8000/api/system/circuit-breakers | jq '.circuit_breakers | keys'
+# A recent event's detections — the specialist text is part of the stored analysis
+EVENT_ID=$(curl -s "http://localhost:8000/api/events?limit=1" | jq -r '.items[0].id')
+curl -s "http://localhost:8000/api/events/$EVENT_ID/detections" | jq '.items[0]'
 ```
-
-### Understanding Feature Toggles
-
-| Variable                    | Default | Effect When Disabled                             |
-| --------------------------- | ------- | ------------------------------------------------ |
-| `VISION_EXTRACTION_ENABLED` | `true`  | No Florence-2 attributes, OCR, or dense captions |
-| `REID_ENABLED`              | `true`  | No OSNet person re-ID vectors                    |
-| `SCENE_CHANGE_ENABLED`      | `true`  | No scene change detection between frames         |
-
-### Common Causes
-
-1. **Wrong URL from backend** (container vs host networking)
-2. **GPU/VRAM pressure** (too many models competing for limited VRAM inside `ai-gateway`)
-3. **Timeouts** (models are up, but slow to respond under load)
-4. **Circuit breakers open** (service failures triggered protection)
-5. **Feature toggles disabled** (enrichment turned off in config)
 
 ### Solutions
 
-**1. Fix container vs host networking**
+**1. Face / re-ID come up `unavailable` right after boot**
 
-- **Production compose**: backend should use the gateway URL and routers —
-  `FLORENCE_URL=http://ai-gateway:8090/florence`, `CLIP_URL=http://ai-gateway:8090/clip`,
-  `ENRICHMENT_URL=http://ai-gateway:8090/enrichment` (what `docker-compose.prod.yml` sets).
-- **Host-run AI**: backend should use `http://localhost:8090/<router>` (or
-  `http://host.docker.internal:8090/<router>` when the backend is containerized).
-  See [Deployment Modes](../../operator/deployment-modes.md).
-
-**2. Disable optional enrichment temporarily**
-
-If you need the system running reliably while debugging, disable the optional features:
+That is the shipped default, not a fault. `BACKEND_MODEL_PRELOAD=false` keeps the
+boot sweep off so a small host never loads weights it cannot hold. On a host that
+can, opt in:
 
 ```bash
-# In .env - disable all enrichment
-VISION_EXTRACTION_ENABLED=false
-REID_ENABLED=false
-SCENE_CHANGE_ENABLED=false
-
-# Restart backend to apply
-docker compose -f docker-compose.prod.yml restart backend
+# In .env, then restart the backend
+BACKEND_MODEL_PRELOAD=true
 ```
 
-Then re-enable one-by-one after stabilizing GPU/latency.
+**2. Plates are `unavailable`**
 
-**3. Adjust timeouts for slow models**
+The plate leg degrades to `unavailable: <why>` when the FastALPR weights are not
+present. Run `./ai/download_models.sh` and confirm the weights landed, then
+restart the backend.
 
-If models are healthy but timing out under load:
-
-```bash
-# In .env - increase timeouts (defaults in comments)
-FLORENCE_READ_TIMEOUT=60.0    # Default 30.0 (max 120)
-CLIP_READ_TIMEOUT=30.0        # Default 5.0 (max 60)
-ENRICHMENT_READ_TIMEOUT=120.0 # Default 60.0 (max 180)
-```
-
-**4. Reset circuit breakers**
-
-If circuit breakers opened due to transient failures:
+**3. Re-ID matches are too loose or too strict**
 
 ```bash
-# Check circuit breaker status and registered names
-curl http://localhost:8000/api/system/circuit-breakers | jq '.circuit_breakers | keys'
-
-# Reset a specific breaker by its registered name
-# (e.g. florence_extract, clip_embed, enrichment_vehicle; API key header required
-#  when API_KEY_ENABLED=true)
-curl -X POST http://localhost:8000/api/system/circuit-breakers/florence_extract/reset
-
-# Or restart backend to reset all circuit breakers
-docker compose -f docker-compose.prod.yml restart backend
-```
-
-**5. Check GPU/VRAM availability**
-
-All gateway models share one GPU. Check utilization:
-
-```bash
-nvidia-smi
-
-# Expected VRAM usage (post-R8):
-# - ai-gateway (Triton): YOLO26 + re-ID/threat specialists — see
-#   docs/_includes/vram-requirements.md for the lookup-model table
-# - ai-vlm (llama.cpp, compose profile `vlm`): scale follows the GGUF pair
-#   set in VLM_MODEL_PATH / VLM_MMPROJ_PATH; VLM_GPU_LAYERS=auto (default)
-#   fits as many layers as the card allows
-# No measured residency figure is published for the shipped VLM identity yet.
-```
-
-If GPU is overloaded, consider:
-
-- Running fewer AI services simultaneously
-- Using smaller model quantizations
-- Disabling non-essential enrichment features
-
-**6. Tune re-identification settings**
-
-If re-ID is slow or producing poor matches:
-
-```bash
-# Adjust similarity threshold (higher = stricter matching; default 0.7, range 0.5-1.0.
-# 0.7 is the OSNet-AIN x1.0 space value and is PROVISIONAL pending calibration —
-# the CLIP-era 0.85 would drop every legitimate OSNet match)
+# Higher = stricter. 0.7 is the OSNet vector-space value and is PROVISIONAL —
+# calibrate against your own galleries.
 REID_SIMILARITY_THRESHOLD=0.7
 
-# Reduce TTL if embeddings are stale (default 24h, max 168)
-REID_TTL_HOURS=12
-
-# Limit concurrent re-ID operations (default 10, range 1-100)
+# Cap concurrent embedding work on a busy host (default 10, range 1-100)
 REID_MAX_CONCURRENT_REQUESTS=2
 
-# Timeout for embedding generation (seconds; default 30)
+# Timeout for embedding generation, seconds (default 30.0)
 REID_EMBEDDING_TIMEOUT=10.0
-```
-
-**7. Restart failed services**
-
-```bash
-# Host-run detector only
-./ai/start_detector.sh
-
-# Host-run Nemotron only
-./ai/start_nemotron.sh
-
-# Containerized stack
-docker compose -f docker-compose.prod.yml restart ai-gateway   # YOLO26 + all enrichment models
-docker compose -f docker-compose.prod.yml restart ai-llm       # LLM
-```
-
-### Verifying Enrichment is Working
-
-After enabling enrichment, verify data is being populated:
-
-```bash
-# Get a recent event, then inspect its detections' enrichment_data
-EVENT_ID=$(curl -s "http://localhost:8000/api/events?limit=1" | jq -r '.items[0].id')
-
-# All enrichment results for the event's detections (plates, faces, clothing, violence...)
-curl -s "http://localhost:8000/api/events/$EVENT_ID/enrichments" | jq '.enrichments[0]'
-
-# Composite enrichment fields on a detection (vehicle/person/pet/weather)
-curl -s "http://localhost:8000/api/events/$EVENT_ID/detections" | jq '.items[0].enrichment_data'
-
-# Pipeline coverage summary for the event
-curl -s "http://localhost:8000/api/events/$EVENT_ID" | jq '.enrichment_status'
 ```
 
 ---
@@ -313,46 +218,38 @@ curl -s "http://localhost:8000/api/events/$EVENT_ID" | jq '.enrichment_status'
 
 - Detections created but no events
 - Batches accumulating without completion
-- Pipeline status shows stale batches
 
 ### Diagnosis
 
 ```bash
-# Check batch aggregator status
 curl http://localhost:8000/api/system/pipeline | jq .batch_aggregator
-
-# Check queue depths
 curl http://localhost:8000/api/system/telemetry | jq .queues
-
-# Check pipeline workers
 curl http://localhost:8000/api/system/health/ready | jq .workers
 ```
 
 ### Solutions
 
-**1. Check batch settings:**
+**1. Check batch settings** — a batch closes on 90 s of window, 30 s of idle, or
+500 detections:
 
 ```bash
-# Defaults: 90 second window, 30 second idle timeout
 BATCH_WINDOW_SECONDS=90
 BATCH_IDLE_TIMEOUT_SECONDS=30
 ```
 
-**2. Check analysis worker:**
-
-The readiness endpoint reports each worker with a boolean `running` field:
+**2. Check the analysis worker** (readiness reports each worker with a boolean
+`running`):
 
 ```bash
-curl http://localhost:8000/api/system/health/ready | jq '.workers[] | select(.name=="analysis_worker") | .running'
+curl http://localhost:8000/api/system/health/ready \
+  | jq '.workers[] | select(.name=="analysis_worker") | .running'
 ```
 
-**3. Check Nemotron service:**
+**3. Check the VLM** — a batch only closes into a scored event once `ai-vlm`
+answers. If `ai-vlm` is down the events still land, but unscored; if the
+`ai-gateway` detector is down no batch closes at all.
 
-Batch completion requires Nemotron for risk analysis. If Nemotron is down, batches queue up.
-
-**4. Check Redis:**
-
-Batch state is stored in Redis:
+**4. Check Redis** — batch state lives in Redis:
 
 ```bash
 redis-cli keys "batch:*"
@@ -360,55 +257,59 @@ redis-cli keys "batch:*"
 
 ---
 
-## Analysis Failing
+## Analysis Failing (null risk scores)
 
 ### Symptoms
 
-- Events created with `risk_score: null`
-- `risk_level: null`
-- Empty `reasoning` field
+- Events created with `risk_score: null`, `risk_level: null`
+- `summary` reads "VLM verification failed; this event needs review"
 
 ### Diagnosis
 
 ```bash
-# Check Nemotron health
-curl http://localhost:8091/health
+# VLM health and logs
+curl http://localhost:8098/health
+podman compose -f docker-compose.prod.yml --profile vlm logs --tail=50 ai-vlm
 
-# Check Nemotron logs
-docker compose -f docker-compose.prod.yml logs --tail=50 ai-llm   # containerized
-tail -f /tmp/nemotron.log                                          # ./ai/start_nemotron.sh
-
-# Test Nemotron directly (llama.cpp completion endpoint)
-curl -X POST http://localhost:8091/completion \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Test prompt", "max_tokens": 50}'
+# One direct request. If this returns text but ignores your image, the
+# multimodal projector is missing — see the mmproj note below.
+curl http://localhost:8098/v1/models
 ```
 
 ### Solutions
 
-**1. Check Nemotron is responding:**
+**1. The serve is up but never sees the images**
 
-If health check passes but analysis fails:
-
-- Check for timeout (increase `NEMOTRON_READ_TIMEOUT`, default 120s)
-- Check model is fully loaded (first requests take longer; the compose health check
-  allows a 300s start period)
-
-**2. Check prompt/response:**
+`ai-vlm` builds its `--mmproj` argument only when `MMPROJ_PATH` is set and
+readable (`ai/vlm/Dockerfile:143-144`). A container that starts without a usable
+projector serves and passes both healthchecks while answering text-only, so a
+healthy check does not prove the model saw the stills. Check the mount:
 
 ```bash
-# Watch Nemotron logs during analysis
-docker compose -f docker-compose.prod.yml logs -f ai-llm
+podman compose -f docker-compose.prod.yml --profile vlm exec ai-vlm \
+  ls -la /models/
+podman compose -f docker-compose.prod.yml --profile vlm logs ai-vlm 2>&1 | grep -i mmproj
 ```
 
-**3. Restart Nemotron:**
+**2. Timeouts**
+
+One verdict attempt is bounded by `AI_VLM_READ_TIMEOUT` (default 25 s) and
+includes a single retry at temperature 0. A sleeping server (see `SLEEP_IDLE_SECONDS`)
+wakes under `AI_VLM_WAKE_TIMEOUT_SECONDS` (default 90 s). If verdicts are timing
+out on a slow card, raise the read timeout — but the retry already shares that
+budget, so a value at or above 30 s leaves the retry no room.
+
+**3. A cold start still loading**
+
+`ai-vlm` gets a 120 s health grace (`start_period`) before it is judged down. A
+first request after boot is slower than steady-state; check whether the serve
+settles before treating it as failed.
+
+**4. Restart**
 
 ```bash
-# Containerized
-docker compose -f docker-compose.prod.yml restart ai-llm
-
-# Host-run
-pkill -f llama-server && ./ai/start_llm.sh
+podman compose -f docker-compose.prod.yml --profile vlm restart ai-vlm
+podman compose -f docker-compose.prod.yml restart ai-gateway
 ```
 
 ---
@@ -417,35 +318,21 @@ pkill -f llama-server && ./ai/start_llm.sh
 
 ### Symptoms
 
-- Too many false positives
-- Missing obvious detections
-- Wrong object classifications
+- Too many false positives, missing obvious detections, wrong classifications
 
 ### Solutions
 
-**Adjust confidence threshold:**
+**Adjust the confidence threshold** (higher = fewer detections and fewer false
+positives):
 
 ```bash
-# Higher = fewer detections, less false positives
-# Lower = more detections, more false positives
-DETECTION_CONFIDENCE_THRESHOLD=0.6  # Default: 0.40
+# Default 0.40; used as the fallback when no class-specific threshold applies
+DETECTION_CONFIDENCE_THRESHOLD=0.6
 ```
 
-**Check image quality:**
-
-Detection works best with:
-
-- Good lighting
-- Clear, unobstructed view
-- Reasonable resolution (640x480 minimum)
-
-**Check camera positioning:**
-
-Objects should be:
-
-- Not too far from camera
-- Not too close (partial view)
-- At a reasonable angle
+**Detection works best with** good lighting, a clear unobstructed view, and at
+least ~640×480. Objects should be neither too far (too few pixels) nor so close
+they are cut off, and roughly square to the frame.
 
 ---
 
@@ -453,43 +340,35 @@ Objects should be:
 
 ### Symptoms
 
-- Detection takes >100ms (expected: 30-50ms)
-- LLM responses take >10s (expected: 2-5s)
+- Detection latency far above the served baseline
+- Verdicts take many seconds
 - GPU utilization low during inference
 
 ### Diagnosis
 
 ```bash
-# Check latency stats
 curl http://localhost:8000/api/system/pipeline-latency | jq
-
-# Monitor GPU during inference
 watch -n 1 nvidia-smi
 ```
 
 ### Solutions
 
-**1. Verify GPU is being used:**
+**1. Verify the GPU is in use** — see [GPU Issues: CPU Fallback](gpu-issues.md#cpu-fallback)
 
-See [GPU Issues - CPU Fallback](gpu-issues.md#cpu-fallback)
+**2. Check for thermal throttling** — see [GPU Issues: Thermal Throttling](gpu-issues.md#thermal-throttling)
 
-**2. Check for thermal throttling:**
-
-See [GPU Issues - Thermal Throttling](gpu-issues.md#thermal-throttling)
-
-**3. Reduce concurrent load:**
-
-- Lower `PARALLEL` in `.env` for the containerized `ai-llm` (default 8 slots;
-  host-run `./ai/start_llm.sh` uses `--parallel 2`)
-- Process fewer cameras simultaneously
-
-**4. Optimize settings:**
+**3. Reduce concurrent VLM load** — each `ai-vlm` slot holds its own context.
+Fewer slots mean less KV-cache pressure:
 
 ```bash
-# Nemotron context window: compose default is CTX_SIZE=262144 (8 slots x 32768).
-# A much smaller value reduces VRAM pressure from KV cache:
-CTX_SIZE=65536
+# PARALLEL slots (compose default 2); per-slot context is CTX_SIZE / PARALLEL
+VLM_PARALLEL=1
+VLM_CTX_SIZE=16384
 ```
+
+**4. Free VRAM for other residents** — `ai-vlm` sleeps to CPU RAM after
+`VLM_SLEEP_IDLE_SECONDS` (default 300) of idleness, returning the VRAM to the
+gateway. To never sleep it, set the value empty; to hand back VRAM sooner, lower it.
 
 ---
 
@@ -497,9 +376,8 @@ CTX_SIZE=65536
 
 ### Symptoms
 
-- "Model file not found"
-- "Failed to load model"
-- Service starts but first request fails
+- "Model file not found" / "Failed to load model"
+- Service starts but the first request fails
 
 ### Solutions
 
@@ -509,29 +387,22 @@ CTX_SIZE=65536
 ./ai/download_models.sh
 ```
 
-**2. Verify model files:**
+**2. Verify the weights on disk:**
 
 ```bash
-# Production LLM: Nemotron-3-Nano-30B-A3B Q4_K_M (~14.7GB), mounted into ai-llm at /models
-ls -la "${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km/"
-
-# Triton model zoo (YOLO26, Florence-2, SigLIP 2, enrichment models)
+# Triton zoo (yolo26, reid, threat) — mounted into ai-gateway
 ls -la "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/"
 
-# Host-run fallback LLM (./ai/start_llm.sh only — not downloaded by download_models.sh)
-ls -la ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
+# VLM GGUF pair — mounted into ai-vlm at /models
+ls -la "${AI_MODELS_PATH:-/export/ai_models}/vlm/"
 ```
 
-**3. Check model path configuration:**
+**3. Check the paths the containers actually read:**
 
-```bash
-# Backend-side model-path settings (used by the host-run standalone server)
-NEMOTRON_MODEL_PATH=/path/to/model.gguf
-YOLO26_MODEL_PATH=/path/to/yolo26
-
-# Containerized LLM model file: LLM_MODEL_PATH (compose default
-# /models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf inside the ai-llm container)
-```
+`ai-vlm` reads `MODEL_PATH` and `MMPROJ_PATH` (compose defaults point at the
+Qwen3VL pair inside `/models`). The Triton weights are linked out of
+`${AI_MODELS_PATH}/triton:/models/cache` at container start by the gateway
+entrypoint.
 
 ---
 
@@ -539,59 +410,48 @@ YOLO26_MODEL_PATH=/path/to/yolo26
 
 ### Symptoms
 
-- AI service marked as "unavailable (circuit open)"
-- Requests immediately rejected
-- Health checks return cached error
+- An AI service reports "unavailable (circuit open)"
+- Requests are rejected immediately
+- Health checks return a cached error
 
 ### Diagnosis
 
 ```bash
-# Check circuit breakers
 curl http://localhost:8000/api/system/circuit-breakers | jq
 ```
 
 ### Solutions
 
-**1. Wait for automatic recovery:**
-
-- Health-check circuitry ("unavailable (circuit open)" in `/api/system/health`) is
-  in-process and half-opens implicitly after a 30s reset timeout (3 consecutive
-  failures open it). It is not exposed on the reset endpoint.
-- Registry breakers (listed by `GET /api/system/circuit-breakers`) recover after their
-  configured timeout — 30s for `yolo26`/`nemotron`, 60s for `detector_*`.
+**1. Wait for automatic recovery.** The registry breakers recover on their own
+after a timeout: 30 s for `yolo26`, 60 s for the infrastructure breakers
+(`postgresql`, `redis`). The separate health-check circuitry half-opens
+implicitly after its 30 s reset and is not exposed on the reset endpoint.
 
 **2. Manual reset** (registry breakers only; API key header required when
 `API_KEY_ENABLED=true`):
 
 ```bash
 curl -X POST http://localhost:8000/api/system/circuit-breakers/yolo26/reset
-curl -X POST http://localhost:8000/api/system/circuit-breakers/nemotron/reset
 ```
 
-**3. Fix underlying issue:**
-
-Circuit opened because service repeatedly failed. Check:
-
-- Service health
-- Network connectivity
-- Resource availability
+**3. Fix the underlying cause** — a breaker opens only after repeated failures.
+Check service health, network reachability, and GPU/resource availability before
+resetting, or it will re-open.
 
 ---
 
 ## Next Steps
 
-- [GPU Issues](gpu-issues.md) - Hardware problems
-- [Connection Issues](connection-issues.md) - Network problems
-- [Troubleshooting Index](index.md) - Back to symptom index
-
----
+- [GPU Issues](gpu-issues.md) — Hardware problems
+- [Connection Issues](connection-issues.md) — Network problems
+- [Troubleshooting Index](index.md) — Back to symptom index
 
 ## See Also
 
-- [AI Overview](../../operator/ai-overview.md) - AI services architecture
-- [AI Configuration](../../operator/ai-configuration.md) - Environment variables
-- [AI Troubleshooting (Operator)](../../operator/ai-troubleshooting.md) - Quick fixes
-- [Pipeline Overview](../../developer/pipeline-overview.md) - How the AI pipeline works
+- [AI Overview](../../operator/ai-overview.md) — AI services architecture
+- [AI Configuration](../../operator/ai-configuration.md) — Environment variables
+- [AI Troubleshooting (Operator)](../../operator/ai-troubleshooting.md) — Quick fixes
+- [Pipeline Overview](../../developer/pipeline-overview.md) — How the AI pipeline works
 
 ---
 

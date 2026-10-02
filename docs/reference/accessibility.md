@@ -120,16 +120,13 @@ The dashboard is compatible with major screen readers:
 ### Tips for Screen Reader Users
 
 1. **Use landmarks** - Jump between regions using your screen reader's landmark navigation
-
    - VoiceOver: `VO + U` then select Landmarks
    - NVDA: `D` for next landmark, `Shift + D` for previous
 
 2. **Headings navigation** - Pages use heading levels consistently
-
    - `H` / `Shift + H` to move between headings
 
 3. **Tables** - Event tables have proper headers
-
    - Use table navigation commands to move between cells
 
 4. **Forms** - All form fields have associated labels

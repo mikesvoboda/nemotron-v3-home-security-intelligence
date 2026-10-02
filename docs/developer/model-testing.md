@@ -1,843 +1,344 @@
 # AI Model Testing Guide
 
-## Overview
+This guide covers testing strategies for the AI stack that ships: the Triton
+detection lane behind `ai-gateway`, the `ai-vlm` reasoning service, and the
+three in-process specialist lookup legs in the backend. Each has a different
+seam — an HTTP adapter over a Triton gRPC client, an OpenAI-compatible
+completion endpoint, and in-process model loaders with DB gallery lookups —
+and each has its own mocking pattern.
 
-This guide covers testing strategies for AI model integrations in the enrichment service. The enrichment service manages multiple ML models with different priorities, VRAM requirements, and use cases. Testing these models requires specialized patterns for unit testing, integration testing, mocking, and benchmarking.
-
-## Test Architecture
+## Test layout
 
 ```
-ai/enrichment/tests/
-├── conftest.py              # Pytest configuration (adds ai/ to path)
-├── test_model_manager.py    # OnDemandModelManager tests
-├── test_pose_estimator.py   # PoseEstimator tests
-├── test_threat_detector.py  # ThreatDetector tests
-├── test_demographics.py     # Demographics model tests
-├── test_person_reid.py      # Person re-identification tests
-├── test_action_recognizer.py # Action recognition tests
-└── fixtures/
-    └── images/
-        ├── person_standing.jpg
-        ├── person_crouching.jpg
-        ├── vehicle_car.jpg
-        └── empty_scene.jpg
+ai/gateway/tests/                       # the gateway + Triton lane
+├── conftest.py                         # path + Triton-stub fixtures
+├── test_adapters_yolo26.py             # /yolo26 adapter (Triton client mocked)
+├── test_adapters_enrichment_light.py   # /enrich-lt readiness adapter
+├── test_residency.py                   # model_repository pruning per GATEWAY_MODEL_SET
+├── test_entrypoint_residency.py        # what the container entrypoint actually starts
+├── test_triton_client.py               # the gRPC client wrapper
+├── test_export_yolo26.py               # engine export for the shipped set
+├── test_export_reid.py
+├── test_main.py                        # router mounts, /health
+├── test_metrics_middleware.py
+├── test_patch_triton_configs.py
+└── test_py312_compat.py
+
+ai/tests/                               # shared GPU/torch helpers under ai/
+├── test_module_hygiene.py
+├── test_cpu_offloading.py
+├── test_cuda_graph_manager.py
+└── ...
+
+backend/tests/unit/services/            # the live specialist legs + VLM path
+├── test_osnet_loader.py                # person re-identification loader
+├── test_face_recognizer_loader.py      # face detection + embedding loader
+├── test_vlm_specialists.py             # the three-lookup gather
+├── test_vlm_analyzer.py                # batch -> verdict -> Event
+├── test_vlm_verdict.py                 # verdict invariants
+└── test_vlm_client.py                  # prompt fitting, image budget
+
+backend/tests/integration/services/
+├── test_osnet_loader.py                # weights-resent degradation contract
+└── test_fast_alpr_loader.py
 ```
 
-## Unit Testing Models
+## Unit testing a gateway adapter
 
-### Test Structure
-
-Each model should have a corresponding test file that covers:
-
-1. **Model initialization** - Constructor validation, path handling
-2. **Model loading** - GPU/CPU selection, VRAM allocation
-3. **Inference** - Output format, edge cases, error handling
-4. **Model unloading** - Resource cleanup, CUDA cache clearing
-
-### Testing Patterns
-
-#### 1. Model Loading Tests
+An adapter is a thin FastAPI router over `ai/gateway/triton_client.py`. Test
+it with `httpx.ASGITransport` against the mounted router and a mocked Triton
+client — no Triton server, no GPU.
 
 ```python
-import pytest
-from unittest.mock import patch, MagicMock
+# ai/gateway/tests/test_adapters_yolo26.py (shape of the real imports)
+import io
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from ai.enrichment.models.pose_estimator import PoseEstimator
-
-
-def test_model_loads_successfully():
-    """Test model loads without error."""
-    with patch("ai.enrichment.models.pose_estimator.YOLO") as mock_yolo:
-        mock_yolo.return_value = MagicMock()
-        estimator = PoseEstimator("/models/yolov8n-pose.pt")
-        estimator.load_model()
-
-        assert estimator.model is not None
-        mock_yolo.assert_called_once_with("/models/yolov8n-pose.pt")
-
-
-def test_model_loads_on_gpu():
-    """Test model uses GPU when available."""
-    with (
-        patch("ai.enrichment.models.pose_estimator.YOLO") as mock_yolo,
-        patch("torch.cuda.is_available", return_value=True),
-    ):
-        mock_model = MagicMock()
-        mock_yolo.return_value = mock_model
-
-        estimator = PoseEstimator("/models/yolov8n-pose.pt", device="cuda:0")
-        estimator.load_model()
-
-        mock_model.to.assert_called_once_with("cuda:0")
-
-
-def test_model_falls_back_to_cpu():
-    """Test model falls back to CPU when CUDA unavailable."""
-    with (
-        patch("ai.enrichment.models.pose_estimator.YOLO") as mock_yolo,
-        patch("torch.cuda.is_available", return_value=False),
-    ):
-        mock_yolo.return_value = MagicMock()
-
-        estimator = PoseEstimator("/models/yolov8n-pose.pt", device="cuda:0")
-        estimator.load_model()
-
-        assert estimator.device == "cpu"
-
-
-def test_model_path_validation():
-    """Test path traversal prevention."""
-    with pytest.raises(ValueError, match="path traversal"):
-        PoseEstimator("../../../etc/passwd")
-```
-
-#### 2. Inference Tests
-
-```python
 import numpy as np
+import pytest
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 from PIL import Image
-from unittest.mock import MagicMock, patch
 
-from ai.enrichment.models.pose_estimator import PoseEstimator, PoseResult
+from ai.gateway.adapters.yolo26 import (
+    COCO_CLASSES,
+    CONFIDENCE_THRESHOLD,
+    MODEL_NAME,
+    NMS_THRESHOLD,
+    TARGET_SIZE,
+    _postprocess_yolo,
+    router,
+)
+from ai.gateway.triton_client import TritonClientError
+
+
+def _make_test_image(width: int = 640, height: int = 480, fmt: str = "JPEG") -> bytes:
+    """A minimal decodable image — adapters validate media before inference."""
+    img = Image.new("RGB", (width, height), color=(128, 64, 32))
+    buf = io.BytesIO()
+    img.save(buf, format=fmt)
+    buf.seek(0)
+    return buf.getvalue()
 
 
 @pytest.fixture
-def mock_pose_estimator():
-    """Create a PoseEstimator with mocked model."""
-    with patch("ai.enrichment.models.pose_estimator.YOLO"):
-        estimator = PoseEstimator("/models/yolov8n-pose.pt")
-        estimator.model = MagicMock()
-        return estimator
+def client():
+    app = FastAPI()
+    app.include_router(router, prefix="/yolo26")
+    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
 
-def test_pose_estimation_output_format(mock_pose_estimator):
-    """Test output matches expected schema."""
-    # Create mock inference result
-    mock_keypoints = MagicMock()
-    mock_keypoints.xy = [np.zeros((17, 2))]
-    mock_keypoints.conf = [np.ones(17) * 0.9]
-
-    mock_result = MagicMock()
-    mock_result.keypoints = [mock_keypoints]
-
-    mock_pose_estimator.model.return_value = [mock_result]
-
-    test_image = Image.new("RGB", (640, 480))
-    result = mock_pose_estimator.estimate_pose(test_image)
-
-    assert isinstance(result, PoseResult)
-    assert hasattr(result, "keypoints")
-    assert hasattr(result, "pose_class")
-    assert hasattr(result, "confidence")
-    assert hasattr(result, "is_suspicious")
-    assert len(result.keypoints) == 17  # COCO format
+@pytest.mark.asyncio
+async def test_detect_returns_boxes(client):
+    with patch("ai.gateway.adapters.yolo26.TritonClient.infer", new_callable=AsyncMock) as infer:
+        infer.return_value = _raw_yolo_output(...)  # adapter-shaped ndarray
+        resp = await client.post("/yolo26/detect", files={"file": ("a.jpg", _make_test_image())})
+        assert resp.status_code == 200
+        assert resp.json()["detections"][0]["class_name"] in COCO_CLASSES
 
 
-def test_handles_empty_image(mock_pose_estimator):
-    """Test graceful handling of no detections."""
-    mock_result = MagicMock()
-    mock_result.keypoints = None
-    mock_pose_estimator.model.return_value = [mock_result]
-
-    empty_image = Image.new("RGB", (10, 10))
-    result = mock_pose_estimator.estimate_pose(empty_image)
-
-    assert result.pose_class == "unknown"
-    assert result.confidence == 0.0
-    assert result.is_suspicious is False
-
-
-def test_handles_no_results(mock_pose_estimator):
-    """Test graceful handling of empty results list."""
-    mock_pose_estimator.model.return_value = []
-
-    test_image = Image.new("RGB", (640, 480))
-    result = mock_pose_estimator.estimate_pose(test_image)
-
-    assert result.pose_class == "unknown"
-    assert result.confidence == 0.0
-
-
-def test_model_not_loaded_raises():
-    """Test RuntimeError when model not loaded."""
-    estimator = PoseEstimator.__new__(PoseEstimator)
-    estimator.model = None
-
-    with pytest.raises(RuntimeError, match="not loaded"):
-        estimator.estimate_pose(Image.new("RGB", (100, 100)))
+@pytest.mark.asyncio
+async def test_triton_failure_is_not_a_200(client):
+    with patch("ai.gateway.adapters.yolo26.TritonClient.infer", new_callable=AsyncMock) as infer:
+        infer.side_effect = TritonClientError("model not ready")
+        resp = await client.post("/yolo26/detect", files={"file": ("a.jpg", _make_test_image())})
+        assert resp.status_code >= 500
 ```
 
-#### 3. VRAM Management Tests
+Assert on the adapter's postprocessing contract, not on Triton internals:
+confidence filtering (`CONFIDENCE_THRESHOLD`), `NMS_THRESHOLD` suppression,
+letterbox coordinate reversal back to the source frame, and `TARGET_SIZE`
+rescaling. `test_adapters_yolo26.py` covers all four against `_postprocess_yolo`
+directly, which is the cheapest place to pin them.
+
+## Unit testing an in-process specialist loader
+
+The live specialist legs are `osnet_loader` (person re-ID),
+`face_recognizer_loader` (SCRFD detection + w600k embedding) and
+`fast_alpr_loader` (plates). Their defining behaviour is **residency**:
+`get_reid_handle()` and `get_face_leg_handles()` are membership reads that
+never trigger a load, so on a host with `BACKEND_MODEL_PRELOAD=false` the leg
+reports unavailable instead of loading. The tests below pin that, because a
+test that patches the loader to succeed erases the behaviour that matters.
+
+The handles live in the model-zoo manager's loaded-models dict, so the seam is
+`backend.services.model_zoo.get_model_manager` — which is imported lazily
+inside the read precisely to avoid an import cycle. Patch it where it is
+looked up, not where it is defined:
+
+```python
+from unittest.mock import MagicMock
+
+from backend.services import osnet_loader as ol
+
+OSNET_ID = ol.osnet_model_id()
+
+
+def test_absent_model_answers_none(monkeypatch):
+    fake_manager = MagicMock()
+    fake_manager._loaded_models = {}
+    monkeypatch.setattr("backend.services.model_zoo.get_model_manager", lambda: fake_manager)
+    assert ol.get_reid_handle() is None
+
+
+def test_read_never_triggers_a_load(monkeypatch):
+    fake_manager = MagicMock()
+    fake_manager._loaded_models = {}
+    monkeypatch.setattr("backend.services.model_zoo.get_model_manager", lambda: fake_manager)
+    ol.get_reid_handle()
+    assert fake_manager.load.call_count == 0
+    assert fake_manager.preload.call_count == 0
+```
+
+`get_face_leg_handles()` (`backend/services/face_recognizer_loader.py:466`)
+mirrors the same shape and is tested the same way. Wrong-weight bytes get the
+same answer as no bytes — the sha pin is enforced _before_ `torch.load`, so a
+hash-miss test asserts the load never ran.
+
+Two rules these tests encode:
+
+- **Never assert "loads on demand" for the face or re-ID legs.** Only the
+  plate leg (`fast_alpr_loader.load_fast_alpr`) loads on demand; asserting it
+  of the other two would let a change break residency silently.
+- **The degradation must be observable.** A leg that cannot run has to bump
+  `hsi_specialist_unavailable_total` with a bounded reason code
+  (`weights_absent`, `package_absent`, `space_mismatch`, …) rather than return
+  an empty result — see `docs/architecture/ai-pipeline-current-state.md` §2.3.
+  `test_osnet_loader.py` asserts the counter, because it is the only signal
+  that answers "has this leg ever run".
+
+## VRAM and GPU-marked tests
+
+GPU inference tests are marked `@pytest.mark.gpu` and are excluded from the
+default run: `pyproject.toml:584` sets
+`addopts = "-n 8 --dist=worksteal -v --strict-markers --tb=short -p randomly -m 'not gpu'"`.
+Run them explicitly:
+
+```bash
+# GPU tests only (needs a CUDA host with the shipped weights)
+uv run pytest -m gpu -o addopts='' --no-cov -q
+
+# Everything except the GPU tier (the default)
+uv run pytest ai/gateway/tests backend/tests/unit/services/test_osnet_loader.py
+```
+
+A GPU test that allocates real VRAM must release it, or the xdist worker it
+runs in poisons every later test on that worker:
 
 ```python
 import asyncio
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+from pathlib import Path
 
 import pytest
 
-from ai.enrichment.model_manager import (
-    ModelConfig,
-    ModelPriority,
-    OnDemandModelManager,
-)
+torch = pytest.importorskip("torch")
+
+WEIGHTS = Path("/models/zoo/osnet/osnet_ain_x1_0_msmt17.pth")
 
 
-def create_model_config(
-    name: str,
-    vram_mb: int,
-    priority: ModelPriority = ModelPriority.MEDIUM,
-) -> ModelConfig:
-    """Create a model config with mock loader/unloader."""
-    model = MagicMock(name=name)
-    return ModelConfig(
-        name=name,
-        vram_mb=vram_mb,
-        priority=priority,
-        loader_fn=lambda: model,
-        unloader_fn=lambda m: None,
-    )
+@pytest.mark.gpu
+@pytest.mark.skipif(not WEIGHTS.exists(), reason="shipped weights not mounted")
+def test_vram_returns_after_unload():
+    from backend.services import osnet_loader as ol
 
+    initial = torch.cuda.memory_allocated()
+    handle = asyncio.run(ol.load_osnet_model(str(WEIGHTS)))
+    assert torch.cuda.memory_allocated() > initial
 
-@pytest.mark.asyncio
-async def test_vram_eviction():
-    """Test LRU eviction works correctly."""
-    manager = OnDemandModelManager(vram_budget_gb=2.0)  # 2048MB
-
-    # Register models that together exceed budget
-    manager.register_model(create_model_config("model_a", 1000))  # 1GB
-    manager.register_model(create_model_config("model_b", 1000))  # 1GB
-    manager.register_model(create_model_config("model_c", 1000))  # 1GB
-
-    # Load first two models (2GB used, at budget)
-    await manager.get_model("model_a")
-    await asyncio.sleep(0.01)  # Ensure different timestamps
-    await manager.get_model("model_b")
-
-    # Loading third should evict model_a (oldest)
-    await manager.get_model("model_c")
-
-    assert "model_a" not in manager.loaded_models
-    assert "model_b" in manager.loaded_models
-    assert "model_c" in manager.loaded_models
-
-
-@pytest.mark.asyncio
-async def test_priority_respected_during_eviction():
-    """Test CRITICAL models evicted last."""
-    manager = OnDemandModelManager(vram_budget_gb=1.5)  # 1536MB
-
-    # Register models with different priorities
-    manager.register_model(
-        create_model_config("threat_detector", 400, ModelPriority.CRITICAL)
-    )
-    manager.register_model(
-        create_model_config("depth_estimator", 150, ModelPriority.LOW)
-    )
-    manager.register_model(
-        create_model_config("action_recognizer", 1000, ModelPriority.LOW)
-    )
-
-    # Load CRITICAL model first
-    await manager.get_model("threat_detector")
-    await asyncio.sleep(0.01)
-    await manager.get_model("depth_estimator")
-
-    # Loading large model should evict LOW priority, not CRITICAL
-    await manager.get_model("action_recognizer")
-
-    # CRITICAL model should be preserved
-    assert "threat_detector" in manager.loaded_models
-    assert "depth_estimator" not in manager.loaded_models
-    assert "action_recognizer" in manager.loaded_models
-
-
-@pytest.mark.asyncio
-async def test_vram_usage_tracking():
-    """Test VRAM usage is tracked correctly."""
-    manager = OnDemandModelManager(vram_budget_gb=4.0)
-
-    manager.register_model(create_model_config("model_a", 500))
-    manager.register_model(create_model_config("model_b", 300))
-
-    assert manager._current_vram_usage() == 0
-
-    await manager.get_model("model_a")
-    assert manager._current_vram_usage() == 500
-
-    await manager.get_model("model_b")
-    assert manager._current_vram_usage() == 800
-
-
-@pytest.mark.asyncio
-async def test_cuda_cache_cleared_on_unload():
-    """Test CUDA cache is cleared when unloading models."""
-    manager = OnDemandModelManager(vram_budget_gb=1.0)
-    manager.register_model(create_model_config("test_model", 500))
-
-    await manager.get_model("test_model")
-
-    with (
-        patch("torch.cuda.is_available", return_value=True),
-        patch("torch.cuda.empty_cache") as mock_empty_cache,
-    ):
-        await manager.unload_model("test_model")
-        mock_empty_cache.assert_called_once()
+    handle["model"] = None
+    del handle
+    torch.cuda.empty_cache()
+    assert torch.cuda.memory_allocated() < initial + 10 * 1024 * 1024  # 10MB slack
 ```
 
-#### 4. Threat Detection Tests
+`pytest.importorskip` rather than a bare `import torch` keeps the file
+collectable on a CPU-only CI worker — collection failures under
+`--strict-markers` fail the whole session, not just the one test.
+
+## Testing the VLM path
+
+`VlmAnalyzer` is tested against a mocked `VlmClient` so the assertions land on
+what the analyzer decides, not on whether a llama.cpp server answered:
 
 ```python
-import numpy as np
-from PIL import Image
-from unittest.mock import MagicMock, patch
+@pytest.mark.asyncio
+async def test_unreachable_vlm_still_writes_an_event(analyzer, batch):
+    """A blind VLM must not lose the event: the row lands with a NULL score."""
+    with patch.object(VlmClient, "assess", new_callable=AsyncMock, return_value=None):
+        event = await analyzer.analyze_batch(batch)
 
-import pytest
-
-from ai.enrichment.models.threat_detector import (
-    ThreatDetector,
-    ThreatResult,
-    ThreatDetection,
-)
-
-
-@pytest.fixture
-def mock_threat_detector():
-    """Create a ThreatDetector with mocked model."""
-    with patch("ai.enrichment.models.threat_detector.YOLO"):
-        detector = ThreatDetector("/models/weapon-detection.pt")
-        detector.model = MagicMock()
-        detector._class_names = {0: "knife", 1: "gun", 2: "rifle"}
-        return detector
-
-
-def test_threat_detection_output_format(mock_threat_detector):
-    """Test threat detection returns correct format."""
-    # Mock a gun detection with 95% confidence
-    mock_box = MagicMock()
-    mock_box.conf = [0.95]
-    mock_box.cls = [1]  # gun
-    mock_box.xyxy = [np.array([100, 100, 200, 200])]
-
-    mock_result = MagicMock()
-    mock_result.boxes = [mock_box]
-    mock_threat_detector.model.return_value = [mock_result]
-
-    test_image = Image.new("RGB", (640, 480))
-    result = mock_threat_detector.detect_threats(test_image)
-
-    assert isinstance(result, ThreatResult)
-    assert result.has_threat is True
-    assert result.max_severity == "critical"
-    assert len(result.threats) == 1
-    assert result.threats[0].threat_type == "gun"
-    assert result.threats[0].confidence == 0.95
-
-
-def test_no_threat_detected(mock_threat_detector):
-    """Test clean result when no threats found."""
-    mock_result = MagicMock()
-    mock_result.boxes = None
-    mock_threat_detector.model.return_value = [mock_result]
-
-    test_image = Image.new("RGB", (640, 480))
-    result = mock_threat_detector.detect_threats(test_image)
-
-    assert result.has_threat is False
-    assert result.max_severity == "none"
-    assert len(result.threats) == 0
-
-
-def test_confidence_threshold_filtering(mock_threat_detector):
-    """Test low-confidence detections are filtered out."""
-    mock_threat_detector.confidence_threshold = 0.5
-
-    # Mock detection below threshold
-    mock_box = MagicMock()
-    mock_box.conf = [0.3]  # Below 0.5 threshold
-    mock_box.cls = [1]
-    mock_box.xyxy = [np.array([100, 100, 200, 200])]
-
-    mock_result = MagicMock()
-    mock_result.boxes = [mock_box]
-    mock_threat_detector.model.return_value = [mock_result]
-
-    result = mock_threat_detector.detect_threats(Image.new("RGB", (640, 480)))
-
-    assert result.has_threat is False
-    assert len(result.threats) == 0
-
-
-def test_severity_levels():
-    """Test severity classification for different threat types."""
-    from ai.enrichment.models.threat_detector import THREAT_CLASSES_BY_NAME
-
-    assert THREAT_CLASSES_BY_NAME["gun"] == "critical"
-    assert THREAT_CLASSES_BY_NAME["rifle"] == "critical"
-    assert THREAT_CLASSES_BY_NAME["knife"] == "high"
-    assert THREAT_CLASSES_BY_NAME["bat"] == "medium"
+    assert event is not None
+    assert event.risk_score is None
+    assert event.verification.verdict == "verification_failed"
 ```
 
-## Integration Testing
+Three invariants worth pinning when you touch this path (all of them are
+silent-failure surfaces — a healthy pipeline and a stalled one look identical
+from the console otherwise):
 
-### Testing the Enrichment Service
+- **A verdict rejection clamps the score, it does not drop the event.**
+- **`verdict=None` writes the Event row anyway**, with `risk_score` and
+  `risk_level` NULL.
+- **Broadcast happens last and best-effort**; a failed broadcast never undoes
+  the commit. Test it by making the broadcast raise and asserting the row is
+  still there.
 
-Integration tests verify that the enrichment service correctly coordinates model loading, inference, and response formatting.
+`ai/gateway/tests/test_vlm_client.py` covers the client side: prompt fitting
+to the served context slot, the base64 image budget, and the
+`exceed_context_size_error` shape.
+
+## Integration testing
+
+Backend-side integration tests need postgres/redis only — the AI HTTP layer is
+mocked, so nothing GPU-side has to be up:
 
 ```bash
-# AI services (including enrichment) run under the ai-gateway service in
-# production compose; backend-side enrichment integration tests mock the HTTP
-# layer and need only postgres/redis from docker-compose.test.yml:
 podman-compose -f docker-compose.test.yml up -d
-
-# Run integration tests
-uv run pytest backend/tests/integration/test_enrichment_pipeline.py -v
+uv run pytest backend/tests/integration/services/test_osnet_loader.py -v
+uv run pytest backend/tests/integration/services/test_fast_alpr_loader.py -v
 ```
 
-### Testing the Unified Endpoint
-
-```python
-import pytest
-from unittest.mock import AsyncMock, patch
-
-from backend.services.enrichment_client import EnrichmentClient
-
-
-@pytest.fixture
-def mock_enrichment_client():
-    """Create EnrichmentClient with mocked HTTP client."""
-    client = EnrichmentClient("http://localhost:8090/enrichment")
-    return client
-
-
-@pytest.mark.asyncio
-async def test_enrich_person_detection(mock_enrichment_client):
-    """Test enrichment for person detection."""
-    mock_response = {
-        "pose": {
-            "pose_class": "standing",
-            "confidence": 0.85,
-            "is_suspicious": False,
-        },
-        "clothing": {
-            "upper_color": "blue",
-            "lower_color": "black",
-        },
-    }
-
-    with patch.object(
-        mock_enrichment_client,
-        "_post",
-        new_callable=AsyncMock,
-        return_value=mock_response,
-    ):
-        result = await mock_enrichment_client.enrich_detection(
-            image=b"fake_image_bytes",
-            detection_type="person",
-            bbox=(100, 100, 300, 400),
-        )
-
-        assert result["pose"]["pose_class"] == "standing"
-        assert result["clothing"]["upper_color"] == "blue"
-
-
-@pytest.mark.asyncio
-async def test_enrichment_handles_timeout():
-    """Test graceful handling of service timeout.
-
-    `EnrichmentClient.__init__` takes only base URLs (timeouts come from
-    settings: `ENRICHMENT_READ_TIMEOUT`, `AI_CONNECT_TIMEOUT`), so force the
-    timeout at the HTTP layer instead of the constructor. On timeout the
-    client logs and returns an empty `UnifiedEnrichmentResult` — it does not
-    raise — so assert on the empty result.
-    """
-    client = EnrichmentClient("http://localhost:8090/enrichment")
-
-    with patch.object(
-        client._client, "post", side_effect=httpx.TimeoutException("slow")
-    ):
-        result = await client.enrich_detection(
-            image=b"fake_image_bytes",
-            detection_type="person",
-            bbox=(100, 100, 300, 400),
-        )
-
-    assert not result.pose  # empty result — pipeline continues without enrichment
-```
-
-## Test Fixtures
-
-### Test Images
-
-Store test images in `ai/enrichment/tests/fixtures/images/`:
-
-| File                   | Description              | Use Case               |
-| ---------------------- | ------------------------ | ---------------------- |
-| `person_standing.jpg`  | Normal standing person   | Baseline pose test     |
-| `person_crouching.jpg` | Crouching person         | Suspicious pose test   |
-| `person_reaching.jpg`  | Person reaching up       | Suspicious pose test   |
-| `vehicle_car.jpg`      | Standard car             | Vehicle classification |
-| `vehicle_truck.jpg`    | Pickup truck             | Vehicle classification |
-| `weapon_knife.jpg`     | Visible knife            | Threat detection test  |
-| `empty_scene.jpg`      | No detections            | Edge case testing      |
-| `low_light.jpg`        | Dark/poorly lit scene    | Edge case testing      |
-| `occluded_person.jpg`  | Partially visible person | Edge case testing      |
-
-### Creating Test Images Programmatically
-
-```python
-import numpy as np
-from PIL import Image
-
-@pytest.fixture
-def random_test_image():
-    """Generate a random test image."""
-    return Image.fromarray(
-        np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
-    )
-
-
-@pytest.fixture
-def solid_color_image():
-    """Generate a solid color test image."""
-    return Image.new("RGB", (640, 480), color=(128, 128, 128))
-```
-
-### Mocking Models
-
-For unit tests that don't need real inference:
-
-```python
-import pytest
-from unittest.mock import MagicMock
-
-from ai.enrichment.models.pose_estimator import PoseEstimator, PoseResult, Keypoint
-
-
-@pytest.fixture
-def mock_pose_estimator(mocker):
-    """Create a fully mocked PoseEstimator."""
-    mock = mocker.MagicMock(spec=PoseEstimator)
-    mock.estimate_pose.return_value = PoseResult(
-        keypoints=[
-            Keypoint(name="nose", x=320.0, y=100.0, confidence=0.95),
-            Keypoint(name="left_shoulder", x=280.0, y=150.0, confidence=0.92),
-            Keypoint(name="right_shoulder", x=360.0, y=150.0, confidence=0.91),
-            # ... remaining keypoints
-        ],
-        pose_class="standing",
-        confidence=0.93,
-        is_suspicious=False,
-    )
-    return mock
-
-
-@pytest.fixture
-def mock_threat_detector(mocker):
-    """Create a fully mocked ThreatDetector."""
-    from ai.enrichment.models.threat_detector import ThreatDetector, ThreatResult
-
-    mock = mocker.MagicMock(spec=ThreatDetector)
-    mock.detect_threats.return_value = ThreatResult(
-        threats=[],
-        has_threat=False,
-        max_severity="none",
-        inference_time_ms=45.2,
-    )
-    return mock
-
-
-@pytest.fixture
-def mock_model_manager(mocker):
-    """Create a mocked OnDemandModelManager."""
-    from ai.enrichment.model_manager import OnDemandModelManager
-
-    mock = mocker.MagicMock(spec=OnDemandModelManager)
-    mock.get_model = mocker.AsyncMock(return_value=MagicMock())
-    mock.is_loaded.return_value = True
-    mock.get_status.return_value = {
-        "vram_budget_mb": 6963.2,
-        "vram_used_mb": 1200,
-        "loaded_models": ["pose_estimator", "threat_detector"],
-    }
-    return mock
-```
-
-## Running Tests
-
-### Basic Commands
+For a real end-to-end check the shipped stack must actually be up, including
+the profile-gated VLM:
 
 ```bash
-# Run all model tests
-pytest ai/enrichment/tests/ -v
-
-# Run specific test file
-pytest ai/enrichment/tests/test_pose_estimator.py -v
-
-# Run tests matching pattern
-pytest ai/enrichment/tests/ -k "pose" -v
-
-# Run tests with markers
-pytest ai/enrichment/tests/ -m "not slow" -v
+podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+curl -s http://127.0.0.1:8098/health | jq          # up is NOT the same as able to see
 ```
 
-### Coverage Commands
+`ai-vlm` answers `200` on `/health` even when it was started without its
+mmproj projector, i.e. text-only. Confirm multimodality before you trust a
+green health check:
 
 ```bash
-# Run with coverage report
-pytest ai/enrichment/tests/ --cov=ai/enrichment --cov-report=html
-
-# Generate terminal coverage report
-pytest ai/enrichment/tests/ --cov=ai/enrichment --cov-report=term-missing
-
-# Check coverage threshold
-pytest ai/enrichment/tests/ --cov=ai/enrichment --cov-fail-under=85
+podman exec ai-vlm sh -c 'echo "MODEL_PATH=$MODEL_PATH"; echo "MMPROJ_PATH=$MMPROJ_PATH"'
+podman logs ai-vlm 2>&1 | grep -i mmproj
 ```
 
-### Debug Commands
+Then triage from `events`, never from `alerts` — no event auto-creates an
+Alert, so a stalled and a healthy-but-unnotified pipeline both show zero
+notifications. The query that distinguishes them:
 
-```bash
-# Run with verbose output and no capture
-pytest ai/enrichment/tests/ -v -s
-
-# Run with pdb on failure
-pytest ai/enrichment/tests/ --pdb
-
-# Run single test with debug
-pytest ai/enrichment/tests/test_pose_estimator.py::test_model_loads_successfully -v -s
+```sql
+SELECT verdict, count(*), max(created_at)
+FROM events e JOIN event_verifications ev ON ev.event_id = e.id
+GROUP BY verdict ORDER BY max(created_at) DESC;
 ```
 
 ## Benchmarking
 
-### Performance Benchmarks
-
-Create benchmark tests to measure model performance:
+Mark benchmarks `@pytest.mark.benchmark` (registered in `pyproject.toml`) and
+report distribution, not a single number — p95 is what the batch window
+feels:
 
 ```python
-# ai/enrichment/tests/benchmarks/test_model_benchmarks.py
-import time
 import statistics
+import time
+
+import pytest
 from PIL import Image
 
-import pytest
 
-
-@pytest.mark.slow
 @pytest.mark.benchmark
-class TestModelBenchmarks:
-    """Performance benchmarks for AI models."""
+@pytest.mark.gpu
+def test_yolo26_postprocess_is_not_the_hot_path():
+    """Postprocessing cost, Triton excluded. Guards the CPU side of the lane."""
+    from ai.gateway.adapters.yolo26 import _postprocess_yolo
 
-    def test_pose_estimator_inference_time(self, loaded_pose_estimator):
-        """Benchmark pose estimation inference time."""
-        test_image = Image.new("RGB", (640, 480))
+    raw = _raw_yolo_output(n_boxes=200)
+    for _ in range(3):
+        _postprocess_yolo(raw)
+    times = []
+    for _ in range(50):
+        start = time.perf_counter()
+        _postprocess_yolo(raw)
+        times.append((time.perf_counter() - start) * 1000)
 
-        # Warm-up
-        for _ in range(3):
-            loaded_pose_estimator.estimate_pose(test_image)
-
-        # Measure
-        times = []
-        for _ in range(50):
-            start = time.perf_counter()
-            loaded_pose_estimator.estimate_pose(test_image)
-            times.append((time.perf_counter() - start) * 1000)
-
-        avg_ms = statistics.mean(times)
-        p95_ms = statistics.quantiles(times, n=20)[18]  # 95th percentile
-
-        print(f"\nPose Estimator Inference:")
-        print(f"  Average: {avg_ms:.1f}ms")
-        print(f"  P95: {p95_ms:.1f}ms")
-
-        # Assert performance bounds
-        assert avg_ms < 100, f"Average inference too slow: {avg_ms}ms"
-        assert p95_ms < 150, f"P95 inference too slow: {p95_ms}ms"
-
-
-    def test_threat_detector_inference_time(self, loaded_threat_detector):
-        """Benchmark threat detection inference time."""
-        test_image = Image.new("RGB", (640, 480))
-
-        # Warm-up
-        for _ in range(3):
-            loaded_threat_detector.detect_threats(test_image)
-
-        # Measure
-        times = []
-        for _ in range(50):
-            start = time.perf_counter()
-            loaded_threat_detector.detect_threats(test_image)
-            times.append((time.perf_counter() - start) * 1000)
-
-        avg_ms = statistics.mean(times)
-        p95_ms = statistics.quantiles(times, n=20)[18]
-
-        print(f"\nThreat Detector Inference:")
-        print(f"  Average: {avg_ms:.1f}ms")
-        print(f"  P95: {p95_ms:.1f}ms")
-
-        assert avg_ms < 80, f"Average inference too slow: {avg_ms}ms"
+    print(f"\n  avg {statistics.mean(times):.1f}ms  p95 {statistics.quantiles(times, n=20)[18]:.1f}ms")
 ```
-
-### Running Benchmarks
 
 ```bash
-# Run benchmark tests
-pytest ai/enrichment/tests/benchmarks/ -v -s --benchmark
-
-# Run with detailed timing
-pytest ai/enrichment/tests/benchmarks/ -v -s --durations=10
+uv run pytest ai/gateway/tests -m benchmark -o addopts='' -s --no-cov
+uv run pytest ai/gateway/tests -v -s --durations=10   # slowest tests, no plugin needed
 ```
 
-### Example Benchmark Output
+Do not assert a wall-clock bound that depends on weights you may not have: a
+benchmark that cannot run should skip, not fail the gate.
 
-```
-Model Performance Benchmarks
-============================
-pose_estimator:
-  Load time: 1.2s
-  Inference: 45ms avg, 52ms p95
-  VRAM: 312MB
-  Throughput: 22 img/s
+## Troubleshooting test failures
 
-threat_detector:
-  Load time: 0.8s
-  Inference: 38ms avg, 45ms p95
-  VRAM: 398MB
-  Throughput: 26 img/s
-
-model_manager:
-  Load model_a + model_b: 2.1s
-  Eviction (LRU): 15ms
-  Status query: <1ms
-```
-
-## GPU Testing
-
-### Detecting GPU Availability
-
-```python
-import pytest
-import torch
-
-
-def gpu_available():
-    """Check if GPU is available for testing."""
-    return torch.cuda.is_available()
-
-
-@pytest.mark.skipif(not gpu_available(), reason="GPU not available")
-@pytest.mark.gpu
-def test_model_uses_gpu():
-    """Test that model actually runs on GPU."""
-    from ai.enrichment.models.pose_estimator import PoseEstimator
-
-    estimator = PoseEstimator("/models/yolov8n-pose.pt", device="cuda:0")
-    estimator.load_model()
-
-    # Verify model is on GPU
-    assert estimator.device == "cuda:0"
-
-    estimator.unload()
-```
-
-### GPU Memory Monitoring
-
-```python
-@pytest.mark.gpu
-def test_vram_cleanup():
-    """Test VRAM is properly cleaned up after unload."""
-    import torch
-
-    initial_memory = torch.cuda.memory_allocated()
-
-    # Load and unload model
-    estimator = PoseEstimator("/models/yolov8n-pose.pt", device="cuda:0")
-    estimator.load_model()
-    loaded_memory = torch.cuda.memory_allocated()
-
-    estimator.unload()
-    torch.cuda.empty_cache()
-    final_memory = torch.cuda.memory_allocated()
-
-    # Memory should return close to initial
-    assert final_memory < initial_memory + (10 * 1024 * 1024)  # 10MB tolerance
-    assert loaded_memory > initial_memory  # Model was actually loaded
-```
-
-## Troubleshooting
-
-### Common Test Failures
-
-#### "Model not loaded" RuntimeError
-
-**Cause:** Calling inference before `load_model()`.
-
-**Fix:** Ensure fixtures properly load models or mock the model attribute.
-
-```python
-# Wrong
-estimator = PoseEstimator("/models/pose.pt")
-result = estimator.estimate_pose(image)  # Fails!
-
-# Correct
-estimator = PoseEstimator("/models/pose.pt")
-estimator.load_model()
-result = estimator.estimate_pose(image)
-```
-
-#### CUDA Out of Memory
-
-**Cause:** Too many models loaded simultaneously.
-
-**Fix:** Use fixtures that properly clean up, or reduce VRAM budget in tests.
-
-```python
-@pytest.fixture
-def model_manager():
-    manager = OnDemandModelManager(vram_budget_gb=0.5)  # Small budget for tests
-    yield manager
-    # Cleanup
-    asyncio.run(manager.unload_all())
-```
-
-#### Slow Tests
-
-**Cause:** Loading real models takes time.
-
-**Fix:** Use mocks for unit tests, mark integration tests as `@pytest.mark.slow`.
-
-```python
-# Unit test - use mocks
-@pytest.fixture
-def mock_pose_estimator(mocker):
-    return mocker.MagicMock(spec=PoseEstimator)
-
-# Integration test - mark as slow
-@pytest.mark.slow
-def test_full_enrichment_pipeline():
-    ...
-```
-
-#### Import Errors
-
-**Cause:** `ai` module not in Python path.
-
-**Fix:** Ensure `conftest.py` adds project root to path.
-
-```python
-# ai/enrichment/tests/conftest.py
-import sys
-from pathlib import Path
-
-project_root = Path(__file__).parent.parent.parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-```
+| Symptom                                         | Cause                                                           | Fix                                                                        |
+| ----------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `ModuleNotFoundError: ai`                       | run from outside the repo root                                  | run pytest from the repo root; `testpaths` is repo-relative                |
+| `DuplicateTimeseries` on a metrics import       | a module imported twice (package chain + flat path)             | let `ai/conftest.py` bind the flat name; do not re-insert `sys.path` hacks |
+| GPU test "passes" on a CPU worker               | the marker was never applied, so `-m 'not gpu'` did not exclude | `@pytest.mark.gpu` is required on anything that allocates VRAM             |
+| Specialist leg test passes but prod is degraded | the test patched the load to succeed                            | keep the "membership read never loads" test; it is the contract            |
+| xdist worker dies mid-session                   | VRAM not released by a GPU test                                 | `empty_cache()` + drop the handle in teardown                              |
 
 ## Related Documentation
 
 - [Testing Guide](testing.md) - General testing guide
 - [TDD Workflow](testing-workflow.md) - Test-driven development patterns
 - [Code Quality](code-quality.md) - Quality tools and standards
-- [ai/enrichment/AGENTS.md](../../ai/enrichment/AGENTS.md) - AI enrichment architecture
+- `ai/gateway/AGENTS.md` - Gateway architecture
+- [AI pipeline current state](../architecture/ai-pipeline-current-state.md) - what runs today, hop by hop

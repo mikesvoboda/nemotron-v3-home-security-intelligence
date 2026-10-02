@@ -12,9 +12,9 @@
 This document maps backend API endpoints to their frontend consumers and lists the
 endpoints that intentionally (or not yet) have none.
 
-**Surface:** 386 paths / 468 operations in `docs/openapi.json`.
-**Consumed:** 385 operations have at least one verified frontend
-source consumer; 83 do not and are listed in
+**Surface:** 383 paths / 465 operations in `docs/openapi.json`.
+**Consumed:** 384 operations have at least one verified frontend
+source consumer; 81 do not and are listed in
 [Backend-only endpoints](#backend-only-endpoints).
 
 ## Generation & Validation
@@ -123,8 +123,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | `/api/system/models/{model_name}/unload`               | POST   | `modelZooApi.ts`                                                                                                         | Unload Model                       |
 | `/api/system/monitoring/health`                        | GET    | `monitoringApi.ts`                                                                                                       | Get Monitoring Health              |
 | `/api/system/monitoring/targets`                       | GET    | `monitoringApi.ts`                                                                                                       | Get Monitoring Targets             |
-| `/api/system/nemotron-optimizer`                       | GET    | —                                                                                                                        | Get Nemotron Optimizer Status      |
-| `/api/system/nemotron-optimizer/reset`                 | POST   | —                                                                                                                        | Reset Nemotron Optimizer Circuit   |
 | `/api/system/performance`                              | GET    | `useAIMetrics.ts`                                                                                                        | Get Performance Metrics            |
 | `/api/system/performance/history`                      | GET    | `performanceHistoryApi.ts`                                                                                               | Get Performance History            |
 | `/api/system/pipeline`                                 | GET    | `BatchStatisticsDashboard.tsx`, `api.ts`, `useBatchAggregatorStatus.ts`, `useBatchStatistics.ts`, `usePipelineStatus.ts` | Get Pipeline Status                |
@@ -484,7 +482,6 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | Endpoint                               | Method | Consumer(s)                                         | Purpose               |
 | -------------------------------------- | ------ | --------------------------------------------------- | --------------------- |
 | `/api/face-events`                     | GET    | `useFaceEventsQuery.ts`, `useFaceRecognitionApi.ts` | List Face Events      |
-| `/api/face-events/compare`             | POST   | `useFaceRecognitionApi.ts`                          | Compare Faces         |
 | `/api/face-events/match`               | POST   | —                                                   | Match Face            |
 | `/api/face-events/stats`               | GET    | `useFaceRecognitionApi.ts`                          | Get Face Events Stats |
 | `/api/face-events/unknown`             | GET    | `useFaceRecognitionApi.ts`                          | Get Unknown Strangers |
@@ -797,7 +794,7 @@ See [WebSocket Contracts](websocket-contracts.md) for message format specificati
 
 ## Backend-only endpoints
 
-83 operations have no consumer under `frontend/src`. The CI
+81 operations have no consumer under `frontend/src`. The CI
 coverage gate is green because it keys on decorator paths and string
 fragments, not on these full path/method rows — treat this as the real
 backend-only surface:
@@ -862,8 +859,6 @@ backend-only surface:
 | `/api/summaries/hourly`                                        | GET                 | Summary detail/export endpoints — daily summary list consumed by `api.ts`                                                                                                    |
 | `/api/summaries/{summary_id}/export`                           | GET                 | Summary detail/export endpoints — daily summary list consumed by `api.ts`                                                                                                    |
 | `/api/system/models/{model_name}/status`                       | GET                 | Model lifecycle surface — load/unload/reload answer 501 by design                                                                                                            |
-| `/api/system/nemotron-optimizer`                               | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
-| `/api/system/nemotron-optimizer/reset`                         | POST                | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/system/supervisor/status`                                | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/tracks`                                                  | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/v1/alertmanager/webhook`                                 | POST                | Inbound Alertmanager receiver — no UI                                                                                                                                        |

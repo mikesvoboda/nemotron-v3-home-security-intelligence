@@ -94,12 +94,12 @@ class CircuitBreakerConfig:
 
 ## Service Circuit Breaker Configurations
 
-**Source:** `backend/main.py:248-297`
+**Source:** `backend/main.py:286-331`
 
 ### AI Services (Aggressive)
 
 ```python
-# backend/main.py:265-270
+# backend/main.py:302-307
 ai_service_config = CircuitBreakerConfig(
     failure_threshold=5,        # Opens after 5 consecutive failures
     recovery_timeout=30.0,      # Wait 30s before recovery attempt
@@ -122,12 +122,30 @@ infrastructure_config = CircuitBreakerConfig(
 
 ### Service-Specific Configurations
 
-| Service    | Failure Threshold | Recovery Timeout | Source                |
-| ---------- | ----------------- | ---------------- | --------------------- |
-| YOLO26     | 5                 | 30s              | AI config             |
-| Nemotron   | 5                 | 30s              | AI config             |
-| PostgreSQL | 10                | 60s              | Infrastructure config |
-| Redis      | 10                | 60s              | Infrastructure config |
+`init_circuit_breakers()` pre-registers `yolo26`, `postgresql`, and `redis` at
+startup so they appear in monitoring before first use
+(`backend/main.py:321-329`). `get_circuit_breaker()` is get-or-create
+(`backend/services/circuit_breaker.py:1104-1117`), so a service can also
+register its own breaker on first use — `ai-vlm` does exactly that, with
+`failure_threshold=5` and `recovery_timeout=60.0`
+(`backend/services/vlm_client.py:247-249`).
+
+| Service           | Failure Threshold | Recovery Timeout | Source                                                  |
+| ----------------- | ----------------- | ---------------- | ------------------------------------------------------- |
+| yolo26            | 5                 | 30s              | AI config (`backend/main.py:321`)                       |
+| detector_yolo26   | 5                 | 60s              | `DetectorClient` (`backend/services/detector_client.py:336-345`) |
+| ai-vlm            | 5                 | 60s              | `VlmClient` (`backend/services/vlm_client.py:247-249`)  |
+| postgresql        | 10                | 60s              | Infrastructure config (`backend/main.py:325`)           |
+| redis             | 10                | 60s              | Infrastructure config (`backend/main.py:328`)           |
+
+The detector's own client-side breaker is `detector_yolo26` — the name is
+built from the detector type (`backend/services/detector_client.py:280`), so
+the guard on live detection traffic is the 5/60s breaker, while the
+`yolo26`-named one is the startup pre-registration.
+
+When the `ai-vlm` breaker opens, the client pushes the service UNHEALTHY to
+`DegradationManager` on the way out and clears the flag on the next success
+(`backend/services/vlm_client.py:919-940`).
 
 ## Circuit Breaker Sequence Diagram
 
@@ -225,27 +243,40 @@ total_delay = delay + jitter
 
 ### Detector Client Retry
 
-**Source:** `backend/services/detector_client.py:31-34`
+**Source:** `backend/services/detector_client.py:37-40`
 
 ```python
-# backend/services/detector_client.py:31-34
+# backend/services/detector_client.py:37-40
 # Retry Logic (NEM-1343):
 #     - Configurable max retries via DETECTOR_MAX_RETRIES setting (default: 3)
 #     - Exponential backoff: 2^attempt seconds between retries (capped at 30s)
 #     - Only retries transient failures (connection, timeout, HTTP 5xx)
 ```
 
-### Nemotron Analyzer Retry
+### VLM Client Retry
 
-**Source:** `backend/services/nemotron_analyzer.py:24-27`
+**Source:** `backend/services/vlm_client.py:804-807`
+
+The analysis leg does not use the backoff ladder. `VlmClient.assess()` makes
+two attempts inside one read budget (`settings.ai_vlm_read_timeout`, default
+25s) and the retry differs from the first only in temperature:
 
 ```python
-# backend/services/nemotron_analyzer.py:24-27
-# Retry Logic (NEM-1343):
-#     - Configurable max retries via NEMOTRON_MAX_RETRIES setting (default: 3)
-#     - Exponential backoff: 2^attempt seconds between retries (capped at 30s)
-#     - Only retries transient failures (connection, timeout, HTTP 5xx)
+# backend/services/vlm_client.py:804-807
+last_error: VlmClientError | None = None
+for attempt, temperature in enumerate((None, 0.0)):
+    if temperature is not None:
+        body["temperature"] = temperature  # §6 step 1: retry at temp 0
 ```
+
+Transport failures (connection refused, timeout, HTTP 5xx) are retried; a
+schema violation that arrives complete is not (the retry would re-send the
+same bytes). A context-overflow refusal and a reply cut off at `max_tokens`
+raise on the spot — re-asking at the same budget cannot change either answer.
+Each counted failure feeds the `ai-vlm` breaker
+(`backend/services/vlm_client.py:247-249`), and budget-exhaustion failures are
+recorded separately so a prompt sizing problem never opens the service breaker
+(`backend/services/vlm_client.py:897`).
 
 ## Broadcast Retry
 

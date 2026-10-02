@@ -101,10 +101,9 @@ LLM_OPS: dict[str, dict[str, Any]] = {
             "type": "object",
             "title": "LlmCompletionRequest",
             "description": (
-                "Wire shape assembled independently at 7 backend sites "
-                "(nemotron_analyzer.py:465,1046,3978 - retired in R8 S2; summary_generator.py:440; "
-                "nemotron_streaming.py:99; prompt_service.py:938; "
-                "pipeline_quality_audit_service.py:391; evaluation/harness.py:549). "
+                "Wire shape assembled independently at 4 backend sites "
+                "(summary_generator.py:443; prompt_service.py:940; "
+                "pipeline_quality_audit_service.py:392; evaluation/harness.py:550). "
                 "Consolidation is a recorded WP7.1 follow-on (decision: follow-on)."
             ),
             "properties": {
@@ -193,7 +192,7 @@ LLM_OPS: dict[str, dict[str, Any]] = {
             "title": "LlamaCppSlots",
             "items": {"type": "object"},
         },
-        "evidence": "backend/services/performance_collector.py:214",
+        "evidence": "backend/services/performance_collector.py:220",
     },
 }
 
@@ -274,9 +273,10 @@ def _vlm_contract_schemas() -> tuple[dict[str, Any], dict[str, Any]]:
 # still answer 501 with their own explanatory detail -- that is a live
 # behavior, pinned there, not a contract row.
 
-# per-model-server availability for the 31 gateway ops. Evidence: the WP7.3
-# gap table re-verified at draft time. /segment is gateway-only (yolo26
-# server has no route: grep -c segment ai/yolo26/model.py == 0).
+# per-model-server availability for the 5 gateway ops this map still carries.
+# Evidence: the WP7.3 gap table re-verified at draft time. /segment is
+# gateway-only (yolo26 server has no route: grep -c segment ai/yolo26/model.py
+# == 0).
 PER_MODEL_SERVER: dict[str, bool] = {
     "yolo26_detect": True,
     "yolo26_detect_batch": True,

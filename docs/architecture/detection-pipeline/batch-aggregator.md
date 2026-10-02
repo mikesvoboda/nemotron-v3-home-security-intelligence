@@ -413,7 +413,7 @@ async def _run_loop(self) -> None:
 
 ## Configuration
 
-Batching timing parameters (also documented in the [AI Pipeline Architecture](../ai-pipeline.md#timing-parameters)):
+Batching timing parameters (also documented in the [AI Pipeline — Current State](../ai-pipeline-current-state.md#timing-parameters)):
 
 <!-- prettier-ignore-start -->
 --8<-- "docs/_includes/batching-config.md"

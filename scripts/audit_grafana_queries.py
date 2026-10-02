@@ -257,7 +257,9 @@ CLIP_METRICS = {
 
 ENRICHMENT_METRICS = {
     # action_recognition_* family removed 2026-09-23: retired with the X-CLIP
-    # call sites (NEM-5563); action runs as Triton stgcn_action on ai-gateway
+    # call sites (NEM-5563), and no Triton replacement ships — the gateway's
+    # Triton model repository holds exactly {yolo26, reid, threat}, so action
+    # does not run on ai-gateway
     "enrichment_pose_estimation_inferences_total",
     "enrichment_pose_estimation_inference_latency_seconds",
     "enrichment_pose_keypoints_detected",

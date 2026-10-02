@@ -1,7 +1,7 @@
 # Decision: Grafana Integration Strategy
 
 **Date:** 2025-12-27
-**Status:** Decided
+**Status:** Partly superseded (annotated 2026-10-02) — monitoring pages in the React app now embed Grafana dashboards directly (kiosk iframes built from `resolveGrafanaUrl`, e.g. `frontend/src/components/operations/GpuMetricsPage.tsx:130`, proxied at `/grafana/` per `frontend/nginx.conf:117`), so "link out, never embed" no longer describes the shipped UI (the CSP at `frontend/nginx.conf:117` documents `frame-src 'self'` as covering Grafana embeds through an nginx `/grafana/` proxy). Tremor remains the chart library for dashboard widgets (`@tremor/react`, `frontend/package.json:51`). The shipped Grafana runs with embedding allowed (`GF_SECURITY_ALLOW_EMBEDDING=true`) and anonymous access at `GF_AUTH_ANONYMOUS_ORG_ROLE=Admin` (`docker-compose.prod.yml`, `grafana` service) — the Viewer-role caution in Implementation Notes is the safer posture the compose does not take. The AI stack this decision's metrics ride is two services, `ai-gateway` and `ai-vlm`; see `docs/architecture/ai-pipeline-current-state.md`.
 **Related Beads:** 6fj, c3s
 
 ## Context
@@ -54,8 +54,8 @@ This project is a **local single-user deployment** for home security monitoring.
 
 4. **Backend already has metrics endpoints** - The backend exposes metrics through existing API routes:
 
-   - `/api/v1/system/health` - System health status
-   - `/api/v1/system/gpu` - GPU metrics (utilization, memory, temperature)
+   - `/api/system/health` - System health status
+   - `/api/system/gpu` - GPU metrics (utilization, memory, temperature)
    - Event and detection statistics
 
 5. **Simpler deployment** - No need to configure Grafana data sources, dashboards, or authentication for the embedded use case.
@@ -88,8 +88,8 @@ import { AreaChart } from '@tremor/react';
 
 Metrics to display natively:
 
-- GPU utilization and memory (from `/api/v1/system/gpu`)
-- Event counts by risk level (from `/api/v1/events/stats`)
+- GPU utilization and memory (from `/api/system/gpu`)
+- Event counts by risk level (from `/api/events/stats`)
 - Detection counts by object type
 - System health indicators
 

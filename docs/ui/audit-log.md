@@ -92,7 +92,18 @@ Press **Escape** or click outside to close the modal.
 For events processed by the AI pipeline, a specialized audit detail component is available that shows:
 
 - **Quality Scores** - Visual bars (1-5 scale) showing context usage, reasoning coherence, risk justification, consistency, and overall score
-- **Model Contributions** - Checklist showing which AI models contributed to the analysis (YOLO26, Florence, CLIP, Violence, Clothing, Vehicle, Pet, Weather, Quality, Zones, Baseline, Cross-camera)
+- **Model Contributions** - Twelve-cell checklist labelled RT-DETR, Florence, CLIP, Violence, Clothing, Vehicle, Pet, Weather, Quality, Zones, Baseline, Cross-cam
+
+Read that checklist with care. The flags come from `EventAudit.has_*` columns written by
+`create_partial_audit()`, and the only call site (`backend/api/routes/ai_audit.py`) passes
+`enriched_context=None` and `enrichment_result=None`, so every flag except the hard-coded
+`has_yolo26=True` is written `False`. The response field for detection is `yolo26` while the
+checklist cell reads `contributions.rtdetr` (`frontend/src/components/audit/EventAuditDetail.tsx`),
+so the detection cell is unchecked too — the panel reads `0 / 12` on every event. It is not evidence
+about which models ran; the shipped analysis path is `ai-gateway` detection plus the in-process
+lookup legs plus `ai-vlm`, and the audit row does not record that. `enrichment_utilization` is
+computed the same way from the same two `None` arguments and reads 0.
+
 - **Self-Critique** - The AI's self-evaluation text explaining its reasoning
 - **Improvement Suggestions** - Lists of missing context, confusing sections, unused data, format suggestions, and model gaps
 - **Actions** - "Run Evaluation" or "Re-run Evaluation" button to trigger AI analysis
@@ -284,6 +295,6 @@ The `audit_logs` table includes:
 
 ### Related Documentation
 
-- [AI Pipeline Architecture](../architecture/ai-pipeline.md) - AI analysis pipeline that generates audit-logged events
+- [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md) - AI analysis pipeline that generates audit-logged events
 - [Architecture Overview](../architecture/overview.md) - System architecture and design decisions
 - [Developer Patterns](../developer/patterns/AGENTS.md) - Testing patterns and developer guidelines

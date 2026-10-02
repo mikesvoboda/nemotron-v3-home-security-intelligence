@@ -17,11 +17,11 @@ Services are discovered from `docker-compose.prod.yml` (`ORCHESTRATOR_COMPOSE_FI
 via `backend/services/compose_parser.py`) and bucketed by name prefix into three
 categories:
 
-| Category       | Services (compose names)                                               | Purpose                  |
-| -------------- | ---------------------------------------------------------------------- | ------------------------ |
-| Infrastructure | postgres, redis, backend, go2rtc, frontend                             | Data, messaging, app     |
-| AI             | `ai-*` — ai-gateway (:8090), ai-llm (:8091)                            | Detection + LLM analysis |
-| Monitoring     | prometheus, grafana, alertmanager, loki, pyroscope, alloy, \*-exporter | Observability stack      |
+| Category       | Services (compose names)                                                                 | Purpose               |
+| -------------- | ---------------------------------------------------------------------------------------- | --------------------- |
+| Infrastructure | postgres, redis, backend, go2rtc, frontend                                               | Data, messaging, app  |
+| AI             | `ai-*` — ai-gateway (:8090), ai-vlm (:8098, profile `vlm`), ai-llm-vllm (profile `vllm`) | Detection + reasoning |
+| Monitoring     | prometheus, grafana, alertmanager, loki, pyroscope, alloy, \*-exporter                   | Observability stack   |
 
 > [!NOTE]
 > File Watcher, Batch Aggregator and Cleanup are **in-process backend services** (FastAPI
@@ -292,10 +292,10 @@ GET /api/system/services?category=monitoring
 
 ### AI Services
 
-| Service    | Port | Description                                                 |
-| ---------- | ---- | ----------------------------------------------------------- |
-| ai-gateway | 8090 | Triton + model routers (YOLO26, Florence, CLIP, enrichment) |
-| ai-llm     | 8091 | Risk analysis LLM (Nemotron via llama.cpp)                  |
+| Service    | Port         | Description                                                                  |
+| ---------- | ------------ | ---------------------------------------------------------------------------- |
+| ai-gateway | 8090 (+8002) | Triton + FastAPI. Routers `/yolo26` (detection) and `/enrich-lt` (readiness) |
+| ai-vlm     | 8098         | llama.cpp + mmproj reasoning engine — behind the compose profile `vlm`       |
 
 ### Monitoring Services
 

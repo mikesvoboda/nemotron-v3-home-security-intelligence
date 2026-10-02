@@ -128,11 +128,14 @@ jobs:
       # hand-raised baseline in the same reviewed commit.
       - name: Suppression ratchet (counts may only fall)
         run: uv run python scripts/ratchet-check.py
-      # WP9.1: cross-provider AI parity. The golden list pins the adjudicated
-      # Tier-A defect set (D1-D6, 21 ids — plan 2026-09-19-swap-readiness-72h
-      # §WP9.1); the gate FAILS on any divergence not in the list, and a
-      # VANISHING id fails too (GOLDEN-LOST) so fixes re-ratchet instead of
-      # rotting the baseline. Provider #4 cannot drift silently: a new
+      # WP9.1: cross-provider AI parity. The golden list (.github/ai-parity-
+      # baseline.json) pins the adjudicated divergence set and is EMPTY on the
+      # shipped tree — every Tier-A surface it once named is gone; the
+      # per-id record of what took each one lives in
+      # scripts/test_check_ai_provider_parity.py. The gate FAILS on any
+      # divergence not in the list, and a VANISHING id fails too (GOLDEN-LOST)
+      # so fixes re-ratchet instead of rotting the baseline. Provider #4 cannot
+      # drift silently: a new
       # divergence fails here naming its id until adjudicated, and fixing a
       # defect means removing its id from .github/ai-parity-baseline.json in
       # the same commit (same same-commit doctrine as the suppression
@@ -182,6 +185,10 @@ jobs:
       # WP2.5 (#6586): the gate-reachability guard's own suite joined the
       # list — same doctrine, one tier later (it is why this step's argv can no
       # longer shrink silently).
+      # The ai-surface census suite pins the surviving *_loader set to exactly
+      # the three lookup loaders — the guard against a specialist leg being
+      # quietly added or deleted. It sits outside testpaths and runs here (a
+      # gate with no CI is a gate that rots).
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -200,7 +207,22 @@ jobs:
           scripts/test_mutation_score.py
           scripts/test_check_ai_provider_parity.py
           scripts/test_check_gate_reachability.py
+          scripts/test_ai_surface_census.py
           -q
+      # Docs level-1: every source citation in the scoped docs dirs names a
+      # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
+      # --no-staleness) — that is what catches a dead source_ref, and it is
+      # sub-second over these dirs. SCOPE IS A FLOOR: the dirs below are exactly
+      # the ones measured green; docs/ carries known-dead citations elsewhere,
+      # so widening the list must follow each fix, never precede it (a newly
+      # wired gate must not land red).
+      - name: Docs citation existence (level 1, scoped dirs)
+        run: |
+          set -euo pipefail
+          for d in docs/decisions docs/deployment docs/getting-started docs/operations docs/ui; do
+            uv run python -m scripts.validate_docs "$d" \
+              --no-ast --no-code-match --no-cross-ref --no-staleness --errors-only
+          done
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).
       - name: Flaky-marker governance gate test
@@ -971,7 +993,7 @@ jobs:
               --reruns 2 --reruns-delay 5 || true
           fi
           uv run pytest backend/tests/integration/ \
-            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_nemotron_analyzer_integration or test_nemotron_analyzer or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints" \
+            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints" \
             -n0 \
             --timeout=30 \
             --cov=backend \
@@ -1092,7 +1114,7 @@ jobs:
               --reruns 2 --reruns-delay 5 || true
           fi
           uv run pytest backend/tests/integration/ \
-            -k "test_models or test_model_cascades or test_database or test_baseline or test_alert_dedup or test_alert_engine or test_alert_models or test_enrichment_pipeline or test_cache_service_integration or repositories or test_soft_delete or test_notification_preferences or test_isolation_levels" \
+            -k "test_models or test_model_cascades or test_database or test_baseline or test_alert_dedup or test_alert_engine or test_alert_models or test_cache_service_integration or repositories or test_soft_delete or test_notification_preferences or test_isolation_levels" \
             -n0 \
             --timeout=30 \
             --cov=backend \
@@ -1805,16 +1827,15 @@ jobs:
           retention-days: 7
 
   # WP6.5: the ai/ tier (the deployed AI provider surface - Triton gateway
-  # adapters + Triton client + per-service model servers) was NEVER run in CI:
-  # no job invoked it and the collection checker only received backend and
-  # frontend. WP6.1-6.4 un-darkened the tier (1764 collected / 0 collection
-  # errors; ai/gateway 226 passed / 0 failed). Staged wiring: a collect-only
-  # gate over the WHOLE tier (import-error-visible: triton shadowing, flat-slot
-  # collisions - the WP6.2 class) plus RUN steps for subtrees green today.
-  # Subtrees with WP6.4 ledger-classified parked reds (ai/yolo26,
-  # ai/enrichment, ai/enrichment_light, ai/triton, ai/tests) join this run
-  # list as each drains - recorded in the plan ledger, never quarantined, so a
-  # parked-red subtree can never hold the branch red for a RECORDED reason.
+  # adapters + Triton client + per-service model servers). WP6.1-6.4
+  # un-darkened it. Staged wiring: a collect-only gate over the WHOLE tier
+  # (import-error-visible: triton shadowing, flat-slot collisions - the WP6.2
+  # class) plus RUN steps for subtrees green today: ai/gateway and the ai/tests
+  # module-hygiene probes. Subtrees with ledger-classified parked reds
+  # (ai/yolo26, ai/triton, and the rest of ai/tests: the cuda/GPU-adjacent
+  # suites) join this run list as each drains - recorded in the plan ledger,
+  # never quarantined, so a parked-red subtree can never hold the branch red
+  # for a RECORDED reason.
   ai-tests:
     name: AI Tier Tests
     runs-on: ubuntu-latest
@@ -1848,13 +1869,21 @@ jobs:
         # (0.159s, measured) on a tree with 19 collection errors. --collect-only
         # IMPORTS them, so the triton-package shadow and flat-module name
         # collisions WP6.1/WP6.2 fixed surface here as rc=2. Locally green:
-        # 1764 collected, 0 errors.
+        # 957 collected, 0 errors.
         run: uv run pytest ai/ --collect-only -q --color=no
 
       - name: AI gateway suite (deployed provider)
-        # 226 passed / 0 failed locally after WP6.4, no network required; the
-        # repo addopts exclude -m gpu nodes by default.
+        # 252 passed / 0 failed locally, no network required; the repo addopts
+        # exclude -m gpu nodes by default.
         run: uv run pytest ai/gateway -q --color=no
+
+      - name: Module hygiene probes (import-time poisoning + triton shadow)
+        # The probes run their collection passes in subprocesses and assert the
+        # verdicts: sys.modules["ai"] stays the real package after a full ai/
+        # collect, and `import triton` never resolves to the repo's ai/triton.
+        # The whole-tier collect step above proves files IMPORT; these prove
+        # nothing poisons the process state while doing it.
+        run: uv run pytest ai/tests/test_module_hygiene.py -q --color=no
 
   # RETIRED (PR-C, gateway consolidation): the AI YOLO26 image-smoke job that
   # lived here was the ONLY CI proof of the standalone ai/yolo26 image's flat

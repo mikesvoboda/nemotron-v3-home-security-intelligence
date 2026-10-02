@@ -286,12 +286,12 @@ async def _call_llm_with_version(
 
 ### Request Parameters
 
-| Parameter     | Value        | Purpose                    |
+| Parameter | Value | Purpose |
 | ------------- | ------------ | -------------------------- | ------ | -------- | ---- | ------------------------------- |
-| `temperature` | 0.7          | Moderate creativity        |
-| `top_p`       | 0.95         | Nucleus sampling threshold |
-| `max_tokens`  | Configurable | Limit response length      |
-| `stop`        | `["<         | im_end                     | >", "< | im_start | >"]` | Stop generation at chat markers |
+| `temperature` | 0.7 | Moderate creativity |
+| `top_p` | 0.95 | Nucleus sampling threshold |
+| `max_tokens` | Configurable | Limit response length |
+| `stop` | `["<         | im_end                     | >", "< | im_start | >"]` | Stop generation at chat markers |
 
 ## Response Parsing
 
@@ -465,5 +465,5 @@ from backend.core.metrics import (
 
 - [image-to-event.md](image-to-event.md) - Complete pipeline context
 - [batch-aggregation-flow.md](batch-aggregation-flow.md) - What triggers analysis
-- [enrichment-pipeline.md](enrichment-pipeline.md) - Pre-analysis enrichment
+- [AI Pipeline — Current State](../ai-pipeline-current-state.md) - The shipped analysis path
 - [error-recovery-flow.md](error-recovery-flow.md) - Retry patterns

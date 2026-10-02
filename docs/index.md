@@ -86,27 +86,32 @@ sequenceDiagram
     Queue->>DB: Store raw detections
 ```
 
-### 3. AI Enrichment
+### 3. Specialist Lookups
 
-![AI Enrichment](images/walkthrough/03-ai-enrichment.png)
+![Specialist Lookups](images/walkthrough/03-ai-enrichment.png)
 
-Multiple specialized models add context: Florence-2 captions the scene, CLIP detects anomalies, and enrichment models identify faces, clothing, vehicles, and more.
+Three in-process legs run per batch and answer identity questions against your own
+registrations: face recognition (SCRFD detection + w600k embeddings, gallery match),
+license plates (FastALPR detection + OCR), and person re-identification (OSNet
+embeddings, gallery match). Each leg degrades honestly to `unavailable: specialist did
+not run` when its weights are not resident.
 
 ```mermaid
 flowchart LR
-    D[Detection] --> F["Florence-2<br/>Scene Caption"]
-    D --> C["CLIP<br/>Anomaly Score"]
-    D --> E["Enrichment Models<br/>Face / Clothing / Vehicle"]
-    F --> M[Merged Context]
-    C --> M
-    E --> M
+    D[Detections] --> FA["Faces<br/>SCRFD + w600k<br/>gallery match"]
+    D --> P["Plates<br/>FastALPR<br/>detect + OCR"]
+    D --> R["Person re-ID<br/>OSNet<br/>gallery match"]
+    FA --> S[Specialist outputs]
+    P --> S
+    R --> S
 ```
 
 ### 4. Event Batching
 
 ![Event Batching](images/walkthrough/04-event-batching.png)
 
-A 90-second window with 30-second idle timeout groups related detections into a single coherent event, preventing alert fatigue.
+A 90-second window with 30-second idle timeout (or 500 detections) groups related
+detections into a single coherent event, preventing alert fatigue.
 
 ```mermaid
 sequenceDiagram
@@ -125,17 +130,19 @@ sequenceDiagram
 
 ![AI Risk Reasoning](images/walkthrough/05-ai-reasoning.png)
 
-Nemotron-3-Nano-30B analyzes the full context -- detections, enrichments, time of day, camera location -- and produces a 0-100 risk score with natural language explanation.
+The VLM (`ai-vlm`, llama.cpp on port 8098) receives 1–4 key stills plus the detection
+rows and the specialist lookup text, and returns a 0-100 risk score with a natural
+language explanation.
 
 ```mermaid
 sequenceDiagram
-    participant Event as Event + Context
-    participant Nem as Nemotron-3-Nano-30B<br/>:8091
+    participant Event as Event + Key Stills + Lookups
+    participant VLM as ai-vlm :8098<br/>Qwen3VL-8B
     participant DB as PostgreSQL
-    Event->>Nem: Full context prompt
-    Note over Nem: Reason about scene,<br/>entities, time, location
-    Nem-->>Event: Risk: 73/100<br/>"Unknown person near<br/>garage at 2:34 AM..."
-    Event->>DB: Store analysis
+    Event->>VLM: POST /v1/chat/completions
+    Note over VLM: Reason about scene,<br/>detections, lookups
+    VLM-->>Event: Risk: 73/100<br/>"Unknown person near<br/>garage at 2:34 AM..."
+    Event->>DB: Store event + verification
 ```
 
 ### 6. Real-Time Dashboard
@@ -173,8 +180,8 @@ flowchart TB
         WS["WebSocket"]
     end
     subgraph AI["AI Services"]
-        GW["AI Gateway :8090<br/>routers /yolo26 /florence<br/>/clip /enrichment /enrich-lt"]
-        NEM["Nemotron LLM<br/>:8091"]
+        GW["ai-gateway :8090<br/>Triton<br/>routers /yolo26 /enrich-lt"]
+        VLM["ai-vlm :8098<br/>llama.cpp<br/>(profile: vlm)"]
     end
     subgraph Data["Data Layer"]
         DB[(PostgreSQL)]
@@ -183,7 +190,7 @@ flowchart TB
     CAM -->|FTP Upload| API
     UI <-->|REST + WebSocket| API
     API --> GW
-    API --> NEM
+    API --> VLM
     API <--> DB & REDIS
 ```
 
@@ -191,20 +198,20 @@ flowchart TB
 
 ---
 
-## AI Model Zoo
+## AI Models
 
-The system uses multiple AI models managed with VRAM-efficient on-demand loading. See the [complete Model Zoo documentation](ai/model-zoo.md).
+Two AI services and three in-process lookup legs carry the shipped event path. See the
+[complete Model Zoo documentation](ai/model-zoo.md) for the registry and the
+[reference model table](reference/models.md) for per-model detail.
 
-| Model               | Purpose               | Always Loaded |
-| ------------------- | --------------------- | :-----------: |
-| YOLO26              | Object detection      |      Yes      |
-| Florence-2          | Scene understanding   |      Yes      |
-| CLIP ViT-L/14       | Anomaly detection     |      Yes      |
-| Nemotron-3-Nano-30B | Risk reasoning (LLM)  |      Yes      |
-| Threat Detection    | Weapon detection      |   On-demand   |
-| Person Re-ID        | Cross-camera tracking |   On-demand   |
-| FashionCLIP         | Clothing analysis     |   On-demand   |
-| Demographics        | Age/gender estimation |   On-demand   |
+| Model                                    | Where it runs                     |                               Loads                                |
+| ---------------------------------------- | --------------------------------- | :----------------------------------------------------------------: |
+| YOLO26 (TensorRT)                        | `ai-gateway` Triton, `/yolo26`    |                          resident at boot                          |
+| re-ID / threat (Triton)                  | `ai-gateway` Triton, `/enrich-lt` | resident at boot (`threat` only with `GATEWAY_ENABLE_THREAT=true`) |
+| VLM (Qwen3VL-8B GGUF pair)               | `ai-vlm` llama.cpp, 8098          |                       `vlm` compose profile                        |
+| Face detection + recognition (ONNX, CPU) | backend in-process                |            boot only with `BACKEND_MODEL_PRELOAD=true`             |
+| Person re-ID (OSNet)                     | backend in-process                |            boot only with `BACKEND_MODEL_PRELOAD=true`             |
+| License plates (FastALPR)                | backend in-process                |                            on first use                            |
 
 ---
 

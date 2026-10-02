@@ -501,12 +501,13 @@ Each alert includes a `runbook_url` annotation linking to resolution steps. Crea
 
 ### Example Runbook: AIDetectorUnavailable
 
-> NOTE (2026-09-23): retargeted to the gateway topology. The standalone
-> `ai-yolo26` container in the older steps below was retired fully that day
-> (owner ruling — Triton on `ai-gateway` serves yolo26 among the 14 models;
-> recipe in `archive/ai-yolo26-image/`). The alert itself keys on
-> `hsi_ai_healthy == 0` — the backend's view of the AI stack — so diagnose the
-> gateway and the backend's AI client, not a yolo26 container.
+The alert keys on `hsi_ai_healthy == 0` — the json-exporter's gauge derived from the
+**backend's** view of the AI stack (`monitoring/json-exporter-config.yml`) — so diagnose the
+gateway and the backend's detector client, not a per-model container. There is no
+`ai-yolo26` service: Triton inside `ai-gateway` serves `yolo26` (with `reid`, and `threat`
+when `GATEWAY_ENABLE_THREAT=true`), and `/health` reports readiness for the active model set
+only — `ACTIVE_MODELS` is resolved from `GATEWAY_MODEL_SET`, so a degraded response lists
+exactly the models that should be up.
 
 **Symptoms:**
 
@@ -517,15 +518,19 @@ Each alert includes a `runbook_url` annotation linking to resolution steps. Crea
 
 ```bash
 # Check the gateway container that serves yolo26 via Triton
-docker compose -f docker-compose.prod.yml ps ai-gateway
+podman compose -f docker-compose.prod.yml ps ai-gateway
 
 # Check gateway logs for Triton model-load or adapter errors
-docker compose -f docker-compose.prod.yml logs --tail=100 ai-gateway
+podman compose -f docker-compose.prod.yml logs --tail=100 ai-gateway
 
-# Check the model's Triton readiness (Triton native HTTP is 8000 inside the
-# container; the gateway's own 8090 /health aggregates all 14 models)
-docker compose exec ai-gateway curl -s http://localhost:8000/v2/models/yolo26/ready && echo READY
-curl -fsS http://localhost:8090/health | head -c 400
+# Triton's own readiness for one model (native HTTP is 8000 INSIDE the
+# container; only 8090 and 8002 are published to the host)
+podman compose -f docker-compose.prod.yml exec ai-gateway \
+  curl -s http://localhost:8000/v2/models/yolo26/ready && echo READY
+
+# The gateway's aggregate view, then the router the pipeline actually calls
+curl -fsS http://localhost:8090/health | jq '.status, .models_total, .model_statuses'
+curl -fsS http://localhost:8090/yolo26/health
 
 # Check GPU availability
 nvidia-smi
@@ -536,7 +541,7 @@ nvidia-smi
 1. **Gateway container crashed:** Restart it
 
    ```bash
-   docker compose -f docker-compose.prod.yml restart ai-gateway
+   podman compose -f docker-compose.prod.yml restart ai-gateway
    ```
 
 2. **GPU OOM:** Check GPU memory and reduce concurrent inferences
@@ -548,7 +553,7 @@ nvidia-smi
 3. **Model loading failure:** Check the engine/model path inside the gateway
 
    ```bash
-   docker compose exec ai-gateway ls -la /models/yolo26/
+   podman compose -f docker-compose.prod.yml exec ai-gateway ls -la /models/repository/
    ```
 
 ---

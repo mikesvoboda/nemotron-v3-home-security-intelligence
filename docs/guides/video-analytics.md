@@ -2,34 +2,27 @@
 
 Comprehensive guide to the AI-powered video analytics features in Home Security Intelligence.
 
-> **R8 (2026-09-29).** The legacy enrichment/LLM tier retired: the
-> `ai-llm` Nemotron service and the gateway's `/florence`, `/clip` and
-> `/enrichment` routers are deleted, and with them the Florence captioning,
-> SigLIP anomaly embeddings, pose, demographics, clothing and vehicle-classifier
-> features this guide documented (the S5 slice also removed their dashboard
-> panels). What ships today: YOLO26 detection + a small identity/specialist
-> lane (`/enrich-lt`: threat + re-ID) + the `ai-vlm` vision-language engine.
-
 ## Overview
 
 Home Security Intelligence runs one AI pipeline: a generalist vision-language
-model reasons over what the camera saw, backed by a small lane of specialists
-for the questions a single model can't be trusted to answer precisely. The
-per-attribute specialist zoo (age, gender, clothing, vehicle type, pose,
-action, pet, depth) is retired — the VLM describes what it sees instead of
-re-perceiving it with one model per attribute (ledger ruling D5: model
-identity is config).
+model reasons over what the camera saw, backed by a lookup lane for the
+questions a generalist can't be trusted to answer precisely — who this person
+is, what the plate reads, which stored person-vector matches a registration.
+The VLM describes the scene in one pass; no per-attribute model runs beside it
+to re-derive what it already said (ledger ruling D5: model identity is config).
 
 ### Key Capabilities
 
-| Feature                 | Description                                   | Serves it                               |
-| ----------------------- | --------------------------------------------- | --------------------------------------- |
-| **Object Detection**    | Detect people, vehicles, animals, and objects | YOLO26 (`/yolo26`)                      |
-| **Scene Understanding** | Describe and assess each event visually       | `ai-vlm` engine (identity is config)    |
-| **Threat Detection**    | Identify weapons and dangerous items          | Threat-Detection-YOLOv8n (`/enrich-lt`) |
-| **Person Re-ID**        | Embeddings matched against your registrations | OSNet-AIN x1.0 (`/enrich-lt`)           |
-| **Anomaly Detection**   | Compare against learned per-zone baselines    | backend statistical baselines           |
-| **Risk Assessment**     | VLM-based contextual risk analysis            | `ai-vlm` engine                         |
+| Feature                 | Description                                   | Serves it                                  |
+| ----------------------- | --------------------------------------------- | ------------------------------------------ |
+| **Object Detection**    | Detect people, vehicles, animals, and objects | YOLO26 (gateway `/yolo26`)                 |
+| **Scene Understanding** | Describe and assess each event visually       | `ai-vlm` engine (identity is config)       |
+| **Face Identification** | Match faces against enrolled known persons    | in-process face leg (backend)              |
+| **License Plates**      | Read plates and match registered vehicles     | in-process plate leg (backend)             |
+| **Person Re-ID**        | Person vectors matched against registrations  | in-process re-ID leg (backend)             |
+| **Weapon Detection**    | Opt-in Triton model behind `/enrich-lt`       | gateway `threat` (`GATEWAY_ENABLE_THREAT`) |
+| **Anomaly Detection**   | Compare against learned per-zone baselines    | backend statistical baselines              |
+| **Risk Assessment**     | VLM-based contextual risk analysis            | `ai-vlm` engine                            |
 
 ---
 
@@ -73,12 +66,12 @@ flowchart LR
         AQ[(analysis_queue)]
     end
 
-    subgraph Lookups["4. Identity Lookups"]
-        LT[enrich-lt specialists<br/>threat + re-ID<br/>backend + gateway /enrich-lt]
+    subgraph Lookups["4. Specialist Lookups (in-process, backend)"]
+        SP[collect_specialist_outputs<br/>faces + plates + person_reid<br/>gallery match against Postgres]
     end
 
     subgraph Analysis["5. Risk Reasoning"]
-        VLM[ai-vlm llama.cpp engine<br/>port AI_VLM_PORT default 8098<br/>model identity is config]
+        VLM[ai-vlm llama.cpp engine<br/>POST /v1/chat/completions<br/>port AI_VLM_PORT default 8098<br/>model identity is config]
     end
 
     subgraph Output["6. Event Output"]
@@ -93,8 +86,8 @@ flowchart LR
     DQ --> YOLO
     YOLO -->|detections| BA
     BA -->|batch ready| AQ
-    AQ --> LT
-    LT -->|detections + lookups| VLM
+    AQ --> SP
+    SP -->|detections + lookup lines| VLM
     VLM -->|verdict| DB
     VLM -->|event| WS
     WS --> UI
@@ -104,52 +97,55 @@ flowchart LR
 2. **File Watcher**: Monitors directories for new images with deduplication
 3. **Object Detection**: YOLO26 identifies objects and their bounding boxes
 4. **Batch Aggregator**: Groups detections into 90-second time windows
-5. **Identity Lookups**: re-ID embeddings and the weapon detector run on the
-   specialist lane; the VLM prompt is built from the batch and its detections
+5. **Specialist Lookups**: `backend/services/vlm_specialists.py` runs the three
+   event-path legs — `faces`, `plates`, `person_reid` — in the backend process
+   against their own loaders, then matches each result against the database
+   gallery
 6. **Risk Reasoning**: The `ai-vlm` engine describes the scene and returns the
    verdict (risk score + summary)
 7. **Event Creation**: Security events are created and broadcast via WebSocket
-
-> Note: as of this writing the shipped backend builds the VLM prompt from the
-> batch itself; nothing in the event path calls `/enrich-lt/threat-detect` or
-> `/enrich-lt/person-reid` — those endpoints are live on the gateway (served,
-> health-checked, and pinned by the `ai_contract` tier) but their per-event
-> callers retired with the enrichment tier. re-ID matching still runs
-> (`reid_service.py`) on embeddings from its own loader.
 
 ### Where the Models Run
 
 Two GPU services (see `docker-compose.prod.yml`):
 
-| Service                                                       | What runs                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ai-gateway` (port 8090)                                      | FastAPI front for a Triton Inference Server in the same container. Exactly two routers: `/yolo26` (detection, segmentation) and `/enrich-lt` (`/threat-detect`, `/person-reid`). `GATEWAY_MODEL_SET` resolves only `vlm` — any other value hard-raises. Triton loads its models at container start; the compose healthcheck allows three minutes. |
-| `ai-vlm` (`AI_VLM_PORT`, default 8098; compose profile `vlm`) | llama.cpp serving the configured GGUF pair (`VLM_MODEL_PATH` + `VLM_MMPROJ_PATH`). The backend soft-depends only: with the profile off the stack boots and events degrade (no verdicts) instead of failing.                                                                                                                                       |
+| Service                                                       | What runs                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai-gateway` (port 8090)                                      | FastAPI front for a Triton Inference Server in the same container. Two routers: `/yolo26` (`/detect`, `/detect/batch`, `/segment`, `/health`) and `/enrich-lt` (`/threat-detect`, `/person-reid`, `/health`). `GATEWAY_MODEL_SET` resolves only `vlm` — any other value hard-raises. Triton loads its models at container start with `--model-control-mode=none` (resident, never unloaded at runtime); the compose healthcheck allows three minutes. |
+| `ai-vlm` (`AI_VLM_PORT`, default 8098; compose profile `vlm`) | llama.cpp serving the configured GGUF pair (`VLM_MODEL_PATH` + `VLM_MMPROJ_PATH`) at `/v1/chat/completions`. The backend soft-depends only: with the profile off the stack boots and events degrade (no verdicts) instead of failing.                                                                                                                                                                                                                 |
 
-The retired lanes — `/florence`, `/clip`, `/enrichment`, and the `ai-llm`
-(:8091) / enrichment (:8094, :8096) containers — no longer exist in any
-compose file.
+`ai-gateway` is the only vision service, and `ai-vlm` is the only LLM service.
+
+The gateway's Triton repository holds exactly `yolo26` and `reid`
+(`VLM_MODEL_BASE` in `ai/gateway/residency.py`), plus `threat` when
+`GATEWAY_ENABLE_THREAT=true` — which ships `false` in `.env.example`, so a
+default host brings up two models. `/enrich-lt` is a live, health-checked
+router (`model_management.py` reads its `/health` when reporting model status),
+but the per-event lookups run in the backend process, not over HTTP.
 
 ### Models Used Per Analysis Step
 
-Per-model VRAM from `models.yml` (the live catalogue; retired rows deleted):
+Per-model VRAM from `models.yml` (the live catalogue):
 
-| Model                    | Purpose                       | VRAM (MB)           | Where it runs        |
-| ------------------------ | ----------------------------- | ------------------- | -------------------- |
-| yolo26                   | Object detection              | 0 (Triton-resident) | gateway `/yolo26`    |
-| threat-detection-yolov8n | Weapon detection              | 300                 | gateway `/enrich-lt` |
-| osnet-ain-x1-0           | Person re-identification      | 100                 | gateway `/enrich-lt` |
-| yolo11-face              | Face detection on crops       | 200                 | backend model zoo    |
-| face-detector-scrfd      | Face detection (CPU)          | 0 (CPU)             | backend model zoo    |
-| face-recognizer          | Face matching (CPU)           | 0 (CPU)             | backend model zoo    |
-| yolo11-license-plate     | Plate detection               | 300                 | backend model zoo    |
-| fast-alpr                | Plate read (end-to-end)       | 28                  | backend model zoo    |
-| paddleocr                | Plate read (fallback OCR)     | 100                 | backend model zoo    |
-| yolo26-general           | Alternate detector (disabled) | 400                 | backend model zoo    |
+| Model                    | Purpose                       | VRAM (MB)           | Where it runs      |
+| ------------------------ | ----------------------------- | ------------------- | ------------------ |
+| yolo26                   | Object detection              | 0 (Triton-resident) | gateway `/yolo26`  |
+| osnet-ain-x1-0           | Person re-identification      | 100                 | gateway `reid`     |
+| threat-detection-yolov8n | Weapon detection (opt-in)     | 300                 | gateway `threat`   |
+| face-detector-scrfd      | Face detection (CPU)          | 0 (CPU)             | backend in-process |
+| face-recognizer          | Face matching (CPU)           | 0 (CPU)             | backend in-process |
+| yolo11-face              | Face detection on crops       | 200                 | backend model zoo  |
+| yolo11-license-plate     | Plate detection               | 300                 | backend model zoo  |
+| fast-alpr                | Plate read (end-to-end)       | 28                  | backend model zoo  |
+| paddleocr                | Plate read (fallback OCR)     | 100                 | backend model zoo  |
+| yolo26-general           | Alternate detector (disabled) | 400                 | backend model zoo  |
 
-The old heavy/light task switches are gone too: R8 S3 deleted the nine
-`ENRICHMENT_*_SERVICE` variables (see the note at `.env.example:337`) — there
-is one lane and no routing choice left.
+The three event-path legs load their own weights in-process
+(`face_recognizer_loader.py`, `fast_alpr_loader.py`, `osnet_loader.py`) and are
+gated by `BACKEND_MODEL_PRELOAD` (default `false` in `.env.example`): on a host
+that leaves it off the legs report `unavailable` and the event still ships with
+a VLM verdict. A leg that cannot run is counted by
+`hsi_specialist_unavailable_total` — the only degradation signal.
 
 ---
 
@@ -200,7 +196,7 @@ curl -F "files=@a.jpg" -F "files=@b.jpg" http://localhost:8090/yolo26/detect/bat
 
 Detections are filtered by:
 
-- **Confidence threshold**: Minimum confidence to keep a detection. `.env.example` ships `DETECTION_CONFIDENCE_THRESHOLD=0.5`; classes listed in `DETECTION_CLASS_THRESHOLDS` use their own value instead (for example `person` 0.40, `car` 0.50, `bus` 0.55)
+- **Confidence threshold**: Minimum confidence to keep a detection. `.env.example` ships `DETECTION_CONFIDENCE_THRESHOLD=0.5`; classes listed in `DETECTION_CLASS_THRESHOLDS` use their own value instead. The commented example in `.env.example` reads `{"person": 0.45, "car": 0.70, "truck": 0.70, "bus": 0.70, "motorcycle": 0.65, "bicycle": 0.65, "dog": 0.55, "cat": 0.55, "bird": 0.55, "backpack": 0.60, "handbag": 0.60, "suitcase": 0.60}`
 - **Object classes**: Filter to security-relevant objects
 - **Zone filtering**: Only process detections in defined zones
 
@@ -210,12 +206,12 @@ Detections are filtered by:
 
 ### VLM Captioning and Reasoning
 
-Scene description moved from the retired Florence adapter to the shipped
-`ai-vlm` llama.cpp engine: the analyzer (`backend/services/vlm_analyzer.py`,
-built only through `build_pipeline_analyzer`) builds one prompt per batch —
-the key frames plus their detections — and the engine answers with the scene
-description and the risk verdict in one pass. Model identity is operator
-config (`VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`); this guide names no model.
+The analyzer (`backend/services/vlm_analyzer.py`, built only through
+`build_pipeline_analyzer`) builds one prompt per batch — the key frames plus
+their detections and the specialist lookup lines — and the `ai-vlm` engine
+answers with the scene description and the risk verdict in one pass. Model
+identity is operator config (`VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`); this guide
+names no model.
 
 Inspect the prompt and response a finished event produced:
 
@@ -231,8 +227,7 @@ curl http://localhost:8000/api/llm-reasoning/events/{event_id}
 
 The system learns normal activity patterns per zone and flags deviations from
 them (`backend/services/zone_anomaly_service.py`). Baselines are statistical —
-per-zone metric distributions, not embeddings (the retired SigLIP lane
-contributed nothing to them):
+per-zone metric distributions, not embeddings:
 
 1. Detections accumulate into per-zone baselines
 2. Each new detection is scored against the baseline in standard deviations
@@ -334,28 +329,31 @@ API endpoints for programmatic control are documented in [Baseline Configuration
 
 ## Person Analysis
 
-> Retired with R8: pose estimation (yolov8n-pose posture alerts,
-> `enrich-lt/pose-analyze`), demographics (`enrichment/demographics`, and its
-> table dropped by R8 S4), and clothing analysis (Marqo FashionSigLIP,
-> `enrichment/clothing-classify`). The VLM path describes what it sees;
-> demographic or clothing labels are prompt-level output, not per-attribute
-> model columns. The dashboard's enrichment panels retired with them (R8 S5).
+### Face Identification
+
+The face leg (`vlm_specialists._collect_face_texts`) runs SCRFD-10G-KPS for
+detection and ArcFace `w600k_r50` for the 512-d comparison vector, both
+CPU-onnxruntime in the backend process (`backend/services/face_recognizer_loader.py`).
+Each candidate is graded with a four-outcome vocabulary — `match`, `unknown`,
+`not_identifiable`, `unavailable` — and rendered into one prompt line per
+frame. Enrolment, gallery management and thresholds are in
+[Face Recognition Guide](face-recognition.md).
 
 ### Person Re-Identification
 
-`POST http://localhost:8090/enrich-lt/person-reid` runs OSNet-AIN x1.0 and
-returns a normalized 512-dimensional embedding for tracking across cameras:
+The re-ID leg extracts a normalized 512-dimensional OSNet-AIN x1.0 vector per
+person crop in-process (`backend/services/osnet_loader.py`) and matches it
+against the stored `person_embeddings` gallery. There is exactly one person-
+vector space in this system, and it is OSNet's.
 
-```json
-{
-  "embedding": [0.0123, -0.0341, 0.0187],
-  "embedding_dimension": 512,
-  "inference_time_ms": 8.9
-}
-```
+Matching and thresholds live in the backend, not the gateway:
 
-Matching and match thresholds are applied in the backend
-(`backend/services/reid_service.py`), not by the gateway.
+| Value                                         | Where                    | Default                          |
+| --------------------------------------------- | ------------------------ | -------------------------------- |
+| `reid_similarity_threshold`                   | `backend/core/config.py` | `0.7`                            |
+| Face match threshold (`face_match_threshold`) | `backend/core/config.py` | `0.68`                           |
+| Embedding dimension                           | `osnet_loader.py`        | 512                              |
+| Embedding cache TTL                           | `reid_service.py`        | 86400s (`EMBEDDING_TTL_SECONDS`) |
 
 **Use Cases:**
 
@@ -367,16 +365,13 @@ Matching and match thresholds are applied in the backend
 
 ## Vehicle Analysis
 
-> Retired with R8: the MIO-TCD vehicle classifier
-> (`enrichment/vehicle-classify`). Vehicle _detection_ (class + box) is YOLO26's
-> job and unaffected.
-
 ### License Plate Detection
 
-The enrichment pipeline prefers FastALPR (end-to-end detection plus OCR,
+The plate leg prefers FastALPR (end-to-end detection plus OCR,
 `backend/services/fast_alpr_loader.py`). When FastALPR is unavailable it falls
 back to yolo11-license-plate detection followed by PaddleOCR. Either path
-produces plate text plus a box for the pipeline's `license_plates` list:
+produces plate text plus a box, which the leg then matches against registered
+household vehicles:
 
 ```json
 {
@@ -394,10 +389,10 @@ produces plate text plus a box for the pipeline's `license_plates` list:
 
 ## Threat Detection
 
-### Weapon Detection
+### Weapon Detection (opt-in)
 
-`POST http://localhost:8090/enrich-lt/threat-detect` runs
-threat-detection-yolov8n:
+The Triton model `threat` serves
+`POST http://localhost:8090/enrich-lt/threat-detect`:
 
 ```json
 {
@@ -414,11 +409,20 @@ threat-detection-yolov8n:
 }
 ```
 
-**Detection classes the gateway post-processes:** `knife`, `pistol`, `rifle`,
-`threat_object`. The backend maps threat types to alert severity in
-`backend/services/threat_monitor_service.py` (`get_threat_severity`: firearms —
-gun/pistol/rifle/handgun — are CRITICAL, bladed weapons HIGH, and so on; the
-category enum lives in `backend/services/threat_categories.py`).
+`GATEWAY_ENABLE_THREAT` (`false` in `.env.example`) decides whether Triton
+loads the directory at all. Even when it is loaded, the VLM prompt never
+learns about threat scoring: the `threat` key is absent from
+`SPECIALIST_KEYS` and `collect_threat_text()` returns an explicit
+`not_included` line, per the F12 owner ruling. The route is live and pinned by
+the `ai_contract` tier; a caller has to ask for it.
+
+A detection that does arrive labelled with a `threat_type` takes the batch
+aggregator's fast path (`should_bypass_batch`), skipping the 90-second window
+and creating an alert through `ThreatMonitorService`. The backend maps threat
+types to alert severity in `backend/services/threat_monitor_service.py`
+(`get_threat_severity`: firearms — gun/pistol/rifle/handgun — are CRITICAL,
+bladed weapons HIGH, and so on; the category enum lives in
+`backend/services/threat_categories.py`).
 
 ---
 
@@ -428,16 +432,14 @@ category enum lives in `backend/services/threat_categories.py`).
 
 Risk reasoning runs on the `ai-vlm` llama.cpp engine — compose profile `vlm`,
 host port `AI_VLM_PORT` (default 8098); model identity is config
-(`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`, D5). The optional `vllm` compose profile
-exists for benchmarking (`ai-llm-vllm`), not for serving events. Inspect a
-finished event's prompt and response through the backend at
-`/api/llm-reasoning/events/{event_id}`.
+(`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`, D5). Inspect a finished event's prompt and
+response through the backend at `/api/llm-reasoning/events/{event_id}`.
 
 **Input Context:**
 
-- The batch's key frames (stills) and their detections
+- The batch's key frames (1-4 stills, `key_frame_selector.py`) and their detections
+- The specialist lookup lines (`faces`, `plates`, `person_reid`)
 - Zone information and types
-- Household member matching (face/re-ID lookups)
 - Time of day and baseline context
 
 **Output:**
@@ -478,13 +480,9 @@ finished event's prompt and response through the backend at
 
 ### Query Parameters
 
-All analytics endpoints accept:
-
-| Parameter    | Type   | Description                       |
-| ------------ | ------ | --------------------------------- |
-| `start_date` | Date   | Start date (ISO format, required) |
-| `end_date`   | Date   | End date (ISO format, required)   |
-| `camera_id`  | String | Filter by camera (optional)       |
+All analytics endpoints accept `start_date` and `end_date`, both required, both
+ISO format (YYYY-MM-DD), both inclusive. There is no `camera_id` filter —
+analytics aggregate across all cameras (`camera-uptime` reports per camera).
 
 ### Example Request
 
@@ -510,7 +508,7 @@ curl "http://localhost:8000/api/analytics/detection-trends?start_date=2026-01-01
 
 ## Model Status API
 
-Model status and loading go through the backend under `/api/system/models`
+Model status goes through the backend under `/api/system/models`
 (`backend/api/routes/model_management.py`). Do not call gateway routers
 directly for status.
 
@@ -523,17 +521,19 @@ curl http://localhost:8000/api/system/models/yolo11-license-plate/status
 
 # Combined VRAM totals
 curl http://localhost:8000/api/system/models/vram-summary
-
-# Load / unload / reload
-curl -X POST http://localhost:8000/api/system/models/yolo11-license-plate/load
-curl -X POST http://localhost:8000/api/system/models/yolo11-license-plate/unload
-curl -X POST http://localhost:8000/api/system/models/yolo11-license-plate/reload
 ```
 
-`GET /api/system/models` returns one entry per registry model. Since R8 S3 the
-`service` labels are lane names of the one serving lane
-(`ai-enrichment-light` = the `/enrich-lt` router; `ai-gateway` = everything the
-root health answers), and `service_status` carries exactly those two rows:
+There is no runtime load/unload: gateway models are Triton-resident
+(`--model-control-mode=none`) and the gateway exposes no load API, so `POST
+/{model_name}/load`, `/unload` and `/reload` answer **501** with an
+explanation. Backend-process models load lazily on first use, gated by
+`BACKEND_MODEL_PRELOAD`.
+
+`GET /api/system/models` returns one entry per registry model. The `service`
+label is a lane name — `ai-enrichment-light` for the two models the `/enrich-lt`
+router declares (`threat-detection-yolov8n`, `osnet-ain-x1-0`, per
+`model_management.LIGHT_MODELS`) and `ai-gateway` for the rest — and
+`service_status` carries exactly those two rows:
 
 ```json
 {
@@ -580,7 +580,9 @@ model. `model_management.py` is registered first, so it answers the bare
 
 1. **VLM sizing**: `VLM_GPU_LAYERS=auto` (default) fits the engine to the card;
    set an explicit layer count to reserve headroom for the gateway
-2. **Preloading**: Preload expected models before high-activity periods
+2. **Specialist residency**: `BACKEND_MODEL_PRELOAD=true` brings the face and
+   re-ID legs up loaded on a host with the VRAM for them (~24GB); left `false`
+   they report `unavailable` instead of loading mid-event
 3. **Monitoring**: Watch VRAM utilization via `/api/system/models/vram-summary`
 
 ### Reducing False Positives

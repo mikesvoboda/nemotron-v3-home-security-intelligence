@@ -159,7 +159,7 @@ all_status = registry.get_all_status()
 | Document                                                          | Purpose                        |
 | ----------------------------------------------------------------- | ------------------------------ |
 | [Resilience Architecture](../resilience.md)                       | High-level resilience overview |
-| [AI Pipeline](../ai-pipeline.md)                                  | Detection and analysis flow    |
+| [AI Pipeline](../ai-pipeline-current-state.md)                    | Detection and analysis flow    |
 | [Real-Time](../real-time.md)                                      | WebSocket architecture         |
 | [Backend Services AGENTS.md](../../../backend/services/AGENTS.md) | Service implementation details |
 | [AI Orchestration](../ai-orchestration/README.md)                 | AI failure handling            |

@@ -21,18 +21,18 @@
 
 ## Service Ports
 
-| Service        | Port | Protocol | Description                                                           |
-| -------------- | ---- | -------- | --------------------------------------------------------------------- |
-| Frontend HTTP  | 8080 | HTTP     | nginx in the `frontend` container, host port `FRONTEND_HTTP_PORT`     |
-| Frontend HTTPS | 8444 | HTTPS    | nginx in the `frontend` container, host port `FRONTEND_HTTPS_PORT`    |
-| Backend API    | 8000 | HTTP/WS  | FastAPI REST + WebSocket (`API_PORT`)                                 |
-| AI Gateway     | 8090 | HTTP     | Triton gateway serving YOLO26, Florence-2, CLIP and enrichment models |
-| Nemotron       | 8091 | HTTP     | LLM risk analysis (llama.cpp, compose service `ai-llm`)               |
-| PostgreSQL     | 5432 | TCP      | Database (`POSTGRES_PORT`)                                            |
-| Redis          | 6379 | TCP      | Cache, queues, pub/sub (`REDIS_PORT`)                                 |
-| Grafana        | 3002 | HTTP     | Dashboards at the `/grafana/` sub-path (`GRAFANA_PORT`)               |
-| Prometheus     | 9090 | HTTP     | Metrics (`PROMETHEUS_PORT`)                                           |
-| Tempo          | 3200 | HTTP     | Distributed tracing query API (`TEMPO_PORT`; OTLP gRPC on 4317)       |
+| Service        | Port | Protocol | Description                                                        |
+| -------------- | ---- | -------- | ------------------------------------------------------------------ |
+| Frontend HTTP  | 8080 | HTTP     | nginx in the `frontend` container, host port `FRONTEND_HTTP_PORT`  |
+| Frontend HTTPS | 8444 | HTTPS    | nginx in the `frontend` container, host port `FRONTEND_HTTPS_PORT` |
+| Backend API    | 8000 | HTTP/WS  | FastAPI REST + WebSocket (`API_PORT`)                              |
+| `ai-gateway`   | 8090 | HTTP     | Triton gateway: `/yolo26` detection + `/enrich-lt` readiness       |
+| `ai-vlm`       | 8098 | HTTP     | llama.cpp reasoning serve, behind the `vlm` compose profile        |
+| PostgreSQL     | 5432 | TCP      | Database (`POSTGRES_PORT`)                                         |
+| Redis          | 6379 | TCP      | Cache, queues, pub/sub (`REDIS_PORT`)                              |
+| Grafana        | 3002 | HTTP     | Dashboards at the `/grafana/` sub-path (`GRAFANA_PORT`)            |
+| Prometheus     | 9090 | HTTP     | Metrics (`PROMETHEUS_PORT`)                                        |
+| Tempo          | 3200 | HTTP     | Distributed tracing query API (`TEMPO_PORT`; OTLP gRPC on 4317)    |
 
 > **Frontend Port Details:**
 >
@@ -49,12 +49,12 @@ Complete reference: [Environment Variable Reference](config/env-reference.md)
 
 ### Quick Reference - Essential Variables
 
-| Variable       | Required | Default                    | Description               |
-| -------------- | -------- | -------------------------- | ------------------------- |
-| `DATABASE_URL` | **Yes**  | -                          | PostgreSQL connection URL |
-| `REDIS_URL`    | No       | `redis://localhost:6379/0` | Redis connection URL      |
-| `YOLO26_URL`   | No       | see note below             | YOLO26 service URL        |
-| `NEMOTRON_URL` | No       | `http://localhost:8091`    | Nemotron LLM service URL  |
+| Variable       | Required | Default                    | Description                  |
+| -------------- | -------- | -------------------------- | ---------------------------- |
+| `DATABASE_URL` | **Yes**  | -                          | PostgreSQL connection URL    |
+| `REDIS_URL`    | No       | `redis://localhost:6379/0` | Redis connection URL         |
+| `YOLO26_URL`   | No       | see note below             | YOLO26 service URL           |
+| `AI_VLM_URL`   | No       | `http://localhost:8098`    | `ai-vlm` reasoning serve URL |
 
 > `YOLO26_URL` has two sources of truth: the backend default (`backend/core/config.py`) is `http://ai-gateway:8090/yolo26` for containerized deployments, while `.env.example` ships `http://localhost:8090/yolo26` for host-run development. Set it explicitly to match where your gateway runs.
 
@@ -88,27 +88,26 @@ REDIS_URL=redis://redis:6379/0
 
 ### AI Service URLs
 
-`.env.example` routes every model except Nemotron through the AI **gateway** (Triton) using per-service path prefixes; set `AI_GATEWAY_URL`/`USE_AI_GATEWAY` accordingly. The "standalone" column is the backend fallback default and the port a host-run server in `ai/<service>/model.py` binds to.
+Detection goes through the AI **gateway** (Triton); reasoning is a direct dial to `ai-vlm`.
 
-| Variable               | Default (`.env.example`, via gateway) | Fallback / standalone | Description                                       |
-| ---------------------- | ------------------------------------- | --------------------- | ------------------------------------------------- |
-| `YOLO26_URL`           | `http://localhost:8090/yolo26`        | `ai-gateway:8090`     | YOLO26 object detection                           |
-| `NEMOTRON_URL`         | `http://localhost:8091`               | `ai-llm:8091`         | Nemotron LLM (only AI service **not** in gateway) |
-| `FLORENCE_URL`         | `http://localhost:8090/florence`      | `:8092`               | Florence-2 vision-language (optional)             |
-| `CLIP_URL`             | `http://localhost:8090/clip`          | `:8093`               | CLIP embeddings (optional)                        |
-| `ENRICHMENT_URL`       | `http://localhost:8090/enrichment`    | `:8094`               | Heavy enrichment models (optional)                |
-| `ENRICHMENT_LIGHT_URL` | `http://localhost:8090/enrich-lt`     | `:8096`               | Light enrichment models (optional)                |
+| Variable         | Default (`.env.example`)       | Compose value                   | Description                                                           |
+| ---------------- | ------------------------------ | ------------------------------- | --------------------------------------------------------------------- |
+| `YOLO26_URL`     | `http://localhost:8090/yolo26` | `http://ai-gateway:8090/yolo26` | Object detection                                                      |
+| `AI_VLM_URL`     | `http://localhost:8098`        | `http://ai-vlm:8098`            | llama.cpp reasoning serve                                             |
+| `AI_GATEWAY_URL` | `http://ai-gateway:8090`       | `http://ai-gateway:8090`        | Gateway base for `{AI_GATEWAY_URL}/yolo26` when `USE_AI_GATEWAY=true` |
+
+With `USE_AI_GATEWAY=true` (what compose sets) the detector dials `{AI_GATEWAY_URL}/yolo26`; with it `false` the backend's own default, `http://ai-gateway:8090/yolo26`, is the dial.
 
 > **Warning:** Use HTTPS in production to prevent MITM attacks.
 
 ### AI Service Timeouts
 
-| Variable                | Default | Range   | Description                |
-| ----------------------- | ------- | ------- | -------------------------- |
-| `AI_CONNECT_TIMEOUT`    | `10.0`  | 1-60s   | Connection timeout         |
-| `AI_HEALTH_TIMEOUT`     | `5.0`   | 1-30s   | Health check timeout       |
-| `YOLO26_READ_TIMEOUT`   | `30.0`  | 5-120s  | Detection response timeout |
-| `NEMOTRON_READ_TIMEOUT` | `120.0` | 30-600s | LLM response timeout       |
+| Variable              | Default | Range  | Description                                              |
+| --------------------- | ------- | ------ | -------------------------------------------------------- |
+| `AI_CONNECT_TIMEOUT`  | `10.0`  | 1-60s  | Connection timeout                                       |
+| `AI_HEALTH_TIMEOUT`   | `5.0`   | 1-30s  | Health check timeout                                     |
+| `YOLO26_READ_TIMEOUT` | `30.0`  | 5-120s | Detection response timeout                               |
+| `AI_VLM_READ_TIMEOUT` | `25.0`  | 5-300s | One verdict attempt; its single retry shares this budget |
 
 ### Batch Processing
 
@@ -154,7 +153,7 @@ AI services run directly on the host while the backend runs in a container:
 ```bash
 # macOS with Docker Desktop (default)
 YOLO26_URL=http://host.docker.internal:8090/yolo26
-NEMOTRON_URL=http://host.docker.internal:8091
+AI_VLM_URL=http://host.docker.internal:8098
 
 # macOS with Podman
 export AI_HOST=host.containers.internal
@@ -164,18 +163,21 @@ podman-compose up -d
 # Use host IP or add --add-host=host.docker.internal:host-gateway
 ```
 
+Only the detector has a host-run server to point at: `./ai/start_detector.sh`
+(`ai/yolo26/model.py`). It binds :8090, the same port `ai-gateway` publishes, so run
+it with the gateway down or set `YOLO26_PORT`.
+
 ### Production Mode (Fully Containerized)
 
-All services including AI run in containers — one Triton gateway (`ai-gateway`) plus the standalone LLM (`ai-llm`):
+Both AI services run in containers — the Triton gateway (`ai-gateway`) and the
+reasoning serve (`ai-vlm`, which needs the `vlm` profile named at bring-up):
 
 ```bash
 # Set by docker-compose.prod.yml for the backend
 YOLO26_URL=http://ai-gateway:8090/yolo26
-NEMOTRON_URL=http://ai-llm:8091
-FLORENCE_URL=http://ai-gateway:8090/florence
-CLIP_URL=http://ai-gateway:8090/clip
-ENRICHMENT_URL=http://ai-gateway:8090/enrichment
-ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
+USE_AI_GATEWAY=true
+AI_GATEWAY_URL=http://ai-gateway:8090
+AI_VLM_URL=http://ai-vlm:8098
 ```
 
 ### Quick Reference: AI_HOST by Platform
@@ -184,8 +186,8 @@ ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
 | -------- | ------- | -------------------------------- | ------------------------- |
 | macOS    | Docker  | `host.docker.internal` (default) | N/A (use Linux for GPU)   |
 | macOS    | Podman  | `host.containers.internal`       | N/A (use Linux for GPU)   |
-| Linux    | Docker  | Host IP or `host-gateway`        | `ai-gateway`, `ai-llm`    |
-| Linux    | Podman  | Host IP or `host-gateway`        | `ai-gateway`, `ai-llm`    |
+| Linux    | Docker  | Host IP or `host-gateway`        | `ai-gateway`, `ai-vlm`    |
+| Linux    | Podman  | Host IP or `host-gateway`        | `ai-gateway`, `ai-vlm`    |
 | Windows  | Docker  | `host.docker.internal`           | N/A (use Linux for GPU)   |
 
 ---
@@ -199,20 +201,19 @@ Key terms used throughout the documentation. Full glossary: [Glossary](glossary.
 | Term           | Definition                                                                                                                      |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | **Detection**  | A single object instance identified by YOLO26 in an image. Contains object type, confidence score, bounding box, and timestamp. |
-| **Event**      | A security incident containing one or more detections, analyzed by Nemotron for risk assessment.                                |
+| **Event**      | A security incident containing one or more detections, scored by the `ai-vlm` reasoning serve.                                  |
 | **Batch**      | A collection of detections from a single camera grouped within a time window for analysis.                                      |
-| **Risk Score** | A numeric value from 0-100 assigned by Nemotron indicating the threat level of an event.                                        |
+| **Risk Score** | A numeric value from 0-100 indicating the threat level of an event; `null` means the scorer failed and the event needs review.  |
 | **Risk Level** | Categorical classification: Low (0-29), Medium (30-59), High (60-84), Critical (85-100).                                        |
 
 ### AI Components
 
-| Term           | Definition                                                                              |
-| -------------- | --------------------------------------------------------------------------------------- |
-| **YOLO26**     | Real-time object detection model using transformer architecture for accurate detection. |
-| **Nemotron**   | NVIDIA's LLM family. Production uses Nemotron-3-Nano-30B-A3B; development uses Mini 4B. |
-| **Florence-2** | Vision-language model for extracting visual attributes (optional enrichment).           |
-| **CLIP**       | Model for generating image embeddings enabling re-identification across camera frames.  |
-| **Inference**  | The process of running an AI model on input data to produce predictions.                |
+| Term                  | Definition                                                                                                                       |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **YOLO26**            | Real-time object detection model using transformer architecture, served by Triton inside `ai-gateway`.                           |
+| **`ai-vlm`**          | The llama.cpp serve that turns a batch's stills and lookup text into a risk verdict.                                             |
+| **Specialist lookup** | An in-process face, license-plate or person-re-ID match against your own registrations; `unavailable` is a class, never a score. |
+| **Inference**         | The process of running an AI model on input data to produce predictions.                                                         |
 
 ### System Components
 
@@ -248,20 +249,20 @@ docker compose -f docker-compose.prod.yml logs --tail=50 backend
 
 ### Common Issues Quick Reference
 
-| Symptom                     | Likely Cause             | Quick Fix                                                           |
-| --------------------------- | ------------------------ | ------------------------------------------------------------------- |
-| Dashboard shows no events   | File watcher or AI down  | Restart backend                                                     |
-| Risk gauge stuck at 0       | Nemotron unavailable     | Start the `ai-llm` container                                        |
-| Camera shows offline        | FTP or folder path issue | Check FTP and folder config                                         |
-| AI not responding           | Services not started     | `docker compose -f docker-compose.prod.yml up -d ai-gateway ai-llm` |
-| WebSocket disconnected      | Backend down             | Restart backend                                                     |
-| "Connection refused" errors | Service not running      | Start the service                                                   |
-| CORS errors in browser      | URL mismatch             | Update `CORS_ORIGINS`                                               |
+| Symptom                     | Likely Cause             | Quick Fix                                                                         |
+| --------------------------- | ------------------------ | --------------------------------------------------------------------------------- |
+| Dashboard shows no events   | File watcher or AI down  | Restart backend                                                                   |
+| Risk gauge stuck at 0       | `ai-vlm` not running     | `--profile vlm up -d ai-vlm`                                                      |
+| Camera shows offline        | FTP or folder path issue | Check FTP and folder config                                                       |
+| AI not responding           | Services not started     | `docker compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm` |
+| WebSocket disconnected      | Backend down             | Restart backend                                                                   |
+| "Connection refused" errors | Service not running      | Start the service                                                                 |
+| CORS errors in browser      | URL mismatch             | Update `CORS_ORIGINS`                                                             |
 
 ### Detailed Troubleshooting Guides
 
 - [Troubleshooting Index](troubleshooting/index.md) - Start here for any issue
-- [AI Issues](troubleshooting/ai-issues.md) - YOLO26, Nemotron, pipeline problems
+- [AI Issues](troubleshooting/ai-issues.md) - `ai-gateway`, `ai-vlm`, pipeline problems
 - [Connection Issues](troubleshooting/connection-issues.md) - Network, containers, WebSocket
 - [Database Issues](troubleshooting/database-issues.md) - PostgreSQL connection, schema
 - [GPU Issues](troubleshooting/gpu-issues.md) - CUDA, VRAM, thermal issues
@@ -300,7 +301,7 @@ uv run python -c "from backend.core.config import get_settings; s = get_settings
 # Test service connectivity
 curl http://localhost:8000/api/system/health     # Backend
 curl http://localhost:8090/yolo26/health         # YOLO26 (AI gateway router)
-curl http://localhost:8091/health                # Nemotron
+curl http://localhost:8098/health                # ai-vlm (profile-aware `ps` first)
 redis-cli ping                                   # Redis
 ```
 

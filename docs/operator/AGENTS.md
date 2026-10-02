@@ -77,7 +77,7 @@ operator/
     README.md             # Monitoring overview
     slos.md               # SLI/SLO framework
   services/               # Per-service deep dives
-    ai-enrichment-light.md # Enrichment-light service (legacy — superseded by ai-gateway)
+    ai-enrichment-light.md # The /enrich-lt router inside ai-gateway
 ```
 
 ## Migration Status
