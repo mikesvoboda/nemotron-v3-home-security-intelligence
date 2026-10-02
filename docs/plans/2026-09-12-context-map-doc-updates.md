@@ -13857,3 +13857,152 @@ b37-preC13` (240 metas/68,877 keys/kt 48,049 + target meta 860 keys); run log
 `b37-c13-fulltier-gate.txt`; score `b37-score-M15.json`; history append
 diff `b37-history-preM15.json` vs committed. Every number measured THIS
 session.
+
+## 2026-10-02 — MILESTONE 16 PUBLISHES: 70.66523480582806% completed=true (+0.4604363385508208 pts vs M15's 70.20479846727724%) — campaign #14 `prompt_service` CLOSES at 99.13294797687861% (686/692) in ONE CLEAN RUN after run 1 was mass-STRIPPED mid-generation (battery P, batch-38, 90 tests); row added retroactively at M17 close (the M16 session shipped the milestone commit but skipped this row — caught by the M17 close check)
+
+## M16-MEASURED (retroactive; every figure below recomputed THIS session from the committed history row and the M16-era memory, not from a fresh run)
+
+**THE NUMBER** (committed history run #20, `.github/mutation-history.json`):
+killed 48,405 + timeout 289 = kt 48,694; survived 19,431; no_tests 783;
+suspicious 0; not_checked 0; total 68,908; score (48,405 + 289)/68,908 =
+**70.66523480582806%**, completed=true. Δ kt vs M15 = +325 = 314 sweep
+conversions (battery P killed 314 of the module's 320 survivors; the pre-launch
+reconcile read RED=314 GREEN=6 == the 6-EQUIV ledger exactly) + 11
+coverage-growth births all killed (evaluate / \_disable_ab_test /
+\_log_rollback / execute_rollback inserts). Survivors 19,745 → 19,431 = −314.
+Dilution disclosure, row by row: kt-only on the OLD 68,897 denominator reads
+70.67651711975849%; carrying the +11 keys costs 0.01128231393042256 pt.
+Module: prompt_service 320 survivors @ 53.01% → 686/692 = 99.13294797687861%;
+final survivors == the 6 registered EQUIVs (evaluate m54/m57 renumbered to
+m59/m62 by the 11-slot insert — body-identity adjudicated; m30/m17/m69/m71
+unmoved).
+
+**THE RUN-1 DEATH AND ITS FIX** (the campaign's real cost, fully measured):
+run 1 died 00:42Z MID-GENERATION with sibling-drop=55,682 — guard-module2
+hard-killed and restored from `guard-restore.tgz` (restore + tar verified from
+INSIDE: 240 metas / 68,897 keys == published totals; ZERO verdicts lost, zero
+re-bank). Cause: a host main-merge ride-along added
+`test_backend_image_trivy_clean.py`, which reads REPO_ROOT/.trivyignore —
+absent in the mutant home → FileNotFoundError red → gather aborted under -x →
+generation re-enumerated siblings on the truncated covered set → keys deleted
+bank-wide (the 14th member of the also_copy path-read family; shield commit
+74352b8a). The post-repair serial scan then surfaced the 15th member
+(`docker-compose.ci.yml`, shield 85987d45). CRITICAL blindness reconfirmed:
+both post-repair serial scans were green while STILL structurally blind to the
+run-1 killer — added test files enter `mutants/` only AT GENERATION, so only
+the static added-file read-target census can see them (the census was run and
+caught both). Run 2 precondition: serial scan 28,260 passed / 124 skipped /
+8 xfailed / rc=0. Run 2: full 68,908/68,908, generation done-line 593.5 s /
+240 files, tight-regime guard quiet to exit. Reconcile: all 310 body-identity
+verdict flips are 0→1 (survivor→killed); ZERO kills lost by body identity; the
+6 final survivors ARE the 6 registered EQUIVs.
+
+**NOT PUBLISHED FROM:** run 1's mid-strip state (a successful guard
+protection, not a score), the scoped audit script's 4 "violations" (all
+renumber-noise + archive-artifact — adjudicated by the by-body crosswalk), or
+the externally-launched scans' `FileNotFoundError: 'python'` reds (launcher
+artifacts). Snapshots: pre-run archive + M16-era `guard-restore.tgz`
+(superseded copy `guard-restore-preM16-superseded.tgz`); run logs
+`b38-c14-greenscan.log` / `b38-c14-greenscan2.log` / `b38-c14-run2.log`;
+sweeps `b38-c14-sweep-run1.txt` / `b38-c14-sweep-run2.txt`.
+
+## 2026-10-02 — MILESTONE 17 PUBLISHES: 71.13106028744217% completed=true (+0.4658254816141038 pts vs M16's 70.66523480582806%) — campaign #15 `onvif_service` CLOSES at 99.38271604938271% (644/648) over TWO RUNS (battery Q, batch-38, 26 tests): run 1 was HEALTHY but the battery's covered-set growth BORN 45 keys that no pre-launch sweep can see — the 5 open delta survivors were reconciled after run 1 (3 killable closed, m44 registered EQUIV), run 2 landed the ledger exactly, and the post-run BODY-identity crosswalk read ZERO kills lost / ZERO bodies removed / 0 ambiguous
+
+## M17-MEASURED
+
+**THE NUMBER** (measured THIS session, `scripts/mutation-score.py` rc=0 →
+`/home/agent/runs/b38-c15-score.json`). `totals` row by row: killed 48,758
+(exit-1 48,726 + suspicious-counted-as-killed 32 — the script folds exit 3
+into killed; the raw meta census reads exit 1 = 48,726, exit 3 = 32) + timeout
+289 = kt 49,047; survived 19,123; no_tests 783 (unchanged — sticky rows ride
+on); skipped 0; not_checked 0; total 68,953; score (48,758 + 289)/68,953 =
+**71.13106028744217%**. `progress`: total 68,953, checked 68,953, not_checked
+0, torn_metas 0, **completed=true**. History appended via
+`--history .github/mutation-history.json --date 2026-10-02` as run #21 (21
+entries; 201 module rows; append-only). Badge decomposition row by row:
+Δ kt = +353 = 309 sweep conversions (the 309 survivors battery Q swept RED
+pre-run-1 — run 2's bank run flipped exactly 0→1 the sweep-confirmed 5 open
+delta keys m42/m261/m262/m263 into these) + 44 of 45 coverage-growth births
+killed − 0 kill losses. Survivors 19,431 → 19,123 = −308 (module 312 → 4,
+every other `.py.meta` byte-identical). Honest dilution disclosure: kt-only on
+the OLD 68,908 denominator reads 71.17751204504557%; carrying the +45
+newly-mutated keys costs 0.04645175760340692 pt (same contract as M13–M16).
+
+**DENOMINATOR DISCLOSURE** (Δ = +45 keys, every one counted): 68,908 → 68,953
+by BODY identity — battery Q's scenarios first EXECUTED arms across
+discover_devices (the xaddrs list-ternary, timeout-accumulation, profile-loop
+and capability arms) plus the other six functions; 45 BODIES born, 44 killed
+in the runs, 1 born survivor = m44 (ternary else-branch ""→"XXXX": the
+else-branch is reached only for FALSY xaddrs — "" or empty list — and the very
+next onvif-filter skips the service either way — registered EQUIV). The
+pre-existing registered EQUIV m95 (scopes default []→None, `None or [] == []`)
+was evicted to m100 by the insert; m32/m39 unmoved. Final bank survivors
+m32/m39/m44/m100 == honesty ledger == sweep-2 GREEN set, three-way identical.
+
+**THE TWO RUNS + THE DELTA PROTOCOL (the new machinery).** Run 1
+(healthy end to end): generation absorbed battery Q, BORN 45 keys, judged the
+whole delta region (progress 68,908/68,953), exited with 8 module survivors.
+The 8 were body-adjudicated: 3 registered EQUIVs renumbered (m32/m39/m100),
+m44 (proven EQUIV by construction), and 4 NEW killable delta-birth survivors
+(m42, m261, m262, m263) that the PRE-run-1 sweep could never see — a sweep
+always runs against the pre-run trampoline file, and births are born DURING
+generation. This is why #15 ran twice with a HEALTHY run 1: the second run
+exists because births are structurally un-sweepable pre-launch. Battery Q was
+augmented with the three killable polarities — m42 needs BOTH xaddrs
+attributes arriving as empty LISTS (`[] or []` evaluates to the second `[]`,
+which IS a list, so the ternary runs on it: orig takes else "", the
+`or True` mutant indexes `[][0]` → IndexError); the timeout `+=1` twins need
+accumulation ACROSS BOTH handlers (media-profiles site A twice, then the
+ctor-level site-B device LAST — the counter starts at 0, so with B first
+`= 1` is identical to `+= 1`) — plus m44's EQUIV registered. Pre-run-2 sweep
+against the 50 delta+survivor keys: RED=46 GREEN=4 == ledger exactly. Run 2:
+648 keys all judged, module 644/648, ZERO births. Post-run body-identity
+crosswalk (both trampoline eras loaded as modules, `inspect.getsource` norm-
+body index — a static def-parser MISSES multi-line signatures and was retired
+after it matched only 13 bodies): born 45, gone 0, ambiguous 0,
+survivor→killed 309, **KILL LOSSES 0**.
+
+**PRE-RUN GATES** (THIS session, against the FINAL committed battery Q — md5
+`7a24936a3339a5cbc9f6751c9a8fd182`, 26 tests / 1,060 lines): (1) root pytest
+26 passed; (2) ruff check + format + mypy + vulture rc=0; (3) battery Q under
+the RUNNER's own pytest in the mutant home with DB env: 24 passed (26 after
+the delta closes); (4) the FULL unit tier was NOT re-scanned — replaced by a
+STRICTER delta proof: file-set AND content cmp of the live mutant tree against
+the M16-verified `guard-restore.tgz` → 0 removals, 0 content diffs, battery Q
+and its pyc as the only additions (the tree was byte-identical to the era the full
+28,260-test scan validated at M16; scans are structurally blind to new files
+ANYWAY per the M16 lesson — only the added-file census matters, run: battery Q
+has zero path-reads); (5) sweeps + controls: shipped-green control OK (24
+tests), run-1 sweep RED=297 GREEN=15 of 312 — the 15 GREENs adjudicated to 12
+test-gap closes (the fake `_get_camera` must PIN its camera_id arg or the whole
+`_get_camera(None)` ctor family is invisible; falsy-cred polarity on all three
+ctor-pin tests; both-XAddrs-ABSENT polarity for the trailing-comma 2-arg
+getattr; two-hardware-scope ordering) + 3 EQUIVs — battery amended, run-2 sweep
+RED=309 GREEN=3, delta sweep RED=46 GREEN=4.
+
+**GUARDS + OPS**: guard-module2 attached to the runner's REAL setsid pgid
+(845237 run 1, 856708 run 2 — the mutation-run.sh session leader, not the
+launcher's bash pid), 315 ticks logged ALL sibling-drop=0 nonmod-holes=0
+stats=yes; both runs exited 0. Postgres was dead after a sandbox restart —
+re-provisioned (`docker run -d --name nem-pg -e POSTGRES_USER=s
+-e POSTGRES_PASSWORD=s -e POSTGRES_DB=s -p 5432:5432 postgres:16-alpine`,
+auth verified via psql). The prettier MM commit trap fired a THIRD time
+(first `git commit` died after the hook tail; `git log -1` still showed M16 —
+re-add + re-commit landed 6a2b90aa; `git log -1` verification is mandatory
+after EVERY commit). `git fetch` first: origin had NOT moved (clean
+fast-forward 490bad3a..6a2b90aa). `guard-restore.tgz` refreshed to the M17 era
+and VERIFIED FROM INSIDE the tar: 240 metas / 68,953 keys / kt 49,047 ==
+published; onvif meta {1: 644, 0: 4} == module row; battery Q present inside;
+M16 copy preserved as `guard-restore-preM17-superseded.tgz`.
+
+**NOT PUBLISHED FROM:** sweep RED counts as badge claims (297/15, 309/3 and
+46/4 reads were disposition — the bank is the score), run-1's 8-survivor
+interim, or any pre-renumber key number for a post-run claim (m95 claims are
+m100's claims). Commands + snapshots: pre-run archive
+`/home/agent/runs/pre-run-c15-20261002T035137Z.tgz` (240 metas / 68,908 keys);
+run logs `b38-c15-run1.log` / `b38-c15-run2.log`; guard log `guard.log`;
+sweeps `b38-c15-sweep-run1.txt` / `b38-c15-sweep-run2.txt` /
+`b38-c15-sweep-delta.txt` (+ `b38-c15-sweep-keys.txt` /
+`b38-c15-sweep-delta-keys.txt` / `b38-c15-mutation-map.txt`); run-1 meta
+snapshot `b38-c15-onvif-meta-run1.json`; score `b38-c15-score.json`. Every
+number measured THIS session.
