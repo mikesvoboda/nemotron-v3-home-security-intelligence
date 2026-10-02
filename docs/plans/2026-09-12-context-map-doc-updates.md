@@ -14006,3 +14006,98 @@ sweeps `b38-c15-sweep-run1.txt` / `b38-c15-sweep-run2.txt` /
 `b38-c15-sweep-delta-keys.txt` / `b38-c15-mutation-map.txt`); run-1 meta
 snapshot `b38-c15-onvif-meta-run1.json`; score `b38-c15-score.json`. Every
 number measured THIS session.
+
+## M18-MEASURED
+
+**THE NUMBER** (measured THIS session, `scripts/mutation-score.py` rc=0 →
+`/home/agent/runs/b38-c16-score.json`). `totals` row by row: killed 49,068
+(exit-1 49,036 + suspicious-counted-as-killed 32 — the script folds exit 3
+into killed) + timeout 289 = kt 49,357; survived 18,817; no_tests 783
+(sticky rows ride on); skipped 0; not_checked 0; total 68,957; score
+(49,068 + 289)/68,957 = **71.57648969647752%** (the script's own float; the
+raw re-division 100×49,357/68,957 reads 71.57648969647751 within 1 ulp).
+`progress`: total 68,957, checked 68,957, not_checked 0, torn_metas 0,
+**completed=true** (240 target modules / 201 with results). History appended
+via `--history .github/mutation-history.json --date 2026-10-02` as run #22
+(22 entries; 201 module rows; append-only; M17's entry re-verified intact).
+Badge decomposition row by row: Δ kt = +310 = 306 sweep conversions (the
+306 RED keys of the pre-run-1 sweep — the 309 entering survivors minus the 3
+ledger EQUIVs) + 4 coverage-growth births killed (run-2 verdict flips) − 0
+kill losses. Survivors 19,123 → 18,817 = −306 (module 309 → 3, every other
+`.py.meta` verdict untouched — the bank-wide flip census reads ZERO flips
+outside `job_tracker`). Honest dilution disclosure: kt-only on the OLD
+68,953 denominator reads 71.5806418865024%; carrying the +4 newly-mutated
+keys costs 0.00415219002489664 pt (same contract as M13–M17).
+
+**CAMPAIGN #16 DECIDE**: `job_tracker.py` was the largest survivor pool under
+80% that the R8 shield does not cover (309 survivors at 58.36%, 742 keys
+entering), taken per the ordering rule after #15 closed. CLOSED at
+**743/746 = 99.59785522788204%** — the 3 final survivors are EXACTLY the
+honesty ledger: `_should_broadcast_progress` m6 (default `get(job_id, 0)` →
+`get(job_id, 1)`: the value is consumed ONLY as `last_broadcast // 10` and
+0//10 == 1//10 == 0; present keys never consult the default) and m8 (`//` →
+`/`: the compared `current_threshold = progress // 10` is always an int, so
+with L = last//10 ≤ last/10 < L+1, `c > L` and `c > last/10` agree for every
+input; the last=15/progress=19 polarity cannot separate them — floors tie
+1==1 False, float 1 > 1.5 False) + `cleanup_completed_jobs` m7 (trailing-
+comma `pop(job_id, )` = default DELETED, 1-arg pop; `job_id` comes from
+`to_remove` built from `self._jobs`, so the key is always present and the
+default is unreachable). m6/m8 were NOT known at authoring — the pre-run-1
+sweep GREENed them (expected GREEN=1, got 3) and they were adjudicated
+EQUIVALENT by body proof, never by diff shape.
+
+**THE TWO RUNS + THE DELTA PROTOCOL (second deployment).** Run 1 (healthy end
+to end): generation absorbed battery R and BORN exactly 4 keys — m8/m9/m10/
+m11 of `_schedule_persist`, the None/XX/lower/UPPER message family of the
+no-event-loop debug line, newly mutated because battery R was the first
+battery to EXECUTE that except-arm (battery R's sync fire-and-forget tests
+run outside a loop; the shipped battery never reached it). All 4 SURVIVED
+run 1 — the pre-launch sweep structurally cannot see births. The delta audit
+(cur meta − pre-run-1 archive meta) found them, one added test
+(`test_schedule_persist_without_loop_logs_debug`, sync call site, exact debug
+record + no-extra pin) RED all 4 in the delta sweep (RED=4 GREEN=0), and run
+2 killed all 4 with ZERO new births. Pre-run-2 archive captured the run-1
+final meta (746 keys {1: 739, 0: 7}) immediately before launch. Bank-wide
+crosswalk run-1-archive → live: born 4 / gone 0 / **KILL LOSSES 0** / flips
+on old keys = 306, all 0→1, zero outside `job_tracker`; run-2-only window:
+1→1 739, 0→1 4, 0→0 3. Module closed in TWO runs by protocol, not by repair.
+
+**PRE-RUN GATES** (THIS session, against the FINAL committed battery R — md5
+`952cc439926f987d7857bdb63fbb5779`, 29 tests / 1,095 lines): (1) root pytest
+29 passed (28 before the delta close); (2) ruff check + mypy + vulture rc=0
+(12 B010 setattr-to-constant fixed by `--fix`, re-gated); (3) battery R under
+the runner's own pytest in the mutant home: 28/29 passed, sweep shipped-green
+control OK; (4) the FULL unit tier was NOT re-scanned — replaced by the
+STRICTER delta proof: file-set AND content md5 cmp of the live mutant tree
+against the M17-verified `guard-restore.tgz` over the 4,581-file shared set →
+0 removals, 0 content drift, battery R + its pyc the only additions; origin
+had NOT moved since 51d5a6f9 (git fetch verified — no host merge, so no new
+test files entered `backend/tests` since the M17 census); the added-file
+census ran anyway: battery R has ZERO path-reads (`REPO_ROOT`/`parents[`/
+`open(`/`Path(` all absent); (5) sweeps + controls: run-1 sweep RED=306
+GREEN=3 of 309 — the 2 unregistered GREENs became the m6/m8 EQUIVs above, no
+test gaps remained; ledger==sweep==bank three-way identical.
+
+**GUARDS + OPS**: plain-nohup launch per the goal-prompt guard rule (the
+first campaign to follow it literally — c15 ran setsid); guard-module2
+attached to the long-lived `mutation-run.sh` pid (905316 run 1 / 917180 run
+2 — the launcher's bash pid shares the pgid but exits early; the durable
+watch target is the run script itself), every tick sibling-drop=0
+nonmod-holes=0 stats=yes both runs; holes=4 appeared ONLY mid-generation in
+the module being run (within tolerance, cleared at the generation done-line,
+606,604 ms / 240 files run 2); both runs exited 0. Postgres (`nem-pg`) was
+already up — verified via psql before launch, no re-provision needed. No MM
+trap this close so far; `git log -1` verification still mandatory. Next:
+`guard-restore.tgz` refresh to the M18 era, verified from inside.
+
+**NOT PUBLISHED FROM:** sweep RED counts as badge claims (306/3 and 4/0 were
+disposition — the bank is the score), run-1's 7-survivor interim, or the
+pre-renumber assumption that m6/m8 were gaps (they are EQUIVs; the sweep
+proved it, body identity confirmed). Commands + snapshots: pre-run archives
+`/home/agent/runs/pre-run-c16-20261002T061952Z.tgz` (240 metas / 68,953 keys;
+job_tracker 742 {1: 433, 0: 309}) and `pre-run2-c16-20261002T064652Z.tgz`
+(746 {1: 739, 0: 7}); run logs `b38-c16-run1.log` / `b38-c16-run2.log`; guard
+log `guard.log`; sweeps `b38-c16-sweep-run1.txt` / `b38-c16-sweep-delta.txt`
+(+ `b38-c16-sweep-keys.txt` / `b38-c16-sweep-delta-keys.txt` /
+`b38-c16-mutation-map.txt`); score `b38-c16-score.json`; history backup
+`mutation-history-preM18.json`. Every number measured THIS session.
