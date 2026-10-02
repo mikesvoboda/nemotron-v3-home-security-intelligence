@@ -10,7 +10,12 @@ from __future__ import annotations
 
 import re
 
-from ..config import INLINE_CITATION_PATTERN, MERMAID_REFERENCE_PATTERN, Citation
+from ..config import (
+    INLINE_CITATION_PATTERN,
+    MERMAID_REFERENCE_PATTERN,
+    Citation,
+    looks_like_host_address,
+)
 
 
 def _find_mermaid_blocks(content: str) -> list[tuple[str, int]]:
@@ -58,6 +63,11 @@ def extract_mermaid_citations(content: str, doc_file: str = "") -> list[Citation
         # Look for inline citations in backticks
         for match in INLINE_CITATION_PATTERN.finditer(block_content):
             file_path = match.group(1)
+
+            # A host:port in a node label is not a path; same guard as prose.
+            if looks_like_host_address(file_path):
+                continue
+
             start_line = int(match.group(2))
             end_line = int(match.group(3)) if match.group(3) else None
 
@@ -80,6 +90,10 @@ def extract_mermaid_citations(content: str, doc_file: str = "") -> list[Citation
         # Look for Note annotations with references
         for match in MERMAID_REFERENCE_PATTERN.finditer(block_content):
             file_path = match.group(1)
+
+            if looks_like_host_address(file_path):
+                continue
+
             start_line = int(match.group(2))
             end_line = int(match.group(3)) if match.group(3) else None
 
