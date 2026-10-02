@@ -14733,3 +14733,196 @@ survivors at 63.9836% (then webhook_service 262/75.7183%, vlm_analyzer
 259/65.4206%, stream_manager 257/28.8089%, background_evaluator
 248/36.7347%). Gap to 85%: 0.85×68,987 = 58,638.95 − 50,456 = **8,182.95
 kt**. Every number measured THIS session.
+
+## 2026-10-02 — MILESTONE 23 PUBLISHES: 73.5041126042632% completed=true (+0.3656952212780027 pts vs M22's 73.1384173829852%) — campaign #21 `partition_manager` CLOSES at 96.25935162094763% (772/802) over TWO RUNS (battery W, batch-38, 35→37 tests, 1,388 lines final, md5 ad569b1d…): run 1 was HEALTHY (234 sweep-RED flips + 30 ledger preserved, zero losses) but the battery's coverage growth BORN 69 keys of which **5 SURVIVED** — walker default/boundary mutants killable ONLY at exact-boundary polarities — proved killable by construction probe, closed by a 2-test extension, run 2 landed CLEAN (5 births killed, 30 preserved, 0 new births, 0 moved)
+
+**THE NUMBER** (measured THIS session, `uv run scripts/mutation-score.py` rc=0
+routed to `/home/agent/runs/b38-c21-score.json`). `totals` row by row: killed
+50,470 (exit-1 50,438 plus suspicious-counted-as-killed 32 — the script folds
+exit 3 into killed) plus timeout 289 equals kt **50,759**; survived 17,514;
+no_tests 783 (sticky rows ride on); skipped 0; not_checked 0; total **69,056**;
+score (50,470 + 289)/69,056 = **73.5041126042632%** (the script's own float;
+the raw re-division 100×50,759/69,056 reads identically). `progress`: total
+69,056, checked 69,056, not_checked 0, torn_metas 0, **completed=true** (240
+target modules / 201 with results). **+0.3656952212780027 pt** vs M22's
+73.1384173829852%. History appended via
+`--history .github/mutation-history.json --date 2026-10-02` as run #27 (27
+entries; pre-append state backed up to
+`/home/agent/runs/mutation-history-preM23.json` — after the append the first
+26 runs verified deep-equal to that backup, the 3,041-line diff is the known
+compact→pretty reformat of the SAME bytes). Badge decomposition row by row:
+Δ kt = +303 = 234 pre-era survivor bodies flipped to killed + 64 of the 69
+run-1 births killed by run 1's own stats pass + 5 run-2 birth-kills
+(kt on the two runs' target meta: 469→772 = +303; survived 17,817 → 17,514 =
+−303; total 68,987 → 69,056 = +69 births).
+**DENOMINATOR DISCLOSURE:** the battery's coverage growth grew the bank +69
+keys at run 1 (mutation slots regenerated for lines the battery newly
+covered); 64 were born AND killed in-run, 5 born-survived until run 2 — all 69
+are in the new denominator either way: kt 50,759 on the OLD denominator 68,987
+would read 73.577630568078% — the +69 births cost **−0.07351796381485087 pt**
+of dilution, already inside the published +0.3656952212780027 net gain.
+
+**CAMPAIGN #21 — the target.** `backend/services/partition_manager.py` (264
+survivors entering at 63.9836%, the M22-censused head; R8 shield checked —
+not on the death list). Bank row entering: 733 keys {killed 469, survived
+264}. Mutation map `b38-c21-mutation-map.txt` (855 lines, 0 NOT-FOUND) +
+survivor-key file (264 bare keys) classified every survivor into 234 KILLABLE
+and 30 EQUIVALENT before a single test was written — the 30 adjudicated ONLY
+by per-key construction probes (`b38-c21-probe-equiv.py` +
+`b38-c21-probe2-pruning.py`: orig-vs-mutant repr equality under every
+reachable polarity; diff-shape never consulted for a disposition).
+
+**THE 30-EQUIV LEDGER (honesty ledger — each BODY-proved by construction
+probe THIS session):**
+
+1. `_calculate_partition_bounds` m17/m18/m19, m40/m41/m42, m61/m62/m63,
+   m83/m84/m85 (12) — deleting ONE positional `0` among
+   `datetime(y, m, d, 0, 0, 0, tzinfo=UTC)`: datetime's own defaults for
+   hour/minute/second ARE 0 (probed equal on weekly/December/else shapes).
+2. `_get_partitions_to_create` m46/m59 (`tzinfo=UTC -> None`), m50/m63 (the
+   `tzinfo=` KWARG DELETION), m54/m66 (day `1 -> 2`) — the monthly walker
+   consumes the intermediate ONLY via `.year`/`.month` and rebuilds a fresh
+   aware stamp each iteration: unobservable (probed monthly AND weekly under
+   the fixed now).
+3. `_parse_partition_bounds` m34/m58 (space-to-T replace → XX-space
+   replace), m36/m60 (space → t in that replace), m38/m62 (strptime-arm
+   `replace(tzinfo=UTC)` → `replace(tzinfo=None)`) — this interpreter's
+   `fromisoformat` accepts BOTH space- and t-separated forms (measured THIS
+   session), and the guard two lines below re-normalizes naive stamps
+   immediately.
+4. `_list_partitions` m25 (`and -> or`) — `_parse_partition_bounds` returns
+   BOTH-set or BOTH-None only (one-sided matches raise inside its try →
+   `(None, None)`), so both gates accept the same rows (probed valid/bad/mix).
+5. `check_partition_balance` m15 (`or True`) / m17 (`> 0 -> >= 0`) / m19
+   (else `0 -> 1`) / m28 (`if partitions … or True`) — `avg_rows` is
+   sum/len over counts FILTERED `> 0`, hence STRICTLY POSITIVE, and the
+   non-empty gate is consumed after the early return: guard always True,
+   else-arm unreachable (probed across [1]…[1,1,1,9,3]).
+6. `get_partition_metadata` m20 — the `avg_row_size_bytes=500` KWARG
+   DELETION: `estimate_partition_size`'s own parameter default IS 500 —
+   reconstructed identical.
+
+(The pruning-hint m1/m21/m22/m24/m29/m41 and the whole `run_maintenance`/
+`ensure_partitions` families were ledger CANDIDATES and adjudicated KILLABLE
+by the six-polarity re-probe — both-None alone and crash-equality were the
+too-narrow first-pass polarities; battery W kills all of them.)
+
+**BATTERY W — what kills what.**
+`test_partition_manager_batch38_w.py`, module-level sync tests only (b30
+harness contract), final 37 tests: WHOLE-CALL-LIST session spies recording
+every `session.execute` as the normalized positional-args tuple (kills the
+`text(...) -> None`, dict-key XX/upper flips AND the trailing-comma ARG
+DELETIONS by arg-count); whole `(level, msg, kwargs)` log-record LIST equality
+(`__init__`/`_create_partition`/`ensure_partitions`/`cleanup`/
+`run_maintenance` incl. the `exc_info` family); a fixed-now `datetime`
+SUBCLASS whose `now(None)` RAISES (kills every `now(UTC) -> now(None)` and
+pins all sequence mirrors); whole-SEQUENCE month/week walks against plain-code
+mirrors (`_mm_walk`/`_now_weekly_seq`); exact-dict/exact-float returns for
+metadata/stats/balance/recommend matrices; EXACT-boundary polarities: is_expired
+`end == cutoff -> False`, weekly name `gpu_stats_y2027w53` (Gregorian-year +
+ISO-week split), pruning end EXACTLY 2027-01-01 (walk `<=` includes the end
+month), December-crossing ValueError arms, ratio EXACTLY 3.0, avg EXACTLY 1.
+Authoring sweep `b38-c21-sweep-r1.txt`: **RED=234 GREEN=30 of 264** (run
+twice — `r1b` after the formatter rewrite — GREEN sets byte-identical), GREEN
+set == the 30-key ledger exactly. Gates at authoring: pytest green, ruff/
+format/mypy clean, vulture 0 (incl. CI-side whitelist for the arg-named
+fixtures).
+
+**COMMIT TRAP, BITE #2 (disclosed).** The FIRST battery-W commit DIED
+SILENTLY: hooks all Passed, HEAD unchanged, status "AM" — the pre-commit
+formatter rewrote the file AFTER staging (the documented trap, first bite
+since it was written down). AST-dump equality proved the rewrite
+meaning-preserving (the whitespace-normalized compare is NOT a sound check —
+it said False while `ast.dump` said True); EVERY gate re-run on the formatted
+bytes (ruff/mypy/vulture/pytest/sweep), mutant copy md5-synced atomically,
+committed as fcf29c77. The run-2 extension commit dc1ae146 verified
+committed == working == mutant md5 (ad569b1d…) — no rewrite fired.
+
+**RUN 1 (plain nohup, guard on the exec'd runner pid 1107581).** Battery W
+md5-synced into `mutants/` BEFORE launch; bank verified entering (240 metas /
+68,987 keys; target {469, 264}); unit tier GREEN in the mutant home FIRST:
+**28,567 passed, 124 skipped, 8 xfailed in 18:53** (`b38-c21-greentier.log`).
+Pre-run archive `pre-run-c21-20261002T171357Z.tgz` (53,068,472 B).
+`MUTMAX=14 ./scripts/mutation-run.sh partition_manager`; guard-module2 23
+ticks 17:23:38Z→17:47:15Z, EVERY tick sibling-drop=0/stats=yes/
+nonmod-holes=0, target holes peaked at 69 mid-generation and closed to 0 by
+the done-line (0 dirty ticks); generation done at 593,244 ms (240 files).
+
+**RECONCILE RUN 1 — BODY identity (capture #4 again earning its keep).**
+Crosswalk `b38-c21-reconcile-body.py` (AST `lineno..end_lineno`; self-checks
+printed BEFORE any ruling: keys-without-body pre=0 new=0; distinct bodies
+733/733 and 802/802): old defs 733 → new 802; **pre-survivors KILLED at body
+home: 234; preserved: 30; number-moved: 111; KILL-LOST: 0; VANISHED: 0**. But
+69 births, and **5 BIRTH SURVIVED** — verdict VIOLATION by the no-open-births
+rule: pruning-hint m33 (default-start `day 1 -> 2` — kills ONLY with end set
+start None at an exact day), m39 (`now + 365 -> + 366` — kills only with
+now EXACTLY 2025-12-31), gaps m29/m30/m31 (Dec-branch `year + 1` / `month -
+2` / `day 2` — kill only on max_date EXACTLY 2027-01-01 vs 01-02 walks).
+`b38-c21-probe3-births.py` proved all five KILLABLE by construction (fixed-
+now factory per polarity) — NOT ledger candidates.
+
+**EXTENSION + RUN 2.** Two tests added —
+`test_pruning_hint_default_walk_boundaries` (m33/m39 boundary polarities) and
+`test_identify_partition_gaps_december_arm` (Nov→2027-01-02 exact walk +
+long-walk belt) — 37 tests; re-sweep of the 35-key delta file: **RED=5
+GREEN=30**, the RED set exactly the five births, the 30 GREENs body-equal to
+the ledger (the 4 `check_partition_balance` keys whose NUMBERS moved r1→r2
+were body-EQUIV — renumber, not gap: third capture of the renumber-masked-as-
+loss pattern, this time on GREEN-set name diffs). Unit tier re-run GREEN
+**28,569 passed** (= 28,567 + the 2 new tests, exactly accounted); pre-run
+archive `pre-run-c21r2-20261002T180310Z.tgz` (52,978,297 B); runner pid
+1127401; guard 22 ticks 18:20:56Z→18:43:30Z ALL holes=0 sibling-drop=0
+(0 dirty); generation done at 595,345 ms. **Run-2 reconcile
+`b38-c21r2-reconcile-body.py`: RESULT CLEAN rc=0** — 802→802 defs, 5 births
+killed at body home, 30 preserved, 0 number-moved, 0 new births. Sibling
+drift by `exit_code_by_key` CONTENT vs the pre-run-2 tar across all 239
+non-target metas: **0** (target-only, same check re-run symmetric to run 1).
+
+**POST-CLOSE SWEEP — all 802 keys, committed battery.**
+`b38-c21-sweep-close.txt`: **RED=771 GREEN=31** — GREENs = the 30 ledger
+keys ∪ ONE extra: `_list_partitions__mutmut_18`, which the b30 harness (its
+harness never collects class-based files,
+[[b30-battery-harness-module-level-functions-only]]) cannot see the killer
+of: verified THIS session by running the pre-existing
+`test_partition_manager.py::TestListPartitions::test_list_partitions_with_
+null_row_count` under that key — RED (fails). So survivors-minus-GREENs
+EMPTY, GREENs-minus(ledger ∪ shipped-kill) EMPTY, and the bank's 772 is
+fully attributed: 771 battery-W kills + 1 shipped-suite kill.
+
+**CLOSE math cross-checked.** Target entering {killed 469, survived 264,
+total 733} → landing {killed 772, survived 30, total 802} = 96.25935162094763%
+(234 entering-survivor flips + 69 births, of which all 69 ended killed; the
+30 survivors == the ledger bodies exactly). Δ bank kt +303 == Δ target killed
++303; siblings moved 0 both runs.
+
+**GUARD-RESTORE refresh to M23**: built from INSIDE `mutants/` (`tar czf
+/home/agent/runs/guard-restore.tgz backend mutmut-stats.json`), VERIFIED from
+inside: 240 metas / 69,056 keys {killed 50,470 (exit-1 50,438 plus 32
+suspicious folded) timeout 289 survived 17,514 no_tests 783} = kt 50,759 ==
+published; partition_manager inside at {772, 30}; battery W inside at its
+committed md5 `ad569b1d…`. M22 tar kept as
+`guard-restore-preM23-superseded.tgz`. `git fetch` before push (origin may
+carry host main-merges).
+
+**NOT PUBLISHED FROM:** the close-sweep RED=771 as the module score (the bank
+says 772 — the 1 shipped-suite kill is outside the battery; the bank verdicts
+are the score), the 5 run-1 birth survivors as EQUIV candidates (probe-3
+proved each killable at an exact-boundary polarity — a NARROW-polarity probe
+lies in BOTH directions), or the r1→r2 GREEN name-diffs as ledger churn
+(body-set equality: the same 30 bodies throughout). Commands + snapshots:
+pre-run archives above; run logs `b38-c21-run1.log`/`b38-c21-run2.log`;
+guard ticks in `guard.log`; sweeps `b38-c21-sweep-r1.txt`/`r1b` (234/30 of
+264), `b38-c21-sweep-r2.txt` (5/30 of 35), `b38-c21-sweep-close.txt`
+(771/31 of 802, keys `b38-c21-sweep-keys-close.txt`, greens
+`b38-c21-close-greens.txt`); crosswalks `b38-c21-reconcile-body.py` (run 1,
+VIOLATIONS=5) and `b38-c21r2-reconcile-body.py` (run 2, CLEAN rc=0); probes
+`b38-c21-probe-equiv.py`/`b38-c21-probe2-pruning.py`/`b38-c21-probe3-births.py`;
+map `b38-c21-mutation-map.txt` (855 lines, 0 NOT-FOUND); tiers
+`b38-c21-greentier.log`/`b38-c21-greentier2.log`; score
+`b38-c21-score.json`; history backup `mutation-history-preM23.json`. Next
+head (re-censused from `b38-c21-score.json`, R8 shield applied):
+`webhook_service.py` 262 survivors at 75.7183% (total 1,079; then
+vlm_analyzer 259/65.4206%, stream_manager 257/28.8089%,
+background_evaluator 248/36.7347%, threat_monitor_service 244/32.5967%). Gap
+to 85%: 0.85×69,056 = 58,697.6 − 50,759 = **7,938.6 kt**. Every number
+measured THIS session.
