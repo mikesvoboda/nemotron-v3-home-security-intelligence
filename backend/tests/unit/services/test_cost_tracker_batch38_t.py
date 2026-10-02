@@ -68,6 +68,15 @@ number-keyed delta missed those 2 births (slot-inheritance, renumber capture
 #4); the body crosswalk found them: 0 true kill losses, old load_usage m13
 sits at new m14 still killed. Ledger stays the 10 rows above - both births
 are KILLABLE and killed, not equivalents.
+
+Run 2 killed both birth keys (bank 566/577) but LOST one kill: m43
+(`total_events > 0` -> `> 1` in _update_daily_usage) - its only kill was
+MY pre-edit full-shape test at events 1 (mutant skips the call, spy
+length differs); raising that test to events 2 for the m45 kill made both
+arms fire identically. Disclosed honestly: the pre-run-2 full-577 sweep
+showed m43 GREEN and I misread it as a shipped-suite kill. Fixed with a
+dedicated events-EXACTLY-1 test (the two tests cover each other's blind
+spot: / vs * coincide at 1, >0 vs >1 coincide at 2).
 """
 
 from __future__ import annotations
@@ -429,6 +438,28 @@ def test_update_daily_usage_full_shape():
         ("set_monthly_cost", (2.0,), {}),
         ("set_cost_per_detection", (10.0 / 1,), {}),
         ("set_cost_per_event", (10.0 / 2,), {}),
+    ]
+
+
+def test_update_daily_usage_single_event_fires_cost_per_event():
+    # EXACTLY one event overall: orig calls set_cost_per_event(cost/1); the
+    # m43 (> 0 -> > 1) mutant SKIPS the call (spy length differs) - the
+    # events=2 full-shape test cannot see m43 (both arms call, same value),
+    # and m45 (* instead of /) coincides at events 1 - the two tests cover
+    # each other's blind spot.
+    svc, spy = _mk()
+    d_now = date(2026, 6, 15)
+    svc._daily_usage[d_now] = DailyUsage(date=d_now, event_count=1)
+    rec = _rec(
+        datetime(2026, 6, 15, 9, 0, 0, tzinfo=UTC),
+        model="m",
+        estimated_cost_usd=5.0,
+    )
+    svc._update_daily_usage(rec)
+    assert spy.calls == [
+        ("set_daily_cost", (5.0,), {}),
+        ("set_monthly_cost", (5.0,), {}),
+        ("set_cost_per_event", (5.0 / 1,), {}),
     ]
 
 
