@@ -956,6 +956,22 @@ also_copy = [
     # copy is inert), 351 bytes; the sibling .env / .env.example entries
     # above are the precedent shape.
     ".env.bench",
+    # 2026-10-02 generation-strip repair (campaign #14 run 1 died at 00:42Z,
+    # fourteenth member of this family): a33fb127 added backend/tests/unit/
+    # scripts/test_backend_image_trivy_clean.py, whose TestProdStagePatches
+    # Libexpat/TestVendoredUrllib3Documented path-read REPO_ROOT/.trivyignore
+    # (parents[4] = the mutant home) -- absent -> FileNotFoundError red
+    # ABORTS THE COVERAGE GATHER under -x; generation then re-enumerated
+    # sibling metas against the truncated covered set (module guard caught
+    # 55,682 keys lost worst=1752@pipeline_workers.py.meta and restored the
+    # M15-era bank). Same red would also kill the stats pass. The sibling
+    # backend/Dockerfile read is already satisfied (backend/ is a covered
+    # copy; the stale Dockerfile was the known copy-lag — generation's forced
+    # also_copy re-copy heals it); the REPO_ROOT/uv.lock read passed against
+    # the existing mutant-home copy (measured green).
+    # .trivyignore sits outside source_paths (generates ZERO mutants -- the
+    # copy is inert), 15K.
+    ".trivyignore",
 ]
 
 # =============================================================================
