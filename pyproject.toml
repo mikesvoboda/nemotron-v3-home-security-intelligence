@@ -972,6 +972,18 @@ also_copy = [
     # .trivyignore sits outside source_paths (generates ZERO mutants -- the
     # copy is inert), 15K.
     ".trivyignore",
+    # 2026-10-02 green-scan repair (campaign #14 relaunch gate, fifteenth
+    # member of this family): 2c4855b5 (2026-09-30 19:19Z) added
+    # backend/tests/unit/scripts/test_ci_compose_cap_drop_bootable.py, whose
+    # module-level fixture path-reads REPO_ROOT/docker-compose.ci.yml --
+    # absent in the mutant home -> 9 fixture ERRORs (red under -x) in the
+    # serial precondition scan; inside the runner it would abort the gather/
+    # stats the same way as the fourteenth member. docker-compose.ci.yml sits
+    # outside source_paths (generates ZERO mutants -- the copy is inert), 7K;
+    # sibling compose files are already members above. Static census over all
+    # backend/tests/unit read targets re-run (see b38 note at run 1): this is
+    # the only remaining root-present/mutant-absent READ target.
+    "docker-compose.ci.yml",
 ]
 
 # =============================================================================
