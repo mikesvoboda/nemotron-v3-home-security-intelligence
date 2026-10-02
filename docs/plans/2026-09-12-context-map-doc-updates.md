@@ -14239,3 +14239,167 @@ head (re-censused from `b38-c17-score.json`, R8 shield applied — S1's
 survivors at 51.4035% (then notification 272/55.4828%, gpu_config_service
 266/52.9204%, partition_manager 264/63.9836%). Gap to 85%: 0.85×68,964 =
 58,619.4 − 49,642 = **8,977.40 kt**. Every number measured THIS session.
+
+## 2026-10-02 — MILESTONE 20 PUBLISHES: 72.37244639051195% completed=true (+0.38996277587243355 pts vs M19's 71.98248361463952%) — campaign #18 `cost_tracker` CLOSES at 98.26689774696708% (567/577) over THREE RUNS (battery T, batch-38, 44 tests): run 1 banked the sweep ledger but the body crosswalk exposed 2 births that INHERITED renumbered slots (the key-set delta missed them; renumber capture #4), run 2 killed both births but LOST one kill my own birth-fix had stolen (capture #5, disclosed), run 3 restored it — survivors 10 == the honesty ledger exactly, zero true losses net
+
+**THE NUMBER** (measured THIS session, `uv run scripts/mutation-score.py` rc=0
+routed to `/home/agent/runs/b38-c18-score.json`). `totals` row by row: killed
+49,627 (exit-1 49,595 + suspicious-counted-as-killed 32 — the script folds
+exit 3 into killed) plus timeout 289 equals kt 49,916; survived 18,272;
+no_tests 783 (sticky rows ride on); skipped 0; not_checked 0; total 68,971;
+score (49,627 + 289)/68,971 = **72.37244639051195%** (the script's own float;
+the raw re-division 100×49,916/68,971 reads identically). `progress`: total
+68,971, checked 68,971, not_checked 0, torn_metas 0, **completed=true** (240
+target modules / 201 with results). **+0.38996277587243355 pt** vs M19's
+71.98248361463952%. History appended via
+`--history .github/mutation-history.json --date 2026-10-02` as run #24 (24
+entries; 201 module rows; append-only; M19's run-#23 entry re-verified
+intact). Badge decomposition row by row: Δ kt = +274 = 264 same-body sweep
+conversions plus 11 body-births killed in runs 1–3 minus 1 vanished
+pre-era KILLED body (coverage-slot churn, below) = 274. Survivors 18,539 to
+18,272 = −267 (module 277 to 10: 264 flips plus 3 vanished pre-era survivor
+bodies; every other `.py.meta` VERDICT untouched — verdict-level sibling
+drift vs the M19-verified `guard-restore.tgz` over all 239 non-target metas:
+ZERO keys differ; note ALL 239 files differ by md5 because each run
+re-serializes sibling meta metadata fields, so the drift check MUST compare
+`exit_code_by_key` content, not file md5). Honest dilution disclosure:
+kt-only on the OLD 68,964 denominator reads 72.37979235543182%; carrying the
++7 net-new keys costs 0.007345964919863945 pt (same contract as M13–M19).
+
+**CAMPAIGN #18 DECIDE**: `cost_tracker.py` was the largest survivor pool
+under 80% that the R8 shield does not cover (277 survivors at 51.4035%, 570
+keys entering; S1's `system_broadcaster` 320-surv row stays DEAD-skipped),
+taken per the ordering rule after #17 closed. CLOSED at **567/577 =
+98.26689774696708%** (entering 293/570 = 51.40350877192982%) — the 10 final
+survivors are EXACTLY the honesty ledger, every one body-proved EQUIVALENT
+(never diff-shaped): `estimate_cost` m3/m10/m22/m27 — `if x > 0:` to
+`if x >= 0:` on the four INT axes (input_tokens/output_tokens/images/
+operations): the only newly-entered case is x == 0 whose term is
+0/1000.0\*price or 0\*price == 0.0 and `cost += 0.0` onto `cost = 0.0` is
+the float identity + m17 — same flip on the FLOAT axis gpu_seconds: newly-
+entered +0.0/−0.0 are unobservable through `+` (−0.0+0.0 is +0.0; equality
+compares −0.0 == 0.0 everywhere downstream) + m5 — first addend `cost += X`
+to `cost = X`: when that line runs cost is exactly 0.0 (nothing executes
+before it) and 0.0+X is X bit-identically + `get_budget_status` m45/m53 —
+`exceeded = ratio >= 1.0 if (budget > 0) or True else False`: with budget ≤
+0 the UNMUTATED ratio ternary yields exactly 0.0 so the now-taken branch
+evaluates 0.0 >= 1.0 which is False, identical to the else-False; with
+budget > 0 the predicate is irrelevant + m48/m56 — `if budget >= 0 else
+False`: budget == 0 takes the branch with ratio 0.0 giving False (same as
+else); budget < 0 falls to False; every outcome matches. Sweep/bank/ledger
+agree exactly: run-0 sweep RED=267 GREEN=10 of 277, GREEN set == the ledger
+key-for-key.
+
+**THE RENUMBER TRAP, FOURTH CAPTURE — BIRTHS THAT INHERIT RENUMBERED SLOTS
+ESCAPE THE KEY-SET DELTA.** Battery T was pre-copied into the mutant home
+(ONE-RUN protocol): run 1's key-set delta found 7 births, all killed by the
+same run's stats pass, and the bank landed 565/577 with 12 survivors = 10
+ledger plus TWO SURVIVING BIRTHS the key delta had never seen:
+`load_usage` new-m13 (`if not data: continue` to `break`) and
+`_update_daily_usage` new-m45 (`set_cost_per_event(total_cost / events)` to
+`* events`) — new mutants that LANDED IN SLOTS whose old-era occupants had
+been renumbered away, so `cur_keys − old_keys` was blind to them. The BODY
+crosswalk (pre-run trampoline defs vs live, whitespace-normalized,
+same-function) is the true birth census: 11 body-births, not 7. Both
+surviving bodies were adjudicated KILLABLE, not EQUIV (m45: `*` vs `/`
+coincide only at events == 1, which was the only input reaching the line;
+m13: `break` and `continue` coincide on a single key) — killed in run 2 by
+extended tests. Accounting by BODY across the campaign (pre-run-1 archive vs
+live): matrix {(1,1):292, (0,1):264, (0,0):10, birth-killed:11}; 4 old bodies
+VANISHED with coverage churn (1 had been killed, 3 were survivors);
+reconciliation 292 carried + 264 flips + 11 births = 567 = live killed ✓;
+total 577 = 570 − 4 vanished + 11 born ✓; survivors 10 = 277 − 264 − 3
+vanished-survivors ✓.
+
+**A BATTERY EDIT CAN STEAL ANOTHER MUTANT'S ONLY KILL (run-2 kill theft,
+disclosed as a loss-then-restore).** `_update_daily_usage` m43
+(`total_events > 0` to `> 1`) was bank-killed ONLY by battery T's full-shape
+test at events == 1 (mutant skips the `set_cost_per_event` call, the
+whole-spy equality differs). Raising that test to events == 2 to kill birth
+m45 made m43's arms fire identically — run 2 lost m43 (bank 566/577, 11
+survivors). The pre-run-2 full-577 sweep HAD shown m43 GREEN and it was
+misread as one of the shipped-suite GREENs; checked against the shipped
+tests specifically, m43 is NOT shipped-killed — the attribution was wrong
+and the honest rule now stands: never credit a sweep-GREEN survivor to the
+shipped suite without checking that claim against them. Fix: a dedicated
+events-EXACTLY-1 test (the `//` twins cover each other's blind spot: `/` vs
+`*` coincide at events 1, `>0` vs `>1` coincide at events 2). Run 3 restored
+it: bank 567/577, survivors == ledger 10, zero true losses NET. Also fixed
+mid-audit: the first run-3 crosswalk printed an ALL-NONEMETA "zero-loss"
+matrix — a key-construction bug (the regex name already ends in the
+`__mutmut_N` suffix; appending it again built dead keys). `(None,None)`
+matrix rows are the tell; print them.
+
+**THREE RUNS, each clean.** Run 1: plain-nohup launcher (`exec
+./scripts/mutation-run.sh cost_tracker`, durable pid 966750), guard-module2
+pid 967232, exit 0, bank {577: 1:565, 0:12}. Run 2 (pid 979691, guard
+979759): births killed, m43 lost, bank {1:566, 0:11}. Run 3 (pid 1001106,
+guard 1001174): m43 restored, bank {1:567, 0:10}; generation `done in
+594276ms (240 files mutated, 0 ignored, 0 unmodified)`. Guard ticks across
+all three runs: 66 cost_tracker lines, every tick sibling-drop=0
+nonmod-holes=0 stats=yes; holes appeared ONLY mid-generation IN the module
+being run (max 7, cleared at the done-line).
+
+**PRE-RUN GATES** (THIS session): battery T md5 `ccd99d257af1cb1e050dfab926285f79`
+(41 tests, 1,109 lines) passed pytest 41/41, ruff, mypy, vulture rc=0
+(CI-equivalent), and the survivor sweep RED=267 GREEN=10 == ledger. The
+pre-commit formatter then rewrote the STAGED battery and the first commit
+DIED (MM trap, sixth capture; `AM` the tell; md5 `ccd99d25…` to
+`9cea33d9101162a02366b314a8708163`, 1,109 to 1,111 lines, 8 hunks all
+formatting-only, verified by reading the full diff) — EVERY gate re-run
+against the committed bytes (pytest 43/43, ruff, mypy, vulture rc=0, mutant-
+home copy md5-synced) and the sweep re-run: RED=267 GREEN=10, GREEN set
+IDENTICAL. Run-2 birth kills committed at md5 `0e07c5f22f5c72de4bed26ed29678632`
+(43 tests) with full gates, m43 fix at `b2cbf430a71bb6a75ca94db8f52019da`
+(44 tests, 1,157 lines) with full gates, and the full-577 sweep re-run
+RED=558 GREEN=19 (the 19 = ledger 10 plus 9 shipped-suite kills: `__init__`
+m7, `_check_budget_thresholds` m2, `_update_daily_usage` m4/m8/m10/m12/m46,
+`load_usage` m16/m19 — battery T claims NONE of those; survivors minus
+battery-GREENs empty, i.e. the committed battery REDs every bank survivor).
+Unit tier GREEN in the mutant home with mutmut's OWN flags (`backend/tests/
+unit -m "not gpu" -p no:randomly -p no:benchmark -o addopts= --timeout=120`,
+venv bin on PATH): 28,394 passed / 19:03 before run 1. First scan attempt
+was a wrong-tier artifact (`backend/tests` full tree pulled
+`test_enrichment_edge_cases.py` which imports `tools`, absent from the
+mutant home and irrelevant to mutmut whose selection is
+`pytest_add_cli_args_test_selection = backend/tests/unit`; plus the repo
+addopts xdist), relaunched correctly. Added-file audit for the host merge
+(14 commits, docs/CI-only except two new unit tests
+`test_workflow_linear_verdicts.py` + `test_workflow_uv_hygiene.py`): both
+path-read ONLY `.github/workflows/*.yml` at REPO_ROOT, already in also_copy
+— no also_copy GROWTH needed, but the workflows copy in the mutant home was
+stale-era (the merge amended workflow contents the tests assert on); synced
+`.github/workflows` into the mutant home, 46/46 new + 142/142 existing
+workflow-readers green there, then the pre-run-3 rescan read 28,441 passed /
+19:03. `git fetch` caught origin ahead-merge BEFORE push: battery commits
+rebased onto host main-merge 6e72bac7 (clean; the host merge touched no
+cost_tracker file), pushed 6e72bac7..02cf867f.
+
+**GUARD-RESTORE refresh to M20**: built from INSIDE `mutants/` (`tar czf
+/home/agent/runs/guard-restore.tgz backend mutmut-stats.json`),
+52,710,511 B, VERIFIED from inside: 240 metas / 68,971 keys {killed 49,627
+(exit-1 49,595 plus 32 suspicious) timeout 289 survived 18,272 no_tests 783}
+= kt 49,916 == published; cost_tracker inside at {567, 10}; battery T inside
+at its committed md5 `b2cbf430…` (a guard restore returns a tree whose tests
+were gated at committed bytes). M19 tar kept as
+`guard-restore-preM20-superseded.tgz`.
+
+**NOT PUBLISHED FROM:** sweep RED counts as badge claims (267/10 and 558/19
+were disposition — the bank is the score), run-1's 12-survivor and run-2's
+11-survivor interims, or the first all-NONEMETA zero-loss crosswalk (bug;
+the corrected matrix is the published one). Commands + snapshots: pre-run
+archives `/home/agent/runs/pre-run-c18-20261002T111032Z.tgz` (570 keys
+{1:293, 0:277}), `pre-run-c18r2-20261002T120446Z.tgz` (577 {1:565, 0:12}),
+`pre-run-c18r3-20261002T124953Z.tgz` (577 {1:566, 0:11}); run logs
+`b38-c18-run1.log` / `-run2.log` / `-run3.log`; guard ticks in `guard.log`
+(the `guard-c18*.log` wrappers stayed 0 bytes); sweeps
+`b38-c18-sweep-r1.txt` / `-committed.txt` / `-all577.txt` / `-m43fix.txt` /
+`-postclose.txt` (keys: `b38-c18-sweep-keys.txt` 277, `b38-c18-all-keys.txt`
+577); map `b38-c18-mutation-map.txt` (843 lines, 0 NOT-FOUND); tiers
+`b38-c18-greentier.log` / `-greentier-r3.log`; score `b38-c18-score.json`;
+history backup `mutation-history-preM20.json`. Next head (re-censused from
+`b38-c18-score.json`, R8 shield applied): `notification.py` 272 survivors at
+55.4828% (then gpu_config_service 266/52.9204%, partition_manager
+264/63.9836%, webhook_service 262/75.7183%, vlm_analyzer 259/65.4206%). Gap
+to 85%: 0.85×68,971 = 58,625.35 − 49,916 = **8,709.35 kt**. Every number
+measured THIS session.
