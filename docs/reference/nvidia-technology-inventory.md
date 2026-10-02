@@ -680,12 +680,13 @@ The GPU rules that actually reference the shipped topology:
 | `GPUMemoryHigh`        | `hsi_gpu_memory_used_mb / total > 0.9`                                                                      | 5m       | warning  | 67   |
 | `GPUMemoryCritical`    | `hsi_gpu_memory_used_mb / total > 0.95`                                                                     | 2m       | critical | 80   |
 
-The same file also carries alert rules on metric families no shipped exporter
-emits: `EnrichmentPipelineTimeout` `:105`, `EnrichmentModelErrorRate` `:132`,
-`EnrichmentQualityDegraded` `:169`, `LLMInferenceLatencyHigh` `:219`,
-`CLIPServiceDown` `:374`, `FlorenceServiceDown` `:392` and
-`CLIPAnomalyErrorsHigh` `:415`. They cannot fire, and they are the first place a
-future agent looks for a component that does not exist.
+The same file also carries the ai-vlm verification-leg alerts, keyed on the
+metrics the VLM path actually writes: `PromptTruncationHigh` `:108`
+(`hsi_prompts_truncated_total`), `VlmVerificationFailures` `:145`
+(`hsi_pipeline_errors_total{error_type="vlm_verification_failed"}`),
+`VlmRequestErrors` `:169` (the `vlm_transport_error|vlm_http_error|vlm_schema_invalid`
+attempt classes), `VlmServiceUnhealthy` `:192` (`hsi_ai_service_degraded`), and
+`VlmSpecialistLegsUnavailable` `:213` (`hsi_specialist_unavailable_total`).
 
 ### Backend performance thresholds (`backend/services/performance_collector.py:39-42`)
 

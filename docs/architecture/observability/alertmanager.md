@@ -190,13 +190,10 @@ Latency burn-rate alerts are commented out pending the same missing histogram me
 
 ### AI Pipeline and Worker Alerts
 
-`monitoring/ai-pipeline-alerts.yml` covers the enrichment pipeline, LLM behaviour, and scoring:
-`GPUInferenceFailures`, `GPUMemoryHigh`, `GPUMemoryCritical`, `EnrichmentPipelineTimeout`,
-`EnrichmentPipelineTimeoutCritical`, `EnrichmentModelErrorRate`, `EnrichmentModelErrorCritical`,
-`EnrichmentQualityDegraded`, `PromptTruncationHigh`, `PromptContextUtilizationHigh`,
-`LLMInferenceLatencyHigh`, `LLMInferenceLatencyCritical`, `CoalescingMergeRateLow`,
-`CoalescingMergeRateHigh`, `RiskScoreCalibrationDrift`, `RiskScoreAllCritical`, `RiskScoreAllLow`,
-`CLIPServiceDown`, `FlorenceServiceDown`, `CLIPAnomalyErrorsHigh`.
+`monitoring/ai-pipeline-alerts.yml` covers GPU inference, memory, and the ai-vlm verification leg:
+`GPUInferenceFailures`, `GPUMemoryHigh`, `GPUMemoryCritical`, `PromptTruncationHigh`,
+`VlmVerificationFailures`, `VlmRequestErrors`, `VlmServiceUnhealthy`,
+`VlmSpecialistLegsUnavailable`.
 
 `monitoring/alerting-rules.yml` also defines Prometheus self-monitoring alerts (`Prometheus*`,
 lines 415-690), worker alerts (`HSIWorkerFailed`, `HSIWorkerNotRunning`,
