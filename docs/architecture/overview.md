@@ -125,7 +125,7 @@ The system is organized into four layers:
 | `ai-gateway` | 8090 | Triton Inference Server  | `/yolo26` detection; `/enrich-lt` readiness + resident specialists |
 | `ai-vlm`     | 8098 | llama.cpp `llama-server` | `/v1/chat/completions` on Qwen3VL-8B-Instruct-Q4_K_M + mmproj      |
 
-`ai-vlm` is the only LLM service; there is no ai-llm.
+`ai-vlm` is the only LLM service in the shipped stack.
 
 ---
 
