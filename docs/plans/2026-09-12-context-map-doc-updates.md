@@ -14552,3 +14552,184 @@ survivors at 52.9204% (then partition_manager 264/63.9836%, webhook_service
 262/75.7183%, vlm_analyzer 259/65.4206%, stream_manager 257/28.8089%). Gap to
 85%: 0.85×68,973 = 58,627.05 − 50,184 = **8,443.05 kt**. Every number
 measured THIS session.
+
+---
+
+## 2026-10-02 — MILESTONE 22 PUBLISHES: 73.1384173829852% completed=true (+0.3795117242491699 pts vs M21's 72.75890565873603%) — campaign #20 `gpu_config_service` CLOSES at 98.61830742659758% (571/579) in ONE RUN (battery V, batch-38, 35 tests, 1,353 lines, md5 043df46c…, pre-copied into the mutant home): bank landed survivors == the 8-EQUIV honesty ledger exactly BY BODY, zero losses; the ledger's apply_gpu_config m48 row landed at NEW slot m49 — capture #4's renumber seen HEAD-ON (the first time a survivor, not a birth, moved) — adjudicated by body identity, never by key number
+
+**THE NUMBER** (measured THIS session, `uv run scripts/mutation-score.py` rc=0
+routed to `/home/agent/runs/b38-c20-score.json`). `totals` row by row: killed
+50,167 (exit-1 50,135 plus suspicious-counted-as-killed 32 — the script folds
+exit 3 into killed) plus timeout 289 equals kt **50,456**; survived 17,748;
+no_tests 783 (sticky rows ride on); skipped 0; not_checked 0; total **68,987**;
+score (50,167 + 289)/68,987 = **73.1384173829852%** (the script's own float;
+the raw re-division 100×50,456/68,987 reads identically). `progress`: total
+68,987, checked 68,987, not_checked 0, torn_metas 0, **completed=true** (240
+target modules / 201 with results). **+0.3795117242491699 pt** vs M21's
+72.75890565873603%. History appended via
+`--history .github/mutation-history.json --date 2026-10-02` as run #26 (26
+entries; pre-append state backed up to
+`/home/agent/runs/mutation-history-preM22.json` — after the append the first
+25 runs verified deep-equal to that backup, the 3,041-line diff is the known
+compact→pretty reformat of the SAME bytes). Badge decomposition row by row:
+Δ kt = +272 = 258 pre-era survivor bodies flipped to killed + 14 body-births
+born AND killed by the same run's stats pass (pre-era kt 50,184 → 50,456;
+survived 18,006 → 17,748 = −258; total 68,973 → 68,987 = +14 births).
+**DENOMINATOR DISCLOSURE:** the run grew the bank +14 keys (battery V's
+coverage growth regenerated more mutation slots); ALL +14 were born AND
+killed in-run (body-birth census below), so the new denominator only dilutes:
+kt 50,456 on the OLD denominator 68,973 would read 73.1532628709785% — the
++14 births cost **−0.014845487993298434 pt** of dilution, already inside the
+published +0.3795117242491699 net gain.
+
+**CAMPAIGN #20 — the target.** `backend/services/gpu_config_service.py`
+(266 survivors entering at 52.9204%, the M21-censused head; R8 shield
+checked — not on the death list). Bank row entering: 565 keys {killed 299,
+survived 266}. Mutation map `b38-c20-mutation-map.txt` (803 lines, 0
+NOT-FOUND, all 266 survivors with visible diffs) classified every survivor
+into 258 KILLABLE + 8 EQUIVALENT before a single test was written.
+
+**THE 8-EQUIV LEDGER (honesty ledger — each BODY-proved, measured THIS
+session):**
+
+1. `generate_override_content` m37 / `generate_assignments_content` m20 /
+   `_build_override_content` m41 — `sort_keys=False` → `sort_keys=None`:
+   PyYAML tests the flag truthily, `bool(None) == bool(False)`, the dump is
+   byte-identical (measured against the reference dump with the installed
+   package THIS session).
+2. `generate_override_content` m39 / `generate_assignments_content` m22 /
+   `_build_override_content` m43 — the `default_flow_style=False` ARG
+   DELETION: PyYAML's own default for the parameter is False — measured
+   identical to the reference dump.
+3. `get_container_status` m8 — `dict.fromkeys(service_names, None)` with the
+   `None` arg DELETED (trailing comma): fromkeys' own default value is None,
+   the dicts are equal.
+4. `apply_gpu_config` m48 — the `status=RestartStatus.PENDING` kwarg
+   DELETION at the `ServiceRestartStatus(...)` construction: the dataclass
+   field's default is exactly `RestartStatus.PENDING` — reconstructed
+   identical.
+
+(`_result_from_dict` m5 `completed_at = ""` and `ApplyResult.to_dict` m10
+`or True` were ledger CANDIDATES and adjudicated KILLABLE by construction
+probes — the `.completed_at` attribute is observable through
+`_result_from_dict`, and `completed_at=None` makes `None.isoformat()` RAISE —
+battery V kills both; they are NOT in the ledger.)
+
+**BATTERY V — what kills what.** `test_gpu_config_service_batch38_v.py`,
+module-level sync tests only (b30 harness contract), 35 tests: whole-STRING
+equality of all three YAML generators against plain-code mirrors (kills the
+XX/upper/key-case/`str(None)` flips and every `datetime.now(UTC)` →
+`now(None)` via a fake module `datetime` whose `now(None)` RAISES);
+dataclass round-trips under PRESENT and ABSENT polarities (the BOTH-set
+`__post_init__` polarity kills the `is None` → `is not None` gate flips; the
+KEYS-OMITTED `_result_from_dict` payload kills the trailing-comma
+`.get(k, )` arg-deletions — the authoring sweep's FIRST pass caught the one
+real test gap here: a present-with-null payload does not exercise
+m15/m17/m39/m41); whole `(level, msg, kwargs)` log-record LIST equality
+(`__init__`/`write_config_files`/`_generate_override_file`/`_recreate_service`
+/`apply_gpu_config` incl. the `exc_info` family); a Redis spy pinning the
+whole `((key, payload), {"expire": 3600})` call tuple plus the FULL persist
+SEQUENCE against a mirror (kills the `=None` intermediate status/started/
+completed assignments the final `to_dict` cannot see); a fake `asyncio`
+exec-spy with whole `(args, kwargs)` equality and a `wait_for` timeout arm
+(kills the `-f`/`up`/`-d`/`--force-recreate` flips, `cwd=str(root)`,
+`timeout=None`; probe model: rc = 0 iff `"--version"` in args). Authoring
+sweep `b38-c20-sweep-r1.txt`: **RED=258 GREEN=8 of 266**, GREEN set == the
+ledger EXACTLY (each EQUIV key name checked by hand, no extras). Gates at
+authoring: pytest 35 passed, ruff/format/mypy clean, file vulture 0, CI
+vulture rc=0.
+
+**AUTHORING-LEDGER CATCH (the sweep earning its keep, pre-commit):** the
+first battery draft's `_result_from_dict` ABSENT-polarity test passed a
+present-with-nulls payload; the map cross-check flagged m17/m39/m41 (the
+trailing-comma `.get(k, )` = delete-the-default family that needs a genuinely
+MISSING key to crash `.items()`). Payload rewritten to omit the keys → 35
+green → sweep RED=258 GREEN=8 == ledger. Had this been adjudicated by diff
+SHAPE alone the first draft would have shipped 3 test gaps (see
+[[survivor-disposition-requires-sweep-not-diffshape]]).
+
+**ONE RUN (protocol #3 of the pre-copied-battery pattern).** Battery V
+md5-synced into `mutants/` BEFORE launch; bank verified entering (240 metas /
+68,973 keys; target {299, 266}); unit tier GREEN in the mutant home FIRST:
+**28,532 passed, 124 skipped, 8 xfailed in 19:01** (`b38-c20-greentier.log`;
+= M21's 28,497 + battery V's 35, exactly accounted). Pre-run archive
+`pre-run-c20-20261002T150329Z.tgz` (52,835,885 B; target meta verified
+byte-identical to live). Launcher `b38-c20-launch.sh` plain nohup (NO
+setsid; execs `MUTMAX=14 ./scripts/mutation-run.sh gpu_config_service`);
+runner pid 1085711; guard-module2 attached WITH the RUNLOG third arg
+(wrapper 1085854 → real guard 1085856) — 21 ticks (every tick: sibling-drop=0,
+stats=yes, nonmod-holes=0; the target's own holes peaked at 14 mid-run —
+transient unverified slots of the regenerating target meta — and closed to 0
+by the done-line); generation done-line at 595,617 ms (240 files
+mutated), stats pass to completion ~40 min total (`b38-c20-run1.log`).
+
+**RECONCILE — BODY identity, capture #4 head-on.** Crosswalk
+`b38-c20-reconcile-body.py` (AST `lineno..end_lineno` extraction; printed
+self-checks BEFORE any ruling: keys-without-body pre=0 new=0, distinct-bodies
+565/565 and 579/579): old defs 565 → new defs 579; **pre-survivors KILLED at
+body home: 258; preserved: 8; number-moved: 119; KILL-LOST: 0; VANISHED: 0**.
+14 body-births (7 `_recreate_service` m79–85, 2 `_result_from_dict` m20/m21,
+1 `apply_gpu_config` m14, 4 `ServiceRestartStatus.from_dict` m13–16) — ALL
+judged killed by the same run's stats pass (the pre-copied battery earned
+them; `_result_from_dict`'s two and `from_dict`'s four are the KEY-OMISSION
+payload's own coverage growth). **Capture #4, survivor edition:** the new key
+set's survivors named as `apply_gpu_config__mutmut_49` while the ledger row
+was m48 — NOT a kill loss: new-m49's body is byte-identical to pre-m48's
+EQUIV body (proved by the body-identity map: pre-m48 verdict 0 → the SAME
+body at new m49 verdict 0), and new-m48 is a different (killed) body. The
+ledger comparison was rewritten from key-NAME set equality to BODY-set
+equality — under coverage-growth renumber, name equality is structurally
+unusable for survivors too (M21 saw the same shift for BIRTHS; this is the
+first time it moved a LEDGER row and initially read as a 1-gap/1-extra pair —
+a false TEST GAP + false LEDGER-KILL). Sibling drift by `exit_code_by_key`
+CONTENT across all 239 non-target metas vs the pre-run tarball: **0**.
+Post-close sweep of the FULL new key set (579 keys) with the COMMITTED
+battery: **RED=560 GREEN=19**; the 19 adjudicate as exactly the 8 ledger
+bodies + 11 keys whose verdict is 1 in BOTH eras (pre-era bank kills the
+battery does not claim: `__init__` m5/m6/m28, `write_config_files` m2–m7,
+`from_dict` m1, `_diff_assignments` m11) — survivors-minus-GREENs EMPTY,
+GREENs-minus-(ledger ∪ shipped-claims) EMPTY.
+
+**CLOSE math cross-checked.** Target entering {killed 299, survived 266,
+total 565} → landing {killed 571, survived 8, total 579} = 98.61830742659758%
+(571/579; of the 266 entering survivors, 258 adjudicated-killable bodies
+flipped and 0 of the 8 ledger rows flinched). Δ bank kt =
++272 == Δ target killed (+272) == 258 flips + 14 births — every bank movement
+attributed to the target module; siblings moved 0 (verdict-content check
+above).
+
+**PRE-RUN GATES (this campaign):** `# TARGET-MODULE` marker + b30 arg order
+(`<battery> <keys-file>`) verified by the sweep's shipped-green control (35
+pass unmutated); mutant-copy md5-synced at every gate re-run; the commit-time
+hooks (ruff-format/mypy/detect-secrets/prettier) did NOT move the committed
+bytes this time — committed md5 == swept md5 == mutant-copy md5
+(043df46c…), so no re-gate cascade fired (MM trap watched, not bitten).
+
+**GUARD-RESTORE refresh to M22**: built from INSIDE `mutants/` (`tar czf
+/home/agent/runs/guard-restore.tgz backend mutmut-stats.json`),
+52,882,724 B, VERIFIED from inside: 240 metas / 68,987 keys {killed 50,167
+(exit-1 50,135 plus 32 suspicious folded) timeout 289 survived 17,748 no_tests
+783} = kt 50,456 == published; gpu_config_service inside at {571, 8}; battery
+V inside at its committed md5 `043df46c…`. M21 tar kept as
+`guard-restore-preM22-superseded.tgz`. `git fetch` before push: origin
+compared against f922b5c2/8d9e8197 lineage (fetch FIRST — always).
+
+**NOT PUBLISHED FROM:** the sweep RED=560 count as a badge claim (560 of 579
+is disposition — 11 of the 19 GREENs are shipped-suite kills the battery
+does not claim; the bank's 571 is the score), the pre-sweep draft's
+present-with-nulls payload as gap-free (it had 3 real gaps the sweep would
+have caught — the map cross-check caught them first), or the key-NUMBER
+m48→m49 row as a ledger kill + test gap (body identity proved one EQUIV that
+MERELY MOVED). Commands + snapshots: pre-run archive above; run log
+`b38-c20-run1.log`; guard ticks in `guard.log`; sweeps `b38-c20-sweep-r1.txt`
+(258/8 of 266) and `b38-c20-sweep-postclose.txt` (560/19 of 579, keys
+`b38-c20-sweep-keys-postclose.txt`; greens
+`b38-c20-postclose-greens.txt`); crosswalk `b38-c20-reconcile-body.py` (the
+published CLEAN run); map `b38-c20-mutation-map.txt` (803 lines, 0
+NOT-FOUND); tier `b38-c20-greentier.log`; score `b38-c20-score.json`; history
+backup `mutation-history-preM22.json`. Next head (re-censused from
+`b38-c20-score.json`, R8 shield applied): `partition_manager.py` 264
+survivors at 63.9836% (then webhook_service 262/75.7183%, vlm_analyzer
+259/65.4206%, stream_manager 257/28.8089%, background_evaluator
+248/36.7347%). Gap to 85%: 0.85×68,987 = 58,638.95 − 50,456 = **8,182.95
+kt**. Every number measured THIS session.
