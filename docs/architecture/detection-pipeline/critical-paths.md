@@ -21,7 +21,7 @@ watch_to_detect --> detect_to_batch --> batch_to_analyze --> total_pipeline
 
 ### Stage 1: watch_to_detect
 
-**Source:** `backend/services/file_watcher.py` (lines 767-769)
+**Source:** `backend/services/file_watcher.py` (lines 827-829)
 
 ```python
 duration_ms = int((time.time() - start_time) * 1000)
@@ -39,7 +39,7 @@ record_pipeline_stage_latency("watch_to_detect", float(duration_ms))
 
 ### Stage 2: detect_to_batch
 
-**Source:** `backend/services/pipeline_workers.py` (lines 453-455)
+**Source:** `backend/services/pipeline_workers.py` (lines 526-531)
 
 ```python
 duration = time.time() - start_time
@@ -59,31 +59,32 @@ record_pipeline_stage_latency("detect_to_batch", duration * 1000)
 
 ### Stage 3: batch_to_analyze
 
-**Source:** `backend/services/pipeline_workers.py` (lines 888-891)
+**Source:** `backend/services/pipeline_workers.py` (lines 1062-1067)
 
 ```python
 duration = time.time() - start_time
-record_pipeline_stage_latency("batch_to_analyze", duration * 1000)
-await record_stage_latency(self._redis, "analyze", duration * 1000)
+duration_ms = int(duration * 1000)
+record_pipeline_stage_latency("batch_to_analyze", duration_ms)
+await record_stage_latency(self._redis, "analyze", duration_ms)
 ```
 
 **Components:**
 
-- Queue dequeue (Redis BRPOP)
+- Queue read (Redis Streams consumer group, or BRPOP)
 - Payload validation
 - Detection fetch (PostgreSQL)
-- Context enrichment
-- Enrichment pipeline (optional)
-- Semaphore acquisition
-- Nemotron LLM request
-- Response parsing
+- Household/zone context read
+- Specialist lookups (faces, person re-ID, plates — in-process)
+- Key-frame selection
+- VLM assess request to `ai-vlm` (`backend/services/vlm_client.py`)
+- Verdict validation (the schema arrives parsed; no text scraping)
 - Event creation
 - Database insert
 - WebSocket broadcast
 
 ### Stage 4: total_pipeline
 
-**Source:** `backend/services/pipeline_workers.py` (lines 894-916)
+**Source:** `backend/services/pipeline_workers.py` (lines 1071-1080)
 
 ```python
 if pipeline_start_time:
@@ -132,8 +133,8 @@ def _should_use_fast_path(self, confidence: float | None, object_type: str | Non
 
 **Costs:**
 
-- Higher LLM load (more individual requests)
-- Less context for LLM (single detection vs batch)
+- Higher VLM load (more individual requests)
+- Less context for the VLM (single detection vs batch)
 
 ## Concurrency Control
 
@@ -172,21 +173,27 @@ def _get_semaphore(cls) -> asyncio.Semaphore:
 
 ### Exponential Backoff (NEM-1343)
 
-Both detector and analyzer use exponential backoff for transient failures:
+The detector retries transient failures with exponential backoff:
 
 ```python
 # Backoff calculation
 delay = min(2**attempt, 30)  # Cap at 30 seconds
 ```
 
+The analysis leg does not use a backoff ladder. `VlmClient.assess` makes one
+attempt, retries exactly once at temperature 0 inside the same read budget, and
+raises — the analyzer then records `verification_failed` on the event rather
+than spending a second budget on it (`backend/services/vlm_client.py:805-807`).
+
 **Retry schedule:**
-| Attempt | Delay |
-|---------|-------|
-| 1 | 1s |
-| 2 | 2s |
-| 3 | 4s |
-| 4 | 8s |
-| 5+ | 30s (capped) |
+
+| Attempt | Delay        |
+| ------- | ------------ |
+| 1       | 1s           |
+| 2       | 2s           |
+| 3       | 4s           |
+| 4       | 8s           |
+| 5+      | 30s (capped) |
 
 ### Impact on Latency
 
@@ -231,19 +238,24 @@ DETECTOR_READ_TIMEOUT = 60.0      # AI inference response
 DETECTOR_HEALTH_TIMEOUT = 5.0     # Health check
 ```
 
-### Analyzer Timeouts
+### VLM Timeouts
 
-**Source:** `backend/services/nemotron_analyzer.py` (lines 127-132)
+**Source:** `backend/core/config.py` (lines 1093-1132)
 
 ```python
-NEMOTRON_CONNECT_TIMEOUT = 10.0   # Connection establishment
-NEMOTRON_READ_TIMEOUT = 120.0     # LLM response (complex inference)
-NEMOTRON_HEALTH_TIMEOUT = 5.0     # Health check
+ai_connect_timeout: float = 10.0          # Connection establishment
+ai_vlm_read_timeout: float = 25.0         # One vlm_assess attempt
+ai_vlm_wake_timeout_seconds: float = 90.0 # The wake-on-open ping
 ```
+
+The read budget is sized against p95 <= 30 s including cold starts, and it covers
+both attempts: the client retries once inside the same budget (`vlm_client.py`
+`VlmClient.assess`), so a per-attempt ceiling at or above 30 s would leave no
+room for the second try.
 
 ### Defense-in-Depth (NEM-1465)
 
-**Source:** `backend/services/detector_client.py` (lines 579-582)
+**Source:** `backend/services/detector_client.py` (lines 635-637, wrapper at 663-665)
 
 ```python
 # Explicit asyncio.timeout() wrapper

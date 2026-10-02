@@ -1,6 +1,6 @@
 # Batch Aggregator
 
-The BatchAggregator groups detections by camera into time-based batches before LLM analysis, optimizing GPU utilization and context coherence.
+The BatchAggregator groups detections by camera into time-based batches before VLM verification, optimizing GPU utilization and context coherence.
 
 ## Overview
 
@@ -11,36 +11,37 @@ The aggregator provides:
 1. **Time-window batching:** Group detections within 90-second windows
 2. **Idle timeout:** Close batches after 30 seconds of inactivity
 3. **Size limits:** Prevent memory exhaustion from large batches
-4. **Fast path:** Bypass batching for high-confidence person detections
+4. **Fast path:** Route a critical detection straight to analysis instead of batching it
 
 ## Class Definition
 
 ```python
-class BatchAggregator:  # Line 122
+class BatchAggregator:  # Line 172
     """Aggregates detections into time-based batches for analysis."""
 ```
 
-### Constructor Parameters (Lines 135-161)
+### Constructor Parameters (Lines 185-211)
 
-| Parameter      | Type               | Default | Description                    |
-| -------------- | ------------------ | ------- | ------------------------------ |
-| `redis_client` | `RedisClient`      | None    | Redis client for batch storage |
-| `analyzer`     | `NemotronAnalyzer` | None    | For fast path analysis         |
+| Parameter      | Type          | Default | Description                                                                             |
+| -------------- | ------------- | ------- | --------------------------------------------------------------------------------------- |
+| `redis_client` | `RedisClient` | None    | Redis client for batch storage                                                          |
+| `analyzer`     | `Any`         | None    | Analysis entry point for the fast path; the factory supplies `VlmAnalyzer` when omitted |
 
-### Configured Values (Lines 144-150)
+### Configured Values (Lines 196-201)
 
 ```python
 settings = get_settings()
 self._batch_window = settings.batch_window_seconds        # 90s
 self._idle_timeout = settings.batch_idle_timeout_seconds  # 30s
-self._fast_path_threshold = settings.fast_path_confidence_threshold  # 0.9
-self._fast_path_types = settings.fast_path_object_types   # ["person"]
-self._batch_max_detections = settings.batch_max_detections
+self._analysis_queue = ANALYSIS_QUEUE
+self._fast_path_threshold = settings.fast_path_confidence_threshold  # 2.0
+self._fast_path_types = settings.fast_path_object_types              # []
+self._batch_max_detections = settings.batch_max_detections           # 500
 ```
 
 ## Redis Key Structure
 
-All batch keys have 1-hour TTL for orphan cleanup (line 133):
+All batch keys have 1-hour TTL for orphan cleanup (line 183):
 
 ```python
 BATCH_KEY_TTL_SECONDS = 3600  # 1 hour
@@ -61,7 +62,7 @@ BATCH_KEY_TTL_SECONDS = 3600  # 1 hour
 ## Batch ID Generation
 
 ```python
-def generate_batch_id() -> str:  # Line 63
+def generate_batch_id() -> str:  # Line 113
     """Generate a short, unique batch identifier."""
     return f"batch-{uuid.uuid4().hex[:8]}"
     # Example: "batch-a1b2c3d4"
@@ -69,7 +70,7 @@ def generate_batch_id() -> str:  # Line 63
 
 ## Adding Detections
 
-**Source:** Lines 393-547
+**Source:** Lines 446-676
 
 ```python
 async def add_detection(
@@ -80,11 +81,41 @@ async def add_detection(
     confidence: float | None = None,
     object_type: str | None = None,
     pipeline_start_time: str | None = None,
+    threat_type: str | None = None,
+    smoke_fire_type: str | None = None,
 ) -> str:
     """Add detection to batch for camera."""
 ```
 
-### Fast Path Check (Lines 443-454)
+### Threat and Smoke/Fire Bypass (Lines 507-554)
+
+Weapon and smoke/fire detections skip the batch window entirely, and both are
+consulted before the analysis fast path below:
+
+```python
+if await self.should_bypass_batch(
+    object_type=object_type,
+    confidence=confidence,
+    threat_type=threat_type,
+):
+    await self._process_threat_fast_path(
+        camera_id=camera_id,
+        detection_id=detection_id_int,
+        threat_type=threat_type,
+        confidence=confidence,
+    )
+    return f"threat_fast_path_{detection_id_int}"
+```
+
+`should_bypass_batch` (lines 1294-1352) reads the module constants
+`THREAT_BYPASS_TYPES` / `THREAT_BYPASS_CONFIDENCE_THRESHOLD` (lines 81 and 77)
+and the smoke/fire thresholds (lines 103-107). `_process_threat_fast_path`
+(lines 1353-1414) hands the detection to `ThreatMonitorService.process_threat_detection`,
+and `_process_smoke_fire_fast_path` (lines 1419-1487) hands it to the smoke/fire
+tracker. Neither calls the analyzer — the alert path is separate from the
+verification path.
+
+### Fast Path Check (Lines 556-567)
 
 ```python
 # Check if detection meets fast path criteria
@@ -94,7 +125,7 @@ if self._should_use_fast_path(confidence, object_type):
     return f"fast_path_{detection_id_int}"
 ```
 
-### Batch Size Limit (Lines 468-491)
+### Batch Size Limit (Lines 582-606)
 
 ```python
 if batch_id:
@@ -109,7 +140,7 @@ if batch_id:
         batch_id = None
 ```
 
-### Atomic Batch Creation (Lines 333-391, 493-516)
+### Atomic Batch Creation (Lines 622-629, method at 386-444)
 
 ```python
 if not batch_id:
@@ -127,7 +158,7 @@ if not batch_id:
     )
 ```
 
-### Atomic List Append (Lines 518-535)
+### Atomic List Append (Lines 635-640)
 
 ```python
 # Add detection using atomic RPUSH operation
@@ -138,9 +169,21 @@ detection_count = await self._atomic_list_append(detections_key, detection_id_in
 await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl)
 ```
 
+### Wake-On-Open (Lines 671-676)
+
+When a batch closes, the aggregator fires `wake_ai_vlm()` as a background task so
+the next `vlm_assess` does not pay llama.cpp's weight-load latency:
+
+```python
+if opened_batch:
+    from backend.services.vlm_client import wake_ai_vlm
+
+    asyncio.create_task(wake_ai_vlm())
+```
+
 ## Concurrency Control
 
-### Per-Camera Locks (Lines 154-158, 266-280)
+### Per-Camera Locks (Lines 206, 318-332)
 
 ```python
 # Per-camera locks to prevent race conditions
@@ -152,7 +195,7 @@ async def _get_camera_lock(self, camera_id: str) -> asyncio.Lock:
         return self._camera_locks[camera_id]
 ```
 
-### Global Batch Close Lock (Lines 158-159)
+### Global Batch Close Lock (Lines 208-213)
 
 ```python
 # Global lock for batch timeout checking and closing operations
@@ -161,7 +204,7 @@ self._batch_close_lock = asyncio.Lock()
 
 ## Batch Timeout Checking
 
-**Source:** Lines 549-703
+**Source:** Lines 680-834
 
 The `check_batch_timeouts()` method uses Redis pipelining to efficiently check all batches:
 
@@ -169,20 +212,20 @@ The `check_batch_timeouts()` method uses Redis pipelining to efficiently check a
 async def check_batch_timeouts(self) -> list[str]:
     """Check all active batches for timeouts and close expired ones."""
 
-    # Phase 1: Fetch all batch IDs using pipeline (lines 584-586)
+    # Phase 1: Fetch all batch IDs using pipeline (line 714)
     batch_id_pipe = redis_client.pipeline()
     for batch_key in batch_keys:
         batch_id_pipe.get(batch_key)
     batch_ids = await batch_id_pipe.execute()
 
-    # Phase 2: Fetch all metadata in parallel (lines 613-617)
+    # Phase 2: Fetch all metadata in parallel (line 744)
     metadata_pipe = redis_client.pipeline()
     for _batch_key, batch_id in valid_batches:
         metadata_pipe.get(f"batch:{batch_id}:started_at")
         metadata_pipe.get(f"batch:{batch_id}:last_activity")
     metadata_results = await metadata_pipe.execute()
 
-    # Check timeouts (lines 658-673)
+    # Check timeouts (lines 789-806)
     window_elapsed = current_time - started_at
     idle_time = current_time - last_activity
 
@@ -196,47 +239,49 @@ async def check_batch_timeouts(self) -> list[str]:
 
 ## Closing Batches
 
-**Source:** Lines 705-896
+**Source:** Lines 836-1039
 
 ```python
 async def close_batch(self, batch_id: str) -> dict[str, Any]:
     """Force close a batch and push to analysis queue."""
 
-    # Acquire locks (lines 729-740)
+    # Acquire locks (line 860)
     async with self._batch_close_lock:
         camera_id = await self._redis.get(f"batch:{batch_id}:camera_id")
 
         camera_lock = await self._get_camera_lock(camera_id)
         async with camera_lock:
-            # Set closing flag with TTL (lines 743-747)
+            # Set closing flag with TTL (lines 874-878)
             await self._redis._client.set(
                 f"batch:{batch_id}:closing",
                 "1",
-                ex=BATCH_CLOSING_FLAG_TTL_SECONDS,  # 5 minutes
+                ex=BATCH_CLOSING_FLAG_TTL_SECONDS,  # 300s (line 70)
             )
 
-            # Fetch batch data in parallel using TaskGroup (lines 788-800)
+            # Fetch batch data in parallel using TaskGroup (lines 919-923)
             async with asyncio.TaskGroup() as tg:
                 tg.create_task(fetch_detections())
                 tg.create_task(fetch_started_at())
                 tg.create_task(fetch_pipeline_time())
 
-            # Push to analysis queue (lines 815-858)
+            # Push to the analysis destination (lines 946-990)
             if detections:
-                queue_item = {
-                    "batch_id": batch_id,
-                    "camera_id": camera_id,
-                    "detection_ids": detections,
-                    "timestamp": time.time(),
-                    "pipeline_start_time": pipeline_start_time,
-                }
-                result = await self._redis.add_to_queue_safe(
-                    self._analysis_queue,
-                    queue_item,
-                    overflow_policy=QueueOverflowPolicy.DLQ,
-                )
+                if self._use_redis_streams:
+                    stream_svc = await get_analysis_stream_service(self._redis)
+                    await stream_svc.add_batch(
+                        batch_id=batch_id,
+                        camera_id=camera_id,
+                        detection_ids=detections,
+                        pipeline_start_time=...,
+                    )
+                else:
+                    result = await self._redis.add_to_queue_safe(
+                        self._analysis_queue,
+                        queue_item,
+                        overflow_policy=QueueOverflowPolicy.DLQ,
+                    )
 
-            # Cleanup Redis keys (lines 874-882)
+            # Cleanup Redis keys (lines 1017-1025)
             await self._redis.delete(
                 f"batch:{camera_id}:current",
                 f"batch:{batch_id}:camera_id",
@@ -248,11 +293,18 @@ async def close_batch(self, batch_id: str) -> dict[str, Any]:
             )
 ```
 
+The default branch is the Redis Stream: `analysis:stream` with the
+`analysis-workers` consumer group (`backend/services/redis_streams.py:873-875`).
+The LIST branch keeps the DLQ overflow policy, so a full queue moves batches to
+`dlq:overflow:analysis_queue` (`get_dlq_overflow_name`, `backend/core/constants.py:203-216`)
+instead of dropping them.
+
 ## Fast Path Processing
 
-The fast path bypasses batching for critical detections (lines 1028-1082):
+The fast path routes a single critical detection straight to the analyzer instead
+of waiting for a batch to close (lines 1185-1251).
 
-### Criteria (Lines 1028-1048)
+### Criteria (Lines 1185-1216)
 
 ```python
 def _should_use_fast_path(self, confidence: float | None, object_type: str | None) -> bool:
@@ -260,20 +312,29 @@ def _should_use_fast_path(self, confidence: float | None, object_type: str | Non
     if confidence is None or object_type is None:
         return False
 
-    if confidence < self._fast_path_threshold:  # 0.9 default
+    if confidence < self._fast_path_threshold:  # 2.0 default
         return False
 
     return object_type.lower() in [t.lower() for t in self._fast_path_types]
 ```
 
-### Processing (Lines 1050-1082)
+Both settings that feed this gate ship closed — `fast_path_confidence_threshold`
+is 2.0 (a confidence can never reach it) and `fast_path_object_types` is empty —
+because a bypassed detection arrives without the batch context a batched one
+carries. The code path is live and tested; the defaults decide it.
+
+### Processing (Lines 1218-1251)
 
 ```python
 async def _process_fast_path(self, camera_id: str, detection_id: int) -> None:
     """Process detection via fast path (immediate analysis)."""
     if not self._analyzer:
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
-        self._analyzer = NemotronAnalyzer(redis_client=self._redis)
+        # Lazy import to avoid circular dependency. 1.5: mode-built —
+        # the fast-path bypass in vlm mode routes the single detection
+        # through VlmAnalyzer's batch gate (no second analysis path).
+        from backend.services.pipeline_factory import build_pipeline_analyzer
+
+        self._analyzer = build_pipeline_analyzer(redis_client=self._redis)
 
     await self._analyzer.analyze_detection_fast_path(
         camera_id=camera_id,
@@ -281,9 +342,17 @@ async def _process_fast_path(self, camera_id: str, detection_id: int) -> None:
     )
 ```
 
+The analyzer is never constructed by hand here: `build_pipeline_analyzer`
+(`backend/services/pipeline_factory.py:28-40`) is the one place an analyzer is
+built, and it returns `VlmAnalyzer`. `analyze_detection_fast_path`
+(`backend/services/vlm_analyzer.py:690-705`) routes the single detection through
+the same `analyze_batch` gate under the id `fast_path_<id>` — one `vlm_assess`
+over a one-detection batch, the same verdict invariants, the same
+EventVerification row. There is one analysis path.
+
 ## Size Limit Handling
 
-**Source:** Lines 898-1026
+**Source:** Lines 1041-1183
 
 When a batch reaches the max detection limit, it's closed with reason "max_size":
 
@@ -307,9 +376,11 @@ async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | N
     )
 ```
 
+The same stream/list choice as `close_batch` applies here (lines 1117-1133).
+
 ## Memory Pressure Backpressure
 
-**Source:** Lines 1084-1119
+**Source:** Lines 1257-1288
 
 When GPU memory is critical, the aggregator can apply backpressure:
 
@@ -329,9 +400,9 @@ async def should_apply_backpressure(self) -> bool:
 
 ## WebSocket Broadcasting
 
-The aggregator broadcasts events for real-time UI updates (lines 163-264):
+The aggregator broadcasts events for real-time UI updates (lines 215-316):
 
-### Detection New Event (Lines 163-211)
+### Detection New Event (Lines 215-263)
 
 ```python
 async def _broadcast_detection_new(
@@ -350,7 +421,7 @@ async def _broadcast_detection_new(
     await broadcaster.broadcast_detection_new(detection_data)
 ```
 
-### Detection Batch Event (Lines 213-264)
+### Detection Batch Event (Lines 265-316)
 
 ```python
 async def _broadcast_detection_batch(
@@ -371,12 +442,12 @@ async def _broadcast_detection_batch(
 
 ## BatchTimeoutWorker
 
-**Source:** `backend/services/pipeline_workers.py` (lines 941-1099)
+**Source:** `backend/services/pipeline_workers.py` (lines 1189-1366)
 
 The `BatchTimeoutWorker` periodically checks for timed-out batches:
 
 ```python
-class BatchTimeoutWorker:  # Line 941
+class BatchTimeoutWorker:  # Line 1189
     """Worker that periodically checks and closes timed-out batches."""
 
     def __init__(
@@ -390,7 +461,7 @@ class BatchTimeoutWorker:  # Line 941
         self._check_interval = check_interval
 ```
 
-### Processing Loop (Lines 1033-1099)
+### Processing Loop (Lines 1289-1366)
 
 ```python
 async def _run_loop(self) -> None:
@@ -421,16 +492,21 @@ Batching timing parameters (also documented in the [AI Pipeline — Current Stat
 
 Additional batch-aggregator settings:
 
-| Setting                          | Default      | Description                  |
-| -------------------------------- | ------------ | ---------------------------- |
-| `batch_max_detections`           | `50`         | Max detections per batch     |
-| `fast_path_confidence_threshold` | `0.9`        | Min confidence for fast path |
-| `fast_path_object_types`         | `["person"]` | Object types for fast path   |
+| Setting                          | Default | Description                                                            |
+| -------------------------------- | ------- | ---------------------------------------------------------------------- |
+| `batch_max_detections`           | `500`   | Max detections per batch before the batch is split                     |
+| `fast_path_confidence_threshold` | `2.0`   | Min confidence for the analysis fast path (>1.0 keeps the gate closed) |
+| `fast_path_object_types`         | `[]`    | Object types eligible for the fast path (empty keeps the gate closed)  |
+
+Module constants for the alert bypasses (`backend/services/batch_aggregator.py`):
+`THREAT_BYPASS_CONFIDENCE_THRESHOLD = 0.7` (line 77),
+`SMOKE_BYPASS_CONFIDENCE_THRESHOLD = 0.75` (line 103), and
+`FIRE_BYPASS_CONFIDENCE_THRESHOLD = 0.70` (line 107).
 
 ## Metrics
 
-- `hsi_batch_max_reached_total` - Batches closed due to size limit
-- `hsi_pipeline_stage_duration_seconds{stage="batch"}` - Batch processing time
+- `hsi_batch_max_detections_reached_total` - Batches closed due to size limit
+- `hsi_stage_duration_seconds{stage="batch"}` - Batch processing time
 
 ## Related Documentation
 

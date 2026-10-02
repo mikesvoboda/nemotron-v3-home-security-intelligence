@@ -4,8 +4,10 @@
 
 This guide covers the alerting rules and Alertmanager configuration for Home Security
 Intelligence. Prometheus, Alertmanager and Grafana are **default compose services** — they
-start with a plain `up -d` (no `--profile` needed; the only profiled services are
-`ai-llm-vllm` (profile `vllm`) and `dcgm-exporter` (profile `gpu-rootful`)).
+start with a plain `up -d` (no `--profile` needed). The profiled services are
+`ai-vlm` (profile `vlm`), `ai-llm-vllm` (profile `vllm`) and `dcgm-exporter` (profile
+`gpu-rootful`); none of them carries any of the monitoring containers, so the alerting
+stack is up whether or not the reasoning engine is.
 
 ---
 
