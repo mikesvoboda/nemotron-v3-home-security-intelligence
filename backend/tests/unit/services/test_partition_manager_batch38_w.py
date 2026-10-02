@@ -94,6 +94,15 @@ under the probe polarities):
   reconstructed identical.
 
 All other 234 survivor keys have an explicit kill polarity in this battery.
+
+Run-2 addendum: run 1 was HEALTHY (all 234 sweep-RED keys killed at body
+home, 30 ledger preserved, 0 lost/vanished) but the battery's own coverage
+growth BORN 69 new keys of which 5 SURVIVED (pruning-hint m33 default-start
+day, m39 now+365 -> +366; gaps Dec-branch year+1/month-2/day-2). All five
+are KILLABLE by construction probe (b38-c21-probe3-births.py) and are
+covered by ``test_pruning_hint_default_walk_boundaries`` and
+``test_identify_partition_gaps_december_arm`` below — run 2 must close them
+so no ledger change is registered.
 """
 
 from __future__ import annotations
@@ -1155,6 +1164,39 @@ def test_pruning_hint_end_only() -> None:
         restore()
 
 
+def test_pruning_hint_default_walk_boundaries() -> None:
+    """Run-2 births (coverage growth): the 2020-01-01 START default day m33 and
+    the now+365 END default m39 live INSIDE the default walk — the month-name
+    re-derivation hides them unless the polarity lands on the exact boundary
+    (probe-3: b38-c21-probe3-births.py)."""
+
+    class _FixedDec31(_FixedNow):
+        @classmethod
+        def now(cls, tz: Any = None) -> Any:
+            if tz is None:
+                raise RuntimeError("naive now")
+            return cls(2025, 12, 31, 10, 30, 0, tzinfo=tz)
+
+    restore = _swap("datetime", _FixedNow)
+    try:
+        mgr = PartitionManager.__new__(PartitionManager)
+        # m33: default start 2020-01-01 -> 2020-01-02 drops nothing at
+        # end=2020-01-02 (both walk in January), but at end EXACTLY
+        # 2020-01-01 the mutant's walk never starts.
+        assert mgr.get_partition_pruning_hint("detections", "detected_at", None, _d(2020, 1, 1))[
+            "partitions"
+        ] == ["detections_y2020m01"]
+        # m39: default end = now+365d. At NOW=2025-12-31 (+365d = Dec-31
+        # 2026 vs +366d = Jan-01 2027) the walk's LAST month flips.
+        _G["datetime"] = _FixedDec31
+        hint = mgr.get_partition_pruning_hint("detections", "detected_at", _d(2025, 12, 1), None)
+        assert hint["partitions"] == _mm_walk(_d(2026, 12, 31), _d(2025, 12, 1))  # 13 months
+        assert hint["partitions"][-1] == "detections_y2026m12"  # +366 would reach 2027m01
+        assert hint["partition_count"] == 13
+    finally:
+        restore()
+
+
 def test_pruning_hint_range_and_boundaries() -> None:
     """Nov->Dec walk (m18-style Dec crossing), the EXACT ``<=`` boundary, day-1->2."""
     mgr = PartitionManager.__new__(PartitionManager)
@@ -1294,6 +1336,29 @@ def test_identify_partition_gaps() -> None:
         _info("partial", _d(2026, 1, 15), _d(2026, 2, 1, 12)),
     ]
     assert mgr.identify_partition_gaps(m, janfeb) == ["detections_y2026m02"]
+
+
+def test_identify_partition_gaps_december_arm() -> None:
+    """Run-2 births (coverage growth): the DECEMBER branch of the gaps walker
+    (``year + 1 -> + 2`` m29, ``1 -> 2`` MONTH m30, ``1 -> 2`` DAY m31). The
+    Nov-1 walk crosses December once and lands on 2027-01-01; an EXACT
+    max_date of 2027-01-02 keeps orig's one-day-inside-January step alive
+    while every Dec-branch flip drops (m29: wrong YEAR name) or skips
+    (m30/m31: current lands past max) the m2027m01 expectation (probe-3)."""
+    mgr = PartitionManager.__new__(PartitionManager)
+    m = _cfg()
+    exact = [
+        _info("detections_y2026m11", _d(2026, 11, 1), _d(2026, 12, 1)),
+        _info("detections_y2026m12", _d(2026, 12, 1), _d(2027, 1, 2)),
+    ]
+    assert mgr.identify_partition_gaps(m, exact) == ["detections_y2027m01"]
+    # belt: a long walk past the crossing (kills m29/m30 on the SEQUENCE, not
+    # just the boundary — m29 emits y2028m01, m30 skips m01 entirely).
+    longwalk = [
+        _info("detections_y2026m11", _d(2026, 11, 1), _d(2026, 11, 20)),
+        _info("detections_y2026m12", _d(2026, 12, 1), _d(2027, 1, 5)),
+    ]
+    assert mgr.identify_partition_gaps(m, longwalk) == ["detections_y2027m01"]
 
 
 # ---------------------------------------------------------------------------
