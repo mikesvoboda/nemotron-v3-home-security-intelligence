@@ -85,7 +85,7 @@ The `AnalysisQueueWorker` processes completed batches:
 1. Resolves the batch's camera and detection ids, refusing loudly when no detector ever closed the batch (`backend/services/vlm_analyzer.py:413-432`)
 2. Reads detections, zones, and household context, and collects the three specialist lookup texts — `faces`, `plates`, `person_reid` — over the selected key frames (lines 505-508)
 3. Renders the `vlm_assess` prompt and sends it to `ai-vlm` (`backend/services/vlm_client.py:755`)
-4. Applies the verdict invariant table, which clamps a `rejected` verdict and NULLs the score of a verification failure (`vlm_analyzer.py:255-306`)
+4. Applies the verdict invariant table, which clamps a `rejected` verdict and NULLs the score of a verification failure (`backend/services/vlm_analyzer.py:255-306`)
 5. Writes Event and EventVerification in one transaction (lines 573-633), then broadcasts
 
 **Source:** `backend/services/vlm_analyzer.py` (class starts at line 344)
