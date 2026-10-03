@@ -15453,3 +15453,114 @@ survivors at 36.7347%** (408 keys; then `threat_monitor_service` 244/32.5967%,
 `worker_supervisor` 243/62.6154%). Campaign #25, battery letter AA. Gap to 85%:
 0.85×69,158 = 58,784.3 − 51,607 = **7,177.3 kt**. Every number measured THIS
 session.
+
+## MILESTONE 27 — 74.98408933117334% (campaign #25 background_evaluator closes; ONE run + one hole-repair run; the guard-restore disaster disclosed)
+
+**DECIDE (ordering):** M26 head as censused — `background_evaluator.py` 248 survivors at
+36.7347% (392 keys; R8-shield verified CLEAN against DEAD_MODULES/DEAD_LOADERS).
+`api/routes/system.py` 328 and `system_broadcaster.py` 320 skipped (do-not-start list).
+Battery letter AA (48 tests).
+
+**Badge:** **74.98408933117334%** completed=true (killed 51,556 + timeout 285 =
+51,841 kt / 69,136; no_tests 783; survived 16,512; not_checked 0; torn 0). Delta vs
+M26's 74.62188033199341% = **+0.3622089991799271**. Bank: 69,158 -> 69,136 keys
+(−22 = +2 background_evaluator births −24 api/routes/gpu_config era-transition
+deletions, both disclosed below); kt +234 = +244 background_evaluator − 10
+gpu_config. Per-module diff is EXHAUSTIVE — zero other module moved.
+
+**Campaign #25 `backend/services/background_evaluator.py` CLOSED at 98.4772%**
+(388 kt / 394; survivors 6; 0 timeout). Entering bank row {1:144, 0:248} of 392.
+Disposition: authoring sweep RED=234 GREEN=14 of 248 -> 8 registered EQUIV arms
+collapsed to 6 distinct GREENs + 6 KILLABLE arms (the eight arms listed under
+KILLABLE in the battery docstring: m183 exc_info-3-tuple demand — `exc_info=False`
+is TRUTHY so truthiness asserts are fake; m110 `select(None)` still renders
+"FROM event_audits…" so the kill is `"SELECT NULL" not in str(stmt)` + entity-column
+presence; m121/m122+m185/m186 `_fail_job` arg-drops observable only in LEGACY mode
+via two dedicated rounds recording the exact (job-id, message) pair; complete_job
+m6 / fail_job m6 half-empty gateway polarities — (service, None-id) must not call,
+(None-service, id) must not raise). Second sweep RED=242 GREEN=6 == ledger EXACTLY.
+Committed-bytes re-sweep (md5 `603cade0…`) reproduced 242/6/0-HANG with the GREEN
+set identical — a docstring-only ledger commit re-gated by full sweep per protocol
+(a bytecode-identity shortcut was attempted and ABANDONED as unreliable, disclosed).
+
+**The 6 survivors == the ledger (row-by-row, all bank verdict-0):**
+
+- process_one m10/m11/m12 (tracker_job_id/job_id/job_service inits `None` -> `""`):
+  every consumer is truthiness-only; the one `is None` compare is short-circuited by
+  `_job_tracker is None` on the same gate; `""` falsy exactly like `None`.
+- process_one m50/m51 (event/audit inits `None` -> `""`): both locals assigned from
+  `scalar_one_or_none()` before any read — the initializer is unreachable.
+- process_one m71 (event-not-found gateway `and` -> `or`): gate inputs CORRELATED by
+  the assignment block (id only assigned while `_job_tracker` truthy); the polarities
+  that would discriminate cannot occur; even pathologically both shapes land on a
+  silent gateway. Contrast the gateway METHODS' m6 arms where the pair is a PARAMETER
+  — half-empty IS constructible there (KILLABLE, killed).
+
+**One-run close via the M19 PRE-COPY discipline:** battery AA pre-copied into the
+mutant home (md5-verified `603cade0…`) before run 1 -> the run's OWN stats pass saw
+the new coverage; the 2 births at `xǁBackgroundEvaluatorǁ_get_job_status_service`
+(function mutant census 1 -> 3 — my cache test newly covered it; same-run-killed,
+M19 pattern) never survived to need a run 2. Pre-launch green scan 28,718 passed /
+124 skipped / 8 xfailed, 0 failed. Pre-run archive `b38-preC25/` (240 metas; target
+{1:144, 0:248} of 392).
+
+**Era-transition on a sibling — the 24-key drop, DISCLOSED:** run 1's coverage gather
+killed coverage of `api/routes/gpu_config.x__calculate_auto_assignments` (the M26 row
+predicted exactly this: "the merge EDITS backend source (… gpu_config …) — those
+metas are era-stale NOW"); the module's meta re-enumerated 367 -> 343 keys — ALL 24
+removals verified to belong to that one function (12 killed + 12 survived cached
+verdicts die with their keys), 0 births, and 151 cached verdicts invalidated to None.
+That module's 343-key row RE-EARNED whole in run 3: {0:123, 1:69, None:151} ->
+{0:199, 1:144}, key set byte-identical, exactly ONE verdict moved among the previously
+checked keys — `x__validate_vram_assignments__mutmut_9` 0 -> 1 (improvement flip; the
+battery is source-unchanged; the re-check itself caught it). Whole-tree drift audit:
+240 metas, 0 siblings changed (guard [tight] sibling-drop=0 every tick, both runs).
+
+**THE RUN-2 DISASTER AND ITS RECOVERY, disclosed:** the first hole-repair attempt used
+`mutation-run.sh gpu_config` — its services filter `backend.services.gpu_config.*`
+matches ZERO keys (the services module is `gpu_config_service`), and mutmut's
+stats-merge REWROTE sibling metas against the empty filtered set BEFORE mutmut's own
+no-match assert fired: 13,704 sibling keys dropped. guard-module2 caught it
+([tight] sibling-drop=13704 worst=1068@webhook), killed the runner and RESTORED from
+guard-restore.tgz — the first PRODUCTION end-to-end prove of the guard: restore
+verified byte-equal to the pre-run archive (cmp on sampled metas from INSIDE mutants/
+— the same check from the workspace root yields false DIFFs). Campaign #25 re-ran on
+unchanged bytes: body reconcile CLEAN (matrix {(1,1):144, (0,1):242, (0,0):6},
+0 kill losses, 2 births same-run-killed), byte-identical to the ORIGINAL run 1 that
+the restore rolled back. The `|| routes` fallback in mutation-run.sh can NEVER rescue
+the chained case — by the time invocation 1 exits non-zero the tree is strip-poisoned.
+New rule (recorded in memory + the run-3 launcher header): routes-level repairs get a
+DIRECT single-filter `mutmut run` with a VERIFIED-non-empty pattern, never the
+chained launcher.
+
+**Bank at close:** 240 metas / 69,136 keys = kt 51,841 (killed 51,556 + timeout 285;
+no_tests 783 — the sticky session_service 60 + trajectory_analyzer 452 family, count
+UNCHANGED vs pre-campaign; suspicious 0; not_checked 0; torn 0). History run #31
+appended `--date 2026-10-03`; append ADD-ONLY (3,041 lines, 0 deletions), runs 1–29
+deep-equal vs `mutation-history-preM26.json`, pre-M27 backup
+`mutation-history-preM27.json` (30 runs). guard-restore.tgz refreshed at close (the
+pre-disaster refresh had used the metas-only b32 recipe and was REDONE canonically as
+`backend mutmut-stats.json` — 4,744 entries, 52.9 MB, gzip -t verified, ONE scratch
+dir extracted for the spot-check then DELETED, df clean;
+M26 tar kept as `guard-restore-preM27-superseded.tgz`).
+
+**Commands + snapshots:** runs `b38-c25-run.log` (re-run, CLEAN; done in 607,725ms,
+240 files mutated, 0 ignored) / `b38-c25-run2.log` (disaster; its own generation
+done-line 602,049ms then `AssertionError: Filtered for specific mutants, but nothing
+matches`) / `b38-c25-run3.log` (done in 600,483ms, 240 files mutated, 0 ignored);
+guard ticks `guard.log`; sweeps
+`b38-c25-sweep-authoring.txt` (234/14 of 248), `b38-c25-sweep-committed.txt` +
+`sweep-final.txt` (242/6/0-HANG, committed bytes), batched wrapper
+`b38-c25-sweep-batched.sh`; reconcile `b38-c25-reconcile-body.py` ->
+`b38-c25-reconcile-r1.txt` (CLEAN rc=0); map `b38-c25-mutation-map.txt` (248 keys,
+0 NOT-FOUND); green scan `b38-c25-greenscan.log`; pre-run archive `b38-preC25/`;
+scores `b38-c25-score-postrestore.json` (M26-exact after restore), `b38-c25-score-r1.json`
+(74.88%-shape, completed=FALSE, not_checked=151), `b38-c25-score-final.json`
+(74.98408933117334 completed=TRUE); snapshot `b38-c25-postR1-gpu_config.meta` (drift
+check base).
+
+**Next head (re-censused from `b38-c25-score-final.json`, R8 shield applied):**
+**`threat_monitor_service.py` 244 survivors at 32.5967%** (362 keys; then
+`worker_supervisor` 243/62.6154%, `audit_logger` 242/40.6863%). Campaign #26,
+battery letter AB. Gap to 85%: 0.85×69,136 = 58,765.6 − 51,841 = **6,924.6 kt**.
+Every number measured THIS session.
