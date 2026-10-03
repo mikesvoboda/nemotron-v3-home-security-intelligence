@@ -1,21 +1,13 @@
 # NVIDIA Technology Inventory
 
-> **Generated:** 2026-02-19 | **Updated:** 2026-09-22 (full-tree docs scan)
-> **Audit:** 10 research agents, 5 validation agents, 5 implementation agents, ~1.5M tokens
+> Every NVIDIA-specific technology, library and version number in the
+> nemotron-v3-home-security-intelligence codebase, measured against this working
+> tree on 2026-10-02. The shipped stack is one Triton gateway and one llama.cpp
+> VLM serve: two AI services, three Triton model directories, three in-process
+> ONNX lookup legs.
 >
-> Comprehensive audit of every NVIDIA-specific technology, library, and version number used throughout the nemotron-v3-home-security-intelligence codebase.
->
-> The 2026-02-19 "Improvements Applied" and "Documentation Fixes" sections below are a historical
-> record of that audit's own changes; their line numbers describe the tree as it stood then. The
-> 2026-09-22 pass re-verified the live tables (versions, line references, container images, CI
-> workflows) against the current tree.
->
-> **R8 supersession note (2026-09-29).** The legacy LLM path retired after the
-> 2026-09-22 pass: the `ai-llm` container, the Nemotron-30B GGUF rows, the
-> 8091 endpoint and the A5500 VRAM tables describe deleted services. The
-> shipped reasoning engine is the profiled `ai-vlm` llama.cpp container (model
-> identity is config, ledger D5). The gateway containers' CUDA/Triton rows
-> remain accurate; treat every `ai-llm` row as history.
+> Each row names the file the value comes from. A row whose source file is
+> missing from the tree is marked.
 
 ---
 
@@ -25,8 +17,7 @@
 - [Container Base Images](#container-base-images)
 - [NVIDIA Software Products](#nvidia-software-products)
 - [NVIDIA CUDA Python Packages](#nvidia-cuda-python-packages)
-- [Nemotron LLM](#nemotron-llm)
-- [llama.cpp (GGML CUDA Backend)](#llamacpp-ggml-cuda-backend)
+- [llama.cpp VLM Serve](#llamacpp-vlm-serve)
 - [NVIDIA Triton Inference Server](#nvidia-triton-inference-server)
 - [NVIDIA TensorRT](#nvidia-tensorrt)
 - [ONNX Runtime GPU](#onnx-runtime-gpu)
@@ -37,177 +28,143 @@
 - [GPU Alert Rules](#gpu-alert-rules)
 - [NVIDIA Inference API](#nvidia-inference-api)
 - [CI/CD GPU Integration](#cicd-gpu-integration)
-- [Stale References](#stale-references)
 
 ---
 
 ## Hardware
 
-| GPU              | Architecture | Compute Capability | VRAM  | Role                                                                    |
-| ---------------- | ------------ | ------------------ | ----- | ----------------------------------------------------------------------- |
-| NVIDIA RTX A5500 | Ampere       | sm_86              | 24 GB | GPU 0 -- LLM only                                                       |
-| NVIDIA RTX A400  | Ampere       | sm_86              | 4 GB  | GPU 1 -- Triton (15 repos in the image; 12 on GPU, 3 on CPU by default) |
+The two hosts the AI images are built for:
 
-- **Host NVIDIA Driver:** 580.119.02 (minimum required: 580 for CUDA 13.x)
-- **Host CUDA Version:** 13.0
-- **Both GPUs are Ampere sm_86** -- the RTX A400 was previously misidentified as Turing sm_75 in legacy docs
+| Target host              | Architecture | Compute capability | Driver in code                                                   | Runs                           |
+| ------------------------ | ------------ | ------------------ | ---------------------------------------------------------------- | ------------------------------ |
+| NVIDIA GB300 (aarch64)   | Blackwell    | sm_103 (CC 10.3)   | 610.57.04 recorded in `ai/vlm/Dockerfile:57`                     | `CUDA_ARCHITECTURES=103` build |
+| NVIDIA RTX A5500 (24 GB) | Ampere       | sm_86              | `MINIMUM_DRIVER_VERSION = 580` (`setup_lib/nvidia_detect.py:38`) | `CUDA_ARCHITECTURES=86` build  |
+
+- **Driver floor:** 580, for CUDA 13.x (`setup_lib/nvidia_detect.py:38`, with the
+  `nvidia-driver-565` purge guard at `:48-58`).
+- **One Dockerfile, two hosts:** `docker-compose.prod.yml:146-153` passes
+  `CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}` into the `ai/vlm` build context;
+  `ai/vlm/Dockerfile:59-60` states the same contract — GB300 dev passes `103`,
+  the A5500 bring-up passes `86`, unchanged.
+- **GPU 1 sizing:** the export helpers are tuned against a 4 GB card on the
+  second slot — `ai/gateway/export/README.md:75` (`--workspace-gb` default of
+  1 GB "tuned for the 4 GB RTX A400 on GPU 1") and
+  `ai/gateway/export/export_yolo_pose.py:172`.
 
 ---
 
 ## Container Base Images
 
-> **Container availability:** only `ai-gateway`, `ai-llm` and the profiled `ai-llm-vllm` /
-> `dcgm-exporter` appear in `docker-compose.prod.yml`. The `ai-clip`, `ai-florence`,
-> `ai-enrichment` and `ai-enrichment-light` images still build from the Dockerfiles below but are
-> **in no compose file** -- their capabilities run inside `ai-gateway` (Triton routers) or inside
-> the backend (`backend/services/model_zoo.py`). The `ai-yolo26` standalone GPU image was retired
-> fully on 2026-09-23 (owner ruling -- Triton on `ai-gateway` serves yolo26); its Dockerfile and
-> companion build files now live in `archive/ai-yolo26-image/` and it is gone from the deploy
-> build matrices.
+| Container          | Base Image                                                 | Source                         |
+| ------------------ | ---------------------------------------------------------- | ------------------------------ |
+| `ai-vlm` (builder) | `docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04`           | `ai/vlm/Dockerfile:19`         |
+| `ai-vlm` (runtime) | `docker.io/nvidia/cuda:13.3.1-runtime-ubuntu22.04`         | `ai/vlm/Dockerfile:86`         |
+| `ai-gateway`       | `nvcr.io/nvidia/tritonserver:26.01-py3`                    | `ai/gateway/Dockerfile:1`      |
+| `ai-llm-vllm`      | `docker.io/vllm/vllm-openai:cu130-nightly`                 | `docker-compose.prod.yml:286`  |
+| `dcgm-exporter`    | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04` | `docker-compose.prod.yml:1370` |
 
-| Container                      | Base Image                                                                 | CUDA             | cuDNN | PyTorch      |
-| ------------------------------ | -------------------------------------------------------------------------- | ---------------- | ----- | ------------ |
-| ai-llm (Nemotron)              | `docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04` (builder)                 | **13.3.1**       | --    | --           |
-| ai-llm (Nemotron)              | `docker.io/nvidia/cuda:13.3.1-runtime-ubuntu22.04` (runtime)               | **13.3.1**       | --    | --           |
-| ai-gateway (Triton)            | `nvcr.io/nvidia/tritonserver:26.01-py3`                                    | 12.8.0 (bundled) | --    | --           |
-| ai-yolo26 (retired 2026-09-23) | `nvcr.io/nvidia/tensorrt:26.08-py3` (recipe in `archive/ai-yolo26-image/`) | bundled          | --    | --           |
-| ai-clip (dev)                  | `nvcr.io/nvidia/tensorrt:26.08-py3`                                        | bundled          | --    | --           |
-| ai-florence (dev)              | `docker.io/pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime`                  | **12.4**         | **9** | **2.6.0**    |
-| ai-enrichment (dev)            | `docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime`                  | **12.4**         | **9** | **2.4.0**    |
-| ai-enrichment-light (dev)      | `docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime`                  | **12.4**         | **9** | **2.4.0**    |
-| ai-llm (HF variant)            | `docker.io/nvidia/cuda:13.3.1-runtime-ubuntu22.04`                         | **13.3.1**       | --    | cu121 wheels |
-| vLLM (optional)                | `docker.io/vllm/vllm-openai:cu130-nightly`                                 | **13.0**         | --    | --           |
-| DCGM Exporter                  | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04`                 | --               | --    | --           |
+| Service         | Compose profile | Publishes                             | `deploy` limits          | GPU device                                                          |
+| --------------- | --------------- | ------------------------------------- | ------------------------ | ------------------------------------------------------------------- |
+| `ai-gateway`    | none (default)  | `127.0.0.1:8090`, `127.0.0.1:8002`    | 8 CPU / 20G, reserve 10G | `nvidia.com/gpu=all` + `CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}` |
+| `ai-vlm`        | `vlm`           | `127.0.0.1:${AI_VLM_PORT:-8098}:8098` | 4 CPU / 10G, reserve 4G  | `nvidia.com/gpu=${GPU_LLM:-0}`                                      |
+| `ai-llm-vllm`   | `vllm`          | 8097                                  | --                       | `${GPU_LLM:-0}`                                                     |
+| `dcgm-exporter` | `gpu-rootful`   | 9400                                  | --                       | --                                                                  |
+
+`ai-vlm` is behind the `vlm` profile (`docker-compose.prod.yml:157-158`), so a
+bring-up that names it must pass the profile:
+
+```bash
+podman compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+```
+
+Weights are host-mounted, never baked:
+`${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro`
+(`docker-compose.prod.yml:165`).
 
 ---
 
 ## NVIDIA Software Products
 
-| Technology                             | Version                                           | Source File                                                                |
-| -------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------- |
-| NVIDIA Triton Inference Server         | **26.01** (v2.54.0)                               | `ai/gateway/Dockerfile` line 1                                             |
-| NVIDIA TensorRT                        | **10.14.x** (bundled in the 26.0x NGC containers) | `archive/ai-yolo26-image/Dockerfile` (retired image), `ai/clip/Dockerfile` |
-| NVIDIA CUDA Toolkit (LLM)              | **13.3.1**                                        | `ai/nemotron/Dockerfile` lines 8, 72                                       |
-| NVIDIA CUDA Toolkit (PyTorch services) | **12.4**                                          | `ai/florence/Dockerfile`, `ai/enrichment/Dockerfile`                       |
-| NVIDIA cuDNN                           | **9** (images) / **9.19.0.56** (pip, historical)  | Dockerfiles; CUDA torch wheel — see CUDA table note                        |
-| NVIDIA DCGM                            | **3.3.5** (exporter **3.4.0**)                    | `docker-compose.prod.yml` line 1246                                        |
-| NVIDIA Container Toolkit               | detected via `nvidia-ctk`                         | `setup_lib/nvidia_toolkit.py`                                              |
-| NVIDIA Driver (host)                   | **580.119.02** (minimum: 580)                     | `setup_lib/nvidia_detect.py`                                               |
-| nvidia-ml-py (NVML bindings)           | **13.610.43**                                     | `uv.lock` (declared in `pyproject.toml`)                                   |
-| tritonclient[grpc]                     | **>=2.42.0**                                      | `ai/gateway/requirements.txt`                                              |
-| onnxruntime-gpu                        | **>=1.16.0**                                      | Multiple requirements files                                                |
-| tensorrt (Python)                      | **>=10.0.0**                                      | `ai/enrichment-light/requirements.txt`                                     |
-| tensorrt-cu12 (Python)                 | **>=10.0.0**                                      | `ai/enrichment-light/requirements.txt`                                     |
-| bitsandbytes                           | **>=0.44.0**                                      | `pyproject.toml` (quantization extra)                                      |
-| paddlepaddle-gpu                       | **>=2.6.0,<3.0.0**                                | `ai/enrichment/requirements.txt`                                           |
-| triton (OpenAI kernel compiler)        | **3.6.0** (historical)                            | CUDA torch wheel — see CUDA table note                                     |
-| llama.cpp                              | tag **b7972**                                     | `ai/nemotron/Dockerfile` line 24                                           |
+| Technology                         | Version                                        | Source File                                           |
+| ---------------------------------- | ---------------------------------------------- | ----------------------------------------------------- |
+| NVIDIA Triton Inference Server     | **26.01**                                      | `ai/gateway/Dockerfile:1`                             |
+| NVIDIA TensorRT                    | bundled in the `nvcr.io/nvidia/*:26.0x` images | `ai/common/tensorrt_utils.py` (runtime version check) |
+| NVIDIA CUDA Toolkit (`ai-vlm`)     | **13.3.1**                                     | `ai/vlm/Dockerfile:19,86`                             |
+| NVIDIA CUDA Toolkit (`ai-gateway`) | bundled in `tritonserver:26.01-py3`            | `ai/gateway/Dockerfile:1`                             |
+| NVIDIA DCGM                        | **3.3.5** (exporter **3.4.0**)                 | `docker-compose.prod.yml:1370`                        |
+| NVIDIA Container Toolkit           | detected via `nvidia-ctk`                      | `setup_lib/nvidia_toolkit.py`                         |
+| NVIDIA driver (host floor)         | **580** minimum for CUDA 13.x                  | `setup_lib/nvidia_detect.py:38`                       |
+| nvidia-ml-py (NVML bindings)       | `>=12.560.30,<14.0.0`                          | `pyproject.toml:24`                                   |
+| tritonclient[grpc]                 | `>=2.42.0`                                     | `ai/gateway/requirements.txt`                         |
+| llama.cpp                          | tag **b7972**                                  | `ai/vlm/Dockerfile:46`                                |
+| bitsandbytes                       | `>=0.44.0` (quantization extra)                | `pyproject.toml:175`                                  |
+| onnxruntime (CPU, `face` extra)    | `>=1.16` — `CPUExecutionProvider` only         | `pyproject.toml:196-200`                              |
+| PyTorch (backend)                  | **2.14.0+cpu**                                 | `uv.lock:25`                                          |
+| PyTorch (AI containers)            | CUDA builds from the NGC / devel base images   | base images above                                     |
+
+`ai/gateway/requirements.txt` is seven lines — `fastapi`,
+`uvicorn[standard]`, `tritonclient[grpc]`, `pillow`, `numpy`,
+`prometheus-client`, `httpx`. It declares no CUDA, ONNX Runtime or TensorRT
+package: the NGC Triton image ships all three, and the gateway only ever calls
+Triton over gRPC.
 
 ---
 
 ## NVIDIA CUDA Python Packages
 
-All packages are PyTorch transitive dependencies from the CUDA torch wheel. Platform-conditional: `x86_64` Linux only.
+The backend resolves **CPU-only PyTorch**: `torch 2.14.0+cpu` from
+`download.pytorch.org/whl/cpu` (`uv.lock:25`; macOS resolves the plain `2.14.0`
+wheel at `:24`). Consequences, both measured in this tree:
 
-> **Note (2026-09-21):** The versions below were captured while torch resolved from the CUDA wheel
-> index. `uv.lock` now pins `torch 2.14.0+cpu` from `download.pytorch.org/whl/cpu`, which pulls
-> **none** of these packages, and `requirements-audit.txt` is no longer committed (CI regenerates
-> it with `uv export --no-hashes`; measured 2026-09-21: the current export contains zero
-> `nvidia-*-cu12`/`triton` entries). Re-measure this table on a CUDA-configured host before
-> treating any row as current. The one package still in the lock is `nvidia-ml-py`, at **13.610.43**.
+- `uv.lock` contains exactly one `nvidia-*` package — `nvidia-ml-py`, declared
+  `>=12.560.30,<14.0.0` at `uv.lock:1559`, resolved block at `uv.lock:2807`.
+- No `nvidia-*-cu12` runtime package and no `triton` kernel compiler appears in
+  the lock at all. The CUDA runtime libraries live inside the AI containers, in
+  their base images.
 
-| Package                  | Pinned Version | Pulled By                                                            |
-| ------------------------ | -------------- | -------------------------------------------------------------------- |
-| nvidia-cublas-cu12       | 12.9.1.4       | torch, nvidia-cudnn-cu12, nvidia-cusolver-cu12                       |
-| nvidia-cuda-cupti-cu12   | 12.9.79        | torch                                                                |
-| nvidia-cuda-nvrtc-cu12   | 12.9.86        | torch                                                                |
-| nvidia-cuda-runtime-cu12 | 12.9.79        | torch                                                                |
-| nvidia-cudnn-cu12        | 9.19.0.56      | torch                                                                |
-| nvidia-cufft-cu12        | 11.4.1.4       | torch                                                                |
-| nvidia-cufile-cu12       | 1.14.1.1       | torch                                                                |
-| nvidia-curand-cu12       | 10.3.10.19     | torch                                                                |
-| nvidia-cusolver-cu12     | 11.7.5.82      | torch                                                                |
-| nvidia-cusparse-cu12     | 12.5.10.65     | torch, nvidia-cusolver-cu12                                          |
-| nvidia-cusparselt-cu12   | 0.8.1          | torch                                                                |
-| nvidia-nccl-cu12         | 2.29.3         | torch                                                                |
-| nvidia-nvjitlink-cu12    | 12.9.86        | torch, nvidia-cufft-cu12, nvidia-cusolver-cu12, nvidia-cusparse-cu12 |
-| nvidia-nvshmem-cu12      | 3.5.19         | torch                                                                |
-| nvidia-nvtx-cu12         | 12.9.79        | torch                                                                |
-| nvidia-ml-py             | 13.610.43      | home-security-intelligence (direct dep; in `uv.lock`)                |
-
-> **Note (re-measured 2026-09-21):** The backend uses **CPU-only PyTorch** (`2.14.0+cpu` from
-> `download.pytorch.org/whl/cpu`, `uv.lock` torch block). Since the CPU-wheel pin, the
-> nvidia-\*-cu12 packages appear in **neither** `uv.lock` **nor** the audit export — earlier
-> revisions of this page listed them "in the audit export" from a CUDA-index era. They live inside
-> the AI containers, which use CUDA PyTorch from their base images.
+`nvidia-ml-py` is the one CUDA-adjacent package the host Python environment
+carries: `pyproject.toml:24`. It is the NVML binding behind the GPU monitor and
+detection services (see GPU Monitoring).
 
 ---
 
-## Nemotron LLM
+## llama.cpp VLM Serve
 
-### Production Model
-
-- **Model:** NVIDIA Nemotron-3-Nano-30B-A3B
-- **Architecture:** Hybrid Mamba-Transformer MoE (52 layers: 23 Mamba SSM, 23 MoE FFN, 6 GQA Attention)
-- **Parameters:** 30B total / 3.5B active
-- **Quantization:** Q4_K_M (GGUF)
-- **File:** `Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf` (~15 GB on disk per `models.yml` `size_mb: 15073`; the "~9.5 GB" figure still circulating in this page's quant table was a pre-release estimate)
-- **VRAM:** ~14.7 GB
-- **HuggingFace:** `unsloth/Nemotron-3-Nano-30B-A3B-GGUF` (source recorded in `models.yml`; download via `setup_lib/model_downloader.py`)
-
-### Development Model
-
-- **Model:** Nemotron Mini 4B Instruct
-- **File:** `nemotron-mini-4b-instruct-q4_k_m.gguf`
-- **VRAM:** ~3 GB
-
-### Available GGUF Quantizations
-
-| Format     | File Size           | VRAM         | Quality                              |
-| ---------- | ------------------- | ------------ | ------------------------------------ |
-| Q8_0       | ~17 GB              | ~22 GB       | Near-lossless reference              |
-| Q6_K       | ~13 GB              | ~18 GB       | Excellent                            |
-| Q5_K_M     | ~11 GB              | ~16 GB       | Very good                            |
-| **Q4_K_M** | **~15 GB** (actual) | **~14.7 GB** | **Production default**               |
-| IQ4_XS     | ~8.5 GB             | ~13 GB       | Best quality-per-bit at 4-bit        |
-| Q4_K_S     | ~9.0 GB             | ~14 GB       | Slightly smaller than Q4_K_M         |
-| Q3_K_M     | ~7.5 GB             | ~12 GB       | Compact, some quality loss           |
-| Q2_K_L     | ~6.0 GB             | ~10 GB       | Aggressive, significant quality loss |
-
-### NVIDIA-Provided Quantization Formats (HuggingFace)
-
-| Format | Size   | Repository                                      |
-| ------ | ------ | ----------------------------------------------- |
-| BF16   | ~60 GB | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16`    |
-| FP8    | ~30 GB | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8`     |
-| NVFP4  | ~18 GB | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4`   |
-| AWQ    | ~17 GB | `stelterlab/NVIDIA-Nemotron-3-Nano-30B-A3B-AWQ` |
-
-> **Note:** All vLLM-compatible formats failed on RTX A5500: NVFP4 requires H100/A100, FP8 exceeds 24 GB, AWQ has vLLM Mamba-2 bug, BF16 requires 60 GB.
-
----
-
-## llama.cpp (GGML CUDA Backend)
+`ai-vlm` is a single-stage llama.cpp serve of a vision-language model — the
+shipped pair is `Qwen3VL-8B-Instruct-Q4_K_M.gguf` plus
+`mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`. Both names come from compose defaults,
+not from the image: `MODEL_PATH` and `MMPROJ_PATH` at
+`docker-compose.prod.yml:179-180`. The event path POSTs
+`/v1/chat/completions` to `http://ai-vlm:8098`
+(`backend/core/config.py:1042` `ai_vlm_url`).
 
 ### Build Configuration
 
-| Setting                               | Value                                    | File                                                |
-| ------------------------------------- | ---------------------------------------- | --------------------------------------------------- |
-| Git tag                               | **b7972**                                | `ai/nemotron/Dockerfile` line 24                    |
-| Previous tag (superseded)             | 9496bbb80                                | evaluation docs                                     |
-| CUDA base image (builder)             | `nvidia/cuda:13.3.1-devel-ubuntu22.04`   | `ai/nemotron/Dockerfile` line 8                     |
-| CUDA base image (runtime)             | `nvidia/cuda:13.3.1-runtime-ubuntu22.04` | `ai/nemotron/Dockerfile` line 72                    |
-| CMake flag                            | `-DGGML_CUDA=ON`                         | `ai/nemotron/Dockerfile` line 60                    |
-| CMake flag                            | `-DGGML_CUDA_FA_ALL_QUANTS=ON`           | `ai/nemotron/Dockerfile` line 61                    |
-| CMake flag                            | `-DGGML_NATIVE=ON`                       | `ai/nemotron/Dockerfile` line 62 (added 2026-02-19) |
-| CUDA_ARCHITECTURES (.env.example)     | `89`                                     | `.env.example` line 512                             |
-| CUDA_ARCHITECTURES (default if empty) | `75,80,86,89`                            | Dockerfile comments                                 |
+| Setting             | Value                                                                   | Source                    |
+| ------------------- | ----------------------------------------------------------------------- | ------------------------- |
+| Source pin          | `ARG LLAMA_CPP_REF=b7972`                                               | `ai/vlm/Dockerfile:46`    |
+| CUDA base (builder) | `nvidia/cuda:13.3.1-devel-ubuntu22.04`                                  | `ai/vlm/Dockerfile:19`    |
+| CUDA base (runtime) | `nvidia/cuda:13.3.1-runtime-ubuntu22.04`                                | `ai/vlm/Dockerfile:86`    |
+| CMake flags         | `-DGGML_CUDA=ON`, `-DGGML_CUDA_FA_ALL_QUANTS=ON`, `-DGGML_NATIVE=ON`    | `ai/vlm/Dockerfile:74-76` |
+| Target arch         | `ARG CUDA_ARCHITECTURES=""` → `-DCMAKE_CUDA_ARCHITECTURES=<n>` when set | `ai/vlm/Dockerfile:64-69` |
+| Built artifact      | `llama-server` + its `.so*` set                                         | `ai/vlm/Dockerfile:97-98` |
+
+`GGML_NATIVE=ON` is safe alongside an explicit `CMAKE_CUDA_ARCHITECTURES`
+(`ai/vlm/Dockerfile:61-62`); an unset `CUDA_ARCHITECTURES` leaves the arch
+choice to the compiler default.
 
 ### Runtime Flags
+
+The image `CMD` is one shell line that assembles optional flags only when the
+matching variable is non-empty (`ai/vlm/Dockerfile:141-171`):
 
 ```bash
 llama-server \
     --model ${MODEL_PATH} \
+    ${MM_ARGS}         # --mmproj ${MMPROJ_PATH}, only when MMPROJ_PATH is set
+    ${ALIAS_ARGS}      # --alias ${MODEL_ALIAS}, only when set
+    ${SLEEP_ARGS}      # --sleep-idle-seconds ${SLEEP_IDLE_SECONDS}, only when set
+    ${KV_ARGS}         # --cache-type-k / --cache-type-v, only when set
     --host 0.0.0.0 --port ${PORT} \
     --n-gpu-layers ${GPU_LAYERS} \
     --ctx-size ${CTX_SIZE} \
@@ -215,38 +172,54 @@ llama-server \
     --threads ${THREADS} --threads-batch ${THREADS} \
     --batch-size ${BATCH_SIZE} \
     --ubatch-size ${UBATCH_SIZE} \
-    --cache-type-k ${CACHE_TYPE_K} \
-    --cache-type-v ${CACHE_TYPE_V} \
     --cont-batching \
     --metrics \
     --cache-reuse 256 \
-    --mlock \
-    --flash-attn on \
-    ${MOE_ARGS}   # --override-tensor <pattern>=CPU (when set)
+    --jinja \
+    ${FLASH_ARGS}      # --flash-attn on when FLASH_ATTENTION=true
 ```
 
-### Runtime Environment Variables
+**The multimodal projector gate.** `MM_ARGS` is built inside
+`if [ -n "${MMPROJ_PATH}" ]` (`ai/vlm/Dockerfile:143-144`), and `ENV MMPROJ_PATH=`
+is deliberately empty at build time (`:104-107`). A container that reaches
+runtime without a readable projector therefore starts, serves and passes both
+healthchecks while answering text-only. `ai/vlm/Dockerfile:141-144` is the
+first place to read when verdicts look like the model never saw the stills.
 
-| Variable               | Dockerfile Default | Compose Default | Description                                                                                     |
-| ---------------------- | ------------------ | --------------- | ----------------------------------------------------------------------------------------------- |
-| `GPU_LAYERS`           | 35                 | auto            | Layers offloaded to GPU (999 = all). `.env.example` has single definition at line 360 (`auto`). |
-| `CTX_SIZE`             | 32768              | 262144          | Context window tokens                                                                           |
-| `PARALLEL`             | 2                  | 8               | Concurrent inference slots                                                                      |
-| `THREADS`              | 4                  | 4               | CPU threads for offloaded layers                                                                |
-| `BATCH_SIZE`           | 2048               | 2048            | Prompt processing batch size                                                                    |
-| `UBATCH_SIZE`          | 512                | 512             | Micro-batch size                                                                                |
-| `CACHE_TYPE_K`         | q8_0               | q8_0            | KV cache key quantization                                                                       |
-| `CACHE_TYPE_V`         | q8_0               | q8_0            | KV cache value quantization                                                                     |
-| `FLASH_ATTENTION`      | true               | true            | Enable Flash Attention (NEM-5369)                                                               |
-| `CUDA_VISIBLE_DEVICES` | --                 | `${GPU_LLM:-0}` | Restrict to GPU 0                                                                               |
-| `MOE_OFFLOAD_PATTERN`  | --                 | (empty)         | MoE expert CPU offload regex                                                                    |
-| `GGML_CUDA_GRAPH_OPT`  | --                 | 1               | CUDA Graph optimization for up to 35% TPS improvement (added 2026-02-19)                        |
+### Runtime Variables
 
-### Remaining Optimization Opportunity
+| Variable                     | Image default (`ENV`)    | Compose default (`${VAR:-…}`)                  | Source                                                  |
+| ---------------------------- | ------------------------ | ---------------------------------------------- | ------------------------------------------------------- |
+| `PORT`                       | 8098                     | `PORT=8098` (container side, fixed)            | `ai/vlm/Dockerfile:123` / `docker-compose.prod.yml:176` |
+| `MODEL_PATH`                 | `/models/vlm/model.gguf` | `/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf`      | `ai/vlm/Dockerfile:103` / `:180`                        |
+| `MMPROJ_PATH`                | empty                    | `/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` | `ai/vlm/Dockerfile:107` / `:181`                        |
+| `MODEL_ALIAS`                | empty                    | `Qwen3VL-8B` (from `VLM_MODEL_ALIAS`)          | `ai/vlm/Dockerfile:111` / `:182`                        |
+| `GPU_LAYERS`                 | 99                       | `auto` (from `VLM_GPU_LAYERS`)                 | `ai/vlm/Dockerfile:124` / `:183`                        |
+| `CTX_SIZE`                   | 8192                     | 32768 (from `VLM_CTX_SIZE`)                    | `ai/vlm/Dockerfile:125` / `:207`                        |
+| `PARALLEL`                   | 1                        | 2 (from `VLM_PARALLEL`)                        | `ai/vlm/Dockerfile:126` / `:208`                        |
+| `THREADS`                    | 8                        | 4 (from `VLM_THREADS`)                         | `ai/vlm/Dockerfile:128` / `:209`                        |
+| `BATCH_SIZE`                 | 2048                     | 2048 (from `VLM_BATCH_SIZE`)                   | `ai/vlm/Dockerfile:129` / `:210`                        |
+| `UBATCH_SIZE`                | 512                      | 512 (from `VLM_UBATCH_SIZE`)                   | `ai/vlm/Dockerfile:130` / `:211`                        |
+| `CACHE_TYPE_K` / `_V`        | empty (f16)              | `q8_0` / `q8_0`                                | `ai/vlm/Dockerfile:119-120` / `:224-225`                |
+| `FLASH_ATTENTION`            | true                     | true (from `VLM_FLASH_ATTENTION`)              | `ai/vlm/Dockerfile:127` / `:226`                        |
+| `SLEEP_IDLE_SECONDS`         | empty (never)            | 300 (from `VLM_SLEEP_IDLE_SECONDS`)            | `ai/vlm/Dockerfile:115` / `:236`                        |
+| `LLAMA_ARG_IMAGE_MAX_TOKENS` | unset                    | 1280 (literal)                                 | `docker-compose.prod.yml:189`                           |
+| `CUDA_VISIBLE_DEVICES`       | unset                    | `${GPU_LLM:-0}`                                | `docker-compose.prod.yml:175`                           |
 
-| Flag          | Expected Impact                    | Status                                                    |
-| ------------- | ---------------------------------- | --------------------------------------------------------- |
-| `--merge-qkv` | 5-15% speedup for attention layers | Not in CMD -- needs validation against b7972 flag support |
+Per-slot context is `CTX_SIZE / PARALLEL` = 32768 / 2 = 16 384 tokens, and each
+still is capped at 1 280 vision tokens (`LLAMA_ARG_IMAGE_MAX_TOKENS`,
+`docker-compose.prod.yml:184-189`). The client fits the prompt to the slot
+rather than trusting that arithmetic — see the erratum block at
+`docker-compose.prod.yml:196-204`.
+
+`SLEEP_IDLE_SECONDS=300` is the residency mechanism: llama.cpp releases the
+weights to CPU RAM after 300 idle seconds, so an idle night yields the VRAM to
+other residents and a burst of camera traffic keeps the serve warm. The caller's
+wake budget is `AI_VLM_WAKE_TIMEOUT_SECONDS`.
+
+**Healthcheck.** Both the image and compose probe the same URL with the same
+grace: `curl -f http://localhost:8098/health`, `--start-period=120s`
+(`ai/vlm/Dockerfile:138-139`, `docker-compose.prod.yml:237-250`).
 
 ---
 
@@ -254,174 +227,221 @@ llama-server \
 
 ### Server Configuration
 
-| Setting            | Value                                             |
-| ------------------ | ------------------------------------------------- |
-| Image              | `nvcr.io/nvidia/tritonserver:26.01-py3` (v2.54.0) |
-| Gateway port       | 8090 (FastAPI, external)                          |
-| gRPC port          | 8001 (internal, inference)                        |
-| HTTP port          | 8000 (internal, health checks)                    |
-| Metrics port       | 8002 (Prometheus scrape)                          |
-| CUDA memory pool   | 256 MB on GPU 0                                   |
-| Pinned memory pool | 32 MB                                             |
-| Rate limiter       | `execution_count`                                 |
-| Model control      | `none` (all models loaded at startup)             |
+`ai/gateway/entrypoint.sh` starts Triton in the background, waits for
+`/v2/health/ready`, then starts the FastAPI gateway in the same container
+(`:142-200`).
+
+| Setting            | Value                                            | Source                         |
+| ------------------ | ------------------------------------------------ | ------------------------------ |
+| Image              | `nvcr.io/nvidia/tritonserver:26.01-py3`          | `ai/gateway/Dockerfile:1`      |
+| Gateway port       | 8090 (FastAPI, published to localhost)           | `ai/gateway/entrypoint.sh:11`  |
+| HTTP port          | 8000 (internal: readiness, metrics proxy)        | `ai/gateway/entrypoint.sh:12`  |
+| gRPC port          | 8001 (internal: inference)                       | `ai/gateway/entrypoint.sh:13`  |
+| Metrics port       | 8002 (Prometheus scrape, published)              | `ai/gateway/entrypoint.sh:14`  |
+| Model control      | `none` (models load only by presence)            | `ai/gateway/entrypoint.sh:147` |
+| Rate limiter       | `execution_count`                                | `ai/gateway/entrypoint.sh:151` |
+| Pinned memory pool | 32 MB (`33554432`)                               | `ai/gateway/entrypoint.sh:152` |
+| CUDA memory pool   | 256 MB on device 0 (`0:268435456`)               | `ai/gateway/entrypoint.sh:153` |
+| Model repository   | `${TRITON_MODEL_REPOSITORY:-/models/repository}` | `ai/gateway/entrypoint.sh:10`  |
+
+The gateway publishes 8090 and 8002 to `127.0.0.1`; Triton's own 8000/8001 are
+never published (`docker-compose.prod.yml:363-365`).
+
+### Startup sequence
+
+Four steps run before Triton starts, each in `ai/gateway/entrypoint.sh`:
+
+1. **Device export** — reads `device_env_var`/`device` from `models.yml` and
+   exports them (`:52-72`).
+2. **Config patch** — `ai/gateway/patch_triton_configs.py` rewrites each
+   `config.pbtxt` `instance_group` from the `triton_kind` field in **`models.yml`
+   at the repo root**, before Triton scans (`:84-90`). `models.yml` is the
+   single source of truth for CPU↔GPU moves.
+3. **Weight linking** — symlinks `${MODEL_CACHE_DIR:-/models/cache}/<model>/1`
+   into the repository so the baked `config.pbtxt` and the volume's weights meet
+   (`:99-115`).
+4. **Residency prune** — `python3 -m ai.gateway.residency` moves every model
+   outside the active set to `${TRITON_MODEL_REPO}.retired` (`:118-131`). This
+   step has no `|| true`: a failed prune stops the container rather than let
+   Triton scan a retired model.
+
+### Residency
+
+`GATEWAY_MODEL_SET` selects the model directories that stay in the repository
+(`docker-compose.prod.yml:387`, shipped default `vlm`). `ai/gateway/residency.py`
+is the whole control surface: `VLM_MODEL_BASE = ("yolo26", "reid")` at `:60`,
+plus `threat` when `GATEWAY_ENABLE_THREAT=true` (compose default `false`,
+`docker-compose.prod.yml:388`). `get_model_set()` accepts the name `vlm` and
+raises otherwise (`ai/gateway/residency.py:60-90`), so the entrypoint's own
+`<unset: residency will refuse>` echo at `:130` is a stop, not a warning.
+
+### Model Repository (3 models)
+
+`ai/triton/model_repository/` contains exactly `yolo26`, `reid` and `threat`.
+All three declare `backend: "onnxruntime"` and one `KIND_GPU` instance group
+with a `global` rate-limiter resource. **No model uses a TensorRT backend.**
+
+| Model    | Backend     | Input           | Output       | Max Batch    | Dynamic Batching         | Priority | Source         |
+| -------- | ----------- | --------------- | ------------ | ------------ | ------------------------ | -------- | -------------- |
+| `yolo26` | onnxruntime | `[1,3,640,640]` | `[1,300,6]`  | 0 (static=1) | No                       | 1 (high) | `config.pbtxt` |
+| `reid`   | onnxruntime | `[3,256,128]`   | `[512]`      | 16           | preferred 1,4,8 / 100 ms | 2        | `config.pbtxt` |
+| `threat` | onnxruntime | `[1,3,640,640]` | `[1,8,8400]` | 0 (static=1) | No                       | 1 (high) | `config.pbtxt` |
+
+`yolo26` returns post-NMS detections (`x1,y1,x2,y2,score,class`, 300 slots, 80
+COCO classes); `threat` returns the raw YOLO tensor (`4 box + 4 class scores` ×
+8 400 anchors); `reid` returns an L2-normalised 512-d embedding from a
+256×128 person crop. Only `yolo26` and `reid` are resident unless threat is
+opted in.
+
+### Mounted model paths
+
+| Mount                                                                 | Purpose                                               |
+| --------------------------------------------------------------------- | ----------------------------------------------------- |
+| `${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/zoo:ro`       | zoo weights and exports                               |
+| `${AI_MODELS_PATH:-/export/ai_models}/triton:/models/cache`           | version dirs the entrypoint links into the repository |
+| `${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro` | INT8 weight store                                     |
+| `triton-kernel-cache:/root/.nv`                                       | CUDA JIT compilation cache                            |
+| `triton-tmp-cache:/tmp`                                               | compilation temp artifacts                            |
+| `${HF_CACHE_PATH}:/root/.cache/huggingface`                           | HF cache with `HF_HUB_OFFLINE=1`                      |
+
+(`docker-compose.prod.yml:366-375`.)
 
 ### Triton Client
 
-| Package              | Version  | Protocol   | File                          |
-| -------------------- | -------- | ---------- | ----------------------------- |
-| `tritonclient[grpc]` | >=2.42.0 | Async gRPC | `ai/gateway/triton_client.py` |
+| Package              | Version  | Protocol   | Source                                                                |
+| -------------------- | -------- | ---------- | --------------------------------------------------------------------- |
+| `tritonclient[grpc]` | >=2.42.0 | async gRPC | `ai/gateway/requirements.txt`; `ai/gateway/triton_client.py:24,61-65` |
 
-### Model Repository (14 models)
-
-The effective device for each model is set at container startup: `ai/gateway/entrypoint.sh` runs
-`ai/gateway/patch_triton_configs.py`, which rewrites each `config.pbtxt` `instance_group` from the
-`triton_kind` field in **`models.yml` at the repo root** (models.yml is the single source of truth;
-the table below shows the resulting deployed kinds). The shipped `config.pbtxt` files in
-`ai/triton/model_repository/` currently match these defaults.
-
-| Model                          | Backend          | Instance Kind | GPU | Max Batch    | Dynamic Batching    | Priority |
-| ------------------------------ | ---------------- | ------------- | --- | ------------ | ------------------- | -------- |
-| yolo26                         | onnxruntime      | KIND_GPU      | [0] | 0 (static=1) | No                  | 1 (high) |
-| clip (SigLIP 2 vision)         | onnxruntime      | KIND_GPU      | [0] | 8            | Yes (1,2,4 / 50ms)  | 2        |
-| florence2                      | python           | KIND_GPU      | [0] | 0            | No                  | --       |
-| pose (YOLOv8n)                 | onnxruntime      | KIND_GPU      | [0] | 0 (static=1) | No                  | 2        |
-| threat (YOLOv8n)               | onnxruntime      | KIND_GPU      | [0] | 0 (static=1) | No                  | 1 (high) |
-| reid (OSNet-AIN x1.0)          | onnxruntime      | KIND_GPU      | [0] | 16           | Yes (1,4,8 / 100ms) | 2        |
-| pet (ResNet-18)                | onnxruntime      | KIND_GPU      | [0] | 8            | Yes (1,4,8 / 100ms) | 3        |
-| depth (Depth Anything V2 Tiny) | onnxruntime      | KIND_GPU      | [0] | 0 (static=1) | No                  | 3        |
-| fashion_clip (FashionSigLIP)   | onnxruntime      | KIND_GPU      | [0] | 8            | Yes (1,4,8 / 100ms) | 3        |
-| vehicle (ResNet-50)            | onnxruntime      | KIND_GPU      | [0] | 8            | Yes (1,4,8 / 100ms) | 3        |
-| demographics_age (ViT)         | onnxruntime      | KIND_GPU      | [0] | 8            | Yes (1,4,8 / 100ms) | 3        |
-| demographics_gender (ViT)      | onnxruntime      | KIND_GPU      | [0] | 8            | Yes (1,4,8 / 100ms) | 3        |
-| clip_text (SigLIP 2 text)      | onnxruntime      | KIND_CPU (x2) | CPU | 8            | Yes (1,4,8 / 50ms)  | 3        |
-| stgcn_action (ST-GCN++)        | onnxruntime_onnx | KIND_CPU      | CPU | 1            | No                  | --       |
-
-**Summary:** 12 GPU models, 2 CPU models, one instance group each. 12 use ONNX Runtime, 1 uses the `onnxruntime_onnx` platform (`stgcn_action`), 1 uses the Python backend (`florence2`). **No models use TensorRT backend in Triton.** `clip_text` stays on CPU because its INT8 export contains `MatMulInteger` ops the CUDA EP cannot run; `stgcn_action` is an intentionally-CPU skeleton model. `xclip_action` (the second former Python-backend model) was retired from `ai/triton/model_repository/` with NEM-5563 — X-CLIP is deprecated in favour of ST-GCN++ per `models.yml` (`enabled: false`) — and its config/model.py now ship under `archive/triton-model-repository/`.
-
-> The compose health comments (`docker-compose.prod.yml` line 337 and
-> `docker-compose.ghcr.yml` line 235, "Triton loads 14 models") were corrected to 14 in the
-> gateway-consolidation follow-up; `xclip_action`'s retirement (NEM-5563) is why the count
-> never went 15 -> 14 the way the comment's math once implied.
+`TRITON_GRPC_URL` defaults to `localhost:8001` — same container, gRPC port
+(`ai/gateway/triton_client.py:24`). `ai/gateway/main.py:276-277` mounts exactly
+two routers: `/yolo26` and `/enrich-lt`, backed by the two adapters in
+`ai/gateway/adapters/`.
 
 ---
 
 ## NVIDIA TensorRT
 
-### Version
+### Version and status
 
-- **TensorRT 10.14.x** (bundled in the `nvcr.io/nvidia/tensorrt:26.08-py3` / `tritonserver:26.01-py3` containers)
-- Python package: `tensorrt>=10.0.0`, `tensorrt-cu12>=10.0.0`
+TensorRT is **not active in Triton** — all three repository models use the
+ONNX Runtime backend. TensorRT ships inside the NGC images and reaches the tree
+through three paths:
 
-### Current Status
+1. **Host-side engine prep** — `ai/yolo26/build_engine.py` builds an FP16 engine
+   on the host, driven by `scripts/prebuild-tensorrt-engines.sh` (whose own
+   header marks the container route deprecated in favour of
+   `ai/gateway/export/export_all.sh`).
+2. **Engine placement** — `ai/gateway/export/copy_yolo26_engine.py` copies
+   `/models/zoo/yolo26/exports/yolo26m_fp16.engine` to
+   `/models/cache/yolo26/1/model.plan`, the Triton-expected path.
+3. **Optional export format** — `ai/gateway/export/export_yolo26.py` defaults to
+   ONNX (which is what the `onnxruntime` backend loads) and takes `--tensorrt`
+   when an engine is wanted.
 
-TensorRT is **NOT active in Triton** -- all 14 Triton models use ONNX Runtime or Python backend. TensorRT paths exist in:
+Engines are GPU-architecture-specific: an engine built on one card fails to load
+on another (`ai/gateway/export/copy_yolo26_engine.py:17-22`).
 
-1. **CLIP standalone server** (dev-only) -- disabled by default (`CLIP_USE_TENSORRT=false`)
-2. **Export pipeline** -- `ai/gateway/export/export_all.sh` can generate TensorRT engines (the former
-   standalone YOLO26 server that loaded `yolo26m_fp16.engine` retired 2026-09-23 with its image;
-   `ai/yolo26/build_engine.py` stays for `scripts/prebuild-tensorrt-engines.sh`)
+### Infrastructure code
 
-### Engine Files (Generated at Runtime)
+| Module                            | Purpose                                                                          |
+| --------------------------------- | -------------------------------------------------------------------------------- |
+| `ai/common/tensorrt_utils.py`     | `TensorRTConverter`, `TensorRTEngine`, GPU-hash-based caching                    |
+| `ai/common/tensorrt_inference.py` | `TensorRTInferenceBase` ABC with a PyTorch fallback                              |
+| `ai/tensorrt_prebuild.py`         | startup validation (SM version + TensorRT version match)                         |
+| `ai/yolo26/build_engine.py`       | host-side engine build                                                           |
+| `ai/yolo26/model.py`              | host-run detector; `_prebuild_yolo26_engine` under `YOLO26_PREBUILD_ENGINE=true` |
+| `ai/torch_optimizations.py`       | backend selection: `tensorrt` > `torch_compile` > none                           |
 
-| Engine           | Path                                               | Precision | Size    |
-| ---------------- | -------------------------------------------------- | --------- | ------- |
-| YOLO26m          | `/models/yolo26/exports/yolo26m_fp16.engine`       | FP16      | ~43 MB  |
-| YOLO26m INT8     | `/models/yolo26/exports/yolo26m_int8.engine`       | INT8      | --      |
-| CLIP vision      | `/models/clip-vit-l/vision_encoder_fp16.engine`    | FP16      | ~600 MB |
-| Pose (YOLOv8n)   | `.../yolov8n-pose/yolov8n-pose.engine`             | FP16      | --      |
-| Threat (YOLOv8n) | `.../threat-detection-yolov8n/weights/best.engine` | FP16      | --      |
-| FashionSigLIP    | `/models/cache/fashion_clip/1/model.plan`          | FP16      | --      |
+### Configuration
 
-### Conversion Strategy
+| Variable                      | Default                 | Reader                        |
+| ----------------------------- | ----------------------- | ----------------------------- |
+| `TENSORRT_ENABLED`            | `true`                  | `ai/common/tensorrt_utils.py` |
+| `TENSORRT_PRECISION`          | `fp16`                  | `ai/common/tensorrt_utils.py` |
+| `TENSORRT_CACHE_DIR`          | `models/tensorrt_cache` | `ai/common/tensorrt_utils.py` |
+| `TENSORRT_MAX_WORKSPACE_SIZE` | 1 GB                    | `ai/common/tensorrt_utils.py` |
+| `TENSORRT_VERBOSE`            | `false`                 | `ai/common/tensorrt_utils.py` |
 
-Each export script tries `trtexec` first (pre-installed in NVIDIA containers), then falls back to the `tensorrt` Python API. Default workspace: 1 GB (tuned for 4 GB RTX A400).
+No `tensorrt` Python package is declared in `pyproject.toml` or in
+`ai/gateway/requirements.txt`; the symbols above run where the NGC image
+provides the library.
 
-### TensorRT Infrastructure Code
+### Key limitation
 
-| Module                                       | Purpose                                                                                |
-| -------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `ai/common/tensorrt_utils.py`                | `TensorRTConverter`, `TensorRTEngine`, GPU-hash-based caching                          |
-| `ai/common/tensorrt_inference.py`            | `TensorRTInferenceBase` ABC with PyTorch fallback                                      |
-| `ai/tensorrt_prebuild.py`                    | Startup validation (SM version + TensorRT version match)                               |
-| `ai/clip/tensorrt_inference.py`              | CLIP-specific TensorRT inference                                                       |
-| `ai/clip/build_engine.py`                    | Build-time engine generation                                                           |
-| `archive/ai-yolo26-image/export_tensorrt.py` | YOLO26 TensorRT export (FP16, INT8) — archived with the retired GPU image (2026-09-23) |
-
-### TensorRT Environment Variables
-
-| Variable                      | Default                 | Description                        |
-| ----------------------------- | ----------------------- | ---------------------------------- |
-| `TENSORRT_ENABLED`            | `true`                  | Global toggle                      |
-| `TENSORRT_PRECISION`          | `fp16`                  | Default precision (fp32/fp16/int8) |
-| `TENSORRT_CACHE_DIR`          | `models/tensorrt_cache` | Engine cache directory             |
-| `TENSORRT_MAX_WORKSPACE_SIZE` | 1 GB                    | Builder workspace                  |
-| `TENSORRT_VERBOSE`            | `false`                 | Verbose logging                    |
-| `CLIP_USE_TENSORRT`           | `false`                 | CLIP TensorRT toggle               |
-| `THREAT_USE_TENSORRT`         | `false`                 | Threat detector TensorRT toggle    |
-| `POSE_USE_TENSORRT`           | `false`                 | Pose estimator TensorRT toggle     |
-
-### Key Limitation
-
-`TensorrtExecutionProvider` (ONNX Runtime's TensorRT EP) is **never used** in this codebase. All TensorRT usage goes through:
-
-1. The `tensorrt` Python package directly
-2. Ultralytics `model.export(format="engine")`
-3. `trtexec` subprocess
+`TensorrtExecutionProvider` (ONNX Runtime's TensorRT EP) is not used by the
+shipped inference path — no file under `backend/` or `ai/` selects it. The one
+place it is constructed is the benchmark harness, behind a flag that defaults to
+off: `scripts/benchmark_yolo26_gpu.py:441,462,1172,1191`. It is a measurement
+arm, not a deployment option.
 
 ---
 
 ## ONNX Runtime GPU
 
-### CUDAExecutionProvider Usage
+### CUDAExecutionProvider usage
 
-All GPU-accelerated ONNX models use `CUDAExecutionProvider`, not `TensorrtExecutionProvider`:
+The Triton `onnxruntime` backend runs each model with the CUDA provider inside
+the gateway container; the model configs say so in their headers
+(`ai/triton/model_repository/yolo26/config.pbtxt:6-8`).
+
+In the host Python environment, `export` helpers select providers directly:
 
 ```python
 providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
 ```
 
-Referenced in 6+ export scripts under `ai/gateway/export/`:
+Six scripts under `ai/gateway/export/` do this —
+`export_reid.py`, `export_depth.py`, `export_vehicle.py`, `export_pet.py`,
+`export_fashion_clip.py`, `export_demographics.py` — of which only
+`export_reid.py` corresponds to a model in the repository. The remaining five
+are export tooling for models the repository does not carry.
 
-- `export_depth.py`, `export_vehicle.py`, `export_pet.py`
-- `export_reid.py`, `export_fashion_clip.py`, `export_demographics.py`
+The backend's identity lookups are deliberately CPU-only: `pyproject.toml:196-200`
+declares `onnxruntime>=1.16` under the `face` extra with the comment
+`CPUExecutionProvider only (deliberately no GPU provider)`, so the
+face-recognizer loader stays out of the VRAM budget.
 
 ### Packages
 
-| Package           | Version           | Container                                                      |
-| ----------------- | ----------------- | -------------------------------------------------------------- |
-| `onnxruntime-gpu` | >=1.16.0          | ai-clip, ai-enrichment-light                                   |
-| `onnxruntime-gpu` | latest (unpinned) | ai-gateway (NGC container ships its own ORT)                   |
-| `onnx`            | >=1.12.0,<2.0.0   | ai-yolo26 (retired image — reqs in `archive/ai-yolo26-image/`) |
-| `onnx`            | >=1.12.0          | ai-enrichment-light                                            |
-| `onnx`            | >=1.14.0          | ai-clip                                                        |
-| `onnxslim`        | >=0.1.71          | ai-yolo26 (retired image), ai-enrichment-light                 |
+| Package              | Version  | Where                                                         |
+| -------------------- | -------- | ------------------------------------------------------------- |
+| `onnxruntime`        | >=1.16   | host Python, `face` extra, CPU EP only — `pyproject.toml:200` |
+| ONNX Runtime         | bundled  | Triton `onnxruntime` backend in `tritonserver:26.01-py3`      |
+| `tritonclient[grpc]` | >=2.42.0 | `ai-gateway` — `ai/gateway/requirements.txt`                  |
 
 ---
 
 ## CUDA Infrastructure Modules
 
-Custom Python modules in `ai/` for GPU optimization:
+Custom GPU-optimization modules in `ai/`. Each is confirmed to exist in this
+tree; the "Reader" column names the file that reads its configuration.
 
-| Module                         | NEM Ticket | Purpose                                                       |
-| ------------------------------ | ---------- | ------------------------------------------------------------- |
-| `ai/cuda_graph_manager.py`     | NEM-3771   | CUDA Graph capture/replay for repeated inference              |
-| `ai/cuda_streams.py`           | NEM-3772   | CUDA Stream pool for parallel preprocessing                   |
-| `ai/gpu_memory_pool.py`        | NEM-3772   | Pre-allocated tensor pools, LRU eviction (512 MB default)     |
-| `ai/gpu_oom_handler.py`        | NEM-4996   | OOM detection, `torch.cuda.empty_cache()`, Prometheus counter |
-| `ai/flash_attention_config.py` | --         | FlashAttention-2 config (requires Ampere SM >= 8.0)           |
-| `ai/torch_optimizations.py`    | --         | Backend selection: tensorrt > torch_compile > none            |
-| `ai/quantization_config.py`    | NEM-3810   | BitsAndBytes 4-bit/8-bit config for HF Nemotron               |
-| `ai/static_kv_cache.py`        | --         | Memory-efficient KV cache reuse                               |
+| Module                         | NEM ticket | Purpose                                                       | Reader (env var)                                  |
+| ------------------------------ | ---------- | ------------------------------------------------------------- | ------------------------------------------------- |
+| `ai/cuda_graph_manager.py`     | NEM-3771   | CUDA Graph capture/replay for repeated inference              | `CUDA_GRAPHS_DISABLE`                             |
+| `ai/cuda_streams.py`           | NEM-3772   | CUDA stream pool for parallel preprocessing                   | `CUDA_STREAMS_ENABLED`, `_POOL_SIZE`, `_PRIORITY` |
+| `ai/gpu_memory_pool.py`        | NEM-3772   | Pre-allocated tensor pools, LRU eviction                      | --                                                |
+| `ai/gpu_oom_handler.py`        | NEM-4996   | OOM detection, `torch.cuda.empty_cache()`, Prometheus counter | --                                                |
+| `ai/flash_attention_config.py` | --         | FlashAttention-2 config (Ampere SM >= 8.0)                    | --                                                |
+| `ai/torch_optimizations.py`    | --         | backend selection: tensorrt > torch_compile > none            | --                                                |
+| `ai/quantization_config.py`    | NEM-3810   | BitsAndBytes 4-bit/8-bit config for HF models                 | bitsandbytes extra, `pyproject.toml:175`          |
+| `ai/static_kv_cache.py`        | --         | memory-efficient KV cache reuse                               | --                                                |
+| `ai/compile_utils.py`          | --         | compile warmup helpers                                        | --                                                |
+| `ai/warmup_utils.py`           | --         | warmup helpers                                                | --                                                |
+| `ai/hub_cache_config.py`       | --         | HF hub cache configuration                                    | --                                                |
 
-### CUDA Environment Variables
+> `ai/gpu_oom_handler.py` defines the `ai_gpu_oom_total` counter; nothing in the
+> gateway topology exports it over `/metrics`, which is why the alert that keyed
+> on it was deleted (`monitoring/ai-pipeline-alerts.yml:33-40`).
 
-| Variable                 | Default | Description         |
-| ------------------------ | ------- | ------------------- |
-| `CUDA_GRAPHS_DISABLE`    | `0`     | Disable CUDA graphs |
-| `CUDA_STREAMS_ENABLED`   | `true`  | Enable stream pool  |
-| `CUDA_STREAMS_POOL_SIZE` | `3`     | Number of streams   |
-| `CUDA_STREAMS_PRIORITY`  | `0`     | Stream priority     |
+### CUDA environment variables
+
+| Variable                 | Default | Source                     |
+| ------------------------ | ------- | -------------------------- |
+| `CUDA_GRAPHS_DISABLE`    | `0`     | `ai/cuda_graph_manager.py` |
+| `CUDA_STREAMS_ENABLED`   | `true`  | `ai/cuda_streams.py`       |
+| `CUDA_STREAMS_POOL_SIZE` | `3`     | `ai/cuda_streams.py`       |
+| `CUDA_STREAMS_PRIORITY`  | `0`     | `ai/cuda_streams.py`       |
 
 ---
 
@@ -429,10 +449,11 @@ Custom Python modules in `ai/` for GPU optimization:
 
 ### CDI (Container Device Interface)
 
-The project uses Podman CDI for rootless GPU access:
+Rootless GPU access goes through Podman CDI. The two AI services use two
+different device forms, on purpose:
 
 ```yaml
-# ai-llm: single GPU passthrough
+# ai-vlm: one GPU, named
 devices:
   - nvidia.com/gpu=${GPU_LLM:-0}
 
@@ -443,71 +464,64 @@ environment:
   - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
 ```
 
-**Critical CDI workaround:** Using `nvidia.com/gpu=N` only creates `/dev/nvidiaN`. If N>0, CUDA fails (expects `/dev/nvidia0`). Fix: use `nvidia.com/gpu=all` + `CUDA_VISIBLE_DEVICES=N`.
+(`docker-compose.prod.yml:157-158,175` and `:361-362,392`.)
 
-### GPU Assignment Variables (.env)
+**The CDI constraint the gateway works around:** `nvidia.com/gpu=N` creates only
+`/dev/nvidiaN`, and CUDA expects `/dev/nvidia0` for its first visible device, so
+a card numbered above 0 fails. The gateway passes `nvidia.com/gpu=all` and lets
+`CUDA_VISIBLE_DEVICES` pick the card — the reason is written out at
+`docker-compose.prod.yml:357-360`.
 
-| Variable               | Default | Service                                                                                               |
-| ---------------------- | ------- | ----------------------------------------------------------------------------------------------------- |
-| `GPU_LLM`              | 0       | Nemotron LLM (A5500 24 GB)                                                                            |
-| `GPU_AI_SERVICES`      | 1       | Triton / AI Gateway (A400 4 GB)                                                                       |
-| `GPU_FLORENCE`         | 0       | Florence-2 (standalone)                                                                               |
-| `GPU_YOLO26`           | 1       | YOLO26 standalone (legacy — image retired 2026-09-23; var lingers in `.env.example`, no code readers) |
-| `GPU_CLIP`             | 1       | CLIP (standalone)                                                                                     |
-| `GPU_ENRICHMENT`       | 1       | Enrichment heavy                                                                                      |
-| `GPU_ENRICHMENT_LIGHT` | 1       | Enrichment light                                                                                      |
+### GPU assignment variables
 
-### NVIDIA Container Toolkit Detection
+| Variable          | Default | Service                                               | Source                                |
+| ----------------- | ------- | ----------------------------------------------------- | ------------------------------------- |
+| `GPU_LLM`         | 0       | `ai-vlm` (also its `deploy` reservation)              | `docker-compose.prod.yml:158,175,264` |
+| `GPU_AI_SERVICES` | 1       | `ai-gateway` / Triton (also its `deploy` reservation) | `docker-compose.prod.yml:392,421`     |
+
+Those are the only two GPU selectors the compose file reads.
+
+### NVIDIA Container Toolkit detection
 
 `setup_lib/nvidia_detect.py` and `setup_lib/nvidia_toolkit.py` handle:
 
 - GPU detection via `nvidia-smi`
-- Driver version validation (minimum 580 for CUDA 13.x)
+- driver validation against `MINIMUM_DRIVER_VERSION = 580` (`setup_lib/nvidia_detect.py:38`)
 - Container Toolkit detection (`nvidia-ctk`)
 - CDI spec generation: `nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`
-- Per-distro install commands (Fedora/Debian/Ubuntu/Arch)
+- per-distro install commands, and an apt repair step that purges `nvidia`
+  packages rather than letting `--fix-broken` reinstall a driver below 580
+  (`setup_lib/nvidia_detect.py:45-58`)
 
-### Docker Compose GPU Deploy Blocks
+### Persistent CUDA cache volumes
 
-```yaml
-deploy:
-  resources:
-    reservations:
-      devices:
-        - driver: nvidia
-          device_ids: ['${GPU_LLM:-0}']
-          capabilities: [gpu]
-```
+| Volume                | Mount                      | Consumed by                       | Source                                |
+| --------------------- | -------------------------- | --------------------------------- | ------------------------------------- |
+| `llama-cache`         | `/home/llama/.cache`       | `ai-vlm`                          | `docker-compose.prod.yml:170`         |
+| `llama-nv-cache`      | `/home/llama/.nv`          | `ai-vlm`                          | `docker-compose.prod.yml:171`         |
+| `triton-kernel-cache` | `/root/.nv`                | `ai-gateway`                      | `docker-compose.prod.yml:371`         |
+| `triton-tmp-cache`    | `/tmp`                     | `ai-gateway`                      | `docker-compose.prod.yml:373`         |
+| `hf_cache`            | `/root/.cache/huggingface` | `ai-gateway` (`HF_HUB_OFFLINE=1`) | `docker-compose.prod.yml:375,399-400` |
 
-### Persistent CUDA Cache Volumes
-
-| Volume                | Mount                | Purpose                             |
-| --------------------- | -------------------- | ----------------------------------- |
-| `llama-cache`         | `/home/llama/.cache` | llama.cpp compilation cache         |
-| `llama-nv-cache`      | `/home/llama/.nv`    | NVIDIA CUDA JIT kernel cache        |
-| `triton-kernel-cache` | `/root/.nv`          | Triton CUDA JIT compilation cache   |
-| `triton-tmp-cache`    | `/tmp`               | TensorRT temp compilation artifacts |
+`ai-vlm` also gets `tmpfs: /tmp` (`docker-compose.prod.yml:141-142`) rather than a
+named volume.
 
 ---
 
 ## GPU Monitoring & Observability
 
-### NVML / nvidia-ml-py (Primary)
+### NVML / nvidia-ml-py (primary)
 
-**Package:** `nvidia-ml-py>=12.560.30,<14.0.0` (resolved: **13.610.43** per `uv.lock`)
+**Package:** `nvidia-ml-py>=12.560.30,<14.0.0` (`pyproject.toml:24`; lock entry
+`uv.lock:2807`).
 
-Installed in all AI containers and the backend. Used by:
+| Consumer               | File                                        | What it reads                                           |
+| ---------------------- | ------------------------------------------- | ------------------------------------------------------- |
+| `GPUMonitor`           | `backend/services/gpu_monitor.py`           | utilization, memory, temp, power, clocks, PCIe, ECC     |
+| `GpuDetectionService`  | `backend/services/gpu_detection_service.py` | multi-GPU detection, compute capability, UUID           |
+| `PerformanceCollector` | `backend/services/performance_collector.py` | 5-second polling, WebSocket broadcast, threshold alerts |
 
-| Service                | File                                        | NVML Calls                                                                 |
-| ---------------------- | ------------------------------------------- | -------------------------------------------------------------------------- |
-| `GPUMonitor`           | `backend/services/gpu_monitor.py`           | 20+ NVML calls (utilization, memory, temp, power, clocks, PCIe, ECC, etc.) |
-| `GpuDetectionService`  | `backend/services/gpu_detection_service.py` | Multi-GPU detection, compute capability, UUID                              |
-| `PerformanceCollector` | `backend/services/performance_collector.py` | 5-second polling, WebSocket broadcast                                      |
-| `gpu_oom_handler`      | `ai/gpu_oom_handler.py`                     | `torch.cuda.memory_allocated()`                                            |
-
-### nvidia-smi (Fallback)
-
-Used as secondary data source when pynvml is unavailable:
+### nvidia-smi (fallback)
 
 ```bash
 nvidia-smi --query-gpu=temperature.gpu,power.draw,utilization.gpu,memory.used,memory.total,name \
@@ -516,14 +530,19 @@ nvidia-smi --query-gpu=temperature.gpu,power.draw,utilization.gpu,memory.used,me
 
 ### DCGM Exporter
 
-| Setting         | Value                                                      |
-| --------------- | ---------------------------------------------------------- |
-| Image           | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04` |
-| Port            | 9400                                                       |
-| Profile         | `gpu-rootful` (disabled by default -- requires root)       |
-| Custom counters | `monitoring/dcgm/custom-counters.csv`                      |
+| Setting         | Value                                                                 |
+| --------------- | --------------------------------------------------------------------- |
+| Image           | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04`            |
+| Port            | 9400                                                                  |
+| Profile         | `gpu-rootful` — `DCGM nv-hostengine` needs host root                  |
+| Custom counters | `monitoring/dcgm/custom-counters.csv` (79 lines)                      |
+| Scrape target   | `host.containers.internal`:9400 (`monitoring/prometheus.yml:523-527`) |
 
-**DCGM Counter Fields:**
+`monitoring/prometheus.yml:520-522` records that the exporter runs as a rootful
+systemd unit (`monitoring/dcgm/dcgm-exporter.service`) with `--net=host` so
+rootless Prometheus can reach it.
+
+**DCGM counter fields** (`monitoring/dcgm/custom-counters.csv`):
 
 | Category      | Fields                                                                                                                             |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -537,28 +556,47 @@ nvidia-smi --query-gpu=temperature.gpu,power.draw,utilization.gpu,memory.used,me
 | Retired Pages | `DCGM_FI_DEV_RETIRED_SBE`, `DCGM_FI_DEV_RETIRED_DBE`, `DCGM_FI_DEV_RETIRED_PENDING`                                                |
 | Errors        | `DCGM_FI_DEV_XID_ERRORS`                                                                                                           |
 
-### Triton Native Metrics
+### Triton native metrics
 
-Scraped from `ai-gateway:8002/metrics`:
+Scraped from `ai-gateway:8002/metrics` (`monitoring/prometheus.yml:112-121`):
 
 - `nv_gpu_utilization`, `nv_gpu_memory_used_bytes`
 - `nv_inference_request_success`, `nv_inference_request_failure`
-- `nv_inference_queue_duration_us`, `nv_inference_compute_infer_duration_us`
+- `nv_inference_request_duration_us`, `nv_inference_queue_duration_us`,
+  `nv_inference_compute_infer_duration_us`
+
+The gateway also serves its own Prometheus text at `/metrics`, merging Triton
+native metrics with gateway-level counters
+(`ai/gateway/main.py:20,318-320`).
+
+### llama.cpp metrics
+
+`llama-server` runs with `--metrics` (`ai/vlm/Dockerfile:168`) on the fixed
+container port 8098, and Prometheus scrapes `ai-vlm:8098/metrics`.
 
 ---
 
 ## Prometheus GPU Metrics
 
-### Scrape Jobs (`monitoring/prometheus.yml`)
+### Scrape jobs (`monitoring/prometheus.yml`)
 
-| Job                   | Target                                                        | Interval | Metrics Prefix |
-| --------------------- | ------------------------------------------------------------- | -------- | -------------- |
-| `hsi-backend-metrics` | `backend:8000/api/metrics` (native Prometheus, **preferred**) | 15s      | `hsi_*`        |
-| `hsi-gpu`             | `backend:8000/api/system/gpu` (via json-exporter)             | 10s      | `hsi_gpu_*`    |
-| `dcgm-exporter`       | `host.containers.internal`:9400                               | 15s      | `DCGM_FI_*`    |
-| `triton-metrics`      | `ai-gateway:8002/metrics`                                     | 15s      | `nv_*`         |
+| Job                   | Target                                                        | Interval | Prefix      | Line |
+| --------------------- | ------------------------------------------------------------- | -------- | ----------- | ---- |
+| `hsi-backend-metrics` | `backend:8000` `/api/metrics`                                 | 15s      | `hsi_*`     | 61   |
+| `ai-vlm-metrics`      | `ai-vlm:8098` `/metrics`                                      | 15s      | llama.cpp   | 90   |
+| `triton-metrics`      | `ai-gateway:8002` `/metrics`                                  | 15s      | `nv_*`      | 112  |
+| `ai-gateway-metrics`  | `ai-gateway:8090` `/metrics`                                  | 15s      | gateway     | 138  |
+| `hsi-gpu`             | `http://backend:8000/api/system/gpu` (json-exporter `/probe`) | 10s      | `hsi_gpu_*` | 233  |
+| `dcgm-exporter`       | `host.containers.internal`:9400                               | 15s      | `DCGM_FI_*` | 523  |
 
-### HSI GPU Metrics (from backend API via json-exporter)
+**Not every scrape job in this file resolves.** The `blackbox-http-health` job
+still targets `ai-gateway:8090/clip/health`, `/florence/health` and
+`/enrichment/health` (`monitoring/prometheus.yml:430,436,442`) on a gateway that
+mounts only `/yolo26` and `/enrich-lt` (`ai/gateway/main.py:276-277`), so
+`probe_success` is pinned 0 for those three targets while the live probes at
+`:412`, `:418`, `:424` and `:448` behave.
+
+### HSI GPU metrics (backend API via json-exporter)
 
 | Metric                                 | Type  | Description                |
 | -------------------------------------- | ----- | -------------------------- |
@@ -585,62 +623,71 @@ Scraped from `ai-gateway:8002/metrics`:
 | `hsi_gpu_encoder_utilization`          | gauge | Video encoder %            |
 | `hsi_gpu_decoder_utilization`          | gauge | Video decoder %            |
 | `hsi_gpu_bar1_used_mb`                 | gauge | BAR1 memory (MB)           |
-| `hsi_inference_fps`                    | gauge | Inference FPS              |
 
-### AI Service GPU Metrics
+### AI service metrics with no scrape target
 
-| Metric                                | Source                                              | Type    |
-| ------------------------------------- | --------------------------------------------------- | ------- |
-| `ai_gpu_oom_total`                    | Retired standalone services (defined, not exported) | counter |
-| `enrichment_vram_usage_bytes`         | Enrichment code                                     | gauge   |
-| `enrichment_vram_budget_bytes`        | Enrichment code                                     | gauge   |
-| `enrichment_vram_utilization_percent` | Enrichment code                                     | gauge   |
+| Metric                                | Defined at              | State              |
+| ------------------------------------- | ----------------------- | ------------------ |
+| `ai_gpu_oom_total`                    | `ai/gpu_oom_handler.py` | counter, no target |
+| `enrichment_vram_usage_bytes`         | enrichment code         | gauge, no target   |
+| `enrichment_vram_budget_bytes`        | enrichment code         | gauge, no target   |
+| `enrichment_vram_utilization_percent` | enrichment code         | gauge, no target   |
+| `yolo26_*`                            | `ai/yolo26/metrics.py`  | gauges, no target  |
 
-> The `yolo26_*` gauges (`ai/yolo26/metrics.py`) and `enrichment_vram_*` gauges
-> (`ai/enrichment/model_manager.py`) are still defined in code, but the standalone
-> `ai-yolo26`/`ai-florence`/`ai-clip`/`ai-enrichment`/`ai-enrichment-light` containers that exposed
-> them via `/metrics` are no longer deployed -- those Prometheus jobs were removed (see the
-> "Removed targets" note in `monitoring/prometheus.yml`, which says Triton's native `nv_*` metrics
-> are the replacement). Treat the rows above as legacy unless a scrape target for them exists.
+`monitoring/prometheus.yml:161` (`# Removed targets:`) records that Triton's
+native `nv_*` metrics are the replacement for the deleted scrape jobs. A metric
+that is defined in code but has no `/metrics` handler and no job is not a signal
+— the `GPUOOMCritical` alert that keyed on `ai_gpu_oom_total` was deleted for
+exactly this reason (`monitoring/ai-pipeline-alerts.yml:33-40`).
 
-### Grafana Dashboard
+### Grafana dashboards
 
-`monitoring/grafana/dashboards/hsi-gpu-metrics.json` -- GPU dashboard with panels for utilization, VRAM, temperature, power, clocks, PCIe throughput, and memory bandwidth.
+`monitoring/grafana/dashboards/hsi-gpu-metrics.json` — utilization, VRAM,
+temperature, power, clocks, PCIe throughput, memory bandwidth.
+
+Every other dashboard in that directory keys on series an exporter produces;
+`scripts/audit_grafana_queries.py` re-derives the empty-series census
+(`docs/guides/metrics-coverage.md` holds the current reading).
 
 ---
 
 ## GPU Alert Rules
 
-### DCGM-Based Alerts (`monitoring/gpu-alerts.yml`)
+### DCGM-based alerts (`monitoring/gpu-alerts.yml`, 11 alerts)
 
-| Alert                         | Expression               | Duration | Severity |
-| ----------------------------- | ------------------------ | -------- | -------- |
-| `GPUMemoryNearFull`           | VRAM > 90%               | 2m       | critical |
-| `GPUMemoryHigh`               | VRAM > 80%               | 5m       | warning  |
-| `GPUHighTemperature`          | temp > 85 C              | 5m       | critical |
-| `GPUTemperatureElevated`      | temp > 75 C              | 10m      | warning  |
-| `GPUUtilizationSaturated`     | util > 95%               | 15m      | warning  |
-| `GPUUnderutilizedMemoryBound` | GPU < 30% AND MEM > 70%  | 5m       | warning  |
-| `GPUMemoryBandwidthSaturated` | MEM > 90%                | 10m      | warning  |
-| `GPUHighPowerUsage`           | power > 350W             | 10m      | warning  |
-| `GPUClockSpeedDegraded`       | SM < 1200 AND util > 50% | 5m       | warning  |
-| `DCGMExporterDown`            | exporter down            | 2m       | critical |
-| `NoGPUMetrics`                | exporter up, no data     | 5m       | warning  |
+| Alert                         | Expression               | Duration | Severity | Line |
+| ----------------------------- | ------------------------ | -------- | -------- | ---- |
+| `GPUMemoryNearFull`           | VRAM > 90%               | 2m       | critical | 33   |
+| `GPUMemoryHigh`               | VRAM > 80%               | 5m       | warning  | 47   |
+| `GPUHighTemperature`          | temp > 85 C              | 5m       | critical | 64   |
+| `GPUTemperatureElevated`      | temp > 75 C              | 10m      | warning  | 77   |
+| `GPUUtilizationSaturated`     | util > 95%               | 15m      | warning  | 94   |
+| `GPUUnderutilizedMemoryBound` | GPU < 30% AND MEM > 70%  | 5m       | warning  | 107  |
+| `GPUMemoryBandwidthSaturated` | MEM > 90%                | 10m      | warning  | 126  |
+| `GPUHighPowerUsage`           | power > 350W             | 10m      | warning  | 143  |
+| `GPUClockSpeedDegraded`       | SM < 1200 AND util > 50% | 5m       | warning  | 160  |
+| `DCGMExporterDown`            | exporter down            | 2m       | critical | 179  |
+| `NoGPUMetrics`                | exporter up, no data     | 5m       | warning  | 192  |
 
-### AI Pipeline GPU Alerts (`monitoring/ai-pipeline-alerts.yml`)
+### AI pipeline alerts (`monitoring/ai-pipeline-alerts.yml`)
 
-| Alert                  | Expression                                                                                                  | Duration | Severity |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------- | -------- | -------- |
-| `GPUInferenceFailures` | `sum(rate(nv_inference_request_failure[5m])) / (sum(rate(nv_inference_request_success[5m])) + 0.001) > 0.1` | 5m       | critical |
-| `GPUMemoryHigh`        | `hsi_gpu_memory_used_mb / total > 0.9`                                                                      | 5m       | warning  |
-| `GPUMemoryCritical`    | `hsi_gpu_memory_used_mb / total > 0.95`                                                                     | 2m       | critical |
+The GPU rules that actually reference the shipped topology:
 
-> `GPUOOMCritical` (keyed on `rate(ai_gpu_oom_total[5m]) > 0`) was deleted -- post-consolidation
-> nothing in the gateway topology exports `ai_gpu_oom_total`, so the alert could never fire (see
-> the deletion comment at `monitoring/ai-pipeline-alerts.yml:33`). `GPUInferenceFailures` above is
-> the Triton-backed replacement, scraped from `ai-gateway:8002/metrics`.
+| Alert                  | Expression                                                                                                  | Duration | Severity | Line |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- | -------- | -------- | ---- |
+| `GPUInferenceFailures` | `sum(rate(nv_inference_request_failure[5m])) / (sum(rate(nv_inference_request_success[5m])) + 0.001) > 0.1` | 5m       | critical | 49   |
+| `GPUMemoryHigh`        | `hsi_gpu_memory_used_mb / total > 0.9`                                                                      | 5m       | warning  | 67   |
+| `GPUMemoryCritical`    | `hsi_gpu_memory_used_mb / total > 0.95`                                                                     | 2m       | critical | 80   |
 
-### Backend Performance Thresholds (`backend/services/performance_collector.py`)
+The same file also carries the ai-vlm verification-leg alerts, keyed on the
+metrics the VLM path actually writes: `PromptTruncationHigh` `:108`
+(`hsi_prompts_truncated_total`), `VlmVerificationFailures` `:145`
+(`hsi_pipeline_errors_total{error_type="vlm_verification_failed"}`),
+`VlmRequestErrors` `:169` (the `vlm_transport_error|vlm_http_error|vlm_schema_invalid`
+attempt classes), `VlmServiceUnhealthy` `:192` (`hsi_ai_service_degraded`), and
+`VlmSpecialistLegsUnavailable` `:213` (`hsi_specialist_unavailable_total`).
+
+### Backend performance thresholds (`backend/services/performance_collector.py:39-42`)
 
 | Metric          | Warning | Critical |
 | --------------- | ------- | -------- |
@@ -651,228 +698,100 @@ Scraped from `ai-gateway:8002/metrics`:
 
 ---
 
+## VRAM Budget
+
+Two GPU-resident workloads and three CPU lookup legs. The compose `memory`
+limits are host RAM, not VRAM; nothing in this tree advertises a VRAM budget for
+the GPU-resident pair, so the rows below are what the code actually sizes.
+
+| Component                                                       | Footprint                                   | Source                            |
+| --------------------------------------------------------------- | ------------------------------------------- | --------------------------------- |
+| `Qwen3VL-8B-Instruct-Q4_K_M.gguf` weights                       | 5,027,784,800 B                             | `docker-compose.prod.yml:227-228` |
+| `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` weights                  | 752,289,728 B                               | `docker-compose.prod.yml:227-228` |
+| KV pool, 32 768 ctx × 2 slots, f16                              | 4 608 MiB (measured, llama.cpp's own line)  | `docker-compose.prod.yml:210-221` |
+| KV pool, same geometry, `CACHE_TYPE_K/V=q8_0` (shipped default) | half the f16 pool                           | `docker-compose.prod.yml:222-223` |
+| Triton CUDA context + three ONNX models                         | 256 MB CUDA memory pool declared at startup | `ai/gateway/entrypoint.sh:153`    |
+| Face detection + recognition, person re-ID, plate OCR           | CPU (ONNX `CPUExecutionProvider` only)      | `pyproject.toml:196-200`          |
+
+The `q8_0` KV default is the shipped relief for this pool: the pool is a
+function of the architecture and the ctx/slot numbers, not of the weights' size
+(`docker-compose.prod.yml:210-221`).
+
+`models.yml` at the repo root carries the per-model `vram_mb` field the backend
+model zoo reads; `GPU_LAYERS=auto` lets llama.cpp fit the VLM to whatever VRAM
+is free (`docker-compose.prod.yml:183`).
+
+---
+
 ## NVIDIA Inference API
 
-Used for media generation (not AI inference pipeline):
+Used for media generation, not the event pipeline:
 
-| Script                                    | API endpoint                                                                                           | Purpose                         |
+| Script                                    | Endpoint / tool                                                                                        | Purpose                         |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------- |
-| `scripts/generate_videos.sh`              | `https://inference-api.nvidia.com` (via `generate_videos.py`)                                          | Veo 3.1 video generation        |
-| `scripts/generate_architecture_images.sh` | the local `nvidia-image-gen` skill (`$HOME/.claude/skills/nvidia-image-gen/scripts/generate_image.py`) | Architecture diagram generation |
+| `scripts/generate_videos.sh`              | `https://inference-api.nvidia.com` (`scripts/generate_videos.py:41`)                                   | Veo 3.1 video generation        |
+| `scripts/synthetic/media_generator.py`    | same host (`:96`)                                                                                      | synthetic media generation      |
+| `scripts/generate_architecture_images.sh` | the local `nvidia-image-gen` skill (`$HOME/.claude/skills/nvidia-image-gen/scripts/generate_image.py`) | architecture diagram generation |
 
-The endpoint literal also appears in `scripts/synthetic/media_generator.py`. The shell helpers point
-users to **`https://build.nvidia.com`** for keys; `inference-api.nvidia.com` is the host those
-generated calls target.
-
-Requires `NVIDIA_API_KEY` or `NVAPIKEY` environment variable.
+The shell helpers point users to **`https://build.nvidia.com`** for keys.
+Requires `NVIDIA_API_KEY` or `NVAPIKEY`.
 
 ---
 
 ## CI/CD GPU Integration
 
-### GitHub Actions Workflows
+### GitHub Actions workflows
 
-| Workflow          | Runner | GPU Tests                         |
-| ----------------- | ------ | --------------------------------- |
-| `build-setup.yml` | --     | Bundles `setup_lib.nvidia_detect` |
-| `deploy.yml`      | --     | "NVIDIA CUDA - amd64 only" builds |
+| Workflow          | GPU relevance                           |
+| ----------------- | --------------------------------------- |
+| `build-setup.yml` | bundles `setup_lib.nvidia_detect`       |
+| `deploy.yml`      | "NVIDIA CUDA — amd64 only" image builds |
 
-> **No GPU CI today (2026-09-22):** `gpu-tests.yml` has been removed, and `nightly.yml`'s
-> `extended-benchmarks` job (self-hosted gpu, rtx-a5500) was removed on 2026-09-15 while the GPU
-> runner is offline -- its in-file note says to restore it from git history when the box returns.
-> `backend/tests/gpu/` and `scripts/setup-gpu-runner.sh` remain, so the test suite and runner
-> registration still exist locally; they just have no scheduled job.
+There is **no GPU CI job** in `.github/workflows/`. `.github/workflows/nightly.yml:12` records
+that the `extended-benchmarks` job (self-hosted gpu, rtx-a5500) was removed on
+2026-09-15 while the runner is offline, with an in-file note to restore it from
+git history when the box returns. `backend/tests/gpu/` and
+`scripts/setup-gpu-runner.sh` still exist locally; they simply have no scheduled
+job.
 
-### GPU Runner Setup (`scripts/setup-gpu-runner.sh`)
+### GPU runner setup (`scripts/setup-gpu-runner.sh`)
 
-Tests GPU with multiple CUDA images: `nvidia/cuda:12.0.0`, `12.2.0`, `11.8.0` on Ubuntu 22.04. Installs `nvidia-container-toolkit` and registers runner with labels `self-hosted,linux,gpu,rtx-a5500`.
-
----
-
-## Why ONNX Runtime Was Chosen Over TensorRT
-
-TensorRT was the **original design** for 5 of the 15 Triton models. The decision to use ONNX Runtime instead was not made upfront -- it evolved through practical hardware constraints discovered during implementation.
-
-### Decision Timeline
-
-| Date       | Commit     | Event                                                                                                                                                                                                                   |
-| ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-01-26 | `75d6aa35` | Triton infrastructure introduced. Original design: `tensorrt_plan` backend for yolo26, clip, pose, threat, fashion_clip.                                                                                                |
-| 2026-01-26 | `a5e47aa2` | Standalone YOLO26 using TensorRT FP16 benchmarked at 5.76ms / 174 FPS on A5500.                                                                                                                                         |
-| 2026-01-27 | `e1e29656` | ONNX packages added to yolo26 requirements -- A400 workspace issues surfacing.                                                                                                                                          |
-| 2026-02-08 | `8c358978` | **Key decision point.** CLIP/FashionCLIP switched from `tensorrt_plan` to `onnxruntime` -- "4GB A400 too small for trtexec workspace." YOLO26 config converted from 143-line TensorRT config to ONNX Runtime.           |
-| 2026-02-08 | `3710a98c` | NEM-5547: INT8 ONNX quantization attempted for YOLO26. Failed -- `ConvInteger` ops unsupported by CUDAExecutionProvider. NEM-5551: All models promoted to GPU using FP32 ONNX + CUDA EP instead. "All 15 models READY." |
-| 2026-02-08 | `af227b5a` | NEM-5561-5567: Model upgrades (SigLIP 2, OSNet-AIN, ST-GCN++). ONNX Runtime on GPU confirmed as the long-term approach.                                                                                                 |
-| 2026-02-13 | `18dcedeb` | NEM-5560: Rate limiter with `execution_count` mode added. YOLO26 priority=1 in instance_group. ONNX Runtime backend fully optimized.                                                                                    |
-
-### Root Causes (4 Blocking Issues)
-
-**1. A400 workspace memory constraint (primary blocker)**
-
-The `trtexec` builder for CLIP and similar large models needs workspace memory that competes with the total 4GB VRAM on the RTX A400. Building TensorRT engines on a 4GB GPU with Triton + other models loaded causes OOM. Discovered during Phase 2 of migration, not anticipated in the design phase.
-
-> Source: commit `8c358978` -- "CLIP/Fashion-CLIP: switch from TensorRT to ONNX Runtime (4GB A400 too small for trtexec workspace)."
-
-**2. INT8 ConvInteger operator incompatibility (NEM-5547)**
-
-`onnxruntime.quantization` inserts `ConvInteger` nodes into INT8 graphs. ONNX Runtime's `CUDAExecutionProvider` does not support `ConvInteger` -- it is a CPU-only operator. INT8 ONNX on GPU either fails to load or silently falls back to CPU. TensorRT's native INT8 path supports this, but returns to the workspace OOM problem.
-
-> Source: commit `3710a98c` -- "yolo26: Use FP32 ONNX on GPU (INT8 ConvInteger ops unsupported by CUDA EP)." Preserved in current `config.pbtxt` line 7.
-
-**3. Ultralytics .engine metadata wrapper incompatibility**
-
-Pose and threat models exported via Ultralytics as `.engine` files have a metadata wrapper incompatible with Triton's `tensorrt` backend, which expects raw engine files without the Ultralytics envelope.
-
-> Source: commit `3710a98c` -- "pose/threat: Use ONNX Runtime on GPU (not TensorRT -- Ultralytics .engine format has metadata wrapper incompatible with Triton's tensorrt backend)."
-
-**4. Florence-2 and X-CLIP cannot be exported to TensorRT/ONNX**
-
-Florence-2's autoregressive decoder and X-CLIP's custom cross-frame attention prevent static graph export. Both require the Python backend.
-
-> Source: `ai/triton/model_repository/florence2/config.pbtxt` line 3, `archive/triton-model-repository/xclip_action/config.pbtxt` line 3 (`xclip_action` retired from the live repo with NEM-5563).
-
-### Performance Comparison
-
-| Backend                  | Typical Latency    | VRAM Overhead             | Build Time           | Portability    |
-| ------------------------ | ------------------ | ------------------------- | -------------------- | -------------- |
-| **TensorRT**             | 1x (fastest)       | High (workspace + engine) | Minutes per model    | sm_XX specific |
-| **ONNX Runtime CUDA EP** | ~1.3-1.5x TensorRT | Low (ONNX file only)      | None (load directly) | Any GPU        |
-| **ONNX Runtime CPU**     | ~3-5x TensorRT     | Zero GPU                  | None                 | Any CPU        |
-
-The evaluation docs noted "near-TensorRT performance" from ONNX Runtime CUDA EP, making it an acceptable tradeoff given the A400's 4GB constraint. The standalone YOLO26 server on GPU 0 (A5500 24GB) continues to use native TensorRT where workspace is not a constraint.
-
-### Future Path: TensorRT Execution Provider (Research Complete 2026-02-19)
-
-Research confirmed that `TensorrtExecutionProvider` can be enabled as a **config-only change** in Triton's ONNX Runtime backend. The Triton 26.01 container already ships with TensorRT linked into the ORT backend. No model re-export needed.
-
-**Recommended rollout (Wave 1 -- static-batch, lowest risk):**
-
-Add this block to `threat/config.pbtxt`, `pose/config.pbtxt`, and `yolo26/config.pbtxt`:
-
-```protobuf
-optimization {
-  execution_accelerators {
-    gpu_execution_accelerator : [
-      {
-        name : "tensorrt"
-        parameters { key: "precision_mode"           value: "FP16" }
-        parameters { key: "max_workspace_size_bytes"  value: "268435456" }
-        parameters { key: "trt_engine_cache_enable"   value: "1" }
-        parameters { key: "trt_engine_cache_path"     value: "/models/cache/trt_engines" }
-      }
-    ]
-  }
-}
-```
-
-**Wave 2 (dynamic-batch, needs shape profiles):** `pet`, `reid`, `clip` -- add `trt_min_shapes`/`trt_opt_shapes`/`trt_max_shapes` parameters.
-
-**Skip:** `depth` (hardcoded Reshape in DPT head), `florence2` (Python backend — the list formerly also named `xclip_action`, retired 2026-09-23; its successor `stgcn_action` is CPU-only and covered by the next clause), all CPU models.
-
-**Expected gains:** 1.5-2x inference speedup for YOLO models, ~2x for classification models. First startup slow (~5-15 min per model for TRT compilation), cached on subsequent runs.
-
-**Rollback:** Remove the `optimization` block. ONNX files unchanged, zero-risk revert.
-
-Other hardware paths remain viable:
-
-- Upgrading GPU 1 to >=8GB VRAM would unblock native `trtexec` workspace
-- Pre-building engines outside Triton (one-shot container) could produce raw `.plan` files
+Probes the host against three CUDA base images — `nvidia/cuda:12.0.0-base-ubuntu22.04`,
+`12.2.0-base-ubuntu22.04`, `11.8.0-base-ubuntu22.04` (`:70-72`) — installs
+`nvidia-container-toolkit`, and registers the runner with labels
+`self-hosted,linux,gpu,rtx-a5500`.
 
 ---
 
-## Stale References
+## Why ONNX Runtime, Not TensorRT
 
-### Fixed (2026-02-19)
+Both shipped Triton inference models and the resident re-ID model run
+`backend: "onnxruntime"` on GPU, and none of the three uses a TensorRT backend.
+The reasons are recorded in the files themselves, where they were discovered:
 
-Historical record — several rows have drifted again since (e.g. `ai/clip/AGENTS.md` line 73 still
-says `tensorrt:26.01-py3` while `ai/clip/Dockerfile` now builds from `26.08-py3`; the nemotron base
-images moved `13.1.1 -> 13.3.1`; the `ai/yolo26/Dockerfile` cited below was retired 2026-09-23 and
-moved to `archive/ai-yolo26-image/Dockerfile`). See the live tables above for current values.
+1. **INT8 `ConvInteger` is CPU-only in ONNX Runtime.** The quantized YOLO26
+   export inserted `ConvInteger` nodes the CUDA EP cannot run, so the config
+   states it chose FP32 ONNX on GPU instead
+   (`ai/triton/model_repository/yolo26/config.pbtxt:7-8`, NEM-5547 / NEM-5551).
+2. **Builder workspace on a small second card.** The export helpers default
+   `--workspace-gb` to 1 GB because that is what fits alongside other residents
+   on a 4 GB GPU 1 (`ai/gateway/export/README.md:75`); the same constraint is in
+   `ai/gateway/export/export_yolo_pose.py:172`. Engine builds compete for that workspace.
+3. **Ultralytics `.engine` files are wrapped.** Triton's `tensorrt` backend
+   expects a raw serialized plan; the Ultralytics export carries a metadata
+   envelope, which is why engine output goes through the explicit
+   `copy_yolo26_engine.py` placement step rather than a Triton TensorRT config.
 
-The following stale references were identified during the audit and corrected:
+The measured comparison the benchmark harness still runs today is the CUDA EP
+against the TensorRT EP, flag-gated and off by default
+(`scripts/benchmark_yolo26_gpu.py:441,447,462,1172,1191`).
 
-| Reference                        | Location                                        | Fix Applied                                    |
-| -------------------------------- | ----------------------------------------------- | ---------------------------------------------- |
-| `tritonserver:24.01-py3`         | `ai/triton/AGENTS.md` line 116                  | Updated to `26.01-py3`                         |
-| `tensorrt:24.09-py3` OCI labels  | `ai/yolo26/Dockerfile` lines 26-27              | Updated to `26.01-py3`                         |
-| `nvidia/cuda:13.1.0` (x4)        | `ai/nemotron/AGENTS.md` lines 12, 156, 162, 414 | Updated to `13.1.1`                            |
-| `commit 9496bbb80`               | `ai/nemotron/AGENTS.md` line 157                | Updated to tag `b7972`                         |
-| RTX A400 = sm_75                 | `.env.example` line 471                         | Moved A400 to sm_86 line                       |
-| `pytorch/pytorch:2.4.0-cuda12.4` | `ai/clip/AGENTS.md` line 73                     | Updated to `nvcr.io/nvidia/tensorrt:26.01-py3` |
-| Duplicate `GPU_LAYERS=48`        | `.env.example` line 541                         | Removed duplicate, kept `auto` at line 361     |
+| Backend                  | Relative latency   | VRAM overhead             | Portability    |
+| ------------------------ | ------------------ | ------------------------- | -------------- |
+| **TensorRT**             | 1x (fastest)       | high (workspace + engine) | sm_XX specific |
+| **ONNX Runtime CUDA EP** | ~1.3-1.5x TensorRT | low (ONNX file only)      | any GPU        |
+| **ONNX Runtime CPU EP**  | ~3-5x TensorRT     | none                      | any CPU        |
 
-### Remaining (In Docs/Plans Only)
-
-| Reference                              | Location                                              | Notes                                  |
-| -------------------------------------- | ----------------------------------------------------- | -------------------------------------- |
-| `tritonserver:25.01-py3`               | `docs/plans/triton-migration.md`                      | Historical plan doc, not active config |
-| `tritonserver:24.09-trtllm-python-py3` | `docs/plans/2026-01-31-llm-inference-optimization.md` | TRT-LLM plan, never deployed           |
-
----
-
-## VRAM Budget Summary
-
-Estimated per-model footprint (from the 2026-02 audit; vehicle, fashion_clip and the two
-demographics ViTs were promoted to GPU later and are not itemized here -- add ~1.5 GB + ~0.5 GB +
-2 x ~0.2 GB on GPU 1 for them).
-
-| Component                                                                                                                            | VRAM (MB) | GPU           |
-| ------------------------------------------------------------------------------------------------------------------------------------ | --------- | ------------- |
-| Nemotron-3-Nano-30B Q4_K_M                                                                                                           | ~14,700   | GPU 0 (A5500) |
-| KV cache (Q8_0; measured at 32K ctx x 2 slots -- deployed compose runs 262,144 ctx x 8 slots, kept small by the hybrid Mamba design) | ~192      | GPU 0         |
-| Triton CUDA context overhead                                                                                                         | ~300      | GPU 1 (A400)  |
-| SigLIP 2 Base (CLIP replacement)                                                                                                     | ~178      | GPU 1         |
-| Depth Anything V2 Tiny                                                                                                               | ~101      | GPU 1         |
-| YOLOv8n-pose                                                                                                                         | ~14       | GPU 1         |
-| YOLOv8n threat                                                                                                                       | ~12       | GPU 1         |
-| ResNet-18 pet                                                                                                                        | ~45       | GPU 1         |
-| OSNet-AIN x1.0 ReID                                                                                                                  | ~9        | GPU 1         |
-| Florence-2 Base (FP16)                                                                                                               | ~460      | GPU 1         |
-| YOLO26m FP32 ONNX                                                                                                                    | ~100      | GPU 1         |
-| Enrichment on-demand budget                                                                                                          | 6,800     | GPU 0 (heavy) |
-
-> The "Enrichment on-demand budget" (`VRAM_BUDGET_GB`, default 6.8 in `ai/enrichment/model.py`)
-> governs the LRU manager inside the standalone `ai-enrichment` container, which is no longer
-> deployed. The backend's in-process `model_zoo` has no budget -- it loads on demand and unloads
-> when the last reference is released.
-
----
-
-## Improvements Applied (2026-02-19)
-
-Changes implemented as a result of this audit:
-
-### Performance Optimizations
-
-| Change                            | File                               | Impact                                             |
-| --------------------------------- | ---------------------------------- | -------------------------------------------------- |
-| Added `GGML_CUDA_GRAPH_OPT=1`     | `docker-compose.prod.yml` line 180 | Up to 35% LLM token generation speedup             |
-| Added `-DGGML_NATIVE=ON` to CMake | `ai/nemotron/Dockerfile` line 63   | Native CPU optimizations for MoE expert offloading |
-
-### INT8 Quantization Infrastructure
-
-| Change                                                                              | File                                    | Impact                                                    |
-| ----------------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------- |
-| Added `VEHICLE_QUANTIZED`, `DEMOGRAPHICS_QUANTIZED`, `QUANTIZED_MODEL_DIR` env vars | `docker-compose.prod.yml` lines 319-324 | Enables INT8 quantization for vehicle/demographics models |
-| Added `/models/quantized` volume mount                                              | `docker-compose.prod.yml` line 308      | Quantized model storage                                   |
-| Added quantization documentation                                                    | `ai/gateway/export/export_all.sh`       | Step-by-step INT8 deployment instructions                 |
-
-### Documentation Fixes (7 Stale References)
-
-| Fix                                              | File                                                              |
-| ------------------------------------------------ | ----------------------------------------------------------------- |
-| `tritonserver:24.01-py3` -> `26.01-py3`          | `ai/triton/AGENTS.md`                                             |
-| `cuda:13.1.0` -> `13.1.1` (x4 occurrences)       | `ai/nemotron/AGENTS.md`                                           |
-| `commit 9496bbb80` -> `tag b7972`                | `ai/nemotron/AGENTS.md`                                           |
-| `tensorrt:24.09-py3` -> `26.01-py3` (OCI labels) | `ai/yolo26/Dockerfile` (now `archive/ai-yolo26-image/Dockerfile`) |
-| RTX A400 moved from sm_75 to sm_86               | `.env.example`                                                    |
-| Base image updated to `tensorrt:26.01-py3`       | `ai/clip/AGENTS.md`                                               |
-| Removed duplicate `GPU_LAYERS=48`                | `.env.example`                                                    |
-
-### Research Completed (Pending Implementation)
-
-| Finding                                   | Recommendation                                                                       | Risk                                                       |
-| ----------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| TensorRT Execution Provider               | Config-only change in Triton config.pbtxt for 6 GPU models. 1.5-2x speedup expected. | Low (Wave 1: static-batch), Medium (Wave 2: dynamic-batch) |
-| PyTorch 2.4.0 -> 2.6.0 (enrichment-light) | **GO** -- no blockers, safe to upgrade                                               | Low                                                        |
-| PyTorch 2.4.0 -> 2.6.0 (enrichment-heavy) | **BLOCKED** by `paddlepaddle-gpu` CUDA library conflicts                             | High -- requires PaddlePaddle isolation or compat fix      |
+Paths that stay open: `--tensorrt` on `export_yolo26.py` for an engine build,
+the host-side `build_engine.py` + `copy_yolo26_engine.py` placement pair, and a
+larger second card to unblock a bigger builder workspace.

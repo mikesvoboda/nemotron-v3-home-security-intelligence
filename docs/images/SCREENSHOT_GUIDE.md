@@ -337,12 +337,12 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 **Shows:**
 
-- Two model cards:
-  1. YOLO26 Object Detection (status, memory, FPS)
-  2. Nemotron Risk Analysis (status, memory, speed)
+- Two model cards, one for detection and one for the reasoning serve, each with
+  status, memory and speed; the panel reads the `rtdetr` and `nemotron` fields of
+  the health payload, so the card labels are those wire names
 - Total GPU memory usage bar at bottom
 
-**Alt text:** AI Models settings showing YOLO26 and Nemotron model cards with status indicators, memory usage, and performance metrics
+**Alt text:** AI Models settings showing the detection and reasoning model cards with status indicators, memory usage, and performance metrics
 
 ---
 
@@ -683,10 +683,10 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 **Shows:**
 
-- YOLO26 and Nemotron model cards
+- The detection and reasoning model cards
 - GPU memory usage bar
 
-**Alt text:** AI Models settings showing YOLO26 and Nemotron model cards with status, memory, and performance metrics
+**Alt text:** AI Models settings showing the detection and reasoning model cards with status, memory, and performance metrics
 
 ---
 
@@ -825,14 +825,12 @@ Use this checklist to track screenshot capture progress:
 The following screenshots require manual creation or special conditions:
 
 1. **Composite/Infographic images** (require design software):
-
    - `placeholder-risk-gauge-states.png` - Four risk gauge states side by side
    - `placeholder-risk-level-guide.png` - Horizontal risk scale visualization
    - `placeholder-alert-cards-comparison.png` - Four alert cards comparison
    - `placeholder-understanding-risk-scale.png` - Thermometer-style risk scale
 
 2. **Annotated images** (require annotation software):
-
    - `placeholder-dashboard-tutorial-annotated.png` - Dashboard with numbered callouts
 
 3. **Special UI state images** (require specific interactions):
@@ -847,20 +845,17 @@ The following screenshots require manual creation or special conditions:
 ## Notes for Capture Team
 
 1. **Sample Data:** Ensure the system has varied sample data:
-
    - Multiple cameras with different statuses
    - Events across all risk levels (Low, Medium, High, Critical)
    - Recent events with different timestamps
    - Various object types detected
 
 2. **Consistent State:** Before capturing, ensure:
-
    - Dark mode is active
    - System shows "LIVE MONITORING" status
    - No error states unless specifically needed
 
 3. **Composite Images:** Items marked as "composite" or "infographic" may need:
-
    - Design software (Figma, Photoshop, etc.)
    - Multiple screenshots combined
    - Custom graphics or icons

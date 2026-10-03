@@ -57,12 +57,26 @@ is a test gap). Each is a BODY proof, not a diff shape:
 *  to False. Every outcome matches orig.
 
 All other 267 survivor keys have an explicit kill polarity in this battery;
-sweep result target: RED=267 GREEN=10 of 277 == this ledger exactly. If a
-later sweep GREENs anything else, it is a gap - close it (or register the
-EQUIV with a body proof) before the run. Delta-birth audit after run 1 is
-MANDATORY per the c15 protocol: archive the module meta BEFORE launch; delta
-= cur meta keys - archived keys; every birth key must be swept, killed, or
-registered before run 2.
+run-1 sweep: RED=267 GREEN=10 of 277 == this ledger exactly, and run 1
+banked it: 570 -> 577 keys, 12 survivors == THIS LEDGER 10 + 2 body-BIRTHS
+that inherited renumbered slot numbers (_update_daily_usage m45
+set_cost_per_event(total_cost * total_events) - invisible while total_events
+was 1 in the only test reaching the line, now killed by the events=2 full-
+shape test; load_usage m13 `not data: break` - break and continue coincide
+on a single key, now killed by empty-key-first-then-good-key ordering). The
+number-keyed delta missed those 2 births (slot-inheritance, renumber capture
+#4); the body crosswalk found them: 0 true kill losses, old load_usage m13
+sits at new m14 still killed. Ledger stays the 10 rows above - both births
+are KILLABLE and killed, not equivalents.
+
+Run 2 killed both birth keys (bank 566/577) but LOST one kill: m43
+(`total_events > 0` -> `> 1` in _update_daily_usage) - its only kill was
+MY pre-edit full-shape test at events 1 (mutant skips the call, spy
+length differs); raising that test to events 2 for the m45 kill made both
+arms fire identically. Disclosed honestly: the pre-run-2 full-577 sweep
+showed m43 GREEN and I misread it as a shipped-suite kill. Fixed with a
+dedicated events-EXACTLY-1 test (the two tests cover each other's blind
+spot: / vs * coincide at 1, >0 vs >1 coincide at 2).
 """
 
 from __future__ import annotations
@@ -390,7 +404,12 @@ def test_update_daily_usage_full_shape():
     d_now = date(2026, 6, 15)
     d_other_m = date(2026, 2, 15)  # same year, other month
     d_other_y = date(2020, 6, 15)  # same month, other year
-    svc._daily_usage[d_other_m] = DailyUsage(date=d_other_m, total_estimated_cost_usd=1.0)
+    # event_count 1 on the decoy makes total_events 2 overall: the run-2 birth
+    # m45 (set_cost_per_event(total_cost * total_events)) only diverges from
+    # orig's / when events != 1 (10.0/2=5.0 vs 10.0*2=20.0).
+    svc._daily_usage[d_other_m] = DailyUsage(
+        date=d_other_m, total_estimated_cost_usd=1.0, event_count=1
+    )
     svc._daily_usage[d_other_y] = DailyUsage(date=d_other_y, total_estimated_cost_usd=7.0)
     svc._daily_usage[d_now] = DailyUsage(date=d_now, event_count=1)
     rec = _rec(
@@ -413,12 +432,34 @@ def test_update_daily_usage_full_shape():
     assert u.total_estimated_cost_usd == 2.0
     assert u.usage_by_model == {"nemotron": 2.0}
     assert u.event_count == 1
-    # all-time 10.0 over detections 1 / events 1; monthly ONLY d_now
+    # all-time 10.0 over detections 1 / events 2; monthly ONLY d_now
     assert spy.calls == [
         ("set_daily_cost", (2.0,), {}),
         ("set_monthly_cost", (2.0,), {}),
         ("set_cost_per_detection", (10.0 / 1,), {}),
-        ("set_cost_per_event", (10.0 / 1,), {}),
+        ("set_cost_per_event", (10.0 / 2,), {}),
+    ]
+
+
+def test_update_daily_usage_single_event_fires_cost_per_event():
+    # EXACTLY one event overall: orig calls set_cost_per_event(cost/1); the
+    # m43 (> 0 -> > 1) mutant SKIPS the call (spy length differs) - the
+    # events=2 full-shape test cannot see m43 (both arms call, same value),
+    # and m45 (* instead of /) coincides at events 1 - the two tests cover
+    # each other's blind spot.
+    svc, spy = _mk()
+    d_now = date(2026, 6, 15)
+    svc._daily_usage[d_now] = DailyUsage(date=d_now, event_count=1)
+    rec = _rec(
+        datetime(2026, 6, 15, 9, 0, 0, tzinfo=UTC),
+        model="m",
+        estimated_cost_usd=5.0,
+    )
+    svc._update_daily_usage(rec)
+    assert spy.calls == [
+        ("set_daily_cost", (5.0,), {}),
+        ("set_monthly_cost", (5.0,), {}),
+        ("set_cost_per_event", (5.0 / 1,), {}),
     ]
 
 
@@ -910,16 +951,21 @@ def test_load_usage_missing_fields_default_to_zero():
 
 
 def test_load_usage_empty_hgetall_skips_key():
+    # EMPTY FIRST KEY, good key second: orig `continue` loads the good row
+    # (1 day); the run-2 birth m13 `break` stops at the empty key (0 days).
+    # A single-key empty case cannot distinguish break from continue.
     svc, _ = _mk()
-    key = "hsi:cost_tracking:daily:2026-06-15"
-    r = _Redis({key: {}})  # hgetall -> falsy -> continue
+    empty_key = "hsi:cost_tracking:daily:2026-01-01"
+    good_key = "hsi:cost_tracking:daily:2026-06-15"
+    r = _Redis({empty_key: {}, good_key: _full_payload("k")})
     svc._redis = r
     cap = _LogCap()
     restores = [_swap("logger", cap)]
     try:
         assert asyncio.run(svc.load_usage()) is None
-        assert svc._daily_usage == {}
-        assert cap.names() == [("info", "Loaded usage data for 0 days from Redis")]
+        assert list(svc._daily_usage) == [date(2026, 6, 15)]
+        assert svc._daily_usage[date(2026, 6, 15)].total_input_tokens == 11
+        assert cap.names() == [("info", "Loaded usage data for 1 days from Redis")]
     finally:
         for rr in restores:
             rr()

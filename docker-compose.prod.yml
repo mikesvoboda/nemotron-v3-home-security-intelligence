@@ -29,15 +29,15 @@
 #   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8444)
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
-#   - GPU_LAYERS: Number of GPU layers for LLM (default: auto = fit to available VRAM)
-#   - CTX_SIZE: LLM context window size (default: 262144, 8 slots × 32K each)
+#   - VLM_GPU_LAYERS: Number of GPU layers for the ai-vlm serve (default: auto = fit to available VRAM)
+#   - CTX_SIZE: backend prompt-budget context window (default: 262144, 8 slots × 32K each)
 #   - HF_CACHE: HuggingFace cache directory (default: uses hf_cache volume)
 #   - HF_HUB_OFFLINE: Enable offline mode for HuggingFace Hub (default: 0, set to 1 for production)
 #   - REDIS_PASSWORD: Redis authentication password (optional, for production use)
 #   - GF_ADMIN_PASSWORD: Grafana admin password (default: admin, anonymous access enabled)
 #
 # GPU Assignment (configured in .env - single source of truth):
-#   - GPU_LLM: GPU for Nemotron LLM (default: 0)
+#   - GPU_LLM: GPU for the ai-vlm serve (default: 0)
 #   - GPU_AI_SERVICES: GPU for AI Gateway / Triton (default: 1)
 
 services:
@@ -342,8 +342,9 @@ services:
   # =============================================================================
   # AI Gateway (Triton + FastAPI)
   # =============================================================================
-  # Serves all AI models (YOLO26, Florence-2, CLIP, enrichment) via Triton
-  # Inference Server with a FastAPI gateway for HTTP routing.
+  # Serves the shipped Triton models (YOLO26 detection, plus the light lane's
+  # re-ID and threat rows) via Triton Inference Server with a FastAPI gateway
+  # for HTTP routing.
   ai-gateway:
     security_opt:
       - no-new-privileges:true
@@ -390,11 +391,6 @@ services:
       # /dev/nvidia1 both exist. CUDA_VISIBLE_DEVICES restricts Triton to only
       # the AI services GPU (default: GPU 1 = A400).
       - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
-      # INT8 quantization for vehicle/demographics models (NEM-5533)
-      # Set to true after running ai/enrichment/scripts/quantize_models.py
-      - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
-      - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
-      - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
       # Use pre-downloaded HF cache, disable network downloads
       - HF_HOME=/root/.cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
@@ -403,8 +399,9 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
-      # `full` mode loads all 14 models — start_period covers that worst
-      # case; the shipped `vlm` set (yolo26 + reid) initializes far faster
+      # The shipped `vlm` set (yolo26 + reid, plus threat when
+      # GATEWAY_ENABLE_THREAT=true) initializes in seconds; the 180s covers a
+      # cold TensorRT engine build on first start
       start_period: 180s
     restart: unless-stopped
     networks:
@@ -461,8 +458,8 @@ services:
       - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:z
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
       # Pre-downloaded HuggingFace model cache (matches ai-gateway mount).
-      # Required for fashion-clip (open_clip hf-hub format) and any other model
-      # whose loader uses from_pretrained() with a HuggingFace repo ID.
+      # For any model whose loader uses from_pretrained() with a HuggingFace
+      # repo ID.
       # HF_HOME in environment points here so HF_HUB_OFFLINE=1 can serve models
       # without network access.
       - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/models/huggingface-cache:ro
@@ -589,7 +586,7 @@ services:
       # ai-gateway-side sizing knobs they fed; they no longer size ai-vlm.
       - CTX_SIZE=${CTX_SIZE:-262144}
       - PARALLEL=${PARALLEL:-8}
-      # AI Gateway routes — all enrichment models served via Triton through ai-gateway
+      # AI Gateway routes — the Triton-served models run inside ai-gateway
       - USE_AI_GATEWAY=true
       - AI_GATEWAY_URL=http://ai-gateway:8090
       - YOLO26_URL=http://ai-gateway:8090/yolo26
@@ -636,7 +633,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      # AI gateway — YOLO26 and enrichment models; backend health checks yolo26 via gateway
+      # AI gateway — YOLO26 detection plus the light lane; backend health checks yolo26 via gateway
       ai-gateway:
         condition: service_healthy
       # go2rtc for live streaming - non-critical, backend can start without it

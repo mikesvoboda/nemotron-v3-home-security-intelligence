@@ -13,16 +13,19 @@ _AI-generated visualization of GPU container architecture showing NVIDIA GPU, dr
 
 ## Overview
 
-Home Security Intelligence uses GPU acceleration for AI inference. The core, always-on services are:
+Home Security Intelligence uses GPU acceleration for AI inference. Production AI is
+**two containers**:
 
-| Service             | Purpose             | VRAM Usage     | Inference Time |
-| ------------------- | ------------------- | -------------- | -------------- |
-| YOLO26              | Object detection    | ~4GB           | 30-50ms        |
-| Nemotron-3-Nano-30B | Risk analysis (LLM) | ~14.7GB (prod) | 2-5s           |
-| Nemotron Mini 4B    | Risk analysis (LLM) | ~3GB (dev)     | 2-5s           |
-| **Total (prod)**    |                     | **~19GB**      |                |
+| Container    | GPU env var           | What it holds                                                                       | Inference time |
+| ------------ | --------------------- | ----------------------------------------------------------------------------------- | -------------- |
+| `ai-gateway` | `GPU_AI_SERVICES` (1) | Triton: `yolo26` detection, `reid`, plus `threat` when `GATEWAY_ENABLE_THREAT=true` | 30-50ms        |
+| `ai-vlm`     | `GPU_LLM` (0)         | llama.cpp + mmproj serving the Qwen3-VL GGUF pair (compose profile `vlm`)           | seconds        |
 
-Additional optional AI services (e.g. Florence-2, CLIP, Enrichment) may also use GPU, depending on your deployment and feature toggles. This guide covers the complete setup from bare metal to working GPU inference.
+A third consumer lives **inside the backend process**: the face, plate and person-re-ID
+lookups (`face_recognizer_loader`, `fast_alpr_loader`, `osnet_loader`). They load only
+when `BACKEND_MODEL_PRELOAD=true`, which `setup.py` writes at **>= 24 GB** VRAM; with the
+shipped `false` they report `unavailable` and consume nothing. This guide covers the
+complete setup from bare metal to working GPU inference.
 
 ---
 
@@ -301,7 +304,8 @@ services:
               device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
 
-  ai-llm:
+  ai-vlm:
+    profiles: ['vlm'] # off unless --profile vlm is named
     devices:
       - nvidia.com/gpu=${GPU_LLM:-0}
     environment:
@@ -337,10 +341,15 @@ services:
     environment:
       - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
 
-  ai-llm:
+  ai-vlm:
     devices:
       - nvidia.com/gpu=${GPU_LLM:-0}
 ```
+
+`ai-vlm` sits behind the compose profile `vlm`, so it is absent from a plain `up -d` —
+and podman-compose drops a profile-inactive service _before_ resolving the names on your
+command line, so `up -d ai-vlm` without `--profile vlm` reports success and starts
+nothing.
 
 ### Environment Variables
 
@@ -363,18 +372,26 @@ PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
 ### Per-Service Requirements
 
-Two containers touch the GPUs in production. Figures are from the model manifest
-(`models.yml` `vram_mb`) plus per-process CUDA context overhead.
+Two containers touch the GPUs in production, plus the backend's own lookup weights.
 
-| Container    | GPU                   | What is resident                                                                        | Base VRAM | Peak VRAM |
-| ------------ | --------------------- | --------------------------------------------------------------------------------------- | --------- | --------- |
-| `ai-llm`     | `GPU_LLM` (0)         | Nemotron-3-Nano-30B Q4_K_M                                                              | ~14.7GB   | ~15.5GB   |
-| `ai-gateway` | `GPU_AI_SERVICES` (1) | YOLO26 (~2GB), Florence-2-base (~1.5GB), SigLIP 2 (~200MB), enrichment models on demand | ~4GB      | ~6GB      |
-| CUDA context | each                  | Per-process overhead                                                                    | ~300MB    | ~500MB    |
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/vram-requirements.md"
+<!-- prettier-ignore-end -->
 
-With the default two-GPU split the peaks land on separate cards: GPU 0 needs
-~16GB, GPU 1 needs ~6GB. On a single GPU you need both sums (~22GB) plus headroom,
-which is why `GPU_LAYERS=auto` offloads LLM layers to CPU on 8-12GB cards.
+The `models.yml`-derived part of that budget is measurable today: the gateway's resident
+rows are `yolo26` (0 MB estimated — it runs FP32 ONNX), `reid` (~100 MB) and `threat`
+(~300 MB, opt-in), and the backend's on-demand lookup rows sum to ~1.0 GB when every
+enabled one is loaded. Add roughly 300-500 MB of CUDA context per process.
+
+What is **not** measured yet is the shipped VLM identity's residency:
+`VLM_GPU_LAYERS=auto` (compose) hands the decision to llama.cpp's `--fit`, so the number
+is whatever your free VRAM allows and changes with the GGUF pair you place. Treat 24 GB
+as the comfortable target for the full path — it is the same threshold `setup.py` uses to
+switch `BACKEND_MODEL_PRELOAD` on — and expect the 4B fallback pair to be the option on
+an 8-12 GB card.
+
+On a single GPU everything lands on one card: point both `GPU_LLM` and
+`GPU_AI_SERVICES` at the same index and let `VLM_GPU_LAYERS=auto` do the splitting.
 
 ### Monitoring VRAM Usage
 
@@ -425,17 +442,27 @@ nvidia-smi dmon -s m -d 1
    sudo fuser -k /dev/nvidia*
    ```
 
-3. **Restart AI services:**
+3. **Restart AI services** — each service by name, and the VLM needs its profile on the
+   command line:
 
    ```bash
-   podman compose -f docker-compose.prod.yml restart ai-gateway ai-llm
+   podman compose -f docker-compose.prod.yml restart ai-gateway
+   podman compose -f docker-compose.prod.yml --profile vlm up -d --force-recreate ai-vlm
    ```
 
-4. **Use smaller model quantization:**
+4. **Let the VLM release its VRAM between bursts:** lower `VLM_SLEEP_IDLE_SECONDS`
+   (default 300) so the weights drop back to CPU RAM when idle, or set it empty to hold
+   the card permanently.
 
-   Point `LLM_MODEL_PATH` in `.env` at a Q4_K_S GGUF instead of Q4_K_M (saves ~500MB).
+5. **Move to a smaller VLM identity:** drop to the measured 4B pair via
+   `VLM_MODEL_PATH` + `VLM_MMPROJ_PATH` + `VLM_MODEL_ID` — those three, plus
+   `VLM_MODEL_ALIAS`, are one identity in four spellings and move together.
 
-5. **Close GPU-accelerated applications:**
+6. **Trim the KV pool:** the shipped `VLM_CACHE_TYPE_K`/`VLM_CACHE_TYPE_V` are already
+   `q8_0` (half the f16 pool). `VLM_CTX_SIZE`/`VLM_PARALLEL` set the pool size and the
+   backend reads the same pair for its prompt budget — change the pair, never one side.
+
+7. **Close GPU-accelerated applications:**
 
    - Web browsers with hardware acceleration
    - Desktop compositors (Wayland/X11)
@@ -462,13 +489,13 @@ GPU 1: NVIDIA RTX 3090 (UUID: GPU-def456...)
 
 ### Assign GPUs to Services
 
-There are only two GPU consumers, so placement is two `.env` variables — no compose
+There are two GPU-owning containers, so placement is two `.env` variables — no compose
 edit needed:
 
 ```bash
 # .env
-GPU_LLM=0          # GPU for ai-llm (Nemotron) — pick the high-VRAM card
-GPU_AI_SERVICES=1  # GPU for ai-gateway (YOLO26, Florence-2, CLIP, enrichment)
+GPU_LLM=0          # GPU for ai-vlm (llama.cpp) — pick the high-VRAM card
+GPU_AI_SERVICES=1  # GPU for ai-gateway (Triton: yolo26, reid, threat)
 ```
 
 `docker-compose.prod.yml` threads both into `devices:`, `CUDA_VISIBLE_DEVICES` and
@@ -476,28 +503,33 @@ GPU_AI_SERVICES=1  # GPU for ai-gateway (YOLO26, Florence-2, CLIP, enrichment)
 recreating the containers is the whole procedure:
 
 ```bash
-podman compose -f docker-compose.prod.yml up -d --force-recreate ai-llm ai-gateway
+podman compose -f docker-compose.prod.yml up -d --force-recreate ai-gateway
+podman compose -f docker-compose.prod.yml --profile vlm up -d --force-recreate ai-vlm
 ```
 
-To run both on one GPU, set `GPU_LLM` and `GPU_AI_SERVICES` to the same index and
-lower `GPU_LAYERS` so the LLM offloads part of itself to CPU.
+To run both on one GPU, set `GPU_LLM` and `GPU_AI_SERVICES` to the same index and leave
+`VLM_GPU_LAYERS=auto` so llama.cpp offloads what the card cannot hold.
 
 Per-model execution mode inside the gateway comes from `models.yml`: each model's
 `triton_kind` (`KIND_GPU`, `KIND_CPU` or `KIND_MODEL`) is written into its Triton
 `config.pbtxt` `instance_group` at container start by
-`ai/gateway/patch_triton_configs.py`, and any model with a `device_env_var`
-(for example `FLORENCE_DEVICE`) gets that variable exported by
-`ai/gateway/entrypoint.sh`. Everything runs on the single GPU named by
-`GPU_AI_SERVICES` unless you change one of those.
+`ai/gateway/patch_triton_configs.py`, and any model that declares a `device_env_var`
+gets that variable exported by `ai/gateway/entrypoint.sh`. No shipped manifest row
+declares one today, so everything in the gateway runs on the single GPU named by
+`GPU_AI_SERVICES`.
 
 **Native (host) services:**
 
 ```bash
-# Terminal 1: gateway/detector on GPU 0
+# Terminal 1: detection stand-in on GPU 0
 CUDA_VISIBLE_DEVICES=0 ./ai/start_detector.sh
 
-# Terminal 2: Nemotron on GPU 1
-CUDA_VISIBLE_DEVICES=1 ./ai/start_llm.sh
+# Terminal 2: the reasoning engine on GPU 1 — no host-run script exists for it,
+# so start llama-server directly with the pair compose passes it
+CUDA_VISIBLE_DEVICES=1 llama-server \
+  --model  "${AI_MODELS_PATH:-/export/ai_models}/vlm/Qwen3VL-8B-Instruct-Q4_K_M.gguf" \
+  --mmproj "${AI_MODELS_PATH:-/export/ai_models}/vlm/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf" \
+  --host 0.0.0.0 --port 8098 --ctx-size 32768 --parallel 2
 ```
 
 ### Load Balancing Considerations
@@ -689,9 +721,11 @@ nvidia-smi -l 1
 
 3. **Check the `--n-gpu-layers` value:**
 
-   `ai/nemotron/Dockerfile` passes `--n-gpu-layers ${GPU_LAYERS}`. `.env` defaults
-   `GPU_LAYERS=auto` (llama.cpp picks the count that fits free VRAM); set a number
-   such as `999` to force every layer onto the GPU.
+   `ai/vlm/Dockerfile` passes `--n-gpu-layers ${GPU_LAYERS}`, and
+   `docker-compose.prod.yml` sets `GPU_LAYERS=${VLM_GPU_LAYERS:-auto}` — so the shipped
+   path lets llama.cpp's `--fit` choose the count from free VRAM (the image's own `ENV
+GPU_LAYERS=99` only applies when compose is bypassed). Set `VLM_GPU_LAYERS` to a
+   number to pin it.
 
 ---
 
@@ -710,7 +744,9 @@ podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base-ubuntu22.04 nv
 
 # AI services healthy?
 curl http://localhost:8090/health | jq .  # ai-gateway (Triton aggregate)
-curl http://localhost:8091/health         # Nemotron
+curl http://localhost:8098/health         # ai-vlm (up — does NOT prove multimodal)
+curl http://localhost:8098/props  | jq     # served model + build
+podman logs ai-vlm 2>&1 | grep -i mmproj  # the projector actually loaded
 
 # VRAM usage?
 nvidia-smi --query-gpu=memory.used,memory.total --format=csv

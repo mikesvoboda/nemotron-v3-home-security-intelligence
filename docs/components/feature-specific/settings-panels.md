@@ -450,6 +450,9 @@ Specialized configuration forms for each model type, in `frontend/src/components
 - `XClipConfigForm.tsx` - X-CLIP settings
 - `FashionClipConfigForm.tsx` - FashionCLIP settings
 
+The five labels are prompt-store keys (`AIModelEnum`) that these editors read and write; `ai-vlm` is
+the only LLM service on the event path.
+
 ---
 
 ### ConfigDiffView

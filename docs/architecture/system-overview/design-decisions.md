@@ -25,9 +25,14 @@ Each security event needs a risk score (0-100) and risk level (low/medium/high/c
 
 ### Decision
 
-Let the **Nemotron LLM determine risk scores** based on contextual analysis rather than using algorithmic rules.
+Let the **VLM determine risk scores** based on contextual analysis rather than using algorithmic rules.
 
-**Source:** `backend/services/nemotron_analyzer.py` - NemotronAnalyzer processes batches and extracts risk scores from LLM responses.
+**Source:** `backend/services/vlm_analyzer.py:380` - `VlmAnalyzer.analyze_batch` turns a closed batch
+into a verdict and writes the event's `risk_score`, `risk_level`, `summary` and `reasoning`. Before
+the write, `apply_verdict_invariants` (`backend/services/vlm_analyzer.py:255-304`) derives
+`risk_level` from the score through the severity service, clamps a `rejected` verdict's score so it
+cannot present above the configured low band (the clamp is left visible in the stored reasoning), and
+writes NULL score/level when the ladder produced no verdict at all.
 
 ### Rationale
 
@@ -75,7 +80,7 @@ Batch detections into **90-second time windows** with **30-second idle timeout**
 #         * 30 seconds with no new detections (idle timeout)
 ```
 
-**Configuration Source:** `backend/core/config.py:626-634`
+**Configuration Source:** `backend/core/config.py:925-934`
 
 ```python
 batch_window_seconds: int = Field(
@@ -106,14 +111,10 @@ batch_idle_timeout_seconds: int = Field(
 
 ### Fast Path Exception
 
-High-confidence person detections (>90%) bypass batching for immediate alerts.
-
-**Source:** `backend/core/config.py:343-344`
-
-```python
-FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
-FAST_PATH_OBJECT_TYPES=["person"]
-```
+`BatchAggregator` has a fast-path branch that would skip the window for a high-confidence detection,
+but it ships inert: `FAST_PATH_OBJECT_TYPES` defaults to an empty list, so the branch never matches
+(`backend/core/config.py:1892-1908`). Every detection reaches the analyzer through the normal batch
+gate.
 
 ---
 
@@ -130,7 +131,7 @@ The system needs a database for storing security events, detections, camera conf
 
 Use **PostgreSQL** with `asyncpg` async driver via SQLAlchemy 2.0.
 
-**Source:** `backend/core/config.py:313-316`
+**Source:** `backend/core/config.py:377-381`
 
 ```python
 database_url: str = Field(
@@ -139,7 +140,7 @@ database_url: str = Field(
 )
 ```
 
-**Pool Configuration Source:** `backend/core/config.py:321-344`
+**Pool Configuration Source:** `backend/core/config.py:396-408`
 
 ```python
 database_pool_size: int = Field(
@@ -186,7 +187,7 @@ Redis serves multiple workload types: cache operations (fast, short-lived), queu
 
 Implement **dedicated connection pools** for each workload type.
 
-**Source:** `backend/core/redis.py:50-66`
+**Source:** `backend/core/redis.py:74-91`
 
 ```python
 class PoolType(str, Enum):
@@ -203,9 +204,12 @@ class PoolType(str, Enum):
 
     RATELIMIT = "ratelimit"
     """Pool for rate limiting operations - high frequency."""
+
+    DEFAULT = "default"
+    """Fallback pool when dedicated pools are disabled."""
 ```
 
-**Pool Size Configuration Source:** `backend/core/config.py:370-405`
+**Pool Size Configuration Source:** `backend/core/config.py:536-563`
 
 ```python
 redis_pool_dedicated_enabled: bool = Field(
@@ -254,53 +258,60 @@ redis_pool_size_ratelimit: int = Field(
 
 ### Context
 
-The system supports many optional AI models for enrichment (license plate detection, face detection, pose estimation, etc.). Loading all models at startup would exhaust GPU VRAM. A 24GB GPU has limited budget after core models.
+The backend carries a set of optional lookup models — license plates, faces, person re-ID, OCR. Loading every one at startup would occupy VRAM (and, for the face leg, host RAM) that the perception model needs, and most are touched only when a matching detection lands.
 
 ### Decision
 
-Implement **on-demand model loading** via ModelManager with VRAM budget constraints.
+Implement **on-demand model loading** via ModelManager, with a per-row `preload` opt-in for the legs
+that must be resident.
 
-**Source:** `backend/services/model_zoo.py:1-38`
+**Source:** `backend/services/model_zoo.py:1-9`
 
 ```python
 """Model Zoo for on-demand model loading.
 
-VRAM Budget:
-    - Nemotron LLM: 21,700 MB (always loaded)
-    - YOLO26: 650 MB (always loaded)
-    - Available for Model Zoo: ~1,650 MB
-    - Models load sequentially, never concurrently
-"""
+This module provides a registry of AI models that can be loaded on-demand during
+batch processing to extract additional context (license plates, faces, OCR text,
+pose estimation).
+
+The ModelManager handles VRAM-efficient loading and unloading of models using
+async context managers that automatically release GPU memory when done.
 ```
 
-**Enrichment VRAM Budget Source:** `docker-compose.prod.yml:284`
+**VRAM budget source:** `backend/services/model_zoo.py:26-29` — the module docstring's budget block.
+Read it with care: its first line names the always-loaded LLM slot but cites `VLM_MODEL_SLOTS`, a
+variable that exists in no shipped file, and its second line gives YOLO26v2 650 MB. The third line —
+models load sequentially, never concurrently — is the part the code actually enforces.
 
-```yaml
-# VRAM management
-- VRAM_BUDGET_GB=6.8
-```
+The registry itself lives in `models.yml`; every row declares `vram_mb`, `enabled`, and `preload`.
+Only three rows carry `preload: true` — `osnet-ain-x1-0` (100 MB), `face-detector-scrfd` (0), and
+`face-recognizer` (0) — at `models.yml:134`, `models.yml:166`, and `models.yml:191`.
 
 ### Rationale
 
 1. **VRAM efficiency**: Only loaded models consume GPU memory
-2. **Flexible enrichment**: Add models without pre-allocating VRAM
+2. **Flexible coverage**: Add models without pre-allocating VRAM
 3. **Sequential loading**: Prevents concurrent load spikes
 4. **Auto-unload**: Context managers release memory when done
 
-### VRAM Allocation
+### Residency Is a Boot-Time Decision
 
-| Component        | VRAM (MB) | Notes                              |
-| ---------------- | --------- | ---------------------------------- |
-| Nemotron LLM     | ~21,700   | Always loaded, Q4_K_M quantization |
-| YOLO26           | ~650      | Always loaded, object detection    |
-| Model Zoo Budget | ~1,650    | On-demand enrichment models        |
-| **Total**        | ~24,000   | Fits RTX A5500 24GB                |
+The face and re-ID legs never trigger their own load: `osnet_loader.get_reid_handle()`
+(`backend/services/osnet_loader.py:182-203`) and `face_recognizer_loader.get_face_leg_handles()`
+(`backend/services/face_recognizer_loader.py:466-490`) are membership reads. The handle exists only
+if the boot sweep ran, and that sweep is gated on `BACKEND_MODEL_PRELOAD`, which ships `false`
+(`.env.example:231`, `backend/main.py:1214`). `setup.py` sets it to true only when detected VRAM is
+at least 24 GB. The plate leg is the exception — `fast_alpr_loader` loads on demand.
+
+So on a sub-24 GB host the `faces` and `person_reid` specialist lines report `unavailable` on every
+event while the pipeline stays healthy. The counter that answers "has this ever run" is
+`hsi_specialist_unavailable_total` on `/api/metrics`.
 
 ### Alternatives Rejected
 
 | Alternative             | Why Rejected                      |
 | ----------------------- | --------------------------------- |
-| **Load all at startup** | Exceeds 24GB VRAM budget          |
+| **Load all at startup** | Exceeds the host's VRAM budget    |
 | **CPU fallback**        | Too slow for real-time processing |
 | **External API**        | Adds latency, requires network    |
 
@@ -329,7 +340,7 @@ to all connected clients using Redis pub/sub as the event backbone.
 """
 ```
 
-**Channel Configuration Source:** `backend/core/config.py:359-362`
+**Channel Configuration Source:** `backend/core/config.py:508-512`
 
 ```python
 redis_event_channel: str = Field(
@@ -348,8 +359,14 @@ redis_event_channel: str = Field(
 ### Communication Pattern
 
 ```
-NemotronAnalyzer --> Redis PUBLISH --> EventBroadcaster(s) --> WebSocket --> Dashboard
+VlmAnalyzer --> Redis PUBLISH --> EventBroadcaster(s) --> WebSocket --> Dashboard
 ```
+
+The analyzer commits the event first and publishes last, best-effort: `VlmAnalyzer._broadcast`
+calls `event_broadcaster.get_broadcaster()` after the DB session closes, so a failed broadcast never
+un-does the write (`backend/services/vlm_analyzer.py:765-773`). The broadcaster publishes to
+`settings.redis_event_channel` and each backend instance's subscriber loop fans out to its own
+WebSocket clients (`backend/services/event_broadcaster.py:346`, `:641`, `:820`).
 
 ### Alternatives Rejected
 
@@ -372,16 +389,22 @@ This is a single-user home security system deployed on a trusted local network. 
 
 ### Decision
 
-**No authentication** for MVP (now superseded by SetupGuardMiddleware -- first admin registration required, after which API is open). System assumes trusted network access by single user.
+**No authentication**, with two standing gates: binding to `127.0.0.1` is the network boundary, and
+`SetupGuardMiddleware` returns 503 for every non-whitelisted endpoint until the first admin
+registration exists, after which the API is open. System assumes trusted network access by single user.
 
-**Source:** `backend/main.py:1002-1003`
+**Source:** `backend/main.py:1488`
 
 ```python
-# Add authentication middleware (if enabled in settings)
-app.add_middleware(AuthMiddleware)
+# Add setup guard middleware (NEM-5312: Phase 2 API Protection)
+# Returns 503 for all endpoints except whitelist when no users exist
+# This ensures the application cannot be used until initial setup is complete
+# Must be early in the middleware chain (after auth) to block requests before processing
+app.add_middleware(SetupGuardMiddleware)
 ```
 
-**Auth Middleware Source:** The AuthMiddleware exists but is disabled by default, allowing opt-in authentication when needed.
+Per-route dependencies (`verify_api_key`, `require_admin_access`, `get_current_admin_user`) protect
+the admin endpoints regardless (`backend/main.py:1490-1496`).
 
 ### Rationale
 

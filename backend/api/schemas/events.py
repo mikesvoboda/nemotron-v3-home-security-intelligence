@@ -15,21 +15,16 @@ from backend.api.schemas.llm_response import (
 )
 from backend.api.schemas.pagination import PaginationMeta
 
-# Default severity thresholds (matches backend.services.severity)
-# These are used for computing risk_level from risk_score
-_DEFAULT_LOW_MAX = 29
-_DEFAULT_MEDIUM_MAX = 59
-_DEFAULT_HIGH_MAX = 84
-
 
 def _compute_risk_level(risk_score: int | None) -> str | None:
-    """Compute risk level from risk score using default thresholds.
+    """Compute risk level from risk score using the configured severity bands.
 
-    Thresholds (from backend severity taxonomy):
-    - LOW: 0-29
-    - MEDIUM: 30-59
-    - HIGH: 60-84
-    - CRITICAL: 85-100
+    The bands are read from settings at call time (severity_low_max /
+    severity_medium_max / severity_high_max) — the same source
+    SeverityService and Event.computed_risk_level use — so the API echo
+    follows a runtime PATCH /api/system/severity instead of disagreeing with
+    the DB-stored risk_level. Shipped defaults: LOW 0-29, MEDIUM 30-59,
+    HIGH 60-84, CRITICAL 85-100.
 
     Args:
         risk_score: Risk score from 0 to 100, or None
@@ -39,11 +34,16 @@ def _compute_risk_level(risk_score: int | None) -> str | None:
     """
     if risk_score is None:
         return None
-    if risk_score <= _DEFAULT_LOW_MAX:
+
+    # Import settings lazily to avoid circular imports
+    from backend.core.config import get_settings
+
+    settings = get_settings()
+    if risk_score <= settings.severity_low_max:
         return "low"
-    if risk_score <= _DEFAULT_MEDIUM_MAX:
+    if risk_score <= settings.severity_medium_max:
         return "medium"
-    if risk_score <= _DEFAULT_HIGH_MAX:
+    if risk_score <= settings.severity_high_max:
         return "high"
     return "critical"
 
@@ -176,12 +176,9 @@ class EventResponse(BaseModel):
     def risk_level(self) -> str | None:
         """Compute risk level from risk_score (NEM-3398).
 
-        This computed field derives risk_level from risk_score using
-        the backend severity taxonomy thresholds:
-        - LOW: 0-29
-        - MEDIUM: 30-59
-        - HIGH: 60-84
-        - CRITICAL: 85-100
+        This computed field derives risk_level from risk_score through the
+        configured severity bands (see _compute_risk_level), so it tracks a
+        runtime threshold update the same way the stored risk_level does.
 
         Returns:
             Risk level string or None if risk_score is None

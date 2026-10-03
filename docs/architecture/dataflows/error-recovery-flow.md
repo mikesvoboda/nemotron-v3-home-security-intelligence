@@ -55,10 +55,10 @@ stateDiagram-v2
 
 ## CircuitState Enum
 
-**Source:** `backend/services/circuit_breaker.py:118-124`
+**Source:** `backend/services/circuit_breaker.py:130-136`
 
 ```python
-# backend/services/circuit_breaker.py:118-124
+# backend/services/circuit_breaker.py:130-136
 class CircuitState(StrEnum):
     """Circuit breaker states."""
 
@@ -69,10 +69,10 @@ class CircuitState(StrEnum):
 
 ## CircuitBreakerConfig
 
-**Source:** `backend/services/circuit_breaker.py:126-142`
+**Source:** `backend/services/circuit_breaker.py:138-154`
 
 ```python
-# backend/services/circuit_breaker.py:126-142
+# backend/services/circuit_breaker.py:138-154
 @dataclass(slots=True)
 class CircuitBreakerConfig:
     """Configuration for circuit breaker behavior.
@@ -94,40 +94,58 @@ class CircuitBreakerConfig:
 
 ## Service Circuit Breaker Configurations
 
-**Source:** `backend/main.py:248-297`
+**Source:** `backend/main.py:286-331`
 
 ### AI Services (Aggressive)
 
 ```python
-# backend/main.py:265-270
+# backend/main.py:302-307
 ai_service_config = CircuitBreakerConfig(
-    failure_threshold=5,        # Opens after 5 consecutive failures
-    recovery_timeout=30.0,      # Wait 30s before recovery attempt
-    half_open_max_calls=3,      # Allow 3 test calls in half-open
-    success_threshold=2,        # 2 successes close the circuit
+    failure_threshold=5,
+    recovery_timeout=30.0,
+    half_open_max_calls=3,
+    success_threshold=2,
 )
 ```
 
 ### Infrastructure Services (Tolerant)
 
 ```python
-# backend/main.py:273-278
+# backend/main.py:310-315
 infrastructure_config = CircuitBreakerConfig(
-    failure_threshold=10,       # More tolerant - 10 failures
-    recovery_timeout=60.0,      # Longer recovery - 60s
-    half_open_max_calls=5,      # More test calls
-    success_threshold=3,        # More successes needed
+    failure_threshold=10,
+    recovery_timeout=60.0,
+    half_open_max_calls=5,
+    success_threshold=3,
 )
 ```
 
 ### Service-Specific Configurations
 
-| Service    | Failure Threshold | Recovery Timeout | Source                |
-| ---------- | ----------------- | ---------------- | --------------------- |
-| YOLO26     | 5                 | 30s              | AI config             |
-| Nemotron   | 5                 | 30s              | AI config             |
-| PostgreSQL | 10                | 60s              | Infrastructure config |
-| Redis      | 10                | 60s              | Infrastructure config |
+`init_circuit_breakers()` pre-registers `yolo26`, `postgresql`, and `redis` at
+startup so they appear in monitoring before first use
+(`backend/main.py:321-329`). `get_circuit_breaker()` is get-or-create
+(`backend/services/circuit_breaker.py:1104-1117`), so a service can also
+register its own breaker on first use — `ai-vlm` does exactly that, with
+`failure_threshold=5` and `recovery_timeout=60.0`
+(`backend/services/vlm_client.py:247-249`).
+
+| Service         | Failure Threshold | Recovery Timeout | Source                                                           |
+| --------------- | ----------------- | ---------------- | ---------------------------------------------------------------- |
+| yolo26          | 5                 | 30s              | AI config (`backend/main.py:321`)                                |
+| detector_yolo26 | 5                 | 60s              | `DetectorClient` (`backend/services/detector_client.py:336-345`) |
+| ai-vlm          | 5                 | 60s              | `VlmClient` (`backend/services/vlm_client.py:247-249`)           |
+| postgresql      | 10                | 60s              | Infrastructure config (`backend/main.py:325`)                    |
+| redis           | 10                | 60s              | Infrastructure config (`backend/main.py:328`)                    |
+
+The detector's own client-side breaker is `detector_yolo26` — the name is
+built from the detector type (`backend/services/detector_client.py:280`), so
+the guard on live detection traffic is the 5/60s breaker, while the
+`yolo26`-named one is the startup pre-registration.
+
+When the `ai-vlm` breaker opens, the client pushes the service UNHEALTHY to
+`DegradationManager` on the way out and clears the flag on the next success
+(`backend/services/vlm_client.py:919-940`).
 
 ## Circuit Breaker Sequence Diagram
 
@@ -183,18 +201,18 @@ sequenceDiagram
 
 ## YOLO26 Circuit Breaker
 
-**Source:** `backend/services/detector_client.py:295-309`
+**Source:** `backend/services/detector_client.py:336-345`
 
 ```python
-# backend/services/detector_client.py:295-309
+# backend/services/detector_client.py:336-345
 self._circuit_breaker = CircuitBreaker(
-    name="yolo26",
+    name=f"detector_{self._detector_type}",
     config=CircuitBreakerConfig(
-        failure_threshold=5,        # Opens after 5 consecutive failures
-        recovery_timeout=60.0,      # Waits 60 seconds before attempting recovery
-        half_open_max_calls=3,      # Allow 3 test calls in half-open
-        success_threshold=2,        # 2 successes close the circuit
-        excluded_exceptions=(ValueError,),  # HTTP 4xx errors don't trip circuit
+        failure_threshold=5,
+        recovery_timeout=60.0,
+        half_open_max_calls=3,
+        success_threshold=2,
+        excluded_exceptions=(ValueError,),  # HTTP 4xx errors should not trip circuit
     ),
 )
 ```
@@ -203,14 +221,15 @@ self._circuit_breaker = CircuitBreaker(
 
 ### Exponential Backoff with Jitter
 
-**Source:** `backend/services/event_broadcaster.py:145-244`
+**Source:** `backend/services/event_broadcaster.py:215-219`
 
 ```python
-# backend/services/event_broadcaster.py:204-209
-# Calculate exponential backoff with jitter
-delay = min(base_delay * (2**attempt), max_delay)
-jitter = delay * random.uniform(0.1, 0.3)  # 10-30% jitter
-total_delay = delay + jitter
+# backend/services/event_broadcaster.py:215-219
+                # Calculate exponential backoff with jitter
+                # Using random.uniform for timing jitter - not cryptographic
+                delay = min(base_delay * (2**attempt), max_delay)
+                jitter = delay * random.uniform(0.1, 0.3)  # noqa: S311
+                total_delay = delay + jitter
 ```
 
 ### Retry Timing
@@ -225,34 +244,49 @@ total_delay = delay + jitter
 
 ### Detector Client Retry
 
-**Source:** `backend/services/detector_client.py:31-34`
+**Source:** `backend/services/detector_client.py:37-40`
 
 ```python
-# backend/services/detector_client.py:31-34
+# backend/services/detector_client.py:37-40
 # Retry Logic (NEM-1343):
 #     - Configurable max retries via DETECTOR_MAX_RETRIES setting (default: 3)
 #     - Exponential backoff: 2^attempt seconds between retries (capped at 30s)
 #     - Only retries transient failures (connection, timeout, HTTP 5xx)
 ```
 
-### Nemotron Analyzer Retry
+### VLM Client Retry
 
-**Source:** `backend/services/nemotron_analyzer.py:24-27`
+**Source:** `backend/services/vlm_client.py:804-807`
+
+The analysis leg does not use the backoff ladder. `VlmClient.assess()` makes
+two attempts inside one read budget (`settings.ai_vlm_read_timeout`, default
+25s) and the retry differs from the first only in temperature:
 
 ```python
-# backend/services/nemotron_analyzer.py:24-27
-# Retry Logic (NEM-1343):
-#     - Configurable max retries via NEMOTRON_MAX_RETRIES setting (default: 3)
-#     - Exponential backoff: 2^attempt seconds between retries (capped at 30s)
-#     - Only retries transient failures (connection, timeout, HTTP 5xx)
+# backend/services/vlm_client.py:804-807
+last_error: VlmClientError | None = None
+for attempt, temperature in enumerate((None, 0.0)):
+    if temperature is not None:
+        body["temperature"] = temperature  # §6 step 1: retry at temp 0
 ```
+
+Transport failures (connection refused, timeout, HTTP 5xx) and a complete
+reply that violates the verdict schema are both given the second attempt — at
+temperature 0 the model can answer differently. A context-overflow refusal and
+a reply cut off at `max_tokens` raise on the spot: re-asking at the same budget
+cannot change either answer (`backend/services/vlm_client.py:813-826, 833-866`).
+Each counted failure feeds the `ai-vlm` breaker
+(`backend/services/vlm_client.py:247-249`), while budget-exhaustion failures are
+recorded WITHOUT feeding it — a reply truncated by a token count the backend
+chose is not evidence that the service is down
+(`backend/services/vlm_client.py:897-917`).
 
 ## Broadcast Retry
 
-**Source:** `backend/services/event_broadcaster.py:145-182`
+**Source:** `backend/services/event_broadcaster.py:155-192`
 
 ```python
-# backend/services/event_broadcaster.py:145-182
+# backend/services/event_broadcaster.py:155-192 (abridged)
 async def broadcast_with_retry[T](
     broadcast_func: Callable[[], Awaitable[T]],
     message_type: str,
@@ -287,20 +321,35 @@ async def broadcast_with_retry[T](
 
 ### Analysis Pipeline Errors
 
-| Error            | Location         | Handling | Recovery           |
-| ---------------- | ---------------- | -------- | ------------------ |
-| Batch not found  | NemotronAnalyzer | Skip     | Data inconsistency |
-| LLM timeout      | NemotronAnalyzer | Retry 3x | Backoff            |
-| Parse error      | NemotronAnalyzer | No retry | Log and skip       |
-| Validation error | NemotronAnalyzer | No retry | Log and skip       |
+| Error                     | Location    | Handling                    | Recovery                                      |
+| ------------------------- | ----------- | --------------------------- | --------------------------------------------- |
+| No camera/detections      | VlmAnalyzer | Raise, skip the batch       | Payload bug — nothing to analyze              |
+| Transport failure         | VlmClient   | Retry once at temperature 0 | `verification_failed`, NULL score, event kept |
+| Schema violation          | VlmClient   | Retry once at temperature 0 | `verification_failed`, NULL score, event kept |
+| Reply truncated by budget | VlmClient   | No retry                    | `verification_failed`; breaker untouched      |
+| Context overflow          | VlmClient   | No retry                    | `verification_failed`; prompt fit is short    |
+| Breaker open              | VlmClient   | Refuse without I/O          | Wait 60s recovery                             |
 
-### Enrichment Pipeline Errors
+Every one of these lands as a written Event: `_DEGRADABLE_ERRORS` is caught in
+`analyze_batch()` and mapped to `verification_failed`
+(`backend/services/vlm_analyzer.py:556-560`), so a batch is never lost to an
+engine failure (`backend/services/vlm_analyzer.py:267-280`).
 
-| Error               | Location           | Handling      | Recovery              |
-| ------------------- | ------------------ | ------------- | --------------------- |
-| Service unavailable | EnrichmentPipeline | Skip model    | Continue with partial |
-| Timeout             | EnrichmentPipeline | Skip model    | Continue with partial |
-| All models fail     | EnrichmentPipeline | Return FAILED | LLM analyzes without  |
+### Specialist Lookup Errors
+
+The three prompt lookups (`faces`, `person_reid`, `plates`) degrade rather than
+fail:
+
+| Error                   | Location        | Handling                             | Recovery              |
+| ----------------------- | --------------- | ------------------------------------ | --------------------- |
+| Weights absent          | vlm_specialists | Line reads "unavailable"             | Verdict proceeds      |
+| Optional package absent | vlm_specialists | Line reads "unavailable"             | Verdict proceeds      |
+| Database hiccup         | vlm_specialists | Line reads "unavailable"             | Verdict proceeds      |
+| Vector space mismatch   | vlm_specialists | Line reads "unavailable (re-enroll)" | Re-enroll the gallery |
+
+The stage has no path that raises into the analyzer, and the analyzer keeps a
+belt catch so even a bug there yields three `unavailable` lines rather than a
+lost event (`backend/services/vlm_analyzer.py:514-523`).
 
 ### Broadcast Errors
 
@@ -312,13 +361,13 @@ async def broadcast_with_retry[T](
 
 ## WebSocket Circuit Breaker
 
-**Source:** `backend/services/event_broadcaster.py:388-396`
+**Source:** `backend/services/event_broadcaster.py:403-410`
 
 ```python
-# backend/services/event_broadcaster.py:388-396
+# backend/services/event_broadcaster.py:403-410
 # Circuit breaker for WebSocket connection resilience
 self._circuit_breaker = WebSocketCircuitBreaker(
-    failure_threshold=self.MAX_RECOVERY_ATTEMPTS,  # 5
+    failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
     recovery_timeout=30.0,
     half_open_max_calls=1,
     success_threshold=1,
@@ -372,11 +421,11 @@ sequenceDiagram
 
 ## Prometheus Metrics
 
-**Source:** `backend/services/circuit_breaker.py:64-97`
+**Source:** `backend/services/circuit_breaker.py:80-127`
 
 ```python
-# backend/services/circuit_breaker.py:64-97
-# Legacy metrics
+# backend/services/circuit_breaker.py:80-127 (abridged)
+# Legacy metrics (without hsi_ prefix) - maintained for backward compatibility
 CIRCUIT_BREAKER_STATE = Gauge(
     "circuit_breaker_state",
     "Current state of the circuit breaker (0=closed, 1=open, 2=half_open)",
@@ -404,17 +453,17 @@ HSI_CIRCUIT_BREAKER_STATE = Gauge(
 
 HSI_CIRCUIT_BREAKER_TRIPS_TOTAL = Counter(
     "hsi_circuit_breaker_trips_total",
-    "Total number of times the circuit breaker has tripped",
+    "Total number of times the circuit breaker has tripped (transitioned to open)",
     labelnames=["service"],
 )
 ```
 
 ## CircuitBreakerMetrics
 
-**Source:** `backend/services/circuit_breaker.py:145-184`
+**Source:** `backend/services/circuit_breaker.py:157-179`
 
 ```python
-# backend/services/circuit_breaker.py:145-184
+# backend/services/circuit_breaker.py:157-179
 @dataclass(slots=True)
 class CircuitBreakerMetrics:
     """Metrics for circuit breaker monitoring.
@@ -446,7 +495,7 @@ class CircuitBreakerMetrics:
 
 ```
 Normal Flow:
-  Image -> YOLO26 -> Detection -> Batch -> LLM
+  Image -> YOLO26 -> Detection -> Batch -> VLM
 
 Degraded Flow (YOLO26 down):
   Image -> Queue (waiting) -> DLQ after max retries
@@ -455,31 +504,45 @@ Recovery:
   Circuit closes -> Process DLQ -> Resume normal flow
 ```
 
-### LLM Service Down
+### VLM Service Down
 
 ```
 Normal Flow:
-  Batch -> Nemotron LLM -> Event -> Broadcast
+  Batch -> ai-vlm verdict -> Event (+ EventVerification) -> Broadcast
 
-Degraded Flow (Nemotron down):
-  Batch -> Queue (waiting) -> DLQ after max retries
+Degraded Flow (ai-vlm down):
+  Batch -> one retry at temperature 0 -> Event written anyway:
+          verdict=verification_failed, risk_score=NULL
+  5 consecutive failures OPEN the ai-vlm breaker -> later batches refuse
+  without I/O and DegradationManager reports ai-vlm UNHEALTHY
 
 Recovery:
-  Circuit closes -> Process DLQ -> Resume normal flow
+  Breaker half-opens -> test calls succeed -> flag cleared -> verdicts resume
 ```
 
-### Enrichment Service Down
+The event is the point: a batch is never parked or discarded waiting for the
+engine, because the UI needs a row that reads "needs review"
+(`backend/services/vlm_analyzer.py:267-280`). The wake ping
+(`backend/services/vlm_client.py:946`) is the cold-start path — one
+`max_tokens: 1` request that loads llama.cpp's weights, and a failed wake is
+swallowed rather than retried.
+
+### Specialist Lookups Unavailable
 
 ```
 Normal Flow:
-  Detection -> Enrichment -> LLM (enriched prompt)
+  Key frames -> faces / person re-ID / plates lookups -> three prompt lines
 
-Degraded Flow (Enrichment down):
-  Detection -> LLM (basic prompt, no enrichment)
+Degraded Flow (a lookup cannot answer):
+  That line reads "unavailable" (or "unavailable (re-enroll)")
+  The assess call proceeds with the remaining lines
 
 Recovery:
-  Service available -> Full enrichment resumes
+  Weights present / gallery re-enrolled -> the line answers again
 ```
+
+A degraded lookup changes what the model is told, never whether the event
+exists (`backend/services/vlm_specialists.py:12-16`).
 
 ### Redis Down
 
@@ -498,19 +561,33 @@ Recovery:
 
 ## Dead Letter Queue
 
-When all retries are exhausted, messages go to the Dead Letter Queue:
+Detection jobs land in the dead-letter queue when retries are exhausted or the
+delivery ceiling is reached (`backend/services/pipeline_workers.py:403-404`,
+`backend/services/retry_handler.py`); queue overflow uses the same policy
+(`backend/core/config.py:2229-2232`). The queues are the `dlq:`-prefixed names
+built in `backend/core/constants.py:167-173`:
 
 ```python
 # DLQ structure
-DLQ:detection_queue -> [failed detection jobs]
-DLQ:analysis_queue -> [failed analysis batches]
+dlq:detection_queue -> [failed detection jobs]
+dlq:analysis_queue  -> [failed analysis batches]
 ```
+
+Analysis differs: an engine failure does not park a batch in the DLQ, because
+the analyzer converts it into a written `verification_failed` event. The
+analysis DLQ holds batches rejected before analysis (invalid payloads, queue
+overflow), not batches the VLM failed to score.
 
 ### DLQ Processing
 
-1. Manual inspection via `/api/dlq` endpoint
-2. Automatic retry after recovery
-3. Manual requeue via admin API
+1. Inspection via the `/api/dlq` endpoints (`backend/api/routes/dlq.py:38`)
+2. Requeue a single job via `POST /api/dlq/requeue/{queue_name}`
+   (`backend/api/routes/dlq.py:222`)
+3. Bulk requeue via `POST /api/dlq/requeue-all/{queue_name}`, bounded by
+   `settings.max_requeue_iterations` (`backend/api/routes/dlq.py:275`)
+
+Requeue is an admin action behind API-key authentication
+(`backend/api/routes/dlq.py:9`) — nothing re-drains the DLQ on a timer.
 
 ## Related Documents
 

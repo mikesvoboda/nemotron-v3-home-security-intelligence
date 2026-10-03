@@ -1,6 +1,6 @@
 ---
 title: Frontend Hooks Architecture
-last_updated: 2026-01-04
+last_updated: 2026-10-02
 source_refs:
   - frontend/src/hooks/useWebSocket.ts:useWebSocket:22
   - frontend/src/hooks/useWebSocketStatus.ts:useWebSocketStatus:33
@@ -61,7 +61,7 @@ flowchart TB
         useEventStream["useEventStream<br/>Security events<br/>/ws/events"]
         useSystemStatus["useSystemStatus<br/>System health updates<br/>/ws/system"]
         useConnectionStatus["useConnectionStatus<br/>Multi-channel manager<br/>Events + System channels"]
-        useServiceStatus["useServiceStatus<br/>Service health tracking<br/>yolo26, nemotron, redis"]
+        useServiceStatus["useServiceStatus<br/>Service health tracking<br/>redis, rtdetr, nemotron (wire names)"]
         usePerformanceMetrics["usePerformanceMetrics<br/>Real-time performance<br/>Multi-resolution history"]
     end
 
@@ -1218,7 +1218,9 @@ const historicalData = history[timeRange];
 - Polls multiple endpoints: `/api/metrics`, `/api/system/telemetry`, `/api/system/health`, `/api/system/pipeline-latency`
 - Combines data from Prometheus metrics, health checks, and pipeline latency API
 - Configurable polling interval (default: 5000ms)
-- Provides YOLO26 and Nemotron model status
+- Provides model status slots named `yolo26` and `nemotron` — the `nemotron` slot is wire
+  surface (`frontend/src/hooks/useAIMetrics.ts:87`) and reports the verdict engine's health
+  under the old key
 - Tracks detection/analysis latency percentiles
 - Mount-safe state updates
 
@@ -1272,7 +1274,13 @@ if (data.yolo26.status === 'healthy') {
 **Features**:
 
 - Subscribes to `/ws/events` and filters for `service_status` messages
-- Tracks status for each monitored service (yolo26, nemotron, redis)
+- Tracks status for each monitored service key in the union (`redis`, `rtdetr`, `nemotron`). The
+  keys are wire/API surface: the backend's `SystemBroadcaster` publishes per-service entries for
+  `yolo26`, `nemotron` and `ai-vlm` (`backend/services/system_broadcaster.py:829`), so the
+  frontend's `rtdetr` slot lines up with the shipped `yolo26` detector entry server-side while the
+  verdict-engine slot keeps the `nemotron` spelling (`backend/services/performance_collector.py:210`
+  probes `{settings.ai_vlm_url}/slots` under the `collect_nemotron_metrics` name). Renaming the
+  union is an API decision, not doc drift.
 - Provides derived flags: `hasUnhealthy`, `isAnyRestarting`
 - Service status types: healthy, unhealthy, restarting, restart_failed, failed
 - Uses `buildWebSocketOptions()` for URL construction
@@ -1280,7 +1288,8 @@ if (data.yolo26.status === 'healthy') {
 **Type Definitions**:
 
 ```typescript
-type ServiceName = 'redis' | 'yolo26' | 'nemotron';
+// frontend/src/hooks/useServiceStatus.ts:22 - key spellings are wire surface
+type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
 type ServiceStatusType = 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
 
 interface ServiceStatus {
@@ -1307,9 +1316,9 @@ if (hasUnhealthy) {
   console.log('Warning: One or more services are unhealthy');
 }
 
-const yolo26Status = getServiceStatus('yolo26');
-if (yolo26Status?.status === 'restarting') {
-  console.log(`YOLO26 is restarting: ${yolo26Status.message}`);
+const redisStatus = getServiceStatus('redis');
+if (redisStatus?.status === 'restarting') {
+  console.log(`Redis is restarting: ${redisStatus.message}`);
 }
 ```
 
@@ -1323,8 +1332,8 @@ if (yolo26Status?.status === 'restarting') {
 
 **Features**:
 
-- Fetches structured enrichment results from `/api/detections/{id}/enrichment`
-- Contains results from 18+ vision models run during detection processing
+- Fetches the structured `enrichment_data` JSONB payload from `/api/detections/{id}/enrichment` (`backend/api/routes/detections.py:1006`)
+- The shipped pipeline does not write `enrichment_data` when it persists detections (`backend/services/detector_client.py:1281-1293`), so for current detections the endpoint answers with the empty payload shape; rows stored by older deployments can carry data in the column
 - Conditional fetching based on `enabled` option
 - Manual refetch capability
 - Handles loading, error, and null states
@@ -1352,10 +1361,8 @@ const { data, isLoading, error, refetch } = useDetectionEnrichment(detectionId);
 if (isLoading) return <Spinner />;
 if (error) return <ErrorMessage error={error} />;
 if (data) {
-  // The enrichment display panels retired with R8 slice S5 (they rendered the
-  // pose/clothing/demographics attributes of models the VLM path does not run).
-  // The hook still ships and still returns the vision-model results; render
-  // them wherever you need them, or drop the call if nothing consumes them.
+  // No shipped component consumes this hook today; render the payload wherever
+  // you need it, or drop the call if nothing consumes it.
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```

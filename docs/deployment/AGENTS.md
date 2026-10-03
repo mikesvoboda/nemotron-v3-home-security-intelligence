@@ -6,26 +6,26 @@ This directory contains documentation for container orchestration, startup seque
 
 ## Files
 
-| File                         | Purpose                                                      |
-| ---------------------------- | ------------------------------------------------------------ |
-| `container-orchestration.md` | Comprehensive container orchestrator documentation           |
-| `gpu-memory-limits.md`       | GPU/memory resource limits for services                      |
-| `yolo26-migration.md`        | YOLO26 detector migration guide (historical; superseded doc) |
+| File                         | Purpose                                            |
+| ---------------------------- | -------------------------------------------------- |
+| `container-orchestration.md` | Comprehensive container orchestrator documentation |
+| `gpu-memory-limits.md`       | GPU assignment and host-RAM limits per service     |
+| `yolo26-migration.md`        | Deploying and re-exporting the YOLO26 detector     |
 
 ## Key Topics
 
-### YOLO26 Migration
+### YOLO26 Deployment
 
 The `yolo26-migration.md` file covers:
 
-1. **Overview** - YOLO26 architecture and migration benefits (5.3x faster)
-2. **Prerequisites** - Hardware, software, and model file requirements
+1. **Overview** - YOLO26 as one Triton model inside `ai-gateway`
+2. **Prerequisites** - Hardware, driver and model-file requirements
 3. **Configuration** - Environment variables and model selection
-4. **Migration Steps** - Step-by-step deployment instructions
-5. **Rollback Procedure** - How to revert to YOLO26
-6. **Performance** - Benchmark results and latency comparisons
-7. **Monitoring** - Prometheus metrics and Grafana integration
-8. **Troubleshooting** - Common issues and solutions
+4. **Deployment Steps** - Starting the gateway and verifying the router
+5. **Health Endpoints** - Router and aggregated Triton readiness
+6. **Performance** - Latency for the three shipped variants
+7. **Monitoring** - Triton and gateway metrics, backend-attributed latency
+8. **Exporting TensorRT Engines** - Rebuilding plans for a new GPU or TensorRT
 
 ### Container Orchestration
 
@@ -68,16 +68,19 @@ The `container-orchestration.md` file covers:
 # Backend readiness
 curl http://localhost:8000/api/system/health/ready
 
-# AI services health
+# AI services health (aggregated by the backend)
 curl http://localhost:8000/api/health/ai-services
 
 # Individual service health
 curl http://localhost:8090/health        # ai-gateway (aggregated Triton readiness)
 curl http://localhost:8090/yolo26/health # ai-gateway YOLO26 router
-curl http://localhost:8091/health        # ai-llm
+curl http://localhost:8098/health        # ai-vlm (llama.cpp; profile `vlm`)
 ```
 
 ### Service Management
+
+`/api/system/services` (`backend/api/routes/services.py`) takes the service
+**name** as the path parameter:
 
 ```bash
 # List all services
@@ -89,4 +92,7 @@ curl -X POST http://localhost:8000/api/system/services/ai-gateway/restart
 # Enable/disable auto-restart
 curl -X POST http://localhost:8000/api/system/services/ai-gateway/enable
 curl -X POST http://localhost:8000/api/system/services/ai-gateway/disable
+
+# Start a stopped service
+curl -X POST http://localhost:8000/api/system/services/ai-gateway/start
 ```

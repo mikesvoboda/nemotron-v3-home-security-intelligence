@@ -51,13 +51,13 @@ class TestEngineConfig:
         """Test creating an EngineConfig instance."""
         config = EngineConfig(
             engine_type=EngineType.LLAMA_CPP,
-            service_url="http://localhost:8091",
-            model_path="/models/nemotron",
+            service_url="http://localhost:8098",
+            model_path="/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
             api_format="llama.cpp",
         )
         assert config.engine_type == EngineType.LLAMA_CPP
-        assert config.service_url == "http://localhost:8091"
-        assert config.model_path == "/models/nemotron"
+        assert config.service_url == "http://localhost:8098"
+        assert config.model_path == "/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf"
         assert config.api_format == "llama.cpp"
 
     def test_engine_config_with_vllm(self) -> None:
@@ -90,8 +90,8 @@ class TestEngineConfig:
         """Test EngineConfig default values."""
         config = EngineConfig(
             engine_type=EngineType.LLAMA_CPP,
-            service_url="http://localhost:8091",
-            model_path="/models/nemotron",
+            service_url="http://localhost:8098",
+            model_path="/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
             api_format="llama.cpp",
         )
         assert config.gpu_memory_utilization is None
@@ -154,7 +154,7 @@ class TestEngineConfigs:
     def test_llama_cpp_default_config(self) -> None:
         """Verify llama.cpp default configuration."""
         config = ENGINE_CONFIGS[EngineType.LLAMA_CPP]
-        assert config.service_url == "http://localhost:8091"
+        assert config.service_url == "http://localhost:8098"
         assert config.api_format == "llama.cpp"
 
     def test_vllm_default_config(self) -> None:

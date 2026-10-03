@@ -82,8 +82,8 @@ deployment/
 
 1. Check `README.md` - Troubleshooting section
 2. Verify GPU access: `nvidia-smi`
-3. Test container GPU: `docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi`
-4. Check AI health endpoints: `curl http://localhost:8090/health` (ai-gateway), `curl http://localhost:8091/health` (ai-llm)
+3. Test container GPU: `podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi`
+4. Check AI health endpoints: `curl http://localhost:8090/health` (ai-gateway), `curl http://localhost:8098/props` (ai-vlm — needs `--profile vlm`; `/health` alone does not prove the multimodal projector is loaded)
 
 ## Target Audience
 

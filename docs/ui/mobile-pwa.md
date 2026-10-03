@@ -16,7 +16,7 @@ source_refs:
 
 ---
 
-The Nemotron Security Dashboard works as a Progressive Web App (PWA), meaning you can install it on your phone, tablet, or desktop computer and use it like a native app. You can also enable notifications to receive security alerts while the app is open.
+The dashboard (installed app name `Nemotron`, from `frontend/public/manifest.json`) works as a Progressive Web App (PWA), meaning you can install it on your phone, tablet, or desktop computer and use it like a native app. You can also enable notifications to receive security alerts while the app is open.
 
 > **What notifications actually are today:** the app uses the browser
 > `Notification` API — alerts fire while the page or installed app is running

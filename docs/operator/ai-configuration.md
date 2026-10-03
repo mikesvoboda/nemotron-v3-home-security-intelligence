@@ -7,34 +7,112 @@
 
 ---
 
-## Environment Variables
+## The Two AI Services
 
-Set these in your shell profile (`~/.bashrc` or `~/.zshrc`) or in a `.env` file at the project root.
+Every knob below belongs to one of two containers:
+
+| Service      | Port          | Configured by                                                   |
+| ------------ | ------------- | --------------------------------------------------------------- |
+| `ai-gateway` | 8090 (m 8002) | `GATEWAY_MODEL_SET`, `GATEWAY_ENABLE_THREAT`, `GPU_AI_SERVICES` |
+| `ai-vlm`     | 8098          | the `VLM_*` group, `GPU_LLM`, and the compose profile `vlm`     |
+
+The backend's own routing to them is `USE_AI_GATEWAY` / `AI_GATEWAY_URL` /
+`AI_VLM_URL`. The face, plate and person-re-ID lookup legs run in-process in the
+backend and are governed by `BACKEND_MODEL_PRELOAD` — not by a service URL.
 
 ### Startup Script Variables
 
-There is no `scripts/start-ai.sh` — the host-run startup scripts are `ai/start_detector.sh`,
-`ai/start_llm.sh` and `ai/start_nemotron.sh` (each derives its own paths from its location).
-These read:
+The only host-run AI script in the tree is `ai/start_detector.sh` (a development
+stand-in for the gateway's detection router). It reads:
 
-| Variable              | Used by                | Default                                                                                                                    |
-| --------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `YOLO26_PORT`         | `ai/start_detector.sh` | `8090` (`.env.example` ships `8095`)                                                                                       |
-| `NEMOTRON_PORT`       | all LLM scripts        | `8091`                                                                                                                     |
-| `NEMOTRON_MODEL_PATH` | LLM scripts            | see each script's model search list                                                                                        |
-| `PROJECT_ROOT`        | optional               | not set by `.env.example`; only `backend/services/lifecycle_manager.py` reads it (defaults to `/app` inside the container) |
+| Variable      | Used by                | Default                                                                         |
+| ------------- | ---------------------- | ------------------------------------------------------------------------------- |
+| `YOLO26_PORT` | `ai/start_detector.sh` | `8090` (the script's default; `.env.example` ships `8095` for the dev stand-in) |
+| `PORT`        | `ai/yolo26/model.py`   | inherited from `YOLO26_PORT`                                                    |
+| `HOST`        | `ai/yolo26/model.py`   | `0.0.0.0`                                                                       |
 
-**Log files:** `ai/start_nemotron.sh` writes to `/tmp/nemotron.log`; `ai/start_llm.sh` and
-`ai/start_detector.sh` run in the foreground and log to the terminal. In compose, read logs
-with `podman compose -f docker-compose.prod.yml logs ai-gateway` / `… logs ai-llm`.
+In compose, read logs with
+`podman compose -f docker-compose.prod.yml logs ai-gateway` and
+`podman compose -f docker-compose.prod.yml --profile vlm logs ai-vlm`.
 
-### YOLO26 Detection Server (standalone, host-run)
+### Pipeline and Residency Selectors
 
-Configuration for `ai/yolo26/model.py` when you run it directly on the host. **Production
-detection does not use this server** — YOLO26 runs as an ONNX Runtime model inside the
-`ai-gateway` Triton container (`/yolo26` router); the TensorRT and `torch.compile` variables
-below apply only to the standalone host-run server. The server uses TensorRT-optimized
-engines for efficient GPU inference.
+These three decide what the stack even loads. Two of them are **pinned by tests** to
+agree with each other and with `.env.example`, so changing a shipped default there is a
+gate edit, not a config edit.
+
+| Variable                | Shipped | Meaning                                                                                                                   |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `PIPELINE_MODE`         | `vlm`   | The only accepted value. Any other value, `legacy` included, **raises at boot** (`backend/core/config.py`)                |
+| `GATEWAY_MODEL_SET`     | `vlm`   | Triton residency set: `yolo26` + `reid`. `vlm` is the only accepted name; `full` gets a named refusal                     |
+| `GATEWAY_ENABLE_THREAT` | `false` | Opt-in lane: adds the `threat` Triton model. It does not add a specialist to the prompt — see §4 of the current-state doc |
+| `BACKEND_MODEL_PRELOAD` | `false` | `true` makes the boot sweep load the face and re-ID lookup weights. `setup.py` writes `true` only at **>= 24 GB** VRAM    |
+
+With `BACKEND_MODEL_PRELOAD=false` the `faces` and `person_reid` lines read
+`unavailable` on every event and nothing errors. The query that answers whether a leg
+has ever run is `curl -s http://localhost:8000/metrics | grep hsi_specialist_unavailable_total`.
+
+---
+
+## ai-vlm (the Reasoning Engine)
+
+llama.cpp serving a Qwen3-VL GGUF plus its mmproj projector, OpenAI-compatible on
+`POST /v1/chat/completions`. **It is behind the compose profile `vlm`** — a plain
+`up -d` leaves it down.
+
+### Served Model (operator-placed weights)
+
+| Variable          | Default                                        | Notes                                                                              |
+| ----------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `VLM_MODEL_PATH`  | `/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf`      | **container** path; host dir `${AI_MODELS_PATH}/vlm` mounts read-only at `/models` |
+| `VLM_MMPROJ_PATH` | `/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` | The projector. Empty ⇒ a text-only serve that still passes `/health`               |
+| `VLM_MODEL_ID`    | `Qwen3VL-8B-Instruct-Q4_K_M`                   | Provenance label on a degraded verification row; move it with the paths            |
+| `VLM_MODEL_ALIAS` | `Qwen3VL-8B`                                   | The name `/v1/models` and `/props` report                                          |
+
+The four — `VLM_MODEL_ID`, `VLM_MODEL_PATH`, `VLM_MMPROJ_PATH`, `MODEL_ALIAS` — are one
+identity in four spellings and are pinned together by `test_ai_vlm_compose_service.py`.
+Change them as a set.
+
+### Slot Sizing
+
+| Variable                 | Default | Notes                                                                                                   |
+| ------------------------ | ------- | ------------------------------------------------------------------------------------------------------- |
+| `VLM_CTX_SIZE`           | `32768` | Total llama.cpp pool. Read by **two** processes: the server, and the backend's prompt budget            |
+| `VLM_PARALLEL`           | `2`     | Slots the pool is split across. One request occupies one slot ⇒ per-request budget is 16,384            |
+| `VLM_THREADS`            | `4`     | Match to the container CPU limit (compose sets `cpus: 4`)                                               |
+| `VLM_BATCH_SIZE`         | `2048`  | Prompt-processing batch                                                                                 |
+| `VLM_UBATCH_SIZE`        | `512`   | Sequence-parallel batch                                                                                 |
+| `VLM_CACHE_TYPE_K`       | `q8_0`  | KV quantization — halves the f16 pool                                                                   |
+| `VLM_CACHE_TYPE_V`       | `q8_0`  | Needs flash attention, which the next line enables                                                      |
+| `VLM_FLASH_ATTENTION`    | `true`  |                                                                                                         |
+| `VLM_GPU_LAYERS`         | `auto`  | `auto` lets llama.cpp's `--fit` decide by free VRAM                                                     |
+| `VLM_SLEEP_IDLE_SECONDS` | `300`   | Residency: after this idle time the weights go to CPU RAM and the VRAM is released. Empty = never sleep |
+
+`VLM_CTX_SIZE // VLM_PARALLEL` is also the backend's `vlm_context_window`: the client
+**fits** the prompt to that slot before sending it (dropping the weakest detection rows
+and saying so in the prompt). Raise the pool and the client follows; shrink the pair and
+a full batch is fitted, not truncated mid-token.
+
+### Client Timeouts and Guards
+
+| Variable                        | Default                                                 | Notes                                                                                                        |
+| ------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `AI_VLM_URL`                    | `http://localhost:8098` (compose: `http://ai-vlm:8098`) | The URL the backend dials for `vlm_assess`                                                                   |
+| `AI_VLM_PORT`                   | `8098`                                                  | Host loopback mapping only. The **container** port is fixed at 8098, so the internal URL never depends on it |
+| `AI_VLM_READ_TIMEOUT`           | `25.0`                                                  | Per-attempt ceiling; the retry ladder retries once at temp 0 inside the same budget                          |
+| `AI_VLM_WAKE_TIMEOUT_SECONDS`   | `90.0`                                                  | Budget for a wake-from-sleep ping. A failed wake is swallowed, not retried                                   |
+| `VLM_MAX_IMAGE_BYTES`           | `8388608`                                               | Largest single key frame to embed. An oversized capture is a slot overflow that reads as an outage           |
+| `VLM_ENFORCEMENT_PROBE_ENABLED` | `true`                                                  | One JSON-schema probe per endpoint+build before the first verdict is trusted                                 |
+| `VLM_REQUIRED_BUILD`            | `b7972`                                                 | `build_info` substring the probe asserts against `/props`. Empty skips the assertion                         |
+
+---
+
+## YOLO26 Detection Server (standalone, host-run)
+
+Configuration for `ai/yolo26/model.py` when you run it directly on the host.
+**Production detection does not use this server** — YOLO26 runs as an ONNX Runtime model
+inside the `ai-gateway` Triton container (`/yolo26` router); the TensorRT and
+`torch.compile` variables below apply only to the standalone host-run server.
 
 #### Core Configuration
 
@@ -63,8 +141,6 @@ Runtime CUDA execution provider (NEM-5551 — INT8 ONNX was incompatible with th
 provider), so no TensorRT engine is involved in the compose stack.
 
 #### TensorRT Version Compatibility
-
-TensorRT engines are version-specific. The server automatically handles version mismatches:
 
 | Variable               | Description                                               | Default   |
 | ---------------------- | --------------------------------------------------------- | --------- |
@@ -98,9 +174,8 @@ When using PyTorch models (not TensorRT engines), torch.compile provides 15-30% 
 
 #### Exporting TensorRT Engines
 
-The standalone yolo26 GPU image was retired 2026-09-23; host-side engine
-building now runs through the prebuild script (or the gateway's Triton export
-pipeline `ai/gateway/export/export_all.sh` for the ONNX path Triton serves):
+Host-side engine building runs through the prebuild script (the gateway's Triton export
+pipeline `ai/gateway/export/export_all.sh` produces the ONNX path Triton serves):
 
 ```bash
 # Build the FP16 engine for the local GPU (ultralytics .pt -> TensorRT .engine)
@@ -114,63 +189,27 @@ pipeline `ai/gateway/export/export_all.sh` for the ONNX path Triton serves):
 - Cover various lighting conditions and camera angles
 - Include all security-relevant object classes
 
-For detailed (retired-era) export options, see
+For the full export-option reference, see
 `archive/ai-yolo26-image/README.md`.
 
-### NVIDIA Nemotron LLM Server
+---
 
-Host-run scripts: `ai/start_llm.sh` (dev, Mini 4B) and `ai/start_nemotron.sh` (Nano 30B,
-also called by the backend's ServiceHealthMonitor for auto-recovery). In compose the
-`ai-llm` container runs llama.cpp instead and reads `LLM_MODEL_PATH`, `GPU_LAYERS`,
-`CTX_SIZE`, `PARALLEL` (see below).
-
-| Variable                | Used by             | Default                                                                                                                                                                                    |
-| ----------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `NEMOTRON_MODEL_PATH`   | both scripts        | `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf` (dev); `start_nemotron.sh` falls back to `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf` |
-| `NEMOTRON_PORT`         | both scripts        | `8091`                                                                                                                                                                                     |
-| `NEMOTRON_HOST`         | `start_nemotron.sh` | `0.0.0.0`                                                                                                                                                                                  |
-| `NEMOTRON_GPU_LAYERS`   | `start_nemotron.sh` | `35` (dev script hardcodes `99` = all)                                                                                                                                                     |
-| `NEMOTRON_CONTEXT_SIZE` | `start_nemotron.sh` | `12288` (dev script hardcodes `4096`)                                                                                                                                                      |
-| `LLAMA_SERVER_PATH`     | `start_nemotron.sh` | searches `/usr/bin/llama-server`, `/export/ai_models/nemotron/llama.cpp/build/bin/llama-server`                                                                                            |
-
-**Compose `ai-llm` variables** (from `.env.example` / compose defaults):
-
-| Variable         | Default                                       | Notes                                                                                                                                                                                      |
-| ---------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `LLM_MODEL_PATH` | `/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf` | exposed to the container as `MODEL_PATH`                                                                                                                                                   |
-| `GPU_LAYERS`     | `auto` (all layers)                           |                                                                                                                                                                                            |
-| `CTX_SIZE`       | `262144`                                      | llama.cpp total, split across `PARALLEL` slots; **must not** be exported to the Python backend — its `nemotron_context_window` validator caps at 131,072 (see [Monitoring](monitoring.md)) |
-| `PARALLEL`       | `8`                                           | 8 × 32,768 tokens                                                                                                                                                                          |
-
-![Model Zoo State Machine](../images/architecture/model-zoo-state-machine.png)
-
-_Model Zoo state machine showing model lifecycle transitions: loading, loaded, unloading, and error states._
-
-**Model Options:**
-
-| Deployment      | Model                                                                                        | File                                    | VRAM     | Context |
-| --------------- | -------------------------------------------------------------------------------------------- | --------------------------------------- | -------- | ------- |
-| **Production**  | [NVIDIA Nemotron-3-Nano-30B-A3B](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) | `Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf`   | ~14.7 GB | 131,072 |
-| **Development** | [Nemotron Mini 4B Instruct](https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF) | `nemotron-mini-4b-instruct-q4_k_m.gguf` | ~3 GB    | 4,096   |
-
-For comprehensive NVIDIA Nemotron documentation, see `/ai/nemotron/AGENTS.md`.
-
-### Backend Configuration
+## Backend Configuration
 
 These configure how the backend connects to AI services (`backend/core/config.py`):
 
-| Variable               | Description                                  | Default                                                 |
-| ---------------------- | -------------------------------------------- | ------------------------------------------------------- |
-| `USE_AI_GATEWAY`       | Route all AI clients through the gateway     | `false` in code, `true` in compose/`.env`               |
-| `AI_GATEWAY_URL`       | Gateway base URL when `USE_AI_GATEWAY=true`  | none in code, `http://ai-gateway:8090` in compose       |
-| `YOLO26_URL`           | Full URL to the detection router             | `http://ai-gateway:8090/yolo26`                         |
-| `NEMOTRON_URL`         | Full URL to the Nemotron (llama.cpp) service | `http://localhost:8091` (compose: `http://ai-llm:8091`) |
-| `FLORENCE_URL`         | Florence-2 router                            | compose: `http://ai-gateway:8090/florence`              |
-| `CLIP_URL`             | CLIP/SigLIP router                           | compose: `http://ai-gateway:8090/clip`                  |
-| `ENRICHMENT_URL`       | Heavy enrichment router                      | compose: `http://ai-gateway:8090/enrichment`            |
-| `ENRICHMENT_LIGHT_URL` | Light enrichment router                      | compose: `http://ai-gateway:8090/enrich-lt`             |
-| `YOLO26_API_KEY`       | API key for YOLO26 authentication            | (none)                                                  |
-| `NEMOTRON_API_KEY`     | API key for NVIDIA Nemotron authentication   | (none)                                                  |
+| Variable               | Description                                    | Default                                                          |
+| ---------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
+| `USE_AI_GATEWAY`       | Route the detection client through the gateway | `false` in code, `true` in compose/`.env`                        |
+| `AI_GATEWAY_URL`       | Gateway base URL when `USE_AI_GATEWAY=true`    | none in code, `http://ai-gateway:8090` in compose                |
+| `YOLO26_URL`           | Full URL to the detection router               | `http://ai-gateway:8090/yolo26`                                  |
+| `AI_VLM_URL`           | The `vlm_assess` engine                        | `http://localhost:8098` in code, `http://ai-vlm:8098` in compose |
+| `ENRICHMENT_LIGHT_URL` | `/enrich-lt` readiness probe target            | `http://localhost:8090/enrich-lt`                                |
+| `YOLO26_API_KEY`       | API key for YOLO26 authentication              | (none)                                                           |
+
+`ENRICHMENT_LIGHT_URL` is a **readiness** target: `api/routes/model_management.py`
+probes it to report gateway health. Nothing calls it for inference — the live re-ID leg
+is `osnet_loader`, in-process.
 
 ---
 
@@ -186,8 +225,8 @@ chmod 600 .env
 # edit values with your editor
 ```
 
-Host-run AI scripts (`ai/start_*.sh`) inherit variables from your shell, so export them
-there if you run the services outside compose.
+`ai/start_detector.sh` inherits variables from your shell, so export them there if you
+run the detection server outside compose.
 
 ---
 
@@ -203,30 +242,26 @@ When AI services run in containers, use appropriate host resolution:
 | macOS    | Podman         | `http://host.containers.internal:8090` |
 | Linux    | Docker/Podman  | `http://192.168.1.100:8090` (host IP)  |
 
-(The gateway host port is `127.0.0.1:${AI_GATEWAY_PORT:-8090}` by default — expose it via a
-reverse proxy or SSH tunnel before pointing a remote backend at a host IP.)
+Both AI host ports are published as `127.0.0.1:${PORT}` by default — expose them via a
+reverse proxy or SSH tunnel before pointing a remote backend at a host IP.
 
 ### Production compose DNS (recommended)
 
-When running `docker-compose.prod.yml`, the backend reaches AI services by compose DNS —
-these are the values compose itself sets, no `.env` entries needed:
+When running `docker-compose.prod.yml`, the backend reaches the AI services by compose
+DNS — compose sets these itself, no `.env` entries needed:
 
 ```bash
 USE_AI_GATEWAY=true
 AI_GATEWAY_URL=http://ai-gateway:8090
 YOLO26_URL=http://ai-gateway:8090/yolo26
-NEMOTRON_URL=http://ai-llm:8091
-FLORENCE_URL=http://ai-gateway:8090/florence
-CLIP_URL=http://ai-gateway:8090/clip
-ENRICHMENT_URL=http://ai-gateway:8090/enrichment
-ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
+AI_VLM_URL=http://ai-vlm:8098
 ```
 
-**Example .env for macOS with Docker:**
+**Example .env for macOS with Docker (backend on the host):**
 
 ```bash
 YOLO26_URL=http://host.docker.internal:8090/yolo26
-NEMOTRON_URL=http://host.docker.internal:8091
+AI_VLM_URL=http://host.docker.internal:8098
 ```
 
 **Example .env for macOS with Podman:**
@@ -234,34 +269,33 @@ NEMOTRON_URL=http://host.docker.internal:8091
 ```bash
 export AI_HOST=host.containers.internal
 YOLO26_URL=http://${AI_HOST}:8090/yolo26
-NEMOTRON_URL=http://${AI_HOST}:8091
+AI_VLM_URL=http://${AI_HOST}:8098
 ```
 
 **Example .env for Linux:**
 
 ```bash
-# Get your host IP
 export AI_HOST=$(hostname -I | awk '{print $1}')
 YOLO26_URL=http://${AI_HOST}:8090/yolo26
-NEMOTRON_URL=http://${AI_HOST}:8091
+AI_VLM_URL=http://${AI_HOST}:8098
 ```
 
 ---
 
 ## Detection Settings
 
-Fine-tune object detection behavior:
-
 | Variable                         | Description                  | Default                                          |
 | -------------------------------- | ---------------------------- | ------------------------------------------------ |
 | `DETECTION_CONFIDENCE_THRESHOLD` | Minimum confidence to store  | `0.40` in `config.py`; `.env.example` sets `0.5` |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | Threshold for fast-path      | compose sets `0.90`                              |
-| `FAST_PATH_OBJECT_TYPES`         | Types eligible for fast-path | `["person"]` in `.env.example` (commented out)   |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | Threshold for fast-path      | `2.0` in code — disabled                         |
+| `FAST_PATH_OBJECT_TYPES`         | Types eligible for fast-path | `[]` in code                                     |
 
-> [!WARNING] > **The fast path is disabled by design.** `config.py` ships
+> [!WARNING]
+> **The fast path is disabled by design.** `config.py` ships
 > `fast_path_confidence_threshold = 2.0` (an impossible value) and an empty
-> `FAST_PATH_OBJECT_TYPES`, because the fast path bypasses enrichment and Nemotron then
-> scores on partial data. Do not lower these unless enrichment is added to the fast path.
+> `FAST_PATH_OBJECT_TYPES`, because the fast path bypasses the specialist legs and the
+> VLM then scores on partial data. Do not lower these unless the specialists are added
+> to the fast path.
 
 **Confidence threshold trade-offs:**
 
@@ -272,14 +306,13 @@ Fine-tune object detection behavior:
 
 ## Timeout Settings
 
-Control connection and read timeouts:
-
-| Variable                | Description                  | Default                |
-| ----------------------- | ---------------------------- | ---------------------- |
-| `AI_CONNECT_TIMEOUT`    | Connection timeout (seconds) | `10.0`                 |
-| `AI_HEALTH_TIMEOUT`     | Health-check timeout         | `5.0`                  |
-| `YOLO26_READ_TIMEOUT`   | Detection read timeout       | `30.0` (range 5–120)   |
-| `NEMOTRON_READ_TIMEOUT` | LLM analysis read timeout    | `120.0` (range 30–600) |
+| Variable                      | Description                  | Default              |
+| ----------------------------- | ---------------------------- | -------------------- |
+| `AI_CONNECT_TIMEOUT`          | Connection timeout (seconds) | `10.0`               |
+| `AI_HEALTH_TIMEOUT`           | Health-check timeout         | `5.0`                |
+| `YOLO26_READ_TIMEOUT`         | Detection read timeout       | `30.0` (range 5–120) |
+| `AI_VLM_READ_TIMEOUT`         | `vlm_assess` read timeout    | `25.0` (range 5–300) |
+| `AI_VLM_WAKE_TIMEOUT_SECONDS` | Wake-from-sleep ping budget  | `90.0` (range 5–300) |
 
 > [!NOTE]
 > Older docs said `YOLO26_READ_TIMEOUT` defaults to `60.0`; `backend/core/config.py`
@@ -299,42 +332,39 @@ monitoring extras (`monitoring/cadvisor/cadvisor.service`,
 ## Complete Example .env
 
 ```bash
-# AI gateway (production compose sets these itself — needed only when the backend
-# runs on the host against AI on the host)
+# --- AI service routing (production compose sets these itself — needed only when
+#     the backend runs on the host against AI on the host) ---
 USE_AI_GATEWAY=true
 AI_GATEWAY_URL=http://localhost:8090
 YOLO26_URL=http://localhost:8090/yolo26
-NEMOTRON_URL=http://localhost:8091
-FLORENCE_URL=http://localhost:8090/florence
-CLIP_URL=http://localhost:8090/clip
-ENRICHMENT_URL=http://localhost:8090/enrichment
-ENRICHMENT_LIGHT_URL=http://localhost:8090/enrich-lt
+AI_VLM_URL=http://localhost:8098
 
-# Enrichment tier routing (light = /enrich-lt, heavy = /enrichment)
-ENRICHMENT_POSE_SERVICE=light
-ENRICHMENT_THREAT_SERVICE=light
-ENRICHMENT_REID_SERVICE=light
-ENRICHMENT_PET_SERVICE=light
-ENRICHMENT_DEPTH_SERVICE=light
+# --- Pipeline + residency selectors (pinned to agree; see .env.example) ---
+PIPELINE_MODE=vlm
+GATEWAY_MODEL_SET=vlm
+GATEWAY_ENABLE_THREAT=false
+BACKEND_MODEL_PRELOAD=false
 
-# ai-llm container (llama.cpp) — CTX_SIZE is for the LLM container only; the
-# Python backend's validator rejects values above 131072
-LLM_MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
-GPU_LAYERS=auto
-CTX_SIZE=262144
-PARALLEL=8
+# --- ai-vlm: served model (container paths; host dir is ${AI_MODELS_PATH}/vlm) ---
+VLM_MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf
+VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf
+VLM_MODEL_ID=Qwen3VL-8B-Instruct-Q4_K_M
 
-# Standalone host-run YOLO26 server only (not used by the compose gateway)
+# --- ai-vlm: slot sizing (read by the server AND by the backend's prompt budget) ---
+VLM_CTX_SIZE=32768
+VLM_PARALLEL=2
+
+# --- Standalone host-run YOLO26 server only (not used by the compose gateway) ---
 # YOLO26_MODEL_PATH=${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo26/exports/yolo26m_fp16.engine
 # TORCH_COMPILE_ENABLED=true
 
-# Detection tuning
+# --- Detection tuning ---
 DETECTION_CONFIDENCE_THRESHOLD=0.5
 
-# Timeouts
+# --- Timeouts ---
 AI_CONNECT_TIMEOUT=10.0
 YOLO26_READ_TIMEOUT=30.0
-NEMOTRON_READ_TIMEOUT=120.0
+AI_VLM_READ_TIMEOUT=25.0
 ```
 
 ---

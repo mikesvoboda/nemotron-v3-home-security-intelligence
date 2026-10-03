@@ -28,7 +28,6 @@ developer/
   AGENT_COORDINATION.md           # Parallel agent coordination protocol
   PORT_STANDARDIZATION.md         # Port standardization reference
   api-breaking-change-detection.md # API breaking change detection guide
-  buildkit-secrets.md             # BuildKit secrets for Docker builds
   ci-cd.md                        # CI/CD pipeline configuration and workflows
   code-quality.md                 # Code quality tooling and standards
   docs-maintenance.md             # Documentation drift detection system
@@ -39,17 +38,13 @@ developer/
   health-monitoring-di.md         # Health monitoring dependency injection patterns
   hooks.md                        # Git hooks configuration
   linear-integration.md           # Linear MCP tools and workflow states
-  llm-inference-optimization.md   # Nemotron LLM inference performance
+  llm-inference-optimization.md   # ai-vlm (llama.cpp) inference configuration and tuning
   metrics-implementation-status.md # Metrics implementation tracking
   migration-rollback.md           # Database migration rollback procedures
   model-testing.md                # AI model testing and validation guide
-  moe-offloading.md               # MoE-aware tensor offloading for Nemotron
   multi-gpu.md                    # Multi-GPU support and configuration guide
   nemo-data-designer.md           # NeMo Data Designer integration for synthetic data
-  nemotron-buildkit-secrets.md    # Nemotron BuildKit secrets guide
-  nemotron-prompting.md           # Nemotron prompting strategies and patterns
   patterns-and-conventions.md                     # Code patterns and conventions
-  prompt-evaluation-results.md    # Prompt evaluation results and analysis
   python-3.14-features.md         # Python 3.14 features used in project
   selector-evaluation.md          # Test-selector evaluation (fast_select vs testmon)
   ssl-https.md                    # SSL/HTTPS configuration for development
@@ -120,7 +115,6 @@ developer/
 | -------------------------------------- | ------------------------------------------------------------- |
 | `AGENT_COORDINATION.md`                | Parallel agent coordination protocol                          |
 | `api-breaking-change-detection.md`     | Detect and manage API breaking changes                        |
-| `buildkit-secrets.md`                  | Docker BuildKit secrets for secure builds                     |
 | `ci-cd.md`                             | CI/CD pipeline configuration and workflows                    |
 | `code-quality.md`                      | Code quality tooling and standards                            |
 | `contributing/README.md`               | Contribution guidelines and PR workflow                       |
@@ -132,18 +126,14 @@ developer/
 | `health-monitoring-di.md`              | Health monitoring dependency injection patterns               |
 | `hooks.md`                             | Git hooks configuration and troubleshooting                   |
 | `linear-integration.md`                | Linear MCP tools, workflow state UUIDs, usage examples        |
-| `llm-inference-optimization.md`        | Nemotron LLM inference configuration and performance          |
+| `llm-inference-optimization.md`        | ai-vlm (llama.cpp) inference configuration and tuning         |
 | `metrics-implementation-status.md`     | Metrics implementation status for Grafana dashboards          |
 | `migration-rollback.md`                | Database migration rollback procedures                        |
 | `model-testing.md`                     | Testing strategies for AI model integrations                  |
-| `moe-offloading.md`                    | MoE-aware tensor offloading for Nemotron                      |
 | `multi-gpu.md`                         | Multi-GPU support and configuration guide                     |
 | `nemo-data-designer.md`                | NeMo Data Designer integration for synthetic test data        |
-| `nemotron-buildkit-secrets.md`         | Nemotron-specific BuildKit secrets configuration              |
-| `nemotron-prompting.md`                | Nemotron prompting strategies and best practices              |
 | `patterns-and-conventions.md`          | Code patterns and conventions used in the project             |
 | `PORT_STANDARDIZATION.md`              | Port standardization reference for all services               |
-| `prompt-evaluation-results.md`         | Prompt evaluation results and analysis                        |
 | `python-3.14-features.md`              | Python 3.14 features used in the project                      |
 | `selector-evaluation.md`               | Test-selector evaluation (fast_select vs testmon)             |
 | `ssl-https.md`                         | SSL/HTTPS configuration for development and production        |
@@ -181,14 +171,6 @@ Purpose, coverage, and triggers for the workflow guides in this directory.
 **Covers:** Breaking change detection workflow; OpenAPI diff tooling; CI integration for API contracts; migration strategies.
 
 **When to use:** Making API changes, reviewing PRs with endpoint changes.
-
-### buildkit-secrets.md
-
-**Purpose:** Docker BuildKit secrets for secure builds.
-
-**Covers:** BuildKit secrets syntax; secret mounting patterns; CI/CD secret injection.
-
-**When to use:** Configuring Docker builds with secrets.
 
 ### ci-cd.md
 
@@ -274,7 +256,7 @@ Purpose, coverage, and triggers for the workflow guides in this directory.
 
 ### llm-inference-optimization.md
 
-**Purpose:** Current Nemotron LLM inference configuration, recent performance optimizations, observed characteristics, known limitations, and recommended next steps.
+**Purpose:** The shipped reasoning engine's configuration — `ai-vlm`, a llama.cpp `llama-server` container: server flags, the context budget the backend sizes prompts against, the enforcement probe and build pin, performance characteristics, and known limitations.
 
 ### local-setup.md
 
@@ -298,15 +280,11 @@ Purpose, coverage, and triggers for the workflow guides in this directory.
 
 ### model-testing.md
 
-**Purpose:** Testing strategies for AI model integrations in the enrichment service.
+**Purpose:** Testing strategies for the shipped AI stack: the Triton detection lane behind `ai-gateway`, the `ai-vlm` reasoning service, and the in-process specialist lookup legs.
 
-**Covers:** Unit testing patterns for model loading, inference, and unloading; VRAM management and eviction testing; integration testing for enrichment endpoints; test fixtures and mocking strategies; benchmarking model performance; GPU testing patterns; troubleshooting common test failures.
+**Covers:** Per-seam mocking patterns (Triton client, OpenAI-compatible completion, in-process loaders); the specialist counter contract; test layout; GPU test gating; troubleshooting common test failures.
 
 **When to use:** Writing tests for AI models, testing model manager behavior, benchmarking inference performance.
-
-### moe-offloading.md
-
-**Purpose:** MoE offloading strategy for Nemotron-3-Nano-30B-A3B — selectively moves expert FFN weights to CPU RAM to free GPU VRAM with minimal performance impact.
 
 ### multi-gpu.md
 
@@ -324,22 +302,6 @@ Purpose, coverage, and triggers for the workflow guides in this directory.
 
 **When to use:** Generating test data for AI pipelines.
 
-### nemotron-buildkit-secrets.md
-
-**Purpose:** Nemotron-specific BuildKit secrets configuration.
-
-**Covers:** NGC API key handling; model download authentication; container build patterns.
-
-**When to use:** Building Nemotron containers with authenticated model access.
-
-### nemotron-prompting.md
-
-**Purpose:** Nemotron prompting strategies and best practices.
-
-**Covers:** Prompt engineering patterns; risk assessment prompts; context enrichment; response parsing.
-
-**When to use:** Developing or tuning Nemotron prompts.
-
 ### patterns-and-conventions.md
 
 **Purpose:** Code patterns and conventions used in the project.
@@ -355,14 +317,6 @@ Purpose, coverage, and triggers for the workflow guides in this directory.
 **Covers:** Service port assignments; port conflict resolution; development vs production ports.
 
 **When to use:** Configuring service ports, debugging connection issues.
-
-### prompt-evaluation-results.md
-
-**Purpose:** Prompt evaluation results and analysis.
-
-**Covers:** Evaluation metrics; benchmark results; improvement tracking.
-
-**When to use:** Analyzing prompt performance.
 
 ### python-3.14-features.md
 
@@ -464,14 +418,14 @@ See [hooks.md](hooks.md) for setup and troubleshooting, and [git-workflow.md](gi
 
 Cross-area documentation that this directory links to rather than duplicates:
 
-| Topic          | Existing Location                     | Notes                  |
-| -------------- | ------------------------------------- | ---------------------- |
-| Architecture   | `docs/architecture/overview.md`       | System design          |
-| Data Model     | `docs/architecture/data-model.md`     | Database schemas       |
-| AI Pipeline    | `docs/architecture/ai-pipeline.md`    | Detection flow         |
-| Real-time      | `docs/architecture/real-time.md`      | WebSocket architecture |
-| Frontend Hooks | `docs/architecture/frontend-hooks.md` | React custom hooks     |
-| Decisions      | `docs/architecture/decisions.md`      | ADRs                   |
+| Topic          | Existing Location                                | Notes                  |
+| -------------- | ------------------------------------------------ | ---------------------- |
+| Architecture   | `docs/architecture/overview.md`                  | System design          |
+| Data Model     | `docs/architecture/data-model.md`                | Database schemas       |
+| AI Pipeline    | `docs/architecture/ai-pipeline-current-state.md` | What runs today        |
+| Real-time      | `docs/architecture/real-time.md`                 | WebSocket architecture |
+| Frontend Hooks | `docs/architecture/frontend-hooks.md`            | React custom hooks     |
+| Decisions      | `docs/architecture/decisions.md`                 | ADRs                   |
 
 Testing, contributing, code patterns, and coverage now live in this directory (`testing.md`, `contributing/README.md`, `patterns-and-conventions.md`, `test-coverage.md`) rather than in `docs/development/`.
 

@@ -241,63 +241,6 @@ def is_safe_path_for_deletion(
 # Environment Variable Validation (NEM-4513)
 # =============================================================================
 
-# Allowed model names for ENRICHMENT_PRELOAD_MODELS
-ALLOWED_PRELOAD_MODELS: frozenset[str] = frozenset(
-    {
-        # Heavy service models (ai-enrichment)
-        "vehicle_classifier",
-        "fashion_clip",
-        "demographics",
-        # action_recognizer (X-CLIP) removed 2026-09-23, full X-CLIP removal
-        # owner ruling — see archive/ai-enrichment/
-        # Light service models (ai-enrichment-light)
-        "pose_estimator",
-        "threat_detector",
-        "person_reid",
-        "pet_classifier",
-        "depth_estimator",
-    }
-)
-
-
-def validate_preload_models_env(env_value: str) -> list[str]:
-    """Validate ENRICHMENT_PRELOAD_MODELS environment variable.
-
-    Parses and validates the comma-separated list of model names
-    to ensure only allowed models are preloaded.
-
-    Args:
-        env_value: Raw environment variable value
-
-    Returns:
-        List of validated model names
-
-    Raises:
-        ValueError: If invalid model names are found
-
-    Example:
-        >>> validate_preload_models_env("vehicle_classifier,fashion_clip")
-        ['vehicle_classifier', 'fashion_clip']
-
-        >>> validate_preload_models_env("malicious_model")
-        ValueError: Invalid preload models: {'malicious_model'}
-    """
-    if not env_value or not env_value.strip():
-        return []
-
-    # Parse comma-separated list
-    models = [m.strip() for m in env_value.split(",") if m.strip()]
-
-    # Check for invalid model names
-    invalid_models = set(models) - ALLOWED_PRELOAD_MODELS
-    if invalid_models:
-        raise ValueError(
-            f"Invalid preload models: {invalid_models}. "
-            f"Allowed models: {sorted(ALLOWED_PRELOAD_MODELS)}"
-        )
-
-    return models
-
 
 def validate_model_path_env(
     env_name: str,

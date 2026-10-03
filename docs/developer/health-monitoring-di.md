@@ -1,21 +1,15 @@
 # Health Monitoring Dependency Injection (NEM-2611)
 
-This document describes the dependency injection pattern for health monitoring services, replacing the previous global state pattern.
+This document describes the dependency injection pattern for health monitoring services.
 
 ## Overview
 
-The health monitoring system previously used global variables (`_gpu_monitor`, `_cleanup_service`, etc.) in `backend/api/routes/system.py`. This pattern:
+Health monitoring services are wired through the DI pattern:
 
-- Made testing difficult due to shared state between tests
-- Could lead to unexpected side effects
-- Made it harder to reason about service lifecycles
-
-The new DI pattern:
-
-- Uses the existing `Container` class in `backend/core/container.py`
-- Introduces `HealthServiceRegistry` as a centralized registry
-- Provides FastAPI dependencies for clean injection into route handlers
-- Maintains backward compatibility with the legacy global pattern
+- The `Container` class in `backend/core/container.py` owns service construction
+- `HealthServiceRegistry` (`backend/services/health_service_registry.py`) is the centralized registry of running workers
+- FastAPI dependencies in `backend/api/dependencies.py` inject the registry into route handlers
+- Route handlers read worker state through the registry instead of module-level handles
 
 ## Service Architecture
 
@@ -33,7 +27,7 @@ flowchart TB
     subgraph Layer1["Core Services"]
         GPU[GPUMonitor]
         Cleanup[CleanupService]
-        Pipeline[PipelineManager]
+        Pipeline[PipelineWorkerManager]
     end
 
     subgraph Layer2["Supporting Services"]
@@ -43,8 +37,8 @@ flowchart TB
     end
 
     subgraph Layer3["Monitoring Services"]
-        DM[DegradationManager]
-        HM[HealthMonitor]
+        SHM[ServiceHealthMonitor]
+        HM[HealthEventEmitter]
         PC[PerformanceCollector]
     end
 
@@ -55,34 +49,34 @@ flowchart TB
     GPU --> FW
     Cleanup --> SB
     Pipeline --> BA
-    FW --> DM
     SB --> HM
     BA --> PC
+    SHM --> PC
 ```
 
 ## Service Initialization Order
 
 Services are initialized during application startup in the lifespan context manager (`backend/main.py`):
 
-1. **Container Services** (via `wire_services`):
+1. **Container Services** (via `wire_services` in `backend/core/container.py`):
 
-   - `health_service_registry` - Created first as other services register with it
-   - `health_event_emitter` - WebSocket health event emission
-   - `redis_client` - Async singleton for Redis connection
-   - Other AI services (context_enricher, enrichment_pipeline, nemotron_analyzer)
+   - `health_service_registry` - Created first as other services register with it (`backend/core/container.py:471`)
+   - `health_event_emitter` - WebSocket health event emission (`backend/core/container.py:475`)
+   - `redis_client` - Async singleton for Redis connection (`backend/core/container.py:483`)
+   - Other AI services (context_enricher, vlm_analyzer, detector_client, face/plate detector services)
 
 2. **Background Workers** (main.py lifespan):
 
-   - `GPUMonitor` - GPU resource monitoring
-   - `CleanupService` - Data cleanup
-   - `SystemBroadcaster` - WebSocket status updates
-   - `FileWatcher` - Camera image monitoring
+   - `FileWatcher` - Camera image monitoring (`backend/main.py:937`)
+   - `PerformanceCollector` - Performance metrics (`backend/main.py:1035`)
+   - `GPUMonitor` - GPU resource monitoring (`backend/main.py:1042`)
+   - `CleanupService` - Data cleanup (`backend/main.py:1047`)
+   - `ServiceHealthMonitor` - Auto-recovery monitoring (`backend/main.py:1110`)
    - `PipelineWorkerManager` - Detection/analysis workers
-   - `PerformanceCollector` - Performance metrics
-   - `ServiceHealthMonitor` - Auto-recovery monitoring
+   - `SystemBroadcaster` - WebSocket status updates
 
 3. **Registration with Registry**:
-   - Each service registers with `HealthServiceRegistry` after creation
+   - Each service registers with `HealthServiceRegistry` after creation (`backend/main.py:1184`)
    - This makes services available for health checks
 
 ## Using the Registry
@@ -114,9 +108,11 @@ is_healthy = registry.are_critical_pipeline_workers_healthy()
 circuit_breaker = registry.circuit_breaker
 ```
 
+The registry exposes a `register_*` method per worker (`register_gpu_monitor`, `register_cleanup_service`, `register_system_broadcaster`, `register_file_watcher`, `register_pipeline_manager`, `register_batch_aggregator`, `register_degradation_manager`, `register_service_health_monitor`, `register_performance_collector`, `register_health_event_emitter`).
+
 ## Circuit Breaker Pattern
 
-The registry includes a circuit breaker for health checks:
+The registry includes a circuit breaker for health checks (`HealthCircuitBreaker` in `backend/services/health_service_registry.py`):
 
 ```python
 # Circuit breaker automatically tracks failures
@@ -134,7 +130,7 @@ except Exception as e:
 
 ## Testing with DI
 
-The DI pattern makes testing easier:
+The DI pattern makes testing straightforward — override the dependency:
 
 ```python
 from unittest.mock import MagicMock
@@ -153,30 +149,9 @@ def test_worker_statuses():
     assert response.status_code == 200
 ```
 
-## Backward Compatibility
+## Using the Registry in a Route
 
-The legacy `register_workers` function is still called during startup for backward compatibility:
-
-```python
-# main.py
-# New DI pattern
-health_registry = container.get("health_service_registry")
-health_registry.register_gpu_monitor(gpu_monitor)
-# ...
-
-# Legacy pattern (for routes not yet migrated)
-register_workers(
-    gpu_monitor=gpu_monitor,
-    cleanup_service=cleanup_service,
-    # ...
-)
-```
-
-Routes can be migrated incrementally from the legacy pattern to the DI pattern.
-
-## Migration Guide
-
-To migrate a route from global state to DI:
+To read worker state from a route handler:
 
 1. Import the dependency:
 
@@ -190,13 +165,8 @@ To migrate a route from global state to DI:
    async def my_route(
        registry: HealthServiceRegistry = Depends(get_health_service_registry_dep),
    ):
-       # Replace _gpu_monitor with registry.gpu_monitor
+       # Read worker state through the registry
        gpu_stats = await registry.gpu_monitor.get_stats()
-   ```
-
-3. Remove global imports:
-   ```python
-   # Remove: from backend.api.routes.system import _gpu_monitor
    ```
 
 ## Service Lifecycle
@@ -215,17 +185,17 @@ To migrate a route from global state to DI:
 3. Background workers are stopped in reverse order
 4. Container shuts down services (calls close/disconnect)
 
-## Files Modified
+## Key Files
 
-| File                                          | Change                                          |
-| --------------------------------------------- | ----------------------------------------------- |
-| `backend/services/health_service_registry.py` | New file - registry class                       |
-| `backend/core/container.py`                   | Added health service registrations              |
-| `backend/main.py`                             | Updated to use registry for worker registration |
-| `backend/services/health_event_emitter.py`    | Updated to support both DI and legacy patterns  |
-| `backend/api/dependencies.py`                 | Added dependency functions                      |
+| File                                          | Purpose                                     |
+| --------------------------------------------- | ------------------------------------------- |
+| `backend/services/health_service_registry.py` | Registry class and health circuit breaker   |
+| `backend/core/container.py`                   | Health service registrations in the DI wire |
+| `backend/main.py`                             | Worker construction and registration        |
+| `backend/services/health_event_emitter.py`    | WebSocket health event emission             |
+| `backend/api/dependencies.py`                 | Dependency functions                        |
 
 ## Related Issues
 
-- NEM-2611: Refactor global state to dependency injection in health monitoring
-- NEM-1636: Original DI container implementation
+- NEM-2611: Health monitoring dependency injection
+- NEM-1636: DI container implementation

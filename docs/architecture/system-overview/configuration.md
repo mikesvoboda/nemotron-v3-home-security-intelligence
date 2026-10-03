@@ -6,7 +6,7 @@ This document describes the settings architecture, environment variables, and co
 
 The application uses **Pydantic Settings** for type-safe configuration management with environment variable support.
 
-**Source:** `backend/core/config.py:298-306`
+**Source:** `backend/core/config.py:362-370`
 
 ```python
 class Settings(BaseSettings):
@@ -22,19 +22,19 @@ class Settings(BaseSettings):
 
 ### Settings Singleton Pattern
 
-Settings are loaded once and cached using the `@cache` decorator.
+Settings are loaded once and cached using the `@cache` decorator. The cache is cold again after the
+settings API writes `data/runtime.env` (`backend/api/routes/settings_api.py:279`).
 
-**Source:** `backend/core/config.py` (end of file)
+**Source:** `backend/core/config.py:3346-3352`
 
 ```python
 @cache
 def get_settings() -> Settings:
-    """Get cached application settings.
-
-    Returns the same Settings instance throughout the application lifecycle.
-    Uses functools.cache for thread-safe singleton behavior.
-    """
-    return Settings()
+    """Get cached settings instance."""
+    runtime_env_path = os.getenv("HSI_RUNTIME_ENV_PATH", "./data/runtime.env")
+    # `_env_file` is evaluated at call time (unlike `model_config.env_file`, which is bound at
+    # import time). This lets tests and deployments override runtime config cleanly.
+    return Settings(_env_file=(".env", runtime_env_path))
 ```
 
 **Usage:**
@@ -50,15 +50,15 @@ print(settings.database_url)
 
 ### Database Configuration
 
-| Variable                 | Default    | Description                       |
-| ------------------------ | ---------- | --------------------------------- |
-| `DATABASE_URL`           | (required) | PostgreSQL connection URL         |
-| `DATABASE_POOL_SIZE`     | 20         | Base connection pool size         |
-| `DATABASE_POOL_OVERFLOW` | 30         | Additional connections under load |
-| `DATABASE_POOL_TIMEOUT`  | 30         | Seconds to wait for connection    |
-| `DATABASE_POOL_RECYCLE`  | 1800       | Connection recycle interval       |
+| Variable                 | Default                    | Description                       |
+| ------------------------ | -------------------------- | --------------------------------- |
+| `DATABASE_URL`           | `""` (compose supplies it) | PostgreSQL connection URL         |
+| `DATABASE_POOL_SIZE`     | 20                         | Base connection pool size         |
+| `DATABASE_POOL_OVERFLOW` | 30                         | Additional connections under load |
+| `DATABASE_POOL_TIMEOUT`  | 30                         | Seconds to wait for connection    |
+| `DATABASE_POOL_RECYCLE`  | 1800                       | Connection recycle interval       |
 
-**Source:** `backend/core/config.py:313-344`
+**Source:** `backend/core/config.py:377-420`
 
 ### Redis Configuration
 
@@ -75,7 +75,7 @@ print(settings.database_url)
 | `REDIS_POOL_SIZE_PUBSUB`       | 10                         | Pub/sub pool connections        |
 | `REDIS_POOL_SIZE_RATELIMIT`    | 10                         | Rate limit pool connections     |
 
-**Source:** `backend/core/config.py:346-405`
+**Source:** `backend/core/config.py:465-563`
 
 ### Redis SSL/TLS Settings
 
@@ -88,7 +88,7 @@ print(settings.database_url)
 | `REDIS_SSL_KEYFILE`        | None       | Client key path               |
 | `REDIS_SSL_CHECK_HOSTNAME` | true       | Verify hostname               |
 
-**Source:** `backend/core/config.py:408-439`
+**Source:** `backend/core/config.py:593-624`
 
 ### Cache TTL Settings
 
@@ -101,38 +101,47 @@ print(settings.database_url)
 | `CACHE_SWR_ENABLED`   | true    | Enable SWR pattern            |
 | `SNAPSHOT_CACHE_TTL`  | 3600    | Camera snapshot cache TTL     |
 
-**Source:** `backend/core/config.py:728-765`
+**Source:** `backend/core/config.py:698-736`
 
 ### AI Service Endpoints
 
-All AI models (YOLO26, Florence-2, CLIP, enrichment) run inside one `ai-gateway` container on port
-8090 and are addressed by path prefix. `.env.example` defaults:
+The two AI services are `ai-gateway` (Triton) and `ai-vlm` (llama.cpp). `.env.example` defaults:
 
-| Variable               | Default                            | Description                                |
-| ---------------------- | ---------------------------------- | ------------------------------------------ |
-| `YOLO26_URL`           | `http://localhost:8090/yolo26`     | YOLO26 detection route                     |
-| `NEMOTRON_URL`         | `http://localhost:8091`            | Nemotron LLM (separate `ai-llm` container) |
-| `FLORENCE_URL`         | `http://localhost:8090/florence`   | Florence-2 vision route                    |
-| `CLIP_URL`             | `http://localhost:8090/clip`       | CLIP embedding route                       |
-| `ENRICHMENT_URL`       | `http://localhost:8090/enrichment` | Heavy enrichment route                     |
-| `ENRICHMENT_LIGHT_URL` | `http://localhost:8090/enrich-lt`  | Light enrichment route                     |
+| Variable               | Default                           | Description                                                          |
+| ---------------------- | --------------------------------- | -------------------------------------------------------------------- |
+| `AI_GATEWAY_URL`       | `http://ai-gateway:8090`          | Gateway base URL (`USE_AI_GATEWAY=true` routes detection through it) |
+| `USE_AI_GATEWAY`       | true                              | Build the detector URL from `AI_GATEWAY_URL` + `/yolo26`             |
+| `YOLO26_URL`           | `http://localhost:8090/yolo26`    | Direct detector route (used when `USE_AI_GATEWAY` is not true)       |
+| `AI_VLM_URL`           | `http://localhost:8098`           | ai-vlm base URL — the `vlm_assess` engine wire                       |
+| `ENRICHMENT_LIGHT_URL` | `http://localhost:8090/enrich-lt` | `/enrich-lt` readiness lane (read by the backend's model management) |
 
-In containers the same routes use `http://ai-gateway:8090/...` and `NEMOTRON_URL=http://ai-llm:8091`
-(`docker-compose.prod.yml`, backend `AI Gateway routes` block).
+In containers the same routes use `http://ai-gateway:8090/...` and `AI_VLM_URL=http://ai-vlm:8098`
+(`docker-compose.prod.yml:552`). The gateway mounts exactly two routers — `/yolo26` and `/enrich-lt`
+(`ai/gateway/main.py:276-277`). ai-vlm is the only LLM service.
+
+### Pipeline Selection and Residency
+
+| Variable                | Default | Description                                                                                                             |
+| ----------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `PIPELINE_MODE`         | `vlm`   | Only `vlm` parses; any other value raises at boot (`backend/core/config.py:1061-1063`)                                  |
+| `GATEWAY_MODEL_SET`     | `vlm`   | Triton residency set; only `vlm` is accepted, anything else raises at container start (`ai/gateway/residency.py:79-83`) |
+| `GATEWAY_ENABLE_THREAT` | false   | Opt the `threat` model into the Triton set                                                                              |
+| `BACKEND_MODEL_PRELOAD` | false   | Boot sweep that loads `preload: true` rows from `models.yml`                                                            |
+
+`PIPELINE_MODE` and `GATEWAY_MODEL_SET` ship as `vlm` in `.env.example` and are pinned to agree with
+the compose defaults by `test_gateway_model_set_compose.py`.
 
 ### AI Service Timeouts
 
-| Variable                  | Default | Description                  |
-| ------------------------- | ------- | ---------------------------- |
-| `AI_CONNECT_TIMEOUT`      | 10.0    | Connection timeout (seconds) |
-| `AI_HEALTH_TIMEOUT`       | 5.0     | Health check timeout         |
-| `YOLO26_READ_TIMEOUT`     | 30.0    | Detection response timeout   |
-| `NEMOTRON_READ_TIMEOUT`   | 120.0   | LLM response timeout         |
-| `FLORENCE_READ_TIMEOUT`   | 30.0    | Florence-2 timeout           |
-| `CLIP_READ_TIMEOUT`       | 5.0     | CLIP embedding timeout       |
-| `ENRICHMENT_READ_TIMEOUT` | 60.0    | Enrichment service timeout   |
+| Variable                      | Default | Description                            |
+| ----------------------------- | ------- | -------------------------------------- |
+| `AI_CONNECT_TIMEOUT`          | 10.0    | Connection timeout (seconds)           |
+| `AI_HEALTH_TIMEOUT`           | 5.0     | Health check timeout                   |
+| `YOLO26_READ_TIMEOUT`         | 30.0    | Detection response timeout             |
+| `AI_VLM_READ_TIMEOUT`         | 25.0    | Per-`vlm_assess`-attempt ceiling       |
+| `AI_VLM_WAKE_TIMEOUT_SECONDS` | 90.0    | Read timeout for the wake-on-open ping |
 
-**Source:** `backend/core/config.py:1046-1100`
+**Source:** `backend/core/config.py:1093-1134`; the VLM pair is threaded in `docker-compose.prod.yml:554-555`.
 
 ### Batch Processing
 
@@ -143,31 +152,36 @@ In containers the same routes use `http://ai-gateway:8090/...` and `NEMOTRON_URL
 | `BATCH_CHECK_INTERVAL_SECONDS` | 5.0     | Timeout check frequency      |
 | `BATCH_MAX_DETECTIONS`         | 500     | Max detections before split  |
 
-**Source:** `backend/core/config.py:935-956`
+**Source:** `backend/core/config.py:925-971`
 
 ### Fast Path Configuration
 
-| Variable                         | Default      | Description                 |
-| -------------------------------- | ------------ | --------------------------- |
-| `FAST_PATH_ENABLED`              | false        | Enable fast path processing |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | 0.90         | Confidence threshold        |
-| `FAST_PATH_OBJECT_TYPES`         | `["person"]` | Object types for fast path  |
+| Variable                         | Default in `Settings` | Default in compose / `.env.example`                      |
+| -------------------------------- | --------------------- | -------------------------------------------------------- |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0 (above any score) | 0.90 (`docker-compose.prod.yml:620`, `.env.example:650`) |
+| `FAST_PATH_OBJECT_TYPES`         | `[]` (empty)          | commented out, so empty                                  |
 
-**Source:** `docker-compose.prod.yml:485-487`, `backend/core/config.py:1757-1770`
+`BatchAggregator._should_use_fast_path` requires the detected type to appear in
+`FAST_PATH_OBJECT_TYPES` (`backend/services/batch_aggregator.py:1185-1216`), and the shipped list is
+empty, so no detection takes the fast path — every detection reaches the analyzer through the normal
+batch gate regardless of the threshold. The threshold's own field default (2.0) is above any
+possible confidence, which is the second guard.
+
+**Source:** `backend/core/config.py:1892-1910`
 
 ### Application Settings
 
-| Variable         | Default      | Description                            |
-| ---------------- | ------------ | -------------------------------------- |
-| `DEBUG`          | false        | Enable debug mode                      |
-| `ENVIRONMENT`    | `production` | Deployment environment                 |
-| `ADMIN_ENABLED`  | true         | Enable admin endpoints                 |
-| `ADMIN_API_KEY`  | None         | Admin API key (reserved, not enforced) |
-| `API_HOST`       | `0.0.0.0`    | API bind address                       |
-| `API_PORT`       | 8000         | API port                               |
-| `RETENTION_DAYS` | 30           | Data retention period                  |
+| Variable         | Default      | Description                                                        |
+| ---------------- | ------------ | ------------------------------------------------------------------ |
+| `DEBUG`          | false        | Enable debug mode                                                  |
+| `ENVIRONMENT`    | `production` | Deployment environment                                             |
+| `ADMIN_ENABLED`  | true         | Enable admin endpoints (compose threads `${ADMIN_ENABLED:-false}`) |
+| `ADMIN_API_KEY`  | None         | Admin API key (reserved, not enforced)                             |
+| `API_HOST`       | `0.0.0.0`    | API bind address                                                   |
+| `API_PORT`       | 8000         | API port                                                           |
+| `RETENTION_DAYS` | 30           | Data retention period                                              |
 
-**Source:** `backend/core/config.py:842-930`
+**Source:** `backend/core/config.py:812-922`
 
 ### CORS Settings
 
@@ -175,7 +189,7 @@ In containers the same routes use `http://ai-gateway:8090/...` and `NEMOTRON_URL
 | -------------- | ----------- | -------------------- |
 | `CORS_ORIGINS` | (see below) | Allowed CORS origins |
 
-Default CORS origins (see `backend/core/config.py:884-894`):
+Default CORS origins (see `backend/core/config.py:874-884`):
 
 ```python
 [
@@ -190,30 +204,62 @@ Default CORS origins (see `backend/core/config.py:884-894`):
 
 Set `CORS_ORIGINS` to your own hostnames for LAN access.
 
-### Nemotron Context Settings
+### LLM Context and Token Budgets
 
-| Variable                                | Default       | Description                                                                    |
-| --------------------------------------- | ------------- | ------------------------------------------------------------------------------ |
-| `CTX_SIZE`                              | 262144        | Context window (tokens) — sets `nemotron_context_window` (field default 32768) |
-| `NEMOTRON_MAX_OUTPUT_TOKENS`            | 1536          | Max output tokens                                                              |
-| `CONTEXT_UTILIZATION_WARNING_THRESHOLD` | 0.80          | Warning threshold                                                              |
-| `CONTEXT_TRUNCATION_ENABLED`            | true          | Enable smart truncation                                                        |
-| `LLM_TOKENIZER_ENCODING`                | `cl100k_base` | Token counting encoding                                                        |
+These feed `backend/services/token_counter.py`, which sizes prompts before they go to ai-vlm
+(`backend/services/token_counter.py:144-145`).
 
-**Source:** `backend/core/config.py:1158-1227`, `.env.example:365`
+Declared in `.env.example`:
+
+| Variable       | Default | Settings field            | Description                                              |
+| -------------- | ------- | ------------------------- | -------------------------------------------------------- |
+| `CTX_SIZE`     | 262144  | `nemotron_context_window` | llama.cpp's total pool; aliased and divided by the slots |
+| `PARALLEL`     | 8       | `llama_slot_count`        | llama.cpp slots sharing that pool                        |
+| `VLM_CTX_SIZE` | 32768   | `vlm_context_window`      | The VLM serve's own pool, mirrored to the backend        |
+| `VLM_PARALLEL` | 2       | —                         | Slots on the VLM serve (`docker-compose.prod.yml:582`)   |
+
+These four resolve to their `Settings` defaults in every deployment — none appears in
+`.env.example` or in any compose `environment:` block:
+
+| Field                                   | Default       | Description                                                         |
+| --------------------------------------- | ------------- | ------------------------------------------------------------------- |
+| `nemotron_max_output_tokens`            | 1536          | Tokens reserved for output; prompts validated against window − this |
+| `context_utilization_warning_threshold` | 0.80          | Warning threshold                                                   |
+| `context_truncation_enabled`            | true          | Enable smart truncation                                             |
+| `llm_tokenizer_encoding`                | `cl100k_base` | Token counting encoding                                             |
+
+With the shipped values the per-request budget resolves to `262144 // 8 = 32768` tokens:
+`CTX_SIZE` is read through a `validation_alias` and divided by the slot count before it becomes what
+the token counter uses (`backend/core/config.py:1268-1287`), so the number in `.env` is not the number applied.
+
+**Source:** `backend/core/config.py:1213-1300`, `.env.example:407-411`
 
 ### Feature Toggles
 
-| Variable                              | Default | Description                          |
-| ------------------------------------- | ------- | ------------------------------------ |
-| `VISION_EXTRACTION_ENABLED`           | true    | Enable Florence-2 extraction         |
-| `REID_ENABLED`                        | true    | Enable person re-ID (OSNet-AIN x1.0) |
-| `IMAGE_QUALITY_ENABLED`               | true    | Enable BRISQUE quality scores        |
-| `FLORENCE_SCENE_CAPTIONS_ENABLED`     | true    | Scene captions                       |
-| `FLORENCE_DETECTION_CAPTIONS_ENABLED` | true    | Detection captions                   |
-| `FLORENCE_VQA_ENABLED`                | true    | Visual QA extraction                 |
+`GET/PATCH /api/settings` reports a `features` block whose keys are mapped to environment variables by
+`SETTINGS_ENV_MAP` (`backend/api/routes/settings_api.py:40`); a PATCH writes them to
+`data/runtime.env` and clears the settings cache (`backend/api/routes/settings_api.py:279`). Three of
+the reported toggles have no consumer in the shipped pipeline — they are surfaced and mapped, and
+nothing reads them:
 
-**Source:** `backend/core/config.py:1573-1593`
+| Variable                    | Default | What actually reads it                         |
+| --------------------------- | ------- | ---------------------------------------------- |
+| `VISION_EXTRACTION_ENABLED` | true    | nothing — reported and mapped only             |
+| `REID_ENABLED`              | true    | nothing — reported and mapped only             |
+| `IMAGE_QUALITY_ENABLED`     | true    | nothing — no BRISQUE model ships in this stack |
+
+**Sources:** the fields at `backend/core/config.py:1674`, `backend/core/config.py:1699`, and
+`backend/core/config.py:1704`; the response assembles them at
+`backend/api/routes/settings_api.py:126-133`; the shipped-stack note on BRISQUE is at
+`backend/api/routes/system.py:4821`.
+
+Two neighbouring toggles in the same block do gate live code: `CLIP_GENERATION_ENABLED`
+(`backend/services/clip_generator.py:176`) and `BACKGROUND_EVALUATION_ENABLED`
+(`backend/main.py:1054`).
+
+Whether a specialist leg actually runs on an event is decided by weight residency, not by any of these
+toggles: the face and re-ID legs answer `unavailable` until the `BACKEND_MODEL_PRELOAD` boot sweep
+loads them (`backend/services/osnet_loader.py:182-203`, `backend/services/face_recognizer_loader.py:466-490`).
 
 ## Nested Settings Classes
 
@@ -221,7 +267,7 @@ Set `CORS_ORIGINS` to your own hostnames for LAN access.
 
 Container orchestrator configuration for Docker/Podman management.
 
-**Source:** `backend/core/config.py:114-295`
+**Source:** `backend/core/config.py:115-359`
 
 | Variable                                | Default | Description             |
 | --------------------------------------- | ------- | ----------------------- |
@@ -234,7 +280,7 @@ Container orchestrator configuration for Docker/Podman management.
 
 Video transcoding cache configuration.
 
-**Source:** `backend/core/config.py:41-112`
+**Source:** `backend/core/config.py:42-112`
 
 | Variable                            | Default                | Description     |
 | ----------------------------------- | ---------------------- | --------------- |
@@ -251,26 +297,34 @@ Pydantic validators ensure configuration correctness at startup.
 
 AI service URLs are validated using `AnyHttpUrl`.
 
-**Source:** `backend/core/config.py:820-853`
+Both AI service URL fields — `yolo26_url` and `ai_vlm_url` — go through one validator.
+
+**Source:** `backend/core/config.py:1454-1487`
 
 ```python
-@field_validator("yolo26_url", "nemotron_url", mode="before")
+@field_validator("yolo26_url", "ai_vlm_url", mode="before")
 @classmethod
 def validate_ai_service_urls(cls, v: Any) -> str:
     """Validate AI service URLs using Pydantic's AnyHttpUrl validator."""
+    if v is None:
+        raise ValueError("AI service URL cannot be None")
     url_str = str(v)
     try:
         validated_url = AnyHttpUrl(url_str)
+        # Strip trailing slash to avoid double-slash when appending paths like /health
         return str(validated_url).rstrip("/")
     except Exception as e:
-        raise ValueError(f"Invalid AI service URL '{url_str}'...") from None
+        raise ValueError(
+            f"Invalid AI service URL '{url_str}': must be a valid HTTP/HTTPS URL. "
+            ...
+        ) from None
 ```
 
 ### Grafana URL Validation
 
 Grafana URLs include SSRF protection.
 
-**Source:** `backend/core/config.py:883-914`
+**Source:** `backend/core/config.py:1590-1619`
 
 ```python
 @field_validator("grafana_url", mode="before")
@@ -306,13 +360,18 @@ DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security  # p
 REDIS_URL=redis://localhost:6379/0
 REDIS_PASSWORD=
 
-# AI Services (Docker — single ai-gateway container)
+# AI Services (Docker — ai-gateway + ai-vlm)
+AI_GATEWAY_URL=http://ai-gateway:8090
+USE_AI_GATEWAY=true
 YOLO26_URL=http://ai-gateway:8090/yolo26
-NEMOTRON_URL=http://ai-llm:8091
-FLORENCE_URL=http://ai-gateway:8090/florence
-CLIP_URL=http://ai-gateway:8090/clip
-ENRICHMENT_URL=http://ai-gateway:8090/enrichment
+AI_VLM_URL=http://ai-vlm:8098
 ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
+
+# Pipeline selection (both must stay `vlm`)
+PIPELINE_MODE=vlm
+GATEWAY_MODEL_SET=vlm
+GATEWAY_ENABLE_THREAT=false
+BACKEND_MODEL_PRELOAD=false
 
 # Batch Processing
 BATCH_WINDOW_SECONDS=90
@@ -320,7 +379,6 @@ BATCH_IDLE_TIMEOUT_SECONDS=30
 
 # Detection
 DETECTION_CONFIDENCE_THRESHOLD=0.5
-FAST_PATH_ENABLED=false
 
 # Retention
 RETENTION_DAYS=30

@@ -1634,29 +1634,6 @@ async def validate_synthetic_results(
                         "Face expected but no face/demographics enrichment evidence in LLM context"
                     )
 
-            # --- Florence caption validation ---
-            # Check event summary for expected keywords (Florence captions
-            # contribute to the LLM summary, not stored separately)
-            caption_expected = expected.get("florence_caption")
-            if caption_expected and matched_event.summary:
-                caption_ok = True
-
-                must_contain = caption_expected.get("must_contain", [])
-                for keyword in must_contain:
-                    if keyword.lower() not in summary_text:
-                        caption_ok = False
-                        enrichment_errors.append(f"Florence caption missing keyword '{keyword}'")
-
-                must_not_contain = caption_expected.get("must_not_contain", [])
-                for keyword in must_not_contain:
-                    if keyword.lower() in summary_text:
-                        caption_ok = False
-                        enrichment_errors.append(
-                            f"Florence caption contains unwanted keyword '{keyword}'"
-                        )
-
-                enrichment_results["florence"] = caption_ok
-
             # --- Enrichment quality metrics (Fix #6) ---
             # Extract which prompt template was used, prompt size, and
             # which enrichment sections were present in the prompt.
@@ -1949,7 +1926,7 @@ def generate_validation_report(
             )
 
     # Enrichment accuracy by service
-    enrichment_services = ["pose", "threat", "reid", "action", "demographics", "florence"]
+    enrichment_services = ["pose", "threat", "reid", "action", "demographics"]
     by_service: dict[str, dict[str, int]] = {}
     for svc in enrichment_services:
         tested = sum(1 for r in results if svc in r.enrichment_results)
@@ -2544,10 +2521,10 @@ async def get_detections() -> list[Detection]:
 
 
 async def seed_entities_from_detections(max_entities: int = 30) -> int:
-    """Create entities from real detections using CLIP embeddings.
+    """Create entities from real detections.
 
-    This calls the CLIP service to generate real embeddings from detection images,
-    creating entities that represent actual detected objects.
+    Entities carry the detection's type and timing only; embedding vectors
+    are written by the backend's entity services, not by this script.
 
     Args:
         max_entities: Maximum number of entities to create
@@ -2555,8 +2532,6 @@ async def seed_entities_from_detections(max_entities: int = 30) -> int:
     Returns:
         Number of entities created
     """
-    import httpx
-
     detections = await get_detections()
     if not detections:
         print("  Warning: No detections found. Run pipeline first to create detections.")
@@ -2578,91 +2553,52 @@ async def seed_entities_from_detections(max_entities: int = 30) -> int:
             by_type[obj_type] = []
         by_type[obj_type].append(det)
 
-    clip_url = _fix_service_url("CLIP_URL", "http://localhost:8090/clip")
     entities_created = 0
 
     async with get_session() as session:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            for obj_type, type_detections in by_type.items():
-                # Limit entities per type
-                sample_size = min(len(type_detections), max_entities // len(by_type))
-                sampled = (
-                    random.sample(type_detections, sample_size)
-                    if len(type_detections) > sample_size
-                    else type_detections
+        for obj_type, type_detections in by_type.items():
+            # Limit entities per type
+            sample_size = min(len(type_detections), max_entities // len(by_type))
+            sampled = (
+                random.sample(type_detections, sample_size)
+                if len(type_detections) > sample_size
+                else type_detections
+            )
+
+            for det in sampled:
+                if entities_created >= max_entities:
+                    break
+
+                # Map detection object_type to entity_type
+                entity_type_map = {
+                    "person": "person",
+                    "car": "vehicle",
+                    "truck": "vehicle",
+                    "vehicle": "vehicle",
+                    "bicycle": "vehicle",
+                    "motorcycle": "vehicle",
+                    "dog": "animal",
+                    "cat": "animal",
+                    "bird": "animal",
+                    "animal": "animal",
+                    "package": "package",
+                    "box": "package",
+                }
+                entity_type = entity_type_map.get(obj_type, "other")
+
+                entity = Entity(
+                    entity_type=entity_type,
+                    first_seen_at=det.detected_at,
+                    last_seen_at=det.detected_at,
+                    detection_count=1,
+                    entity_metadata={"source_detection_id": det.id, "object_type": obj_type},
+                    primary_detection_id=det.id,
                 )
+                session.add(entity)
+                entities_created += 1
 
-                for det in sampled:
-                    if entities_created >= max_entities:
-                        break
-
-                    # Convert container path to host path for CLIP service
-                    image_path = det.file_path
-                    if image_path.startswith("/cameras"):
-                        image_path = image_path.replace("/cameras", "/export/foscam")
-
-                    # Try to get real embedding from CLIP
-                    embedding_vector = None
-                    try:
-                        # Validate and resolve the image path to prevent path traversal
-                        img_path = Path(image_path).resolve()
-                        allowed_base = Path("/export/foscam").resolve()
-
-                        # Ensure the path is within the allowed directory
-                        if not str(img_path).startswith(str(allowed_base)):
-                            print(f"    Skipping {det.id}: path outside allowed directory")
-                            continue
-
-                        if img_path.exists() and img_path.is_file():
-                            import base64
-
-                            with img_path.open("rb") as f:
-                                image_b64 = base64.b64encode(f.read()).decode("utf-8")
-                            response = await client.post(
-                                f"{clip_url}/embed",
-                                json={"image": image_b64},
-                            )
-                            if response.status_code == 200:
-                                data = response.json()
-                                embedding_vector = {
-                                    "vector": data.get("embedding", []),
-                                    "model": "siglip2-base-patch16-224",
-                                    "dimension": len(data.get("embedding", [])),
-                                }
-                    except Exception as e:
-                        print(f"    CLIP embedding failed for {det.id}: {e}")
-
-                    # Map detection object_type to entity_type
-                    entity_type_map = {
-                        "person": "person",
-                        "car": "vehicle",
-                        "truck": "vehicle",
-                        "vehicle": "vehicle",
-                        "bicycle": "vehicle",
-                        "motorcycle": "vehicle",
-                        "dog": "animal",
-                        "cat": "animal",
-                        "bird": "animal",
-                        "animal": "animal",
-                        "package": "package",
-                        "box": "package",
-                    }
-                    entity_type = entity_type_map.get(obj_type, "other")
-
-                    entity = Entity(
-                        entity_type=entity_type,
-                        embedding_vector=embedding_vector,
-                        first_seen_at=det.detected_at,
-                        last_seen_at=det.detected_at,
-                        detection_count=1,
-                        entity_metadata={"source_detection_id": det.id, "object_type": obj_type},
-                        primary_detection_id=det.id,
-                    )
-                    session.add(entity)
-                    entities_created += 1
-
-                    if entities_created % 10 == 0:
-                        print(f"    Created {entities_created}/{max_entities} entities...")
+                if entities_created % 10 == 0:
+                    print(f"    Created {entities_created}/{max_entities} entities...")
 
         await session.commit()
 
@@ -7464,7 +7400,7 @@ Pipeline Flow:
   1. Extract frames from synthetic videos (or touch existing images with --existing-data)
   2. File Watcher → YOLO26 (object detection)
   3. YOLO26 → Batch Aggregator (group detections)
-  4. Batch Aggregator → Nemotron LLM (risk analysis)
+  4. Batch Aggregator → VLM (risk analysis)
   5. Events created with AI-generated summaries and risk scores
 
 Synthetic Data Benefits:
@@ -7476,7 +7412,7 @@ Synthetic Data Benefits:
 This generates real data including:
   - Events with actual LLM reasoning
   - Detection bounding boxes from YOLO26
-  - Entities with real CLIP embeddings
+  - Entities created from real detections
   - Pipeline latency metrics for performance monitoring
   - Activity baselines for anomaly detection
   - Foundation data (properties, households, notifications)

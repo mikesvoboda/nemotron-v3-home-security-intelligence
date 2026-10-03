@@ -373,8 +373,17 @@ Choose from available AI models:
 - **Nemotron** - Risk analysis and reasoning
 - **Florence-2** - Scene analysis
 - **YOLO-World** - Object detection
-- **X-CLIP** - Action recognition (legacy prompt-config label; action recognition served by Triton stgcn_action since 2026-09-23)
+- **X-CLIP** - Action recognition
 - **Fashion-CLIP** - Clothing analysis
+
+These five labels are the prompt-store keys (`AIModelEnum` in
+`frontend/src/types/promptManagement.ts`, validated by `validate_config_for_model` in
+`backend/api/schemas/prompt_management.py`) — they are the stored-configuration labels, not the
+models that run. The verdict on the event path comes from `ai-vlm`, and ai-vlm is the only LLM
+service; its prompt is built in code by `VlmClient.prompt_text()` (`backend/services/vlm_client.py`),
+not read from this store. Saving a configuration here writes a versioned row and shows up in
+version history, import/export and the AI Audit prompt views; it does not change the prompt the
+analyzer sends with the key frames.
 
 #### Current Configuration
 
@@ -496,6 +505,10 @@ Status cards for the primary AI models:
 - **RT-DETRv2** - Real-time object detection model status
 - **Nemotron** - Risk analysis and reasoning model status
 
+Both cards read the `rtdetr` / `nemotron` fields of the health payload (see
+`extractAIStatuses` in `frontend/src/hooks/useAIMetrics.ts`). The card labels are the health-payload
+field names; the services behind them are `ai-gateway` (detection) and `ai-vlm` (reasoning).
+
 Each card displays:
 
 - Model name and description
@@ -514,8 +527,8 @@ VRAM usage overview and categorized model status:
 #### Model Zoo Section
 
 Detailed cards for every Model Zoo model (driven by the root `models.yml`
-catalog — currently 30 entries, 23 enabled; the "18 models" figure in the
-component comments predates the catalog):
+catalog — currently 10 entries; the "18 models" figure in the component
+comments predates the catalog):
 
 - **Model Cards** - Individual status cards with latency charts
 - **Performance Metrics** - Load count, average latency, error rate
@@ -605,7 +618,7 @@ These settings are stored in the database and take effect immediately:
 
 ### URL State Management
 
-The Prompts tab uses URL parameters for model selection, allowing direct linking to specific model configurations (e.g., `?model=nemotron`).
+The Prompts tab uses URL parameters for model selection, allowing direct linking to specific model configurations (e.g., `?model=nemotron`). The parameter values are the prompt-store keys above.
 
 ---
 
@@ -702,7 +715,7 @@ For developers wanting to understand the underlying systems.
 ### Architecture
 
 - **System Overview**: [Architecture Overview](../architecture/overview.md)
-- **AI Pipeline**: [AI Pipeline Architecture](../architecture/ai-pipeline.md)
+- **AI Pipeline**: [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md)
 - **Data Model**: [Data Model](../architecture/data-model.md)
 - **Real-time System**: [Real-time Events](../architecture/real-time.md)
 

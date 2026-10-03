@@ -496,14 +496,14 @@ GET /api/system/pipeline
         "error_message": null
       },
       {
-        "name": "nemotron",
+        "name": "ai-vlm",
         "status": "healthy",
         "last_check": "2025-12-27T10:30:00Z",
         "consecutive_failures": 0,
         "error_message": null
       }
     ],
-    "available_features": ["detection", "analysis", "entity_tracking", "enrichment"]
+    "available_features": ["detection", "analysis", "events", "media"]
   },
   "timestamp": "2025-12-27T10:30:00Z"
 }
@@ -661,64 +661,31 @@ GET /api/system/health/full
       "name": "yolo26",
       "display_name": "YOLO26 Object Detection",
       "status": "healthy",
-      "url": "http://ai:8001",
+      "url": "http://ai-gateway:8090/yolo26",
       "response_time_ms": 15.2,
       "error": null,
       "circuit_state": "closed",
       "last_check": "2025-12-27T10:30:00Z"
     },
     {
-      "name": "nemotron",
-      "display_name": "Nemotron LLM Risk Analysis",
+      "name": "ai-vlm",
+      "display_name": "VLM Verdict Service",
       "status": "healthy",
-      "url": "http://ai:8002",
+      "url": "http://ai-vlm:8098",
       "response_time_ms": 25.5,
-      "error": null,
-      "circuit_state": "closed",
-      "last_check": "2025-12-27T10:30:00Z"
-    },
-    {
-      "name": "florence",
-      "display_name": "Florence-2 Vision Language",
-      "status": "healthy",
-      "url": "http://ai:8003",
-      "response_time_ms": 18.3,
-      "error": null,
-      "circuit_state": "closed",
-      "last_check": "2025-12-27T10:30:00Z"
-    },
-    {
-      "name": "clip",
-      "display_name": "CLIP Embedding Service",
-      "status": "healthy",
-      "url": "http://ai:8004",
-      "response_time_ms": 12.1,
-      "error": null,
-      "circuit_state": "closed",
-      "last_check": "2025-12-27T10:30:00Z"
-    },
-    {
-      "name": "enrichment",
-      "display_name": "Enrichment Service",
-      "status": "healthy",
-      "url": "http://ai:8005",
-      "response_time_ms": 8.5,
       "error": null,
       "circuit_state": "closed",
       "last_check": "2025-12-27T10:30:00Z"
     }
   ],
   "circuit_breakers": {
-    "total": 5,
+    "total": 2,
     "open": 0,
     "half_open": 0,
-    "closed": 5,
+    "closed": 2,
     "breakers": {
       "yolo26": "closed",
-      "nemotron": "closed",
-      "florence": "closed",
-      "clip": "closed",
-      "enrichment": "closed"
+      "ai-vlm": "closed"
     }
   },
   "workers": [
@@ -740,13 +707,13 @@ GET /api/system/health/full
 
 **AI Services Tracked:**
 
-| Service      | Display Name               | Critical |
-| ------------ | -------------------------- | -------- |
-| `yolo26`     | YOLO26 Object Detection    | Yes      |
-| `nemotron`   | Nemotron LLM Risk Analysis | Yes      |
-| `florence`   | Florence-2 Vision Language | No       |
-| `clip`       | CLIP Embedding Service     | No       |
-| `enrichment` | Enrichment Service         | No       |
+The two rows are the full table at
+`backend/api/routes/system.py:5105`.
+
+| Service  | Display Name            | Critical |
+| -------- | ----------------------- | -------- |
+| `yolo26` | YOLO26 Object Detection | Yes      |
+| `ai-vlm` | VLM Verdict Service     | No       |
 
 **Overall Status Determination:**
 
@@ -761,8 +728,11 @@ GET /api/system/health/full
 - PostgreSQL database
 - Redis cache
 - YOLO26 (object detection)
-- Nemotron (risk analysis)
 - File watcher worker
+
+(The `ai-vlm` verdict service is tracked as a non-critical AI service, so it
+degrades rather than fails the check — see `AI_SERVICES_CONFIG` at
+`backend/api/routes/system.py:5105`.)
 
 ---
 
@@ -770,7 +740,7 @@ GET /api/system/health/full
 
 - [System Operations API](system-ops.md) - Core system health, GPU, configuration, and cleanup
 - [Core Resources API](core-resources.md) - Cameras, events, detections
-- [AI Pipeline API](ai-pipeline.md) - Enrichment and batch processing
+- [AI Pipeline API](ai-pipeline.md) - Batch aggregation and VLM analysis
 - [Real-time API](realtime.md) - WebSocket streams
 - [WebSocket Contracts](websocket-contracts.md) - WebSocket message formats
 

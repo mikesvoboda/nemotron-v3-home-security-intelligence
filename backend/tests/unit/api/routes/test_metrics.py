@@ -94,11 +94,7 @@ class TestMetricsEndpoint:
             "hsi_detections_by_class_total",
             "hsi_detection_confidence",
             "hsi_detections_filtered_low_confidence_total",
-            "hsi_risk_score",
             "hsi_events_by_risk_level_total",
-            "hsi_prompt_template_used_total",
-            "hsi_florence_task_total",
-            "hsi_enrichment_model_calls_total",
             "hsi_events_by_camera_total",
             "hsi_events_reviewed_total",
             "hsi_queue_overflow_total",
@@ -437,26 +433,6 @@ class TestMetricsHistogramBuckets:
                 or "hsi_stage_duration_seconds_count" in content
                 or "hsi_stage_duration_seconds_sum" in content
             )
-
-    @pytest.mark.asyncio
-    async def test_metrics_risk_score_has_buckets(self) -> None:
-        """Test that risk_score histogram has proper buckets."""
-        from backend.core.metrics import observe_risk_score
-
-        observe_risk_score(75)
-
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-            headers=get_auth_headers(),
-        ) as client:
-            response = await client.get("/api/metrics")
-
-        assert response.status_code == 200
-        content = response.text
-
-        # Risk score histogram should be present
-        assert "hsi_risk_score" in content
 
     @pytest.mark.asyncio
     async def test_metrics_detection_confidence_has_buckets(self) -> None:

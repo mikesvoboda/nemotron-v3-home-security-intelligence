@@ -6,10 +6,9 @@ This directory contains developer-focused architecture documentation for the Hom
 
 ## Quick Navigation
 
-| Document                                               | Purpose                                    |
-| ------------------------------------------------------ | ------------------------------------------ |
-| [README.md](README.md)                                 | Directory overview and system diagram      |
-| [model-loader-migration.md](model-loader-migration.md) | Model loader migration guide for Model Zoo |
+| Document               | Purpose                               |
+| ---------------------- | ------------------------------------- |
+| [README.md](README.md) | Directory overview and system diagram |
 
 ## Directory Contents
 
@@ -17,7 +16,6 @@ This directory contains developer-focused architecture documentation for the Hom
 developer/architecture/
   AGENTS.md                    # This file
   README.md                    # Directory overview with system diagram
-  model-loader-migration.md    # Model loader migration to abstract base class
 ```
 
 ## Key Files
@@ -35,40 +33,19 @@ developer/architecture/
 
 **When to use:** Finding the right architecture document for a specific topic.
 
-### model-loader-migration.md
-
-**Purpose:** Guide for migrating model loaders to use the `ModelLoaderBase` abstract base class.
-
-**Contents:**
-
-- Migration pattern from functional to class-based loaders
-- List of 14+ loaders with migration status
-- Code examples for before/after patterns
-- Testing requirements and checklist
-- References to source files
-
-**Key Source Files:**
-
-- `backend/services/model_loader_base.py` - Abstract base class
-- `backend/services/clip_loader.py` - Reference implementation (CLIPLoader)
-- `backend/tests/unit/services/test_model_loader_base.py` - Base class tests
-- `backend/tests/unit/services/test_clip_loader.py` - Reference tests
-
-**When to use:** Adding new model loaders or migrating existing ones to the standard interface.
-
 ## Related Resources
 
 ### System Architecture (docs/architecture/)
 
-| Document                                                  | Description                             |
-| --------------------------------------------------------- | --------------------------------------- |
-| [overview.md](../../architecture/overview.md)             | High-level system design and data flow  |
-| [data-model.md](../../architecture/data-model.md)         | PostgreSQL schemas and Redis structures |
-| [ai-pipeline.md](../../architecture/ai-pipeline.md)       | Detection to analysis flow              |
-| [real-time.md](../../architecture/real-time.md)           | WebSocket and pub/sub architecture      |
-| [decisions.md](../../architecture/decisions.md)           | ADRs - why we made key choices          |
-| [resilience.md](../../architecture/resilience.md)         | Error handling and graceful degradation |
-| [frontend-hooks.md](../../architecture/frontend-hooks.md) | Custom React hook architecture          |
+| Document                                                                        | Description                             |
+| ------------------------------------------------------------------------------- | --------------------------------------- |
+| [overview.md](../../architecture/overview.md)                                   | High-level system design and data flow  |
+| [data-model.md](../../architecture/data-model.md)                               | PostgreSQL schemas and Redis structures |
+| [ai-pipeline-current-state.md](../../architecture/ai-pipeline-current-state.md) | What runs today (post-R8)               |
+| [real-time.md](../../architecture/real-time.md)                                 | WebSocket and pub/sub architecture      |
+| [decisions.md](../../architecture/decisions.md)                                 | ADRs - why we made key choices          |
+| [resilience.md](../../architecture/resilience.md)                               | Error handling and graceful degradation |
+| [frontend-hooks.md](../../architecture/frontend-hooks.md)                       | Custom React hook architecture          |
 
 ### Developer Documentation (docs/developer/)
 
@@ -89,13 +66,6 @@ developer/architecture/
 | `backend/AGENTS.md`                     | Backend implementation details   |
 
 ## Entry Points for Agents
-
-### Adding a New Model Loader
-
-1. Read `model-loader-migration.md` for the migration pattern
-2. Implement `ModelLoaderBase[T]` interface
-3. Follow the testing checklist
-4. Update Model Zoo registry in `backend/services/model_zoo.py`
 
 ### Understanding System Architecture
 

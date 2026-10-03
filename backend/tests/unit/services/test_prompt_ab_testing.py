@@ -291,13 +291,6 @@ class TestPromptPerformanceMetrics:
         # Verify it's a Histogram with version label
         assert hasattr(prompt_version_latency_seconds, "labels")
 
-    def test_prompt_version_risk_score_variance_metric_exists(self):
-        """Test hsi_prompt_version_risk_score_variance metric is defined."""
-        from backend.core.metrics import prompt_version_risk_score_variance
-
-        assert prompt_version_risk_score_variance is not None
-        assert hasattr(prompt_version_risk_score_variance, "labels")
-
     def test_record_prompt_latency(self):
         """Test recording latency for a prompt version."""
         from backend.core.metrics import record_prompt_latency
@@ -305,13 +298,6 @@ class TestPromptPerformanceMetrics:
         # Should not raise
         record_prompt_latency(version="v1", latency_seconds=0.5)
         record_prompt_latency(version="v2", latency_seconds=1.2)
-
-    def test_record_risk_score_variance(self):
-        """Test recording risk score variance between versions."""
-        from backend.core.metrics import record_risk_score_variance
-
-        # Should not raise
-        record_risk_score_variance(control_version="v1", treatment_version="v2", variance=5.0)
 
     @pytest.mark.asyncio
     async def test_prompt_ab_tester_records_metrics(self):

@@ -32,8 +32,9 @@ registry is parsed as literals rather than imported.
                                         settings the deployment rewrites to
                                         gateway-prefixed URLs (compose's
                                         backend env YOLO26_URL=http://
-                                        ai-gateway:8090/yolo26 — the
-                                        rewrite that makes D1/D2 live). Read as
+                                        ai-gateway:8090/yolo26 — the rewrite
+                                        that decides which base a caller's URL
+                                        resolves to in production). Read as
                                         data; absent compose (fixture trees)
                                         means "no rewrites, all hosts exist".
 
@@ -73,15 +74,15 @@ per_model_server:False = D4 — are reported under "declared" and stay green):
                             aliases (image_base64 <-> image) resolve;
                             extra="ignore" schemas accept anything declared.
 
-Known Tier-A list (WP8.4 dossier /tmp/wp25/wp84-draft/tier-a.md — ground
-truth: if this checker finds FEWER, it is wrong, not the tree):
-  D1 heavy-gateway bbox shape 422 (client list vs gateway dict vs native list)
-  D2 four ops gateway:False yet callers hit gateway-prefixed/undeployed URLs
-     (model_status, model_preload, model_unload, object_distance)
-  D3 /models/{name}/unload vs registered POST /models/unload?model_name=
+Golden set. The adjudicated divergence list (.github/ai-parity-baseline.json)
+is EMPTY on today's tree: every surface D1, D2, D3, D5 and D6 was measured on
+is gone, and D4's split is DECLARED (green by the matrix). The per-id record of
+what took each one, and the non-vacuity counters proving a zero-divergence
+result came from a walked tree, live in
+scripts/test_check_ai_provider_parity.py (REAL_TIER_A_IDS). The detectors below
+stay live: the finding is what a NEW provider, or a restored surface, produces.
+
   D4 /segment gateway:True per_model_server:False — DECLARED, must stay green
-  D5 camera_type widened to str, never read by gateway classify
-  D6 MAX_BATCH_TEXTS_SIZE field_validator native-only, absent at the gateway
 
 Exit codes (WP1.3 ratchet family; same shape as scripts/ratchet-check.py):
   0  parity — no divergences, or (with --expect) detected set == golden set

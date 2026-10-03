@@ -3,14 +3,14 @@
 Model Zoo Download Script
 Nemotron v3 Home Security Intelligence
 
-Downloads all model zoo models for on-demand enrichment pipeline.
+Downloads the lookup model zoo the on-demand loaders read.
 Models are stored in /export/ai_models/model-zoo/{model-name}/.
 
 Usage:
     ./scripts/download-model-zoo.py                    # Download all Phase 1 models
     ./scripts/download-model-zoo.py --phase 2         # Download Phase 2 models
     ./scripts/download-model-zoo.py --all             # Download all phases
-    ./scripts/download-model-zoo.py --model vitpose   # Download specific model
+    ./scripts/download-model-zoo.py --model osnet     # Download specific model
     ./scripts/download-model-zoo.py --list            # List available models
 
 Requirements:
@@ -65,38 +65,6 @@ MODEL_ZOO: list[ModelSpec] = [
         model_type="transformers",  # Uses snapshot_download, not ultralytics loader
     ),
     ModelSpec(
-        name="smoke-fire-yolov8n",
-        hf_repo="luminous0219/fire-and-smoke-detection-yolov8",
-        phase=1,
-        vram_mb=350,
-        description="Smoke/fire detection (CRITICAL safety model)",
-        model_type="transformers",  # Uses snapshot_download
-    ),
-    ModelSpec(
-        name="yolo-world-s",
-        hf_repo="yolov8s-worldv2.pt",  # ultralytics will download this
-        phase=1,
-        vram_mb=1500,
-        description="Open-vocabulary detection (packages, weapons, tools)",
-        model_type="ultralytics",
-    ),
-    ModelSpec(
-        name="vitpose-small",
-        hf_repo="usyd-community/vitpose-plus-small",
-        phase=1,
-        vram_mb=1500,
-        description="Human pose estimation (17 COCO keypoints)",
-        model_type="transformers",
-    ),
-    ModelSpec(
-        name="depth-anything-v2-tiny",
-        hf_repo="depth-anything/Depth-Anything-V2-Tiny-hf",
-        phase=1,
-        vram_mb=100,
-        description="Monocular depth estimation (3x faster than Small)",
-        model_type="transformers",
-    ),
-    ModelSpec(
         name="osnet-ain-x1-0",
         hf_repo="osnet_ain_x1_0",  # torchreid model name
         phase=1,
@@ -123,116 +91,6 @@ MODEL_ZOO: list[ModelSpec] = [
         vram_mb=28,
         description="End-to-end license plate detection + OCR (replaces YOLO11+PaddleOCR, -372MB)",
         model_type="transformers",  # Uses pip install, not HF download
-    ),
-    ModelSpec(
-        name="vit-age-classifier",
-        hf_repo="nateraw/vit-age-classifier",
-        phase=1,
-        vram_mb=200,
-        description="Age estimation from face/person crops",
-        model_type="transformers",
-    ),
-    ModelSpec(
-        name="vit-gender-classifier",
-        hf_repo="rizvandwiki/gender-classification",
-        phase=1,
-        vram_mb=200,
-        description="Gender classification from face/person crops",
-        model_type="transformers",
-    ),
-    ModelSpec(
-        name="zero-dce-plus-plus",
-        hf_repo="Li-Chongyi/Zero-DCE_extension",  # Placeholder - needs manual download from GitHub
-        phase=1,
-        vram_mb=5,
-        description="Zero-DCE++ low-light enhancement preprocessing (40KB, ~0 VRAM)",
-        model_type="transformers",
-    ),
-    # Phase 2 - Context Enrichment
-    ModelSpec(
-        name="segformer-b2-clothes",
-        hf_repo="mattmdjaga/segformer_b2_clothes",
-        phase=2,
-        vram_mb=1500,
-        description="Clothing segmentation (18 categories)",
-        model_type="transformers",
-    ),
-    ModelSpec(
-        name="weather-classification",
-        hf_repo="prithivMLmods/Weather-Image-Classification",
-        phase=2,
-        vram_mb=200,
-        description="Weather condition detection",
-        model_type="transformers",
-    ),
-    ModelSpec(
-        name="violence-detection",
-        hf_repo="jaranohaal/vit-base-violence-detection",
-        phase=2,
-        vram_mb=500,
-        description="Violence/aggression detection (98.8% accuracy)",
-        model_type="transformers",
-    ),
-    # xclip-base row removed 2026-09-23 (full X-CLIP removal, owner ruling;
-    # NEM-5563 migration to skeleton-based Triton stgcn_action behind the
-    # ai-gateway /action-classify adapter). The owner-owned models.yml keeps
-    # the xclip-base provenance entry — sweep both together when it is ruled.
-    ModelSpec(
-        name="fashion-clip",
-        hf_repo="Marqo/marqo-fashionCLIP",
-        phase=2,
-        vram_mb=500,
-        description="Zero-shot clothing attributes",
-        model_type="transformers",
-    ),
-    ModelSpec(
-        name="florence-2-base",
-        hf_repo="microsoft/Florence-2-base",
-        phase=2,
-        vram_mb=450,
-        description="Vision-language queries (attributes, behavior, scene) - base variant saves ~1.2GB VRAM",
-        model_type="transformers",
-    ),
-    ModelSpec(
-        name="siglip2-base-patch16-224",
-        hf_repo="onnx-community/siglip2-base-patch16-224-ONNX",  # pragma: allowlist secret
-        phase=2,
-        vram_mb=200,
-        description="SigLIP 2 Base embeddings for re-identification (replaces CLIP ViT-L, -1035MB VRAM)",
-        model_type="transformers",
-    ),
-    ModelSpec(
-        name="stgcn-plus-plus",
-        hf_repo="pyskl/stgcnpp_ntu60_xsub_hrnet_j",  # Placeholder - manual download
-        phase=2,
-        vram_mb=20,
-        description="ST-GCN++ skeleton-based action recognition (replaces X-CLIP, -1986MB VRAM)",
-        model_type="transformers",  # Will use snapshot_download for checkpoint
-    ),
-    # Phase 3 - Specialized
-    ModelSpec(
-        name="vehicle-segment-classification",
-        hf_repo="AventIQ-AI/ResNet-50-Vehicle-Segment-classification",
-        phase=3,
-        vram_mb=1500,
-        description="Vehicle type classification (11 classes)",
-        model_type="transformers",
-    ),
-    ModelSpec(
-        name="vehicle-damage-detection",
-        hf_repo="harpreetsahota/car-dd-segmentation-yolov11",
-        phase=3,
-        vram_mb=2000,
-        description="Vehicle damage segmentation (cracks, dents, glass_shatter)",
-        model_type="ultralytics",
-    ),
-    ModelSpec(
-        name="pet-classifier",
-        hf_repo="hilmansw/resnet18-catdog-classifier",
-        phase=3,
-        vram_mb=200,
-        description="Dog/cat classification for false positive reduction",
-        model_type="transformers",
     ),
 ]
 
@@ -462,7 +320,7 @@ Examples:
     %(prog)s                    # Download Phase 1 models
     %(prog)s --phase 2          # Download Phase 2 models
     %(prog)s --all              # Download all models
-    %(prog)s --model vitpose    # Download specific model
+    %(prog)s --model osnet      # Download specific model
     %(prog)s --list             # List available models
     %(prog)s --status           # Check download status
         """,

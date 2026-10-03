@@ -1,14 +1,14 @@
 # Benchmark Comparison Tool Tests
 
-This directory contains comprehensive tests for the benchmark comparison tool (`scripts/benchmark/compare.py`).
+This directory holds tests for the benchmark tooling under `scripts/benchmark/` (see `AGENTS.md` for the full inventory); this file covers the comparison tool (`scripts/benchmark/compare.py`) in detail.
 
-## Test-Driven Development (TDD)
+## Implementation Status
 
-These tests follow TDD principles:
+`scripts/benchmark/compare.py` is implemented and its suite is green — 33 tests pass:
 
-1. **RED Phase** (Current): Tests are written first and fail with `NotImplementedError`
-2. **GREEN Phase** (Next): Implement functionality to make tests pass
-3. **REFACTOR Phase** (Final): Optimize and clean up implementation while keeping tests green
+```bash
+uv run pytest tests/benchmark/test_compare.py -q
+```
 
 ## Test Coverage
 
@@ -179,28 +179,21 @@ uv run pytest tests/benchmark/test_compare.py::TestBenchmarkResultLoader -v
 uv run pytest tests/benchmark/test_compare.py::TestBenchmarkResultLoader::test_load_single_benchmark_file -v
 ```
 
-## Implementation Checklist
+## Covered Behaviour
 
-When implementing the comparison tool (GREEN phase), ensure:
+`compare.py` implements each of these, and each has passing tests above:
 
-- [ ] JSON loading with proper error handling
-- [ ] Required field validation (model_name, metrics)
-- [ ] Percentage delta calculation (handling zero baseline)
-- [ ] Markdown table generation with proper formatting
-- [ ] Symbol indicators based on metric type (lower/higher is better)
-- [ ] Missing metric handling (N/A values)
-- [ ] CLI argument parsing (baseline, test, output)
-- [ ] File I/O for saving reports
-- [ ] Multiple benchmark comparison support
+- JSON loading with proper error handling
+- Required field validation (model_name, metrics)
+- Percentage delta calculation (handling zero baseline)
+- Markdown table generation with proper formatting
+- Symbol indicators based on metric type (lower/higher is better)
+- Missing metric handling (N/A values)
+- CLI argument parsing (baseline, test, output)
+- File I/O for saving reports
+- Multiple benchmark comparison support
 
 ## Related Files
 
 - **Implementation**: `scripts/benchmark/compare.py`
 - **Tests**: `tests/benchmark/test_compare.py`
-
-## Next Steps
-
-1. **GREEN Phase**: Implement functionality in `scripts/benchmark/compare.py` to make tests pass
-2. **Verify**: Run `uv run pytest tests/benchmark/test_compare.py -v` until all tests pass
-3. **REFACTOR Phase**: Optimize implementation while keeping tests green
-4. **Integration**: Use comparison tool in CI/CD for performance regression detection

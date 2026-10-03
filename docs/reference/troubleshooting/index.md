@@ -44,7 +44,7 @@ _Decision tree for diagnosing system health issues: Start with the health check 
 | Symptom                     | Likely Cause                                 | Quick Fix                   | Detailed Guide                                     |
 | --------------------------- | -------------------------------------------- | --------------------------- | -------------------------------------------------- |
 | Dashboard shows no events   | File watcher not running or AI services down | Restart backend             | [Events Not Appearing](#dashboard-shows-no-events) |
-| Risk gauge stuck at 0       | Nemotron service unavailable                 | Start Nemotron LLM          | [AI Issues](ai-issues.md#analysis-failing)         |
+| Risk gauge stuck at 0       | VLM serve down or slow                       | Start ai-vlm (profile)      | [AI Issues](ai-issues.md)                          |
 | Camera shows offline        | Camera not uploading or folder path wrong    | Check FTP and folder config | [Camera Offline](#camera-shows-offline)            |
 | AI not responding           | Services not started or port conflicts       | Start AI services           | [AI Not Working](#ai-not-working)                  |
 | WebSocket disconnected      | Backend down or network issues               | Check backend health        | [WebSocket Issues](#websocket-disconnected)        |
@@ -100,12 +100,13 @@ ls -lt /export/foscam/*/  # Should show recent files
 **3. Check AI service health:**
 
 ```bash
-curl http://localhost:8090/yolo26/health     # YOLO26 (AI gateway router)
-curl http://localhost:8091/health            # Nemotron (ai-llm container)
-curl http://localhost:8090/florence/health   # Florence-2 (optional router)
-curl http://localhost:8090/clip/health       # CLIP (optional router)
-curl http://localhost:8090/enrichment/health # Heavy enrichment (optional router)
-curl http://localhost:8090/enrich-lt/health  # Light enrichment (optional router)
+# ai-gateway (:8090) — aggregate over the resident models, then each router
+curl http://localhost:8090/health
+curl http://localhost:8090/yolo26/health     # object detection
+curl http://localhost:8090/enrich-lt/health  # readiness lane for the resident specialists
+
+# ai-vlm (:8098) — behind the `vlm` compose profile, so it needs a profile-aware call
+curl http://localhost:8098/health
 ```
 
 **4. Check queue depths:**
@@ -134,50 +135,53 @@ See: [Connection Issues](connection-issues.md#file-watcher-issues), [AI Issues](
 # Check recent events for risk scores
 curl -s http://localhost:8000/api/events?limit=3 | jq '.items[].risk_score'
 
-# Check Nemotron health
-curl -s http://localhost:8091/health
+# Check the reasoning serve that scores every batch
+curl -s http://localhost:8098/health
 ```
 
 ### Possible Causes
 
-1. **Nemotron service not running** - Most common cause
-2. **Nemotron timeout** - Model too slow or overloaded
-3. **LLM response parsing failure** - Invalid JSON from model
+1. **`ai-vlm` not running** - Most common cause. It sits behind the `vlm` compose
+   profile, so a bring-up that omits the profile starts the detector and never the
+   scorer.
+2. **A verdict timeout** - the serve is up but slower than `AI_VLM_READ_TIMEOUT`
+3. **The multimodal projector is missing** - the serve answers text-only, so it
+   never sees the stills and can never return a usable verdict
 
 ### Solutions
 
-**1. Start Nemotron if not running:**
+**1. Start the VLM with its profile:**
 
 ```bash
-./ai/start_llm.sh
-# Or if containerized:
-docker compose -f docker-compose.prod.yml up -d ai-llm
+docker compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
 ```
 
-**2. Check Nemotron logs:**
+**2. Check its logs:**
 
 ```bash
-docker compose -f docker-compose.prod.yml logs -f ai-llm
-# Host-run ./ai/start_nemotron.sh writes /tmp/nemotron.log;
-# ./ai/start_llm.sh logs to its terminal
+docker compose -f docker-compose.prod.yml --profile vlm logs --tail=50 ai-vlm
 ```
 
-**3. Increase timeout if needed:**
+**3. Raise the verdict budget if the card is slow:**
 
 ```bash
-# In .env
-NEMOTRON_READ_TIMEOUT=300.0  # Default is 120s
+# In .env, then restart the backend. Default 25 s, and the single retry shares
+# this budget, so a value at or above 30 s leaves the retry no room.
+AI_VLM_READ_TIMEOUT=45.0
 ```
 
-**4. Test Nemotron directly:**
+**4. Confirm the serve actually saw the images** (a missing `--mmproj` passes both
+healthchecks while answering text-only):
 
 ```bash
-curl -X POST http://localhost:8091/completion \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Say hello", "max_tokens": 20}'
+docker compose -f docker-compose.prod.yml --profile vlm exec ai-vlm ls -la /models/
+docker compose -f docker-compose.prod.yml --profile vlm logs ai-vlm 2>&1 | grep -i mmproj
 ```
 
-See: [AI Issues - Analysis Failing](ai-issues.md#analysis-failing)
+An event with `risk_score: null` was still written, with an honest "needs review"
+summary — a null score means the scorer failed, not that the scene was benign.
+
+See: [AI Issues - Analysis Failing (null risk scores)](ai-issues.md#analysis-failing-null-risk-scores)
 
 ---
 
@@ -241,69 +245,81 @@ See: [Connection Issues - File Watcher](connection-issues.md#file-watcher-issues
 
 ### What You See
 
-- Health check shows AI services as unhealthy
-- Error: "YOLO26 service connection refused"
-- Error: "Nemotron service connection refused"
-- No detections being created
+- Health check shows the `ai` service as unhealthy or degraded
+- Error: "YOLO26 service unavailable, ai-vlm operational" (or the reverse)
+- No detections being created, or events landing with a null risk score
 
 ### Quick Diagnosis
 
 ```bash
-# Overall AI status
+# Overall AI status. The `ai` block reports exactly two members: yolo26 and ai-vlm.
 curl -s http://localhost:8000/api/system/health | jq '.services.ai'
+curl -s http://localhost:8000/api/health/ai-services | jq '.services'
 
-# Individual service checks (production topology: Triton gateway + LLM container)
+# The two services directly
 curl http://localhost:8090/yolo26/health  # Should return {"status": "healthy", ...}
-curl http://localhost:8091/health         # Should return {"status": "ok"}
+curl http://localhost:8098/health         # ai-vlm
 ```
+
+`/api/system/health` reports `degraded` when one of the two is up and `unhealthy`
+when neither is. `/api/health/ai-services` is the per-member view, and `yolo26` is
+the member whose failure drives the critical status.
 
 ### Possible Causes (Most Likely First)
 
-1. **AI containers not running** - `ai-gateway` and `ai-llm` start with the stack
-2. **Port conflicts** - Something else using 8090/8091
+1. **`ai-vlm` never started** - `ai-gateway` comes up with the stack; `ai-vlm` sits
+   behind the `vlm` compose profile, so a plain `up -d` never starts it
+2. **Port conflicts** - Something else holding 8090
 3. **GPU not available** - CUDA not initialized (see [Triton Rootless CUDA](triton-rootless-cuda.md) under rootless Podman)
-4. **Model files missing** - Models not downloaded
+4. **Model files missing** - Models not downloaded, or the VLM GGUF pair not placed
 
 ### Solutions
 
-**1. Start AI services:**
+**1. Start both AI services, naming the profile:**
 
 ```bash
-# Production (containers)
-docker compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
-
-# Host-run development (no unified wrapper script exists)
-./ai/start_detector.sh  # Standalone YOLO26 server (PORT default 8090)
-./ai/start_llm.sh       # Host-run Nemotron dev LLM on 8091
+docker compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
 ```
 
-**2. Check for port conflicts:**
+**2. Check for a port conflict on the gateway:**
 
 ```bash
-lsof -i :8090  # AI gateway port (8095 if using YOLO26_PORT from .env)
-lsof -i :8091  # Nemotron port
+lsof -i :8090  # ai-gateway; the host-run ./ai/start_detector.sh binds this too
 ```
 
-**3. Verify CUDA:**
+**3. Verify the GPU is reachable from inside the gateway container:**
 
 ```bash
-python3 -c "import torch; print(torch.cuda.is_available())"
+nvidia-smi   # host view first
+
+# Container view — this is the probe that fails as err=3 under rootless Podman
+podman exec <ai-gateway-container> python3 -c "
+import ctypes
+lib = ctypes.CDLL('libcudart.so')
+count = ctypes.c_int()
+print('err=', lib.cudaGetDeviceCount(ctypes.byref(count)), 'count=', count.value)
+"
 ```
 
-**4. Download models if missing:**
+The host Python environment runs a CPU-only torch wheel, so a `torch.cuda` check
+there says nothing about the containers; probe the container itself.
+
+**4. Fetch the model zoo if it is missing:**
 
 ```bash
-./ai/download_models.sh
-# Nemotron lands in ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km/
-# (Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf, ~14.7GB); the rest go to model-zoo/
+./ai/download_models.sh   # writes ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/
 ```
 
-**5. Check AI service logs:**
+The script creates `.../vlm/` but never fills it: the shipped reasoning weights
+(`Qwen3VL-8B-Instruct-Q4_K_M.gguf` + `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`) are
+the one set you place there yourself, and compose mounts that directory read-only
+into `ai-vlm` at `/models`.
+
+**5. Check the AI service logs:**
 
 ```bash
-docker compose -f docker-compose.prod.yml logs --tail=100 ai-gateway ai-llm
-# Host-run: start_nemotron.sh writes /tmp/nemotron.log; start_detector.sh/start_llm.sh
-# log to their terminal
+docker compose -f docker-compose.prod.yml logs --tail=100 ai-gateway
+docker compose -f docker-compose.prod.yml --profile vlm logs --tail=100 ai-vlm
 ```
 
 See: [AI Issues](ai-issues.md), [GPU Issues](gpu-issues.md)
@@ -530,11 +546,11 @@ curl -s http://localhost:8000/api/system/pipeline-latency | jq .
 **1. Verify GPU is being used:**
 
 ```bash
-# tritonserver and llama-server should hold GPU memory
+# tritonserver and llama-server should each hold GPU memory
 nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
 
-# A host-run standalone detector reports its device directly
-curl -s http://localhost:8095/health | jq '.device'  # "cuda:0" or "cpu"
+# The gateway's aggregate: status, triton_server_ready, and a readiness map per model
+curl -s http://localhost:8090/health | jq
 ```
 
 **2. Check temperature:**
@@ -547,7 +563,8 @@ nvidia-smi  # Temperature should be < 85C
 
 ```bash
 # Restart the AI stack (drops loaded models and re-initialises CUDA)
-docker compose -f docker-compose.prod.yml restart ai-gateway ai-llm
+docker compose -f docker-compose.prod.yml restart ai-gateway
+docker compose -f docker-compose.prod.yml --profile vlm restart ai-vlm
 ```
 
 See: [GPU Issues](gpu-issues.md)
@@ -691,7 +708,7 @@ cat .env | grep -v PASSWORD | grep -v SECRET | grep -v KEY > env_safe.txt
 - [GPU Issues](gpu-issues.md) - CUDA, VRAM, temperature, container GPU access
 - [Triton Rootless CUDA](triton-rootless-cuda.md) - ai-gateway cudaGetDeviceCount err=3 in rootless Podman
 - [Connection Issues](connection-issues.md) - Network, containers, WebSocket, CORS
-- [AI Issues](ai-issues.md) - YOLO26, Nemotron, pipeline, batch processing
+- [AI Issues](ai-issues.md) - `ai-gateway`, `ai-vlm`, pipeline, batch processing
 - [Database Issues](database-issues.md) - PostgreSQL connection, migrations, disk space
 
 ---

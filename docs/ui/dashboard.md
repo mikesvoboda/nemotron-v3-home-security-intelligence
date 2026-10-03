@@ -103,7 +103,10 @@ The sparkline only appears when there are at least 2 recent events to compare. T
 
 ### Risk Levels
 
-The risk score is determined by the NVIDIA Nemotron LLM analyzing detected objects, time of day, location context, and behavioral patterns. Scores map to four severity levels:
+The risk score is assigned by the vision-language analyzer (`ai-vlm`), which reads up to four key
+frames from the batch together with the detection list, the camera and time context, and the
+results of the face / plate / person re-identification lookups. Scores map to four severity
+levels:
 
 | Score Range | Level        | Color  | Description                                        |
 | ----------- | ------------ | ------ | -------------------------------------------------- |
@@ -112,6 +115,10 @@ The risk score is determined by the NVIDIA Nemotron LLM analyzing detected objec
 | 60-84       | **High**     | Orange | Suspicious activity requiring attention            |
 | 85-100      | **Critical** | Red    | Potential security threat, immediate action needed |
 
+The four boundaries are configuration (`severity_low_max` 29, `severity_medium_max` 59,
+`severity_high_max` 84 by default) and an operator can change them at runtime, which moves the
+band edges for future events.
+
 **What Each Level Typically Means:**
 
 - **Low (0-29):** Regular household activity, family members coming and going, expected deliveries, animals and wildlife, normal neighborhood traffic
@@ -119,16 +126,18 @@ The risk score is determined by the NVIDIA Nemotron LLM analyzing detected objec
 - **High (60-84):** Unknown individuals approaching doors/windows, activity late at night, multiple people acting together, repeated visits by same unknown person
 - **Critical (85-100):** Attempted unauthorized entry, suspicious behavior near entry points, known threat indicators, emergency situations
 
-**How Nemotron Calculates Risk:**
+**How the score is produced:**
 
 1. **Object Detection**: YOLO26 identifies objects (persons, vehicles, animals) with confidence scores
 2. **Batch Aggregation**: Related detections are grouped into up to 90-second time windows (closing after 30 seconds of idle or when max detections reached)
-3. **Context Analysis**: Nemotron evaluates:
-   - Time of day (e.g., 2 AM person detection vs noon)
-   - Object types and confidence levels
-   - Camera location (e.g., entry points vs backyard)
-   - Detection frequency and patterns
-4. **Risk Assessment**: LLM generates a score, level, summary, and reasoning
+3. **Key frames and lookups**: 1-4 representative stills are selected, and the face, plate and
+   person re-ID lookups report who/what they recognise from the enrolled household gallery
+4. **Risk Assessment**: the VLM returns a verdict, summary, reasoning, `risk_score` and
+   `risk_level`; the score is then checked against the severity rules before it is stored, and a
+   clamped score says so in its reasoning
+
+An event whose verification failed carries **no score at all** — the card shows an unscored event
+rather than a score of 0. See [Understanding Alerts](understanding-alerts.md) for what that means.
 
 ### Diagram: Risk Score Calculation Flow
 
@@ -148,13 +157,13 @@ flowchart TD
         G -->|No| F
     end
 
-    subgraph Analysis["Nemotron Analysis"]
-        H --> I[Evaluate Context]
+    subgraph Analysis["VLM Risk Analysis"]
+        H --> I[Key Frames + Context]
         I --> J[Time of Day]
         I --> K[Object Types]
         I --> L[Camera Location]
-        I --> M[Detection Patterns]
-        J & K & L & M --> N[LLM Risk Assessment]
+        I --> M[Face / Plate / Re-ID Lookups]
+        J & K & L & M --> N[VLM Risk Assessment]
     end
 
     subgraph Output["Risk Output"]
@@ -258,7 +267,7 @@ Shows the current backlog of images waiting to be processed:
 | Queue               | Purpose                                    |
 | ------------------- | ------------------------------------------ |
 | **Detection Queue** | Images waiting for YOLO26 object detection |
-| **Analysis Queue**  | Batches waiting for Nemotron AI analysis   |
+| **Analysis Queue**  | Batches waiting for VLM analysis           |
 
 **Queue Status Colors:**
 
@@ -271,104 +280,44 @@ Shows the current backlog of images waiting to be processed:
 
 A warning message appears when queues exceed the threshold (default: 10), indicating processing is falling behind and events may be delayed.
 
-## AI Enrichment Data in Event Details
+## What an Event Detail Shows
 
-When you view an event in detail (by clicking an event in the Activity Feed), the system shows AI Enrichment Analysis - additional information extracted by specialized AI models that run on each detection. This enrichment data provides deeper insight into what was detected.
+Click an event in the Activity Feed to open the detail modal. What it shows is the analyzer's own
+output plus the identification lookups that ran for this event:
 
-### What is AI Enrichment?
+| Section                              | What it carries                                                                                                                                                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Risk badge + sparkline**           | `risk_score` (0-100) and `risk_level`; absent when the event has no score.                                                                                                                                                                  |
+| **AI Analysis tab — reasoning**      | The analyzer's reasoning text for the score, and the prompt that produced it.                                                                                                                                                               |
+| **VLM verification**                 | Verdict badge (`confirmed` / `rejected` / `uncertain` / `verification_failed`), the whole-scene description, the criteria checklist with per-criterion evidence, the frames the model reviewed, and the engine + model id that produced it. |
+| **Matched entities / re-ID matches** | Face, plate and person re-identification matches against your enrolled household gallery, each with a similarity score.                                                                                                                     |
+| **Detections**                       | The per-object class, confidence and bounding box for the frames in this event.                                                                                                                                                             |
 
-Basic object detection tells you "there is a person" or "there is a vehicle." AI enrichment goes further:
+### Confidence Scores on a Match
 
-- **For vehicles:** What type? What color? Any damage? Is there a license plate?
-- **For people:** What are they wearing? Are they carrying anything? Face visible?
-- **For animals:** Is it a cat or dog? Is it likely a household pet?
-- **For the scene:** What's the weather? What's the image quality?
+Entity and re-ID matches carry a similarity badge:
 
-This additional context helps the system assign more accurate risk scores and helps you understand situations at a glance.
+| Similarity | Color  | Meaning                       |
+| ---------- | ------ | ----------------------------- |
+| **High**   | Green  | ≥ 0.90 — strong gallery match |
+| **Medium** | Yellow | ≥ 0.75 — probable match       |
+| **Low**    | Red    | < 0.75 — verify manually      |
 
-### Enrichment Data Types
+Detection confidences on the objects themselves are coloured by the same thresholds and are
+independent of the event's risk score.
 
-#### Vehicle Information
+### When the Detail Looks Thin
 
-| Field          | Description                                      | Example Values                      |
-| -------------- | ------------------------------------------------ | ----------------------------------- |
-| **Type**       | Vehicle category                                 | Sedan, SUV, Pickup, Van, Truck      |
-| **Color**      | Primary vehicle color                            | Silver, Black, White, Red, Blue     |
-| **Damage**     | Detected damage types (security relevant)        | Cracks, Dents, Scratches, Tire Flat |
-| **Commercial** | Whether it appears to be a delivery/work vehicle | Badge shown if detected             |
+Two honest cases to expect:
 
-**Damage Types (Security Relevant):**
-
-- **Glass Shatter** - Broken windows (possible break-in)
-- **Lamp Broken** - Damaged headlights/taillights
-- **Cracks, Dents, Scratches** - Body damage
-- **Tire Flat** - Deflated or damaged tires
-
-#### Person Information
-
-| Field                 | Description                         | Example Values                       |
-| --------------------- | ----------------------------------- | ------------------------------------ |
-| **Clothing**          | General clothing description        | Red t-shirt, Blue jeans, Dark jacket |
-| **Action**            | What the person appears to be doing | Walking, Standing, Crouching         |
-| **Carrying**          | Items being carried                 | Backpack, Package, Bag               |
-| **Suspicious Attire** | Security-relevant clothing flags    | Face covered, All-dark clothing      |
-| **Service Uniform**   | Delivery/service worker clothing    | Visible if detected                  |
-
-**Security Flags:**
-
-- **Suspicious Attire** (yellow warning) - Face coverings, all-dark clothing at night, masks
-- **Service Uniform** (blue info) - Delivery driver uniforms, maintenance worker clothing
-
-#### License Plate Detection
-
-| Field          | Description                      | Format     |
-| -------------- | -------------------------------- | ---------- |
-| **Plate Text** | OCR-extracted plate number       | ABC-1234   |
-| **Confidence** | How confident the OCR reading is | Percentage |
-
-#### Pet Identification
-
-| Field          | Description                        | Example Values  |
-| -------------- | ---------------------------------- | --------------- |
-| **Type**       | Animal type                        | Cat, Dog        |
-| **Breed**      | Detected breed (when identifiable) | Labrador, Tabby |
-| **Confidence** | Classification confidence          | Percentage      |
-
-Pet detection helps reduce false alarms - when the system identifies a high-confidence household pet with no other concerning factors, it can automatically lower the risk score.
-
-#### Weather Conditions
-
-| Field          | Description          | Example Values         |
-| -------------- | -------------------- | ---------------------- |
-| **Condition**  | Detected weather     | Clear, Rain, Snow, Fog |
-| **Confidence** | Detection confidence | Percentage             |
-
-Weather context helps interpret events - a person running in rain may be rushing to get inside rather than fleeing a scene.
-
-### Understanding Confidence Scores
-
-Each enrichment section shows a confidence badge indicating how certain the AI is:
-
-| Confidence Level    | Color  | Meaning                          |
-| ------------------- | ------ | -------------------------------- |
-| **High (>80%)**     | Green  | AI is confident in the result    |
-| **Medium (50-80%)** | Yellow | AI is moderately confident       |
-| **Low (<50%)**      | Red    | AI is uncertain; verify manually |
-
-### How Enrichment Affects Risk Scores
-
-**Factors that increase risk:**
-
-- Suspicious attire (face coverings, all-dark at night)
-- High-security vehicle damage (broken glass, broken lights)
-- Poor image quality (possible camera tampering)
-- Violence detection (when multiple people are present)
-
-**Factors that decrease risk:**
-
-- Confirmed household pets
-- Service uniforms (delivery drivers, maintenance workers)
-- Commercial vehicles (during daytime)
+- **`verification_failed` with no score.** The VLM was unreachable or blind when the event was
+  analysed. The event row is still written and the detail still opens; the verification section
+  carries the verdict and nothing else, and the risk badge is absent rather than 0. This is the
+  signal that the AI half of the pipeline is down — see the Operations page.
+- **A match section that says the leg is unavailable.** The face and person re-ID lookups only run
+  if their models were loaded at boot, which is gated on `BACKEND_MODEL_PRELOAD` (ships `false`).
+  On a host that never opted in, those lookups answer "unavailable" on every event, forever, and
+  nothing fails. Plate reads are the exception — the plate leg loads on demand.
 
 ## Customizing the Dashboard
 
@@ -407,7 +356,13 @@ At the top of the dashboard, a status indicator shows whether you are receiving 
 
 If disconnected, the dashboard will still show the most recent data but will not update automatically until connection is restored. A **(Disconnected)** indicator appears in the header when WebSocket connections are lost.
 
-**Hovering over the status indicator** displays a tooltip showing the health of individual services (database, Redis, detector, file watcher, Nemotron).
+**Hovering over the status indicator** expands it into one row per monitored service. The row set
+and its display labels come from `ServiceName` in `frontend/src/hooks/useServiceStatus.ts`; the
+chip turns yellow when any row reports unhealthy or is restarting, and red when all of them are.
+The backend pushes a row's status only for services the health monitor actually probes
+(`build_ai_service_health_configs` in `backend/main.py`), which today is the detector route on
+`ai-gateway`; `ai-vlm` health is tracked separately through the circuit breaker, so it is not a
+row here. For an aggregated view use the Operations page.
 
 ### Diagram: Connection Status States
 
@@ -469,7 +424,8 @@ No events have been detected in the current time range. Possible causes:
 
 - Cameras are not detecting motion
 - Detection confidence is below threshold (default 50%)
-- AI services (YOLO26 or Nemotron) are offline
+- AI services (`ai-gateway` or `ai-vlm`) are offline — a run of events with no risk score at all
+  means the analysis half of the pipeline is down, not that nothing happened
 
 ### GPU Statistics shows "N/A"
 
@@ -573,7 +529,7 @@ For developers wanting to understand the underlying systems.
 
 ### Architecture
 
-- **AI Pipeline**: [Detection, Batching, and Analysis Flow](../architecture/ai-pipeline.md)
+- **AI Pipeline**: [Detection, Batching, and Analysis Flow](../architecture/ai-pipeline-current-state.md)
 - **Real-time Updates**: [WebSocket and Redis Pub/Sub](../architecture/real-time.md)
 - **Risk Level Configuration**: See `frontend/src/utils/risk.ts` for threshold definitions
 
@@ -601,5 +557,5 @@ For developers wanting to understand the underlying systems.
 
 - Event Broadcasting: `backend/services/event_broadcaster.py`
 - System Broadcasting: `backend/services/system_broadcaster.py`
-- Nemotron Analyzer: `backend/services/nemotron_analyzer.py`
+- VLM Analyzer: `backend/services/vlm_analyzer.py`
 - Batch Aggregator: `backend/services/batch_aggregator.py`

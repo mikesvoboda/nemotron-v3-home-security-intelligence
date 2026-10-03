@@ -274,9 +274,10 @@ Full-screen overlay showing complete event information (`frontend/src/components
 
 #### Tab Navigation
 
-Three tabs with underline indicator:
+Four tabs with an underline indicator (`activeTab` in `frontend/src/components/events/EventDetailModal.tsx`):
 
 - **Details** - Primary event information and media
+- **AI Analysis** - The analyzer's reasoning for this event (via `LLMReasoningExplorer`)
 - **AI Audit** - Detailed AI evaluation breakdown (via `EventAuditDetail` component)
 - **Video Clip** - Generated video sequence (via `EventVideoPlayer` component)
 
@@ -303,16 +304,21 @@ Three tabs with underline indicator:
    - Shows success/error feedback after re-evaluation attempt
    - Success auto-dismisses after 3 seconds
 
-4. **AI Scene Description** (when `scene_caption` available)
+4. **Risk Factors Breakdown** (`RiskFactorsBreakdown`, rendered only when `risk_score` is not null)
 
-   - Florence-2 generated scene caption
-   - Italicized text in bordered card for distinction
-   - Eye icon header
+   - Explains a score that exists. A `verification_failed` event carries no score, so this section
+     is **absent** — it does not render a score of 0.
 
-5. **AI Reasoning** (when available)
+5. **VLM Verification** (`EventVerificationSection`, rendered whenever a verification row exists)
 
-   - Detailed explanation of risk assessment factors
-   - Green-tinted background card
+   - Verdict badge: `confirmed` / `rejected` / `uncertain` / `verification_failed`
+   - The whole-scene description the analyzer produced (`scene_description`)
+   - The criteria checklist — each criterion with a pass/fail and its evidence
+   - Thumbnails of the key frames the analyzer reviewed (`key_frame_detection_ids`)
+   - Engine and model id that produced the verdict, plus the call latency
+
+   A `verification_failed` verdict carries the verdict and nothing else — the section says exactly
+   that and pads nothing in to fill the layout. See [Understanding Alerts](understanding-alerts.md).
 
 6. **Detected Objects**
 
@@ -321,26 +327,21 @@ Three tabs with underline indicator:
    - Shows percentage and visual bar for each detection
    - Aggregate stats header: Average and Maximum confidence with TrendingUp icon
 
-7. **AI Enrichment Analysis** — _retired with R8 slice S5 (2026-09-30)_
-
-   The detail modal no longer renders an enrichment section. Its panels showed
-   license-plate OCR results, face detection information, vehicle classification
-   and damage, clothing analysis (FashionCLIP and SegFormer), violence detection,
-   image quality assessment and pet classification — all outputs of the enrichment
-   models that the shipped VLM path does not run. The detection's
-   `enrichment_data` field remains on the API response; nothing displays it.
-   See [Enrichment Components](../components/feature-specific/event-components.md#enrichment-components).
-
-8. **Re-ID Matches** (`ReidMatchesPanel` component, when detection selected)
+7. **Re-ID Matches** (`ReidMatchesPanel` component, when detection selected)
 
    - Cross-camera entity matching results
    - Shows same person/vehicle seen elsewhere
    - Entity type inferred from detection labels
 
-9. **Entity Tracking** (`EntityTrackingPanel` component, when `entity_id` linked)
+8. **Entity Tracking** (`EntityTrackingPanel` component, when `entity_id` linked)
 
    - Cross-camera movement history
    - Timeline of entity appearances
+
+9. **Matched Entities** (`MatchedEntitiesSection`, when the event has an id)
+
+   - Face, plate and person re-ID matches for this event against the enrolled gallery, each with
+     a similarity badge and the camera/time of the earlier sighting
 
 10. **Notes Section**
 
@@ -388,13 +389,19 @@ Historical events load automatically as you scroll:
 
 ## Understanding Risk Scores
 
-Risk scores are calculated by the Nemotron AI model analyzing:
+Risk scores come from the vision-language analyzer (`ai-vlm`), which receives the key frames plus:
 
 - **Object type and context** - Person at night vs. delivery during day
 - **Time of day** - Higher scores for unusual hours
-- **Historical patterns** - Anomaly detection from learned norms
 - **Detection confidence** - Lower confidence affects score
-- **Camera location** - Front door vs. backyard context
+- **Camera location** - Front door vs. backyard context (camera name and zone context ride in the prompt)
+- **Lookup results** - What the face / plate / person re-ID lookups recognised, or that a leg was
+  unavailable
+
+The score is then checked against the severity rules before it is stored; when a verdict is
+rejected the score is clamped into the low band and the clamp is left visible in the reasoning. An
+event whose verification **failed** has no score at all (`risk_score` NULL) — the badge is absent,
+not 0.
 
 Risk Levels (the canonical bands from `backend/models/event.py` and `frontend/src/utils/risk.ts`; thresholds are live-editable via `GET/PUT /api/system/severity`):
 
@@ -572,15 +579,19 @@ _Entity re-identification workflow: Detections from different cameras are conver
 
 ### How Matching Works
 
-The system uses CLIP ViT-L, a powerful visual AI model, to analyze each detection:
+The person re-ID space is **OSNet-AIN x1.0**, run in-process in the backend:
 
-| Aspect              | Description                     |
-| ------------------- | ------------------------------- |
-| Embedding Dimension | 768-dimensional vector          |
-| Similarity Measure  | Cosine similarity (0-100%)      |
-| Match Threshold     | 85% similarity (configurable)   |
-| Retention Period    | 24 hours for real-time tracking |
-| Entity Types        | Persons and vehicles            |
+| Aspect              | Description                                     |
+| ------------------- | ----------------------------------------------- |
+| Embedding Dimension | 512-dimensional vector                          |
+| Similarity Measure  | Cosine similarity (0-100%)                      |
+| Match Threshold     | 0.7 by default (`DEFAULT_SIMILARITY_THRESHOLD`) |
+| Retention Period    | 24 hours for real-time tracking                 |
+| Entity Types        | Persons (and vehicles via their own matcher)    |
+
+Faces are matched separately by the face leg (SCRFD-10G-KPS detection + ArcFace w600k_r50
+embedding), and plates by FastALPR. All three lookups report against the gallery you enrolled;
+see [Entities](entities.md).
 
 ### Understanding Similarity Scores
 
@@ -593,12 +604,15 @@ The system uses CLIP ViT-L, a powerful visual AI model, to analyze each detectio
 
 ### Viewing Entity History
 
-When you open an event with detected persons or vehicles, the AI Enrichment panel may show re-identification information:
+Re-identification results appear in two places on an event:
 
 1. Open an event from the Timeline
-2. Look for the **AI Enrichment Analysis** section
-3. Expand the **Person** or **Vehicle** accordion
-4. Previous sightings appear with camera name, time, and similarity score
+2. Look at **Re-ID Matches** (`ReidMatchesPanel`, for the currently selected detection) and
+   **Matched Entities** (`MatchedEntitiesSection`, for the event as a whole)
+3. Matches appear with camera name, time gap, and similarity score
+
+A lookup that has no handle loaded answers "unavailable", which is a residency answer rather than
+"no matches" — see [Entities](entities.md#person-re-id-embedding-details).
 
 ### Factors Affecting Matching
 
@@ -623,31 +637,17 @@ When investigating an incident:
 
 ---
 
-## AI Enrichment Details
+## What the Analyzer Adds to an Event
 
-The AI Enrichment panel provides additional context extracted by vision models:
+Per event the shipped path writes the analyzer's verdict, `summary`, `reasoning`, `risk_score` and
+`risk_level`, plus a verification row carrying the whole-scene description and the criteria
+checklist the verdict had to satisfy. Those are the fields the detail modal renders.
 
-### Vehicle Analysis
-
-- **Type:** Car, truck, SUV, van, motorcycle
-- **Color:** Primary vehicle color
-- **Damage:** Visible damage indicators
-- **Commercial:** Whether it appears to be a commercial vehicle
-
-### Person Analysis
-
-- **Clothing:** Description of visible attire
-- **Action:** What the person appears to be doing
-- **Carrying:** Objects being carried (packages, bags, tools)
-- **Suspicious Attire:** Flagged if wearing face covering, etc.
-- **Service Uniform:** Identified delivery or service worker attire
-
-### Additional Enrichments
-
-- **License Plate:** OCR text extraction when visible
-- **Pet Identification:** Type and breed recognition
-- **Weather Conditions:** Detected weather from image
-- **Image Quality:** Assessment of image clarity
+The API response also carries `entities`, `flags`, `confidence_factors`, `recommended_action` and
+`object_types`. The shipped path has **no writer** for any of them, so they arrive empty or null on
+every event an operator will ever look at. Components that read them (for example the
+recommended-action card inside `RiskFactorsBreakdown`) render nothing on those events — treat an
+absence there as "not filled", never as "the AI decided there was nothing to recommend".
 
 ---
 
@@ -725,7 +725,7 @@ flowchart TD
     end
 
     subgraph Analysis["Risk Analysis"]
-        J --> K[Nemotron LLM Analysis]
+        J --> K[ai-vlm VLM Analysis]
         K --> L[Generate Risk Score]
         L --> M[Create Summary & Reasoning]
         M --> N[Create Event Record]
@@ -734,7 +734,6 @@ flowchart TD
     subgraph Delivery["Event Delivery"]
         N --> O[Broadcast via WebSocket]
         O --> P[Appears in Live Feed]
-        O --> Q[Triggers Alert Rules]
     end
 
     subgraph Review["User Review"]
@@ -771,8 +770,8 @@ For developers wanting to understand the underlying systems.
 
 ### Architecture
 
-- **Event Processing**: [Event Pipeline Architecture](../architecture/ai-pipeline.md)
-- **AI Risk Scoring**: [AI Pipeline Documentation](../architecture/ai-pipeline.md)
+- **Event Processing**: [Event Pipeline Architecture](../architecture/ai-pipeline-current-state.md)
+- **AI Risk Scoring**: [AI Pipeline Documentation](../architecture/ai-pipeline-current-state.md)
 - **Real-time Updates**: [Real-time Architecture](../architecture/real-time.md)
 - **Data Model**: [Database Schema](../architecture/data-model.md)
 

@@ -53,16 +53,16 @@ flowchart TB
         end
 
         subgraph BackendLayer["Backend Layer"]
-            BE["<b>backend</b><br/>FastAPI + Uvicorn<br/>Port: 8000<br/>Memory: 10G<br/>CPU: 2 cores"]
+            BE["<b>backend</b><br/>FastAPI + Uvicorn<br/>Port: 8000<br/>Memory: 10G<br/>CPU: 2 cores<br/>face/plate/re-ID lookups in-process"]
         end
 
         subgraph AILayer["AI Services Layer (GPU Required)"]
             direction LR
-            subgraph GPU0["GPU 0 (Primary - High VRAM)"]
-                LLM["<b>ai-llm</b><br/>Nemotron 30B (llama.cpp)<br/>Port: 8091<br/>~14.7GB VRAM"]
+            subgraph GPU0["GPU 0 (GPU_LLM)"]
+                VLM["<b>ai-vlm</b><br/>llama.cpp + mmproj<br/>Port: 8098<br/>profile: vlm<br/>Memory limit: 10G"]
             end
-            subgraph GPU1["GPU 1 (Secondary)"]
-                GW["<b>ai-gateway</b><br/>Triton + FastAPI<br/>Port: 8090 (metrics 8002)<br/>/yolo26 /florence /clip<br/>/enrichment /enrich-lt<br/>Memory limit: 20G"]
+            subgraph GPU1["GPU 1 (GPU_AI_SERVICES)"]
+                GW["<b>ai-gateway</b><br/>Triton + FastAPI<br/>Port: 8090 (metrics 8002)<br/>routers: /yolo26 · /enrich-lt<br/>Memory limit: 20G"]
             end
         end
 
@@ -106,16 +106,13 @@ flowchart TB
 
     %% Backend to AI (HTTP inference calls)
     BE -->|"POST /yolo26/detect"| GW
-    BE -->|"POST /v1/completions"| LLM
-    BE -->|"POST /florence/extract"| GW
-    BE -->|"POST /clip/embed"| GW
-    BE -->|"POST /enrichment/enrich"| GW
-    BE -->|"POST /enrich-lt/*"| GW
+    BE -->|"GET /enrich-lt/health<br/>(readiness probe only)"| GW
+    BE -->|"POST /v1/chat/completions"| VLM
 
     %% Monitoring data flows
     PROM -.->|"scrape /metrics"| BE
     PROM -.->|"ai-gateway:8002"| GW
-    PROM -.->|"scrape"| LLM
+    PROM -.->|"scrape"| VLM
     PROM -.->|"scrape"| RE
     PROM -.->|"scrape"| BB
     PROM -.->|"scrape"| JE
@@ -136,35 +133,40 @@ flowchart TB
     BE -.->|"depends_on<br/>healthy"| PG
     BE -.->|"depends_on<br/>healthy"| RD
     BE -.->|"depends_on<br/>healthy"| GW
-    BE -.->|"depends_on<br/>healthy"| LLM
     FE -.->|"depends_on<br/>started"| BE
     PROM -.->|"depends_on<br/>healthy"| AM
 ```
 
 ### Architecture Summary
 
-| Layer           | Services                                                                    | Resource Profile                             |
-| --------------- | --------------------------------------------------------------------------- | -------------------------------------------- |
-| **Frontend**    | nginx reverse proxy                                                         | 512M RAM limit, 1 CPU                        |
-| **Backend**     | FastAPI application server                                                  | 10G RAM limit, 2 CPUs, GPU access            |
-| **AI Services** | ai-gateway (YOLO26, Florence-2, CLIP, enrichment light+heavy), Nemotron     | GPU required; gateway 20G RAM limit, LLM 12G |
-| **Data**        | PostgreSQL, Redis                                                           | 1G + 512M RAM limits                         |
-| **Monitoring**  | Prometheus, Grafana, Tempo, Loki, Pyroscope, Alloy, Alertmanager, exporters | ~4G RAM limits total                         |
+`docker-compose.prod.yml` defines 21 services; three sit behind compose profiles
+(`vlm` → `ai-vlm`, `vllm` → `ai-llm-vllm`, `gpu-rootful` → `dcgm-exporter`), so a plain
+`up -d` starts 18 and runs **without the reasoning engine**.
+
+| Layer           | Services                                                                    | Resource Profile                               |
+| --------------- | --------------------------------------------------------------------------- | ---------------------------------------------- |
+| **Frontend**    | nginx reverse proxy                                                         | 512M RAM limit, 1 CPU                          |
+| **Backend**     | FastAPI application server + the face / plate / person-re-ID lookups        | 10G RAM limit, 2 CPUs, GPU access              |
+| **AI Services** | `ai-gateway` (Triton: `yolo26`, `reid`, `threat`) and `ai-vlm` (llama.cpp)  | GPU required; gateway 20G/8 CPU, vlm 10G/4 CPU |
+| **Data**        | PostgreSQL, Redis                                                           | 1G + 512M RAM limits                           |
+| **Monitoring**  | Prometheus, Grafana, Tempo, Loki, Pyroscope, Alloy, Alertmanager, exporters | ~4G RAM limits total                           |
 
 ### GPU Assignment Strategy
 
-The default assignment puts the LLM on one GPU and everything else on another:
+The default assignment puts the reasoning engine on one GPU and detection on another:
 
-| GPU   | Services                                      | Env var               | Typical GPU        |
-| ----- | --------------------------------------------- | --------------------- | ------------------ |
-| GPU 0 | `ai-llm` (Nemotron via llama.cpp)             | `GPU_LLM` (0)         | RTX A5500/RTX 4090 |
-| GPU 1 | `ai-gateway` (all Triton models, light+heavy) | `GPU_AI_SERVICES` (1) | RTX A400/RTX 3060  |
+| GPU   | Service                                           | Env var               | Notes                                                      |
+| ----- | ------------------------------------------------- | --------------------- | ---------------------------------------------------------- |
+| GPU 0 | `ai-vlm` (llama.cpp + mmproj, profile `vlm`)      | `GPU_LLM` (0)         | Single CDI device                                          |
+| GPU 1 | `ai-gateway` (Triton: `yolo26`, `reid`, `threat`) | `GPU_AI_SERVICES` (1) | All GPUs passed, then restricted by `CUDA_VISIBLE_DEVICES` |
 
-Per-model placement inside the gateway is set in `models.yml` (the live manifest),
-which `ai/gateway/patch_triton_configs.py` applies to each Triton `config.pbtxt`
-at startup. There is no separate `GPU_ENRICHMENT` / `GPU_FLORENCE` / `GPU_CLIP`
-placement any more — those `.env.example` variables are not referenced by
-`docker-compose.prod.yml`.
+The backend's own lookup weights (osnet, face recognizer, ALPR) load on the GPU the
+backend container holds, and only when `BACKEND_MODEL_PRELOAD=true` — which `setup.py`
+writes at >= 24 GB VRAM.
+
+Per-model residency inside the gateway is set in `models.yml` (the live manifest), which
+`ai/gateway/patch_triton_configs.py` applies to each Triton `config.pbtxt` at startup —
+it rewrites `instance_group` kind/count/GPU index from each entry's `triton_kind`.
 
 ---
 
@@ -179,15 +181,26 @@ cd nemotron-v3-home-security-intelligence
 python setup.py              # Quick mode
 python setup.py --guided     # Guided mode with explanations
 
-# 3. Download AI models (~33GB total; Nemotron GGUF alone is ~15GB)
+# 3. Download AI models (5 manifest entries, 763 MB)
 ./ai/download_models.sh
 
-# 4. Start services
-podman compose -f docker-compose.prod.yml up -d
+# 3b. Place the VLM weights yourself — no script fetches them. BOTH files:
+#   ${AI_MODELS_PATH}/vlm/Qwen3VL-8B-Instruct-Q4_K_M.gguf
+#   ${AI_MODELS_PATH}/vlm/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf   (Q8_0, not F16)
+#   chmod 644 both — the service runs as uid 1000
+
+# 4. Start services. --profile vlm is what starts the reasoning engine
+podman compose -f docker-compose.prod.yml --profile vlm up -d
 
 # 5. Verify deployment
 curl http://localhost:8000/api/system/health/ready
+curl http://localhost:8098/props | jq      # served model + build
+podman logs ai-vlm 2>&1 | grep -i mmproj   # the serve can see images
 ```
+
+Skipping step 3b leaves you with a reasoning engine that answers `/health` and cannot see
+images; skipping `--profile vlm` leaves the container absent altogether. Both failures
+leave Events landing, so nothing looks broken.
 
 ---
 
@@ -195,13 +208,16 @@ curl http://localhost:8000/api/system/health/ready
 
 ### Hardware Requirements
 
-| Resource       | Minimum | Recommended | Purpose                             |
-| -------------- | ------- | ----------- | ----------------------------------- |
-| CPU            | 4 cores | 8 cores     | Backend workers, AI inference       |
-| RAM            | 16 GB   | 32 GB       | Services + AI model loading         |
-| GPU VRAM       | 8 GB    | 24 GB       | YOLO26 + Nemotron + optional models |
-| Disk Space     | 100 GB  | 500 GB      | Database, logs, media files         |
-| Camera Storage | 50 GB   | 200 GB      | FTP upload directory                |
+| Resource       | Minimum | Recommended | Purpose                                |
+| -------------- | ------- | ----------- | -------------------------------------- |
+| CPU            | 4 cores | 8 cores     | Backend workers, AI inference          |
+| RAM            | 16 GB   | 32 GB       | Services + AI model loading            |
+| GPU VRAM       | 8 GB    | 24 GB       | Triton residency + the VLM's GGUF pair |
+| Disk Space     | 100 GB  | 500 GB      | Database, logs, media files            |
+| Camera Storage | 50 GB   | 200 GB      | FTP upload directory                   |
+
+24 GB is also the threshold `setup.py` uses to decide `BACKEND_MODEL_PRELOAD`, so it is
+the point where the `faces` and `person_reid` lookup legs stop reporting `unavailable`.
 
 ### Software Requirements
 
@@ -218,17 +234,18 @@ All ports come from `.env`. Everything except `frontend` binds `127.0.0.1` on th
 host, so the browser only ever needs the frontend ports — nginx proxies `/api`,
 `/ws` and `/grafana/` internally.
 
-| Host port | Env var               | Service              | Protocol | Access                       |
-| --------- | --------------------- | -------------------- | -------- | ---------------------------- |
-| 8080      | `FRONTEND_HTTP_PORT`  | Frontend             | HTTP     | Browser (tunnel / LAN)       |
-| 8444      | `FRONTEND_HTTPS_PORT` | Frontend (TLS)       | HTTPS    | Browser                      |
-| 8000      | `API_PORT`            | Backend API          | HTTP/WS  | localhost / nginx proxy      |
-| 8090      | `AI_GATEWAY_PORT`     | ai-gateway (all AI)  | HTTP     | localhost / backend          |
-| 8091      | `LLM_PORT`            | Nemotron (llama.cpp) | HTTP     | localhost / backend          |
-| 5432      | `POSTGRES_PORT`       | PostgreSQL           | TCP      | localhost                    |
-| 6379      | `REDIS_PORT`          | Redis                | TCP      | localhost                    |
-| 3002      | `GRAFANA_PORT`        | Grafana              | HTTP     | localhost (or via /grafana/) |
-| 9090      | `PROMETHEUS_PORT`     | Prometheus           | HTTP     | localhost                    |
+| Host port | Env var                   | Service                           | Protocol | Access                       |
+| --------- | ------------------------- | --------------------------------- | -------- | ---------------------------- |
+| 8080      | `FRONTEND_HTTP_PORT`      | Frontend                          | HTTP     | Browser (tunnel / LAN)       |
+| 8444      | `FRONTEND_HTTPS_PORT`     | Frontend (TLS)                    | HTTPS    | Browser                      |
+| 8000      | `API_PORT`                | Backend API                       | HTTP/WS  | localhost / nginx proxy      |
+| 8090      | `AI_GATEWAY_PORT`         | ai-gateway (detection routers)    | HTTP     | localhost / backend          |
+| 8002      | `AI_GATEWAY_METRICS_PORT` | Triton Prometheus metrics         | HTTP     | localhost                    |
+| 8098      | `AI_VLM_PORT`             | ai-vlm (reasoning, profile `vlm`) | HTTP     | localhost / backend          |
+| 5432      | `POSTGRES_PORT`           | PostgreSQL                        | TCP      | localhost                    |
+| 6379      | `REDIS_PORT`              | Redis                             | TCP      | localhost                    |
+| 3002      | `GRAFANA_PORT`            | Grafana                           | HTTP     | localhost (or via /grafana/) |
+| 9090      | `PROMETHEUS_PORT`         | Prometheus                        | HTTP     | localhost                    |
 
 ---
 
@@ -283,6 +300,17 @@ podman-compose or the docker-compose plugin). Every command below works with
 | `docker ps`                      | `podman ps -a`                   |
 | `docker inspect <name>`          | `podman inspect <name>`          |
 
+Profiled services keep the profile flag on every verb:
+
+| Correct                                          | Silently wrong                     |
+| ------------------------------------------------ | ---------------------------------- |
+| `podman compose -f … --profile vlm up -d ai-vlm` | `podman compose -f … up -d ai-vlm` |
+| `podman compose -f … --profile vlm logs ai-vlm`  | `podman compose -f … logs ai-vlm`  |
+| `podman compose -f … --profile vlm build ai-vlm` | `podman compose -f … build ai-vlm` |
+
+podman-compose drops a service whose profile is inactive **before** it resolves the
+names on your command line, so the right-hand column reports success and does nothing.
+
 ---
 
 ## GPU Passthrough
@@ -321,39 +349,48 @@ sudo apt install -y nvidia-container-toolkit
 # Configure Docker
 sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
+
+# Generate the CDI spec Podman needs
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
 ```
 
 ---
 
 ## Compose Files
 
-| File                      | Purpose       | AI Services   | Use Case                                |
-| ------------------------- | ------------- | ------------- | --------------------------------------- |
-| `docker-compose.prod.yml` | Production    | Containerized | Full deployment with GPU                |
-| `docker-compose.ghcr.yml` | Pre-built     | Containerized | Fast deploy from GHCR images            |
-| `docker-compose.test.yml` | Test DB/cache | None          | Local Postgres/Redis on ports 5433/6380 |
-| `docker-compose.ci.yml`   | CI smoke      | Mocked        | GitHub Actions runners (no GPU)         |
+| File                      | Purpose       | AI Services    | Use Case                                |
+| ------------------------- | ------------- | -------------- | --------------------------------------- |
+| `docker-compose.prod.yml` | Production    | Containerized  | Full deployment with GPU                |
+| `docker-compose.ghcr.yml` | Pre-built     | Detection only | GHCR pull path — see note below         |
+| `docker-compose.test.yml` | Test DB/cache | None           | Local Postgres/Redis on ports 5433/6380 |
+| `docker-compose.ci.yml`   | CI smoke      | Mocked         | GitHub Actions runners (no GPU)         |
 
 There is no `docker-compose.yml` in the repository. For development you run the
 backend natively (`uv run uvicorn …`) against the containers you need, or against
 `docker-compose.test.yml` for a throwaway Postgres/Redis.
 
+`docker-compose.ghcr.yml` declares 19 services with **no profiles and no `ai-vlm`
+service**, and CI publishes only the `backend` and `frontend` images. Treat it as the
+detection-only surface and read
+[AI GHCR Deployment](../ai-ghcr-deployment.md#read-this-first-what-ghcr-actually-ships)
+before using it for anything that must produce a verdict.
+
 ### Deployment Mode Selection Guide
 
 Choose your deployment mode based on your needs:
 
-| Question                                           | Recommended Mode                       |
-| -------------------------------------------------- | -------------------------------------- |
-| **First time deploying / Want simplest setup?**    | Production (`docker-compose.prod.yml`) |
-| **Developing locally with code hot-reload?**       | Native backend + host AI services      |
-| **Need GPU debugging / AI runs better on host?**   | Hybrid (container backend + host AI)   |
-| **Have a dedicated GPU server?**                   | Remote AI host mode                    |
-| **Want fastest deployment from pre-built images?** | GHCR (`docker-compose.ghcr.yml`)       |
+| Question                                         | Recommended Mode                       |
+| ------------------------------------------------ | -------------------------------------- |
+| **First time deploying / Want simplest setup?**  | Production (`docker-compose.prod.yml`) |
+| **Developing locally with code hot-reload?**     | Native backend + host AI services      |
+| **Need GPU debugging / AI runs better on host?** | Hybrid (container backend + host AI)   |
+| **Have a dedicated GPU server?**                 | Remote AI host mode                    |
+| **Want the pre-built application images?**       | GHCR (detection only)                  |
 
 **Decision flowchart:**
 
 1. **Production deployment?** Use `docker-compose.prod.yml` - everything containerized, no networking complexity
-2. **Active development?** Run the backend on the host for hot-reload; point `AI_GATEWAY_URL` / `NEMOTRON_URL` at the host services
+2. **Active development?** Run the backend on the host for hot-reload; point `AI_GATEWAY_URL` / `AI_VLM_URL` at the host services
 3. **GPU issues in containers?** Run AI services on host, backend in container (see [Deployment Modes](../deployment-modes.md))
 
 > **Tip:** If AI services are unreachable, it's usually a networking mode mismatch. See [Deployment Modes & AI Networking](../deployment-modes.md) for URL configuration by mode.
@@ -361,8 +398,8 @@ Choose your deployment mode based on your needs:
 ### Production Deployment
 
 ```bash
-# Start all services
-podman compose -f docker-compose.prod.yml up -d
+# Start all services (add --profile vlm for the reasoning engine)
+podman compose -f docker-compose.prod.yml --profile vlm up -d
 
 # View logs
 podman compose -f docker-compose.prod.yml logs -f
@@ -380,17 +417,26 @@ containers you need, then run the AI services and backend on the host:
 # Terminal 1: Infrastructure containers only
 podman compose -f docker-compose.prod.yml up -d postgres redis
 
-# Terminal 2: AI gateway (Triton, host port 8090)
+# Terminal 2: Detection stand-in (host port 8090 collides with ai-gateway —
+# run it with ai-gateway down, or set YOLO26_PORT)
 ./ai/start_detector.sh
 
-# Terminal 3: Nemotron via llama.cpp (host port 8091)
-./ai/start_llm.sh
+# Terminal 3: The reasoning engine. There is no host-run script for it in this
+# repository — llama.cpp is built inside ai/vlm/Dockerfile. Start llama-server
+# with the same pair compose passes it:
+llama-server \
+  --model  "${AI_MODELS_PATH:-/export/ai_models}/vlm/Qwen3VL-8B-Instruct-Q4_K_M.gguf" \
+  --mmproj "${AI_MODELS_PATH:-/export/ai_models}/vlm/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf" \
+  --host 0.0.0.0 --port 8098 --ctx-size 32768 --parallel 2
 
 # Terminal 4: Backend on the host, pointed at the host AI services
 export AI_GATEWAY_URL=http://localhost:8090
-export NEMOTRON_URL=http://localhost:8091
+export AI_VLM_URL=http://localhost:8098
 uv run uvicorn backend.main:app --reload --port 8000
 ```
+
+The `--mmproj` flag is not decoration: without it the serve is text-only and still
+answers `/health`.
 
 ### Deploy from GHCR
 
@@ -403,7 +449,7 @@ export IMAGE_TAG=latest
 # Authenticate (requires GitHub token with read:packages)
 echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 
-# Deploy
+# Deploy — detection only; see the Compose Files note above
 docker compose -f docker-compose.ghcr.yml up -d
 ```
 
@@ -458,16 +504,16 @@ flowchart TD
 ```bash
 # macOS with Docker Desktop — AI services on the host
 export AI_GATEWAY_URL=http://host.docker.internal:8090
-export NEMOTRON_URL=http://host.docker.internal:8091
+export AI_VLM_URL=http://host.docker.internal:8098
 
 # macOS with Podman
 export AI_GATEWAY_URL=http://host.containers.internal:8090
-export NEMOTRON_URL=http://host.containers.internal:8091
+export AI_VLM_URL=http://host.containers.internal:8098
 
 # Linux (Docker or Podman) — substitute your host LAN address
 HOST_IP=$(hostname -I | awk '{print $1}')
 export AI_GATEWAY_URL=http://$HOST_IP:8090
-export NEMOTRON_URL=http://$HOST_IP:8091
+export AI_VLM_URL=http://$HOST_IP:8098
 ```
 
 These are the `.env` values the backend container reads; there is no `AI_HOST`
@@ -482,26 +528,34 @@ variable in the codebase or in any compose file.
 USE_AI_GATEWAY=true
 AI_GATEWAY_URL=http://ai-gateway:8090
 YOLO26_URL=http://ai-gateway:8090/yolo26
-FLORENCE_URL=http://ai-gateway:8090/florence
-CLIP_URL=http://ai-gateway:8090/clip
-ENRICHMENT_URL=http://ai-gateway:8090/enrichment
 ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
-NEMOTRON_URL=http://ai-llm:8091
+AI_VLM_URL=http://ai-vlm:8098
 ```
+
+`YOLO26_URL` and `ENRICHMENT_LIGHT_URL` carry a router path on the gateway's single
+port; they are not separate services. `ENRICHMENT_LIGHT_URL` is a **readiness** probe
+target only — the live re-ID leg is `osnet_loader`, in-process in the backend.
 
 **Development with host AI:**
 
 ```bash
 YOLO26_URL=http://localhost:8090/yolo26
-NEMOTRON_URL=http://localhost:8091
+AI_VLM_URL=http://localhost:8098
 ```
 
 **Docker Desktop (macOS/Windows):**
 
 ```bash
 YOLO26_URL=http://host.docker.internal:8090/yolo26
-NEMOTRON_URL=http://host.docker.internal:8091
+AI_VLM_URL=http://host.docker.internal:8098
 ```
+
+> [!IMPORTANT]
+> `AI_VLM_URL` is the value that gets missed. The backend's code default is
+> `http://localhost:8098`, which inside a container is the container itself: every
+> verdict lands `verification_failed` with a NULL `risk_score` while events keep
+> arriving. Compose closes the hole with `AI_VLM_URL=${AI_VLM_URL:-http://ai-vlm:8098}`;
+> a host-run or remote AI setup must set it explicitly.
 
 ---
 
@@ -509,21 +563,25 @@ NEMOTRON_URL=http://host.docker.internal:8091
 
 ### AI Architecture
 
-All vision models are consolidated into one `ai-gateway` container (Triton
-Inference Server behind a FastAPI router, host port `AI_GATEWAY_PORT`, default
-8090). Only the LLM runs as a separate container.
+Production AI is **two containers**:
 
-| Router        | Port | Models / purpose                                          |
-| ------------- | ---- | --------------------------------------------------------- |
-| `/yolo26`     | 8090 | YOLO26 (TensorRT) object detection                        |
-| `/florence`   | 8090 | Florence-2 captions, OCR, region grounding                |
-| `/clip`       | 8090 | SigLIP 2 embeddings, re-ID similarity, anomaly score      |
-| `/enrichment` | 8090 | Heavy enrichment: vehicle, clothing, demographics, action |
-| `/enrich-lt`  | 8090 | Light enrichment: pose, threat, person ReID, pet, depth   |
-| `ai-llm`      | 8091 | Nemotron 30B risk reasoning (llama.cpp)                   |
+| Service      | Port          | What it serves                                                                   |
+| ------------ | ------------- | -------------------------------------------------------------------------------- |
+| `ai-gateway` | 8090 (m 8002) | Triton + FastAPI. Routers `/yolo26` (detection) and `/enrich-lt` (readiness)     |
+| `ai-vlm`     | 8098          | llama.cpp + mmproj, OpenAI-compatible `POST /v1/chat/completions`, profile `vlm` |
+
+Gateway Triton residency is `yolo26` + `reid`, plus `threat` when
+`GATEWAY_ENABLE_THREAT=true` (the shipped default is `false`). Both
+`GATEWAY_MODEL_SET` and `PIPELINE_MODE` accept only `vlm` and raise at boot on anything
+else.
 
 Triton's Prometheus metrics are on a second gateway port (`AI_GATEWAY_METRICS_PORT`,
 default 8002), scraped by the `triton-metrics` job.
+
+The face, plate and person-re-ID lookups are **not** services. They run in-process in
+the backend (`face_recognizer_loader`, `fast_alpr_loader`, `osnet_loader`) and are
+gated by `BACKEND_MODEL_PRELOAD`, which ships `false`. Read
+`hsi_specialist_unavailable_total` on `:8000/metrics` rather than probing a port.
 
 ### Model Downloads
 
@@ -536,16 +594,26 @@ implements the download phases it declares (see the file's own header for the
 ./ai/download_models.sh
 ```
 
-Total manifest size is ~33GB, of which the required set (Nemotron GGUF + YOLO26 +
-Florence-2 + SigLIP 2) is ~16GB.
+The rule selects **5 of the manifest's 10 entries — 763 MB** by the manifest's own
+`size_mb` estimates (the full catalogue sums to 1,483 MB). **The VLM's GGUF pair is not
+among them**: nothing in this repository fetches those weights, and the model check only
+reads the env string, so a fabricated env naming nonexistent files still passes. Place
+them per [AI Installation](../ai-installation.md).
 
 ### Production Model Specifications
 
-| Model                          | File                                  | Size   | VRAM     | Context |
-| ------------------------------ | ------------------------------------- | ------ | -------- | ------- |
-| NVIDIA Nemotron-3-Nano-30B-A3B | `Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf` | ~15 GB | ~14.7 GB | 262,144 |
+| Model                         | File                                   | Size on disk    | Slot math                                                              |
+| ----------------------------- | -------------------------------------- | --------------- | ---------------------------------------------------------------------- |
+| Qwen3-VL 8B Instruct (Q4_K_M) | `Qwen3VL-8B-Instruct-Q4_K_M.gguf`      | 5,027,784,800 B | `VLM_CTX_SIZE=32768` split across `VLM_PARALLEL=2` ⇒ 16,384-token slot |
+| Its projector (Q8_0)          | `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` | 752,289,728 B   | Empty `VLM_MMPROJ_PATH` ⇒ a text-only serve                            |
 
-`CTX_SIZE` in `.env` defaults to 262144 (8 parallel slots × 32768 tokens each).
+The four settings `VLM_MODEL_ID`, `VLM_MODEL_PATH`, `VLM_MMPROJ_PATH` and
+`VLM_MODEL_ALIAS` are one identity in four spellings, pinned together by
+`test_ai_vlm_compose_service.py` — change them as a set.
+
+`CTX_SIZE=262144` / `PARALLEL=8` in `.env.example` belong to the backend's separate
+legacy budget field and are **not** what the `ai-vlm` container runs on; the server and
+the backend's prompt fitter both read `VLM_CTX_SIZE` / `VLM_PARALLEL`.
 
 ### Verify AI Services
 
@@ -553,11 +621,12 @@ Florence-2 + SigLIP 2) is ~16GB.
 # Health checks
 curl http://localhost:8090/health            # ai-gateway (aggregate across Triton models)
 curl http://localhost:8090/yolo26/health     # per-router
-curl http://localhost:8090/florence/health
-curl http://localhost:8090/clip/health
-curl http://localhost:8090/enrichment/health
-curl http://localhost:8090/enrich-lt/health
-curl http://localhost:8091/health            # Nemotron
+curl http://localhost:8090/enrich-lt/health  # readiness lane
+curl http://localhost:8098/health            # ai-vlm is UP — does NOT prove multimodal
+curl http://localhost:8098/props | jq         # served model + build string
+
+# The actual multimodal proof
+podman logs ai-vlm 2>&1 | grep -i mmproj
 ```
 
 ---
@@ -577,24 +646,24 @@ sequenceDiagram
     participant PG as PostgreSQL
     participant RD as Redis
     participant GW as ai-gateway
-    participant NM as Nemotron
+    participant VLM as ai-vlm
     participant BE as Backend
     participant FE as Frontend
 
     Note over DC,FE: Phase 1: Data Infrastructure (0-15s)
     DC->>PG: Start PostgreSQL
     DC->>RD: Start Redis
-    PG-->>DC: Healthy (10-15s)
-    RD-->>DC: Healthy (5-10s)
+    PG-->>DC: Healthy (start_period 10s)
+    RD-->>DC: Healthy
 
-    Note over DC,FE: Phase 2: AI Services (up to 5 min)
+    Note over DC,FE: Phase 2: AI Services
     DC->>GW: Start ai-gateway
-    DC->>NM: Start ai-llm
-    GW-->>DC: Healthy (start_period 180s — Triton loads 14 models)
-    NM-->>DC: Healthy (start_period 300s — 31B tensors to GPU)
+    DC->>VLM: Start ai-vlm (only if --profile vlm was passed)
+    GW-->>DC: Healthy (start_period 180s — Triton loads its resident models)
+    VLM-->>DC: Healthy (start_period 120s — GGUF pair to GPU)
 
     Note over DC,FE: Phase 3: Application (30-60s)
-    DC->>BE: Start Backend (depends: PG, RD, ai-gateway, ai-llm healthy)
+    DC->>BE: Start Backend (depends: foscam-init completed; PG, RD, ai-gateway, go2rtc healthy)
     BE->>PG: Connect
     BE->>RD: Connect
     BE-->>DC: Healthy (start_period 30s)
@@ -607,21 +676,25 @@ sequenceDiagram
 
 **Phase 1: Data Infrastructure (0-15s)**
 
-- PostgreSQL (~10-15s)
-- Redis (~5-10s)
+- PostgreSQL — `start_period: 10s`
+- Redis — healthcheck on `redis-cli ping`
 
-**Phase 2: AI Services (up to 5 min)**
+**Phase 2: AI Services**
 
-- ai-gateway — `start_period: 180s` (Triton loads 14 models — the compose comment said 13 until the gateway-consolidation follow-up corrected it; the 13 dated from before NEM-5563 retired `xclip_action`)
-- ai-llm — `start_period: 300s` (31B parameter model loads tensors to GPU)
+- `ai-gateway` — `start_period: 180s`. Triton initialises the resident model set from
+  the repository `GATEWAY_MODEL_SET` keeps.
+- `ai-vlm` — `start_period: 120s`, mirroring the image's own
+  `HEALTHCHECK --start-period=120s`. **`backend` does not depend on it**, which is why a
+  missing profile yields a green stack and a stalling pipeline.
 
 **Phase 3: Application (30-60s)**
 
-- Backend (`start_period: 30s`, waits for Postgres, Redis, ai-gateway and ai-llm healthy)
+- Backend — `start_period: 30s`, waits for `foscam-init` (completed), and Postgres,
+  Redis, `ai-gateway` and `go2rtc` to report healthy.
 
 **Phase 4: Frontend (10-20s)**
 
-- Frontend (`start_period: 40s`, waits for Backend to start)
+- Frontend — `start_period: 40s`, waits for Backend to start (not healthy).
 
 ### Health Check Configuration
 
@@ -640,29 +713,34 @@ backend:
     retries: 3
     start_period: 30s
   depends_on:
+    foscam-init:
+      condition: service_completed_successfully
     postgres:
       condition: service_healthy
     redis:
       condition: service_healthy
     ai-gateway:
       condition: service_healthy
-    ai-llm:
+    go2rtc:
       condition: service_healthy
 ```
 
 ### Dependency Matrix
 
-| Service    | Hard Dependencies                                          | Soft Dependencies | Auto-Recovers  |
-| ---------- | ---------------------------------------------------------- | ----------------- | -------------- |
-| PostgreSQL | None                                                       | None              | N/A            |
-| Redis      | None                                                       | None              | N/A            |
-| ai-gateway | GPU                                                        | None              | No             |
-| ai-llm     | GPU                                                        | None              | No             |
-| Backend    | PostgreSQL, Redis, ai-gateway, ai-llm, go2rtc, foscam-init | None              | AI via monitor |
-| Frontend   | Backend (started, not healthy)                             | None              | No             |
-| Prometheus | Alertmanager (healthy)                                     | None              | No             |
-| Grafana    | Prometheus (healthy)                                       | None              | No             |
-| Alloy      | Loki, Pyroscope                                            | None              | No             |
+| Service    | Hard Dependencies                                  | Soft Dependencies         | Auto-Recovers  |
+| ---------- | -------------------------------------------------- | ------------------------- | -------------- |
+| PostgreSQL | None                                               | None                      | N/A            |
+| Redis      | None                                               | None                      | N/A            |
+| ai-gateway | GPU                                                | None                      | No             |
+| ai-vlm     | GPU, compose profile `vlm`                         | None                      | No             |
+| Backend    | foscam-init, PostgreSQL, Redis, ai-gateway, go2rtc | ai-vlm (via `AI_VLM_URL`) | AI via monitor |
+| Frontend   | Backend (started, not healthy)                     | None                      | No             |
+| Prometheus | Alertmanager (healthy)                             | None                      | No             |
+| Grafana    | Prometheus (healthy)                               | None                      | No             |
+| Alloy      | Loki, Pyroscope                                    | None                      | No             |
+
+`ai-vlm` being a soft dependency is the shape of the failure: the backend starts and
+serves the dashboard whether or not anything can produce a verdict.
 
 ---
 
@@ -672,8 +750,10 @@ backend:
 
 - [ ] Docker/Podman installed and running
 - [ ] NVIDIA driver and container toolkit installed (`nvidia-smi` works)
+- [ ] CDI spec exists (`ls /etc/cdi/nvidia.yaml`)
 - [ ] Camera FTP directory exists and is accessible
 - [ ] AI models downloaded (`./ai/download_models.sh`)
+- [ ] **VLM GGUF pair placed by hand in `${AI_MODELS_PATH}/vlm` and `chmod 644`**
 - [ ] Network ports are not in use by other services
 - [ ] Firewall rules allow required traffic
 - [ ] `.env` file created via `python setup.py`
@@ -683,7 +763,7 @@ backend:
 1. **Start services:**
 
    ```bash
-   podman compose -f docker-compose.prod.yml up -d
+   podman compose -f docker-compose.prod.yml --profile vlm up -d
    ```
 
 2. **Monitor startup:**
@@ -695,8 +775,9 @@ backend:
 3. **Verify health:**
 
    ```bash
-   # Wait for services (Redis: ~5s, Postgres: ~15s, AI: ~120s, Backend: ~60s)
+   # Gateway needs ~3 min for Triton; check the profile actually took
    curl http://localhost:8000/api/system/health/ready
+   podman ps -a --filter name=ai-vlm
    ```
 
 4. **Test AI pipeline:**
@@ -710,6 +791,15 @@ backend:
    podman compose -f docker-compose.prod.yml logs -f backend | grep -E "detect|batch|analyze"
    ```
 
+   Then read the verdict, not the alerts table — **no event auto-creates an Alert on
+   this path**:
+
+   ```sql
+   SELECT verdict, count(*), max(created_at)
+   FROM events e JOIN event_verifications ev ON ev.event_id = e.id
+   GROUP BY verdict ORDER BY max(created_at) DESC;
+   ```
+
 5. **Access dashboard:**
    - Open `http://localhost:8080` (or `https://localhost:8444` when `SSL_ENABLED=true`)
    - Complete first-time admin registration at `/setup` — until then every API
@@ -720,6 +810,7 @@ backend:
 
 - [ ] Dashboard accessible
 - [ ] Health endpoint returns healthy
+- [ ] `events` rows carry a populated `risk_score` (not NULL `verification_failed`)
 - [ ] WebSocket connection working
 - [ ] Test image processed successfully
 - [ ] GPU metrics displaying
@@ -754,7 +845,8 @@ podman compose -f docker-compose.prod.yml down
 
 # 5. Rebuild and start (always --no-cache: cached layers hold stale code)
 podman compose -f docker-compose.prod.yml build --no-cache
-podman compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml --profile vlm build --no-cache ai-vlm
+podman compose -f docker-compose.prod.yml --profile vlm up -d
 
 # 6. Verify
 curl http://localhost:8000/api/system/health/ready
@@ -783,7 +875,7 @@ git checkout <previous-commit-sha>
 cp .env.backup-<date> .env
 
 # 4. Restart
-podman compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml --profile vlm up -d
 
 # 5. Verify
 curl http://localhost:8000/api/system/health/ready
@@ -808,7 +900,7 @@ podman compose -f docker-compose.prod.yml exec -T postgres pg_restore -U securit
 
 # 5. Checkout previous code and restart
 git checkout <previous-commit>
-podman compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml --profile vlm up -d
 ```
 
 ### Rollback Decision Matrix
@@ -834,6 +926,7 @@ podman compose -f docker-compose.prod.yml ps
 # Check logs for specific service
 podman compose -f docker-compose.prod.yml logs backend
 podman compose -f docker-compose.prod.yml logs ai-gateway
+podman compose -f docker-compose.prod.yml --profile vlm logs ai-vlm
 
 # Check health endpoint
 curl -v http://localhost:8000/health
@@ -841,17 +934,19 @@ curl -v http://localhost:8000/health
 
 ### AI Services Unreachable
 
-1. **Check AI container status:**
+1. **Check AI container status** — note whether `ai-vlm` is **absent** (profile never
+   applied) or stopped (a crash):
 
    ```bash
-   podman ps --filter name=ai-
+   podman ps -a --filter name=ai-gateway --filter name=ai-vlm
    ```
 
 2. **Test health endpoints directly:**
 
    ```bash
    curl http://localhost:8090/health
-   curl http://localhost:8091/health
+   curl http://localhost:8098/health
+   curl http://localhost:8098/props
    ```
 
 3. **Check GPU access:**
@@ -870,12 +965,14 @@ curl -v http://localhost:8000/health
 # Check GPU usage
 nvidia-smi
 
-# Kill GPU processes
-nvidia-smi --query-compute-apps=pid --format=csv,noheader | xargs kill
-
-# Restart AI services
-podman compose -f docker-compose.prod.yml restart ai-gateway ai-llm
+# Restart AI services (name each one; the profile has to be on the command line)
+podman compose -f docker-compose.prod.yml restart ai-gateway
+podman compose -f docker-compose.prod.yml --profile vlm up -d --force-recreate ai-vlm
 ```
+
+Prefer letting the VLM release its VRAM between bursts (lower
+`VLM_SLEEP_IDLE_SECONDS`, default 300) over shrinking the model. `VLM_GPU_LAYERS=auto`
+already fits what the card allows.
 
 ### Database Connection Failed
 
@@ -892,12 +989,11 @@ grep DATABASE_URL .env
 
 ### Health Check Timeout
 
-```bash
-# Increase start_period for slow model loading
-# Edit docker-compose.prod.yml:
-# healthcheck:
-#   start_period: 120s  # Increase from 60s
-```
+Both AI services have a deliberate warm-up window before a failure is counted:
+`ai-gateway` 180s (Triton model load), `ai-vlm` 120s (GGUF copy). An `unhealthy`
+report inside that window means early, not broken — wait it out before editing the
+compose file, and if you must raise `ai-vlm`'s number, raise the image's own
+`HEALTHCHECK --start-period` with it so the two stay in agreement.
 
 ---
 
@@ -905,6 +1001,7 @@ grep DATABASE_URL .env
 
 - [Operator Hub](../README.md) - Main operator documentation
 - [GPU Setup Guide](../gpu-setup.md) - Detailed GPU configuration
-- [AI Services](../ai-overview.md) - AI architecture and configuration
+- [AI Services Overview](../ai-overview.md) - AI architecture and configuration
+- [AI GHCR Deployment](../ai-ghcr-deployment.md) - What the GHCR surface actually ships
 - [Monitoring Guide](../monitoring/README.md) - Health checks and metrics
 - [Administration Guide](../admin/README.md) - Configuration and secrets

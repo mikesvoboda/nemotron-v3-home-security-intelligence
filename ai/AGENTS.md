@@ -41,7 +41,6 @@ ai/
 ├── compile_utils.py       # torch.compile() utilities (NEM-3773)
 ├── batch_utils.py         # Batch processing utilities (NEM-3377)
 ├── torch_optimizations.py # General PyTorch optimization utilities
-├── cpu_offloading.py      # CPU offloading utilities
 ├── cuda_graph_manager.py  # CUDA graph management
 ├── flash_attention_config.py # FlashAttention configuration
 ├── gpu_memory_pool.py     # GPU memory pool management
@@ -644,7 +643,6 @@ For detailed documentation, see `triton/AGENTS.md` and `docs/plans/triton-migrat
    - torch.compile: `compile_utils.py` (NEM-3773)
    - Batch processing: `batch_utils.py` (NEM-3377)
    - General optimizations: `torch_optimizations.py`
-   - CPU offloading: `cpu_offloading.py`
    - CUDA graphs: `cuda_graph_manager.py`
    - FlashAttention: `flash_attention_config.py`
    - GPU memory pool: `gpu_memory_pool.py`

@@ -63,19 +63,22 @@ The page embeds the HSI Distributed Tracing dashboard from Grafana, which provid
 
 A **trace** represents a single request as it flows through the system. Each trace contains multiple **spans**:
 
+Only the backend exports spans, so every bar in a trace belongs to `nemotron-backend`; the AI
+services show up as the backend's outbound HTTP client spans, not as their own services. The two
+pipeline spans the backend actually opens are `detection_processing` and `analysis_processing`
+(`backend/services/pipeline_workers.py`):
+
 ```
-Trace: "Process Detection"
-├── Span: "receive_image" (backend) - 5ms
-├── Span: "detect_objects" (yolo26) - 150ms
-│   ├── Span: "preprocess" - 10ms
-│   ├── Span: "inference" - 130ms
-│   └── Span: "postprocess" - 10ms
-├── Span: "batch_detection" (backend) - 2ms
-└── Span: "analyze_batch" (nemotron) - 800ms
-    ├── Span: "build_prompt" - 5ms
-    ├── Span: "llm_inference" - 790ms
-    └── Span: "parse_response" - 5ms
+Trace: analysis_processing (nemotron-backend)
+├── Span: "analysis_processing"                    - attrs: batch_id, camera_id, detection_count
+├── Span: "POST http://ai-gateway:8090/yolo26"     (httpx client span, the detect call)
+├── Span: "POST http://ai-vlm:8098/v1/chat/..."    (httpx client span, the verdict call)
+└── FastAPI server spans                           (per-request, auto-instrumented)
 ```
+
+`HTTPXClientInstrumentor` and `FastAPIInstrumentor` are what produce the client and server spans
+(`backend/core/telemetry.py`), so an `ai-vlm` call that is slow or failing is visible here as a
+long or errored client span.
 
 ### Trace Timeline
 
@@ -131,31 +134,31 @@ A typical detection flows through the system like this:
 sequenceDiagram
     participant C as Camera
     participant B as Backend
-    participant R as YOLO26
-    participant N as Nemotron
+    participant R as ai-gateway (YOLO26)
+    participant N as ai-vlm (VLM)
     participant DB as Database
 
-    C->>B: Upload Image
+    C->>B: Upload Image (FTP upload picked up by the file watcher)
     activate B
-    Note over B: Span: receive_image
+    Note over B: Span: detection_processing
 
-    B->>R: Detect Objects
+    B->>R: POST /yolo26
     activate R
-    Note over R: Span: detect_objects
+    Note left of R: backend httpx client span
     R-->>B: Detections
     deactivate R
 
-    B->>B: Add to Batch
-    Note over B: Span: batch_detection
+    B->>B: BatchAggregator window
+    Note over B: still inside detection_processing
 
-    B->>N: Analyze Batch
+    B->>N: POST /v1/chat/completions
     activate N
-    Note over N: Span: analyze_batch
-    N-->>B: Risk Assessment
+    Note over B: Span: analysis_processing<br/>(lookup legs run in-process first)
+    Note left of N: backend httpx client span
+    N-->>B: verdict, summary, reasoning, risk_score
     deactivate N
 
     B->>DB: Save Event
-    Note over B: Span: save_event
     deactivate B
 ```
 
@@ -163,13 +166,13 @@ sequenceDiagram
 
 Typical latency distribution for a single detection:
 
-| Stage             | Typical Duration | Notes                  |
-| ----------------- | ---------------- | ---------------------- |
-| Image Upload      | 10-50ms          | Network dependent      |
-| Object Detection  | 100-200ms        | GPU dependent          |
-| Batch Aggregation | 0-90s            | Waits for batch window |
-| LLM Analysis      | 500-2000ms       | Model dependent        |
-| Database Save     | 5-20ms           | Disk I/O               |
+| Stage                    | Typical Duration | Notes                                                    |
+| ------------------------ | ---------------- | -------------------------------------------------------- |
+| File arrival to watch    | seconds          | FTP upload plus the file-watcher poll interval           |
+| Detection (`ai-gateway`) | 100-200ms        | GPU dependent                                            |
+| Batch window             | up to 90s        | The dominant term — waits for related frames             |
+| VLM analysis (`ai-vlm`)  | the long tail    | Slowest hop; GPU contention and model residency dominate |
+| Database save            | 5-20ms           | Disk I/O                                                 |
 
 ## Finding Issues
 
@@ -184,12 +187,12 @@ To find slow requests:
 
 **Common Bottlenecks:**
 
-| Long Span        | Likely Cause         | Solution                      |
-| ---------------- | -------------------- | ----------------------------- |
-| `llm_inference`  | LLM processing       | Normal for complex analyses   |
-| `detect_objects` | GPU saturation       | Check GPU utilization         |
-| `db_query`       | Database performance | Add indexes, optimize queries |
-| `http_request`   | Network latency      | Check connectivity            |
+| Long Span              | Likely Cause                              | Solution                      |
+| ---------------------- | ----------------------------------------- | ----------------------------- |
+| `analysis_processing`  | VLM call to `ai-vlm` plus its lookup legs | Expected for complex analyses |
+| `detection_processing` | GPU saturation on `ai-gateway`            | Check GPU utilization         |
+| `db_query`             | Database performance                      | Add indexes, optimize queries |
+| `http_request`         | Network latency                           | Check connectivity            |
 
 ### Error Traces
 
@@ -201,12 +204,12 @@ Traces with errors are typically highlighted in red or orange:
 
 **Common Error Patterns:**
 
-| Error                | Location       | Common Cause            |
-| -------------------- | -------------- | ----------------------- |
-| `timeout`            | yolo26 spans   | GPU overloaded          |
-| `connection_refused` | backend spans  | Service down            |
-| `out_of_memory`      | nemotron spans | Model too large for GPU |
-| `validation_error`   | API spans      | Invalid request data    |
+| Error                | Location                     | Common Cause            |
+| -------------------- | ---------------------------- | ----------------------- |
+| `timeout`            | client spans to `ai-gateway` | GPU overloaded          |
+| `connection_refused` | backend spans                | Service down            |
+| `out_of_memory`      | client spans to `ai-vlm`     | Model too large for GPU |
+| `validation_error`   | API spans                    | Invalid request data    |
 
 ### Missing Spans
 

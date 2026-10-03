@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from backend.core.metrics import _score_to_tier, observe_risk_score_distribution
 from backend.services.calibration_monitor import (
     CALIBRATION_SCORES_KEY,
     DEFAULT_TTL_SECONDS,
@@ -54,24 +53,6 @@ class TestScoreToTier:
     def test_score_to_tier_boundaries(self, score: int, expected_tier: str) -> None:
         """Test that scores map to correct tiers at boundaries."""
         assert monitor_score_to_tier(score) == expected_tier
-
-    @pytest.mark.parametrize(
-        ("score", "expected_tier"),
-        [
-            (0, "low"),
-            (29, "low"),
-            (30, "medium"),
-            (59, "medium"),
-            (60, "high"),
-            (84, "high"),
-            (85, "critical"),
-            (100, "critical"),
-        ],
-    )
-    def test_metrics_score_to_tier_consistency(self, score: int, expected_tier: str) -> None:
-        """Test that metrics._score_to_tier matches calibration_monitor._score_to_tier."""
-        assert _score_to_tier(score) == expected_tier
-        assert _score_to_tier(score) == monitor_score_to_tier(score)
 
 
 # =============================================================================
@@ -422,24 +403,3 @@ class TestCalibrationStatus:
         assert len(d["tiers"]) == 2
         assert d["tiers"][0]["tier"] == "low"
         assert d["tiers"][1]["is_drifting"] is True
-
-
-# =============================================================================
-# Prometheus Metrics Integration Tests
-# =============================================================================
-
-
-class TestRiskScoreDistributionMetrics:
-    """Tests for the observe_risk_score_distribution function."""
-
-    def test_observe_risk_score_distribution_does_not_raise(self) -> None:
-        """Test that observing a score does not raise."""
-        # Should not raise for any valid score
-        observe_risk_score_distribution(0)
-        observe_risk_score_distribution(50)
-        observe_risk_score_distribution(100)
-
-    @pytest.mark.parametrize("score", [0, 29, 30, 59, 60, 84, 85, 100])
-    def test_observe_risk_score_distribution_boundary_scores(self, score: int) -> None:
-        """Test that boundary scores are recorded without error."""
-        observe_risk_score_distribution(score)

@@ -1,0 +1,16 @@
+{
+  "$schema_note": "Tracked exceptions for frontend npm audit (mirrors .trivyignore doctrine: every entry carries a REVIEW BY date; scripts/check-npm-audit-exemptions.py fails CI if any date passes, if any audit finding is not covered here, if an exemption stops matching a finding, or if npm reports a NON-major fix path for an exempted advisory (fixAvailable without isSemVerMajor) - that means a real fix shipped and the exemption must go. The gate step IS this checker; the raw `npm audit --audit-level=high` it replaces would fail open (a passing audit proves nothing about coverage), while this checker fails CLOSED: without this file, any finding at all is red.",
+  "exceptions": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "severity": "high",
+      "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+      "added": "2026-10-03",
+      "reviewBy": "2027-04-03",
+      "affectedChain": "braces <- micromatch <- fast-glob <- chokidar <- tailwindcss@3 (dependency) ; braces <- micromatch <- fast-glob <- knip@5 (devDependency)",
+      "reason": "No released fix: the advisory covers every published braces (<=3.0.3, and 3.0.3 IS the latest version). npm's only resolution path is a semver-major migration - tailwindcss 3 -> 4 (drops the chokidar/fast-glob chain) and knip 5 -> 6 - which is a separate, owner-sized frontend slice, not a lockfile bump.",
+      "exitCriterion": "Remove when tailwind v4 (or another release breaking the chain) lands; scripts/check-npm-audit-exemptions.py already fails CI the moment npm reports a non-major fix path, so this entry cannot silently outlive its premise."
+    }
+  ]
+}

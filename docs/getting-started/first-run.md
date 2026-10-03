@@ -5,14 +5,12 @@ source_refs:
   - ai/start_detector.sh:1
   - ai/start_detector.sh:12-13
   - ai/start_detector.sh:26-30
-  - ai/start_llm.sh:1
-  - ai/start_llm.sh:14-16
-  - ai/start_llm.sh:36-43
+  - ai/vlm/Dockerfile:138-139
   - docker-compose.prod.yml:1
   - docker-compose.prod.yml:44-118
-  - docker-compose.prod.yml:120-217
-  - docker-compose.prod.yml:288-353
-  - docker-compose.prod.yml:765-840
+  - docker-compose.prod.yml:134-265
+  - docker-compose.prod.yml:348-420
+  - docker-compose.prod.yml:667-700
 ---
 
 # First Run
@@ -35,21 +33,18 @@ no text overlays"
 
 ## Choose Your Deployment Mode
 
-Use this decision tree to determine the best deployment path for your setup:
+Everything runs from one file, `docker-compose.prod.yml`. The only choice is whether the detector also runs on your host for debugging:
 
-![Quickstart Decision Tree showing deployment path selection: Do you have NVIDIA Container Toolkit installed? If yes, use Production Mode with all services in containers. If no or prefer native AI for development, use Development Mode with host-run AI servers and containerized application services](../images/quickstart-decision-tree.png)
+| Mode                  | AI services                                                           | Use case                                             |
+| --------------------- | --------------------------------------------------------------------- | ---------------------------------------------------- |
+| **Production**        | `ai-gateway` and `ai-vlm` both in containers                          | The normal path — simplest, everything containerized |
+| **Host-run detector** | `./ai/start_detector.sh` on the host, `ai-vlm` still in its container | Debugging a detector model outside a container       |
 
-_Quickstart decision tree: Choose Production Mode for simplest setup with everything containerized, or Development Mode for faster AI iteration with native GPU access._
+![Quickstart decision tree: deployment path selection](../images/quickstart-decision-tree.png)
 
----
+_The containerized path: application services and both AI services come up from one compose file._
 
-There are two deployment paths. Choose the one that fits your setup:
-
-| Mode           | AI Services       | Use Case                                 | Docker Compose File       |
-| -------------- | ----------------- | ---------------------------------------- | ------------------------- |
-| **Production** | Run in containers | Simplest setup, everything containerized | `docker-compose.prod.yml` |
-
-> **Important:** Do NOT run the host AI scripts (`./ai/start_detector.sh`, `./ai/start_llm.sh`) at the same time as `docker-compose.prod.yml` — the `ai-gateway` and `ai-llm` containers already claim ports 8090 and 8091, so the host servers will fail to bind.
+> **Port collision:** `./ai/start_detector.sh` binds **8090** (`YOLO26_PORT` overrides it) and `ai-gateway` publishes the same host port, so run one or the other — not both.
 
 ---
 
@@ -60,30 +55,32 @@ All services run in containers, including GPU-accelerated AI servers.
 ### Prerequisites
 
 - NVIDIA GPU with `nvidia-container-toolkit` installed
-- AI model storage configured (see `docs/operator/ai-installation.md`)
+- AI model storage configured, including the VLM weight pair under `${AI_MODELS_PATH}/vlm` (see [Installation](installation.md))
 - `.env` and `docker-compose.override.yml` written by `python setup.py` (see [Installation](installation.md))
 
 ### Start Everything
 
+Add `--profile vlm` — the reasoning serve sits behind that profile, and a plain `up -d` leaves it out:
+
 ```bash
 # Docker
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml --profile vlm up -d
 
 # OR Podman
-podman compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml --profile vlm up -d
 ```
 
 **What starts** ([`docker-compose.prod.yml`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/docker-compose.prod.yml)) — 21 services; the ones you interact with day one:
 
-| Service    | Host port           | Purpose                                                     |
-| ---------- | ------------------- | ----------------------------------------------------------- |
-| postgres   | 5432                | Database                                                    |
-| redis      | 6379                | Queues + pub/sub                                            |
-| ai-gateway | 8090 (metrics 8002) | Single AI entrypoint — YOLO26, Florence-2, CLIP, enrichment |
-| ai-llm     | 8091                | Nemotron LLM risk analysis (llama.cpp)                      |
-| go2rtc     | 1984 / 8555         | Camera stream relaying                                      |
-| backend    | 8000                | FastAPI + WebSocket                                         |
-| frontend   | 8080 / 8444         | React dashboard via nginx (HTTP / HTTPS)                    |
+| Service    | Host port           | Purpose                                                  |
+| ---------- | ------------------- | -------------------------------------------------------- |
+| postgres   | 5432                | Database                                                 |
+| redis      | 6379                | Queues + pub/sub                                         |
+| ai-gateway | 8090 (metrics 8002) | Triton + FastAPI: the `/yolo26` and `/enrich-lt` routers |
+| ai-vlm     | 8098                | llama.cpp reasoning serve (compose profile `vlm`)        |
+| go2rtc     | 1984 / 8555         | Camera stream relaying                                   |
+| backend    | 8000                | FastAPI + WebSocket                                      |
+| frontend   | 8080 / 8444         | React dashboard via nginx (HTTP / HTTPS)                 |
 
 The rest is the observability stack (prometheus, grafana on 3002, loki, tempo, alertmanager, pyroscope, alloy, the exporters) plus `foscam-init`, a one-shot job that prepares the camera directory.
 
@@ -98,9 +95,11 @@ docker compose -f docker-compose.prod.yml ps
 # OR Podman
 podman compose -f docker-compose.prod.yml ps
 
-# Expected: every service "Up (healthy)" (or the one-shot foscam-init "Completed").
-# The LLM container takes the longest — its healthcheck allows up to 5 minutes
-# for model load. Re-run the command until everything is healthy.
+# Expected: every service "Up (healthy)" (or the one-shot foscam-init "Completed"),
+# and ai-vlm listed too — `ps` needs the same --profile vlm to show it.
+# The two AI containers load the slowest: ai-vlm's healthcheck allows a 120 s
+# start period (ai/vlm/Dockerfile:138-139) and ai-gateway's allows 180 s
+# (docker-compose.prod.yml:404). Re-run until everything is healthy.
 ```
 
 ### Register the First Admin
@@ -128,23 +127,19 @@ Open **[http://localhost:8080](http://localhost:8080)** (HTTP), or **[https://lo
 
 ---
 
-## Option B: Development Mode (Host AI)
+## Option B: Development Mode (Host-Run Detector)
 
-AI servers run natively on the host for faster iteration; everything else runs in containers.
+The detector runs natively on the host for faster iteration; everything else, reasoning included, runs in containers.
 
 ![Development Mode Architecture](../images/first-run-devmode.png)
 
-_Development mode: AI servers run natively on the host, application services run in containers._
+_Development mode: the detector runs natively on the host, application services and `ai-vlm` run in containers._
 
-> **Why host AI servers?** Faster restart times during model development, easier debugging, and simpler GPU access without container runtime configuration.
+> **Why a host-run detector?** Faster restart times while iterating on a detection model, and GPU access without container runtime configuration. It is a debug path: the prod detector is Triton inside `ai-gateway`.
 
-> **Scope:** Host-run AI replaces only what the containers provide: `./ai/start_detector.sh` stands in for the gateway's `/yolo26` router, and `./ai/start_llm.sh` for the `ai-llm` container. Florence/CLIP/enrichment have no host-run launcher yet, so for now start `ai-gateway` as a container as well.
+> **Scope:** One script exists for this: `./ai/start_detector.sh`, which stands in for the gateway's `/yolo26` router. There is no launcher script for a host-run reasoning serve — if you want one, run your own `llama-server` build against the GGUF pair and point `AI_VLM_URL` at it; most people leave reasoning in the `ai-vlm` container and run only the detector on the host.
 
-### Step 1: Start AI Servers
-
-Open **two separate terminal windows** for the AI servers.
-
-#### Terminal 1: YOLO26 Detection Server
+### Step 1: Start the Detector on the Host
 
 ```bash
 cd nemotron-v3-home-security-intelligence
@@ -153,78 +148,54 @@ cd nemotron-v3-home-security-intelligence
 
 **What happens** ([`ai/yolo26/model.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/yolo26/model.py)):
 
-- Loads YOLO26 via HuggingFace Transformers (`YOLO26_MODEL_PATH`)
+- Runs `ai/yolo26/model.py` on the host, loading the weights named by `YOLO26_MODEL_PATH`
 - Listens on port **8090** (`YOLO26_PORT` overrides; the script exports `PORT`)
-- Uses ~4GB VRAM
+- Reports ~4GB VRAM
 
-**Expected output:**
+**Expected output** (the script's own lines, `ai/start_detector.sh:22-30`):
 
 ```
 Starting YOLO26v2 Detection Server...
 Model directory: /path/to/repo/ai/yolo26
 Port: 8090
 Expected VRAM usage: ~4GB
-INFO:     Uvicorn running on http://0.0.0.0:8090
 ```
 
-#### Terminal 2: Nemotron LLM Server
+#### Verify the detector
 
 ```bash
-cd nemotron-v3-home-security-intelligence
-./ai/start_llm.sh
-```
-
-**What happens** ([`ai/start_llm.sh:36-43`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/start_llm.sh#L36)):
-
-- Loads a Nemotron GGUF via llama.cpp — by default `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf` (~3GB VRAM, 4K context); override the file with `NEMOTRON_MODEL_PATH`
-- Listens on port **8091** (`NEMOTRON_PORT` overrides)
-
-**Expected output:**
-
-```
-Starting Nemotron LLM Server via llama.cpp...
-Model: /path/to/repo/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
-Port: 8091
-Context size: 4096
-GPU layers: 99 (all layers)
-```
-
-#### Verify AI Servers
-
-```bash
-# Check YOLO26 (root path — the standalone server has no /yolo26 prefix)
+# Root path — this server has no /yolo26 prefix and is the only server in the
+# tree that answers with a `device` field ("cuda:0" or "cpu")
 curl http://localhost:8090/health
-# Expected: JSON describing model + CUDA status
-
-# Check Nemotron
-curl http://localhost:8091/health
-# Expected: {"status": "ok"}
 ```
 
-### Step 2: Point the Stack at Host AI, Then Start It
+### Step 2: Point the Stack at the Host Detector, Then Start It
 
-The backend reaches AI services purely through URL environment variables from `.env` — there is no `AI_HOST` variable. For host-run AI set:
+The backend reaches AI services purely through URL variables from `.env` — there is no `AI_HOST` variable. For a host-run detector:
 
 ```bash
-# In .env (native-dev defaults are already shown this way in .env.example):
-USE_AI_GATEWAY=false
-YOLO26_URL=http://host.docker.internal:8090     # Docker Desktop, or your host IP
-NEMOTRON_URL=http://host.docker.internal:8091   # Podman: http://host.containers.internal:8091
+# In .env — leave AI_VLM_URL at http://ai-vlm:8098 and keep using the vlm profile
+YOLO26_URL=http://host.docker.internal:8090   # Docker Desktop, or your host IP
+                                              # Podman: http://host.containers.internal:8090
 ```
+
+With `YOLO26_URL` set this way the detector dials that URL directly; `USE_AI_GATEWAY=true` would instead route it through `{AI_GATEWAY_URL}/yolo26`, which is what compose sets for the containerized path.
 
 > **Podman on Linux:** `host.containers.internal` resolves inside the default Podman network; if it doesn't on your host, use the host's LAN IP (e.g. `http://192.168.1.100:8090`).
 
-Then start the containers **without the two AI services**, so they don't fight the host servers for ports 8090/8091 (if you couldn't start `ai-gateway`'s other routers above, add it back to the list):
+Then start the services **without `ai-gateway`**, so it does not fight your host server for port 8090 (`ai-vlm` needs the profile named):
 
 ```bash
 # Docker
-docker compose -f docker-compose.prod.yml up -d postgres redis go2rtc backend frontend
+docker compose -f docker-compose.prod.yml --profile vlm up -d \
+  postgres redis go2rtc backend frontend ai-vlm
 
 # OR Podman
-podman compose -f docker-compose.prod.yml up -d postgres redis go2rtc backend frontend
+podman compose -f docker-compose.prod.yml --profile vlm up -d \
+  postgres redis go2rtc backend frontend ai-vlm
 ```
 
-### Verify Development Deployment
+### Verify the Development Deployment
 
 ```bash
 # Docker
@@ -374,23 +345,22 @@ podman compose -f docker-compose.prod.yml down
 # Check GPU availability
 nvidia-smi
 
-# Check model files exist (host-run start_llm.sh wants the Mini 4B GGUF locally)
-ls -la ai/nemotron/*.gguf
-# YOLO26 weights are fetched via HuggingFace; use /health to confirm the model loaded
+# Check the weights the host server wants (it fetches via the HuggingFace cache)
+ls -la /export/ai_models/model-zoo/yolo26/
 
-# Check port availability (gateway: 8090, LLM: 8091)
+# Port availability: ai-gateway publishes 8090, the VLM serve publishes 8098
 lsof -i :8090
-lsof -i :8091
+lsof -i :8098
 ```
 
-### Port conflict on 8090/8091
+### Port conflict on 8090
 
-This happens when you run the host AI scripts while `ai-gateway`/`ai-llm` containers are also up.
+This happens when you run `./ai/start_detector.sh` while the `ai-gateway` container is also up.
 
 **Solution:** Choose one path:
 
-- **Production:** Stop the host AI servers, use `docker-compose.prod.yml` only
-- **Development:** Run AI servers natively on the host and point `YOLO26_URL`/`NEMOTRON_URL` (in `.env`) at them — see Option B
+- **Production:** Stop the host server, use `docker-compose.prod.yml` only
+- **Host-run detector:** Run the detector natively, leave `ai-gateway` down, and point `YOLO26_URL` (in `.env`) at it — see Option B
 
 ### Backend can't reach AI services
 
@@ -405,7 +375,7 @@ docker exec <backend-container> curl http://host.docker.internal:8090/health
 podman exec <backend-container> curl http://host.containers.internal:8090/health
 
 # Check the URL vars the container actually has
-podman compose -f docker-compose.prod.yml exec backend env | grep -E "YOLO26_URL|NEMOTRON_URL"
+podman compose -f docker-compose.prod.yml exec backend env | grep -E "YOLO26_URL|AI_VLM_URL|AI_GATEWAY_URL|USE_AI_GATEWAY"
 ```
 
 ### Database connection issues

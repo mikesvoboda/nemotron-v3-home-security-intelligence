@@ -66,7 +66,7 @@ This project includes a Copilot instructions file at:
 
 This file provides Copilot with:
 
-- Tech stack information (FastAPI, React, YOLO26, Nemotron)
+- Tech stack information (FastAPI, React, YOLO26, ai-vlm)
 - Coding conventions and patterns
 - Domain-specific terminology
 - What NOT to suggest

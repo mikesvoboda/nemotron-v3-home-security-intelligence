@@ -1,15 +1,17 @@
 ---
 title: Real-Time Architecture
 description: WebSocket channels, Redis pub/sub, event broadcasting, and message formats
-last_updated: 2026-01-04
+last_updated: 2026-10-02
 source_refs:
-  - backend/services/event_broadcaster.py:EventBroadcaster:36
-  - backend/services/event_broadcaster.py:get_broadcaster:263
-  - backend/services/event_broadcaster.py:get_event_channel:27
+  - backend/services/event_broadcaster.py:EventBroadcaster:349
+  - backend/services/event_broadcaster.py:get_broadcaster:2392
+  - backend/services/event_broadcaster.py:get_event_channel:340
   - backend/services/system_broadcaster.py:SystemBroadcaster
   - backend/services/performance_collector.py:PerformanceCollector
-  - backend/api/routes/websocket.py
   - backend/api/schemas/performance.py:PerformanceUpdate
+  - backend/api/routes/websocket.py
+  - backend/services/job_log_emitter.py:JobLogEmitter
+  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreaker
   - frontend/src/hooks/useWebSocket.ts
   - frontend/src/hooks/useEventStream.ts
   - frontend/src/hooks/useSystemStatus.ts
@@ -50,18 +52,14 @@ The real-time system enables instant dashboard updates without polling by using 
 
 ### Architecture Diagram
 
-![WebSocket real-time architecture diagram showing the data flow from AI pipeline components (NemotronAnalyzer, GPUMonitor, HealthMonitor) publishing to Redis pub/sub channels (security_events, system_status), which fan out to multiple EventBroadcaster and SystemBroadcaster instances, ultimately delivering messages through WebSocket endpoints to connected dashboard clients](../images/arch-websocket-flow.png)
-
-### Detailed Architecture Diagram
-
-![WebSocket architecture diagram showing data flow from AI pipeline through Redis Pub/Sub to backend broadcasters and WebSocket clients](../images/real-time/websocket-architecture.svg)
+![WebSocket real-time architecture diagram showing the data flow from backend services (FileWatcher, DetectorClient, BatchAggregator, EventBroadcaster) publishing to Redis pub/sub channels, which fan out through the WebSocket server to the frontend hooks and dashboard components](../images/arch-websocket-flow.png)
 
 ### Diagram: WebSocket Architecture
 
 ```mermaid
 flowchart TB
     subgraph Pipeline["AI Pipeline"]
-        NA[NemotronAnalyzer<br/>Event Creation]
+        NA[VlmAnalyzer<br/>Event Creation]
         GPU[GPUMonitor<br/>Stats Collection]
         HM[HealthMonitor<br/>Service Status]
     end
@@ -123,7 +121,8 @@ flowchart TB
 
 ## WebSocket Channels
 
-The system exposes three WebSocket endpoints for real-time updates.
+The system exposes four WebSocket endpoints for real-time updates, all defined in
+`backend/api/routes/websocket.py`.
 
 ### Channel Overview
 
@@ -135,8 +134,6 @@ The system exposes three WebSocket endpoints for real-time updates.
 
 Delivers real-time security event notifications as they are created by the AI pipeline.
 
-![Events channel sequence diagram showing browser connection, EventBroadcaster registration, and event flow](../images/real-time/events-channel-sequence.svg)
-
 ### Diagram: Events Channel Sequence
 
 ```mermaid
@@ -145,13 +142,13 @@ sequenceDiagram
     participant WS as /ws/events
     participant EB as EventBroadcaster
     participant Redis as Redis Pub/Sub
-    participant NA as NemotronAnalyzer
+    participant NA as VlmAnalyzer
 
     Client->>WS: Connect (upgrade)
     WS->>EB: register(websocket)
     EB-->>Client: Connection accepted
 
-    Note over NA: Event created from batch
+    Note over NA: Event committed from batch
 
     NA->>Redis: PUBLISH security_events {...}
     Redis->>EB: Message received
@@ -163,6 +160,9 @@ sequenceDiagram
     Client->>WS: Disconnect
     WS->>EB: unregister(websocket)
 ```
+
+Broadcast is the last step of `VlmAnalyzer.analyze_batch()` and is best-effort: a failed
+broadcast never un-does the committed event.
 
 ### System Channel (`/ws/system`)
 
@@ -225,11 +225,11 @@ Streams real-time log entries for active jobs (pending or running status). This 
 **Behavior:**
 
 - Subscribes to Redis pub/sub channel `job:{job_id}:logs`
-- Logs are forwarded to the WebSocket as they are emitted by the job
+- Logs are forwarded to the WebSocket as they are emitted by the job (`backend/services/job_log_emitter.py`)
 - Connection closes when the client disconnects or the idle timeout is reached
 - Server sends periodic heartbeat pings to detect disconnected clients
 
-**Source:** [backend/api/routes/websocket.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/api/routes/websocket.py) - `websocket_job_logs` endpoint
+**Source:** `backend/api/routes/websocket.py` - `websocket_job_logs` endpoint
 
 ---
 
@@ -239,10 +239,12 @@ Redis pub/sub enables real-time message distribution across multiple backend ins
 
 ### Channel Configuration
 
-The channel name is configured in settings and retrieved via the [get_event_channel](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/event_broadcaster.py) function at line 27:
+The event channel name comes from settings — `backend/core/config.py` ships
+`redis_event_channel` with the default `security_events`, and
+`backend/services/event_broadcaster.py:340` reads it:
 
 ```python
-# backend/services/event_broadcaster.py:27
+# backend/services/event_broadcaster.py:340
 def get_event_channel() -> str:
     """Get the Redis event channel name from settings.
 
@@ -252,16 +254,12 @@ def get_event_channel() -> str:
     return get_settings().redis_event_channel
 ```
 
-### Pub/Sub Flow
-
-![Redis pub/sub flow diagram showing publishers, Redis channels, subscribers, and WebSocket clients](../images/real-time/redis-pubsub-flow.svg)
-
 ### Diagram: Redis Pub/Sub Flow
 
 ```mermaid
 flowchart TB
     subgraph Publishers["Event Publishers"]
-        P1[NemotronAnalyzer]
+        P1[VlmAnalyzer]
         P2[HealthMonitor]
     end
 
@@ -298,7 +296,8 @@ flowchart TB
 
 ### Redis Message Format
 
-Messages published to Redis include the full event envelope:
+Messages published to Redis include the event envelope plus the verification object the REST API
+returns for the same event:
 
 ```json
 {
@@ -311,7 +310,7 @@ Messages published to Redis include the full event envelope:
     "risk_score": 75,
     "risk_level": "high",
     "summary": "Person detected near entrance",
-    "started_at": "2024-01-15T10:30:00.000000"
+    "started_at": "2026-10-02T10:30:00.000000"
   }
 }
 ```
@@ -320,26 +319,20 @@ Messages published to Redis include the full event envelope:
 
 ## Event Broadcasting
 
-The [EventBroadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/event_broadcaster.py) class at line 36 manages WebSocket connections and distributes events.
+`EventBroadcaster` (`backend/services/event_broadcaster.py:349`) manages WebSocket connections and distributes events.
 
 ### EventBroadcaster Implementation
 
 ```python
-# backend/services/event_broadcaster.py:36
-class EventBroadcaster:
-    """Manages WebSocket connections and broadcasts events via Redis pub/sub.
-
-    This class acts as a bridge between Redis pub/sub events and WebSocket
-    connections, allowing multiple backend instances to share event notifications.
-    """
-
-    def __init__(self, redis_client: RedisClient, channel_name: str | None = None):
-        self._redis = redis_client
-        self._channel_name = channel_name or get_settings().redis_event_channel
-        self._connections: set[WebSocket] = set()
-        self._pubsub: PubSub | None = None
-        self._listener_task: asyncio.Task[None] | None = None
-        self._is_listening = False
+# backend/services/event_broadcaster.py:385
+def __init__(self, redis_client: RedisClient, channel_name: str | None = None):
+    self._redis = redis_client
+    self._channel_name = channel_name or get_settings().redis_event_channel
+    self._connections: set[WebSocket] = set()
+    self._pubsub: PubSub | None = None
+    self._listener_task: asyncio.Task[None] | None = None
+    self._supervisor_task: asyncio.Task[None] | None = None
+    self._is_listening = False
 ```
 
 ### Broadcasting Flow
@@ -347,7 +340,7 @@ class EventBroadcaster:
 ```mermaid
 flowchart TB
     subgraph Event["Event Creation"]
-        NA[NemotronAnalyzer<br/>analyze_batch()]
+        NA[VlmAnalyzer<br/>analyze_batch()]
     end
 
     subgraph Broadcast["EventBroadcaster"]
@@ -382,36 +375,23 @@ flowchart TB
 
 ### Connection Management
 
-The broadcaster maintains a set of active connections:
-
-```python
-async def connect(self, websocket: WebSocket) -> None:
-    """Register a new WebSocket connection."""
-    await websocket.accept()
-    self._connections.add(websocket)
-    logger.info(f"WebSocket connected. Total connections: {len(self._connections)}")
-
-async def disconnect(self, websocket: WebSocket) -> None:
-    """Unregister a WebSocket connection."""
-    self._connections.discard(websocket)
-    with contextlib.suppress(Exception):
-        await websocket.close()
-    logger.info(f"WebSocket disconnected. Total connections: {len(self._connections)}")
-```
+The broadcaster maintains a set of active connections (`connect` at
+`backend/services/event_broadcaster.py:731`, `disconnect` at `:753`).
 
 ### Global Broadcaster Instance
 
-The [get_broadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/event_broadcaster.py) function at line 263 provides a singleton instance:
+The singleton accessor at `backend/services/event_broadcaster.py:2392` guards initialization with
+an async lock so concurrent callers share one instance:
 
 ```python
-# backend/services/event_broadcaster.py:263
+# backend/services/event_broadcaster.py:2392
 async def get_broadcaster(redis_client: RedisClient) -> EventBroadcaster:
     """Get or create the global event broadcaster instance.
 
     This function is thread-safe and handles concurrent initialization
     attempts using an async lock to prevent race conditions.
     """
-    global _broadcaster
+    global _broadcaster  # noqa: PLW0603
 
     if _broadcaster is not None:
         return _broadcaster
@@ -430,7 +410,9 @@ async def get_broadcaster(redis_client: RedisClient) -> EventBroadcaster:
 
 ## System Status Broadcasting
 
-The [SystemBroadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/system_broadcaster.py) periodically sends system status updates to all connected clients. It provides real-time system health information including GPU statistics, camera status, queue depths, and AI service health.
+`SystemBroadcaster` (`backend/services/system_broadcaster.py:68`) periodically sends system status
+updates to all connected clients. It provides real-time system health information including GPU
+statistics, camera counts, queue depths, and AI service health.
 
 ### SystemBroadcaster Features
 
@@ -451,7 +433,7 @@ flowchart TB
         GPU[GPUMonitor<br/>GPU metrics]
         REDIS[Redis<br/>Queue lengths]
         DB[Database<br/>Camera counts]
-        HEALTH[HealthMonitor<br/>Service status]
+        HEALTH[AI health probes<br/>yolo26 + ai-vlm]
     end
 
     subgraph Aggregator["SystemBroadcaster"]
@@ -476,27 +458,21 @@ flowchart TB
     style MSG fill:#3B82F6,color:#fff
 ```
 
+`_check_ai_health()` (`backend/services/system_broadcaster.py:1010`) probes the two shipped AI
+services concurrently — the YOLO26 detector and the verdict engine at `settings.ai_vlm_url` — with
+a short timeout so the broadcast loop never blocks. The result is folded into the `ai` block of the
+status payload, whose per-service keys are `yolo26` and `ai-vlm`.
+
 ### Broadcast Interval
 
-System status updates are sent every 5 seconds (configurable):
-
-```python
-class SystemBroadcaster:
-    """Broadcasts comprehensive system status updates."""
-
-    def __init__(
-        self,
-        redis_client: RedisClient,
-        broadcast_interval: float = 5.0,
-    ):
-        self._redis = redis_client
-        self._interval = broadcast_interval
-        # ...
-```
+System status updates are sent every 5 seconds (`broadcast_interval` defaults to `5.0` on the
+`SystemBroadcaster` constructor).
 
 ### Circuit Breaker Integration
 
-The SystemBroadcaster integrates with a [WebSocketCircuitBreaker](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/core/websocket_circuit_breaker.py) to protect against cascading failures when the Redis pub/sub connection becomes unreliable.
+The SystemBroadcaster integrates with a `WebSocketCircuitBreaker`
+(`backend/core/websocket_circuit_breaker.py:96`) to protect against cascading failures when the
+Redis pub/sub connection becomes unreliable.
 
 #### Circuit Breaker States
 
@@ -515,17 +491,6 @@ stateDiagram-v2
 | **CLOSED**    | Normal operation. Redis pub/sub listener is active and broadcasting normally. |
 | **OPEN**      | Too many failures. Recovery blocked to allow system stabilization.            |
 | **HALF_OPEN** | Testing recovery after timeout. Limited operations allowed.                   |
-
-#### Circuit Breaker Configuration
-
-The SystemBroadcaster's circuit breaker uses these default settings:
-
-| Parameter             | Value | Description                                    |
-| --------------------- | ----- | ---------------------------------------------- |
-| `failure_threshold`   | 5     | Consecutive failures before opening circuit    |
-| `recovery_timeout`    | 30.0s | Time to wait before attempting recovery        |
-| `half_open_max_calls` | 1     | Maximum calls allowed while testing recovery   |
-| `success_threshold`   | 1     | Successes needed in half-open to close circuit |
 
 #### Accessing Circuit Breaker State
 
@@ -548,11 +513,11 @@ The SystemBroadcaster enters **degraded mode** when it cannot reliably broadcast
 
 #### When Degraded Mode is Activated
 
-Degraded mode (`is_degraded() returns True`) is activated when ANY of these conditions occur:
+Degraded mode (`is_degraded()` returns True) is activated when ANY of these conditions occur:
 
-1. **Circuit breaker opens**: The pub/sub listener circuit breaker transitions to OPEN state after recording `failure_threshold` (default: 5) consecutive failures.
+1. **Circuit breaker opens**: The pub/sub listener circuit breaker transitions to OPEN state, blocking recovery so the system can stabilize.
 
-2. **Recovery attempts exhausted**: The broadcaster has attempted `MAX_RECOVERY_ATTEMPTS` (default: 5) reconnection attempts without success.
+2. **Recovery attempts exhausted**: The broadcaster has attempted `MAX_RECOVERY_ATTEMPTS` reconnection attempts without success.
 
 3. **Pub/sub connection fails to re-establish**: After a connection reset, if the new subscription cannot be created.
 
@@ -582,7 +547,8 @@ When degraded mode is active:
 
 #### Degraded State Notification
 
-When entering degraded mode, the broadcaster sends a `service_status` message to all connected clients:
+When entering degraded mode, the broadcaster sends a `service_status` message to all connected
+clients (`_broadcast_degraded_state()` at `backend/services/system_broadcaster.py:406`):
 
 ```json
 {
@@ -606,15 +572,8 @@ The broadcaster automatically recovers from degraded mode when:
 2. A successful pub/sub reconnection occurs
 3. The circuit breaker transitions to CLOSED
 
-```python
-# Manual recovery (restart pub/sub listener)
-# This is typically done by restarting the broadcaster
-from backend.services.system_broadcaster import stop_system_broadcaster, get_system_broadcaster_async
-
-await stop_system_broadcaster()
-broadcaster = await get_system_broadcaster_async(redis_client=redis)
-# Degraded mode is automatically cleared on successful start
-```
+Recovery is bounded and uses exponential backoff with jitter (base 1s, doubling, capped at 60s) so
+multiple instances do not stampede the same Redis server.
 
 #### Degraded Mode Flow
 
@@ -627,13 +586,13 @@ flowchart TB
     subgraph Failure["Failure Detection"]
         F1[Pub/Sub Error]
         F2[Record Failure]
-        F3{Failures >= 5?}
+        F3{Breaker OPEN?}
     end
 
     subgraph Recovery["Recovery Attempts"]
-        R1[Wait 1 second]
+        R1[Backoff 1s..60s + jitter]
         R2[Reset Pub/Sub Connection]
-        R3{Attempts < 5?}
+        R3{Attempts within limit?}
     end
 
     subgraph Degraded["Degraded Mode"]
@@ -662,7 +621,7 @@ flowchart TB
 
 ### Performance Broadcasting
 
-The SystemBroadcaster can broadcast detailed performance metrics through its `broadcast_performance()` method. This requires a [PerformanceCollector](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/performance_collector.py) to be configured.
+The SystemBroadcaster can broadcast detailed performance metrics through its `broadcast_performance()` method. This requires a `PerformanceCollector` (`backend/services/performance_collector.py`) to be configured.
 
 #### Enabling Performance Broadcasting
 
@@ -680,27 +639,10 @@ collector = PerformanceCollector(redis_client=redis, db_session_factory=get_sess
 broadcaster.set_performance_collector(collector)
 ```
 
-#### Performance Broadcast Flow
-
-When enabled, performance metrics are automatically broadcast in the same loop as system status updates:
-
-```python
-async def _broadcast_loop(self, interval: float) -> None:
-    while self._running:
-        if self.connections:
-            # Broadcast system status
-            status_data = await self._get_system_status()
-            await self.broadcast_status(status_data)
-
-            # Also broadcast detailed performance metrics
-            await self.broadcast_performance()
-
-        await asyncio.sleep(interval)
-```
-
 #### Redis Channels
 
-The SystemBroadcaster uses two Redis pub/sub channels:
+The SystemBroadcaster uses two Redis pub/sub channels, defined at
+`backend/services/system_broadcaster.py:62` and `:65`:
 
 | Channel              | Message Type         | Purpose                                      |
 | -------------------- | -------------------- | -------------------------------------------- |
@@ -715,7 +657,8 @@ Both channels support multi-instance deployments where any backend can publish a
 
 ### Event Message
 
-Sent when a security event is created:
+Sent when a security event is created. The VLM writes `risk_score`, `risk_level`, `summary` and
+`reasoning` per event, and the `verification` object carries the verdict and scene description:
 
 ```json
 {
@@ -728,47 +671,53 @@ Sent when a security event is created:
     "risk_score": 75,
     "risk_level": "high",
     "summary": "Person detected near entrance at unusual hour",
-    "started_at": "2024-01-15T02:30:00.000000",
-    "ended_at": "2024-01-15T02:31:30.000000"
+    "started_at": "2026-10-02T02:30:00.000000",
+    "ended_at": "2026-10-02T02:31:30.000000"
   }
 }
 ```
 
+A batch the engine could not assess still produces an event: `risk_score` and `risk_level` are
+null and `verification.verdict` reads `verification_failed`. That signature — a run of null scores
+with `verification_failed` — means the VLM is unreachable or blind, not that the camera is empty.
+
 ### System Status Message
 
-Sent periodically with system health:
+`SystemBroadcaster._get_system_status()` builds this payload:
 
 ```json
 {
   "type": "system_status",
   "data": {
     "gpu": {
-      "name": "NVIDIA RTX A5500",
       "utilization": 45.2,
       "memory_used": 7168,
       "memory_total": 24576,
       "temperature": 65.0,
-      "power_usage": 125.5
-    },
-    "queues": {
-      "detection_queue": 3,
-      "analysis_queue": 1,
-      "dlq_total": 0
+      "inference_fps": 12.0
     },
     "cameras": {
-      "total": 4,
-      "online": 4,
-      "offline": 0
+      "active": 4,
+      "total": 4
     },
-    "services": {
+    "queue": {
+      "pending": 3,
+      "processing": 1
+    },
+    "health": "healthy",
+    "ai": {
+      "status": "healthy",
       "yolo26": "healthy",
-      "nemotron": "healthy",
-      "redis": "healthy"
+      "ai-vlm": "healthy"
     }
   },
-  "timestamp": "2024-01-15T10:30:00.000000"
+  "timestamp": "2026-10-02T10:30:00.000000"
 }
 ```
+
+`queue.pending` is the detection queue length and `queue.processing` the analysis queue length
+(`_get_queue_stats()`). `ai.status` is `healthy` when both probes pass, `degraded` when one does,
+`unhealthy` when neither does.
 
 ### Service Status Message
 
@@ -782,7 +731,7 @@ Sent when service health changes:
     "status": "unhealthy",
     "message": "Health check failed"
   },
-  "timestamp": "2024-01-15T10:30:00.000000"
+  "timestamp": "2026-10-02T10:30:00.000000"
 }
 ```
 
@@ -792,13 +741,15 @@ Sent periodically (every 5 seconds) with detailed system performance metrics. Th
 
 **Message Type:** `performance_update`
 
-**Source:** [SystemBroadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/system_broadcaster.py) via [PerformanceCollector](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/performance_collector.py)
+**Source:** `SystemBroadcaster` via `PerformanceCollector`
+
+**Schema:** `backend/api/schemas/performance.py:PerformanceUpdate` (line 275)
 
 **Redis Channel:** `performance_update`
 
 **Trigger:** Broadcast loop (every 5 seconds when clients are connected)
 
-**Frontend Consumer:** [usePerformanceMetrics](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/hooks/usePerformanceMetrics.ts) hook
+**Frontend Consumer:** `frontend/src/hooks/usePerformanceMetrics.ts`
 
 #### Message Structure
 
@@ -806,10 +757,9 @@ Sent periodically (every 5 seconds) with detailed system performance metrics. Th
 {
   "type": "performance_update",
   "data": {
-    "timestamp": "2024-01-15T10:30:00.000000",
+    "timestamp": "2026-10-02T10:30:00.000000",
     "gpu": { ... },
     "ai_models": { ... },
-    "nemotron": { ... },
     "inference": { ... },
     "databases": { ... },
     "host": { ... },
@@ -821,17 +771,22 @@ Sent periodically (every 5 seconds) with detailed system performance metrics. Th
 
 #### Field Descriptions
 
-| Field        | Type            | Description                                                           |
-| ------------ | --------------- | --------------------------------------------------------------------- |
-| `timestamp`  | ISO 8601 string | When this update was generated (UTC)                                  |
-| `gpu`        | object \| null  | GPU metrics from pynvml or AI container health endpoints              |
-| `ai_models`  | object          | Dictionary of AI model metrics keyed by model name (yolo26, nemotron) |
-| `nemotron`   | object \| null  | Nemotron LLM-specific metrics (slots, context size)                   |
-| `inference`  | object \| null  | AI inference latency percentiles and throughput                       |
-| `databases`  | object          | Dictionary of database metrics keyed by name (postgresql, redis)      |
-| `host`       | object \| null  | Host system metrics from psutil (CPU, RAM, disk)                      |
-| `containers` | array           | Health status of all monitored containers                             |
-| `alerts`     | array           | Active performance alerts when thresholds are exceeded                |
+| Field        | Type            | Description                                                              |
+| ------------ | --------------- | ------------------------------------------------------------------------ |
+| `timestamp`  | ISO 8601 string | When this update was generated (UTC)                                     |
+| `gpu`        | object \| null  | GPU metrics from pynvml                                                  |
+| `ai_models`  | object          | AI model metrics keyed by model name (`yolo26`, plus the LLM slot block) |
+| `inference`  | object \| null  | AI inference latency percentiles and throughput                          |
+| `databases`  | object          | Database metrics keyed by name (`postgresql`, `redis`)                   |
+| `host`       | object \| null  | Host system metrics from psutil (CPU, RAM, disk)                         |
+| `containers` | array           | Health status of all monitored containers                                |
+| `alerts`     | array           | Active performance alerts when thresholds are exceeded                   |
+
+The schema field names carry the `nemotron` spelling:
+`PerformanceUpdate.nemotron`, `NemotronMetrics`, and `InferenceMetrics.nemotron_latency_ms` are
+live wire/API surface, and `PerformanceCollector.collect_nemotron_metrics()` probes
+`{settings.ai_vlm_url}/slots` — the llama.cpp slot contract the shipped engine serves. Renaming
+that surface is its own API decision, not drift to fix in a docs pass.
 
 #### GPU Metrics (`gpu`)
 
@@ -841,6 +796,7 @@ Sent periodically (every 5 seconds) with detailed system performance metrics. Th
   "utilization": 38.0,
   "vram_used_gb": 22.7,
   "vram_total_gb": 24.0,
+  "vram_percent": 94.58,
   "temperature": 38,
   "power_watts": 31
 }
@@ -852,20 +808,20 @@ Sent periodically (every 5 seconds) with detailed system performance metrics. Th
 | `utilization`   | float  | GPU utilization percentage (0-100) |
 | `vram_used_gb`  | float  | VRAM used in GB                    |
 | `vram_total_gb` | float  | Total VRAM in GB                   |
+| `vram_percent`  | float  | Computed VRAM percentage           |
 | `temperature`   | int    | GPU temperature in Celsius         |
 | `power_watts`   | int    | GPU power usage in Watts           |
 
 #### AI Models (`ai_models`)
 
-Dictionary containing metrics for each AI model:
-
-**YOLO26 (`yolo26`):**
+`PerformanceCollector.collect()` keys the dict `yolo26` for the detector block, plus the LLM slot
+block. `AiModelMetrics` shape:
 
 ```json
 {
   "status": "healthy",
   "vram_gb": 0.17,
-  "model": "yolo26_r50vd_coco_o365",
+  "model": "yolo26",
   "device": "cuda:0"
 }
 ```
@@ -877,7 +833,9 @@ Dictionary containing metrics for each AI model:
 | `model`   | string | Model name/variant                                   |
 | `device`  | string | CUDA device (e.g., "cuda:0")                         |
 
-#### Nemotron Metrics (`nemotron`)
+#### LLM Slot Metrics
+
+The slot block in the schema reports the llama.cpp serve's slot occupancy:
 
 ```json
 {
@@ -907,13 +865,13 @@ Dictionary containing metrics for each AI model:
 }
 ```
 
-| Field                 | Type   | Description                                       |
-| --------------------- | ------ | ------------------------------------------------- |
-| `yolo26_latency_ms`   | object | YOLO26 latency stats (avg, p95, p99 in ms)        |
-| `nemotron_latency_ms` | object | Nemotron latency stats (avg, p95, p99 in ms)      |
-| `pipeline_latency_ms` | object | Full pipeline latency stats (avg, p95 in ms)      |
-| `throughput`          | object | Processing rates (images_per_min, events_per_min) |
-| `queues`              | object | Queue depths (detection, analysis)                |
+| Field                 | Type   | Description                                              |
+| --------------------- | ------ | -------------------------------------------------------- |
+| `yolo26_latency_ms`   | object | Detection latency stats (avg, p95, p99 in ms)            |
+| `nemotron_latency_ms` | object | Verdict-engine latency stats (field name is API surface) |
+| `pipeline_latency_ms` | object | Full pipeline latency stats (avg, p95 in ms)             |
+| `throughput`          | object | Processing rates (images_per_min, events_per_min)        |
+| `queues`              | object | Queue depths (detection, analysis)                       |
 
 #### Database Metrics (`databases`)
 
@@ -963,7 +921,8 @@ Dictionary containing metrics for each AI model:
 
 #### Container Metrics (`containers`)
 
-Array of container health statuses:
+Array of container health statuses, produced by `PerformanceCollector.collect_container_health()`
+(`backend/services/performance_collector.py:438`):
 
 ```json
 [
@@ -971,8 +930,8 @@ Array of container health statuses:
   { "name": "frontend", "status": "running", "health": "healthy" },
   { "name": "postgres", "status": "running", "health": "healthy" },
   { "name": "redis", "status": "running", "health": "healthy" },
-  { "name": "ai-gateway", "status": "running", "health": "healthy" },
-  { "name": "ai-llm", "status": "running", "health": "healthy" }
+  { "name": "ai-yolo26", "status": "running", "health": "healthy" },
+  { "name": "ai-vlm", "status": "running", "health": "healthy" }
 ]
 ```
 
@@ -982,9 +941,12 @@ Array of container health statuses:
 | `status` | string | Container status ("running", "stopped", "restarting", "unknown") |
 | `health` | string | Health status ("healthy", "unhealthy", "starting")               |
 
+The two AI probes hit `{settings.yolo26_url}/health` (reported as `ai-yolo26`) and
+`{settings.ai_vlm_url}/health` (reported as `ai-vlm`).
+
 #### Performance Alerts (`alerts`)
 
-Array of alerts when metrics exceed configured thresholds:
+Array of alerts when metrics exceed the thresholds in `PerformanceCollector`'s `THRESHOLDS`:
 
 ```json
 [
@@ -1006,102 +968,15 @@ Array of alerts when metrics exceed configured thresholds:
 | `threshold` | float  | Threshold that was exceeded             |
 | `message`   | string | Human-readable alert message            |
 
-**Alert Thresholds:**
-
-| Metric            | Warning | Critical |
-| ----------------- | ------- | -------- |
-| `gpu_temperature` | 75C     | 85C      |
-| `gpu_utilization` | 90%     | 98%      |
-| `gpu_vram`        | 90%     | 95%      |
-| `host_cpu`        | 80%     | 95%      |
-| `host_ram`        | 85%     | 95%      |
-| `host_disk`       | 80%     | 90%      |
-| `pg_cache_hit`    | <90%    | <80%     |
-| `redis_hit_ratio` | <50%    | <10%     |
-
-#### Complete Example
-
-```json
-{
-  "type": "performance_update",
-  "data": {
-    "timestamp": "2024-01-15T10:30:00.000000",
-    "gpu": {
-      "name": "NVIDIA RTX A5500",
-      "utilization": 38.0,
-      "vram_used_gb": 22.7,
-      "vram_total_gb": 24.0,
-      "temperature": 38,
-      "power_watts": 31
-    },
-    "ai_models": {
-      "yolo26": {
-        "status": "healthy",
-        "vram_gb": 0.17,
-        "model": "yolo26_r50vd_coco_o365",
-        "device": "cuda:0"
-      },
-      "nemotron": {
-        "status": "healthy",
-        "slots_active": 1,
-        "slots_total": 2,
-        "context_size": 4096
-      }
-    },
-    "nemotron": {
-      "status": "healthy",
-      "slots_active": 1,
-      "slots_total": 2,
-      "context_size": 4096
-    },
-    "inference": {
-      "yolo26_latency_ms": { "avg": 45, "p95": 82, "p99": 120 },
-      "nemotron_latency_ms": { "avg": 2100, "p95": 4800, "p99": 8200 },
-      "pipeline_latency_ms": { "avg": 3200, "p95": 6100 },
-      "throughput": { "images_per_min": 12.4, "events_per_min": 2.1 },
-      "queues": { "detection": 0, "analysis": 0 }
-    },
-    "databases": {
-      "postgresql": {
-        "status": "healthy",
-        "connections_active": 5,
-        "connections_max": 30,
-        "cache_hit_ratio": 98.2,
-        "transactions_per_min": 1200
-      },
-      "redis": {
-        "status": "healthy",
-        "connected_clients": 8,
-        "memory_mb": 1.5,
-        "hit_ratio": 99.5,
-        "blocked_clients": 0
-      }
-    },
-    "host": {
-      "cpu_percent": 12.0,
-      "ram_used_gb": 8.2,
-      "ram_total_gb": 32.0,
-      "disk_used_gb": 156.0,
-      "disk_total_gb": 500.0
-    },
-    "containers": [
-      { "name": "backend", "status": "running", "health": "healthy" },
-      { "name": "frontend", "status": "running", "health": "healthy" },
-      { "name": "postgres", "status": "running", "health": "healthy" },
-      { "name": "redis", "status": "running", "health": "healthy" },
-      { "name": "ai-gateway", "status": "running", "health": "healthy" },
-      { "name": "ai-llm", "status": "running", "health": "healthy" }
-    ],
-    "alerts": []
-  }
-}
-```
+Alert checks run for GPU temperature and VRAM, host CPU/RAM/disk, PostgreSQL cache-hit ratio, and
+Redis hit ratio — see `check_gpu_alerts`, `check_host_alerts`, `check_postgresql_alerts` and
+`check_redis_alerts`.
 
 ### Message Type Summary
 
 | Type                 | Source            | Trigger        | Content                                   |
 | -------------------- | ----------------- | -------------- | ----------------------------------------- |
-| `event`              | NemotronAnalyzer  | Event creation | Security event details                    |
+| `event`              | VlmAnalyzer       | Event creation | Security event details                    |
 | `system_status`      | SystemBroadcaster | Every 5s       | GPU, queues, cameras, health              |
 | `service_status`     | HealthMonitor     | Status change  | Service name and status                   |
 | `performance_update` | SystemBroadcaster | Every 5s       | Detailed GPU, AI, database, host metrics  |
@@ -1113,74 +988,15 @@ Array of alerts when metrics exceed configured thresholds:
 
 ### WebSocket Hooks
 
-The frontend uses custom React hooks for WebSocket integration:
+The frontend uses custom React hooks for WebSocket integration; each is documented in
+[Frontend Hooks Architecture](./frontend-hooks.md).
 
-#### useWebSocket
-
-Base hook for WebSocket connection management:
-
-```typescript
-// frontend/src/hooks/useWebSocket.ts
-export function useWebSocket(url: string, options?: WebSocketOptions) {
-  const [isConnected, setIsConnected] = useState(false);
-  const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
-
-  useEffect(() => {
-    const ws = new WebSocket(url);
-
-    ws.onopen = () => setIsConnected(true);
-    ws.onclose = () => setIsConnected(false);
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      setLastMessage(message);
-    };
-
-    return () => ws.close();
-  }, [url]);
-
-  return { isConnected, lastMessage };
-}
-```
-
-#### useEventStream
-
-Hook for security event stream:
-
-```typescript
-// frontend/src/hooks/useEventStream.ts
-export function useEventStream() {
-  const { isConnected, lastMessage } = useWebSocket('/ws/events');
-  const [events, setEvents] = useState<Event[]>([]);
-
-  useEffect(() => {
-    if (lastMessage?.type === 'event') {
-      setEvents((prev) => [lastMessage.data, ...prev].slice(0, 100));
-    }
-  }, [lastMessage]);
-
-  return { isConnected, events };
-}
-```
-
-#### useSystemStatus
-
-Hook for system status updates:
-
-```typescript
-// frontend/src/hooks/useSystemStatus.ts
-export function useSystemStatus() {
-  const { isConnected, lastMessage } = useWebSocket('/ws/system');
-  const [status, setStatus] = useState<SystemStatus | null>(null);
-
-  useEffect(() => {
-    if (lastMessage?.type === 'system_status') {
-      setStatus(lastMessage.data);
-    }
-  }, [lastMessage]);
-
-  return { isConnected, status };
-}
-```
+| Hook                       | Endpoint     | What it consumes                       |
+| -------------------------- | ------------ | -------------------------------------- |
+| `useWebSocket.ts`          | (base)       | Connection, reconnect, message framing |
+| `useEventStream.ts`        | `/ws/events` | `event` messages                       |
+| `useSystemStatus.ts`       | `/ws/system` | `system_status` and `service_status`   |
+| `usePerformanceMetrics.ts` | `/ws/system` | `performance_update`                   |
 
 ### Frontend Architecture
 
@@ -1266,28 +1082,8 @@ flowchart TB
 
 ### Error Handling
 
-The broadcaster handles disconnections gracefully:
-
-```python
-async def _send_to_all_clients(self, event_data: Any) -> None:
-    """Send event data to all connected WebSocket clients."""
-    if not self._connections:
-        return
-
-    message = event_data if isinstance(event_data, str) else json.dumps(event_data)
-
-    disconnected = []
-    for ws in self._connections:
-        try:
-            await ws.send_text(message)
-        except Exception as e:
-            logger.warning(f"Failed to send to WebSocket client: {e}")
-            disconnected.append(ws)
-
-    # Clean up disconnected clients
-    for ws in disconnected:
-        await self.disconnect(ws)
-```
+Sends are attempted to every registered connection and a client that fails to accept is dropped
+from the set, so one dead socket never blocks the fan-out.
 
 ---
 
@@ -1368,14 +1164,11 @@ location /ws/ {
 
 ## Related Documentation
 
-| Document                                                                                                                       | Purpose                          |
-| ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
-| [Overview](overview.md)                                                                                                        | High-level system architecture   |
-| [AI Pipeline](ai-pipeline.md)                                                                                                  | Detection and analysis flow      |
-| [Resilience](resilience.md)                                                                                                    | Error handling and recovery      |
-| [API Reference - WebSocket](../developer/api/realtime.md)                                                                      | WebSocket endpoint documentation |
-| [Frontend Hooks](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/hooks/AGENTS.md) | Custom hook implementation       |
+| Document                                                   | Purpose                                  |
+| ---------------------------------------------------------- | ---------------------------------------- |
+| [Overview](overview.md)                                    | High-level system architecture           |
+| [AI pipeline: current state](ai-pipeline-current-state.md) | The live path that produces these events |
+| [Resilience](resilience.md)                                | Error handling and recovery              |
+| [Frontend Hooks Architecture](frontend-hooks.md)           | The hooks that consume these channels    |
 
 ---
-
-_This document describes the real-time communication architecture for the Home Security Intelligence system. For implementation details, see the source files referenced in the frontmatter._

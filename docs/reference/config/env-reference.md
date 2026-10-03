@@ -95,108 +95,124 @@ REDIS_URL=rediss://redis-host:6379/0
 
 ## AI Services
 
+Two containers carry the AI work:
+
+- **`ai-gateway`** (:8090) — FastAPI in front of NVIDIA Triton. It mounts two
+  routers: `/yolo26` (object detection) and `/enrich-lt` (a readiness lane for the
+  two resident specialists). Triton's model directory holds
+  `{yolo26, reid, threat}`; `reid` is always resident, `threat` only when
+  `GATEWAY_ENABLE_THREAT=true` (compose default `false`).
+- **`ai-vlm`** (:8098) — llama.cpp `llama-server`. It sits behind the `vlm` compose
+  profile, so a bring-up must name the profile. The event path POSTs
+  `/v1/chat/completions` to it.
+
+Identity questions (faces, license plates, person re-identification) are answered
+**in-process in the backend** as database lookups against your own registrations, not
+by a third service.
+
 ### Service URLs
 
-| Variable               | Required | Default                         | Description                                          |
-| ---------------------- | -------- | ------------------------------- | ---------------------------------------------------- |
-| `YOLO26_URL`           | No       | `http://ai-gateway:8090/yolo26` | YOLO26 detection service URL                         |
-| `NEMOTRON_URL`         | No       | `http://localhost:8091`         | Nemotron LLM service URL                             |
-| `FLORENCE_URL`         | No       | `http://localhost:8092`         | Florence-2 vision-language service URL               |
-| `CLIP_URL`             | No       | `http://localhost:8093`         | CLIP embedding service URL                           |
-| `ENRICHMENT_URL`       | No       | `http://localhost:8094`         | Enrichment service URL (heavy models)                |
-| `ENRICHMENT_LIGHT_URL` | No       | `http://localhost:8096`         | Light enrichment service URL (pose/threat/pet/depth) |
+| Variable         | Required | Default                         | Description                                                                                                                                     |
+| ---------------- | -------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `YOLO26_URL`     | No       | `http://ai-gateway:8090/yolo26` | Detector dial. `docker-compose.prod.yml:591` sets the same value                                                                                |
+| `AI_VLM_URL`     | No       | `http://localhost:8098`         | Reasoning serve. Compose sets `http://ai-vlm:8098` (`:548`)                                                                                     |
+| `AI_GATEWAY_URL` | No       | `http://ai-gateway:8090`        | Gateway base URL (`docker-compose.prod.yml:590`)                                                                                                |
+| `USE_AI_GATEWAY` | No       | `false`                         | With `AI_GATEWAY_URL` set, the detector dials `{AI_GATEWAY_URL}/yolo26`; otherwise it dials `YOLO26_URL` directly. Compose sets `true` (`:589`) |
 
-> **Note:** In deployed containers all five router services are reached through the AI Gateway on `ai-gateway:8090` — e.g. `http://ai-gateway:8090/florence`, `/clip`, `/enrichment`, `/enrich-lt` (set by `docker-compose.prod.yml`; `.env.example` ships the host-side equivalents on `localhost:8090`). The `localhost:809x` defaults above are the standalone-service dev ports. The standalone Nemotron LLM (compose service `ai-llm`) is the only AI service not routed through the gateway; the gateway routes `/yolo26` `/clip` `/florence` `/enrichment` `/enrich-lt` (`ai/gateway/main.py`).
+> **Note:** The container-side port of `ai-vlm` is fixed at 8098
+> (`ai/vlm/Dockerfile:123`); the host-side `AI_VLM_PORT` is a separate mapping, so
+> the internal URL never depends on it. The backend's `depends_on` list never names
+> `ai-vlm` — a dependency entry cannot name a profiled service — so the VLM link is
+> this env var and nothing else.
+
+> **Pointer:** `ENRICHMENT_LIGHT_URL` (`http://ai-gateway:8090/enrich-lt`) is read by
+> `backend/api/routes/model_management.py` to report which specialists are resident.
+> It is a readiness lane, not an inference endpoint.
 
 > **Warning:** Use HTTPS in production to prevent MITM attacks.
 
 ### Service Authentication
 
-| Variable           | Required | Default | Description                  |
-| ------------------ | -------- | ------- | ---------------------------- |
-| `YOLO26_API_KEY`   | No       | -       | API key for YOLO26 service   |
-| `NEMOTRON_API_KEY` | No       | -       | API key for Nemotron service |
+| Variable         | Required | Default | Description                  |
+| ---------------- | -------- | ------- | ---------------------------- |
+| `YOLO26_API_KEY` | No       | -       | API key sent to the detector |
 
 ### Service Timeouts
 
-| Variable                  | Required | Default | Range   | Description                         |
-| ------------------------- | -------- | ------- | ------- | ----------------------------------- |
-| `AI_CONNECT_TIMEOUT`      | No       | `10.0`  | 1-60s   | Connection timeout                  |
-| `AI_HEALTH_TIMEOUT`       | No       | `5.0`   | 1-30s   | Health check timeout                |
-| `YOLO26_READ_TIMEOUT`     | No       | `30.0`  | 5-120s  | Detection response timeout          |
-| `NEMOTRON_READ_TIMEOUT`   | No       | `120.0` | 30-600s | LLM response timeout                |
-| `FLORENCE_READ_TIMEOUT`   | No       | `30.0`  | 5-120s  | Florence-2 response timeout         |
-| `CLIP_READ_TIMEOUT`       | No       | `5.0`   | 1-60s   | CLIP embedding generation timeout   |
-| `ENRICHMENT_READ_TIMEOUT` | No       | `60.0`  | 10-180s | Enrichment service response timeout |
+| Variable                      | Required | Default | Range  | Description                            |
+| ----------------------------- | -------- | ------- | ------ | -------------------------------------- |
+| `AI_CONNECT_TIMEOUT`          | No       | `10.0`  | 1-60s  | Connection timeout to any AI service   |
+| `AI_HEALTH_TIMEOUT`           | No       | `5.0`   | 1-30s  | Health check timeout                   |
+| `YOLO26_READ_TIMEOUT`         | No       | `30.0`  | 5-120s | Detection response timeout             |
+| `AI_VLM_READ_TIMEOUT`         | No       | `25.0`  | 5-300s | One `vlm_assess` attempt               |
+| `AI_VLM_WAKE_TIMEOUT_SECONDS` | No       | `90.0`  | 5-300s | Read timeout for the wake-on-open ping |
 
-### Enrichment Feature Toggles
+> **Note:** `AI_VLM_READ_TIMEOUT` bounds a single verdict attempt, and the one retry
+> at temperature 0 happens **inside** that same budget — a value at or above 30 s
+> leaves the retry no room. `AI_VLM_WAKE_TIMEOUT_SECONDS` is deliberately generous:
+> it pays for a sleeping `ai-vlm` loading its weights, and a failed wake is swallowed
+> rather than retried.
 
-These control enrichment behaviors in the backend. Defaults are designed for “rich context”, but you can
-disable them if you’re resource constrained or running without those services.
+### VLM Context and Slots
 
-| Variable                    | Required | Default | Description                               |
-| --------------------------- | -------- | ------- | ----------------------------------------- |
-| `VISION_EXTRACTION_ENABLED` | No       | `true`  | Enable Florence-2 based vision extraction |
-| `REID_ENABLED`              | No       | `true`  | Enable OSNet-AIN person re-identification |
-| `SCENE_CHANGE_ENABLED`      | No       | `true`  | Enable scene change detection             |
+| Variable       | Required | Default  | Description                                                                     |
+| -------------- | -------- | -------- | ------------------------------------------------------------------------------- |
+| `VLM_CTX_SIZE` | No       | `32768`  | llama.cpp's total context pool on `ai-vlm`                                      |
+| `VLM_PARALLEL` | No       | `2`      | llama.cpp `--parallel` slots on `ai-vlm`                                        |
+| `CTX_SIZE`     | No       | `262144` | Pool behind the token counter's separate budget (`docker-compose.prod.yml:586`) |
+| `PARALLEL`     | No       | `8`      | Its slot count (`:587`) — divide to 32 768                                      |
 
-### Florence Feature Toggles
+> **Note:** llama.cpp splits one context pool across its slots and a request only
+> ever occupies one slot, so the per-request budget the backend enforces is
+> `VLM_CTX_SIZE // VLM_PARALLEL` (`vlm_context_window`) — 16 384 at the shipped
+> defaults. A `vlm_assess` prompt (text plus up to four stills) and the verdict's own
+> output both have to fit in that one slot, which is why image capture is sized
+> against it. The `CTX_SIZE`/`PARALLEL` pair divides the same way into the token
+> counter's budget (`vlm_client` uses that counter to decide how many detections fit
+> in a prompt before it truncates).
 
-| Variable                              | Required | Default | Description                                             |
-| ------------------------------------- | -------- | ------- | ------------------------------------------------------- |
-| `FLORENCE_SCENE_CAPTIONS_ENABLED`     | No       | `true`  | Enable detailed scene captions (rich scene description) |
-| `FLORENCE_DETECTION_CAPTIONS_ENABLED` | No       | `true`  | Enable per-detection captions (vehicles, persons)       |
-| `FLORENCE_VQA_ENABLED`                | No       | `true`  | Enable Visual Question Answering attribute extraction   |
+### Specialist Lookup Tuning
 
-### Re-ID / Scene Change Tuning
+These tune the three in-process lookups (faces, plates, person re-ID).
 
-| Variable                       | Required | Default | Range   | Description                              |
-| ------------------------------ | -------- | ------- | ------- | ---------------------------------------- |
-| `REID_SIMILARITY_THRESHOLD`    | No       | `0.7`   | 0.5-1.0 | Cosine similarity threshold for matching |
-| `REID_TTL_HOURS`               | No       | `24`    | 1-168   | Redis TTL for embeddings                 |
-| `REID_MAX_CONCURRENT_REQUESTS` | No       | `10`    | 1-100   | Max concurrent re-ID operations          |
-| `REID_EMBEDDING_TIMEOUT`       | No       | `30.0`  | 5-120s  | Timeout for ReID embedding generation    |
-| `SCENE_CHANGE_THRESHOLD`       | No       | `0.90`  | 0.5-1.0 | SSIM threshold (below = change detected) |
+| Variable                       | Required | Default | Range   | Description                                                        |
+| ------------------------------ | -------- | ------- | ------- | ------------------------------------------------------------------ |
+| `BACKEND_MODEL_PRELOAD`        | No       | `false` | -       | Run the boot preload sweep that makes the face and re-ID legs live |
+| `REID_SIMILARITY_THRESHOLD`    | No       | `0.7`   | 0.5-1.0 | Cosine similarity cutoff for a person match                        |
+| `REID_MAX_CONCURRENT_REQUESTS` | No       | `10`    | 1-100   | Cap on concurrent embedding work                                   |
+| `REID_EMBEDDING_TIMEOUT`       | No       | `30.0`  | 5-120s  | Timeout for one embedding generation                               |
+| `FACE_MIN_SIZE_PX`             | No       | `40`    | 8-      | Smallest face side (px) worth encoding                             |
+| `FACE_SCRFD_THRESHOLD`         | No       | `0.6`   | 0.0-1.0 | SCRFD face-detection confidence cutoff                             |
 
-> **Note:** `REID_SIMILARITY_THRESHOLD` is tuned to the OSNet-AIN x1.0 person-vector space (512-d); the CLIP-era `0.85` would drop every legitimate OSNet match. The `0.7` default is PROVISIONAL pending calibration against real household galleries.
+> **Note:** `BACKEND_MODEL_PRELOAD=false` is the shipped default so a small host
+> never loads weights it cannot hold; on a host with the VRAM, set it `true` and
+> restart the backend. Until you do, the face and person-re-ID legs report
+> `unavailable: <why>` and events still get written. `REID_SIMILARITY_THRESHOLD` is
+> tuned to the OSNet-AIN x1.0 person-vector space (512-d) and the `0.7` default is
+> PROVISIONAL pending calibration against your own galleries.
 
-### Image Quality Assessment
+### Circuit Breakers
 
-| Variable                | Required | Default | Description                                                 |
-| ----------------------- | -------- | ------- | ----------------------------------------------------------- |
-| `IMAGE_QUALITY_ENABLED` | No       | `true`  | Enable BRISQUE image quality assessment (CPU-based, 0 VRAM) |
+The registry holds three breakers, registered in `backend/main.py:310-331`:
+`yolo26` (5 failures, 30 s recovery) and the two infrastructure breakers
+`postgresql` and `redis` (10 failures, 60 s recovery). Read them at
+`GET /api/system/circuit-breakers`; reset a registry breaker with
+`POST /api/system/circuit-breakers/{name}/reset`.
 
-### Enrichment Circuit Breakers
+### Feature Flags Without a Runtime Effect
 
-| Variable                            | Required | Default | Range  | Description                   |
-| ----------------------------------- | -------- | ------- | ------ | ----------------------------- |
-| `ENRICHMENT_CB_FAILURE_THRESHOLD`   | No       | `10`    | 1-50   | Failures before circuit opens |
-| `ENRICHMENT_CB_RECOVERY_TIMEOUT`    | No       | `60.0`  | 10-600 | Seconds to wait before retry  |
-| `ENRICHMENT_CB_HALF_OPEN_MAX_CALLS` | No       | `3`     | 1-10   | Test calls in half-open state |
-
-### CLIP Circuit Breakers
-
-| Variable                      | Required | Default | Range  | Description                   |
-| ----------------------------- | -------- | ------- | ------ | ----------------------------- |
-| `CLIP_CB_FAILURE_THRESHOLD`   | No       | `10`    | 1-50   | Failures before circuit opens |
-| `CLIP_CB_RECOVERY_TIMEOUT`    | No       | `60.0`  | 10-600 | Seconds to wait before retry  |
-| `CLIP_CB_HALF_OPEN_MAX_CALLS` | No       | `3`     | 1-10   | Test calls in half-open state |
-
-### Florence Circuit Breakers
-
-| Variable                          | Required | Default | Range  | Description                   |
-| --------------------------------- | -------- | ------- | ------ | ----------------------------- |
-| `FLORENCE_CB_FAILURE_THRESHOLD`   | No       | `10`    | 1-50   | Failures before circuit opens |
-| `FLORENCE_CB_RECOVERY_TIMEOUT`    | No       | `60.0`  | 10-600 | Seconds to wait before retry  |
-| `FLORENCE_CB_HALF_OPEN_MAX_CALLS` | No       | `3`     | 1-10   | Test calls in half-open state |
+The settings API and the frontend console expose these switches, and the values
+persist and read back correctly. Nothing in the event pipeline branches on them, so
+flipping one changes what the console displays, not what the system does:
+`VISION_EXTRACTION_ENABLED`, `REID_ENABLED`, `SCENE_CHANGE_ENABLED`,
+`IMAGE_QUALITY_ENABLED`, plus the tuning values `REID_TTL_HOURS` and
+`SCENE_CHANGE_THRESHOLD`.
 
 ### AI Service Retries
 
-| Variable                 | Required | Default | Range | Description                           |
-| ------------------------ | -------- | ------- | ----- | ------------------------------------- |
-| `DETECTOR_MAX_RETRIES`   | No       | `3`     | 1-10  | Retry attempts for YOLO26 detector    |
-| `NEMOTRON_MAX_RETRIES`   | No       | `3`     | 1-10  | Retry attempts for Nemotron LLM       |
-| `ENRICHMENT_MAX_RETRIES` | No       | `3`     | 1-10  | Retry attempts for enrichment service |
+| Variable               | Required | Default | Range | Description                     |
+| ---------------------- | -------- | ------- | ----- | ------------------------------- |
+| `DETECTOR_MAX_RETRIES` | No       | `3`     | 1-10  | Retries for the YOLO26 detector |
 
 ### AI Concurrency
 
@@ -204,27 +220,16 @@ disable them if you’re resource constrained or running without those services.
 | ------------------------------ | -------- | ------- | ----- | ------------------------------------------------------------------- |
 | `AI_MAX_CONCURRENT_INFERENCES` | No       | `4`     | 1-32  | Max concurrent AI inference operations (20 on free-threaded Python) |
 
-> **Note:** The default is resolved at startup by `_get_default_inference_limit()` in `backend/core/config.py`: 20 when running free-threaded Python (3.13t/3.14t with the GIL disabled), 4 on standard GIL builds.
-
-### Nemotron Context Window
-
-| Variable                     | Required | Default | Range       | Description                                        |
-| ---------------------------- | -------- | ------- | ----------- | -------------------------------------------------- |
-| `NEMOTRON_CONTEXT_WINDOW`    | No       | `32768` | 1000-131072 | Context window size in tokens                      |
-| `NEMOTRON_MAX_OUTPUT_TOKENS` | No       | `1536`  | 100-8192    | Maximum tokens reserved for output                 |
-| `PARALLEL`                   | No       | `8`     | 1-64        | llama.cpp parallel slots sharing the CTX_SIZE pool |
-
-> **Note:** `NEMOTRON_CONTEXT_WINDOW` reads from the `CTX_SIZE` env var (`validation_alias="CTX_SIZE"` — single source of truth shared with llama.cpp). `docker-compose.prod.yml` passes `CTX_SIZE=262144` (8 parallel slots x 32K) and `PARALLEL=8` to both the `ai-llm` and `backend` containers — the backend block's defaults mirror the `ai-llm` service — so the backend divides the same pool by the same slot count. `docker-compose.ghcr.yml` passes `CTX_SIZE=4096` / `PARALLEL=2` to its backend: that file's `ai-llm` service sets only `CTX_SIZE=4096`, and the ghcr `ai-llm` image bakes `PARALLEL=2` (`ai/nemotron/Dockerfile`) with no override passed.
-
-> **Note:** `PARALLEL` maps to `llama_slot_count` (`validation_alias="PARALLEL"`) — llama.cpp's `--parallel` slot count. Slots share one `CTX_SIZE` pool, so the per-request budget above is derived as `CTX_SIZE / PARALLEL`.
+> **Note:** The default is resolved at startup by `_get_default_inference_limit()` in
+> `backend/core/config.py`: 20 when running free-threaded Python (3.13t/3.14t with the
+> GIL disabled), 4 on standard GIL builds.
 
 ### AI Warmup Settings
 
-| Variable                          | Required | Default                                                                | Range    | Description                             |
-| --------------------------------- | -------- | ---------------------------------------------------------------------- | -------- | --------------------------------------- |
-| `AI_WARMUP_ENABLED`               | No       | `true`                                                                 | -        | Enable model warmup on startup          |
-| `AI_COLD_START_THRESHOLD_SECONDS` | No       | `300.0`                                                                | 60-3600s | Seconds before model is considered cold |
-| `NEMOTRON_WARMUP_PROMPT`          | No       | `"Hello, please respond with 'ready' to confirm you are operational."` | -        | Test prompt for Nemotron warmup         |
+| Variable                          | Required | Default | Range    | Description                             |
+| --------------------------------- | -------- | ------- | -------- | --------------------------------------- |
+| `AI_WARMUP_ENABLED`               | No       | `true`  | -        | Enable model warmup on startup          |
+| `AI_COLD_START_THRESHOLD_SECONDS` | No       | `300.0` | 60-3600s | Seconds before model is considered cold |
 
 ---
 
@@ -262,7 +267,7 @@ Camera images are expected at: `{FOSCAM_BASE_PATH}/{camera_name}/`
 
 High-confidence detections can bypass batching for immediate alerts.
 
-> **Status:** The fast path is **DISABLED by default**. The threshold ships at `2.0` (an impossible value > 1.0) and the object-type list ships empty, as a second safety net — fast path bypasses enrichment, which caused Nemotron to produce inaccurate scores (NEM-5525). Do not lower the threshold or add object types without first adding enrichment to the fast-path code path.
+> **Status:** The fast path is **DISABLED by default**. The threshold ships at `2.0` (an impossible value > 1.0) and the object-type list ships empty, as a second safety net — a fast-path detection skips the batch's specialist lookups, and the score it returns is weaker for it. Do not lower the threshold or add object types without first running the lookups on the fast-path code path. In `vlm` mode the bypass routes the single detection through `VlmAnalyzer`'s batch gate rather than a second analysis path.
 
 | Variable                         | Required | Default | Range    | Description                                         |
 | -------------------------------- | -------- | ------- | -------- | --------------------------------------------------- |
@@ -730,17 +735,17 @@ Configuration for the Model Zoo, which provides on-demand AI model loading durin
 | ---------------- | -------- | ------------------- | --------------------------------------------- |
 | `MODEL_ZOO_PATH` | No       | `/models/model-zoo` | Base directory path for Model Zoo model files |
 
-The Model Zoo contains supplementary AI models loaded on-demand during batch processing:
+`ai/download_models.sh` provisions this directory. What lands there today:
 
-- License plate detection (yolo11-license-plate)
-- Face detection (yolo11-face)
-- OCR text extraction (paddleocr)
-- Clothing segmentation (segformer-b2-clothes)
-- Violence detection
-- Weather classification
-- And more
+- YOLO26 `.pt` weights (`model-zoo/yolo26/`) — the source the gateway's export
+  scripts read to produce the ONNX model Triton serves
+- OSNet-AIN x1.0 person vectors (`model-zoo/osnet-ain-x1-0/`)
+- `threat-detection-yolov8n`, `yolo11-face`, `yolo11-license-plate`
 
-> **Note:** Models are loaded sequentially within a ~1,650 MB VRAM budget (shared with the primary Nemotron and YOLO26 models).
+> **Note:** The face, plate and person-re-ID lookups load their ONNX models on CPU in
+> the backend process, so they draw no VRAM and are not part of the GPU budget. The
+> two GPU-resident workloads are sized in
+> [VRAM Budget](../nvidia-technology-inventory.md#vram-budget).
 
 ---
 
