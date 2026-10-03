@@ -1,5 +1,14 @@
 # Open Questions Register
 
+> **Currency - 2026-10-03 [V].** This register is a 2026-09-19 record; several claims no longer
+> hold. Q1-Q5 and Q8 no longer gate anything ("the consumer shape must be built at FP8", "Answer it
+> early", "no configuration can be declared to fit"), and Q2 is answered for the shipped path (no
+> NGC credential at runtime). "Not yet decided. Listed so a future agent does not assume option 2
+> was chosen." was decided: llama.cpp with Qwen3-VL-8B. "merge #6556" is void (closed unmerged),
+> "there is no skeleton to render" was settled by deletion, Q7's "ArcFace templates" were random
+> vectors until 2026-09-25, and Q9's "22 `*_loader.py` modules" is now 3. Corrections:
+> [`16`](16-errata-2026-10-03.md) E57-E64, E71, E72, E80.
+
 > **Errata (2026-09-23):** E8, E9, E19 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
 
 Everything not yet established. **Update this file as questions are answered** — move resolved

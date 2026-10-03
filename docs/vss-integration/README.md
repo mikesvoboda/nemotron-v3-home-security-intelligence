@@ -1,5 +1,15 @@
 # VSS Integration
 
+> **Currency - 2026-10-03 [V].** The banner below and the body carry claims that need correcting.
+> "M2 stays open because the VLM pick is still the owner's" is false: the owner picked
+> Qwen3-VL-8B on 2026-09-28, and M2 closure is what is open (E29). "S3 fails its bar in every arm
+> measured" holds, but the `10/20` is a 38-item set; the 450-still replay gives S3 36.5% and S2
+> 6.7%, one draw among re-runs that vary (E30, E31).
+> `docker-compose.prod.yml:578` is now `:484` (E37). "A single constrained call" covers stills only
+> (E32). "ships as the default" needs `--profile vlm` (E34). Also: the Brev matrix was never run
+> (E35), "Current state: the ledger" omits the synthbench corpus (E36), "rev 7 shortlist" is taken
+> (E122). See [`16`](16-errata-2026-10-03.md) E29-E38.
+
 Research and design for bringing NVIDIA's **Video Search and Summarization (VSS)** blueprint's
 approach to this project on **consumer gaming GPUs**, a market VSS does not serve.
 
@@ -40,17 +50,23 @@ approach to this project on **consumer gaming GPUs**, a market VSS does not serv
 
 ## Read in this order
 
-| Document                                                                      | What it answers                                                           |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| **The design spec** (link above)                                              | What we are building, the success criteria, the phases                    |
-| [`13-implementation-brief.md`](13-implementation-brief.md)                    | How the implementing agent works, including a kickoff prompt              |
-| [`12-postponed-roadmap.md`](12-postponed-roadmap.md)                          | What we deliberately left for later, and what reopens each item           |
-| [`14-specialist-model-research.md`](14-specialist-model-research.md)          | Which small models the specialists should use, and the rev 7 shortlist    |
-| [`10-audit-feature-inventory.md`](10-audit-feature-inventory.md)              | Which VSS features are worth importing, and what we have that VSS lacks   |
-| [`09-audit-integration-surfaces.md`](09-audit-integration-surfaces.md)        | Which VSS components fit, with their exact contracts                      |
-| [`08-audit-profile-anatomy.md`](08-audit-profile-anatomy.md)                  | How VSS hardware profiles work; what an upstream consumer tier would take |
-| [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md)                          | Corrections to the earlier research (00-07)                               |
-| [`00-context.md`](00-context.md) … [`07-lean-backend.md`](07-lean-backend.md) | The original 2026-09-18/19 research. Each doc carries an errata banner.   |
+| Document                                                                               | What it answers                                                                        |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **The design spec** (link above)                                                       | What we are building, the success criteria, the phases                                 |
+| [`17-action-plan.md`](17-action-plan.md)                                               | The living issue register: what is broken or missing, who can act, and how each closes |
+| [`15-progress-since-the-design.md`](15-progress-since-the-design.md)                   | What shipped and what was measured since the design (2026-09-23 to 2026-10-03)         |
+| [`16-errata-2026-10-03.md`](16-errata-2026-10-03.md)                                   | Corrections to docs 00-14 since the first errata (E29 onward)                          |
+| [`18-world-class-target.md`](18-world-class-target.md)                                 | Proposal: the capability ladder toward a world-class video reasoning pipeline          |
+| [`19-nvidia-accuracy-benchmarking.md`](19-nvidia-accuracy-benchmarking.md)             | How NVIDIA's VSS team measures accuracy (research checkpoint, unaudited)               |
+| [`20-model-tiers-benchmark-and-training.md`](20-model-tiers-benchmark-and-training.md) | VLMs per GPU tier, benchmarks, LoRA (research checkpoint, unaudited)                   |
+| [`13-implementation-brief.md`](13-implementation-brief.md)                             | How the implementing agent works, including a kickoff prompt                           |
+| [`12-postponed-roadmap.md`](12-postponed-roadmap.md)                                   | What we deliberately left for later, and what reopens each item                        |
+| [`14-specialist-model-research.md`](14-specialist-model-research.md)                   | Which small models the specialists should use, and the rev 7 shortlist                 |
+| [`10-audit-feature-inventory.md`](10-audit-feature-inventory.md)                       | Which VSS features are worth importing, and what we have that VSS lacks                |
+| [`09-audit-integration-surfaces.md`](09-audit-integration-surfaces.md)                 | Which VSS components fit, with their exact contracts                                   |
+| [`08-audit-profile-anatomy.md`](08-audit-profile-anatomy.md)                           | How VSS hardware profiles work; what an upstream consumer tier would take              |
+| [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md)                                   | Corrections to the earlier research (00-07)                                            |
+| [`00-context.md`](00-context.md) … [`07-lean-backend.md`](07-lean-backend.md)          | The original 2026-09-18/19 research. Each doc carries an errata banner.                |
 
 ## Evidence convention
 

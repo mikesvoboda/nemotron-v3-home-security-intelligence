@@ -1,5 +1,12 @@
 # FP4, Local Deployment, and the Consumer Fit
 
+> **Currency - 2026-10-03 [V].** "A consumer configuration exists" (NVFP4 12B-VL on a 5090) is not
+> what shipped: the compose default is Qwen3-VL-8B `Q4_K_M` on llama.cpp (`ai-vlm`), and the
+> section 3 fit table (13.78 + 3.0 = 16.78 GB) is blob x 1.3 with no KV term. RT-VLM ("Yes,
+> mechanically") is an unstarted Phase 4; "STRUCTURALLY BLOCKED" no longer describes the one-VLM
+> shape; this repo's Cosmos is Cosmos-Reason2-8B. The VSS-side facts below are not re-verified. See
+> [`16`](16-errata-2026-10-03.md) E32, E52, E53, E56, E60, E65-E70.
+
 > **Errata (2026-09-23):** E1, E8, E9, E13, E14, E15, E16, E17, E27 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
 
 **Investigated 2026-09-19** against VSS `cdad5cc0e`, with an adversarial verification pass.

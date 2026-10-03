@@ -1,5 +1,13 @@
 # Repo A Readiness: What Must Be Fixed Before Any Swap
 
+> **Currency - 2026-10-03 [V].** Sections 1.1-1.4 still hold as CI mechanisms, but their `ci.yml`
+> line anchors ("Fix, re-verified") drifted; cite step names. Stale since: "zero tests import
+> `ai.*`" and the 38-op contract (the registry has 9); "Survives a swap" and the 22-loader census
+> (R8 deleted the tier, 3 loaders remain); 1.7's frontend blast radius (the enrichment panels are
+> deleted, but NULL-score events still read as low risk on `/alerts`); 1.4's "`scene_change_detector`"
+> live path; the "Day 1-2 — a salience demo" and "Bottom line" priorities; "SLA §8.9 bars
+> publishing benchmark data". See [`16`](16-errata-2026-10-03.md) E57, E59, E75-E77, E79-E84.
+
 > **Errata (2026-09-23):** E5, E7, E25, E26 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
 
 Findings from a 14-agent assessment on 2026-09-18, **independently re-verified** where marked

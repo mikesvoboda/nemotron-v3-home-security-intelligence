@@ -1,5 +1,15 @@
 # VSS Integration - Agent Guide
 
+> **Currency - 2026-10-03 [V].** Corrections to the claims below, checked at `5c605e1d`. The
+> compose anchor `docker-compose.prod.yml:578` has rotted: the `PIPELINE_MODE=${PIPELINE_MODE:-vlm}`
+> default is at `:484` (E37). "S3 sits below its bar in every arm measured" still holds, but `10/20`
+> is a 38-item set; the corpus-scale reading is P5a (450 stills: S3 36.5%, S2 6.7%) (E30, E31).
+> "Route to the ledger" misses P5a and synthbench, which have no ledger row (E36). "It is the single
+> source of truth for the plan" is wrong for the S2/S3 bars: the spec still shows `[?]`, the bars
+> are 5% and 90% (F14) (E39). "Since spec rev 5 the legacy text-LLM path is unsupported" understates
+> it: R8 deleted it (E44). "No CI gate reads these status lines" is stale (E40). See
+> [`16`](16-errata-2026-10-03.md) E30-E44, E46, E66, E80, E100, E115, E117, E120-E122.
+
 ## Start here
 
 > **Currency — 2026-09-29 [V].** The sentence below ("**Nothing is implemented yet.**") was true
@@ -36,6 +46,14 @@ on one consumer-class GPU. **Nothing is implemented yet.** Pick your branch:
   [`08`](08-audit-profile-anatomy.md) (profiles, placement, architecture, CI),
   [`09`](09-audit-integration-surfaces.md) (component contracts: what we can incorporate),
   [`10`](10-audit-feature-inventory.md) (features to import, our differentiators, NemoClaw).
+- **Asking "what is broken, missing, or next?"** → [`17-action-plan.md`](17-action-plan.md), the living
+  issue register (`ISS-nnn`: evidence, acceptance condition, who can act). Add new issues to its
+  intake log as you find them; close, never delete. What shipped and was measured since the design:
+  [`15`](15-progress-since-the-design.md). Corrections to 00-14 since the first errata:
+  [`16`](16-errata-2026-10-03.md) (E29 onward). The proposed target:
+  [`18`](18-world-class-target.md). Research checkpoints (unaudited): NVIDIA's accuracy practice
+  [`19`](19-nvidia-accuracy-benchmarking.md); models per GPU tier, benchmarks, LoRA
+  [`20`](20-model-tiers-benchmark-and-training.md).
 
 **The design in one breath:** a detector gates FTP stills, and **one VLM** describes, verifies and
 scores each candidate in a single constrained call. llama.cpp serves it first; VSS's RT-VLM joins
@@ -70,7 +88,13 @@ docs/vss-integration/
 ├── 11-errata-2026-09-23.md       # Corrections to 00-07 (E1-E28)
 ├── 12-postponed-roadmap.md       # Deliberately deferred items (R1-R14)
 ├── 13-implementation-brief.md    # How the implementing agent works: spikes, ledger, guardrails, stops
-└── 14-specialist-model-research.md  # Specialist model candidates (2026-09-25), 3b picks, rev 7 shortlist
+├── 14-specialist-model-research.md  # Specialist model candidates (2026-09-25), 3b picks, rev 7 shortlist
+├── 15-progress-since-the-design.md  # What shipped and was measured, 2026-09-23 to 2026-10-03
+├── 16-errata-2026-10-03.md       # Corrections to 00-14 (E29 onward)
+├── 17-action-plan.md             # The living issue register (ISS-nnn): status, evidence, acceptance
+├── 18-world-class-target.md      # Proposal: the capability ladder for a world-class pipeline
+├── 19-nvidia-accuracy-benchmarking.md  # How NVIDIA's VSS team measures accuracy (checkpoint)
+└── 20-model-tiers-benchmark-and-training.md  # VLMs per GPU tier, benchmarks, LoRA (checkpoint)
 ```
 
 The design spec lives outside this directory, with the repo's other specs:

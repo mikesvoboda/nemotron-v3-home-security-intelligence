@@ -1,5 +1,15 @@
 # 10 — Audit: VSS Feature Inventory and Gap Analysis
 
+> **Currency - 2026-10-03 [V].** The "our product" half (sections 1, 4, 6, 7, 9.2) is stale: R8
+> deleted "Our pipeline turns pixels into text", the "Enrichment model zoo", "Florence-2 cascade"
+> and "Scene change" rows (O6-O11), the "21,700 MB" 30B budget and the "LRU manager lives in the
+> standalone enrichment server" ([`16`](16-errata-2026-10-03.md) E44, E45, E74, E101). "An event
+> only notifies after a VLM looks at the evidence stills" is false: the gates exist, nothing calls
+> them (E100, M1). "Clip frame sampling" is refused for clips (E32); "Outbound webhooks", "Re-ID
+> entities" and "Threat fast path" are mis-wired (E102); "our analyzer sends NIM-only
+> `nvext.guided_json` to llama.cpp" is deleted code (E93); the 24/16/12 GB rows under "use VSS's
+> 0.85 rule" are `[C]` (E56). The about 70 VSS-side `v:` cites were not re-checked.
+
 > **Provenance.** Independent read-only audit by a research subagent ("Auditor C") on
 > 2026-09-23, against VSS `1e94133b4` (`origin/develop`; 78 commits after the `cdad5cc0e`
 > baseline that docs 00-07 cite). Scope: user-facing VSS features vs this product; ranked import list; our differentiators. Evidence markers follow [`AGENTS.md`](AGENTS.md).

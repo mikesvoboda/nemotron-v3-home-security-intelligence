@@ -1,5 +1,15 @@
 # Context: Why This Research Exists
 
+> **Currency - 2026-10-03 [V].** The `docker-compose.prod.yml:578` anchor below is rotted: the key
+> `PIPELINE_MODE=${PIPELINE_MODE:-vlm}` is at `:484` at `5c605e1d` (cite the key, not a line).
+> Superseded by R8, which deleted the pipeline this doc compares against: "Our pipeline turns images
+> into text with small specialized vision models" and "so many small models in `ai/`" no longer
+> hold (one constrained VLM call replaces Florence-2, CLIP and the Nemotron analyzer); "a **24 GB
+> VRAM budget**" with Nemotron v3 Nano describes the llama.cpp `ai-llm` service, which is gone (only
+> an opt-in `ai-llm-vllm` benchmark profile remains); the WP4.4 question was answered by deletion;
+> the "cheapest experiment" was run (fit held, S3 is 36.5%). See
+> [`16`](16-errata-2026-10-03.md) E37, E44-E47.
+
 > **Errata (2026-09-23):** E2, E3 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
 
 > **Currency — 2026-09-29 [V].** The **Status:** line below ("Research in progress") is the record
