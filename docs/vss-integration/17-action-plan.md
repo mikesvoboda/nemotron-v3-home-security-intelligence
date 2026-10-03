@@ -158,6 +158,15 @@ quoted text.
 6. Correct a published issue with a dated note under its block; edit the original only to fix a typo
    or a status. The register is a record: what was believed on a date stays readable.
 
+Update, appended 2026-10-03 (after the reorganization decisions): allocate an id with
+`python scripts/vss-next-id.py iss`, which scans every branch and worktree and the ledger and specs,
+not only this file (rule 1's 'highest plus one' is what that script computes); a collision takes a
+lettered suffix (`ISS-088b`) and nothing is renumbered. The block heading is `####`, as the template
+below now shows (it printed `###` before, which the gate does not count). The Dashboard counts are
+still written by hand, but `scripts/check-vss-docs-currency.py` recomputes them from the blocks and
+prints the right numbers when they disagree, so update the header count, the Dashboard, the area
+heading counts and the P0 and P1 list in the same commit as the block.
+
 ### Severity
 
 - **P0**: blocks a milestone or go-live, or leaves a designed safety behaviour structurally
@@ -202,7 +211,7 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 ### Block format
 
 ```text
-### ISS-nnn — title
+#### ISS-nnn — title
 
 `P1` (verifiers read `P2`) · `gap` · actor `agent-now` · status `open`
 
@@ -533,6 +542,8 @@ this order.
   - Update 2026-10-03 (after `efa1b586`): ISS-083 is `done`; the track now holds ISS-084 and
     ISS-085, which still wait on OD-25. The `cryptography` upgrade that ISS-083 unblocked is
     OD-11's and is not applied.
+  - Update, appended 2026-10-03: it was applied in `f0ff083e` (`cryptography` 50.0.2, the ignore flags
+    removed, `pip-audit` clean); OD-11 still holds the other owner-held CI items.
 
 ## 4. Owner decisions
 
