@@ -6439,3 +6439,16 @@ Three more commits landed after `d8482861`, the same day, on `docs/synthbench-h3
 
 - ISS-089 to ISS-098 added, each drafted by one agent against the code at the tip and re-read by an independent verifier, who corrected every draft before it was filed: ISS-089 NVFP4 on consumer Blackwell (sm_120) is unanswered; ISS-090 The in-process specialist legs have no declared interface, shared fake or CI run; ISS-091 No code emits the `EVENT_CREATED` outbound webhook after R8; ISS-092 49 service modules have no production importer, among them the three errata E83 ; ISS-093 The clip supply is lopsided and unplanned; ISS-094 No issue owns a real-camera evaluation set; ISS-095 Decide whether to fine-tune the VLM; ISS-096 Decide what the FLUX.2 [dev] licence lets the corpus stills be used for (evaluat; ISS-097 The model sweep's results live only in off-repo scratch; ISS-098 The ledger has no row of its own for the tierb-v0 corpus build, the owner's 60-s. OD-26 (the sweep's selection rule), OD-27 (weight tuning) and OD-28 (dead service modules) were added to section 4; ISS-093 extends OD-5 and ISS-096 extends OD-18.
 - Not filed: errata E96 ('EventResponse.risk_level is recomputed from hard-coded 29/59/84') was true at the errata pin and is false at the tip: `e40d69f5` derives it from the severity settings and `test_risk_level_follows_runtime_thresholds` pins it **[V]**, so an issue would be a false open item. A latent neighbour was noticed and is not filed: `VlmAnalyzer` captures its severity service once at construction, so a runtime update through `PUT /severity` may not reach the stored `risk_level` until the analyzer is rebuilt **[A: read by the verifier agent, not run]**.
+
+### 2026-10-03 (the model weights are kept)
+
+- Owner direction **[O: asked and answered in the session, recorded here as its durable source]**:
+  the storage quota was raised from 50 GB to 200 GB and then 300 GB, and the owner asked that the sweep's
+  model weights not be deleted. This supersedes the "download, verify sha256, serve, replay, delete" cycle in
+  the ledger row headed 'VLM-PATH MEASUREMENT AND CLEANUP' and in handoff Addendum 9, which was written for
+  a mount of about 42 GB. All 12 sweep models (186.8 GB by the recipes' sizes) are kept in a permanent,
+  read-only, sha256-verified library under `$AGENT_GPU_DIR/models/library/<recipe>/` (a `MANIFEST.json`
+  records each file's source, size and hash), hard-linked into `models/sweep/<arm>/`; the sweep driver no
+  longer deletes weights unless `SWEEP_DELETE_WEIGHTS=1` is set. The library and the sweep are off-repo
+  scratch; nothing about them is committed except this note **[A: read from the driver and the manifest
+  this session]**.
