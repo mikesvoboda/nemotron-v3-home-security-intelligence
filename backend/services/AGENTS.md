@@ -3317,13 +3317,6 @@ from backend.services.model_zoo import reset_model_zoo, reset_model_manager
 
 reset_model_zoo()
 reset_model_manager()
-
-# Mock HTTP clients
-from backend.services.florence_client import reset_florence_client
-from backend.services.clip_client import reset_clip_client
-
-reset_florence_client()
-reset_clip_client()
 ```
 
 ### Singleton Reset Functions
@@ -3386,8 +3379,8 @@ assert clamped == (10, 10, 100, 100)
 
 ### External Services
 
-- **ai-gateway** (host port `AI_GATEWAY_PORT` 8090, metrics 8002) - Triton-based gateway serving YOLO26 (`/yolo26`), Florence-2 (`/florence`), CLIP (`/clip`), heavy enrichment (`/enrichment`) and light enrichment (`/enrich-lt`) behind one container
-- **ai-llm / llama.cpp server** (host port `LLM_PORT` 8091, container port 8091) - Nemotron LLM inference
+- **ai-gateway** (host port `AI_GATEWAY_PORT` 8090, metrics 8002) - Triton-based gateway serving the `yolo26` router (`/yolo26`: detect, detect/batch, segment) and the resident threat + re-ID specialists (`/enrich-lt`: threat-detect, person-reid) behind one container
+- **ai-vlm** (host port `AI_VLM_PORT` 8098, container port 8098) - the verdict engine the backend dials at `AI_VLM_URL` (compose default `http://ai-vlm:8098`, compose profile `vlm`); llama.cpp + mmproj serving `vlm_assess`, which owns the analysis stage
 - **Redis** (`REDIS_PORT` 6379) - Queue and cache storage
 - **PostgreSQL** (`POSTGRES_PORT` 5432) - Persistent storage
 - **ffmpeg/ffprobe** - Video processing
