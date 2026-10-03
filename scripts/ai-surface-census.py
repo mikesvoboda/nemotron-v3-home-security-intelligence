@@ -161,7 +161,21 @@ def main() -> int:
         print(f"no backend/services under {root}", file=sys.stderr)
         return 2
 
-    all_py = [p for p in root.rglob("*.py") if not EXCLUDE_DIRS.intersection(p.parts)]
+    # Prune test files DURING collection, not after parsing them. The
+    # consumer graph already `continue`s every test file, so a test never
+    # feeds a bucket — parsing them first was pure waste and put this tool
+    # on the CI knife-edge (the whole census parsed ~2200 files, ~1200 of
+    # them tests, in ~6s of a ~8s run; the real-tree timing test asserts
+    # <10s with a 30s pytest-timeout watchdog, and CI's cold-cache runs
+    # tripped it). Pruning is output-preserving: only files the walk would
+    # discard are skipped. Verified byte-identical --json against the
+    # unpruned scan at head.
+    all_py = [
+        p
+        for p in root.rglob("*.py")
+        if not EXCLUDE_DIRS.intersection(p.parts)
+        and not is_test_file(p.relative_to(root).parts)
+    ]
 
     trees: dict[Path, ast.AST | None] = {}
     texts: dict[Path, str] = {}
