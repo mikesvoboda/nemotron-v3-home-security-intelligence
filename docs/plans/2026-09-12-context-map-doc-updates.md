@@ -15343,3 +15343,113 @@ on the do-not-start list): **`stream_manager.py` 257 survivors at 28.8089%**
 `threat_monitor_service` 244/32.5967%, `worker_supervisor` 243/62.6154%). Campaign #24, battery letter Z.
 Gap to 85%: 0.85×69,127 = 58,757.95 − 51,328 = **7,429.95 kt**. Every number
 measured THIS session.
+
+## MILESTONE 26 — 74.62188033199341% (campaign #24 stream_manager closes; TWO runs; one disclosed sibling-hole event)
+
+**DECIDE (ordering):** M25 head as censused — `stream_manager.py` 257 survivors at
+28.8089% (361 keys; R8-shield clean). `api/routes/system.py` 328 and
+`system_broadcaster.py` 320 skipped (do-not-start list). Battery letter Z.
+
+**Badge:** **74.62188033199341%** completed=true (killed 51,322 + timeout 285 =
+51,607 kt / 69,158; no_tests 783; survived 16,768; not_checked 0; torn 0). Delta vs
+M25's 74.25173955183936% = **+0.3701407801540455**. Bank grew 69,127 -> 69,158
+(+31, ALL stream_manager coverage-growth births); dilution on the pre-existing
+51,328 kt = −0.033403702… pt; kill-growth +279 kt = +0.4035… pt.
+
+**Campaign #24 `backend/services/stream_manager.py` CLOSED at 97.70408163265306%**
+(383 kt / 392; survivors 9; 4 timeout inside kt). Entering bank row {1:96, -24:8,
+0:257} of 361. Disposition: authoring sweep RED=248 GREEN=9 of 257 -> 7 registered
+EQUIV + 2 KILLABLE; the killer pair (fractional-fps arm `elapsed > 0` -> `> 1`
+needs `0 < elapsed < 1`; replace-guard `in` -> `not in` needs the REAL
+`_cleanup_stream` cancel-observation, a call-count stub is guard-blind) flipped
+both -> sweep RED=250 GREEN=7 == ledger. Battery Z committed at md5 `9ead909c…`
+(pre-run sweep bytes 4021ddaf… authoring; the two md5 pairs re-verified
+committed==gated at every step).
+
+**TWO-RUN close, one disclosed SIBLING-HOLE event:** run 1 (04:51Z, 240 files
+mutated, done 590s) reconciled CLEAN by body identity — matrix {(1,1):96,
+(0,1):250, (0,0):7, (-24,1):4, (-24,-24):4}, 0 kill losses, 31 new-body births
+(29 killed same-run, 2 survived == run-born EQUIVs). BUT the published score came
+completed=FALSE, not_checked=58: run 1's coverage gather grew
+`vlm_specialists.collect_specialist_outputs` from zero coverage to 58 mutant slots
+whose cached verdicts were invalidated to None (mutmut dependency-change notice
+"cannot be tracked for behavioral changes" — the battery's module scope never
+checked them; the pre-row was {917:1, 13:0} with zero Nones). Run 2 (05:20Z,
+scoped `mutation-run.sh vlm_specialists`) re-checked all 69,158 (the fn is NOT on
+DEAD_MODULES/DEAD_LOADERS — verified; sibling drift vs pre-run archive: **0
+verdict changes across all 239 sibling metas**, vsm row lands byte-identical to
+its pre-run {917,13}). The goal-prompt's "never launch run 2 without a body audit"
+guard held: run 2 launched only AFTER run 1's stream_manager reconcile was CLEAN
+and the 58 holes were proven sibling-coverage artifacts, not stream_manager
+survivors.
+
+**Run-born EQUIVs (2, registered in the battery ledger):** both
+`_health_monitoring_loop` `break` -> `return` slots at the two in-`try` exits
+(disconnect branch, read-failure branch) — the while loop is the function's LAST
+statement (no `finally`, release awaited before the break), so both exits unwind
+identically; the same construction as m51 from the authoring ledger.
+
+**Close sweep (388 sweepable keys — the 4 timeout keys excluded as unsweepable,
+disclosed; battery at committed md5 `e6d5f9bc…`):** RED=375 GREEN=9 == the 9 bank
+survivors EXACTLY (`_cleanup_stream` m5, `_handle_connection_failure` m32/33/36/37,
+`_health_monitoring_loop` m9/m18/m57 — the three break-twins incl. the two births —
+`remove_stream` m7). The 9 GREEN verdicts are all bank 0. The single-process
+all-keys sweep HUNG on `connection_loop`/`_create_capture` keys that BYPASS the
+battery's DI seam (mutants flipping the `if self._capture_factory:` gate falsy fall
+through to REAL cv2 opens + REAL backoff sleeps -> infinite loop): batched
+re-sweep (20-key batches, 120s caps, per-key retry) dispositioned all 388 with 4
+recorded HANGs (`connection_loop` m3/m6/m9, `_create_capture` m1) — all four are
+bank verdict-1 (killed); a sweep HANG is battery-inapplicability, never a
+disposition. This hang-proofing gap is the battery's ONLY known blind side and is
+disclosed here rather than papered over.
+
+**Ledger row-by-row (9 survivors, all bank verdict-0):** 7 authoring-registered
+(2 guarded-pop default deletions: key-always-present so the deleted `None` default
+is unreachable; 4 `_handle_connection_failure` override kwarg arms: the handler
+writes the SAME values to ctx first and `_update_health`'s None-fallbacks re-read
+them -> byte-identical hset mapping; 1 `break`->`return` at a function-tail loop)
+
+- 2 run-born break-twins (same construction as m51).
+
+**Merge absorbed pre-close:** origin took a host segment between beats (PR #6778
+metrics-dead-writer deletion + legacy-residue cleanup + main merge, 55 files
++1,757/−9,318) — ZERO file overlap with the five #24 commits; merge commit
+carrying the disclosure; battery md5 re-verified unchanged (`e6d5f9bc…`). Merge
+deleted two metric test files -> mutant-tree orphan copies PRUNED + pycache swept
+before any later generation (orphan-collect family). The merge EDITS backend
+source (metrics.py, config.py, gpu_config, gpu_detection_service, schemas) —
+those metas are era-stale NOW (next generation re-enumerates them; the
+stale-era-family reconcile applies at whatever module takes them next); no run
+was launched for them tonight.
+
+**Bank at close:** 240 metas / 69,158 keys {exit-1 51,237, suspicious 32, timeout
+285, survived 16,768, no_tests 783} = kt 51,607 (suspicious folds into kt per the
+score script; the published totals attribute 51,322+285 = 51,607 exactly).
+History run #30 appended `--date 2026-10-03` (UTC and local both 2026-10-03 at
+append — no cross-midnight disclosure needed). guard-restore.tgz refreshed +
+verified from inside; M25 tar kept as `guard-restore-preM26-superseded.tgz`.
+Guard: run-1 22 ticks + run-2 22 ticks, ALL clean, sibling-drop=0 throughout
+(the tight-regime guard never fired; both runs' [gen]->[tight] transitions seen).
+
+**NOT PUBLISHED FROM:** the close-sweep RED=375 as the module score (bank 383 —
+14 kills come from the timeout arms + shipped-suite arms outside the b30
+single-process contract), the 4 sweep HANGs as survivors (bank verdict-1), or
+run 1's completed=false as a campaign failure (the 58 holes were sibling
+coverage-growth, not #24 survivors; run 2 restored completed=true with 0 drift).
+Commands + snapshots: runs `b38-c24-run.log` / `b38-c24-run2.log`; guard ticks
+`guard.log`; sweeps `b38-c24-sweep-authoring.txt` (248/9 of 257),
+`b38-c24-sweep-committed.txt` (250/7 of 257, committed 4021ddaf bytes),
+`b38-c24-sweep-close.txt` + `b38-c24-sweep-batched.sh` (close: 375/9 + 4 HANG of
+388); reconcile `b38-c24-reconcile-body.py` -> `b38-c24-reconcile-r1.txt` (CLEAN
+rc=0); map `b38-c24-mutation-map.txt` (257 keys, 0 NOT-FOUND); keys
+`b38-c24-sweep-keys.txt`, `b38-c24-all-keys.txt`; tiers
+`b38-c24-greentier.log` (28,715 passed / 124 skipped / 8 xfailed, 0 FAILED);
+pre-run archive `b38-preC24/` (240 metas; target {96,8,257}); scores
+`b38-c24-score-r1.json` (74.54524422337256, completed=FALSE, not_checked=58),
+`b38-c24-score-r2.json` (74.62188033199341, completed=TRUE); history backup
+`mutation-history-preM26.json`. Next head (re-censused from
+`b38-c24-score-r2.json`, R8 shield applied): **`background_evaluator.py` 248
+survivors at 36.7347%** (408 keys; then `threat_monitor_service` 244/32.5967%,
+`worker_supervisor` 243/62.6154%). Campaign #25, battery letter AA. Gap to 85%:
+0.85×69,158 = 58,784.3 − 51,607 = **7,177.3 kt**. Every number measured THIS
+session.
