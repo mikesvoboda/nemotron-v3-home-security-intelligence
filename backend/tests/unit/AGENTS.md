@@ -21,7 +21,7 @@ backend/tests/unit/                 # 679 test files total
 │   └── utils/                 # API utility tests (1 file)
 ├── config/                    # Config tests (6 files)
 ├── core/                      # Core infrastructure tests (89 files)
-├── evaluation/                # Evaluation tests (6 files)
+├── evaluation/                # Evaluation tests (7 files)
 ├── integration/               # Integration helper tests (1 file)
 ├── jobs/                      # Background job tests (3 files)
 ├── middleware/                # Middleware tests (1 file)

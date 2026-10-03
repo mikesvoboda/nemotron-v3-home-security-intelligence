@@ -53,7 +53,6 @@ This directory contains configuration modules for A/B testing experiments, promp
 - Defines prompt A/B experiments with control/variant keys
 - Configurable traffic split (default 10% to variant)
 - Predefined experiments: `rubric_vs_current`, `cot_vs_current`
-- Integration with statistical analysis via `ab_experiment_runner.py`
 
 ## Patterns Used
 

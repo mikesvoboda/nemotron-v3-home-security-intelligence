@@ -74,6 +74,7 @@ from backend.services.constrained_decoding import (  # R8 S2a: hoisted home
     ConstrainedDecodingNotEnforced,
 )
 from backend.services.key_frame_selector import FrameRef, select_key_frames
+from backend.services.notification_filter import decide_notification
 from backend.services.severity import SeverityService, get_severity_service
 from backend.services.vlm_client import VlmClient, VlmClientError
 from backend.services.vlm_specialists import collect_specialist_outputs
@@ -637,10 +638,24 @@ class VlmAnalyzer:
         # backstop, nemotron's doctrine).
         await self._set_idempotency(batch_id, event.id)
 
+        # The notify decision (M1), AFTER the commit and in its own short
+        # session: a failed settings read can abort a Postgres transaction, and
+        # that must never take the committed event with it. Prod only - replay
+        # writes nothing outward and never reads the owner's settings.
+        notify: bool | None = None
+        if not self._replay:
+            notify = await self._notify_decision(
+                camera_id=camera_id,
+                timestamp=start_time,
+                risk_score=outcome["risk_score"],
+                verdict=outcome["verdict"],
+                detections=detections,
+            )
+
         # Broadcast LAST, best-effort (prod only): a failure logs and the
         # committed event stands.
         if not self._replay:
-            await self._broadcast(event, verification_json)
+            await self._broadcast(event, verification_json, notify)
 
         logger.info(
             "vlm batch analyzed",
@@ -762,7 +777,44 @@ class VlmAnalyzer:
             reasoning=event.reasoning or "No reasoning",
         ).model_dump()
 
-    async def _broadcast(self, event: Event, verification: Any) -> None:
+    async def _notify_decision(
+        self,
+        *,
+        camera_id: str,
+        timestamp: datetime,
+        risk_score: int | None,
+        verdict: str,
+        detections: list[dict[str, Any]],
+    ) -> bool | None:
+        """`should_notify` over the stored verdict (spec section 6): rejected
+        never notifies; a NULL score falls back to the detector-only rule. If
+        even opening the session fails the decision falls back to the shipped
+        default preferences rather than to silence; None (no key on the wire)
+        only if the decision itself cannot be computed."""
+        kwargs: dict[str, Any] = {
+            "risk_score": risk_score,
+            "camera_id": camera_id,
+            "timestamp": timestamp,
+            "verification_verdict": verdict,
+            "detections": detections,
+        }
+        try:
+            async with get_session() as session:
+                return await decide_notification(session, **kwargs)
+        except Exception as exc:
+            logger.warning(
+                "notify decision session failed - deciding on the shipped defaults",
+                extra={"camera_id": camera_id, "error": str(exc)},
+            )
+        try:
+            return await decide_notification(None, **kwargs)
+        except Exception as exc:  # pragma: no cover - the pure path cannot fail on valid input
+            logger.error(
+                "notify decision failed", extra={"camera_id": camera_id, "error": str(exc)}
+            )
+            return None
+
+    async def _broadcast(self, event: Event, verification: Any, notify: bool | None = None) -> None:
         if self._redis is None:
             # The broadcaster IS Redis pub/sub - with no client there is
             # nothing to publish through. The committed event stands (same
@@ -791,6 +843,10 @@ class VlmAnalyzer:
                     "verification": verification,
                 },
             }
+            if notify is not None:
+                # M1: the analyzer's notify decision. Absent means "no decision",
+                # never False (the WS schema excludes None).
+                message["data"]["notify"] = notify
             await broadcaster.broadcast_event(message)
         except Exception as exc:
             logger.warning(

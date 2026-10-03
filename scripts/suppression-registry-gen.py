@@ -66,25 +66,10 @@ OWNER = "mikesvoboda"
 # environment and every environment site IS probed or listed here. Line
 # numbers are census ids: move the skip, the entry goes STALE, CI names it.
 HOST_JUSTIFIED: dict[str, str] = {
-    # Generated fixture data (tools/nemo_data_dump -> scenarios.parquet):
-    # absent anywhere the data pipeline hasn't run. The downstream guards
-    # (`is None`, `len(...) == 0`, `not results`, `not detections`) all
-    # stand or fall on this file/DB content, so they share the verdict.
-    "backend/tests/conftest.py:2584": "scenarios.parquet is pipeline-generated data, not a repo file",
-    "backend/tests/conftest.py:2605": "same scenarios.parquet chain (fixture None)",
     # The G0.4 stock-frame corpus is owner-staged off-repo data on the GPU
-    # mount (ledger F6/F5), present only where the fetcher has run - the same
-    # data-chain class as scenarios.parquet, not a repo-file guard.
+    # mount (ledger F6/F5), present only where the fetcher has run - a
+    # data-chain skip, not a repo-file guard.
     "backend/tests/unit/evaluation/test_eval_store.py:295": "stock media corpus is staged off-repo data (GPU mount), not repo content",
-    "backend/tests/integration/test_nemotron_prompts.py:45": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:70": "Nemotron service call failed — service process absent",
-    "backend/tests/integration/test_nemotron_prompts.py:100": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:145": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:168": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:186": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:211": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:229": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:270": "same scenarios.parquet chain",
     "backend/tests/integration/test_risk_score_validation.py:199": "synthetic-scenario DB rows (data chain), not repo content",
     "backend/tests/integration/test_risk_score_validation.py:381": "synthetic-scenario DB rows (data chain), not repo content",
     "backend/tests/integration/test_risk_score_validation.py:386": "synthetic-scenario DB rows (data chain), not repo content",
@@ -104,8 +89,8 @@ HOST_JUSTIFIED: dict[str, str] = {
     "backend/tests/test_db_isolation.py:66": 'url is os.environ.get("TEST_DATABASE_URL") — env-var guard',
     # Campaign red-check kill-evidence logs: written to /tmp by the campaign
     # runners (red_dead102b.sh / red_dead102c.sh) at red-check time. The guard
-    # is FileNotFoundError on an off-repo artifact — the same data-chain class
-    # as scenarios.parquet. Line numbers move when the battery is re-pinned;
+    # is FileNotFoundError on an off-repo artifact — a data-chain skip, not a
+    # repo-file guard. Line numbers move when the battery is re-pinned;
     # the census re-mints the id, this map carries the adjudication forward.
 }
 

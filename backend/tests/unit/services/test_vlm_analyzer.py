@@ -35,7 +35,7 @@ backend.services.event_broadcaster.get_broadcaster).
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
@@ -45,6 +45,11 @@ import pytest
 
 from backend.api.schemas.websocket import WebSocketEventData
 from backend.models.event import Event
+from backend.models.notification_preferences import (
+    CameraNotificationSetting,
+    NotificationPreferences,
+    QuietHoursPeriod,
+)
 from backend.services import vlm_analyzer as va
 from backend.services.severity import SeverityService, get_severity_service
 from backend.services.vlm_client import VlmSchemaError, VlmTransportError
@@ -896,3 +901,179 @@ class TestSpecialistStageWiring:
         texts = client.calls[0].context.specialist_outputs
         assert set(texts) >= {"faces", "plates", "person_reid"}
         assert all(v.strip() for v in texts.values())
+
+
+# ---------------------------------------------------------------------------
+# M1: the notify decision (owner decision 2026-10-03: analyzer-only first)
+#
+# should_notify existed, unit-tested and with no production caller; nothing
+# turned a persisted verdict into a notify/no-notify answer. The analyzer now
+# asks it AFTER the verdict is committed and the answer rides the existing
+# `event` WebSocket message as `data.notify`. Alert rules and delivery
+# channels stay separate follow-ups.
+# ---------------------------------------------------------------------------
+
+_ALL_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+
+class NotifySession(FakeSession):
+    """FakeSession that also answers the three notification-table SELECTs.
+
+    `prefs`/`camera_setting`/`quiet` are what the DB would hold (None / [] =
+    no row); `notify_tables_raise` makes any notification-table read fail,
+    to pin that a broken lookup never costs the event or the alert."""
+
+    def __init__(
+        self,
+        *args: Any,
+        prefs=None,
+        camera_setting=None,
+        quiet=None,
+        notify_tables_raise=None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.prefs = prefs
+        self.camera_setting = camera_setting
+        self.quiet = list(quiet or [])
+        self.notify_tables_raise = notify_tables_raise
+
+    async def execute(self, stmt: Any) -> FakeResult:
+        sql = str(stmt)
+        tables = ("notification_preferences", "camera_notification_settings", "quiet_hours_periods")
+        if any(t in sql for t in tables):
+            self.executed.append(stmt)
+            if self.notify_tables_raise is not None:
+                raise self.notify_tables_raise
+            if "notification_preferences" in sql:
+                return FakeResult([self.prefs] if self.prefs is not None else [])
+            if "camera_notification_settings" in sql:
+                return FakeResult([self.camera_setting] if self.camera_setting is not None else [])
+            return FakeResult(self.quiet)
+        return await super().execute(stmt)
+
+
+def make_notify_analyzer(
+    monkeypatch,
+    *,
+    prefs=None,
+    camera_setting=None,
+    quiet=None,
+    notify_tables_raise=None,
+    **kwargs: Any,
+):
+    analyzer, session, broadcaster = make_analyzer(monkeypatch, **kwargs)
+    notify_session = NotifySession(
+        detections=session.detections,
+        existing_event=session.existing_event,
+        prefs=prefs,
+        camera_setting=camera_setting,
+        quiet=quiet,
+        notify_tables_raise=notify_tables_raise,
+    )
+    monkeypatch.setattr(va, "get_session", lambda: notify_session, raising=False)
+    return analyzer, notify_session, broadcaster
+
+
+class TestNotifyDecision:
+    async def test_a_confirmed_high_risk_verdict_notifies_and_the_decision_rides_the_broadcast(
+        self, monkeypatch
+    ):
+        analyzer, _, broadcaster = make_notify_analyzer(
+            monkeypatch, client=FakeClient([make_verdict(risk_score=85)])
+        )
+        await analyze(analyzer)
+
+        data = broadcaster.messages[0]["data"]
+        assert data["notify"] is True
+        WebSocketEventData.model_validate(dict(data))  # the shipped WS contract accepts it
+
+    async def test_rejected_never_notifies_even_where_every_filter_would_page(self, monkeypatch):
+        """spec section 6: rejected => never notifies. The preferences here
+        pass the low band and the camera threshold is 0, so the scored path
+        WOULD page for the clamped low score - only the verdict rule stops it."""
+        prefs = NotificationPreferences(risk_filters=["low", "medium", "high", "critical"])
+        camera = CameraNotificationSetting(camera_id="front_door", enabled=True, risk_threshold=0)
+        analyzer, _, broadcaster = make_notify_analyzer(
+            monkeypatch,
+            prefs=prefs,
+            camera_setting=camera,
+            client=FakeClient([make_verdict(verdict="rejected", risk_score=5)]),
+        )
+        await analyze(analyzer)
+        assert broadcaster.messages[0]["data"]["notify"] is False
+
+    async def test_a_verification_failed_event_with_a_confident_person_detection_notifies(
+        self, monkeypatch
+    ):
+        """spec section 6 step 3: the owner is never left blind - a NULL
+        score falls back to the detector-only rule (person/vehicle at or
+        above detection_confidence_threshold)."""
+        analyzer, _, broadcaster = make_notify_analyzer(
+            monkeypatch,
+            client=FakeClient([VlmTransportError("boom")]),
+            detections=[make_detection_row(11, object_type="person", confidence=0.95)],
+        )
+        event = await analyze(analyzer)
+        assert event.risk_score is None
+        assert broadcaster.messages[0]["data"]["notify"] is True
+
+    async def test_a_verification_failed_event_without_a_security_class_stays_quiet(
+        self, monkeypatch
+    ):
+        analyzer, _, broadcaster = make_notify_analyzer(
+            monkeypatch,
+            client=FakeClient([VlmTransportError("boom")]),
+            detections=[make_detection_row(11, object_type="dog", confidence=0.95)],
+        )
+        await analyze(analyzer)
+        assert broadcaster.messages[0]["data"]["notify"] is False
+
+    async def test_globally_disabled_notifications_never_notify(self, monkeypatch):
+        analyzer, _, broadcaster = make_notify_analyzer(
+            monkeypatch,
+            prefs=NotificationPreferences(enabled=False),
+            client=FakeClient([make_verdict(risk_score=95)]),
+        )
+        await analyze(analyzer)
+        assert broadcaster.messages[0]["data"]["notify"] is False
+
+    async def test_a_disabled_camera_never_notifies(self, monkeypatch):
+        camera = CameraNotificationSetting(camera_id="front_door", enabled=False, risk_threshold=0)
+        analyzer, _, broadcaster = make_notify_analyzer(
+            monkeypatch, camera_setting=camera, client=FakeClient([make_verdict(risk_score=95)])
+        )
+        await analyze(analyzer)
+        assert broadcaster.messages[0]["data"]["notify"] is False
+
+    async def test_quiet_hours_suppress_a_scored_notification(self, monkeypatch):
+        quiet = [
+            QuietHoursPeriod(
+                label="all day", start_time=time(0, 0), end_time=time(23, 59, 59), days=_ALL_DAYS
+            )
+        ]
+        analyzer, _, broadcaster = make_notify_analyzer(
+            monkeypatch, quiet=quiet, client=FakeClient([make_verdict(risk_score=95)])
+        )
+        await analyze(analyzer)
+        assert broadcaster.messages[0]["data"]["notify"] is False
+
+    async def test_replay_makes_no_decision_and_reads_no_notification_tables(self, monkeypatch):
+        """Replay stands beside production and writes nothing outward: it must
+        neither compute a decision nor touch the owner's notification settings."""
+        analyzer, session, _ = make_notify_analyzer(monkeypatch, replay=True)
+        await analyze(analyzer)
+        assert not [s for s in session.executed if "notification_preferences" in str(s)]
+
+    async def test_a_failed_settings_lookup_never_loses_the_event_or_the_alert(self, monkeypatch):
+        """The settings read can fail (DB hiccup). The committed event stands
+        and the owner is still paged on a high-risk verdict: the decision falls
+        back to the shipped default preferences, never to silence."""
+        analyzer, _, broadcaster = make_notify_analyzer(
+            monkeypatch,
+            notify_tables_raise=RuntimeError("settings read failed"),
+            client=FakeClient([make_verdict(risk_score=95)]),
+        )
+        event = await analyze(analyzer)
+        assert event.risk_score == 95
+        assert broadcaster.messages[0]["data"]["notify"] is True

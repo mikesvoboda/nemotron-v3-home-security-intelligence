@@ -232,7 +232,7 @@ class WebSocketEventData(BaseModel):
     This schema defines the contract for event data sent from the backend
     to WebSocket clients. Any changes to this schema must be reflected in:
     - backend/api/routes/websocket.py docstring
-    - backend/services/nemotron_analyzer.py _broadcast_event()
+    - backend/services/vlm_analyzer.py VlmAnalyzer._broadcast()
     - frontend WebSocket event handlers
 
     Fields:
@@ -245,6 +245,7 @@ class WebSocketEventData(BaseModel):
         summary: Human-readable description of the event
         reasoning: LLM reasoning for the risk assessment
         started_at: ISO 8601 timestamp when the event started (nullable)
+        notify: the analyzer's notify decision (key absent when none was made)
     """
 
     id: int = Field(..., description="Unique event identifier")
@@ -269,6 +270,16 @@ class WebSocketEventData(BaseModel):
         None,
         exclude_if=lambda v: v is None,
         description="VLM verification object; present only on verified (vlm-mode) events",
+    )
+    # M1 (spec section 6): the notify decision the analyzer made for this event
+    # (`should_notify` over the stored verdict, the owner's notification
+    # preferences, the camera's setting and quiet hours). exclude_if keeps the KEY
+    # ABSENT where no decision was made (replay, events from other emitters), so
+    # a consumer must read absence as "no decision", never as False.
+    notify: bool | None = Field(
+        None,
+        exclude_if=lambda v: v is None,
+        description="Notify decision for this event; absent when none was made",
     )
     summary: str = Field(..., description="Human-readable description of the event")
     reasoning: str = Field(..., description="LLM reasoning for the risk assessment")

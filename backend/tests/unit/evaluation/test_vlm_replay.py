@@ -6,7 +6,7 @@ the ones a convenient implementation would break: a stored specialist block
 must reach the request BYTE-IDENTICALLY (it is the replay's whole premise),
 a refusal must land as `verification_failed` + NULL + the error class (never
 a default score - S5 at the row), and the module must not import the
-specialist stage or the legacy harness AT ALL (rev 6's rule and F10).
+specialist stage AT ALL (rev 6's rule).
 """
 
 from __future__ import annotations
@@ -554,11 +554,6 @@ class TestModuleHygiene:
     def test_never_imports_the_specialist_stage(self) -> None:
         assert not any("vlm_specialists" in m for m in self._imported_modules()), (
             "replay re-running a specialist is the rev-6 rule violated"
-        )
-
-    def test_never_imports_the_legacy_harness(self) -> None:
-        assert not any(m.endswith("evaluation.harness") for m in self._imported_modules()), (
-            "F10: the vlm replay stands beside the legacy harness, not on it"
         )
 
     def test_constrained_decoding_error_is_in_the_ladder(self) -> None:

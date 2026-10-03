@@ -1,5 +1,13 @@
 # 13 — Implementation Brief
 
+> **Currency - 2026-10-03 [V].** The working rules (test first, evidence-closed milestones, stop
+> and ask at go-live) still hold; most of the work was executed. Two guardrails are false: "stays
+> in the repo with its tests passing until R8 deletes it" and "Build empty states, not deletions"
+> (R8 ran and deleted the legacy path). The kickoff "Begin with Phase G0 on this GB300" and "run the
+> brief's five spikes first" would restart a finished program, and "The VLM pick at M2" and "The S2
+> and S3 bars" are no longer open (picked 2026-09-28; 5% and 90%). See
+> [`16`](16-errata-2026-10-03.md) E29, E35, E39, E44, E93, E109, E115-E119.
+
 For the agent implementing
 [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
 The spec says **what** to build. This brief says **how to work**. The step-by-step plans are yours

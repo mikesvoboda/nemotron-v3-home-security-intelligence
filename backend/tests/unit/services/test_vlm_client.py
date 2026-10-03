@@ -287,6 +287,23 @@ class TestWireShape:
         assert {"verdict", "risk_score", "summary", "criteria", "provenance"} <= set(props)
         await client.close()
 
+    async def test_assess_samples_greedily(self, image_dir) -> None:
+        """The assess call is greedy (temperature 0). At the former unseeded 0.1 only
+        278/450 corpus items reproduced across two identical replays (36% changed score,
+        52 changed risk level), so a borderline event could alert on one pass and not the
+        next; at 0 two replays agreed on 450/450 with the same S2/S3 (GB300, 2026-10-03).
+        Pinned on the wire AND on the constant, with no sampling knob that would reintroduce
+        run-to-run variance."""
+        assert vc._ASSESS_TEMPERATURE == 0.0
+        client = make_client()
+        await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        body = client._app_calls()[-1]  # the real call; the probe ran first
+        assert body["temperature"] == 0.0
+        assert not {"top_p", "top_k", "min_p", "seed"} & set(body), (
+            "greedy decoding needs no sampler knobs; adding one reopens run-to-run variance"
+        )
+        await client.close()
+
     async def test_wire_schema_carries_no_grammar_unsafe_constraints(self, image_dir) -> None:
         """S-2 [V]: minLength/bounds support at the pin is UNVERIFIED - the
         wire schema strips them; VlmVerdict post-validation enforces them
@@ -762,7 +779,7 @@ class TestFailureLadder:
         calls = client._app_calls()
         assert len(calls) == 2, "exactly one retry, no hammering"
         assert calls[1]["temperature"] == 0.0, "the retry is at temp 0"
-        assert calls[0]["temperature"] != 0.0, "the first attempt is not"
+        assert calls[0]["temperature"] == 0.0, "the first attempt is greedy too"
         await client.close()
 
     async def test_read_timeout_raises_transport_error(self, image_dir) -> None:
@@ -804,9 +821,9 @@ class TestAssessTruncation:
     hazard finding A named for the probe. The shape's meaning is different
     though: a truncated verdict is a BUDGET artifact, not a model that emits
     invalid JSON (vlm_schema_invalid), and it is the SAME artifact on every
-    attempt - the retry is at the same _ASSESS_MAX_TOKENS, only the
-    temperature changes. The §6 transport retry re-runs an identical request
-    at temp 0 because a transport failure is transient; a length-capped object
+    attempt - the retry is at the same _ASSESS_MAX_TOKENS and, now that the
+    first attempt is greedy too, the same temperature. The §6 transport retry
+    re-runs an identical request because a transport failure is transient; a length-capped object
     is deterministic, so the retry (1) cannot change the outcome, (2) burns one
     breaker failure toward opening ai-vlm for a budget, and (3) labels the
     cause as a model defect. A budget must not read as a schema violation or a

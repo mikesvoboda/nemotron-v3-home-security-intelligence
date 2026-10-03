@@ -1,5 +1,12 @@
 # 09 — Audit: VSS Integration Surfaces (What Can We Incorporate?)
 
+> **Currency - 2026-10-03 [V].** The `ours:` half is superseded by the shipped VLM path (VSS side not
+> re-checked). Stale: "Our analyzer sends NIM-only `nvext.guided_json`" and "Unparseable output
+> falls back to" 50 (analyzer deleted; a failure stores a NULL score); "plus our `model_zoo` LRU";
+> "our llama.cpp" as agent LLM; "Our per-object CLIP/re-ID maps to"; "as a halo-tier (32 GB) stills
+> verifier"; `docker-compose.prod.yml:570` (now `:693`). VSS-side **[E]**: "There is no rejected
+> record, so false negatives are invisible" is too strong. See [`16`](16-errata-2026-10-03.md) E48-E99.
+
 > **Provenance.** Independent read-only audit by a research subagent ("Auditor B") on
 > 2026-09-23, against VSS `1e94133b4` (`origin/develop`; 78 commits after the `cdad5cc0e`
 > baseline that docs 00-07 cite). Scope: component contracts — RT-VLM, RT-CV, RT-Embed, agent/LLM slot, Alert Bridge, message bus, LVS, schemas. Evidence markers follow [`AGENTS.md`](AGENTS.md).

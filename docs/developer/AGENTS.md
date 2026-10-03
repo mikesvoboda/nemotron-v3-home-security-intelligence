@@ -43,7 +43,6 @@ developer/
   migration-rollback.md           # Database migration rollback procedures
   model-testing.md                # AI model testing and validation guide
   multi-gpu.md                    # Multi-GPU support and configuration guide
-  nemo-data-designer.md           # NeMo Data Designer integration for synthetic data
   patterns-and-conventions.md                     # Code patterns and conventions
   python-3.14-features.md         # Python 3.14 features used in project
   selector-evaluation.md          # Test-selector evaluation (fast_select vs testmon)
@@ -131,7 +130,6 @@ developer/
 | `migration-rollback.md`                | Database migration rollback procedures                        |
 | `model-testing.md`                     | Testing strategies for AI model integrations                  |
 | `multi-gpu.md`                         | Multi-GPU support and configuration guide                     |
-| `nemo-data-designer.md`                | NeMo Data Designer integration for synthetic test data        |
 | `patterns-and-conventions.md`          | Code patterns and conventions used in the project             |
 | `PORT_STANDARDIZATION.md`              | Port standardization reference for all services               |
 | `python-3.14-features.md`              | Python 3.14 features used in the project                      |
@@ -294,13 +292,6 @@ Purpose, coverage, and triggers for the workflow guides in this directory.
 
 **When to use:** Configuring multi-GPU setups, distributing AI workloads, troubleshooting GPU assignment issues.
 
-### nemo-data-designer.md
-
-**Purpose:** NeMo Data Designer integration for synthetic test data.
-
-**Covers:** Synthetic scenario generation; ground truth validation; test fixture creation; prompt evaluation data.
-
-**When to use:** Generating test data for AI pipelines.
 
 ### patterns-and-conventions.md
 

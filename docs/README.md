@@ -140,19 +140,16 @@ Every directory contains an `AGENTS.md` file for AI assistant navigation. Start 
 
 ### AI Pipeline Quality Assurance
 
-Synthetic scenario generation and prompt evaluation grade the VLM verdict against ground
-truth, and the Synthbench harness replays a corpus against a served endpoint.
+The Synthbench harness replays a generated corpus against a served VLM and grades the verdict
+against ground truth.
 
-| Resource                      | Location                                                                         | Description                             |
-| ----------------------------- | -------------------------------------------------------------------------------- | --------------------------------------- |
-| **Synthbench**                | [synthbench/AGENTS.md](synthbench/AGENTS.md)                                     | export / replay / score command surface |
-| **NeMo Data Designer**        | [developer/nemo-data-designer.md](developer/nemo-data-designer.md)               | Setup, configuration, and workflow      |
-| **Prompt Evaluation Results** | [developer/prompt-evaluation-results.md](developer/prompt-evaluation-results.md) | Pre/post metrics tracking               |
+| Resource       | Location                                     | Description                             |
+| -------------- | -------------------------------------------- | --------------------------------------- |
+| **Synthbench** | [synthbench/AGENTS.md](synthbench/AGENTS.md) | export / replay / score command surface |
 
 **Key benefits:**
 
-- **Ground truth validation** - Risk scores evaluated against expected ranges for each scenario type
-- **Prompt template ranking** - Quantitative comparison across prompt variants
+- **Ground truth validation** - Risk scores evaluated against the declared risk band of each scenario
 - **S-metric scoring** - S2 (benign flagged too high), S3 (incident floor), refusals and
   `uncertain` rate, reported with n and a Wilson interval
 - **Edge case coverage** - Systematic testing of ambiguous security scenarios

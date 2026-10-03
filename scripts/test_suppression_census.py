@@ -489,8 +489,8 @@ def test_real_tree_matches_spec_baselines():
     coverage test skips when the campaign runner's red-check logs
     (/tmp/wp-batch25/redcheck_dead102{b,c}.log, off-repo artifacts written
     only at red-check time) are absent. Adjudicated environment via
-    HOST_JUSTIFIED + regenerated registry (commit b80d00b4); same data-chain
-    class as scenarios.parquet.
+    HOST_JUSTIFIED + regenerated registry (commit b80d00b4); a data-chain skip,
+    not a repo-file guard.
     pytest_skip_imperative 96→99 (2026-09-27): the re-ID swap's real-.pth
     proof, test_osnet_loader.py:1360/1387/1398 — the loader's B2 acceptance
     test skips per env: pinned weights absent (AGENT_GPU_DIR unset), torch
@@ -522,6 +522,13 @@ def test_real_tree_matches_spec_baselines():
     gone is not a converted suppression, it is gone. Baseline lowered the
     same commit; the registry rows died with their sites (ratchet: entries
     must not outlive what they license).
+    pytest_skip_imperative 99→86 (2026-10-03): the retired Nemotron
+    prompt-evaluation harness's integration test took 10 skip sites with it
+    (d8482861, 99→89) and the NeMo Data Designer fixtures and tests took 3 more
+    (89→86). Baseline lowered in the commit that removed the last of them; the
+    registry rows died with their sites. d8482861 itself left this guard red:
+    its verification ran backend/tests/unit/scripts, not the repo-root scripts/
+    tests.
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -533,7 +540,7 @@ def test_real_tree_matches_spec_baselines():
         "pytest_skip": 32,
         "pytest_skipif": 56,
         "pytest_xfail": 4,
-        "pytest_skip_imperative": 99,
+        "pytest_skip_imperative": 86,
         "frontend_skip": 54,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
