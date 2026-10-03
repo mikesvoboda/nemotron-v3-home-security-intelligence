@@ -478,6 +478,7 @@ class TestPipelineErrorMetricEmission:
 class TestPromptMetricEmission:
     """Tests for prompt-related metric emission."""
 
+
 class TestModelWarmupMetricEmission:
     """Tests for AI model warmup metric emission."""
 

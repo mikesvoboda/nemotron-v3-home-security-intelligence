@@ -53,13 +53,13 @@ class TestBusinessMetricDefinitions:
 class TestBusinessMetricHelpers:
     """Test business metric helper functions."""
 
-        # Should not raise
+    # Should not raise
 
-        # Should not raise
+    # Should not raise
 
-        # Should not raise
+    # Should not raise
 
-        # Should not raise
+    # Should not raise
 
     def test_record_event_by_camera(self) -> None:
         """record_event_by_camera should increment counter with camera labels."""
