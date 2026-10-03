@@ -3044,8 +3044,10 @@ jobs:
       # (the braces DoS chain: every published version affected, the only
       # path is a tailwind v4 migration) or block every unrelated PR on
       # upstream's schedule. Registry, checker, and this step land together.
+      # python3, not uv run: this job is Node-only (no setup-uv step, 5-min
+      # timeout budget) and the checker is stdlib-only Python.
       - name: Audit check (exemption registry)
-        run: uv run python scripts/check-npm-audit-exemptions.py --frontend frontend --warn-days 14
+        run: python3 scripts/check-npm-audit-exemptions.py --frontend frontend --warn-days 14
         continue-on-error: false
 
   security-tests:

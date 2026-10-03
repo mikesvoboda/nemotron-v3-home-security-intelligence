@@ -550,7 +550,7 @@ uv run python scripts/check-npm-audit-exemptions.py --registry path.json   # cus
 
 **CI Integration:**
 
-Runs as the `npm Audit (Frontend)` job in `.github/workflows/ci.yml`, right after `npm ci` (fresh lockfile-faithful tree). Tests: `scripts/test_check_npm_audit_exemptions.py` (fake-`npm` shim on PATH; no network), also wired into the scripts anti-rot pytest list.
+Runs right after `npm ci` (fresh lockfile-faithful tree) in both the `npm Audit (Frontend)` job of `.github/workflows/ci.yml` and the `NPM Dependency Audit` job of `.github/workflows/dependency-audit.yml` — invoked with preinstalled `python3` (the checker is stdlib-only; neither job sets up uv). Tests: `scripts/test_check_npm_audit_exemptions.py` (fake-`npm` shim on PATH; no network), also wired into the scripts anti-rot pytest list.
 
 ### Infrastructure
 
