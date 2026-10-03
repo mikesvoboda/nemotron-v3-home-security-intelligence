@@ -95,6 +95,12 @@ _ASSESS_MAX_TOKENS = 1024
 # old fixed 400 was below the shipped 8B's 427-429-token probe reply (A5500,
 # 2026-09-28): every probe went INCONCLUSIVE and every verdict failed closed.
 _PROBE_MAX_TOKENS = _ASSESS_MAX_TOKENS + 64
+# Sampling temperature of the assess call: greedy. At the former 0.1 (unseeded) only
+# 278/450 corpus items returned the same verdict and score across two identical runs
+# (36% changed score, 52 changed risk level), so an event near the medium threshold could
+# alert on one pass and not on the next. At 0 two identical runs agreed on 450/450 with the
+# same S2/S3 (GB300 replays, 2026-10-03), so the temperature added noise, not accuracy.
+_ASSESS_TEMPERATURE = 0.0
 
 # Upper bound for the IMAGE half of one slot, from the same arithmetic that
 # sized the slot (spec §2, echoed in the ai-vlm compose block's comment):
@@ -793,7 +799,7 @@ class VlmClient:
                     "content": [*parts, {"type": "text", "text": text}],
                 }
             ],
-            "temperature": 0.1,
+            "temperature": _ASSESS_TEMPERATURE,
             "max_tokens": _ASSESS_MAX_TOKENS,
             "response_format": {
                 "type": "json_schema",
@@ -804,7 +810,11 @@ class VlmClient:
         last_error: VlmClientError | None = None
         for attempt, temperature in enumerate((None, 0.0)):
             if temperature is not None:
-                body["temperature"] = temperature  # §6 step 1: retry at temp 0
+                # §6 step 1: retry at temp 0. The first attempt is greedy too
+                # (_ASSESS_TEMPERATURE), so the retry is a plain re-send; it stays
+                # explicit so changing the first-attempt temperature cannot
+                # silently change the retry.
+                body["temperature"] = temperature
             try:
                 http = await self._http()
                 resp = await http.post(CHAT_PATH, json=body)
@@ -840,7 +850,7 @@ class VlmClient:
                     # valid JSON - calling this `vlm_schema_invalid` blames the
                     # model for a number we chose. And the §6 retry cannot
                     # help: it re-asks the SAME body at the SAME
-                    # _ASSESS_MAX_TOKENS (only temperature changes), so it
+                    # _ASSESS_MAX_TOKENS (and, now, the SAME temperature), so it
                     # would produce the same length-capped object while
                     # recording one more breaker failure toward opening
                     # ai-vlm over a budget. Raise once, with the cause named.
