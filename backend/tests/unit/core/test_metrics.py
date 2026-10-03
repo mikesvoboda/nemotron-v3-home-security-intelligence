@@ -28,19 +28,16 @@ from backend.core.metrics import (
     EVENTS_BY_RISK_LEVEL,
     EVENTS_CREATED_TOTAL,
     PIPELINE_ERRORS_TOTAL,
-    PROMPT_TEMPLATE_USED,
     QUEUE_ITEMS_DROPPED_TOTAL,
     QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL,
     QUEUE_ITEMS_REJECTED_TOTAL,
     QUEUE_OVERFLOW_TOTAL,
-    RISK_SCORE,
     STAGE_DURATION_SECONDS,
     PipelineLatencyTracker,
     get_metrics_response,
     get_pipeline_latency_tracker,
     observe_ai_request_duration,
     observe_detection_confidence,
-    observe_risk_score,
     observe_stage_duration,
     record_detection_by_class,
     record_detection_filtered,
@@ -49,7 +46,6 @@ from backend.core.metrics import (
     record_event_created,
     record_pipeline_error,
     record_pipeline_stage_latency,
-    record_prompt_template_used,
     set_dlq_depth,
     set_queue_depth,
 )
@@ -136,30 +132,12 @@ class TestMetricsDefinitions:
         assert PIPELINE_ERRORS_TOTAL._name == "hsi_pipeline_errors"
         assert "error_type" in PIPELINE_ERRORS_TOTAL._labelnames
 
-    def test_risk_score_histogram_exists(self) -> None:
-        """RISK_SCORE histogram should be defined with appropriate buckets."""
-        assert RISK_SCORE is not None
-        assert RISK_SCORE._name == "hsi_risk_score"
-        # Verify buckets cover risk score range 0-100
-        # prometheus_client stores buckets as upper_bound values
-        buckets = RISK_SCORE._upper_bounds
-        assert 10 in buckets
-        assert 50 in buckets
-        assert 100 in buckets
-
     def test_events_by_risk_level_counter_exists(self) -> None:
         """EVENTS_BY_RISK_LEVEL counter should be defined with level label."""
         assert EVENTS_BY_RISK_LEVEL is not None
         # Note: prometheus_client strips _total suffix from counter names internally
         assert EVENTS_BY_RISK_LEVEL._name == "hsi_events_by_risk_level"
         assert "level" in EVENTS_BY_RISK_LEVEL._labelnames
-
-    def test_prompt_template_used_counter_exists(self) -> None:
-        """PROMPT_TEMPLATE_USED counter should be defined with template label."""
-        assert PROMPT_TEMPLATE_USED is not None
-        # Note: prometheus_client strips _total suffix from counter names internally
-        assert PROMPT_TEMPLATE_USED._name == "hsi_prompt_template_used"
-        assert "template" in PROMPT_TEMPLATE_USED._labelnames
 
     # Detection class and confidence metrics (NEM-768)
 
@@ -266,20 +244,6 @@ class TestMetricHelpers:
         record_pipeline_error("timeout_error")
         record_pipeline_error("validation_error")
 
-    def test_observe_risk_score(self) -> None:
-        """observe_risk_score should record histogram observation."""
-        observe_risk_score(25)  # Low risk
-        observe_risk_score(50)  # Medium risk
-        observe_risk_score(75)  # High risk
-        observe_risk_score(95)  # Critical risk
-
-    def test_observe_risk_score_boundary_values(self) -> None:
-        """observe_risk_score should handle boundary values."""
-        observe_risk_score(0)  # Minimum
-        observe_risk_score(100)  # Maximum
-        observe_risk_score(10)  # Bucket boundary
-        observe_risk_score(90)  # Bucket boundary
-
     def test_record_event_by_risk_level(self) -> None:
         """record_event_by_risk_level should increment counter with level."""
         record_event_by_risk_level("low")
@@ -292,20 +256,6 @@ class TestMetricHelpers:
         record_event_by_risk_level("high")
         record_event_by_risk_level("high")
         record_event_by_risk_level("high")
-        # No assertion needed - no exception means success
-        # Prometheus counter increments are verified through /metrics endpoint
-
-    def test_record_prompt_template_used(self) -> None:
-        """record_prompt_template_used should increment counter with template name."""
-        record_prompt_template_used("basic")
-        record_prompt_template_used("enriched")
-        record_prompt_template_used("vision")
-        record_prompt_template_used("model_zoo")
-
-    def test_record_prompt_template_used_multiple_calls(self) -> None:
-        """record_prompt_template_used should increment on each call."""
-        record_prompt_template_used("vision")
-        record_prompt_template_used("vision")
         # No assertion needed - no exception means success
 
     # Detection class and confidence helper tests (NEM-768)
@@ -367,9 +317,7 @@ class TestMetricsEndpoint:
         assert "hsi_ai_request_duration_seconds" in response
         assert "hsi_pipeline_errors_total" in response
         # Risk analysis metrics (NEM-769)
-        assert "hsi_risk_score" in response
         assert "hsi_events_by_risk_level_total" in response
-        assert "hsi_prompt_template_used_total" in response
         # Detection class and confidence metrics (NEM-768)
         assert "hsi_detections_by_class_total" in response
         assert "hsi_detection_confidence" in response
@@ -931,15 +879,6 @@ class TestMetricsServiceAI:
 class TestMetricsServiceRisk:
     """Test MetricsService risk analysis methods."""
 
-    def test_observe_risk_score(self) -> None:
-        """MetricsService should observe risk scores."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.observe_risk_score(25)
-        metrics.observe_risk_score(75)
-        metrics.observe_risk_score(95.5)
-
     def test_record_event_by_risk_level(self) -> None:
         """MetricsService should record events by risk level."""
         from backend.core.metrics import get_metrics_service
@@ -948,65 +887,9 @@ class TestMetricsServiceRisk:
         metrics.record_event_by_risk_level("low")
         metrics.record_event_by_risk_level("high")
 
-    def test_record_prompt_template_used(self) -> None:
-        """MetricsService should record prompt template usage."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_prompt_template_used("basic")
-        metrics.record_prompt_template_used("enriched")
-
 
 class TestMetricsServiceBusiness:
     """Test MetricsService business metrics methods."""
-
-    def test_record_florence_task(self) -> None:
-        """MetricsService should record Florence task invocations."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_florence_task("caption")
-        metrics.record_florence_task("ocr")
-
-    def test_record_enrichment_model_call(self) -> None:
-        """MetricsService should record enrichment model calls."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_enrichment_model_call("brisque")
-        metrics.record_enrichment_model_call("violence")
-
-    def test_set_enrichment_success_rate(self) -> None:
-        """MetricsService should set enrichment success rate."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.set_enrichment_success_rate("brisque", 0.95)
-        metrics.set_enrichment_success_rate("violence", 0.88)
-
-    def test_record_enrichment_partial_batch(self) -> None:
-        """MetricsService should record partial enrichment batches."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_enrichment_partial_batch()
-
-    def test_record_enrichment_failure(self) -> None:
-        """MetricsService should record enrichment failures."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_enrichment_failure("brisque")
-        metrics.record_enrichment_failure("violence")
-
-    def test_record_enrichment_batch_status(self) -> None:
-        """MetricsService should record enrichment batch status."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_enrichment_batch_status("full")
-        metrics.record_enrichment_batch_status("partial")
-        metrics.record_enrichment_batch_status("failed")
 
     def test_record_event_by_camera(self) -> None:
         """MetricsService should record events by camera."""
@@ -1022,61 +905,6 @@ class TestMetricsServiceBusiness:
 
         metrics = get_metrics_service()
         metrics.record_event_reviewed()
-
-
-class TestMetricsServiceTokens:
-    """Test MetricsService token usage methods."""
-
-    def test_record_nemotron_tokens_basic(self) -> None:
-        """MetricsService should record basic token usage."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_nemotron_tokens("cam1", 100, 50)
-
-    def test_record_nemotron_tokens_with_duration(self) -> None:
-        """MetricsService should calculate throughput with duration."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_nemotron_tokens("cam1", 100, 50, duration_seconds=1.5)
-
-    def test_record_nemotron_tokens_with_zero_duration(self) -> None:
-        """MetricsService should skip throughput with zero duration."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_nemotron_tokens("cam1", 100, 50, duration_seconds=0)
-
-    def test_record_nemotron_tokens_with_negative_duration(self) -> None:
-        """MetricsService should skip throughput with negative duration."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_nemotron_tokens("cam1", 100, 50, duration_seconds=-1.0)
-
-    def test_record_nemotron_tokens_with_costs(self) -> None:
-        """MetricsService should calculate costs with pricing."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_nemotron_tokens(
-            "cam1", 1000, 500, input_cost_per_1k=0.01, output_cost_per_1k=0.02
-        )
-
-    def test_record_nemotron_tokens_with_input_cost_only(self) -> None:
-        """MetricsService should handle input cost only."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_nemotron_tokens("cam1", 1000, 500, input_cost_per_1k=0.01)
-
-    def test_record_nemotron_tokens_with_output_cost_only(self) -> None:
-        """MetricsService should handle output cost only."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_nemotron_tokens("cam1", 1000, 500, output_cost_per_1k=0.02)
 
 
 class TestMetricsServiceCostTracking:
@@ -1208,18 +1036,6 @@ class TestContextUtilizationHelpers:
         record_prompt_truncated()
 
 
-class TestBusinessMetricHelpers:
-    """Test business metric helper functions."""
-
-    def test_increment_enrichment_retry(self) -> None:
-        """increment_enrichment_retry should increment counter."""
-        from backend.core.metrics import increment_enrichment_retry
-
-        increment_enrichment_retry("vehicle")
-        increment_enrichment_retry("pet")
-        increment_enrichment_retry("clothing")
-
-
 class TestQueueOverflowHelpers:
     """Test queue overflow helper functions."""
 
@@ -1262,35 +1078,6 @@ class TestQueueOverflowHelpers:
         record_queue_items_rejected("analysis", 1, reason="invalid_payload")
         record_queue_items_rejected("detection", 1, reason="validation_failed")
         record_queue_items_rejected("analysis", 1, reason="consumer_rejected")
-
-
-class TestTokenUsageHelpers:
-    """Test token usage helper functions."""
-
-    def test_record_nemotron_tokens_basic(self) -> None:
-        """record_nemotron_tokens should record basic token usage."""
-        from backend.core.metrics import record_nemotron_tokens
-
-        record_nemotron_tokens("cam1", 100, 50)
-
-    def test_record_nemotron_tokens_with_duration(self) -> None:
-        """record_nemotron_tokens should calculate throughput."""
-        from backend.core.metrics import record_nemotron_tokens
-
-        record_nemotron_tokens("cam1", 1000, 500, duration_seconds=2.5)
-
-    def test_record_nemotron_tokens_with_costs(self) -> None:
-        """record_nemotron_tokens should calculate costs."""
-        from backend.core.metrics import record_nemotron_tokens
-
-        record_nemotron_tokens(
-            "cam1", 2000, 1000, input_cost_per_1k=0.005, output_cost_per_1k=0.015
-        )
-
-
-# =============================================================================
-# Model Latency Tracker Tests
-# =============================================================================
 
 
 class TestModelLatencyTracker:
@@ -1472,26 +1259,6 @@ class TestDatabaseQueryMetrics:
         record_slow_query()
 
 
-class TestTokenCountingMetrics:
-    """Test token counting metrics."""
-
-    def test_observe_prompt_tokens(self) -> None:
-        """observe_prompt_tokens should record histogram observation."""
-        from backend.core.metrics import observe_prompt_tokens
-
-        observe_prompt_tokens(500)
-        observe_prompt_tokens(1500)
-        observe_prompt_tokens(3000)
-
-    def test_record_prompt_section_truncated(self) -> None:
-        """record_prompt_section_truncated should increment counter."""
-        from backend.core.metrics import record_prompt_section_truncated
-
-        record_prompt_section_truncated("cross_camera")
-        record_prompt_section_truncated("baseline")
-        record_prompt_section_truncated("zones")
-
-
 class TestAIModelWarmupMetrics:
     """Test AI model warmup and cold start metrics."""
 
@@ -1522,19 +1289,6 @@ class TestAIModelWarmupMetrics:
         from backend.core.metrics import set_model_warmth_state
 
         set_model_warmth_state("yolo26", "invalid_state")  # Should default to 0
-
-    def test_set_model_last_inference_ago(self) -> None:
-        """set_model_last_inference_ago should set gauge value."""
-        from backend.core.metrics import set_model_last_inference_ago
-
-        set_model_last_inference_ago("yolo26", 30.5)
-        set_model_last_inference_ago("nemotron", 120.0)
-
-    def test_set_model_last_inference_ago_none(self) -> None:
-        """set_model_last_inference_ago should handle None (never used)."""
-        from backend.core.metrics import set_model_last_inference_ago
-
-        set_model_last_inference_ago("new_model", None)  # Should set to -1
 
 
 class TestRUMMetrics:
@@ -1599,20 +1353,6 @@ class TestPromptABTestingMetrics:
         record_prompt_latency("v1", 1.5)
         record_prompt_latency("v2", 1.2)
         record_prompt_latency("v2-experimental", 2.0)
-
-    def test_record_risk_score_variance(self) -> None:
-        """record_risk_score_variance should set gauge value."""
-        from backend.core.metrics import record_risk_score_variance
-
-        record_risk_score_variance("v1", "v2", 5.5)
-        record_risk_score_variance("v1", "v3", 12.3)
-
-    def test_record_prompt_ab_traffic(self) -> None:
-        """record_prompt_ab_traffic should increment counter."""
-        from backend.core.metrics import record_prompt_ab_traffic
-
-        record_prompt_ab_traffic("v1", False)
-        record_prompt_ab_traffic("v2", True)
 
     def test_record_shadow_comparison(self) -> None:
         """record_shadow_comparison should increment counter."""
@@ -1781,236 +1521,6 @@ class TestPipelineLatencyHistoryMethods:
 
 
 # =============================================================================
-# Enrichment Model Duration and Error Metrics Tests
-# =============================================================================
-
-
-class TestEnrichmentModelDurationMetrics:
-    """Test enrichment model duration histogram metrics."""
-
-    def test_enrichment_model_duration_metric_exists(self) -> None:
-        """ENRICHMENT_MODEL_DURATION histogram should be defined with model label."""
-        from backend.core.metrics import ENRICHMENT_MODEL_DURATION
-
-        assert ENRICHMENT_MODEL_DURATION is not None
-        assert ENRICHMENT_MODEL_DURATION._name == "hsi_enrichment_model_duration_seconds"
-        assert "model" in ENRICHMENT_MODEL_DURATION._labelnames
-
-    def test_observe_enrichment_model_duration(self) -> None:
-        """observe_enrichment_model_duration should record histogram observation."""
-        from backend.core.metrics import observe_enrichment_model_duration
-
-        observe_enrichment_model_duration("violence-detection", 0.5)
-        observe_enrichment_model_duration("weather-classification", 1.2)
-        observe_enrichment_model_duration("brisque-quality", 0.1)
-
-    def test_observe_enrichment_model_duration_various_models(self) -> None:
-        """observe_enrichment_model_duration should work with various model names."""
-        from backend.core.metrics import observe_enrichment_model_duration
-
-        observe_enrichment_model_duration("depth-anything-v2", 2.5)
-        observe_enrichment_model_duration("vitpose", 1.8)
-        observe_enrichment_model_duration("xclip", 3.0)
-        observe_enrichment_model_duration("fashion-clip", 0.9)
-
-
-class TestEnrichmentModelErrorMetrics:
-    """Test enrichment model error counter metrics."""
-
-    def test_enrichment_model_errors_metric_exists(self) -> None:
-        """ENRICHMENT_MODEL_ERRORS_TOTAL counter should be defined with model label."""
-        from backend.core.metrics import ENRICHMENT_MODEL_ERRORS_TOTAL
-
-        assert ENRICHMENT_MODEL_ERRORS_TOTAL is not None
-        # Note: prometheus_client strips _total suffix from counter names internally
-        assert ENRICHMENT_MODEL_ERRORS_TOTAL._name == "hsi_enrichment_model_errors"
-        assert "model" in ENRICHMENT_MODEL_ERRORS_TOTAL._labelnames
-
-    def test_record_enrichment_model_error(self) -> None:
-        """record_enrichment_model_error should increment counter with model name."""
-        from backend.core.metrics import record_enrichment_model_error
-
-        record_enrichment_model_error("violence-detection")
-        record_enrichment_model_error("weather-classification")
-        record_enrichment_model_error("brisque-quality")
-
-    def test_record_enrichment_model_error_various_models(self) -> None:
-        """record_enrichment_model_error should work with various model names."""
-        from backend.core.metrics import record_enrichment_model_error
-
-        record_enrichment_model_error("depth-anything-v2")
-        record_enrichment_model_error("vitpose")
-        record_enrichment_model_error("xclip")
-
-
-class TestMetricsServiceEnrichmentDurationMethods:
-    """Test MetricsService enrichment model duration methods."""
-
-    def test_observe_enrichment_model_duration(self) -> None:
-        """MetricsService should observe enrichment model durations."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.observe_enrichment_model_duration("violence-detection", 0.5)
-        metrics.observe_enrichment_model_duration("weather-classification", 1.2)
-        metrics.observe_enrichment_model_duration("brisque-quality", 0.1)
-
-    def test_record_enrichment_model_error(self) -> None:
-        """MetricsService should record enrichment model errors."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.record_enrichment_model_error("violence-detection")
-        metrics.record_enrichment_model_error("weather-classification")
-
-
-class TestEnrichmentMetricsInResponse:
-    """Test enrichment metrics appear in Prometheus response."""
-
-    def test_enrichment_model_duration_in_response(self) -> None:
-        """Enrichment model duration metric should appear in metrics response."""
-        from backend.core.metrics import get_metrics_response, observe_enrichment_model_duration
-
-        # Record a metric to ensure it appears in output
-        observe_enrichment_model_duration("test-model", 1.0)
-
-        response = get_metrics_response().decode("utf-8")
-        assert "hsi_enrichment_model_duration_seconds" in response
-
-    def test_enrichment_model_errors_in_response(self) -> None:
-        """Enrichment model errors metric should appear in metrics response."""
-        from backend.core.metrics import get_metrics_response, record_enrichment_model_error
-
-        # Record a metric to ensure it appears in output
-        record_enrichment_model_error("test-model")
-
-        response = get_metrics_response().decode("utf-8")
-        assert "hsi_enrichment_model_errors_total" in response
-
-
-# =============================================================================
-# Workload-Specific AI Model Histogram Tests (NEM-3381)
-# =============================================================================
-
-
-class TestWorkloadSpecificHistograms:
-    """Test workload-specific AI model histogram definitions and helpers."""
-
-    def test_yolo26_inference_histogram_exists(self) -> None:
-        """YOLO26_INFERENCE_DURATION histogram should be defined with optimized buckets."""
-        from backend.core.metrics import YOLO26_INFERENCE_DURATION
-
-        assert YOLO26_INFERENCE_DURATION is not None
-        assert YOLO26_INFERENCE_DURATION._name == "hsi_yolo26_inference_seconds"
-        # Verify buckets are optimized for fast inference (10ms - 500ms range)
-        buckets = YOLO26_INFERENCE_DURATION._upper_bounds
-        assert 0.01 in buckets  # 10ms minimum
-        assert 0.05 in buckets  # 50ms typical
-        assert 0.1 in buckets  # 100ms P95
-        assert 0.5 in buckets  # 500ms timeout
-
-    def test_nemotron_inference_histogram_exists(self) -> None:
-        """NEMOTRON_INFERENCE_DURATION histogram should be defined with optimized buckets."""
-        from backend.core.metrics import NEMOTRON_INFERENCE_DURATION
-
-        assert NEMOTRON_INFERENCE_DURATION is not None
-        assert NEMOTRON_INFERENCE_DURATION._name == "hsi_nemotron_inference_seconds"
-        # Verify buckets are optimized for LLM inference (500ms - 30s range)
-        buckets = NEMOTRON_INFERENCE_DURATION._upper_bounds
-        assert 0.5 in buckets  # 500ms fast
-        assert 1.0 in buckets  # 1s typical P50
-        assert 3.0 in buckets  # 3s P95
-        assert 10.0 in buckets  # 10s extended
-
-    def test_florence_inference_histogram_exists(self) -> None:
-        """FLORENCE_INFERENCE_DURATION histogram should be defined with optimized buckets."""
-        from backend.core.metrics import FLORENCE_INFERENCE_DURATION
-
-        assert FLORENCE_INFERENCE_DURATION is not None
-        assert FLORENCE_INFERENCE_DURATION._name == "hsi_florence_inference_seconds"
-        # Verify buckets are optimized for vision-language (100ms - 3s range)
-        buckets = FLORENCE_INFERENCE_DURATION._upper_bounds
-        assert 0.1 in buckets  # 100ms fast
-        assert 0.3 in buckets  # 300ms P50
-        assert 1.0 in buckets  # 1s P95
-        assert 2.0 in buckets  # 2s P99
-
-    def test_observe_yolo26_inference(self) -> None:
-        """observe_yolo26_inference should record to workload-specific histogram."""
-        from backend.core.metrics import observe_yolo26_inference
-
-        observe_yolo26_inference(0.05)  # 50ms
-        observe_yolo26_inference(0.1)  # 100ms
-        observe_yolo26_inference(0.03)  # 30ms
-        # No assertion needed - no exception means success
-
-    def test_observe_nemotron_inference(self) -> None:
-        """observe_nemotron_inference should record to workload-specific histogram."""
-        from backend.core.metrics import observe_nemotron_inference
-
-        observe_nemotron_inference(1.0)  # 1s
-        observe_nemotron_inference(2.5)  # 2.5s
-        observe_nemotron_inference(5.0)  # 5s
-        # No assertion needed - no exception means success
-
-    def test_observe_florence_inference(self) -> None:
-        """observe_florence_inference should record to workload-specific histogram."""
-        from backend.core.metrics import observe_florence_inference
-
-        observe_florence_inference(0.3)  # 300ms
-        observe_florence_inference(0.8)  # 800ms
-        observe_florence_inference(1.5)  # 1.5s
-        # No assertion needed - no exception means success
-
-    def test_workload_histograms_in_metrics_response(self) -> None:
-        """Workload-specific histograms should appear in metrics response."""
-        from backend.core.metrics import (
-            get_metrics_response,
-            observe_florence_inference,
-            observe_nemotron_inference,
-            observe_yolo26_inference,
-        )
-
-        # Record metrics to ensure they appear
-        observe_yolo26_inference(0.05)
-        observe_nemotron_inference(1.0)
-        observe_florence_inference(0.3)
-
-        response = get_metrics_response().decode("utf-8")
-        assert "hsi_yolo26_inference_seconds" in response
-        assert "hsi_nemotron_inference_seconds" in response
-        assert "hsi_florence_inference_seconds" in response
-
-
-class TestMetricsServiceWorkloadMethods:
-    """Test MetricsService workload-specific methods."""
-
-    def test_observe_yolo26_inference(self) -> None:
-        """MetricsService should observe YOLO26 inference duration."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.observe_yolo26_inference(0.05)
-        metrics.observe_yolo26_inference(0.1)
-
-    def test_observe_nemotron_inference(self) -> None:
-        """MetricsService should observe Nemotron inference duration."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.observe_nemotron_inference(1.0)
-        metrics.observe_nemotron_inference(3.0)
-
-    def test_observe_florence_inference(self) -> None:
-        """MetricsService should observe Florence inference duration."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.observe_florence_inference(0.3)
-        metrics.observe_florence_inference(0.8)
-
-
-# =============================================================================
 # Exemplar Support Tests (NEM-3379)
 # =============================================================================
 
@@ -2028,33 +1538,10 @@ class TestExemplarSupport:
 
     def test_observe_with_exemplar_without_trace(self) -> None:
         """observe_with_exemplar should work without active trace."""
-        from backend.core.metrics import YOLO26_INFERENCE_DURATION, observe_with_exemplar
+        from backend.core.metrics import DETECTION_CONFIDENCE, observe_with_exemplar
 
         # Should not raise even without a trace
-        observe_with_exemplar(YOLO26_INFERENCE_DURATION, 0.05)
-
-    def test_observe_yolo26_with_exemplar(self) -> None:
-        """observe_yolo26_with_exemplar should record to histogram."""
-        from backend.core.metrics import observe_yolo26_with_exemplar
-
-        observe_yolo26_with_exemplar(0.05)
-        observe_yolo26_with_exemplar(0.1)
-        # No assertion needed - no exception means success
-
-    def test_observe_nemotron_with_exemplar(self) -> None:
-        """observe_nemotron_with_exemplar should record to histogram."""
-        from backend.core.metrics import observe_nemotron_with_exemplar
-
-        observe_nemotron_with_exemplar(1.0)
-        observe_nemotron_with_exemplar(2.5)
-        # No assertion needed - no exception means success
-
-    def test_observe_florence_with_exemplar(self) -> None:
-        """observe_florence_with_exemplar should record to histogram."""
-        from backend.core.metrics import observe_florence_with_exemplar
-
-        observe_florence_with_exemplar(0.3)
-        observe_florence_with_exemplar(0.8)
+        observe_with_exemplar(DETECTION_CONFIDENCE, 0.9)
         # No assertion needed - no exception means success
 
     def test_observe_ai_request_with_exemplar(self) -> None:
@@ -2204,30 +1691,6 @@ class TestCreatedMetricsDisabled:
 class TestMetricsServiceExemplarMethods:
     """Test MetricsService exemplar methods."""
 
-    def test_observe_yolo26_with_exemplar(self) -> None:
-        """MetricsService should observe YOLO26 with exemplar."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.observe_yolo26_with_exemplar(0.05)
-        metrics.observe_yolo26_with_exemplar(0.1)
-
-    def test_observe_nemotron_with_exemplar(self) -> None:
-        """MetricsService should observe Nemotron with exemplar."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.observe_nemotron_with_exemplar(1.0)
-        metrics.observe_nemotron_with_exemplar(3.0)
-
-    def test_observe_florence_with_exemplar(self) -> None:
-        """MetricsService should observe Florence with exemplar."""
-        from backend.core.metrics import get_metrics_service
-
-        metrics = get_metrics_service()
-        metrics.observe_florence_with_exemplar(0.3)
-        metrics.observe_florence_with_exemplar(0.8)
-
     def test_observe_ai_request_with_exemplar(self) -> None:
         """MetricsService should observe AI request with exemplar."""
         from backend.core.metrics import get_metrics_service
@@ -2368,14 +1831,6 @@ class TestReIDMetricsDefinitions:
         assert "target_camera" in CROSS_CAMERA_HANDOFFS_TOTAL._labelnames
         assert "entity_type" in CROSS_CAMERA_HANDOFFS_TOTAL._labelnames
 
-    def test_active_tracks_count_gauge_exists(self) -> None:
-        """ACTIVE_TRACKS_COUNT gauge should be defined with entity_type label."""
-        from backend.core.metrics import ACTIVE_TRACKS_COUNT
-
-        assert ACTIVE_TRACKS_COUNT is not None
-        assert ACTIVE_TRACKS_COUNT._name == "hsi_active_tracks_count"
-        assert "entity_type" in ACTIVE_TRACKS_COUNT._labelnames
-
 
 class TestReIDMetricHelpers:
     """Test Re-ID metric helper functions (NEM-4140)."""
@@ -2452,38 +1907,6 @@ class TestReIDMetricHelpers:
         # Multiple calls should increment counter
         record_cross_camera_handoff("cam_a", "cam_b", "person")
         record_cross_camera_handoff("cam_a", "cam_b", "person")
-        # No assertion needed - no exception means success
-
-    def test_set_active_tracks_count(self) -> None:
-        """set_active_tracks_count should set gauge value."""
-        from backend.core.metrics import ACTIVE_TRACKS_COUNT, set_active_tracks_count
-
-        set_active_tracks_count("person", 5)
-        # Verify gauge was set
-        assert ACTIVE_TRACKS_COUNT.labels(entity_type="person")._value._value == 5
-
-        set_active_tracks_count("vehicle", 3)
-        assert ACTIVE_TRACKS_COUNT.labels(entity_type="vehicle")._value._value == 3
-
-    def test_set_active_tracks_count_zero(self) -> None:
-        """set_active_tracks_count should handle zero value."""
-        from backend.core.metrics import ACTIVE_TRACKS_COUNT, set_active_tracks_count
-
-        set_active_tracks_count("person", 0)
-        assert ACTIVE_TRACKS_COUNT.labels(entity_type="person")._value._value == 0
-
-    def test_set_active_tracks_count_update(self) -> None:
-        """set_active_tracks_count should update existing gauge value."""
-        from backend.core.metrics import ACTIVE_TRACKS_COUNT, set_active_tracks_count
-
-        set_active_tracks_count("person", 10)
-        assert ACTIVE_TRACKS_COUNT.labels(entity_type="person")._value._value == 10
-
-        set_active_tracks_count("person", 8)  # Track was lost
-        assert ACTIVE_TRACKS_COUNT.labels(entity_type="person")._value._value == 8
-
-        set_active_tracks_count("person", 12)  # New tracks created
-        assert ACTIVE_TRACKS_COUNT.labels(entity_type="person")._value._value == 12
 
 
 class TestReIDMetricsEndpointExposure:
@@ -2497,7 +1920,6 @@ class TestReIDMetricsEndpointExposure:
             record_cross_camera_handoff,
             record_reid_attempt,
             record_reid_match,
-            set_active_tracks_count,
         )
 
         # Record some metrics first to ensure they appear
@@ -2505,7 +1927,6 @@ class TestReIDMetricsEndpointExposure:
         record_reid_match("person", "test_cam")
         observe_reid_match_duration("person", 0.05)
         record_cross_camera_handoff("cam_1", "cam_2", "person")
-        set_active_tracks_count("person", 5)
 
         response = get_metrics_response().decode("utf-8")
 
@@ -2514,7 +1935,6 @@ class TestReIDMetricsEndpointExposure:
         assert "hsi_reid_matches_total" in response
         assert "hsi_reid_match_duration_seconds" in response
         assert "hsi_cross_camera_handoffs_total" in response
-        assert "hsi_active_tracks_count" in response
 
     def test_metrics_response_contains_reid_labels(self) -> None:
         """Metrics response should contain Re-ID metric labels (NEM-4140)."""
@@ -2595,62 +2015,6 @@ class TestModelLoadDurationMetrics:
 
         assert "hsi_model_load_duration_seconds" in response
         assert 'model="test-model-load"' in response
-
-
-class TestModelColdStartLatencyMetrics:
-    """Tests for model cold start latency metric (NEM-4145)."""
-
-    def test_cold_start_latency_metric_exists(self) -> None:
-        """MODEL_COLD_START_LATENCY gauge should be defined with model label."""
-        from backend.core.metrics import MODEL_COLD_START_LATENCY
-
-        assert MODEL_COLD_START_LATENCY is not None
-        assert MODEL_COLD_START_LATENCY._name == "hsi_model_cold_start_latency_seconds"
-        assert "model" in MODEL_COLD_START_LATENCY._labelnames
-
-    def test_set_cold_start_latency_updates_gauge(self) -> None:
-        """set_model_cold_start_latency should update the gauge for a model."""
-        from backend.core.metrics import (
-            MODEL_COLD_START_LATENCY,
-            set_model_cold_start_latency,
-        )
-
-        set_model_cold_start_latency("yolo26", 0.543)
-
-        # Verify the gauge value
-        value = MODEL_COLD_START_LATENCY.labels(model="yolo26")._value.get()
-        assert value == 0.543
-
-    def test_set_cold_start_latency_different_models(self) -> None:
-        """Cold start latency can be set for different models independently."""
-        from backend.core.metrics import (
-            MODEL_COLD_START_LATENCY,
-            set_model_cold_start_latency,
-        )
-
-        set_model_cold_start_latency("yolo26", 0.05)
-        set_model_cold_start_latency("nemotron", 5.5)
-        set_model_cold_start_latency("florence", 1.2)
-        set_model_cold_start_latency("clip", 0.25)
-
-        assert MODEL_COLD_START_LATENCY.labels(model="yolo26")._value.get() == 0.05
-        assert MODEL_COLD_START_LATENCY.labels(model="nemotron")._value.get() == 5.5
-        assert MODEL_COLD_START_LATENCY.labels(model="florence")._value.get() == 1.2
-        assert MODEL_COLD_START_LATENCY.labels(model="clip")._value.get() == 0.25
-
-    def test_cold_start_latency_overwrite(self) -> None:
-        """Cold start latency can be overwritten on model restart."""
-        from backend.core.metrics import (
-            MODEL_COLD_START_LATENCY,
-            set_model_cold_start_latency,
-        )
-
-        set_model_cold_start_latency("enrichment-pose", 0.5)
-        assert MODEL_COLD_START_LATENCY.labels(model="enrichment-pose")._value.get() == 0.5
-
-        # After restart, cold start latency may be different
-        set_model_cold_start_latency("enrichment-pose", 0.35)
-        assert MODEL_COLD_START_LATENCY.labels(model="enrichment-pose")._value.get() == 0.35
 
 
 class TestModelRestartsMetrics:
@@ -2758,21 +2122,6 @@ class TestModelRestartsMetrics:
 
 class TestModelColdStartAndRestartMetricsExposure:
     """Tests for metric exposure in /metrics endpoint (NEM-4145)."""
-
-    def test_metrics_response_contains_cold_start_latency(self) -> None:
-        """Metrics response should contain cold start latency metric."""
-        from backend.core.metrics import (
-            get_metrics_response,
-            set_model_cold_start_latency,
-        )
-
-        # Record a metric to ensure it appears
-        set_model_cold_start_latency("test-model-latency", 0.123)
-
-        response = get_metrics_response().decode("utf-8")
-
-        assert "hsi_model_cold_start_latency_seconds" in response
-        assert 'model="test-model-latency"' in response
 
     def test_metrics_response_contains_model_restarts(self) -> None:
         """Metrics response should contain model restarts metric."""

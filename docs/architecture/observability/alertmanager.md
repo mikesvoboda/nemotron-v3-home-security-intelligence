@@ -207,7 +207,7 @@ detection (`backend/services/pipeline_workers.py:527`).
 lines 353-626), worker alerts (`HSIWorkerRestartStorm`, `HSIWorkerRestartSlow`, `HSIWorkerFailed`,
 `HSIWorkerNotRunning`, `HSIWorkerConsecutiveFailures`, `HSIAllWorkersFailing`, lines 628-726),
 plus circuit-breaker, database/cache-cascade, profiling, and GPU groups. The restart alerts are
-live: `record_pipeline_worker_restart()` (`backend/core/metrics.py:4559`) runs on every supervised
+live: `record_pipeline_worker_restart()` (`backend/core/metrics.py:3415`) runs on every supervised
 restart (`backend/services/worker_supervisor.py:696-698`).
 
 ## Recording Rules for Alerts

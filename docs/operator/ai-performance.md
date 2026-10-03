@@ -305,20 +305,19 @@ curl -s http://localhost:8000/api/metrics | grep '^hsi_' | head -50
 
 Relevant metric families (all `hsi_`-prefixed, defined in `backend/core/metrics.py`):
 
-- `hsi_ai_request_duration_seconds{service}` — per-request AI latency histogram; this is
-  the verdict-latency source (`service="vlm_assess"`, `service="yolo26"`)
+- `hsi_ai_request_duration_seconds{service}` — per-request AI latency histogram, written
+  only by the detector client (`service="yolo26"`); verdict latency lives in
+  `event_verifications.latency_ms`, not here
 - `hsi_specialist_unavailable_total{specialist,reason}` — a counter climbing since boot
   means that lookup leg has **never** run
-- `hsi_prompts_truncated_total`, `hsi_llm_context_utilization_ratio` — what the slot
-  fitter is doing to your batches
+- `hsi_prompts_truncated_total` — what the slot fitter is doing to your batches
 - `hsi_detection_queue_depth`, `hsi_analysis_queue_depth`, `hsi_dlq_depth`
 - `hsi_pipeline_errors_total`, `hsi_detections_processed_total`
 
-`hsi_nemotron_*` and `hsi_florence_*` are declared in `backend/core/metrics.py` and emit
-nothing on the live path — do not build a dashboard on them. For the serve itself, read
-llama.cpp's own `llama_*` series: Prometheus scrapes them under the `ai-vlm-metrics` job
-(`ai-vlm:8098/metrics`), and Triton's per-model timings come from `triton-metrics`
-(`ai-gateway:8002`).
+The VLM serve itself publishes no `hsi_*` family — read llama.cpp's own `llama_*`
+series: Prometheus scrapes them under the `ai-vlm-metrics` job (`ai-vlm:8098/metrics`),
+and Triton's per-model timings come from `triton-metrics` (`ai-gateway:8002`). Tokens
+per second is `rate(llama_tokens_predicted_total[1m])`.
 
 ---
 

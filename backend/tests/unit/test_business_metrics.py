@@ -1,8 +1,6 @@
 """Unit tests for business metrics (NEM-770).
 
-Tests for new Prometheus metrics:
-- hsi_florence_task_total: Florence-2 task invocations
-- hsi_enrichment_model_calls_total: Enrichment model calls
+Tests for these Prometheus metrics:
 - hsi_events_by_camera_total: Events per camera
 - hsi_events_reviewed_total: Events marked as reviewed
 
@@ -10,15 +8,6 @@ Tests cover:
 - Metric definitions and registration
 - Helper functions for recording metrics
 - Instrumentation in events.py
-
-R8 (2026-09-29) retired enrichment_pipeline and nemotron_analyzer; the classes
-that pinned THEIR call sites went with them. R8 S3 then took
-TestFlorenceClientInstrumentation with backend/services/florence_client.py
-(ruling 1 — the module is deleted, so there is no call site left to instrument,
-and a test that patches a module which cannot be imported errors at collection
-and takes the whole unit tier with it). The metric definitions themselves
-survive (they live in backend.core.metrics, and the Grafana panels still query
-hsi_florence_task_total), so the definition/helper pins stay.
 """
 
 from __future__ import annotations
@@ -28,15 +17,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.core.metrics import (
-    ENRICHMENT_MODEL_CALLS_TOTAL,
     EVENTS_BY_CAMERA_TOTAL,
     EVENTS_REVIEWED_TOTAL,
-    FLORENCE_TASK_TOTAL,
     get_metrics_response,
-    record_enrichment_model_call,
     record_event_by_camera,
     record_event_reviewed,
-    record_florence_task,
 )
 
 # =============================================================================
@@ -46,19 +31,6 @@ from backend.core.metrics import (
 
 class TestBusinessMetricDefinitions:
     """Test business metric definitions and registrations."""
-
-    def test_florence_task_counter_exists(self) -> None:
-        """FLORENCE_TASK_TOTAL counter should be defined with task label."""
-        assert FLORENCE_TASK_TOTAL is not None
-        # prometheus_client strips _total suffix from counter names internally
-        assert FLORENCE_TASK_TOTAL._name == "hsi_florence_task"
-        assert "task" in FLORENCE_TASK_TOTAL._labelnames
-
-    def test_enrichment_model_calls_counter_exists(self) -> None:
-        """ENRICHMENT_MODEL_CALLS_TOTAL counter should be defined with model label."""
-        assert ENRICHMENT_MODEL_CALLS_TOTAL is not None
-        assert ENRICHMENT_MODEL_CALLS_TOTAL._name == "hsi_enrichment_model_calls"
-        assert "model" in ENRICHMENT_MODEL_CALLS_TOTAL._labelnames
 
     def test_events_by_camera_counter_exists(self) -> None:
         """EVENTS_BY_CAMERA_TOTAL counter should be defined with camera labels."""
@@ -81,49 +53,12 @@ class TestBusinessMetricDefinitions:
 class TestBusinessMetricHelpers:
     """Test business metric helper functions."""
 
-    def test_record_florence_task_caption(self) -> None:
-        """record_florence_task should increment counter for caption task."""
-        record_florence_task("caption")
         # Should not raise
 
-    def test_record_florence_task_ocr(self) -> None:
-        """record_florence_task should increment counter for ocr task."""
-        record_florence_task("ocr")
         # Should not raise
 
-    def test_record_florence_task_detect(self) -> None:
-        """record_florence_task should increment counter for detect task."""
-        record_florence_task("detect")
         # Should not raise
 
-    def test_record_florence_task_dense_caption(self) -> None:
-        """record_florence_task should increment counter for dense_caption task."""
-        record_florence_task("dense_caption")
-        # Should not raise
-
-    def test_record_enrichment_model_call_brisque(self) -> None:
-        """record_enrichment_model_call should increment counter for brisque model."""
-        record_enrichment_model_call("brisque")
-        # Should not raise
-
-    def test_record_enrichment_model_call_violence(self) -> None:
-        """record_enrichment_model_call should increment counter for violence model."""
-        record_enrichment_model_call("violence")
-        # Should not raise
-
-    def test_record_enrichment_model_call_clothing(self) -> None:
-        """record_enrichment_model_call should increment counter for clothing model."""
-        record_enrichment_model_call("clothing")
-        # Should not raise
-
-    def test_record_enrichment_model_call_vehicle(self) -> None:
-        """record_enrichment_model_call should increment counter for vehicle model."""
-        record_enrichment_model_call("vehicle")
-        # Should not raise
-
-    def test_record_enrichment_model_call_pet(self) -> None:
-        """record_enrichment_model_call should increment counter for pet model."""
-        record_enrichment_model_call("pet")
         # Should not raise
 
     def test_record_event_by_camera(self) -> None:
@@ -156,21 +91,6 @@ class TestBusinessMetricHelpers:
 
 class TestBusinessMetricsInEndpoint:
     """Test that business metrics appear in /metrics endpoint."""
-
-    def test_florence_task_metric_in_response(self) -> None:
-        """Florence task metric should appear in metrics response."""
-        # Record a metric to ensure it's populated
-        record_florence_task("caption")
-
-        response = get_metrics_response().decode("utf-8")
-        assert "hsi_florence_task_total" in response
-
-    def test_enrichment_model_calls_metric_in_response(self) -> None:
-        """Enrichment model calls metric should appear in metrics response."""
-        record_enrichment_model_call("brisque")
-
-        response = get_metrics_response().decode("utf-8")
-        assert "hsi_enrichment_model_calls_total" in response
 
     def test_events_by_camera_metric_in_response(self) -> None:
         """Events by camera metric should appear in metrics response."""

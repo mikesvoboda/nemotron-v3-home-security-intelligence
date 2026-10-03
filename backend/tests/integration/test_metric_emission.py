@@ -9,7 +9,6 @@ Tests cover:
 - Detection by class metrics (hsi_detections_by_class_total)
 - Stage duration histograms (hsi_stage_duration_seconds)
 - AI request duration histograms (hsi_ai_request_duration_seconds)
-- Risk score histograms (hsi_risk_score)
 - Events by risk level counters (hsi_events_by_risk_level_total)
 - Queue depth gauges (hsi_detection_queue_depth, hsi_analysis_queue_depth)
 - Cache metrics (hsi_cache_hits_total, hsi_cache_misses_total)
@@ -330,27 +329,6 @@ class TestHistogramMetricEmission:
         assert 'service="nemotron"' in content
 
     @pytest.mark.asyncio
-    async def test_risk_score_histogram_records_values(self, client, mock_redis):
-        """Test that observe_risk_score() records to risk score histogram."""
-        from backend.core.metrics import observe_risk_score
-
-        # Record risk scores across the range
-        observe_risk_score(15)  # Low risk
-        observe_risk_score(45)  # Medium risk
-        observe_risk_score(75)  # High risk
-        observe_risk_score(95)  # Critical risk
-
-        # Verify via metrics endpoint
-        response = await client.get("/api/metrics")
-        assert response.status_code == 200
-        content = response.text
-
-        # Histogram should have observations
-        assert "hsi_risk_score_bucket" in content
-        assert "hsi_risk_score_sum" in content
-        assert "hsi_risk_score_count" in content
-
-    @pytest.mark.asyncio
     async def test_db_query_duration_histogram_records_latency(self, client, mock_redis):
         """Test that observe_db_query_duration() records to database query histogram."""
         from backend.core.metrics import observe_db_query_duration
@@ -497,142 +475,8 @@ class TestPipelineErrorMetricEmission:
         assert 'error_type="timeout_error"' in content
 
 
-class TestEnrichmentMetricEmission:
-    """Tests for enrichment-related metric emission."""
-
-    @pytest.mark.asyncio
-    async def test_enrichment_model_call_increments_counter(self, client, mock_redis):
-        """Test that record_enrichment_model_call() increments model call counter."""
-        from backend.core.metrics import record_enrichment_model_call
-
-        # Record enrichment model calls
-        record_enrichment_model_call("brisque")
-        record_enrichment_model_call("violence")
-        record_enrichment_model_call("clothing")
-
-        # Verify via metrics endpoint
-        response = await client.get("/api/metrics")
-        assert response.status_code == 200
-        content = response.text
-
-        # Enrichment model counter should be present
-        assert "hsi_enrichment_model_calls_total" in content
-        assert 'model="brisque"' in content
-        assert 'model="violence"' in content
-        assert 'model="clothing"' in content
-
-    @pytest.mark.asyncio
-    async def test_enrichment_failure_increments_counter(self, client, mock_redis):
-        """Test that record_enrichment_failure() increments failure counter."""
-        from backend.core.metrics import record_enrichment_failure
-
-        # Record enrichment failures
-        record_enrichment_failure("vehicle")
-        record_enrichment_failure("pet")
-
-        # Verify via metrics endpoint
-        response = await client.get("/api/metrics")
-        assert response.status_code == 200
-        content = response.text
-
-        # Enrichment failure counter should be present
-        assert "hsi_enrichment_failures_total" in content
-        assert 'model="vehicle"' in content
-        assert 'model="pet"' in content
-
-    @pytest.mark.asyncio
-    async def test_enrichment_batch_status_increments_counter(self, client, mock_redis):
-        """Test that record_enrichment_batch_status() increments batch status counter."""
-        from backend.core.metrics import record_enrichment_batch_status
-
-        # Record various batch statuses
-        record_enrichment_batch_status("full")
-        record_enrichment_batch_status("partial")
-        record_enrichment_batch_status("failed")
-
-        # Verify via metrics endpoint
-        response = await client.get("/api/metrics")
-        assert response.status_code == 200
-        content = response.text
-
-        # Batch status counter should be present
-        assert "hsi_enrichment_batch_status_total" in content
-        assert 'status="full"' in content
-        assert 'status="partial"' in content
-        assert 'status="failed"' in content
-
-
 class TestPromptMetricEmission:
     """Tests for prompt-related metric emission."""
-
-    @pytest.mark.asyncio
-    async def test_prompt_template_used_increments_counter(self, client, mock_redis):
-        """Test that record_prompt_template_used() increments template counter."""
-        from backend.core.metrics import record_prompt_template_used
-
-        # Record prompt template usage
-        record_prompt_template_used("basic")
-        record_prompt_template_used("enriched")
-        record_prompt_template_used("vision")
-
-        # Verify via metrics endpoint
-        response = await client.get("/api/metrics")
-        assert response.status_code == 200
-        content = response.text
-
-        # Prompt template counter should be present
-        assert "hsi_prompt_template_used_total" in content
-        assert 'template="basic"' in content
-        assert 'template="enriched"' in content
-        assert 'template="vision"' in content
-
-    @pytest.mark.asyncio
-    async def test_prompt_tokens_histogram_records_values(self, client, mock_redis):
-        """Test that observe_prompt_tokens() records to token histogram."""
-        from backend.core.metrics import observe_prompt_tokens
-
-        # Record prompt token counts
-        observe_prompt_tokens(500)
-        observe_prompt_tokens(1500)
-        observe_prompt_tokens(3000)
-
-        # Verify via metrics endpoint
-        response = await client.get("/api/metrics")
-        assert response.status_code == 200
-        content = response.text
-
-        # Histogram should have observations
-        assert "hsi_prompt_tokens_bucket" in content
-        assert "hsi_prompt_tokens_sum" in content
-        assert "hsi_prompt_tokens_count" in content
-
-
-class TestLLMTokenMetricEmission:
-    """Tests for LLM token usage metric emission."""
-
-    @pytest.mark.asyncio
-    async def test_nemotron_tokens_increments_counters(self, client, mock_redis):
-        """Test that record_nemotron_tokens() increments token counters."""
-        from backend.core.metrics import record_nemotron_tokens
-
-        # Record token usage
-        record_nemotron_tokens(
-            camera_id="front_door",
-            input_tokens=500,
-            output_tokens=200,
-            duration_seconds=5.0,
-        )
-
-        # Verify via metrics endpoint
-        response = await client.get("/api/metrics")
-        assert response.status_code == 200
-        content = response.text
-
-        # Token counters should be present
-        assert "hsi_nemotron_tokens_input_total" in content
-        assert "hsi_nemotron_tokens_output_total" in content
-        assert "hsi_nemotron_tokens_per_second" in content
-
 
 class TestModelWarmupMetricEmission:
     """Tests for AI model warmup metric emission."""
@@ -710,7 +554,6 @@ class TestMetricsServiceEmission:
         metrics.observe_stage_duration("detect", 0.2)
         metrics.observe_ai_request_duration("yolo26", 0.5)
         metrics.record_pipeline_error("validation_error")
-        metrics.observe_risk_score(65)
         metrics.record_event_by_risk_level("medium")
         metrics.set_queue_depth("detection", 15)
         metrics.record_cache_hit("events")
@@ -728,7 +571,6 @@ class TestMetricsServiceEmission:
         assert "hsi_stage_duration_seconds" in content
         assert "hsi_ai_request_duration_seconds" in content
         assert "hsi_pipeline_errors_total" in content
-        assert "hsi_risk_score" in content
         assert "hsi_events_by_risk_level_total" in content
         assert "hsi_detection_queue_depth" in content
         assert "hsi_cache_hits_total" in content
@@ -784,7 +626,6 @@ class TestCoreMetricsPresence:
         core_histograms = [
             "hsi_stage_duration_seconds",
             "hsi_ai_request_duration_seconds",
-            "hsi_risk_score",
             "hsi_detection_confidence",
         ]
 

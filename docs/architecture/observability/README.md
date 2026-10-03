@@ -78,7 +78,7 @@ graph TD
 | `CustomJsonFormatter` | `backend/core/logging.py:611-698`                              | JSON log formatting with trace context             |
 | `ContextFilter`       | `backend/core/logging.py:466-610`                              | Inject request ID, trace ID, span ID into logs     |
 | `setup_telemetry`     | `backend/core/telemetry.py:145-354`                            | Initialize OpenTelemetry with auto-instrumentation |
-| `MetricsService`      | `backend/core/metrics.py:1239-1966`                            | Centralized Prometheus metric recording            |
+| `MetricsService`      | `backend/core/metrics.py:910-1367`                             | Centralized Prometheus metric recording            |
 | Prometheus Config     | `monitoring/prometheus.yml` (509 lines; scrape_configs at :51) | Scrape configuration for all services              |
 | Alertmanager Config   | `monitoring/alertmanager.yml` (238 lines)                      | Alert routing and notification                     |
 | Alerting Rules        | `monitoring/alerting-rules.yml` (1153 lines)                   | Alert definitions with severity labels             |
@@ -95,7 +95,7 @@ trace_id=abc123def456... span_id=789xyz...
 ```
 
 Grafana's Loki datasource is configured with derived fields to extract trace IDs and link directly
-to Tempo (`monitoring/grafana/provisioning/datasources/prometheus.yml:229-235`).
+to Tempo (`monitoring/grafana/provisioning/datasources/prometheus.yml:212-218`).
 
 ### Metric Cardinality Control
 
@@ -174,9 +174,9 @@ The monitoring stack provides comprehensive observability through integrated com
 | Prometheus   | `prometheus`                   | Metrics queries and alerts    | `monitoring/grafana/provisioning/datasources/prometheus.yml:13-23`   |
 | Alertmanager | `alertmanager`                 | Alert state visualization     | `monitoring/grafana/provisioning/datasources/prometheus.yml:25-35`   |
 | Backend-API  | `marcusolsson-json-datasource` | JSON API queries via backend  | `monitoring/grafana/provisioning/datasources/prometheus.yml:37-46`   |
-| Tempo        | `tempo`                        | Distributed trace exploration | `monitoring/grafana/provisioning/datasources/prometheus.yml:48-217`  |
-| Loki         | `loki`                         | Log aggregation and search    | `monitoring/grafana/provisioning/datasources/prometheus.yml:220-235` |
-| Pyroscope    | `grafana-pyroscope-datasource` | Continuous profiling          | `monitoring/grafana/provisioning/datasources/prometheus.yml:238-254` |
+| Tempo        | `tempo`                        | Distributed trace exploration | `monitoring/grafana/provisioning/datasources/prometheus.yml:48-200`  |
+| Loki         | `loki`                         | Log aggregation and search    | `monitoring/grafana/provisioning/datasources/prometheus.yml:202-218` |
+| Pyroscope    | `grafana-pyroscope-datasource` | Continuous profiling          | `monitoring/grafana/provisioning/datasources/prometheus.yml:220-237` |
 
 ## Related Hubs
 

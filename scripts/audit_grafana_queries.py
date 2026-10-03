@@ -67,35 +67,16 @@ BACKEND_HSI_METRICS = {
     # is EMPTY, not 0, until first inference traffic)
     "hsi_ai_inference_duration_seconds",
     "hsi_ai_inference_errors_total",
-    "hsi_yolo26_inference_seconds",
-    "hsi_nemotron_inference_seconds",
-    "hsi_florence_inference_seconds",
     # Pipeline errors
     "hsi_pipeline_errors_total",
     # Risk analysis
-    "hsi_risk_score",
     "hsi_events_by_risk_level_total",
-    "hsi_prompt_template_used_total",
     # LLM context utilization
     "hsi_llm_context_utilization",
     "hsi_llm_context_utilization_ratio",
     "hsi_prompts_truncated_total",
-    "hsi_prompt_tokens",
-    "hsi_prompt_truncated_total",
     "hsi_prompts_high_utilization_total",
     # Business metrics
-    "hsi_florence_task_total",
-    "hsi_enrichment_model_calls_total",
-    "hsi_enrichment_pipeline_stage_duration_seconds",
-    "hsi_enrichment_pipeline_timeouts_total",
-    "hsi_enrichment_quality_level",
-    "hsi_enrichment_retry_total",
-    "hsi_enrichment_success_rate",
-    "hsi_enrichment_partial_batches_total",
-    "hsi_enrichment_failures_total",
-    "hsi_enrichment_batch_status_total",
-    "hsi_enrichment_model_duration_seconds",
-    "hsi_enrichment_model_errors_total",
     "hsi_events_by_camera_total",
     "hsi_events_reviewed_total",
     "hsi_events_acknowledged_total",
@@ -110,14 +91,6 @@ BACKEND_HSI_METRICS = {
     "hsi_cache_invalidations_total",
     "hsi_cache_stale_hits_total",
     "hsi_cache_background_refresh_total",
-    "hsi_redis_pool_size",
-    "hsi_redis_pool_available",
-    "hsi_redis_pool_in_use",
-    # Token usage
-    "hsi_nemotron_tokens_input_total",
-    "hsi_nemotron_tokens_output_total",
-    "hsi_nemotron_tokens_per_second",
-    "hsi_nemotron_token_cost_usd_total",
     # Cost tracking
     "hsi_gpu_seconds_total",
     "hsi_estimated_cost_usd_total",
@@ -155,18 +128,10 @@ BACKEND_HSI_METRICS = {
     "hsi_face_recognition_confidence",
     "hsi_face_matches_total",
     "hsi_face_embedding_duration_seconds",
-    "hsi_known_faces_database_size",
     "hsi_reid_matches_total",
     "hsi_reid_attempts_total",
     "hsi_reid_match_duration_seconds",
     "hsi_cross_camera_handoffs_total",
-    "hsi_active_tracks_count",
-    # Scene OCR metrics (backend/services/scene_ocr_service.py)
-    "hsi_scene_ocr_requests_total",
-    "hsi_scene_ocr_texts_detected_total",
-    "hsi_scene_ocr_service_providers_matched_total",
-    "hsi_scene_ocr_processing_seconds",
-    "hsi_scene_ocr_confidence",
     # Circuit breaker metrics
     "hsi_circuit_breaker_state",
     "hsi_circuit_breaker_trips_total",
@@ -438,7 +403,6 @@ NOT_IMPLEMENTED_METRICS = {
     "hsi_prompt_input_tokens",
     "hsi_prompt_output_tokens",
     "hsi_prompt_context_overflow_total",
-    "hsi_prompt_ab_traffic_total",
     "hsi_shadow_avg_risk_score",
     "hsi_ab_rollout_analysis_total",
     # LLM cost tracking - Not implemented
@@ -449,7 +413,6 @@ NOT_IMPLEMENTED_METRICS = {
     "hsi_redis_pool_wait_seconds",
     "hsi_redis_pool_exhaustion_total",
     # Model management - Not implemented
-    "hsi_model_cold_start_latency_seconds",
     "hsi_model_restarts_total",
     # Profiling regression rules - Not implemented yet
     "job:service_cpu_regression_ratio:5m_vs_24h",
