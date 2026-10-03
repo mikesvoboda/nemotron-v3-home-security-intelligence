@@ -37,8 +37,38 @@ Determinism strategy (the loops are real):
 
 Honesty ledger (EQUIV candidates REGISTERED BY CONSTRUCTION; the sweep
 verdict + the per-key probes in the campaign notes are the evidence - a
-construction claim is not a verdict claim):
-  (populated during the campaign #24 disposition sweep - see campaign notes)
+construction claim is not a verdict claim). Authoring sweep over the 257
+survivor keys: RED=248 GREEN=9; after the two KILLABLE-arm tests below:
+RED=250 GREEN=7, and the 7 GREENs below are EXACTLY this ledger:
+  - _cleanup_stream m5 + remove_stream m7: trailing-comma pops delete the
+    None DEFAULT (pop(task_name, ) -> KeyError on a missing key), but both
+    pops are GUARDED - the cleanup pop sits behind `if task_name in
+    self._background_tasks` (and between its only awaits a cancelled task
+    is never re-raced) and the remove pop behind the `not in self._streams`
+    early return. The key is always present at the pop, so the deleted
+    default is unreachable.
+  - _handle_connection_failure m32/m33 (retry_count/last_error overrides
+    -> None) and m36/m37 (the two kwargs DELETED): four arms, ONE reason -
+    the handler writes EXACTLY those values into the stream context
+    (retry_count+1, error_message) under the lock BEFORE awaiting
+    _update_health, whose None-fallbacks re-read the same ctx fields. The
+    hset mapping is byte-identical in every arm; the battery's state+log+
+    health asserts cover the ctx write itself, so the redundancy is
+    demonstrated, not assumed.
+  - _health_monitoring_loop m51: `break` -> `return` in the read-failure
+    exit - the while loop is the LAST statement of the function (nothing
+    follows it, no finally); both exits unwind identically (release
+    already awaited before the break).
+  Not equivalent, KILLABLE - the two arms this battery supplies:
+  - _health_monitoring_loop m25 (elapsed > 0 -> elapsed > 1): every other
+    update arm has elapsed exactly 0 or >= 5; the fractional-elapsed test
+    (interval 0.5, clock 0.0->0.5, fps "2.0") is the ONLY 0 < elapsed < 1
+    arm in the file.
+  - add_stream m1 (`in` -> `not in`): a cleanup-CALL stub is blind to the
+    guard direction (the mutant just moves cleanup to the first add and
+    leaves the live first connection task pending) - the replace test
+    therefore runs the REAL _cleanup_stream against a cancelable parked
+    loop and asserts the OLD task is cancelled.
 """
 
 from __future__ import annotations
