@@ -292,3 +292,17 @@ CVE-2025-47273
 CVE-2026-97687
 # CVE-2026-97689 - urllib3 2.7.0 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
 CVE-2026-97689
+
+# =============================================================================
+# Frontend npm dependencies (filesystem scan of frontend/package-lock.json and bun.lock)
+# =============================================================================
+# braces 3.0.3 is the newest release published to npm (2024-09-18; `npm view braces
+# versions` ends at 3.0.3, read 2026-10-03), so no fixed version exists to upgrade to.
+# It is reached through tailwindcss (build-time CSS generation) via chokidar, micromatch
+# and fast-glob. The production image copies only /app/dist into nginx
+# (frontend/Dockerfile:127), so braces is not in the runtime image, and the advisory
+# (stack overflow on deeply nested brace patterns) needs an attacker-controlled pattern
+# handed to braces. Re-check when braces publishes a release or tailwindcss stops using it.
+#
+# CVE-2026-93687 - braces 3.0.3 stack overflow on deeply nested patterns, via tailwindcss (REVIEW BY: 2027-01-03)
+CVE-2026-93687
