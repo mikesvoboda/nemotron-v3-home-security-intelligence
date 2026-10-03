@@ -15148,3 +15148,198 @@ then stream_manager 257/28.8089%, background_evaluator 248/36.7347%,
 threat_monitor_service 244/32.5967%, worker_supervisor 243/62.6154%). Campaign
 #23, battery letter Y. Gap to 85%: 0.85×69,087 = 58,723.95 − 51,041 = **7,682.95
 kt**. Every number measured THIS session.
+
+## 2026-10-03 — MILESTONE 25 PUBLISHES: 74.25173955183936% completed=true (+0.3724279592097872 pts vs M24's 73.87931159262958%) — campaign #23 `vlm_analyzer` CLOSES at 98.47908745247148% (777/789) in ONE RUN (battery Y, batch-38, 46 tests, 1,543 lines final, md5 5af5186b… at authoring / dbe5fdcd… committed): the M19 pre-copy pattern — 40 coverage-growth births, 39 killed by the SAME run's stats pass, the ONE born-survivor adjudicated EQUIV BY CONSTRUCTION (a deleted `recoverable` KWARG equal to the pydantic field default, battery-demonstrated) — 12 survivors == the 12-KEY LEDGER exactly, zero kill losses, no run 2 owed; origin/main moved 22 commits mid-campaign and was MERGED pre-close (b0b63419, zero file overlap with the branch, the bank gitignored and untouched)
+
+**THE NUMBER** (measured THIS session, `uv run scripts/mutation-score.py` rc=0
+routed to `/home/agent/runs/b38-c23-score-r1.json`). `totals` row by row:
+killed 51,039 (exit-1 51,007 plus suspicious-counted-as-killed 32 — the script
+folds exit 3 into killed) plus timeout 289 (the script maps exit -24) equals kt
+**51,328**; survived 17,016; no_tests 783 (exit-33 sticky rows ride on);
+skipped 0; not_checked 0; total **69,127**; score (51,039 + 289)/69,127 =
+**74.25173955183936%** (the script's own float; the raw re-division
+100×51,328/69,127 reads identically). `progress`: total 69,127, checked 69,127,
+not_checked 0, torn_metas 0, **completed=true** (240 target modules / 201 with
+results). **+0.3724279592097872 pt** vs M24's 73.87931159262958%. History
+appended via `--history .github/mutation-history.json --date 2026-10-03` as run
+#29 (29 entries; the append stamp is 2026-10-03T02:59Z while the sandbox LOCAL
+clock still read 2026-10-02 22:59 — entry and heading agree on the
+plan-of-record date 2026-10-03, disclosed in the M24 heading-vs-stamp family;
+pre-append state backed up to `/home/agent/runs/mutation-history-preM25.json` —
+after the append the first 28 runs verified deep-equal to that backup, the
+3,041-line diff is the known compact-to-pretty reformat of the SAME bytes).
+Badge decomposition row by row: Delta-kt = +287 = 248 entering-survivor bodies
+flipped to killed + 39 births ended-killed inside the one run (the 1
+born-survivor added nothing to kt); kt on the run's target meta: 490 to 777 =
++287; survived 17,263 to 17,016 = −247 (248 entering flips minus the 1
+born-survivor); total 69,087 to 69,127 = +40 births.
+
+**DENOMINATOR DISCLOSURE:** the battery's coverage growth grew the bank +40
+keys (mutation slots regenerated for lines the battery newly covered) — the
+true birth census is the fn-name-prefix count diff of the pre-run archive meta
+vs the landing meta: `load_household_context` 14 to 27 (+13),
+`analyze_batch_streaming` 49 to 72 (+23), `_broadcast` 44 to 47 (+3),
+`analyze_batch` 378 to 379 (+1); 39 were born AND killed inside the one run's
+stats pass and 1 born-survived as registered EQUIV #12 — all 40 are in the new
+denominator either way: kt 51,328 on the OLD denominator 69,087 would read
+74.29472983339846% — the +40 births cost **0.04299028155909923 pt** of
+dilution, already inside the published +0.3724279592097872 net gain.
+
+**CAMPAIGN #23 — the target.** `backend/services/vlm_analyzer.py` (259
+survivors entering at 65.4206%, the M24-censused head; R8 shield checked
+against the authoritative `DEAD_MODULES` — not on the death list, it is the
+RETARGETED live VLM home). Bank row entering: 749 keys {killed 490, survived
+259}. Mutation map `b38-c23-mutation-map.txt` + survivor-key file (259 bare
+keys) shape-classified every survivor (A literal 111 / B boundary 15 / C
+structural 133 — shape used as EVIDENCE only); dispositions were adjudicated
+by per-key construction probes plus the single-process trampoline sweep, never
+by diff-shape: 248 KILLABLE and 11 EQUIVALENT before a single test shipped.
+
+**THE 12-KEY LEDGER (honesty ledger — each BODY-proved by construction probe
+THIS session; 11 pre-run + 1 BORN in the run's generation; ALL 12 survived at
+landing — no shipped-suite kill among them, unlike M24's `__init__` row):**
+
+1. `analyze_batch` m347 (post-renumber m348) — the payload is never None at
+   that call site (`verification_payload` returns None only for a non-list or
+   empty rows; the call site always feeds the view it just built).
+2. `analyze_batch` m340 (post m341) — the `_EventView(event_id=None)` ARG is
+   unread (`verification_payload` reads `.verifications` only).
+3. `analyze_batch` m40/m42 (post m41/m43) — dead initializers: zones and
+   household are re-assigned unconditionally before their first read.
+4. `apply_verdict_invariants` m37 — `VlmVerdict.risk_score` is a REQUIRED int
+   field, so the `is not None` guard is always True.
+5. `_EventView.__init__` m1 — `verification_payload` reads ONLY
+   `event.verifications` (never `event_id`).
+6. `load_household_context` m5/m7 — `join(Zone, None)` and `join(Zone,)`
+   render BYTE-IDENTICAL SQL (probed: the FK-derived ON clause makes the
+   explicit onclause redundant).
+7. `key_frame_ids` m4 — the by-path map is pairing-invariant: per file the
+   winner is the global max-ranked frame whether the (camera, class) pairs are
+   merged by the camera fallback or split by the mutation (combinatorial).
+8. `analyze_batch_streaming` m5 — `accumulated_text=""` equals the schema
+   default.
+9. `analyze_batch_streaming` m25 (post-renumber m48) — `recoverable=True`
+   equals the schema default.
+10. `analyze_batch_streaming` m33 (BORN this generation — pre-run the line
+    had no mutant) — DELETING the `recoverable=True` kwarg equals the
+    StreamingErrorEvent field default True, so the `model_dump` is identical
+    in every arm; demonstrated, not assumed: the battery's internal-error
+    test asserts the COMPLETE dump with `recoverable` present, so the sweep
+    GREEN is itself the observation.
+
+**BATTERY Y — what kills what.** `test_vlm_analyzer_batch38_y.py`, 46
+module-level sync tests (b30 harness contract): EXACT-DICT field equality on
+everything the analyzer builds (context dict, broadcast message, streaming
+model dumps — renames and case flips die); STRUCTURAL SQL mirrors (the fake
+session dispatches on FROM tables plus whereclause (column, operator, value) —
+measured: `.where(None)` compiles to a silent WHERE NULL rather than raising,
+so an equality-only read would mask boundary mutants); LOG RECORD LISTS read
+from `va.logger` at DEBUG (the ContextFilter only enriches) with the FULL
+`extra=` surface asserted as record attributes; WHOLE-CALL position-pin spies
+(a SyncSpy for the SYNC `record_pipeline_error` seam — an async spy there
+records nothing); PER-CALL scripted spies (zones per call id drive the
+track-crossing accumulation); FakeTime monotonic scripts pin `latency_ms` ==
+2000 exactly; CAMERA-RENAME SURVIVAL rows (fixture camera id differs from the
+call id — every lookup-key use is pinned); `_Divergent` `analyze_batch` stubs
+hand the streaming generator the divergent NULL pair the real pipeline never
+builds (the COMPLETE-arm schema rejects it, killing the `or` to `and` flip);
+absent-key polarity rows make the camera fallback observable. Gates at
+authoring: pytest 46 green, ruff check and format clean, mypy clean, vulture
+CI-shape rc=0, autospec at every patch (WP4.2 ratchet Passed at commit).
+
+**ONE RUN — the M19 pre-copy pattern (disclosed: no run 2, no pre-launch
+delta sweep — the delta was AUDITED post-run instead).** Battery md5-synced
+into `mutants/` BEFORE launch; unit tier GREEN in the mutant home FIRST: **28,668
+passed, 124 skipped, 8 xfailed in 19:02** (`b38-c23-greentier.log`). Pre-run
+archive `b38-preC23/` (240 whole-tree metas; target meta {490, 259}/749
+verified equal to the entering row). Launch ~2026-10-03T02:04Z plain nohup
+(exec'd runner pid 1203827); `guard-module2` pid 1203899 attached to the REAL
+runner pid from the first second: 24 ticks 02:05:58Z to 02:29:34Z, EVERY tick
+sibling-drop=0 / stats=yes / nonmod-holes=0; regime switch at the generation
+done-line 02:16:12Z; final holes=0; NO strip, NO restore. Run exited
+02:29–02:30Z. Landing score `b38-c23-score-r1.json`: target {777, 12}/789 =
+98.47908745247148%; bank **74.25173955183936%** — the one run IS the close
+(every killable birth died in the run's own stats pass; the single birth
+survivor is EQUIV by construction, so run 2 was structurally unowed).
+
+**RECONCILE — BODY identity (`b38-c23-reconcile-body.py`, RESULT CLEAN rc=0).**
+Transition matrix pre to cur with verdicts carried by identical normalized
+bodies (self-checks: keys-without-body 0 both trees): 1 to 1: 490, 0 to 1:
+**248**, 0 to 0: 11, 1 to 0: **0 kill losses**. Slot-inheriting births 0;
+new-body births 40 — 39 ended killed, 1 survived (ledger entry 10 above);
+lost-slot groups 0; lost-body groups 0. The fn-prefix census delta (+13/+23/+3/+1)
+equals the meta delta 749 to 789 exactly. The 11 pre-era ledger bodies all
+SURVIVED — five under RENUMBERED slots (m340 to m341, m347 to m348, m40 to
+m41, m42 to m43, m25 to m48 — the documented coverage-growth renumber family;
+the survivor census was adjudicated by BODY SET, never by key name). Sibling
+drift by `exit_code_by_key` CONTENT vs the pre-archive whole-tree metas: 239
+compared, **0** drift, 0 new metas, 0 vanished.
+
+**POST-CLOSE SWEEP — all 789 keys, COMMITTED battery (`dbe5fdcd…`).**
+`b38-c23-sweep-committed.txt`: **RED=735 GREEN=54**, GREEN set byte-identical
+to the pre-commit close sweep (`b38-c23-sweep-close.txt`). TWO all-GREEN
+FAKES were caught before any conclusion (both harness-side, both caught by the
+same tripwire — a RED count that cannot be true): the first relaunch used a
+BARE `python3` without the project venv (ModuleNotFoundError on sqlalchemy —
+the documented launcher-path family), and the uv-run relaunch ran from the
+WORKSPACE ROOT, so the sweep harness loaded the PRISTINE source file instead
+of the trampoline tree (all-GREEN plus a PASSING shipped-green control — the
+documented pristine-window fake). The working launch runs from the mutant home
+with the mutant venv interpreter. Attribution of the 54 GREENs, complete and
+measured: 12 == the ledger keys exactly (verdict census cross-check: the 54
+split exactly 42 verdict-1 + 12 verdict-0), and 42 bank-verdict-1 keys outside
+battery Y's reach — families `analyze_batch` ×28, `analyze_detection_fast_path` ×9,
+`build_assess_context` ×5 — the b30 harness never collects `Test*` classes
+so it cannot see the shipped-suite killers. REAL pytest under the pin THIS
+session (`b38-c23-attr-spot.sh`): `fast_path` m1 RED against
+`test_pipeline_factory.py` (rc=1), `build_assess_context` m48 and `analyze_batch`
+m160 RED against `test_vlm_analyzer.py` (rc=1 each). All 735 REDs verdict-1,
+zero non-1. The bank's 777 = 735 battery-Y kills + 42 shipped-suite kills.
+
+**CLOSE math cross-checked.** Target entering {killed 490, survived 259, total
+749} landing {killed 777, survived 12, total 789} = 98.47908745247148%.
+Delta-bank-kt +287 == Delta-target-killed +287; siblings moved 0; survived
+delta −247 = −248 flips plus 1 born-survivor; zero kill losses; the 12
+survivors == the ledger bodies exactly.
+
+**MERGE absorbed pre-close (user-directed).** origin/main had moved
+cfaee6b1 to 6b51049f (22 commits, PRs 6773 and 6775 — docs re-pins, the npm
+audit gate, a `cpu_offloading` deletion sweep). Merged as b0b63419 with ZERO
+file overlap against the branch's 14 commits (checked: `comm` on the two
+name-only diffs), zero ADDED `backend/tests` files (the plan's path-read
+audit: nothing to add to `also_copy`), `mutants/` gitignored so the bank was
+untouched, and the campaign's target source plus battery NOT among main's 22 —
+run verdicts are merge-independent. The six modified backend sources go
+stale-era until the next generation re-verifies them, the documented
+merge-churn path every close since M15 has absorbed.
+
+**GUARD-RESTORE refresh to M25**: built from INSIDE `mutants/` with
+`tar czf /home/agent/runs/guard-restore.tgz backend mutmut-stats.json`,
+VERIFIED from inside: 240 metas / 69,127 keys {exit-1 51,007, suspicious 32,
+timeout 289, survived 17,016, no_tests 783} = kt 51,328 == published;
+vlm_analyzer inside at {777, 12}; battery Y inside at its committed md5
+`dbe5fdcd…`. M24 tar kept as `guard-restore-preM25-superseded.tgz`. `git fetch`
+before push (origin may carry host main-merges).
+
+**NOT PUBLISHED FROM:** the close-sweep RED=735 as the module score (the bank
+says 777 — 42 shipped-suite kills sit outside battery Y; the bank verdicts are
+the score), the 1 birth survivor as killable (the deleted kwarg EQUALS the
+pydantic field default — the dump is byte-identical in every arm, battery-
+demonstrated), or the sweep GREEN-set of the two FAKE runs as evidence (both
+were harness artifacts, re-run from the mutant home before any conclusion).
+Commands + snapshots: run log `b38-c23-run.log`; guard ticks in `guard.log`
+(24 ticks all clean, no late attach); sweeps `b38-c23-sweep-final.txt`
+(authoring: RED=248 GREEN=11 of 259), `b38-c23-sweep-committed.txt`
+(close: 735/54 of 789; greens `b38-c23-close-greens.txt`, keys
+`b38-c23-all-keys.txt`); reconcile `b38-c23-reconcile-body.py` (CLEAN rc=0,
+matrix `b38-c23-reconcile-r1.txt`); attribution `b38-c23-attr-spot.sh`; probes
+`b38-c23-sweep-keys.txt`, `b38-c23-green-final.txt`; map
+`b38-c23-mutation-map.txt`; tiers `b38-c23-greentier.log`; scores
+`b38-c23-score-r1.json`; history backup `mutation-history-preM25.json`. Next
+head (re-censused from `b38-c23-score-r1.json`, R8 shield applied —
+`api/routes/system.py` 328 and `system_broadcaster.py` 320 are SKIPPED, both
+on the do-not-start list): **`stream_manager.py` 257 survivors at 28.8089%**
+(total 361; then `background_evaluator` 248/36.7347%,
+`threat_monitor_service` 244/32.5967%, `worker_supervisor` 243/62.6154%). Campaign #24, battery letter Z.
+Gap to 85%: 0.85×69,127 = 58,757.95 − 51,328 = **7,429.95 kt**. Every number
+measured THIS session.
