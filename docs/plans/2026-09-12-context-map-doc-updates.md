@@ -15783,3 +15783,102 @@ launcher `b38-c27-launch.sh`); sweeps `b38-c27-sweep-authoring.txt` (237/6 of 24
 241/68.2058%, `pg_notify_listener` 238/49.6829%, `circuit_breaker` 224).
 Campaign #28, battery letter AD. Gap to 85%: 0.85\*69,159 = 58,785.15 - 52,344
 = **6,441.15 kt**. Every number measured THIS session.
+
+## MILESTONE 30 — 76.0363799360893% (campaign #28 audit_logger closes at 100.0% — 408/408 — in ONE run; the signature-free raw-kwargs spy turns every callee-default-hidden kwarg deletion into a missing key)
+
+**Badge 76.0363799360893% (completed=true), +0.34991830419757 vs M29's
+75.68646163189173%.** killed 52,301 (52,269 raw + the 32 exit-code-3
+caught_by_type_check keys the score script folds in) + timeout 285 =
+52,586 kt / 69,159. Denominator UNCHANGED (no births, no deaths — 408 ->
+408); completed gate checked=69,159, not_checked=0, torn_metas=0; no_tests
+783 unchanged. History run #34 (`--history .github/mutation-history.json
+--date 2026-10-03` from workspace root), runs 1-33 deep-equal vs
+`/home/agent/runs/preM30-mutation-history.json` append-only verified.
+
+**Campaign #28 `backend/services/audit_logger.py` CLOSED at 100.0%
+(408 kt / 408)** — the second 100% module of the ladder (after redis_json
+at M12) and the FIRST closed with ZERO equivalents and ZERO close-sweep
+adjudication debt. Started at 242 survivors / 40.6863%. Battery AD
+(`test_audit_logger_batch38_ad.py`, 20 tests, committed `4d13f5db`, md5
+1776f6efd97686cd9b8dc41936c93ea5, md5-synced into the mutant home BEFORE
+the run — M19 pre-copy 7th deployment).
+
+**THE RAW-KWARGS SPY (the campaign's design capture).** `log_action` is a
+`@staticmethod` whose params carry defaults (`resource_id=None`,
+`status=AuditStatus.SUCCESS`) — a signature-faithful spy REFILLS a
+deleted kwarg with the default and the deletion arms are VALUE-INVISIBLE
+at the callee (dropped-kwarg memory, weaponized in reverse): the recorder
+takes `**kwargs` with NO signature, installed by swapping the
+`al.AuditService` module global before constructing a fresh
+SecurityAuditLogger, so it sees the call as literally made and a deleted
+kwarg is a MISSING KEY in the sorted-key census + whole-dict equality.
+Volatile timestamp slots ride the STAMP polarity placeholder (name
+censused + ISO parse + `utcoffset() is not None` — kills
+`datetime.now(None)`'s naive stamp) so whole-dict equality survives
+without clock-pinning. Three surfaces per method: raw kwargs (identity
+pins on db/request/enum members), except-branch warning (full msgs()
+sequence + extras BY NAME under RuntimeError("boom")), tail record (exact
+f-string msg + exact LEVELNO — security alert is the only WARNING tail —
+
+- extras by selected names; ContextFilter ambient keys are never
+  censused, campaign #12 lesson).
+
+**ZERO-GREEN SWEEP FIRST PASS: 242 RED / 0 GREEN / 0 HANG** of the 242
+survivor keys. Honesty ledger registered NO equivalents and the sweep
+agreed — no adjudication, no killer rounds, no ledger. Green vs pristine:
+20 passed FIRST TRY — the first battery of the arc with zero
+authored-draft defects, because mask_ip's output shapes, every msg
+string, every extras name and the per-method log levels were read from
+source BEFORE writing (the msg/level/str() renderings verified against
+audit_logger.py lines 102-121 etc.). Commit arc clean ONE-SHOT (all hooks
+Passed AND landed — no prettier escape, no timeout bite: no long sleeps
+this module).
+
+**ONE-RUN CLOSE (no run 2, no delta sweep):** pre-run archive
+`b38-preC28/` 408 keys {1:166, 0:242}; post-run: 408 {1:408}. Reconcile
+`b38-c28-reconcile-body.py` (sed-built from c27, grep-verified: 0
+wrong-module residue) CLEAN rc=0: transition {(1,1):166, (0,1):242} —
+ALL 242 survivors killed, 0 kill losses, 0 births (slot or new-body),
+fn-prefix census delta +0. The battery adds ASSERTS, not new code paths,
+so coverage did not grow and generation re-enumerated the same 408 defs —
+births-zero is the honest disclosure for pre-copy campaigns where the
+shipped suite already covered every def.
+
+**Post-launch evidence chain:** unit tier GREEN in the mutant home POST
+battery-sync — 28,700 passed, 124 skipped, 8 xfailed (= 28,680 at M29 +
+the 20 new battery tests; the scan counting them proves the pre-copy
+timing). Launcher pre-flight: services filter matched 408 keys (non-empty
+rule); `mutants/data/runtime.env` poison removed pre-launch.
+guard-module2 attached to the REAL runner pid 208176 (plain nohup, never
+setsid): `[gen]`->`[tight]` on the done-line, siblings=239 drop=0 every
+tick, clean exit. Per-module meta diff EXHAUSTIVE: 1 of 240 metas moved
+(the target). Bank after: 240 metas / 69,159 keys {1:52269, 0:15790,
+-24:285, 3:32, 33:783}; reconciles with score JSON via the exit-3 family:
+52,269 + 32 = 52,301 killed.
+
+**Close sweep 403 RED / 5 GREEN / 0 HANG of 408** — battery ALONE kills 403. All 5 GREENs (`_serialize_value` m2-m5 +
+`log_rate_limit_exceeded` m1) ATTRIBUTED BODY-EXACT to shipped-suite
+kills (`b38-c28-attribute.py`: pre-tree body group verdict list == [1]
+for each; TALLY {ATTRIB: 5} UNATTRIBUTED 0). Those 5 were pre-run-killed
+(their pre-verdicts are 1) — the bank verdict is the FULL suite's doing,
+and body-exact attribution (never key-number identity — the renumber
+trap) is the proof.
+
+Artifacts: launcher `b38-c28-launch.sh`, pre-archive
+`b38-c28-prearchive.sh`, sweeps `b38-c28-sweep-authoring.txt` (242/0) +
+`b38-c28-sweep-close.txt` (403/5 of `b38-c28-allkeys408.txt`), attribution
+`b38-c28-attribute.py`, map `b38-c28-mutation-map.txt` (242 keys, 0
+NOT-FOUND), keys `b38-c28-sweep-keys.txt`, run log `b38-c28-run.log`,
+runner pidfile `b38-c28-runner.pid`, green scan
+`b38-c28-greenscan-unit.log` (28,700/124/8, 0 FAILED), pre-run archive
+`b38-preC28/`, score `b38-c28-score-r1.json`, history backup
+`preM30-mutation-history.json`.
+
+**Next head (re-censused from `b38-c28-score-r1.json`, R8 shield applied):**
+**`alert_engine.py` 241 survivors at 68.2058%** (then
+`pg_notify_listener` 238/49.6829%, `circuit_breaker` 224/55.2%,
+`osnet_loader` 221/56.5815%, `batch_coalescer` 218/40.9214%,
+`context_enricher` 216/52.0%). R8 shield holds: system.py 328 and
+system_broadcaster.py 320 are DEATH-Listed, never batteries. Campaign
+#29, battery letter AE. Gap to 85%: 0.85\*69,159 = 58,785.15 - 52,586 =
+**6,199.15 kt**. Every number measured THIS session.
