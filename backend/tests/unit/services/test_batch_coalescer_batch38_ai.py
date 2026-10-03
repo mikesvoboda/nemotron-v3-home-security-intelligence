@@ -42,11 +42,15 @@ replaces every seam with a RECORDING fake:
 Honesty ledger (registered EQUIVALENTS - value-identical by construction,
 each re-proven by the disposition sweep):
   1. find_compatible_candidates m22 (raw_batch_id.decode('utf-8') ->
-     decode('UTF-8')): Python's codec registry normalizes encoding names
-     (case and -/_ are collapsed), so 'UTF-8' resolves to the SAME codec
-     and bytes.decode('UTF-8') == bytes.decode('utf-8') for every input.
-     The mutation is value-identical for all inputs - no battery can
-     distinguish it, and this sweep proves it GREEN.
+     decode('UTF-8')) and from_json m4 (data.decode('utf-8') ->
+     decode('UTF-8')) - the same codec fact at both decode sites:
+     Python's codec registry normalizes encoding names (case and -/_ are
+     collapsed), so 'UTF-8' resolves to the SAME codec
+     (codecs.lookup('utf-8') is codecs.lookup('UTF-8')) and
+     bytes.decode('UTF-8') == bytes.decode('utf-8') for every input
+     (proven value- and error-identically on 2000 random byte strings).
+     Neither mutation can change observable behavior - the sweep proves
+     both GREEN.
 """
 
 from __future__ import annotations
@@ -294,12 +298,16 @@ def test_get_redis_lazy_acquires_once():
         calls.append(True)
         return sentinel
 
-    with patch.object(m, "get_redis_client_sync", acquire):
+    with caplogger() as recs, patch.object(m, "get_redis_client_sync", acquire):
         assert c._get_redis() is sentinel
         assert c._get_redis() is sentinel  # attempted now -> no 2nd acquire
     assert len(calls) == 1
     assert c._redis is sentinel
     assert c._redis_init_attempted is True
+    assert len(recs) == 1
+    assert recs[0].levelno == logging.DEBUG
+    assert recs[0].msg == "BatchCoalescer lazily acquired Redis client"
+    assert recs[0].extra == {}
 
 
 def test_get_redis_attempted_not_retried():
@@ -577,6 +585,26 @@ def test_find_compatible_two_evaluated_count():
     with patch.object(m, "record_batch_coalesce_candidates", metrics):
         run(c.find_compatible_candidates(me))
     assert metrics == [((2,), {})]
+
+
+def test_find_continue_after_data_none():
+    # a data-None entry FIRST in zset order: pristine `continue` keeps
+    # scanning and finds ok-1; the m30 `break` stops the loop and returns
+    # [] - ordering is the observable.
+    ts = datetime(2025, 1, 1, 12, 0, 0)
+    me = mk(batch_id="b-7", camera="cam-9", ts=ts)
+    ok1 = mk(batch_id="ok-1", camera="cam-9", ts=ts)
+    store = {
+        "coalesce:candidate:b-7": me.to_json(),
+        "coalesce:candidate:ok-1": ok1.to_json(),
+        # "gone-1" deliberately NOT stored
+    }
+    _r, c, m = _find_world(["gone-1", "ok-1"], store)
+    metrics = Rec()
+    with patch.object(m, "record_batch_coalesce_candidates", metrics):
+        got = run(c.find_compatible_candidates(me))
+    assert [cd.batch_id for cd in got] == ["ok-1"]
+    assert metrics == [((1,), {})]
 
 
 def test_find_parse_failure_warns():
