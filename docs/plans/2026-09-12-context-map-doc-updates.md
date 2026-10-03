@@ -15882,3 +15882,106 @@ runner pidfile `b38-c28-runner.pid`, green scan
 system_broadcaster.py 320 are DEATH-Listed, never batteries. Campaign
 #29, battery letter AE. Gap to 85%: 0.85\*69,159 = 58,785.15 - 52,586 =
 **6,199.15 kt**. Every number measured THIS session.
+
+## MILESTONE 31 — 76.37441272135888% (campaign #29 alert_engine closes at 98.5788% — 763/774 — in TWO runs; `_ProbeEvent`'s data-descriptor property beats its own `state.dict` key, finally making the unreachable fast-path return observable)
+
+**Badge 76.37441272135888% (completed=true), +0.33803278526958 vs M30's
+76.0363799360893%.** killed 52,549 (52,517 raw + the 32 exit-code-3
+caught_by_type_check keys the score script folds in) + timeout 283 =
+52,832 kt / 69,175. Denominator disclosure: the bank GREW 69,159 to
+69,175 because the battery's coverage grew the alert_engine meta 758 to
+774 (16 coverage-growth births, all killed by close of the campaign);
+timeout 285 to 283 because the module's two legacy timeout keys were
+actually KILLED in run 2 (timeout to killed, disclosed - no timeout was
+lost to a re-verification flake); survived 15,790 to 15,560 (-230);
+no_tests 783 unchanged. Completed gate checked=69,175, not_checked=0,
+torn_metas=0. History run #35 (`--history .github/mutation-history.json
+--date 2026-10-03` from workspace root), runs 1-34 deep-equal vs
+`/home/agent/runs/preM31-mutation-history.json` append-only verified.
+
+**Campaign #29 `backend/services/alert_engine.py` CLOSED at
+98.57881136950904% (763 kt / 774)** over TWO runs, started at 241
+survivors / 68.2058%. Battery AE (`test_alert_engine_batch38_ae.py`, 29
+tests, committed `10f32ae5`, md5 ab96a614067a44ad6f80f85d0c4e19e9,
+md5-synced into the mutant home before every launch).
+
+**THE STATIC SQL PINS (the campaign's harness capture).** All 12
+statement families of the module are transcribed into the battery as
+STATIC pristine-compiled literals and FakeSession routes on the
+whitespace-normalized text plus the bound-param dict. Deriving the
+expected text at runtime from the module source is UNSOUND under the
+trampoline tree - `inspect.getsource` there contains every MUTANT body,
+so a runtime first-anchor extraction could compile a mutant's statement
+as the "expected" text - and semgrep rightly blocks the `exec()` shape
+that would be needed to evaluate the extracted expression. Unrouted
+statement text raises, which also kills the guard `or` to `and` flips
+that run a query on a query-free round.
+
+**CAPTURE #9 - THE PROPERTY-BEATS-DICT PROBE EVENT.**
+`_load_event_detections` tries `state.dict["detections"]` and falls back
+to `event.detections` - on every REAL instrumented instance those two
+reads see the SAME relationship, and on mocks the try raises before the
+dict read, so the fast-path return line was OBSERVABLE BY NOTHING the
+battery could build: its whole mutant family (`list(None)`,
+`dict["XXdetectionsXX"]`, `dict["DETECTIONS"]`, plus the `state=None` /
+`inspect(None)` arms that only look equivalent when the fast path never
+runs) survived everything. `_ProbeEvent` - a real DeclarativeBase
+instance whose CLASS-LEVEL property (a data descriptor) outranks its own
+`__dict__` key - forces the two paths to DIFFERENT values: `p.__dict__`
+carries `[d1]`, `p.detections` answers None, so only the correct
+fast-path return yields `[d1]` with zero queries. One test killed the
+whole family - two ledger DEMOTIONS (`_load_event_detections` m1/m2 had
+been registered EQUIVs) plus the three run-1 births m6/m7/m8.
+
+**Ledger adjudication history (three corrections, each sweep-proven).**
+Authoring sweep 226 RED / 15 GREEN / 0 HANG of 241 exposed (a)
+UNDER-registration: `evaluate_rule` m92/m102 - the
+`threat_detected`/`smoke_fire_detected` label appends live in
+`_evaluate_rule`, the direct `_check_*` rounds never observe them - fixed
+by a through-`_evaluate_rule` test; (b) OVER-registration: the webhook
+hasattr-forced-False family is KILLABLE because
+`type(payload["severity"]) is str` is strict where plain payload equality
+is blind (AlertSeverity/AlertStatus ARE str subclasses) - all 58 webhook
+keys RED; then run-1 reconcile exposed (c) the `_ProbeEvent` demotions
+above. Final ledger 11 keys (skip_locked x2, dwell clock x2, threat
+`or True`, schedule len-compare, dedup KeyError fallback, unreachable
+map-get defaults x4) == the close-sweep GREEN set exactly.
+
+**TWO-RUN mechanics.** Run 1 (generation 601.78 s, meta 758 to 774,
++16 births): 228 pre-run survivors flipped, 13 births died same-run, 3
+births survived (the `_load_event_detections` return-line family) -
+delta-audited by body identity against `b38-preC29`, adjudicated by
+symmetric-normalization diff, killed by the 29th test (mini-sweep 5 RED).
+Greentier scans in the mutant home: 28,728 passed pre-run-1, 28,729
+(= 28,700 + the 29 new) pre-run-2. Run 2 (post `_ProbeEvent` commit):
+ZERO births, 5 ledger flips + the 2 legacy timeouts, meta settles at
+774 {1:763, 0:11}. Reconcile vs pre-run archive: 0-to-1 kills=230,
+1-to-0 KILL LOSSES=0, all 16 births killed, survivors 11 == ledger
+(threat m21-to-m23 was a pure renumber). Close sweep over all 774 keys:
+710 RED / 64 GREEN / 0 HANG, attribution TALLY {ATTRIB:53, LEDGER:11}
+UNATTRIB 0 rc=0 - every non-ledger GREEN BODY-EXACT to a pre-run
+shipped-suite kill, so the battery is credited with nothing the suite
+had already earned.
+
+**Guards/gates:** `guard-module2` on the real runner pid BOTH runs (239
+siblings, sibling-drop=0, holes=0 throughout, `[gen]` to exit);
+launcher pre-flight counted the services filter (758 keys run 1, 774 run
+2, never zero); `runtime.env` poison removed pre-exec both runs; bank
+census {1:52517, 0:15560, -24:283, 3:32, 33:783} = 69,175 reconciles
+with the score JSON via the exit-3 family (52,517+32=52,549).
+
+**Artifacts:** pre-run archive `b38-preC29/`, runs `b38-c29-run1.log` /
+`b38-c29-run2.log`, green scans `b38-c29-greentier.log` /
+`b38-c29-greentier2.log`, sweeps
+`b38-c29-sweep-authoring{,2}.txt` / `b38-c29-spot.txt` /
+`b38-c29-sweep-close.txt`, ledger `b38-c29-ledger-keys.txt`, score
+`b38-c29-score-r2.json`, history backup `preM31-mutation-history.json`.
+
+**Next head (re-censused from `b38-c29-score-r2.json`, R8 shield
+applied):** **`pg_notify_listener.py` 238 survivors at 49.6829%** (then
+`circuit_breaker` 224/55.2%, `osnet_loader` 221/56.5815%,
+`batch_coalescer` 218/40.9214%, `context_enricher` 216/52.0%). R8 shield
+holds: system.py 328 and system_broadcaster.py 320 (320 surv 57.4468%
+would otherwise rank first) are DEATH-Listed, never batteries. Campaign
+#30, battery letter AF. Gap to 85%: 0.85\*69,175 = 58,798.75 - 52,832 =
+**5,966.75 kt**. Every number measured THIS session.
