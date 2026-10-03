@@ -7,9 +7,9 @@
 - `monitoring/grafana/dashboards/consolidated.json` - Main operations dashboard
 - `monitoring/grafana/dashboards/tracing.json` - Distributed tracing dashboard (Tempo)
 - `monitoring/grafana/dashboards/logs.json` - Log aggregation dashboard (Loki)
-- Additional provisioned dashboards: `ai-service-health.json`, `ai-services.json`, `analytics.json`, `api-health.json`, `hsi-gpu-metrics.json`, `hsi-profiling.json`, `hsi-request-profiling.json`, `scene-ocr.json`, `video-analytics.json` (all in `monitoring/grafana/dashboards/`)
+- Additional provisioned dashboards: `ai-service-health.json`, `ai-services.json`, `analytics.json`, `api-health.json`, `hsi-gpu-metrics.json`, `hsi-profiling.json`, `hsi-request-profiling.json`, `video-analytics.json` (all in `monitoring/grafana/dashboards/`)
 - `monitoring/grafana/provisioning/dashboards/dashboard.yml` - Dashboard provisioning
-- `monitoring/grafana/provisioning/datasources/prometheus.yml` (254 lines) - Datasource configuration
+- `monitoring/grafana/provisioning/datasources/prometheus.yml` (237 lines) - Datasource configuration
 
 ## Overview
 
@@ -32,9 +32,9 @@ traces.
 graph TD
     subgraph "Datasources (provisioning/datasources/prometheus.yml)"
         PROM[Prometheus<br/>lines 13-23]
-        LOKI[Loki<br/>lines 220-235]
-        TEMPO[Tempo<br/>lines 48-217]
-        PYRO[Pyroscope<br/>lines 238-254]
+        LOKI[Loki<br/>lines 202-218]
+        TEMPO[Tempo<br/>lines 48-200]
+        PYRO[Pyroscope<br/>lines 220-237]
         API[Backend-API JSON<br/>lines 37-46]
     end
 
@@ -81,7 +81,7 @@ Primary metrics datasource (`monitoring/grafana/provisioning/datasources/prometh
 ### Tempo with Trace-to-Metrics and Trace-to-Logs
 
 Distributed tracing (NEM-5545, replaced the Jaeger datasource;
-`monitoring/grafana/provisioning/datasources/prometheus.yml:48-217`):
+`monitoring/grafana/provisioning/datasources/prometheus.yml:48-200`):
 
 ```yaml
 - name: Tempo
@@ -113,7 +113,7 @@ Distributed tracing (NEM-5545, replaced the Jaeger datasource;
 
 ### Loki with Trace Correlation
 
-Log aggregation with trace linking (`monitoring/grafana/provisioning/datasources/prometheus.yml:220-235`):
+Log aggregation with trace linking (`monitoring/grafana/provisioning/datasources/prometheus.yml:202-218`):
 
 ```yaml
 - name: Loki
@@ -132,7 +132,7 @@ Log aggregation with trace linking (`monitoring/grafana/provisioning/datasources
 
 ### Pyroscope for Profiling
 
-Continuous profiling (`monitoring/grafana/provisioning/datasources/prometheus.yml:238-254`):
+Continuous profiling (`monitoring/grafana/provisioning/datasources/prometheus.yml:220-237`):
 
 ```yaml
 - name: Pyroscope
@@ -151,7 +151,7 @@ The main dashboard (`monitoring/grafana/dashboards/consolidated.json`) is organi
 Executive Summary, System Health, Alert Management, Container Resources, Host System Health,
 Pipeline Overview, GPU & Hardware, AI Inference, AI Quality & Audit, Detection Analytics, Risk
 Analysis, Queue Health, Worker Health, DLQ & Worker Health, Circuit Breaker & Cache,
-Experimentation, Enrichment Models, Pipeline Latencies, Cost & Efficiency, Service Health, Redis
+Experimentation, Pipeline Latencies, Cost & Efficiency, Service Health, Redis
 Details, Real User Monitoring (RUM), SLI/SLO Overview, AI Container Health, Synthetic Monitoring,
 and Gateway Inference Traffic (`hsi_ai_inference_*`).
 
@@ -172,12 +172,11 @@ and Gateway Inference Traffic (`hsi_ai_inference_*`).
 | ----------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Pipeline          | Throughput           | `rate(hsi_detections_processed_total[5m])`, `rate(hsi_events_created_total[5m])`                                                                                                                             |
 | Risk              | Events by Risk Level | `rate(hsi_events_by_risk_level_total[5m])`                                                                                                                                                                   |
-| Risk              | Risk Score Average   | `hsi_risk_score_sum / hsi_risk_score_count`                                                                                                                                                                  |
 | Cache             | Cache Hit Rate       | `sum(rate(hsi_cache_hits_total[5m])) / (sum(rate(hsi_cache_hits_total[5m])) + sum(rate(hsi_cache_misses_total[5m])))`                                                                                        |
 | Workers           | Worker Pool          | `hsi_worker_active_count`, `hsi_worker_busy_count`, `hsi_worker_idle_count`, `hsi_pipeline_worker_state`                                                                                                     |
 | AI Inference      | Per-service latency  | `histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m]))` — the backend's client-side histogram, labelled per AI service by `backend/services/detector_client.py:1139`  |
 | AI Serving Health | Model health probes  | `probe_success{job="blackbox-http-2xx"}` per probe target (`model="gateway"`, `"yolo26"`, `"enrichment-light"`, `"llm"` — `monitoring/prometheus.yml:404-434`)                                               |
-| LLM (ai-vlm)      | llama.cpp metrics    | `llamacpp:predicted_tokens_seconds`, `llamacpp:requests_processing` (scraped from `ai-vlm:8098`, `monitoring/prometheus.yml:90-98`), `hsi_llm_context_utilization_ratio` (`backend/core/metrics.py:514-515`) |
+| LLM (ai-vlm)      | llama.cpp metrics    | `llamacpp:predicted_tokens_seconds`, `llamacpp:requests_processing` (scraped from `ai-vlm:8098`, `monitoring/prometheus.yml:90-98`), `hsi_llm_context_utilization_ratio` (`backend/core/metrics.py:412-413`) |
 | SLO               | Availability / burn  | `hsi:api_availability:ratio_rate30d * 100`, `hsi:burn_rate:api_availability_1h`, `hsi:error_budget:api_availability_remaining * 100`                                                                         |
 | Synthetic         | Blackbox probes      | `probe_success`, `probe_duration_seconds`, `probe_http_duration_seconds{phase="connect"}`                                                                                                                    |
 

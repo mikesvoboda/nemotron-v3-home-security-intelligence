@@ -1,11 +1,11 @@
 """AI services package.
 
 Contains GPU-accelerated ML services for the home security monitoring system:
-- clip: CLIP image-text embedding service
 - common: Shared TensorRT optimization infrastructure
-- enrichment: Detection enrichment classifiers (vehicle, pet, clothing, depth, pose)
-- florence: Florence-2 vision-language model service
-- nemotron: Nemotron LLM risk analysis service
+- gateway: FastAPI facade over Triton (/yolo26 + /enrich-lt)
+- shared: Shared GPU profiling utilities
+- triton: Triton Inference Server client and model repository
+- vlm: ai-vlm llama.cpp engine build context
 - yolo26: YOLO26v2 object detection service
 
 TensorRT Optimization:

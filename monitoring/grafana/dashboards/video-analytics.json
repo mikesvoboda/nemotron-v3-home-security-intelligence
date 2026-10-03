@@ -610,65 +610,6 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Number of currently active tracked entities across all cameras",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "#8AB8FF",
-            "mode": "fixed"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#8AB8FF",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 4,
-        "x": 12,
-        "y": 14
-      },
-      "id": 33,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "hsi_active_tracks_count",
-          "refId": "A"
-        }
-      ],
-      "title": "Active Tracks",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
       "description": "Successful camera-to-camera handoffs per minute",
       "fieldConfig": {
         "defaults": {
@@ -1496,7 +1437,7 @@
       ],
       "title": "Actions Recognized (1h)",
       "type": "stat",
-      "description": "Total action detections in the last hour. Retargeted from hsi_enrichment_model_calls_total{model=\"action\"}, which counts inference CALLS, not action detections. hsi_action_detections_total is the metric whose label carries the action; the POST /api/action-events/analyze path that fed it was removed with the 2026-09-23 X-CLIP retirement and the ST-GCN++ pipeline path records detections in the DB but emits no per-action counter, so this reads 0 until a ST-GCN++-era feeder is wired (feed gap flagged to the backend owner)."
+      "description": "Total action detections in the last hour. hsi_action_detections_total is the metric whose label carries the action. The ST-GCN++ pipeline path records detections in the DB but emits no per-action counter, so this reads 0 until a ST-GCN++-era feeder is wired (feed gap flagged to the backend owner)."
     },
     {
       "datasource": {
@@ -1572,73 +1513,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "P95 action-inference latency from hsi_enrichment_model_duration_seconds{model=\"stgcn\"} - the ST-GCN++ skeleton path is the only live action-recognizer (enrichment_pipeline.py observes it at :4713/:4742). Retired hsi_action_recognition_duration_seconds is defined in backend/core/metrics.py but never observed outside tests, so it is never exported: this panel was permanently empty. (The \"xclip\" / \"action-via-service\" labels on the same histogram belong to the X-CLIP code paths the backend owner is retiring.)",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#73BF69",
-                "value": null
-              },
-              {
-                "color": "#FADE2A",
-                "value": 1
-              },
-              {
-                "color": "#F2495C",
-                "value": 2
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 16,
-        "y": 55
-      },
-      "id": 21,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.95, sum(rate(hsi_enrichment_model_duration_seconds_bucket{model=\"stgcn\"}[5m])) by (le))",
-          "refId": "A"
-        }
-      ],
-      "title": "Inference Latency P95",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Last-hour action detections by risk category. Retargeted from hsi_enrichment_model_calls_total{model=\"action\"} with a hardcoded \"Action Recognition\" legend, which drew one single slice no matter what was detected - the metric has no action_type label. hsi_action_detections_total is labelled by risk category, so the pie now actually splits by type. Same feed caveat as \"Actions Recognized (1h)\".",
+      "description": "Last-hour action detections by risk category. hsi_action_detections_total is labelled by risk category, so the pie splits by type. Same feed caveat as \"Actions Recognized (1h)\".",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1795,7 +1670,7 @@
       "id": 39,
       "options": {
         "mode": "markdown",
-        "content": "### Action Recognition\n\nAI-powered detection of specific human actions and behaviors in video feeds.\n\n**Supported Actions:**\n- **Loitering**: Person staying in one area longer than threshold\n- **Falls**: Sudden vertical movement indicating a fall event\n- **Aggression**: Fighting or aggressive physical behavior\n- **Running**: Rapid movement that may indicate urgency\n\n**Confidence Interpretation:**\n- >80%: High confidence, likely accurate detection\n- 60-80%: Moderate confidence, review recommended\n- <60%: Low confidence, may be false positive\n\n**Reducing False Positives:**\n- Adjust minimum confidence thresholds per action type\n- Configure excluded zones where certain actions are normal\n\n**What feeds these panels:**\n- `hsi_action_detections_total` / `hsi_action_confidence` - per-action metrics whose only emitter (`record_action_detection` behind `POST /api/action-events/analyze`) was archived with the 2026-09-23 X-CLIP removal; they read 0 until a ST-GCN++-era feeder is wired.\n- `hsi_enrichment_model_duration_seconds{model=\"stgcn\"}` - action-inference latency from the ST-GCN++ skeleton path (the only live action recognizer, NEM-5563).\n- The X-CLIP chain (loader, service, pipeline fallback, analyze endpoint) was archived 2026-09-23 to `archive/xclip-backend-chain/`; `xclip-base` in models.yml is an `enabled: false` provenance entry only.\n- `hsi_action_recognition_total` / `_confidence` / `_duration_seconds` are defined but never observed outside tests, so they are never exported - no panel may query them."
+        "content": "### Action Recognition\n\nAI-powered detection of specific human actions and behaviors in video feeds.\n\n**Supported Actions:**\n- **Loitering**: Person staying in one area longer than threshold\n- **Falls**: Sudden vertical movement indicating a fall event\n- **Aggression**: Fighting or aggressive physical behavior\n- **Running**: Rapid movement that may indicate urgency\n\n**Confidence Interpretation:**\n- >80%: High confidence, likely accurate detection\n- 60-80%: Moderate confidence, review recommended\n- <60%: Low confidence, may be false positive\n\n**Reducing False Positives:**\n- Adjust minimum confidence thresholds per action type\n- Configure excluded zones where certain actions are normal\n\n**What feeds these panels:**\n- `hsi_action_detections_total` / `hsi_action_confidence` - per-action metrics the ST-GCN++ skeleton path (the only live action recognizer, NEM-5563) records detections for in the DB but does not yet emit counters against; they read 0 until a ST-GCN++-era feeder is wired.\n- `hsi_action_recognition_total` / `_confidence` / `_duration_seconds` are defined but never observed outside tests, so they are never exported - no panel may query them."
       },
       "title": "Documentation",
       "type": "text"

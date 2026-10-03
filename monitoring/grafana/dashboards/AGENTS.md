@@ -8,15 +8,18 @@ This directory contains Grafana dashboard JSON definitions that are automaticall
 
 ```
 dashboards/
-  AGENTS.md           # This file
-  ai-services.json    # YOLO26 and AI services monitoring (inference workload, GPU, detections)
-  api-health.json     # API health, deprecation tracking, and error monitoring
-  consolidated.json   # Main unified monitoring dashboard
-  analytics.json      # Analytics dashboard
-  hsi-profiling.json  # Profiling dashboard
-  logs.json           # Logs dashboard
-  scene-ocr.json      # Scene OCR text extraction and service provider matching
-  tracing.json        # Tracing dashboard
+  AGENTS.md               # This file
+  ai-service-health.json  # GPU inference failures and GPU memory utilization
+  ai-services.json        # YOLO26 and AI services monitoring (inference workload, GPU, detections)
+  analytics.json          # Analytics dashboard
+  api-health.json         # API health, deprecation tracking, and error monitoring
+  consolidated.json       # Main unified monitoring dashboard
+  hsi-gpu-metrics.json    # json-exporter hsi_gpu_* gauges
+  hsi-profiling.json      # Profiling dashboard
+  hsi-request-profiling.json  # Request-level profiling dashboard
+  logs.json               # Logs dashboard
+  tracing.json            # Tracing dashboard
+  video-analytics.json    # Tracks, zones, loitering, action, re-ID and face panels
 ```
 
 ## Key Files
@@ -62,19 +65,16 @@ the backend's client-side `hsi_ai_request_duration_seconds` histogram.
 | Face Recognition                 | Known vs Unknown Faces                               | piechart   | Prometheus  | hsi_face_embeddings_generated_total (by match_status)                |
 | Face Recognition                 | Detection Count by Camera                            | timeseries | Prometheus  | hsi_face_embeddings_generated_total                                  |
 | Face Recognition                 | Recognition Confidence Distribution                  | timeseries | Prometheus  | hsi_face_recognition_confidence_bucket                               |
-| Face Recognition                 | Known Faces Database Size                            | stat       | Prometheus  | hsi_known_faces_database_size                                        |
 | Enrichment Models                | CLIP Inference Latency (Triton mean + backend pctl)  | timeseries | Prometheus  | nv*inference_request_duration_us/success, hsi_ai_request*...\_bucket |
 | Enrichment Models                | Florence-2 Latency (Triton mean + backend pctl)      | timeseries | Prometheus  | nv*inference_request_duration_us/success, hsi_ai_request*...\_bucket |
 | Enrichment Models                | Enrichment Throughput                                | timeseries | Prometheus  | nv_inference_request_success (model!~ set-difference)                |
 | Enrichment Models                | Enrichment Queue                                     | stat       | Prometheus  | hsi_analysis_queue_depth                                             |
 | Action Recognition               | Actions Detected by Type                             | timeseries | Prometheus  | hsi_action_detections_total (by action_type)                         |
 | Action Recognition               | Action Confidence Distribution                       | timeseries | Prometheus  | hsi_action_confidence_bucket                                         |
-| Action Recognition               | Action Model Error Rate                              | stat       | Prometheus  | hsi_enrichment_model_errors_total / \_calls_total                    |
 | Loitering Detection              | Loitering Events by Zone                             | timeseries | Prometheus  | hsi_loitering_events_total                                           |
 | Loitering Detection              | Dwell Time Distribution                              | timeseries | Prometheus  | hsi_loitering_dwell_time_seconds_bucket                              |
 | Loitering Detection              | Loitering Alerts Rate                                | timeseries | Prometheus  | hsi_loitering_alerts_total                                           |
 | Model Warmup                     | Model Load Time                                      | timeseries | Prometheus  | hsi_model_load_duration_seconds (by model)                           |
-| Model Warmup                     | Cold Start Latency                                   | timeseries | Prometheus  | hsi_model_cold_start_latency_seconds                                 |
 | Model Warmup                     | Model Restarts (24h)                                 | stat       | Prometheus  | hsi_pipeline_worker_restarts_total                                   |
 | Florence-2 Vision-Language Model | Florence Model Status (gateway health probe)         | stat       | Prometheus  | probe_success{job="blackbox-http-2xx", model="florence2"}            |
 | Florence-2 Vision-Language Model | Florence Latency (P95, backend client-side)          | stat       | Prometheus  | hsi_ai_request_duration_seconds_bucket{service="florence"}           |
@@ -85,10 +85,8 @@ the backend's client-side `hsi_ai_request_duration_seconds` histogram.
 | Florence-2 Vision-Language Model | Florence Inference Latency Percentiles               | timeseries | Prometheus  | hsi_ai_request_duration_seconds_bucket{service=~"florence.\*"}       |
 | Florence-2 Vision-Language Model | Florence Request Rate by Endpoint                    | timeseries | Prometheus  | nv_inference_request_success/failure{model="florence2"}              |
 | Florence-2 Vision-Language Model | Florence Latency P95 (backend-side only)             | timeseries | Prometheus  | hsi_ai_request_duration_seconds_bucket{service=~"florence.\*"}       |
-| Florence-2 Vision-Language Model | Florence Task Distribution                           | piechart   | Prometheus  | hsi_florence_task_total                                              |
 | Florence-2 Vision-Language Model | Florence GPU Memory Over Time                        | timeseries | Prometheus  | nv_gpu_memory_used_bytes{model="florence2"}                          |
 | Florence-2 Vision-Language Model | Florence Backend Inference Duration                  | timeseries | Prometheus  | hsi_ai_request_duration_seconds_bucket{service=~"florence.\*"}       |
-| Florence-2 Vision-Language Model | Florence Task Rate by Type                           | timeseries | Prometheus  | hsi_florence_task_total                                              |
 | Gateway Inference Traffic        | Gateway Inference Latency Percentiles (all services) | timeseries | Prometheus  | hsi_ai_inference_duration_seconds_bucket                             |
 | Gateway Inference Traffic        | Gateway Request Rate by Service/Endpoint             | timeseries | Prometheus  | hsi_ai_inference_duration_seconds_count                              |
 | Gateway Inference Traffic        | Gateway Inference Errors by Service/Endpoint         | timeseries | Prometheus  | hsi_ai_inference_errors_total                                        |
@@ -128,17 +126,15 @@ Backend client-side (backend/core/metrics.py, /api/metrics):
 - `hsi_detections_processed_total`, `hsi_detections_by_class_total{object_class}` - detection throughput
 - `hsi_detection_confidence` - Histogram of detector confidence scores
 - `hsi_pipeline_errors_total{error_type}` - Pipeline errors
-- `hsi_florence_task_total` - backend-side Florence task counter. `hsi_florence_inference_seconds`
-  is DEFINED but never observed (its helpers have no non-test callers), so it exports only
-  static zero buckets — never use it for percentiles; use `hsi_ai_request_duration_seconds{service=~"florence.*"}`
+- Florence percentiles come only from `hsi_ai_request_duration_seconds{service=~"florence.*"}`
 - `hsi_action_detections_total` / `hsi_action_confidence` / `hsi_action_corrections_total` - the FED
   action metrics; their only emitter lived in `action_recognition_service.py`, archived with the 2026-09-23
   X-CLIP full removal, so they now export ZERO until a ST-GCN++-era feeder is wired — panels reading them
   carry `or vector(0)` and the feed gap is annotated in the panel descriptions. `hsi_action_recognition_total`,
   `hsi_action_recognition_confidence` and `hsi_action_recognition_duration_seconds` (metrics.py video-analytics
   family) are DEFINED but never `.labels()`'d outside tests, so they are never exported
-- `hsi_model_load_duration_seconds{model}`, `hsi_model_cold_start_latency_seconds`,
-  `hsi_pipeline_worker_restarts_total` - warmup/restart tracking
+- `hsi_model_load_duration_seconds{model}`, `hsi_pipeline_worker_restarts_total` -
+  warmup/restart tracking
 - `hsi_gpu_temperature` (json-exporter from /api/system/gpu), `DCGM_FI_DEV_POWER_USAGE` (dcgm-exporter)
 
 Health: `probe_success{job="blackbox-http-2xx", model="..."}` probes the gateway
@@ -280,12 +276,10 @@ headline panels per row, not an exhaustive panel inventory.
 | Prompt Context                  | Context Window Usage                   | gauge      | Prometheus  | hsi_prompt_context_used_tokens       |
 | Prompt Context                  | Token Count Distribution               | histogram  | Prometheus  | hsi_prompt_input/output_tokens       |
 | Prompt Context                  | Context Overflow Events                | timeseries | Prometheus  | hsi_prompt_context_overflow_total    |
-| Cost Tracking                   | Daily Cost                             | timeseries | Prometheus  | hsi_llm_cost_dollars_total           |
-| Cost Tracking                   | Cost by Model                          | piechart   | Prometheus  | hsi_llm_cost_dollars_total           |
-| Cost Tracking                   | Budget Utilization                     | gauge      | Prometheus  | hsi_llm_monthly_budget_dollars       |
-| Redis Pool                      | Active Connections                     | timeseries | Prometheus  | hsi_redis_pool_connections_active    |
-| Redis Pool                      | Connection Wait Time                   | timeseries | Prometheus  | hsi_redis_pool_wait_seconds          |
-| Redis Pool                      | Pool Exhaustion Events                 | timeseries | Prometheus  | hsi_redis_pool_exhaustion_total      |
+| Cost Tracking                   | Daily Cost                             | timeseries | Prometheus  | hsi_daily_cost_usd                   |
+| Cost Tracking                   | Cost by Model                          | piechart   | Prometheus  | hsi_estimated_cost_usd_total         |
+| Cost Tracking                   | Budget Utilization                     | gauge      | Prometheus  | hsi_budget_utilization_ratio         |
+| Cache Performance               | Pool Exhaustion Events                 | timeseries | Prometheus  | hsi_cache_misses_total               |
 | Backend-API Analytics Endpoints | Analytics Endpoints Request Rate       | timeseries | Prometheus  | http_request_duration_seconds_count  |
 | Backend-API Analytics Endpoints | Analytics Endpoints Latency (P95)      | timeseries | Prometheus  | http_request_duration_seconds_bucket |
 | Backend-API Analytics Endpoints | Analytics Latency Percentiles          | timeseries | Prometheus  | http_request_duration_seconds_bucket |
@@ -318,62 +312,6 @@ headline panels per row, not an exhaustive panel inventory.
 **Purpose:** Log aggregation and viewing dashboard.
 
 **Dashboard UID:** `hsi-logs`
-
-### scene-ocr.json
-
-**Purpose:** Scene OCR text extraction and service provider matching dashboard for monitoring PaddleOCR performance and service identification.
-
-**Dashboard UID:** `hsi-scene-ocr`
-
-**Panels by Section:**
-
-All scene-OCR metrics carry the `hsi_` prefix in the live tree
-(backend/core/metrics.py); the unprefixed `scene_ocr_*` names the dashboard
-previously queried never existed in /api/metrics output.
-
-| Row                   | Panel                                | Type       | Data Source | Metric                                        |
-| --------------------- | ------------------------------------ | ---------- | ----------- | --------------------------------------------- |
-| Scene OCR Overview    | Documentation                        | text       | -           | Feature overview and service categories       |
-| Scene OCR Overview    | OCR Request Rate                     | stat       | Prometheus  | hsi_scene_ocr_requests_total                  |
-| Scene OCR Overview    | Texts Detected (1h)                  | stat       | Prometheus  | hsi_scene_ocr_texts_detected_total            |
-| Scene OCR Overview    | Service Provider Matches (1h)        | stat       | Prometheus  | hsi_scene_ocr_service_providers_matched_total |
-| Scene OCR Overview    | Processing Latency (P95)             | stat       | Prometheus  | hsi_scene_ocr_processing_seconds_bucket       |
-| Request Rate & Volume | OCR Requests by Source               | timeseries | Prometheus  | hsi_scene_ocr_requests_total (by source)      |
-| Request Rate & Volume | Texts Detected Over Time             | timeseries | Prometheus  | hsi_scene_ocr_texts_detected_total            |
-| Request Rate & Volume | Service Provider Matches by Category | timeseries | Prometheus  | hsi_scene_ocr_service_providers_matched_total |
-| Performance           | OCR Processing Latency Percentiles   | timeseries | Prometheus  | hsi_scene_ocr_processing_seconds_bucket       |
-| Performance           | Processing Time by Source (P95)      | timeseries | Prometheus  | hsi_scene_ocr_processing_seconds_bucket       |
-| Quality Metrics       | Confidence Score Distribution        | timeseries | Prometheus  | hsi_scene_ocr_confidence_bucket               |
-| Quality Metrics       | Provider Match Rate                  | gauge      | Prometheus  | hsi_scene_ocr_service_providers_matched_total |
-| Quality Metrics       | Detection by Category (24h)          | piechart   | Prometheus  | hsi_scene_ocr_service_providers_matched_total |
-
-**Dashboard Settings:**
-
-- Auto-refresh: 30 seconds
-- Default time range: Last 1 hour
-- Timezone: Browser
-- Tags: ocr, scene-ocr, service-providers, text-extraction, enrichment
-
-**Key Scene OCR Metrics:**
-
-- `hsi_scene_ocr_requests_total` - Counter of OCR requests by source (full_frame, crop)
-- `hsi_scene_ocr_texts_detected_total` - Counter of texts detected
-- `hsi_scene_ocr_service_providers_matched_total` - Counter of service provider matches by category
-- `hsi_scene_ocr_processing_seconds` - Histogram of OCR processing duration by source
-- `hsi_scene_ocr_confidence` - Histogram of OCR confidence scores
-
-**Deleted panels:** the whole "Error Tracking" row (OCR Error Rate, Total Errors,
-Error Rate by Type) — `scene_ocr_errors_total` is not exported by the scene-OCR
-service, so there is no live error counter to chart.
-
-**Service Provider Categories:**
-
-- DELIVERY (FedEx, UPS, Amazon, USPS, DHL)
-- UTILITY (PG&E, ComEd)
-- TELECOM (AT&T, Comcast, Verizon)
-- PLUMBING (Roto-Rooter)
-- HVAC, ELECTRICAL, LANDSCAPING, PEST_CONTROL
-- MEDICAL, SECURITY, FOOD_DELIVERY
 
 ### tracing.json
 

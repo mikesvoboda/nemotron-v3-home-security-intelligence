@@ -89,14 +89,15 @@ class QualityComparisonReport:
 
 
 # Default engine configurations for quality testing
-_LLM_PORT = os.environ.get("LLM_PORT", "8091")
+_AI_VLM_PORT = os.environ.get("AI_VLM_PORT", "8098")
+_AI_VLM_URL = os.environ.get("AI_VLM_URL", f"http://localhost:{_AI_VLM_PORT}")
 _VLLM_PORT = os.environ.get("VLLM_PORT", "8097")
 
 QUALITY_ENGINE_CONFIGS: dict[EngineType, EngineQualityConfig] = {
     EngineType.LLAMA_CPP: EngineQualityConfig(
         engine_type=EngineType.LLAMA_CPP,
-        service_url=f"http://localhost:{_LLM_PORT}",
-        model_name="Nemotron-3-Nano-30B-A3B",
+        service_url=_AI_VLM_URL,
+        model_name=os.environ.get("VLM_MODEL_ID", "Qwen3VL-8B-Instruct-Q4_K_M"),
         quantization="Q4_K_M",
         api_format="llama.cpp",
     ),

@@ -243,9 +243,9 @@ Key metrics:
 ## Deployment Status
 
 Triton serving through the gateway is the production path (see
-`docker-compose.prod.yml` and `ai/gateway/AGENTS.md`). The legacy
-per-service containers (`ai-yolo26`, `ai-florence`, `ai-clip`, `ai-enrichment`,
-`ai-enrichment-light`) are dev-only options, not compose services.
+`docker-compose.prod.yml` and `ai/gateway/AGENTS.md`): the server runs inside
+the `ai-gateway` service over `model_repository/`, and yolo26 is one of the
+model directories there (`model_repository/yolo26/`).
 `ai/triton/client.py` is the standalone client wrapper kept for direct gRPC
 access; production traffic goes through the gateway's HTTP routers instead.
 

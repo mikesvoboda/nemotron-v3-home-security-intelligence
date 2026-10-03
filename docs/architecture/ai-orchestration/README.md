@@ -47,7 +47,7 @@ every event; the plate leg is the one that still runs, because `load_fast_alpr` 
 
 A degraded leg is honest, not silent: `_unavailable_line()`
 (`backend/services/vlm_specialists.py:93`) increments `hsi_specialist_unavailable_total` with a
-bounded reason code (`backend/core/metrics.py:3388`) — that counter is the query that answers "has
+bounded reason code (`backend/core/metrics.py:2394`) — that counter is the query that answers "has
 this leg ever run".
 
 ## Architecture Overview
@@ -169,7 +169,6 @@ hsi_detections_filtered_low_confidence_total
 hsi_ai_request_duration_seconds{service="yolo26"}
 
 # Verification / pipeline
-hsi_risk_score
 hsi_events_by_risk_level_total
 hsi_pipeline_errors_total
 hsi_specialist_unavailable_total{specialist, reason}
