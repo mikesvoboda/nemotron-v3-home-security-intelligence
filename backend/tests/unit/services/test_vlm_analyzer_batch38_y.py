@@ -59,6 +59,13 @@ construction claim is not a verdict claim):
     merged by the camera fallback or split by `build_frame_refs(..., None)`
   - analyze_batch_streaming m5  accumulated_text="" == the schema default
   - analyze_batch_streaming m25  recoverable=True == the schema default
+  - analyze_batch_streaming m33 (BORN in the campaign run's generation,
+    slot 33; pre-run this line had no mutant - battery coverage grew it)
+    deleting the recoverable=True KWARG == the schema default
+    (StreamingErrorEvent.recoverable Field default True, probed), so the
+    model_dump is identical in EVERY arm - demonstrated, not assumed: the
+    internal-error test below asserts the COMPLETE dump with
+    "recoverable": True present.
 """
 
 from __future__ import annotations
