@@ -69,6 +69,12 @@ _rejected_calls/_half_open_calls +=1 vs =1 twins need PRE-SEEDED
 counters; datetime.now(None) needs a direct tzinfo assert) - all 20
 re-swept RED with named attributing tests. Final sweep of the committed
 bytes: 220 RED / 4 GREEN / 0 HANG with the GREEN set == this ledger.
+M20-capture-#5 recurrence: run-1 body reconcile caught ONE 1->0 KILL LOSS
+(_allow_call_unlocked m4 - deleting `case _: return False` makes the match
+fall through and return None; the bank-era killer no longer exists in the
+shipped suite) - re-earned by
+test_allow_rejects_unknown_state_with_false_not_none (is False vs None
+polarity on a NON-member raw-string state).
 """
 
 import asyncio
@@ -735,6 +741,20 @@ def test_allow_call_and_transitions(logs):
     assert run(b.allow_call()) is True
     b._half_open_calls = 2
     assert run(b.allow_call()) is False
+
+
+@patched
+def test_allow_rejects_unknown_state_with_false_not_none():
+    # _allow_call_unlocked's `case _: return False` - DELETING it makes the
+    # match fall through and the function return None. `is False` (not
+    # falsy) is the polarity that separates False from None. Run-1
+    # reconcile caught this key as a 1->0 KILL LOSS (the bank-era killer
+    # no longer exists in the shipped suite) - re-earned here.
+    b = _mk()
+    b._state = "bogus"  # a NON-member raw string: matches no enum pattern
+    assert b.allow_request() is False
+    assert run(b.allow_call()) is False
+    assert b.state == "bogus"  # the reject must not transition anything
 
 
 @patched
