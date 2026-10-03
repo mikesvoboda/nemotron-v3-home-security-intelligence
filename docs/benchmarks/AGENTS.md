@@ -245,6 +245,6 @@ When adding new benchmark results:
 ## Related Documentation
 
 - **docs/AGENTS.md:** Documentation directory overview
-- **docs/architecture/ai-pipeline.md:** AI pipeline architecture
+- **docs/architecture/ai-pipeline-current-state.md:** the pipeline that runs today
 - **ai/AGENTS.md:** AI services implementation
 - **docs/operator/ai-performance.md:** AI performance tuning

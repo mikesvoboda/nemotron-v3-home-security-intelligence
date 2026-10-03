@@ -66,15 +66,12 @@ DATABASE_URL=postgresql+asyncpg://security:<password>@postgres:5432/security
 # Redis
 REDIS_URL=redis://redis:6379
 
-# AI Services (production - compose network)
+# AI Services (production - compose network; compose sets these itself)
 USE_AI_GATEWAY=true
 AI_GATEWAY_URL=http://ai-gateway:8090
-NEMOTRON_URL=http://ai-llm:8091
 YOLO26_URL=http://ai-gateway:8090/yolo26
-FLORENCE_URL=http://ai-gateway:8090/florence
-CLIP_URL=http://ai-gateway:8090/clip
-ENRICHMENT_URL=http://ai-gateway:8090/enrichment
-ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
+ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt   # readiness probe target
+AI_VLM_URL=http://ai-vlm:8098
 
 # Camera uploads
 FOSCAM_BASE_PATH=/export/foscam
@@ -95,11 +92,16 @@ RETENTION_DAYS=30
 
 ### Detection Settings
 
-| Variable                         | Default      | Range      | Description            |
-| -------------------------------- | ------------ | ---------- | ---------------------- |
-| `DETECTION_CONFIDENCE_THRESHOLD` | `0.5`        | 0.0-1.0    | Minimum confidence     |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | `0.90`       | 0.0-1.0    | Fast path threshold    |
-| `FAST_PATH_OBJECT_TYPES`         | `["person"]` | JSON array | Fast path object types |
+| Variable                         | Default | Range   | Description                                  |
+| -------------------------------- | ------- | ------- | -------------------------------------------- |
+| `DETECTION_CONFIDENCE_THRESHOLD` | `0.40`  | 0.0-1.0 | Minimum confidence (`0.5` in `.env.example`) |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | `2.0`   | 0.0-1.0 | **Disabled by design** — an impossible value |
+| `FAST_PATH_OBJECT_TYPES`         | `[]`    | JSON    | **Empty by design** — see the warning below  |
+
+> [!WARNING]
+> The fast path bypasses the specialist legs, so the VLM would score on partial data.
+> `config.py` ships the threshold at `2.0` and the object-type list empty for exactly
+> that reason. Do not lower them unless the specialists are added to the fast path.
 
 ### Batch Processing
 
@@ -110,12 +112,17 @@ RETENTION_DAYS=30
 
 ### AI Service Timeouts
 
-| Variable                | Default | Range      | Description              |
-| ----------------------- | ------- | ---------- | ------------------------ |
-| `AI_CONNECT_TIMEOUT`    | `10.0`  | 1.0-60.0   | Connection timeout (s)   |
-| `AI_HEALTH_TIMEOUT`     | `5.0`   | 1.0-30.0   | Health check timeout (s) |
-| `YOLO26_READ_TIMEOUT`   | `30.0`  | 5.0-120.0  | Detection timeout (s)    |
-| `NEMOTRON_READ_TIMEOUT` | `120.0` | 30.0-600.0 | LLM timeout (s)          |
+| Variable                      | Default | Range     | Description                                             |
+| ----------------------------- | ------- | --------- | ------------------------------------------------------- |
+| `AI_CONNECT_TIMEOUT`          | `10.0`  | 1.0-60.0  | Connection timeout (s)                                  |
+| `AI_HEALTH_TIMEOUT`           | `5.0`   | 1.0-30.0  | Health check timeout (s)                                |
+| `YOLO26_READ_TIMEOUT`         | `30.0`  | 5.0-120.0 | Detection timeout (s)                                   |
+| `AI_VLM_READ_TIMEOUT`         | `25.0`  | 5.0-300.0 | One `vlm_assess` attempt (s)                            |
+| `AI_VLM_WAKE_TIMEOUT_SECONDS` | `90.0`  | 5.0-300.0 | Wake-from-sleep ping budget; a failed wake is swallowed |
+
+`AI_VLM_READ_TIMEOUT` is deliberately under 30 s: the retry ladder retries exactly once
+at temperature 0 **inside the same budget**, so a ceiling at or above 30 s leaves the
+retry no room.
 
 ### GPU Monitoring
 
@@ -298,14 +305,14 @@ CORS_ORIGINS=["https://your-domain.com"]
 
 Only expose necessary ports:
 
-| Port        | Service                          | Exposure                                 |
-| ----------- | -------------------------------- | ---------------------------------------- |
-| 8080 / 8444 | Frontend (HTTP/HTTPS)            | User access                              |
-| 8000        | Backend API                      | User access (binds 127.0.0.1 by default) |
-| 5432        | PostgreSQL                       | **Internal only**                        |
-| 6379        | Redis                            | **Internal only**                        |
-| 8090, 8002  | ai-gateway (API, Triton metrics) | **Internal only**                        |
-| 8091        | ai-llm (Nemotron)                | **Internal only**                        |
+| Port        | Service                           | Exposure                                 |
+| ----------- | --------------------------------- | ---------------------------------------- |
+| 8080 / 8444 | Frontend (HTTP/HTTPS)             | User access                              |
+| 8000        | Backend API                       | User access (binds 127.0.0.1 by default) |
+| 5432        | PostgreSQL                        | **Internal only**                        |
+| 6379        | Redis                             | **Internal only**                        |
+| 8090, 8002  | ai-gateway (API, Triton metrics)  | **Internal only**                        |
+| 8098        | ai-vlm (reasoning, profile `vlm`) | **Internal only**                        |
 
 ```bash
 # UFW example (Linux)
@@ -417,38 +424,52 @@ podman compose -f docker-compose.prod.yml exec redis redis-cli FLUSHALL
 
 ### Service URLs
 
-All vision models live in the single `ai-gateway` container, so there are two base URLs;
-the per-service variables carry the **router path**, not a per-model port (the old
-8092-8096 ports no longer exist). See [Deployment Modes](../deployment-modes.md).
+All vision models live in the single `ai-gateway` container and the reasoning engine is
+its own container, so there are two base URLs; the per-router variables carry a **path on
+the gateway's single port**, not a per-model port. See
+[Deployment Modes](../deployment-modes.md).
 
 ```bash
-# Production (docker-compose.prod.yml defaults)
+# Production (docker-compose.prod.yml defaults — compose sets all of these itself)
 USE_AI_GATEWAY=true
 AI_GATEWAY_URL=http://ai-gateway:8090
-NEMOTRON_URL=http://ai-llm:8091
 YOLO26_URL=http://ai-gateway:8090/yolo26
-FLORENCE_URL=http://ai-gateway:8090/florence
-CLIP_URL=http://ai-gateway:8090/clip
-ENRICHMENT_URL=http://ai-gateway:8090/enrichment
 ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
+AI_VLM_URL=http://ai-vlm:8098
 
-# Development (AI on host; gateway/router listens on host port 8090)
+# Development (AI on host; the detection stand-in listens on host port 8090)
 AI_GATEWAY_URL=http://localhost:8090
-NEMOTRON_URL=http://localhost:8091
 YOLO26_URL=http://localhost:8090/yolo26
+AI_VLM_URL=http://localhost:8098
 
 # Backend in container + AI on host (Docker Desktop macOS/Windows)
 AI_GATEWAY_URL=http://host.docker.internal:8090
-NEMOTRON_URL=http://host.docker.internal:8091
+AI_VLM_URL=http://host.docker.internal:8098
 ```
+
+`ENRICHMENT_LIGHT_URL` is a **readiness** target only —
+`api/routes/model_management.py` probes it to report gateway health, and the live person
+re-ID lookup runs in-process in the backend.
+
+> [!IMPORTANT]
+> `AI_VLM_URL` is the value that gets missed. The backend's code default is
+> `http://localhost:8098`, which inside a container is the container itself: every verdict
+> lands `verification_failed` with a NULL `risk_score` while events keep arriving. Compose
+> closes the hole; a host-run or remote AI setup must set it explicitly.
 
 ### Feature Toggles
 
-| Variable                    | Default | Description                                      |
-| --------------------------- | ------- | ------------------------------------------------ |
-| `VISION_EXTRACTION_ENABLED` | `true`  | Enable Florence-2 extraction                     |
-| `REID_ENABLED`              | `true`  | Enable person re-identification (OSNet-AIN x1.0) |
-| `SCENE_CHANGE_ENABLED`      | `true`  | Enable scene change detection                    |
+| Variable                    | Default | Reader                       |
+| --------------------------- | ------- | ---------------------------- |
+| `REID_ENABLED`              | `true`  | Surfaced in the settings API |
+| `SCENE_CHANGE_ENABLED`      | `true`  | Surfaced in the settings API |
+| `VISION_EXTRACTION_ENABLED` | `true`  | Surfaced in the settings API |
+
+None of the three gates a call on the live path today — they are read by
+`api/routes/settings_api.py` and reported to the UI. What actually decides whether a
+lookup leg runs is residency: `BACKEND_MODEL_PRELOAD` (ships `false`; `setup.py` writes
+`true` at >= 24 GB VRAM). With it off, `faces` and `person_reid` report `unavailable` on
+every event and nothing errors.
 
 ---
 
@@ -617,7 +638,7 @@ curl -X POST "http://localhost:8000/api/system/cleanup"
 DATABASE_URL=postgresql+asyncpg://security:dev_password@localhost:5432/security  # pragma: allowlist secret
 REDIS_URL=redis://localhost:6379/0
 YOLO26_URL=http://localhost:8090/yolo26
-NEMOTRON_URL=http://localhost:8091
+AI_VLM_URL=http://localhost:8098
 FOSCAM_BASE_PATH=/export/foscam
 DEBUG=true
 LOG_LEVEL=DEBUG
@@ -631,7 +652,7 @@ REDIS_URL=redis://redis:6379
 USE_AI_GATEWAY=true
 AI_GATEWAY_URL=http://ai-gateway:8090
 YOLO26_URL=http://ai-gateway:8090/yolo26
-NEMOTRON_URL=http://ai-llm:8091
+AI_VLM_URL=http://ai-vlm:8098
 DEBUG=false
 LOG_LEVEL=WARNING
 RETENTION_DAYS=30
@@ -654,7 +675,7 @@ uv run python -c "from backend.core.config import get_settings; s = get_settings
 # Test service connectivity
 curl http://localhost:8000/api/system/health     # Backend
 curl http://localhost:8090/yolo26/health         # ai-gateway /yolo26 router
-curl http://localhost:8091/health                # Nemotron
+curl http://localhost:8098/props | jq            # ai-vlm served model + build
 redis-cli ping                                   # Redis
 ```
 

@@ -15,7 +15,7 @@ Examples:
     python scripts/benchmark_model_zoo.py
 
     # Benchmark specific models
-    python scripts/benchmark_model_zoo.py --models yolo11-license-plate,siglip2-base-patch16-224
+    python scripts/benchmark_model_zoo.py --models yolo11-license-plate,yolo11-face
 
     # Output to specific file
     python scripts/benchmark_model_zoo.py --output docs/benchmarks/results.md
@@ -130,129 +130,6 @@ async def run_inference(model: Any, model_name: str, image: Image.Image) -> floa
             # Note: FastALPR is the recommended replacement for PaddleOCR
             img_array = np.array(image)
             _ = model.ocr(img_array, cls=False)
-
-        elif model_name == "siglip2-base-patch16-224":
-            # SigLIP 2 Base returns model and processor
-            siglip_model = model["model"]
-            processor = model["processor"]
-            inputs = processor(images=image, return_tensors="pt")
-            device = next(siglip_model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-            _ = siglip_model.get_image_features(**inputs)
-
-        elif model_name == "florence-2-large":
-            # Florence returns model and processor
-            florence_model = model["model"]
-            processor = model["processor"]
-            inputs = processor(text="<CAPTION>", images=image, return_tensors="pt")
-            device = next(florence_model.parameters()).device
-            dtype = next(florence_model.parameters()).dtype
-            inputs = inputs.to(device, dtype)
-            _ = florence_model.generate(
-                input_ids=inputs["input_ids"],
-                pixel_values=inputs["pixel_values"],
-                max_new_tokens=50,
-                use_cache=False,
-            )
-
-        elif model_name == "yolo-world-s":
-            # YOLO-World expects image path or PIL image
-            _ = model.predict(image, conf=0.3, verbose=False)
-
-        elif model_name == "vitpose-small":
-            # ViTPose expects numpy array and bboxes
-            img_array = np.array(image)
-            # Simulate a person bbox
-            bboxes = [[100, 100, 300, 400]]
-            if hasattr(model, "inference"):
-                _ = model.inference(img_array, bboxes)
-
-        elif model_name == "depth-anything-v2-tiny":
-            # Depth Anything expects PIL image
-            depth_model = model["model"]
-            processor = model["processor"]
-            inputs = processor(images=image, return_tensors="pt")
-            device = next(depth_model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-            _ = depth_model(**inputs)
-
-        elif model_name == "violence-detection":
-            # Violence detection model
-            violence_model = model["model"]
-            processor = model["processor"]
-            inputs = processor(images=image, return_tensors="pt")
-            device = next(violence_model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-            _ = violence_model(**inputs)
-
-        elif model_name == "weather-classification":
-            # Weather classification
-            weather_model = model["model"]
-            processor = model["processor"]
-            inputs = processor(images=image, return_tensors="pt")
-            device = next(weather_model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-            _ = weather_model(**inputs)
-
-        elif model_name == "segformer-b2-clothes":
-            # Segformer for clothing segmentation
-            seg_model = model["model"]
-            processor = model["processor"]
-            inputs = processor(images=image, return_tensors="pt")
-            device = next(seg_model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-            _ = seg_model(**inputs)
-
-        elif model_name == "stgcn-plus-plus":
-            # ST-GCN++ for skeleton-based action recognition
-            # Note: ST-GCN++ uses skeleton keypoints (not video frames) for inference,
-            # so benchmarking uses a different approach than standard image models
-            stgcn_model = model["model"]
-            processor = model["processor"]
-            # ST-GCN++ expects skeleton keypoints, not raw video frames
-            inputs = processor(images=[image], return_tensors="pt")
-            device = next(stgcn_model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-            _ = stgcn_model.get_image_features(**inputs)
-
-        elif model_name == "fashion-clip":
-            # FashionCLIP
-            fashion_model = model["model"]
-            processor = model["processor"]
-            inputs = processor(images=image, return_tensors="pt")
-            device = next(fashion_model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-            _ = fashion_model.get_image_features(**inputs)
-
-        elif model_name == "brisque-quality":
-            # BRISQUE is CPU-based, model is a function
-            img_array = np.array(image.convert("L"))  # Grayscale
-            if callable(model):
-                _ = model(img_array)
-            else:
-                return None
-
-        elif model_name == "vehicle-segment-classification":
-            # Vehicle classifier
-            vehicle_model = model["model"]
-            processor = model["processor"]
-            inputs = processor(images=image, return_tensors="pt")
-            device = next(vehicle_model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-            _ = vehicle_model(**inputs)
-
-        elif model_name == "vehicle-damage-detection":
-            # Vehicle damage detection (YOLO-based)
-            _ = model.predict(image, conf=0.3, verbose=False)
-
-        elif model_name == "pet-classifier":
-            # Pet classifier
-            pet_model = model["model"]
-            processor = model["processor"]
-            inputs = processor(images=image, return_tensors="pt")
-            device = next(pet_model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-            _ = pet_model(**inputs)
 
         else:
             # Unknown model type, skip inference

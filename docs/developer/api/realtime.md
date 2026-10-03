@@ -342,7 +342,7 @@ The following diagram shows how security events flow from the AI pipeline throug
 }}%%
 flowchart LR
     subgraph AI["AI Pipeline"]
-        NA[NemotronAnalyzer]
+        NA[VlmAnalyzer]
     end
 
     subgraph Backend["Backend"]

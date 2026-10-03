@@ -1357,6 +1357,6 @@ GET /api/analytics/object-distribution?start_date=2025-12-01&end_date=2025-12-31
 
 ## Related Documentation
 
-- [AI Pipeline API](ai-pipeline.md) - Enrichment and batch processing
+- [AI Pipeline API](ai-pipeline.md) - Batch aggregation and VLM analysis
 - [System Operations API](system-ops.md) - Health and configuration
 - [Real-time API](realtime.md) - WebSocket streams

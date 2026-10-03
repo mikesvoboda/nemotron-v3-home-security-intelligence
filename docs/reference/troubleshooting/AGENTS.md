@@ -45,13 +45,13 @@ troubleshooting/
 
 ### ai-issues.md
 
-**Purpose:** Troubleshooting YOLO26, Nemotron, and pipeline problems.
+**Purpose:** Troubleshooting the two AI services — `ai-gateway` (Triton detection) and `ai-vlm` (llama.cpp reasoning) — and the event pipeline.
 
 **Topics Covered:**
 
-- Service not running
+- Service not running (remember the `vlm` compose profile)
 - Degraded mode (one service up, one down)
-- Enrichment issues (Florence-2, CLIP, heavy/light enrichment routers)
+- Specialist lookups (faces / plates / person re-ID) returning `unavailable`
 - Batch not processing
 - Analysis failing (null risk scores)
 - Detection quality issues (false positives/negatives)
@@ -62,12 +62,12 @@ troubleshooting/
 **Diagnostic Commands:**
 
 ```bash
-# Check AI container status
-docker compose -f docker-compose.prod.yml ps ai-gateway ai-llm
+# Check AI container status (ai-vlm is profiled)
+podman compose -f docker-compose.prod.yml --profile vlm ps ai-gateway ai-vlm
 
 # Check individual services
 curl http://localhost:8090/yolo26/health  # YOLO26 (AI gateway router)
-curl http://localhost:8091/health         # Nemotron
+curl http://localhost:8098/health         # ai-vlm
 
 # Check pipeline
 curl http://localhost:8000/api/system/pipeline | jq
@@ -142,7 +142,7 @@ curl http://localhost:8000/api/system/pipeline | jq
 - nvidia-cap device permissions
 - Explicit nvidia-cap bind mounts
 
-**When to use:** ai-gateway models UNAVAILABLE while ai-llm works; Triton cudaErrorInitializationError.
+**When to use:** ai-gateway models UNAVAILABLE while ai-vlm works; Triton cudaErrorInitializationError.
 
 ## Troubleshooting Approach
 
@@ -224,12 +224,13 @@ docker compose -f docker-compose.prod.yml ps
 # AI gateway aggregate + per-router health (production topology)
 curl http://localhost:8090/health
 curl http://localhost:8090/yolo26/health
+curl http://localhost:8090/enrich-lt/health
 
-# Host-run standalone detector (only when running ai/start_detector.sh directly)
-curl http://localhost:8095/health
+# Host-run standalone detector: ./ai/start_detector.sh also binds :8090
+# (YOLO26_PORT), so run it with ai-gateway down, or on a free port.
 
-# Nemotron
-curl http://localhost:8091/health
+# ai-vlm reasoning service (behind the vlm compose profile)
+curl http://localhost:8098/health
 
 # Pipeline status
 curl http://localhost:8000/api/system/pipeline | jq

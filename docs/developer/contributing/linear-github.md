@@ -70,7 +70,7 @@ feat: add entity re-identification
 
 Fixes NEM-1260
 
-- Add redis_client to EnrichmentPipeline
+- Add redis_client to VlmAnalyzer
 - Enable re-id during detection pipeline
 ```
 

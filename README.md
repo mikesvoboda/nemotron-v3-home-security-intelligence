@@ -32,32 +32,36 @@ Turn "dumb" security cameras into an intelligent threat detection system — **1
 [![Backend Coverage](https://img.shields.io/codecov/c/github/mikesvoboda/nemotron-v3-home-security-intelligence?flag=backend-unit&label=backend%20coverage)](https://codecov.io/gh/mikesvoboda/nemotron-v3-home-security-intelligence)
 [![Frontend Coverage](https://img.shields.io/codecov/c/github/mikesvoboda/nemotron-v3-home-security-intelligence?flag=frontend&label=frontend%20coverage)](https://codecov.io/gh/mikesvoboda/nemotron-v3-home-security-intelligence)
 
-| I want to…                   | Start here                                                                                                                                                                                        |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Browse the full docs         | [**Documentation Site**](https://mikesvoboda.github.io/nemotron-v3-home-security-intelligence/)                                                                                                   |
-| Run this at home             | [User Hub](docs/user/README.md)                                                                                                                                                                   |
-| Deploy and maintain it       | [Operator Hub](docs/operator/README.md)                                                                                                                                                           |
-| Contribute / extend the code | [Developer Hub](docs/developer/README.md)                                                                                                                                                         |
-| Work on it as an AI agent    | [`AGENTS.md`](AGENTS.md) — the root instruction file (read it; `CLAUDE.md` is retired); every directory has its own `AGENTS.md`, and [`llms.txt`](llms.txt) is the condensed machine-readable map |
+| I want to…                   | Start here                                                                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browse the full docs         | [**Documentation Site**](https://mikesvoboda.github.io/nemotron-v3-home-security-intelligence/)                                                                           |
+| Run this at home             | [User Hub](docs/user/README.md)                                                                                                                                           |
+| Deploy and maintain it       | [Operator Hub](docs/operator/README.md)                                                                                                                                   |
+| Contribute / extend the code | [Developer Hub](docs/developer/README.md)                                                                                                                                 |
+| Work on it as an AI agent    | [`AGENTS.md`](AGENTS.md) — the root instruction file (read it); every directory has its own `AGENTS.md`, and [`llms.txt`](llms.txt) is the condensed machine-readable map |
 
 ---
 
 ## What You Get: AI-Powered Risk Reasoning
 
-The brain of this system is a vision-language model that assesses every event — the `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is config, ledger D5. R8 retired the legacy Nemotron text-only path, 2026-09-29). It runs entirely on your hardware:
+The brain of this system is a vision-language model that assesses every event — `VlmAnalyzer`
+asks the `ai-vlm` llama.cpp serve for a verdict on each batch. Model identity is config
+(`VLM_MODEL_PATH`), not code. It runs entirely on your hardware:
 
-| Specification        | Value                                     | Why It Matters                                  |
-| -------------------- | ----------------------------------------- | ----------------------------------------------- |
-| **Weights**          | GGUF pair, host-mounted, never baked      | `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` in `.env`  |
-| **VRAM Required**    | see the bring-up record — config-driven   | sized per card; `VLM_GPU_LAYERS=auto` offloads  |
-| **Context Window**   | 32,768 tokens (`VLM_CTX_SIZE`)            | Split 2 ways: 16K per slot, concurrent analyses |
-| **Inference Engine** | llama.cpp (`ai-vlm`, container port 8098) | Optimized C++ with CUDA acceleration            |
+| Specification        | Value                                                                        | Why It Matters                                     |
+| -------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------- |
+| **Weights**          | GGUF pair, host-mounted, never baked                                         | `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` in `.env`     |
+| **Serving model**    | `Qwen3VL-8B-Instruct-Q4_K_M` + `mmproj-Qwen3VL-8B-Instruct-Q8_0`             | shipped default; both are overridable config       |
+| **VRAM Required**    | config-driven — see [VRAM Requirements](docs/_includes/vram-requirements.md) | sized per card; `VLM_GPU_LAYERS=auto` offloads     |
+| **Context Window**   | 32,768 tokens (`VLM_CTX_SIZE`)                                               | Split 2 ways: 16,384 per slot, concurrent analyses |
+| **Inference Engine** | llama.cpp (`ai-vlm`, container port 8098)                                    | Optimized C++ with CUDA acceleration               |
 
 **Also included:**
 
 - **Real-time dashboard** — camera grid, activity feed, risk gauge, telemetry
 - **Detections → events** — time-window batching turns many frames into one explained "event"
-- **Identity lookups** — re-ID, license plates and faces matched against your own registrations (DB lookups; the enrichment attribute models retired with R8)
+- **Identity lookups** — faces, license plates and person re-ID matched against your own
+  registrations, in-process, alongside every VLM verdict
 - **Local-first** — runs on your hardware; footage stays on your network
 - **First run** — the API returns 503 for everything except setup and health until you register the
   first admin in the dashboard; that's the setup guard working, not a broken install
@@ -77,7 +81,6 @@ The system provides comprehensive video analytics capabilities:
 | **Object Detection**    | YOLO26 detects people, vehicles, animals, objects | [Object detection](docs/guides/video-analytics.md#object-detection)       |
 | **Scene Understanding** | The VLM describes and assesses each event         | [Scene understanding](docs/guides/video-analytics.md#scene-understanding) |
 | **Anomaly Detection**   | Learned activity baselines flag unusual patterns  | [Anomaly detection](docs/guides/video-analytics.md#anomaly-detection)     |
-| **Threat Detection**    | Weapon and dangerous item detection               | [Threat detection](docs/guides/video-analytics.md#threat-detection)       |
 
 ### Zone Intelligence
 
@@ -90,13 +93,12 @@ The system provides comprehensive video analytics capabilities:
 
 ### Person and Vehicle Identification
 
-| Feature                    | Description                           | Documentation                                                                 |
-| -------------------------- | ------------------------------------- | ----------------------------------------------------------------------------- |
-| **Face Detection**         | Detect faces within person detections | [Face detection](docs/guides/face-recognition.md#face-detection)              |
-| **Person Re-ID**           | Track individuals across cameras      | [Re-identification](docs/guides/face-recognition.md#person-re-identification) |
-| **Demographics**           | Age and gender estimation             | [Demographics](docs/guides/face-recognition.md#demographics-analysis)         |
-| **License Plates**         | Plate detection and OCR               | [License plates](docs/guides/video-analytics.md#license-plate-detection)      |
-| **Vehicle Classification** | Vehicle type identification           | [Vehicle analysis](docs/guides/video-analytics.md#vehicle-analysis)           |
+| Feature               | Description                                 | Documentation                                                                 |
+| --------------------- | ------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Face Detection**    | Detect faces within person detections       | [Face detection](docs/guides/face-recognition.md#face-detection)              |
+| **Person Re-ID**      | Track individuals across cameras            | [Re-identification](docs/guides/face-recognition.md#person-re-identification) |
+| **License Plates**    | Plate detection and OCR                     | [License plates](docs/guides/video-analytics.md#license-plate-detection)      |
+| **Vehicle Detection** | YOLO26 vehicle classes (car, truck, bus, …) | [Vehicle analysis](docs/guides/video-analytics.md#vehicle-analysis)           |
 
 ### Analytics and Reporting
 
@@ -115,24 +117,21 @@ All four live on the [Analytics API](docs/api/analytics-endpoints.md):
 
 `models.yml` is the single source of truth for every model the system downloads and loads — name, download size, VRAM footprint, and which service runs it. The tables below are drawn from it, except where a model runs inside the gateway's Triton process instead of the backend model zoo (those carry `vram_mb: 0` there, so their VRAM comes from [VRAM Requirements](docs/_includes/vram-requirements.md)).
 
-### Always-Loaded Models
+### Two AI Services
 
-The two engines every event path talks to. The VLM runs under the `vlm` compose
-profile and the backend only soft-depends on it (`docker-compose.prod.yml:127`
-— a profiled service can never sit in a `depends_on`, so the backend
-degrades instead of failing to boot):
+| Service          | Engine                                    | Port | What it serves                                                         |
+| ---------------- | ----------------------------------------- | ---- | ---------------------------------------------------------------------- |
+| **`ai-gateway`** | FastAPI + NVIDIA Triton (TensorRT / ONNX) | 8090 | Routers `/yolo26` (object detection) and `/enrich-lt` (readiness lane) |
+| **`ai-vlm`**     | llama.cpp `llama-server`                  | 8098 | `POST /v1/chat/completions` — the per-event verdict                    |
 
-| Model                                          | Purpose                            | VRAM                                                             | Where it runs                        |
-| ---------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------- | ------------------------------------ |
-| VLM engine (GGUF pair; identity is config, D5) | Scene description + risk reasoning | see the bring-up record — config-driven                          | `ai-vlm` llama.cpp container, 8098   |
-| YOLO26                                         | Primary object detection           | `vram_mb: 0` in `models.yml` (gateway-resident, not backend-zoo) | `ai-gateway` Triton, route `/yolo26` |
-
-> Since the gateway consolidation (bc7d6101) and the R8 legacy retirement
-> (2026-09-29), `ai-gateway` publishes exactly two routers on port **8090** —
-> `/yolo26` and `/enrich-lt` (weapon/threat + person re-ID; `GATEWAY_MODEL_SET`
-> is a closed set — an unexpected member hard-raises). The `/florence`, `/clip`
-> and `/enrichment` routers, their containers and the legacy text-only LLM
-> (the old `ai-llm` service) were all deleted with it.
+The VLM runs under the `vlm` compose profile (`--profile vlm up -d`) and the backend
+soft-depends on it (`docker-compose.prod.yml:632-645` lists `postgres`, `redis`,
+`ai-gateway` and `go2rtc`, never the profiled service; the dial is the
+`AI_VLM_URL` env var at `:552` — a profiled service can never sit
+in a `depends_on`, so the backend degrades instead of failing to boot). `ai-gateway`'s
+Triton repository holds exactly `{yolo26, reid, threat}`; `GATEWAY_MODEL_SET` accepts only
+`vlm` and hard-raises on anything else. `ai-vlm` is the only LLM service; there is no
+`ai-llm`.
 
 ### Object Detector
 
@@ -146,33 +145,26 @@ Three YOLO26 variants ship (`n`/`s`/`m`; `m` is the default). Measured end-to-en
 
 ### Lookup Models
 
-Since R8 the enrichment attribute zoo is retired — what remains answers
-_identity_ questions (who/what is this face, plate, person) against your own
-registrations, plus the weapon/plate detectors that feed the verdict. Gateway
-models are Triton-resident; backend-zoo models load lazily on first use (and
-3 rows — the `enabled: true` + `preload: true` ones — load at boot). Nothing
-evicts: the zoo has no eviction pass, so `never_evict`/`priority` rows are
-parsed but have no consumer (see `backend/main.py`'s preload note). Complete
-`models.yml` inventory (VRAM and phase from the rows themselves):
+Three in-process lookup legs run alongside every VLM verdict and answer _identity_
+questions (whose face, which plate, which person) against your own registrations.
+The rest of the catalogue backs those legs and the Triton models the gateway serves.
+Backend-zoo models load lazily on first use, and the `enabled: true` + `preload: true`
+rows load at boot when `BACKEND_MODEL_PRELOAD=true`. Nothing evicts: the zoo has no
+eviction pass, so `never_evict`/`priority` rows are parsed but have no consumer (see
+`backend/main.py`'s preload note). Complete `models.yml` inventory:
 
-| Model                    | Purpose                               | VRAM              | Phase | Notes                                                              |
-| ------------------------ | ------------------------------------- | ----------------- | ----- | ------------------------------------------------------------------ |
-| yolo26                   | Primary object detection              | Triton (`yolo26`) | 0     | `enabled: false` in the zoo; gateway export reads the .pt off disk |
-| osnet-ain-x1-0           | Person re-ID embeddings               | ~100MB            | 1     | Triton `reid`; `preload: true`                                     |
-| threat-detection-yolov8n | Weapon detection (knives, guns, bats) | ~300MB            | 1     | Triton `threat`                                                    |
-| face-detector-scrfd      | Face detection (CPU onnxruntime)      | 0 (CPU)           | 3     | `low` priority; `preload: true`                                    |
-| face-recognizer          | Face embeddings (CPU onnxruntime)     | 0 (CPU)           | 3     | `low` priority; `preload: true`                                    |
-| yolo11-face              | Face detection on person crops        | ~200MB            | 3     | backend                                                            |
-| yolo11-license-plate     | License plate detection               | ~300MB            | 3     | backend                                                            |
-| fast-alpr                | Plate detection + OCR (ONNX)          | ~28MB             | 3     | library fetches at runtime                                         |
-| paddleocr                | Text recognition                      | ~100MB            | 3     | superseded by fast-alpr                                            |
-| yolo26-general           | General scene detection               | ~400MB            | 3     | `enabled: false` — weights not released                            |
-
-Retired with R8 (2026-09-29): Florence, SigLIP/CLIP, pose (ViTPose /
-yolov8n-pose / ST-GCN++ / X-CLIP), demographics (ViT age+gender), clothing
-(FashionCLIP / SegFormer), vehicle-segment, vehicle-damage, pet, depth,
-weather, violence, smoke/fire — the VLM path describes what it sees instead of
-re-perceiving it with a specialist per attribute.
+| Model                    | Purpose                               | VRAM              | Notes                                                     |
+| ------------------------ | ------------------------------------- | ----------------- | --------------------------------------------------------- |
+| yolo26                   | Primary object detection              | Triton (`yolo26`) | `enabled: false` in the zoo; gateway export reads the .pt |
+| osnet-ain-x1-0           | Person re-ID embeddings               | ~100MB            | `enabled: true`; `preload: true`                          |
+| face-detector-scrfd      | Face detection (CPU onnxruntime)      | 0 (CPU)           | `low` priority; `preload: true`                           |
+| face-recognizer          | Face embeddings (CPU onnxruntime)     | 0 (CPU)           | `low` priority; `preload: true`                           |
+| threat-detection-yolov8n | Weapon detection (knives, guns, bats) | ~300MB            | Triton `threat`; opted in via `GATEWAY_ENABLE_THREAT`     |
+| yolo11-face              | Face detection on person crops        | ~200MB            | backend                                                   |
+| yolo11-license-plate     | License plate detection               | ~300MB            | backend                                                   |
+| fast-alpr                | Plate detection + OCR (ONNX)          | ~28MB             | library fetches at runtime                                |
+| paddleocr                | Text recognition                      | ~100MB            | plates are handled by fast-alpr                           |
+| yolo26-general           | General scene detection               | ~400MB            | `enabled: false` — weights not released                   |
 
 ### Model Priority System
 
@@ -182,8 +174,7 @@ is parsed into `ModelConfig` and read by nobody (the contract is documented in
 [docs/reference/models.md](docs/reference/models.md)):
 
 - **CRITICAL** / **HIGH** / **MEDIUM** / **LOW**: most rows ship at **medium**
-  (the two CPU face rows are **low**); no row is marked critical — the safety
-  model that carried it retired with R8
+  (the two CPU face rows are **low**); no row is marked critical
 - `never_evict: true` is the intended pin (no live row sets it)
 - `preload: true` **is** honored: it loads the row at startup alongside
   `enabled: true` — today osnet + the two face rows
@@ -191,7 +182,7 @@ is parsed into `ModelConfig` and read by nobody (the contract is documented in
 ### Downloading Models
 
 ```bash
-# Download the models the setup_lib rule selects (since R8: 5 of the 10 live
+# Download the models the setup_lib rule selects (5 of the 10 live
 # models.yml rows, 763MB of models.yml size_mb — the script header carries the
 # exact re-derivation, and a guard test pins the fetch list to the rule).
 # Reads only the AI_MODELS_PATH shell variable (not .env — export it to match
@@ -207,10 +198,9 @@ AI_MODELS_PATH=/path/to/models ./ai/download_models.sh
 
 Sizing is dominated by the VLM identity in `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`:
 `VLM_GPU_LAYERS=auto` (default) offloads as many layers as the card allows, so
-there is no fixed tier table any more. Budget the GGUF pair's layers, the
-gateway's Triton process, and ~1.0GB of lookup-model headroom — the full table
-lives in [VRAM Requirements](docs/_includes/vram-requirements.md). The retired
-30B-LLM tiers this table published died with the legacy path in R8 (2026-09-29).
+there is no fixed tier table. Budget the GGUF pair's layers, the gateway's Triton
+process, and ~1.0GB of lookup-model headroom — the full table lives in
+[VRAM Requirements](docs/_includes/vram-requirements.md).
 
 The backend `ModelManager` (`backend/services/model_zoo.py`) loads zoo models
 lazily on first use and at boot per the preload rule. It has no unload path and
@@ -226,12 +216,9 @@ curl http://localhost:8000/api/system/models/<name>/status
 ```
 
 > [!NOTE]
-> Since the ai-serving consolidation (and R8's gateway prune) the status API reads
-> **ai-gateway** health — Triton readiness unioned across the mounted routers
-> (`/yolo26`, `/enrich-lt`) plus in-process state from the backend ModelManager for
-> models without a Triton mapping. The retired `ai-enrichment:8094` /
-> `ai-enrichment-light:8096` hostnames this page once warned about no longer appear
-> anywhere in `docker-compose.prod.yml`. Load/unload
+> The status API reads **ai-gateway** health — Triton readiness unioned across the mounted
+> routers (`/yolo26`, `/enrich-lt`) plus in-process state from the backend ModelManager for
+> models without a Triton mapping. Load/unload
 > (`POST /api/system/models/<name>/load` and `/unload`) return **501 by design**:
 > Triton runs with `--model-control-mode=none`, gateway models are resident, and the
 > gateway exposes no preload/unload surface — see `backend/api/routes/model_management.py`
@@ -254,22 +241,19 @@ curl http://localhost:8000/api/system/models/<name>/status
 
 ### GPU Compatibility
 
-There is no fixed VRAM tier table any more. GPU residency is dominated by the
-GGUF pair named in `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`: `VLM_GPU_LAYERS=auto`
-(default) offloads as many layers as the card allows, so a smaller card still
-boots — more of the VLM runs on CPU, slower. The retired Nemotron-layer tiers
-this table published died with the legacy path in R8 (2026-09-29); the gateway's
-resident Triton models (`yolo26`, re-ID, threat) and the lookup `vram_mb` rows
-are itemized in [VRAM Requirements](docs/_includes/vram-requirements.md).
+GPU residency is dominated by the GGUF pair named in `VLM_MODEL_PATH` /
+`VLM_MMPROJ_PATH`: `VLM_GPU_LAYERS=auto` (default) offloads as many layers as the
+card allows, so a smaller card still boots — more of the VLM runs on CPU, slower.
+The gateway's resident Triton models (`yolo26`, `reid`, plus `threat` when
+`GATEWAY_ENABLE_THREAT=true`) and the lookup `vram_mb` rows are itemized in
+[VRAM Requirements](docs/_includes/vram-requirements.md).
 
 ### Runtime Resource Usage
 
-> [!NOTE] > **No measured residency figure exists for the post-R8 stack.** The former
-> "~23 GB / 24 GB on an RTX A5500" row was a measurement of the legacy 30B
-> serving stack, and that stack is gone; a number from another card or another
-> era does not transfer here. GPU residency is now config-driven — size the
-> VLM with `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` and `VLM_GPU_LAYERS`, then
-> measure your own card (`nvidia-smi`, or the gateway's `/metrics`).
+> [!NOTE] > **No published GPU residency figure exists for this stack.** Residency is
+> config-driven — size the VLM with `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` and
+> `VLM_GPU_LAYERS`, then measure your own card (`nvidia-smi`, or the gateway's
+> `/metrics`). A number from another card does not transfer here.
 
 | Resource       | Usage                                                                                                                                                |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -331,8 +315,8 @@ Then open the dashboard: first run requires you to register the first admin acco
 (the API returns 503 for everything except setup and health until you do).
 
 > [!TIP]
-> Run **just core services**: `podman compose -f docker-compose.prod.yml up -d postgres redis backend frontend ai-gateway ai-llm`
-> (Since the gateway consolidation, `ai-gateway` is the single AI entrypoint — detection/enrichment run inside it, models load on demand.)
+> Run **just core services**: `podman compose -f docker-compose.prod.yml --profile vlm up -d postgres redis backend frontend ai-gateway ai-vlm`
+> (`ai-gateway` serves detection on `/yolo26`; the VLM needs `--profile vlm` or `up` skips it silently.)
 
 ## Operations & Monitoring
 
@@ -373,13 +357,17 @@ Host-run dev-mode logs land in `logs/backend.log` (`./scripts/dev.sh logs` tails
 
 Health endpoints, cheapest first — `health/live` answers without touching dependencies:
 
-| Endpoint                                       | What it tells you                |
-| ---------------------------------------------- | -------------------------------- |
-| `http://localhost:8000/api/system/health/live` | Backend process is alive         |
-| `http://localhost:8000/api/system/health`      | Backend + dependency status      |
-| `http://localhost:8000/api/system/health/full` | Every dependency, no timeouts    |
-| `http://localhost:8090/health`                 | AI gateway (Triton, all routers) |
-| `http://localhost:8091/health`                 | Nemotron LLM                     |
+| Endpoint                                       | What it tells you                                          |
+| ---------------------------------------------- | ---------------------------------------------------------- |
+| `http://localhost:8000/api/system/health/live` | Backend process is alive                                   |
+| `http://localhost:8000/api/system/health`      | Backend + dependency status                                |
+| `http://localhost:8000/api/system/health/full` | Every dependency, no timeouts                              |
+| `http://localhost:8090/health`                 | AI gateway (Triton, mounted routers)                       |
+| `http://localhost:8098/health`                 | VLM engine (llama.cpp) — only when the `vlm` profile is up |
+
+A `/health` 200 from `ai-vlm` proves the server answers, not that it loaded the
+`mmproj` projector. Check `podman logs ai-vlm 2>&1 | grep -i mmproj` when verdicts
+arrive as `verification_failed` with a NULL risk score.
 
 Service control and self-healing details: [Service Control](docs/operator/service-control.md).
 
@@ -421,8 +409,7 @@ Redis.
 
 Open https://localhost:8444 — Vite serves HTTPS with a self-signed cert
 (strictPort; accept the browser warning). It proxies `/api` and `/ws` to the
-backend on port 8000. (`scripts/dev.sh` prints a 5173 URL — that echo is
-wrong; the server really binds 8444 per `frontend/vite.config.ts`.)
+backend on port 8000. (`frontend/vite.config.ts` pins 8444 with `strictPort`.)
 
 </details>
 
@@ -430,29 +417,26 @@ wrong; the server really binds 8444 per `frontend/vite.config.ts`.)
 <summary><strong>Host-run AI servers</strong></summary>
 
 Useful when iterating on AI model code directly on the host. The host-run detector
-replaces only the gateway's `/yolo26` router — the `/enrich-lt` specialists still need
-the `ai-gateway` container. (The standalone `ai-yolo26` GPU image was retired 2026-09-23 —
-Triton inside `ai-gateway` serves yolo26; the build recipe lives at
-`archive/ai-yolo26-image/Dockerfile`. The gateway's `/florence`, `/clip` and `/enrichment`
-routers were retired with R8 S3, 2026-09-29, along with the `FLORENCE_URL` / `CLIP_URL` /
-`ENRICHMENT_URL` settings they fed.)
+replaces only the gateway's `/yolo26` router — the `/enrich-lt` readiness lane still needs
+the `ai-gateway` container. (Triton inside `ai-gateway` serves yolo26; the archived
+standalone GPU image build recipe lives at `archive/ai-yolo26-image/Dockerfile`.)
 
 ```bash
 # Start the AI servers on the host (separate terminals)
 ./ai/start_detector.sh   # YOLO26 — reads PORT/YOLO26_PORT, defaults to 8090
-# (The reasoning engine has no host-run script: the shipped llama.cpp server is the
-#  ai-vlm container — start it with: podman compose -f docker-compose.prod.yml
-#  --profile vlm up -d ai-vlm. The old ./ai/start_llm.sh Nemotron server was retired
-#  with the legacy path in R8 S2.)
+# The reasoning engine has no host-run script: the shipped llama.cpp serve is the
+# ai-vlm container — start it with
+#   podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
 
 # Then point the HOST-RUN backend (dev.sh) at them. The host detector serves its
 # endpoints at the root (/health, /detect), so no router suffix — and these exports
 # never reach a containerized backend (compose hardcodes the AI URLs; no env_file).
 export YOLO26_URL=http://localhost:8090
-# The light-enrichment lane (threat + re-ID) comes from the ai-gateway container,
-# published on 127.0.0.1:8090 — point its client at the router. Leave
-# USE_AI_GATEWAY=false (the default): with it true the detector client ignores
-# YOLO26_URL and sends detection back to the gateway.
+# The /enrich-lt lane (threat + re-ID Triton models, published on 127.0.0.1:8090 by
+# the ai-gateway container) is read as a readiness target by
+# backend/api/routes/model_management.py. Leave USE_AI_GATEWAY=false (the Settings
+# default): with it true the detector client ignores YOLO26_URL and sends detection
+# back to the gateway.
 export ENRICHMENT_LIGHT_URL=http://localhost:8090/enrich-lt
 ```
 
@@ -463,10 +447,9 @@ compose `environment:` entry or an override file — a shell `export` is not eno
 See [AI Configuration](docs/operator/ai-configuration.md) for the per-platform hostnames.
 
 > [!WARNING]
-> Do **not** run these while `ai-gateway`/`ai-llm` containers are up — they will fight over ports 8090/8091.
-> The host-run detector defaults to 8090, which is also the `ai-gateway` host port — so it
-> collides with `ai-gateway`, not with the retired 8095.
-> To keep `ai-gateway` up for Florence/CLIP/enrichment, run the detector on a free port instead:
+> Do **not** run these while the `ai-gateway` container is up — they will fight over port 8090.
+> The host-run detector defaults to 8090, which is also the `ai-gateway` host port.
+> To keep `ai-gateway` up for the `/enrich-lt` lane, run the detector on a free port instead:
 > `YOLO26_PORT=8095 ./ai/start_detector.sh` with `export YOLO26_URL=http://localhost:8095`.
 
 </details>
@@ -477,11 +460,11 @@ See [AI Configuration](docs/operator/ai-configuration.md) for the per-platform h
 
 ![System Architecture](docs/images/arch-system-overview.png)
 
-| Layer       | Stack                         | Key Files                                         |
-| ----------- | ----------------------------- | ------------------------------------------------- |
-| Frontend    | React + TypeScript + Tailwind | `frontend/src/services/api.ts`                    |
-| Backend     | FastAPI + SQLAlchemy + Redis  | `backend/services/`, `backend/api/`               |
-| AI Services | llama.cpp + Triton + FastAPI  | `ai/gateway/` (all model routers), `ai/nemotron/` |
+| Layer       | Stack                         | Key Files                                                   |
+| ----------- | ----------------------------- | ----------------------------------------------------------- |
+| Frontend    | React + TypeScript + Tailwind | `frontend/src/services/api.ts`                              |
+| Backend     | FastAPI + SQLAlchemy + Redis  | `backend/services/`, `backend/api/`                         |
+| AI Services | llama.cpp + Triton + FastAPI  | `ai/gateway/` (Triton routers), `ai/vlm/` (llama.cpp serve) |
 
 ![Container Architecture](docs/images/architecture/container-architecture.png)
 
@@ -495,7 +478,7 @@ See [AI Configuration](docs/operator/ai-configuration.md) for the per-platform h
 | [Security](docs/architecture/security/README.md)                     | Input validation, data protection, OWASP   |
 | [Dataflows](docs/architecture/dataflows/README.md)                   | End-to-end data traces, pipeline timing    |
 | [Detection Pipeline](docs/architecture/detection-pipeline/README.md) | YOLO26 integration, image processing       |
-| [AI Orchestration](docs/architecture/ai-orchestration/README.md)     | Nemotron LLM, batch processing             |
+| [AI Orchestration](docs/architecture/ai-orchestration/README.md)     | VLM verdict path, batch processing         |
 
 ---
 
@@ -511,7 +494,7 @@ Cameras upload images/videos to:
 You can:
 
 - Bring your own FTP server and point it at `/export/foscam`
-- Run the archived vsftpd container yourself from [`archive/vsftpd/`](archive/vsftpd/) — `vsftpd.conf`, `Dockerfile`, `docker-compose-wrapper.sh`, `install-systemd.sh`. It is not wired into any compose file, and the README in that directory still points at a `docker-compose.yml` that no longer exists.
+- Run the archived vsftpd container yourself from [`archive/vsftpd/`](archive/vsftpd/) — `vsftpd.conf`, `Dockerfile`, `docker-compose-wrapper.sh`, `install-systemd.sh`. It is not wired into any compose file.
 
 > [!NOTE]
 > In production containers, the host camera path is mounted to `/cameras` and the backend uses `FOSCAM_BASE_PATH=/cameras`.
@@ -525,15 +508,15 @@ You can:
 
 Common settings:
 
-| Variable                                 | Purpose                                 | Containerized deploy                                                                                                          |
-| ---------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `FOSCAM_BASE_PATH`                       | Camera upload directory (host path)     | Read from `.env` by compose (bind-mount source); inside the container it's forced to `/cameras`                               |
-| `YOLO26_URL`, `FLORENCE_URL`, `CLIP_URL` | AI gateway router endpoints (port 8090) | Compose hardcodes these to `http://ai-gateway:8090/<route>`; your `.env` values are ignored (host runs only)                  |
-| `NEMOTRON_URL`                           | Nemotron LLM endpoint (port 8091)       | Compose hardcodes `http://ai-llm:8091` (host runs only)                                                                       |
-| `RETENTION_DAYS`                         | Event retention (days; default 30)      | **Not passed to the backend container** — add an `environment:` entry or an override file, or edits silently keep the default |
-| `BATCH_WINDOW_SECONDS`                   | Detection batching window               | **Not passed to the backend container** — same caveat                                                                         |
-| `API_KEY_ENABLED`                        | Enable API key auth (off by default)    | **Not passed to the backend container** — same caveat                                                                         |
-| `FILE_WATCHER_POLLING`                   | Use polling (Docker mounts)             | Passed through by compose — the only knob here that works out of the box                                                      |
+| Variable                             | Purpose                                 | Containerized deploy                                                                                                          |
+| ------------------------------------ | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `FOSCAM_BASE_PATH`                   | Camera upload directory (host path)     | Read from `.env` by compose (bind-mount source); inside the container it's forced to `/cameras`                               |
+| `YOLO26_URL`, `ENRICHMENT_LIGHT_URL` | AI gateway router endpoints (port 8090) | Compose hardcodes these to `http://ai-gateway:8090/<route>`; your `.env` values are ignored (host runs only)                  |
+| `AI_VLM_URL`                         | VLM engine endpoint (port 8098)         | Compose hardcodes `http://ai-vlm:8098` (host runs only)                                                                       |
+| `RETENTION_DAYS`                     | Event retention (days; default 30)      | **Not passed to the backend container** — add an `environment:` entry or an override file, or edits silently keep the default |
+| `BATCH_WINDOW_SECONDS`               | Detection batching window               | **Not passed to the backend container** — same caveat                                                                         |
+| `API_KEY_ENABLED`                    | Enable API key auth (off by default)    | **Not passed to the backend container** — same caveat                                                                         |
+| `FILE_WATCHER_POLLING`               | Use polling (Docker mounts)             | Passed through by compose — the only knob here that works out of the box                                                      |
 
 > [!NOTE]
 > The prod compose file has **no** `env_file:` and mounts no `.env`, and `.dockerignore` excludes it —
@@ -580,7 +563,8 @@ Licensed under **Apache License 2.0**. See [LICENSE](LICENSE).
 ## Acknowledgments
 
 [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) ·
-[Nemotron](https://huggingface.co/nvidia) ·
+[Qwen3-VL](https://huggingface.co/Qwen) ·
 [llama.cpp](https://github.com/ggerganov/llama.cpp) ·
+[NVIDIA Triton](https://developer.nvidia.com/triton-inference-server) ·
 [FastAPI](https://fastapi.tiangolo.com/) ·
 [Tremor](https://www.tremor.so/)

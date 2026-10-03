@@ -10,8 +10,11 @@ Registering household members enables the system to:
 
 - **Recognize family members** - Identify known people across all cameras
 - **Suppress false alerts** - Avoid notifications for trusted individuals
-- **Track arrivals/departures** - Optional notifications when members come and go
 - **Link vehicles** - Associate vehicles with household members for plate recognition
+
+Each member carries two galleries: a face gallery (ArcFace vectors on the linked
+`KnownPerson`) and a person re-ID gallery (OSNet vectors on the member itself).
+Both are built from detections the server reads, described in Step 2.
 
 ---
 
@@ -60,11 +63,17 @@ Members represent people who should be recognized by the system.
 
 #### Trust Levels
 
-| Level     | Alert Behavior              | Use Case                          |
-| --------- | --------------------------- | --------------------------------- |
-| `full`    | No alerts triggered         | Family members always welcome     |
-| `partial` | Alerts outside schedule     | Service workers during work hours |
-| `monitor` | Logged but no notifications | Track activity without alerts     |
+| Level     | What the code does with it                                                         | Use Case                           |
+| --------- | ---------------------------------------------------------------------------------- | ---------------------------------- |
+| `full`    | A face match sets the entity to `trusted`; a trusted entity skips alert generation | Family members always welcome      |
+| `partial` | A face match leaves the entity's trust status unchanged                            | Service workers, still monitored   |
+| `monitor` | A face match sets the entity to `unknown` (logged, never treated as trusted)       | Track activity without suppression |
+
+`typical_schedule` is stored on the member and returned by the API, and nothing
+in the shipped evaluation path reads it — a `partial` member is not
+"alerts outside schedule". The trust mapping above lives in
+`backend/services/unified_embedding_service.py`, and the skip/escalate step that
+consumes the resulting status lives in `backend/services/alert_engine.py`.
 
 #### API Request
 
@@ -102,13 +111,14 @@ Content-Type: application/json
 }
 ```
 
-### Step 2: Add Face Embeddings (Optional)
+### Step 2: Enroll Embeddings (Optional)
 
-For face recognition to work, the system needs face embeddings for each member. Embeddings can be added from existing detection events.
+Recognition only works against a gallery, so each member needs samples stored
+before the system can recognise them. There are two galleries and the routes
+below fill them one at a time — the server computes every vector from an image
+it read itself, and stores the weights' `model_id` beside it.
 
-#### From Events (Recommended)
-
-When the system detects a person, you can link that detection to a household member:
+#### Person re-ID vector, from an event (member route)
 
 ```bash
 POST /api/household/members/{member_id}/embeddings
@@ -120,15 +130,33 @@ Content-Type: application/json
 }
 ```
 
+The route finds the event's first `person` detection, crops with its bounding
+box, and runs the resident OSNet-AIN x1.0 handle. If those weights are not
+resident (`BACKEND_MODEL_PRELOAD=false` on a sub-24GB host) the answer is **503
+naming the cause** — never a zero-vector stand-in.
+
+#### Face vectors, from a detection or an uploaded image (known-person routes)
+
+```bash
+POST /api/known-persons/{person_id}/enroll-from-detection
+POST /api/known-persons/bulk-enroll
+PATCH /api/household/members/{member_id}/link-person   # ties the two records together
+```
+
+`POST /api/known-persons/{person_id}/embeddings` — the route that accepted a
+client-computed vector — answers **410 Gone**. A vector the server did not
+compute carries no provenance, and the gallery's whole correctness rule is that
+every stored vector names its weights.
+
 #### Best Practices for Embeddings
 
-| Recommendation                   | Reason                        |
-| -------------------------------- | ----------------------------- |
-| Add 5+ embeddings per person     | Improves match accuracy       |
-| Use different camera angles      | Handles varying viewpoints    |
-| Include day and night images     | Accounts for lighting changes |
-| Add various expressions          | Recognizes different poses    |
-| Only use high-quality detections | Confidence > 0.8 recommended  |
+| Recommendation                   | Reason                                         |
+| -------------------------------- | ---------------------------------------------- |
+| Add 5+ samples per person        | A person is scored against the best single row |
+| Use different camera angles      | Handles varying viewpoints                     |
+| Include day and night images     | Accounts for lighting changes                  |
+| Add various expressions          | Recognizes different poses                     |
+| Only use high-quality detections | Confidence > 0.8 recommended                   |
 
 ### Step 3: Register Vehicles (Optional)
 
@@ -213,14 +241,15 @@ The vehicle workflow is identical to members:
 
 ### Household Members
 
-| Method | Endpoint                                 | Description        |
-| ------ | ---------------------------------------- | ------------------ |
-| GET    | `/api/household/members`                 | List all members   |
-| POST   | `/api/household/members`                 | Create new member  |
-| GET    | `/api/household/members/{id}`            | Get member details |
-| PATCH  | `/api/household/members/{id}`            | Update member      |
-| DELETE | `/api/household/members/{id}`            | Delete member      |
-| POST   | `/api/household/members/{id}/embeddings` | Add face embedding |
+| Method | Endpoint                                  | Description                                  |
+| ------ | ----------------------------------------- | -------------------------------------------- |
+| GET    | `/api/household/members`                  | List all members                             |
+| POST   | `/api/household/members`                  | Create new member                            |
+| GET    | `/api/household/members/{id}`             | Get member details                           |
+| PATCH  | `/api/household/members/{id}`             | Update member                                |
+| DELETE | `/api/household/members/{id}`             | Delete member                                |
+| PATCH  | `/api/household/members/{id}/link-person` | Link the member to a `KnownPerson` row       |
+| POST   | `/api/household/members/{id}/embeddings`  | Enroll the event's 512-d OSNet person vector |
 
 ### Registered Vehicles
 
@@ -234,19 +263,22 @@ The vehicle workflow is identical to members:
 
 ### Face Recognition (Advanced)
 
-| Method | Endpoint                                   | Description                         |
-| ------ | ------------------------------------------ | ----------------------------------- |
-| GET    | `/api/known-persons`                       | List known persons                  |
-| POST   | `/api/known-persons`                       | Create known person                 |
-| GET    | `/api/known-persons/{id}`                  | Get person details                  |
-| PATCH  | `/api/known-persons/{id}`                  | Update person                       |
-| DELETE | `/api/known-persons/{id}`                  | Delete person                       |
-| POST   | `/api/known-persons/{id}/embeddings`       | Add face embedding (512-dim vector) |
-| GET    | `/api/known-persons/{id}/embeddings`       | List embeddings                     |
-| DELETE | `/api/known-persons/{id}/embeddings/{eid}` | Delete embedding                    |
-| GET    | `/api/face-events`                         | List face detection events          |
-| GET    | `/api/face-events/unknown`                 | Get unknown stranger alerts         |
-| POST   | `/api/face-events/match`                   | Match face against known persons    |
+| Method | Endpoint                                        | Description                                     |
+| ------ | ----------------------------------------------- | ----------------------------------------------- |
+| GET    | `/api/known-persons`                            | List known persons (`household_only` filter)    |
+| POST   | `/api/known-persons`                            | Create known person                             |
+| GET    | `/api/known-persons/{id}`                       | Get person details                              |
+| PATCH  | `/api/known-persons/{id}`                       | Update person                                   |
+| DELETE | `/api/known-persons/{id}`                       | Delete person (cascades to its face embeddings) |
+| GET    | `/api/known-persons/{id}/embeddings`            | List face embeddings                            |
+| DELETE | `/api/known-persons/{id}/embeddings/{eid}`      | Delete one embedding                            |
+| POST   | `/api/known-persons/{id}/enroll-from-detection` | Compute + store a face vector from a detection  |
+| POST   | `/api/known-persons/bulk-enroll`                | Compute + store face vectors from an upload     |
+| GET    | `/api/face-events`                              | List face detection events                      |
+| GET    | `/api/face-events/unknown`                      | Unmatched faces                                 |
+| POST   | `/api/face-events/match`                        | Score a probe against the gallery               |
+| GET    | `/api/enrollment-queue`                         | Auto-enrollment candidates                      |
+| POST   | `/api/enrollment-queue/{id}/approve`            | Approve a candidate into the gallery            |
 
 ---
 
@@ -288,15 +320,16 @@ interface RegisteredVehicle {
 
 ### Trust Level Effects
 
-| Scenario                  | Full Trust            | Partial Trust       | Monitor           |
-| ------------------------- | --------------------- | ------------------- | ----------------- |
-| Detected at any time      | No alert              | Depends on schedule | Logged only       |
-| Detected outside schedule | No alert              | Alert generated     | Logged only       |
-| Vehicle detected          | No alert (if trusted) | Normal processing   | Normal processing |
+| Scenario                     | Full Trust                           | Partial Trust          | Monitor                              |
+| ---------------------------- | ------------------------------------ | ---------------------- | ------------------------------------ |
+| Face matched to this member  | Entity set `trusted` → alert skipped | Entity trust unchanged | Entity set `unknown` → still alerted |
+| No gallery match             | Entity stays untrusted; rules apply  | Same                   | Same                                 |
+| Vehicle with `trusted: true` | Matched vehicle is treated as known  | Normal processing      | Normal processing                    |
 
-### Schedule Configuration
+### Schedule Notes
 
-The `typical_schedule` field accepts a JSON object defining expected presence times:
+The `typical_schedule` field accepts a JSON object describing expected presence
+times and round-trips through the API unchanged:
 
 ```json
 {
@@ -307,7 +340,11 @@ The `typical_schedule` field accepts a JSON object defining expected presence ti
 }
 ```
 
-For `partial` trust members, detections outside scheduled times generate alerts.
+It is documentation you keep on the record — nothing in the shipped alert
+evaluation reads it. To alert on a member only during certain hours, put the
+hours in an alert rule's `schedule` condition instead
+(`_check_schedule()` in `backend/services/alert_engine.py` evaluates day names
+and time ranges against the event's timestamp).
 
 ---
 
@@ -333,15 +370,16 @@ For `partial` trust members, detections outside scheduled times generate alerts.
 
 **Possible Causes:**
 
-1. Trust level set to `monitor` (logs only, no suppression)
-2. Trust level set to `partial` with detection outside schedule
-3. Face match confidence below threshold
+1. Trust level set to `monitor` or `partial` (neither marks the entity trusted)
+2. Face match confidence below `FACE_MATCH_THRESHOLD`
+3. The face matched a `KnownPerson` that is not linked to a household member
 
 **Solutions:**
 
 1. Change trust level to `full` for complete suppression
-2. Adjust typical schedule to include current time
-3. Add more quality embeddings to improve matching
+2. Lower `FACE_MATCH_THRESHOLD` (adds false positives), or enroll more samples
+3. Link the known person to the member with
+   `PATCH /api/household/members/{id}/link-person`
 
 ### Vehicle Not Suppressing Alerts
 
@@ -370,9 +408,13 @@ For `partial` trust members, detections outside scheduled times generate alerts.
 The household member system integrates with the face recognition pipeline:
 
 1. **Detection** - YOLO26 detects persons in camera feed
-2. **Face Extraction** - YOLO11-face finds faces in person regions
-3. **Embedding** - CLIP generates 768-dim facial embeddings
-4. **Matching** - Embeddings compared against household members
+2. **Face Extraction** - SCRFD-10G-KPS finds faces on the key frames and
+   returns five landmarks per face
+3. **Embedding** - ArcFace `w600k_r50` embeds each aligned crop as a 512-d
+   face vector; OSNet-AIN x1.0 embeds the person crop as a separate 512-d
+   re-ID vector
+4. **Matching** - each vector is cosine-compared against its own gallery
+   (`face_embeddings` for faces, `person_embeddings` for members)
 5. **Alert Decision** - Trust level determines alert behavior
 
 ### Household Matching Flow

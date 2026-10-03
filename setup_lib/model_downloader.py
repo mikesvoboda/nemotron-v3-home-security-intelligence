@@ -96,15 +96,6 @@ def build_model_specs() -> list[ModelSpec]:
 
 # Core models required for the system to function
 REQUIRED_MODELS: list[ModelSpec] = [
-    # Nemotron LLM - risk reasoning (CRITICAL)
-    ModelSpec(
-        name="nemotron-3-nano-30b-a3b-q4km",
-        hf_repo="unsloth/Nemotron-3-Nano-30B-A3B-GGUF",
-        phase=0,
-        size_mb=15073,  # ~14.7GB
-        description="Nemotron-3-Nano-30B LLM for risk reasoning (Q4_K_M quantization)",
-        required=True,
-    ),
     # YOLO26 - primary object detection
     ModelSpec(
         name="yolo26",
@@ -112,24 +103,6 @@ REQUIRED_MODELS: list[ModelSpec] = [
         phase=0,
         size_mb=67,  # n/s/m combined
         description="YOLO26 object detection (n/s/m variants)",
-        required=True,
-    ),
-    # Florence-2-Base - vision-language model (used by ai-gateway)
-    ModelSpec(
-        name="florence-2-base",
-        hf_repo="microsoft/Florence-2-base",
-        phase=0,
-        size_mb=1024,  # ~1GB (base variant saves ~1.2GB VRAM vs large)
-        description="Florence-2-base vision-language model (ai-gateway)",
-        required=True,
-    ),
-    # SigLIP 2 Base - embeddings for re-identification (replaces CLIP ViT-L)
-    ModelSpec(
-        name="siglip2-base-patch16-224",
-        hf_repo="onnx-community/siglip2-base-patch16-224-ONNX",  # pragma: allowlist secret
-        phase=0,
-        size_mb=400,  # ~400MB (replaces CLIP ViT-L, saves ~1035MB VRAM)
-        description="SigLIP 2 Base embeddings for entity re-identification (ai-gateway)",
         required=True,
     ),
 ]
@@ -324,11 +297,6 @@ def check_model_exists(model_path: Path, model_name: str) -> bool:
     Returns:
         True if model directory exists and has model files.
     """
-    # Special handling for Nemotron (stored in different location)
-    if model_name == "nemotron-3-nano-30b-a3b-q4km":
-        nemotron_file = model_path / "nemotron" / model_name / "Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
-        return nemotron_file.exists()
-
     # Special handling for OSNet (specific .pth file required)
     if model_name == "osnet-ain-x1-0":
         osnet_file = model_path / "model-zoo" / model_name / "osnet_ain_x1_0_msmt17.pth"
@@ -607,11 +575,7 @@ def download_hf_model(model: ModelSpec, model_path: Path) -> bool:
         )
         return True  # Not an error - just skipped
 
-    # Special handling for Nemotron (different directory structure)
-    if model.name == "nemotron-3-nano-30b-a3b-q4km":
-        model_dir = model_path / "nemotron" / model.name
-    else:
-        model_dir = model_path / "model-zoo" / model.name
+    model_dir = model_path / "model-zoo" / model.name
 
     model_dir.mkdir(parents=True, exist_ok=True)
 

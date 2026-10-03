@@ -39,9 +39,10 @@ class ServiceConfig:
 
     name: str              # Service identifier
     health_url: str        # Health check endpoint
-    restart_cmd: str | None  # Restart command (None = disabled)
-    max_retries: int       # Max restart attempts
-    backoff_base: float    # Base delay for exponential backoff
+    restart_cmd: str | None = None  # Restart command (None = disabled)
+    health_timeout: float = 5.0     # Health check timeout (seconds)
+    max_retries: int = 3   # Max restart attempts
+    backoff_base: float = 5.0  # Base delay for exponential backoff
 ```
 
 ### ServiceHealthMonitor Constructor
@@ -353,6 +354,23 @@ class ServiceManager(ABC):
 | `ShellServiceManager`  | Shell commands | Development, systemd services       |
 | `DockerServiceManager` | Docker CLI     | Production Docker/Podman containers |
 
+### What the Shipped Boot Wires Up
+
+`build_ai_service_health_configs()` (`backend/main.py:671-729`) returns the
+monitor's service list, and the lifespan hands it to a `ServiceHealthMonitor`
+along with the manager that matches the deployment mode
+(`backend/main.py:1088-1116`). The list carries one entry, `yolo26`, whose
+`health_url` is the gateway's aggregated `/health` when
+`use_ai_gateway` is on.
+
+`ai-vlm` is deliberately not a `ServiceConfig`. A probe-poll of a sleeping
+llama.cpp conflates sleep with failure and its answer to a failure is a
+restart, so the verdict engine's health arrives by **breaker push** instead:
+the `VlmClient` calls `update_service_health()` on its `ai-vlm` circuit-breaker
+transitions (`backend/services/vlm_client.py:920-940`), and the service is
+registered on the `DegradationManager` at
+`backend/main.py:1132-1151` with a stub `health_check` that is never polled.
+
 ## Usage Example
 
 ```python
@@ -361,22 +379,16 @@ from backend.services.service_managers import (
     ServiceConfig,
     DockerServiceManager,
 )
-from backend.services.event_broadcaster import get_event_broadcaster
+from backend.services.event_broadcaster import get_broadcaster
 
 # Define services to monitor
 services = [
     ServiceConfig(
-        name="ai-gateway",  # serves yolo26/clip/florence/enrichment on :8090
-        health_url="http://localhost:8090/health",  # aggregated gateway health
-        restart_cmd="podman restart ai-gateway",
-        max_retries=5,
-        backoff_base=5.0,
-    ),
-    ServiceConfig(
-        name="nemotron",
-        health_url="http://localhost:8091/health",
-        restart_cmd="podman restart ai-llm",
-        max_retries=5,
+        name="yolo26",  # served inside ai-gateway on :8090 (/yolo26, /enrich-lt)
+        health_url="http://ai-gateway:8090/health",  # aggregated gateway health
+        restart_cmd="docker restart ai-gateway",
+        health_timeout=5.0,
+        max_retries=3,
         backoff_base=5.0,
     ),
     ServiceConfig(
@@ -390,7 +402,7 @@ services = [
 
 # Create monitor
 manager = DockerServiceManager()
-broadcaster = await get_event_broadcaster()
+broadcaster = await get_broadcaster(redis_client)  # RedisClient instance
 
 monitor = ServiceHealthMonitor(
     manager=manager,

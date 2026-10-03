@@ -9,8 +9,17 @@ This directory contains API governance documentation including deprecation polic
 ```
 docs/api/
   AGENTS.md                    # This file - directory guide
+  DEPRECATION_POLICY.md        # Deprecation timeline, headers, tombstones, migration template
+  analytics-endpoints.md       # /api/analytics reference + baseline configuration routes
   migrations/                  # Migration guides for deprecated endpoints
 ```
+
+## Files
+
+| File                     | Purpose                                                      |
+| ------------------------ | ------------------------------------------------------------ |
+| `DEPRECATION_POLICY.md`  | How to deprecate an endpoint, and what the backend enforces  |
+| `analytics-endpoints.md` | Analytics API plus the per-camera baseline configuration API |
 
 ## Key Directories
 

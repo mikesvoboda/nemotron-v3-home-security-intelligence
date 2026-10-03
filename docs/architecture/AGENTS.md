@@ -12,8 +12,8 @@ architecture/
   README.md         # Hub documentation with navigation
   STANDARDS.md      # Documentation standards and formatting rules
   overview.md       # High-level system architecture
-  ai-pipeline.md    # AI processing pipeline details
-  data-model.md     # Database schema and data flow (legacy reference)
+  ai-pipeline-current-state.md  # CANONICAL: the pipeline that runs today
+  data-model.md     # Database schema and data flow
   decisions.md      # Architectural decisions and rationale
   frontend-hooks.md # Frontend React hooks architecture
   real-time.md      # WebSocket channels, Redis pub/sub, event broadcasting
@@ -72,21 +72,22 @@ architecture/
 
 **When to use:** Understanding overall system design, onboarding new developers, making architectural decisions.
 
-### ai-pipeline.md
+### ai-pipeline-current-state.md
 
-**Purpose:** Detailed documentation of the AI processing pipeline.
+**Purpose:** The AI pipeline as it actually runs. Written from measured code, with `file:line`
+pins and `[V]`/`[A]` markers.
 
 **Topics Covered:**
 
-- FileWatcher service and debouncing
-- YOLO26 object detection integration
-- Batch aggregator timing and logic
-- Nemotron LLM risk analysis
-- Fast path vs normal path processing
-- Queue management (detection_queue, analysis_queue)
-- Error handling and retry strategies
+- The live hop-by-hop path (FileWatcher → Redis Streams → `/yolo26` → BatchAggregator → VlmAnalyzer
+  → the three in-process specialist legs → ai-vlm → Event)
+- Silent-failure surfaces (text-only VLM passing health, profile-less restart dropping `ai-vlm`,
+  specialist legs degraded to "unavailable", alerts that never auto-create)
+- What the verdict fills, and which event fields stay NULL
+- Orphaned Triton specialists, the eval gap, and the gate inventory
 
-**When to use:** Implementing or debugging AI pipeline features, understanding detection-to-event flow.
+**When to use:** Any question of the form "is X running?", "why did nothing happen?", or before
+deleting anything AI-shaped.
 
 ### data-model.md
 
@@ -264,7 +265,7 @@ FileWatcher --> detection_queue --> DetectionWorker --> YOLO26
 
 ### Working on AI Features
 
-1. Read `ai-pipeline.md` for processing flow details
+1. Read `ai-pipeline-current-state.md` for what runs today
 2. Read `ai-orchestration/README.md` for model inventory and VRAM allocation
 3. Understand batch aggregation timing
 4. Review fast path logic for critical detections

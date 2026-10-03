@@ -8,7 +8,6 @@ This directory contains tests for AI model utilities.
 | -------------------------------- | ---------------------------------------------- |
 | `test_compile_utils.py`          | Tests for torch.compile() utilities (NEM-3370) |
 | `test_batch_utils.py`            | Tests for batch inference utilities (NEM-3372) |
-| `test_cpu_offloading.py`         | Tests for CPU offloading utilities             |
 | `test_cuda_graph_manager.py`     | Tests for CUDA graph management                |
 | `test_flash_attention_config.py` | Tests for FlashAttention configuration         |
 | `test_gpu_memory_pool.py`        | Tests for GPU memory pool management           |

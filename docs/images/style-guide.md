@@ -1,6 +1,6 @@
 # Visual Style Guide for Documentation Diagrams
 
-This style guide ensures visual consistency across all documentation diagrams for the Nemotron Home Security Intelligence system.
+This style guide ensures visual consistency across all documentation diagrams for the Home Security Intelligence system.
 
 ---
 
@@ -99,12 +99,13 @@ node [shape=box, style="filled,rounded", fillcolor="#3B82F6",
 ```
 
 **Subcategories:**
-| Component | Modifier | Example Labels |
-| ------------------ | --------------------------- | --------------------------------- |
-| Page Component | Larger size, bold text | `Dashboard`, `Timeline` |
-| UI Component | Standard size | `RiskGauge`, `CameraGrid` |
-| Hook | Italic text | `useEvents`, `useWebSocket` |
-| Context/Provider | Dashed border | `EventContext`, `AuthProvider` |
+
+| Component        | Modifier               | Example Labels                 |
+| ---------------- | ---------------------- | ------------------------------ |
+| Page Component   | Larger size, bold text | `Dashboard`, `Timeline`        |
+| UI Component     | Standard size          | `RiskGauge`, `CameraGrid`      |
+| Hook             | Italic text            | `useEvents`, `useWebSocket`    |
+| Context/Provider | Dashed border          | `EventContext`, `AuthProvider` |
 
 ### Backend Services (Python FastAPI)
 
@@ -124,12 +125,13 @@ node [shape=box, style="filled", fillcolor="#009688",
 ```
 
 **Subcategories:**
-| Component | Modifier | Example Labels |
-| ------------------ | --------------------------- | --------------------------------- |
-| API Router | Standard rectangle | `/api/events`, `/api/cameras` |
-| Service Layer | Double border | `EventService`, `DetectionService`|
-| Background Task | Dashed fill pattern | `BatchAggregator`, `CleanupJob` |
-| Middleware | Hexagon shape | `RateLimiter`, `CORSMiddleware` |
+
+| Component       | Modifier            | Example Labels                     |
+| --------------- | ------------------- | ---------------------------------- |
+| API Router      | Standard rectangle  | `/api/events`, `/api/cameras`      |
+| Service Layer   | Double border       | `EventService`, `DetectionService` |
+| Background Task | Dashed fill pattern | `BatchAggregator`, `CleanupJob`    |
+| Middleware      | Hexagon shape       | `RateLimiter`, `CORSMiddleware`    |
 
 ### Databases (PostgreSQL, SQLite)
 
@@ -183,11 +185,11 @@ node [shape=octagon, style="filled", fillcolor="#A855F7",
 ```
 
 **Specific Models:**
-| Model | Additional Styling | Label Format |
-| ------------------ | --------------------------- | --------------------------------- |
-| YOLO26 | Green accent glow | `YOLO26\nObject Detection` |
-| Florence-2 | Blue accent glow | `Florence-2\nImage Captioning` |
-| Nemotron | Purple accent glow | `Nemotron\nRisk Reasoning` |
+
+| Model    | Additional Styling | Label Format               |
+| -------- | ------------------ | -------------------------- |
+| YOLO26   | Green accent glow  | `YOLO26\nObject Detection` |
+| `ai-vlm` | Purple accent glow | `ai-vlm\nRisk Verdict`     |
 
 ### External Systems
 
@@ -207,12 +209,13 @@ node [shape=cloud, style="filled,dashed", fillcolor="#64748B",
 ```
 
 **Subcategories:**
-| System | Shape | Example Labels |
-| ------------------ | --------------------------- | --------------------------------- |
-| Camera/IoT | House shape | `Foscam Camera`, `FTP Server` |
-| Filesystem | Folder shape | `/export/foscam/`, `Media Storage`|
-| External API | Cloud shape | `SMTP Server`, `Webhook Endpoint` |
-| Browser/Client | Monitor/screen shape | `Web Browser`, `Mobile App` |
+
+| System         | Shape                | Example Labels                     |
+| -------------- | -------------------- | ---------------------------------- |
+| Camera/IoT     | House shape          | `Foscam Camera`, `FTP Server`      |
+| Filesystem     | Folder shape         | `/export/foscam/`, `Media Storage` |
+| External API   | Cloud shape          | `SMTP Server`, `Webhook Endpoint`  |
+| Browser/Client | Monitor/screen shape | `Web Browser`, `Mobile App`        |
 
 ### Queues and Message Passing
 
@@ -232,11 +235,12 @@ node [shape=parallelogram, style="filled", fillcolor="#F97316",
 ```
 
 **Queue Types:**
-| Queue Type | Modifier | Example Labels |
-| ------------------ | --------------------------- | --------------------------------- |
-| Redis Queue | Red tint | `Detection Queue`, `Event Queue` |
-| In-memory Queue | Gray tint | `Batch Buffer`, `Pending Tasks` |
-| Dead Letter Queue | Error red | `DLQ`, `Failed Events` |
+
+| Queue Type        | Modifier  | Example Labels                   |
+| ----------------- | --------- | -------------------------------- |
+| Redis Queue       | Red tint  | `Detection Queue`, `Event Queue` |
+| In-memory Queue   | Gray tint | `Batch Buffer`, `Pending Tasks`  |
+| Dead Letter Queue | Error red | `DLQ`, `Failed Events`           |
 
 ### Container/Infrastructure
 
@@ -417,14 +421,12 @@ A -> B [label="success"];
 ### Label Guidelines
 
 1. **Node Labels:**
-
    - Use title case for component names: `Event Service`
    - Use monospace for technical identifiers: `/api/events`
    - Keep labels concise (max 3 lines)
    - Format multiline labels with `\n`
 
 2. **Edge Labels:**
-
    - Use lowercase for actions: `fetch`, `query`
    - Use UPPERCASE for protocols: `HTTP`, `WS`
    - Keep to 1-2 words when possible
@@ -705,7 +707,7 @@ digraph SystemArchitecture {
         fontcolor="#A855F7";
 
         YOLO26 [label="YOLO26\nDetection", fillcolor="#A855F7", shape=octagon];
-        NEMOTRON [label="Nemotron\nReasoning", fillcolor="#A855F7", shape=octagon];
+        VLM [label="ai-vlm\nRisk Verdict", fillcolor="#A855F7", shape=octagon];
     }
 
     // Data
@@ -717,7 +719,7 @@ digraph SystemArchitecture {
     FASTAPI -> POSTGRES [label="SQL"];
     FASTAPI -> REDIS [label="Cache"];
     FASTAPI -> YOLO26 [label="Inference", style="dashed", color="#A855F7"];
-    YOLO26 -> NEMOTRON [label="Detections", style="dashed", color="#A855F7"];
+    FASTAPI -> VLM [label="Verdict request", style="dashed", color="#A855F7"];
 }
 ```
 
@@ -729,14 +731,14 @@ sequenceDiagram
     participant C as Camera
     participant B as Backend
     participant D as YOLO26
-    participant N as Nemotron
+    participant N as ai-vlm
     participant W as WebSocket
 
     C->>B: FTP Upload (image)
     B->>D: Process image
     D-->>B: Detections
-    B->>N: Analyze risk
-    N-->>B: Risk score + reasoning
+    B->>N: Analyze batch (stills + lookups)
+    N-->>B: Risk score + summary
     B->>W: Broadcast event
     W-->>B: Acknowledge
 ```
@@ -811,4 +813,4 @@ For critical distinctions, pair colors with patterns or shapes:
 - [AGENTS.md](./AGENTS.md) - Image directory navigation
 - [SCREENSHOT_GUIDE.md](./SCREENSHOT_GUIDE.md) - Screenshot capture instructions
 - [Architecture Overview](../architecture/overview.md) - System architecture docs
-- [AI Pipeline](../architecture/ai-pipeline.md) - AI pipeline documentation
+- [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md) - AI pipeline documentation

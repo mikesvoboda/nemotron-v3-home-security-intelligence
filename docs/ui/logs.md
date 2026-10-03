@@ -47,7 +47,7 @@ The page embeds the HSI System Logs dashboard from Grafana, which provides:
 The centralized logging system collects logs from:
 
 - **Backend API services** - API route handlers, authentication, and request processing
-- **AI detection pipeline** - YOLO26 detection, Nemotron risk analysis, batch aggregation
+- **AI detection pipeline** - YOLO26 detection in `ai-gateway`, VLM risk analysis in `ai-vlm`, batch aggregation and the lookup legs in `backend`
 - **File watcher** - Camera FTP uploads and image processing
 - **WebSocket events** - Real-time connection status and broadcast messages
 - **Cleanup services** - Data retention and file management
@@ -78,22 +78,27 @@ Logs are categorized by severity level:
 
 Loki uses LogQL, a query language similar to PromQL. Common query patterns:
 
+Log streams carry a `container` label (the compose service name — `backend`, `ai-gateway`,
+`ai-vlm`, `frontend`, `postgres`, …), a `job="podman-containers"` label that Alloy stamps on every
+stream, and a `level` label extracted from the log line. See
+[Log labels](#log-labels) for the full set.
+
 **Basic filtering:**
 
 ```logql
-{job="hsi-backend"} |= "error"
+{container="backend"} |= "error"
 ```
 
 **Filter by log level:**
 
 ```logql
-{job="hsi-backend"} | json | level="ERROR"
+{container="backend"} | json | level="ERROR"
 ```
 
 **Search across all services:**
 
 ```logql
-{namespace="hsi"} |~ "(?i)detection"
+{job="podman-containers"} |~ "(?i)detection"
 ```
 
 **Common LogQL Operators:**
@@ -105,19 +110,37 @@ Loki uses LogQL, a query language similar to PromQL. Common query patterns:
 | `!=`     | Does not contain     | `!= "health"`           |
 | `!~`     | Does not match regex | `!~ "debug"`            |
 
+### Log labels
+
+Labels come from `monitoring/alloy/config.alloy`, which discovers containers over the Podman
+socket, relabels `__meta_docker_container_name` to `container`, and adds `job="podman-containers"`
+to every stream. The dashboard's **Component** filter is a `label_values(container)` variable, so
+it lists container names, not job names.
+
+| Label              | Source                                                             | Example values                                        |
+| ------------------ | ------------------------------------------------------------------ | ----------------------------------------------------- |
+| `container`        | Compose service name (Alloy normalises `<project>-<svc>-<n>` form) | `backend`, `ai-gateway`, `ai-vlm`, `frontend`, `loki` |
+| `job`              | Static label Alloy applies to all container logs                   | `podman-containers`                                   |
+| `level`            | Regex stage over the log line                                      | `INFO`, `WARNING`, `ERROR`, `CRITICAL`                |
+| `image`            | Container image name                                               | —                                                     |
+| `namespace`, `pod` | Kubernetes-style labels for hosts that have them                   | usually empty in a Podman/compose deployment          |
+
+`trace_id`, `span_id`, `batch_id`, `duration_ms` and `camera` are extracted from log lines but kept
+out of the label set (high cardinality) — query them with `| json` / `| logfmt`, not as selectors.
+
 ## Common Use Cases
 
 ### Troubleshooting a Specific Issue
 
 1. Click **Open in Explore** to access the full LogQL interface
-2. Use a query like `{job="hsi-backend"} |= "error" | json | line_format "{{.message}}"`
+2. Use a query like `{container="backend"} |= "error" | json | line_format "{{.message}}"`
 3. Adjust the time range to cover when the issue occurred
 4. Review matching log entries and their context
 
 ### Monitoring a Specific Service
 
 1. In the embedded dashboard, use the component/job filter dropdown
-2. Select the service you want to monitor (e.g., `hsi-yolo26`, `hsi-nemotron`)
+2. Select the container you want to monitor (e.g., `backend`, `ai-gateway`, `ai-vlm`)
 3. Optionally filter by log level to focus on warnings and errors
 
 ### Real-time Log Streaming
@@ -131,13 +154,13 @@ Loki uses LogQL, a query language similar to PromQL. Common query patterns:
 Use LogQL to filter by camera:
 
 ```logql
-{job="hsi-backend"} | json | camera_id="front_door"
+{container="backend"} | json | camera_id="front_door"
 ```
 
 ### Investigating High Error Rates
 
 1. Click **Open in Explore**
-2. Query error logs: `{namespace="hsi"} | json | level="ERROR"`
+2. Query error logs: `{} | json | level="ERROR"` (or scope it: `{container="backend"} | json | level="ERROR"`)
 3. Use the log visualization to see error distribution over time
 4. Drill into specific time periods with high error counts
 
@@ -193,7 +216,7 @@ Log data retention is configured in Loki:
 
 ### Logs are Missing from a Service
 
-1. **Check service labels**: Ensure the service has proper job/namespace labels
+1. **Check the container name**: Alloy labels streams by container name, so a service that is running but absent from the filter usually means the Podman socket is unreachable or the container name does not match the compose service
 2. **Verify Alloy configuration**: Check that the service logs are being scraped
 3. **Check log format**: Ensure logs are in a format Loki can parse
 
@@ -225,9 +248,9 @@ The frontend couldn't fetch the Grafana URL from the backend:
 ```mermaid
 flowchart LR
     subgraph Services["Logging Services"]
-        B[Backend]
-        R[YOLO26]
-        N[Nemotron]
+        B[backend]
+        GW[ai-gateway]
+        V[ai-vlm]
     end
 
     subgraph Collection["Log Collection"]
@@ -241,8 +264,8 @@ flowchart LR
     end
 
     B -->|stdout/stderr| A
-    R -->|stdout/stderr| A
-    N -->|stdout/stderr| A
+    GW -->|stdout/stderr| A
+    V -->|stdout/stderr| A
     A -->|push| L
     L -->|query| G
     G -->|iframe| F
@@ -317,7 +340,7 @@ Correlate logs with continuous profiling data:
 Investigate security events through their logs:
 
 1. Note the Event ID from the [Timeline](timeline.md)
-2. Use LogQL to search: `{job="hsi-backend"} |= "event_id=123"`
+2. Use LogQL to search: `{container="backend"} |= "event_id=123"`
 3. Review the processing logs for that event
 
 ---
@@ -329,16 +352,16 @@ Investigate security events through their logs:
 | Scenario                 | Query Approach                       |
 | ------------------------ | ------------------------------------ |
 | Debugging errors         | Filter by level=ERROR                |
-| Service health           | Filter by job/service                |
+| Service health           | Filter by container                  |
 | Specific event           | Search by event ID or correlation ID |
 | Time-based investigation | Set time range, scan chronologically |
 
 ### Common Actions
 
-| I want to...          | Do this...                                   |
-| --------------------- | -------------------------------------------- |
-| See all errors        | `{namespace="hsi"} \| json \| level="ERROR"` |
-| Filter by service     | Use job dropdown in dashboard                |
-| Advanced queries      | Click "Open in Explore"                      |
-| Full Grafana features | Click "Open in Grafana"                      |
-| Refresh view          | Click the Refresh button                     |
+| I want to...          | Do this...                             |
+| --------------------- | -------------------------------------- |
+| See all errors        | `{} \| json \| level="ERROR"`          |
+| Filter by service     | Use the component (container) dropdown |
+| Advanced queries      | Click "Open in Explore"                |
+| Full Grafana features | Click "Open in Grafana"                |
+| Refresh view          | Click the Refresh button               |

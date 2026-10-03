@@ -4,7 +4,7 @@
 
 **Target Audiences:** Developers, Operators, ML Engineers
 
-> **Deployment topology:** In production (`docker-compose.prod.yml`) the shipped AI surface is two services: **ai-gateway** — Triton + FastAPI on port **8090**, mounting exactly two routers, `/yolo26` and `/enrich-lt` (`ai/gateway/main.py`) — and **ai-vlm** (llama.cpp) on container port **8098**, behind the `vlm` compose profile. The models the backend loads in-process come from `models.yml` via `backend/services/model_zoo.py`. R8 slices S2/S3 (2026-09-29) retired everything else on this surface: the legacy `ai-llm` LLM container, the `/florence` `/clip` `/enrichment` routers, and the standalone `ai-florence` :8092 / `ai-clip` :8093 / `ai-enrichment` :8094 / `ai-enrichment-light` :8096 servers — `ai/florence/`, `ai/clip/`, `ai/enrichment/` and `ai/enrichment-light/` are gone from the tree, and so are their Dockerfiles. The standalone YOLO26 server was retired earlier (2026-09-23): `ai/yolo26/model.py` still runs as a host-side debug server (`ai/start_detector.sh`), but its GPU image lives at `archive/ai-yolo26-image/` and production detection is Triton inside ai-gateway.
+> **Deployment topology:** In production (`docker-compose.prod.yml`) the AI surface is two services: **ai-gateway** — Triton + FastAPI on port **8090**, mounting exactly two routers, `/yolo26` and `/enrich-lt` (`ai/gateway/main.py`) — and **ai-vlm** (llama.cpp) on container port **8098**, behind the `vlm` compose profile. Triton's model repository (`ai/triton/model_repository/`) holds `yolo26`, `reid` and `threat`, and `GATEWAY_MODEL_SET` decides which of them load. Everything else the backend uses is loaded in-process from `models.yml` via `backend/services/model_zoo.py`. `ai/yolo26/model.py` is a host-side debug server for the detector (`ai/start_detector.sh`) whose GPU image lives at `archive/ai-yolo26-image/`; production detection is Triton inside ai-gateway.
 
 ---
 
@@ -28,8 +28,6 @@ Service column: **ai-vlm** = llama.cpp container :8098 (compose profile `vlm`) �
 
 The reasoning engine's model identity is config, not a fact of this document — see [Serving VLM](#serving-vlm-the-ai-vlm-llamacpp-engine).
 
-> **Retired — R8 slices S2/S3, 2026-09-29.** The model rows this table used to carry for Nemotron-3-Nano-30B-A3B, Nemotron Mini 4B, Florence-2, CLIP ViT-L, SigLIP 2 Base, FashionSigLIP, the vehicle/pet/weather/violence classifiers, Depth Anything V2, ViTPose+, YOLOv8n Pose, ST-GCN++, X-CLIP, YOLO-World-S, SegFormer B2 Clothes, Smoke/Fire YOLOv8n, BRISQUE, Vehicle Damage Detection and the ViT age/gender classifiers are **deleted from `models.yml`** (owner rulings 1/4/5, 2026-09-29: deleted, not flipped to `enabled: false`). Their loaders are gone from `backend/services/`, their Triton model directories are pruned from `ai/triton/model_repository/` — which now holds `yolo26`, `reid`, `threat` and nothing else — and `GATEWAY_MODEL_SET` hard-raises, so no deployment can boot them. Provenance is git history plus the ledger; the rows are not coming back. The face/re-ID/plate lookups above stay deliberately: the VLM path keeps lookups, not perception.
-
 ---
 
 ## Core Models
@@ -38,15 +36,15 @@ The reasoning engine's model identity is config, not a fact of this document —
 
 Real-time object detection using CNN architecture optimized for speed with TensorRT FP16 inference.
 
-| Specification      | Value                                                                                                                                                                                                                                                                                         |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Source**         | [Ultralytics](https://github.com/ultralytics/ultralytics)                                                                                                                                                                                                                                     |
-| **Architecture**   | YOLO26 (CNN-based, NMS-free)                                                                                                                                                                                                                                                                  |
-| **Training Data**  | COCO                                                                                                                                                                                                                                                                                          |
-| **VRAM Required**  | ~0.1 GB (TensorRT FP16)                                                                                                                                                                                                                                                                       |
-| **Port**           | 8095 (standalone server, dev) — production reaches it via ai-gateway `:8090/yolo26`                                                                                                                                                                                                           |
-| **Inference Time** | 10-20ms per image FP16 (5-10ms INT8) on RTX A5500 with TensorRT — per the archived server README (`archive/ai-yolo26-image/README.md`; GPU image retired 2026-09-23). Production runs FP32 ONNX under Triton (ONNX Runtime CUDA EP), which is slower per frame than the TensorRT numbers here |
-| **Framework**      | Ultralytics + TensorRT                                                                                                                                                                                                                                                                        |
+| Specification      | Value                                                                                                                                                                                                                                                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Source**         | [Ultralytics](https://github.com/ultralytics/ultralytics)                                                                                                                                                                                                       |
+| **Architecture**   | YOLO26 (CNN-based, NMS-free)                                                                                                                                                                                                                                    |
+| **Training Data**  | COCO                                                                                                                                                                                                                                                            |
+| **VRAM Required**  | ~0.1 GB (TensorRT FP16)                                                                                                                                                                                                                                         |
+| **Port**           | 8095 (standalone server, dev) — production reaches it via ai-gateway `:8090/yolo26`                                                                                                                                                                             |
+| **Inference Time** | 10-20ms per image FP16 (5-10ms INT8) on RTX A5500 with TensorRT — per the archived server README (`archive/ai-yolo26-image/README.md`). Production runs FP32 ONNX under Triton (ONNX Runtime CUDA EP), which is slower per frame than the TensorRT numbers here |
+| **Framework**      | Ultralytics + TensorRT                                                                                                                                                                                                                                          |
 
 **Model Variants:**
 
@@ -96,7 +94,7 @@ SECURITY_CLASSES = {
 
 ### Serving VLM: the `ai-vlm` llama.cpp engine
 
-Risk reasoning in the shipped pipeline is the `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29). Because identity is config, this entry documents the **serve**; the weight names below are the compose/`.env.example` defaults, not a claim that this model is required.
+Risk reasoning in the shipped pipeline is the `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is config, ledger D5). Because identity is config, this entry documents the **serve**; the weight names below are the compose/`.env.example` defaults, not a claim that this model is required.
 
 | Specification     | Value                                                                                                                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -117,39 +115,9 @@ reading is a GB300 single-container floor and is not transferable. For residency
 
 ---
 
-> **Retired — R8 slices S1/S2/S3, 2026-09-29.** This section used to carry spec tables for
-> **Nemotron-3-Nano-30B-A3B** (the production LLM), **Nemotron Mini 4B Instruct** (the dev LLM) and
-> **Qwen3-VL-8B-Instruct** as a named serving model. All three are gone as deployables: the
-> `ai-llm` compose service, the `nemotron_analyzer` service, its `Settings` fields, the
-> `ai/nemotron/` serving tree and the Nemotron `models.yml` rows are deleted; `pipeline_mode` set to
-> `legacy` hard-raises (`backend/core/config.py` — only `vlm` is supported); and the VLM's weight
-> identity moved to config (the paragraph above). The names survive only where they are wire
-> shapes or opt-in tooling, and those are **not** stale: the `ai-llm-vllm` compose service (the
-> vLLM benchmarking harness behind `--profile vllm`, refused by `RETIRED_LLM_SERVICES`), the
-> `NemotronMetrics` / `PerformanceUpdate.nemotron` / `collect_nemotron_metrics` API shapes the
-> frontend consumes, and the repository name. Nothing in the shipped pipeline dials port 8091, and
-> `ai/start_llm.sh` / `ai/start_nemotron.sh` no longer exist (`ai/start_detector.sh` is the only
-> script left).
+## Lookup and Enrichment-Lane Models
 
----
-
-## Enrichment Models
-
-> **Retired — R8 slice S3, 2026-09-29.** This section documented the enrichment zoo: Florence-2
-> (dense captioning/OCR), CLIP ViT-L and SigLIP 2 Base (embeddings), FashionSigLIP (clothing),
-> the vehicle classifier, pet classifier, Depth Anything V2, ViTPose+, YOLO-World-S, violence and
-> weather classifiers, SegFormer B2 Clothes, ST-GCN++ / X-CLIP action recognition, Smoke/Fire
-> YOLOv8n, BRISQUE quality, vehicle-damage segmentation and the ViT age/gender classifiers. Every
-> one of those rows is deleted from `models.yml`, its `backend/services/*_loader.py` is deleted,
-> and its Triton model is pruned from the gateway repository. The serving routes are gone too:
-> the gateway mounts `/yolo26` and `/enrich-lt` only, `/florence` `/clip` `/enrichment` are not
-> mounted, and the `FLORENCE_URL` / `CLIP_URL` / `ENRICHMENT_URL` settings and compose injections
-> were removed with them. Anomaly detection is not an embedding feature: activity baselines are
-> COUNT-based EWMA per camera/zone/hour (`backend/models/baseline.py`,
-> `backend/services/zone_baseline_service.py`). What remains under `/enrich-lt` is its two
-> routes — `/threat-detect` and `/person-reid` (`ai/gateway/adapters/enrichment_light.py`) — and
-> the DB-lookup models below, which stay by owner ruling (the VLM path keeps lookups, not
-> perception).
+These are the models behind the gateway's `/enrich-lt` routes and the backend's in-process lookups. Each one answers a lookup — an embedding, a box, a plate string — against your own registrations; none of them grades risk.
 
 ### Threat Detection YOLOv8n
 
@@ -171,8 +139,8 @@ THREAT_CLASSES = ["knife", "pistol", "rifle", "threat_object"]
 
 **Purpose in Pipeline:**
 
-- Detect weapons on full frame when suspicious activity detected
-- Trigger immediate critical-priority alerts
+- Detect weapons on full frame when suspicious activity is detected
+- Feed the weapon line into the batch's specialist text (see the note below on what the verdict reads)
 - Triton `threat` runs at instance priority 1 (high)
 
 > **Served, but out of the VLM prompt.** The `/enrich-lt` router always mounts `/threat-detect`,
@@ -202,8 +170,7 @@ Lightweight model for generating person embeddings for cross-camera tracking.
 **Purpose in Pipeline:**
 
 - Generate 512-dimensional embeddings for person tracking — the **one** person re-ID vector
-  space. CLIP/SigLIP no longer produces person vectors (full swap, ledger item 20: "ignore
-  previous architecture. we do not have to support backwards compatability.")
+  space, `osnet-ain-x1-0` throughout (ledger item 20)
 - Match individuals across multiple cameras
 - Enable temporal tracking of persons throughout property
 
@@ -233,9 +200,10 @@ is a named follow-up.
 ```
 
 Stored under Redis key `entity_embeddings:{model_id}:{date}` — the model_id partition is the
-guard that keeps two spaces from ever being compared. `reid_similarity_threshold` now defaults
-to **0.7** (OSNet-space value; the CLIP-tuned 0.85 would drop every legitimate match), still
-provisional pending calibration against real household galleries.
+guard that keeps two spaces from ever being compared. `reid_similarity_threshold` is **0.7**
+(`backend/core/config.py`, allowed range 0.5-1.0) — the value that fits the `osnet-ain-x1-0`
+cosine distribution — and is still PROVISIONAL pending calibration against real household
+galleries.
 
 ---
 
@@ -317,7 +285,7 @@ key frames and then does the household-vehicle lookup. The `[alpr]` extra is opt
 package is absent (sandbox/CI) `fast_alpr_loader` raises and the specialist line reads
 "unavailable", never a false "0 plates".
 
-`models.yml` describes PaddleOCR as "superseded by fast-alpr for license plates"; PaddleOCR remains enabled for general sign/package text.
+`models.yml` scopes PaddleOCR to general sign and package text; license plates go through `fast-alpr`.
 
 ---
 
@@ -333,8 +301,8 @@ Optical Character Recognition for extracting text from signs and packages.
 | **Port**          | backend (`model_zoo`, on-demand)                              |
 | **Framework**     | PaddlePaddle                                                  |
 
-**Note:** Optional dependency. OCR features disabled if PaddlePaddle not installed. For license
-plates, FastALPR superseded it.
+**Note:** Optional dependency — the OCR features are absent when PaddlePaddle is not
+installed. `fast-alpr` handles license plates; PaddleOCR reads general sign and package text.
 
 ---
 
@@ -490,14 +458,6 @@ Backend model-zoo paths resolve as `MODEL_ZOO_PATH` (default `/models/model-zoo`
 | `VLM_PARALLEL`          | `2`                                                                                     | `${VLM_PARALLEL:-2}`                               | llama.cpp slots (per-slot = ctx ÷ parallel)                                         |
 | `BACKEND_MODEL_PRELOAD` | `false`                                                                                 | per-host (true when the GPU has ≥ 24 GB)           | Boot sweep for `preload: true` rows                                                 |
 
-> **Retired — R8 slices S2/S3, 2026-09-29.** `NEMOTRON_URL`, `LLM_MODEL_PATH`,
-> `NEMOTRON_GGUF_PATH`, `NEMOTRON_API_KEY`, `FLORENCE_URL` / `FLORENCE_MODEL_PATH`, `CLIP_URL` /
-> `CLIP_MODEL_PATH`, `ENRICHMENT_URL`, `CLOTHING_MODEL_PATH`, `VEHICLE_MODEL_PATH`,
-> `PET_MODEL_PATH`, `DEPTH_MODEL_PATH` and `POSE_MODEL_PATH` are no longer read by any `Settings`
-> field or shipped service. `.env.example` says so where the three gateway routes used to be, and a
-> test pins that `FLORENCE_URL=`, `CLIP_URL=` and `ENRICHMENT_URL=` are not injected by any compose
-> file. Setting one is inert, not a way to bring a model back.
-
 ---
 
 ## Architecture Overview
@@ -537,14 +497,14 @@ flowchart TD
 3. **Lookups** (backend model_zoo): Face recognition against the enrolled gallery, plate detection and ALPR/OCR text
 4. **Reasoning** (`ai-vlm` :8098): The llama.cpp engine grades the batch and generates risk scores and summaries
 
-The retired chain — Florence-2 captioning, CLIP/SigLIP embeddings and the Nemotron scoring pass —
-is gone from all four steps.
+Each step reads only the outputs of the steps above it: the verdict is built from the detections,
+the specialist lookups and the key frames, and nothing else is consulted.
 
 ---
 
 ## Related Documentation
 
-- [AI Pipeline Architecture](../architecture/ai-pipeline.md)
+- [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md)
 - [AI Services Guide](../../ai/AGENTS.md)
 - [AI Gateway](../../ai/gateway/AGENTS.md)
 - [Triton Model Repository](../../ai/triton/AGENTS.md)

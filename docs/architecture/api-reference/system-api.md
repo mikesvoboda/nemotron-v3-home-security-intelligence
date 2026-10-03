@@ -24,14 +24,14 @@ GET /api/system/health
 
 Get detailed system health check including database, Redis, and AI services.
 
-**Source:** `backend/api/routes/system.py:1260-1431`
+**Source:** `backend/api/routes/system.py:1248-1418`
 
 #### Response Caching
 
 Results are cached for `HEALTH_CACHE_TTL_SECONDS` = 15 seconds, matching the
 Prometheus scrape interval to avoid redundant checks.
 
-**Source:** `backend/api/routes/system.py:341`
+**Source:** `backend/api/routes/system.py:338`
 
 #### Response
 
@@ -64,7 +64,7 @@ Prometheus scrape interval to avoid redundant checks.
       "message": "AI services operational",
       "details": {
         "yolo26": "healthy",
-        "nemotron": "healthy"
+        "ai-vlm": "healthy"
       }
     }
   },
@@ -105,7 +105,7 @@ GET /api/system/health/ready
 
 Kubernetes-style readiness probe with detailed information.
 
-**Source:** `backend/api/routes/system.py:1465-1594`
+**Source:** `backend/api/routes/system.py:1453-1581`
 
 #### Checks Performed
 
@@ -170,7 +170,7 @@ GET /api/system/health/websocket
 
 Check WebSocket broadcaster health.
 
-**Source:** `backend/api/routes/system.py:1596-1675`
+**Source:** `backend/api/routes/system.py:1584-1662`
 
 #### Response
 
@@ -194,14 +194,16 @@ GET /api/system/health/full
 Comprehensive health check including all AI services and circuit breakers.
 
 **Source:** `backend/api/schemas/health.py:316-385` (schema),
-`backend/api/routes/system.py:5538-5624` (handler)
+`backend/api/routes/system.py:5425-5515` (handler)
 
 #### Response
 
-At runtime the AI service entries report the gateway-consolidated URLs:
-`yolo26` (and the other detection/enrichment models) resolve through
-`http://ai-gateway:8090/yolo26` while `nemotron` points at
-`http://ai-llm:8091`.
+The AI service entries are the two rows of `AI_SERVICES_CONFIG`
+(`backend/api/routes/system.py:5105-5126`): `yolo26` (critical) resolves through
+the gateway at `http://ai-gateway:8090/yolo26`, and `ai-vlm` (non-critical) is
+the verdict engine at `http://ai-vlm:8098`. Each entry's `url` is the value of
+the setting named by its `url_attr` — `yolo26_url` and `ai_vlm_url`
+(`backend/core/config.py:1036-1044`).
 
 ```json
 {
@@ -234,10 +236,10 @@ At runtime the AI service entries report the gateway-consolidated URLs:
       "last_check": "2026-01-23T12:00:00Z"
     },
     {
-      "name": "nemotron",
-      "display_name": "Nemotron LLM",
+      "name": "ai-vlm",
+      "display_name": "VLM Verdict Service",
       "status": "healthy",
-      "url": "http://ai-llm:8091",
+      "url": "http://ai-vlm:8098",
       "response_time_ms": 120.5,
       "circuit_state": "closed",
       "error": null,
@@ -245,16 +247,15 @@ At runtime the AI service entries report the gateway-consolidated URLs:
     }
   ],
   "circuit_breakers": {
-    "total": 5,
-    "closed": 5,
+    "total": 4,
+    "closed": 4,
     "open": 0,
     "half_open": 0,
     "breakers": {
       "yolo26": "closed",
-      "nemotron": "closed",
-      "florence": "closed",
-      "clip": "closed",
-      "enrichment": "closed"
+      "postgresql": "closed",
+      "redis": "closed",
+      "ai-vlm": "closed"
     }
   },
   "workers": [
@@ -284,7 +285,7 @@ GET /api/system/monitoring/health
 Health of the monitoring infrastructure itself: Prometheus reachability,
 per-job scrape target summary, exporter status
 (`redis-exporter:9121`, `json-exporter:7979`, `blackbox-exporter:9115` —
-`KNOWN_EXPORTERS`, `backend/api/routes/system.py:1670-1674`), metrics
+`KNOWN_EXPORTERS`, `backend/api/routes/system.py:1658-1663`), metrics
 collection state, and an `issues` list.
 
 **Source:** `backend/api/routes/system.py:1918-2016`, schema
@@ -462,12 +463,16 @@ GET /api/system/circuit-breakers
 
 Get status of all circuit breakers.
 
-**Source:** `backend/api/routes/system.py:3795-3850`, schema
+**Source:** `backend/api/routes/system.py:3783-3837`, schema
 `CircuitBreakersResponse` (`backend/api/schemas/system.py:1786-1810`)
 
 #### Response
 
-`circuit_breakers` is a map keyed by breaker name:
+`circuit_breakers` is a map keyed by breaker name. The registry is populated by
+the boot-time pre-registration in `init_circuit_breakers()`
+(`backend/main.py:286-331` — `yolo26`, `postgresql`, `redis`) plus the `ai-vlm`
+breaker the VLM client takes from the same registry
+(`backend/services/vlm_client.py:247-250`):
 
 ```json
 {
@@ -483,8 +488,8 @@ Get status of all circuit breakers.
       "opened_at": null,
       "config": { "failure_threshold": 5, "recovery_timeout": 30.0 }
     },
-    "nemotron": {
-      "name": "nemotron",
+    "ai-vlm": {
+      "name": "ai-vlm",
       "state": "open",
       "failure_count": 3,
       "success_count": 410,
@@ -492,10 +497,10 @@ Get status of all circuit breakers.
       "rejected_calls": 12,
       "last_failure_time": 1769169300.0,
       "opened_at": 1769169300.0,
-      "config": { "failure_threshold": 5, "recovery_timeout": 30.0 }
+      "config": { "failure_threshold": 5, "recovery_timeout": 60.0 }
     }
   },
-  "total_count": 2,
+  "total_count": 4,
   "open_count": 1,
   "timestamp": "2026-01-23T12:00:00Z"
 }
@@ -521,7 +526,7 @@ POST /api/system/circuit-breakers/{name}/reset
 
 Manually reset a circuit breaker to closed state (requires `verify_api_key`).
 
-**Source:** `backend/api/routes/system.py:3852-3935`
+**Source:** `backend/api/routes/system.py:3840-3923`
 
 #### Path Parameters
 
@@ -545,8 +550,8 @@ backoff. `GET /api/system/supervisor/status` returns the same shape, and
 `GET /api/system/supervisor/restart-history` lists past restarts
 (`RestartHistoryResponse`).
 
-**Source:** `backend/api/routes/system.py:4308-4358` (supervisor),
-`4420-4464` (status), `4621-4773` (restart-history)
+**Source:** `backend/api/routes/system.py:4225-4275` (supervisor),
+`4337-4381` (status), `4538-4620` (restart-history)
 
 #### Response
 
@@ -571,7 +576,7 @@ backoff. `GET /api/system/supervisor/status` returns the same shape, and
 
 Worker `status` values: `running`, `stopped`, `crashed`, `restarting`,
 `failed` (exceeded restart limit). Use `POST /api/system/supervisor/reset/{worker_name}`
-(`system.py:4360-4418`) to clear a failed worker's backoff state.
+(`backend/api/routes/system.py:4277-4334`) to clear a failed worker's backoff state.
 
 ---
 

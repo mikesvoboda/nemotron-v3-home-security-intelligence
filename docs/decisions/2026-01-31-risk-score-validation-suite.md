@@ -1,7 +1,7 @@
 # Automated Risk Score Validation Test Suite
 
 **Date:** 2026-01-31
-**Status:** Implemented
+**Status:** Implemented (annotated 2026-10-02) — the suite, script, and coverage guide below all exist as described. One consequence overstates the shipped state: no CI job runs this suite. The integration shard selects only its API-tier files by name (`.github/workflows/integration-shard.yml:129`), this file is not in that list, and even when run locally the gap-rate assertion skips when the test database holds no processed scenario events (`backend/tests/integration/test_risk_score_validation.py:198-199`, ledger R-T9-RISKVAL). "CI/CD can fail builds if gap rate > 20%" therefore describes intent, not wiring; it bites only on a host that runs the suite against a DB with processed scenarios.
 **Related Issues:** NEM-4533, NEM-4529, NEM-4527
 
 ## Context

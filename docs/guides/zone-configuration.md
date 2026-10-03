@@ -328,11 +328,12 @@ GET /api/cameras/{camera_id}/zones
 | --------- | ------- | ------------------------ |
 | `enabled` | Boolean | Filter by enabled status |
 
-**Response:**
+**Response:** `ZoneListResponse` — `items` plus `pagination`
+(`backend/api/schemas/zone.py`):
 
 ```json
 {
-  "zones": [
+  "items": [
     {
       "id": "uuid",
       "camera_id": "front_door",
@@ -348,9 +349,11 @@ GET /api/cameras/{camera_id}/zones
       "color": "#EF4444",
       "priority": 90,
       "enabled": true,
-      "created_at": "2026-01-15T10:00:00Z"
+      "created_at": "2026-01-15T10:00:00Z",
+      "updated_at": "2026-01-15T10:00:00Z"
     }
-  ]
+  ],
+  "pagination": { "total": 1, "limit": 50, "offset": 0, "has_more": false }
 }
 ```
 
@@ -405,50 +408,80 @@ PUT /api/zones/{zone_id}/household
 
 ---
 
-## Zone Baseline API
+## Zone Anomalies And Baselines API
 
-> **Note:** The Zone Baseline API is not yet implemented. The database model (`zone_activity_baselines` table) exists, but the REST API endpoints are planned for a future release. See NEM-4064 for tracking.
+Zone anomalies are raised when activity in a zone deviates from the baseline the
+`ZoneAnomalyService` maintains for it (`backend/services/zone_anomaly_service.py`,
+model `backend/models/zone_anomaly.py`; the baseline rows live in the
+`zone_activity_baselines` table).
 
-### Get Zone Baseline (Planned)
-
-```bash
-GET /api/zones/{zone_id}/baseline
-```
-
-**Planned Response:**
-
-```json
-{
-  "zone_id": "uuid",
-  "hourly_pattern": [2, 1, 0, 0, 0, 1, 5, 12, 15, 10, 8, 7, ...],
-  "day_of_week_pattern": [45, 52, 48, 50, 55, 62, 58],
-  "typical_dwell_time": 15.5,
-  "typical_crossing_rate": 4.2,
-  "baseline_computed_at": "2026-01-25T00:00:00Z"
-}
-```
-
-### Zone Anomalies (Planned)
+### List Anomalies For One Zone
 
 ```bash
 GET /api/zones/{zone_id}/anomalies
-?start_date=2026-01-20&end_date=2026-01-26
 ```
 
-**Response:**
+**Query Parameters:**
+
+| Parameter             | Type    | Default | Description                     |
+| --------------------- | ------- | ------- | ------------------------------- |
+| `severity`            | string  | -       | Filter by severity (repeatable) |
+| `unacknowledged_only` | Boolean | `false` | Only unacknowledged anomalies   |
+| `since`               | string  | -       | Lower time bound (ISO 8601)     |
+| `until`               | string  | -       | Upper time bound (ISO 8601)     |
+| `limit`               | Integer | `50`    | Page size (1-500)               |
+| `offset`              | Integer | `0`     | Results to skip                 |
+
+**Response shape** (`ZoneAnomalyListResponse`: `items` + `pagination`, each item
+a `ZoneAnomalyResponse` in `backend/api/schemas/zone_anomaly.py`):
 
 ```json
 {
-  "anomalies": [
+  "items": [
     {
-      "type": "unusual_time",
-      "zone_id": "uuid",
-      "deviation": 3.2,
-      "description": "Activity at 3:14am - typically no activity 1-6am",
-      "detected_at": "2026-01-25T03:14:00Z"
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "zone_id": "456e7890-e89b-12d3-a456-426614174001",
+      "camera_id": "front_door",
+      "anomaly_type": "unusual_time",
+      "severity": "warning",
+      "title": "Unusual activity at 03:15",
+      "description": "Activity detected in Front Door at 03:15 when typical activity is 0.1.",
+      "expected_value": 0.1,
+      "actual_value": 1.0,
+      "deviation": 3.5,
+      "detection_id": 12345,
+      "thumbnail_url": "/api/detections/12345/image",
+      "acknowledged": false,
+      "acknowledged_at": null,
+      "acknowledged_by": null,
+      "timestamp": "2025-01-24T03:15:00Z"
     }
-  ]
+  ],
+  "pagination": { "total": 1, "limit": 50, "offset": 0, "has_more": false }
 }
+```
+
+### The Other Anomaly Routes
+
+```bash
+GET    /api/zones/anomalies                                  # across all zones, same filters
+POST   /api/zones/anomalies/{anomaly_id}/acknowledge         # acknowledge one
+GET    /api/zones/anomalies/{anomaly_id}/context             # anomaly + investigation context
+```
+
+### Camera-Level Baseline
+
+The hourly / day-of-week baseline aggregates are exposed per camera, not per
+zone (`backend/api/routes/cameras.py`, prefix `/api/cameras`):
+
+```bash
+GET  /api/cameras/{camera_id}/baseline            # summary: hourly + daily patterns, deviation
+GET  /api/cameras/{camera_id}/baseline/anomalies  # anomalies for the camera
+GET  /api/cameras/{camera_id}/baseline/activity   # activity baseline detail
+GET  /api/cameras/{camera_id}/baseline/classes    # per-object-class baseline
+GET  /api/cameras/{camera_id}/baseline/config     # baseline configuration
+PUT  /api/cameras/{camera_id}/baseline/config     # change configuration
+POST /api/cameras/{camera_id}/baseline/reset      # discard and relearn
 ```
 
 ---

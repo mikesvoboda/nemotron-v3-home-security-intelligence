@@ -87,6 +87,10 @@ Defines core data classes and patterns:
 - **`DocumentReport`** - Validation report for a single document
 - **`ValidationConfig`** - Configuration for validation (project_root, enable flags, thresholds)
 - **Citation patterns** - Regex patterns for inline citations, frontmatter, code blocks, mermaid
+- **`looks_like_host_address()`** - Rejects `smtp.example.com:587`, which matches the inline
+  citation shape exactly but names a mail relay rather than a file. `HOST_TLD_SUFFIXES` holds the
+  last labels that mean "host"; the two parsers that read inline citations call this before
+  building a `Citation`, so Level 1 never sees the address
 
 ### `cli.py`
 

@@ -150,9 +150,9 @@ services:
   # AI Services (GHCR Images - x86_64 only, requires NVIDIA GPU)
   # =============================================================================
 
-  # AI Gateway (Triton + FastAPI) — serves YOLO26, Florence-2, CLIP and
-  # enrichment models through a single service (replaces the retired
-  # per-model ai-yolo26 / ai-florence / ai-clip / ai-enrichment containers)
+  # AI Gateway (Triton + FastAPI) — serves the shipped Triton models (YOLO26
+  # detection, plus the light lane's re-ID and threat rows) through a single
+  # service
   ai-gateway:
     security_opt:
       - no-new-privileges:true
@@ -184,16 +184,13 @@ services:
       # Use the pre-downloaded HF cache (staging allows hub fallback if a model is missing)
       - HF_HOME=/root/.cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
-      # INT8 quantization for vehicle/demographics models (NEM-5533)
-      - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
-      - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
-      - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
       interval: 15s
       timeout: 10s
       retries: 5
-      # Triton loads 14 models — allow 3 minutes for all to initialize
+      # Triton loads the shipped set (yolo26 + reid) — 180s also covers a cold
+      # TensorRT engine build on first start
       start_period: 180s
     restart: unless-stopped
     networks:
@@ -242,7 +239,7 @@ services:
       # sizes its own slots through VLM_CTX_SIZE/VLM_PARALLEL below.
       - CTX_SIZE=${CTX_SIZE:-4096}
       - PARALLEL=${PARALLEL:-2}
-      # AI Gateway routes — all enrichment models served via Triton through ai-gateway
+      # AI Gateway routes — the Triton-served models run inside ai-gateway
       - USE_AI_GATEWAY=true
       - AI_GATEWAY_URL=http://ai-gateway:8090
       - YOLO26_URL=http://ai-gateway:8090/yolo26
@@ -270,7 +267,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      # AI gateway — YOLO26 and enrichment models; backend health checks yolo26 via gateway
+      # AI gateway — YOLO26 detection plus the light lane; backend health checks yolo26 via gateway
       ai-gateway:
         condition: service_healthy
       go2rtc:

@@ -71,7 +71,7 @@ _The onboarding journey takes operators through system setup, then hands off to 
 
 ## What You Will Need
 
-- NVIDIA GPU — 24GB VRAM runs the full stack; smaller cards run the LLM with reduced `GPU_LAYERS` (partially offloaded, slower — there is no run mode without the LLM; see Prerequisites)
+- NVIDIA GPU — 24GB runs both AI containers with room to spare; smaller cards fit by giving the `ai-vlm` serve fewer GPU layers (`VLM_GPU_LAYERS`) or a smaller context, at the cost of verdict latency. Risk scoring is what `ai-vlm` produces, so there is no run mode without it — see Prerequisites
 - Python 3.14+, Node.js 24 LTS
 - Docker or Podman
 - Foscam cameras (or compatible FTP-uploading cameras)

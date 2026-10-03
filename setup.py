@@ -141,9 +141,8 @@ def get_default_ports() -> dict[str, int]:
         "redis": "REDIS_PORT",
         "go2rtc_api": "GO2RTC_API_PORT",
         "go2rtc_webrtc": "GO2RTC_WEBRTC_PORT",
-        # Retired standalone AI containers (yolo26/florence/clip/enrichment/
-        # enrichment_light) no longer get host ports — those models are served
-        # by ai-gateway at AI_GATEWAY_PORT (see generate_env_content below).
+        # AI models are served by ai-gateway at AI_GATEWAY_PORT; no per-model
+        # host ports are probed (see generate_env_content below).
         "grafana": "GRAFANA_PORT",
         "prometheus": "PROMETHEUS_PORT",
         "alertmanager": "ALERTMANAGER_PORT",
@@ -209,10 +208,9 @@ def build_services_dict() -> dict[str, ServiceInfo]:
         "redis": {"category": "Core", "desc": "Redis cache/queue"},
         "go2rtc_api": {"category": "Core", "desc": "go2rtc streaming API"},
         "go2rtc_webrtc": {"category": "Core", "desc": "go2rtc WebRTC"},
-        # AI Services — standalone YOLO26/Florence/CLIP/Enrichment containers
-        # are retired (models served by ai-gateway at AI_GATEWAY_PORT=8090,
-        # which setup.py does not port-probe; the gateway URL lines below are
-        # fixed at the .env.example default).
+        # AI Services — models are served by ai-gateway at
+        # AI_GATEWAY_PORT=8090, which setup.py does not port-probe; the
+        # gateway URL lines below are fixed at the .env.example default.
         # Monitoring Services
         "grafana": {"category": "Monitoring", "desc": "Grafana dashboards"},
         "prometheus": {"category": "Monitoring", "desc": "Prometheus metrics"},
@@ -424,15 +422,10 @@ def generate_env_content(config: dict) -> str:
         f"DATABASE_URL=postgresql+asyncpg://security:{config.get('postgres_password', '')}@postgres:{ports.get('postgres', 5432)}/security",
         "",
         "# -- Service URLs " + "-" * 43,
-        # Standalone AI containers are retired; the gateway serves these models
-        # at route prefixes (mirrors the docker-compose backend env gateway
-        # routes). The legacy ai-llm's NEMOTRON_URL line died with the service
-        # in R8 S2 - the shipped engine's URL is AI_VLM_URL, defaulted by
-        # compose interpolation (and .env.example).
+        # The gateway serves the shipped models at route prefixes (mirrors the
+        # docker-compose backend env gateway routes). The shipped engine's URL
+        # is AI_VLM_URL, defaulted by compose interpolation (and .env.example).
         "YOLO26_URL=http://ai-gateway:8090/yolo26",
-        "FLORENCE_URL=http://ai-gateway:8090/florence",
-        "CLIP_URL=http://ai-gateway:8090/clip",
-        "ENRICHMENT_URL=http://ai-gateway:8090/enrichment",
         "ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt",
         f"REDIS_URL=redis://redis:{ports.get('redis', 6379)}",
         "",
@@ -452,8 +445,8 @@ def generate_env_content(config: dict) -> str:
         "SSL_ENABLED=true",
         "",
         "# -- GPU Assignment " + "-" * 41,
-        "# GPU 0: Nemotron LLM (requires ~22GB VRAM)",
-        "# GPU 1: All other AI models (YOLO26, Florence, CLIP, Enrichment)",
+        "# GPU 0: AI VLM serve (llama.cpp + Qwen3VL, compose profile vlm)",
+        "# GPU 1: AI Gateway (YOLO26 detection + the light lane)",
         f"GPU_LLM={config.get('gpu_llm', 0)}",
         f"GPU_AI_SERVICES={config.get('gpu_ai_services', 1)}",
         "",
@@ -478,10 +471,8 @@ def generate_env_content(config: dict) -> str:
         f"GO2RTC_WEBRTC_PORT={ports.get('go2rtc_webrtc', 8555)}",
         "",
         "# -- AI Service Ports " + "-" * 39,
-        # Standalone YOLO26/Florence-2/CLIP/Enrichment/Enrichment-Light
-        # containers are retired — those models are served by ai-gateway at
-        # AI_GATEWAY_PORT (8090); see .env.example for the legacy reference
-        # ports (not provisioned here).
+        # Model inference runs inside ai-gateway at AI_GATEWAY_PORT (8090);
+        # see .env.example for the reference ports (not provisioned here).
         "",
         "# -- Monitoring Service Ports " + "-" * 31,
         f"PROMETHEUS_PORT={ports.get('prometheus', 9090)}",

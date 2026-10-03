@@ -324,7 +324,7 @@ For developers wanting to understand the underlying systems.
 
 ### Architecture
 
-- **Re-Identification Pipeline**: [AI Pipeline Architecture](../architecture/ai-pipeline.md)
+- **Re-Identification Pipeline**: [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md)
 - **Data Model**: [Entity Data Model](../architecture/data-model.md)
 - **Real-time Updates**: [WebSocket Implementation](../architecture/real-time.md)
 - **System Overview**: [Architecture Overview](../architecture/overview.md)
@@ -398,9 +398,10 @@ Person re-identification embeddings come from **OSNet-AIN x1.0** (models.yml zoo
 - **Embedding TTL**: 24 hours (86400 seconds) in Redis, partitioned by
   `entity_embeddings:{model_id}:{date}`
 
-CLIP-as-person-re-ID is retired: the ai-gateway `/clip` router (768-d) remains for its other
-consumers — scene baseline and fashion similarity — and no longer computes person re-ID vectors.
-A dedicated `ai-clip` container no longer exists.
+The person vector space is exactly this one row. `osnet_loader.get_reid_handle()` is a registry
+read that never triggers a load, so the handle exists only if the boot preload sweep ran — that
+sweep is gated on `BACKEND_MODEL_PRELOAD`, which ships `false`. On a host that has not opted in,
+the re-ID leg answers `unavailable: specialist did not run` on every event and nothing fails.
 
 ### Empty State
 

@@ -279,12 +279,13 @@ interface PipelineQueuesProps {
 ```
 
 **Queue Status Colors:**
-| Depth | Color |
-| ----- | ----- |
-| 0 | gray |
-| 1-5 | green |
-| 6-10 | yellow |
-| >10 | red |
+
+| Depth | Color  |
+| ----- | ------ |
+| 0     | gray   |
+| 1-5   | green  |
+| 6-10  | yellow |
+| >10   | red    |
 
 ### PipelineTelemetry
 
@@ -419,7 +420,7 @@ const STAGE_CONFIG = {
     color: '#F59E0B',
   },
   batch_to_analyze: {
-    label: 'Batch Aggregator -> Nemotron',
+    label: 'Batch Aggregator -> ai-vlm',
     shortLabel: 'Batch->Analyze',
     color: '#8B5CF6',
   },

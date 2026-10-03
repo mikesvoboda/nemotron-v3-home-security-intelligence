@@ -194,10 +194,11 @@ REDIS_URL=redis://localhost:6379/0
 FOSCAM_BASE_PATH=/export/foscam
 
 # AI service endpoints (optional for dev)
-# Models are served through the AI gateway (port 8090); see .env.example
+# Detection runs through the AI gateway (port 8090); VLM verification is
+# served by ai-vlm (port 8098, compose profile `vlm`); see .env.example
 AI_GATEWAY_URL=http://localhost:8090
 YOLO26_URL=http://localhost:8090/yolo26
-NEMOTRON_URL=http://localhost:8091
+AI_VLM_URL=http://localhost:8098
 ```
 
 `.env` is the sole configuration source for the stack — `docker-compose.prod.yml` reads all of its config from `.env`. Never commit `.env` or `secrets/` to version control. Every variable is documented in [Environment Variable Reference](../reference/config/env-reference.md).
@@ -226,7 +227,7 @@ GPU support is optional (see the [Optional prerequisites](#optional-for-gpu-feat
 1. Install the NVIDIA driver (535+ is the supported floor — check with `nvidia-smi`). Driver-level configuration is covered in [GPU Setup](../operator/gpu-setup.md).
 2. Install CUDA 12.x (check with `nvcc --version`); CUDA is required for YOLO26 inference.
 3. Confirm the hardware meets the [Hardware Recommendations](#hardware-recommendations) above — 24GB VRAM for the full pipeline.
-4. Set the GPU assignment variables in `.env` (the setup script writes them): `GPU_LLM` selects the GPU that hosts the Nemotron LLM (which needs roughly 22GB VRAM), `GPU_AI_SERVICES` the GPU that hosts the remaining models (YOLO26, Florence, CLIP, enrichment), and `BACKEND_MODEL_PRELOAD` to eagerly load backend models into VRAM at startup.
+4. Set the GPU assignment variables in `.env` (the setup script writes them): `GPU_LLM` selects the GPU that hosts the `ai-vlm` verification server, `GPU_AI_SERVICES` the GPU that hosts `ai-gateway` (Triton — the YOLO26 detection lane), and `BACKEND_MODEL_PRELOAD` to eagerly load the backend's in-process lookup models (face, re-ID) into VRAM at startup.
 
 Multi-GPU topology and CUDA architecture details live in [multi-gpu.md](multi-gpu.md).
 

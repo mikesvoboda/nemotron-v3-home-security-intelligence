@@ -7,9 +7,9 @@
 - `monitoring/grafana/dashboards/consolidated.json` - Main operations dashboard
 - `monitoring/grafana/dashboards/tracing.json` - Distributed tracing dashboard (Tempo)
 - `monitoring/grafana/dashboards/logs.json` - Log aggregation dashboard (Loki)
-- Additional provisioned dashboards: `ai-service-health.json`, `ai-services.json`, `analytics.json`, `api-health.json`, `clip-florence-intelligence.json`, `enrichment-pipeline.json`, `hsi-gpu-metrics.json`, `hsi-profiling.json`, `hsi-request-profiling.json`, `nemotron-prompt-analytics.json`, `scene-ocr.json`, `video-analytics.json` (all in `monitoring/grafana/dashboards/`)
+- Additional provisioned dashboards: `ai-service-health.json`, `ai-services.json`, `analytics.json`, `api-health.json`, `hsi-gpu-metrics.json`, `hsi-profiling.json`, `hsi-request-profiling.json`, `scene-ocr.json`, `video-analytics.json` (all in `monitoring/grafana/dashboards/`)
 - `monitoring/grafana/provisioning/dashboards/dashboard.yml` - Dashboard provisioning
-- `monitoring/grafana/provisioning/datasources/prometheus.yml` (250 lines) - Datasource configuration
+- `monitoring/grafana/provisioning/datasources/prometheus.yml` (254 lines) - Datasource configuration
 
 ## Overview
 
@@ -32,9 +32,9 @@ traces.
 graph TD
     subgraph "Datasources (provisioning/datasources/prometheus.yml)"
         PROM[Prometheus<br/>lines 13-23]
-        LOKI[Loki<br/>lines 216-231]
-        TEMPO[Tempo<br/>lines 48-104]
-        PYRO[Pyroscope<br/>lines 234-250]
+        LOKI[Loki<br/>lines 220-235]
+        TEMPO[Tempo<br/>lines 48-217]
+        PYRO[Pyroscope<br/>lines 238-254]
         API[Backend-API JSON<br/>lines 37-46]
     end
 
@@ -42,7 +42,7 @@ graph TD
         CONS[consolidated.json]
         TRAC[tracing.json]
         LOGS[logs.json]
-        EXTRA[13 more domain dashboards]
+        EXTRA[9 more domain dashboards]
     end
 
     PROM --> CONS
@@ -81,7 +81,7 @@ Primary metrics datasource (`monitoring/grafana/provisioning/datasources/prometh
 ### Tempo with Trace-to-Metrics and Trace-to-Logs
 
 Distributed tracing (NEM-5545, replaced the Jaeger datasource;
-`monitoring/grafana/provisioning/datasources/prometheus.yml:48-104`):
+`monitoring/grafana/provisioning/datasources/prometheus.yml:48-217`):
 
 ```yaml
 - name: Tempo
@@ -103,7 +103,7 @@ Distributed tracing (NEM-5545, replaced the Jaeger datasource;
           query: 'hsi_detection_queue_depth'
         - name: 'YOLO26 Latency (p95)'
           query: 'histogram_quantile(0.95, sum(rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m])) by (le))'
-        # ... Nemotron tokens/sec, batch latency percentiles, worker pool
+        # ... batch latency percentiles, detect/analyze latency, worker pool
     nodeGraph:
       enabled: true
     tracesToProfiles:
@@ -113,7 +113,7 @@ Distributed tracing (NEM-5545, replaced the Jaeger datasource;
 
 ### Loki with Trace Correlation
 
-Log aggregation with trace linking (`monitoring/grafana/provisioning/datasources/prometheus.yml:216-231`):
+Log aggregation with trace linking (`monitoring/grafana/provisioning/datasources/prometheus.yml:220-235`):
 
 ```yaml
 - name: Loki
@@ -132,7 +132,7 @@ Log aggregation with trace linking (`monitoring/grafana/provisioning/datasources
 
 ### Pyroscope for Profiling
 
-Continuous profiling (`monitoring/grafana/provisioning/datasources/prometheus.yml:234-250`):
+Continuous profiling (`monitoring/grafana/provisioning/datasources/prometheus.yml:238-254`):
 
 ```yaml
 - name: Pyroscope
@@ -150,9 +150,10 @@ Continuous profiling (`monitoring/grafana/provisioning/datasources/prometheus.ym
 The main dashboard (`monitoring/grafana/dashboards/consolidated.json`) is organized in rows:
 Executive Summary, System Health, Alert Management, Container Resources, Host System Health,
 Pipeline Overview, GPU & Hardware, AI Inference, AI Quality & Audit, Detection Analytics, Risk
-Analysis, Queue Health, Worker Health, DLQ, Circuit Breaker & Cache, Experimentation, Enrichment
-Models, Pipeline Latencies, Cost & Efficiency, Service Health, Redis Details, RUM, SLI/SLO
-Overview, AI Container Health, and Synthetic Monitoring.
+Analysis, Queue Health, Worker Health, DLQ & Worker Health, Circuit Breaker & Cache,
+Experimentation, Enrichment Models, Pipeline Latencies, Cost & Efficiency, Service Health, Redis
+Details, Real User Monitoring (RUM), SLI/SLO Overview, AI Container Health, Synthetic Monitoring,
+and Gateway Inference Traffic (`hsi_ai_inference_*`).
 
 ### Executive Summary Row
 
@@ -167,26 +168,28 @@ Overview, AI Container Health, and Synthetic Monitoring.
 
 ### Other Representative Panels
 
-| Area              | Panel                | Expression                                                                                                                                                          |
-| ----------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pipeline          | Throughput           | `rate(hsi_detections_processed_total[5m])`, `rate(hsi_events_created_total[5m])`                                                                                    |
-| Risk              | Events by Risk Level | `rate(hsi_events_by_risk_level_total[5m])`                                                                                                                          |
-| Risk              | Risk Score Average   | `hsi_risk_score_sum / hsi_risk_score_count`                                                                                                                         |
-| Cache             | Cache Hit Rate       | `sum(rate(hsi_cache_hits_total[5m])) / (sum(rate(hsi_cache_hits_total[5m])) + sum(rate(hsi_cache_misses_total[5m])))`                                               |
-| Workers           | Worker Pool          | `hsi_worker_active_count`, `hsi_worker_busy_count`, `hsi_worker_idle_count`, `hsi_pipeline_worker_state`                                                            |
-| AI Inference      | Per-service latency  | `histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m]))` (also `nemotron`, `florence`, `clip`)                                |
-| AI Serving Health | Model health probes  | `probe_success{job="blackbox-http-2xx"}` per gateway adapter (`model="yolo26"` etc.) — per-container `*_model_loaded` gauges retired with the standalone containers |
-| LLM               | llama.cpp metrics    | `llamacpp:predicted_tokens_seconds`, `llamacpp:requests_processing`, `hsi_llm_context_utilization_ratio`                                                            |
-| SLO               | Availability / burn  | `hsi:api_availability:ratio_rate30d * 100`, `hsi:burn_rate:api_availability_1h`, `hsi:error_budget:api_availability_remaining * 100`                                |
-| Synthetic         | Blackbox probes      | `probe_success`, `probe_duration_seconds`, `probe_http_duration_seconds{phase="connect"}`                                                                           |
+| Area              | Panel                | Expression                                                                                                                                                                                                   |
+| ----------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Pipeline          | Throughput           | `rate(hsi_detections_processed_total[5m])`, `rate(hsi_events_created_total[5m])`                                                                                                                             |
+| Risk              | Events by Risk Level | `rate(hsi_events_by_risk_level_total[5m])`                                                                                                                                                                   |
+| Risk              | Risk Score Average   | `hsi_risk_score_sum / hsi_risk_score_count`                                                                                                                                                                  |
+| Cache             | Cache Hit Rate       | `sum(rate(hsi_cache_hits_total[5m])) / (sum(rate(hsi_cache_hits_total[5m])) + sum(rate(hsi_cache_misses_total[5m])))`                                                                                        |
+| Workers           | Worker Pool          | `hsi_worker_active_count`, `hsi_worker_busy_count`, `hsi_worker_idle_count`, `hsi_pipeline_worker_state`                                                                                                     |
+| AI Inference      | Per-service latency  | `histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m]))` — the backend's client-side histogram, labelled per AI service by `backend/services/detector_client.py:1139`  |
+| AI Serving Health | Model health probes  | `probe_success{job="blackbox-http-2xx"}` per probe target (`model="gateway"`, `"yolo26"`, `"enrichment-light"`, `"llm"` — `monitoring/prometheus.yml:404-434`)                                               |
+| LLM (ai-vlm)      | llama.cpp metrics    | `llamacpp:predicted_tokens_seconds`, `llamacpp:requests_processing` (scraped from `ai-vlm:8098`, `monitoring/prometheus.yml:90-98`), `hsi_llm_context_utilization_ratio` (`backend/core/metrics.py:514-515`) |
+| SLO               | Availability / burn  | `hsi:api_availability:ratio_rate30d * 100`, `hsi:burn_rate:api_availability_1h`, `hsi:error_budget:api_availability_remaining * 100`                                                                         |
+| Synthetic         | Blackbox probes      | `probe_success`, `probe_duration_seconds`, `probe_http_duration_seconds{phase="connect"}`                                                                                                                    |
 
 ## Tracing Dashboard
 
-The tracing dashboard (`monitoring/grafana/dashboards/tracing.json`, 1042 lines) queries Tempo with
+The tracing dashboard (`monitoring/grafana/dashboards/tracing.json`, 1605 lines) queries Tempo with
 TraceQL (`queryType: "traceql"`, datasource uid `tempo`). The trace-table panels have no colour
-thresholds; they list recent spans for click-through to the trace view.
+thresholds; they list recent spans for click-through to the trace view. The service selector is
+`resource.service.name = "nemotron-backend"`, which is the value of `OTEL_SERVICE_NAME`
+(`backend/core/config.py:1955`).
 
-### Pipeline Analysis Traces (`tracing.json:626-641`)
+### Pipeline Analysis Traces (`monitoring/grafana/dashboards/tracing.json:967`)
 
 ```json
 {
@@ -197,12 +200,14 @@ thresholds; they list recent spans for click-through to the trace view.
 }
 ```
 
-### Detection Processing / LLM Inference Panels
+### Detection Traces Row Panels
 
-Same shape with `name = "detection_processing"` (`tracing.json:717-719`) and
-`name = "llm_inference"` (`tracing.json:797-799`), limit 10.
+Same shape with `name = "detection_processing"` (`monitoring/grafana/dashboards/tracing.json:1111`) and an `LLM Inference` table on
+`name = "llm_inference"` (`monitoring/grafana/dashboards/tracing.json:1242`), limit 10. The pipeline spans those tables match are
+opened in the worker loops: `detection_processing` (`backend/services/pipeline_workers.py:499`) and
+`analysis_processing` (`backend/services/pipeline_workers.py:1015`).
 
-### Error Traces Panel (`tracing.json:871-873`)
+### Error Traces Panel (`monitoring/grafana/dashboards/tracing.json:1360`)
 
 ```json
 {
@@ -213,47 +218,48 @@ Same shape with `name = "detection_processing"` (`tracing.json:717-719`) and
 }
 ```
 
-### Service Dependency Graph (`tracing.json:905`)
+### Service Dependency Graph (`monitoring/grafana/dashboards/tracing.json:1409`)
 
-Tempo `queryType: "serviceMap"` panel — renders the service topology from trace data (requires
-metrics-generator span metrics in Tempo; see `monitoring/tempo/tempo-config.yml`).
+Tempo `queryType: "serviceMap"` panel — renders the service topology from trace data. Tempo runs with
+the local trace store and OTLP receivers on 4317/4318 (`monitoring/tempo/tempo-config.yml`, 21 lines);
+traces reach it through Alloy's OTLP export.
 
 ### Overview Panels
 
 Prometheus-backed panels for trace counts, duration, error rate by service, span distribution, and
 AI latency comparison sit above the trace tables, plus an "All Recent Traces" table
-(`{ resource.service.name = "nemotron-backend" }`, limit 30).
+(`{ resource.service.name = "nemotron-backend" }`, limit 30, `monitoring/grafana/dashboards/tracing.json:1552`).
 
 ## Logs Dashboard
 
-The logs dashboard (`monitoring/grafana/dashboards/logs.json`) provides centralized log analysis
-against Loki.
+The logs dashboard (`monitoring/grafana/dashboards/logs.json`, 790 lines) provides centralized log
+analysis against Loki; each panel's LogQL lives in its `targets[].expr`.
 
-### Error Rate Stat (`logs.json:67-75`)
+### Error Rate Stat (`monitoring/grafana/dashboards/logs.json:70`)
 
 ```logql
 sum(count_over_time({container=~"$service", level=~"ERROR|CRITICAL"} [5m])) / (sum(count_over_time({container=~"$service"} [5m])) > 0)
 ```
 
-### Log Throughput Stat (`logs.json:112-120`)
+### Log Throughput Stat (`monitoring/grafana/dashboards/logs.json:115`)
 
 ```logql
 sum(rate({container=~"$service"} [5m]))
 ```
 
-### Log Volume by Level (`logs.json:247`)
+### Log Volume by Level (`monitoring/grafana/dashboards/logs.json:242`)
 
 ```logql
 sum by (level) (count_over_time({container=~"$service", level=~"$level"} |~ "$search" [$__interval]))
 ```
 
-### Level Distribution Pie Chart (`logs.json:310`)
+### Level Distribution Pie Chart (`monitoring/grafana/dashboards/logs.json:305`)
 
 ```logql
 sum by (level) (count_over_time({container=~"$service", level=~"$level"} |~ "$search" [$__range]))
 ```
 
-### Top Error Patterns Table (`logs.json:366`)
+### Top Error Patterns Table (`monitoring/grafana/dashboards/logs.json:360`)
 
 ```logql
 topk(10, sum by (level, container) (count_over_time({container=~"$service", level=~"ERROR|CRITICAL"} [15m])))
@@ -278,7 +284,7 @@ The logs dashboard template variables (`logs.json` `templating.list`):
 | `$search`  | Textbox | empty                               |
 
 Container values come live from Loki labels, so they always reflect the deployed compose services
-(`backend`, `ai-gateway`, `ai-llm`, `redis`, `postgres`, `tempo`, `loki`, ...).
+(`backend`, `ai-gateway`, `ai-vlm`, `redis`, `postgres`, `tempo`, `loki`, ...).
 
 ## Dashboard Provisioning
 
@@ -341,11 +347,13 @@ hsi_detection_queue_depth > 100 or hsi_analysis_queue_depth > 50
 ### AI Service Queries
 
 ```promql
-# LLM token throughput
-rate(hsi_nemotron_tokens_input_total[5m]) + rate(hsi_nemotron_tokens_output_total[5m])
+# Verdict-engine token throughput (llama.cpp series scraped from ai-vlm:8098,
+# monitoring/prometheus.yml:90-98)
+rate(llama_tokens_predicted_total{service="ai-vlm"}[1m])
 
-# Enrichment model error rate
-sum by (model) (rate(hsi_enrichment_model_errors_total[5m])) / sum by (model) (rate(hsi_enrichment_model_calls_total[5m]))
+# ai-vlm breaker-driven degradation + specialist unavailability
+sum by (service) (hsi_ai_service_degraded)
+sum by (specialist, reason) (rate(hsi_specialist_unavailable_total[5m]))
 
 # Detection confidence distribution (P95)
 histogram_quantile(0.95, rate(hsi_detection_confidence_bucket[5m]))

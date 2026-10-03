@@ -566,18 +566,8 @@ def phase_build(config: DeployConfig) -> DeployResult:
 
 CORE_MODELS = [
     "yolo26",
-    "clip",
-    "clip_text",
-    "pose",
-    "threat",
     "reid",
-    "depth",
-    "pet",
-    "vehicle",
-    "demographics_age",
-    "demographics_gender",
-    "fashion_clip",
-    "stgcn_action",
+    "threat",
 ]
 
 

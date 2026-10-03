@@ -2112,6 +2112,12 @@ unspecced_patch:
   tracking: R-WP4.1-SWEEP-RESIDUAL
   expires: '2026-12-31'
   reason: inapplicable to targets that are not ordinary callables).
+- id: backend/tests/unit/api/schemas/test_computed_fields.py::TestEventResponseComputedRiskLevel.test_risk_level_follows_runtime_thresholds::k1
+  kind: todo
+  owner: mikesvoboda
+  tracking: R-WP4.1-SWEEP-RESIDUAL
+  expires: '2026-12-31'
+  reason: null
 - id: backend/tests/unit/routes/test_system_routes.py::test_check_ai_services_health_ai_vlm_down::k1
   kind: todo
   owner: mikesvoboda

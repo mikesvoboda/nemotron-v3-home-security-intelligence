@@ -4,11 +4,11 @@
 
 Port configuration is standardized across all environments (development and Docker). The same internal ports are used for service-to-service communication in both environments - only the hostname/network location changes.
 
-> **Status note:** This document originated with NEM-3148 (per-model AI
-> services on 8091-8096). The vision models have since been consolidated into
-> a single `ai-gateway` service (port 8090, routers `/yolo26` `/florence` > `/clip` `/enrichment` `/enrich-lt`; see `ai/gateway/main.py` and
-> `docker-compose.prod.yml`). The port model below reflects the current tree;
-> `.env.example` and `docker-compose.prod.yml` remain the source of truth.
+> **Scope:** AI traffic has two endpoints: the Triton `ai-gateway` on 8090
+> (routers `/yolo26` and `/enrich-lt`; Prometheus metrics on 8002) and the
+> llama.cpp `ai-vlm` verification server on 8098 (compose profile `vlm`,
+> container-side port fixed). `.env.example` and `docker-compose.prod.yml`
+> remain the source of truth.
 
 ## Principle: "Build Once, Deploy Anywhere"
 
@@ -25,20 +25,18 @@ This standardization ensures:
 
 These ports are used for service-to-service communication and remain the same in all environments:
 
-| Service            | Port | Purpose                     | Network Location                                          |
-| ------------------ | ---- | --------------------------- | --------------------------------------------------------- |
-| Backend API        | 8000 | FastAPI server              | Development: `localhost:8000` / Docker: `backend:8000`    |
-| PostgreSQL         | 5432 | Database                    | Development: `localhost:5432` / Docker: `postgres:5432`   |
-| Redis              | 6379 | Cache & Queue               | Development: `localhost:6379` / Docker: `redis:6379`      |
-| AI Gateway         | 8090 | Vision models (all routers) | Development: `localhost:8090` / Docker: `ai-gateway:8090` |
-| Nemotron LLM       | 8091 | LLM Reasoning               | Development: `localhost:8091` / Docker: `ai-llm:8091`     |
-| AI Gateway metrics | 8002 | Prometheus metrics          | Docker: `ai-gateway:8002`                                 |
+| Service            | Port | Purpose                               | Network Location                                          |
+| ------------------ | ---- | ------------------------------------- | --------------------------------------------------------- |
+| Backend API        | 8000 | FastAPI server                        | Development: `localhost:8000` / Docker: `backend:8000`    |
+| PostgreSQL         | 5432 | Database                              | Development: `localhost:5432` / Docker: `postgres:5432`   |
+| Redis              | 6379 | Cache & Queue                         | Development: `localhost:6379` / Docker: `redis:6379`      |
+| AI Gateway         | 8090 | Triton lane (`/yolo26`, `/enrich-lt`) | Development: `localhost:8090` / Docker: `ai-gateway:8090` |
+| AI VLM             | 8098 | VLM verification (llama.cpp)          | Development: `localhost:8098` / Docker: `ai-vlm:8098`     |
+| AI Gateway metrics | 8002 | Prometheus metrics                    | Docker: `ai-gateway:8002`                                 |
 
-The old per-model ports (YOLO26 8095, Florence-2 8092, CLIP 8093, Enrichment
-8094, Enrichment-light 8096) survive only as host-port variables in
-`.env.example` for standalone model servers (`ai/yolo26/`, `ai/florence/`,
-etc., still used for export/benchmark tooling). In production compose all
-model traffic goes through the gateway:
+Detection traffic reaches Triton only through the gateway. The VLM server's
+container-side port is fixed at 8098 (`AI_VLM_PORT` only rebinds the loopback
+host mapping, and the service sits behind compose profile `vlm`):
 
 ```env
 # .env.example (current)
@@ -46,10 +44,8 @@ AI_GATEWAY_PORT=8090
 AI_GATEWAY_URL=http://ai-gateway:8090
 USE_AI_GATEWAY=true
 YOLO26_URL=http://localhost:8090/yolo26
-FLORENCE_URL=http://localhost:8090/florence
-CLIP_URL=http://localhost:8090/clip
-ENRICHMENT_URL=http://localhost:8090/enrichment
-NEMOTRON_URL=http://localhost:8091
+AI_VLM_PORT=8098
+AI_VLM_URL=http://localhost:8098
 ```
 
 ### External/Host Ports (Configurable)
@@ -83,10 +79,7 @@ Services are accessed via `localhost` with standard ports:
 DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security  # pragma: allowlist secret
 REDIS_URL=redis://localhost:6379/0
 YOLO26_URL=http://localhost:8090/yolo26
-NEMOTRON_URL=http://localhost:8091
-FLORENCE_URL=http://localhost:8090/florence
-CLIP_URL=http://localhost:8090/clip
-ENRICHMENT_URL=http://localhost:8090/enrichment
+AI_VLM_URL=http://localhost:8098
 ```
 
 ### Docker Compose Environment
@@ -98,11 +91,11 @@ Services are accessed via container service names with the same standard interna
 DATABASE_URL=postgresql+asyncpg://security:password@postgres:5432/security  # pragma: allowlist secret
 REDIS_URL=redis://redis:6379/0
 AI_GATEWAY_URL=http://ai-gateway:8090
-NEMOTRON_URL=http://ai-llm:8091
 YOLO26_URL=http://ai-gateway:8090/yolo26
+AI_VLM_URL=http://ai-vlm:8098
 ```
 
-Notice: **Only the hostname changes, ports remain 5432, 6379, 8090, 8091, etc.**
+Notice: **Only the hostname changes, ports remain 5432, 6379, 8090, 8098, etc.**
 
 ## Configuration Files
 
@@ -115,6 +108,10 @@ yolo26_url: str = Field(
     default="http://ai-gateway:8090/yolo26",
     # Docker: http://ai-gateway:8090/yolo26 (via AI gateway)
 )
+ai_vlm_url: str = Field(
+    default="http://localhost:8098",
+    # Docker: http://ai-vlm:8098 (compose profile `vlm`)
+)
 ```
 
 ### .env.example
@@ -124,14 +121,11 @@ model URLs at `AI_GATEWAY_PORT` (see the `AI SERVICE PORTS` section).
 
 ### setup.py
 
-The setup script generates environment-appropriate configuration, reading
-port values from `.env.example` as the single source of truth:
-
-```python
-# Service metadata; ports loaded from .env.example
-"yolo26": {"category": "AI", "desc": "YOLO26 object detection"},
-# ... etc
-```
+The setup script generates the `.env` for the host environment, reading port
+values from `.env.example` as the single source of truth and probing for free
+host ports before writing (`find_available_port` in
+`setup_lib/core.py`). `.env` is the sole config source — no
+`docker-compose.override.yml` is generated.
 
 ### docker-compose.prod.yml
 
@@ -144,24 +138,23 @@ ai-gateway:
     - '127.0.0.1:${AI_GATEWAY_METRICS_PORT:-8002}:8002'
 ```
 
-### docker-compose.override.yml
+### Host port remapping
 
-External ports may differ, but internal container ports remain standard:
+`docker-compose.prod.yml` itself does the host-to-internal mapping through the
+`.env` variables — there is no separate override file:
 
 ```yaml
-# Generated by setup.py - maps external ports to standard internal ports
 postgres:
   ports:
-    - '5433:5432' # Host 5433 -> Container 5432 (internal standard)
+    - '127.0.0.1:${POSTGRES_PORT:-5432}:5432' # Host var -> Container 5432 (internal standard)
 
 redis:
   ports:
-    - '6380:6379' # Host 6380 -> Container 6379 (internal standard)
-
-backend:
-  ports:
-    - '8000:8000' # Host 8000 -> Container 8000 (always standard)
+    - '127.0.0.1:${REDIS_PORT:-6379}:6379' # Host var -> Container 6379 (internal standard)
 ```
+
+If `setup.py` finds a host port taken, it writes a free alternative into `.env`;
+the right-hand (container) side never changes.
 
 ## When Ports Are Standard vs. When They Can Vary
 
@@ -170,7 +163,8 @@ backend:
 - **Backend API**: 8000 (internal communication between frontend/backend)
 - **PostgreSQL**: 5432 (internal communication with database)
 - **Redis**: 6379 (internal communication with cache)
-- **AI Gateway**: 8090 (internal communication with all vision models)
+- **AI Gateway**: 8090 (internal communication with the Triton detection lane)
+- **AI VLM**: 8098 (internal communication with the verification server; the container-side port is fixed)
 
 These ports are embedded in configuration and service discovery.
 
@@ -181,42 +175,14 @@ These ports are embedded in configuration and service discovery.
 
 These ports are for external access only and are safely remappable.
 
-## Migration Guide
-
-If you have existing configurations using the pre-gateway per-model URLs:
-
-### From Older Configuration
-
-```env
-# Old (per-model services)  # pragma: allowlist secret
-YOLO26_URL=http://ai-yolo26:8095
-FLORENCE_URL=http://ai-florence:8092
-CLIP_URL=http://ai-clip:8093
-ENRICHMENT_URL=http://ai-enrichment:8094
-```
-
-### To Current Configuration
-
-```env
-# Current (AI gateway)  # pragma: allowlist secret
-USE_AI_GATEWAY=true
-YOLO26_URL=http://ai-gateway:8090/yolo26
-FLORENCE_URL=http://ai-gateway:8090/florence
-CLIP_URL=http://ai-gateway:8090/clip
-ENRICHMENT_URL=http://ai-gateway:8090/enrichment
-```
-
-**Key Change**: Remove per-model hostnames/ports from internal service URLs. Run `python setup.py` to generate correct configuration for your environment.
-
 ## Running setup.py
 
 The `setup.py` script automatically:
 
 1. **Reads** port values from `.env.example` (single source of truth)
-2. **Generates** correct service URLs with standard ports
-3. **Checks** for external port conflicts
-4. **Finds alternatives** for conflicting external ports (5433, 6380, etc.)
-5. **Creates** docker-compose.override.yml with proper port mappings
+2. **Generates** the `.env` with correct service URLs on standard ports
+3. **Checks** for external port conflicts on this host
+4. **Finds alternatives** for conflicting external ports and records them in `.env`
 
 ```bash
 # Run once to set up standardized configuration
@@ -234,7 +200,7 @@ This ensures your configuration uses standard internal ports while automatically
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/db  # pragma: allowlist secret
 REDIS_URL=redis://localhost:6379/0
 YOLO26_URL=http://localhost:8090/yolo26
-NEMOTRON_URL=http://localhost:8091
+AI_VLM_URL=http://localhost:8098
 API_HOST=0.0.0.0
 API_PORT=8000
 ```
@@ -246,7 +212,7 @@ API_PORT=8000
 DATABASE_URL=postgresql+asyncpg://user:pass@postgres:5432/db  # pragma: allowlist secret
 REDIS_URL=redis://redis:6379/0
 YOLO26_URL=http://ai-gateway:8090/yolo26
-NEMOTRON_URL=http://ai-llm:8091
+AI_VLM_URL=http://ai-vlm:8098
 ```
 
 ### Mixed Environment (Local Services + Docker)
@@ -281,7 +247,7 @@ lsof -i :8000        # Check Backend port
 If backend can't connect to Redis:
 
 ```bash
-# Wrong: Using external port from docker-compose.override.yml
+# Wrong: Using the remapped external host port (REDIS_PORT) inside a container
 REDIS_URL=redis://localhost:6380  # ❌ This won't work!
 
 # Right: Use internal standard port
@@ -329,7 +295,7 @@ The `${PROMETHEUS_PORT}` only affects external access (`localhost:9090`). Intern
 
 | File                                                         | Example References                                                    | Notes                                |
 | ------------------------------------------------------------ | --------------------------------------------------------------------- | ------------------------------------ |
-| `monitoring/prometheus.yml`                                  | `alertmanager:9093`, `backend:8000`, `ai-llm:8091`, `ai-gateway:8002` | All scrape targets use service names |
+| `monitoring/prometheus.yml`                                  | `alertmanager:9093`, `backend:8000`, `ai-vlm:8098`, `ai-gateway:8002` | All scrape targets use service names |
 | `monitoring/alertmanager.yml`                                | `http://backend:8000/api/webhooks/alerts`                             | Webhook receivers use service names  |
 | `monitoring/grafana/provisioning/datasources/prometheus.yml` | `http://prometheus:9090`, `http://loki:3100`                          | Datasource URLs use service names    |
 | `monitoring/alloy/config.alloy`                              | `http://loki:3100`, `http://pyroscope:4040`, `tempo:4317`             | All endpoints use service names      |
@@ -347,12 +313,12 @@ The `${PROMETHEUS_PORT}` only affects external access (`localhost:9090`). Intern
 | Node Exporter | 9100                  | `NODE_EXPORTER_PORT`                        |
 | cAdvisor      | systemd service       | `CADVISOR_PORT` (host service, not compose) |
 
-> Tracing moved from Jaeger to Grafana Tempo (NEM-5545); the `JAEGER_*`
-> variables remaining in `.env.example` are vestigial.
+Traces are served by Grafana Tempo; Alloy exports OTLP to `tempo:4317`.
 
 ### Special Case: DCGM Exporter
 
-The `dcgm-exporter` job in `prometheus.yml` uses `host.containers.internal:9400` because:
+The `dcgm-exporter` job in `prometheus.yml` targets `host.containers.internal`
+on port `9400` because:
 
 - DCGM exporter runs in rootful Podman (requires elevated privileges)
 - Prometheus runs in rootless Podman
@@ -381,7 +347,6 @@ Currently, no monitoring configuration files have this requirement.
 ## References
 
 - `docker-compose.prod.yml` - Production configuration
-- `docker-compose.override.yml` - Development overrides (generated)
 - `.env.example` - Environment template with port documentation
 - `backend/core/config.py` - Configuration settings
 - `setup.py` - Setup script with port standardization
