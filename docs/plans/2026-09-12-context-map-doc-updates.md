@@ -15542,7 +15542,11 @@ deep-equal vs `mutation-history-preM26.json`, pre-M27 backup
 pre-disaster refresh had used the metas-only b32 recipe and was REDONE canonically as
 `backend mutmut-stats.json` — 4,744 entries, 52.9 MB, gzip -t verified, ONE scratch
 dir extracted for the spot-check then DELETED, df clean;
-M26 tar kept as `guard-restore-preM27-superseded.tgz`).
+the run-3-era tar — post-restore bank with the
+151 holes, the base the guard WOULD have restored during run 3 — kept as
+`guard-restore-preM27-superseded.tgz`; the true M26-close tar had already
+been superseded by the sanctioned pre-run refresh, a known consequence of
+the disaster arc).
 
 **Commands + snapshots:** runs `b38-c25-run.log` (re-run, CLEAN; done in 607,725ms,
 240 files mutated, 0 ignored) / `b38-c25-run2.log` (disaster; its own generation
