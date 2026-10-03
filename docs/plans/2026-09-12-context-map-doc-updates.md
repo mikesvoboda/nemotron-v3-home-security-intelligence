@@ -15568,3 +15568,120 @@ check base).
 `worker_supervisor` 243/62.6154%, `audit_logger` 242/40.6863%). Campaign #26,
 battery letter AB. Gap to 85%: 0.85×69,136 = 58,765.6 − 51,841 = **6,924.6 kt**.
 Every number measured THIS session.
+
+## MILESTONE 28 — 75.33836543466944% (campaign #26 threat_monitor_service closes in ONE run via the M19 pre-copy; zero-killer battery — the GREEN set was the ledger on sweep #1)
+
+**DECIDE (ordering):** M27 head as censused — `threat_monitor_service.py` 244
+survivors at 32.5967% (362 keys). R8 shield verified CLEAN: absent from
+DEAD_MODULES/DEAD_LOADERS and none of its 14 imports touch a dead module
+(`threat_detection_loader` is dead — a DIFFERENT module). `api/routes/system.py`
+328 and `system_broadcaster.py` 320 skipped (do-not-start list). Battery letter
+AB (35 tests).
+
+**Badge:** **75.33836543466944%** completed=true (killed 51,816 + timeout 285 =
+52,101 kt / 69,156; no_tests 783 sticky-unchanged; not_checked 0; torn 0). Delta
+vs M27's 74.98408933117334% = **+0.3542761034961046**. Bank 69,136 -> 69,156
+keys (+20, ALL threat_monitor_service coverage-growth births); per-module diff
+EXHAUSTIVE — threat_monitor_service is the ONLY module that moved: kt +260
+(118 -> 378 killed; 244 -> 4 survived), tree kt +260 exactly.
+
+**Campaign #26 `backend/services/threat_monitor_service.py` CLOSED at
+98.95287958115183%** (378 kt / 382; survivors 4; 0 timeout). Disposition:
+survivors concentrated in 5 methods (pmd 71, ptd 54, broadcast 52, webhooks
+43, cooldown 24) and the module is DATA-MAPPING-shaped — the shipped suite
+never pins emitted payloads, log messages, call args or SQL text. Battery AB
+pins instead: whole-payload equality (json.loads of the published WebSocket
+string incl. the {"type","data"} wrapper), the webhook call as ONE tuple with
+session object IDENTITY against a required-slot fake (positional deletions ->
+TypeErrors), a call-site SPY over the bound `_check_cooldown`, rendered SQL +
+compiled PARAM values (tz-aware recent cutoff; LIMIT param == 1; the
+select(None) tell is `"SELECT NULL" not in sql`), plain `_Obj` rows with exact
+attribute polarities for the hasattr-guard family, FULL msgs() sequences +
+extra attributes, and whole-Alert metadata equality. **Authoring sweep RED=240
+GREEN=4 HANG=0 of 244 — the GREEN set was EXACTLY the registered EQUIV ledger
+on the first sweep; no killer round was needed** (every KILLABLE construction
+claim fired RED immediately). Battery committed `bf23636d` md5
+`a2f60d58629c29cab23010e069d340ee` (pre-commit hook bytes verified
+byte-identical); committed-bytes re-sweep reproduced 240/4/0-HANG.
+
+**The 4 survivors == the ledger (row-by-row, all bank verdict-0):**
+
+- `_check_cooldown` m19 (pre-run m16 slot, and->or in
+  `existing_alert is not None and not isinstance(existing_alert, Alert)`):
+  the shapes disagree only at (None, not-Alert) -> mutant enters the guard,
+  hasattr(None,"id") False -> returns None identically; and (real Alert) ->
+  mutant enters, the instrumented attrs EXIST (reading None) -> falls through
+  -> returns the alert. Every reachable input returns identically.
+- pmd m12/m14/m15 (`SEVERITY_PRIORITY.get` default -> None / deleted / -> 1):
+  the default is read only when the key is absent; get_threat_severity returns
+  ONLY AlertSeverity members and every member is keyed — unreachable slot.
+
+**One-run close, M19 pre-copy 5th deployment:** battery AB pre-copied md5-sync
+into the mutant home -> run 1's own stats pass saw the new coverage; **20
+new-body births ALL killed same-run** (fn census: `_build_dedup_key` 1 -> 8 —
+the direct-call rounds newly covered it; `_broadcast_alert_created` 55 -> 64;
+`_check_cooldown` 33 -> 36; pmd +1). Body reconcile CLEAN: matrix {(1,1):118,
+(0,1):240, (0,0):4}, 0 kill losses, 0 lost groups, 382 keys / 378 killed.
+Pre-launch unit-tier scan GREEN 28,643 passed / 124 skipped / 8 xfailed, 0
+failed (count < c25's 28,718 because the M26-era host merge deleted metrics
+test files; disclosed). Guard-module2 [gen]->[tight], sibling-drop=0 every
+tick, never fired. Launch used the NEW launcher-zero-match discipline: the
+services filter VERIFIED non-empty (362 keys) before `mutation-run.sh`.
+
+**Close sweep (all 382 sweepable keys, committed bytes):** RED=356 GREEN=6
+HANG=0. The 6 sweep GREENs are 6 of the 4 bank survivors PLUS two extra
+GREENs: bank survivors (new numbering) = `_check_cooldown` m19 + pmd
+m12/m14/m15 ⊆ sweep GREEN. The two EXTRA battery-GREENs
+(`process_threat_detection` m22/m24, the severity-HINT drop at the ptd call)
+are bank verdict-1 — killed by the SHIPPED suite's hint scenarios (unknown
+types + severity hints), battery-INAPPLICABLE because every battery ptd threat
+type is in THREAT_SEVERITY_MAPPING (the hint is never consulted for them).
+Disclosed, not papered over: the battery alone does not kill those two; the
+bank's shipped-suite kill stands and is credited as measured.
+
+**Honesty note on the reconcile:** the FIRST reconcile run of this campaign
+reported CLEAN on the WRONG module — the sed chain built from the c25
+template no-oped (c25's file had already renamed stream_manager ->
+background_evaluator, so `preC24`/`stream_manager` matched nothing). Caught
+by the output naming (BACKGROUND evaluator names in a #26 log); rebuilt with
+correct paths and RE-run — the numbers above are from the corrected run. The
+accidental background_evaluator audit independently confirmed that module's
+bank is still 388/394 with 0 losses.
+
+**Bank at close:** 240 metas / 69,156 keys = kt 52,101 (killed 51,816 + timeout
+285; no_tests 783 sticky; suspicious 0; not_checked 0; torn 0). History run #32
+appended `--date 2026-10-03` (add-only +3,041 lines / 0 deletions; runs 1-31
+deep-equal vs `mutation-history-preM28.json` (31 runs) — the FIRST real close on
+this branch that appended FROM the workspace root after a cwd mistake in the
+mutant home failed loudly with "no mutants/ tree", never silently).
+guard-restore.tgz refreshed at close from INSIDE mutants/ (canonical
+`backend mutmut-stats.json` membership, 4,744 entries, gzip -t verified, ONE
+scratch dir extracted then DELETED, df 48%); M27 tar kept as
+`guard-restore-preM28-superseded.tgz`.
+
+**NOT PUBLISHED FROM:** the close-sweep RED=356 as the module score (bank 378 —
+22 kills come from the shipped suite + the run's own stats pass outside the b30
+single-process contract), nor the 2 extra sweep GREENs as ledger survivors (the
+ledger is the 4 bank verdict-0 keys).
+
+**Commands + snapshots:** run `b38-c26-run.log` (done in 591,676ms, 240 files
+mutated, 0 ignored); guard ticks `guard.log`; sweeps
+`b38-c26-sweep-authoring.txt` (240/4 of 244) / `b38-c26-sweep-committed.txt`
+(240/4, committed bytes) / `b38-c26-sweep-close.txt` (356/6 of 382), batched
+wrapper `b38-c25-sweep-batched.sh` (reused); reconcile
+`b38-c26-reconcile-body.py` -> `b38-c26-reconcile-r1.txt` (CLEAN rc=0, corrected
+paths); map `b38-c26-mutation-map.txt` (244 keys, 0 NOT-FOUND); keys
+`b38-c26-sweep-keys.txt` / `b38-c26-all-keys.txt`; green scan
+`b38-c26-greenscan-unit.log` (28,643/124/8, 0 FAILED; the tier-mis-scoped
+first scan `b38-c26-greenscan.log` (11F/49E, all OUTSIDE the unit tier:
+benchmark-plugin errors, docker-compose security tests needing the host git
+tree, integration ImportErrors) is the artifact that forced the tier fix);
+pre-run archive `b38-preC26/`; scores `b38-c26-score-r1.json`; history backup
+`mutation-history-preM28.json`.
+
+**Next head (re-censused from `b38-c26-score-r1.json`, R8 shield applied):**
+**`worker_supervisor.py` 243 survivors at 62.6154%** (650 keys; then
+`audit_logger` 242/40.6863%, `alert_engine` 241/68.2058%). Campaign #27,
+battery letter AC. R8 CLEAN (absent from both death lists). Gap to 85%:
+0.85\*69,156 = 58,782.6 - 52,101 = **6,681.6 kt**. Every number measured THIS
+session.
