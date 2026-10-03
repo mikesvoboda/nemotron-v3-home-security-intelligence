@@ -78,7 +78,8 @@
     "tmp": ">=0.2.4",
     "minimatch": ">=10.2.1",
     "@mswjs/interceptors": "0.41.8",
-    "qs": ">=6.15.2"
+    "qs": ">=6.15.2",
+    "serialize-javascript": ">=7.1.2"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",

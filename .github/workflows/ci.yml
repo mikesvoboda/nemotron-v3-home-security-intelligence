@@ -208,6 +208,7 @@ jobs:
           scripts/test_check_ai_provider_parity.py
           scripts/test_check_gate_reachability.py
           scripts/test_ai_surface_census.py
+          scripts/test_check_npm_audit_exemptions.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
@@ -3034,8 +3035,19 @@ jobs:
       - name: Install dependencies
         run: cd frontend && npm ci
 
-      - name: Run npm audit
-        run: cd frontend && npm audit --audit-level=high
+      # Audit gate = checker + registry (frontend/.npm-audit-exemptions.json),
+      # mirroring .trivyignore doctrine: every exemption carries a REVIEW BY
+      # date and the checker fails CLOSED - unexempted findings, expired or
+      # missing review dates, stale entries, and in-range fixes appearing for
+      # exempted advisories are ALL red. A bare `npm audit --audit-level=high`
+      # here would fail open the day an advisory lands with no released fix
+      # (the braces DoS chain: every published version affected, the only
+      # path is a tailwind v4 migration) or block every unrelated PR on
+      # upstream's schedule. Registry, checker, and this step land together.
+      # python3, not uv run: this job is Node-only (no setup-uv step, 5-min
+      # timeout budget) and the checker is stdlib-only Python.
+      - name: Audit check (exemption registry)
+        run: python3 scripts/check-npm-audit-exemptions.py --frontend frontend --warn-days 14
         continue-on-error: false
 
   security-tests:
