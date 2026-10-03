@@ -1,5 +1,15 @@
 # 12 — Postponed Roadmap
 
+> **Currency - 2026-10-03 [V].** R8 is executed, not deferred ("is now the authority on what goes" is
+> overtaken; "including the 0.3 changes" were not removed; "What stays:" is half alive).
+> "YOLO-World is in the model set but unused" is stale: R8 deleted it and the slot is YOLOE-26.
+> "The owner selects (the VLM at M2)" and "the owner picks at M2" were decided on 2026-09-28
+> (Qwen3-VL-8B, provisional). "Partly pulled in (2026-09-23)." is wrong: the Brev matrix did not run.
+> "path is ingest-agnostic" holds for stills only, and no R-item covers video or clips. The
+> "stored-but-never-evaluated alert rules" gap is really the unwired notification link. R3's "passes
+> the tool-calling probe" is met on the probe half. See [`16`](16-errata-2026-10-03.md) E29, E32, E35,
+> E58, E72, E76, E100, E103, E109-E114, E120.
+
 Items the VSS gaming-GPU effort **deliberately postponed** on 2026-09-23, so a future agent
 neither re-discovers them nor mistakes their absence for an oversight. The current effort is the
 design in

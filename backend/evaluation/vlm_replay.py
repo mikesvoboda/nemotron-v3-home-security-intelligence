@@ -8,9 +8,6 @@ specialist - the GIVENS are the point of a replay.
 
 The pieces it deliberately does NOT have:
 
-* **no `harness.py`.** That module is the legacy Nemotron prompt harness
-  (it POSTs to a live `nemotron_url`); F10 makes the legacy path unsupported,
-  so the vlm replay stands beside it and imports nothing from it.
 * **no key-frame selection.** Production selects the ≤4 frames with
   `build_assess_request`/`select_key_frames` from DETECTION ROWS; a frozen
   item has none (a stock item's snapshot carries zero detections - the loader
@@ -351,9 +348,7 @@ async def run_replay(
 
 
 def save_vlm_report(report: dict[str, Any], out_path: str | Path) -> Path:
-    """Aggregate JSON only - no per-item rows, no imagery (D10). The
-    legacy `reports.py` writers are shaped for harness DataFrames; this
-    stands beside them rather than bending them."""
+    """Aggregate JSON only - no per-item rows, no imagery (D10)."""
     path = Path(out_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")

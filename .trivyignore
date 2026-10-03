@@ -204,29 +204,15 @@ CVE-2024-23342
 # unreachable through the dependency graph)
 # =============================================================================
 
-# CVE-2026-69247 - cryptography PKCS#7 EnvelopedData Bleichenbacher oracle (REVIEW BY: 2027-03-16)
-# HIGH, fixed in cryptography 50.0.0 — but the fix is UNREACHABLE: the nemo
-# dependency group (project.optional-dependencies + dependency-groups, both
-# "data-designer>=0.9.2") pulls data-designer-engine 0.9.2 which pins
-# cryptography>=48.0.1,<=49, and 0.9.2 is the engine's latest release
-# (registry-checked 2026-09-16). uv resolves one cross-extra environment, so
-# the runtime stays on 49.0.0 while the nemo group exists in the lock.
-# Not exploitable in our context:
-#   1. The oracle requires decrypting attacker-supplied PKCS#7 EnvelopedData;
-#      grep over backend/ finds zero uses of PKCS7/EnvelopedData APIs
-#   2. cryptography enters only via python-jose (HMAC paths) and pyjwt
-#   3. OSV: 50.0.0 clean, 49.0.0 flagged ONLY by this CVE (no other advisories)
-# Revisit trigger: data-designer-engine releasing a build that allows
-# cryptography>=50; then upgrade and DELETE this entry.
-# Reference: https://avd.aquasec.com/nvd/cve-2026-69247
-CVE-2026-69247
+# (no entries: the one cryptography advisory that lived here was fixed by the 2026-10-03 upgrade; see the log below)
 
 # =============================================================================
-# REMOVED 2026-09-16 review (fixes present in the LOCKED versions — OSV-clean):
+# REMOVED 2026-09-16 and 2026-10-03 reviews (fixes present in the LOCKED versions — OSV-clean):
 #   CVE-2024-56326 / CVE-2024-22195 / CVE-2025-27516  (jinja2 fixed in shipped 3.1.6)
 #   GHSA-58pv-8j8x-9vj2 / CVE-2026-23949              (setuptools 84.0.0 vendors jaraco.context 6.1.0)
 #   CVE-2026-24049                                    (setuptools 84.0.0 vendors wheel 0.46.3)
 #   CVE-2026-0994                                     (protobuf 7.36.1 in uv.lock, OSV-clean)
+#   CVE-2026-69247                                    (cryptography 50.0.2 in uv.lock, OSV-clean; the nemo extra that capped it at <=49 was removed)
 # The file's own rule: "Remove entries when fixes become available."
 # =============================================================================
 
@@ -306,3 +292,17 @@ CVE-2025-47273
 CVE-2026-97687
 # CVE-2026-97689 - urllib3 2.7.0 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
 CVE-2026-97689
+
+# =============================================================================
+# Frontend npm dependencies (filesystem scan of frontend/package-lock.json and bun.lock)
+# =============================================================================
+# braces 3.0.3 is the newest release published to npm (2024-09-18; `npm view braces
+# versions` ends at 3.0.3, read 2026-10-03), so no fixed version exists to upgrade to.
+# It is reached through tailwindcss (build-time CSS generation) via chokidar, micromatch
+# and fast-glob. The production image copies only /app/dist into nginx
+# (frontend/Dockerfile:127), so braces is not in the runtime image, and the advisory
+# (stack overflow on deeply nested brace patterns) needs an attacker-controlled pattern
+# handed to braces. Re-check when braces publishes a release or tailwindcss stops using it.
+#
+# CVE-2026-93687 - braces 3.0.3 stack overflow on deeply nested patterns, via tailwindcss (REVIEW BY: 2027-01-03)
+CVE-2026-93687

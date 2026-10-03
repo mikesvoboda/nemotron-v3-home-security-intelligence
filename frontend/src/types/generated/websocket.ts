@@ -11,7 +11,7 @@
  *   backend/api/schemas/websocket.py
  *   backend/api/schemas/event_verification.py
  *
- * Generated at: 2026-09-25T04:55:47Z
+ * Generated at: 2026-10-03T19:53:15Z
  *
  * Note: WebSocket messages are not covered by OpenAPI, so we generate these
  * types separately to ensure frontend/backend type synchronization.
@@ -131,7 +131,7 @@ export interface EventVerificationPayload {
  * This schema defines the contract for event data sent from the backend
  * to WebSocket clients. Any changes to this schema must be reflected in:
  * - backend/api/routes/websocket.py docstring
- * - backend/services/nemotron_analyzer.py _broadcast_event()
+ * - backend/services/vlm_analyzer.py VlmAnalyzer._broadcast()
  * - frontend WebSocket event handlers
  *
  * Fields:
@@ -144,6 +144,7 @@ export interface EventVerificationPayload {
  *     summary: Human-readable description of the event
  *     reasoning: LLM reasoning for the risk assessment
  *     started_at: ISO 8601 timestamp when the event started (nullable)
+ *     notify: the analyzer's notify decision (key absent when none was made)
  */
 export interface WebSocketEventData {
   /** Unique event identifier */
@@ -160,6 +161,8 @@ export interface WebSocketEventData {
   risk_level: 'low' | 'medium' | 'high' | 'critical' | null;
   /** VLM verification object; present only on verified (vlm-mode) events */
   verification?: EventVerificationPayload | null;
+  /** Notify decision for this event; absent when none was made */
+  notify?: boolean | null;
   /** Human-readable description of the event */
   summary: string;
   /** LLM reasoning for the risk assessment */

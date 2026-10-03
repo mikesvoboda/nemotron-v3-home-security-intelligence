@@ -1,5 +1,14 @@
 # 08 — Audit: VSS Profile Anatomy, GPU Placement, Arch Support, CI
 
+> **Currency - 2026-10-03 [V].** A dated audit of VSS `1e94133b4`; its upstream claims are not
+> re-verified here. Our side moved: "Our current LLM file" (Nemotron-30B) and its `ours:` compose
+> cites went with the `ai-llm` service (`ai-vlm`, Qwen3-VL-8B, is now the only llama.cpp server;
+> `ai-llm-vllm` remains, under profile `vllm`); "(our LLM)" for `ghcr.io/ggml-org/llama.cpp` never
+> matched an image this repo ran (it builds from source, `ai/vlm/Dockerfile`); "Remote
+> OpenAI-compatible LLM is first-class" was not the route taken; "too little room" on the A5500 is
+> now measured (24,564 MiB, plus an A400 at index 1, ledger `:365`); the NGC removal date "September
+> 30, 2026" has passed. See [`16`](16-errata-2026-10-03.md) E45, E89-E92.
+
 > **Provenance.** Independent read-only audit by a research subagent ("Auditor A") on
 > 2026-09-23, against VSS `1e94133b4` (`origin/develop`; 78 commits after the `cdad5cc0e`
 > baseline that docs 00-07 cite). Scope: profile anatomy, dev-profile.sh placement, GPU/CPU architecture support, image availability, CI, contribution. Evidence markers follow [`AGENTS.md`](AGENTS.md).

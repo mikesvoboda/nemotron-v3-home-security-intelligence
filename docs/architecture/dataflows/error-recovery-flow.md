@@ -256,23 +256,27 @@ self._circuit_breaker = CircuitBreaker(
 
 ### VLM Client Retry
 
-**Source:** `backend/services/vlm_client.py:804-807`
+**Source:** `backend/services/vlm_client.py:810-817`
 
 The analysis leg does not use the backoff ladder. `VlmClient.assess()` makes
 two attempts inside one read budget (`settings.ai_vlm_read_timeout`, default
-25s) and the retry differs from the first only in temperature:
+25s) and the retry is a plain re-send of the same body (the first attempt is greedy too):
 
 ```python
-# backend/services/vlm_client.py:804-807
+# backend/services/vlm_client.py:810-817
 last_error: VlmClientError | None = None
 for attempt, temperature in enumerate((None, 0.0)):
     if temperature is not None:
-        body["temperature"] = temperature  # §6 step 1: retry at temp 0
+        # §6 step 1: retry at temp 0. The first attempt is greedy too
+        # (_ASSESS_TEMPERATURE), so the retry is a plain re-send; it stays
+        # explicit so changing the first-attempt temperature cannot
+        # silently change the retry.
+        body["temperature"] = temperature
 ```
 
 Transport failures (connection refused, timeout, HTTP 5xx) and a complete
 reply that violates the verdict schema are both given the second attempt — at
-temperature 0 the model can answer differently. A context-overflow refusal and
+temperature 0 the failure may not recur on a plain re-send. A context-overflow refusal and
 a reply cut off at `max_tokens` raise on the spot: re-asking at the same budget
 cannot change either answer (`backend/services/vlm_client.py:813-826, 833-866`).
 Each counted failure feeds the `ai-vlm` breaker

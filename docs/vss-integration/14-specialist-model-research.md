@@ -1,5 +1,14 @@
 # 14 — Specialist Model Research (2026-09-25)
 
+> **Currency - 2026-10-03 [V].** Task 3b shipped its face pick (the doc says it "feeds Phase 1 Task 3b
+> now"); "Rev 7 shortlist" and "a proposal for spec rev 7" are mislabeled, because rev 7 is the M2 pick
+> and this is a rev 8 or later proposal; "whose matches are close to noise" (CLIP re-ID) is closed
+> (OSNet-AIN); R8 deleted the incumbents ("_incumbent_ YOLOv8n-pose", "in-house `stgcn_action`",
+> "SigLIP2-B/16-224" "(incumbent, resident)"); and the "resident specialists" lines read "unavailable"
+> on a default deploy (the plate leg is not installed in the image; face and re-ID need
+> `BACKEND_MODEL_PRELOAD=true`). The "zero-glue" tracker route was deleted. See
+> [`16`](16-errata-2026-10-03.md) E120-E125 (also E32, E110, E111).
+
 Candidate models for the **resident specialists** that feed the VLM through `specialist_outputs`
 (spec rev 6, D3). It was written from the owner's host session. The rulings it depends on are in
 the ledger as **F12**:

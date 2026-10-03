@@ -1,5 +1,13 @@
 # VSS Architecture and How It Maps to Ours
 
+> **Currency - 2026-10-03 [V].** The "Our pipeline (`ai/`)" column of the mapping table is obsolete
+> except YOLO26: CLIP, Florence-2, Nemotron v3 Nano and `ai/enrichment/model_registry.py` are all
+> deleted (R8: `602379e2`, `3b73b9b6`); there is no LLM slot, re-ID is OSNet-AIN, and "RT-VLM
+> deployment modes" describes a Phase 4 placeholder (`ProviderId.RTVI_VLM`, `deployed=False`), not
+> a deployment. Two `[?]` items ("under investigation") were answered elsewhere, and "The two
+> codebases already agree about what honesty means" is only partly true. The VSS-side half is
+> unchanged and not re-verified. See [`16`](16-errata-2026-10-03.md) E48-E51, E66.
+
 > **Errata (2026-09-23):** E11, E12, E18, E19, E28 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
 
 All **[V]** claims were verified by reading the VSS repo on 2026-09-18. VSS is actively

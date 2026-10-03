@@ -1,5 +1,14 @@
 # Hardware Profiles: The Tiering Strategy
 
+> **Currency - 2026-10-03 [V].** The volume tier rests on "a reference implementation already
+> exists", "Small CV zoo" and "precisely the architecture in `ai/`": R8 deleted that pipeline (`ai/`
+> has no Florence-2 or CLIP; one VLM call replaces it), and the gateway on "port 8090 with routers"
+> now mounts only `/yolo26` and `/enrich-lt`. "Below roughly 24 GB" is falsified at 24 GB (12-16 GB
+> is unmeasured). "`model_zoo` LRU eviction" never existed (idle sleep now exists for the VLM only),
+> "Not latency. **Salience.**" now has fixed bars and a first reading, and "SLA §8.9 bars publishing
+> benchmark data" drops the clause's qualifiers. See [`16`](16-errata-2026-10-03.md) E44, E45,
+> E71-E78, E120.
+
 > **Errata (2026-09-23):** E1, E3, E4, E6, E9, E10, E17, E18 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
 
 **Proposed 2026-09-19.** This reframes the product thesis from "port VSS to consumer GPUs" to

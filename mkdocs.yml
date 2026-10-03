@@ -157,8 +157,6 @@ nav:
           - SSL & HTTPS: developer/ssl-https.md
           - Python 3.14 Features: developer/python-3.14-features.md
           - LLM Inference Optimization: developer/llm-inference-optimization.md
-          - NeMo Data Designer: developer/nemo-data-designer.md
-          - Prompt Evaluation Results: developer/prompt-evaluation-results.md
       - API Reference:
           - developer/api/README.md
           - Core Resources: developer/api/core-resources.md

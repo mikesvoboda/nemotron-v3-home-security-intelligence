@@ -102,8 +102,8 @@ LLM_OPS: dict[str, dict[str, Any]] = {
             "title": "LlmCompletionRequest",
             "description": (
                 "Wire shape assembled independently at 4 backend sites "
-                "(summary_generator.py:443; prompt_service.py:940; "
-                "pipeline_quality_audit_service.py:392; evaluation/harness.py:550). "
+                "(summary_generator.py, constrained_decoding.py, prompt_service.py, "
+                "pipeline_quality_audit_service.py). "
                 "Consolidation is a recorded WP7.1 follow-on (decision: follow-on)."
             ),
             "properties": {

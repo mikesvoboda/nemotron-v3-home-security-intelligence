@@ -463,6 +463,8 @@ async def websocket_events_endpoint(
        - summary: Human-readable description of the event
        - reasoning: LLM reasoning for the risk assessment
        - started_at: ISO 8601 timestamp when the event started
+       - notify: the analyzer's notify decision for the event (bool); the key is
+         ABSENT when no decision was made (replay, other emitters), which is not False
 
     4. Connection is maintained until client disconnects
 

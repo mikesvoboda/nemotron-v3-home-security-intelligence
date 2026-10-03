@@ -9,11 +9,22 @@ should be sent for a given event. It considers:
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Mapping, Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import select
 
 from backend.core.config import get_settings
-from backend.models.notification_preferences import RiskLevel
+from backend.models.notification_preferences import (
+    CameraNotificationSetting,
+    NotificationPreferences,
+    QuietHoursPeriod,
+    RiskLevel,
+)
+
+logger = logging.getLogger(__name__)
 
 # spec §6 step 3: on a NULL score (verification_failed) only a detection of
 # a security-relevant class at/above detection_confidence_threshold notifies.
@@ -22,11 +33,7 @@ from backend.models.notification_preferences import RiskLevel
 SECURITY_RELEVANT_CLASSES = frozenset({"person", "vehicle"})
 
 if TYPE_CHECKING:
-    from backend.models.notification_preferences import (
-        CameraNotificationSetting,
-        NotificationPreferences,
-        QuietHoursPeriod,
-    )
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class NotificationFilterService:
@@ -189,3 +196,80 @@ class NotificationFilterService:
             return RiskLevel.MEDIUM
         else:
             return RiskLevel.LOW
+
+
+async def decide_notification(
+    session: AsyncSession | None,
+    *,
+    risk_score: int | None,
+    camera_id: str,
+    timestamp: datetime,
+    verification_verdict: str | None,
+    detections: Sequence[Mapping[str, Any]],
+) -> bool:
+    """The notify decision for one stored verdict (M1): load the owner's global
+    preferences, the camera's setting and the quiet hours, pick the detector
+    evidence for the NULL-score rule, and ask `NotificationFilterService`.
+
+    A failed settings read never silences an alert: on any read error (or with
+    no session) the decision falls back to the shipped default preferences
+    (enabled; medium, high and critical), so a high-risk verdict still pages and
+    a NULL-score event still follows the detector-only rule. The caller owns the
+    session; run this in its OWN short session after the event has committed,
+    because a failed statement can abort the surrounding Postgres transaction.
+    """
+    prefs: NotificationPreferences | None = None
+    camera_setting: CameraNotificationSetting | None = None
+    quiet_periods: list[QuietHoursPeriod] = []
+    if session is not None:
+        try:
+            prefs = (
+                (
+                    await session.execute(
+                        select(NotificationPreferences).where(NotificationPreferences.id == 1)
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            camera_setting = (
+                (
+                    await session.execute(
+                        select(CameraNotificationSetting).where(
+                            CameraNotificationSetting.camera_id == camera_id
+                        )
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            quiet_periods = list((await session.execute(select(QuietHoursPeriod))).scalars().all())
+        except Exception as exc:
+            logger.warning(
+                "notification settings unavailable - deciding on the shipped defaults",
+                extra={"camera_id": camera_id, "error": str(exc)},
+            )
+            prefs, camera_setting, quiet_periods = None, None, []
+    if prefs is None:
+        prefs = NotificationPreferences()  # shipped defaults, no row needed
+
+    evidence = max(
+        (
+            d
+            for d in detections
+            if d.get("object_type") in SECURITY_RELEVANT_CLASSES and d.get("confidence") is not None
+        ),
+        key=lambda d: d["confidence"],
+        default=None,
+    )
+    return NotificationFilterService().should_notify(
+        risk_score=risk_score,
+        camera_id=camera_id,
+        timestamp=timestamp,
+        global_prefs=prefs,
+        camera_setting=camera_setting,
+        quiet_periods=quiet_periods,
+        detection_class=evidence["object_type"] if evidence else None,
+        detection_confidence=evidence["confidence"] if evidence else None,
+        verification_verdict=verification_verdict,
+    )

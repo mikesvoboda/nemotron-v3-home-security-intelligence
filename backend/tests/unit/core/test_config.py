@@ -32,9 +32,8 @@ def clean_env(monkeypatch):
         "BATCH_IDLE_TIMEOUT_SECONDS",
         "YOLO26_URL",
         "AI_VLM_URL",
-        # NEMOTRON_URL is read by NO Settings field any more (R8 S2 deleted the
-        # whole nemotron_* family), but backend/evaluation/harness.py still
-        # os.getenv()s it, so delete it here rather than let a stale runtime
+        # NEMOTRON_URL is read by nothing any more (R8 S2 deleted the whole
+        # nemotron_* family); clear it here rather than let a stale runtime
         # value drift into anything this file constructs.
         "NEMOTRON_URL",
         "ENVIRONMENT",

@@ -126,7 +126,7 @@ is the question that was actually asked, truncation marker included.
       ]
     }
   ],
-  "temperature": 0.1,
+  "temperature": 0.0,
   "max_tokens": 1024,
   "response_format": {
     "type": "json_schema",
