@@ -1,13 +1,11 @@
 ---
 title: System Page Pipeline Visualization
 description: Technical documentation for the AI pipeline flow visualization component on the System page
-last_updated: 2026-01-18
+last_updated: 2026-10-02
 source_refs:
   - frontend/src/components/system/PipelineFlowVisualization.tsx
   - frontend/src/components/system/PipelineMetricsPanel.tsx
-  - frontend/src/components/system/InfrastructureStatusGrid.tsx
   - frontend/src/components/system/SystemMonitoringPage.tsx
-  - frontend/src/components/system/SystemSummaryRow.tsx
   - frontend/src/hooks/usePerformanceMetrics.ts
   - backend/api/routes/system.py
 ---
@@ -24,9 +22,8 @@ This document describes the pipeline visualization features on the System Monito
 4. [Health Status Indicators](#health-status-indicators)
 5. [Background Workers Grid](#background-workers-grid)
 6. [Pipeline Metrics Panel](#pipeline-metrics-panel)
-7. [Infrastructure Status Grid](#infrastructure-status-grid)
-8. [Data Sources and Refresh](#data-sources-and-refresh)
-9. [Related Components](#related-components)
+7. [Data Sources and Refresh](#data-sources-and-refresh)
+8. [Related Components](#related-components)
 
 ---
 
@@ -50,7 +47,7 @@ These components help operators:
 ```
 +------------------+     +------------------+     +------------------+     +------------------+
 |     Files        |---->|     Detect       |---->|     Batch        |---->|     Analyze      |
-| (File Watcher)   |     | (YOLO26)      |     | (Aggregator)     |     | (Nemotron LLM)   |
+| (File Watcher)   |     | (YOLO26)      |     | (Aggregator)     |     | (VLM: ai-vlm)    |
 +------------------+     +------------------+     +------------------+     +------------------+
      Throughput:             Queue Depth:          Pending Items:          Queue Depth:
      XX/min                  N items               N items                 N items
@@ -62,10 +59,6 @@ These components help operators:
 ## Pipeline Flow Diagram Component
 
 The `PipelineFlowVisualization` component (`frontend/src/components/system/PipelineFlowVisualization.tsx`) renders a visual representation of the four-stage AI pipeline.
-
-![System Page Wireframe](../images/architecture/system-page-wireframe.png)
-
-_System page wireframe showing the pipeline visualization, infrastructure status grid, and metrics panels layout._
 
 ### Visual Layout
 
@@ -91,15 +84,15 @@ _System page wireframe showing the pipeline visualization, infrastructure status
 
 ### Component Props
 
-| Prop                | Type                       | Description                                       |
+| Prop | Type | Description |
 | ------------------- | -------------------------- | ------------------------------------------------- | ----------------------------- |
-| `stages`            | `PipelineStageData[]`      | Array of stage configurations with metrics        |
-| `workers`           | `BackgroundWorkerStatus[]` | Array of background worker statuses               |
-| `totalLatency`      | `TotalLatency`             | Pipeline-wide latency metrics (avg, p95, p99)     |
-| `baselineLatencies` | `BaselineLatencies`        | Optional baseline latencies for health comparison |
-| `isLoading`         | `boolean`                  | Shows loading skeleton when true                  |
-| `error`             | `string                    | null`                                             | Displays error state when set |
-| `className`         | `string`                   | Additional CSS classes                            |
+| `stages` | `PipelineStageData[]` | Array of stage configurations with metrics |
+| `workers` | `BackgroundWorkerStatus[]` | Array of background worker statuses |
+| `totalLatency` | `TotalLatency` | Pipeline-wide latency metrics (avg, p95, p99) |
+| `baselineLatencies` | `BaselineLatencies` | Optional baseline latencies for health comparison |
+| `isLoading` | `boolean` | Shows loading skeleton when true |
+| `error` | `string                    | null` | Displays error state when set |
+| `className` | `string` | Additional CSS classes |
 
 ### Stage Icons
 
@@ -110,7 +103,7 @@ Each pipeline stage uses a distinct icon from the Lucide icon library:
 | Files   | `Folder`  | File system monitoring      |
 | Detect  | `Search`  | YOLO26 object detection     |
 | Batch   | `Package` | Detection batch aggregation |
-| Analyze | `Brain`   | Nemotron LLM risk analysis  |
+| Analyze | `Brain`   | VLM risk analysis (ai-vlm)  |
 
 ---
 
@@ -154,11 +147,11 @@ Each pipeline stage uses a distinct icon from the Lucide icon library:
 
 **Data Source:** Batch aggregator service statistics
 
-**Context:** Batches accumulate over 30-90 second windows before being sent for LLM analysis. See [AI Pipeline Architecture](ai-pipeline.md#batching-logic) for details.
+**Context:** Batches accumulate over 30-90 second windows before being sent for LLM analysis. See [AI Pipeline — Current State](ai-pipeline-current-state.md#batching-logic) for details.
 
-### 4. Analyze Stage (Nemotron LLM)
+### 4. Analyze Stage (VLM: ai-vlm)
 
-**Purpose:** Shows the LLM analysis queue and processing performance.
+**Purpose:** Shows the VLM analysis queue and processing performance.
 
 **Metrics Displayed:**
 
@@ -223,16 +216,15 @@ The component displays a grid of background worker status indicators below the p
 
 ### Workers Displayed
 
-| Worker ID              | Display Name | Purpose                   |
-| ---------------------- | ------------ | ------------------------- |
-| `detection_worker`     | Det          | Processes detection queue |
-| `analysis_worker`      | Ana          | Processes analysis queue  |
-| `batch_timeout_worker` | Batch        | Closes expired batches    |
-| `cleanup_service`      | Clean        | Removes old data          |
-| `file_watcher`         | Watch        | Monitors camera uploads   |
-| `gpu_monitor`          | GPU          | Collects GPU statistics   |
-| `metrics_worker`       | Metr         | Gathers system metrics    |
-| `system_broadcaster`   | Bcast        | WebSocket status updates  |
+The page builds the grid from five workers (`SystemMonitoringPage.tsx`, `backgroundWorkers`), each statused against the readiness payload:
+
+| Worker ID          | Display Name | Purpose                        |
+| ------------------ | ------------ | ------------------------------ |
+| `file_watcher`     | Watcher      | Monitors camera uploads        |
+| `detection_worker` | Detector     | Processes detection queue      |
+| `batch_aggregator` | Aggregator   | Groups detections into batches |
+| `analysis_worker`  | Analyzer     | Processes analysis queue       |
+| `cleanup_service`  | Cleanup      | Removes old data               |
 
 ### Worker Status Indicators
 
@@ -315,224 +307,6 @@ When queue backup is detected, a warning banner appears:
 
 ---
 
-## Infrastructure Status Grid
-
-The `InfrastructureStatusGrid` component (`frontend/src/components/system/InfrastructureStatusGrid.tsx`) provides a compact 5-card grid showing infrastructure health status with expandable detail panels.
-
-### Visual Layout
-
-```
-+-------------+-------------+-------------+-------------+-------------+
-|  [Database] |  [Server]   |   [Box]     | [Monitor]   |   [Zap]     |
-| PostgreSQL  |    Redis    | Containers  |    Host     |  Circuits   |
-|     [ok]    |    [ok]     |    [ok]     |    [ok]     |    [ok]     |
-|    12ms     |   1.2k/s    |    5/5      |  CPU 45%    |    4/4      |
-|     [v]     |     [v]     |     [v]     |     [v]     |     [v]     |
-+-------------+-------------+-------------+-------------+-------------+
-
-(Clicking any card expands its detail panel below)
-
-+------------------------------------------------------------------+
-|  [Database Icon] PostgreSQL Details                               |
-|  Pool usage: [=========    ] 8/20 active                          |
-|  Query latency: 12ms                                              |
-|  Active queries: 3                                                |
-|  DB size: 2.4 GB                                                  |
-+------------------------------------------------------------------+
-```
-
-### Component Props
-
-| Prop           | Type                                             | Description                                    |
-| -------------- | ------------------------------------------------ | ---------------------------------------------- |
-| `data`         | `InfrastructureData`                             | Infrastructure data from API                   |
-| `loading`      | `boolean`                                        | Shows loading skeleton when true               |
-| `error`        | `string \| null`                                 | Displays error state when set                  |
-| `onCardClick`  | `(cardId: InfrastructureCardId \| null) => void` | Callback when a card is clicked                |
-| `expandedCard` | `InfrastructureCardId \| null`                   | Currently expanded card (null = all collapsed) |
-| `className`    | `string`                                         | Additional CSS classes                         |
-
-### Infrastructure Cards
-
-The grid displays five infrastructure service cards:
-
-| Card           | Icon       | Color  | Primary Metric      | Description                 |
-| -------------- | ---------- | ------ | ------------------- | --------------------------- |
-| **PostgreSQL** | `Database` | Blue   | Query latency (ms)  | Primary database health     |
-| **Redis**      | `Server`   | Red    | Operations/sec      | Cache and queue performance |
-| **Containers** | `Box`      | Purple | Running/Total count | Docker container health     |
-| **Host**       | `Monitor`  | Orange | CPU utilization (%) | Host system resources       |
-| **Circuits**   | `Zap`      | Green  | Healthy/Total count | Circuit breaker states      |
-
-### Card Status Indicators
-
-Each card displays a status icon and colored border based on health:
-
-| Status        | Icon            | Border Color                 | Conditions                     |
-| ------------- | --------------- | ---------------------------- | ------------------------------ |
-| **Healthy**   | Green checkmark | Gray (green on hover)        | Service operating normally     |
-| **Degraded**  | Yellow triangle | Yellow (`border-yellow-500`) | Service experiencing issues    |
-| **Unhealthy** | Red X           | Red (`border-red-500`)       | Service failing or unreachable |
-| **Unknown**   | Gray circle     | Gray (`border-gray-700`)     | Status cannot be determined    |
-
-### Accordion Behavior
-
-- **Single expansion**: Only one card can be expanded at a time
-- **Toggle**: Clicking an expanded card collapses it
-- **Switch**: Clicking a different card switches the expansion
-- **Visual indicator**: Expanded cards show a green ring and rotated chevron
-
-### Expanded Detail Panels
-
-#### PostgreSQL Details
-
-Shows database connection pool and query metrics:
-
-| Metric         | Description                              | Warning Threshold |
-| -------------- | ---------------------------------------- | ----------------- |
-| Pool usage     | Active/max connections with progress bar | > 80% pool usage  |
-| Query latency  | Average query response time (ms)         | > 100ms           |
-| Active queries | Currently running queries                | > 50 queries      |
-| DB size        | Total database size in GB                | Informational     |
-
-#### Redis Details
-
-Shows cache server performance metrics:
-
-| Metric            | Description                     | Warning Threshold |
-| ----------------- | ------------------------------- | ----------------- |
-| Memory usage      | Current memory consumption (MB) | > 80% of max      |
-| Ops/sec           | Operations per second           | Informational     |
-| Connected clients | Number of active connections    | > 100 clients     |
-| Hit rate          | Cache hit ratio percentage      | < 80%             |
-
-#### Containers Details
-
-Shows status table for all Docker containers:
-
-| Column    | Description                                  |
-| --------- | -------------------------------------------- |
-| Container | Container name (truncated if long)           |
-| Status    | running (green) / stopped (red) / restarting |
-| CPU       | CPU utilization percentage                   |
-| Memory    | Memory usage in MB                           |
-| Restarts  | Restart count (yellow if >= 3)               |
-
-#### Host Details
-
-Shows system resource utilization with progress bars:
-
-| Metric | Description                      | Color Thresholds                      |
-| ------ | -------------------------------- | ------------------------------------- |
-| CPU    | Processor utilization percentage | Green < 75%, Yellow < 90%, Red >= 90% |
-| Memory | RAM usage (used/total GB)        | Green < 75%, Yellow < 90%, Red >= 90% |
-| Disk   | Storage usage (used/total GB)    | Green < 75%, Yellow < 90%, Red >= 90% |
-
-#### Circuit Breakers Details
-
-Shows status table for all circuit breakers:
-
-| Column   | Description               | Color                |
-| -------- | ------------------------- | -------------------- |
-| Circuit  | Circuit breaker name      | Based on state       |
-| State    | closed / open / half_open | Green / Red / Yellow |
-| Failures | Cumulative failure count  | N/A                  |
-
-### Type Definitions
-
-```typescript
-interface InfrastructureData {
-  postgresql: PostgreSQLDetails | null;
-  redis: RedisDetails | null;
-  containers: ContainerDetails | null;
-  host: HostDetails | null;
-  circuits: CircuitDetails | null;
-}
-
-interface PostgreSQLDetails {
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  latency_ms: number;
-  pool_active: number;
-  pool_max: number;
-  active_queries: number;
-  db_size_gb: number;
-}
-
-interface RedisDetails {
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  ops_per_sec: number;
-  memory_mb: number;
-  connected_clients: number;
-  hit_rate: number;
-}
-
-interface ContainerDetails {
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  running: number;
-  total: number;
-  containers: ContainerInfo[];
-}
-
-interface ContainerInfo {
-  name: string;
-  status: 'running' | 'stopped' | 'restarting';
-  cpu_percent: number;
-  memory_mb: number;
-  restart_count: number;
-}
-
-interface HostDetails {
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  cpu_percent: number;
-  memory_used_gb: number;
-  memory_total_gb: number;
-  disk_used_gb: number;
-  disk_total_gb: number;
-}
-
-interface CircuitDetails {
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  healthy: number;
-  total: number;
-  breakers: CircuitBreakerInfo[];
-}
-
-interface CircuitBreakerInfo {
-  name: string;
-  state: 'closed' | 'open' | 'half_open';
-  failure_count: number;
-}
-```
-
-### Grid Responsiveness
-
-The card grid adapts to different screen sizes:
-
-| Screen Size  | Columns | Description             |
-| ------------ | ------- | ----------------------- |
-| Mobile       | 2       | 2 cards per row         |
-| Tablet (sm)  | 3       | 3 cards per row         |
-| Desktop (lg) | 5       | All cards in single row |
-
-### Loading and Error States
-
-**Loading State:**
-
-- Shows animated skeleton grid (5 placeholder cards)
-- Test ID: `infrastructure-grid-loading`
-
-**Error State:**
-
-- Shows red-bordered error message with alert icon
-- Displays the error message text
-- Test ID: `infrastructure-grid-error`
-
-### Integration with SystemMonitoringPage
-
-The InfrastructureStatusGrid is currently referenced in documentation but the full integration uses individual panels (DatabasesPanel, ContainersPanel, HostSystemPanel, CircuitBreakerPanel) for more detailed views. The compact grid is available for summary views where space is limited.
-
----
-
 ## Data Sources and Refresh
 
 ### Backend API Endpoint
@@ -579,13 +353,13 @@ GET /api/system/telemetry
 
 ### Refresh Rates
 
-| Data Type          | Refresh Rate                        | Method                         |
-| ------------------ | ----------------------------------- | ------------------------------ |
-| Queue depths       | 5 seconds                           | Polling via `fetchTelemetry()` |
-| Latency metrics    | 5 seconds                           | Polling via `fetchTelemetry()` |
-| GPU statistics     | 5 seconds                           | Polling via `fetchGPUStats()`  |
-| Worker status      | 10 seconds                          | `useHealthStatus` hook         |
-| Throughput history | Calculated on each telemetry update | Delta calculation              |
+| Data Type          | Refresh Rate                        | Method                                       |
+| ------------------ | ----------------------------------- | -------------------------------------------- |
+| Queue depths       | 5 seconds                           | Polling via `fetchTelemetry()`               |
+| Latency metrics    | 5 seconds                           | Polling via `fetchTelemetry()`               |
+| Worker status      | 10 seconds                          | `fetchReadiness()` (page poll)               |
+| GPU history        | On mount + manual refresh           | `useGPUMetricsHistory` via `GPUHistoryPanel` |
+| Throughput history | Calculated on each telemetry update | Delta calculation                            |
 
 ### WebSocket Updates
 
@@ -593,13 +367,15 @@ Real-time performance updates are also delivered via WebSocket on the `/ws/syste
 
 ### Data Hooks
 
-The System page uses several React hooks to manage data:
+The System page uses these data sources (page component: `SystemMonitoringPage.tsx`):
 
-| Hook                    | Purpose                                  |
-| ----------------------- | ---------------------------------------- |
-| `usePerformanceMetrics` | Aggregates performance data with history |
-| `useHealthStatus`       | Fetches service health including workers |
-| `useModelZooStatus`     | Fetches AI model status                  |
+| Source                   | Purpose                                                     |
+| ------------------------ | ----------------------------------------------------------- |
+| `usePerformanceMetrics`  | Aggregates `/ws/system` performance data with history       |
+| `fetchTelemetry()`       | Queue depths + stage latencies from `/api/system/telemetry` |
+| `fetchReadiness()`       | Worker status list feeding the workers grid                 |
+| `fetchCircuitBreakers()` | Circuit breaker states for the reset panel                  |
+| `useGPUMetricsHistory`   | GPU history chart feeding `GPUHistoryPanel`                 |
 
 ---
 
@@ -607,51 +383,26 @@ The System page uses several React hooks to manage data:
 
 ### SystemMonitoringPage
 
-The parent page component (`frontend/src/components/system/SystemMonitoringPage.tsx`) that integrates all system monitoring panels including:
+The parent page component (`frontend/src/components/system/SystemMonitoringPage.tsx`) assembles the visualization inside collapsible sections, alongside the interactive panels it imports: `PipelineFlowVisualization`, `PipelineLatencyHistoryPanel`, `QueueMetricsPanel`, `ServicesPanel`, `WorkerStatusPanel` / `WorkerManagementPanel`, `DatabasesPanel`, `CircuitBreakerPanel`, `GPUHistoryPanel`, `ContainersPanel`, `HostSystemPanel`, `WebSocketHealthPanel`, `PrometheusMonitoringPanel`, and `KubernetesProbesPanel`. Detailed metrics charts live in Grafana; the page keeps the actionable panels.
 
-- System Health card
-- GPU Stats
-- AI Models Panel
-- Pipeline Metrics Panel
-- Databases Panel
-- Workers Panel
-- Containers Panel
-- Host System Panel
+### PipelineFlowVisualization
 
-### SystemSummaryRow
+The four-stage diagram component itself (`frontend/src/components/system/PipelineFlowVisualization.tsx`), driven by the `PipelineStageData[]` and `BackgroundWorkerStatus[]` arrays the page builds from telemetry and readiness data.
 
-A compact summary row (`frontend/src/components/system/SystemSummaryRow.tsx`) that provides at-a-glance indicators for:
+### PipelineMetricsPanel
 
-- Overall system health
-- GPU status
-- Pipeline status (queue depth + throughput)
-- AI Models status
-- Infrastructure status
-
-Clicking any indicator scrolls to the corresponding section.
-
-### InfrastructureStatusGrid
-
-A compact 5-card grid (`frontend/src/components/system/InfrastructureStatusGrid.tsx`) showing infrastructure health at a glance:
-
-- **PostgreSQL** - Database connection pool and query latency
-- **Redis** - Cache operations per second and memory usage
-- **Containers** - Running container count and individual status
-- **Host** - CPU, memory, and disk utilization
-- **Circuits** - Circuit breaker states (closed/open/half_open)
-
-Each card is clickable to expand detailed metrics in an accordion panel below the grid. See [Infrastructure Status Grid](#infrastructure-status-grid) for complete documentation.
+The metrics card (`frontend/src/components/system/PipelineMetricsPanel.tsx`) covering queue depths, latencies, and throughput history.
 
 ---
 
 ## Related Documentation
 
-| Document                                   | Description                                |
-| ------------------------------------------ | ------------------------------------------ |
-| [AI Pipeline Architecture](ai-pipeline.md) | Detailed pipeline flow with batching logic |
-| [Real-Time Architecture](real-time.md)     | WebSocket channels and message formats     |
-| [Frontend Hooks](frontend-hooks.md)        | Custom React hooks for data fetching       |
-| [Resilience](resilience.md)                | Error handling and circuit breakers        |
+| Document                                                    | Description                                |
+| ----------------------------------------------------------- | ------------------------------------------ |
+| [AI Pipeline — Current State](ai-pipeline-current-state.md) | Detailed pipeline flow with batching logic |
+| [Real-Time Architecture](real-time.md)                      | WebSocket channels and message formats     |
+| [Frontend Hooks](frontend-hooks.md)                         | Custom React hooks for data fetching       |
+| [Resilience](resilience.md)                                 | Error handling and circuit breakers        |
 
 ---
 

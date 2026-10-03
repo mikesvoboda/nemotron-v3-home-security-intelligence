@@ -2,17 +2,17 @@
 
 ![AI Performance Screenshot](../images/screenshots/ai-performance.png)
 
-The AI Performance page provides real-time monitoring of the AI pipeline that powers security event detection and risk analysis. It displays metrics for the YOLO26 object detection model, the Nemotron LLM risk analyzer, and the overall processing pipeline.
+The AI Performance page provides real-time monitoring of the AI pipeline that powers security event detection and risk analysis. It displays metrics for the YOLO26 object detector served by `ai-gateway`, the vision-language risk analyzer served by `ai-vlm`, and the overall processing pipeline.
 
 ## Overview
 
 The AI Performance page provides real-time monitoring of the AI models that power your security system. Here you can track:
 
-- Model health status (YOLO26 and Nemotron)
+- Model health status (YOLO26 and the VLM serve)
 - Processing latency and queue depths
 - Detection and event statistics
 - Risk score distribution
-- **Model Zoo** - specialized AI models for enhanced detection (catalog: `models.yml`, 30 entries; `models.yml` is the single source of truth)
+- **Model Zoo** - the lookup models the pipeline can load (catalog: `models.yml`, 10 rows; `models.yml` is the single source of truth)
 
 ## Accessing the AI Performance Page
 
@@ -24,7 +24,7 @@ The AI Performance page embeds the **AI Services Grafana dashboard** (`/grafana/
 
 **Key features displayed in the Grafana dashboard:**
 
-- **Model Health Status** - Real-time health checks for YOLO26 and Nemotron services
+- **Model Health Status** - Real-time health probe of the YOLO26 route on `ai-gateway`
 - **Inference Latency** - Average, P50, P95, and P99 latency statistics for each AI service
 - **Pipeline Throughput** - Queue depths, detection counts, and event generation rates
 - **Historical Trends** - Time-series charts showing performance over time
@@ -51,13 +51,24 @@ The Grafana dashboard displays metrics from the AI pipeline. Here's what each me
 - Typical inference time: 30-50ms per image
 - Health status: `http://localhost:8090/yolo26/health` (healthy/degraded/unhealthy/unknown)
 
-**Nemotron (Risk Analysis LLM)**
+**VLM (Risk Analysis)**
 
-- Analyzes detection batches to generate risk scores and explanations
-- Production model: Nemotron-3-Nano-30B-A3B GGUF Q4_K_M (`unsloth/Nemotron-3-Nano-30B-A3B-GGUF`, ~14.7GB download; the backend caps `nemotron_context_window` at 131072 tokens)
-- Smaller test option: Nemotron-Mini-4B-Instruct (see the comment in `docker-compose.prod.yml`)
-- Typical inference time: 2-5 seconds per batch
-- Runs via llama.cpp in the `ai-llm` container (host port 8091)
+- Reviews up to 4 key frames from each detection batch and produces the verdict, summary,
+  reasoning, `risk_score` and `risk_level` that the event carries
+- Runs via llama.cpp in the `ai-vlm` container (host port 8098, `http://127.0.0.1:${AI_VLM_PORT:-8098}`),
+  reached as `http://ai-vlm:8098/v1/chat/completions`. ai-vlm is the only LLM service.
+- Shipped weights are `VLM_MODEL_PATH` (`Qwen3VL-8B-Instruct-Q4_K_M.gguf`) plus the multimodal
+  projector `VLM_MMPROJ_PATH` (`mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`); model identity is config,
+  not a product requirement
+- `ai-vlm` sits behind the compose profile `vlm`, so `up -d` without `--profile vlm` does not
+  start it. Start it explicitly with
+  `podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm`
+- Typical inference time: seconds per batch, dominated by prompt fitting and prefill
+- Health status: `http://localhost:8098/health`
+
+> **A `/health` 200 does not prove the serve can see.** `ai/vlm/Dockerfile` passes `--mmproj` only
+> when `MMPROJ_PATH` is non-empty, so a projector-less server answers 200 while every analysis
+> degrades. The signature is a run of events with `verification_failed` and a NULL risk score.
 
 ### Latency Metrics
 
@@ -66,7 +77,7 @@ The dashboard tracks latency at multiple pipeline stages:
 | Stage               | Description                                   | Warning Threshold | Critical Threshold |
 | ------------------- | --------------------------------------------- | ----------------- | ------------------ |
 | Detection Inference | Time for YOLO26 to process one image          | 500ms             | 2000ms             |
-| Analysis Inference  | Time for Nemotron to analyze a batch          | 5000ms            | 30000ms            |
+| Analysis Inference  | Time for the VLM to analyze a batch           | 5000ms            | 30000ms            |
 | Watch to Detect     | File detection to detection result            | 100ms             | 500ms              |
 | Detect to Batch     | Detection result to batch assignment          | 200ms             | 1000ms             |
 | Batch to Analyze    | Batch closure to analysis completion          | 100ms             | 500ms              |
@@ -83,7 +94,7 @@ The dashboard tracks latency at multiple pipeline stages:
 **Queue Depths** indicate processing backlog:
 
 - Detection Queue: Images waiting for YOLO26 processing
-- Analysis Queue: Batches waiting for Nemotron analysis
+- Analysis Queue: Batches waiting for VLM analysis
 
 | Queue Depth | Status            | Meaning                   |
 | ----------- | ----------------- | ------------------------- |
@@ -152,9 +163,12 @@ Objects are detected in these security-relevant categories:
 
 ## Model Zoo Section
 
-The Model Zoo contains the specialized models defined in `models.yml` (backend + shared entries)
-that enhance your security detections beyond basic object detection. These models extract
-additional details like license plates, faces, clothing, and vehicle types.
+The Model Zoo section renders the rows of `models.yml` as live status cards. What the shipped
+pipeline puts in this catalog is the **lookup** set: the face leg (SCRFD-10G-KPS + ArcFace
+w600k_r50), the person re-ID leg (OSNet-AIN x1.0) and the plate leg (FastALPR, with PaddleOCR
+kept for general text), plus the YOLO detection helpers and the Triton `threat` engine. They
+answer "who is this / what plate is this" by matching against the enrolled gallery; the
+scene-level "what is happening" question belongs to the VLM, not to the Model Zoo.
 
 ### Summary Bar
 
@@ -227,54 +241,47 @@ Models are organized into two sections:
 - Not yet released
 - Temporarily turned off for maintenance
 
-### Model Zoo Categories
+### The Catalog `models.yml` Ships Today
 
-VRAM figures are the `vram_mb` estimates from `models.yml`.
+VRAM figures are the `vram_mb` estimates from `models.yml`; `models.yml` is the source of truth
+and this table is a snapshot of it. Ten rows:
 
-#### Detection Models
+| Model                      | Category  | VRAM   | Enabled | Preload | What it does                                                                      |
+| -------------------------- | --------- | ------ | ------- | ------- | --------------------------------------------------------------------------------- |
+| `yolo26`                   | detection | 0 MB   | false   | false   | Primary object detection; served by Triton in `ai-gateway`, not loaded by backend |
+| `osnet-ain-x1-0`           | embedding | 100 MB | true    | true    | Person re-ID vectors (the `person_reid` lookup leg)                               |
+| `face-detector-scrfd`      | detection | 0 MB   | true    | true    | SCRFD-10G-KPS face boxes + landmarks                                              |
+| `face-recognizer`          | embedding | 0 MB   | true    | true    | ArcFace w600k_r50 512-d face embedding                                            |
+| `threat-detection-yolov8n` | detection | 300 MB | true    | false   | Triton `threat` engine (opt-in lane, see below)                                   |
+| `yolo11-face`              | detection | 200 MB | true    | false   | YOLO11n face detection on person crops                                            |
+| `yolo11-license-plate`     | detection | 300 MB | true    | false   | YOLO11n license-plate detection                                                   |
+| `fast-alpr`                | alpr      | 28 MB  | true    | false   | End-to-end plate detection + character reading (the `plates` lookup leg)          |
+| `paddleocr`                | ocr       | 100 MB | true    | false   | General text recognition (plates are handled by FastALPR)                         |
+| `yolo26-general`           | detection | 400 MB | false   | false   | Placeholder for a future ultralytics general model                                |
 
-| Model                      | VRAM    | Purpose                         |
-| -------------------------- | ------- | ------------------------------- |
-| YOLO11 License Plate       | 300 MB  | Find license plates on vehicles |
-| YOLO11 Face                | 200 MB  | Detect faces on people          |
-| Threat Detection (YOLOv8n) | 300 MB  | Threat-object detection         |
-| Smoke/Fire (YOLOv8n)       | 350 MB  | Smoke and fire detection        |
-| YOLO World S               | 1500 MB | Open vocabulary detection       |
-| Vehicle Damage Detection   | 2000 MB | Find damage on vehicles         |
+Two residency facts explain most "why does this card say Unloaded" questions:
 
-#### Classification Models
-
-| Model                      | VRAM    | Purpose                      |
-| -------------------------- | ------- | ---------------------------- |
-| Violence Detection         | 500 MB  | Identify violent activity    |
-| Weather Classification     | 200 MB  | Determine weather conditions |
-| Fashion CLIP               | 500 MB  | Classify clothing types      |
-| Vehicle Segment Classifier | 1500 MB | Identify vehicle types       |
-| Pet Classifier             | 200 MB  | Distinguish cats and dogs    |
-| ViT Age / Gender           | 200 MB  | Demographics classification  |
-
-#### Other Specialized Models
-
-| Model                  | VRAM    | Category           | Purpose                                                                                           |
-| ---------------------- | ------- | ------------------ | ------------------------------------------------------------------------------------------------- |
-| SegFormer Clothes      | 1500 MB | Segmentation       | Clothing segmentation                                                                             |
-| ViTPose Small          | 1500 MB | Pose               | Human pose estimation                                                                             |
-| YOLOv8n Pose           | 200 MB  | Pose               | Lightweight pose                                                                                  |
-| Depth Anything V2 Tiny | 100 MB  | Depth              | Distance estimation                                                                               |
-| SigLIP2 base           | 200 MB  | Embedding          | CLIP visual/text embeddings                                                                       |
-| OSNet (ReID)           | 100 MB  | Embedding          | Person re-identification                                                                          |
-| ST-GCN++               | 20 MB   | Action Recognition | Skeleton action classes                                                                           |
-| PaddleOCR              | 100 MB  | OCR                | Read text from plates                                                                             |
-| Fast-ALPR              | 28 MB   | ALPR               | Plate character reading                                                                           |
-| X-CLIP Base            | —       | Action Recognition | Removed from fetch 2026-09-23 (full X-CLIP removal); `models.yml` entry is owner-owned provenance |
+- The three lookup legs (`faces`, `plates`, `person_reid`) read a **handle from the model
+  registry and never trigger a load themselves**. That handle only exists if the boot preload
+  sweep ran, and the sweep is gated on `BACKEND_MODEL_PRELOAD`, which ships **`false`**. So on a
+  host under 24 GB of VRAM (or where the operator answered no) the face and re-ID cards read
+  unloaded forever and nothing fails — the specialist line on every event renders
+  `unavailable: specialist did not run`. The plate leg is the exception: FastALPR loads on demand.
+- `GATEWAY_ENABLE_THREAT` ships **`false`**. When it is true, the Triton `threat` engine is loaded
+  into `ai-gateway` residency as an opt-in lane; the F12 ruling keeps the threat leg out of the
+  VLM specialist gather either way.
 
 ### Understanding Model Memory (VRAM)
 
 Models load into your GPU's video memory (VRAM) when needed:
 
-- **VRAM Budget:** 1650 MB for the Model Zoo
-- **Loading Strategy:** One model loads at a time (sequential)
-- **Automatic Management:** Models load/unload based on demand
+- **VRAM Budget** — the `used/budget` figure in the Model Zoo summary bar comes from the
+  `/api/system/model-zoo/status` response (`vram_used_mb` / `vram_budget_mb`), not from a number
+  written into this page
+- **Loading Strategy:** the boot preload sweep loads one model at a time (sequential)
+- **No automatic management:** once the preload sweep has run (or FastALPR loads on demand),
+  the page shows what is loaded — there is no LRU eviction or demand-based unloading pass in
+  the shipped `ModelManager`, so a card does not flip to Unloaded on its own
 
 **Why does this matter?**
 
@@ -282,35 +289,9 @@ Models load into your GPU's video memory (VRAM) when needed:
 - **Unloaded models** need time to load before first use
 - **VRAM constraints** limit how many models can be loaded simultaneously
 
-> **Note:** The core detection model (YOLO26, loaded by Triton in `ai-gateway`) and the
-> Nemotron GGUF (~14.7 GB, loaded by llama.cpp in `ai-llm`) live outside this budget — they are
-> always resident on their own GPUs (`GPU_AI_SERVICES` / `GPU_LLM`).
-
-### Model Zoo Analytics
-
-Below the Model Zoo status cards, you see additional analytics:
-
-#### Model Contribution Chart
-
-A bar chart showing which models contribute most to event enrichment:
-
-- **Higher bars** = More frequently used models
-- **Sorted by contribution** = Most useful models at top
-- **Hover for details** = See exact percentage
-
-#### Model Leaderboard
-
-A sortable table ranking models by contribution:
-
-| Column           | Description                              |
-| ---------------- | ---------------------------------------- |
-| **Rank**         | Position (top 3 have badges)             |
-| **Model**        | Model name                               |
-| **Contribution** | Percentage of events this model enriched |
-| **Events**       | Number of events processed               |
-| **Quality**      | Correlation with good AI assessments     |
-
-Click column headers to sort by that metric.
+> **Note:** The core detection model (YOLO26, loaded by Triton in `ai-gateway`) and the VLM GGUF
+> pair (loaded by llama.cpp in `ai-vlm`) live outside this budget — they are resident on their own
+> GPUs (`GPU_AI_SERVICES` / `GPU_LLM`).
 
 ## Settings & Configuration
 
@@ -334,16 +315,20 @@ To access Grafana directly with full editing capabilities, click the "Open in Gr
 
 ### AI Service Configuration
 
-| Setting              | Environment Variable             | Default                                                           | Description                           |
-| -------------------- | -------------------------------- | ----------------------------------------------------------------- | ------------------------------------- |
-| YOLO26 URL           | `YOLO26_URL`                     | `http://ai-gateway:8090/yolo26` (config default)                  | Detection service endpoint            |
-| Nemotron URL         | `NEMOTRON_URL`                   | `http://localhost:8091` (compose: `http://ai-llm:8091`)           | LLM analysis endpoint                 |
-| Detection Confidence | `DETECTION_CONFIDENCE_THRESHOLD` | `0.5` in `.env.example` (config default 0.40)                     | Minimum confidence to store detection |
-| Batch Window         | `BATCH_WINDOW_SECONDS`           | `90`                                                              | Maximum batch duration                |
-| Idle Timeout         | `BATCH_IDLE_TIMEOUT_SECONDS`     | `30`                                                              | Close batch after this idle period    |
-| Fast Path Enabled    | `FAST_PATH_ENABLED`              | `false` (compose) — fast path is currently OFF                    | Master switch for fast path           |
-| Fast Path Confidence | `FAST_PATH_CONFIDENCE_THRESHOLD` | config default `2.0` (disables it); compose overrides with `0.90` | Confidence for immediate analysis     |
-| Fast Path Types      | `FAST_PATH_OBJECT_TYPES`         | `[]` in config; `.env.example` shows `["person"]` commented out   | Object types eligible for fast path   |
+| Setting               | Environment Variable                 | Default                                                                                    | Description                                                     |
+| --------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| YOLO26 URL            | `YOLO26_URL`                         | `http://ai-gateway:8090/yolo26` (config default)                                           | Detection service endpoint                                      |
+| AI Gateway URL        | `AI_GATEWAY_URL`                     | `http://ai-gateway:8090` (compose, `.env.example`)                                         | Gateway base; used when `USE_AI_GATEWAY=true`                   |
+| VLM URL               | `AI_VLM_URL`                         | `http://localhost:8098` config default; compose `http://ai-vlm:8098`                       | VLM analysis endpoint (ai-vlm)                                  |
+| VLM host port         | `AI_VLM_PORT`                        | `8098` (compose maps `127.0.0.1:8098:8098`)                                                | Host-side mapping for the VLM serve                             |
+| VLM weights           | `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` | `/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf` / `/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` | GGUF + projector served by llama.cpp                            |
+| Backend model preload | `BACKEND_MODEL_PRELOAD`              | `false` (`.env.example`, compose)                                                          | Boot-load the face and re-ID lookup legs (needs a >=24 GB host) |
+| Detection Confidence  | `DETECTION_CONFIDENCE_THRESHOLD`     | `0.5` in `.env.example` (config default 0.40)                                              | Minimum confidence to store detection                           |
+| Batch Window          | `BATCH_WINDOW_SECONDS`               | `90`                                                                                       | Maximum batch duration                                          |
+| Idle Timeout          | `BATCH_IDLE_TIMEOUT_SECONDS`         | `30`                                                                                       | Close batch after this idle period                              |
+| Fast Path Enabled     | `FAST_PATH_ENABLED`                  | `false` (compose) — fast path is currently OFF                                             | Master switch for fast path                                     |
+| Fast Path Confidence  | `FAST_PATH_CONFIDENCE_THRESHOLD`     | config default `2.0` (disables it); compose overrides with `0.90`                          | Confidence for immediate analysis                               |
+| Fast Path Types       | `FAST_PATH_OBJECT_TYPES`             | `[]` in config; `.env.example` shows `["person"]` commented out                            | Object types eligible for fast path                             |
 
 ### Refresh Settings
 
@@ -374,12 +359,21 @@ The AI Performance page relies on Grafana's built-in refresh mechanism. The dash
 3. Check container logs: `podman logs ai-gateway`
 4. VRAM exhaustion may require restarting the service (`podman compose -f docker-compose.prod.yml restart ai-gateway`)
 
-**Nemotron:**
+**VLM (`ai-vlm`, llama.cpp):**
 
-1. Check if llama.cpp server is running: `curl http://localhost:8091/health`
-2. Verify model file exists and is valid
-3. Check VRAM availability (Nemotron needs ~14.7GB for production model)
-4. Review llama.cpp logs for memory allocation errors
+1. Check if llama.cpp server is running: `curl http://localhost:8098/health`
+2. Confirm the container is actually up — `ai-vlm` sits behind the compose profile `vlm`, so a
+   plain `up -d` never starts it:
+   `podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm`
+3. Confirm the serve is multimodal, not text-only: a projector-less `llama-server` answers 200 on
+   `/health`. `podman exec ai-vlm sh -c 'echo "MMPROJ_PATH=$MMPROJ_PATH"'` must be non-empty, and
+   both GGUFs must exist under `$AI_MODELS_PATH/vlm/`.
+4. Check VRAM availability and review the llama.cpp logs for memory allocation errors.
+
+**A run of events with `verification_failed` and a NULL risk score is the signature of the VLM
+being unreachable or blind** — not of an empty camera. It is also the only strong degradation
+signal the dashboard has: a specialist leg that never loaded degrades into prompt text and does
+not raise it.
 
 ### High Latency Detected
 
@@ -523,10 +517,12 @@ For developers wanting to understand the underlying systems.
 
 ### Architecture
 
-- **AI Pipeline Architecture**: [AI Pipeline](../architecture/ai-pipeline.md) - Complete flow from file upload to event creation
-- **YOLO26 Integration**: Object detection with Real-Time Detection Transformer v2
-- **Nemotron LLM**: Risk analysis using NVIDIA Nemotron-3-Nano-30B-A3B via llama.cpp
+- **Pipeline current state**: [AI pipeline: current state](../architecture/ai-pipeline-current-state.md) — the measured, hop-by-hop description of what runs today
+- **YOLO26 Integration**: Ultralytics YOLO26 served by Triton inside `ai-gateway`
+- **VLM risk analysis**: llama.cpp serving a vision-language GGUF + multimodal projector in `ai-vlm`
 - **Batch Aggregation**: Time-window based grouping of related detections
+- **Specialist lookups**: `backend/services/vlm_specialists.py` — the in-process faces / plates /
+  person_reid legs whose results are written into the VLM prompt
 
 ### Data Flow
 
@@ -537,29 +533,26 @@ Camera FTP Upload
 FileWatcher (inotify/FSEvents)
         |
         v
-detection_queue (Redis)
+detections:stream (Redis Streams)
         |
         v
 YOLO26 via ai-gateway (:8090, /yolo26)
         |
         v
-BatchAggregator
-        |
-   +----+----+
-   |         |
-   v         v
-Fast Path   Normal Batching (30-90s windows)
-   |         |
-   +----+----+
+BatchAggregator  (closes on 90s window | 30s idle | 500 detections)
         |
         v
-analysis_queue (Redis)
+analysis:stream (Redis Streams)
         |
         v
-Nemotron LLM (Port 8091)
+VlmAnalyzer
+   |-- select_key_frames (1..4 stills)
+   |-- collect_specialist_outputs (faces / plates / person_reid, in-process)
+   |-- POST ai-vlm:8098/v1/chat/completions (llama.cpp + mmproj)
+   `-- apply_verdict_invariants
         |
         v
-Event Creation + WebSocket Broadcast
+Event + EventVerification written, then WebSocket broadcast (best-effort)
 ```
 
 ### API Endpoints
@@ -589,41 +582,37 @@ Event Creation + WebSocket Broadcast
 | --------------------- | ---------------------------------------------------- | ------------------------------------------------------- |
 | AI Metrics Hook       | `frontend/src/hooks/useAIMetrics.ts`                 | Fetches and combines AI metrics from multiple endpoints |
 | Metrics Parser        | `frontend/src/services/metricsParser.ts`             | Parses Prometheus metrics format                        |
-| Model Status Cards    | `frontend/src/components/ai/ModelStatusCards.tsx`    | YOLO26 and Nemotron status badges                       |
+| Model Status Cards    | `frontend/src/components/ai/ModelStatusCards.tsx`    | Detector and VLM serve status badges                    |
 | Latency Panel         | `frontend/src/components/ai/LatencyPanel.tsx`        | Latency histograms with percentiles                     |
 | Pipeline Health Panel | `frontend/src/components/ai/PipelineHealthPanel.tsx` | Queue depths and error counts                           |
 | Insights Charts       | `frontend/src/components/ai/InsightsCharts.tsx`      | Detection and risk distribution charts                  |
 
 **Backend Services:**
 
-| Component         | File Path                               |
-| ----------------- | --------------------------------------- |
-| Backend Metrics   | `backend/core/metrics.py`               |
-| System Routes     | `backend/api/routes/system.py`          |
-| DLQ Routes        | `backend/api/routes/dlq.py`             |
-| Detector Client   | `backend/services/detector_client.py`   |
-| Nemotron Analyzer | `backend/services/nemotron_analyzer.py` |
-| Batch Aggregator  | `backend/services/batch_aggregator.py`  |
+| Component          | File Path                              |
+| ------------------ | -------------------------------------- |
+| Backend Metrics    | `backend/core/metrics.py`              |
+| System Routes      | `backend/api/routes/system.py`         |
+| DLQ Routes         | `backend/api/routes/dlq.py`            |
+| Detector Client    | `backend/services/detector_client.py`  |
+| VLM Analyzer       | `backend/services/vlm_analyzer.py`     |
+| VLM Client         | `backend/services/vlm_client.py`       |
+| Specialist Lookups | `backend/services/vlm_specialists.py`  |
+| Batch Aggregator   | `backend/services/batch_aggregator.py` |
 
-**Note:** The standalone AI metrics components are exported from `frontend/src/components/ai/index.ts` and can be used on other pages that need to display AI metrics directly (without Grafana).
+**Note:** The standalone AI metrics components are exported from `frontend/src/components/ai/index.ts` and can be used on other pages that need to display AI metrics directly (without Grafana). The AI Performance page itself renders only `ModelZooSection` plus the Grafana iframe.
 
 ### GPU Requirements
 
-| Service             | Model                               | VRAM            | Container / Port               | Context Window                                                                 |
-| ------------------- | ----------------------------------- | --------------- | ------------------------------ | ------------------------------------------------------------------------------ |
-| YOLO26 (via Triton) | Ultralytics YOLO26 (ONNX FP32 CUDA) | model-dependent | `ai-gateway` :8090 (`/yolo26`) | N/A                                                                            |
-| Nemotron (Prod)     | Nemotron-3-Nano-30B-A3B Q4_K_M GGUF | ~14.7 GB        | `ai-llm` :8091                 | llama.cpp `CTX_SIZE` (compose default 262144; backend caps requests at 131072) |
+| Service             | Model                                               | VRAM             | Container / Port                                         | Serve shape                                                                  |
+| ------------------- | --------------------------------------------------- | ---------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| YOLO26 (via Triton) | Ultralytics YOLO26 (ONNX FP32 CUDA)                 | model-dependent  | `ai-gateway` :8090 (`/yolo26`)                           | Triton instance group; `/enrich-lt` adds `/threat-detect` + `/person-reid`   |
+| VLM (llama.cpp)     | GGUF weight + mmproj projector (identity is config) | weight-dependent | `ai-vlm` :8098 (compose profile `vlm`, `127.0.0.1` only) | `VLM_CTX_SIZE=32768` split across `VLM_PARALLEL=2` slots → 16384 tokens/slot |
 
-The system is optimized for NVIDIA RTX A5500 (24GB VRAM) in production. For development, a GPU with 8GB+ VRAM is recommended.
+The VLM weights and projector are host-mounted from `$AI_MODELS_PATH/vlm/` and are **not**
+fetched by `ai/download_models.sh` — an operator places both files. Without the projector the
+serve is text-only and every analysis degrades silently while `/health` keeps answering 200.
 
-**Production model advantages:**
-
-- 128K context window enables analyzing hours of detection history in a single prompt
-- Better reasoning quality for complex security scenarios
-- Supports detailed enrichment data (clothing, vehicles, behavior patterns)
-
-**Smaller-model trade-offs (optional Nemotron-Mini-4B for testing):**
-
-- Faster inference (~100-200 tokens/second vs ~50-100)
-- Limited context requires more aggressive summarization
-- Lower VRAM footprint allows running on consumer GPUs
+`BACKEND_MODEL_PRELOAD` (ships `false`) is a separate residency question from the two AI
+services above: it decides whether the face and re-ID lookup legs are resident in the **backend**
+process at boot. `setup.py` auto-sets it only when it detects 24 GB or more of VRAM.

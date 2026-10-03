@@ -2,7 +2,10 @@
 
 > Reusable Mermaid diagram snippets and templates for consistent documentation
 
-This directory contains copy-paste ready diagram components. Use these snippets as building blocks when creating new diagrams in documentation.
+This directory contains copy-paste ready diagram components. Use these snippets
+as building blocks when creating new diagrams in documentation. Each snippet
+names the components and ports the stack actually runs — copy it, then relabel
+for your own use case.
 
 ## Quick Reference
 
@@ -17,6 +20,7 @@ This directory contains copy-paste ready diagram components. Use these snippets 
 
 - [Diagram Style Guide](../style-guides/diagrams.md) - Conventions and best practices
 - [Visual Style Guide](../images/style-guide.md) - Colors and design principles
+- [Container Orchestration](../deployment/container-orchestration.md) - Startup phases and health checks
 
 ---
 
@@ -61,14 +65,14 @@ Copy this init block to the top of every Mermaid diagram:
 
 ### AI Services
 
+Two containers serve models. `ai-gateway` is Triton behind FastAPI; `ai-vlm` is
+one `llama-server` holding one GGUF pair, behind the `vlm` compose profile.
+
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
 flowchart LR
-    YOLO["YOLO26<br/>Port 8095<br/>Object Detection"]
-    NEM["Nemotron<br/>Port 8091<br/>Risk Analysis"]
-    FLOR["Florence-2<br/>Port 8092<br/>Captioning"]
-    CLIP["CLIP<br/>Port 8093<br/>Embeddings"]
-    ENR["Enrichment<br/>Port 8094<br/>Model Zoo"]
+    GW["ai-gateway<br/>:8090 (Triton :8002)<br/>/yolo26 + /enrich-lt"]
+    VLM["ai-vlm<br/>:8098<br/>llama.cpp /v1/chat/completions"]
 ```
 
 ### Core Services
@@ -76,10 +80,10 @@ flowchart LR
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
 flowchart LR
-    API["FastAPI<br/>Port 8000"]
-    DB[(PostgreSQL<br/>Port 5432)]
-    REDIS[(Redis<br/>Port 6379)]
-    UI["React Frontend<br/>Port 5173/8443"]
+    API["FastAPI<br/>:8000"]
+    DB[(PostgreSQL<br/>:5432)]
+    REDIS[(Redis<br/>:6379)]
+    UI["React Frontend<br/>nginx :8443 (host 8444)"]
 ```
 
 ### Backend Services
@@ -88,10 +92,15 @@ flowchart LR
 %%{init: {'theme': 'dark'}}%%
 flowchart TB
     FW[FileWatcher<br/>backend/services/file_watcher.py]
-    BA[BatchAggregator<br/>90s window]
+    DC[DetectorClient<br/>POST ai-gateway:8090/yolo26/detect]
+    BA[BatchAggregator<br/>90s window / 30s idle]
+    VA[VlmAnalyzer<br/>analyze_batch]
+    SP[collect_specialist_outputs<br/>faces, plates, person_reid]
     EB[EventBroadcaster<br/>WebSocket]
-    DC[DetectorClient<br/>YOLO26 HTTP]
-    NA[NemotronAnalyzer<br/>LLM Analysis]
+
+    FW --> DC --> BA --> VA
+    VA --> SP
+    VA --> EB
 ```
 
 ---
@@ -117,14 +126,14 @@ flowchart LR
 
     subgraph Detection["Detection Stage"]
         FW[FileWatcher]
-        DQ[detection_queue]
-        YOLO[YOLO26]
+        DQ[(detection_queue)]
+        GW[ai-gateway<br/>Triton yolo26]
     end
 
     subgraph Analysis["Analysis Stage"]
         BA[BatchAggregator]
-        AQ[analysis_queue]
-        NEM[Nemotron]
+        AQ[(analysis_queue)]
+        VLM[ai-vlm<br/>VlmAnalyzer]
     end
 
     subgraph Output["Output"]
@@ -136,12 +145,12 @@ flowchart LR
     FTP --> FW
     CAM --> FW
     FW --> DQ
-    DQ --> YOLO
-    YOLO --> BA
+    DQ --> GW
+    GW --> BA
     BA --> AQ
-    AQ --> NEM
-    NEM --> DB
-    NEM --> WS
+    AQ --> VLM
+    VLM --> DB
+    DB --> WS
     WS --> UI
 ```
 
@@ -194,21 +203,19 @@ stateDiagram-v2
 }}%%
 flowchart TB
     subgraph Frontend["Frontend Layer"]
-        UI["React Dashboard<br/>:5173 / :8443"]
+        UI["React Dashboard<br/>nginx :8443 (host 8444)"]
     end
 
     subgraph Backend["Backend Layer"]
         API["FastAPI<br/>:8000"]
         FW[FileWatcher]
         BA[BatchAggregator]
+        VA[VlmAnalyzer]
     end
 
     subgraph AI["AI Services"]
-        YOLO["YOLO26<br/>:8095"]
-        NEM["Nemotron<br/>:8091"]
-        FLOR["Florence-2<br/>:8092"]
-        CLIP["CLIP<br/>:8093"]
-        ENR["Enrichment<br/>:8094"]
+        GW["ai-gateway<br/>:8090 (Triton :8002)"]
+        VLM["ai-vlm<br/>:8098<br/>profile: vlm"]
     end
 
     subgraph Storage["Data Layer"]
@@ -219,16 +226,18 @@ flowchart TB
     UI <--> API
     API --> FW
     FW --> REDIS
-    REDIS --> YOLO
-    YOLO --> BA
-    BA --> NEM
-    NEM --> FLOR
-    NEM --> CLIP
-    NEM --> ENR
-    NEM --> DB
+    REDIS --> BA
+    BA --> VA
+    VA --> GW
+    VA --> VLM
+    VA --> DB
     API <--> DB
     API <--> REDIS
 ```
+
+`ai-vlm` sits on the `vlm` compose profile and is deliberately **not** in the
+backend's `depends_on`, so the backend starts and degrades without it. Draw that
+edge as optional when the distinction matters.
 
 ### Sequence Diagram Template
 
@@ -237,16 +246,18 @@ flowchart TB
 sequenceDiagram
     participant FW as FileWatcher
     participant DQ as detection_queue
-    participant YOLO as YOLO26 (8095)
+    participant GW as ai-gateway (8090)
     participant BA as BatchAggregator
-    participant NEM as Nemotron (8091)
+    participant AQ as analysis_queue
+    participant VLM as ai-vlm (8098)
     participant DB as PostgreSQL
 
     FW->>DQ: queue image
-    DQ->>YOLO: process
-    YOLO-->>BA: detections
-    BA->>NEM: analyze batch
-    NEM-->>DB: save event
+    DQ->>GW: POST /yolo26/detect
+    GW-->>BA: detections
+    BA->>AQ: closed batch
+    AQ->>VLM: /v1/chat/completions
+    VLM-->>DB: Event + EventVerification
 ```
 
 ---
@@ -255,67 +266,77 @@ sequenceDiagram
 
 Use these consistent abbreviations across all diagrams:
 
-| Abbreviation | Full Name        | Component Type |
-| ------------ | ---------------- | -------------- |
-| `FW`         | FileWatcher      | Service        |
-| `DQ`         | detection_queue  | Redis Queue    |
-| `AQ`         | analysis_queue   | Redis Queue    |
-| `YOLO`       | YOLO26           | AI Model       |
-| `NEM`        | Nemotron         | AI Model       |
-| `FLOR`       | Florence-2       | AI Model       |
-| `BA`         | BatchAggregator  | Service        |
-| `EB`         | EventBroadcaster | Service        |
-| `WS`         | WebSocket        | Communication  |
-| `DB`         | PostgreSQL       | Database       |
-| `REDIS`      | Redis            | Cache/Queue    |
-| `API`        | FastAPI          | API Layer      |
-| `UI`         | React Frontend   | Frontend       |
-| `ENR`        | Enrichment       | AI Service     |
+| Abbreviation | Full Name           | Component Type |
+| ------------ | ------------------- | -------------- |
+| `FW`         | FileWatcher         | Service        |
+| `DQ`         | detection_queue     | Redis Queue    |
+| `AQ`         | analysis_queue      | Redis Queue    |
+| `DC`         | DetectorClient      | HTTP Client    |
+| `GW`         | ai-gateway (Triton) | AI Service     |
+| `VLM`        | ai-vlm (llama.cpp)  | AI Service     |
+| `BA`         | BatchAggregator     | Service        |
+| `VA`         | VlmAnalyzer         | Service        |
+| `SP`         | Specialist lookups  | Service        |
+| `EB`         | EventBroadcaster    | Service        |
+| `WS`         | WebSocket           | Communication  |
+| `DB`         | PostgreSQL          | Database       |
+| `REDIS`      | Redis               | Cache/Queue    |
+| `API`        | FastAPI             | API Layer      |
+| `UI`         | React Frontend      | Frontend       |
 
 ---
 
 ## Port Reference
 
-Current standard ports for all services:
+Container ports are stable; the host mapping is interpolated from `.env`, so a
+colliding port is fixed in `.env` rather than by editing compose.
 
-| Service            | Port | Container           |
-| ------------------ | ---- | ------------------- |
-| Frontend HTTP      | 5173 | frontend            |
-| Frontend HTTPS     | 8443 | frontend            |
-| Backend API        | 8000 | backend             |
-| PostgreSQL         | 5432 | postgres            |
-| Redis              | 6379 | redis               |
-| Nemotron           | 8091 | ai-llm              |
-| Florence-2         | 8092 | ai-florence         |
-| CLIP               | 8093 | ai-clip             |
-| Enrichment (Heavy) | 8094 | ai-enrichment       |
-| YOLO26             | 8095 | ai-yolo26           |
-| Enrichment (Light) | 8096 | ai-enrichment-light |
+| Service              | Host mapping                       | Container |
+| -------------------- | ---------------------------------- | --------- |
+| Frontend HTTPS       | `${FRONTEND_HTTPS_PORT:-8444}`     | 8443      |
+| Frontend HTTP        | `${FRONTEND_HTTP_PORT:-8080}`      | 8080      |
+| Backend API          | `${API_PORT:-8000}`                | 8000      |
+| ai-gateway (FastAPI) | `${AI_GATEWAY_PORT:-8090}`         | 8090      |
+| ai-gateway (Triton)  | `${AI_GATEWAY_METRICS_PORT:-8002}` | 8002      |
+| ai-vlm (profile vlm) | `${AI_VLM_PORT:-8098}`             | 8098      |
+| ai-llm-vllm (`vllm`) | `${VLLM_PORT:-8097}`               | 8000      |
+| PostgreSQL           | `${POSTGRES_PORT:-5432}`           | 5432      |
+| Redis                | `${REDIS_PORT:-6379}`              | 6379      |
+| go2rtc API           | `${GO2RTC_API_PORT:-1984}`         | 1984      |
+| Prometheus           | `${PROMETHEUS_PORT:-9090}`         | 9090      |
+| Grafana              | `${GRAFANA_PORT:-3002}`            | 3000      |
+| Pyroscope            | `${PYROSCOPE_PORT:-4040}`          | 4040      |
+| Tempo API            | `${TEMPO_PORT:-3200}`              | 3200      |
+
+Every mapping above except the two frontend ports is published on
+`127.0.0.1` only.
 
 ---
 
 ## Usage Examples
 
-### Adding a New Diagram
+### Adding A New Diagram
 
 1. Copy the theme configuration from [Theme Configuration](#theme-configuration)
 2. Select appropriate components from this library
 3. Customize labels and connections for your use case
 4. Follow the [Diagram Style Guide](../style-guides/diagrams.md) for conventions
 
-### Embedding in Documentation
+### Embedding In Documentation
 
-```markdown
+Quote the inner fence with backslashes so the example renders as text:
+
+````markdown
 ## System Architecture
 
 The following diagram shows the data flow through the system:
 
-\`\`\`mermaid
+```mermaid
 %%{init: {'theme': 'dark'}}%%
 flowchart LR
-A[Source] --> B[Processing] --> C[Output]
-\`\`\`
+    A[Source] --> B[Processing] --> C[Output]
 ```
+````
 
 ---
 
@@ -326,4 +347,6 @@ When adding new diagram components:
 1. Follow the [Diagram Style Guide](../style-guides/diagrams.md) conventions
 2. Use standard abbreviations from this document
 3. Include theme configuration in all examples
-4. Test rendering in GitHub/GitLab before committing
+4. Keep names and ports matching `docker-compose.prod.yml` — a diagram naming a
+   component that no longer runs is worse than no diagram
+5. Test rendering before committing

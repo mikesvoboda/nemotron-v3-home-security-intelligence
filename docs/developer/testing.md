@@ -1,13 +1,13 @@
 ---
 title: Testing Guide
+last_updated: 2026-10-02
 source_refs:
-  - pyproject.toml:91
-  - backend/tests/conftest.py:1
-  - backend/tests/AGENTS.md:1
+  - pyproject.toml:577
+  - backend/tests/conftest.py:459
   - backend/tests/unit/AGENTS.md:1
   - backend/tests/integration/AGENTS.md:1
   - .pre-commit-config.yaml:99
-  - .github/workflows/ci.yml:67
+  - .github/workflows/ci.yml:536
 ---
 
 # Testing Guide
@@ -36,9 +36,9 @@ _Frontend test provider tree showing the testing wrapper hierarchy for React Tes
 flowchart TB
     subgraph Pyramid["Test Pyramid"]
         direction TB
-        E2E["E2E Tests<br/>1616 tests / 43 spec files"]
-        INT["Integration Tests<br/>4174 tests"]
-        UNIT["Unit Tests<br/>27726 tests"]
+        E2E["E2E Tests<br/>960 tests / 44 spec files"]
+        INT["Integration Tests<br/>4059 tests"]
+        UNIT["Unit Tests<br/>28042 tests"]
     end
 
     subgraph Coverage["Coverage Targets"]
@@ -62,28 +62,27 @@ flowchart TB
 
 ### Test Categories
 
-| Category                      | Location                     | Count        | Timeout | Coverage Target          |
-| ----------------------------- | ---------------------------- | ------------ | ------- | ------------------------ |
-| **Backend Unit Tests**        | `backend/tests/unit/`        | 27,726 tests | 1s      | see below¹               |
-| **Backend Integration**       | `backend/tests/integration/` | 4,174 tests  | 5s      | N/A (combined)           |
-| **Backend E2E Tests**         | `backend/tests/e2e/`         | 2 files      | 30s     | -                        |
-| **GPU Tests**                 | `backend/tests/gpu/`         | 1 file       | -       | -                        |
-| **Benchmarks**                | `backend/tests/benchmarks/`  | 6 files      | -       | -                        |
-| **Chaos Tests**               | `backend/tests/chaos/`       | -            | -       | -                        |
-| **Contract Tests**            | `backend/tests/contracts/`   | -            | -       | -                        |
-| **Security Tests**            | `backend/tests/security/`    | -            | -       | -                        |
-| **Test Utilities**            | `backend/tests/utils/`       | -            | -       | -                        |
-| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -            | -       | floors 80/74.6/78.4/80.9 |
-| **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 1616 tests   | 15s     | -                        |
+| Category                      | Location                     | Count                                                                                              | Timeout | Coverage Target          |
+| ----------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------- | ------- | ------------------------ |
+| **Backend Unit Tests**        | `backend/tests/unit/`        | 28,042 tests                                                                                       | 5s      | see below¹               |
+| **Backend Integration**       | `backend/tests/integration/` | 4,059 tests                                                                                        | 5s      | N/A (combined)           |
+| **Backend E2E Tests**         | `backend/tests/e2e/`         | 2 files                                                                                            | 60s     | -                        |
+| **GPU Tests**                 | `backend/tests/gpu/`         | 1 file                                                                                             | -       | -                        |
+| **Benchmarks**                | `backend/tests/benchmarks/`  | 6 files                                                                                            | -       | -                        |
+| **Chaos Tests**               | `backend/tests/chaos/`       | 5 files                                                                                            | -       | -                        |
+| **Contract Tests**            | `backend/tests/contracts/`   | 3 files                                                                                            | -       | -                        |
+| **Security Tests**            | `backend/tests/security/`    | 5 files                                                                                            | -       | -                        |
+| **Test Utilities**            | `backend/tests/utils/`       | -                                                                                                  | -       | -                        |
+| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -                                                                                                  | -       | floors 80/74.6/78.4/80.9 |
+| **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 960 tests × browser projects (44 spec files; `playwright test --list` 5,993 across all 9 projects) | 15s     | -                        |
 
 **Note:** The executed backend floor is **80% on combined unit+integration**
 (`scripts/validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml`).
 `pyproject.toml` `fail_under = 85` is the PR diff gate's RELATIVE baseline,
 not an absolute floor (owner ruling A7.1, 2026-09-19).
 
-¹ The retired cell said "85%+"; no measurement ever produced that as a current
-unit-tier value (R-6: docs follow measurements). The measured numbers — with
-their denominators — are below.
+¹ Docs follow measurements (R-6): only measured values, with their
+denominators, appear below.
 
 ### The backend coverage numbers (WP2.1, measured 2026-09-20)
 
@@ -438,44 +437,64 @@ pkill -f "vite preview"
 
 ## Pytest Configuration
 
-The pytest configuration is defined in [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L91):
+The pytest configuration is defined in `pyproject.toml:577`:
 
 ```toml
 [tool.pytest.ini_options]
-testpaths = ["backend/tests"]
+testpaths = ["backend/tests", "ai/*/tests", "ai/*/test_*.py", "setup_lib/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short -p randomly"
+addopts = "-n 8 --dist=worksteal -v --strict-markers --tb=short -p randomly -m 'not gpu'"
 timeout = 5
-timeout_method = "thread"
+timeout_method = "signal"
+timeout_func_only = false
 ```
 
 ### Test Markers
 
-Available markers defined in [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L100):
+Available markers, registered in `pyproject.toml:598` (`--strict-markers`
+rejects unregistered ones):
 
-| Marker                     | Purpose                 | Timeout |
-| -------------------------- | ----------------------- | ------- |
-| `@pytest.mark.asyncio`     | Mark as async test      | -       |
-| `@pytest.mark.unit`        | Unit test marker        | 1s      |
-| `@pytest.mark.integration` | Integration test marker | 5s      |
-| `@pytest.mark.e2e`         | End-to-end test marker  | 30s     |
-| `@pytest.mark.gpu`         | GPU-specific test       | -       |
-| `@pytest.mark.slow`        | Legitimately slow test  | 30s     |
+| Marker                             | Purpose                                                                                                      | Timeout |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------- |
+| `@pytest.mark.asyncio`             | Mark as async test                                                                                           | -       |
+| `@pytest.mark.unit`                | Unit test (auto-applied under `/unit/`)                                                                      | 5s      |
+| `@pytest.mark.integration`         | Integration test (auto-applied under `/integration/`)                                                        | 5s      |
+| `@pytest.mark.e2e`                 | End-to-end pipeline test (model loading)                                                                     | 60s     |
+| `@pytest.mark.gpu`                 | GPU test — self-hosted A5500 runner; excluded by default addopts `-m 'not gpu'`                              | 60s     |
+| `@pytest.mark.slow`                | Legitimately slow test                                                                                       | 30s     |
+| `@pytest.mark.benchmark`           | Benchmark (requires pytest-benchmark)                                                                        | -       |
+| `@pytest.mark.serial`              | Requires serial execution (no xdist parallel)                                                                | -       |
+| `@pytest.mark.flaky`               | Quarantined known-intermittent test — must be registered in the governed flaky allowlist or collection fails | -       |
+| `@pytest.mark.network`             | Requires network access (isolated in CI)                                                                     | -       |
+| `@pytest.mark.db`                  | Requires database access                                                                                     | -       |
+| `@pytest.mark.redis`               | Requires Redis access                                                                                        | -       |
+| `@pytest.mark.requires_debug_mode` | Validates `DEBUG=false` enforcement (CI security check)                                                      | -       |
+| `@pytest.mark.prompt_evaluation`   | Prompt evaluation (synthetic scenarios; mock or live engine)                                                 | -       |
+| `@pytest.mark.enrichment`          | Enrichment edge-case tests (VRAM management, circuit-breaker behavior)                                       | -       |
+| `@pytest.mark.multimodal`          | Multimodal evaluation vs vision ground truth                                                                 | -       |
+| `@pytest.mark.load`                | Load/performance test (latency, memory, throughput under load)                                               | -       |
+| `@pytest.mark.ai_pipeline`         | AI pipeline quality smoke test (fast CI validation of VLM output)                                            | -       |
+
+(The marker strings and their descriptions are the source of truth in
+`pyproject.toml:598` — this table paraphrases them.)
 
 ### Timeout Configuration
 
-Timeouts are automatically assigned based on test location ([conftest.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/conftest.py#L164)):
+Timeouts are automatically assigned based on test location
+(`backend/tests/conftest.py:459` `_apply_timeout_marker`; M3 T5 owner ruling
+2026-09-14 — a CLI `--timeout` governs every unmarked item):
 
-| Test Type         | Timeout | Configuration                                  |
-| ----------------- | ------- | ---------------------------------------------- |
-| Unit tests        | 1s      | Default from pyproject.toml                    |
-| Integration tests | 5s      | Auto-assigned in pytest_collection_modifyitems |
-| Slow-marked tests | 30s     | `@pytest.mark.slow`                            |
-| CLI override      | varies  | `--timeout=N` (0 disables)                     |
+| Test Type         | Timeout | Configuration                                                         |
+| ----------------- | ------- | --------------------------------------------------------------------- |
+| Default (unit)    | 5s      | `timeout = 5` in `pyproject.toml`                                     |
+| Integration tests | 5s      | Auto-assigned in `pytest_collection_modifyitems`                      |
+| Slow-marked tests | 30s     | `@pytest.mark.slow`                                                   |
+| CLI override      | varies  | `--timeout=N` governs all unmarked items; `--timeout=0` disables (CI) |
+| Explicit marker   | as set  | `@pytest.mark.timeout(N)` always wins                                 |
 
 ### Fast Feedback Loop (Excluding Slow Tests)
 
@@ -750,16 +769,26 @@ async def test_handles_connection_error():
 
 ### Backend Coverage
 
-Configured in [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L109):
+Configured in `pyproject.toml:619`:
 
 ```toml
 [tool.coverage.run]
+branch = true
 source = ["backend"]
 omit = [
     "backend/tests/*",
     "backend/examples/*",
     "backend/main.py",
     "*/__pycache__/*",
+    "*/.venv/*",
+    "*/venv/*",
+    # Post-MVP features - need tests before enabling coverage
+    "backend/api/routes/alerts.py",
+    "backend/api/routes/audit.py",
+    "backend/services/video_processor.py",
+    "backend/services/degradation_manager.py",
+    # TLS certificate generation - requires system-level testing
+    "backend/core/tls.py",
 ]
 
 [tool.coverage.report]
@@ -769,7 +798,8 @@ show_missing = true
 
 ### CI Coverage Thresholds
 
-From [.github/workflows/ci.yml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.github/workflows/ci.yml#L67) and [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml):
+From `.github/workflows/ci.yml` (the "Combine and check coverage threshold"
+step, `.github/workflows/ci.yml:536`) and [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml):
 
 | Test Type | Number | What it actually is (A7.1, 2026-09-19)                                                                                             |
 | --------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -803,18 +833,17 @@ unit+contracts selection (`scripts/fast_select.py`), and frontend
 
 ### CI Pipeline
 
-The CI workflow ([.github/workflows/ci.yml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.github/workflows/ci.yml)) runs:
+The CI workflow ([.github/workflows/ci.yml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.github/workflows/ci.yml)) runs, among its jobs:
 
-1. **Backend Lint** - Ruff check and format
-2. **Backend Type Check** - MyPy
-3. **Backend Unit Tests** - coverage collected; 85% is the PR diff baseline, not a run-time floor
-4. **Backend Integration Tests** - combined unit+integration checked at the 80% floor in validate.sh / nightly
-5. **Frontend Lint** - ESLint
-6. **Frontend Type Check** - TypeScript
-7. **Frontend Tests** - Vitest
-8. **Frontend E2E** - Playwright
-
-All jobs must pass before a PR can be merged.
+1. **Lint** - Ruff check and format
+2. **Typecheck** - MyPy
+3. **Unit tests** (+ coverage merge/summary) - coverage collected; 85% is the PR diff baseline, not a run-time floor
+4. **Integration tests** (api / websocket / services / models shards, coverage merge) - combined unit+integration checked at the 80% floor in validate.sh / nightly
+5. **Contract tests, security tests, api-types-check, dead-code**
+6. **Frontend lint / typecheck / tests (vitest)** with coverage merge
+7. **Frontend E2E** - Playwright (primary + secondary shards)
+8. **ai-tests** - the `ai/*/tests` suites
+9. **ci-gate** - the terminal job everything must be green for
 
 ## Database Testing
 
@@ -1064,5 +1093,6 @@ Snapshots are automatically validated in CI:
 - [Setup Guide](local-setup.md) - Development environment setup
 - [Contributing Guide](contributing/README.md) - PR process and code standards
 - [Code Patterns](patterns-and-conventions.md) - Testing patterns in detail
-- [backend/tests/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/AGENTS.md) - Test infrastructure overview
+- [backend/tests/unit/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/unit/AGENTS.md) - Unit test patterns
+- [backend/tests/integration/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/integration/AGENTS.md) - Integration test patterns
 - [Mutation Testing Guide](../developer/patterns/mutation-testing.md) - Mutation testing with mutmut and Stryker

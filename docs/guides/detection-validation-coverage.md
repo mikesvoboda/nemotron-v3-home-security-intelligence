@@ -40,29 +40,34 @@ data/synthetic/
 
 ### Expected Labels Format
 
-Each scenario includes an `expected_labels.json` file that defines:
+Every scenario file carries two blocks that the validation suite actually
+asserts on — `detections` and `risk` (`backend/tests/integration/
+test_risk_score_validation.py` reads `labels["risk"]["min_score"]`,
+`["max_score"]`, `["level"]` and `labels.get("detections", [])`):
 
 ```json
 {
   "detections": [
     {
       "class": "person",
-      "min_confidence": 0.7,
+      "min_confidence": 0.75,
       "count": 1
     }
   ],
   "risk": {
-    "min_score": 35,
-    "max_score": 60,
+    "min_score": 55,
+    "max_score": 85,
     "level": "medium",
-    "expected_factors": ["prolonged_observation", "unknown_person"]
-  },
-  "florence_caption": {
-    "must_contain": ["person"],
-    "must_not_contain": ["delivery", "neighbor"]
+    "expected_factors": ["loitering", "nighttime", "obscured_face"]
   }
 }
 ```
+
+That is the whole vocabulary a new scenario needs. Some scenario files also
+carry per-attribute blocks (`pose`, `clothing`, `demographics`,
+`florence_caption`, `pet`, `depth`); no stage in the shipped pipeline produces
+those values, so they never gain a comparison and new scenarios should not
+include them.
 
 ## Processing Scenarios Through the Pipeline
 
@@ -76,25 +81,47 @@ mkdir -p /cameras/test_validation_normal/2026/01/31/
 cp data/synthetic/normal/delivery_driver_20260125_180255/*.jpg \
    /cameras/test_validation_normal/2026/01/31/
 
-# 2. Wait for file watcher to detect and process images
-# The file watcher scans camera directories every 30 seconds
+# 2. Watchdog picks the files up as filesystem events. On volume mounts where
+#    inotify does not fire, set FILE_WATCHER_POLLING=true and the watcher
+#    re-scans every FILE_WATCHER_POLLING_INTERVAL seconds (default 1.0, max 30).
 
-# 3. Monitor processing via logs
-podman logs -f fine8_188fe20254c51e93_backend_1 | grep "Processing batch"
+# 3. Then wait for the batch to close: BATCH_WINDOW_SECONDS (default 90), with
+#    BATCH_IDLE_TIMEOUT_SECONDS (default 30) closing it early once uploads stop.
+
+# 4. Follow the pipeline in the backend logs. The strings that prove each stage:
+#    "Queued image for detection" (watchdog) -> "Batch created" / "Batch closed"
+#    (aggregator) -> "vlm batch analyzed" (VLM stage).
+docker compose logs -f backend | grep -E "Queued .* for detection|Batch (created|closed)|vlm batch analyzed"
 ```
 
-### Method 2: Batch Upload via API
+### Method 2: Batch Insert via API
 
-Use the bulk detection API to upload frames:
+`POST /api/detections/bulk` takes JSON (not multipart) and answers **207
+Multi-Status** with per-item results. It writes detection rows directly — it
+does not run the pipeline on your frames — so use it to seed detection records
+and Method 1 when you want an end-to-end event. Up to 100 items per request, on
+the `bulk` rate-limit tier (`RATE_LIMIT_BULK_REQUESTS_PER_MINUTE`):
 
 ```bash
-# Upload frames from a scenario
-for frame in data/synthetic/normal/delivery_driver_20260125_180255/*.jpg; do
-    curl -X POST http://localhost:8000/api/detections/bulk \
-        -F "camera_id=test_validation_camera" \
-        -F "file=@$frame"
-done
+curl -X POST http://localhost:8000/api/detections/bulk \
+  -H "Content-Type: application/json" \
+  -d '{
+    "detections": [
+      {
+        "camera_id": "test_validation_camera",
+        "object_type": "person",
+        "confidence": 0.91,
+        "detected_at": "2026-01-31T18:02:55Z",
+        "file_path": "/cameras/test_validation_camera/2026-01-31/frame01.jpg",
+        "bbox_x": 412, "bbox_y": 88,
+        "bbox_width": 190, "bbox_height": 402
+      }
+    ]
+  }'
 ```
+
+Every `camera_id` in the payload must already exist as a `Camera` row — the
+route validates them up front and reports per-item failures in the 207 body.
 
 ### Method 3: Automated Bulk Processing Script
 
@@ -133,8 +160,9 @@ def process_all_scenarios():
                 shutil.copy(frame, dest)
                 print(f"Copied {frame} -> {dest}")
 
-            # Wait for processing (30 second file watcher interval)
-            time.sleep(35)
+            # Wait for the batch to close: BATCH_WINDOW_SECONDS (default 90)
+            # plus headroom, or the next scenario's frames land in this batch.
+            time.sleep(100)
 
 if __name__ == "__main__":
     process_all_scenarios()
@@ -254,43 +282,19 @@ If P90/P95 confidence is low:
 
 ### CI/CD Integration
 
-Add validation to CI pipeline:
-
-```yaml
-# .github/workflows/validation.yml
-name: Detection Validation
-on: [push, pull_request]
-
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Process synthetic scenarios
-        run: ./scripts/process_scenarios.sh
-      - name: Run validation tests
-        run: |
-          uv run pytest backend/tests/integration/test_risk_score_validation.py -v
-          ./scripts/validate_detections.py
-      - name: Check gap rate
-        run: |
-          # Fail if gap rate > 20%
-          python -c "
-          import json
-          with open('/tmp/detection_validation_results.json') as f:
-              results = json.load(f)
-          # Extract gap rate from results and assert < 20%
-          "
-```
+Nothing runs these checks in CI today — no workflow in `.github/workflows/`
+calls `validate_detections.py` or `test_risk_score_validation.py`. Standing them
+up needs the frames to reach a live pipeline first, which a `ubuntu-latest`
+runner cannot do: the assertions compare against events written by a running
+backend with the gateway and VLM reachable. Budget for a self-hosted GPU runner
+plus a seeded `/cameras` tree before wiring a gate, and treat the per-category
+gap numbers below as the thing to assert on.
 
 ### Nightly Validation Runs
 
-Schedule comprehensive validation runs:
-
-Nightly validation runs in CI, not from a local cron script (there is no
-`scripts/nightly_validation.sh`): `nightly.yml` (07:00 UTC analysis),
-`nightly-full-gate.yml` (04:17 UTC full gate), and `flaky-test-detection.yml`
-(02:00 UTC) cover the scheduled tiers.
+Schedule the tiered runs that already exist in CI: `nightly.yml` (07:00 UTC
+analysis), `nightly-full-gate.yml` (04:17 UTC full gate), and
+`flaky-test-detection.yml` (02:00 UTC).
 
 ## Expanding Coverage
 
@@ -306,9 +310,6 @@ Nightly validation runs in CI, not from a local cron script (there is no
    # Cosmos prompt packets (for off-line text-to-video generation)
    uv run scripts/cosmos_prompt_generator.py --all
    ```
-
-   (The VEO3/COSMOS one-shot drivers this guide once cited — `generate_scenarios_veo3.py`
-   and `generate_scenarios_cosmos.py` — never existed at these paths.)
 
 2. **Define expected labels:**
    Create `expected_labels.json` for each scenario based on scenario content.
@@ -339,13 +340,16 @@ If scenarios aren't being processed:
 1. **Check file watcher logs:**
 
    ```bash
-   podman logs fine8_188fe20254c51e93_backend_1 | grep "File watcher"
+   docker compose logs -f backend | grep "FileWatcher"
    ```
 
-2. **Verify camera directory structure:**
+2. **Verify camera directory structure.** The watcher roots at
+   `FOSCAM_BASE_PATH` (inside the backend container that is `/cameras`, mapped
+   from the host directory in `.env`) and watches it recursively, so the date
+   subdirectories below the camera name are convention, not a requirement:
 
    ```
-   /cameras/<camera_id>/YYYY/MM/DD/*.jpg
+   {FOSCAM_BASE_PATH}/<camera_id>/[YYYY/MM/DD/] *.jpg
    ```
 
 3. **Check file permissions:**
@@ -354,10 +358,14 @@ If scenarios aren't being processed:
    ls -la /cameras/test_validation_*/
    ```
 
-4. **Manually trigger processing:**
+4. **Check the camera id the folder implies.** `_get_camera_id_from_path()`
+   normalizes the _first_ directory component under the root with
+   `normalize_camera_id()` (so `Front-Door` and `front_door` land on the same
+   id) and auto-creates the `Camera` row if it is missing — which means a typo
+   in a folder name silently makes a new camera rather than failing loudly:
+
    ```bash
-   # Restart backend to trigger immediate scan
-   podman-compose restart backend
+   curl -s http://localhost:8000/api/cameras | jq '.[].id'
    ```
 
 ### Validation Tests Failing

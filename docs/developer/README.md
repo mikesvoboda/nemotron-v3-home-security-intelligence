@@ -26,13 +26,13 @@ System design, data flow, and technology decisions.
 | ----------------------------------------------- | ---------------------------------------------- |
 | [Architecture Overview](architecture/README.md) | High-level system design and component diagram |
 | [Data Model](data-model.md)                     | PostgreSQL schemas and entity relationships    |
-| [AI Pipeline Overview](pipeline-overview.md)    | FileWatcher -> YOLO26 -> Nemotron flow         |
+| [AI Pipeline Overview](pipeline-overview.md)    | FileWatcher -> YOLO26 -> ai-vlm flow           |
 
 **AI Pipeline Deep Dives:**
 
 - [Detection Service](detection-service.md) - YOLO26 API and bounding boxes
 - [Batching Logic](batching-logic.md) - Time-windowed batch aggregation
-- [Risk Analysis](risk-analysis.md) - Nemotron prompts and scoring
+- [Risk Analysis](risk-analysis.md) - VLM verdicts and scoring
 - [Prompt Management](prompt-management.md) - A/B testing and versioning
 
 ---
@@ -112,7 +112,7 @@ gh pr create --title "feat: my feature"
 | PostgreSQL          | 5432                   | TCP          |
 | Redis               | 6379                   | TCP          |
 | AI Gateway (models) | 8090                   | HTTP         |
-| Nemotron LLM        | 8091                   | HTTP         |
+| AI VLM (verdict)    | 8098                   | HTTP         |
 
 ### AGENTS.md Navigation
 

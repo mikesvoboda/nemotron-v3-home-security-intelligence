@@ -144,8 +144,6 @@ nav:
           - Git Worktree Workflow: developer/git-worktree-workflow.md
           - Pre-commit Hooks: developer/hooks.md
           - CI/CD Pipeline: developer/ci-cd.md
-          - BuildKit Secrets: developer/buildkit-secrets.md
-          - Nemotron BuildKit Secrets: developer/nemotron-buildkit-secrets.md
           - API Breaking Change Detection: developer/api-breaking-change-detection.md
           - Migration Rollback: developer/migration-rollback.md
           - Port Standardization: developer/PORT_STANDARDIZATION.md
@@ -159,8 +157,6 @@ nav:
           - SSL & HTTPS: developer/ssl-https.md
           - Python 3.14 Features: developer/python-3.14-features.md
           - LLM Inference Optimization: developer/llm-inference-optimization.md
-          - MoE Offloading: developer/moe-offloading.md
-          - Nemotron Prompting: developer/nemotron-prompting.md
       - API Reference:
           - developer/api/README.md
           - Core Resources: developer/api/core-resources.md
@@ -187,7 +183,7 @@ nav:
   - Architecture:
       - architecture/README.md
       - System Overview: architecture/overview.md
-      - AI Pipeline: architecture/ai-pipeline.md
+      - AI Pipeline: architecture/ai-pipeline-current-state.md
       - Data Model: architecture/data-model.md
       - Real-time System: architecture/real-time.md
       - Resilience: architecture/resilience.md

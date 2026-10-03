@@ -1,7 +1,7 @@
 ---
 title: Resilience Architecture
 description: Circuit breakers, retry logic, dead-letter queues, health monitoring, and graceful degradation patterns
-last_updated: 2026-01-18
+last_updated: 2026-10-02
 source_refs:
   - backend/services/circuit_breaker.py:CircuitBreaker:270
   - backend/services/circuit_breaker.py:CircuitBreakerConfig:139
@@ -9,25 +9,26 @@ source_refs:
   - backend/services/circuit_breaker.py:CircuitState:130
   - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreaker:96
   - backend/core/websocket_circuit_breaker.py:WebSocketCircuitState:39
-  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreakerMetrics:47
-  - backend/services/system_broadcaster.py:SystemBroadcaster:66
-  - backend/services/event_broadcaster.py:EventBroadcaster:330
+  - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreakerMetrics:48
+  - backend/services/system_broadcaster.py:SystemBroadcaster:68
+  - backend/services/event_broadcaster.py:EventBroadcaster:349
   - backend/services/retry_handler.py:RetryHandler:184
-  - backend/services/retry_handler.py:RetryConfig:64
-  - backend/services/retry_handler.py:DLQStats:175
+  - backend/services/retry_handler.py:RetryConfig:65
+  - backend/services/retry_handler.py:DLQStats:176
   - backend/services/health_monitor.py:ServiceHealthMonitor:44
   - backend/services/degradation_manager.py:DegradationManager
   - backend/services/service_managers.py:ServiceManager
+  - backend/services/vlm_client.py:VlmClient:215
   - frontend/src/hooks/useWebSocket.ts:useWebSocket:56
   - frontend/src/hooks/useWebSocket.ts:WebSocketOptions:13
   - frontend/src/hooks/useWebSocket.ts:UseWebSocketReturn:40
-  - frontend/src/hooks/webSocketManager.ts:WebSocketManager:187
-  - frontend/src/hooks/webSocketManager.ts:calculateBackoffDelay:150
+  - frontend/src/hooks/webSocketManager.ts:WebSocketManager:225
+  - frontend/src/hooks/webSocketManager.ts:calculateBackoffDelay:188
 ---
 
 # Resilience Architecture
 
-This document details the resilience patterns implemented in the Home Security Intelligence system to ensure reliable operation even when external services (YOLO26, Nemotron LLM, Redis) experience failures.
+This document details the resilience patterns implemented in the Home Security Intelligence system to ensure reliable operation even when external services (the ai-gateway detection backend, the ai-vlm analysis backend, Redis) experience failures.
 
 ---
 
@@ -113,12 +114,12 @@ flowchart TB
 
 ### Resilience Components
 
-| Component                                                                                                                                  | Location                                  | Responsibility                              |
-| ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- | ------------------------------------------- |
-| [CircuitBreaker](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/circuit_breaker.py)      | `backend/services/circuit_breaker.py:270` | Prevents cascading failures by failing fast |
-| [RetryHandler](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/retry_handler.py)          | `backend/services/retry_handler.py:184`   | Exponential backoff with DLQ support        |
-| [ServiceHealthMonitor](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/health_monitor.py) | `backend/services/health_monitor.py:44`   | Periodic health checks and auto-recovery    |
-| DegradationManager                                                                                                                         | `backend/services/degradation_manager.py` | Graceful degradation during outages         |
+| Component              | Location                                      | Responsibility                              |
+| ---------------------- | --------------------------------------------- | ------------------------------------------- |
+| `CircuitBreaker`       | `backend/services/circuit_breaker.py:270`     | Prevents cascading failures by failing fast |
+| `RetryHandler`         | `backend/services/retry_handler.py:184`       | Exponential backoff with DLQ support        |
+| `ServiceHealthMonitor` | `backend/services/health_monitor.py:44`       | Periodic health checks and auto-recovery    |
+| `DegradationManager`   | `backend/services/degradation_manager.py:350` | Graceful degradation during outages         |
 
 ---
 
@@ -163,7 +164,7 @@ stateDiagram-v2
 
 ### Implementation Details
 
-The [CircuitBreaker](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/circuit_breaker.py) class at line 270 implements the pattern:
+The `CircuitBreaker` class (`backend/services/circuit_breaker.py:270`) implements the pattern; `CircuitState` is defined at `:130`:
 
 ```python
 # backend/services/circuit_breaker.py:270
@@ -188,9 +189,11 @@ class CircuitBreaker:
         # ...
 ```
 
+Operations run through the breaker with `await breaker.call(...)` (`backend/services/circuit_breaker.py:440`); when the circuit is OPEN the call is rejected without touching the network.
+
 ### Circuit Breaker Configuration
 
-The [CircuitBreakerConfig](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/circuit_breaker.py) at line 139 defines behavior:
+The `CircuitBreakerConfig` dataclass (`backend/services/circuit_breaker.py:139`) defines behavior:
 
 | Parameter             | Default | Description                                  |
 | --------------------- | ------- | -------------------------------------------- |
@@ -224,11 +227,7 @@ except CircuitBreakerError:
 
 ### Circuit Breaker Registry
 
-The [CircuitBreakerRegistry](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/circuit_breaker.py) at line 1018 manages multiple breakers:
-
-![Circuit Breaker Registry](../images/resilience/circuit-breaker-registry.svg)
-
-_Global registry managing circuit breakers for yolo26, nemotron, and redis services._
+The `CircuitBreakerRegistry` (`backend/services/circuit_breaker.py:1018`) is a process-global registry of named breakers, accessed through `get_circuit_breaker()` (`:1104`). Breakers are pre-registered at startup and reused by every later caller that asks for the same name:
 
 <details>
 <summary>Mermaid source (click to expand)</summary>
@@ -241,36 +240,48 @@ flowchart TB
 
     subgraph Breakers["Individual Circuit Breakers"]
         B1[yolo26<br/>breaker]
-        B2[nemotron<br/>breaker]
+        B2[ai-vlm<br/>breaker]
         B3[redis<br/>breaker]
+        B4[postgresql<br/>breaker]
     end
 
     subgraph Services["Protected Services"]
-        S1[YOLO26<br/>ai-gateway :8090/yolo26]
-        S2[Nemotron LLM<br/>:8091]
+        S1[ai-gateway<br/>:8090 /yolo26]
+        S2[ai-vlm<br/>:8098 /v1/chat/completions]
         S3[Redis<br/>:6379]
+        S4[PostgreSQL<br/>:5432]
     end
 
     R --> B1
     R --> B2
     R --> B3
+    R --> B4
 
     B1 --> S1
     B2 --> S2
     B3 --> S3
+    B4 --> S4
 
     style S1 fill:#3B82F6,color:#fff
     style S2 fill:#3B82F6,color:#fff
     style S3 fill:#A855F7,color:#fff
+    style S4 fill:#A855F7,color:#fff
 ```
 
 </details>
+
+Startup pre-registration (`backend/main.py:321-329`) creates three named breakers with two profiles:
+
+- **AI profile** (`failure_threshold=5`, `recovery_timeout=30.0`, `half_open_max_calls=3`, `success_threshold=2`): used for `yolo26`.
+- **Infrastructure profile** (`failure_threshold=10`, `recovery_timeout=60.0`, `half_open_max_calls=5`, `success_threshold=3`): used for `postgresql` and `redis`.
+
+The `ai-vlm` breaker is not in the startup list - `VlmClient` creates it on first use with `get_circuit_breaker("ai-vlm", CircuitBreakerConfig(failure_threshold=5, recovery_timeout=60.0))` (breaker name at `backend/services/vlm_client.py:82`, construction at `:247-249`). While it is OPEN, the client refuses the request without any I/O instead of piling onto a downed service, and the open/close transitions are pushed to the DegradationManager (see [Graceful Degradation](#graceful-degradation)).
 
 ---
 
 ## Retry Handler with Exponential Backoff
 
-The [RetryHandler](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/retry_handler.py) at line 184 provides automatic retries with exponential backoff for transient failures.
+The `RetryHandler` (`backend/services/retry_handler.py:184`) provides automatic retries with exponential backoff for transient failures. Pipeline workers construct one with the shipped defaults (`backend/services/pipeline_workers.py:279-287`): `max_retries=3`, `base_delay_seconds=1.0`, `max_delay_seconds=30.0`, `exponential_base=2.0`, `jitter=True`.
 
 ### Retry Flow
 
@@ -319,10 +330,10 @@ flowchart TB
 
 ### Exponential Backoff Algorithm
 
-The [RetryConfig](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/retry_handler.py) at line 64 configures backoff behavior:
+The `RetryConfig` dataclass (`backend/services/retry_handler.py:65`) configures backoff behavior:
 
 ```python
-# backend/services/retry_handler.py:64
+# backend/services/retry_handler.py:65
 @dataclass
 class RetryConfig:
     """Configuration for retry behavior."""
@@ -353,6 +364,8 @@ class RetryConfig:
 | 4       | 8.0s        | 8.0s - 10.0s        |
 | 5       | 16.0s       | 16.0s - 20.0s       |
 | 6+      | 30.0s (max) | 30.0s - 37.5s       |
+
+`with_retry()` (`backend/services/retry_handler.py:264`) executes the operation up to `max_retries` times and returns a `RetryResult`; when every attempt has failed the job is written to the dead-letter queue with the enriched metadata described next.
 
 ---
 
@@ -421,9 +434,17 @@ flowchart TB
 
 </details>
 
+### Queue and DLQ Key Layout
+
+The Redis key names are defined in `backend/core/constants.py:146-177`: the legacy list queues are `detection_queue` and `analysis_queue`, the DLQ prefix is `dlq:`, giving `dlq:detection_queue` and `dlq:analysis_queue`. The `RetryHandler` re-exports these constants (`backend/services/retry_handler.py:212-215`) and derives DLQ names as `dlq:{queue_name}`.
+
+With streams enabled (`USE_REDIS_STREAMS`, default true), the queue-of-record is the Redis Streams path instead of those lists: `detections:stream` and `analysis:stream` (`backend/services/redis_streams.py:73`, `:873`). The stream services keep their own per-stream DLQ **streams** at `{stream_key}:dlq` - `detections:stream:dlq` and `analysis:stream:dlq` (constants at `:74`, `:874`; derived as `self._dlq_key` at `:271`, `:971`). A message is moved there by `DetectionStreamService.move_to_dlq()` (`:618`) when `DEFAULT_MAX_DELIVERY_COUNT = 3` (`:82`) delivery attempts are exceeded, storing the original fields plus `original_message_id`, `dlq_reason`, `dlq_timestamp`, and `delivery_count`.
+
+The `/api/dlq` management API and `get_dlq_stats()` read the list-shaped `dlq:detection_queue` / `dlq:analysis_queue` keys via `get_queue_length` (`backend/services/retry_handler.py:612-629`, `backend/api/routes/dlq.py`).
+
 ### DLQ Job Format
 
-Jobs in the DLQ include failure metadata:
+Jobs moved by the retry handler include failure metadata (`original_job`, `error`, `attempt_count`, `first_failed_at`, `last_failed_at`, `queue_name`):
 
 ```json
 {
@@ -442,10 +463,10 @@ Jobs in the DLQ include failure metadata:
 
 ### DLQ Statistics
 
-The [DLQStats](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/retry_handler.py) dataclass at line 175:
+The `DLQStats` dataclass (`backend/services/retry_handler.py:176`):
 
 ```python
-# backend/services/retry_handler.py:175
+# backend/services/retry_handler.py:176
 @dataclass
 class DLQStats:
     """Statistics about dead-letter queues."""
@@ -457,24 +478,27 @@ class DLQStats:
 
 ### DLQ API Endpoints
 
-| Endpoint                        | Method | Description                 |
-| ------------------------------- | ------ | --------------------------- |
-| `/api/dlq/stats`                | GET    | Get DLQ statistics          |
-| `/api/dlq/{queue_name}`         | GET    | List jobs in a DLQ          |
-| `/api/dlq/{queue_name}/requeue` | POST   | Move job back to processing |
-| `/api/dlq/{queue_name}`         | DELETE | Clear all jobs in DLQ       |
+All endpoints are on the `/api/dlq` router (`backend/api/routes/dlq.py:38`):
+
+| Endpoint                            | Method | Description                     |
+| ----------------------------------- | ------ | ------------------------------- |
+| `/api/dlq/stats`                    | GET    | Get DLQ statistics              |
+| `/api/dlq/jobs/{queue_name}`        | GET    | List jobs in a DLQ              |
+| `/api/dlq/requeue/{queue_name}`     | POST   | Move one job back to processing |
+| `/api/dlq/requeue-all/{queue_name}` | POST   | Requeue all jobs in a DLQ       |
+| `/api/dlq/{queue_name}`             | DELETE | Clear all jobs in DLQ           |
+
+### DLQ Overflow Protection
+
+The `RetryHandler` wraps its own DLQ writes in a dedicated `dlq_overflow` circuit breaker so a Redis outage cannot turn DLQ writes into an unbounded retry loop (`backend/services/retry_handler.py:236-246`). Its settings come from `backend/core/config.py:2121-2143`: failure threshold 5, recovery timeout 60.0s, half-open max calls 3, success threshold 2. While the breaker is open, DLQ writes are rejected (`is_dlq_circuit_open()`); after manually draining a DLQ, `reset_dlq_circuit_breaker()` closes it again.
 
 ---
 
 ## Service Health Monitoring
 
-The [ServiceHealthMonitor](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/health_monitor.py) at line 44 continuously monitors external services and orchestrates automatic recovery.
+The `ServiceHealthMonitor` (`backend/services/health_monitor.py:44`) continuously monitors the detector service and orchestrates automatic recovery.
 
 ### Health Check Flow
-
-![Health Check Flow](../images/resilience/health-check-flow.svg)
-
-_Service health monitoring flow showing monitored services, state transitions, and recovery actions._
 
 <details>
 <summary>Mermaid source (click to expand)</summary>
@@ -485,10 +509,9 @@ flowchart TB
         LOOP[Health Check Loop<br/>Every 15s]
     end
 
-    subgraph Services["Monitored Services"]
-        S1[YOLO26<br/>GET /health]
-        S2[Nemotron<br/>GET /health]
-        S3[Redis<br/>PING]
+    subgraph Services["Monitored Service"]
+        S1[yolo26<br/>GET gateway /health]
+        S3[Redis<br/>PING (not monitored)]
     end
 
     subgraph States["Service States"]
@@ -505,11 +528,9 @@ flowchart TB
     end
 
     LOOP --> S1
-    LOOP --> S2
-    LOOP --> S3
 
-    S1 & S2 & S3 -->|OK| HEALTHY
-    S1 & S2 & S3 -->|Fail| UNHEALTHY
+    S1 -->|OK| HEALTHY
+    S1 -->|Fail| UNHEALTHY
 
     UNHEALTHY --> BACKOFF
     BACKOFF --> RESTART
@@ -528,6 +549,8 @@ flowchart TB
 ```
 
 </details>
+
+The monitored set is exactly `yolo26` (`build_ai_service_health_configs`, `backend/main.py:671-729`): health is checked at the ai-gateway's aggregated `/health` endpoint when `USE_AI_GATEWAY` is on, restarts run `docker restart ai-gateway` in containerized deployments or `ai/start_detector.sh` locally, and `AI_RESTART_ENABLED=false` (`backend/core/config.py:2637`) keeps monitoring while disabling restarts. Redis is deliberately not in the monitored list - the application already handles Redis failures gracefully. ai-vlm is deliberately not a probe target either: probing would wake a sleeping llama.cpp, so its health arrives by breaker-push from `VlmClient` to the DegradationManager instead (`backend/main.py:1134-1150`).
 
 ### Health Monitor Implementation
 
@@ -558,17 +581,30 @@ class ServiceHealthMonitor:
         # ...
 ```
 
+The backend wires it up at startup with `check_interval=15.0` (`backend/main.py:1110-1115`).
+
+### Per-Service Configuration
+
+The monitor consumes `ServiceConfig` entries (`backend/services/service_managers.py:99`):
+
+| Field            | Default | Description                                       |
+| ---------------- | ------- | ------------------------------------------------- |
+| `health_url`     | -       | HTTP endpoint polled each cycle                   |
+| `restart_cmd`    | None    | Restart command; None disables restart            |
+| `health_timeout` | 5.0s    | Timeout for individual health-check requests      |
+| `max_retries`    | 3       | Restart attempts before giving up (yolo26 uses 3) |
+| `backoff_base`   | 5.0s    | Base for restart backoff: `base * 2^(failures-1)` |
+
 ### Recovery Backoff Strategy
 
-Recovery attempts use exponential backoff to avoid overwhelming recovering services:
+Recovery attempts use exponential backoff to avoid overwhelming recovering services (`backend/services/health_monitor.py:227-229`). For the yolo26 config (`max_retries=3`, `backoff_base=5.0`):
 
 | Attempt | Backoff Delay | Formula              |
 | ------- | ------------- | -------------------- |
 | 1       | 5s            | `backoff_base * 2^0` |
 | 2       | 10s           | `backoff_base * 2^1` |
 | 3       | 20s           | `backoff_base * 2^2` |
-| 4       | 40s           | `backoff_base * 2^3` |
-| 5       | (Give up)     | Max retries exceeded |
+| 4       | (Give up)     | Max retries exceeded |
 
 ---
 
@@ -578,10 +614,6 @@ When services are unavailable, the system degrades gracefully rather than failin
 
 ### Degradation Modes
 
-![Graceful Degradation](../images/resilience/graceful-degradation.svg)
-
-_Graceful degradation modes showing normal operation, failure scenarios, and degraded behaviors._
-
 <details>
 <summary>Mermaid source (click to expand)</summary>
 
@@ -590,23 +622,23 @@ flowchart TB
     subgraph Normal["Normal Operation"]
         N1[Full AI Pipeline]
         N2[Real-time Events]
-        N3[Risk Scoring]
+        N3[VLM Risk Verdicts]
     end
 
     subgraph Degraded["Degraded Modes"]
-        D1[Detection Only<br/>No LLM Analysis]
+        D1[Detection Only<br/>No VLM Analysis]
         D2[Queue Buffering<br/>Service Recovery]
-        D3[Fallback Risk<br/>Score: 50, Medium]
+        D3[verification_failed<br/>risk_score NULL]
     end
 
     subgraph Failed["Failure Scenarios"]
-        F1[YOLO26<br/>Unavailable]
-        F2[Nemotron<br/>Unavailable]
+        F1[ai-gateway<br/>Unavailable]
+        F2[ai-vlm<br/>Unavailable]
         F3[Redis<br/>Unavailable]
     end
 
     F1 -->|Skip Detection| D2
-    F2 -->|Use Fallback| D3
+    F2 -->|Honest NULL verdict| D3
     F3 -->|Fail Open| D1
 
     N1 --> F1
@@ -622,28 +654,36 @@ flowchart TB
 
 ### Degradation Behavior by Component
 
-| Component      | Failure Mode | Degradation Behavior                                 |
-| -------------- | ------------ | ---------------------------------------------------- |
-| **YOLO26**     | Unreachable  | DetectorClient returns empty list, detection skipped |
-| **Nemotron**   | Unreachable  | NemotronAnalyzer returns default risk (50, medium)   |
-| **Redis**      | Unreachable  | Deduplication fails open (allows processing)         |
-| **Redis**      | Pub/sub down | WebSocket updates unavailable                        |
-| **PostgreSQL** | Unreachable  | Full system failure (critical dependency)            |
+| Component      | Failure Mode | Degradation Behavior                                                      |
+| -------------- | ------------ | ------------------------------------------------------------------------- |
+| **ai-gateway** | Unreachable  | `DetectorClient.detect_objects` returns an empty list, detection skipped  |
+| **ai-vlm**     | Unreachable  | Event stored with `verification_failed`, NULL score/level - never a guess |
+| **Redis**      | Unreachable  | Deduplication fails open (allows processing)                              |
+| **Redis**      | Pub/sub down | WebSocket updates unavailable; broadcasters enter degraded mode           |
+| **PostgreSQL** | Unreachable  | Full system failure (critical dependency)                                 |
 
-### Fallback Risk Assessment
+### VLM Failure Semantics
 
-When Nemotron is unavailable, the system uses a fallback risk assessment:
+There is no invented fallback score. When the VLM cannot produce a valid verdict - transport failure, schema failure after the one temperature-0 retry, or any other rung of the retry ladder bottoming out - `apply_verdict_invariants()` writes an honest placeholder into the event row (`backend/services/vlm_analyzer.py:268-280`):
 
 ```python
-# backend/services/nemotron_analyzer.py (within analyze_batch)
-# Create fallback risk data when LLM is unavailable
-risk_data = {
-    "risk_score": 50,
-    "risk_level": "medium",
-    "summary": "Analysis unavailable - LLM service error",
-    "reasoning": "Failed to analyze detections due to service error",
+# backend/services/vlm_analyzer.py:268 (inside apply_verdict_invariants, verdict=None)
+return {
+    "verdict": "verification_failed",
+    "risk_score": None,
+    "risk_level": None,
+    "summary": "VLM verification failed; this event needs review.",
+    ...
 }
 ```
+
+The event row is still written so the UI shows it as needing review, and the streaming path emits a recoverable `LLM_INVALID_RESPONSE` error for the in-flight progress stream (`backend/services/vlm_analyzer.py:747-756`). `verification_failed` plus a NULL score is the signature that the backend was up while the VLM was not - it is not a low-risk verdict.
+
+### DegradationManager
+
+The `DegradationManager` (`backend/services/degradation_manager.py:350`) tracks a service-health registry with a mode that goes NON-NORMAL when any registered service is down, queues jobs for later processing during outages (Redis queue `degraded:jobs`, with a disk-backed fallback queue when Redis itself is down), and re-queues them on recovery.
+
+ai-vlm is registered on this singleton at startup with `critical=False` (`backend/main.py:1149-1150`), and its health row is updated by breaker-push: `VlmClient` calls `update_service_health()` when its circuit breaker opens and closes (`backend/services/vlm_client.py:920-929`, `:936-939`). The registration's `health_check` stub is never polled - wake-on-probe would disturb a sleeping llama.cpp, so the manager's poll loop is not the source of truth for this service.
 
 ---
 
@@ -672,8 +712,7 @@ sequenceDiagram
         HM->>HM: Wait backoff period
         HM->>WS: Broadcast "restarting"
         HM->>SM: Restart service
-        SM->>SVC: docker restart / systemctl restart
-        HM->>HM: Wait 2s for startup
+        SM->>SVC: docker restart / shell script
         HM->>SVC: Health check
         alt Healthy
             SVC-->>HM: OK
@@ -694,43 +733,37 @@ sequenceDiagram
 
 ### Service Manager Strategies
 
-The system supports different restart strategies via the ServiceManager interface:
+The system supports different restart strategies via the `ServiceManager` interface (`backend/services/service_managers.py:120`):
 
 | Strategy               | Implementation                        | Use Case                     |
 | ---------------------- | ------------------------------------- | ---------------------------- |
 | `ShellServiceManager`  | Shell commands (`systemctl`, scripts) | Development, native services |
-| `DockerServiceManager` | Docker CLI (`docker restart`)         | Production containers        |
-| `PodmanServiceManager` | Podman CLI (`podman restart`)         | Podman deployments           |
+| `DockerServiceManager` | Docker CLI (`docker restart`, `:407`) | Production containers        |
+
+The backend picks `DockerServiceManager` when containerized restarts are enabled and `ShellServiceManager` otherwise (`backend/main.py:1103-1106`).
 
 ---
 
 ## Configuration Reference
 
-### Circuit Breaker Settings
+The shipped resilience parameters are code defaults and class constants, not dedicated environment variables. The knobs that do have env overrides:
 
-| Environment Variable                  | Default | Description              |
-| ------------------------------------- | ------- | ------------------------ |
-| `CIRCUIT_BREAKER_FAILURE_THRESHOLD`   | 5       | Failures before opening  |
-| `CIRCUIT_BREAKER_RECOVERY_TIMEOUT`    | 30      | Seconds before half-open |
-| `CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS` | 3       | Max test calls           |
-| `CIRCUIT_BREAKER_SUCCESS_THRESHOLD`   | 2       | Successes to close       |
+| Setting                                   | Default | Where                                                        |
+| ----------------------------------------- | ------- | ------------------------------------------------------------ |
+| `AI_RESTART_ENABLED`                      | true    | Detector auto-restart switch (`backend/core/config.py:2637`) |
+| `DLQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD`   | 5       | DLQ overflow breaker (`backend/core/config.py:2121`)         |
+| `DLQ_CIRCUIT_BREAKER_RECOVERY_TIMEOUT`    | 60.0    | DLQ overflow breaker (`backend/core/config.py:2126`)         |
+| `DLQ_CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS` | 3       | DLQ overflow breaker (`backend/core/config.py:2131`)         |
+| `DLQ_CIRCUIT_BREAKER_SUCCESS_THRESHOLD`   | 2       | DLQ overflow breaker (`backend/core/config.py:2136`)         |
 
-### Retry Handler Settings
+Field names on `Settings` map to env vars by name (case-insensitive, no prefix), so `DLQ_CIRCUIT_BREAKER_*` are settable; `ORCHESTRATOR_HEALTH_CHECK_INTERVAL` (30s, `backend/core/config.py:157`) belongs to the container orchestrator's own health loop, not `ServiceHealthMonitor`.
 
-| Environment Variable     | Default | Description             |
-| ------------------------ | ------- | ----------------------- |
-| `RETRY_MAX_RETRIES`      | 3       | Maximum retry attempts  |
-| `RETRY_BASE_DELAY`       | 1.0     | Initial delay (seconds) |
-| `RETRY_MAX_DELAY`        | 30.0    | Maximum delay (seconds) |
-| `RETRY_EXPONENTIAL_BASE` | 2.0     | Backoff multiplier      |
+Code-level defaults worth knowing:
 
-### Health Monitor Settings
-
-| Environment Variable    | Default | Description              |
-| ----------------------- | ------- | ------------------------ |
-| `HEALTH_CHECK_INTERVAL` | 15.0    | Check interval (seconds) |
-| `SERVICE_MAX_RETRIES`   | 5       | Max restart attempts     |
-| `SERVICE_BACKOFF_BASE`  | 5.0     | Initial restart backoff  |
+- **`CircuitBreakerConfig`**: 5 / 30.0s / 3 / 2 (`backend/services/circuit_breaker.py:150-154`); startup profiles override per service (AI 5/30/3/2, infrastructure 10/60/5/3, ai-vlm 5/60).
+- **`RetryConfig`**: 3 retries, 1.0s base, 30.0s cap, jitter on (`backend/services/retry_handler.py:68-72`).
+- **`ServiceHealthMonitor`**: 15.0s check interval (`backend/services/health_monitor.py:64`, wired at `backend/main.py:1114`); per-service `max_retries` 3 and `backoff_base` 5.0s for yolo26 (`backend/main.py:721-728`).
+- **`WebSocketCircuitBreaker`**: constructor defaults failure_threshold 3, recovery_timeout 30.0s, half-open max calls 1, success threshold 1 (`backend/core/websocket_circuit_breaker.py:125-133`); the broadcasters pass `failure_threshold=MAX_RECOVERY_ATTEMPTS` (5) with the other parameters at their defaults (`backend/services/system_broadcaster.py:120-126`, `backend/services/event_broadcaster.py:404-410`).
 
 ---
 
@@ -750,8 +783,8 @@ _WebSocket circuit breaker architecture showing backend services, Redis pub/sub,
 ```mermaid
 flowchart TB
     subgraph Backend["Backend Services"]
-        SB[SystemBroadcaster<br/>Port: /ws/system]
-        EB[EventBroadcaster<br/>Port: /ws/events]
+        SB[SystemBroadcaster<br/>Path: /ws/system]
+        EB[EventBroadcaster<br/>Path: /ws/events]
         CB1[WebSocketCircuitBreaker<br/>system_broadcaster]
         CB2[WebSocketCircuitBreaker<br/>event_broadcaster]
     end
@@ -786,7 +819,7 @@ flowchart TB
 
 ### WebSocket Circuit Breaker States
 
-The [WebSocketCircuitBreaker](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/core/websocket_circuit_breaker.py) implements the circuit breaker pattern specifically for WebSocket broadcaster services.
+The `WebSocketCircuitBreaker` (`backend/core/websocket_circuit_breaker.py:96`) implements the circuit breaker pattern specifically for WebSocket broadcaster services, with `WebSocketCircuitState` at `:39`.
 
 | State         | Description                                             | Behavior                                         |
 | ------------- | ------------------------------------------------------- | ------------------------------------------------ |
@@ -830,44 +863,36 @@ stateDiagram-v2
 
 ### Configuration
 
-Both [SystemBroadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/system_broadcaster.py) and [EventBroadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/event_broadcaster.py) use the following circuit breaker configuration:
+Both `SystemBroadcaster` (`backend/services/system_broadcaster.py:68`) and `EventBroadcaster` (`backend/services/event_broadcaster.py:349`) construct their breaker the same way (`backend/services/system_broadcaster.py:120-126`, `backend/services/event_broadcaster.py:404-410`):
 
-| Parameter             | Default                   | Description                                    |
-| --------------------- | ------------------------- | ---------------------------------------------- |
-| `failure_threshold`   | 5 (MAX_RECOVERY_ATTEMPTS) | Consecutive failures before opening circuit    |
-| `recovery_timeout`    | 30.0s                     | Wait time before transitioning to HALF_OPEN    |
-| `half_open_max_calls` | 1                         | Max calls allowed in HALF_OPEN state           |
-| `success_threshold`   | 1                         | Successes needed in HALF_OPEN to close circuit |
+| Parameter             | Value                       | Description                                    |
+| --------------------- | --------------------------- | ---------------------------------------------- |
+| `failure_threshold`   | 5 (`MAX_RECOVERY_ATTEMPTS`) | Consecutive failures before opening circuit    |
+| `recovery_timeout`    | 30.0s                       | Wait time before transitioning to HALF_OPEN    |
+| `half_open_max_calls` | 1                           | Max calls allowed in HALF_OPEN state           |
+| `success_threshold`   | 1                           | Successes needed in HALF_OPEN to close circuit |
+
+Repeated HALF_OPEN failures drive a growing backoff between recovery windows (`backoff_base_delay` 1.0s, `backoff_max_delay` 60.0s constructor defaults, `backend/core/websocket_circuit_breaker.py:132-133`).
 
 ### Backend: Broadcaster Integration
 
-Both EventBroadcaster and SystemBroadcaster integrate the WebSocketCircuitBreaker for pub/sub listener resilience:
+Both broadcasters expose the breaker state through their public API:
 
 ```python
-# backend/services/system_broadcaster.py
-from backend.core.websocket_circuit_breaker import WebSocketCircuitBreaker
+# backend/services/system_broadcaster.py:120-126, :237, :245
+self._circuit_breaker = WebSocketCircuitBreaker(
+    failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
+    recovery_timeout=30.0,
+    half_open_max_calls=1,
+    success_threshold=1,
+    name="system_broadcaster",
+)
 
-class SystemBroadcaster:
-    MAX_RECOVERY_ATTEMPTS = 5
-
-    def __init__(self, ...):
-        self._circuit_breaker = WebSocketCircuitBreaker(
-            failure_threshold=self.MAX_RECOVERY_ATTEMPTS,
-            recovery_timeout=30.0,
-            half_open_max_calls=1,
-            success_threshold=1,
-            name="system_broadcaster",
-        )
-        self._is_degraded = False
-
-    def is_degraded(self) -> bool:
-        """Check if the broadcaster is in degraded mode."""
-        return self._is_degraded
-
-    def get_circuit_state(self) -> WebSocketCircuitState:
-        """Get current circuit breaker state."""
-        return self._circuit_breaker.get_state()
+def get_circuit_state(self) -> WebSocketCircuitState: ...
+def is_degraded(self) -> bool: ...
 ```
+
+(`EventBroadcaster` mirrors this with `name="event_broadcaster"` and `MAX_RECOVERY_ATTEMPTS = 5`, `backend/services/event_broadcaster.py:370`, `:404-410`, `:451`, `:2350`.)
 
 ### Degraded Mode
 
@@ -905,7 +930,7 @@ sequenceDiagram
 #### Degraded Mode Behavior
 
 1. **`is_degraded()` method** - Returns `True` when all recovery attempts are exhausted
-2. **Client notification** - Connected clients receive a `service_status` message:
+2. **Client notification** - Connected clients receive a `service_status` message built by `_broadcast_degraded_state()` (`backend/services/system_broadcaster.py:406-431`):
    ```json
    {
      "type": "service_status",
@@ -918,7 +943,7 @@ sequenceDiagram
    }
    ```
 3. **Graceful handling** - WebSocket connections are still accepted, but real-time broadcasts may be delayed or unavailable
-4. **CRITICAL logging** - Operator alert logged for manual intervention
+4. **CRITICAL logging** - `EventBroadcaster has entered DEGRADED MODE after exhausting ...` is logged for manual intervention (`backend/services/event_broadcaster.py:1974`)
 
 ### Recovery Sequence
 
@@ -939,9 +964,9 @@ flowchart TB
     end
 
     subgraph Recovery["Recovery Attempts"]
-        R1{Attempt < 5?}
+        R1{Attempt <= 5?}
         R2[Record Failure]
-        R3[Exponential Backoff<br/>1s, 2s, 4s, 8s...]
+        R3[Exponential Backoff<br/>base 1s, capped 30-60s]
         R4[Reset Pub/Sub Connection]
         R5[Restart Listener Task]
     end
@@ -975,6 +1000,8 @@ flowchart TB
 ```
 
 </details>
+
+The backoff is computed per broadcaster: `SystemBroadcaster` restarts its pub/sub listener with base 1s doubling to a 60s cap plus 10-30% jitter (`backend/services/system_broadcaster.py:739-757`), and the EventBroadcaster supervisor restarts the listener with doubling capped at 30s plus jitter (`backend/services/event_broadcaster.py:2053-2058`).
 
 ### Frontend: Client-Side Circuit Breaker Pattern
 
@@ -1025,7 +1052,7 @@ stateDiagram-v2
 
 #### WebSocket Manager Architecture
 
-The [WebSocketManager](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/hooks/webSocketManager.ts) provides connection deduplication and automatic reconnection:
+The `WebSocketManager` (`frontend/src/hooks/webSocketManager.ts:225`, singleton exported as `webSocketManager` at `:952`) provides connection deduplication and automatic reconnection:
 
 ![WebSocket Manager Architecture](../images/resilience/websocket-manager.svg)
 
@@ -1071,22 +1098,24 @@ flowchart TB
 #### Client Reconnection Configuration
 
 ```typescript
-// frontend/src/hooks/useWebSocket.ts
+// frontend/src/hooks/useWebSocket.ts:13,66-72
 export interface WebSocketOptions {
   url: string;
   reconnect?: boolean; // Default: true
   reconnectInterval?: number; // Default: 1000ms (base interval)
-  reconnectAttempts?: number; // Default: 5 (max attempts)
+  reconnectAttempts?: number; // Default: 15 (max attempts)
   connectionTimeout?: number; // Default: 10000ms
   autoRespondToHeartbeat?: boolean; // Default: true
   onMaxRetriesExhausted?: () => void; // Called when max attempts reached
 }
 ```
 
+The hook defaults to 15 attempts - with the exponential schedule below this covers roughly eight minutes of backend restart time before giving up.
+
 #### Exponential Backoff with Jitter
 
 ```typescript
-// frontend/src/hooks/webSocketManager.ts
+// frontend/src/hooks/webSocketManager.ts:188
 function calculateBackoffDelay(
   attempt: number,
   baseInterval: number,
@@ -1110,16 +1139,19 @@ function calculateBackoffDelay(
 
 #### Client State Tracking
 
-The `useWebSocket` hook exposes reconnection state:
+The `useWebSocket` hook exposes reconnection state (`frontend/src/hooks/useWebSocket.ts:40-54`):
 
 ```typescript
 export interface UseWebSocketReturn {
   isConnected: boolean; // Current connection status
+  lastMessage: unknown; // Latest parsed message
+  send: (data: unknown) => void;
+  connect: () => void; // Manual reconnect trigger
+  disconnect: () => void; // Manual disconnect
   hasExhaustedRetries: boolean; // True if max attempts reached
   reconnectCount: number; // Current retry attempt count
   lastHeartbeat: Date | null; // Timestamp of last server heartbeat
-  connect: () => void; // Manual reconnect trigger
-  disconnect: () => void; // Manual disconnect
+  connectionId: string; // Unique connection ID
 }
 ```
 
@@ -1159,7 +1191,7 @@ sequenceDiagram
     Client->>WSM: Connection lost
     WSM->>WSM: Start reconnection
 
-    loop Client Reconnection (up to 5 attempts)
+    loop Client Reconnection (up to 15 attempts)
         WSM->>Backend: WebSocket connect
         Backend-->>WSM: Connection established
         Note over WSM: onClose triggered (backend may drop)
@@ -1185,25 +1217,29 @@ sequenceDiagram
 
 #### Backend Metrics
 
-The circuit breaker tracks metrics via `get_metrics()` and `get_status()`:
+The breaker tracks metrics via `get_metrics()` (`backend/core/websocket_circuit_breaker.py:506`, returning `WebSocketCircuitBreakerMetrics` as declared at `:48-63`) and `get_status()` (`:526`):
 
-| Metric              | Description                              | API Endpoint                    |
-| ------------------- | ---------------------------------------- | ------------------------------- |
-| `failure_count`     | Consecutive failures since last success  | `GET /api/system/health/ready`  |
-| `success_count`     | Consecutive successes in HALF_OPEN state | Internal monitoring             |
-| `total_failures`    | Total failures recorded                  | Prometheus metrics (if enabled) |
-| `total_successes`   | Total successes recorded                 | Prometheus metrics (if enabled) |
-| `last_failure_time` | Timestamp of last failure (monotonic)    | Circuit breaker status          |
-| `last_state_change` | Timestamp of last state transition       | Circuit breaker status          |
-| `opened_at`         | Timestamp when circuit was last opened   | Circuit breaker status          |
+| Metric                           | Description                                     |
+| -------------------------------- | ----------------------------------------------- |
+| `state`                          | Current circuit state                           |
+| `failure_count`                  | Consecutive failures since last success         |
+| `success_count`                  | Consecutive successes in HALF_OPEN state        |
+| `total_failures`                 | Total failures recorded                         |
+| `total_successes`                | Total successes recorded                        |
+| `last_failure_time`              | Timestamp of last failure (monotonic)           |
+| `last_state_change`              | Timestamp of last state transition              |
+| `opened_at`                      | Timestamp when circuit was last opened          |
+| `consecutive_half_open_failures` | HALF_OPEN failures driving the recovery backoff |
+| `current_backoff_delay`          | Current recovery backoff delay in seconds       |
+| `backoff_expires_at`             | When the current backoff window expires         |
 
 #### Health Check Integration
 
+The readiness endpoint reports broadcaster health (`backend/api/routes/system.py:1453`, `:1627`):
+
 ```python
-# Check broadcaster health in health endpoints
-broadcaster = get_system_broadcaster_sync()
-if broadcaster.is_degraded():
-    return {"status": "degraded", "reason": "WebSocket broadcasting unavailable"}
+# GET /api/system/health/ready includes per-dependency status
+is_degraded=event_broadcaster.is_degraded(),
 ```
 
 #### Client-Side Monitoring
@@ -1224,42 +1260,22 @@ const { isConnected, hasExhaustedRetries, reconnectCount, lastHeartbeat } = useW
 
 ### Supervisor Task (EventBroadcaster)
 
-The EventBroadcaster includes an additional supervision layer that monitors listener health:
-
-```python
-# backend/services/event_broadcaster.py
-async def _supervise_listener(self) -> None:
-    """Supervision task that monitors listener health and restarts if needed."""
-    while self._is_listening:
-        await asyncio.sleep(self.SUPERVISION_INTERVAL)  # 30 seconds
-
-        listener_alive = self._listener_task is not None and not self._listener_task.done()
-
-        if listener_alive:
-            self._circuit_breaker.record_success()
-            self._recovery_attempts = 0
-        elif self._is_listening:
-            # Listener died - attempt recovery
-            if self._circuit_breaker.is_call_permitted():
-                await self._restart_listener()
-            else:
-                self._enter_degraded_mode()
-```
+The EventBroadcaster includes an additional supervision layer that monitors listener health (`backend/services/event_broadcaster.py:2245-2262`, `SUPERVISION_INTERVAL = 30.0` at `:373`). When the listener task dies while a session is active, the supervisor restarts it through the circuit breaker, and entering an OPEN breaker or exhausting `MAX_RECOVERY_ATTEMPTS` puts the broadcaster into degraded mode (`:2295-2315`).
 
 ### Backend vs Frontend Circuit Breaker Comparison
 
-| Aspect                  | Backend (WebSocketCircuitBreaker)               | Frontend (WebSocketManager)                 |
-| ----------------------- | ----------------------------------------------- | ------------------------------------------- |
-| **Implementation**      | Dedicated class with explicit states            | Reconnection logic with attempt counter     |
-| **State Tracking**      | `WebSocketCircuitState` enum (CLOSED/OPEN/HALF) | Derived from `reconnectAttempts` counter    |
-| **Failure Detection**   | Explicit `record_failure()` calls               | `onClose` event triggers attempt increment  |
-| **Recovery Testing**    | HALF_OPEN state with limited calls              | Each reconnect attempt is a recovery test   |
-| **Blocking Behavior**   | Rejects operations when OPEN                    | Stops automatic reconnection when exhausted |
-| **User Notification**   | `service_status` WebSocket message              | `onMaxRetriesExhausted` callback            |
-| **Manual Reset**        | `reset()` method                                | `connect()` method resets attempt counter   |
-| **Timeout-based Reset** | Yes (`recovery_timeout` triggers HALF_OPEN)     | No (manual `connect()` required)            |
-| **Thread Safety**       | `asyncio.Lock` for async contexts               | Single-threaded JavaScript (not needed)     |
-| **Metrics**             | `get_metrics()` with counters and timestamps    | `getConnectionState()` with basic state     |
+| Aspect                  | Backend (WebSocketCircuitBreaker)                                | Frontend (WebSocketManager)                 |
+| ----------------------- | ---------------------------------------------------------------- | ------------------------------------------- |
+| **Implementation**      | Dedicated class with explicit states                             | Reconnection logic with attempt counter     |
+| **State Tracking**      | `WebSocketCircuitState` enum (CLOSED/OPEN/HALF)                  | Derived from `reconnectAttempts` counter    |
+| **Failure Detection**   | Explicit `record_failure()` calls                                | `onClose` event triggers attempt increment  |
+| **Recovery Testing**    | HALF_OPEN state with limited calls                               | Each reconnect attempt is a recovery test   |
+| **Blocking Behavior**   | Rejects operations when OPEN                                     | Stops automatic reconnection when exhausted |
+| **User Notification**   | `service_status` WebSocket message                               | `onMaxRetriesExhausted` callback            |
+| **Manual Reset**        | `reset()` method                                                 | `connect()` method resets attempt counter   |
+| **Timeout-based Reset** | Yes (`recovery_timeout` triggers HALF_OPEN)                      | No (manual `connect()` required)            |
+| **Concurrency Safety**  | `asyncio.Lock` (`backend/core/websocket_circuit_breaker.py:177`) | Single-threaded JavaScript (not needed)     |
+| **Metrics**             | `get_metrics()` with counters and timestamps                     | `getConnectionState()` with basic state     |
 
 ### Configuration Summary
 
@@ -1268,7 +1284,7 @@ async def _supervise_listener(self) -> None:
 | **Backend CB** | `failure_threshold`     | 5       | Failures before circuit opens    |
 | **Backend CB** | `recovery_timeout`      | 30s     | Wait before HALF_OPEN transition |
 | **Backend**    | `SUPERVISION_INTERVAL`  | 30s     | Listener health check interval   |
-| **Frontend**   | `reconnectAttempts`     | 5       | Max client reconnection attempts |
+| **Frontend**   | `reconnectAttempts`     | 15      | Max client reconnection attempts |
 | **Frontend**   | `reconnectInterval`     | 1000ms  | Base backoff interval            |
 | **Frontend**   | `connectionTimeout`     | 10000ms | Connection establishment timeout |
 | **Frontend**   | `maxInterval` (backoff) | 30000ms | Maximum backoff delay            |
@@ -1291,28 +1307,26 @@ docker compose -f docker-compose.prod.yml restart backend
 docker compose -f docker-compose.prod.yml logs backend | grep -i "broadcaster\|circuit"
 ```
 
-Look for these log patterns:
+Look for these log patterns (quotes are substrings of the emitted messages):
 
-| Log Level    | Pattern                                        | Meaning                             |
-| ------------ | ---------------------------------------------- | ----------------------------------- |
-| **CRITICAL** | `EventBroadcaster has entered DEGRADED MODE`   | Requires manual restart             |
-| **WARNING**  | `Circuit breaker is OPEN`                      | Recovery blocked, waiting for reset |
-| **INFO**     | `Restarting pub/sub listener (attempt N/5)`    | Auto-recovery in progress           |
-| **INFO**     | `transitioned HALF_OPEN -> CLOSED (recovered)` | Service successfully recovered      |
+| Log Level    | Pattern                                      | Meaning                             |
+| ------------ | -------------------------------------------- | ----------------------------------- |
+| **CRITICAL** | `EventBroadcaster has entered DEGRADED MODE` | Requires manual restart             |
+| **WARNING**  | `circuit breaker is OPEN`                    | Recovery blocked, waiting for reset |
+| **INFO**     | `Restarting pub/sub listener (attempt`       | Auto-recovery in progress           |
+| **INFO**     | `transitioned HALF_OPEN -> CLOSED`           | Service successfully recovered      |
 
 ---
 
 ## Related Documentation
 
-| Document                                                                                                                        | Purpose                                                                                               |
-| ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [Resilience Patterns Guide](../developer/resilience-patterns.md)                                                                | Developer guide with code examples for circuit breakers, retry logic, and prompt injection prevention |
-| [AI Pipeline](ai-pipeline.md)                                                                                                   | Detection and analysis flow                                                                           |
-| [Real-Time](real-time.md)                                                                                                       | WebSocket and pub/sub architecture                                                                    |
-| [Data Model](data-model.md)                                                                                                     | Database schema and relationships                                                                     |
-| [Backend AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/AGENTS.md) | Service implementation details                                                                        |
-| [Frontend Hooks](frontend-hooks.md)                                                                                             | React hooks including useWebSocket                                                                    |
-| [Backend Core](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/core/AGENTS.md)          | Core infrastructure including Redis                                                                   |
+| Document                                                         | Purpose                                                                                               |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [Resilience Patterns Guide](../developer/resilience-patterns.md) | Developer guide with code examples for circuit breakers, retry logic, and prompt injection prevention |
+| [AI Pipeline: Current State](ai-pipeline-current-state.md)       | Hop-by-hop shipped pipeline with the live failure modes and monitoring hooks                          |
+| [Real-Time](real-time.md)                                        | WebSocket and pub/sub architecture                                                                    |
+| [Data Model](data-model.md)                                      | Database schema and relationships                                                                     |
+| [Frontend Hooks](frontend-hooks.md)                              | React hooks including useWebSocket                                                                    |
 
 ---
 

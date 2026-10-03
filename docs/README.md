@@ -35,11 +35,10 @@ flowchart TB
     end
 
     subgraph AI["AI Services Layer"]
-        GW["AI Gateway<br/>:8090 (Triton)"]
+        GW["ai-gateway :8090<br/>Triton"]
         YOLO["YOLO26<br/>router /yolo26"]
-        FLO["Florence-2<br/>router /florence"]
-        CLIP["CLIP<br/>router /clip"]
-        NEM["Nemotron LLM<br/>Risk Analysis<br/>:8091"]
+        LT["re-ID / threat<br/>router /enrich-lt"]
+        VLM["ai-vlm :8098<br/>llama.cpp VLM<br/>(profile: vlm)"]
     end
 
     subgraph Data["Data Layer"]
@@ -51,10 +50,9 @@ flowchart TB
     UI <-->|REST API| API
     UI <-->|Real-time| WS
     API --> GW
+    API --> VLM
     GW --- YOLO
-    GW --- FLO
-    GW --- CLIP
-    API --> NEM
+    GW --- LT
     API <--> DB
     API <--> REDIS
     WS --> REDIS
@@ -130,15 +128,31 @@ Every directory contains an `AGENTS.md` file for AI assistant navigation. Start 
 
 ## Technical Documentation
 
-| Category                | Location                                                             | Description                                         |
-| ----------------------- | -------------------------------------------------------------------- | --------------------------------------------------- |
-| **System Architecture** | [architecture/overview.md](architecture/overview.md)                 | High-level system design and components             |
-| **AI Pipeline**         | [architecture/ai-pipeline.md](architecture/ai-pipeline.md)           | Detection and analysis pipeline architecture        |
-| **Data Model**          | [architecture/data-model.md](architecture/data-model.md)             | Database schema and relationships                   |
-| **Real-time System**    | [architecture/real-time.md](architecture/real-time.md)               | WebSocket and event streaming                       |
-| **Security**            | [architecture/security/README.md](architecture/security/README.md)   | Input validation, data protection, network security |
-| **Dataflows**           | [architecture/dataflows/README.md](architecture/dataflows/README.md) | End-to-end data traces, pipeline timing             |
-| **Decision Records**    | [decisions/README.md](decisions/README.md)                           | Architectural Decision Records (ADRs)               |
+| Category                | Location                                                                               | Description                                         |
+| ----------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **System Architecture** | [architecture/overview.md](architecture/overview.md)                                   | High-level system design and components             |
+| **AI Pipeline**         | [architecture/ai-pipeline-current-state.md](architecture/ai-pipeline-current-state.md) | The shipped detection and analysis path             |
+| **Data Model**          | [architecture/data-model.md](architecture/data-model.md)                               | Database schema and relationships                   |
+| **Real-time System**    | [architecture/real-time.md](architecture/real-time.md)                                 | WebSocket and event streaming                       |
+| **Security**            | [architecture/security/README.md](architecture/security/README.md)                     | Input validation, data protection, network security |
+| **Dataflows**           | [architecture/dataflows/README.md](architecture/dataflows/README.md)                   | End-to-end data traces, pipeline timing             |
+| **Decision Records**    | [decisions/README.md](decisions/README.md)                                             | Architectural Decision Records (ADRs)               |
+
+### AI Pipeline Quality Assurance
+
+The Synthbench harness replays a generated corpus against a served VLM and grades the verdict
+against ground truth.
+
+| Resource       | Location                                     | Description                             |
+| -------------- | -------------------------------------------- | --------------------------------------- |
+| **Synthbench** | [synthbench/AGENTS.md](synthbench/AGENTS.md) | export / replay / score command surface |
+
+**Key benefits:**
+
+- **Ground truth validation** - Risk scores evaluated against the declared risk band of each scenario
+- **S-metric scoring** - S2 (benign flagged too high), S3 (incident floor), refusals and
+  `uncertain` rate, reported with n and a Wilson interval
+- **Edge case coverage** - Systematic testing of ambiguous security scenarios
 
 ### Development Workflow
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Page-specific documentation for the Nemotron Home Security dashboard. Each file documents what users see on a specific page, including key components, settings, and troubleshooting.
+Page-specific documentation for the Home Security Intelligence dashboard. Each file documents what users see on a specific page, including key components, settings, and troubleshooting.
 
 ## Directory Contents
 

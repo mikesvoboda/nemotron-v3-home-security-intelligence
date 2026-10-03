@@ -10,7 +10,7 @@ LLM performance benchmarking infrastructure for measuring and comparing model qu
 
 Quality scoring module for evaluating LLM responses against ground truth data.
 
-**Status**: TDD RED phase (stub implementation)
+**Status**: Implemented — 42 tests pass in `tests/benchmark/test_quality.py`.
 
 **Components:**
 
@@ -46,17 +46,25 @@ Quality scoring module for evaluating LLM responses against ground truth data.
   - `score_response()`: Single response evaluation
   - `score_dataset()`: Batch scoring with aggregation
 
-### metrics.py
-
-Metrics collection for latency, VRAM, and throughput measurement.
-
 ### compare.py
 
 Benchmark comparison and analysis utilities.
 
-### runner.py
+### engine_comparison.py
 
-Benchmark execution orchestration and workflow management.
+Latency/throughput/VRAM comparison across inference engines (`llama.cpp`, `vllm`). The `llama.cpp` arm dials the shipped `ai-vlm` serve (`AI_VLM_URL`, defaulting to `AI_VLM_PORT` 8098); the `vllm` arm dials the profiled `ai-llm-vllm` service (`VLLM_PORT` 8097).
+
+### quality_comparison.py
+
+Response-quality comparison across the same two arms using ground-truth evaluation data; built on `QualityScorer`.
+
+### load_test.py / backend_load_test.py
+
+Sustained-load and burst load testing against the backend API.
+
+### generate_evaluation_set.py
+
+Synthetic evaluation-set generation for quality benchmarks.
 
 ## Ground Truth Schema
 
@@ -78,7 +86,7 @@ Benchmark execution orchestration and workflow management.
 | JSON Validity       | 100%       | ≥95%     | <95% |
 | Reasoning Score     | ≥0.7       | ≥0.5     | <0.5 |
 
-## Usage Example (After Implementation)
+## Usage Example
 
 ```python
 from scripts.benchmark.quality import QualityScorer
@@ -109,30 +117,9 @@ print(f"Overall quality: {report.overall_quality:.2%}")
 
 ## Development Workflow
 
-### Current Phase: RED
-
-- [x] Tests written (42 tests)
-- [x] Stub implementation created
-- [x] All tests fail with NotImplementedError
-- [ ] Implementation pending
-
-### Next Phase: GREEN
-
-1. Implement MAE calculation with validation
-2. Implement JSON validation with schema checks
-3. Implement reasoning quality scoring
-4. Implement risk level matching
-5. Implement single response scoring
-6. Implement dataset aggregation
-7. Verify all 42 tests pass
-
-### Final Phase: REFACTOR
-
-- Optimize performance for large datasets
-- Add caching for repeated validations
-- Extract constants for thresholds
-- Add logging and debugging support
-- Consider async/parallel processing
+`quality.py` is complete: MAE calculation with validation, JSON validation,
+reasoning-quality scoring, risk-level matching, single-response scoring, and
+dataset aggregation are implemented and covered by 42 passing tests.
 
 ## Testing
 
@@ -149,8 +136,9 @@ uv run pytest tests/benchmark/test_quality.py --tb=no -q
 
 ## Dependencies
 
-- Standard library: json, dataclasses, typing
-- No external dependencies required
+- `quality.py`, `compare.py`, `generate_evaluation_set.py`: standard library only (json, dataclasses, typing)
+- `quality_comparison.py`: httpx
+- `engine_comparison.py`, `load_test.py`, `backend_load_test.py`: httpx + numpy
 
 ## Design Decisions
 

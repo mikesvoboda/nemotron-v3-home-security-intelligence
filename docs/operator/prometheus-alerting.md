@@ -4,8 +4,10 @@
 
 This guide covers the alerting rules and Alertmanager configuration for Home Security
 Intelligence. Prometheus, Alertmanager and Grafana are **default compose services** — they
-start with a plain `up -d` (no `--profile` needed; the only profiled services are
-`ai-llm-vllm` (profile `vllm`) and `dcgm-exporter` (profile `gpu-rootful`)).
+start with a plain `up -d` (no `--profile` needed). The profiled services are
+`ai-vlm` (profile `vlm`), `ai-llm-vllm` (profile `vllm`) and `dcgm-exporter` (profile
+`gpu-rootful`); none of them carries any of the monitoring containers, so the alerting
+stack is up whether or not the reasoning engine is.
 
 ---
 
@@ -81,9 +83,17 @@ rules), `alerting-rules.yml`, `gpu-alerts.yml`, `ai-pipeline-alerts.yml`,
 | `AIDLQGrowing`          | DLQ grew > 5 in 15 min                                            | 5 min    | warning  |
 | `AIDLQCritical`         | `hsi_dlq_depth > 50`                                              | 2 min    | critical |
 
-> [!NOTE] > `AINemotronTimeout` and `AIDetectorSlow` are **commented out** in the rules file: the
-> `hsi_ai_request_duration_seconds_bucket` histogram they need is not exported by the
-> backend yet.
+> [!NOTE]
+> **Latency alerting on the shipped path.** The backend exports the
+> `hsi_ai_request_duration_seconds` histogram with `service="yolo26"`
+> (`backend/services/detector_client.py:1139` → `backend/core/metrics.py:323`), scraped at
+> `metrics_path: /api/metrics` (`monitoring/prometheus.yml:61-63`) — a p95 alert on it is
+> one `histogram_quantile` away; see _Adding Custom Alerts_ below. The reasoning stage
+> writes no per-request duration (`vlm_client.py` records none), so its latency signals are
+> the `hsi:analysis_latency:*` recording rules (fed by `hsi_stage_duration_seconds`) and
+> the `probe_success` blackbox probes. The `Latency and Performance Alerts` heading in
+> `monitoring/prometheus_rules.yml:59-69` is an empty placeholder inside a rule file —
+> nothing there fires.
 
 **Example alert definition** (measured, with the wiki runbook/dashboard URLs the rules
 actually use):
@@ -355,7 +365,12 @@ receivers:
 
 ### Adding Custom Alerts
 
-Edit `monitoring/prometheus_rules.yml`:
+Edit `monitoring/prometheus_rules.yml`. Every metric in the example below has a live
+writer on this tree: `hsi_ai_request_duration_seconds_bucket` is exported per AI request
+with `service="yolo26"` (`backend/services/detector_client.py:1139` →
+`backend/core/metrics.py:323`), and the recording rules in
+`monitoring/prometheus-rules.yml` already compute detection p95 from
+`hsi_stage_duration_seconds{stage="detect"}`.
 
 ```yaml
 groups:
@@ -365,7 +380,7 @@ groups:
       - alert: HighDetectionLatency
         expr: |
           histogram_quantile(0.95,
-            rate(hsi_detection_duration_seconds_bucket[5m])
+            sum(rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m])) by (le)
           ) > 10
         for: 5m
         labels:
@@ -382,12 +397,15 @@ groups:
 Use `promtool` to validate rules before deployment:
 
 ```bash
-# Validate rule file syntax (all files loaded via rule_files)
+# Validate rule file syntax — all seven files listed in rule_files
 podman compose -f docker-compose.prod.yml exec prometheus promtool check rules \
   /etc/prometheus/prometheus_rules.yml \
   /etc/prometheus/prometheus-rules.yml \
   /etc/prometheus/alerting-rules.yml \
-  /etc/prometheus/gpu-alerts.yml
+  /etc/prometheus/gpu-alerts.yml \
+  /etc/prometheus/ai-pipeline-alerts.yml \
+  /etc/prometheus/profiling-recording-rules.yml \
+  /etc/prometheus/profiling-regression-alerts.yml
 ```
 
 ### Reloading Configuration
@@ -402,11 +420,12 @@ curl -X POST http://localhost:9090/-/reload
 podman compose -f docker-compose.prod.yml restart alertmanager
 ```
 
-Remember that only the rule files bind-mounted in `docker-compose.prod.yml` exist inside the
-Prometheus container — editing `monitoring/profiling-recording-rules.yml`,
-`monitoring/profiling-regression-alerts.yml` or `monitoring/ai-pipeline-alerts.yml` on the host
-has no effect until those files are added to the `prometheus` service's `volumes:` and the
-container is recreated.
+All seven files in the `rule_files:` list are bind-mounted into the Prometheus container by
+`docker-compose.prod.yml:1012-1018`, so a host edit lands inside the container on the next
+bind read — but Prometheus only re-reads rules on the `/-/reload` above, on a config
+reload, or on container recreation. A rule file that is _not_ in both that mount list and
+the `rule_files:` list is never loaded: `promtool` will pass it and Prometheus will ignore
+it.
 
 ---
 
@@ -469,17 +488,17 @@ hsi:burn_rate:api_availability_6h
 1. Open Alertmanager UI: http://localhost:9093
 2. Click "Silences" tab
 3. Click "New Silence"
-4. Configure matchers (e.g., `alertname=AIDetectorSlow`)
+4. Configure matchers (e.g., `alertname=AIDetectorUnavailable`)
 5. Set duration and comment
 
 ### Silence via API
 
 ```bash
-# Create a 2-hour silence for detector slow alerts
+# Create a 2-hour silence for the detector-unavailable alert (planned gateway work)
 curl -X POST http://localhost:9093/api/v2/silences \
   -H "Content-Type: application/json" \
   -d '{
-    "matchers": [{"name": "alertname", "value": "AIDetectorSlow", "isRegex": false}],
+    "matchers": [{"name": "alertname", "value": "AIDetectorUnavailable", "isRegex": false}],
     "startsAt": "2025-01-09T00:00:00Z",
     "endsAt": "2025-01-09T02:00:00Z",
     "createdBy": "operator",
@@ -501,12 +520,13 @@ Each alert includes a `runbook_url` annotation linking to resolution steps. Crea
 
 ### Example Runbook: AIDetectorUnavailable
 
-> NOTE (2026-09-23): retargeted to the gateway topology. The standalone
-> `ai-yolo26` container in the older steps below was retired fully that day
-> (owner ruling — Triton on `ai-gateway` serves yolo26 among the 14 models;
-> recipe in `archive/ai-yolo26-image/`). The alert itself keys on
-> `hsi_ai_healthy == 0` — the backend's view of the AI stack — so diagnose the
-> gateway and the backend's AI client, not a yolo26 container.
+The alert keys on `hsi_ai_healthy == 0` — the json-exporter's gauge derived from the
+**backend's** view of the AI stack (`monitoring/json-exporter-config.yml`) — so diagnose the
+gateway and the backend's detector client, not a per-model container. There is no
+`ai-yolo26` service: Triton inside `ai-gateway` serves `yolo26` (with `reid`, and `threat`
+when `GATEWAY_ENABLE_THREAT=true`), and `/health` reports readiness for the active model set
+only — `ACTIVE_MODELS` is resolved from `GATEWAY_MODEL_SET`, so a degraded response lists
+exactly the models that should be up.
 
 **Symptoms:**
 
@@ -517,15 +537,19 @@ Each alert includes a `runbook_url` annotation linking to resolution steps. Crea
 
 ```bash
 # Check the gateway container that serves yolo26 via Triton
-docker compose -f docker-compose.prod.yml ps ai-gateway
+podman compose -f docker-compose.prod.yml ps ai-gateway
 
 # Check gateway logs for Triton model-load or adapter errors
-docker compose -f docker-compose.prod.yml logs --tail=100 ai-gateway
+podman compose -f docker-compose.prod.yml logs --tail=100 ai-gateway
 
-# Check the model's Triton readiness (Triton native HTTP is 8000 inside the
-# container; the gateway's own 8090 /health aggregates all 14 models)
-docker compose exec ai-gateway curl -s http://localhost:8000/v2/models/yolo26/ready && echo READY
-curl -fsS http://localhost:8090/health | head -c 400
+# Triton's own readiness for one model (native HTTP is 8000 INSIDE the
+# container; only 8090 and 8002 are published to the host)
+podman compose -f docker-compose.prod.yml exec ai-gateway \
+  curl -s http://localhost:8000/v2/models/yolo26/ready && echo READY
+
+# The gateway's aggregate view, then the router the pipeline actually calls
+curl -fsS http://localhost:8090/health | jq '.status, .models_total, .model_statuses'
+curl -fsS http://localhost:8090/yolo26/health
 
 # Check GPU availability
 nvidia-smi
@@ -536,7 +560,7 @@ nvidia-smi
 1. **Gateway container crashed:** Restart it
 
    ```bash
-   docker compose -f docker-compose.prod.yml restart ai-gateway
+   podman compose -f docker-compose.prod.yml restart ai-gateway
    ```
 
 2. **GPU OOM:** Check GPU memory and reduce concurrent inferences
@@ -548,7 +572,7 @@ nvidia-smi
 3. **Model loading failure:** Check the engine/model path inside the gateway
 
    ```bash
-   docker compose exec ai-gateway ls -la /models/yolo26/
+   podman compose -f docker-compose.prod.yml exec ai-gateway ls -la /models/repository/
    ```
 
 ---
@@ -627,7 +651,7 @@ nvidia-smi
 | `monitoring/prometheus-rules.yml`                                              | SLI/SLO recording rules                                  |
 | `monitoring/alerting-rules.yml`                                                | HSI\* pipeline rules + Prometheus self-monitoring        |
 | `monitoring/gpu-alerts.yml`                                                    | DCGM-based GPU alerts                                    |
-| `monitoring/ai-pipeline-alerts.yml`                                            | Enrichment/LLM/risk-calibration alerts                   |
+| `monitoring/ai-pipeline-alerts.yml`                                            | Triton/GPU inference, prompt fit and `ai-vlm` analysis   |
 | `monitoring/profiling-recording-rules.yml` / `profiling-regression-alerts.yml` | Profiling metrics and regressions                        |
 | `monitoring/alertmanager.yml`                                                  | Alert routing and receivers                              |
 | `monitoring/json-exporter-config.yml`                                          | `hsi_*_healthy` / `hsi_gpu_*` gauges many alerts consume |

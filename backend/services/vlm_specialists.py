@@ -906,8 +906,10 @@ async def collect_specialist_outputs(
     session across the 25 s read budget.)
 
     ``run_threat`` exists so the rev-7 weapon-hint slot has a wiring point
-    without shipping the detector: when True and a backend threat consumer
-    exists, a fourth key appears; default False per the F12 call.
+    without shipping the detector: when True a fourth key appears carrying
+    the unavailable line — collect_threat_text has no shipped consumer, so
+    the key reports the gap rather than any threat; default False per the
+    F12 call.
     """
     faces_task = collect_face_text(
         frame_paths=key_frame_paths,

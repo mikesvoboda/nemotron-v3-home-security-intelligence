@@ -8,13 +8,13 @@ Architecture Decision Records (ADRs) capture the context, options evaluated, and
 
 ## Current Decisions
 
-| Decision                                                                            | Date       | Status      | Summary                                                                      |
-| ----------------------------------------------------------------------------------- | ---------- | ----------- | ---------------------------------------------------------------------------- |
-| [Risk Score Validation Suite](2026-01-31-risk-score-validation-suite.md)            | 2026-01-31 | Implemented | Automated risk score validation test suite for AI pipeline                   |
-| [Python 3.14 Adoption](python-314-adoption.md)                                      | 2026-01-21 | Implemented | Adopt Python 3.14; free-threaded 3.14t build available, opt-in in Dockerfile |
-| [Entity-Detection Referential Integrity](entity-detection-referential-integrity.md) | 2026-01-28 | Decided     | Application-level validation instead of DB FK for partitioned detections     |
-| [Documentation Reorganization](2026-01-12-docs-reorganization-design.md)            | 2026-01-12 | Implemented | Hub-and-spoke documentation architecture with role-based entry points        |
-| [Grafana Integration](grafana-integration.md)                                       | 2025-12-27 | Decided     | Use native Tremor charts with link to standalone Grafana                     |
+| Decision                                                                            | Date       | Status            | Summary                                                                                  |
+| ----------------------------------------------------------------------------------- | ---------- | ----------------- | ---------------------------------------------------------------------------------------- |
+| [Risk Score Validation Suite](2026-01-31-risk-score-validation-suite.md)            | 2026-01-31 | Implemented       | Automated risk score validation test suite for AI pipeline                               |
+| [Python 3.14 Adoption](python-314-adoption.md)                                      | 2026-01-21 | Implemented       | Adopt Python 3.14; free-threaded 3.14t build available, opt-in in Dockerfile             |
+| [Entity-Detection Referential Integrity](entity-detection-referential-integrity.md) | 2026-01-28 | Decided           | Application-level validation instead of DB FK for partitioned detections                 |
+| [Documentation Reorganization](2026-01-12-docs-reorganization-design.md)            | 2026-01-12 | Implemented       | Hub-and-spoke documentation architecture with role-based entry points                    |
+| [Grafana Integration](grafana-integration.md)                                       | 2025-12-27 | Partly superseded | Native Tremor charts + standalone Grafana; monitoring pages now embed Grafana dashboards |
 
 ---
 

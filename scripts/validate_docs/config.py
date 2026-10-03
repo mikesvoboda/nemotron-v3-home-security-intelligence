@@ -143,6 +143,85 @@ INLINE_CITATION_PATTERN: Pattern[str] = re.compile(
     r"`([a-zA-Z0-9_/.-]+\.[a-zA-Z]+):(\d+)(?:-(\d+))?`"
 )
 
+# Last labels that name a host rather than a file. A mail relay written as
+# `smtp.example.com:587` matches INLINE_CITATION_PATTERN exactly, so without a
+# host guard it reaches Level 1 as a path and is reported as a missing file.
+#
+# The set is closed to the labels no file in this repository uses as a suffix
+# (`.env.example` is the single overlap and it is out of reach anyway, since
+# HOST_ADDRESS_PATTERN requires two dots). Generic TLDs such as .dev or .io stay
+# out of the set: a real citation in a plan document can legitimately end in one,
+# and a host always carries a directory-free multi-label name that the pattern
+# already requires.
+HOST_TLD_SUFFIXES: frozenset[str] = frozenset(
+    {
+        # Top-level domains registered in the public root zone
+        "com",
+        "net",
+        "org",
+        "edu",
+        "gov",
+        "mil",
+        "int",
+        "arpa",
+        # RFC 6761 special-use and private-name suffixes
+        "localhost",
+        "local",
+        "internal",
+        "invalid",
+        "example",
+        "test",
+        "onion",
+        "i2p",
+        "corp",
+        "home",
+        "lan",
+        "intranet",
+    }
+)
+
+# Directory-free, dot-separated name ending in a host suffix: smtp.example.com,
+# host.docker.internal, mail.corp. Port is optional because the host shape is
+# what identifies it — `smtp.example.com` alone is not a path either.
+HOST_ADDRESS_PATTERN: Pattern[str] = re.compile(
+    r"^(?![./])[a-zA-Z0-9]([a-zA-Z0-9_-]*[a-zA-Z0-9])?"
+    r"(?:\.[a-zA-Z0-9]([a-zA-Z0-9_-]*[a-zA-Z0-9])?)+"
+    r"\.(?P<tld>[a-zA-Z]{2,})(?::\d+)?$"
+)
+
+
+def looks_like_host_address(text: str) -> bool:
+    """Return True if text names a network host instead of a file in the repo.
+
+    Three conditions hold together, which is what keeps the rule narrow enough to
+    leave `.env.example:231`, `docker-compose.prod.yml:154` and
+    `frontend/vite.config.ts:182` as citations:
+
+    1. No directory component — a host is a bare name, a citation is a path.
+    2. Three labels, so two dots — HOST_ADDRESS_PATTERN asks for a first label,
+       one or more middle labels and a final one. Repository files carry at most
+       one dot (`.env.example` is a dotfile basename plus an extension, and its
+       leading dot is rejected outright), so `vite.config.ts` and
+       `docker-compose.prod.yml` cannot match.
+    3. A last label listed in HOST_TLD_SUFFIXES — `.template`, `.lock` and
+       `.pbtxt` are file extensions, not domains.
+
+    Args:
+        text: Candidate text, with or without a trailing ``:port``
+
+    Returns:
+        True when the text is a host address rather than a repository path
+    """
+    if "/" in text:
+        return False
+
+    match = HOST_ADDRESS_PATTERN.match(text)
+    if not match:
+        return False
+
+    return match.group("tld").lower() in HOST_TLD_SUFFIXES
+
+
 # YAML frontmatter source_refs pattern:
 # - backend/services/file_watcher.py:FileWatcher:34
 # - backend/services/file_watcher.py:is_image_file

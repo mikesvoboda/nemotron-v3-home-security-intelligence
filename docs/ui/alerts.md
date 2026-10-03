@@ -106,7 +106,16 @@ Clicking any alert card opens a detailed view showing:
 
 ## Alert Rules
 
-Alert rules define when and how alerts are triggered. You can create custom rules to match your security needs.
+Alert rules define the conditions under which an alert would be raised. You can create custom
+rules to match your security needs.
+
+> **What creates an alert row.** Nothing on the event path creates one. A rule is evaluated when
+> you invoke it — the rule-test endpoint (`POST /api/alerts/rules/{rule_id}/test`) runs the same
+> gate logic shown below against historical events — and an alert row exists only when something
+> posts it to `POST /api/alert-service/alerts`. **An event never auto-creates an alert**, so
+> "no alerts" tells you nothing about whether the pipeline is healthy; triage from the event
+> timeline instead. Rules you configure here are therefore the specification of what _would_ page
+> you, and outbound `ALERT_FIRED` webhooks fire for the alert rows that do exist.
 
 ### Rule Conditions (AND Logic)
 
@@ -125,10 +134,13 @@ All conditions in a rule must match for an alert to trigger:
 
 ### Diagram: Alert Rule Evaluation Flow
 
+_The flow below is the engine's logic, which runs when a rule is invoked — see the note above; a
+new event does not push itself through this loop._
+
 ```mermaid
 flowchart TD
-    subgraph Trigger["Event Trigger"]
-        A[New Event Created] --> B[Load Enabled Rules]
+    subgraph Trigger["Rule Evaluation Request"]
+        A[Event(s) to Evaluate] --> B[Load Enabled Rules]
     end
 
     subgraph Evaluation["Rule Evaluation Loop"]
@@ -424,7 +436,11 @@ Cooldown: 600 seconds
 
 ## Understanding Risk Levels
 
-Risk scores are calculated by the Nemotron AI model, ranging from 0-100. Understanding these levels helps you prioritize your response.
+Risk scores come from the vision-language analyzer (`ai-vlm`), ranging from 0-100. Understanding
+these levels helps you prioritize your response. An event can also carry **no score at all** — when
+the analyzer could not be reached the verification row reads `verification_failed` with a NULL
+score, and the UI shows no badge rather than a 0 or a Low. See
+[Understanding Alerts](understanding-alerts.md) for the bands and their runtime-editable settings.
 
 ### Risk Level Reference
 
@@ -447,12 +463,11 @@ The AI analyzes multiple factors:
 
 ### Reading AI Reasoning
 
-Each alert includes an "AI Reasoning" section explaining why the system assigned a particular risk score:
-
-- **What it observed** - "Person detected near side gate at 2:47 AM"
-- **Behavioral analysis** - "Subject exhibited slow, deliberate movement pattern"
-- **Time context** - "Activity occurred outside normal hours"
-- **Risk factors** - "Multiple indicators: unfamiliar individual, unusual hour, lingering behavior"
+The reasoning text lives on the **event**, not on the alert row: the alert list has no reasoning
+panel (`frontend/src/components/alerts/` renders cards, filters and threshold controls only). Open
+the event in the [Timeline](timeline.md) to read what the analyzer returned — `verdict`,
+`scene_description`, the reasoning and the score, all from the event's verification record
+(`EventVerification`). Where that record is missing, the event has no verdict to read.
 
 ---
 
@@ -543,7 +558,7 @@ For developers wanting to understand the underlying systems.
 
 - **Data Model**: [Data Model](../architecture/data-model.md) - Database schema and relationships
 - **Real-time Events**: [Real-time Architecture](../architecture/real-time.md) - WebSocket implementation
-- **AI Pipeline**: [AI Pipeline](../architecture/ai-pipeline.md) - Detection and risk scoring
+- **AI Pipeline**: [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md) - Detection and risk scoring
 
 ### Related Code
 

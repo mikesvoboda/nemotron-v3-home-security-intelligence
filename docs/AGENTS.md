@@ -47,7 +47,7 @@ docs/
 ├── architecture/                # System design documentation
 │   ├── AGENTS.md                # Architecture navigation
 │   ├── overview.md              # High-level architecture
-│   ├── ai-pipeline.md           # AI pipeline details
+│   ├── ai-pipeline-current-state.md  # The shipped detection + VLM path
 │   ├── data-model.md            # Database schema
 │   ├── decisions.md             # Architecture decisions
 │   ├── frontend-hooks.md        # Frontend hooks architecture
@@ -179,7 +179,7 @@ docs/
 
 - **Architecture overview**: `architecture/overview.md`
 - **AI model zoo**: `ai/model-zoo.md`
-- **AI pipeline**: `architecture/ai-pipeline.md`
+- **AI pipeline**: `architecture/ai-pipeline-current-state.md`
 - **Data model**: `architecture/data-model.md`
 - **Real-time events**: `architecture/real-time.md`
 

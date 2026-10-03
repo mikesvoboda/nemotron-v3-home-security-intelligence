@@ -308,7 +308,7 @@ type ServiceStatus = 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' |
 type ContainerStatus = 'running' | 'starting' | 'unhealthy' | 'stopped' | 'error' | 'unknown';
 
 interface ServiceStatusData {
-  service: string; // Service name (redis, yolo26, nemotron)
+  service: string; // Service name (redis, yolo26, ai-vlm)
   status: ServiceStatus | ContainerStatus; // Status from either backend or container orchestrator
   message?: string; // Optional descriptive message
 }
@@ -399,7 +399,7 @@ interface PerformanceUpdate {
   timestamp: string;
   gpu: GpuMetrics | null;
   ai_models: Record<string, AIModelMetrics>;
-  nemotron: NemotronMetrics | null;
+  nemotron: NemotronMetrics | null; // field name as shipped: the reasoning-engine slot (ai-vlm); backend/api/schemas/performance.py:290
   inference: InferenceMetrics | null;
   databases: Record<string, DatabaseMetrics>;
   host: HostMetrics | null;
@@ -511,10 +511,7 @@ type EventsChannelMessage = EventMessage | HeartbeatMessage | ErrorMessage;
 
 // All messages from /ws/system channel
 type SystemChannelMessage =
-  | SystemStatusMessage
-  | ServiceStatusMessage
-  | HeartbeatMessage
-  | ErrorMessage;
+  SystemStatusMessage | ServiceStatusMessage | HeartbeatMessage | ErrorMessage;
 
 // All possible WebSocket messages
 type WebSocketMessage =

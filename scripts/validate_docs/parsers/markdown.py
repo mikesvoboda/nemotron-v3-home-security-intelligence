@@ -15,6 +15,7 @@ from ..config import (
     INLINE_CITATION_PATTERN,
     SYMBOL_CONTEXT_PATTERN,
     Citation,
+    looks_like_host_address,
 )
 
 
@@ -163,6 +164,12 @@ def extract_markdown_citations(content: str, doc_file: str = "") -> list[Citatio
     # Extract inline citations from body
     for match in INLINE_CITATION_PATTERN.finditer(body):
         file_path = match.group(1)
+
+        # `smtp.example.com:587` matches the citation shape exactly; a host is
+        # not a path, so it is dropped before it can be reported as a missing file.
+        if looks_like_host_address(file_path):
+            continue
+
         start_line = int(match.group(2))
         end_line = int(match.group(3)) if match.group(3) else None
 

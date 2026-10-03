@@ -106,6 +106,30 @@ rules:
       - 'docs/ui/*.md'
       - 'docs/user-guide/*.md'
 
+  - id: retired-ai-surface-in-operator-docs
+    description: 'Operator docs re-advertise a retired AI surface — the shipped AI tier is ai-gateway (/yolo26, /enrich-lt) + ai-vlm; only pointer lines (e.g. "ai-vlm is the only LLM service") may name the rest'
+    file_patterns:
+      # fnmatch semantics: `*` spans `/`, so this covers nested dirs too.
+      # `**` does NOT: matches_file_pattern's ** branch would skip the
+      # top-level files this rule is about.
+      - 'docs/operator/*.md'
+    content_patterns:
+      # Service-live framings only: a module path, a compose service key, a
+      # curl/health probe, or an env assignment to a URL. A pointer sentence
+      # like "there is no ai-llm." or "CLIP_URL is no longer read." matches
+      # none of these.
+      - 'backend/services/nemotron_analyzer'
+      - 'ai-llm:'
+      - 'logs ai-llm'
+      - '/florence/health'
+      - '/clip/health'
+      - '/enrichment/health'
+      - '(NEMOTRON_[A-Z_]+|FLORENCE_URL|CLIP_URL|ENRICHMENT_URL)= ?https?://'
+    priority: high
+    required_docs:
+      - 'docs/operator/ai-overview.md'
+      - 'docs/operator/ai-services.md'
+
 # Files to always ignore
 ignore_patterns:
   - '**/test_*.py'

@@ -80,6 +80,7 @@ scripts/
 
   # Security Scripts
   check-trivyignore-expiry.sh        # Check for expired CVE review dates
+  check-npm-audit-exemptions.py      # CI gate: frontend npm-audit exemption registry
 
   # CI/CD and Analysis Scripts
   analyze-ci-dependencies.py         # Analyze CI workflow dependencies
@@ -516,6 +517,40 @@ This script runs in the Trivy workflow (`.github/workflows/trivy.yml`):
 - Weekly on Monday at 9am UTC
 - On push to main when `.trivyignore` changes
 - Creates Linear issues when CVEs expire
+
+#### check-npm-audit-exemptions.py
+
+**Purpose:** The frontend `npm audit` CI gate — `npm audit --json` cross-checked against the tracked registry `frontend/.npm-audit-exemptions.json` (mirrors `.trivyignore` doctrine: every entry carries a REVIEW BY date).
+
+**Why it exists:** A bare `npm audit --audit-level=high` fails open the day an advisory lands whose only fix path is a semver-major migration (the braces DoS chain — every published version affected; npm's sole resolution is tailwindcss 3 → 4). This checker fails CLOSED: without the registry file, any finding at all is red, and a green run proves every finding is covered by an active, unexpired exemption.
+
+**What it does:**
+
+1. Runs `npm audit --json` in the frontend tree and extracts every advisory (GHSA id from `via[].url`)
+2. Fails if the registry file is missing (fails closed), or an entry has a missing/malformed/passed REVIEW BY date
+3. Fails if an audit finding is UNEXEMPTED, if an exemption matches nothing in the current audit (stale), or if its registered package differs from the audit's attribution
+4. Fails if npm starts reporting an IN-RANGE (non-major) fix path for an exempted advisory — the exemption premise ("the only fix is a major migration") is broken, take the fix and drop the entry
+5. Warns (exit 2) about exemptions expiring within `--warn-days`
+
+**Usage:**
+
+```bash
+uv run python scripts/check-npm-audit-exemptions.py                        # defaults: --frontend frontend
+uv run python scripts/check-npm-audit-exemptions.py --warn-days 30         # wider expiry warning window
+uv run python scripts/check-npm-audit-exemptions.py --registry path.json   # custom registry (tests)
+```
+
+**Exit codes:**
+
+| Code | Meaning                                                        |
+| ---- | -------------------------------------------------------------- |
+| 0    | Audit findings all covered by active exemptions, none expiring |
+| 1    | Violations (unexempted / expired / stale / premise broken)     |
+| 2    | Warning only — an exemption expires within `--warn-days`       |
+
+**CI Integration:**
+
+Runs right after `npm ci` (fresh lockfile-faithful tree) in both the `npm Audit (Frontend)` job of `.github/workflows/ci.yml` and the `NPM Dependency Audit` job of `.github/workflows/dependency-audit.yml` — invoked with preinstalled `python3` (the checker is stdlib-only; neither job sets up uv). Tests: `scripts/test_check_npm_audit_exemptions.py` (fake-`npm` shim on PATH; no network), also wired into the scripts anti-rot pytest list.
 
 ### Infrastructure
 

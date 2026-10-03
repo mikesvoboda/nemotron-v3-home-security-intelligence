@@ -13,7 +13,7 @@ Events carry no status column. Their lifecycle is driven by boolean/timestamp fi
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Created: LLM analysis complete
+    [*] --> Created: VLM analysis complete
     Created --> Broadcasted: WebSocket notification sent
     Broadcasted --> Reviewed: PATCH /api/events/{id} sets reviewed=true
     Broadcasted --> SoftDeleted: DELETE sets deleted_at
@@ -34,40 +34,47 @@ There is no resolve step: alert _instances_ are acknowledged or dismissed via `P
 <!-- Image shows an acknowledge/resolve state machine; the Event model has no status
 column — see the state diagram above for the field-driven lifecycle. -->
 
-**Source:** `backend/services/nemotron_analyzer.py:6-17`
+**Source:** `backend/services/vlm_analyzer.py:380-655`
 
 ### Creation Trigger
 
-Events are created after successful LLM analysis of a detection batch:
+Events are created by `VlmAnalyzer.analyze_batch()`, which the Analysis Worker
+calls once per closed batch (`backend/services/pipeline_workers.py:1052`):
 
 ```python
-# backend/services/nemotron_analyzer.py:6-17
-# Analysis Flow:
-#     1. Fetch batch detections from Redis/database
-#     2. Enrich context with zones, baselines, and cross-camera activity
-#     3. Run enrichment pipeline for license plates, faces, OCR (optional)
-#     4. Format prompt with enriched detection details
-#     5. Acquire shared AI inference semaphore (NEM-1463)
-#     6. POST to llama.cpp completion endpoint (with retry on transient failures)
-#     7. Release semaphore
-#     8. Parse JSON response
-#     9. Create Event with risk assessment    <-- Event Created
-#     10. Store Event in database
-#     11. Broadcast via WebSocket (if available)
+# backend/services/vlm_analyzer.py:380-655 (steps numbered from the body)
+# Creation flow:
+#     1. Idempotency key batch_event:<batch_id> — a repeat returns the
+#        existing Event (:401)
+#     2. Resolve camera/detection ids from the queue payload or the batch:
+#        Redis keys; with neither, refuse loudly — the VLM never originates
+#        an event (:417-431)
+#     3. SESSION 1 (READ): detections, zones, household (:434)
+#     4. Specialist lookups: faces, person re-ID, plates (:503-524)
+#     5. One VLM assess outside any session (:551-568)
+#     6. apply_verdict_invariants() -> the stored fields (:570)
+#     7. SESSION 2 (WRITE): Event + EventVerification in ONE transaction (:573)
+#     8. Broadcast LAST, best-effort (:643)                     <-- Event Created
 ```
+
+The write is unconditional with respect to the engine: a VLM transport or schema
+failure still writes the Event, with `verification_failed` and a NULL score
+(`backend/services/vlm_analyzer.py:267-280`). No batch is ever dropped on the
+floor, precisely so the UI can show it as needing review.
 
 ### Event Data Model
 
 ```python
-# Core event fields
+# Core event fields (backend/models/event.py)
 Event:
     id: int                    # Primary key, auto-increment
-    batch_id: str              # Links to detection batch (e.g., "batch-a1b2c3d4")
+    batch_id: str              # Unique — links to the detection batch (e.g., "batch-a1b2c3d4")
     camera_id: str             # Normalized camera ID (e.g., "front_door")
-    risk_score: int            # 0-100, from LLM analysis
-    risk_level: str            # Derived: "low", "medium", "high", "critical"
+    risk_score: int | None     # 0-100 from the VLM verdict; NULL when verification failed
+    risk_level: str | None     # Derived from the score: "low", "medium", "high", "critical"
     summary: str               # Human-readable description
-    reasoning: str             # LLM reasoning for assessment
+    reasoning: str             # Verdict reasoning (a §6 clamp stays visible here)
+    llm_prompt: str            # The prompt actually sent, plus the key frames shown
     started_at: datetime       # First detection in batch
     ended_at: datetime | None  # Last detection in batch (optional)
     reviewed: bool             # Marked reviewed by a user (also drives hsi_events_reviewed_total)
@@ -77,11 +84,21 @@ Event:
     # Event has no created_at column — started_at is the event's time reference.
 ```
 
+The verification detail is a separate row, not a column: `EventVerification`
+(`backend/models/event_verification.py`) carries the verdict
+(`confirmed`/`rejected`/`uncertain`, or `verification_failed`), the scene
+description, the criteria, the key-frame detection ids, and the engine/model the
+server reported. It is written in the same transaction as the Event and travels
+to the UI as the WS payload's `verification` key.
+
 ### Risk Level Derivation
 
-The Nemotron response supplies `risk_score`/`risk_level`; `Event.computed_risk_level`
-(`backend/models/event.py:367-399`) re-derives the level from configurable thresholds
-(`severity_low_max`/`severity_medium_max`/`severity_high_max`, `backend/core/config.py:2288-2303`):
+The verdict supplies `risk_score` only — the model never emits a level. The
+analyzer derives it through `SeverityService.risk_score_to_severity()`
+(`backend/services/severity.py:137-163`) and `Event.computed_risk_level`
+(`backend/models/event.py:379-411`) re-derives it from the same configurable
+thresholds (`severity_low_max`/`severity_medium_max`/`severity_high_max`,
+`backend/core/config.py:2423-2440`):
 
 | Score Range | Risk Level |
 | ----------- | ---------- |
@@ -90,9 +107,17 @@ The Nemotron response supplies `risk_score`/`risk_level`; `Event.computed_risk_l
 | 60-84       | high       |
 | 85-100      | critical   |
 
-Safety override (NEM-5566): a fire detection forces `risk_score = 100` and
-`risk_level = "critical"` regardless of LLM output
-(`backend/services/nemotron_analyzer.py:2845-2860`).
+Two rules shape the stored score. A `rejected` verdict is clamped to
+`SeverityService.low_max` — the verdict gates alerts while the score still
+ranks — and the clamp is appended to the stored reasoning so it stays visible
+(`backend/services/vlm_analyzer.py:284-297`). A `verification_failed` outcome
+keeps both fields NULL rather than substituting a low score.
+
+Fire gets its urgency earlier, in the detector: a `fire` detection at
+confidence >= 0.70 satisfies `should_bypass_batch()` and skips the 90-second
+batch window entirely (`backend/services/batch_aggregator.py:1345-1349`, where
+`FIRE_BYPASS_CONFIDENCE_THRESHOLD` is defined at
+`backend/services/batch_aggregator.py:107`).
 
 ## Event Broadcasting
 
@@ -102,13 +127,13 @@ Safety override (NEM-5566): a fire detection forces `risk_score = 100` and
 
 ```mermaid
 sequenceDiagram
-    participant NA as NemotronAnalyzer
+    participant VA as VlmAnalyzer
     participant EB as EventBroadcaster
     participant Redis as Redis Pub/Sub
     participant WS1 as WebSocket Client 1
     participant WS2 as WebSocket Client 2
 
-    NA->>EB: broadcast_event(event_data)
+    VA->>EB: broadcast_event(event_data)
     EB->>EB: Add sequence number
     EB->>EB: Check requires_ack
     EB->>EB: Buffer message
@@ -146,10 +171,10 @@ sequenceDiagram
 
 ### Acknowledgment Requirements
 
-**Source:** `backend/services/event_broadcaster.py:296-323`
+**Source:** `backend/services/event_broadcaster.py:306-337`
 
 ```python
-# backend/services/event_broadcaster.py:296-323
+# backend/services/event_broadcaster.py:306-337 (docstring abridged)
 def requires_ack(message: dict[str, Any]) -> bool:
     """Determine if a message requires client acknowledgment.
 
@@ -164,9 +189,13 @@ def requires_ack(message: dict[str, Any]) -> bool:
     if not data:
         return False
 
-    # Check risk_score >= 80
-    risk_score = data.get("risk_score", 0)
-    if risk_score >= 80:
+    # Check risk_score >= 80. P0.25 (spec §6 step 3): a verification_failed
+    # event carries a PRESENT-None score - `.get(..., 0)`'s default only
+    # applies to an absent key, so None reached `>= 80` as a TypeError that
+    # would kill the subscriber loop. NULL never acks; the critical-level
+    # arm below still can.
+    risk_score = data.get("risk_score")
+    if risk_score is not None and risk_score >= 80:
         return True
 
     # Check risk_level == 'critical'
@@ -176,14 +205,14 @@ def requires_ack(message: dict[str, Any]) -> bool:
 
 ### Message Sequencing and Buffering
 
-**Source:** `backend/services/event_broadcaster.py:68-69, 398-401`
+**Source:** `backend/services/event_broadcaster.py:78-79, 412-415`
 
 ```python
-# backend/services/event_broadcaster.py:68-69
+# backend/services/event_broadcaster.py:78-79
 # Buffer size for message replay on reconnection (NEM-1688)
 MESSAGE_BUFFER_SIZE = 100
 
-# backend/services/event_broadcaster.py:398-401
+# backend/services/event_broadcaster.py:412-415
 # Message sequencing and buffering (NEM-1688)
 self._sequence_counter = 0
 self._message_buffer: deque[dict[str, Any]] = deque(maxlen=self.MESSAGE_BUFFER_SIZE)
@@ -201,7 +230,7 @@ self._client_acks: dict[WebSocket, int] = {}
 ### Review Flow
 
 "Viewing" an event has no backend effect; the dashboard marks events reviewed
-by PATCHing the event itself (`backend/api/routes/events.py:1869-2060`):
+by PATCHing the event itself (`backend/api/routes/events.py:1909-2110`):
 
 ```mermaid
 sequenceDiagram
@@ -280,13 +309,13 @@ Retention comes from settings, not constants
 (`backend/services/cleanup_service.py:141, 487`):
 
 ```python
-settings.retention_days        # default 30 — events, detections (config.py:927-932)
-settings.log_retention_days    # default 7  — logs (config.py:1948-1951)
+settings.retention_days        # default 30 — events, detections (config.py:918-922)
+settings.log_retention_days    # default 7  — logs (config.py:2083-2085)
 ```
 
 Cutoff is `now(UTC) - timedelta(days=retention_days)`; events are matched on
-`started_at`, detections on `detected_at` (`cleanup_service.py:266-298`). A dry
-run mode (`cleanup_service.py:398`) reports what would be deleted without
+`started_at`, detections on `detected_at` (`backend/services/cleanup_service.py:266, 294`). A dry
+run mode (`backend/services/cleanup_service.py:382`) reports what would be deleted without
 deleting it.
 
 ## Event Data Flow Summary
@@ -296,10 +325,10 @@ deleting it.
 │                         Event Lifecycle                              │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  Detection Batch     LLM Analysis      Event Creation                │
+│  Detection Batch    VLM Analysis       Event Creation                │
 │  ┌─────────────┐    ┌───────────┐    ┌──────────────┐               │
-│  │ detections  │ -> │ Nemotron  │ -> │ PostgreSQL   │               │
-│  │ (batch-id)  │    │ (risk)    │    │ INSERT       │               │
+│  │ detections  │ -> │ ai-vlm    │ -> │ PostgreSQL   │               │
+│  │ (batch-id)  │    │ (verdict) │    │ INSERT       │               │
 │  └─────────────┘    └───────────┘    └──────────────┘               │
 │                                             │                        │
 │                                             v                        │
@@ -356,7 +385,7 @@ batch — there is no `batches` table or FK.
 
 ### Broadcast Failures
 
-**Source:** `backend/services/event_broadcaster.py:155-254`
+**Source:** `backend/services/event_broadcaster.py:155-192`
 
 ```python
 # backend/services/event_broadcaster.py:155-163 (abridged)
@@ -393,24 +422,22 @@ async def broadcast_with_retry[T](
 ### Event Metrics
 
 - `hsi_events_created_total` - Total events created (`backend/core/metrics.py:294`)
-- `hsi_events_by_risk_level_total` - Events by risk level (`backend/core/metrics.py:462`)
-- `hsi_events_by_camera_total` - Events by camera (`backend/core/metrics.py:652`)
+- `hsi_events_by_risk_level_total` - Events by risk level (`backend/core/metrics.py:388`)
+- `hsi_events_by_camera_total` - Events by camera (`backend/core/metrics.py:441`)
 - `hsi_events_reviewed_total` / `hsi_events_acknowledged_total` - Review tracking
-  (NEM-770 / NEM-3288, `backend/core/metrics.py:659, 667`)
+  (NEM-770 / NEM-3288, `backend/core/metrics.py:448, 456`)
 
 ### Broadcast Metrics
 
 ```python
-# backend/services/event_broadcaster.py:89-110 (abridged)
+# backend/services/event_broadcaster.py:89-108 (abridged)
 @dataclass
 class BroadcastRetryMetrics:
     total_attempts: int = 0
     successful_broadcasts: int = 0
     failed_broadcasts: int = 0
     retries_exhausted: int = 0
-    retry_counts: dict[int, int] = field(
-        default_factory=lambda: {0: 0, 1: 0, 2: 0, 3: 0}
-    )  # Count by retry attempts needed
+    retry_counts: dict[int, int] = field(default_factory=lambda: {0: 0, 1: 0, 2: 0, 3: 0})
 ```
 
 ## Related Documents

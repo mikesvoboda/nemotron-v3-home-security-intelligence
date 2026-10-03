@@ -1,289 +1,149 @@
 # LLM Inference Performance Optimization
 
-> **Partly retired — R8 slices S1/S2, 2026-09-29.** The serving stack this
-> page documents as "current" is gone: the Nemotron `ai-llm` service, its 30B
-> GGUF and the 8091 endpoint retired with the legacy path
-> (`pipeline_mode: legacy` now hard-raises at `backend/core/config.py:1080`),
-> so every port/env/VRAM figure below describes a container that no longer
-> exists. What survived: the shipped reasoning engine is `ai-vlm`, a llama.cpp
-> container whose CMD applies the same NEM-5369 techniques (flash-attn,
-> ctx-size, parallel slots — see `ai/vlm/Dockerfile` and `VLM_CTX_SIZE` /
-> `VLM_PARALLEL` / `VLM_FLASH_ATTENTION` in compose), and the
-> `TokenCounter` (§4) is live — `vlm_client` and `main.py` import it. The
-> `ai/` tuning modules (`flash_attention_config.py`, `cuda_graph_manager.py`,
-> `quantization_config.py`) survive unreferenced except `ai/__init__.py`'s
-> re-export. Model identity on `ai-vlm` is config (ledger D5). Read §1-§2 and
-> the VRAM/throughput tables as the NEM-5369 historical record, not as
-> `ai-vlm` tuning guidance.
+> How the shipped reasoning engine — `ai-vlm`, a llama.cpp `llama-server`
+> container — is configured, budgeted, and tuned.
 
-This document describes the current Nemotron LLM inference configuration, recent performance optimizations, observed characteristics, known limitations, and recommended next steps.
+The reasoning step of the pipeline is one constrained-decoding call to
+`ai-vlm` (`backend/services/vlm_client.py`). Everything on this page is that
+service's live configuration.
 
-## Current LLM Configuration
+---
 
-### Model and Quantization
+## Model and Server
 
-| Parameter        | Value                                                        |
-| ---------------- | ------------------------------------------------------------ |
-| Model            | Nemotron-3-Nano-30B-A3B (31B parameters, Mixture of Experts) |
-| Quantization     | Q4_K_M (4-bit, k-quant medium)                               |
-| Model file       | `Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf`                        |
-| Inference server | llama.cpp (`llama-server`)                                   |
-| CUDA toolkit     | 13.1.1                                                       |
+| Item          | Value                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------ |
+| Model         | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` + `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`                 |
+| Server        | llama.cpp `llama-server`, pinned at `b7972` (`VLM_REQUIRED_BUILD`, `.env.example:261`)     |
+| Build         | `ai/vlm/Dockerfile` — CUDA 13.3.1, compiled for the host GPU via `CUDA_ARCHITECTURES`      |
+| Port          | container-side `PORT=8098` fixed (`ai/vlm/Dockerfile:123`); host mapping via `AI_VLM_PORT` |
+| GPU           | `nvidia.com/gpu=${GPU_LLM:-0}` + `CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}`                      |
+| Weights mount | `${AI_MODELS_PATH}/vlm:/models:ro` — the service never downloads weights                   |
+| Profile       | compose profile `vlm` (`docker-compose.prod.yml:154`) — off unless enabled                 |
 
-The GGUF model file is mounted read-only into the container at `/models/` from the host path configured by `AI_MODELS_PATH` (default: `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km`).
+## Server Flags
 
-### Server Flags
-
-The `ai-llm` service runs `llama-server` with the following flags, configured via environment variables in `.env`:
+`ai/vlm/Dockerfile:141` assembles the `llama-server` command from env:
 
 ```
 llama-server \
-    --model /models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
-    --host 0.0.0.0 \
-    --port 8091 \
-    --n-gpu-layers ${GPU_LAYERS}   # auto (default) = llama.cpp fits layers to free VRAM \
-    --ctx-size ${CTX_SIZE}         # default 262144 tokens (.env.example) \
-    --parallel ${PARALLEL}         # default 8 concurrent slots (.env.example) \
-    --cont-batching \
-    --metrics \
-    --flash-attn on                # conditional on FLASH_ATTENTION=true (default true)
+    --model ${MODEL_PATH} \
+    [--mmproj ${MMPROJ_PATH}] \
+    [--alias ${MODEL_ALIAS}] \
+    [--sleep-idle-seconds ${SLEEP_IDLE_SECONDS}] \
+    [--cache-type-k ${CACHE_TYPE_K}] [--cache-type-v ${CACHE_TYPE_V}] \
+    --host 0.0.0.0 --port ${PORT} \
+    --n-gpu-layers ${GPU_LAYERS} \
+    --ctx-size ${CTX_SIZE} \
+    --parallel ${PARALLEL} \
+    --threads ${THREADS} --threads-batch ${THREADS} \
+    --batch-size ${BATCH_SIZE} --ubatch-size ${UBATCH_SIZE} \
+    --cont-batching --metrics --cache-reuse 256 --jinja \
+    [--flash-attn on]
 ```
 
-(The Dockerfile CMD adds further flags — `--threads`, `--batch-size`,
-`--cache-type-k/v`, `--cache-reuse 256`, `--mlock`, and an optional MoE
-CPU-offload override — see `ai/nemotron/Dockerfile`.)
+Compose threads the real values (`docker-compose.prod.yml:175-236`; vars
+declared in `.env.example:421-442`):
 
-Flags are injected via the Dockerfile CMD and Docker Compose environment variables. The Dockerfile defaults are overridden by `.env` values through `docker-compose.prod.yml`.
+| Env var                  | Compose default   | Flag                   | Notes                                                                                  |
+| ------------------------ | ----------------- | ---------------------- | -------------------------------------------------------------------------------------- |
+| `VLM_MODEL_PATH`         | Qwen3VL-8B Q4_K_M | `--model`              | Q4_K_M keeps the 8B inside a single-GPU budget                                         |
+| `VLM_MMPROJ_PATH`        | Q8_0 projector    | `--mmproj`             | **Without it the server starts text-only** — `/health` still says 200                  |
+| `VLM_MODEL_ALIAS`        | `Qwen3VL-8B`      | `--alias`              | Names the model in `/props` so verdict provenance records identity                     |
+| `VLM_GPU_LAYERS`         | `auto`            | `--n-gpu-layers`       | `auto` lets llama.cpp fit layers to free VRAM                                          |
+| `VLM_CTX_SIZE`           | `32768`           | `--ctx-size`           | Total pool, split across slots (see budget below)                                      |
+| `VLM_PARALLEL`           | `2`               | `--parallel`           | Two concurrent `vlm_assess` calls; `ANALYSIS_WORKER_COUNT=2` matches                   |
+| `VLM_THREADS`            | `4`               | `--threads`            | CPU fallback threads                                                                   |
+| `VLM_CACHE_TYPE_K/V`     | `q8_0`            | `--cache-type-k/v`     | KV cache at half the f16 pool; a quantized V cache **requires** flash attention        |
+| `VLM_FLASH_ATTENTION`    | `true`            | `--flash-attn on`      | Enabled; also cuts peak attention VRAM                                                 |
+| `VLM_SLEEP_IDLE_SECONDS` | `300`             | `--sleep-idle-seconds` | After 5 min idle the weights go to CPU RAM and VRAM is released to other GPU residents |
 
-### Environment Variables (`.env` -- Single Source of Truth)
+The container health-checks `curl -f http://localhost:8098/health` with a
+120s start period (`ai/vlm/Dockerfile:138`); compose aligns its own check so
+the two never disagree.
 
-| Variable          | Default  | Description                                                                                                                        |
-| ----------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `GPU_LAYERS`      | `auto`   | Number of model layers offloaded to GPU. `auto` lets llama.cpp fit layers to free VRAM.                                            |
-| `CTX_SIZE`        | `262144` | Context window size in tokens. Shared between llama.cpp and the Python backend (via `validation_alias="CTX_SIZE"` in `config.py`). |
-| `PARALLEL`        | `8`      | Number of concurrent inference slots. llama.cpp splits `CTX_SIZE` evenly across slots.                                             |
-| `FLASH_ATTENTION` | `true`   | Enables flash attention in llama.cpp to reduce VRAM usage with minimal performance impact.                                         |
-| `GPU_LLM`         | `0`      | GPU index for the LLM service (maps to `CUDA_VISIBLE_DEVICES`).                                                                    |
-| `LLM_PORT`        | `8091`   | Host port bound to `127.0.0.1` for the LLM service.                                                                                |
+## The Context Budget
 
-### Backend Configuration (`backend/core/config.py`)
+llama.cpp splits one `--ctx-size` pool across `--parallel` slots, and one
+`vlm_assess` only ever gets one slot. The backend mirrors that arithmetic:
+`vlm_context_window` (`backend/core/config.py:1334`, alias `VLM_CTX_SIZE`) is
+the per-slot budget the client fits every prompt against.
 
-The Python backend reads these settings for prompt token budgeting:
+The client's fit test (`backend/services/vlm_client.py:703`) reserves, per
+request:
 
-| Setting                                 | Default       | Source                                                                   |
-| --------------------------------------- | ------------- | ------------------------------------------------------------------------ |
-| `nemotron_context_window`               | `32768`       | Reads from `CTX_SIZE` env var (validation_alias). Range: 1,000--131,072. |
-| `nemotron_max_output_tokens`            | `1536`        | Tokens reserved for the LLM response. Range: 100--8,192.                 |
-| `context_utilization_warning_threshold` | `0.80`        | Logs a warning when prompt tokens exceed 80% of available context.       |
-| `llm_tokenizer_encoding`                | `cl100k_base` | Tiktoken encoding used for token counting.                               |
-| `enrichment_pipeline_timeout_seconds`   | `30.0`        | Hard timeout for the enrichment pipeline before Nemotron analysis.       |
+| Reservation         | Amount                        | Source                                                                                                                          |
+| ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Verdict output      | 1,024 tokens                  | `_ASSESS_MAX_TOKENS`, `backend/services/vlm_client.py:91`                                                                       |
+| Images              | 1,280 × (frames, ≤4)          | `_IMAGE_TOKENS_PER_FRAME`, `backend/services/vlm_client.py:107` (Qwen3-VL encodes one still at ≤~1280 vision tokens)            |
+| Counting correction | ×1.5 served-vs-counted tokens | `_SERVED_TOKENS_PER_COUNTED`, `backend/services/vlm_client.py:115` (the Qwen3-VL vocab serves more tokens than tiktoken counts) |
 
-Available tokens for the prompt = `CTX_SIZE - nemotron_max_output_tokens`. With the shipped `.env.example` defaults (CTX_SIZE=262144) that is 262,144 - 1,536 = **260,608 tokens**; with the code default (32,768) it is 31,232.
+With the shipped defaults (32,768 ÷ 2 = 16,384 per slot) a worst-case
+4-image request reserves 1,024 + 5,120 tokens of output+image space before
+text. If the rendered text still exceeds the remainder, the client keeps the
+strongest-confidence detections and appends a visible omission marker
+(`backend/services/vlm_client.py:676`) — the same ranking the key-frame
+selector uses, so what survives is what the attached stills can corroborate.
+`record_prompt_truncated()` fires once per batch at the wire.
 
-### Container Configuration (`docker-compose.prod.yml`)
+Token counting itself is `TokenCounter` (`backend/services/token_counter.py`)
+— tiktoken `cl100k_base`, warmed at startup (`backend/main.py:1259`),
+`validate_prompt()`/`get_context_budget()` available for anything that needs
+a budget check.
 
-The `ai-llm` service in the production compose file:
+## Enforcement Probe and Build Pin
 
-- **Build context:** `./ai/nemotron` (multi-stage build with CUDA 13.1.1)
-- **Port:** `127.0.0.1:${LLM_PORT:-8091}:8091` (localhost-only binding)
-- **Resource limits:** 4 CPUs, 12GB RAM (8GB reserved)
-- **GPU:** All GPUs passed; `CUDA_VISIBLE_DEVICES` selects GPU 0 (A5500 24GB)
-- **Health check:** `curl -f http://localhost:8091/health` every 10s, 300s start period (model loading takes ~5 minutes for 31B parameters)
-- **Restart policy:** `unless-stopped`
-
-## Recent Optimizations (NEM-5369)
-
-### 1. Parallel Inference Slots (`PARALLEL=2`)
-
-llama.cpp now runs with 2 concurrent inference slots, each allocated 16K tokens (CTX_SIZE / PARALLEL = 32,768 / 2). This enables the backend to process two batch analysis requests simultaneously, effectively doubling throughput for concurrent batches. The `ANALYSIS_WORKER_COUNT=2` setting in `.env` matches the slot count.
-
-### 2. Context Window Right-Sizing (`CTX_SIZE=32768`)
-
-The context window was reduced from 131,072 (128K) to 32,768 (32K) tokens. This change:
-
-- Saves approximately 4GB of VRAM (KV cache scales linearly with context size)
-- Is sufficient for home security analysis prompts, which typically consume 5K--10K tokens
-- Established `CTX_SIZE` in `.env` as the single source of truth, read by both llama.cpp (via Docker environment) and the Python backend (via Pydantic `validation_alias`)
-
-### 3. Flash Attention Enabled (`FLASH_ATTENTION=true`)
-
-Flash attention reduces VRAM consumption by computing attention scores without materializing the full attention matrix. It is conditionally enabled in the Dockerfile CMD:
-
-```sh
-if [ "${FLASH_ATTENTION}" = 'true' ]; then FLASH_ARGS='--flash-attn on'; fi
-```
-
-This provides VRAM savings with minimal latency impact.
-
-### 4. Prompt Token Budgeting System
-
-The `TokenCounter` service (`backend/services/token_counter.py`) manages context window usage:
-
-- **Tiktoken-based counting:** Uses `cl100k_base` encoding for accurate token estimation
-- **Validation:** Checks prompts against `context_window - max_output_tokens` before sending to the LLM
-- **Intelligent truncation:** When prompts exceed the budget, enrichment sections are removed in priority order (lowest-value sections first: depth, pose, action, pet, weather, vehicle, clothing, violence, reid, then high-priority sections like scene analysis and detections)
-- **Prometheus metrics:** Context utilization is tracked via `hsi_context_utilization_ratio` gauge for Grafana dashboards
-
-### 5. Prompt Deduplication
-
-The enrichment pipeline avoids sending redundant information to the LLM:
-
-- **Florence-2:** Region-level captions and global dense captions are deduplicated when they describe the same objects
-- **CLIP:** Low-confidence classification results below the noise threshold are filtered before inclusion in the prompt
-
-### 6. Adaptive Enrichment Quality Levels
-
-The `ENRICHMENT_QUALITY_LEVEL` setting (`full`, `standard`, `minimal`) controls how many enrichment models run before LLM analysis:
-
-| Level      | Models Run                                                                                                               | Use Case                               |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
-| `full`     | All models (Florence captions, CLIP embeddings, pose, threat, action, vehicle, clothing, demographics, depth, pet, reid) | Default -- best accuracy               |
-| `standard` | Skip Florence enhanced captioning + CLIP classification                                                                  | Faster processing, reduced prompt size |
-| `minimal`  | Only detections + threat/pose/action                                                                                     | Fastest -- for high-load scenarios     |
-
-Lower quality levels produce smaller prompts, reducing both token consumption and LLM inference time.
+`VLM_ENFORCEMENT_PROBE_ENABLED=true` (`.env.example:256`): before the first
+real call the client sends one schema-constrained probe and verifies the
+engine actually enforces the JSON schema (grammar-constrained decoding) —
+if it does not, `ConstrainedDecodingNotEnforced` fails closed rather than
+trusting unconstrained output. `VLM_REQUIRED_BUILD=b7972` pins the
+`llama-server` build the pin was verified against; a drifted `/props`
+`build_info` refuses to run.
 
 ## Performance Characteristics
 
-### VRAM Usage
-
-| Component                       | VRAM      | Notes                                                                                                   |
-| ------------------------------- | --------- | ------------------------------------------------------------------------------------------------------- |
-| Model weights (Q4_K_M)          | ~14.7GB   | 35 of ~60 layers on GPU (with GPU_LAYERS=999, some layers may spill to CPU depending on available VRAM) |
-| KV cache (32K context, 2 slots) | ~2GB      | Scales with CTX_SIZE and PARALLEL                                                                       |
-| Flash attention overhead        | Minimal   | Reduces peak VRAM vs. standard attention                                                                |
-| **Total**                       | **~17GB** | Fits within 24GB A5500 with room for Florence-2 (~1.5GB)                                                |
-
-### Token Budget
-
-| Budget Component                 | Tokens         |
-| -------------------------------- | -------------- |
-| Context window                   | 32,768         |
-| Reserved for output              | 1,536          |
-| Available for prompt             | 31,232         |
-| Typical prompt (full enrichment) | 5,000--10,000  |
-| Worst-case prompt                | ~10,000        |
-| Headroom                         | ~21,000 tokens |
-
-### Throughput
-
-- **Parallel slots:** 2 concurrent requests processed simultaneously
-- **Batch window:** 90 seconds (detections grouped before analysis)
-- **Idle timeout:** 30 seconds (batch closes after inactivity)
-- **Pipeline timeout:** 30 seconds hard limit on enrichment before LLM call
-- **LLM read timeout:** 120 seconds maximum wait for inference response
-- **Analysis workers:** 2 concurrent workers pulling from the analysis queue
-
-### GPU Assignment (Dual-GPU Setup)
-
-| GPU   | Device                  | Services                                                                                         | VRAM Budget     |
-| ----- | ----------------------- | ------------------------------------------------------------------------------------------------ | --------------- |
-| GPU 0 | NVIDIA RTX A5500 (24GB) | ai-llm (~17GB)                                                                                   | ~17GB used      |
-| GPU 1 | NVIDIA A400 (4GB)       | ai-gateway — Florence, CLIP, YOLO26, enrichment-light, enrichment on one GPU (`GPU_AI_SERVICES`) | model-dependent |
-
-(The vision services are consolidated in `ai-gateway`; the per-service GPU
-split above predates that consolidation — see `docker-compose.prod.yml`
-`GPU_AI_SERVICES`.)
+- **VRAM**: Q4_K_M 8B weights + q8_0 KV on a 24GB card leaves room for the
+  Triton gateway alongside; the `--sleep-idle-seconds 300` residency means an
+  idle VLM hands its VRAM back and a wake ping (`backend/services/vlm_client.py:947`,
+  one `max_tokens: 1` request) rouses it before the real call.
+- **Read timeout**: `AI_VLM_READ_TIMEOUT=25.0` (`.env.example:248`) is the
+  per-attempt ceiling; the §6 ladder retries once at temperature 0 within it.
+- **Batch pacing**: analysis runs after the 90s/30s/500 batch window
+  closes, so back-to-back calls, not streaming, are the throughput unit.
+- **Concurrency**: more than `VLM_PARALLEL` concurrent analyses queue behind
+  the slots.
 
 ## Known Limitations
 
-### 1. CPU Layer Overflow
-
-With `GPU_LAYERS=999`, llama.cpp attempts to place all ~60 model layers on GPU. However, with the KV cache and other GPU-resident services (Florence-2), approximately 6 layers overflow to CPU RAM. CPU-offloaded layers add latency to each forward pass since data must transfer across the PCIe bus.
-
-### 2. Q4_K_M Quantization Tradeoff
-
-The Q4_K_M quantization reduces the model from ~60GB (FP16) to ~17GB, enabling single-GPU inference. However, 4-bit quantization introduces some accuracy degradation compared to higher-precision formats (FP16, Q8_0). For home security risk scoring, this tradeoff is acceptable -- the model produces coherent risk assessments with structured JSON output.
-
-### 3. Reduced Context Window
-
-The context window was reduced from 128K to 32K to fit within VRAM constraints. While 32K is sufficient for current prompt sizes (typical: 5K--10K tokens), this limits the system's ability to include very large enrichment contexts or analyze many simultaneous detections in a single prompt. The `TokenCounter` truncation system mitigates this by intelligently removing low-priority sections.
-
-### 4. Single Model Architecture
-
-The system relies on a single LLM instance. If the model is busy processing one request, the second slot is available, but any additional requests queue behind the 2 parallel slots. Under sustained high load (more than 2 concurrent analysis requests), latency increases.
-
-## Recommended Next Steps
-
-### Short-Term (VRAM Optimization)
-
-#### MoE Expert Offloading (NEM-5536)
-
-Nemotron-3-Nano's MoE layers have 128 experts per layer but only 6 activate per token. Offloading expert FFN weights to CPU frees 3--6 GB of VRAM with minimal latency impact. See [MoE Offloading](moe-offloading.md) for full documentation and setup instructions.
-
-#### KV Cache Quantization
-
-llama.cpp supports quantized KV caches that reduce VRAM usage with minimal quality impact:
-
-```bash
-llama-server \
-    --cache-type-k q8_0 \
-    --cache-type-v q4_0 \
-    ...
-```
-
-- **Expected savings:** 2--3GB VRAM (KV cache compressed from FP16 to mixed Q8/Q4)
-- **Impact:** Negligible quality degradation for most tasks
-- **Benefit:** Could free enough VRAM to fit all model layers on GPU, eliminating CPU overflow latency
-
-#### More Aggressive Quantization
-
-Smaller quantization formats could fit the entire model on GPU:
-
-| Format           | Estimated Size | Quality  | All Layers on GPU?   |
-| ---------------- | -------------- | -------- | -------------------- |
-| Q4_K_M (current) | ~17GB          | Good     | No (6 layers on CPU) |
-| Q3_K_M           | ~14GB          | Moderate | Likely yes           |
-| IQ3_XXS          | ~12GB          | Lower    | Yes, with headroom   |
-
-Tradeoff: Lower quantization reduces risk scoring accuracy. Recommended to benchmark against the current Q4_K_M baseline before switching.
-
-### Medium-Term (Throughput)
-
-#### Speculative Decoding with Draft Model
-
-llama.cpp supports speculative decoding where a smaller "draft" model proposes tokens that the main model verifies in batch. NVIDIA offers Nemotron-Mini-4B-Instruct as a potential draft model:
-
-- **Expected speedup:** 1.5--2.5x for structured JSON output (high acceptance rate)
-- **Additional VRAM:** ~2.5GB for the 4B draft model
-- **Requirement:** Both models must share the same tokenizer vocabulary
-
-#### vLLM Evaluation
-
-The `ai-llm-vllm` service is already defined in `docker-compose.prod.yml` (behind the `vllm` profile) for benchmarking:
-
-- **PagedAttention v2:** More efficient KV cache memory management
-- **Continuous batching:** Better throughput under concurrent load
-- **Limitation:** Nemotron-3-Nano-30B quantized formats (NVFP4, AWQ) have compatibility issues with current vLLM builds and the RTX A5500 GPU. GGUF quantizations via llama.cpp remain the recommended path until vLLM support matures.
-
-### Long-Term (Architecture)
-
-#### Smaller Model Evaluation
-
-With the enrichment pipeline providing rich structured context (Florence-2 captions, CLIP embeddings, pose analysis, threat detection, vehicle classification), a smaller LLM may be sufficient for risk scoring:
-
-- **Candidate:** Nemotron-Mini-8B (or 4B) with full enrichment context
-- **Rationale:** If enrichment models handle perception, the LLM only needs to reason about risk -- a simpler task
-- **Benefit:** Dramatically lower VRAM (fits entirely on GPU with room for additional parallel slots), faster inference
-- **Requirement:** Benchmark risk scoring quality against the 30B model
-
-#### Dedicated Inference GPU
-
-Adding a second high-VRAM GPU (e.g., RTX A5500 or A6000) would allow:
-
-- Full model on GPU with no CPU overflow
-- Higher `PARALLEL` slot count (3--4 concurrent requests)
-- Larger context window (64K--128K) for complex multi-camera scenarios
+- **Text-only start is silent.** Forgetting `MMPROJ_PATH` still yields
+  `200 /health`. Confirm with `podman logs ai-vlm | grep -i mmproj`.
+- **The slot is smaller than the pool.** A prompt sized against total
+  `VLM_CTX_SIZE` rather than `VLM_CTX_SIZE/VLM_PARALLEL` will overflow the
+  served slot (the engine answers HTTP 400 `exceed_context_size_error`,
+  which the client raises as `VlmContextOverflowError` without burning a
+  retry).
+- **Length-truncated verdicts don't retry.** A reply cut at `max_tokens`
+  raises `VlmTruncatedError` immediately — re-asking the same body at the
+  same budget would produce the same cut object.
 
 ## Key Files Reference
 
-| File                                      | Purpose                                                                                        |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `ai/nemotron/Dockerfile`                  | Multi-stage build for llama.cpp with CUDA; defines model path, default env vars, CMD flags     |
-| `.env` / `.env.example`                   | Single source of truth for `CTX_SIZE`, `GPU_LAYERS`, `PARALLEL`, `FLASH_ATTENTION`, `GPU_LLM`  |
-| `docker-compose.prod.yml`                 | `ai-llm` service definition with resource limits, health checks, GPU assignment                |
-| `backend/core/config.py`                  | `nemotron_context_window` (reads `CTX_SIZE`), `nemotron_max_output_tokens`, tokenizer settings |
-| `backend/services/token_counter.py`       | Token counting, prompt validation, intelligent truncation by priority                          |
-| `backend/services/nemotron_analyzer.py`   | Prompt assembly, LLM API calls, retry logic, structured JSON parsing                           |
-| `backend/services/enrichment_pipeline.py` | Multi-model enrichment with quality levels and timeout                                         |
-| `backend/services/prompts.py`             | Prompt templates for different enrichment levels                                               |
+| File                                | Purpose                                     |
+| ----------------------------------- | ------------------------------------------- |
+| `ai/vlm/Dockerfile`                 | llama.cpp build + CMD flag assembly         |
+| `docker-compose.prod.yml`           | `ai-vlm` service: env, GPU, profile, limits |
+| `.env.example`                      | `VLM_*` and `AI_VLM_*` variables            |
+| `backend/core/config.py`            | `vlm_context_window`, `ai_vlm_url`          |
+| `backend/services/vlm_client.py`    | The only dialer; fit test, ladder, probe    |
+| `backend/services/token_counter.py` | Token counting and budget helpers           |
+
+## Related Documentation
+
+- [Risk Analysis](risk-analysis.md) - What the VLM decides
+- [Prompt Management](prompt-management.md) - Stored prompt configs
+- [Multi-GPU Setup](multi-gpu.md) - GPU assignment
+
+---
+
+[Back to Developer Hub](README.md)

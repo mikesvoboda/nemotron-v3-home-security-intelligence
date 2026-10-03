@@ -2,7 +2,7 @@
 
 ## Purpose
 
-One importable package declaring every AI-tier operation (38 today) the product surface has, as GENERATED data - the single source of truth for what the backend may ask the AI tier to do. Plan P WP7.1-WP8.
+One importable package declaring every AI-tier operation the product surface has (9 today, minted from the build by the generator), as GENERATED data - the single source of truth for what the backend may ask the AI tier to do. Plan P WP7.1-WP8.
 
 ## The Architecture Rule (do not regress)
 
@@ -13,19 +13,19 @@ One importable package declaring every AI-tier operation (38 today) the product 
 | File            | Purpose                                                                                                                                 |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `__init__.py`   | Package exports; importing `providers` here IS the import-time contract check                                                           |
-| `operations.py` | **GENERATED - DO NOT EDIT.** The 38-operation registry: id, method, path, per-slot availability, backend client methods, evidence       |
+| `operations.py` | **GENERATED - DO NOT EDIT.** The 9-operation registry: id, method, path, per-slot availability, backend client methods, evidence        |
 | `provider.py`   | Hand-written support types: `ProviderId` slots, `Operation` dataclass, `AIProvider` protocol, `register_provider`, error/derive helpers |
 | `providers.py`  | Provider registrations executed at import: gateway / gateway_light / llamacpp_llm (fake is a SPEC column, deliberately not registered)  |
 | `fake/`         | The deterministic FakeProvider app (see `fake/AGENTS.md`)                                                                               |
-| `schemas/`      | 45 generated JSON schemas (`<op>.request.json` / `<op>.response.json`) - contract sources for golden snapshots and the fake generator   |
+| `schemas/`      | 15 generated JSON schemas (`<op>.request.json` / `<op>.response.json`) - contract sources for golden snapshots and the fake generator   |
 
 ## Patterns and Gotchas
 
 - **Regenerate, never hand-edit:** `uv run python scripts/gen-ai-contract.py`; the `api-types-check` CI job runs it with `--check` and fails naming any drifted file. The operation count is minted from the build, not hand-written.
 - **Import = test:** adding an operation without wiring a provider behind it - or deleting a client method a provider is built from - raises `ProviderContractError` naming the operation at `import backend.ai_contract`.
 - **Three matrix states:** an op can be absent from a slot, NOT-WIRED (registered but no bound client method - calling raises), or wired. NOT-WIRED is a real third state, not a skip.
-- **Provider callables are the bound backend client methods** (the detector/clip/enrichment/florence clients under `backend/services/`), resolved lazily via `_CLIENT_MODULES`; never import those clients at `providers.py` top level (settings/redis singletons would initialize before test fixtures).
-- The `fake` availability column is a conformance SPEC (fake implements all 38), not a claim about deployed code.
+- **Provider callables are the bound backend client methods** (`DetectorClient` and `VlmClient` under `backend/services/`), resolved lazily via `_CLIENT_MODULES`; never import those clients at `providers.py` top level (settings/redis singletons would initialize before test fixtures).
+- The `fake` availability column is a conformance SPEC: `fake/app.py` mounts one route per registry operation, so the fake covers every declared op and the count is always the registry's, never a pinned number.
 
 ## Related
 

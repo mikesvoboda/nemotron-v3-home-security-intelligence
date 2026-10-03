@@ -1,6 +1,6 @@
 # Accessibility
 
-Nemotron Home Security aims to meet WCAG 2.1 AA compliance standards across all dashboard interfaces.
+Home Security Intelligence aims to meet WCAG 2.1 AA compliance standards across all dashboard interfaces.
 
 ## Keyboard Navigation
 

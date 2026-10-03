@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Test suite for LLM benchmark infrastructure, validating quality scoring, metrics collection, and performance comparison functionality.
+Test suite for the benchmark infrastructure under `scripts/benchmark/` — quality scoring, result comparison, engine comparison, and load testing.
 
 ## Test Structure
 
 ### test_quality.py
 
-Comprehensive test suite for `scripts/benchmark/quality.py` - quality scoring module.
+Test suite for `scripts/benchmark/quality.py` — the quality-scoring module (42 tests, all passing).
 
 **Coverage Areas:**
 
@@ -26,69 +26,54 @@ Comprehensive test suite for `scripts/benchmark/quality.py` - quality scoring mo
 - `TestQualityScorer`: Integration tests for scoring workflows
 - `TestEdgeCases`: Boundary conditions, unicode, large datasets
 
-**Fixtures:**
+**Fixtures** (defined in `test_quality.py`):
 
 - `valid_ground_truth`: Sample ground truth data
 - `valid_llm_response`: Sample LLM response
 - `quality_scorer`: QualityScorer instance
 - `sample_dataset`: Multi-sample test data
 
-### test_metrics.py
-
-Tests for metrics collection (latency, VRAM, throughput).
-
 ### test_compare.py
 
-Tests for benchmark comparison and analysis.
-
-### test_runner.py
-
-Comprehensive test suite for `scripts/benchmark/run_benchmark.py` - the main benchmark orchestrator.
-
-**Coverage Areas:**
-
-- **Configuration**: BenchmarkConfig initialization, validation, and defaults
-- **Evaluation Set Loading**: 100-event dataset loading and validation
-- **Single Request Latency**: One request at a time, measure response time
-- **Sustained Load**: Continuous requests at configurable rate
-- **Burst Handling**: Simulate 10+ simultaneous detections
-- **Cold Start**: Time from service start to first successful inference
-- **Results Output**: JSON file generation with metadata
-- **CLI Argument Parsing**: Command-line interface validation
-- **Error Handling**: Service unavailable, timeout, partial failures
-- **Integration**: End-to-end workflow testing
+Test suite for `scripts/benchmark/compare.py` — delta calculation and markdown report generation across benchmark result JSON files (33 tests, all passing).
 
 **Test Classes:**
 
-- `TestBenchmarkConfig`: Configuration dataclass tests (6 tests)
-- `TestBenchmarkRunner`: Runner initialization and evaluation set loading (3 tests)
-- `TestSingleRequestLatency`: Single request scenario tests (3 tests)
-- `TestSustainedLoad`: Sustained load scenario tests (3 tests)
-- `TestBurstHandling`: Burst scenario tests (3 tests)
-- `TestColdStart`: Cold start scenario tests (3 tests)
-- `TestBenchmarkOrchestration`: Full orchestration tests (3 tests)
-- `TestResultsOutput`: JSON output tests (3 tests)
-- `TestCLIArgumentParsing`: CLI argument tests (9 tests)
-- `TestErrorHandling`: Error resilience tests (3 tests)
-- `TestIntegration`: End-to-end workflow tests (2 tests)
+- `TestBenchmarkResultLoader`: JSON loading and required-field validation
+- `TestDeltaCalculation`: Percentage deltas against a baseline
+- `TestMarkdownTableGeneration`: Latency/throughput/VRAM tables
+- `TestImprovementRegression`: Improvement vs regression classification
+- `TestMissingMetrics`: Absent-metric handling
+- `TestCLIInterface`: Command-line parsing
+- `TestFullComparisonReport`: End-to-end report shape
+- `TestEdgeCases`, `TestMultipleComparisons`
 
-**Total:** 40 test cases
+### test_engine_comparison.py
 
-**Fixtures:**
+Test suite for `scripts/benchmark/engine_comparison.py` — engine configuration, request formatting, response parsing, and comparison reporting for the `llama.cpp` and `vllm` arms (44 tests, all passing).
 
-- `mock_metrics_collector`: Mocked MetricsCollector with realistic metrics
-- `mock_quality_scorer`: Mocked QualityScorer for response evaluation
-- `mock_evaluation_set`: Temporary directory with 100 sample JSON events
-- `benchmark_config`: Fully configured BenchmarkConfig instance
+**Test Classes:**
 
-**Stub Implementation:** `scripts/benchmark/run_benchmark.py` contains:
+- `TestEngineType`, `TestEngineConfig`, `TestEngineMetrics`: dataclass invariants
+- `TestEngineConfigs`: the shipped `ENGINE_CONFIGS` map (ports, api formats)
+- `TestEngineComparator`: health checks, benchmarking, `skip_unavailable` behaviour
+- `TestOpenAICompatibility`: `/v1/chat/completions` request/response shape
+- `TestComparisonReport`, `TestCompareEnginesFunction`: report generation
+- `TestDockerComposeIntegration`: the documented `vllm`-profile expectations
+- `TestMetricsCollection`, `TestCLI`, `TestEdgeCases`
 
-- `BenchmarkConfig` dataclass with validation stubs
-- `BenchmarkResults` dataclass for result structure
-- `QualityScorer` class with scoring method stubs
-- `BenchmarkRunner` class with scenario execution stubs
-- `parse_args()` function (fully implemented, tests passing)
-- `main()` async entry point stub
+### test_load_test.py
+
+Test suite for `scripts/benchmark/load_test.py` — sustained-load and burst configuration, metrics, and report generation (29 tests).
+
+**Test Classes:**
+
+- `TestLoadConfig`, `TestSustainedLoadConfig`, `TestBurstConfig`: configuration dataclasses
+- `TestLoadTestMetrics`, `TestReportGeneration`: metrics aggregation and output
+- `TestLoadTestRunner`, `TestRequestGeneration`, `TestSustainedLoadBehavior`, `TestBurstBehavior`, `TestPriorityQueueMeasurement`: runner behaviour
+- `TestCLI`, `TestEdgeCases`
+
+`TestSustainedLoadBehavior`, `TestPriorityQueueMeasurement`, and the sustained-load runner test drive real wall-clock pacing and exceed the 5 s per-test timeout on a GPU-less host; the rest of the file is deterministic.
 
 ## Running Tests
 
@@ -106,15 +91,14 @@ uv run pytest tests/benchmark/test_quality.py::TestRiskScoreAccuracy -v
 uv run pytest tests/benchmark/ --cov=scripts/benchmark --cov-report=html
 ```
 
-## TDD Status
+## Implementation Status
 
-Current phase: **RED** - Tests written first, all tests should FAIL until implementation is complete.
+The modules under test are implemented and their suites are green:
 
-Expected behavior:
-
-- All tests raise `NotImplementedError` with message "TDD RED phase: implement this function/method"
-- Imports succeed (stub implementations exist)
-- Test structure and assertions are validated
+- `quality.py`: MAE, JSON validation, reasoning scoring, risk-level matching, dataset aggregation — 42 tests pass.
+- `compare.py`: loader, deltas, markdown tables, CLI — 33 tests pass.
+- `engine_comparison.py`: configs, comparator, OpenAI compatibility, report — 44 tests pass.
+- `load_test.py`: configs, runner, reports, CLI — green apart from the wall-clock pacing tests noted above.
 
 ## Key Testing Patterns
 
@@ -146,16 +130,5 @@ Expected behavior:
 ## Dependencies
 
 - pytest fixtures for test data setup
-- `scripts.benchmark.quality` module (stub exists)
+- `scripts.benchmark.quality`, `.compare`, `.engine_comparison`, `.load_test`
 - Standard library: json, typing
-
-## Next Steps (GREEN Phase)
-
-1. Implement `calculate_risk_score_mae()` function
-2. Implement `validate_json_response()` function
-3. Implement `check_reasoning_quality()` function
-4. Implement `QualityScorer.calculate_risk_level_match_rate()` method
-5. Implement `QualityScorer.score_response()` method
-6. Implement `QualityScorer.score_dataset()` method
-7. Verify all tests pass
-8. Refactor for optimization (REFACTOR phase)

@@ -23,7 +23,7 @@ It is reference material for anyone writing or changing frontend components.
 | `common/status-indicators.md`           | ServiceStatusIndicator, WebSocketStatus, OfflineIndicator, badges    |
 | `common/error-boundaries.md`            | The five error boundaries                                            |
 | `feature-specific/dashboard-widgets.md` | DashboardPage and its widgets                                        |
-| `feature-specific/event-components.md`  | Event browsing, detail, enrichment, feedback components              |
+| `feature-specific/event-components.md`  | Event browsing, detail, enrichment progress, feedback components     |
 | `feature-specific/settings-panels.md`   | Settings page panels (cameras, GPU, storage, prompts)                |
 | `layout/layout.md`                      | Shell components and responsive behavior                             |
 | `patterns/form-patterns.md`             | react-hook-form + zod forms, FormField, SubmitButton                 |

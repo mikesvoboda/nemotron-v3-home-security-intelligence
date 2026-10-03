@@ -429,7 +429,7 @@ residents, workers or animals. The full text is stored in each arm-B `run.json` 
 red because its verification skipped the repo-root `scripts/` tests); `f0ff083e` `cryptography` 49.0.0 ->
 50.0.2 (owner-approved) with the stale ignores removed, `pip-audit` clean; `ab3bd002` M1: the analyzer makes
 the notify decision and broadcasts it as `data.notify` (the decision exists; nothing acts on it yet, so M1 is
-NOT closed). Then the docs refresh (15-20, banners, index) and ledger row 75.
+NOT closed). Then the docs refresh (15-20, banners, index) and ledger row 76 (written as row 75; renumbered at the merge with main, which had appended its own row 75).
 
 **Build sensitivity (found by the sweep's control arm).** llama.cpp `b7972` and the new `b11376` disagree on
 the same model, weights and prompt at greedy decoding: control `b11376` S2 21/209, S3 94/241, AUROC 0.677,

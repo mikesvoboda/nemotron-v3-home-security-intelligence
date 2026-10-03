@@ -140,7 +140,8 @@ groups:
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-memory-high'
 
       # Warning: GPU utilization low (potential issue)
-      # Uses hsi_total_detections (not hsi_detection_total which doesn't exist)
+      # hsi_total_detections comes from the json-exporter stats module
+      # (monitoring/json-exporter-config.yml, scraped via the hsi-stats job).
       - alert: HSIGPUUtilizationLow
         expr: hsi:gpu:utilization < 10 and hsi_total_detections > 0
         for: 15m
@@ -164,7 +165,7 @@ groups:
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-throttling'
 
       # Warning: GPU clock degradation (>20% below baseline)
-      # Uses hsi_gpu_sm_clock_mhz (not hsi_gpu_clock_speed_mhz which doesn't exist)
+      # hsi_gpu_sm_clock_mhz comes from the json-exporter gpu module.
       - alert: AIGPUClockDegradation
         expr: |
           hsi_gpu_sm_clock_mhz < 1200
@@ -272,20 +273,22 @@ groups:
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/queue-critical'
 
   # Latency Alerts
-  # NOTE: Disabled - depends on hsi:detection_latency:p95_5m and hsi:analysis_latency:p95_5m
-  # recording rules which require hsi_stage_duration_seconds_bucket metrics (not implemented)
-  # Re-enable when metrics are added to backend/core/metrics.py
-  # - name: latency_alerts
-  #   rules:
-  #     - alert: HSISlowDetection
-  #       expr: hsi:detection_latency:p95_5m > 2
-  #       ...
-  #     - alert: HSISlowAnalysis
-  #       expr: hsi:analysis_latency:p95_5m > 30
-  #       ...
-  #     - alert: HSIExtremeLatency
-  #       expr: hsi:detection_latency:p95_5m > 10 or hsi:analysis_latency:p95_5m > 120
-  #       ...
+  - name: latency_alerts
+    rules:
+      # Warning: Detection stage P95 latency above the 2s SLO.
+      # hsi:detection_latency:p95_5m (monitoring/prometheus-rules.yml) is a
+      # histogram_quantile over hsi_stage_duration_seconds_bucket{stage="detect"};
+      # that series is written live by observe_stage_duration("detect", ...)
+      # at pipeline_workers.py:527.
+      - alert: HSISlowDetection
+        expr: hsi:detection_latency:p95_5m > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: detection
+        annotations:
+          summary: 'Detection latency is slow'
+          description: 'P95 detection stage latency exceeds 2s for more than 5 minutes. Check detector load and GPU contention.'
 
   # Error Rate Alerts
   - name: error_rate_alerts
@@ -314,19 +317,6 @@ groups:
           summary: 'HSI API error rate critical'
           description: 'API error rate is above 10% for more than 2 minutes.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/high-error-rate'
-
-      # NOTE: Detection and analysis failure rate alerts disabled
-      # These depend on hsi:detection:success_rate_5m and hsi:analysis:success_rate_5m recording rules
-      # which require hsi_pipeline_errors_total to have a 'stage' label (it has 'error_type' instead)
-      # Re-enable when metrics are updated in backend/core/metrics.py
-      # - alert: HSIDetectionFailureRate
-      #   expr: 1 - hsi:detection:success_rate_5m > 0.1
-      #   for: 5m
-      #   ...
-      # - alert: HSIAnalysisFailureRate
-      #   expr: 1 - hsi:analysis:success_rate_5m > 0.1
-      #   for: 5m
-      #   ...
 
   # SLO Burn Rate Alerts (Multi-window)
   - name: slo_burn_rate_alerts
@@ -359,55 +349,6 @@ groups:
         annotations:
           summary: 'HSI API Availability SLO slow burn detected'
           description: 'API availability is burning through error budget at 3x rate. Will exhaust 30-day budget in ~10 days.'
-
-      # NOTE: Detection and analysis latency burn rate alerts disabled
-      # Depends on hsi:burn_rate:detection_latency_* and hsi:burn_rate:analysis_latency_*
-      # recording rules which require hsi_stage_duration_seconds_bucket metrics (not implemented)
-      # - alert: HSIDetectionLatencyFastBurn
-      #   expr: hsi:burn_rate:detection_latency_1h > 14.4 and hsi:burn_rate:detection_latency_6h > 6
-      #   ...
-      # - alert: HSIAnalysisLatencyFastBurn
-      #   expr: hsi:burn_rate:analysis_latency_1h > 14.4 and hsi:burn_rate:analysis_latency_6h > 6
-      #   ...
-
-  # WebSocket Alerts
-  # NOTE: Disabled - WebSocket metrics (hsi_websocket_*) not yet implemented
-  # Re-enable when metrics are added to backend/core/metrics.py
-  # - name: websocket_alerts
-  #   rules:
-  #     # Warning: WebSocket connection failures
-  #     - alert: HSIWebSocketConnectionFailures
-  #       expr: hsi:websocket:connection_success_rate_5m < 0.95
-  #       for: 5m
-  #       labels:
-  #         severity: warning
-  #         component: websocket
-  #       annotations:
-  #         summary: 'HSI WebSocket connection failures elevated'
-  #         description: 'WebSocket connection success rate is below 95% for more than 5 minutes.'
-  #
-  #     # Critical: WebSocket completely failing
-  #     - alert: HSIWebSocketDown
-  #       expr: hsi:websocket:connection_success_rate_5m < 0.5
-  #       for: 2m
-  #       labels:
-  #         severity: critical
-  #         component: websocket
-  #       annotations:
-  #         summary: 'HSI WebSocket service degraded'
-  #         description: 'More than 50% of WebSocket connections are failing.'
-  #         runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/websocket-down'
-  #
-  #     # Info: No active WebSocket connections
-  #     - alert: HSINoWebSocketConnections
-  #       expr: hsi:websocket:active_connections == 0
-  #       for: 30m
-  #       labels:
-  #         severity: info
-  #         component: websocket
-  #       annotations:
-  #         summary: 'HSI No active WebSocket connections'
-  #         description: 'No clients have been connected via WebSocket for 30 minutes. This may be expected during low-traffic periods.'
 
   # =============================================================================
   # Prometheus Self-Monitoring Alerts (NEM-2468)
@@ -692,11 +633,22 @@ groups:
   # the AI processing pipeline.
   - name: pipeline_worker_alerts
     rules:
-      # NOTE: HSIWorkerRestartStorm disabled - hsi_pipeline_worker_restarts_total metric not implemented
-      # Re-enable when metric is added to backend/core/metrics.py
-      # - alert: HSIWorkerRestartStorm
-      #   expr: increase(hsi_pipeline_worker_restarts_total[5m]) > 3
-      #   ...
+      # Warning: Workers restarting repeatedly in a 5-minute window.
+      # hsi_pipeline_worker_restarts_total is incremented by
+      # record_pipeline_worker_restart() (metrics.py), called from
+      # worker_supervisor.py:696 on every supervised restart.
+      - alert: HSIWorkerRestartStorm
+        expr: |
+          sum(increase(hsi_pipeline_worker_restarts_total[5m])) > 3
+        for: 2m
+        labels:
+          severity: warning
+          component: worker
+          service: pipeline
+        annotations:
+          summary: 'Pipeline workers restarting repeatedly'
+          description: 'More than 3 worker restarts in 5 minutes (current: {{ $value | printf "%.0f" }}). Check worker logs for the failure driving the restarts.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/worker-failed'
 
       # Critical: Worker in failed state for 30 seconds
       - alert: HSIWorkerFailed
@@ -726,10 +678,22 @@ groups:
           description: 'Worker {{ $labels.worker_name }} has not been in RUNNING state for more than 2 minutes. Current state: {{ $value }} (0=stopped, 1=running, 2=restarting, 3=failed).'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/worker-not-running'
 
-      # NOTE: HSIWorkerRestartSlow disabled - hsi_pipeline_worker_restart_duration_seconds_bucket metric not implemented
-      # - alert: HSIWorkerRestartSlow
-      #   expr: histogram_quantile(0.95, rate(hsi_pipeline_worker_restart_duration_seconds_bucket[5m])) > 30
-      #   ...
+      # Warning: A worker restart is taking unusually long to complete.
+      # hsi_pipeline_worker_restart_duration_seconds is observed by
+      # record_pipeline_worker_restart() when the supervisor passes the
+      # measured restart duration (worker_supervisor.py:696-698).
+      - alert: HSIWorkerRestartSlow
+        expr: |
+          histogram_quantile(0.95, rate(hsi_pipeline_worker_restart_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: worker
+          service: pipeline
+        annotations:
+          summary: 'Pipeline worker restarts are slow ({{ $labels.worker_name }})'
+          description: 'P95 worker restart duration exceeds 30s for more than 5 minutes. Restarting may be blocked on dependencies (Redis, detector, model warmup).'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/worker-not-running'
 
       # Warning: High consecutive failure count
       - alert: HSIWorkerConsecutiveFailures
@@ -744,12 +708,6 @@ groups:
           summary: 'Pipeline worker has multiple consecutive failures ({{ $labels.worker_name }})'
           description: 'Worker {{ $labels.worker_name }} has {{ $value }} consecutive failures. Worker may be approaching the max restart limit.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/worker-consecutive-failures'
-
-      # NOTE: The following alerts are disabled - hsi_pipeline_worker_restarts_total metric not implemented
-      # Re-enable when metric is added to backend/core/metrics.py
-      # - alert: HSIWorkerRestarted
-      # - alert: HSIWorkerConnectionIssues
-      # - alert: HSIWorkerMemoryIssues
 
       # Critical: All workers in the supervisor are failing
       - alert: HSIAllWorkersFailing
@@ -845,42 +803,11 @@ groups:
   # =============================================================================
   # LLM/Inference Alerts
   # =============================================================================
-  # Monitor LLM throughput, queue depth, and processing health.
-  # Note: Uses hsi_nemotron_tokens_output_total (not hsi_nemotron_tokens_generated_total)
-  # Note: Uses hsi_analysis_queue_depth (not hsi_nemotron_queue_depth which doesn't exist)
+  # Monitor analysis-queue pressure, detection throughput, and prompt fit.
+  # Queue depths are gauges set by QueueMetricsWorker (pipeline_workers.py:1476-1477)
+  # and mirrored by the json-exporter telemetry module (monitoring/json-exporter-config.yml).
   - name: llm_inference_alerts
     rules:
-      # Critical: LLM inference throughput is zero
-      - alert: NemotronThroughputZero
-        expr: |
-          rate(hsi_nemotron_tokens_output_total[5m]) == 0
-          and
-          hsi_analysis_queue_depth > 0
-        for: 2m
-        labels:
-          severity: critical
-          component: llm
-          service: nemotron
-        annotations:
-          summary: 'Nemotron LLM generating zero tokens with queued work'
-          description: 'Nemotron has items queued but is not generating any tokens. LLM inference may be stuck.'
-          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/llm-throughput-zero'
-
-      # Warning: LLM throughput degraded
-      - alert: NemotronThroughputDegraded
-        expr: |
-          hsi_nemotron_tokens_per_second < 50
-          and
-          hsi_analysis_queue_depth > 5
-        for: 5m
-        labels:
-          severity: warning
-          component: llm
-          service: nemotron
-        annotations:
-          summary: 'Nemotron LLM throughput degraded'
-          description: 'Nemotron is generating only {{ $value }} tokens/sec with queue backing up.'
-
       # Critical: Detection processing stalled
       - alert: HSIDetectionProcessingStalled
         expr: |
@@ -912,7 +839,7 @@ groups:
           summary: 'Detection throughput below threshold'
           description: 'Processing <1 detection per 10 seconds while queue has items. Pipeline may be degraded.'
 
-      # Critical: Analysis queue critically backed up (replacement for NemotronQueueCritical)
+      # Critical: Analysis queue critically backed up
       - alert: HSIAnalysisQueueCritical
         expr: hsi_analysis_queue_depth > 50
         for: 2m
@@ -937,43 +864,6 @@ groups:
           summary: 'Prompts being truncated due to context overflow'
           description: 'Prompt truncation rate is {{ $value }}/sec. Context window may be saturated.'
 
-      # Warning: High context utilization
-      - alert: NemotronContextUtilizationHigh
-        expr: |
-          histogram_quantile(0.95, rate(hsi_llm_context_utilization_bucket[5m])) > 0.9
-        for: 5m
-        labels:
-          severity: warning
-          component: llm
-          service: nemotron
-        annotations:
-          summary: 'LLM context utilization approaching limits'
-          description: 'P95 context utilization is {{ $value | humanizePercentage }}. Risk of truncation.'
-
-      # Removed (gateway consolidation, 2026-09-22): YOLO26ModelNotLoaded and
-      # FlorenceModelNotLoaded keyed on yolo26_model_loaded / florence_model_loaded —
-      # gauges exported only by the retired ai/yolo26/metrics.py and ai/florence/
-      # model.py. Triton exports no model-loaded gauge (nv_* are request counters/
-      # duration histograms), so there is nothing to retarget onto without inventing
-      # a metric. Live coverage now: AIDetectorUnavailable (hsi_ai_healthy,
-      # prometheus_rules.yml) for the detector, and CLIPServiceDown /
-      # FlorenceServiceDown (ai-pipeline-alerts.yml, nv_inference_request_success
-      # {model=...}) for models idle while enrichment is active.
-
-  # Removed (gateway consolidation, 2026-09-22): the enrichment_model_zoo_alerts
-  # group (NEM-3149) — EnrichmentVRAMUtilizationCritical/High, EnrichmentModel-
-  # EvictionRateHigh/Elevated, EnrichmentCriticalModelEvicted, EnrichmentModel-
-  # LoadTimeSlow, EnrichmentNoModelsLoaded. Their series (enrichment_vram_utilization_
-  # percent, enrichment_model_evictions_total, enrichment_model_load_time_seconds,
-  # enrichment_models_loaded) were exported only by the retired ai/enrichment
-  # Model Zoo (ai/enrichment/model_manager.py), which the gateway consolidation
-  # removed: Triton serves the enrichment models statelessly, so there are no
-  # load/evict events to alert on and no Triton series to retarget onto without
-  # inventing a metric. Closest live coverage for the VRAM-pressure half:
-  # HSIGPUMemoryElevated/High (gpu_alerts group above), GPUMemoryNearFull/High
-  # (gpu-alerts.yml, DCGM) and GPUMemoryHigh/Critical (ai-pipeline-alerts.yml,
-  # hsi_gpu_*); for the failed-model half, EnrichmentModelErrorRate/Critical
-  # (ai-pipeline-alerts.yml).
   # =============================================================================
   # Database and Cache Cascade Alerts
   # =============================================================================
@@ -1064,18 +954,14 @@ groups:
   # Pyroscope Continuous Profiling Alerts (NEM-3925)
   # =============================================================================
   # Monitor Pyroscope server health and profiling data ingestion.
-  # Live profiling sources since the gateway consolidation: the backend (Python
-  # SDK, backend/core/telemetry.py init_profiling) and the ai-vlm/Llama.cpp
+  # Profiling sources: the backend (Python SDK — init_profiling() runs at
+  # backend/main.py:821 via backend/core/telemetry.py) and the ai-vlm/Llama.cpp
   # container (pyroscope.profile=true label -> Alloy eBPF profiling,
-  # monitoring/alloy/config.alloy). The retired standalone AI containers
-  # (ai-yolo26, ai-florence, ai-clip, ai-enrichment*) used to profile via SDK
-  # (added for all services in cd807160; residue init_profiling calls survive
-  # only in ai/clip/model.py, ai/florence/model.py, ai/enrichment/model.py and
-  # ai/enrichment-light/model.py — ai/yolo26's call site was removed with the
-  # container); ai-gateway/Triton is not a profiling target (no pyroscope label, no
+  # monitoring/alloy/config.alloy; docker-compose.prod.yml:144-145).
+  # ai-gateway/Triton is not a profiling target (no pyroscope label, no
   # PYROSCOPE_* env in compose). These alerts watch the Pyroscope SERVER
-  # (up{job="pyroscope"}, pyroscope_* self-metrics), so they stay valid — the
-  # NoProfilesReceived alert is the canary if the source list shrinks further.
+  # (up{job="pyroscope"}, pyroscope_* self-metrics); the NoProfilesReceived
+  # alert is the canary if the source list shrinks.
   - name: profiling_alerts
     rules:
       # Critical: Pyroscope server not available

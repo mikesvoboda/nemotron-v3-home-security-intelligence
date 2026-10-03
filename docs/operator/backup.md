@@ -93,7 +93,7 @@ mkdir -p "${BACKUP_DIR}"
 echo "[$(date)] Starting backup..."
 
 # Database
-docker compose -f "${PROJECT_DIR}/docker-compose.prod.yml" exec -T postgres pg_dump -U security -d security \
+podman compose -f "${PROJECT_DIR}/docker-compose.prod.yml" exec -T postgres pg_dump -U security -d security \
     --format=custom --compress=9 \
     > "${BACKUP_DIR}/database_${DATE}.dump"
 

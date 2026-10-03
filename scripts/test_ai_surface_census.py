@@ -155,7 +155,7 @@ class TestFixtureTree:
         assert data["totals"]["client_bypass_sites"] >= 2
 
 
-@pytest.mark.timeout(60)  # census is ~8s on the real tree; repo addopts default is 5s
+@pytest.mark.timeout(60)  # census is sub-second on the real tree; repo addopts default is 5s
 class TestRealTree:
     """Anchors against the plan's MEASURE numbers (P WP5.5 reference anchors:
     22 *_loader.py modules, 21 importing heavy AI libs; the two WP5.6-known

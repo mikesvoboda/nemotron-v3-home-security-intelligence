@@ -44,14 +44,14 @@ user/
 
 **Sections:**
 
-| Section                  | Description                                  |
-| ------------------------ | -------------------------------------------- |
-| Getting Started          | 4-step learning path for new users           |
-| Dashboard Features       | Core dashboard, events, customization guides |
-| Alerts and Notifications | Risk levels and notification configuration   |
-| Mobile and Accessibility | PWA, keyboard shortcuts, accessibility       |
-| Advanced Features        | AI enrichment, audit dashboard, monitoring   |
-| Quick Help               | Common troubleshooting and emergency info    |
+| Section                  | Description                                       |
+| ------------------------ | ------------------------------------------------- |
+| Getting Started          | 4-step learning path for new users                |
+| Dashboard Features       | Core dashboard, events, customization guides      |
+| Alerts and Notifications | Risk levels and notification configuration        |
+| Mobile and Accessibility | PWA, keyboard shortcuts, accessibility            |
+| Advanced Features        | Event detail anatomy, audit dashboard, monitoring |
+| Quick Help               | Common troubleshooting and emergency info         |
 
 **Learning Paths:**
 

@@ -192,7 +192,7 @@ LLM_OPS: dict[str, dict[str, Any]] = {
             "title": "LlamaCppSlots",
             "items": {"type": "object"},
         },
-        "evidence": "backend/services/performance_collector.py:214",
+        "evidence": "backend/services/performance_collector.py:220",
     },
 }
 
@@ -273,9 +273,10 @@ def _vlm_contract_schemas() -> tuple[dict[str, Any], dict[str, Any]]:
 # still answer 501 with their own explanatory detail -- that is a live
 # behavior, pinned there, not a contract row.
 
-# per-model-server availability for the 31 gateway ops. Evidence: the WP7.3
-# gap table re-verified at draft time. /segment is gateway-only (yolo26
-# server has no route: grep -c segment ai/yolo26/model.py == 0).
+# per-model-server availability for the 5 gateway ops this map still carries.
+# Evidence: the WP7.3 gap table re-verified at draft time. /segment is
+# gateway-only (yolo26 server has no route: grep -c segment ai/yolo26/model.py
+# == 0).
 PER_MODEL_SERVER: dict[str, bool] = {
     "yolo26_detect": True,
     "yolo26_detect_batch": True,

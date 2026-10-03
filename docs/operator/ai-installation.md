@@ -11,26 +11,32 @@
 
 ### VRAM Requirements by Deployment Scenario
 
-| Scenario                       | Models Used                                                     | VRAM Required     | Recommended GPU |
-| ------------------------------ | --------------------------------------------------------------- | ----------------- | --------------- |
-| **Dev (host-run)**             | Nemotron Mini 4B + standalone YOLO26                            | 8GB minimum       | RTX 3060/4060   |
-| **Prod (containerized, core)** | Nemotron-3-Nano-30B + ai-gateway (YOLO26, Florence-2, SigLIP 2) | 20GB minimum      | RTX 4080/A4000  |
-| **Prod (all services)**        | Nano 30B + full gateway (enrichment loaded on demand)           | 24GB+ recommended | RTX A5500/4090  |
+| Scenario                | What runs                                                            | VRAM Required     | Recommended GPU  |
+| ----------------------- | -------------------------------------------------------------------- | ----------------- | ---------------- |
+| **Detection only**      | `ai-gateway` (Triton: yolo26 + reid)                                 | 8GB minimum       | RTX 3060         |
+| **Full shipped path**   | `ai-gateway` + `ai-vlm` (Qwen3VL-8B + mmproj)                        | 20GB minimum      | RTX 4080/A4000   |
+| **Everything resident** | As above with `BACKEND_MODEL_PRELOAD=true` (face + re-ID in-process) | 24GB+ recommended | RTX A5500 / 4090 |
+
+The third row is not a preference. `setup.py` writes `BACKEND_MODEL_PRELOAD=true` only
+when it detects **>= 24 GB** of VRAM, and below that the face and person-re-ID lookup
+legs stay unloaded — every event reads `unavailable` for those two lines, and nothing
+errors.
 
 ### Minimum
 
 - **GPU**: NVIDIA RTX 3060 (8GB+ VRAM) or equivalent
-- **VRAM**: 8GB minimum (~7GB used + buffer)
+- **VRAM**: 8GB minimum for detection alone
 - **CUDA**: Version 11.8 or later
 - **System RAM**: 16GB
-- **Storage**: 40GB+ free space for models and cache (the `models.yml` manifest totals
-  ~33GB; the four required models are ~16GB)
+- **Storage**: 10GB+ free for the provisioned models, plus the ~5.8 GB VLM GGUF pair you
+  place yourself (see [Model Downloads](#model-downloads))
 
 ### Recommended (Tested Configuration)
 
 - **GPU**: NVIDIA RTX A5500 (24GB VRAM) — or two GPUs, the default split is
   `GPU_LLM=0` + `GPU_AI_SERVICES=1`
-- **VRAM**: 24GB+ (comfortable headroom)
+- **VRAM**: 24GB+ (comfortable headroom, and it is the threshold `setup.py` uses to
+  enable backend model residency)
 - **CUDA**: Version 12.x
 - **System RAM**: 32GB
 - **Storage**: 60GB free space
@@ -53,8 +59,6 @@ Works with any NVIDIA GPU supporting CUDA compute capability 7.0+:
 
 ### Installation Prerequisite Chain
 
-The following flowchart shows the dependency chain for AI service installation:
-
 ```mermaid
 flowchart TD
     subgraph "Hardware Layer"
@@ -72,18 +76,19 @@ flowchart TD
     end
 
     subgraph "Application Layer"
-        Python[Python 3.10+]
-        Llama[llama.cpp<br/>built in ai/nemotron image]
+        Python[Python 3.11+]
+        Llama[llama.cpp<br/>built in ai/vlm image]
         Triton[Triton Inference Server<br/>base of ai/gateway image]
     end
 
     subgraph "Model Layer"
-        Models[models.yml manifest<br/>~33GB, required ~16GB]
+        Models[models.yml manifest<br/>5 fetched entries, 763 MB]
+        VlmW[operator-placed GGUF pair<br/>under AI_MODELS_PATH/vlm]
     end
 
     subgraph "Service Layer"
-        Gateway[ai-gateway:8090<br/>yolo26/florence/clip/<br/>enrichment/enrich-lt]
-        LLM[ai-llm:8091]
+        Gateway[ai-gateway:8090<br/>yolo26 · enrich-lt]
+        Vlm[ai-vlm:8098<br/>profile vlm]
     end
 
     GPU --> Driver
@@ -96,14 +101,14 @@ flowchart TD
     Runtime --> Triton
 
     Models --> Gateway
-    Models --> LLM
-    Llama --> LLM
+    VlmW --> Vlm
+    Llama --> Vlm
 
     style GPU fill:#e1f5fe
     style Driver fill:#e8f5e9
     style Toolkit fill:#fff3e0
     style Gateway fill:#c8e6c9
-    style LLM fill:#c8e6c9
+    style Vlm fill:#c8e6c9
 ```
 
 ### Operating System
@@ -139,36 +144,18 @@ For the container path, also install `nvidia-container-toolkit` and generate the
 spec used by Podman (`sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`) —
 see [GPU Setup](gpu-setup.md).
 
-### 2. Python 3.10+
+### 2. Python
 
 ```bash
-# Check Python version
-python3 --version  # Should be 3.10 or later
-
-# Ubuntu/Debian
-sudo apt install python3.10 python3-pip python3-venv
-
-# Fedora
-sudo dnf install python3.10 python3-pip
+python3 --version   # the interpreter the project pins; see .python-version
 ```
 
-### 3. llama.cpp (host-run development only)
+### 3. llama.cpp (you do not need it)
 
-Only needed if you run `./ai/start_llm.sh` / `./ai/start_nemotron.sh` on the host. The
-containerized `ai-llm` image builds llama.cpp from source inside the image
-(`ai/nemotron/Dockerfile`) — you do **not** need a host install for the compose stack.
-
-```bash
-# Build from source (the ai/nemotron Dockerfile does the same inside the image)
-sudo dnf install gcc-c++ cmake git libcurl-devel   # Ubuntu: build-essential cmake git libcurl4-openssl-dev
-cd /tmp
-git clone https://github.com/ggml-org/llama.cpp
-cd llama.cpp
-cmake -B build -DGGML_CUDA=ON && cmake --build build --config Release -j$(nproc)
-
-# Verify
-build/bin/llama-server --version
-```
+The `ai-vlm` image builds llama.cpp from source inside the image
+(`ai/vlm/Dockerfile`) — you do **not** need a host install for the compose stack. Set
+`CUDA_ARCHITECTURES` in `.env` to your card's compute capability (for example `89` for
+Ada, `86` for Ampere) before building: it cuts the llama.cpp build time by roughly 6x.
 
 ### 4. Python Dependencies (YOLO26 / dev tooling)
 
@@ -194,90 +181,90 @@ Key dependencies (defined in `pyproject.toml`):
 
 ## Model Downloads
 
-All model weights are listed in the `models.yml` manifest at the repo root (30 models,
-~33GB total). `./ai/download_models.sh` reads that manifest and downloads into
-`${AI_MODELS_PATH:-/export/ai_models}`.
+Two different provisioning mechanisms feed the shipped stack, and conflating them is
+the most common install failure.
 
-### Models You Actually Need
+### 1. Script-provisioned (manifest: `models.yml`)
 
-| Model                                                           | Size           | Required | Use Case                                      | Location (under `$AI_MODELS_PATH`)                  |
-| --------------------------------------------------------------- | -------------- | -------- | --------------------------------------------- | --------------------------------------------------- |
-| **Nemotron-3-Nano-30B-A3B**                                     | ~15GB (Q4_K_M) | yes      | Production LLM (`ai-llm`)                     | `nemotron/nemotron-3-nano-30b-a3b-q4km/`            |
-| **YOLO26**                                                      | ~67MB          | yes      | Detection (`ai-gateway /yolo26`)              | `model-zoo/yolo26/` (Triton)                        |
-| **Florence-2-base**                                             | ~1GB           | yes      | Vision-language (`/florence`)                 | `model-zoo/florence-2-base/`                        |
-| **SigLIP 2 base**                                               | ~400MB         | yes      | Embeddings/ReID (`/clip`)                     | `model-zoo/siglip2-base-patch16-224/`               |
-| Enrichment zoo (vehicle, pet, clothing, depth, pose, threat, …) | ~15GB combined | no       | `/enrichment`, `/enrich-lt`                   | `model-zoo/…`                                       |
-| **Nemotron Mini 4B Instruct**                                   | ~2.5GB         | no       | Host-run dev fallback for `./ai/start_llm.sh` | `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf` |
+`./ai/download_models.sh` reads `models.yml` and fetches the entries its rule selects —
+**5 entries, 763 MB by the manifest's `size_mb` estimates**:
 
-**When to use each LLM:**
-
-- **Mini 4B**: Fast iteration during development, lower quality reasoning but sufficient for testing pipelines
-- **Nano 30B**: Production deployment with higher quality risk analysis, requires more VRAM
-
-### Automated Download
+| Model                    | Use Case                                                 | Location (under `$AI_MODELS_PATH`)    |
+| ------------------------ | -------------------------------------------------------- | ------------------------------------- |
+| YOLO26 n/s/m `.pt`       | Detection — gateway Triton export input                  | `model-zoo/yolo26/`                   |
+| OSNet-AIN x1.0           | Person re-ID (Triton `reid` + in-process `osnet_loader`) | `model-zoo/osnet-ain-x1-0/`           |
+| Threat-Detection-YOLOv8n | Weapons — Triton `threat` (opt-in lane)                  | `model-zoo/threat-detection-yolov8n/` |
+| YOLO11 face detection    | Face detection on person crops                           | `model-zoo/yolo11-face-detection/`    |
+| YOLO11 license-plate     | Plate detection                                          | `model-zoo/yolo11-license-plate/`     |
 
 ```bash
 cd $PROJECT_ROOT
-./ai/download_models.sh
+./ai/download_models.sh                       # default ${AI_MODELS_PATH:-/export/ai_models}
+AI_MODELS_PATH=/mnt/big/models ./ai/download_models.sh
 ```
 
-This clones/downloads every model listed in `models.yml` into
-`${AI_MODELS_PATH:-/export/ai_models}/{nemotron,model-zoo}/`. Set `AI_MODELS_PATH` to
-use a different disk.
+Five manifest entries are deliberately **not** fetched because their libraries pull what
+they need at runtime: `face-detector-scrfd`, `face-recognizer` (insightface /
+onnxruntime), `fast-alpr`, `paddleocr`, and `yolo26-general` (weights unreleased).
 
-### Development Model (Mini 4B)
+### 2. Operator-placed: the VLM GGUF pair
 
-`ai/start_llm.sh` looks for the mini model at `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
-(not under `$AI_MODELS_PATH`). Download it manually:
+Nothing in this repository downloads the reasoning engine's weights — its identity is
+operator config. Place **both** files under `${AI_MODELS_PATH}/vlm/`, which compose
+mounts read-only into `ai-vlm` at `/models`:
 
 ```bash
-cd ai/nemotron
-wget https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF/resolve/main/nemotron-mini-4b-instruct-Q4_K_M.gguf \
-  -O nemotron-mini-4b-instruct-q4_k_m.gguf
+mkdir -p "${AI_MODELS_PATH:-/export/ai_models}/vlm"
+cd "${AI_MODELS_PATH:-/export/ai_models}/vlm"
+
+# The pair named by VLM_MODEL_PATH + VLM_MMPROJ_PATH — one identity.
+# 5,027,784,800 B main + 752,289,728 B projector for the shipped 8B.
+wget https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen3VL-8B-Instruct-Q4_K_M.gguf
+wget https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf
+
+# The AI service runs as uid 1000; files fetched into the weights root commonly
+# land mode 640 and the serve then dies on "Permission denied" reading a file the
+# host operator can read fine.
+chmod 644 Qwen3VL-8B-Instruct-Q4_K_M.gguf mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf
+
+# Pin them against the measured sizes before starting anything
+ls -l Qwen3VL-8B-Instruct-Q4_K_M.gguf mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf
 ```
 
-### Production Model (Nano 30B)
+`AI_MODELS_PATH` is **never assigned** in `.env.example` — `setup.py` writes it. If you
+skip `setup.py`, set it yourself or the compose mount silently targets the
+`/export/ai_models` default.
 
-If you skip `download_models.sh`, download the LLM directly. The manifest fetches the
-`unsloth/Nemotron-3-Nano-30B-A3B-GGUF` build; NVIDIA's own repository is
-[nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF):
+> [!WARNING]
+> **Fetch the Q8_0 projector, not the F16.** The same repo also ships
+> `mmproj-Qwen3VL-8B-Instruct-F16.gguf`; taking it yields a serve that starts and a file
+> that matches no pin anyone has. **And the mmproj file is not optional** — llama.cpp
+> starts and answers `/health` with 200 without a projector, the compose healthcheck
+> passes, and every `vlm_assess` call then degrades silently against a text-only server.
+> If the two filenames differ from the defaults in `.env.example`, update
+> `VLM_MODEL_PATH` and `VLM_MMPROJ_PATH` together, and move `VLM_MODEL_ID` with them.
 
-```bash
-# Create production model directory
-mkdir -p /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
-
-# Download the model (large download, ~15GB)
-cd /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
-wget https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
-  -O Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
-```
-
-The `docker-compose.prod.yml` `ai-llm` service expects this file under
-`/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/` (mounted at `/models`,
-selected via `LLM_MODEL_PATH`).
+The measured 4B pair (`Qwen/Qwen3-VL-4B-Instruct-GGUF`: 2,497,281,664 B + 453,974,304 B)
+is the named fallback when the 8B does not fit a 24 GB card.
 
 ### Verify Downloads
 
 ```bash
-# Check development model (if downloaded)
-ls -lh ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
-# Expected: ~2.5GB file
+# Script-provisioned models
+ls "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/"
+# Expected: yolo26/, osnet-ain-x1-0/, threat-detection-yolov8n/,
+#           yolo11-face-detection/, yolo11-license-plate/
 
-# Check production model
-ls -lh /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/
-# Expected: ~15GB file
-
-# Check gateway models
-ls /export/ai_models/model-zoo/
-# Expected: yolo26/, florence-2-base/, siglip2-base-patch16-224/, enrichment dirs
+# The VLM pair (the script creates the directory; it does not fill it)
+ls -lh "${AI_MODELS_PATH:-/export/ai_models}/vlm/"
+# Expected: BOTH .gguf files, not one
 ```
 
 ---
 
 ## Verification
 
-There is no unified `scripts/start-ai.sh` (it was removed). Verify prerequisites
-directly:
+There is no unified `scripts/start-ai.sh`. Verify prerequisites directly:
 
 ```bash
 # GPU + driver
@@ -287,37 +274,33 @@ nvidia-smi
 podman run --rm --device nvidia.com/gpu=all docker.io/nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
 
 # Model files present
-ls /export/ai_models/model-zoo/ /export/ai_models/nemotron/
+ls "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/" "${AI_MODELS_PATH:-/export/ai_models}/vlm/"
 ```
 
 ---
 
-## Enrichment Services (inside ai-gateway)
-
-Florence-2, CLIP/SigLIP 2 and the enrichment models are **not separate services**
-anymore — they run inside the single `ai-gateway` container behind routers
-`/florence`, `/clip`, `/enrichment` (heavy) and `/enrich-lt` (light). The old
-standalone containers and ports (8092 Florence, 8093 CLIP, 8094 enrichment, 8096
-enrichment-light) no longer exist.
-
-To enable enrichment features you only need the model weights on disk and the
-gateway running:
+## Starting the AI Services
 
 ```bash
-# 1. Models already fetched by ./ai/download_models.sh (manifest: models.yml)
-
-# 2. Start the gateway
+# Gateway: starts with a plain up
 podman compose -f docker-compose.prod.yml up -d ai-gateway
 
-# 3. Verify each router
-curl -s http://localhost:8090/florence/health | jq
-curl -s http://localhost:8090/clip/health | jq
-curl -s http://localhost:8090/enrichment/health | jq
+# VLM: needs its profile on the command line
+podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+
+# Verify each gateway router and the VLM
+curl -s http://localhost:8090/yolo26/health | jq
 curl -s http://localhost:8090/enrich-lt/health | jq
+curl -s http://localhost:8098/health | jq
+
+# Prove the projector loaded — /health passing does NOT prove this
+podman logs ai-vlm 2>&1 | grep -i mmproj
+curl -s http://localhost:8098/props | jq
 ```
 
-Which enrichment tier (heavy vs light) handles a given model is set by the
-`ENRICHMENT_*_SERVICE` variables — see [AI Configuration](ai-configuration.md).
+`podman compose ... up -d ai-vlm` **without** `--profile vlm` starts nothing and reports
+success: podman-compose drops a service whose profile is inactive before it resolves the
+service names you typed.
 
 ---
 

@@ -6,10 +6,10 @@
 
 ## Key Files
 
-- `backend/core/config.py:884-894` - CORS origins configuration
-- `backend/main.py:1398-1418` - CORS middleware setup
+- `backend/core/config.py:874-884` - CORS origins configuration
+- `backend/main.py:1539-1552` - CORS middleware setup
 - `backend/core/url_validation.py` (450 lines) - SSRF protection utilities
-- `backend/core/sanitization.py:554-657` - URL validation for monitoring services
+- `backend/core/sanitization.py:563-648` - URL validation for monitoring services
 - `backend/api/middleware/rate_limit.py` - Rate limiting configuration
 
 ## Overview
@@ -39,8 +39,8 @@ flowchart TB
     end
 
     subgraph AIServices["AI Services (loopback-published)"]
-        GATEWAY[ai-gateway :8090<br/>yolo26 / clip /<br/>florence / enrichment]
-        LLM[ai-llm :8091<br/>Nemotron]
+        GATEWAY[ai-gateway :8090<br/>yolo26 / enrich-lt]
+        VLM[ai-vlm :8098<br/>Qwen3VL]
     end
 
     subgraph External["External (Optional)"]
@@ -56,7 +56,7 @@ flowchart TB
     BACKEND --> DB
     BACKEND --> REDIS
     BACKEND -->|HTTP| GATEWAY
-    BACKEND -->|HTTP| LLM
+    BACKEND -->|HTTP| VLM
     BACKEND -.->|SSRF Protected| WEBHOOK
 ```
 
@@ -76,7 +76,7 @@ project AGENTS.md).
 CORS is configured to allow common local development origins:
 
 ```python
-# From backend/core/config.py:884-894
+# From backend/core/config.py:874-884
 cors_origins: list[str] = Field(
     default=[
         # HTTPS origins for external browser access
@@ -95,7 +95,7 @@ cors_origins: list[str] = Field(
 The FastAPI CORS middleware is configured with security-conscious defaults:
 
 ```python
-# From backend/main.py:1398-1418
+# From backend/main.py:1539-1552
 # Note: When allow_credentials=True, allow_origins cannot be ["*"]
 # If "*" is in origins, we disable credentials to allow any origin
 _cors_origins = get_settings().cors_origins
@@ -260,7 +260,7 @@ def _log_blocked_ssrf_attempt(url: str, reason: str, hostname: str | None = None
 Grafana and monitoring URLs have relaxed validation (allowing internal IPs):
 
 ```python
-# From backend/core/sanitization.py:554-658
+# From backend/core/sanitization.py:563-648
 def validate_monitoring_url(
     url: str,
     *,
@@ -283,7 +283,7 @@ def validate_monitoring_url(
 Rate limits are applied based on endpoint type:
 
 ```python
-# From backend/api/middleware/rate_limit.py:283-291
+# From backend/api/middleware/rate_limit.py:283-292
 class RateLimitTier(str, Enum):
     DEFAULT = "default"          # rate_limit_requests_per_minute (default 60)
     MEDIA = "media"              # rate_limit_media_requests_per_minute (default 120)
@@ -295,7 +295,7 @@ class RateLimitTier(str, Enum):
 ```
 
 Each tier's limit comes from a `rate_limit_*` setting in
-`backend/core/config.py:2122-2181` (`get_tier_limits()` maps tier →
+`backend/core/config.py:2253-2324` (`get_tier_limits()` maps tier →
 `(requests_per_minute, burst_allowance)`; the generic burst default is 10, the
 export tier has no burst allowance).
 
@@ -344,27 +344,32 @@ from .rate_limit import check_websocket_rate_limit
 
 ### Internal Service URLs
 
-AI services use internal Docker network URLs:
+AI services use internal Docker network URLs. The two AI containers each have
+one settings field (`backend/core/config.py:1036-1045`):
 
 ```python
-# From backend/core/config.py:1023-1033
+# From backend/core/config.py:1036-1045
 yolo26_url: str = Field(
     default="http://ai-gateway:8090/yolo26",
     description="URL of the YOLO26 detection service",
 )
-nemotron_url: str = Field(
-    default="http://localhost:8091",
-    description="Nemotron reasoning service URL (llama.cpp server). Development: http://localhost:8091, Docker: http://ai-llm:8091",
+# Development: http://localhost:8098 (local dev)
+# Docker: http://ai-vlm:8098 (compose profile `vlm`, container PORT fixed at 8098)
+ai_vlm_url: str = Field(
+    default="http://localhost:8098",
+    description="VLM verification service URL (llama.cpp + mmproj, the vlm_assess engine). Development: http://localhost:8098, Docker: http://ai-vlm:8098",
 )
 ```
 
-Since the gateway consolidation, detection, CLIP, Florence and the enrichment
-models all run inside the single `ai-gateway` service on port 8090 under
-path prefixes (`/yolo26`, `/clip`, `/florence`, `/enrichment`, `/enrich-lt`);
-only Nemotron stays on its own `ai-llm` container (port 8091). The
-`ai_gateway_url` / `use_ai_gateway` settings (`backend/core/config.py:1510-1520`)
-route all AI clients through the gateway — both are enabled in the deployed stack
-(`docker-compose.prod.yml:456-457`, `.env.example:200-201`).
+Detection runs inside the single `ai-gateway` service on port 8090, which
+mounts exactly two routers — `/yolo26` and `/enrich-lt`
+(`ai/gateway/main.py:276-277`); `enrichment_light_url`
+(`backend/core/config.py:1501-1504`) carries the readiness-lane address. The
+verdict engine runs on its own `ai-vlm` container (port 8098, behind the `vlm`
+compose profile). The `ai_gateway_url` / `use_ai_gateway` settings
+(`backend/core/config.py:1510-1520`) route detection clients through the gateway
+— both are enabled in the deployed stack (`docker-compose.prod.yml:590-591`,
+`.env.example:196-197`).
 
 ### Optional API Key Authentication for AI Services
 
@@ -376,8 +381,8 @@ yolo26_api_key: SecretStr | None = Field(
     default=None,
     description="Optional API key for YOLO26 service authentication",
 )
-# (The nemotron_api_key sibling field was deleted with the legacy LLM path in
-# R8 slice S2, 2026-09-29; the shipped engine is ai-vlm, which takes no key.)
+# ai-vlm — the shipped verdict engine — takes no key field; the client posts
+# to settings.ai_vlm_url with no Authorization header.
 ```
 
 ## Network Isolation Recommendations
@@ -385,14 +390,14 @@ yolo26_api_key: SecretStr | None = Field(
 ### Docker Network Segmentation
 
 The shipped `docker-compose.prod.yml` puts every service on a single bridge
-network, `security-net` (`docker-compose.prod.yml:1388-1389`). Isolation comes
+network, `security-net` (`docker-compose.prod.yml:1519-1521`). Isolation comes
 from host port bindings instead of network splits:
 
-| Exposure                                                      | Services                                                                                                                                                                                           |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Published to the LAN (`0.0.0.0:${FRONTEND_HTTPS_PORT:-8444}`) | Frontend nginx (app, `/api` proxy, `/grafana` proxy)                                                                                                                                               |
-| Published on loopback only (`127.0.0.1:...`)                  | Backend 8000 (`API_PORT`), ai-gateway 8090 (`AI_GATEWAY_PORT`), ai-llm 8091 (`LLM_PORT`), PostgreSQL 5432, Redis 6379, go2rtc 1984, Prometheus 9090, Alertmanager 9093, Grafana 3002, and the rest |
-| Not published at all                                          | Containers reachable only over `security-net` service names (e.g. `http://backend:8000`, `http://ai-gateway:8090`)                                                                                 |
+| Exposure                                                      | Services                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Published to the LAN (`0.0.0.0:${FRONTEND_HTTPS_PORT:-8444}`) | Frontend nginx (app, `/api` proxy, `/grafana` proxy)                                                                                                                                                                                                                 |
+| Published on loopback only (`127.0.0.1:...`)                  | Backend 8000 (`API_PORT`), ai-gateway 8090 (`AI_GATEWAY_PORT`), ai-vlm 8098 (`AI_VLM_PORT`, `vlm` profile), ai-llm-vllm 8097 (`VLLM_PORT`, `vllm` profile), PostgreSQL 5432, Redis 6379, go2rtc 1984, Prometheus 9090, Alertmanager 9093, Grafana 3002, and the rest |
+| Not published at all                                          | Containers reachable only over `security-net` service names (e.g. `http://backend:8000`, `http://ai-gateway:8090`)                                                                                                                                                   |
 
 ### Firewall Recommendations
 

@@ -205,13 +205,13 @@ Used by `CostTracker` for usage tracking. Uses prefixed format.
 
 ### Idempotency Keys (`batch_event:`)
 
-Used by `NemotronAnalyzer` for event idempotency.
+Used by `VlmAnalyzer` for event idempotency.
 
 | Pattern                  | Purpose            | TTL    | Example              |
 | ------------------------ | ------------------ | ------ | -------------------- |
 | `batch_event:{batch_id}` | Event ID for batch | 1 hour | `batch_event:abc123` |
 
-**Location:** `backend/services/nemotron_analyzer.py`
+**Location:** `backend/services/vlm_analyzer.py`
 
 ### Pipeline Error Keys (`pipeline:`)
 

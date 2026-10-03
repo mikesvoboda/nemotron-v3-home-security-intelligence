@@ -94,8 +94,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run npm audit for high severity vulnerabilities
-        run: npm audit --audit-level=high
+      # Same gate as ci.yml's `npm Audit (Frontend)`: the registry checker,
+      # not a bare `npm audit --audit-level=high` (which fails open on an
+      # advisory with no released fix - the braces chain). python3 because
+      # this job is Node-only and the checker is stdlib-only. working-directory
+      # is frontend/, hence ../scripts and --frontend . here.
+      - name: Audit check (exemption registry)
+        run: python3 ../scripts/check-npm-audit-exemptions.py --frontend . --warn-days 14
         continue-on-error: false
 
   audit-summary:

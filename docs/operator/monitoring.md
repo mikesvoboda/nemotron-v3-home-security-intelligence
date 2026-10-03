@@ -12,7 +12,9 @@ This guide covers the three core observability pillars:
 
 ## GPU Monitoring
 
-The GPU monitoring service (`GPUMonitor`) provides real-time metrics for NVIDIA GPUs used by AI services (`ai-gateway` and `ai-llm`).
+The GPU monitoring service (`GPUMonitor`) provides real-time metrics for the NVIDIA GPUs
+carrying AI work: `ai-gateway` (Triton, `GPU_AI_SERVICES`) and `ai-vlm` (llama.cpp,
+`GPU_LLM`, compose profile `vlm`).
 
 ### How It Works
 
@@ -143,143 +145,98 @@ curl http://localhost:8090/yolo26/health  # ai-gateway /yolo26 router
 
 ## Token Tracking
 
-The token tracking service (`TokenCounter`) manages LLM context window utilization for the Nemotron analyzer.
+Token tracking answers one operational question: **does the prompt the backend is about to
+send fit the llama.cpp slot it will land in?** On the shipped path the answer is produced by
+`backend/services/vlm_client.py::_fitted_prompt`, which counts with
+`backend/services/token_counter.py` and then drops the lowest-ranked detection rows until
+the rendered prompt fits. It is a _row_ fitter, not a section editor: nothing rewrites the
+prompt's prose to save tokens.
 
-### How It Works
+### The Budget
 
-Token counting uses [tiktoken](https://github.com/openai/tiktoken) for accurate tokenization:
+The slot size is a pair, and both halves are read by two processes — the llama.cpp container
+and the backend client:
 
-1. **Prompt Validation** - Validates prompts fit within context limits before sending to LLM
-2. **Utilization Tracking** - Records context utilization metrics for monitoring
-3. **Intelligent Truncation** - Removes lower-priority enrichment sections when approaching limits
+| Setting        | Default | Who reads it                                                                      |
+| -------------- | ------- | --------------------------------------------------------------------------------- |
+| `VLM_CTX_SIZE` | `32768` | `ai-vlm` (`CTX_SIZE=${VLM_CTX_SIZE:-32768}`) and `config.py` `vlm_context_window` |
+| `VLM_PARALLEL` | `2`     | `ai-vlm` (`PARALLEL=${VLM_PARALLEL:-2}`) and `config.py` `vlm_slot_count`         |
 
-### Context Window Configuration
-
-The Nemotron model context window varies by deployment profile:
-
-| Model Profile                               | llama.cpp `CTX_SIZE`                        | VRAM Required |
-| ------------------------------------------- | ------------------------------------------- | ------------- |
-| **Production (Nemotron-3-Nano-30B-A3B)**    | 262,144 total (8 `PARALLEL` slots × 32,768) | ~14.7 GB      |
-| **Development (Nemotron Mini 4B Instruct)** | 4,096 tokens                                | ~3 GB         |
-
-**Settings** (`backend/core/config.py`):
-
-| Setting                      | Default                | Description                                                                                                                                                       |
-| ---------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CTX_SIZE`                   | `32768` (code default) | Backend prompt-validation budget. The field (internally `nemotron_context_window`) reads the **`CTX_SIZE`** variable, the same name the llama.cpp container uses. |
-| `NEMOTRON_MAX_OUTPUT_TOKENS` | `1536`                 | Tokens reserved for LLM output                                                                                                                                    |
-| `LLM_TOKENIZER_ENCODING`     | `cl100k_base`          | Tiktoken encoding (GPT-4 compatible)                                                                                                                              |
+llama.cpp splits one context pool across its slots, so one `vlm_assess` gets
+`VLM_CTX_SIZE / VLM_PARALLEL` — **16,384 tokens** as shipped. From that the client reserves
+the verdict's output (`_ASSESS_MAX_TOKENS = 1024`) and the attached stills
+(`_IMAGE_TOKENS_PER_FRAME = 1280` × the number of frames offered, capped at the selector's
+`MAX_KEY_FRAMES`) before it counts a single word of detection text.
 
 > [!WARNING]
-> The backend validator caps `CTX_SIZE` at **131,072** (`le=131072` in
-> `backend/core/config.py`), but llama.cpp's total context in `.env.example` is
-> **262,144** (8 `PARALLEL` slots × 32,768). Two consequences:
->
-> - The containerized backend never sees `CTX_SIZE` (compose does not pass it to the
->   `backend` service and no `.env` is mounted), so it validates prompts against the
->   32,768 code default — exactly one llama.cpp slot. This is the intended steady state.
-> - A host-run backend reads `CTX_SIZE` from `.env`; set it to **32768 or lower** (up to
->   131,072 is accepted). Exporting `CTX_SIZE=262144` into the backend's environment
->   makes settings fail validation at startup.
-
-**Available tokens for prompt:** `context_window - max_output_tokens`
-
-- Production slot budget (32K): 32,768 - 1,536 = **31,232 tokens**
-- Development (4K): 4,096 - 1,536 = **2,560 tokens**
+> The legacy `CTX_SIZE` / `PARALLEL` pair still appears in `docker-compose.prod.yml` under
+> `backend` (`CTX_SIZE=${CTX_SIZE:-262144}`, `PARALLEL=${PARALLEL:-8}`) and still feeds the
+> legacy field `config.py` `nemotron_context_window`. It sizes **nothing** on the shipped
+> path — the `ai-vlm` container's pool comes from `VLM_CTX_SIZE`. Changing these two to
+> "give the VLM more room" moves a number no request reads.
 
 ### Utilization Thresholds
 
-| Threshold                               | Default      | Behavior                                |
-| --------------------------------------- | ------------ | --------------------------------------- |
-| `CONTEXT_UTILIZATION_WARNING_THRESHOLD` | `0.80` (80%) | Logs warning when utilization exceeds   |
-| `CONTEXT_TRUNCATION_ENABLED`            | `true`       | Enables automatic enrichment truncation |
-
-When context utilization exceeds the warning threshold (default 80%), a warning is logged but the prompt is still processed.
+| Threshold                               | Default | Behavior                                                                               |
+| --------------------------------------- | ------- | -------------------------------------------------------------------------------------- |
+| `CONTEXT_UTILIZATION_WARNING_THRESHOLD` | `0.80`  | Warns (and bumps `hsi_prompts_high_utilization_total`) inside `validate_prompt()` only |
+| `CONTEXT_TRUNCATION_ENABLED`            | `true`  | Declared in `config.py`; the live row fitter does not consult it                       |
 
 ### Prometheus Metrics
 
-| Metric                               | Type      | Description                          |
-| ------------------------------------ | --------- | ------------------------------------ |
-| `hsi_llm_context_utilization`        | Histogram | Context utilization ratio (0.0-1.0+) |
-| `hsi_prompts_high_utilization_total` | Counter   | Prompts exceeding warning threshold  |
+| Metric                               | Type      | Emitted on the live path |
+| ------------------------------------ | --------- | ------------------------ |
+| `hsi_prompts_truncated_total`        | Counter   | **yes**                  | `record_prompt_truncated()` fires in `vlm_client.assess` when the fitter dropped rows         |
+| `hsi_llm_context_utilization`        | Histogram | no                       | Observed only inside `TokenCounter.validate_prompt()`, which the shipped client does not call |
+| `hsi_prompts_high_utilization_total` | Counter   | no                       | Same call site                                                                                |
 
-**Query examples (Prometheus/Grafana):**
+So a truncation panel is real and a context-utilization panel reads flat-zero. The engine's
+own view of the slot is more useful here — the `ai-vlm-metrics` job scrapes `llama_*`
+series from `ai-vlm:8098/metrics`:
 
 ```promql
-# Average context utilization (sum of values / count)
-hsi_llm_context_utilization_sum / hsi_llm_context_utilization_count
+# Tokens the engine has generated (throughput proxy)
+rate(llama_tokens_predicted_total[5m])
 
-# High utilization rate (last hour)
-rate(hsi_prompts_high_utilization_total[1h])
-
-# Context utilization 95th percentile
-histogram_quantile(0.95, rate(hsi_llm_context_utilization_bucket[5m]))
+# Requests currently occupying a slot
+llama_requests_processing
 ```
 
-### Intelligent Truncation
+### What the Fitter Drops
 
-When prompts exceed context limits, the token counter removes enrichment sections in priority order (lowest priority first):
+Rows are ranked strongest-first (`_rank_for_budget`: confidence, then lowest row id, so the
+survivors never depend on arrival order) and a binary search finds the largest list that
+fits; the dropped tail is announced to the model in the prompt itself:
 
-**Truncation Priority (removed first to last):**
-
-1. `depth_context` - Often not critical
-2. `pose_analysis` - Future feature placeholder
-3. `action_recognition` - Future feature placeholder
-4. `pet_classification_context` - Nice to have
-5. `image_quality_context` - Informational
-6. `weather_context` - Informational
-7. `vehicle_damage_context` - Can be summarized
-8. `vehicle_classification_context` - Can be summarized
-9. `clothing_analysis_context` - Can be summarized
-10. `violence_context` - Important but can be summarized
-11. `reid_context` - Important for tracking
-12. `cross_camera_summary` - Important for correlation
-13. `baseline_comparison` - Important for anomaly detection
-14. `zone_analysis` - Important for context
-15. `detections_with_all_attributes` - High priority (core data)
-16. `scene_analysis` - High priority (core analysis)
-
-### API Usage
-
-The token counter is used internally by the Nemotron analyzer:
-
-```python
-from backend.services.token_counter import get_token_counter
-
-counter = get_token_counter()
-
-# Count tokens in a prompt
-token_count = counter.count_tokens(prompt_text)
-
-# Validate prompt fits in context
-result = counter.validate_prompt(prompt_text)
-if not result.is_valid:
-    # Truncate enrichment data
-    truncated = counter.truncate_enrichment_data(prompt_text, max_tokens=31232)
-    print(f"Removed sections: {truncated.sections_removed}")
-
-# Get context budget
-budget = counter.get_context_budget()
-# {"context_window": 32768, "max_output_tokens": 1536, "available_for_prompt": 31232}
 ```
+[N further detections were omitted from this list to fit the model's context
+budget; the K listed are the highest-confidence rows and are the ones the
+attached frame(s) were selected around]
+```
+
+`Event.llm_prompt` stores the **fitted** text (the client exposes `prompt_text()` for
+exactly this reason), so the row in the database records the question that was actually
+asked, marker included. A full batch does not fit the slot by design: ~61 tokens per
+detection row × `BATCH_MAX_DETECTIONS=500` is ~30K against a 16,384-token slot. Seeing
+truncation on a busy camera is the fitter working, not a fault — read it as "the verdict was
+made from the top N rows".
 
 ### Troubleshooting
 
-**Prompts being truncated:**
+**Verdicts that mention missing detections, or a rising `hsi_prompts_truncated_total`:**
 
-1. Check logs for truncation warnings
-2. Review `sections_removed` in truncation results
-3. Consider increasing `CTX_SIZE` if using a larger model (shared by llama.cpp and the backend validator)
-4. Disable less useful enrichment sources
-
-**High context utilization alerts:**
+1. Confirm the slot, don't guess: `curl -s http://localhost:8098/props | jq '.default_ctx_size, .n_ctx_per_slot?'`
+2. Check the batch size feeding it (`BATCH_MAX_DETECTIONS`) — a wider window means more rows per prompt
+3. Widen the slot with `VLM_CTX_SIZE` (raise `VLM_PARALLEL`'s divisor effect in mind: the
+   per-slot figure is `VLM_CTX_SIZE / VLM_PARALLEL`), then recreate `ai-vlm` **with**
+   `--profile vlm` and restart the backend so both processes agree
 
 ```bash
-# Check Prometheus metrics
-curl http://localhost:8000/metrics | grep hsi_llm_context
+# Truncation counter
+curl -s http://localhost:8000/api/metrics | grep hsi_prompts_truncated_total
 
-# Review recent prompts in logs
-podman compose -f docker-compose.prod.yml logs backend | grep "context utilization"
+# The client's own log line when it drops rows
+podman compose -f docker-compose.prod.yml logs backend | grep "vlm prompt truncated"
 ```
 
 ---
@@ -324,8 +281,8 @@ The backend exports OTLP/gRPC to **Alloy** (`alloy:4317`), which forwards traces
 **Grafana Tempo** (`tempo:4317`) — see `monitoring/alloy/config.alloy`
 (`otelcol.receiver.otlp` -> `otelcol.exporter.otlp "tempo"`). Tempo is a compose service
 (`docker.io/grafana/tempo:2.7.1`, config `monitoring/tempo/tempo-config.yml`) with its
-querier on port 3200. Jaeger and its Elasticsearch storage were retired under NEM-5545;
-any OTLP-compatible backend still works if you repoint `OTEL_EXPORTER_OTLP_ENDPOINT`.
+querier on port 3200. Any OTLP-compatible backend works in Tempo's place if you repoint
+`OTEL_EXPORTER_OTLP_ENDPOINT`.
 
 ### Log-to-Trace Correlation
 
@@ -457,10 +414,15 @@ The only GPU-related Prometheus metric tracks AI inference time:
 
 ### Token/Context Metrics
 
-| Metric                               | Type      | Description                         |
-| ------------------------------------ | --------- | ----------------------------------- |
-| `hsi_llm_context_utilization`        | Histogram | Context window utilization ratio    |
-| `hsi_prompts_high_utilization_total` | Counter   | Prompts exceeding warning threshold |
+| Metric                               | Type      | Live?    | Description                                             |
+| ------------------------------------ | --------- | -------- | ------------------------------------------------------- |
+| `hsi_prompts_truncated_total`        | Counter   | yes      | `vlm_assess` prompts the row fitter had to shorten      |
+| `hsi_llm_context_utilization`        | Histogram | declared | Ratio recorded by `TokenCounter.validate_prompt()` only |
+| `hsi_prompts_high_utilization_total` | Counter   | declared | Same call site                                          |
+
+"declared" means the family exists in `backend/core/metrics.py` but nothing on the shipped
+VLM path observes it, so it reads zero rather than low. See
+[Token Tracking](#token-tracking) above.
 
 ### Request Tracing Metrics
 
@@ -625,20 +587,21 @@ Prometheus scrapes blackbox exporter with target URLs as parameters. Example scr
 
 **Probed Endpoints (Default Configuration):**
 
-| Probe Type               | Endpoints Monitored                                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| Health                   | `backend:8000/api/system/health`                                                                                          |
-| Readiness                | `backend:8000/api/system/health/ready`                                                                                    |
-| Liveness                 | `backend:8000/health`, `frontend:8080`                                                                                    |
-| AI (`blackbox-http-2xx`) | `ai-llm:8091/health` plus stale legacy targets `ai-florence:8092`, `ai-clip:8093`, `ai-enrichment:8094`, `ai-yolo26:8095` |
-| TCP                      | `postgres:5432`, `redis:6379`                                                                                             |
+| Probe Type               | Endpoints Monitored                                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Health                   | `backend:8000/api/system/health`                                                                                    |
+| Readiness                | `backend:8000/api/system/health/ready`                                                                              |
+| Liveness                 | `backend:8000/health`, `frontend:8080`                                                                              |
+| AI (`blackbox-http-2xx`) | `ai-vlm:8098/health`, `ai-gateway:8090/health`, `ai-gateway:8090/yolo26/health`, `ai-gateway:8090/enrich-lt/health` |
+| TCP                      | `postgres:5432`, `redis:6379`                                                                                       |
 
 > [!WARNING]
-> The `blackbox-http-2xx` job in `monitoring/prometheus.yml` still lists the retired
-> per-model AI hostnames; those four probes report failures because the services were
-> consolidated into `ai-gateway`. The gateway's availability is covered instead by the
-> aggregate `ai-gateway` healthcheck and its Triton metrics job. (Config cleanup
-> pending — see the stale-target comment block above the `triton-metrics` job.)
+> The `ai-vlm` target in that job is the shape of the failure it cannot see. `ai-vlm` sits
+> behind the compose profile `vlm`, so a default `up` never starts it — the probe reports
+> `probe_success 0` for a service that was never asked to run, and `ai-vlm`'s own
+> `/health` passes even when the multimodal projector is absent. A green/black probe here
+> is not a verdict that reasoning works; prove that with `/props` and the multimodal check
+> in [Monitoring Guide](monitoring/README.md) / [AI Troubleshooting](ai-troubleshooting.md).
 
 **Key Metrics Exported:**
 
@@ -1093,8 +1056,8 @@ labels:
 **Profiled Services:**
 
 - `backend` - FastAPI backend (SDK-based py-spy profiling when `PYROSCOPE_ENABLED=true`)
-- `ai-llm` - llama.cpp process, profiled via Alloy's **eBPF** pipeline (container label
-  `pyroscope.profile=true`, service name from `pyroscope.service`)
+- `ai-vlm` - llama.cpp process, profiled via Alloy's **eBPF** pipeline (container labels
+  `pyroscope.profile=true`, `pyroscope.service=ai-vlm` in `docker-compose.prod.yml`)
 - any other container carrying the `pyroscope.profile=true` label
 
 **Accessing Pyroscope UI:**
@@ -1130,21 +1093,26 @@ curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.
 
 **Expected Healthy Targets:**
 
-| Job Name               | Target                                                 | Expected Health |
-| ---------------------- | ------------------------------------------------------ | --------------- |
-| `hsi-backend-metrics`  | `backend:8000`                                         | up              |
-| `ai-llm-metrics`       | `ai-llm:8091`                                          | up              |
-| `triton-metrics`       | `ai-gateway:8002`                                      | up              |
-| `hsi-health`           | Backend health via JSON exporter                       | up              |
-| `hsi-gpu`              | Backend GPU stats via JSON exporter                    | up              |
-| `redis`                | `redis-exporter:9121`                                  | up              |
-| `json-exporter`        | `json-exporter:7979`                                   | up              |
-| `blackbox-exporter`    | `blackbox-exporter:9115`                               | up              |
-| `blackbox-http-health` | Backend health endpoint                                | up              |
-| `blackbox-http-ready`  | Backend readiness endpoint                             | up              |
-| `blackbox-http-live`   | Backend/frontend liveness                              | up              |
-| `blackbox-http-2xx`    | AI health endpoints (4 of 5 stale — see warning above) | mixed           |
-| `blackbox-tcp`         | postgres:5432, redis:6379                              | up              |
+| Job Name               | Target                                            | Expected Health                                       |
+| ---------------------- | ------------------------------------------------- | ----------------------------------------------------- |
+| `hsi-backend-metrics`  | `backend:8000` (`/api/metrics`)                   | up                                                    |
+| `ai-vlm-metrics`       | `ai-vlm:8098`                                     | up **only** if the stack came up with `--profile vlm` |
+| `ai-gateway-metrics`   | `ai-gateway:8090` (gateway `nv_*` series dropped) | up                                                    |
+| `triton-metrics`       | `ai-gateway:8002`                                 | up                                                    |
+| `hsi-health`           | Backend health via JSON exporter                  | up                                                    |
+| `hsi-gpu`              | Backend GPU stats via JSON exporter               | up                                                    |
+| `redis`                | `redis-exporter:9121`                             | up                                                    |
+| `json-exporter`        | `json-exporter:7979`                              | up                                                    |
+| `blackbox-exporter`    | `blackbox-exporter:9115`                          | up                                                    |
+| `blackbox-http-health` | Backend health endpoint                           | up                                                    |
+| `blackbox-http-ready`  | Backend readiness endpoint                        | up                                                    |
+| `blackbox-http-live`   | Backend/frontend liveness                         | up                                                    |
+| `blackbox-http-2xx`    | The four AI endpoints above                       | down for `ai-vlm` until the `vlm` profile is enabled  |
+| `blackbox-tcp`         | postgres:5432, redis:6379                         | up                                                    |
+
+`ai-vlm-metrics` and the `ai-vlm` 2xx probe are the two entries that legitimately report
+down on a default deployment — that is the profile, not an outage. Everything else listed
+here should be `up`; a `dcgm-exporter` target is also behind a profile (`gpu-rootful`).
 
 ---
 

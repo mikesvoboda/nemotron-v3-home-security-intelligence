@@ -25,8 +25,9 @@ built, not that they may not exist:
     passed as the provider's own `required` (one app inside the
     per_model_server union column).
   * fake: WP8.2's conformance app - NOT registered here; the fake column is
-    a spec (all 38), and registering a fake that doesn't exist would repeat
-    the AIServiceProtocol sin (docstring-implementers that aren't real).
+    the spec and `fake/app.py` satisfies it (one route per registry
+    operation), so registering it belongs to the conformance suite, which
+    mounts it under httpx.ASGITransport rather than the package import.
 """
 
 from __future__ import annotations
@@ -104,7 +105,7 @@ def _bound_or_reject(op_id: str) -> Any:
         "registry",
         op_id,
         f"{len(op.client_methods)} client methods bound; provider derivation "
-        "supports exactly 0 or 1 (census 2026-09-19: all 38 ops are 0 or 1)",
+        "supports exactly 0 or 1 (census 2026-09-19: every op is 0 or 1)",
     )
 
 

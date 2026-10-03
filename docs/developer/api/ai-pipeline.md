@@ -1,18 +1,17 @@
 # AI Pipeline API
 
-This guide covers the AI processing pipeline including enrichment, batch aggregation, AI audit logging, background jobs management, and the dead letter queue for failed jobs.
+This guide covers the API surfaces around the AI processing pipeline: AI audit logging, prompt management, the dead letter queue for failed jobs, circuit-breaker status, and background jobs management. The pipeline itself is documented in [AI pipeline current state](../../architecture/ai-pipeline-current-state.md).
 
-**Endpoint Count:** 35 implemented endpoints across 3 domains (AI Audit: 18, DLQ: 5, Jobs: 12), plus 11 planned endpoints (Enrichment: 6, Batches: 5)
+**Endpoint Count:** 34 endpoints across 4 domains — AI Audit: 7, Prompt management: 10, DLQ: 5, Jobs: 12 — plus the two circuit-breaker routes under `/api/system`. Every endpoint listed here exists in `docs/openapi.json` and in `backend/api/routes/`.
 
 ## Pipeline Overview
 
 The AI pipeline processes camera images through these stages:
 
-1. **File Watch** - Monitor camera folders for new images
-2. **Detection** - YOLO26 identifies objects in images
-3. **Batching** - Group detections within 90-second time windows
-4. **Enrichment** - Vision model extracts attributes (clothing, carrying items)
-5. **Analysis** - Nemotron LLM generates risk assessments
+1. **File Watch** - `FileWatcher` watches camera folders for new images and pushes each onto the `detections:stream` Redis stream
+2. **Detection** - the detection worker calls the gateway route `/yolo26` (Triton YOLO26 TensorRT behind `ai-gateway`)
+3. **Batching** - `BatchAggregator` groups detections per camera, closing on a 90-second window, 30 seconds idle, or 500 detections
+4. **Analysis** - `VlmAnalyzer` selects 1-4 key frames, runs the in-process lookup legs (faces, plates, person re-ID), and asks `ai-vlm` for a verdict that becomes the Event's risk score
 
 ### AI Pipeline Flow Diagram
 
@@ -25,18 +24,17 @@ flowchart LR
     end
 
     subgraph Detection["Object Detection"]
-        DQ[detection_queue]
-        RT[YOLO26<br/>30-50ms]
+        DS[detections:stream]
+        YOLO[YOLO26 via<br/>ai-gateway:8090]
     end
 
     subgraph Processing["Batch Processing"]
-        ENR[Enrichment<br/>Vision Model]
         BA[Batch Aggregator<br/>90s window]
     end
 
     subgraph Analysis["Risk Analysis"]
-        AQ[analysis_queue]
-        NEM[Nemotron LLM<br/>2-5s]
+        AS[analysis:stream]
+        VLM[VlmAnalyzer<br/>ai-vlm:8098]
     end
 
     subgraph Output["Output"]
@@ -45,139 +43,28 @@ flowchart LR
     end
 
     CAM --> FW
-    FW --> DQ
-    DQ --> RT
-    RT --> ENR
-    ENR --> BA
-    BA --> AQ
-    AQ --> NEM
-    NEM --> EVT
+    FW --> DS
+    DS --> YOLO
+    YOLO --> BA
+    BA --> AS
+    AS --> VLM
+    VLM --> EVT
     EVT --> WS
 
-    style RT fill:#A855F7,color:#fff
-    style NEM fill:#A855F7,color:#fff
+    style YOLO fill:#A855F7,color:#fff
+    style VLM fill:#A855F7,color:#fff
     style BA fill:#009688,color:#fff
-    style ENR fill:#009688,color:#fff
     style EVT fill:#76B900,color:#fff
 ```
 
-_End-to-end AI pipeline flow from camera image upload through detection, batching, enrichment, and LLM analysis to WebSocket broadcast._
+_End-to-end AI pipeline flow from camera image upload through detection, batching, and VLM analysis to WebSocket broadcast._
 
 ---
 
-## Enrichment
+## Batch Aggregation
 
-> **Note:** Enrichment endpoints are planned for a future release. The following documents the intended API design.
-
-Enrichment endpoints will provide access to vision model analysis results that describe detected objects.
-
-### Planned Endpoints
-
-| Method | Endpoint                         | Description             |
-| ------ | -------------------------------- | ----------------------- |
-| GET    | `/api/enrichment`                | List enrichment records |
-| GET    | `/api/enrichment/stats`          | Enrichment statistics   |
-| GET    | `/api/enrichment/{id}`           | Get enrichment by ID    |
-| GET    | `/api/enrichment/detection/{id}` | Get by detection ID     |
-| GET    | `/api/enrichment/event/{id}`     | Get all for event       |
-| POST   | `/api/enrichment/reprocess/{id}` | Reprocess enrichment    |
-
-### List Enrichments
-
-```bash
-GET /api/enrichment?detection_type=person&min_confidence=0.8&limit=50
-```
-
-**Parameters:**
-
-| Name           | Type     | Description                        |
-| -------------- | -------- | ---------------------------------- |
-| detection_type | string   | Filter by object type              |
-| camera_id      | string   | Filter by camera                   |
-| start_date     | datetime | Filter after timestamp             |
-| end_date       | datetime | Filter before timestamp            |
-| min_confidence | float    | Minimum model confidence (0.0-1.0) |
-| event_id       | integer  | Filter by parent event             |
-| limit          | integer  | Max results (1-1000, default: 50)  |
-| offset         | integer  | Results to skip (default: 0)       |
-
-**Response:**
-
-```json
-{
-  "enrichments": [
-    {
-      "id": 1,
-      "detection_id": 123,
-      "event_id": 45,
-      "model_name": "qwen-vl",
-      "model_version": "2.5-3b",
-      "description": "Adult male wearing dark jacket and jeans, carrying backpack",
-      "attributes": {
-        "clothing": ["dark jacket", "blue jeans"],
-        "carrying": ["backpack"],
-        "age_group": "adult",
-        "gender_presentation": "male"
-      },
-      "confidence": 0.92,
-      "latency_ms": 1250,
-      "created_at": "2025-12-23T12:00:30Z"
-    }
-  ],
-  "count": 1,
-  "limit": 50,
-  "offset": 0
-}
-```
-
-### Enrichment Statistics
-
-```bash
-GET /api/enrichment/stats
-```
-
-**Response:**
-
-```json
-{
-  "total_enrichments": 15234,
-  "enrichments_today": 456,
-  "by_detection_type": {
-    "person": 12500,
-    "vehicle": 2500,
-    "animal": 234
-  },
-  "avg_confidence": 0.89,
-  "avg_latency_ms": 1150,
-  "p95_latency_ms": 2300
-}
-```
-
-### Reprocess Enrichment
-
-Force re-analysis of a detection:
-
-```bash
-POST /api/enrichment/reprocess/123
-```
-
-**Response:**
-
-```json
-{
-  "status": "queued",
-  "detection_id": 123,
-  "message": "Enrichment reprocessing queued successfully"
-}
-```
-
----
-
-## Batches
-
-> **Note:** Batch management endpoints are planned for a future release. The following documents the intended API design.
-
-Batches group detections from the same camera within configurable time windows (default: 90 seconds) before sending to the LLM for analysis.
+Batches group detections from the same camera before sending them to the VLM for analysis. The aggregator has no REST API: batch state lives in the `BatchAggregator`
+(`backend/services/batch_aggregator.py`) and is observable through the pipeline metrics and through the events a batch produces. `POST /api/events/analyze/{batch_id}/stream` is the one route that names a batch: it re-runs analysis for a batch id and streams progress.
 
 ### Batch Processing Lifecycle
 
@@ -194,10 +81,9 @@ stateDiagram-v2
 
     Aggregating --> Completed: Window timeout (90s)
     Aggregating --> Completed: Idle timeout (30s)
-    Aggregating --> Completed: Max size reached
-    Aggregating --> Completed: Manual flush API
+    Aggregating --> Completed: Max size reached (500)
 
-    Completed --> [*]: Push to analysis_queue
+    Completed --> [*]: XADD analysis:stream
 
     state Aggregating {
         [*] --> Collecting
@@ -206,150 +92,54 @@ stateDiagram-v2
     }
 ```
 
-_State machine showing batch lifecycle from creation through collection to closure, with multiple timeout triggers._
-
-### Planned Endpoints
-
-| Method | Endpoint                        | Description            |
-| ------ | ------------------------------- | ---------------------- |
-| GET    | `/api/batches`                  | List batches           |
-| GET    | `/api/batches/{batch_id}`       | Get batch by ID        |
-| GET    | `/api/batches/stats`            | Batch processing stats |
-| GET    | `/api/batches/active`           | Currently aggregating  |
-| POST   | `/api/batches/{batch_id}/flush` | Force flush batch      |
-
-### List Batches
-
-```bash
-GET /api/batches?camera_id=front_door&status=completed&limit=50
-```
-
-**Parameters:**
-
-| Name       | Type     | Description                          |
-| ---------- | -------- | ------------------------------------ |
-| camera_id  | string   | Filter by camera                     |
-| status     | string   | `aggregating`, `completed`, `failed` |
-| start_date | datetime | Filter after timestamp               |
-| end_date   | datetime | Filter before timestamp              |
-| limit      | integer  | Max results (1-1000, default: 50)    |
-| offset     | integer  | Results to skip (default: 0)         |
-
-**Response:**
-
-```json
-{
-  "batches": [
-    {
-      "batch_id": "batch_abc123def456",
-      "camera_id": "front_door",
-      "status": "completed",
-      "detection_count": 8,
-      "started_at": "2025-12-23T12:00:00Z",
-      "completed_at": "2025-12-23T12:01:30Z",
-      "event_id": 45,
-      "trigger": "idle_timeout"
-    }
-  ],
-  "count": 1,
-  "limit": 50,
-  "offset": 0
-}
-```
+_State machine showing batch lifecycle from creation through collection to closure, with the three timeout triggers._
 
 ### Batch Triggers
 
-| Trigger        | Description                          |
-| -------------- | ------------------------------------ |
-| `time_window`  | 90-second window elapsed             |
-| `idle_timeout` | 30 seconds without new detections    |
-| `max_size`     | Maximum detections per batch reached |
-| `manual_flush` | API-triggered flush                  |
-
-### Active Batches
-
-Get currently aggregating batches:
-
-```bash
-GET /api/batches/active
-```
-
-**Response:**
-
-```json
-{
-  "batches": [
-    {
-      "batch_id": "batch_xyz789",
-      "camera_id": "front_door",
-      "detection_count": 3,
-      "started_at": "2025-12-23T12:02:00Z",
-      "age_seconds": 25.5,
-      "last_activity_seconds": 8.2
-    }
-  ],
-  "count": 1
-}
-```
-
-### Force Flush Batch
-
-Trigger immediate processing of an active batch:
-
-```bash
-POST /api/batches/batch_xyz789/flush
-```
-
-**Response:**
-
-```json
-{
-  "status": "flushed",
-  "batch_id": "batch_xyz789",
-  "detection_count": 3,
-  "message": "Batch sent for analysis"
-}
-```
+| Trigger    | Config                                    | Description                           |
+| ---------- | ----------------------------------------- | ------------------------------------- |
+| `timeout`  | `BATCH_WINDOW_SECONDS` (default 90)       | Window elapsed since the batch opened |
+| `idle`     | `BATCH_IDLE_TIMEOUT_SECONDS` (default 30) | 30 seconds without new detections     |
+| `max_size` | `BATCH_MAX_DETECTIONS` (default 500)      | Batch closed and a new one opened     |
 
 ---
 
 ## AI Audit
 
-The AI audit system provides transparency into LLM decision-making, prompt management, and self-evaluation capabilities for security and compliance.
+The AI audit system provides transparency into model decision-making, prompt management, and self-evaluation capabilities for security and compliance. Audit rows live in the `event_audits` table (`backend/models/event_audit.py`). The analysis run itself does not write audit rows: a row is created when you trigger an audit (`POST /api/ai-audit/batch`, or the per-event routes below), or by the background evaluator when it runs while the GPU is idle (`backend/services/background_evaluator.py`). Self-evaluation makes four completion calls to `ai-vlm` per event, so a fresh install with no audits yet shows `0%` coverage — `GET /api/ai-audit/stats` carries a `message` saying so.
 
 ### AI Audit Workflow
 
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#3B82F6', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#60A5FA', 'secondaryColor': '#A855F7', 'tertiaryColor': '#009688', 'background': '#121212', 'mainBkg': '#1a1a2e', 'lineColor': '#666666'}}}%%
 sequenceDiagram
-    participant BA as Batch Aggregator
-    participant NEM as Nemotron LLM
-    participant DB as PostgreSQL
+    participant OP as Audit Trigger
     participant API as Audit API
+    participant VLM as ai-vlm
+    participant DB as PostgreSQL
 
-    Note over BA,API: AI Decision Audit Trail
+    Note over OP,DB: AI Decision Audit Trail
 
-    BA->>NEM: Send batch for analysis
-    activate NEM
-    NEM->>NEM: Generate risk assessment
-    NEM-->>BA: Risk score + reasoning
-    deactivate NEM
-
-    BA->>DB: INSERT ai_audit_log
-    Note right of DB: Stores:<br/>- input_summary<br/>- model output<br/>- tokens used<br/>- latency_ms
+    OP->>API: POST /api/ai-audit/batch
+    activate API
+    API->>DB: INSERT event_audits (partial: contributions,<br/>prompt_length, enrichment_utilization)
+    API->>VLM: self-critique, rubric scoring,<br/>consistency check, prompt review
+    VLM-->>API: evaluation text / scores
+    API->>DB: UPDATE event_audits (quality scores,<br/>improvements, is_fully_evaluated)
+    deactivate API
 
     rect rgb(26, 26, 46)
         Note over API,DB: Later: Compliance Review
-        API->>DB: GET /api/ai-audit
+        API->>DB: GET /api/ai-audit/events/{event_id}
         DB-->>API: Audit entries
-        API->>API: Filter by model, action, date
+        API->>API: contributions + quality scores + improvements
     end
 
     rect rgb(26, 46, 42)
         Note over API,DB: Later: Performance Analysis
         API->>DB: GET /api/ai-audit/stats
         DB-->>API: Aggregated metrics
-        Note right of API: avg_latency_ms<br/>token_usage_today<br/>by_model breakdown
+        Note right of API: avg_quality_score<br/>model_contribution_rates<br/>audits_by_day
     end
 ```
 
@@ -385,60 +175,96 @@ Prompt management is a separate router (`APIRouter(prefix="/api/prompts")` in
 
 ### Batch Audit Processing
 
-Trigger batch audit processing for multiple events:
+Queue batch audit processing (async — the request returns a job id, `202
+Accepted`):
 
 ```bash
 POST /api/ai-audit/batch
 Content-Type: application/json
 
 {
-  "event_ids": [1, 2, 3],
-  "camera_id": "front_door",
-  "start_date": "2025-12-23T00:00:00Z",
-  "end_date": "2025-12-23T23:59:59Z"
+  "limit": 100,
+  "min_risk_score": 50,
+  "force_reevaluate": false
 }
 ```
+
+| Name             | Type    | Default | Description                                           |
+| ---------------- | ------- | ------- | ----------------------------------------------------- |
+| limit            | integer | 100     | Max events to audit (1-1000)                          |
+| min_risk_score   | integer | null    | Only audit events at or above this risk score (0-100) |
+| force_reevaluate | boolean | false   | Re-audit events that are already fully evaluated      |
 
 **Response:**
 
 ```json
 {
-  "queued_count": 15,
-  "message": "Batch audit processing queued"
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "pending",
+  "message": "Batch audit job created. Use GET /api/ai-audit/batch/550e8400-e29b-41d4-a716-446655440000 to track progress.",
+  "total_events": 75
 }
 ```
 
+Poll `GET /api/ai-audit/batch/{job_id}` for progress (`progress`,
+`processed_events`, `failed_events`).
+
 ### Get Event Audit
 
-Get audit information for a specific event:
+Get audit information for a specific event (`404` if the event or its audit
+row does not exist):
 
 ```bash
 GET /api/ai-audit/events/45
 ```
 
-**Response:**
+**Response** (`EventAuditResponse`):
 
 ```json
 {
+  "id": 123,
   "event_id": 45,
-  "audit_id": 123,
-  "model_contributions": {
-    "nemotron": 0.65,
-    "florence-2": 0.25,
-    "yolo-world": 0.1
+  "audited_at": "2026-10-01T12:01:30Z",
+  "is_fully_evaluated": true,
+  "contributions": {
+    "yolo26": true,
+    "florence": false,
+    "clip": false,
+    "violence": false,
+    "clothing": false,
+    "vehicle": false,
+    "pet": false,
+    "weather": true,
+    "image_quality": true,
+    "zones": true,
+    "baseline": false,
+    "cross_camera": false
   },
-  "quality_scores": {
-    "coherence": 0.92,
-    "relevance": 0.88,
-    "consistency": 0.95
+  "prompt_length": 2048,
+  "prompt_token_estimate": 512,
+  "enrichment_utilization": 0.85,
+  "scores": {
+    "context_usage": 4.2,
+    "reasoning_coherence": 4.5,
+    "risk_justification": 3.8,
+    "consistency": 4.0,
+    "overall": 4.1
   },
-  "prompt_suggestions": [
-    "Consider adding more context about time of day",
-    "Include weather conditions in prompt"
-  ],
-  "created_at": "2025-12-23T12:01:30Z"
+  "improvements": {
+    "missing_context": ["Time since last motion event"],
+    "confusing_sections": [],
+    "unused_data": [],
+    "format_suggestions": ["Add structured detection summary"],
+    "model_gaps": []
+  }
 }
 ```
+
+The `contributions` flags say which pipeline stages contributed to the event;
+`florence`, `clip`, `violence`, `clothing`, `vehicle`, and `pet` are columns
+the audit writer still fills from the event's enriched context, and on the
+shipped VLM path the in-process lookup legs are what populate them — a flag
+being false does not name a broken service.
 
 ### Evaluate Event
 
@@ -456,7 +282,11 @@ POST /api/ai-audit/events/45/evaluate?force=false
 
 **Response:**
 
-Returns updated `EventAuditResponse` with evaluation results including self-critique, rubric scoring, consistency check, and prompt improvements.
+Returns the updated `EventAuditResponse` after the four evaluation modes
+(self-critique, rubric scoring, consistency check, prompt-improvement review)
+have run. An event with no stored `llm_prompt` cannot be evaluated — the
+route returns the audit row unchanged. Events analyzed before the audit
+record existed gain one on the first evaluate call.
 
 ### Model Leaderboard
 
@@ -472,35 +302,34 @@ GET /api/ai-audit/leaderboard?days=7
 | ---- | ------- | ------- | -------------------------------- |
 | days | integer | 7       | Number of days to include (1-90) |
 
-**Response:**
+**Response** (`LeaderboardResponse` — one entry per tracked model name,
+computed from the audit rows in the window):
 
 ```json
 {
   "entries": [
     {
-      "model_name": "nemotron",
-      "contribution_rate": 0.65,
-      "total_events": 1500,
-      "avg_quality_score": 0.91,
-      "quality_correlation": 0.87
+      "model_name": "yolo26",
+      "contribution_rate": 0.98,
+      "quality_correlation": 0.85,
+      "event_count": 1200
     },
     {
-      "model_name": "florence-2",
-      "contribution_rate": 0.25,
-      "total_events": 1500,
-      "avg_quality_score": 0.88,
-      "quality_correlation": 0.82
+      "model_name": "weather",
+      "contribution_rate": 0.95,
+      "quality_correlation": 0.44,
+      "event_count": 1140
     }
   ],
-  "period_days": 7,
-  "total_events": 1500
+  "period_days": 7
 }
 ```
 
 ### Prompt Configuration Management
 
-> The old `/api/ai-audit/prompt-config/{model}` endpoints were removed; the
-> database-backed per-model config now lives at `/api/prompts/{model}` (NEM-2695).
+`{model}` names a stored config bucket, not a running service: the
+`nemotron` bucket holds the risk-analysis system prompt that
+`POST /api/prompts/test` sends to `ai-vlm`.
 
 #### Get Model Prompt
 
@@ -806,32 +635,31 @@ GET /api/ai-audit/recommendations?days=7
 | ---- | ------- | ------- | -------------------------------- |
 | days | integer | 7       | Number of days to analyze (1-90) |
 
-**Response:**
+**Response** (`RecommendationsResponse` — items carry `category`,
+`suggestion`, `frequency`, `priority`; there is no per-model breakdown):
 
 ```json
 {
   "recommendations": [
     {
-      "model": "nemotron",
-      "priority": "high",
-      "category": "context",
-      "suggestion": "Add time-of-day context to improve night analysis",
-      "impact_estimate": 0.15,
-      "affected_events": 45
+      "category": "missing_context",
+      "suggestion": "Add time since last motion event",
+      "frequency": 25,
+      "priority": "high"
     },
     {
-      "model": "florence-2",
-      "priority": "medium",
-      "category": "specificity",
-      "suggestion": "Include clothing color descriptions",
-      "impact_estimate": 0.08,
-      "affected_events": 120
+      "category": "format_suggestions",
+      "suggestion": "Add structured detection summary",
+      "frequency": 12,
+      "priority": "medium"
     }
   ],
-  "period_days": 7,
-  "total_events_analyzed": 1500
+  "total_events_analyzed": 500
 }
 ```
+
+`total_events_analyzed` counts fully evaluated audits in the window, so
+recommendations only exist once self-evaluation has run.
 
 ### Audit Statistics
 
@@ -846,38 +674,42 @@ GET /api/ai-audit/stats?days=7&camera_id=front_door
 | days      | integer | 7       | Number of days to include (1-90) |
 | camera_id | string  | null    | Optional camera filter           |
 
-**Response:**
+**Response** (`AuditStatsResponse` — rates are 0-1 contribution fractions
+computed from the audit rows):
 
 ```json
 {
   "total_events": 5234,
-  "events_today": 156,
-  "by_model": {
-    "nemotron": {
-      "events": 4500,
-      "avg_latency_ms": 4200,
-      "contribution_rate": 0.65
-    },
-    "florence-2": {
-      "events": 734,
-      "avg_latency_ms": 1150,
-      "contribution_rate": 0.25
+  "audited_events": 4800,
+  "fully_evaluated_events": 3900,
+  "avg_quality_score": 4.1,
+  "avg_consistency_rate": 0.92,
+  "avg_enrichment_utilization": 0.78,
+  "model_contribution_rates": {
+    "yolo26": 1.0,
+    "florence": 0.0,
+    "clip": 0.0,
+    "weather": 0.95,
+    "image_quality": 0.98,
+    "zones": 0.62
+  },
+  "audits_by_day": [
+    {
+      "date": "2026-10-01",
+      "day_of_week": "Tuesday",
+      "count": 45,
+      "avg_quality_score": 4.2,
+      "avg_enrichment_utilization": 0.78,
+      "model_contributions": { "yolo26": 45, "weather": 41 }
     }
-  },
-  "quality_scores": {
-    "avg_coherence": 0.91,
-    "avg_relevance": 0.88,
-    "avg_consistency": 0.94
-  },
-  "token_usage": {
-    "total_input": 4500000,
-    "total_output": 850000,
-    "today_input": 45000,
-    "today_output": 8500
-  },
-  "period_days": 7
+  ],
+  "message": null
 }
 ```
+
+`total_events` here counts **audited** events in the window (the service
+builds it from the audit rows), and `message` carries guidance when nothing
+has been evaluated yet. There is no token-usage breakdown in this response.
 
 ---
 
@@ -891,10 +723,10 @@ The DLQ holds failed AI pipeline jobs for inspection and reprocessing.
 %%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#3B82F6', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#60A5FA', 'secondaryColor': '#A855F7', 'tertiaryColor': '#009688', 'background': '#121212', 'mainBkg': '#1a1a2e', 'lineColor': '#666666'}}}%%
 flowchart TB
     subgraph Processing["Normal Processing"]
-        DQ[detection_queue]
-        AQ[analysis_queue]
-        RT[YOLO26]
-        NEM[Nemotron LLM]
+        DQ[detection queue]
+        AQ[analysis queue]
+        RT[YOLO26 via ai-gateway]
+        VLM[VlmAnalyzer via ai-vlm]
     end
 
     subgraph Retry["Retry with Backoff"]
@@ -913,17 +745,27 @@ flowchart TB
     R1 -->|Retry| BACK --> RT
     R1 -->|Max Retries| DLQ1
 
-    AQ --> NEM
-    NEM -->|Failure| R1
+    AQ --> VLM
+    VLM -->|Failure| R1
     R1 -->|Max Retries| DLQ2
 
     style DLQ1 fill:#E74856,color:#fff
     style DLQ2 fill:#E74856,color:#fff
     style RT fill:#A855F7,color:#fff
-    style NEM fill:#A855F7,color:#fff
+    style VLM fill:#A855F7,color:#fff
 ```
 
 _Queue architecture showing normal processing flow and failure paths to dead letter queues._
+
+Two carriers exist and both end in the same DLQ names. With the shipped
+default `USE_REDIS_STREAMS=true` (`backend/core/config.py:2239`) the hops run over Redis
+Streams (`detections:stream`, `analysis:stream`) and a message that exceeds
+its max delivery count is moved to the matching stream DLQ
+(`detections:stream:dlq`, `analysis:stream:dlq` —
+`backend/services/redis_streams.py:618,1131`). The list queues
+(`detection_queue`, `analysis_queue`) keep the retry-handler path documented
+on this page: exhausted retries land in `dlq:detection_queue` /
+`dlq:analysis_queue`, which are what the endpoints below read.
 
 ### Endpoints
 
@@ -937,10 +779,10 @@ _Queue architecture showing normal processing flow and failure paths to dead let
 
 ### Queue Names
 
-| Queue Name            | Description                   |
-| --------------------- | ----------------------------- |
-| `dlq:detection_queue` | Failed YOLO26 detection jobs  |
-| `dlq:analysis_queue`  | Failed Nemotron analysis jobs |
+| Queue Name            | Description                      |
+| --------------------- | -------------------------------- |
+| `dlq:detection_queue` | Failed YOLO26 detection jobs     |
+| `dlq:analysis_queue`  | Failed VLM analysis (batch) jobs |
 
 ### Get DLQ Statistics
 
@@ -971,12 +813,14 @@ GET /api/dlq/jobs/dlq:detection_queue?start=0&limit=10
 | start | integer | 0       | Start index (0-based)             |
 | limit | integer | 100     | Maximum jobs to return (max 1000) |
 
-**Response:**
+Each job carries enriched error context (`error_type`, `stack_trace`,
+`http_status`, `response_body`, `retry_delays`, `context`). The response uses
+the standard pagination envelope (`items` + `pagination`):
 
 ```json
 {
   "queue_name": "dlq:detection_queue",
-  "jobs": [
+  "items": [
     {
       "original_job": {
         "camera_id": "front_door",
@@ -987,10 +831,18 @@ GET /api/dlq/jobs/dlq:detection_queue?start=0&limit=10
       "attempt_count": 3,
       "first_failed_at": "2025-12-23T10:30:05.000000",
       "last_failed_at": "2025-12-23T10:30:15.000000",
-      "queue_name": "detection_queue"
+      "queue_name": "detection_queue",
+      "error_type": "ConnectionRefusedError",
+      "http_status": null,
+      "retry_delays": [1.0, 2.0],
+      "context": {
+        "detection_queue_depth": 150,
+        "analysis_queue_depth": 25,
+        "dlq_circuit_breaker_state": "closed"
+      }
     }
   ],
-  "count": 1
+  "pagination": { "total": 1, "limit": 100, "offset": 0, "has_more": false }
 }
 ```
 
@@ -1021,15 +873,16 @@ X-API-Key: your-api-key
 
 ### Retry Behavior
 
-Before jobs reach the DLQ, the system retries with exponential backoff:
+Before jobs reach the DLQ, the retry handler (`RetryConfig` in
+`backend/services/retry_handler.py`) retries with exponential backoff:
 
-| Setting          | Default | Description              |
-| ---------------- | ------- | ------------------------ |
-| Max retries      | 3       | Attempts before DLQ      |
-| Base delay       | 1s      | Initial retry delay      |
-| Max delay        | 30s     | Maximum retry delay      |
-| Exponential base | 2.0     | Backoff multiplier       |
-| Jitter           | 0-25%   | Random variance on delay |
+| Setting          | Default | Description               |
+| ---------------- | ------- | ------------------------- |
+| Max retries      | 3       | Attempts before DLQ       |
+| Base delay       | 1s      | Initial retry delay       |
+| Max delay        | 30s     | Maximum retry delay       |
+| Exponential base | 2.0     | Backoff multiplier        |
+| Jitter           | 0-25%   | Added on top of the delay |
 
 ### Common Failure Reasons
 
@@ -1044,11 +897,11 @@ Before jobs reach the DLQ, the system retries with exponential backoff:
 
 **Analysis Queue:**
 
-| Error                   | Cause                 | Resolution                |
-| ----------------------- | --------------------- | ------------------------- |
-| Connection refused      | Nemotron service down | Check AI container health |
-| Context length exceeded | Too many detections   | Reduce batch window       |
-| Model loading failed    | VRAM exhausted        | Restart AI services       |
+| Error                   | Cause                          | Resolution                 |
+| ----------------------- | ------------------------------ | -------------------------- |
+| Connection refused      | `ai-vlm` not up or unprofiled  | Check AI container health  |
+| Context length exceeded | Prompt larger than served slot | Fewer detections per batch |
+| Model loading failed    | VRAM exhausted                 | Restart AI services        |
 
 ### Recovery Workflow
 
@@ -1141,17 +994,29 @@ The pipeline uses circuit breakers to prevent cascading failures.
 
 ### Configuration
 
-| Variable                            | Default | Description                     |
-| ----------------------------------- | ------- | ------------------------------- |
-| `CIRCUIT_BREAKER_FAILURE_THRESHOLD` | 5       | Failures before opening         |
-| `CIRCUIT_BREAKER_RECOVERY_TIMEOUT`  | 30      | Seconds before testing recovery |
-| `CIRCUIT_BREAKER_SUCCESS_THRESHOLD` | 2       | Successes to close circuit      |
+Breakers are registered at startup with fixed settings, not env vars (the
+`CircuitBreakerConfig` defaults in `backend/services/circuit_breaker.py`):
+
+| Breaker               | failure_threshold | recovery_timeout | success_threshold |
+| --------------------- | ----------------- | ---------------- | ----------------- |
+| `yolo26`              | 5                 | 30s              | 2                 |
+| `postgresql`, `redis` | 10                | 60s              | 3                 |
+| `ai-vlm` (vlm_client) | 5                 | 60s              | 2                 |
+
+The `/api/system/circuit-breakers` response echoes each breaker's actual
+config, so read it there rather than trusting this table if a deployment has
+been changed in code.
 
 ### Check Status
 
 ```bash
 GET /api/system/circuit-breakers
 ```
+
+Breakers registered at startup: `yolo26`, `postgresql`, `redis`
+(`backend/main.py:302-329`), plus `ai-vlm`, created lazily by `VlmClient`
+(`backend/services/vlm_client.py:82`). A freshly started backend shows the
+first three; `ai-vlm` appears once the VLM path has been used.
 
 **Response:**
 
@@ -1162,17 +1027,20 @@ GET /api/system/circuit-breakers
       "name": "yolo26",
       "state": "closed",
       "failure_count": 0,
-      "total_calls": 100
-    },
-    "nemotron": {
-      "name": "nemotron",
-      "state": "closed",
-      "failure_count": 0,
-      "total_calls": 50
+      "success_count": 0,
+      "total_calls": 100,
+      "rejected_calls": 0,
+      "config": {
+        "failure_threshold": 5,
+        "recovery_timeout": 30.0,
+        "half_open_max_calls": 3,
+        "success_threshold": 2
+      }
     }
   },
-  "total_count": 2,
-  "open_count": 0
+  "total_count": 3,
+  "open_count": 0,
+  "timestamp": "2026-10-02T10:30:00Z"
 }
 ```
 
@@ -1221,27 +1089,25 @@ GET /api/jobs?job_type=export&status=running&limit=50&offset=0
 | limit    | integer | 50      | Max results (1-1000)                                              |
 | offset   | integer | 0       | Results to skip                                                   |
 
-**Response:**
+**Response** (pagination envelope — `items` + `pagination`, NEM-2178):
 
 ```json
 {
-  "jobs": [
+  "items": [
     {
-      "job_id": "job_abc123",
+      "job_id": "550e8400-e29b-41d4-a716-446655440000",
       "job_type": "export",
       "status": "running",
       "progress": 45,
-      "created_at": "2025-12-23T12:00:00Z",
-      "started_at": "2025-12-23T12:00:05Z",
-      "metadata": {
-        "format": "csv",
-        "event_count": 1000
-      }
+      "message": "Exporting events: 450/1000",
+      "created_at": "2026-10-02T12:00:00Z",
+      "started_at": "2026-10-02T12:00:05Z",
+      "completed_at": null,
+      "result": null,
+      "error": null
     }
   ],
-  "count": 1,
-  "limit": 50,
-  "offset": 0
+  "pagination": { "total": 1, "limit": 50, "offset": 0, "has_more": false }
 }
 ```
 
@@ -1273,28 +1139,29 @@ GET /api/jobs/search?q=export&status=running,pending&has_error=false&sort=create
 | sort             | string   | created_at | Sort field                                    |
 | order            | string   | desc       | Sort direction (asc, desc)                    |
 
-**Response:**
+**Response** (`data` + `meta` + `aggregations`):
 
 ```json
 {
-  "jobs": [...],
-  "count": 25,
-  "limit": 50,
-  "offset": 0,
-  "aggregations": {
-    "by_status": {
-      "running": 5,
-      "pending": 10,
-      "completed": 8,
-      "failed": 2
-    },
-    "by_type": {
-      "export": 15,
-      "cleanup": 10
+  "data": [
+    {
+      "job_id": "550e8400-e29b-41d4-a716-446655440000",
+      "job_type": "export",
+      "status": "completed",
+      "progress": 100
     }
+  ],
+  "meta": { "total": 150, "limit": 50, "offset": 0, "has_more": true },
+  "aggregations": {
+    "by_status": { "running": 5, "pending": 10, "completed": 100, "failed": 35 },
+    "by_type": { "export": 120, "cleanup": 20, "backup": 10 }
   }
 }
 ```
+
+The status filter param is `status` (the handler names it `job_status`);
+`sort` accepts `created_at`, `started_at`, `completed_at`, `progress`,
+`job_type`, `status`.
 
 ### Job Statistics
 
@@ -1302,28 +1169,30 @@ GET /api/jobs/search?q=export&status=running,pending&has_error=false&sort=create
 GET /api/jobs/stats
 ```
 
-**Response:**
+**Response** (`by_status` and `by_type` are lists of `{status|job_type, count}`
+objects, not maps):
 
 ```json
 {
   "total_jobs": 1500,
-  "by_status": {
-    "pending": 25,
-    "running": 5,
-    "completed": 1400,
-    "failed": 50,
-    "cancelled": 20
-  },
-  "by_type": {
-    "export": 800,
-    "cleanup": 500,
-    "ai_processing": 200
-  },
-  "avg_duration_seconds": 45.5,
-  "jobs_today": 120,
-  "jobs_this_hour": 15
+  "by_status": [
+    { "status": "pending", "count": 25 },
+    { "status": "running", "count": 5 },
+    { "status": "completed", "count": 1400 },
+    { "status": "failed", "count": 70 }
+  ],
+  "by_type": [
+    { "job_type": "export", "count": 800 },
+    { "job_type": "orphaned_file_cleanup", "count": 500 },
+    { "job_type": "batch_audit", "count": 200 }
+  ],
+  "average_duration_seconds": 45.5,
+  "oldest_pending_job_age_seconds": 120.0
 }
 ```
+
+`JobStatusEnum` has four values — `pending`, `running`, `completed`, `failed`.
+A cancelled or aborted job lands in `failed`; there is no `cancelled` status.
 
 ### Job Types
 
@@ -1331,21 +1200,14 @@ GET /api/jobs/stats
 GET /api/jobs/types
 ```
 
-**Response:**
+**Response** — the job types the backend actually creates (`create_job(...)`
+call sites): `export`, `batch_audit`, `evaluation`, `orphaned_file_cleanup`.
 
 ```json
 {
-  "types": [
-    {
-      "type": "export",
-      "description": "Export events to CSV/JSON",
-      "supports_abort": true
-    },
-    {
-      "type": "cleanup",
-      "description": "Clean up old data",
-      "supports_abort": false
-    }
+  "job_types": [
+    { "name": "export", "description": "Export events to CSV, JSON, or ZIP format" },
+    { "name": "cleanup", "description": "Clean up old data and temporary files" }
   ]
 }
 ```
@@ -1353,27 +1215,23 @@ GET /api/jobs/types
 ### Get Job Status
 
 ```bash
-GET /api/jobs/job_abc123
+GET /api/jobs/550e8400-e29b-41d4-a716-446655440000
 ```
 
-**Response:**
+**Response** (`JobResponse`):
 
 ```json
 {
-  "job_id": "job_abc123",
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
   "job_type": "export",
   "status": "running",
-  "progress": 65,
-  "created_at": "2025-12-23T12:00:00Z",
-  "started_at": "2025-12-23T12:00:05Z",
+  "progress": 45,
+  "message": "Exporting events: 450/1000",
+  "created_at": "2026-10-02T12:00:00Z",
+  "started_at": "2026-10-02T12:00:05Z",
   "completed_at": null,
-  "error_message": null,
-  "result": null,
-  "metadata": {
-    "format": "csv",
-    "event_count": 1000,
-    "processed": 650
-  }
+  "error": null,
+  "result": null
 }
 ```
 
@@ -1382,38 +1240,35 @@ GET /api/jobs/job_abc123
 Get comprehensive job information including progress history and timing:
 
 ```bash
-GET /api/jobs/job_abc123/detail
+GET /api/jobs/550e8400-e29b-41d4-a716-446655440000/detail
 ```
 
-**Response:**
+**Response** (`JobDetailResponse` — `progress`, `timing`, and `retry_info` are
+nested objects; the id field is `id`, not `job_id`):
 
 ```json
 {
-  "job_id": "job_abc123",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
   "job_type": "export",
   "status": "running",
-  "progress": 65,
-  "progress_history": [
-    { "timestamp": "2025-12-23T12:00:05Z", "progress": 0, "message": "Starting" },
-    { "timestamp": "2025-12-23T12:00:30Z", "progress": 25, "message": "Processing batch 1" },
-    { "timestamp": "2025-12-23T12:01:00Z", "progress": 50, "message": "Processing batch 2" },
-    { "timestamp": "2025-12-23T12:01:30Z", "progress": 65, "message": "Processing batch 3" }
-  ],
+  "queue_name": "high_priority",
+  "priority": 1,
+  "progress": {
+    "percent": 45,
+    "current_step": "Processing events",
+    "items_processed": 450,
+    "items_total": 1000
+  },
   "timing": {
-    "created_at": "2025-12-23T12:00:00Z",
-    "started_at": "2025-12-23T12:00:05Z",
-    "queue_wait_seconds": 5,
-    "running_seconds": 90
+    "created_at": "2026-10-02T12:00:00Z",
+    "started_at": "2026-10-02T12:00:05Z",
+    "duration_seconds": 45.5,
+    "estimated_remaining_seconds": 55.0
   },
-  "retry_info": {
-    "attempt": 1,
-    "max_attempts": 3,
-    "last_error": null
-  },
-  "metadata": {
-    "format": "csv",
-    "event_count": 1000
-  }
+  "retry_info": { "attempt_number": 1, "max_attempts": 3, "previous_errors": [] },
+  "result": null,
+  "error": null,
+  "metadata": { "worker_id": "worker-001" }
 }
 ```
 
@@ -1422,33 +1277,38 @@ GET /api/jobs/job_abc123/detail
 Get complete execution history with state transitions:
 
 ```bash
-GET /api/jobs/job_abc123/history
+GET /api/jobs/550e8400-e29b-41d4-a716-446655440000/history
 ```
 
-**Response:**
+**Response** (`JobHistoryResponse` — transitions use `from`/`to`/`at`/
+`triggered_by`, attempts use `attempt_number`):
 
 ```json
 {
-  "job_id": "job_abc123",
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "job_type": "export",
+  "status": "completed",
+  "created_at": "2026-10-02T12:00:00Z",
+  "started_at": "2026-10-02T12:00:01Z",
+  "completed_at": "2026-10-02T12:01:30Z",
   "transitions": [
+    { "at": "2026-10-02T12:00:00Z", "to": "pending", "triggered_by": "api" },
     {
-      "from_status": null,
-      "to_status": "pending",
-      "timestamp": "2025-12-23T12:00:00Z",
-      "reason": "Job created"
-    },
-    {
-      "from_status": "pending",
-      "to_status": "running",
-      "timestamp": "2025-12-23T12:00:05Z",
-      "reason": "Worker picked up job"
+      "at": "2026-10-02T12:00:01Z",
+      "from": "pending",
+      "to": "running",
+      "triggered_by": "worker",
+      "details": { "worker_id": "worker-1" }
     }
   ],
   "attempts": [
     {
-      "attempt": 1,
-      "started_at": "2025-12-23T12:00:05Z",
-      "status": "running"
+      "attempt_number": 1,
+      "started_at": "2026-10-02T12:00:01Z",
+      "ended_at": "2026-10-02T12:01:30Z",
+      "status": "succeeded",
+      "duration_seconds": 89.0,
+      "worker_id": "worker-1"
     }
   ]
 }
@@ -1457,7 +1317,7 @@ GET /api/jobs/job_abc123/history
 ### Get Job Logs
 
 ```bash
-GET /api/jobs/job_abc123/logs?level=INFO&since=2025-12-23T12:00:00Z&limit=100
+GET /api/jobs/550e8400-e29b-41d4-a716-446655440000/logs?level=INFO&limit=100
 ```
 
 **Parameters:**
@@ -1468,110 +1328,101 @@ GET /api/jobs/job_abc123/logs?level=INFO&since=2025-12-23T12:00:00Z&limit=100
 | since | datetime | null    | Return logs from this timestamp                 |
 | limit | integer  | 100     | Maximum log entries                             |
 
-**Response:**
+**Response** (`JobLogsResponse` — `total` + `has_more`, not `count`):
 
 ```json
 {
-  "job_id": "job_abc123",
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
   "logs": [
     {
-      "timestamp": "2025-12-23T12:00:05Z",
+      "timestamp": "2026-10-02T12:00:01Z",
       "level": "INFO",
-      "message": "Starting export job"
+      "message": "Job started",
+      "attempt_number": 1
     },
     {
-      "timestamp": "2025-12-23T12:00:30Z",
+      "timestamp": "2026-10-02T12:00:05Z",
       "level": "INFO",
-      "message": "Processed 250 events"
-    },
-    {
-      "timestamp": "2025-12-23T12:01:00Z",
-      "level": "WARNING",
-      "message": "Slow query detected, optimizing"
+      "message": "Processing events: 0/1000",
+      "attempt_number": 1,
+      "context": { "progress": 0 }
     }
   ],
-  "count": 3
+  "total": 2,
+  "has_more": false
 }
 ```
 
 ### Cancel Job
 
-Cancel a queued job:
+Cancel a queued job (`409` if it already completed or failed; `404` if the id
+is unknown). A cancelled job's status becomes `failed` — the tracker has no
+`cancelled` state:
 
 ```bash
-POST /api/jobs/job_abc123/cancel
+POST /api/jobs/550e8400-e29b-41d4-a716-446655440000/cancel
 ```
 
 **Response:**
 
 ```json
 {
-  "job_id": "job_abc123",
-  "status": "cancelled",
-  "message": "Job cancelled successfully"
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "failed",
+  "message": "Job cancellation requested"
 }
 ```
 
 ### Abort Running Job
 
-Abort a currently running job:
+Abort a currently running job (queued jobs should use `/cancel`; `400` if the
+job is not running):
 
 ```bash
-POST /api/jobs/job_abc123/abort
+POST /api/jobs/550e8400-e29b-41d4-a716-446655440000/abort
 ```
 
 **Response:**
 
 ```json
 {
-  "job_id": "job_abc123",
-  "status": "aborted",
-  "message": "Abort signal sent to worker"
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "failed",
+  "message": "Job abort requested - worker notified"
 }
 ```
 
 ### Delete/Cancel Job (Unified)
 
-Cancel or abort based on current state:
+Cancel based on current state (same response as `/cancel`):
 
 ```bash
-DELETE /api/jobs/job_abc123
-```
-
-**Response:**
-
-```json
-{
-  "job_id": "job_abc123",
-  "action": "cancelled",
-  "previous_status": "pending",
-  "message": "Job cancelled"
-}
+DELETE /api/jobs/550e8400-e29b-41d4-a716-446655440000
 ```
 
 ### Bulk Cancel Jobs
 
-Cancel multiple jobs at once:
+Cancel multiple jobs at once (1-100 ids per call). Jobs that cannot be
+cancelled are reported in `errors`; the call itself still succeeds:
 
 ```bash
 POST /api/jobs/bulk-cancel
 Content-Type: application/json
 
 {
-  "job_ids": ["job_abc123", "job_def456", "job_ghi789"]
+  "job_ids": ["550e8400-e29b-41d4-a716-446655440000", "660e8400-e29b-41d4-a716-446655440001"]
 }
 ```
 
-**Response:**
+**Response** (`BulkCancelResponse` — `cancelled` + `failed` counts, failures
+listed under `errors`):
 
 ```json
 {
-  "successful": 2,
+  "cancelled": 1,
   "failed": 1,
-  "results": [
-    { "job_id": "job_abc123", "success": true, "message": "Cancelled" },
-    { "job_id": "job_def456", "success": true, "message": "Cancelled" },
-    { "job_id": "job_ghi789", "success": false, "error": "Job already completed" }
+  "errors": [
+    { "job_id": "660e8400-e29b-41d4-a716-446655440001", "error": "Job already completed or failed" }
   ]
 }
 ```

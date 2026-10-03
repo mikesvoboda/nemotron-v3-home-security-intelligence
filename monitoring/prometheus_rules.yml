@@ -1,8 +1,9 @@
 # Prometheus Alerting Rules for Home Security Intelligence AI Pipeline
 #
-# TEMPLATE FILE: This file is processed by envsubst to generate prometheus_rules.yml
-# Environment variables are substituted at container startup.
-# Do not edit prometheus_rules.yml directly; edit this template instead.
+# LIVE FILE: docker-compose bind-mounts this file into the Prometheus container
+# as /etc/prometheus/prometheus_rules.yml (docker-compose.prod.yml:1012) and it
+# is listed in rule_files in monitoring/prometheus.yml. There are no ${...}
+# placeholders here; edit this file directly.
 #
 # This file defines alerting rules for monitoring AI service failures and
 # performance degradation in the HSI system.
@@ -59,14 +60,24 @@ groups:
       # =========================================================================
       # Latency and Performance Alerts
       # =========================================================================
-      # NOTE: AINemotronTimeout and AIDetectorSlow disabled - hsi_ai_request_duration_seconds_bucket metric not implemented
-      # Re-enable when metric is added to backend/core/metrics.py
-      # - alert: AINemotronTimeout
-      #   expr: histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="nemotron"}[5m])) > 120
-      #   ...
-      # - alert: AIDetectorSlow
-      #   expr: histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m])) > 5
-      #   ...
+
+      # Warning: YOLO26 detector P95 request latency above 5s.
+      # hsi_ai_request_duration_seconds is written per request by
+      # observe_ai_request_duration(self._detector_type, ai_duration) at
+      # detector_client.py:1139; the service label value is "yolo26"
+      # (detector_client.py:280 — the only shipped detector type).
+      - alert: AIDetectorSlow
+        expr: |
+          histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: ai
+          service: yolo26
+        annotations:
+          summary: 'AI detector requests are slow'
+          description: 'P95 YOLO26 request latency exceeds 5s for more than 5 minutes. Current P95: {{ $value | printf "%.1f" }}s. Check GPU contention and detector health.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aidetectorslow'
 
       # =========================================================================
       # Error Rate Alerts

@@ -87,12 +87,12 @@ When the system detects something important, you will want to know about it.
 
 ## Advanced Features
 
-| Guide                                                                        | Description                                      | Time    |
-| ---------------------------------------------------------------------------- | ------------------------------------------------ | ------- |
-| [AI Enrichment Data](../ui/dashboard.md#ai-enrichment-data-in-event-details) | Advanced AI analysis in event details            | ~8 min  |
-| [AI Audit Dashboard](../ui/ai-audit.md)                                      | AI quality metrics and recommendations           | ~8 min  |
-| [AI Performance](../ui/ai-performance.md)                                    | AI model health and Model Zoo monitoring         | ~15 min |
-| [Operations Dashboard](../ui/operations.md)                                  | System health, circuit breakers, troubleshooting | ~12 min |
+| Guide                                                                       | Description                                              | Time    |
+| --------------------------------------------------------------------------- | -------------------------------------------------------- | ------- |
+| [What an Event Detail Shows](../ui/dashboard.md#what-an-event-detail-shows) | VLM verdict, reasoning and match scores in event details | ~8 min  |
+| [AI Audit Dashboard](../ui/ai-audit.md)                                     | AI quality metrics and recommendations                   | ~8 min  |
+| [AI Performance](../ui/ai-performance.md)                                   | AI model health and Model Zoo monitoring                 | ~15 min |
+| [Operations Dashboard](../ui/operations.md)                                 | System health, circuit breakers, troubleshooting         | ~12 min |
 
 ---
 

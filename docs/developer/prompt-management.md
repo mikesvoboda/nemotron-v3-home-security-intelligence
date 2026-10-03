@@ -3,7 +3,7 @@
 > Technical documentation for the AI prompt management system, including A/B testing, version history, and the Prompt Playground UI.
 
 **Time to read:** ~20 min
-**Prerequisites:** [Architecture Overview](../architecture/overview.md), [AI Pipeline](../architecture/ai-pipeline.md)
+**Prerequisites:** [Architecture Overview](../architecture/overview.md), [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md)
 
 ---
 
@@ -16,6 +16,12 @@ The prompt management system provides a complete solution for managing AI model 
 - **Shadow Mode:** Run experimental prompts in parallel without affecting production
 - **Automatic Rollback:** Detect performance degradation and revert automatically
 - **Import/Export:** Backup and share configurations across instances
+
+The stored configuration is the input to `/api/prompts/test` (`system_prompt` is
+POSTed to `ai-vlm`) and to the evaluation harness. The production VLM analysis
+prompt is built in code by `VlmClient._render_prompt`
+([`backend/services/vlm_client.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/vlm_client.py)) and is
+not read from this table.
 
 ---
 
@@ -83,7 +89,11 @@ _Full-stack prompt management flow from UI to database to AI inference._
 
 1. **User edits prompt** in PromptPlayground UI
 2. **Test request** sent to `/api/prompts/test`
-3. **PromptService** runs LLM inference with modified config
+3. **PromptService** sends the `nemotron` configuration's `system_prompt` to the
+   `ai-vlm` engine (POST `/completion` at `settings.ai_vlm_url`,
+   `backend/services/prompt_service.py:681`) and scores the modified prompt against the event's
+   stored risk score; the other four config keys have no inference call wired, so
+   testing them returns `error: "Testing for model '<name>' not yet implemented"`.
 4. **Results returned** and displayed in before/after comparison
 5. **User saves** via PUT `/api/prompts/{model}`
 6. **New version created** in `prompt_versions` table
@@ -721,18 +731,23 @@ Respond with valid JSON:
 
 ### Prometheus Metrics
 
-Prompt-related metrics are exposed at `/api/metrics`:
+The A/B and shadow subsystem records its own metrics into the backend registry
+scraped at `/api/metrics`:
 
 ```python
-# Recorded on each prompt execution
+# Recorded on each prompt execution inside an A/B test
 record_prompt_latency(version: str, latency_seconds: float)
 
 # Recorded on shadow mode comparison
 record_shadow_comparison(model: str)
 
-# Recorded on rollback
+# Recorded when a rollback executes (hsi_prompt_rollbacks_total)
 record_prompt_rollback(model: str, reason: str)
 ```
+
+These series move only while an A/B or shadow rollout is running. A rollout
+that never fires is silent here, so treat an absent series as "no experiment
+ran" rather than as a healthy production path.
 
 ### Monitoring Recommendations
 
@@ -787,8 +802,8 @@ Key test scenarios:
 
 - [Prompt Management API](api/ai-pipeline.md) - Complete REST API reference
 - [AI Audit Dashboard](../ui/ai-audit.md) - Includes Prompt Playground documentation
-- [AI Pipeline Architecture](../architecture/ai-pipeline.md) - How prompts fit in the pipeline
-- [Risk Analysis](risk-analysis.md) - Nemotron prompt usage in risk scoring
+- [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md) - How prompts fit in the pipeline
+- [Risk Analysis](risk-analysis.md) - Prompt usage in risk scoring
 
 ---
 

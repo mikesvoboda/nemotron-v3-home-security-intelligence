@@ -42,7 +42,7 @@ config/
 | ---------------------- | -------------------------------------------------------------------------------------------- |
 | **Database**           | `DATABASE_URL`                                                                               |
 | **Redis**              | `REDIS_URL`                                                                                  |
-| **AI Services**        | `YOLO26_URL`, `NEMOTRON_URL`, timeouts, API keys                                             |
+| **AI Services**        | `YOLO26_URL`, `AI_VLM_URL`, `AI_GATEWAY_URL`, timeouts, API keys                             |
 | **Camera Integration** | `FOSCAM_BASE_PATH`                                                                           |
 | **File Watcher**       | `FILE_WATCHER_POLLING`, `FILE_WATCHER_POLLING_INTERVAL`                                      |
 | **Detection**          | `DETECTION_CONFIDENCE_THRESHOLD`                                                             |
@@ -64,7 +64,7 @@ config/
 | **DLQ**                | Circuit breaker settings for dead-letter queue                                               |
 | **Video Processing**   | Frame interval, thumbnails directory, max frames                                             |
 | **Clip Generation**    | Pre/post roll, clips directory, enabled flag                                                 |
-| **Service Health**     | `AI_RESTART_ENABLED`                                                                         |
+| **Service Health**     | `AI_RESTART_ENABLED` (the health monitor's service table is one `yolo26` entry)              |
 | **Admin Endpoints**    | `ADMIN_ENABLED` (the only gate; DEBUG not consulted), `ADMIN_API_KEY` (reserved, unenforced) |
 | **Cache / Timeouts**   | Cache TTLs, internal service timeouts                                                        |
 | **Workers & Queues**   | Worker supervisor, orchestrator, job management, pagination                                  |
@@ -124,7 +124,7 @@ Environment > .env file > Default value
 | Task                           | Variables to Set                                     |
 | ------------------------------ | ---------------------------------------------------- |
 | Connect to different database  | `DATABASE_URL`                                       |
-| Use remote AI services         | `YOLO26_URL`, `NEMOTRON_URL`                         |
+| Use remote AI services         | `YOLO26_URL`, `AI_VLM_URL`                           |
 | Enable authentication          | `API_KEY_ENABLED=true`, `API_KEYS`                   |
 | Enable TLS                     | `TLS_MODE`, certificate paths                        |
 | Adjust batch timing            | `BATCH_WINDOW_SECONDS`, `BATCH_IDLE_TIMEOUT_SECONDS` |
@@ -138,7 +138,7 @@ The backend validates configuration on startup. Invalid configurations cause sta
 
 ```bash
 # Test configuration without starting server
-uv run python -c "from backend.core.config import get_settings; print(get_settings())"
+uv run python -c "from backend.core.config import get_settings; print(get_settings())"   # import-time validation
 ```
 
 ## Target Audiences

@@ -334,74 +334,6 @@ AI_REQUEST_DURATION = Histogram(
 # Optimized histogram buckets for specific AI workloads to achieve under 5%
 # percentile error. Each model has buckets tuned to its typical latency profile.
 
-# YOLO26 buckets: Fast inference model (~20-100ms typical)
-# Designed for object detection with GPU acceleration
-# P50 ~30ms, P95 ~80ms, P99 ~150ms based on benchmarks
-YOLO26_INFERENCE_BUCKETS = (
-    0.01,  # 10ms - minimum expected latency
-    0.02,  # 20ms - fast path
-    0.03,  # 30ms - typical P50
-    0.05,  # 50ms - normal range
-    0.075,  # 75ms - approaching P95
-    0.1,  # 100ms - typical P95
-    0.15,  # 150ms - P99
-    0.2,  # 200ms - outliers
-    0.3,  # 300ms - degraded
-    0.5,  # 500ms - timeout threshold
-)
-
-YOLO26_INFERENCE_DURATION = Histogram(
-    "hsi_yolo26_inference_seconds",
-    "YOLO26 object detection inference duration with workload-optimized buckets",
-    buckets=YOLO26_INFERENCE_BUCKETS,
-    registry=_registry,
-)
-
-# Nemotron buckets: LLM inference (~500ms-5s typical for analysis)
-# Designed for text generation with context-dependent latency
-# P50 ~1s, P95 ~3s, P99 ~5s based on benchmarks
-NEMOTRON_INFERENCE_BUCKETS = (
-    0.1,  # 100ms - short cached responses
-    0.25,  # 250ms - minimal generation
-    0.5,  # 500ms - fast completions
-    1.0,  # 1s - typical P50
-    1.5,  # 1.5s - normal range
-    2.0,  # 2s - longer analysis
-    3.0,  # 3s - typical P95
-    5.0,  # 5s - P99
-    10.0,  # 10s - extended analysis
-    30.0,  # 30s - complex multi-turn
-)
-
-NEMOTRON_INFERENCE_DURATION = Histogram(
-    "hsi_nemotron_inference_seconds",
-    "Nemotron LLM inference duration with workload-optimized buckets",
-    buckets=NEMOTRON_INFERENCE_BUCKETS,
-    registry=_registry,
-)
-
-# Florence buckets: Vision-language model (~100ms-2s typical)
-# Designed for captioning, OCR, and detection tasks
-# P50 ~300ms, P95 ~1s, P99 ~2s based on benchmarks
-FLORENCE_INFERENCE_BUCKETS = (
-    0.05,  # 50ms - cached/preprocessed
-    0.1,  # 100ms - fast tasks
-    0.2,  # 200ms - quick captions
-    0.3,  # 300ms - typical P50
-    0.5,  # 500ms - normal OCR
-    0.75,  # 750ms - detailed captions
-    1.0,  # 1s - typical P95
-    1.5,  # 1.5s - complex tasks
-    2.0,  # 2s - P99
-    3.0,  # 3s - outliers
-)
-
-FLORENCE_INFERENCE_DURATION = Histogram(
-    "hsi_florence_inference_seconds",
-    "Florence vision-language inference duration with workload-optimized buckets",
-    buckets=FLORENCE_INFERENCE_BUCKETS,
-    registry=_registry,
-)
 
 # =============================================================================
 # Error Counters
@@ -451,12 +383,6 @@ DETECTIONS_FILTERED_LOW_CONFIDENCE_TOTAL = Counter(
 # Risk score distribution histogram with buckets covering 0-100 range
 RISK_SCORE_BUCKETS = (10, 20, 30, 40, 50, 60, 70, 80, 90, 100)
 
-RISK_SCORE = Histogram(
-    "hsi_risk_score",
-    "Risk score distribution from Nemotron analysis",
-    buckets=RISK_SCORE_BUCKETS,
-    registry=_registry,
-)
 
 EVENTS_BY_RISK_LEVEL = Counter(
     "hsi_events_by_risk_level_total",
@@ -465,34 +391,6 @@ EVENTS_BY_RISK_LEVEL = Counter(
     registry=_registry,
 )
 
-# =============================================================================
-# Score Distribution Monitoring & Calibration Drift (NEM-5535)
-# =============================================================================
-
-# Dedicated histogram for score distribution monitoring with same buckets as RISK_SCORE.
-# Used by CalibrationMonitor to track distribution drift over time.
-RISK_SCORE_DISTRIBUTION = Histogram(
-    "hsi_risk_score_distribution",
-    "Risk score distribution for calibration monitoring",
-    buckets=RISK_SCORE_BUCKETS,
-    registry=_registry,
-)
-
-# Counter per risk tier for calibration drift alerting.
-# Tiers: low (0-20), elevated (21-40), moderate (41-60), high (61-80), critical (81-100)
-RISK_TIER_TOTAL = Counter(
-    "hsi_risk_tier_total",
-    "Total events per risk tier for calibration monitoring",
-    labelnames=["tier"],
-    registry=_registry,
-)
-
-PROMPT_TEMPLATE_USED = Counter(
-    "hsi_prompt_template_used_total",
-    "Prompt template usage by template name",
-    labelnames=["template"],
-    registry=_registry,
-)
 
 # =============================================================================
 # LLM Context Utilization Metrics (NEM-1666, NEM-3288)
@@ -518,6 +416,7 @@ LLM_CONTEXT_UTILIZATION_RATIO = Gauge(
     registry=_registry,
 )
 
+
 # Counter for prompts that exceeded context limits
 PROMPTS_TRUNCATED_TOTAL = Counter(
     "hsi_prompts_truncated_total",
@@ -536,117 +435,6 @@ PROMPTS_HIGH_UTILIZATION_TOTAL = Counter(
 # Business Metrics (NEM-770)
 # =============================================================================
 
-FLORENCE_TASK_TOTAL = Counter(
-    "hsi_florence_task_total",
-    "Florence-2 task invocations",
-    labelnames=["task"],  # caption, ocr, detect, dense_caption
-    registry=_registry,
-)
-
-ENRICHMENT_MODEL_CALLS_TOTAL = Counter(
-    "hsi_enrichment_model_calls_total",
-    "Enrichment model calls",
-    labelnames=["model"],  # brisque, violence, clothing, vehicle, pet
-    registry=_registry,
-)
-
-ENRICHMENT_RETRY_TOTAL = Counter(
-    "hsi_enrichment_retry_total",
-    "Total retry attempts for enrichment service by endpoint",
-    labelnames=["endpoint"],  # vehicle, pet, clothing, depth, distance, pose, action
-    registry=_registry,
-)
-
-# =============================================================================
-# Enrichment Pipeline Partial Failure Metrics (NEM-1672)
-# =============================================================================
-
-ENRICHMENT_SUCCESS_RATE = Gauge(
-    "hsi_enrichment_success_rate",
-    "Success rate of enrichment models (0.0 to 1.0)",
-    labelnames=["model"],
-    registry=_registry,
-)
-
-ENRICHMENT_PARTIAL_BATCHES_TOTAL = Counter(
-    "hsi_enrichment_partial_batches_total",
-    "Total number of batches with partial enrichment (some models succeeded, some failed)",
-    registry=_registry,
-)
-
-ENRICHMENT_FAILURES_TOTAL = Counter(
-    "hsi_enrichment_failures_total",
-    "Total number of enrichment model failures by model name",
-    labelnames=["model"],
-    registry=_registry,
-)
-
-ENRICHMENT_BATCH_STATUS_TOTAL = Counter(
-    "hsi_enrichment_batch_status_total",
-    "Total number of enrichment batches by status (full, partial, failed, skipped)",
-    labelnames=["status"],
-    registry=_registry,
-)
-
-# Histogram for enrichment model duration (Grafana dashboard compatibility)
-ENRICHMENT_MODEL_DURATION = Histogram(
-    "hsi_enrichment_model_duration_seconds",
-    "Duration of enrichment model inference by model name",
-    labelnames=["model"],
-    buckets=AI_REQUEST_DURATION_BUCKETS,
-    registry=_registry,
-)
-
-# Counter for enrichment model errors (Grafana dashboard compatibility)
-# This is an alias-style metric that mirrors hsi_enrichment_failures_total
-# but uses the naming convention expected by the Grafana dashboard
-ENRICHMENT_MODEL_ERRORS_TOTAL = Counter(
-    "hsi_enrichment_model_errors_total",
-    "Total number of enrichment model errors by model name",
-    labelnames=["model"],
-    registry=_registry,
-)
-
-# Histogram for enrichment pipeline stage durations (NEM-5525)
-ENRICHMENT_PIPELINE_STAGE_DURATION = Histogram(
-    "hsi_enrichment_pipeline_stage_duration_seconds",
-    "Duration of enrichment pipeline stages",
-    labelnames=["stage"],
-    buckets=AI_REQUEST_DURATION_BUCKETS,
-    registry=_registry,
-)
-
-# Counter for enrichment pipeline timeouts
-ENRICHMENT_PIPELINE_TIMEOUTS_TOTAL = Counter(
-    "hsi_enrichment_pipeline_timeouts_total",
-    "Total number of enrichment pipeline hard timeouts",
-    registry=_registry,
-)
-
-# Counters for enrichment cascade (NEM-5570: skip empty frames / defer models)
-ENRICHMENT_CASCADE_SKIPPED_TOTAL = Counter(
-    "hsi_enrichment_cascade_skipped_total",
-    "Frames skipped by cascade (no detections)",
-    registry=_registry,
-)
-ENRICHMENT_CASCADE_PROCESSED_TOTAL = Counter(
-    "hsi_enrichment_cascade_processed_total",
-    "Frames processed through enrichment (had detections)",
-    registry=_registry,
-)
-ENRICHMENT_CASCADE_MODELS_DEFERRED_TOTAL = Counter(
-    "hsi_enrichment_cascade_models_deferred_total",
-    "Individual model invocations deferred by cascade",
-    labelnames=["model", "reason"],
-    registry=_registry,
-)
-
-# Gauge for enrichment quality level in use
-ENRICHMENT_QUALITY_LEVEL = Gauge(
-    "hsi_enrichment_quality_level",
-    "Current enrichment quality level (1=minimal, 2=standard, 3=full)",
-    registry=_registry,
-)
 
 EVENTS_BY_CAMERA_TOTAL = Counter(
     "hsi_events_by_camera_total",
@@ -742,58 +530,6 @@ CACHE_BACKGROUND_REFRESH_TOTAL = Counter(
     registry=_registry,
 )
 
-# Connection Pool Metrics (NEM-3368)
-REDIS_POOL_SIZE = Gauge(
-    "hsi_redis_pool_size",
-    "Current size of the Redis connection pool",
-    labelnames=["pool_type"],
-    registry=_registry,
-)
-
-REDIS_POOL_AVAILABLE = Gauge(
-    "hsi_redis_pool_available",
-    "Number of available connections in the Redis pool",
-    labelnames=["pool_type"],
-    registry=_registry,
-)
-
-REDIS_POOL_IN_USE = Gauge(
-    "hsi_redis_pool_in_use",
-    "Number of connections currently in use",
-    labelnames=["pool_type"],
-    registry=_registry,
-)
-
-# =============================================================================
-# LLM Token Usage Metrics (NEM-1730)
-# =============================================================================
-
-NEMOTRON_TOKENS_INPUT_TOTAL = Counter(
-    "hsi_nemotron_tokens_input_total",
-    "Total input tokens sent to Nemotron LLM",
-    labelnames=["camera_id"],
-    registry=_registry,
-)
-
-NEMOTRON_TOKENS_OUTPUT_TOTAL = Counter(
-    "hsi_nemotron_tokens_output_total",
-    "Total output tokens received from Nemotron LLM",
-    labelnames=["camera_id"],
-    registry=_registry,
-)
-
-NEMOTRON_TOKENS_PER_SECOND = Gauge(
-    "hsi_nemotron_tokens_per_second",
-    "Current token throughput (tokens/second) for Nemotron LLM",
-    registry=_registry,
-)
-
-NEMOTRON_TOKEN_COST_USD = Counter(
-    "hsi_nemotron_token_cost_usd_total",
-    "Total estimated cost in USD for Nemotron LLM token usage",
-    labelnames=["camera_id"],
-    registry=_registry,
-)
 
 # =============================================================================
 # LLM Inference Cost Tracking Metrics (NEM-1673)
@@ -853,6 +589,7 @@ COST_PER_DETECTION_USD = Gauge(
     "Average cost per detection (image processed) in USD",
     registry=_registry,
 )
+
 
 COST_PER_EVENT_USD = Gauge(
     "hsi_cost_per_event_usd",
@@ -1114,11 +851,6 @@ FACE_EMBEDDING_DURATION_SECONDS = Histogram(
     registry=_registry,
 )
 
-KNOWN_FACES_DATABASE_SIZE = Gauge(
-    "hsi_known_faces_database_size",
-    "Number of known faces in the recognition database",
-    registry=_registry,
-)
 
 # -----------------------------------------------------------------------------
 # Re-Identification Metrics (NEM-4140)
@@ -1167,69 +899,6 @@ CROSS_CAMERA_HANDOFFS_TOTAL = Counter(
     registry=_registry,
 )
 
-ACTIVE_TRACKS_COUNT = Gauge(
-    "hsi_active_tracks_count",
-    "Current number of active tracks across cameras",
-    labelnames=["entity_type"],  # entity_type: person, vehicle
-    registry=_registry,
-)
-
-# -----------------------------------------------------------------------------
-# Scene OCR Metrics
-# -----------------------------------------------------------------------------
-# Metrics for tracking Scene OCR performance and usage in the enrichment pipeline.
-# Scene OCR extracts text from security camera frames and matches against service providers.
-
-SCENE_OCR_REQUESTS_TOTAL = Counter(
-    "hsi_scene_ocr_requests_total",
-    "Total number of Scene OCR requests by source type",
-    labelnames=["source"],  # source: full_frame, crop
-    registry=_registry,
-)
-
-SCENE_OCR_TEXTS_DETECTED_TOTAL = Counter(
-    "hsi_scene_ocr_texts_detected_total",
-    "Total number of text regions detected by Scene OCR",
-    registry=_registry,
-)
-
-SCENE_OCR_SERVICE_PROVIDERS_MATCHED_TOTAL = Counter(
-    "hsi_scene_ocr_service_providers_matched_total",
-    "Total number of service provider matches from Scene OCR",
-    labelnames=["category"],  # category: DELIVERY, UTILITY, MAINTENANCE, EMERGENCY, etc.
-    registry=_registry,
-)
-
-# Buckets for Scene OCR processing duration (in seconds)
-# Covers fast processing (50ms) to slow processing with multiple crops (5s)
-SCENE_OCR_PROCESSING_BUCKETS = (
-    0.05,  # 50ms - fast single frame
-    0.1,  # 100ms - typical single frame
-    0.25,  # 250ms - frame with few crops
-    0.5,  # 500ms - multiple crops
-    1.0,  # 1s - many crops or slow inference
-    2.0,  # 2s - high latency
-    5.0,  # 5s - timeout threshold
-)
-
-SCENE_OCR_PROCESSING_SECONDS = Histogram(
-    "hsi_scene_ocr_processing_seconds",
-    "Duration of Scene OCR processing in seconds by source type",
-    labelnames=["source"],  # source: full_frame, crop
-    buckets=SCENE_OCR_PROCESSING_BUCKETS,
-    registry=_registry,
-)
-
-# Buckets for Scene OCR confidence scores (0.0 to 1.0)
-# Matches confidence thresholds used in scene_ocr_service.py
-SCENE_OCR_CONFIDENCE_BUCKETS = (0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
-
-SCENE_OCR_CONFIDENCE = Histogram(
-    "hsi_scene_ocr_confidence",
-    "Confidence scores for Scene OCR text detections",
-    buckets=SCENE_OCR_CONFIDENCE_BUCKETS,
-    registry=_registry,
-)
 
 # =============================================================================
 # MetricsService Class (NEM-1327)
@@ -1415,81 +1084,9 @@ class MetricsService:
     # Workload-Specific AI Model Duration Methods (NEM-3381)
     # -------------------------------------------------------------------------
 
-    def observe_yolo26_inference(self, duration_seconds: float) -> None:
-        """Record YOLO26 object detection inference duration.
-
-        Uses workload-optimized histogram buckets designed for fast inference
-        models with typical latencies of 20-100ms. Achieves under 5% percentile
-        error for accurate P50/P95/P99 reporting.
-
-        Args:
-            duration_seconds: Inference duration in seconds
-        """
-        YOLO26_INFERENCE_DURATION.observe(duration_seconds)
-
-    def observe_nemotron_inference(self, duration_seconds: float) -> None:
-        """Record Nemotron LLM inference duration.
-
-        Uses workload-optimized histogram buckets designed for LLM inference
-        with typical latencies of 500ms-5s. Achieves under 5% percentile
-        error for accurate P50/P95/P99 reporting.
-
-        Args:
-            duration_seconds: Inference duration in seconds
-        """
-        NEMOTRON_INFERENCE_DURATION.observe(duration_seconds)
-
-    def observe_florence_inference(self, duration_seconds: float) -> None:
-        """Record Florence vision-language model inference duration.
-
-        Uses workload-optimized histogram buckets designed for vision-language
-        tasks with typical latencies of 100ms-2s. Achieves under 5% percentile
-        error for accurate P50/P95/P99 reporting.
-
-        Args:
-            duration_seconds: Inference duration in seconds
-        """
-        FLORENCE_INFERENCE_DURATION.observe(duration_seconds)
-
     # -------------------------------------------------------------------------
     # Exemplar Support Methods (NEM-3379)
     # -------------------------------------------------------------------------
-
-    def observe_yolo26_with_exemplar(self, duration_seconds: float) -> None:
-        """Record YOLO26 inference duration with trace context exemplar.
-
-        Combines workload-optimized histogram buckets with exemplar support for
-        complete observability. Use this method when tracing is enabled and
-        you need to correlate slow inferences with their distributed traces.
-
-        Args:
-            duration_seconds: Inference duration in seconds
-        """
-        observe_with_exemplar(YOLO26_INFERENCE_DURATION, duration_seconds)
-
-    def observe_nemotron_with_exemplar(self, duration_seconds: float) -> None:
-        """Record Nemotron LLM inference duration with trace context exemplar.
-
-        Combines workload-optimized histogram buckets with exemplar support for
-        complete observability. Use this method when tracing is enabled and
-        you need to correlate slow LLM inferences with their distributed traces.
-
-        Args:
-            duration_seconds: Inference duration in seconds
-        """
-        observe_with_exemplar(NEMOTRON_INFERENCE_DURATION, duration_seconds)
-
-    def observe_florence_with_exemplar(self, duration_seconds: float) -> None:
-        """Record Florence inference duration with trace context exemplar.
-
-        Combines workload-optimized histogram buckets with exemplar support for
-        complete observability. Use this method when tracing is enabled and
-        you need to correlate slow vision-language inferences with their traces.
-
-        Args:
-            duration_seconds: Inference duration in seconds
-        """
-        observe_with_exemplar(FLORENCE_INFERENCE_DURATION, duration_seconds)
 
     def observe_ai_request_with_exemplar(self, service: str, duration_seconds: float) -> None:
         """Record AI service request duration with trace context exemplar.
@@ -1521,14 +1118,6 @@ class MetricsService:
     # Risk Analysis Metrics
     # -------------------------------------------------------------------------
 
-    def observe_risk_score(self, score: int | float) -> None:
-        """Record a risk score observation to the histogram.
-
-        Args:
-            score: Risk score from Nemotron analysis (0-100)
-        """
-        RISK_SCORE.observe(score)
-
     def record_event_by_risk_level(self, level: str) -> None:
         """Increment the events counter for a given risk level.
 
@@ -1542,106 +1131,9 @@ class MetricsService:
         safe_level = sanitize_risk_level(level)
         EVENTS_BY_RISK_LEVEL.labels(level=safe_level).inc()
 
-    def observe_risk_score_distribution(self, score: int | float) -> None:
-        """Record a risk score in the distribution histogram and tier counter (NEM-5535).
-
-        Args:
-            score: Risk score from Nemotron analysis (0-100)
-        """
-        RISK_SCORE_DISTRIBUTION.observe(score)
-        tier = _score_to_tier(score)
-        RISK_TIER_TOTAL.labels(tier=tier).inc()
-
-    def record_prompt_template_used(self, template: str) -> None:
-        """Increment the prompt template usage counter.
-
-        Args:
-            template: Name of the prompt template used
-                (e.g., "basic", "enriched", "vision", "model_zoo")
-        """
-        PROMPT_TEMPLATE_USED.labels(template=template).inc()
-
     # -------------------------------------------------------------------------
     # Business Metrics
     # -------------------------------------------------------------------------
-
-    def record_florence_task(self, task: str) -> None:
-        """Increment the Florence task counter.
-
-        Args:
-            task: Name of the Florence task (caption, ocr, detect, dense_caption)
-        """
-        FLORENCE_TASK_TOTAL.labels(task=task).inc()
-
-    def record_enrichment_model_call(self, model: str) -> None:
-        """Increment the enrichment model calls counter.
-
-        Args:
-            model: Name of the enrichment model (brisque, violence, clothing, vehicle, pet)
-        """
-        ENRICHMENT_MODEL_CALLS_TOTAL.labels(model=model).inc()
-
-    def set_enrichment_success_rate(self, model: str, rate: float) -> None:
-        """Set the success rate gauge for an enrichment model.
-
-        Args:
-            model: Name of the enrichment model
-            rate: Success rate (0.0 to 1.0)
-        """
-        ENRICHMENT_SUCCESS_RATE.labels(model=model).set(rate)
-
-    def record_enrichment_partial_batch(self) -> None:
-        """Increment the counter for batches with partial enrichment."""
-        ENRICHMENT_PARTIAL_BATCHES_TOTAL.inc()
-
-    def record_enrichment_failure(self, model: str) -> None:
-        """Increment the failure counter for an enrichment model.
-
-        Args:
-            model: Name of the enrichment model that failed
-        """
-        ENRICHMENT_FAILURES_TOTAL.labels(model=model).inc()
-
-    def record_enrichment_batch_status(self, status: str) -> None:
-        """Record the status of an enrichment batch.
-
-        Args:
-            status: Enrichment status (full, partial, failed, skipped)
-        """
-        ENRICHMENT_BATCH_STATUS_TOTAL.labels(status=status).inc()
-
-    def observe_enrichment_model_duration(self, model: str, duration_seconds: float) -> None:
-        """Record the duration of an enrichment model inference.
-
-        Args:
-            model: Name of the enrichment model (brisque, violence, clothing,
-                vehicle, pet, depth, pose, action, weather, fashion-clip, etc.)
-            duration_seconds: Duration of the model inference in seconds
-        """
-        ENRICHMENT_MODEL_DURATION.labels(model=model).observe(duration_seconds)
-
-    def record_enrichment_model_error(self, model: str) -> None:
-        """Increment the error counter for an enrichment model.
-
-        This metric is used by Grafana dashboards and complements
-        hsi_enrichment_failures_total with a different naming convention.
-
-        Args:
-            model: Name of the enrichment model that errored
-        """
-        ENRICHMENT_MODEL_ERRORS_TOTAL.labels(model=model).inc()
-
-    def record_cascade_skipped(self) -> None:
-        """Increment counter for frames skipped by cascade."""
-        ENRICHMENT_CASCADE_SKIPPED_TOTAL.inc()
-
-    def record_cascade_processed(self) -> None:
-        """Increment counter for frames processed through enrichment."""
-        ENRICHMENT_CASCADE_PROCESSED_TOTAL.inc()
-
-    def record_cascade_model_deferred(self, model: str, reason: str) -> None:
-        """Record a model invocation deferred by cascade logic."""
-        ENRICHMENT_CASCADE_MODELS_DEFERRED_TOTAL.labels(model=model, reason=reason).inc()
 
     def record_event_by_camera(self, camera_id: str, camera_name: str) -> None:
         """Increment the events per camera counter.
@@ -1726,55 +1218,6 @@ class MetricsService:
             reason: Reason for invalidation (e.g., "event_created", "camera_updated")
         """
         CACHE_INVALIDATIONS_TOTAL.labels(cache_type=cache_type, reason=reason).inc()
-
-    # -------------------------------------------------------------------------
-    # LLM Token Usage Metrics (NEM-1730)
-    # -------------------------------------------------------------------------
-
-    def record_nemotron_tokens(
-        self,
-        camera_id: str,
-        input_tokens: int,
-        output_tokens: int,
-        duration_seconds: float | None = None,
-        input_cost_per_1k: float | None = None,
-        output_cost_per_1k: float | None = None,
-    ) -> None:
-        """Record Nemotron LLM token usage metrics.
-
-        Args:
-            camera_id: Camera identifier for the analysis request
-            input_tokens: Number of input/prompt tokens
-            output_tokens: Number of output/completion tokens
-            duration_seconds: Optional request duration for throughput calculation
-            input_cost_per_1k: Optional cost per 1000 input tokens (USD)
-            output_cost_per_1k: Optional cost per 1000 output tokens (USD)
-
-        Note:
-            Camera IDs are sanitized to prevent cardinality explosion.
-            If duration_seconds is 0 or negative, throughput is not calculated.
-        """
-        safe_camera_id = sanitize_camera_id(camera_id)
-
-        # Record token counts
-        NEMOTRON_TOKENS_INPUT_TOTAL.labels(camera_id=safe_camera_id).inc(input_tokens)
-        NEMOTRON_TOKENS_OUTPUT_TOTAL.labels(camera_id=safe_camera_id).inc(output_tokens)
-
-        # Calculate and record throughput if duration is valid
-        if duration_seconds is not None and duration_seconds > 0:
-            total_tokens = input_tokens + output_tokens
-            tokens_per_second = total_tokens / duration_seconds
-            NEMOTRON_TOKENS_PER_SECOND.set(tokens_per_second)
-
-        # Calculate and record cost if pricing is configured
-        if input_cost_per_1k is not None or output_cost_per_1k is not None:
-            cost = 0.0
-            if input_cost_per_1k is not None:
-                cost += (input_tokens / 1000.0) * input_cost_per_1k
-            if output_cost_per_1k is not None:
-                cost += (output_tokens / 1000.0) * output_cost_per_1k
-            if cost > 0:
-                NEMOTRON_TOKEN_COST_USD.labels(camera_id=safe_camera_id).inc(cost)
 
     # -------------------------------------------------------------------------
     # LLM Inference Cost Tracking Metrics (NEM-1673)
@@ -1895,52 +1338,6 @@ class MetricsService:
         """
         WORKER_IDLE_COUNT.set(count)
 
-    # -------------------------------------------------------------------------
-    # Scene OCR Metrics
-    # -------------------------------------------------------------------------
-
-    def record_scene_ocr_request(self, source: str) -> None:
-        """Record a Scene OCR request by source type.
-
-        Args:
-            source: Source type of the OCR request ("full_frame" or "crop")
-        """
-        SCENE_OCR_REQUESTS_TOTAL.labels(source=source).inc()
-
-    def record_scene_ocr_texts_detected(self, count: int = 1) -> None:
-        """Record the number of text regions detected by Scene OCR.
-
-        Args:
-            count: Number of text regions detected (default 1)
-        """
-        SCENE_OCR_TEXTS_DETECTED_TOTAL.inc(count)
-
-    def record_scene_ocr_provider_match(self, category: str) -> None:
-        """Record a service provider match from Scene OCR.
-
-        Args:
-            category: Service provider category (e.g., "DELIVERY", "UTILITY",
-                "MAINTENANCE", "EMERGENCY", "FOOD_DELIVERY", "RIDESHARE")
-        """
-        SCENE_OCR_SERVICE_PROVIDERS_MATCHED_TOTAL.labels(category=category).inc()
-
-    def observe_scene_ocr_processing(self, source: str, duration_seconds: float) -> None:
-        """Record Scene OCR processing duration by source type.
-
-        Args:
-            source: Source type of the OCR request ("full_frame" or "crop")
-            duration_seconds: Processing duration in seconds
-        """
-        SCENE_OCR_PROCESSING_SECONDS.labels(source=source).observe(duration_seconds)
-
-    def observe_scene_ocr_confidence(self, confidence: float) -> None:
-        """Record a Scene OCR confidence score.
-
-        Args:
-            confidence: OCR confidence score (0.0-1.0)
-        """
-        SCENE_OCR_CONFIDENCE.observe(confidence)
-
     def update_worker_pool_metrics(self, active: int, busy: int, idle: int | None = None) -> None:
         """Update all worker pool metrics at once.
 
@@ -2056,45 +1453,6 @@ def observe_ai_request_duration(service: str, duration_seconds: float) -> None:
 # =============================================================================
 
 
-def observe_yolo26_inference(duration_seconds: float) -> None:
-    """Record YOLO26 object detection inference duration.
-
-    Uses workload-optimized histogram buckets designed for fast inference
-    models with typical latencies of 20-100ms. Achieves under 5% percentile
-    error for accurate P50/P95/P99 reporting.
-
-    Args:
-        duration_seconds: Inference duration in seconds
-    """
-    YOLO26_INFERENCE_DURATION.observe(duration_seconds)
-
-
-def observe_nemotron_inference(duration_seconds: float) -> None:
-    """Record Nemotron LLM inference duration.
-
-    Uses workload-optimized histogram buckets designed for LLM inference
-    with typical latencies of 500ms-5s. Achieves under 5% percentile
-    error for accurate P50/P95/P99 reporting.
-
-    Args:
-        duration_seconds: Inference duration in seconds
-    """
-    NEMOTRON_INFERENCE_DURATION.observe(duration_seconds)
-
-
-def observe_florence_inference(duration_seconds: float) -> None:
-    """Record Florence vision-language model inference duration.
-
-    Uses workload-optimized histogram buckets designed for vision-language
-    tasks with typical latencies of 100ms-2s. Achieves under 5% percentile
-    error for accurate P50/P95/P99 reporting.
-
-    Args:
-        duration_seconds: Inference duration in seconds
-    """
-    FLORENCE_INFERENCE_DURATION.observe(duration_seconds)
-
-
 # =============================================================================
 # Exemplar Support for Trace-Metric Correlation (NEM-3379)
 # =============================================================================
@@ -2148,50 +1506,11 @@ def observe_with_exemplar(histogram: Histogram, value: float) -> None:
         value: The value to record
 
     Example:
-        >>> from backend.core.metrics import observe_with_exemplar, YOLO26_INFERENCE_DURATION
-        >>> observe_with_exemplar(YOLO26_INFERENCE_DURATION, inference_time)
+        >>> from backend.core.metrics import observe_with_exemplar, DETECTION_CONFIDENCE
+        >>> observe_with_exemplar(DETECTION_CONFIDENCE, confidence)
     """
     exemplar = _get_trace_exemplar()
     histogram.observe(value, exemplar=exemplar)
-
-
-def observe_yolo26_with_exemplar(duration_seconds: float) -> None:
-    """Record YOLO26 inference duration with trace context exemplar.
-
-    Combines workload-optimized histogram buckets with exemplar support for
-    complete observability. Use this function when tracing is enabled and
-    you need to correlate slow inferences with their distributed traces.
-
-    Args:
-        duration_seconds: Inference duration in seconds
-    """
-    observe_with_exemplar(YOLO26_INFERENCE_DURATION, duration_seconds)
-
-
-def observe_nemotron_with_exemplar(duration_seconds: float) -> None:
-    """Record Nemotron LLM inference duration with trace context exemplar.
-
-    Combines workload-optimized histogram buckets with exemplar support for
-    complete observability. Use this function when tracing is enabled and
-    you need to correlate slow LLM inferences with their distributed traces.
-
-    Args:
-        duration_seconds: Inference duration in seconds
-    """
-    observe_with_exemplar(NEMOTRON_INFERENCE_DURATION, duration_seconds)
-
-
-def observe_florence_with_exemplar(duration_seconds: float) -> None:
-    """Record Florence inference duration with trace context exemplar.
-
-    Combines workload-optimized histogram buckets with exemplar support for
-    complete observability. Use this function when tracing is enabled and
-    you need to correlate slow vision-language inferences with their traces.
-
-    Args:
-        duration_seconds: Inference duration in seconds
-    """
-    observe_with_exemplar(FLORENCE_INFERENCE_DURATION, duration_seconds)
 
 
 def observe_ai_request_with_exemplar(service: str, duration_seconds: float) -> None:
@@ -2257,15 +1576,6 @@ def record_detection_filtered() -> None:
     DETECTIONS_FILTERED_LOW_CONFIDENCE_TOTAL.inc()
 
 
-def observe_risk_score(score: int | float) -> None:
-    """Record a risk score observation to the histogram.
-
-    Args:
-        score: Risk score from Nemotron analysis (0-100)
-    """
-    RISK_SCORE.observe(score)
-
-
 def record_event_by_risk_level(level: str) -> None:
     """Increment the events counter for a given risk level.
 
@@ -2279,61 +1589,6 @@ def record_event_by_risk_level(level: str) -> None:
     # Sanitize risk level to prevent cardinality explosion
     safe_level = sanitize_risk_level(level)
     EVENTS_BY_RISK_LEVEL.labels(level=safe_level).inc()
-
-
-def record_prompt_template_used(template: str) -> None:
-    """Increment the prompt template usage counter.
-
-    Args:
-        template: Name of the prompt template used
-            (e.g., "basic", "enriched", "vision", "model_zoo")
-    """
-    PROMPT_TEMPLATE_USED.labels(template=template).inc()
-
-
-# =============================================================================
-# Score Distribution & Calibration Drift Helpers (NEM-5535)
-# =============================================================================
-
-
-def _score_to_tier(score: int | float) -> str:
-    """Map a risk score (0-100) to a calibration tier name.
-
-    Tier boundaries match the DB severity taxonomy:
-        - low:      0-29
-        - medium:   30-59
-        - high:     60-84
-        - critical: 85-100
-
-    Args:
-        score: Risk score from Nemotron analysis (0-100)
-
-    Returns:
-        Tier name string
-    """
-    if score <= 29:
-        return "low"
-    elif score <= 59:
-        return "medium"
-    elif score <= 84:
-        return "high"
-    else:
-        return "critical"
-
-
-def observe_risk_score_distribution(score: int | float) -> None:
-    """Record a risk score in the distribution histogram and increment the tier counter.
-
-    This is the primary entry point for NEM-5535 calibration monitoring.
-    It records the score in the hsi_risk_score_distribution histogram and
-    increments the appropriate hsi_risk_tier_total counter.
-
-    Args:
-        score: Risk score from Nemotron analysis (0-100)
-    """
-    RISK_SCORE_DISTRIBUTION.observe(score)
-    tier = _score_to_tier(score)
-    RISK_TIER_TOTAL.labels(tier=tier).inc()
 
 
 # =============================================================================
@@ -2366,138 +1621,6 @@ def record_prompt_truncated() -> None:
 # =============================================================================
 # Business Metric Helpers (NEM-770)
 # =============================================================================
-
-
-def record_florence_task(task: str) -> None:
-    """Increment the Florence task counter.
-
-    Args:
-        task: Name of the Florence task (caption, ocr, detect, dense_caption)
-    """
-    FLORENCE_TASK_TOTAL.labels(task=task).inc()
-
-
-def record_enrichment_model_call(model: str) -> None:
-    """Increment the enrichment model calls counter.
-
-    Args:
-        model: Name of the enrichment model (brisque, violence, clothing, vehicle, pet)
-    """
-    ENRICHMENT_MODEL_CALLS_TOTAL.labels(model=model).inc()
-
-
-def increment_enrichment_retry(endpoint: str) -> None:
-    """Increment the enrichment retry counter for a specific endpoint.
-
-    Called when an enrichment service call is retried due to transient failures
-    (ConnectError, TimeoutException, HTTP 5xx errors).
-
-    Args:
-        endpoint: Name of the enrichment endpoint (vehicle, pet, clothing,
-            depth, distance, pose, action)
-    """
-    ENRICHMENT_RETRY_TOTAL.labels(endpoint=endpoint).inc()
-
-
-def set_enrichment_success_rate(model: str, rate: float) -> None:
-    """Set the success rate gauge for an enrichment model.
-
-    Args:
-        model: Name of the enrichment model
-        rate: Success rate (0.0 to 1.0)
-    """
-    ENRICHMENT_SUCCESS_RATE.labels(model=model).set(rate)
-
-
-def record_enrichment_partial_batch() -> None:
-    """Increment the counter for batches with partial enrichment."""
-    ENRICHMENT_PARTIAL_BATCHES_TOTAL.inc()
-
-
-def record_enrichment_failure(model: str) -> None:
-    """Increment the failure counter for an enrichment model.
-
-    Args:
-        model: Name of the enrichment model that failed
-    """
-    ENRICHMENT_FAILURES_TOTAL.labels(model=model).inc()
-
-
-def record_enrichment_batch_status(status: str) -> None:
-    """Record the status of an enrichment batch.
-
-    Args:
-        status: Enrichment status (full, partial, failed, skipped)
-    """
-    ENRICHMENT_BATCH_STATUS_TOTAL.labels(status=status).inc()
-
-
-def observe_enrichment_model_duration(model: str, duration_seconds: float) -> None:
-    """Record the duration of an enrichment model inference.
-
-    Args:
-        model: Name of the enrichment model (brisque, violence, clothing,
-            vehicle, pet, depth, pose, action, weather, fashion-clip, etc.)
-        duration_seconds: Duration of the model inference in seconds
-    """
-    ENRICHMENT_MODEL_DURATION.labels(model=model).observe(duration_seconds)
-
-
-def record_enrichment_model_error(model: str) -> None:
-    """Increment the error counter for an enrichment model.
-
-    This metric is used by Grafana dashboards and complements
-    hsi_enrichment_failures_total with a different naming convention.
-
-    Args:
-        model: Name of the enrichment model that errored
-    """
-    ENRICHMENT_MODEL_ERRORS_TOTAL.labels(model=model).inc()
-
-
-def observe_enrichment_pipeline_stage(stage: str, duration_seconds: float) -> None:
-    """Record the duration of an enrichment pipeline stage.
-
-    Args:
-        stage: Pipeline stage name (e.g., "phase1_and_florence", "phase2", "phase3", "total")
-        duration_seconds: Duration of the stage in seconds
-    """
-    ENRICHMENT_PIPELINE_STAGE_DURATION.labels(stage=stage).observe(duration_seconds)
-
-
-def record_enrichment_pipeline_timeout() -> None:
-    """Increment the counter for enrichment pipeline hard timeouts."""
-    ENRICHMENT_PIPELINE_TIMEOUTS_TOTAL.inc()
-
-
-def record_cascade_skipped() -> None:
-    """Increment counter for frames skipped by cascade (no detections)."""
-    ENRICHMENT_CASCADE_SKIPPED_TOTAL.inc()
-
-
-def record_cascade_processed() -> None:
-    """Increment counter for frames processed through enrichment."""
-    ENRICHMENT_CASCADE_PROCESSED_TOTAL.inc()
-
-
-def record_cascade_model_deferred(model: str, reason: str) -> None:
-    """Record a model invocation deferred by cascade logic.
-
-    Args:
-        model: Model name (e.g., "florence2", "clothing", "vehicle_class")
-        reason: Reason for deferral (e.g., "high_confidence", "no_matching_detections")
-    """
-    ENRICHMENT_CASCADE_MODELS_DEFERRED_TOTAL.labels(model=model, reason=reason).inc()
-
-
-def set_enrichment_quality_level(level: str) -> None:
-    """Set the current enrichment quality level gauge.
-
-    Args:
-        level: Quality level string ("minimal", "standard", "full")
-    """
-    level_map = {"minimal": 1, "standard": 2, "full": 3}
-    ENRICHMENT_QUALITY_LEVEL.set(level_map.get(level, 3))
 
 
 def record_event_by_camera(camera_id: str, camera_name: str) -> None:
@@ -2663,70 +1786,6 @@ def record_cache_background_refresh(cache_type: str, success: bool = True) -> No
     """
     status = "success" if success else "skipped"
     CACHE_BACKGROUND_REFRESH_TOTAL.labels(cache_type=cache_type, status=status).inc()
-
-
-def set_redis_pool_metrics(pool_type: str, size: int, available: int, in_use: int) -> None:
-    """Update Redis pool metrics (NEM-3368).
-
-    Args:
-        pool_type: Type of pool ("cache", "queue", "pubsub", "ratelimit")
-        size: Total pool size
-        available: Number of available connections
-        in_use: Number of connections in use
-    """
-    REDIS_POOL_SIZE.labels(pool_type=pool_type).set(size)
-    REDIS_POOL_AVAILABLE.labels(pool_type=pool_type).set(available)
-    REDIS_POOL_IN_USE.labels(pool_type=pool_type).set(in_use)
-
-
-# =============================================================================
-# LLM Token Usage Helpers (NEM-1730)
-# =============================================================================
-
-
-def record_nemotron_tokens(
-    camera_id: str,
-    input_tokens: int,
-    output_tokens: int,
-    duration_seconds: float | None = None,
-    input_cost_per_1k: float | None = None,
-    output_cost_per_1k: float | None = None,
-) -> None:
-    """Record Nemotron LLM token usage metrics.
-
-    Args:
-        camera_id: Camera identifier for the analysis request
-        input_tokens: Number of input/prompt tokens
-        output_tokens: Number of output/completion tokens
-        duration_seconds: Optional request duration for throughput calculation
-        input_cost_per_1k: Optional cost per 1000 input tokens (USD)
-        output_cost_per_1k: Optional cost per 1000 output tokens (USD)
-
-    Note:
-        Camera IDs are sanitized to prevent cardinality explosion.
-        If duration_seconds is 0 or negative, throughput is not calculated.
-    """
-    safe_camera_id = sanitize_camera_id(camera_id)
-
-    # Record token counts
-    NEMOTRON_TOKENS_INPUT_TOTAL.labels(camera_id=safe_camera_id).inc(input_tokens)
-    NEMOTRON_TOKENS_OUTPUT_TOTAL.labels(camera_id=safe_camera_id).inc(output_tokens)
-
-    # Calculate and record throughput if duration is valid
-    if duration_seconds is not None and duration_seconds > 0:
-        total_tokens = input_tokens + output_tokens
-        tokens_per_second = total_tokens / duration_seconds
-        NEMOTRON_TOKENS_PER_SECOND.set(tokens_per_second)
-
-    # Calculate and record cost if pricing is configured
-    if input_cost_per_1k is not None or output_cost_per_1k is not None:
-        cost = 0.0
-        if input_cost_per_1k is not None:
-            cost += (input_tokens / 1000.0) * input_cost_per_1k
-        if output_cost_per_1k is not None:
-            cost += (output_tokens / 1000.0) * output_cost_per_1k
-        if cost > 0:
-            NEMOTRON_TOKEN_COST_USD.labels(camera_id=safe_camera_id).inc(cost)
 
 
 def get_metrics_response() -> bytes:
@@ -3244,61 +2303,6 @@ def record_slow_query() -> None:
 
 
 # =============================================================================
-# Token Counting Metrics (NEM-1723)
-# =============================================================================
-
-# Token count buckets for prompt size histogram
-PROMPT_TOKEN_BUCKETS = (
-    100,
-    250,
-    500,
-    750,
-    1000,
-    1500,
-    2000,
-    2500,
-    3000,
-    3500,
-    4000,
-)
-
-PROMPT_TOKENS = Histogram(
-    "hsi_prompt_tokens",
-    "Token count distribution for LLM prompts",
-    buckets=PROMPT_TOKEN_BUCKETS,
-    registry=_registry,
-)
-
-PROMPT_TRUNCATED_TOTAL = Counter(
-    "hsi_prompt_truncated_total",
-    "Total number of prompt sections truncated to fit context window",
-    labelnames=["section_name"],
-    registry=_registry,
-)
-
-
-def observe_prompt_tokens(token_count: int) -> None:
-    """Record prompt token count to histogram.
-
-    Args:
-        token_count: Number of tokens in the prompt
-    """
-    PROMPT_TOKENS.observe(token_count)
-
-
-def record_prompt_section_truncated(section_name: str) -> None:
-    """Record when a prompt section is truncated.
-
-    Args:
-        section_name: Name of the section that was truncated
-            (e.g., "cross_camera", "baseline", "zones")
-    """
-    # Sanitize section name to prevent cardinality explosion
-    safe_section = sanitize_metric_label(section_name, max_length=32)
-    PROMPT_TRUNCATED_TOTAL.labels(section_name=safe_section).inc()
-
-
-# =============================================================================
 # AI Model Cold Start and Warmup Metrics (NEM-1670)
 # =============================================================================
 
@@ -3334,13 +2338,6 @@ MODEL_COLD_START_TOTAL = Counter(
 MODEL_WARMTH_STATE = Gauge(
     "hsi_model_warmth_state",
     "Current warmth state of AI models (0=cold, 1=warming, 2=warm)",
-    labelnames=["model"],
-    registry=_registry,
-)
-
-MODEL_LAST_INFERENCE_SECONDS_AGO = Gauge(
-    "hsi_model_last_inference_seconds_ago",
-    "Seconds since last inference for AI models",
     labelnames=["model"],
     registry=_registry,
 )
@@ -3424,20 +2421,6 @@ def set_model_warmth_state(model: str, state: str) -> None:
     MODEL_WARMTH_STATE.labels(model=model).set(state_value)
 
 
-def set_model_last_inference_ago(model: str, seconds_ago: float | None) -> None:
-    """Set the seconds since last inference gauge for an AI model.
-
-    Args:
-        model: Model identifier (e.g., 'yolo26', 'nemotron')
-        seconds_ago: Seconds since last inference, or None if never used
-    """
-    if seconds_ago is None:
-        # Use -1 to indicate "never used" (gauge doesn't support None)
-        MODEL_LAST_INFERENCE_SECONDS_AGO.labels(model=model).set(-1)
-    else:
-        MODEL_LAST_INFERENCE_SECONDS_AGO.labels(model=model).set(seconds_ago)
-
-
 # =============================================================================
 # AI Model Load Duration, Cold Start Latency, and Restart Metrics (NEM-4145)
 # =============================================================================
@@ -3469,30 +2452,6 @@ def set_model_load_duration(model: str, duration_seconds: float) -> None:
     MODEL_LOAD_DURATION.labels(model=model).set(duration_seconds)
 
 
-# Cold start latency buckets (in seconds)
-# Covers range from 50ms to 120s for first inference after model load
-# First inference often includes JIT compilation, CUDA graph capture, etc.
-COLD_START_LATENCY_BUCKETS = (
-    0.05,  # 50ms - extremely fast (cached/pre-compiled)
-    0.1,  # 100ms - fast models
-    0.25,  # 250ms - typical lightweight models
-    0.5,  # 500ms - typical models
-    1.0,  # 1s - heavier models
-    2.5,  # 2.5s - large models
-    5.0,  # 5s - very large models
-    10.0,  # 10s - LLMs, multi-model pipelines
-    30.0,  # 30s - complex initialization
-    60.0,  # 60s - heavy LLMs with compilation
-    120.0,  # 120s - extreme cases
-)
-
-MODEL_COLD_START_LATENCY = Gauge(
-    "hsi_model_cold_start_latency_seconds",
-    "First inference latency after model load (cold start) in seconds",
-    labelnames=["model"],
-    registry=_registry,
-)
-
 MODEL_RESTARTS_TOTAL = Counter(
     "hsi_model_restarts_total",
     "Total number of AI model restarts by model and reason",
@@ -3506,22 +2465,6 @@ MODEL_RESTARTS_TOTAL = Counter(
 # manual: User or admin manually triggered restart
 # health_check: Health check failure triggered restart
 MODEL_RESTART_REASONS = frozenset({"oom", "crash", "manual", "health_check"})
-
-
-def set_model_cold_start_latency(model: str, latency_seconds: float) -> None:
-    """Set the cold start latency (first inference after load) for an AI model.
-
-    This should be called after the first successful inference following a model
-    load or restart. The latency captures the time taken for the first inference,
-    which typically includes JIT compilation, CUDA graph capture, and other
-    one-time initialization costs.
-
-    Args:
-        model: Model identifier (e.g., 'yolo26', 'nemotron', 'florence', 'clip',
-               'enrichment-pose', 'enrichment-threat')
-        latency_seconds: First inference latency in seconds
-    """
-    MODEL_COLD_START_LATENCY.labels(model=model).set(latency_seconds)
 
 
 def record_model_restart(model: str, reason: str) -> None:
@@ -3774,21 +2717,6 @@ prompt_version_latency_seconds = Histogram(
     registry=_registry,
 )
 
-# Risk score variance gauge between prompt versions
-prompt_version_risk_score_variance = Gauge(
-    "hsi_prompt_version_risk_score_variance",
-    "Risk score variance between prompt versions",
-    labelnames=["control_version", "treatment_version"],
-    registry=_registry,
-)
-
-# A/B test traffic counter
-PROMPT_AB_TRAFFIC_TOTAL = Counter(
-    "hsi_prompt_ab_traffic_total",
-    "Total requests routed through prompt A/B testing",
-    labelnames=["version", "is_treatment"],
-    registry=_registry,
-)
 
 # Shadow mode comparison counter
 PROMPT_SHADOW_COMPARISONS_TOTAL = Counter(
@@ -3803,7 +2731,6 @@ PROMPT_SHADOW_COMPARISONS_TOTAL = Counter(
 # =============================================================================
 
 # Risk score histogram for shadow mode comparison (control vs treatment)
-# Uses same buckets as RISK_SCORE for consistency
 SHADOW_RISK_SCORE_DISTRIBUTION = Histogram(
     "hsi_shadow_risk_score_distribution",
     "Risk score distribution from shadow mode prompt comparison",
@@ -3893,40 +2820,6 @@ def record_prompt_latency(version: str, latency_seconds: float) -> None:
     """
     safe_version = sanitize_metric_label(version, max_length=32)
     prompt_version_latency_seconds.labels(version=safe_version).observe(latency_seconds)
-
-
-def record_risk_score_variance(
-    control_version: str,
-    treatment_version: str,
-    variance: float,
-) -> None:
-    """Record risk score variance between two prompt versions.
-
-    Args:
-        control_version: Control prompt version identifier
-        treatment_version: Treatment prompt version identifier
-        variance: Variance in risk scores between versions
-    """
-    safe_control = sanitize_metric_label(control_version, max_length=32)
-    safe_treatment = sanitize_metric_label(treatment_version, max_length=32)
-    prompt_version_risk_score_variance.labels(
-        control_version=safe_control,
-        treatment_version=safe_treatment,
-    ).set(variance)
-
-
-def record_prompt_ab_traffic(version: str, is_treatment: bool) -> None:
-    """Record A/B test traffic routing decision.
-
-    Args:
-        version: Prompt version that received the request
-        is_treatment: Whether this was the treatment (new) version
-    """
-    safe_version = sanitize_metric_label(version, max_length=32)
-    PROMPT_AB_TRAFFIC_TOTAL.labels(
-        version=safe_version,
-        is_treatment=str(is_treatment).lower(),
-    ).inc()
 
 
 def record_shadow_comparison(model: str) -> None:
@@ -4411,53 +3304,6 @@ def update_worker_pool_metrics(active: int, busy: int, idle: int | None = None) 
 # =============================================================================
 
 
-def record_scene_ocr_request(source: str) -> None:
-    """Record a Scene OCR request by source type.
-
-    Args:
-        source: Source type of the OCR request ("full_frame" or "crop")
-    """
-    SCENE_OCR_REQUESTS_TOTAL.labels(source=source).inc()
-
-
-def record_scene_ocr_texts_detected(count: int = 1) -> None:
-    """Record the number of text regions detected by Scene OCR.
-
-    Args:
-        count: Number of text regions detected (default 1)
-    """
-    SCENE_OCR_TEXTS_DETECTED_TOTAL.inc(count)
-
-
-def record_scene_ocr_provider_match(category: str) -> None:
-    """Record a service provider match from Scene OCR.
-
-    Args:
-        category: Service provider category (e.g., "DELIVERY", "UTILITY",
-            "MAINTENANCE", "EMERGENCY", "FOOD_DELIVERY", "RIDESHARE")
-    """
-    SCENE_OCR_SERVICE_PROVIDERS_MATCHED_TOTAL.labels(category=category).inc()
-
-
-def observe_scene_ocr_processing(source: str, duration_seconds: float) -> None:
-    """Record Scene OCR processing duration by source type.
-
-    Args:
-        source: Source type of the OCR request ("full_frame" or "crop")
-        duration_seconds: Processing duration in seconds
-    """
-    SCENE_OCR_PROCESSING_SECONDS.labels(source=source).observe(duration_seconds)
-
-
-def observe_scene_ocr_confidence(confidence: float) -> None:
-    """Record a Scene OCR confidence score.
-
-    Args:
-        confidence: OCR confidence score (0.0-1.0)
-    """
-    SCENE_OCR_CONFIDENCE.observe(confidence)
-
-
 # =============================================================================
 # Pipeline Worker Metrics Helpers (NEM-2459)
 # =============================================================================
@@ -4911,15 +3757,6 @@ def observe_face_embedding_duration(camera_id: str, duration_seconds: float) -> 
     FACE_EMBEDDING_DURATION_SECONDS.labels(camera_id=safe_camera_id).observe(duration_seconds)
 
 
-def set_known_faces_database_size(count: int) -> None:
-    """Set the current number of known faces in the database.
-
-    Args:
-        count: Number of known faces currently in the recognition database.
-    """
-    KNOWN_FACES_DATABASE_SIZE.set(count)
-
-
 # -----------------------------------------------------------------------------
 # Re-Identification Metric Helpers (NEM-4140)
 # -----------------------------------------------------------------------------
@@ -4974,17 +3811,6 @@ def record_cross_camera_handoff(source_camera: str, target_camera: str, entity_t
     CROSS_CAMERA_HANDOFFS_TOTAL.labels(
         source_camera=safe_source, target_camera=safe_target, entity_type=safe_entity_type
     ).inc()
-
-
-def set_active_tracks_count(entity_type: str, count: int) -> None:
-    """Set the current number of active tracks for an entity type.
-
-    Args:
-        entity_type: Type of entity (person, vehicle).
-        count: Number of active tracks.
-    """
-    safe_entity_type = sanitize_metric_label(entity_type, max_length=32)
-    ACTIVE_TRACKS_COUNT.labels(entity_type=safe_entity_type).set(count)
 
 
 # =============================================================================
@@ -5149,12 +3975,6 @@ BATCH_COALESCE_CANDIDATES_TOTAL = Counter(
     registry=_registry,
 )
 
-BATCH_COALESCE_LLM_CALLS_SAVED_TOTAL = Counter(
-    "hsi_batch_coalesce_llm_calls_saved_total",
-    "Total LLM inference calls avoided via batch coalescing",
-    registry=_registry,
-)
-
 
 def record_batch_coalesced(count: int = 1) -> None:
     """Record batches that were merged via coalescing.
@@ -5190,12 +4010,3 @@ def record_batch_coalesce_candidates(count: int = 1) -> None:
         count: Number of candidates evaluated (default 1)
     """
     BATCH_COALESCE_CANDIDATES_TOTAL.inc(count)
-
-
-def record_batch_coalesce_llm_calls_saved(count: int = 1) -> None:
-    """Record LLM inference calls saved via coalescing.
-
-    Args:
-        count: Number of LLM calls saved (default 1)
-    """
-    BATCH_COALESCE_LLM_CALLS_SAVED_TOTAL.inc(count)

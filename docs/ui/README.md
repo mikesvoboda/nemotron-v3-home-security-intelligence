@@ -1,6 +1,6 @@
 # UI Documentation
 
-Page-specific documentation for the Nemotron Home Security dashboard.
+Page-specific documentation for the Home Security Intelligence dashboard.
 
 ## Pages
 

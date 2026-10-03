@@ -6,30 +6,32 @@
 
 ## Project Overview
 
-This system is an AI-powered home security monitoring dashboard that processes camera feeds in real-time to detect and analyze security-relevant events. The architecture combines YOLO26 for object detection with Nemotron for intelligent risk assessment, creating a sophisticated pipeline that transforms raw camera images into actionable security insights with LLM-determined risk scores.
+This system is an AI-powered home security monitoring dashboard that processes camera feeds in real-time to detect and analyze security-relevant events. The architecture combines YOLO26 for object detection with a local vision-language model (VLM) for intelligent risk assessment, creating a sophisticated pipeline that transforms raw camera images into actionable security insights with VLM-determined risk scores.
 
-The system follows an event-driven architecture with batch processing semantics. Camera images flow through a detection pipeline, are grouped into 90-second time windows, and analyzed by an LLM to produce risk-scored security events. Real-time updates are pushed to a React frontend via WebSockets, enabling immediate user awareness of security situations.
+Two AI services run in the stack: `ai-gateway` (port 8090, Triton serving YOLO26) and `ai-vlm` (port 8098, llama.cpp serving the VLM). Face recognition, license-plate reading and person re-identification run in-process in the backend as gallery lookups alongside the VLM call. See [AI pipeline: current state](./ai-pipeline-current-state.md) for the hop-by-hop path.
+
+The system follows an event-driven architecture with batch processing semantics. Camera images flow through a detection pipeline, are grouped into 90-second time windows, and analyzed by the VLM to produce risk-scored security events. Real-time updates are pushed to a React frontend via WebSockets, enabling immediate user awareness of security situations.
 
 Built for single-user local deployment, the system is fully containerized with GPU passthrough for AI models. It maintains 30 days of event retention and operates without authentication overhead, optimized for home security use cases where simplicity and reliability are paramount.
 
 ## Quick Navigation
 
-| Hub                                                    | Description                                  | Key Components                                 |
-| ------------------------------------------------------ | -------------------------------------------- | ---------------------------------------------- |
-| [System Overview](./system-overview/README.md)         | High-level architecture and design decisions | Architecture diagrams, design rationale        |
-| [Detection Pipeline](./detection-pipeline/README.md)   | Image processing and object detection        | YOLO26, file watcher, detection flow           |
-| [AI Orchestration](./ai-orchestration/README.md)       | LLM integration and risk assessment          | Nemotron, batch processing, prompt engineering |
-| [Real-time System](./realtime-system/README.md)        | WebSocket and live updates                   | Event broadcasting, connection management      |
-| [Data Model](./data-model/README.md)                   | Database schema and relationships            | SQLAlchemy models, migrations                  |
-| [API Reference](./api-reference/README.md)             | REST endpoint documentation                  | FastAPI routes, request/response schemas       |
-| [Resilience Patterns](./resilience-patterns/README.md) | Error handling and recovery                  | Retry logic, circuit breakers, fallbacks       |
-| [Observability](./observability/README.md)             | Logging, metrics, and monitoring             | Prometheus, Grafana, structured logging        |
-| [Background Services](./background-services/README.md) | Async tasks and workers                      | Retention cleanup, health checks               |
-| [Middleware](./middleware/README.md)                   | Request processing pipeline                  | Logging, error handling, CORS                  |
-| [Frontend](./frontend/README.md)                       | React UI architecture                        | Components, hooks, state management            |
-| [Testing](./testing/README.md)                         | Test infrastructure and patterns             | Unit, integration, E2E testing                 |
-| [Security](./security/README.md)                       | Security considerations                      | Input validation, data protection              |
-| [Dataflows](./dataflows/README.md)                     | End-to-end data traces                       | Request flows, event sequences                 |
+| Hub                                                    | Description                                  | Key Components                               |
+| ------------------------------------------------------ | -------------------------------------------- | -------------------------------------------- |
+| [System Overview](./system-overview/README.md)         | High-level architecture and design decisions | Architecture diagrams, design rationale      |
+| [Detection Pipeline](./detection-pipeline/README.md)   | Image processing and object detection        | YOLO26, file watcher, detection flow         |
+| [AI Orchestration](./ai-orchestration/README.md)       | VLM integration and risk assessment          | ai-vlm, batch processing, prompt engineering |
+| [Real-time System](./realtime-system/README.md)        | WebSocket and live updates                   | Event broadcasting, connection management    |
+| [Data Model](./data-model/README.md)                   | Database schema and relationships            | SQLAlchemy models, migrations                |
+| [API Reference](./api-reference/README.md)             | REST endpoint documentation                  | FastAPI routes, request/response schemas     |
+| [Resilience Patterns](./resilience-patterns/README.md) | Error handling and recovery                  | Retry logic, circuit breakers, fallbacks     |
+| [Observability](./observability/README.md)             | Logging, metrics, and monitoring             | Prometheus, Grafana, structured logging      |
+| [Background Services](./background-services/README.md) | Async tasks and workers                      | Retention cleanup, health checks             |
+| [Middleware](./middleware/README.md)                   | Request processing pipeline                  | Logging, error handling, CORS                |
+| [Frontend](./frontend/README.md)                       | React UI architecture                        | Components, hooks, state management          |
+| [Testing](./testing/README.md)                         | Test infrastructure and patterns             | Unit, integration, E2E testing               |
+| [Security](./security/README.md)                       | Security considerations                      | Input validation, data protection            |
+| [Dataflows](./dataflows/README.md)                     | End-to-end data traces                       | Request flows, event sequences               |
 
 ## Audience Guide
 
