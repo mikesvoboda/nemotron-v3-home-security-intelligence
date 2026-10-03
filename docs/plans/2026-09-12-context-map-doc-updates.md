@@ -15685,3 +15685,101 @@ pre-run archive `b38-preC26/`; scores `b38-c26-score-r1.json`; history backup
 battery letter AC. R8 CLEAN (absent from both death lists). Gap to 85%:
 0.85\*69,156 = 58,782.6 - 52,101 = **6,681.6 kt**. Every number measured THIS
 session.
+
+## MILESTONE 29 — 75.68646163189173% (campaign #27 worker_supervisor closes at 99.5406% in ONE run; the LIVE-TASK polarity converts three claimed EQUIVs into kills)
+
+**DECIDE (ordering):** M28 head as censused — `worker_supervisor.py` 243
+survivors at 62.6154% (650 keys). R8 shield verified CLEAN by AST: absent from
+DEAD_MODULES/DEAD_LOADERS in `test_r8_s2b_nemotron_deletion.py` and no import
+chain touches a dead module. `api/routes/system.py` 328 and
+`system_broadcaster.py` 320 skipped (do-not-start list). Battery letter AC
+(37 tests).
+
+**Badge:** **75.68646163189173%** completed=true (killed 52,059 + timeout 285 =
+52,344 kt / 69,159; the killed figure includes the 32 `caught_by_type_check`
+(exit-code-3) keys the score script counts as caught — raw meta census
+{1: 52,027, 0: 16,032, -24: 285, 3: 32, 33: 783}; no_tests 783
+sticky-unchanged; not_checked 0; torn 0). Delta vs M28's 75.33836543466944% =
+**+0.34809619722229**. Bank 69,156 -> 69,159 keys (+3, ALL worker_supervisor
+coverage-growth births: fn census `_start_worker` 43 -> 45,
+`_check_worker_heartbeat` 25 -> 26); per-module diff EXHAUSTIVE —
+worker_supervisor is the ONLY meta that moved (243 verdict changes, 0 siblings,
+0 new meta files).
+
+**Campaign #27 `backend/services/worker_supervisor.py` CLOSED at
+99.5405819295559%** (650 kt / 653; survivors 3; 0 timeout). Disposition: the
+survivor pool was the emission surface of the lifecycle machinery
+(\_handle_crashed_worker 44, \_handle_stuck_worker 35, stop 26, \_run_worker 22,
+start 16, \_start_worker 14, \_monitor_loop 14, stop_worker 13, \_broadcast_status
+10, ...). Battery AC pins raw `backend.core.metrics` call tuples via CallSpies
+swapped into the `ws` namespace (the real gauges case-fold state strings —
+gauge-level observation could never kill the case-flip arms), whole WebSocket
+payloads, FULL log-msgs() sequences with exc_info identity, REAL-asyncio task
+polarities for the task-guard conjunctions, the stuck-worker
+wait_for(shield(task), 2.0) family via a cancel-ignoring task (wall-clock
+pinned to (1.9, 2.5) + task still PENDING), >=/> boundaries as real polarities
+(rc==max, count==threshold, threshold 1 and 0, overdue sentinel), whole-dict
+to_dict/history pins, and a required-kwargs Spy class for the singleton's
+kwarg arms.
+
+**THE LIVE-TASK LESSON (capture #6):** authoring sweep RED=237/GREEN=6 of 243.
+Three sweep-GREENs (hc m53 `status=RESTARTING`->None, hc m103/m107
+history-event `error=worker.error` ->None/deleted) had been REGISTERED EQUIV on
+an overwrite argument (\_start_worker clobbers status/error before any read).
+WRONG: `_handle_stuck_worker` deliberately leaves the shielded task PENDING, so
+the monitor's NEXT cycle on that residue hits `_start_worker`'s
+already-running EARLY-RETURN and the clobber never happens — the values stay
+observable, and the polarity is production-reachable (stuck -> restart is
+exactly the NEM-4148 flow). Phase 2 of `test_stuck_worker_full_surface` runs
+that next cycle (status stays RESTARTING, history error keeps the stuck
+message, "Worker 'w' already running" in the msgs tail): spot-probe RED x3,
+full re-sweep **RED=240 / GREEN=3 == the final EQUIV ledger** —
+backoff_static m2 (<=0 vs <=1 both yield base at rc=1), rre m14 (`len>max` vs
+`>=max` under the `history[-max:]` slice), rwt m13 (dead store: the pre-cancel
+awards the task to done so `_start_worker` always clobbers the reset). Overwrite
+claims must enumerate the EARLY-RETURN polarities of the clobbering callee.
+
+**Close sweep 616R/37G of 653 (0 HANG):** 37 GREEN = 3 ledger survivors + 34
+shipped-suite kills attributed BODY-EXACT (every one of the 34 current-tree
+bodies carries pre-verdict-1; renumber means a close-sweep key number is NOT
+the pre-key — `_start_worker__mutmut_13` GREEN-closed but cur-verdict-1: its
+body is a pre-killed mutant, battery-in-isolation cannot kill it, disclosed,
+never claimed as ledger).
+
+**ONE-RUN close, M19 pre-copy 6th deployment:** battery md5-synced into the
+mutant home BEFORE the run (committed bytes 954029f5...; unit-tier scan
+POST-sync counted it — 28,680 = 28,643 (M28) + 37 new tests, 0 failed,
+483.94s). 3 births ALL same-run-killed. Reconcile by BODY identity CLEAN
+{(1,1): 407, (0,1): 240, (0,0): 3}, 0 kill-losses, 0 lost groups; self-check
+keys-without-body 0/0. Launcher pre-flight verified 650 services-filter keys;
+guard-module2 on runner pid 182682 ticked tight-regime sibling-drop=0
+nonmod-holes=0 to clean exit (its log NAMED worker_supervisor — the c26
+wrong-module rule applied to the sed-built reconcile script too: substitutions
+grep-VERIFIED, 0 threat_monitor strings remained).
+
+**Commit-gate arc:** check-test-timeouts fired at commit on `stubborn()`'s
+3600s sleep (line-precise: the three other 3600s sleeps carried the sanctioned
+`# cancelled` comment, this one did not); safe-comment added — the first cancel
+provably lands on that sleep and is swallowed BY DESIGN. Second attempt all
+hooks Passed, committed 45470a50, committed bytes md5 == gated battery.
+
+**NOT PUBLISHED FROM:** the close-sweep RED=616 as the module score (bank 650 —
+34 kills come from the shipped suite outside the b30 single-process contract),
+nor the 34 shipped-suite GREENs as ledger survivors (the ledger is the 3
+bank verdict-0 keys).
+
+**Commands + snapshots:** run `b38-c27-run.log` (guard log `guard.log`;
+launcher `b38-c27-launch.sh`); sweeps `b38-c27-sweep-authoring.txt` (237/6 of 243) / `b38-c27-sweep-authoring2.txt` (240/3, post-phase-2) /
+`b38-c27-sweep-close.txt` (616/37 of 653), batched wrapper
+`b38-c25-sweep-batched.sh` (reused); reconcile `b38-c27-reconcile-body.py`
+(CLEAN rc=0); map `b38-c27-mutation-map.txt` (243 keys, 0 NOT-FOUND); keys
+`b38-c27-sweep-keys.txt` / `b38-c27-allkeys653.txt`; green scan
+`b38-c27-greenscan-unit.log` (28,680/124/8, 0 FAILED); pre-run archive
+`b38-preC27/`; score `b38-c27-score-r1.json`; history backup
+`mutation-history-preM29.json` (runs 1-32 deep-equal, append-only verified).
+
+**Next head (re-censused from `b38-c27-score-r1.json`, R8 shield applied):**
+**`audit_logger.py` 242 survivors at 40.6863%** (then `alert_engine`
+241/68.2058%, `pg_notify_listener` 238/49.6829%, `circuit_breaker` 224).
+Campaign #28, battery letter AD. Gap to 85%: 0.85\*69,159 = 58,785.15 - 52,344
+= **6,441.15 kt**. Every number measured THIS session.
