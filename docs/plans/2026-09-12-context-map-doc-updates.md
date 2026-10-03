@@ -16196,3 +16196,121 @@ R8 shield holds: system.py 328 and system_broadcaster.py 320 (320 surv
 57.4468% would otherwise rank first) are DEATH-Listed, never batteries.
 Campaign #32, battery letter AH. Gap to 85%: 0.85\*69,181 = 58,803.85 -
 53,293 = **5,510.85 kt**. Every number measured THIS session.
+
+## MILESTONE 34 — 77.36426940969112% (campaign #32 `osnet_loader` CLOSES at 99.8168% — 545/546 — in ONE run; the M19 pre-copy pattern again folded ALL 37 coverage-growth births into the same run (every birth verdict 1), reconcile CLEAN, and the ONE final survivor is EXACTLY the registered 1-key honesty ledger)
+
+**Score (measured THIS session from
+`/home/agent/runs/b38-c32-score-final.json`):** completed=true,
+`checked=69218/69218`, killed 53,264 + timeout 286 = kt **53,550** of
+**69,218** = **77.36426940969112%**, +0.33011263254131507 vs M33's
+77.0341567771498%. History run #38 appended (`--date 2026-10-03`),
+runs 1-37 prefix deep-equal verified against
+`/home/agent/runs/preM34-mutation-history.json`.
+
+**Campaign #32 = `backend/services/osnet_loader.py`** (bank row pre-run
+509 keys = {1:286, 0:221, -24:2} = 56.5815%). Battery AH
+`backend/tests/unit/services/test_osnet_loader_batch38_ah.py` — 48 tests,
+committed `c3dc9ee7` + docstring-only ledger-wording fix `4f17e33b`, both
+pushed, md5-synced into the mutant home BEFORE the run (M19 pre-copy).
+The shipped suite drove load/extract with MagicMocks, which ABSORB
+mutants; AH replaces every seam with a RECORDING fake: a `FakeTensor`
+logging `unsqueeze(dim)`/`to(device)`; a `FakeTransform` pinning the
+argument by IDENTITY + mode; a `FakeTorch` recording
+`torch.load`/`jit.load`/`stack` whole (NEM-4519 `weights_only=True`,
+`map_location`, the `Compose` `[Resize((256,128)), ToTensor(),
+Normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])]` literal
+list — M30 capture #7 raw-kwargs: a DELETED kwarg is a MISSING key); a
+`sys.modules` swap of `backend.core.security` recording
+`validate_model_path` (`must_exist=False` explicit); a real-`Handler`
+logger capture pinning whole messages, `exc_info`-tuple (capture #10),
+and the flattened `extra` (`record.model_path`); REAL-ndarray norms
+pinning the L2 arithmetic (zero vector stays EXACTLY zeros vs the `>= 0`
+NaN twin; 0.5-norm reaches 1.0 vs the `> 1` skip twin; `/` vs `*`); real
+`tmp_path` directory shapes driving the `model.pth` / `osnet_ain_x1_0_msmt17.pth`
+/ sorted-glob resolver priorities; the critical-prefix guard driven
+per-prefix (all six) plus a 7-critical-missing `critical_missing[:5]` +
+true-count pin and 4-missing/4-unexpected `[:3]` slice pins; and a
+patched-zoo-row polarity battery for `osnet_model_id` (custom / missing /
+falsy `runtime_file`, falsy `sha256`).
+
+**Authoring sweep + adjudication (all measured):** FIRST sweep attempt was
+a FAKE — 74 HANGs with `RED=0 GREEN=0`: 17 tests took pytest's `tmp_path`
+fixture and the b30-sweep harness calls tests with NO fixtures, so every
+test was a TypeError = BROKEN-BATTERY; the batched wrapper hides stderr
+so a broken battery is INDISTINGUISHABLE from a hang storm — reproduce ONE
+key with stderr visible before believing HANGs (NEW pitfall, captured).
+`tmp_path` made OPTIONAL (self-provisioned tempdir). Real sweep #1:
+209 RED / 12 GREEN / 0 HANG of 221. Eleven GREENs closed BY CONSTRUCTION:
+`model(None)` twins (`extract_person_embedding` m43, batch m42) needed the
+model-ARGUMENT identity pin; the batch `or`->`and` twin (m21) needed
+width-only/height-only-small XOR rows `(31,200)`/`(200,63)` added to BOTH
+confidence matrices; the seven `osnet_model_id` row-key/default twins +
+`sha or 'XXXX'` + `if sha or True` needed the patched-row battery (the
+real `models.yml` row can express neither polarity). Resweep of the 12:
+11 RED / 1 GREEN. All-221 sweep on COMMITTED bytes: **220 RED / 1 GREEN /
+0 HANG — GREEN set == the 1-key ledger EXACTLY**. Ledger:
+`x__osnet_zoo_row__mutmut_4` (`parents[2]`->`parents[3]`): a SWEEP-WORLD
+equivalence, disclosed as such — the mutant copy sits one directory
+deeper, so there `parents[3]` resolves to `workspace/models.yml`,
+byte-identical (md5 `d2d144ab...`, proven) to the `mutants/models.yml`
+the pristine line reads; in the REAL tree `parents[3]` is
+`/agents/agent-veranda3/models.yml`, which does not exist. No battery can
+distinguish two byte-identical files by value.
+
+**Run 1 (ONE run, M19 pre-copy):** full unit-tier scan in the mutant home
+MEASURED **28,839 passed**, 124 skipped, 8 xfailed, 19 snapshots, exit 0
+(28,791 + the 48 AH tests); runner `mutation-run.sh osnet_loader` pid
+471829, services-filter pre-flight 509 keys, plain nohup, guard-module2
+on the real runner pid — sibling-drop=0 the WHOLE run, both regimes.
+Done-line: 201/240 modules reporting, TOTAL 77.4% reported by the runner.
+**Body-identity reconcile CLEAN: {(1,1):286, (0,1):220, (0,0):1,
+(-24,-24):2}, KILL LOSSES = 0**, plus **37 births ALL killed same-run**
+(fn census `+_import_build_model` 15->19, `+x_extract_person_embeddings_batch`
+71->86, `+x_load_osnet_model` 193->211; meta 509 -> 546). Post-run module
+row: {1:543, 0:1, -24:2} = **545/546 = 99.81684981684981%**, and the ONE
+survivor IS the ledger key `x__osnet_zoo_row__mutmut_4`. Legacy timeout
+pair `x__sha256__mutmut_6`/`x__sha256__mutmut_14` unchanged (timeout 286
+HELD bank-wide, zero transitions); the close sweep HANGs exactly those
+two keys — mutmut's full-suite pass TIMES OUT where the battery's scoped
+probe HANGs (both carry bank verdicts, never flakes) — disclosed,
+numerator-preserving.
+
+**Close sweep (all 546 keys, committed bytes): 543 RED / 1 GREEN / 2 HANG**
+— GREEN == the ledger EXACTLY, the 2 HANGs are the legacy -24 pair.
+Attribution vs the run-0 `b38-preC32` baseline: TALLY `{LEDGER: 1}`,
+UNATTRIBUTED 0 (zero non-ledger GREENs to attribute — the battery alone
+kills 543 of 546).
+
+**Denominator disclosure: 69,181 -> 69,218 = +37, ALL from campaign #32
+run-1 coverage growth** (battery AH newly executes previously-uncovered
+regions of `_import_build_model` / `extract_person_embeddings_batch` /
+`_load_osnet_model`, so generation enumerated +37 new slots — every one
+killed by the same run's stats pass; no other module's meta changed
+shape, guard sibling-drop=0 corroborates).
+
+**Bank census (measured):** 240 metas / 69,218 keys / killed 53,264 (incl
+the 30-key exit-3 `caught_by_type_check` family folded in) + timeout 286
+= **kt 53,550**. Artifacts: `b38-preC32` archive,
+`b38-c32-greentier.log`, `b38-c32-run1.log`,
+`b38-c32-sweep-authoring.txt` / `b38-c32-resweep.txt` /
+`b38-c32-sweep-committed2.txt` / `b38-c32-close-sweep.txt`,
+`b38-c32-reconcile.py`, `b38-c32-attribute.py`,
+`b38-c32-score-final.json`, history backup
+`preM34-mutation-history.json`. Also disclosed: a manual
+`detect-secrets scan --baseline .secrets.baseline <file>` REWRITES the
+baseline to the scan scope (a 138k-line wipe in the working tree —
+restore with `git checkout`; gate with a BARE `scan` and compare against
+the committed baseline instead); and a background watcher whose own
+command line contains the bracketed pattern it polls
+(`"[b]38-c25-sweep-batched"`) never exits — keep watchers in SEPARATE
+commands from the launch they watch.
+
+**Next head (re-censused from `b38-c32-score-final.json`, R8 shield
+applied):** **`batch_coalescer.py` 218 survivors at 40.9214%** (then
+`context_enricher` 216/52.0%, `export_service` 215/77.7202%,
+`pipeline_quality_audit_service` 214/70.3601%, `retry_handler`
+214/60.7339%, `job_status` 211/57.6305%, `debug.py` 210/48.2759%).
+R8 shield holds: `system.py` 328 and `system_broadcaster.py` 320 remain
+DEATH-Listed, never batteries. Campaign #33, battery letter AI. Gap to
+85%: 0.85\*69,218 = 58,835.3 - 53,550 = **5,285.3 kt**. Every number
+measured THIS session.
