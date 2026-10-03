@@ -9,8 +9,8 @@ This directory contains the core business logic and background services for the 
 The services implement a multi-stage async pipeline with real-time broadcasting and background maintenance:
 
 ```
-File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation -> Broadcasting
-   (1)          (2)         (3)          (4)          (5)          (6)              (7)
+File Upload -> Detection -> Batching -> Specialists -> Analysis -> Event Creation -> Broadcasting
+   (1)          (2)         (3)            (4)           (5)          (6)              (7)
 
                      Monitoring Services (Parallel)
                      ├── GPUMonitor (polls GPU stats)
@@ -23,12 +23,12 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 ### Service Categories
 
-1. **Core AI Pipeline** - File watching, detection, batching, analysis, streaming
-2. **AI Clients** - HTTP clients for external AI services (Florence, CLIP)
+1. **Core AI Pipeline** - File watching, detection, batching, VLM analysis, streaming
+2. **VLM Analysis Path** - `vlm_client` (the `vlm_assess` transport), `vlm_analyzer` (the analysis entry point), `vlm_verdict` (contract models), `vlm_specialists` (faces/plates/person-re-ID texts)
 3. **AI Services** - DI wrappers for face/plate detection services
 4. **Context Enrichment** - Zone detection, baseline tracking, re-identification
 5. **Person Re-identification** - OSNet-AIN x1.0 embedding clustering, hybrid storage bridge
-6. **Model Zoo** - On-demand model loading for attribute extraction
+6. **Model Zoo** - On-demand model loading for the lookup legs (plates, faces, embeddings, OCR)
 7. **Model Loaders** - Individual model loading functions for Model Zoo
 8. **Model Loader Base** - Abstract base class for model loaders
 9. **Pipeline Workers** - Background queue consumers and managers
@@ -61,31 +61,21 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `detector_client.py`     | Send images to YOLO26v2 for detection                                       | Yes                        |
 | `batch_aggregator.py`    | Group detections into time-based batches                                    | Yes                        |
 | `capture_time.py`        | Foscam filename → capture time for the VLM's time context (CAMERA_TIMEZONE) | No (import directly)       |
-| `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp                                       | Yes                        |
-| `nemotron_streaming.py`  | Streaming LLM response extensions                                           | No (import directly)       |
+| `vlm_analyzer.py`        | The shipped analysis entry point: one `vlm_assess` call per batch           | No (import directly)       |
+| `vlm_client.py`          | The ONLY backend caller of the llama.cpp VLM server                         | No (import directly)       |
+| `vlm_verdict.py`         | `vlm_assess` contract models (schema source of truth)                       | No (import directly)       |
+| `vlm_specialists.py`     | faces/plates/person_reid texts fed into the verdict                         | No (import directly)       |
 | `thumbnail_generator.py` | Generate preview images with bounding boxes                                 | Yes                        |
 | `video_processor.py`     | Extract video metadata and thumbnails                                       | No (import directly)       |
 | `event_broadcaster.py`   | Distribute events via WebSocket                                             | Yes                        |
-
-### AI Client Services
-
-| Service                | Purpose                                    | Exported via `__init__.py` |
-| ---------------------- | ------------------------------------------ | -------------------------- |
-| `florence_client.py`   | HTTP client for Florence-2 vision-language | No (import directly)       |
-| `clip_client.py`       | HTTP client for CLIP embedding generation  | No (import directly)       |
-| `enrichment_client.py` | HTTP client for enrichment service         | No (import directly)       |
 
 ### Context Enrichment Services
 
 | Service                    | Purpose                                          | Exported via `__init__.py` |
 | -------------------------- | ------------------------------------------------ | -------------------------- |
 | `context_enricher.py`      | Aggregate context from zones, baselines, reid    | Yes                        |
-| `enrichment_pipeline.py`   | Orchestrate Model Zoo enrichment for batches     | Yes                        |
-| `vision_extractor.py`      | Florence-2 attribute extraction orchestration    | No (import directly)       |
-| `florence_extractor.py`    | Florence-2 specific extraction logic             | Yes                        |
 | `zone_service.py`          | Zone detection and context generation            | Yes                        |
 | `baseline.py`              | Activity baseline tracking for anomaly detection | Yes                        |
-| `scene_baseline.py`        | Scene-level baseline tracking                    | No (import directly)       |
 | `scene_change_detector.py` | SSIM-based scene change detection                | Yes                        |
 | `reid_service.py`          | Person re-identification across cameras          | Yes                        |
 | `reid_matcher.py`          | Person re-ID matching across detections          | No (import directly)       |
@@ -99,24 +89,18 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 ### Model Loader Services
 
-| Service                        | Purpose                                          | Exported via `__init__.py` |
-| ------------------------------ | ------------------------------------------------ | -------------------------- |
-| `clip_loader.py`               | Load SigLIP 2 Base for /clip embeddings          | Yes                        |
-| `osnet_loader.py`              | Load OSNet-AIN x1.0 person re-ID embeddings      | No (import directly)       |
-| `florence_loader.py`           | Load Florence-2 for vision-language              | Yes                        |
-| `yolo_world_loader.py`         | Load YOLO-World for open-vocabulary detection    | No (import directly)       |
-| `vitpose_loader.py`            | Load ViTPose for human pose estimation           | No (import directly)       |
-| `depth_anything_loader.py`     | Load Depth Anything for depth estimation         | No (import directly)       |
-| `violence_loader.py`           | Load violence detection model                    | No (import directly)       |
-| `weather_loader.py`            | Load weather classification model                | No (import directly)       |
-| `segformer_loader.py`          | Load SegFormer for clothing segmentation         | No (import directly)       |
-| `stgcn_loader.py`              | Load ST-GCN++ for skeleton action recognition    | No (import directly)       |
-| `fashion_clip_loader.py`       | Load Fashion-CLIP for clothing classification    | No (import directly)       |
-| `image_quality_loader.py`      | Load BRISQUE for image quality assessment        | No (import directly)       |
-| `vehicle_classifier_loader.py` | Load vehicle segment classifier                  | No (import directly)       |
-| `vehicle_damage_loader.py`     | Load vehicle damage detection model              | No (import directly)       |
-| `pet_classifier_loader.py`     | Load pet classifier for false positive reduction | No (import directly)       |
-| `smoke_fire_loader.py`         | Load smoke/fire detection model                  | No (import directly)       |
+The zoo's loader set is what `model_zoo.py`'s `_LOADER_MAP` binds — one generic
+YOLO loader plus the resident specialist loaders:
+
+| Service                     | Purpose                                                             | Exported via `__init__.py` |
+| --------------------------- | ------------------------------------------------------------------- | -------------------------- |
+| `osnet_loader.py`           | Load OSNet-AIN x1.0 person re-ID embeddings                         | No (import directly)       |
+| `face_recognizer_loader.py` | Load the SCRFD face detector + ArcFace recognizer (CPU onnxruntime) | No (import directly)       |
+| `fast_alpr_loader.py`       | Load the FastALPR plate reader                                      | No (import directly)       |
+
+The YOLO rows (`yolo26-general`, `yolo11-face`, `yolo11-license-plate`) load
+through `load_yolo_model` and the OCR row through `load_paddle_ocr`, both
+defined inside `model_zoo.py` itself.
 
 ### Model Loader Base
 
@@ -131,7 +115,6 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `plate_detector.py`            | License plate detection and OCR             | Yes                        |
 | `face_detector.py`             | Face detection for person re-identification | Yes                        |
 | `ocr_service.py`               | OCR text extraction from detected regions   | Yes                        |
-| `package_tracking_service.py`  | Package detection and theft monitoring      | No (import directly)       |
 | `smoke_fire_consecutive.py`    | Consecutive smoke/fire detection tracking   | No (import directly)       |
 | `threat_monitor_service.py`    | Weapon detection immediate alert generation | No (import directly)       |
 | `depth_calibration_service.py` | Depth-to-distance calibration for cameras   | No (import directly)       |
@@ -376,14 +359,14 @@ Upload path: /export/foscam/Front Door/image.jpg
 
 ### batch_aggregator.py
 
-**Purpose:** Groups detections into time-based batches for efficient LLM analysis.
+**Purpose:** Groups detections into time-based batches for efficient VLM analysis.
 
 **Batching Rules:**
 
 - **Window timeout:** 90 seconds from batch start (configurable)
 - **Idle timeout:** 30 seconds since last detection (configurable)
 - **One batch per camera:** Each camera has max 1 active batch at a time
-- **Fast path:** High-confidence critical detections bypass batching
+- **Fast path:** The high-confidence bypass exists in the code but is DISABLED by config (`fast_path_confidence_threshold` defaults to the impossible 2.0 and `fast_path_object_types` to `[]`); when it does fire it routes the single detection through `VlmAnalyzer.analyze_detection_fast_path`, which runs the SAME batch gate as a one-detection batch
 
 **Redis Keys (all keys have 1-hour TTL for orphan cleanup):**
 
@@ -404,35 +387,48 @@ batch:{batch_id}:last_activity    -> Unix timestamp
 - `async check_batch_timeouts()` - Close expired batches
 - `async close_batch(batch_id)` - Force close and push to analysis queue
 
-### nemotron_analyzer.py
+### vlm_analyzer.py
 
-**Purpose:** LLM-based risk analysis using Nemotron via llama.cpp server.
+**Purpose:** The shipped analysis entry point — one `vlm_assess` call per closed batch, its constrained verdict turned into an Event plus its EventVerification row. Built by `pipeline_factory.build_pipeline_analyzer()`, never by naming a mode at the call site.
 
-**Analysis Flow:**
+**Analysis Flow (spec §6 ladder):**
 
-1. Fetch batch detections from Redis/database
-2. Enrich context with zones, baselines, and cross-camera activity
-3. Run enrichment pipeline for license plates, faces, OCR (optional)
-4. Format prompt with enriched detection details
-5. POST to llama.cpp completion endpoint
-6. Parse JSON response
-7. Create Event with risk assessment
-8. Store Event in database
-9. Broadcast via WebSocket (if available)
-
-**Prompt Templates:**
-
-- `RISK_ANALYSIS_PROMPT` - Basic risk analysis
-- `ENRICHED_RISK_ANALYSIS_PROMPT` - With context enrichment
-- `VISION_ENHANCED_RISK_ANALYSIS_PROMPT` - With Florence-2 attributes
-- `MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT` - Full Model Zoo enrichment
+1. Idempotency check first (the `batch_event:<id>` Redis key, same TTL as its replay twin)
+2. Resolve batch identity from the queue payload, falling back to the Redis keys `close_batch` wrote; a batch with no camera from EITHER source raises loudly with zero writes (the VLM never originates an event)
+3. Session 1 (READ): camera/detections/zones/household — NO session is held across the VLM call
+4. The specialist stage (`vlm_specialists.py`) computes the three short lines — `faces`, `plates`, `person_reid` — over the batch's selected key frames; a specialist failure always degrades to the text "unavailable" and never fails the batch
+5. ONE constrained call through `vlm_client` (transport retry at temperature 0 lives THERE; this module never re-retries)
+6. Apply the verdict invariants: rejected clamps the score to `SeverityService.low_max`, uncertain keeps its score, the risk level is ALWAYS derived by `SeverityService` (the model never emits one), and a verification failure scores NULL with the event row still written ("needs review")
+7. Session 2 (WRITE): Event and EventVerification in the SAME transaction, the idempotency key AFTER the write
+8. Broadcast LAST, best-effort — a broadcast failure never un-does the committed event
 
 **Public API:**
 
-- `NemotronAnalyzer(redis_client, context_enricher, enrichment_pipeline)`
-- `async analyze_batch(batch_id)` - Analyze batch and create Event
-- `async analyze_detection_fast_path(camera_id, detection_id)` - Immediate analysis
-- `async health_check()` - Check if LLM server is reachable
+- `VlmAnalyzer(vlm_client, redis_client, severity=..., replay=...)`
+- `async analyze_batch(batch_id, camera_id, detection_ids, *, specialist_inputs)` - Analyze one closed batch and create the Event (`specialist_inputs` is replay's carrier; production never passes it)
+- `async analyze_detection_fast_path(camera_id, detection_id)` - The aggregator's bypass, routed through the same batch gate
+- `async analyze_batch_streaming(batch_id, ...)` - The SSE re-analyze route's generator: one progress update, then the terminal update the Event's own stored values justify
+
+### vlm_client.py
+
+**Purpose:** The ONLY thing in the backend that dials the llama.cpp VLM server (`AI_VLM_URL`, compose `http://ai-vlm:8098`). `vlm_analyzer` consumes this; nobody else should.
+
+**Key features:**
+
+- Chat request with up to 4 base64 image parts + structured context; `response_format` carries the NESTED `json_schema` wrapper the enforcement probe proved ENFORCED at the pin
+- The wire schema is the GENERATED contract schema with grammar-unsafe constraints stripped (`minLength`/`minimum`/`maximum` — the grammar guarantees shape, `VlmVerdict` post-validation owns bounds)
+- Read budget `settings.ai_vlm_read_timeout` (default 25 s); ONE transport retry at temperature 0, and only when the first attempt failed fast
+- Transport failures feed `get_circuit_breaker("ai-vlm")`; when it OPENS, DegradationManager is told ai-vlm is unhealthy
+- Error types: `VlmClientError` and the subclasses `VlmTransportError`, `VlmSchemaError` (+ `VlmTruncatedError`), `VlmContextOverflowError`, `VlmUnavailableError`, `VlmImageError`
+- `async wake_ai_vlm()` - bring a scale-to-zero engine back
+
+### vlm_verdict.py
+
+**Purpose:** The `vlm_assess` contract models — the schema the client sends, the golden payload, and the shape snapshot all derive from this module (drift doctrine: the contract is GENERATED by `scripts/gen-ai-contract.py` under `VLM_OPS`, never hand-transcribed). `risk_level` is NOT a field: `SeverityService` derives it from `risk_score`. Import closure is pydantic-only (the generator imports this module by name).
+
+### vlm_specialists.py
+
+**Purpose:** The specialist stage — `collect_face_text`, `collect_plate_text`, `collect_reid_text` produce one short line each (`faces`, `plates`, `person_reid`) into AssessInput before `vlm_assess`. Three rules dominate: never block the verdict (degrade to "unavailable", never "unknown"); four face outcomes (match / unknown / not_identifiable / unavailable) with the quality gate deciding unknown-vs-not-identifiable; and the one-embedding-space rule (person re-ID scores only same-`model_id` gallery rows via the resident OSNet handle).
 
 ### event_broadcaster.py
 
@@ -479,6 +475,8 @@ batch:{batch_id}:last_activity    -> Unix timestamp
 - Activity baselines (from baseline)
 - Cross-camera activity (recent detections on other cameras)
 
+**Where it runs:** the shipped VLM path does not call this module — `vlm_analyzer` reads zones and household directly. Its one non-test consumer is `pipeline_quality_audit_service`, whose audit rows may carry an `EnrichedContext`, and `get_context_enricher()` is a DI provider (`backend/core/dependencies.py`).
+
 **Key Classes:**
 
 - `EnrichedContext` - Dataclass holding all enrichment data
@@ -486,71 +484,38 @@ batch:{batch_id}:last_activity    -> Unix timestamp
 
 **Public API:**
 
-- `ContextEnricher(session)` - Initialize with database session
-- `async enrich_detections(camera_id, detections)` - Get context for detections
+- `ContextEnricher(cross_camera_window, image_width, image_height)`
+- `async enrich(batch_id, camera_id, detection_ids, *, session)` - Get context for a batch (opens its own session when none is passed)
 - `get_context_enricher()` - Get global singleton
 - `reset_context_enricher()` - Reset singleton (for testing)
-
-### enrichment_pipeline.py
-
-**Purpose:** Orchestrates Model Zoo enrichment during batch analysis.
-
-**Enrichment Flow:**
-
-1. Load appropriate models based on detection types
-2. Extract license plates from vehicles (YOLO + PaddleOCR)
-3. Detect faces on persons (YOLO)
-4. Generate person re-ID embeddings (OSNet-AIN x1.0, resident zoo handle)
-5. Run vision-language queries (Florence-2)
-6. Extract pose, clothing, vehicle type attributes
-7. Assess violence, weather, image quality
-
-**Key Classes:**
-
-- `DetectionInput` - Input detection with bbox and image path
-- `BoundingBox` - Validated bounding box coordinates
-- `EnrichmentResult` - All extracted attributes and metadata
-- `EnrichmentPipeline` - Main orchestration class
-
-**Public API:**
-
-- `EnrichmentPipeline(model_manager, redis_client)`
-- `async enrich_batch(image_path, detections)` - Run full enrichment
-- `get_enrichment_pipeline()` - Get global singleton
-- `reset_enrichment_pipeline()` - Reset singleton (for testing)
 
 ### model_zoo.py
 
 **Purpose:** Registry and manager for on-demand AI model loading with VRAM optimization.
 
-**Available Models:**
+**Runtime surface (the rows `models.yml` ships today):**
 
-| Model Name                     | Category           | VRAM (MB) | Purpose                                           |
-| ------------------------------ | ------------------ | --------- | ------------------------------------------------- |
-| yolo11-license-plate           | detection          | 300       | License plate detection                           |
-| yolo11-face                    | detection          | 200       | Face detection                                    |
-| paddleocr                      | ocr                | 100       | Text extraction from plates                       |
-| siglip2-base-patch16-224       | embedding          | 200       | Scene/text embeddings (not person re-ID)          |
-| osnet-ain-x1-0                 | embedding          | 100       | Person re-ID embeddings (512-d, OSNet-AIN)        |
-| florence-2-large               | vision-language    | 1200      | Attribute extraction (disabled - runs as service) |
-| yolo-world-s                   | detection          | 1500      | Open-vocabulary detection                         |
-| vitpose-small                  | pose               | 1500      | Human pose keypoints (17 COCO)                    |
-| depth-anything-v2-small        | depth-estimation   | 150       | Monocular depth estimation                        |
-| violence-detection             | classification     | 500       | Violence detection (98.8% acc)                    |
-| weather-classification         | classification     | 200       | Weather condition (5 classes)                     |
-| segformer-b2-clothes           | segmentation       | 1500      | Clothing segmentation (18 categories)             |
-| stgcn-plus-plus                | action-recognition | 20        | Skeleton action recognition (60 NTU classes)      |
-| fashion-clip                   | classification     | 500       | Zero-shot clothing classification                 |
-| brisque-quality                | quality-assessment | 0         | Image quality (CPU-based, disabled)               |
-| vehicle-segment-classification | classification     | 1500      | Detailed vehicle type (11 classes)                |
-| vehicle-damage-detection       | detection          | 2000      | Vehicle damage (6 damage types)                   |
-| pet-classifier                 | classification     | 200       | Cat/dog classification                            |
+| Model name               | Loader bound in `_LOADER_MAP`                          | zoo-enabled | preload | VRAM (MB) | Purpose                                                  |
+| ------------------------ | ------------------------------------------------------ | ----------- | ------- | --------- | -------------------------------------------------------- |
+| yolo26                   | — (loaded by the serving container, not in-process)    | false       | false   | 0         | Primary object detection — the backend calls it via HTTP |
+| osnet-ain-x1-0           | `osnet_loader.load_osnet_model`                        | true        | true    | 100       | Person re-ID embeddings (512-d, OSNet-AIN)               |
+| face-detector-scrfd      | `face_recognizer_loader.load_face_detector`            | true        | true    | 0         | SCRFD face detection (CPU onnxruntime, sha256-pinned)    |
+| face-recognizer          | `face_recognizer_loader.load_face_recognizer`          | true        | true    | 0         | ArcFace face embedding (CPU onnxruntime, sha256-pinned)  |
+| threat-detection-yolov8n | — (`service: both`, the gateway `threat` Triton model) | true        | false   | 300       | Threat/weapon detection                                  |
+| yolo11-face              | `load_yolo_model`                                      | true        | false   | 200       | Face detection (DB-lookup leg)                           |
+| yolo11-license-plate     | `load_yolo_model`                                      | true        | false   | 300       | License plate detection (DB-lookup leg)                  |
+| fast-alpr                | `fast_alpr_loader.load_fast_alpr`                      | true        | false   | 28        | End-to-end plate detection + OCR                         |
+| paddleocr                | `load_paddle_ocr`                                      | true        | false   | 100       | Text extraction from plates                              |
+| yolo26-general           | `load_yolo_model`                                      | false       | false   | 400       | General detection variant, disabled                      |
 
-**VRAM Budget:**
+`_LOADER_MAP` also still binds `yolov8n-pose` to `load_yolo_model`; that row
+left `models.yml` in R8 S3, so the binding is unreachable — a name with no
+row never reaches the zoo.
 
-- Nemotron LLM: 21,700 MB (always loaded)
+**VRAM budget:**
+
+- ai-vlm: the always-loaded perception engine (`VLM_MODEL_SLOTS`), resident in its own container
 - YOLO26v2: 650 MB (always loaded)
-- Available for Model Zoo: ~1,650 MB
 - Models load sequentially, never concurrently
 
 **Key Classes:**
@@ -573,125 +538,6 @@ get_enabled_models()  # List enabled models
 get_available_models()  # List verified working models
 get_total_vram_if_loaded(names)  # Calculate VRAM usage
 ```
-
-### florence_client.py
-
-**Purpose:** HTTP client for Florence-2 vision-language extraction.
-
-**Service:** In production compose the Florence models run inside the shared `ai-gateway` container; with `USE_AI_GATEWAY=true` this client targets `http://ai-gateway:8090/florence`. Standalone mode (gateway off) falls back to `florence_url` (`http://localhost:8092`, Docker `http://ai-florence:8092`).
-
-**Supported Tasks:**
-
-- `<CAPTION>` - Brief caption
-- `<DETAILED_CAPTION>` - Detailed caption
-- `<MORE_DETAILED_CAPTION>` - Extensive description
-- `<VQA>` - Visual question answering
-- `<OCR>` - Text extraction with regions
-- `<OD>` - Object detection
-- `<DENSE_REGION_CAPTION>` - Regional captions
-
-**Key Classes:**
-
-- `FlorenceClient` - HTTP client for Florence service
-- `FlorenceUnavailableError` - Raised when service unavailable
-- `OCRRegion`, `Detection`, `CaptionedRegion` - Response types
-
-**Public API:**
-
-- `FlorenceClient(base_url, timeout)`
-- `async extract(image, task, text_input)` - Run extraction
-- `async caption(image)`, `async detailed_caption(image)`
-- `async vqa(image, question)` - Visual Q&A
-- `async ocr(image)` - Text extraction
-- `async health_check()` - Check service health
-- `get_florence_client()` - Get global singleton
-
-### clip_client.py
-
-**Purpose:** HTTP client for the ai-gateway CLIP router (SigLIP 2, 768-d). Retired as the PERSON re-ID producer (full swap, ledger item 20 — OSNet-AIN x1.0 is the one person-vector space); this client still serves scene classification, threat-description matching, and the scene-baseline anomaly path.
-
-**Service:** In production compose CLIP runs inside the shared `ai-gateway` container; with `USE_AI_GATEWAY=true` this client targets `http://ai-gateway:8090/clip`. Standalone mode (gateway off) falls back to `clip_url` (`http://localhost:8093`, Docker `http://ai-clip:8093`).
-
-**Features:**
-
-- 768-dimensional scene/text embeddings from the gateway `clip` router
-- 10s connect timeout, 15s read timeout
-- Error handling with CLIPUnavailableError
-
-**Public API:**
-
-- `CLIPClient(base_url, timeout)`
-- `async embed(image)` - Generate 768-dim embedding
-- `async health_check()` - Check service health
-- `get_clip_client()` - Get global singleton
-
-### enrichment_client.py
-
-**Purpose:** HTTP client for the ai-enrichment service providing unified detection enrichment.
-
-**Service:** In production compose the enrichment models run inside the shared `ai-gateway` container; with `USE_AI_GATEWAY=true` this client uses `http://ai-gateway:8090/enrichment` for heavy models and `http://ai-gateway:8090/enrich-lt` for light ones. Standalone mode (gateway off) falls back to `enrichment_url` (`http://localhost:8094`, Docker `http://ai-enrichment:8094`) and `enrichment_light_url` (`http://localhost:8096`, Docker `http://ai-enrichment-light:8096`).
-
-**Endpoints:**
-
-| Endpoint             | Purpose                               |
-| -------------------- | ------------------------------------- |
-| `/vehicle-classify`  | Vehicle type and color classification |
-| `/pet-classify`      | Cat/dog classification                |
-| `/clothing-classify` | FashionCLIP clothing attributes       |
-| `/depth-estimate`    | Depth Anything V2 depth estimation    |
-| `/object-distance`   | Object distance from depth map        |
-| `/pose-analyze`      | ViTPose+ human pose keypoints         |
-| `/action-classify`   | X-CLIP temporal action recognition    |
-| `/enrich`            | Unified enrichment endpoint           |
-
-**Result Dataclasses:**
-
-- `VehicleClassificationResult` - Vehicle type, display name, confidence, is_commercial
-- `PetClassificationResult` - Pet type, breed, confidence, is_household_pet
-- `ClothingClassificationResult` - Clothing type, color, style, is_suspicious
-- `DepthEstimationResult` - Depth map, min/max/mean depth
-- `ObjectDistanceResult` - Estimated distance, proximity label
-- `PoseAnalysisResult` - Keypoints, posture, alerts
-- `ActionClassificationResult` - Action, confidence, is_suspicious
-
-**Features:**
-
-- Circuit breaker integration for resilience
-- Automatic retry with exponential backoff
-- Timeout configuration (10s connect, 60s read)
-- Bbox validation and clamping
-- Prometheus metrics for request duration
-
-**Public API:**
-
-```python
-from backend.services.enrichment_client import get_enrichment_client
-
-client = get_enrichment_client()
-
-# Health check
-health = await client.check_health()
-
-# Individual classifications
-vehicle = await client.classify_vehicle(image, bbox=(x1, y1, x2, y2))
-pet = await client.classify_pet(image)
-clothing = await client.classify_clothing(image)
-pose = await client.analyze_pose(image)
-
-# Unified enrichment
-enrichment = await client.enrich(
-    image=person_image,
-    detection_type="person",
-    bbox=(x1, y1, x2, y2),
-    is_suspicious=True,
-)
-```
-
-**Error Handling:**
-
-- `EnrichmentUnavailableError` - Service unavailable (connection/timeout/5xx)
-- HTTP 4xx errors - Logged and returns None (no retry)
-- Invalid JSON - Logged and returns None
 
 ### reid_service.py
 
@@ -801,9 +647,9 @@ Detection.enrichment_data = {
 
 A bare vector list under the same key is also read. This matcher is a same-space lookup with no `model_id` guard of its own; the provenance-checked person comparison (mismatch or unprovenanced ⇒ `unavailable (re-enroll)`) lives in `household_matcher.compare_person_vectors`.
 
-**Integration with Enrichment Service:**
+**Integration with the gateway `reid` model:**
 
-The primary producer is `reid_service`, computing through the resident OSNet zoo handle. The enrichment service's OSNet pass — the gateway `reid` model behind `/enrich` (gateway: `http://ai-gateway:8090/enrichment/enrich`) when `detection_type="person"` — is the same models.yml-pinned weights, so its vectors live in the one space and carry the same `model_id`; where both ran, the resident pipeline's cached vector wins.
+The primary producer is `reid_service`, computing through the resident OSNet zoo handle. The gateway's OSNet pass — the Triton `reid` model behind `/enrich-lt/person-reid` (`http://ai-gateway:8090/enrich-lt/person-reid`) — is the same models.yml-pinned weights, so its vectors live in the one space and carry the same `model_id`; where both run, the resident pipeline's cached vector wins.
 
 ### scene_change_detector.py
 
@@ -830,21 +676,21 @@ The primary producer is `reid_service`, computing through the resident OSNet zoo
 - `reset_all_baselines()` - Clear all baselines
 - `get_scene_change_detector()` - Get global singleton
 
-### audit_service.py
+### pipeline_quality_audit_service.py
 
-**Purpose:** AI pipeline auditing with self-evaluation via Nemotron.
+**Purpose:** AI pipeline auditing with self-evaluation via `POST {AI_VLM_URL}/completion` (the shipped verdict engine answers the evaluation calls). The module's own name is its filename — the class is `PipelineQualityAuditService`, reached through `get_audit_service()`.
 
 **Features:**
 
 - Create audit records with model contribution flags
 - Self-evaluation modes:
-  1. **Self-critique** - LLM critiques its own response
+  1. **Self-critique** - The model critiques its own response
   2. **Rubric scoring** - Quality dimension scoring (1-5 scale)
   3. **Consistency check** - Re-analyze and compare risk scores
   4. **Prompt improvement** - Suggest prompt enhancements
 - Aggregate statistics and model leaderboard
 
-**Tracked Models:**
+**Tracked contribution flags** (`MODEL_NAMES`, read off an `EnrichmentResultLike`, which the shipped path passes as `None`):
 yolo26, florence, clip, violence, clothing, vehicle, pet, weather, image_quality, zones, baseline, cross_camera
 
 **Quality Dimensions:**
@@ -917,7 +763,7 @@ yolo26, florence, clip, violence, clothing, vehicle, pet, weather, image_quality
 **Features:**
 
 - Periodic health checks for all enabled services (default: every 30 seconds)
-- HTTP health endpoint checks for AI services (YOLO26v2, Nemotron, Florence, CLIP)
+- HTTP health endpoint checks for the AI containers `container_discovery` surfaces (`ai-gateway`, `ai-llm-vllm`)
 - Command-based health checks for infrastructure (PostgreSQL, Redis)
 - Container running status as fallback health check
 - Grace period support for recently started containers
@@ -1225,58 +1071,27 @@ await registry.clear_state(name)
 }
 ```
 
-### vision_extractor.py
-
-**Purpose:** Florence-2 attribute extraction orchestration for vehicles and persons.
-
-**Extracted Attributes:**
-
-**Vehicles:**
-
-- color (e.g., "white", "red", "black")
-- vehicle_type (e.g., "sedan", "SUV", "pickup", "van")
-- is_commercial (boolean)
-- commercial_text (visible company name/logo)
-- caption (full description)
-
-**Persons:**
-
-- clothing (e.g., "blue jacket, dark pants")
-- carrying (e.g., "backpack", "package", "nothing")
-- is_service_worker (boolean)
-- action (e.g., "walking", "standing", "crouching")
-- caption (full description)
-
-**Scene Analysis:**
-
-- unusual_objects
-- tools_detected
-- abandoned_items
-- scene_description
-
-**Key Classes:**
-
-- `VehicleAttributes`, `PersonAttributes` - Immutable dataclasses
-- `SceneAnalysis`, `EnvironmentContext` - Scene-level data
-- `BatchExtractionResult` - Complete extraction results
-- `VisionExtractor` - Main service class
-
 ### performance_collector.py
 
 **Purpose:** Collects system performance metrics from all components.
 
 **Metrics Sources:**
 
-| Source     | Method                         | Metrics                               |
-| ---------- | ------------------------------ | ------------------------------------- |
-| GPU        | pynvml or HTTP fallback        | Utilization, VRAM, temperature, power |
-| YOLO26v2   | HTTP `/health` endpoint        | Status, VRAM, model name, device      |
-| Nemotron   | HTTP `/slots` endpoint         | Status, active/total slots, context   |
-| PostgreSQL | SQL queries (pg_stat_activity) | Connections, cache hit ratio, txns    |
-| Redis      | redis-py INFO command          | Clients, memory, hit ratio, blocked   |
-| Host       | psutil                         | CPU%, RAM GB, disk GB                 |
-| Containers | HTTP health endpoints          | Status, health for each container     |
-| Inference  | PipelineLatencyTracker         | YOLO26/Nemotron/pipeline latencies    |
+| Source     | Method                                     | Metrics                               |
+| ---------- | ------------------------------------------ | ------------------------------------- |
+| GPU        | pynvml or HTTP fallback                    | Utilization, VRAM, temperature, power |
+| YOLO26v2   | HTTP `/health` endpoint                    | Status, VRAM, model name, device      |
+| ai-vlm     | HTTP `/slots` endpoint (`ai_vlm_url`)      | Status, active/total slots, context   |
+| PostgreSQL | SQL queries (pg_stat_activity)             | Connections, cache hit ratio, txns    |
+| Redis      | redis-py INFO command                      | Clients, memory, hit ratio, blocked   |
+| Host       | psutil                                     | CPU%, RAM GB, disk GB                 |
+| Containers | HTTP health endpoints (ai-yolo26, ai-vlm…) | Status, health for each container     |
+| Inference  | PipelineLatencyTracker                     | YOLO26/analysis/pipeline latencies    |
+
+The ai-vlm leg carries the class name `NemotronMetrics` and the method name
+`collect_nemotron_metrics` — llama.cpp serves the `/slots` contract at
+`ai_vlm_url`, and the names keep the LLM-era label. The latency leg likewise
+labels the `batch_to_analyze` stage stats `nemotron_latency_ms`.
 
 **Alert Thresholds:**
 
@@ -1314,11 +1129,14 @@ await collector.close()
 
 **Pre-configured Service Categories:**
 
-| Category       | Services                                           | Restart Policy        |
-| -------------- | -------------------------------------------------- | --------------------- |
-| Infrastructure | PostgreSQL (:5432), Redis (:6379)                  | Critical - aggressive |
-| AI             | YOLO26v2, Nemotron, Florence-2, CLIP, Enrichment   | Standard backoff      |
-| Monitoring     | Prometheus, Grafana, Redis Exporter, JSON Exporter | Lenient               |
+| Category       | Services                                                                                                                             | Restart Policy        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------- |
+| Infrastructure | PostgreSQL (:5432), Redis (:6379), backend, go2rtc, frontend                                                                         | Critical - aggressive |
+| AI             | `ai-gateway` (the one AI container in compose; the detection/specialist models all ride it), `ai-llm-vllm` (optional `vllm` profile) | Standard backoff      |
+| Monitoring     | Prometheus, Grafana, Alertmanager, Loki, Pyroscope, Alloy, Tempo, Redis/JSON/Blackbox/Node/DCGM Exporters, cAdvisor                  | Lenient               |
+
+The orchestrator's `RETIRED_LLM_SERVICES` guard refuses to manage a stale
+pre-R8 `ai-llm` container if one survives on the host.
 
 **Key Classes:**
 
@@ -1694,7 +1512,7 @@ result = await manager.run_maintenance()  # Full maintenance (create + cleanup)
 
 **Key Features:**
 
-- Track service health states (Redis, YOLO26v2, Nemotron)
+- Track health states of the services that get registered — `main.py` registers `ai-vlm` (critical=False) whose status arrives by breaker push from `vlm_client`, not by polling; Redis health drives the fallback-queue machinery below
 - Fallback to disk-based queues when Redis is down
 - In-memory queue fallback when Redis unavailable
 - Automatic recovery detection
@@ -1892,7 +1710,7 @@ if not cb.is_open("ai_service"):
 | ---------- | --------------------------- | -------- |
 | database   | PostgreSQL connection/query | Yes      |
 | redis      | Redis connection/memory     | Yes      |
-| ai_service | Nemotron + YOLO26v2 health  | No       |
+| ai_service | ai-vlm + YOLO26v2 health    | No       |
 | gpu        | CUDA availability/memory    | No       |
 | storage    | Disk space for /export      | No       |
 
@@ -1966,7 +1784,7 @@ changed_components = await emitter.update_all_components(
 # Emit system error
 await emit_system_error(
     error_code="AI_SERVICE_CRASH",
-    message="Nemotron service crashed unexpectedly",
+    message="ai-vlm service crashed unexpectedly",
     severity="high",
     details={"exit_code": 137},
     recoverable=True,
@@ -2175,7 +1993,7 @@ await evaluator.stop()  # Stop background loop
 **Configuration:**
 
 - `encoding_name`: Tiktoken encoding (default: from settings, usually "cl100k_base")
-- `context_window`: Max context window (default: 32,768 for Nemotron)
+- `context_window`: Max context window (default: `settings.nemotron_context_window` — a per-slot budget of 32,768 tokens, derived from llama.cpp's `CTX_SIZE` // `llama_slot_count`; the field keeps its legacy name and the shipped engine is ai-vlm)
 - `max_output_tokens`: Tokens reserved for output (default: 1,536)
 - `warning_threshold`: Utilization threshold for warnings (default: 0.85 = 85%)
 
@@ -2294,37 +2112,13 @@ clip_path = generator.get_clip_path(event_id)  # Returns Path or None
 deleted = generator.delete_clip(event_id)  # Returns bool
 ```
 
-### clip_loader.py
-
-**Purpose:** SigLIP 2 Base model loader (module and function names kept as `clip_*` for compatibility). Loads the `siglip2-base-patch16-224` zoo row — 768-dim scene/text embeddings. Retired as a re-ID producer (full swap, ledger item 20): the person-vector space is OSNet-AIN x1.0, computed by `osnet_loader`.
-
-**Key Features:**
-
-- Async loading of the SigLIP 2 Base model from the local model directory
-- Generates 768-dimensional scene/text embeddings (never person re-ID vectors)
-- Requires CUDA — CPU inference holds the GIL and starves the event loop
-- Thread pool execution to avoid blocking
-
-**Public API:**
-
-```python
-from backend.services.clip_loader import load_clip_model
-
-# Load SigLIP 2 Base model
-result = await load_clip_model("/models/model-zoo/siglip2-base-patch16-224")
-model = result["model"]
-processor = result["processor"]
-
-# Model is automatically moved to GPU if available
-```
-
 ### ai_fallback.py
 
-**Purpose:** AI service fallback strategies for graceful degradation when AI services become unavailable.
+**Purpose:** AI service fallback strategies for graceful degradation when AI services become unavailable. The module is kept-and-DEAD: zero shipped importers (ledgered as flagged-not-deleted; its final deletion is a dead-code slice's to make).
 
 **Key Features:**
 
-- Per-service fallback strategies for YOLO26v2, Nemotron, Florence-2, and CLIP
+- Per-service fallback strategies for the one member the enum still names: `AIService.YOLO26`
 - Cached risk score retrieval for fallback values
 - Default value generation based on object types
 - Health-based routing and degradation level tracking
@@ -2334,16 +2128,16 @@ processor = result["processor"]
 **Degradation Levels:**
 
 - `NORMAL` - All services healthy
-- `DEGRADED` - Non-critical services (Florence, CLIP) down
-- `MINIMAL` - Critical services (YOLO26v2, Nemotron) partially available
+- `DEGRADED` - Non-critical services down
+- `MINIMAL` - Critical services partially available
 - `OFFLINE` - All AI services down
 
 **Key Classes:**
 
-- `AIService` - Enum of AI service identifiers (yolo26, nemotron, florence, clip)
+- `AIService` - Enum of AI service identifiers (`yolo26` is the only member — an enum member naming a service no deployment can boot is the decorative-config class this repo refuses)
 - `DegradationLevel` - System degradation levels
 - `ServiceState` - State information for a single AI service
-- `FallbackRiskAnalysis` - Fallback risk analysis result when Nemotron unavailable
+- `FallbackRiskAnalysis` - Fallback risk analysis result when the analyzer is unavailable
 - `RiskScoreCache` - Cache for risk score patterns
 - `AIFallbackService` - Main service class
 
@@ -2362,8 +2156,8 @@ service = get_ai_fallback_service()
 await service.start()
 
 # Check service availability
-if service.is_service_available(AIService.NEMOTRON):
-    result = await analyzer.analyze(...)
+if service.is_service_available(AIService.YOLO26):
+    result = await detector.detect(detection)
 else:
     result = service.get_fallback_risk_analysis(
         camera_name="front_door", object_types=["person", "vehicle"]
@@ -2377,72 +2171,8 @@ features = service.get_available_features()
 # Convenience checks
 if service.should_skip_detection():
     pass  # YOLO26v2 unavailable
-if service.should_use_default_risk():
-    pass  # Nemotron unavailable
 
 await service.stop()
-```
-
-### nemotron_streaming.py
-
-**Purpose:** Streaming extensions for NemotronAnalyzer to enable progressive LLM response updates during long inference times.
-
-**Key Features:**
-
-- Server-Sent Events (SSE) streaming from llama.cpp
-- Progressive content updates during LLM inference
-- Error handling with typed error codes
-- Full batch analysis with streaming progress events
-- Integration with inference semaphore for concurrency control
-
-**Streaming Event Types:**
-
-- `StreamingProgressEvent` - Incremental content chunks
-- `StreamingCompleteEvent` - Final analysis result
-- `StreamingErrorEvent` - Error with code and recoverability flag
-
-**Error Codes:**
-
-- `BATCH_NOT_FOUND` - Batch ID not found in Redis
-- `NO_DETECTIONS` - Batch has no detections
-- `LLM_TIMEOUT` - LLM request timed out
-- `LLM_CONNECTION_ERROR` - Cannot connect to LLM server
-- `LLM_SERVER_ERROR` - LLM inference failed
-- `INTERNAL_ERROR` - Unexpected internal error
-
-**Public API:**
-
-```python
-from backend.services.nemotron_streaming import (
-    call_llm_streaming,
-    analyze_batch_streaming,
-)
-
-# Stream LLM response chunks
-async for chunk in call_llm_streaming(
-    analyzer=nemotron_analyzer,
-    camera_name="Front Door",
-    start_time="2024-01-15T10:30:00",
-    end_time="2024-01-15T10:31:30",
-    detections_list="- person detected at 10:30:15 (confidence: 0.95)",
-    enriched_context=context,
-    enrichment_result=enrichment,
-):
-    print(chunk, end="")  # Progressive output
-
-# Full streaming batch analysis
-async for event in analyze_batch_streaming(
-    analyzer=nemotron_analyzer,
-    batch_id="batch_uuid",
-    camera_id="front_door",
-    detection_ids=[1, 2, 3],
-):
-    if event["type"] == "progress":
-        print(event["content"], end="")
-    elif event["type"] == "complete":
-        print(f"Risk score: {event['risk_score']}")
-    elif event["type"] == "error":
-        print(f"Error: {event['error_message']}")
 ```
 
 ### managed_service.py
@@ -2512,15 +2242,14 @@ await registry.load_state("ai-yolo26")
 
 ### model_loader_base.py
 
-**Purpose:** Abstract base class for all model loaders in the Model Zoo.
+**Purpose:** Abstract base class for Model Zoo loaders.
 
 **Key Features:**
 
-- Consistent interface for 14+ model loaders
+- The consistent interface every loader class implements (the zoo's current load functions are plain async functions bound by name in `model_zoo.py`'s `_LOADER_MAP`; nothing in the shipped tree subclasses this base today — it is the contract a class-form loader implements)
 - Generic type parameter for model instance types
 - Required properties: model_name, vram_mb
 - Required methods: load(device), unload()
-- VRAM budget management integration
 
 **Abstract Interface:**
 
@@ -2529,7 +2258,7 @@ class ModelLoaderBase(ABC, Generic[T]):
     @property
     @abstractmethod
     def model_name(self) -> str:
-        """Unique model identifier (e.g., 'siglip2-base-patch16-224')."""
+        """Unique model identifier (e.g., 'osnet-ain-x1-0')."""
         ...
 
     @property
@@ -2555,23 +2284,17 @@ class ModelLoaderBase(ABC, Generic[T]):
 from backend.services.model_loader_base import ModelLoaderBase
 
 
-class CLIPLoader(ModelLoaderBase[dict]):
+class OsnetLoader(ModelLoaderBase[dict]):  # illustrative shape, not a shipped class
     @property
     def model_name(self) -> str:
-        return "siglip2-base-patch16-224"
+        return "osnet-ain-x1-0"
 
     @property
     def vram_mb(self) -> int:
-        return 200
+        return 100
 
     async def load(self, device: str = "cuda") -> dict:
-        from transformers import AutoModel, AutoProcessor
-
-        model = AutoModel.from_pretrained(self.model_path)
-        processor = AutoProcessor.from_pretrained(self.model_path)
-        if device.startswith("cuda"):
-            model = model.cuda()
-        return {"model": model, "processor": processor}
+        ...
 
     async def unload(self) -> None:
         del self._model
@@ -2589,6 +2312,11 @@ class CLIPLoader(ModelLoaderBase[dict]):
 - Model-specific parameter types
 - Generic template with type constraints
 - Factory functions for template creation
+
+**The module is self-contained: no shipped module imports it.** Its parameter
+registry still names the retired attribute zoo (`florence2`, `yolo_world`,
+`xclip`, `fashion_clip`) alongside the LLM-era `nemotron` key — the key is a
+lookup string, not a claim that a Nemotron service exists.
 
 **Parameter Types:**
 
@@ -2694,13 +2422,14 @@ healthy = await docker_manager.check_health(config)
 if not healthy:
     success = await docker_manager.restart(config)
 
-# Validate commands (allowlist: ai/start_detector.sh, ai/start_llm.sh, "docker restart <name>")
+# Validate commands (allowlist: ai/start_detector.sh; container restarts of any
+# valid container name)
 is_valid = validate_restart_command(
     "ai/start_detector.sh"
-)  # host-run dev stand-in (GPU image retired 2026-09-23)
+)  # host-run dev stand-in; prod detection is served by Triton inside ai-gateway
 is_valid = validate_restart_command(
     "docker restart ai-gateway-1"
-)  # prod detection host (ai-yolo26 container retired)
+)  # prod detection host
 is_valid = validate_container_name("ai-gateway-1")
 ```
 
@@ -3078,9 +2807,9 @@ rtsp_url = await service.get_rtsp_url_from_device(
 
 3. [DetectionQueueWorker]
    | Calls: BatchAggregator.add_detection(confidence, object_type)
-   |---> [Fast Path] If high-confidence critical detection:
-   |     | Calls: NemotronAnalyzer.analyze_detection_fast_path()
-   |     | Creates: Event with is_fast_path=True
+   |---> [Fast Path] Disabled by config (threshold 2.0); if ever re-enabled:
+   |     | Calls: VlmAnalyzer.analyze_detection_fast_path() — the same batch
+   |     | gate on a one-detection batch; Event with is_fast_path=True
    |
    └---> [Normal Path] Otherwise:
          | Updates Redis batch keys
@@ -3091,16 +2820,18 @@ rtsp_url = await service.get_rtsp_url_from_device(
 
 5. [AnalysisQueueWorker]
    | Consumes from: analysis_queue
-   | Calls: ContextEnricher.enrich_detections()
-   | Calls: EnrichmentPipeline.enrich_batch()
-   | Calls: NemotronAnalyzer.analyze_batch()
-   | Stores: Event records in PostgreSQL
+   | Calls: VlmAnalyzer.analyze_batch() (built by build_pipeline_analyzer)
+   |   inside the analyzer: the vlm_specialists texts (faces/plates/person_reid),
+   |   then ONE vlm_client vlm_assess call, then the verdict invariants
+   | Stores: Event + EventVerification rows in PostgreSQL (one transaction)
 
-6. [NemotronAnalyzer]
-   | Calls: AuditService.create_partial_audit()
-   | Calls: EventBroadcaster.broadcast_event()
-   | Calls: EvaluationQueue.enqueue(event_id, priority=risk_score)
+6. [VlmAnalyzer] (tail of analyze_batch)
+   | Calls: EventBroadcaster.broadcast_event() (LAST, best-effort)
    | Publishes: Redis pub/sub channel "security_events"
+   | Audit: the ai_audit routes create the partial audit on demand
+   |   (service.create_partial_audit) — analysis itself does not enqueue
+   |   evaluation: EvaluationQueue.enqueue() has no production caller, so
+   |   evaluation:pending only ever fills through test fixtures
 
 7. [AlertRuleEngine] (After Event Creation)
    | Evaluates: Each rule's conditions against event
@@ -3114,34 +2845,23 @@ rtsp_url = await service.get_rtsp_url_from_device(
    | Updates: EventAudit record with quality scores
 ```
 
-### Enrichment Pipeline Flow
+### Specialist Stage (inside analyze_batch)
 
 ```
-EnrichmentPipeline.enrich_batch(image_path, detections)
+vlm_specialists (faces / plates / person_reid), over the batch's selected key frames
 │
-├── For each person detection:
-│   ├── florence_client.vqa() -> clothing, carrying, action
-│   ├── face_detector.detect() -> face locations
-│   ├── reid_service.generate_embedding() -> (OSNet-AIN x1.0 512-d vector, model_id)
-│   ├── vitpose_loader -> pose keypoints
-│   ├── fashion_clip_loader -> clothing categories
-│   └── violence_loader (if 2+ persons) -> violence score
-│
-├── For each vehicle detection:
-│   ├── florence_client.vqa() -> color, type, commercial
-│   ├── plate_detector.detect() -> license plate bbox
-│   ├── ocr_service.extract() -> plate text
-│   ├── (no embedding producer — vehicle identity rides plate match)
-│   ├── vehicle_classifier_loader -> detailed type (11 classes)
-│   └── vehicle_damage_loader -> damage detection (6 types)
-│
-├── For each animal detection:
-│   └── pet_classifier_loader -> cat/dog classification
-│
-└── Scene-level enrichment (once per batch):
-    ├── weather_loader -> weather classification
-    ├── depth_anything_loader -> depth estimation
-    └── image_quality_loader -> quality score (disabled)
+├── faces:         face_detector.detect() on the key frames, then the
+│                  gallery match via face_recognizer (ArcFace) — four
+│                  outcomes: match / unknown / not_identifiable / unavailable
+├── plates:        plate_detector.detect() + ocr_service.extract(), then a
+│                  registered-vehicle DB match
+└── person_reid:   reid_service.generate_embedding() through the resident
+                   OSNet-AIN x1.0 handle (512-d + model_id), scored only
+                   against same-model_id gallery rows
+
+Every leg degrades to the text "unavailable" — a specialist never fails a
+batch, and the VLM never originates these lines (the snapshot is their only
+carrier; replay reads what production stored).
 ```
 
 ### Background Services (Parallel)
@@ -3179,7 +2899,8 @@ PartitionManager (Periodic Maintenance)
 
 ServiceHealthMonitor (Periodic Health Checks)
    | Every check_interval seconds (default: 15s)
-   | Checks: HTTP health endpoints for YOLO26v2, Nemotron, Florence, CLIP
+   | Checks: HTTP health endpoint for the one configured service (yolo26 —
+   |   the gateway's aggregated /health when USE_AI_GATEWAY is on)
    | Checks: Redis via redis-cli ping
    | Restarts: Failed services with exponential backoff
    | Broadcasts: Service status changes via WebSocket
@@ -3230,7 +2951,6 @@ Score: 75 (priority, usually risk_score)
 from backend.services import (
     FileWatcher,
     DetectorClient,
-    NemotronAnalyzer,
     BatchAggregator,
     ThumbnailGenerator,
     EventBroadcaster,
@@ -3249,22 +2969,26 @@ from backend.services import (
 
 # For context enrichment (import directly)
 from backend.services.context_enricher import ContextEnricher, get_context_enricher
-from backend.services.enrichment_pipeline import EnrichmentPipeline, get_enrichment_pipeline
 from backend.services.reid_service import ReIdentificationService, get_reid_service
 from backend.services.scene_change_detector import SceneChangeDetector, get_scene_change_detector
-from backend.services.vision_extractor import VisionExtractor
+
+# For the VLM analysis path (import directly)
+from backend.services.vlm_analyzer import VlmAnalyzer
+from backend.services.vlm_client import VlmClient
+from backend.services.vlm_verdict import VlmVerdict
+from backend.services.pipeline_factory import build_pipeline_analyzer
 
 # For Model Zoo (import directly)
 from backend.services.model_zoo import ModelManager, get_model_manager, get_model_config
 from backend.services.model_loader_base import ModelLoaderBase
 
-# For AI clients (import directly)
-from backend.services.florence_client import FlorenceClient, get_florence_client
-from backend.services.clip_client import CLIPClient, get_clip_client
-
-# For AI fallback and streaming (import directly)
+# For AI fallback (import directly; the module is kept-and-DEAD)
 from backend.services.ai_fallback import AIFallbackService, get_ai_fallback_service
-from backend.services.nemotron_streaming import call_llm_streaming, analyze_batch_streaming
+
+# For SSE streaming: the event models live in backend.api.schemas.streaming
+# and the generator is VlmAnalyzer.analyze_batch_streaming (the route in
+# backend/api/routes/events.py consumes it — there is no service-level
+# streaming module)
 
 # For workers and background services (import directly)
 from backend.services.pipeline_workers import PipelineWorkerManager
@@ -3324,9 +3048,8 @@ reset_model_manager()
 Most services provide `reset_*()` functions for test isolation:
 
 - `reset_model_zoo()`, `reset_model_manager()`
-- `reset_florence_client()`, `reset_clip_client()`
 - `reset_reid_service()`, `reset_dedupe_service()`
-- `reset_context_enricher()`, `reset_enrichment_pipeline()`
+- `reset_context_enricher()`
 - `reset_scene_change_detector()`, `reset_audit_service()`
 - `reset_background_evaluator()`, `reset_evaluation_queue()`
 - `reset_token_counter()`, `reset_clip_generator()`
@@ -3338,23 +3061,16 @@ Most services provide `reset_*()` functions for test isolation:
 
 ```python
 @pytest.mark.asyncio
-async def test_enrichment_pipeline():
-    # Reset singletons
-    reset_enrichment_pipeline()
+async def test_reid_service():
+    # Reset the singleton
+    reset_reid_service()
 
-    # Create mock dependencies
-    mock_model_manager = MagicMock()
-    mock_redis = MagicMock()
+    service = get_reid_service()
 
-    # Create pipeline with mocks
-    pipeline = EnrichmentPipeline(
-        model_manager=mock_model_manager,
-        redis_client=mock_redis,
-    )
-
-    # Test enrichment
-    result = await pipeline.enrich_batch(image_path, detections)
-    assert result.has_vision_extraction
+    # With no pinned weights resident the producer refuses — it never
+    # answers with a zero vector (F11).
+    with pytest.raises(ReIDUnavailableError):
+        await service.generate_embedding(image, bbox)
 ```
 
 ### Bounding Box Testing
@@ -3408,4 +3124,4 @@ assert clamped == (10, 10, 100, 100)
 - `/backend/core/AGENTS.md` - Core infrastructure documentation
 - `/ai/AGENTS.md` - AI pipeline overview
 - `/ai/yolo26/AGENTS.md` - YOLO26v2 detection server
-- `/ai/nemotron/AGENTS.md` - Nemotron LLM configuration
+- `/ai/gateway/AGENTS.md` - The Triton gateway the detection and specialist calls ride
