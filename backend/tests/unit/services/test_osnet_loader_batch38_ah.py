@@ -43,10 +43,11 @@ each re-proven by the disposition sweep):
      and parents[3] is workspace/models.yml, and the two files are
      BYTE-IDENTICAL (md5 d2d144ab..., proven this session), so the yaml
      read returns the same document and the whole row - hence the belt -
-     is unchanged. (In the real tree the mutant would FileNotFoundError:
-     this key is an artifact of the mutant copy's extra directory depth,
-     not a code flaw - no battery can distinguish the two identical files
-     by value.)
+     is unchanged. (In the REAL tree parents[3] is
+     /agents/agent-veranda3/models.yml, which does not exist - absent
+     from the sweep world only because the mutant copy sits one
+     directory deeper; no battery can distinguish two byte-identical
+     files by value.)
 """
 
 from __future__ import annotations
