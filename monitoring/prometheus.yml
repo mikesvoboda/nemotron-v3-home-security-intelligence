@@ -427,24 +427,6 @@ scrape_configs:
           service_type: ai
           model: yolo26
       - targets:
-          - http://ai-gateway:8090/clip/health
-        labels:
-          probe_type: availability
-          service_type: ai
-          model: clip
-      - targets:
-          - http://ai-gateway:8090/florence/health
-        labels:
-          probe_type: availability
-          service_type: ai
-          model: florence2
-      - targets:
-          - http://ai-gateway:8090/enrichment/health
-        labels:
-          probe_type: availability
-          service_type: ai
-          model: enrichment
-      - targets:
           - http://ai-gateway:8090/enrich-lt/health
         labels:
           probe_type: availability

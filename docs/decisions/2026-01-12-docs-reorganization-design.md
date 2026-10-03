@@ -1,7 +1,7 @@
 # Documentation Reorganization Design
 
 **Date:** 2026-01-12
-**Status:** Implemented (reorganization landed 2026-01-12, commit 29d900b4)
+**Status:** Implemented (reorganization landed 2026-01-12, commit 29d900b4). Annotated 2026-10-02: two points below did not land as written — ADRs stayed at `docs/decisions/` (not `docs/developer/architecture/decisions/`), and `docs/plans/` was not deleted: it now carries the append-only VSS execution record (ledger `docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`) and is a frozen record that must not be deleted.
 **Author:** Claude + Mike Svoboda
 
 ## Summary

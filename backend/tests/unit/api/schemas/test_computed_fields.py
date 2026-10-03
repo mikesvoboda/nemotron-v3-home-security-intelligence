@@ -7,8 +7,19 @@ risk_score and risk_level fields.
 NEM-3398: Use computed_field with cached_property for derived fields.
 """
 
+from unittest.mock import MagicMock, patch
+
 from backend.api.schemas.events import EventResponse
 from backend.api.schemas.search import SearchResult
+
+
+def _settings_with(low_max: int, medium_max: int, high_max: int) -> MagicMock:
+    """Settings stand-in carrying only the severity band fields."""
+    settings = MagicMock()
+    settings.severity_low_max = low_max
+    settings.severity_medium_max = medium_max
+    settings.severity_high_max = high_max
+    return settings
 
 
 class TestEventResponseComputedRiskLevel:
@@ -173,6 +184,33 @@ class TestEventResponseComputedRiskLevel:
         level2 = event.risk_level
         level3 = event.risk_level
         assert level1 == level2 == level3 == "medium"
+
+    def test_risk_level_follows_runtime_thresholds(self):
+        """The echo follows the settings bands, not a second copy of them.
+
+        PATCH /api/system/severity mutates the bands at runtime, so a score
+        that was 'high' before the update must read 'high' or 'critical' here
+        exactly as SeverityService and Event.computed_risk_level read it —
+        never the pre-update band.
+        """
+        with patch(
+            "backend.core.config.get_settings",
+            return_value=_settings_with(40, 70, 90),
+        ):
+            event = EventResponse(
+                id=1,
+                camera_id="front_door",
+                started_at="2026-01-01T00:00:00Z",
+                risk_score=45,
+            )
+            assert event.risk_level == "medium"
+            critical = EventResponse(
+                id=2,
+                camera_id="front_door",
+                started_at="2026-01-01T00:00:00Z",
+                risk_score=85,
+            )
+            assert critical.risk_level == "high"
 
 
 class TestSearchResultComputedRiskLevel:

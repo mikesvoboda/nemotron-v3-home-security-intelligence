@@ -15,7 +15,7 @@ The real-time system enables instant dashboard updates without polling by using 
 ```mermaid
 flowchart LR
     subgraph Publishers["Event Publishers"]
-        NA[NemotronAnalyzer]
+        VA[VlmAnalyzer]
         GPU[GPUMonitor]
         HM[HealthMonitor]
         CS[CameraService]
@@ -69,7 +69,7 @@ flowchart LR
 
 ## Data Flow
 
-1. **Event Creation**: AI pipeline components (NemotronAnalyzer, health monitors) create events
+1. **Event Creation**: AI pipeline components (`VlmAnalyzer` commits the Event and broadcasts it last, best-effort, at `backend/services/vlm_analyzer.py:643`; health monitors and the GPU/system broadcasters publish status messages)
 2. **Redis Publishing**: Events are published to the `security_events` Redis channel
 3. **Subscription Filtering**: EventBroadcaster receives events and uses SubscriptionManager to determine recipients
 4. **WebSocket Delivery**: Messages are sent to connected clients with sequence numbers

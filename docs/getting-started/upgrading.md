@@ -118,18 +118,18 @@ podman compose -f docker-compose.prod.yml pull
 ### Step 5: Start Services
 
 ```bash
-# Full containerized stack — AI included, no host scripts needed
-podman compose -f docker-compose.prod.yml up -d
+# Full containerized stack — name the profile so ai-vlm comes up too
+podman compose -f docker-compose.prod.yml --profile vlm up -d
 
-# (Development mode only: start host AI servers in separate terminals
-#  BEFORE the stack, and point YOLO26_URL/NEMOTRON_URL at them — see First Run)
+# (Development mode only: start ./ai/start_detector.sh on the host BEFORE the
+#  stack, leave ai-gateway down, and point YOLO26_URL at it — see First Run)
 ```
 
 ### Step 6: Verify
 
 ```bash
-# Wait for health, then check
-podman compose -f docker-compose.prod.yml ps          # all Up (healthy)
+# Wait for health, then check (--profile vlm so ai-vlm is listed)
+podman compose -f docker-compose.prod.yml --profile vlm ps   # all Up (healthy)
 curl http://localhost:8000/api/system/health
 
 # Version is whatever git says — there is no /api/system/version endpoint
@@ -157,31 +157,35 @@ When new model versions are released:
 ### Check for Model Updates
 
 ```bash
-# Production LLM (download_models.sh target)
-ls -la /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/
+# Model-zoo artifacts that ./ai/download_models.sh manages
+ls -la /export/ai_models/model-zoo/
 
-# Host-dev LLM used by ./ai/start_llm.sh
-ls -la ai/nemotron/*.gguf
+# The reasoning engine's weights — operator-placed, never fetched by the script
+ls -la /export/ai_models/vlm/
 
-# YOLO26 weights are cached by HuggingFace; verify the gateway instead:
-curl http://localhost:8090/yolo26/health
+# Triton's readiness for the detector
+curl http://localhost:8090/yolo26/health | jq .model_loaded
+curl http://localhost:8090/health | jq '.models_loaded, .models_total'
+
+# The reasoning serve
+curl http://localhost:8098/health
 ```
 
 ### Download New Models
 
 ```bash
-# Stop the AI stack first
-podman compose -f docker-compose.prod.yml stop ai-gateway ai-llm
+# Stop the AI containers first
+podman compose -f docker-compose.prod.yml --profile vlm stop ai-gateway ai-vlm
 
-# Move the old production model aside if you want a fallback
-mv /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km \
-   /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km.bak
-
-# Download new models (writes to $AI_MODELS_PATH, default /export/ai_models)
+# Download new model-zoo artifacts (writes to $AI_MODELS_PATH)
 ./ai/download_models.sh
 
+# New VLM weights go in by hand: place the GGUF + mmproj under
+# ${AI_MODELS_PATH}/vlm and keep VLM_MODEL_PATH / VLM_MMPROJ_PATH /
+# VLM_MODEL_ID / VLM_MODEL_ALIAS matched to what you put there.
+
 # Restart
-podman compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
+podman compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
 ```
 
 ---

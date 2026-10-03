@@ -24,35 +24,36 @@ This page provides a quick overview and links to the detailed getting started do
 Home Security Intelligence is an AI-powered home security monitoring dashboard that:
 
 - **Processes camera feeds** using YOLO26 object detection
-- **Analyzes detections** with Nemotron LLM for risk assessment
+- **Scores detections** with the `ai-vlm` reasoning serve for risk assessment
 - **Provides real-time alerts** via WebSocket connections
-- **Tracks entities** (people, vehicles, pets) across cameras
+- **Tracks entities** (people, vehicles, animals, packages) across cameras
 - **Maintains activity baselines** for anomaly detection
 
 ### Architecture Components
 
-Production AI runs as two containers: an AI **gateway** (Triton Inference Server on :8090)
-serving detection and enrichment models behind path-routed endpoints, and a standalone
-llama.cpp server for the LLM (:8091).
+Production AI is two containers: **`ai-gateway`** (Triton + FastAPI on :8090, routers
+`/yolo26` and `/enrich-lt`) and **`ai-vlm`** (llama.cpp on :8098, behind the `vlm` compose
+profile). The face, plate and person-re-ID lookups run in the backend process.
 
 ```
 Camera Images
       |
       v
 +------------------------------------------------------------------+
-|              AI Gateway  (ai-gateway, :8090)                     |
-|  /yolo26   /enrichment   /enrich-lt   /florence   /clip          |
-|  detection  heavy models  light models  VLM       embeddings     |
+|  backend: file watcher -> detection -> batch -> specialists       |
+|    lookups (CPU): face (SCRFD+ArcFace), plate (FastALPR),         |
+|                   person re-ID (OSNet)                            |
 +------------------------------------------------------------------+
-      |
-      v
-+-----------------------------------------------------------+
-|              Nemotron (ai-llm, :8091)                     |
-|              Risk Analysis & Scoring                      |
-+-----------------------------------------------------------+
-                          |
-                          v
-                    Risk Events
+      |                                             |
+      v                                             v
++-------------------------------------+   +--------------------------+
+|  ai-gateway (:8090, Triton)         |   |  ai-vlm (:8098, llama.cpp)|
+|  /yolo26   detection                |   |  compose profile `vlm`    |
+|  /enrich-lt  re-ID + threat (opt-in)|   |  risk verdict per batch   |
++-------------------------------------+   +--------------------------+
+                                                   |
+                                                   v
+                                             Risk Events
 ```
 
 ---
@@ -61,12 +62,12 @@ Camera Images
 
 ### Hardware
 
-| Component | Minimum                          | Recommended             |
-| --------- | -------------------------------- | ----------------------- |
-| GPU       | 8-12 GB VRAM (LLM partly on CPU) | 24 GB VRAM (full stack) |
-| RAM       | 16 GB                            | 32 GB+                  |
-| Storage   | 50 GB (core models)              | 100 GB+ (full zoo)      |
-| CPU       | 4 cores                          | 8+ cores                |
+| Component | Minimum                                               | Recommended                          |
+| --------- | ----------------------------------------------------- | ------------------------------------ |
+| GPU       | 8 GB (`ai-vlm` partly in system RAM, slower verdicts) | 24 GB (both AI containers with room) |
+| RAM       | 16 GB                                                 | 32 GB+                               |
+| Storage   | 50 GB                                                 | 100 GB+                              |
+| CPU       | 4 cores                                               | 8+ cores                             |
 
 Details and per-model VRAM breakdown: [Prerequisites](../getting-started/prerequisites.md).
 
@@ -198,12 +199,12 @@ See [Keyboard Shortcuts](keyboard-shortcuts.md) for complete reference.
 
 ## Troubleshooting
 
-| Issue                   | Solution                                                  |
-| ----------------------- | --------------------------------------------------------- |
-| No detections appearing | Check the AI gateway: `curl localhost:8090/yolo26/health` |
-| High risk scores        | Review Nemotron prompts and thresholds                    |
-| GPU out of memory       | Reduce batch size or use smaller model                    |
-| WebSocket disconnects   | Check Redis connection and backend logs                   |
+| Issue                   | Solution                                                      |
+| ----------------------- | ------------------------------------------------------------- |
+| No detections appearing | Check the AI gateway: `curl localhost:8090/yolo26/health`     |
+| Risk gauge stuck at 0   | The VLM serve needs its profile: `--profile vlm up -d ai-vlm` |
+| GPU out of memory       | Lower `VLM_CTX_SIZE` / `VLM_PARALLEL`, or `VLM_GPU_LAYERS`    |
+| WebSocket disconnects   | Check Redis connection and backend logs                       |
 
 See [Troubleshooting Guide](troubleshooting/index.md) for detailed solutions.
 

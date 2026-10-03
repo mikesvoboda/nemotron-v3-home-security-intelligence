@@ -19,15 +19,16 @@ TLS is **optional** for this system's MVP deployment:
 | Exposed to network          | Yes              |
 | Compliance requirements     | Yes              |
 
-**Note:** `ai-gateway` (:8090) and `ai-llm` (:8091) serve **plain HTTP only** — nothing in
+**Note:** `ai-gateway` (:8090) and `ai-vlm` (:8098) serve **plain HTTP only** — nothing in
 `ai/gateway/` passes `ssl_certfile`/`ssl_keyfile` to uvicorn or Triton, and llama.cpp's
 `llama-server` has no TLS listener. Both containers bind `127.0.0.1` on the host by
 default, which is the primary boundary. For any network exposure, terminate TLS at a
 reverse proxy.
 
-> [!IMPORTANT] > **Backend trust:** the AI clients (`backend/services/detector_client.py`,
-> `nemotron_analyzer.py`, …) use default-verification `httpx.AsyncClient` instances, and
-> there is **no** `AI_VERIFY_SSL` / `AI_CA_CERT_PATH` setting in
+> [!IMPORTANT]
+> **Backend trust:** the AI clients (`backend/services/detector_client.py`,
+> `backend/services/vlm_client.py`, …) use default-verification `httpx.AsyncClient`
+> instances, and there is **no** `AI_VERIFY_SSL` / `AI_CA_CERT_PATH` setting in
 > `backend/core/config.py` or `.env.example`. Pointing `*_URL` variables at an
 > `https://` endpoint with a self-signed certificate will fail TLS verification. Either
 > use a proxy with a certificate the OS trust store accepts, or add trust configuration
@@ -89,11 +90,15 @@ Certificates stored in `/etc/letsencrypt/live/ai.yourdomain.com/`.
 ## Reverse Proxy Approach (Recommended)
 
 Since neither AI container speaks TLS, a TLS-terminating proxy in front of `127.0.0.1:8090`
-and `127.0.0.1:8091` is the supported pattern.
+and `127.0.0.1:8098` is the supported pattern.
 
 ### Nginx Example
 
+Both services expose `/health`, so give each its own server name instead of trying to
+disambiguate inside one block:
+
 ```nginx
+# ai-gateway — the gateway mounts exactly two routers
 server {
     listen 443 ssl;
     server_name ai.yourdomain.com;
@@ -101,21 +106,35 @@ server {
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;
 
-    # ai-gateway routers (pass the router path through)
-    location ~ ^/(yolo26|florence|clip|enrichment|enrich-lt|health|metrics) {
+    location ~ ^/(yolo26|enrich-lt|health|metrics) {
         proxy_pass http://127.0.0.1:8090;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
+}
 
-    # ai-llm (llama.cpp) — detection worker sends POST /completion
-    location /completion {
-        proxy_pass http://127.0.0.1:8091;
+# ai-vlm (llama.cpp) — the backend sends POST /v1/chat/completions, reads /props for
+# the build pin, and probes /health
+server {
+    listen 443 ssl;
+    server_name vlm.yourdomain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location ~ ^/(v1|props|health|metrics) {
+        proxy_pass http://127.0.0.1:8098;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        # A verdict can run to AI_VLM_READ_TIMEOUT (25.0 s) and a wake-from-sleep
+        # ping to AI_VLM_WAKE_TIMEOUT_SECONDS (90.0 s) — do not let the proxy time out first
+        proxy_read_timeout 120s;
     }
 }
 ```
+
+`proxy_read_timeout` matters here specifically: a failed wake is **swallowed, not
+retried**, so a proxy that cuts the connection first looks identical to a dead VLM.
 
 ### Traefik Example
 
@@ -143,7 +162,7 @@ Once the proxy presents certificates the backend's trust store accepts:
 USE_AI_GATEWAY=true
 AI_GATEWAY_URL=https://ai.yourdomain.com
 YOLO26_URL=https://ai.yourdomain.com/yolo26
-NEMOTRON_URL=https://ai.yourdomain.com
+AI_VLM_URL=https://vlm.yourdomain.com
 ```
 
 **Warning:** Do not disable SSL verification in production. Remember the trust limitation

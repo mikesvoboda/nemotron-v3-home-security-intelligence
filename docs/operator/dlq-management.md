@@ -15,14 +15,14 @@ The Dead Letter Queue (DLQ) is a holding area for jobs that have failed processi
 
 Jobs move to the DLQ when they fail repeatedly. Common causes include:
 
-| Failure Type            | Description                           | Queue Affected  |
-| ----------------------- | ------------------------------------- | --------------- |
-| AI Service Unavailable  | YOLO26 or Nemotron container is down  | Both queues     |
-| Service Timeout         | AI processing took too long           | Both queues     |
-| GPU Memory Exhausted    | VRAM full, model cannot process       | Both queues     |
-| File Not Found          | Image deleted before processing       | Detection queue |
-| Invalid Image Format    | Corrupted or unsupported image        | Detection queue |
-| Context Length Exceeded | Too many detections in analysis batch | Analysis queue  |
+| Failure Type            | Description                             | Queue Affected  |
+| ----------------------- | --------------------------------------- | --------------- |
+| AI Service Unavailable  | `ai-gateway` or `ai-vlm` is unreachable | Both queues     |
+| Service Timeout         | AI processing took too long             | Both queues     |
+| GPU Memory Exhausted    | VRAM full, model cannot process         | Both queues     |
+| File Not Found          | Image deleted before processing         | Detection queue |
+| Invalid Image Format    | Corrupted or unsupported image          | Detection queue |
+| Context Length Exceeded | Too many detections in analysis batch   | Analysis queue  |
 
 ### DLQ Architecture
 
@@ -40,7 +40,7 @@ flowchart TD
 
     subgraph Analysis["Analysis Pipeline"]
         BA[Batch Aggregator] --> AQ[analysis_queue]
-        AQ --> NEM[Nemotron LLM]
+        AQ --> VLM[ai-vlm vlm_assess]
         AQ -->|"3 failed retries"| DLQ_A[dlq:analysis_queue]
     end
 
@@ -83,12 +83,12 @@ sequenceDiagram
     Note over D: Job awaits manual review
 ```
 
-| Setting     | Default | Description                                                                     |
-| ----------- | ------- | ------------------------------------------------------------------------------- |
-| Max Retries | 3       | `DETECTOR_MAX_RETRIES` / `NEMOTRON_MAX_RETRIES` — attempts before DLQ           |
-| Backoff     | 2^n s   | Exponential delay: 1s, 2s, 4s…                                                  |
-| Max Delay   | 30s     | Backoff cap (hardcoded in the AI clients)                                       |
-| Jitter      | none    | Detector/Nemotron clients retry without jitter; the enrichment client uses ±10% |
+| Setting     | Default | Description                                                               |
+| ----------- | ------- | ------------------------------------------------------------------------- |
+| Max Retries | 3       | `DETECTOR_MAX_RETRIES` — attempts before DLQ (the VLM ladder is separate) |
+| Backoff     | 2^n s   | Exponential delay: 1s, 2s, 4s…                                            |
+| Max Delay   | 30s     | Backoff cap (hardcoded in the AI clients)                                 |
+| Jitter      | none    | The detector client retries without jitter                                |
 
 ---
 
@@ -320,8 +320,9 @@ When the circuit is open, check logs for `CRITICAL DATA LOSS` entries.
 
    ```bash
    curl http://localhost:8000/api/system/health
-   curl http://localhost:8095/health  # YOLO26
-   curl http://localhost:8091/health  # Nemotron
+   curl http://localhost:8090/yolo26/health   # ai-gateway detection router
+   curl http://localhost:8098/props | jq       # ai-vlm served model + build
+   curl -s http://localhost:8000/metrics | grep hsi_specialist_unavailable_total
    ```
 
 2. **Check DLQ size**

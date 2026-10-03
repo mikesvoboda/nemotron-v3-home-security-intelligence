@@ -17,8 +17,8 @@ sequenceDiagram
     participant BA as BatchAggregator
     participant AQ as Analysis Queue
     participant AW as Analysis Worker
-    participant EP as Enrichment Pipeline
-    participant NA as Nemotron Analyzer
+    participant VA as VLM Analyzer
+    participant VLM as ai-vlm
     participant DB as PostgreSQL
     participant EB as EventBroadcaster
     participant WS as WebSocket Clients
@@ -33,7 +33,7 @@ sequenceDiagram
 
     DQ->>DW: Dequeue job
     DW->>RT: POST /detect (with circuit breaker)
-    Note over RT: Timeout: 60s, Retries: 3
+    Note over RT: Read timeout 30s (settings), Retries: 3
     RT-->>DW: Detections JSON
     DW->>DB: Store Detection records
     DW->>BA: add_detection()
@@ -41,16 +41,17 @@ sequenceDiagram
     Note over BA: 90s window OR 30s idle
     BA->>AQ: Push batch (batch_id, detection_ids)
 
-    AQ->>AW: Dequeue batch
-    AW->>EP: enrich_detections()
-    Note over EP: Florence-2, CLIP, etc.
-    EP-->>AW: EnrichmentResult
+    AQ->>AW: Dequeue batch (batch_id, camera_id, detection_ids)
 
-    AW->>NA: analyze_batch()
-    Note over NA: Timeout: 120s, Retries: 3
-    NA->>NA: Format prompt
-    NA->>NA: Acquire semaphore
-    NA-->>AW: Risk assessment
+    AW->>VA: analyze_batch()
+    VA->>VA: Read session — detections, zones, household
+    Note over VA: Specialist lookups: faces, person re-ID, plates
+    VA->>VA: Build AssessInput + fit prompt to the slot
+    VA->>VLM: POST /v1/chat/completions (json_schema, temp 0.1)
+    Note over VA,VLM: Read budget 25s, one retry at temp 0
+    VLM-->>VA: VlmVerdict (or a VlmClientError)
+    VA->>VA: apply_verdict_invariants
+    VA-->>AW: Event (+ EventVerification)
 
     AW->>DB: Create Event
     AW->>EB: broadcast_event()
@@ -60,14 +61,14 @@ sequenceDiagram
 
 ## Stage 1: File Detection
 
-**Source:** `backend/services/file_watcher.py:330-400`
+**Source:** `backend/services/file_watcher.py:379-413`
 
 ### 1.1 Filesystem Monitoring
 
 The FileWatcher monitors camera directories using either inotify (Linux native) or polling mode (for Docker/NFS environments).
 
 ```python
-# backend/services/file_watcher.py:351-384
+# backend/services/file_watcher.py:400-413 (abridged)
 def __init__(
     self,
     camera_root: str | None = None,
@@ -80,19 +81,20 @@ def __init__(
 ```
 
 **Configuration:**
-| Parameter | Value | Purpose |
-|-----------|-------|---------|
-| `debounce_delay` | 0.5s | Avoid processing during active writes |
-| `stability_time` | 2.0s | Ensure FTP upload is complete |
-| `use_polling` | False (default) | Use native inotify; set True for Docker |
-| `polling_interval` | 1.0s | Polling frequency if enabled |
+
+| Parameter          | Value           | Purpose                                 |
+| ------------------ | --------------- | --------------------------------------- |
+| `debounce_delay`   | 0.5s            | Avoid processing during active writes   |
+| `stability_time`   | 2.0s            | Ensure FTP upload is complete           |
+| `use_polling`      | False (default) | Use native inotify; set True for Docker |
+| `polling_interval` | 1.0s            | Polling frequency if enabled            |
 
 ### 1.2 Image Validation
 
 Before queuing, images are validated for integrity:
 
 ```python
-# backend/services/file_watcher.py:131-156
+# backend/services/file_watcher.py:139-164 (abridged from the body)
 def _validate_image_sync(file_path: str) -> bool:
     # Try to open and verify image header
     with Image.open(file_path) as img:
@@ -117,7 +119,7 @@ def _validate_image_sync(file_path: str) -> bool:
 Files are deduplicated using SHA256 content hashes stored in Redis:
 
 ```python
-# backend/services/file_watcher.py:13-19
+# backend/services/file_watcher.py:12-16
 # Files are deduplicated using SHA256 content hashes stored in Redis with TTL.
 # This prevents duplicate processing caused by:
 # - Watchdog create/modify event bursts
@@ -138,14 +140,14 @@ Files are deduplicated using SHA256 content hashes stored in Redis:
 
 ## Stage 2: Object Detection
 
-**Source:** `backend/services/detector_client.py:151-332`
+**Source:** `backend/services/detector_client.py:993` (`DetectorClient.detect_objects`)
 
 ### 2.1 Detection Queue Processing
 
 The detection worker dequeues image paths and sends them to YOLO26:
 
 ```python
-# backend/services/detector_client.py:1-35
+# backend/services/detector_client.py:12-20
 # Detection Flow:
 #     1. Read image file from filesystem
 #     2. Validate image integrity (catch truncated/corrupt images)
@@ -161,7 +163,7 @@ The detection worker dequeues image paths and sends them to YOLO26:
 ### 2.2 YOLO26 HTTP Request
 
 ```python
-# backend/services/detector_client.py:541-600
+# backend/services/detector_client.py:596-667 (abridged from the body)
 async def _send_detection_request(
     self,
     image_data: bytes,
@@ -169,36 +171,41 @@ async def _send_detection_request(
     camera_id: str,
     image_path: str,
 ) -> dict[str, Any]:
-    """Send detection request with retry logic and concurrency limiting."""
+    ...
+    explicit_timeout = self._read_timeout + settings.ai_connect_timeout  # :637
     ...
     # Use semaphore to limit concurrent GPU requests (NEM-1500)
-    async with semaphore:
-        async with asyncio.timeout(explicit_timeout):
-            files = {"file": (image_name, image_data, "image/jpeg")}
+    async with semaphore:                          # :663
+        async with asyncio.timeout(explicit_timeout):  # :665
+            response = await self._http_client.post(...)  # :667
 ```
 
 **Timing:**
-| Parameter | Value | Source |
-|-----------|-------|--------|
-| Connect timeout | 10s | `backend/services/detector_client.py:97` |
-| Read timeout | 60s | `backend/services/detector_client.py:98` |
-| Explicit timeout | 70s | `backend/services/detector_client.py:582-583` |
+
+| Parameter        | Value                 | Source                                        |
+| ---------------- | --------------------- | --------------------------------------------- |
+| Read timeout     | `yolo26_read_timeout` | `backend/core/config.py:1105-1110`            |
+| Explicit timeout | read + connect        | `backend/services/detector_client.py:637`     |
+| Timeout wiring   | connect/read/pool     | `backend/services/detector_client.py:298-303` |
 
 ### 2.3 Circuit Breaker Protection
 
 ```python
-# backend/services/detector_client.py:295-309
+# backend/services/detector_client.py:336-345
 self._circuit_breaker = CircuitBreaker(
-    name="yolo26",
+    name=f"detector_{self._detector_type}",
     config=CircuitBreakerConfig(
-        failure_threshold=5,        # Opens after 5 consecutive failures
-        recovery_timeout=60.0,      # Wait 60s before attempting recovery
-        half_open_max_calls=3,      # Allow 3 test calls in half-open
-        success_threshold=2,        # 2 successes close the circuit
-        excluded_exceptions=(ValueError,),  # HTTP 4xx don't trip circuit
+        failure_threshold=5,
+        recovery_timeout=60.0,
+        half_open_max_calls=3,
+        success_threshold=2,
+        excluded_exceptions=(ValueError,),  # HTTP 4xx errors should not trip circuit
     ),
 )
 ```
+
+The breaker is named after the detector type (`detector_yolo26`), so each
+detector keeps its own failure state.
 
 ### Error Paths (Stage 2)
 
@@ -212,12 +219,12 @@ self._circuit_breaker = CircuitBreaker(
 
 ## Stage 3: Batch Aggregation
 
-**Source:** `backend/services/batch_aggregator.py:122-160`
+**Source:** `backend/services/batch_aggregator.py:172` (`BatchAggregator`)
 
 ### 3.1 Batch Creation and Management
 
 ```python
-# backend/services/batch_aggregator.py:1-40
+# backend/services/batch_aggregator.py:6-13
 # Batching Logic:
 #     - Create new batch when first detection arrives for a camera
 #     - Add subsequent detections within 90-second window
@@ -242,7 +249,7 @@ batch:{batch_id}:last_activity - Last activity timestamp
 ### 3.3 Atomic Operations
 
 ```python
-# backend/services/batch_aggregator.py:282-304
+# backend/services/batch_aggregator.py:334-356
 async def _atomic_list_append(self, key: str, value: int, ttl: int) -> int:
     """Atomically append a value to a Redis list and refresh TTL.
 
@@ -276,74 +283,123 @@ CLOSE CONDITION 3: Max detections reached
 Any time:  -> Close batch, push to analysis queue
 ```
 
-## Stage 4: LLM Analysis
+## Stage 4: VLM Analysis
 
-**Source:** `backend/services/nemotron_analyzer.py:135-237`
+**Source:** `backend/services/vlm_analyzer.py:380-655`
+
+`VlmAnalyzer.analyze_batch()` is the analysis entry point the Analysis Worker
+calls (`backend/services/pipeline_workers.py:1052`). The engine is the
+`ai-vlm` container (llama.cpp, compose profile `vlm`), and the only thing in
+the backend that dials it is `VlmClient` (`backend/services/vlm_client.py:215`).
 
 ### 4.1 Analysis Flow
 
 ```python
-# backend/services/nemotron_analyzer.py:6-17
+# backend/services/vlm_analyzer.py:380-655 (steps numbered from the body)
 # Analysis Flow:
-#     1. Fetch batch detections from Redis/database
-#     2. Enrich context with zones, baselines, and cross-camera activity
-#     3. Run enrichment pipeline for license plates, faces, OCR (optional)
-#     4. Format prompt with enriched detection details
-#     5. Acquire shared AI inference semaphore (NEM-1463)
-#     6. POST to llama.cpp completion endpoint (with retry on transient failures)
-#     7. Release semaphore
-#     8. Parse JSON response
-#     9. Create Event with risk assessment
-#     10. Store Event in database
-#     11. Broadcast via WebSocket (if available)
+#     1. Check the idempotency key batch_event:<batch_id> (:401) — a repeat
+#        returns the existing Event instead of assessing twice
+#     2. Resolve camera_id / detection_ids from the queue payload, falling back
+#        to the batch: Redis keys (:417-431); with neither, refuse loudly —
+#        the VLM never originates an event
+#     3. SESSION 1 (READ, :434): Detection rows, zones, household
+#     4. Specialist lookups over the selected key frames (:503-524):
+#        faces, person re-ID, plates -> three short text lines
+#     5. Build the AssessInput context and request (:536-545)
+#     6. NO SESSION across the call (:551): VlmClient.assess() POSTs
+#        /v1/chat/completions with response_format json_schema
+#     7. apply_verdict_invariants() maps the verdict to stored fields (:570)
+#     8. SESSION 2 (WRITE, :573): Event + EventVerification in ONE transaction
+#     9. Idempotency key set AFTER the write (:638)
+#    10. Broadcast LAST, best-effort (:643)
 ```
 
-### 4.2 Concurrency Control
+The session split is deliberate: no session is held across the VLM call, which
+can consume the whole read budget.
+
+### 4.2 Specialist Lookups
+
+Three database-backed lookups feed the prompt (`backend/services/vlm_specialists.py:884`):
+`faces`, `person_reid`, and `plates`. They answer against enrolled galleries
+and stored plate records rather than re-examining the scene, and each one
+degrades to a single text line instead of failing the batch:
 
 ```python
-# backend/services/nemotron_analyzer.py:19-22
-# Concurrency Control (NEM-1463):
-#     Uses a shared asyncio.Semaphore to limit concurrent AI inference operations.
-#     This prevents GPU/AI service overload under high traffic. The limit is
-#     configurable via AI_MAX_CONCURRENT_INFERENCES setting (default: 4).
+# backend/services/vlm_specialists.py:12-18
+# 1. **Never block the verdict (spec §6).** A missing model, a missing optional
+#    package, a database hiccup, a failed inference — every one degrades to the
+#    text "unavailable". Nothing in this module raises into the analyzer; the
+#    entry points catch everything and there is deliberately no way for a
+#    specialist failure to fail a batch. "unavailable" is also never "unknown":
+#    the prompt shows which specialist did not run instead of a silently
+#    missing line.
 ```
+
+The analyzer keeps a belt-and-braces catch of its own, so even a bug in that
+stage lands as three `unavailable` lines on the same keys
+(`backend/services/vlm_analyzer.py:514-523`) rather than a lost event.
 
 ### 4.3 Retry Logic
 
+The client owns exactly one transport retry, inside the same read budget, and
+the second attempt drops the temperature to 0:
+
 ```python
-# backend/services/nemotron_analyzer.py:24-27
-# Retry Logic (NEM-1343):
-#     - Configurable max retries via NEMOTRON_MAX_RETRIES setting (default: 3)
-#     - Exponential backoff: 2^attempt seconds between retries (capped at 30s)
-#     - Only retries transient failures (connection, timeout, HTTP 5xx)
+# backend/services/vlm_client.py:804-807
+last_error: VlmClientError | None = None
+for attempt, temperature in enumerate((None, 0.0)):
+    if temperature is not None:
+        body["temperature"] = temperature  # §6 step 1: retry at temp 0
 ```
 
+There is no third attempt and no backoff ladder: a second retry would double
+the budget a single call already fits. When that retry still fails, the client
+raises and the analyzer maps the failure to `verification_failed` instead of
+propagating it (`backend/services/vlm_analyzer.py:556-560`) — the Event is
+still written, with a NULL score.
+
 **Timing:**
-| Parameter | Value | Source |
-|-----------|-------|--------|
-| Connect timeout | 10s | `backend/services/nemotron_analyzer.py:130` |
-| Read timeout | 120s | `backend/services/nemotron_analyzer.py:131` |
-| Health timeout | 5s | `backend/services/nemotron_analyzer.py:132` |
+
+| Parameter                   | Value            | Source                                   |
+| --------------------------- | ---------------- | ---------------------------------------- |
+| Connect timeout             | 10s              | `backend/core/config.py:1093-1098`       |
+| Read budget (one attempt)   | 25s              | `backend/core/config.py:1117-1125`       |
+| Wake ping (`max_tokens: 1`) | 90s              | `backend/core/config.py:1126-1128`       |
+| Breaker                     | 5 failures / 60s | `backend/services/vlm_client.py:247-249` |
+
+The read budget is sized so the single retry fits inside it — a per-attempt
+ceiling at or above 30 s would leave no room for the second attempt.
 
 ## Stage 5: Event Creation and Broadcast
 
 ### 5.1 Event Database Record
 
-After successful LLM analysis, an Event record is created in PostgreSQL with:
+The Event record is written in Session 2 of `analyze_batch()`
+(`backend/services/vlm_analyzer.py:573`) with:
 
 - `batch_id` - Links to the original batch
 - `camera_id` - Source camera
-- `risk_score` - 0-100 from LLM analysis
-- `risk_level` - Derived from score (low/medium/high/critical)
+- `risk_score` - 0-100 from the VLM verdict; NULL when verification failed
+- `risk_level` - Always derived from the score by `SeverityService` (low/medium/high/critical); the model never emits a level
 - `summary` - Human-readable event description
-- `reasoning` - LLM reasoning for the assessment
+- `reasoning` - The verdict's reasoning, with any §6 clamp left visible in the text
+
+The same transaction writes the `EventVerification` row
+(`backend/models/event_verification.py`) carrying the verdict itself, the scene
+description, the verification criteria, the key-frame detection ids, the
+engine/model provenance the server reported, and the call latency.
+
+A transport or schema failure is not a lost event: `apply_verdict_invariants()`
+returns `verification_failed` with a NULL score and honest summary text
+(`backend/services/vlm_analyzer.py:267-280`), so the row exists and the UI shows
+the event as needing review.
 
 ### 5.2 WebSocket Broadcast
 
-**Source:** `backend/services/event_broadcaster.py:335-400`
+**Source:** `backend/services/event_broadcaster.py:349-366`
 
 ```python
-# backend/services/event_broadcaster.py:347-352
+# backend/services/event_broadcaster.py:361-366
 # Message Delivery Guarantees (NEM-1688):
 # - All messages include monotonically increasing sequence numbers
 # - Last MESSAGE_BUFFER_SIZE messages are buffered for replay
@@ -357,36 +413,40 @@ After successful LLM analysis, an Event record is created in PostgreSQL with:
 
 ![Image to Event Timing](../../images/architecture/dataflows/technical-image-to-event-timing.png)
 
-| Stage                | Typical Duration | Max Duration    |
-| -------------------- | ---------------- | --------------- |
-| File stability wait  | 2s               | 2s              |
-| Image validation     | <100ms           | 500ms           |
-| Detection queue wait | Variable         | Depends on load |
-| YOLO26 inference     | 200-500ms        | 60s (timeout)   |
-| Batch aggregation    | 30-90s           | 90s (window)    |
-| Analysis queue wait  | Variable         | Depends on load |
-| Enrichment pipeline  | 500ms-5s         | 30s (timeout)   |
-| Nemotron analysis    | 2-10s            | 120s (timeout)  |
-| Event creation       | <100ms           | 1s              |
-| WebSocket broadcast  | <10ms            | 100ms           |
+| Stage                 | Typical Duration | Max Duration                   |
+| --------------------- | ---------------- | ------------------------------ |
+| File stability wait   | 2s               | 2s                             |
+| Image validation      | <100ms           | 500ms                          |
+| Detection queue wait  | Variable         | Depends on load                |
+| YOLO26 inference      | 200-500ms        | 60s (timeout)                  |
+| Batch aggregation     | 30-90s           | 90s (window)                   |
+| Analysis queue wait   | Variable         | Depends on load                |
+| Specialist lookups    | Variable         | Depends on load                |
+| VLM assess (one call) | a few seconds    | 25s (read budget) x 2 attempts |
+| Event creation        | <100ms           | 1s                             |
+| WebSocket broadcast   | <10ms            | 100ms                          |
 
-**Total end-to-end:** 35s - 95s typical (dominated by batch aggregation window)
+**Total end-to-end:** dominated by the batch aggregation window.
 
 ## Complete Error Recovery Matrix
 
-| Stage      | Error Type        | Immediate Action | Recovery              |
-| ---------- | ----------------- | ---------------- | --------------------- |
-| File Watch | Truncated image   | Log, skip        | Camera re-uploads     |
-| Detection  | Connection error  | Retry 3x         | Circuit breaker opens |
-| Detection  | Timeout           | Retry 3x         | Circuit breaker opens |
-| Detection  | Circuit open      | Raise exception  | Wait recovery timeout |
-| Batch      | Redis unavailable | Fail batch       | Retry on next batch   |
-| Analysis   | LLM timeout       | Retry 3x         | Skip batch, log error |
-| Analysis   | Parse error       | No retry         | Log error, skip batch |
-| Broadcast  | WebSocket closed  | Buffer message   | Client reconnects     |
+| Stage      | Error Type        | Immediate Action     | Recovery                                |
+| ---------- | ----------------- | -------------------- | --------------------------------------- |
+| File Watch | Truncated image   | Log, skip            | Camera re-uploads                       |
+| Detection  | Connection error  | Retry 3x             | Circuit breaker opens                   |
+| Detection  | Timeout           | Retry 3x             | Circuit breaker opens                   |
+| Detection  | Circuit open      | Raise exception      | Wait recovery timeout                   |
+| Batch      | Redis unavailable | Fail batch           | Retry on next batch                     |
+| Analysis   | Transport failure | Retry once at temp 0 | `verification_failed`, NULL score, kept |
+| Analysis   | Schema violation  | No retry             | `verification_failed`, NULL score, kept |
+| Analysis   | Breaker open      | Refuse without I/O   | Wait 60s recovery                       |
+| Broadcast  | WebSocket closed  | Buffer message       | Client reconnects                       |
+
+No analysis failure drops an event: the ladder bottoms out in a written row
+that reads `verification_failed` (`backend/services/vlm_analyzer.py:267-280`).
 
 ## Related Documents
 
 - [batch-aggregation-flow.md](batch-aggregation-flow.md) - Detailed batch timing
-- [llm-analysis-flow.md](llm-analysis-flow.md) - LLM request/response details
+- [llm-analysis-flow.md](llm-analysis-flow.md) - Analysis request/response details
 - [error-recovery-flow.md](error-recovery-flow.md) - Circuit breaker sequences

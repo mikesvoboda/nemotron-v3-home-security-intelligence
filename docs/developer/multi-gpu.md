@@ -1,6 +1,7 @@
 ---
 title: Multi-GPU Support
 description: User guide for configuring multi-GPU support for AI services
+last_updated: 2026-10-02
 source_refs:
   - docs/plans/2025-01-23-multi-gpu-support-design.md:1
   - backend/api/schemas/gpu_config.py:1
@@ -48,32 +49,30 @@ The system is optimized for configurations like:
 
 ### VRAM Requirements by Service
 
-Since the R8 legacy retirement (2026-09-29) the stack boots two GPU services:
-`ai-vlm` (the shipped llama.cpp reasoning engine, compose profile `vlm`, port
-`AI_VLM_PORT` default 8098) on `GPU_LLM`, and the `ai-gateway` Triton process
-(routers `/yolo26` and `/enrich-lt` only) on `GPU_AI_SERVICES` (see
-`docker-compose.prod.yml`).
+The stack boots two GPU services (`docker-compose.prod.yml`):
 
-| Service (compose)      | Model                                                               | VRAM                                                                               | Default GPU           |
-| ---------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------- |
-| ai-vlm (profile `vlm`) | GGUF pair — identity is config (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`) | config-driven; `VLM_GPU_LAYERS=auto` fits the card                                 | 0 (`GPU_LLM`)         |
-| ai-gateway             | YOLO26 + re-ID/threat specialists (Triton)                          | per-model `vram_mb` in `models.yml`; no measured gateway-total figure is published | 1 (`GPU_AI_SERVICES`) |
+| Service (compose)      | Model                                                                      | VRAM                                                                               | Default GPU           |
+| ---------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------- |
+| ai-vlm (profile `vlm`) | GGUF pair — identity is config (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`)        | config-driven; `VLM_GPU_LAYERS=auto` fits the card                                 | 0 (`GPU_LLM`)         |
+| ai-gateway             | YOLO26 + re-ID/threat specialists (Triton routers `/yolo26`, `/enrich-lt`) | per-model `vram_mb` in `models.yml`; no measured gateway-total figure is published | 1 (`GPU_AI_SERVICES`) |
 
-> Note: the GPU Configuration API and UI still track legacy per-model names
-> (`ai-llm`, `ai-yolo26`, `ai-florence`, `ai-clip`, `ai-enrichment` — see the
-> `AI_SERVICE_VRAM_REQUIREMENTS_MB` dict in
-> `backend/services/gpu_detection_service.py`, imported by
-> `backend/api/routes/gpu_config.py`; `AI_SERVICE_METADATA` next door is the
-> UI's copy of the same legacy roster). Those names no longer match any
-> compose service, and they never report the consolidated `GPU_AI_SERVICES`
-> gateway assignment above. `.env.example` also still carries `GPU_FLORENCE`,
-> `GPU_YOLO26`, `GPU_CLIP`, `GPU_ENRICHMENT` and `GPU_ENRICHMENT_LIGHT`, but
-> `docker-compose.prod.yml` reads only `GPU_LLM` and `GPU_AI_SERVICES` — do
-> not bother setting the other five; they have no effect in production.
-> (The legacy per-model VRAM estimates and the 30B-LLM context-size notes this
-> page carried — Nemotron ~14-18 GB, Florence ~460 MB, SigLIP ~200 MB, the
-> ~6.8 GB enrichment budget — died with their services in R8; per-model numbers
-> live in `models.yml` and the include below.)
+Compose threads GPU placement through exactly two variables: `GPU_LLM`
+(`ai-vlm`) and `GPU_AI_SERVICES` (`ai-gateway`), each defaulting to a card index
+(`docker-compose.prod.yml:158`, `docker-compose.prod.yml:393`).
+
+> **Limitation.** The GPU Configuration API and its Settings UI present a per-model
+> assignment roster built from the `AI_SERVICE_VRAM_REQUIREMENTS_MB` dict at
+> `backend/services/gpu_detection_service.py:35` (display names and descriptions come
+> from `AI_SERVICE_METADATA` at `backend/api/routes/gpu_config.py:1181`). Every key in
+> that dict is a per-model container name, and none of them is a service
+> `docker-compose.prod.yml` declares — the shipped GPU services are the two in the table
+> above. The auto-assignment strategies take their input from those keys too
+> (`backend/api/routes/gpu_config.py:460-461`), and `ISOLATION_FIRST` special-cases one of
+> them by name (branch at `backend/api/routes/gpu_config.py:521`), so the per-model budget controls in that UI have no
+> effect on the shipped stack: production GPU placement is decided solely by `GPU_LLM` and
+> `GPU_AI_SERVICES`. Aligning the roster with the compose service names is an open
+> config-code task; until then, treat the per-model table in that UI as display-only and
+> size the two real services with the variables above.
 
 See [VRAM Requirements](../_includes/vram-requirements.md) for the
 lookup-model table and sizing guidance.
@@ -129,13 +128,13 @@ Select a strategy based on your priorities:
 
 - **Description**: Critical path models on fastest GPU
 - **Best For**: Minimizing detection-to-analysis latency
-- **Algorithm**: Assigns ai-yolo26 and ai-llm to GPU 0 (typically fastest), distributes others
+- **Algorithm**: Assigns the detector-critical services to the highest-compute GPU, distributes others
 
 ### Isolation-First
 
-- **Description**: LLM gets dedicated GPU, all other services share remaining GPUs
-- **Best For**: Preventing LLM memory pressure from affecting other models
-- **Algorithm**: ai-llm alone on largest GPU, everything else on remaining GPU(s)
+- **Description**: The reasoning engine gets a dedicated GPU, all other services share the remaining GPUs
+- **Best For**: Preventing the reasoning engine's memory pressure from affecting other models
+- **Algorithm**: The reasoning engine alone on the largest GPU, everything else on the remaining GPU(s)
 
 ### Balanced
 
@@ -150,21 +149,10 @@ Select a strategy based on your priorities:
 When using Manual strategy or overriding automatic assignments:
 
 1. Select **Manual** from the strategy dropdown (or leave current strategy)
-2. For each service in the assignment table:
-   - Select the target GPU from the dropdown
-   - Optionally adjust VRAM budget for ai-enrichment
+2. For each service in the assignment table, select the target GPU from the
+   dropdown
 3. Review any warnings about VRAM capacity
 4. Click **Save** to persist changes
-
-### VRAM Budget Override
-
-The ai-enrichment service supports a VRAM budget override:
-
-- Default budget: **6.8 GB**
-- Adjust when assigning to a smaller GPU
-- The system will auto-suggest appropriate budgets
-
-Example: Assigning ai-enrichment to a 4 GB GPU will suggest a 3.5 GB budget.
 
 ---
 
@@ -179,19 +167,20 @@ Changes to GPU assignments require container restarts:
 
 ### Generated Files
 
-The system generates two configuration files:
+The GPU Config Service writes two files under `config/`
+(`backend/services/gpu_config_service.py:223`):
 
 | File                                     | Purpose                                             |
 | ---------------------------------------- | --------------------------------------------------- |
 | `config/docker-compose.gpu-override.yml` | Docker Compose override for container orchestration |
 | `config/gpu-assignments.yml`             | Human-readable reference file                       |
 
-### Example Override File
+Each override entry pins one compose service to a device id:
 
 ```yaml
 # Auto-generated by GPU Config Service - DO NOT EDIT MANUALLY
 services:
-  ai-llm:
+  ai-vlm:
     deploy:
       resources:
         reservations:
@@ -201,7 +190,7 @@ services:
                 - '0'
               capabilities:
                 - gpu
-  ai-enrichment:
+  ai-gateway:
     deploy:
       resources:
         reservations:
@@ -211,8 +200,6 @@ services:
                 - '1'
               capabilities:
                 - gpu
-    environment:
-      - VRAM_BUDGET_GB=3.5
 ```
 
 ---
@@ -236,7 +223,7 @@ services:
 
 **Solutions**:
 
-1. Check container logs: `podman logs ai-llm`
+1. Check container logs: `podman logs ai-vlm`
 2. Verify GPU is available: The assigned GPU may be in use by another process
 3. Check VRAM capacity: The model may exceed available VRAM
 4. Review warnings shown during configuration

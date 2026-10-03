@@ -5,6 +5,9 @@
 **Time to read:** ~8 min
 **Prerequisites:** [Codebase Tour](codebase-tour.md)
 
+For the exhaustive hop-by-hop version, see
+[AI pipeline current state](../architecture/ai-pipeline-current-state.md).
+
 ---
 
 ## What the Pipeline Does
@@ -12,10 +15,16 @@
 The AI pipeline transforms raw camera images into risk-scored security events through a multi-stage process:
 
 ```
-Camera FTP -> FileWatcher -> detection_queue -> YOLO26 -> Detections
-  -> Enrichment (context + model zoo + optional Florence/CLIP) -> BatchAggregator -> analysis_queue
-  -> Nemotron LLM -> Event -> WebSocket
+Camera FTP -> FileWatcher -> detections:stream -> DetectorClient
+  -> ai-gateway /yolo26 (Triton) -> Detections -> BatchAggregator
+  -> analysis:stream -> VlmAnalyzer (key frames + specialist lookups
+  + ai-vlm verdict) -> Event + EventVerification -> WebSocket
 ```
+
+With `USE_REDIS_STREAMS=true` (the default, `backend/core/config.py:2239`)
+the two hops are Redis streams; with it false they are the list
+queues `detection_queue`/`analysis_queue` with a retry handler. Both feed the
+same DLQ names the `/api/dlq` routes read.
 
 ---
 
@@ -50,7 +59,9 @@ The FileWatcher service monitors directories using OS-native notifications (inot
 
 ### 3. Object Detection
 
-YOLO26 receives images and returns detected objects with bounding boxes.
+The detection worker posts each image to the Triton gateway
+(`YOLO26_URL` → `http://ai-gateway:8090/yolo26`) and YOLO26 returns detected
+objects with bounding boxes.
 
 **Security-relevant classes:**
 
@@ -58,66 +69,63 @@ YOLO26 receives images and returns detected objects with bounding boxes.
 - dog, cat, bird
 - bicycle, motorcycle
 
-**Source:** `backend/services/detector_client.py`, `ai/yolo26/model.py`
+**Source:** `backend/services/detector_client.py`,
+`ai/gateway/adapters/yolo26.py`
 
 ### 4. Batch Aggregation
 
-Detections are grouped into time-windowed batches before LLM analysis.
+Detections are grouped into time-windowed batches before analysis
+(`backend/services/batch_aggregator.py:172`).
 
 **Why batch?**
 
-- Better LLM context (see full activity, not isolated frames)
+- Better VLM context (see full activity, not isolated frames)
 - Reduced noise from frame-to-frame variations
-- More efficient (one LLM call per event, not per frame)
+- More efficient (one VLM call per event, not per frame)
 
-**Timing:**
+**Timing (three close triggers):**
 
-- Window: 90 seconds maximum
-- Idle timeout: 30 seconds no activity
+- Window: 90 seconds maximum (`BATCH_WINDOW_SECONDS`)
+- Idle timeout: 30 seconds no activity (`BATCH_IDLE_TIMEOUT_SECONDS`)
+- Max size: 500 detections (`BATCH_MAX_DETECTIONS`)
 
-**Source:** `backend/services/batch_aggregator.py`
+**Bypasses:** high-confidence weapon threats (knife/pistol/rifle at
+confidence ≥ 0.7) and smoke/fire (fire ≥ 0.70, smoke ≥ 0.75) skip the batch
+window entirely (`backend/services/batch_aggregator.py:1294`). The generic
+"high-confidence person" fast path is **disabled by default** — its
+threshold (`FAST_PATH_CONFIDENCE_THRESHOLD`) ships at an impossible 2.0 with
+an empty type list, because that path analyzes without specialist context.
 
-### 5. Fast Path
+### 5. Risk Analysis
 
-High-confidence critical detections bypass batching:
+`VlmAnalyzer.analyze_batch()` (`backend/services/vlm_analyzer.py:380`) takes
+the closed batch and:
 
-- Confidence >= 0.90
-- Object type is `person`
-- Creates event with `is_fast_path=True`
+1. Selects 1-4 key frames (`backend/services/key_frame_selector.py:73`)
+2. Runs the three in-process specialist lookup legs — faces, plates, person
+   re-ID — as database lookups (`backend/services/vlm_specialists.py:884`)
+3. Renders one prompt (detections + zones + household + specialist lines +
+   the stills) and asks `ai-vlm` for a constrained JSON verdict
+4. Applies the verdict invariants, writes `Event` + `EventVerification` +
+   `event_detections`, and broadcasts
 
-**Latency:** ~3-6 seconds (vs. 30-90 seconds for normal path)
+The event carries:
 
-### 6. Risk Analysis
+- Risk score (0-100) and risk level (low/medium/high/critical, derived)
+- Verdict (`confirmed` / `rejected` / `uncertain` / `verification_failed`)
+- Human-readable summary and reasoning
 
-Nemotron LLM analyzes batched detections and generates:
+**Source:** `backend/services/vlm_analyzer.py`, `backend/services/vlm_client.py`
 
-- Risk score (0-100)
-- Risk level (low/medium/high/critical)
-- Human-readable summary
-- Reasoning explanation
+### 6. Event Creation
 
-**Source:** `backend/services/nemotron_analyzer.py`
+Analysis results are stored as Event records in PostgreSQL with links to
+source detections (`backend/models/event.py:36`).
 
-### 6.5 Enrichment (Context + Model Zoo)
+### 7. WebSocket Broadcast
 
-Before calling the LLM, the backend can enrich a batch with additional context:
-
-- **ContextEnricher**: zones, baseline deviation, cross-camera activity
-- **EnrichmentPipeline**: model-zoo enrichment (plates/OCR, faces, clothing/vehicle/pet signals, image quality/tamper, etc.)
-- **Optional AI services**: Florence-2 and CLIP (when enabled/configured)
-
-This enrichment is designed to be **best-effort**: if an enrichment service is unavailable, the system should
-continue with a less enriched prompt rather than failing the entire pipeline.
-
-**Source:** `backend/services/context_enricher.py`, `backend/services/enrichment_pipeline.py`
-
-### 7. Event Creation
-
-Analysis results are stored as Event records in PostgreSQL with links to source detections.
-
-### 8. WebSocket Broadcast
-
-New events are published via Redis pub/sub to all connected WebSocket clients.
+New events are published via Redis pub/sub to all connected WebSocket
+clients — last and best-effort, never undoing the commit.
 
 **Source:** `backend/services/event_broadcaster.py`
 
@@ -134,33 +142,35 @@ flowchart LR
     end
 
     subgraph Detection["Object Detection"]
-        DQ[detection_queue]
-        YOLO["YOLO26<br/>(AI Gateway :8090 /yolo26)"]
+        DS[detections:stream]
+        YOLO["YOLO26<br/>(ai-gateway :8090 /yolo26)"]
     end
 
     subgraph Batching["Batch Aggregation"]
         BA[BatchAggregator]
-        AQ[analysis_queue]
+        AS[analysis:stream]
     end
 
     subgraph Analysis["Risk Analysis"]
-        NEM["Nemotron LLM<br/>(Port 8091)"]
+        SPEC[Specialist lookups<br/>faces / plates / re-ID]
+        VLM["VlmAnalyzer<br/>→ ai-vlm :8098"]
     end
 
     subgraph Storage["Event Storage"]
-        DB[(PostgreSQL<br/>events table)]
+        DB[(PostgreSQL<br/>events + event_verifications)]
         Redis[(Redis<br/>pub/sub)]
         WS[WebSocket clients]
     end
 
     Camera --> FW
-    FW --> DQ
-    DQ --> YOLO
+    FW --> DS
+    DS --> YOLO
     YOLO --> BA
-    BA --> AQ
-    BA -.->|Fast Path<br/>>90% person| NEM
-    AQ --> NEM
-    NEM --> DB
+    BA --> AS
+    BA -.->|Threat/smoke bypass| AS
+    AS --> SPEC
+    SPEC --> VLM
+    VLM --> DB
     DB --> Redis
     Redis --> WS
 ```
@@ -169,40 +179,43 @@ flowchart LR
 
 ## Timing Characteristics
 
-| Stage                 | Duration | Notes                       |
-| --------------------- | -------- | --------------------------- |
-| File upload detection | ~10ms    | OS filesystem notifications |
-| Debounce delay        | 500ms    | Configurable                |
-| Image validation      | ~5-10ms  | PIL verify()                |
-| YOLO26 inference      | 30-50ms  | GPU accelerated             |
-| Database write        | ~5-10ms  | PostgreSQL async            |
-| Batch window          | 30-90s   | Collects related detections |
-| Nemotron inference    | 2-5s     | GPU accelerated             |
-| Event creation        | ~10ms    | Database + WebSocket        |
+| Stage                 | Duration | Notes                                                             |
+| --------------------- | -------- | ----------------------------------------------------------------- |
+| File upload detection | ~10ms    | OS filesystem notifications                                       |
+| Debounce delay        | 500ms    | Configurable                                                      |
+| Image validation      | ~5-10ms  | PIL verify()                                                      |
+| YOLO26 inference      | 30-50ms  | GPU accelerated (Triton)                                          |
+| Database write        | ~5-10ms  | PostgreSQL async                                                  |
+| Batch window          | 30-90s   | Collects related detections                                       |
+| VLM assessment        | 2-25s    | One call, retried once; `AI_VLM_READ_TIMEOUT=25` caps the attempt |
+| Event creation        | ~10ms    | Database + WebSocket                                              |
 
-**Total latency:**
-
-- Fast path: ~3-6 seconds
-- Normal path: 30-95 seconds (dominated by batch window)
+**Total latency:** dominated by the batch window — 30-95 seconds normally;
+threat/smoke-fire bypasses skip the window.
 
 ---
 
 ## Key Configuration
 
-| Variable                         | Default    | Description                  |
-| -------------------------------- | ---------- | ---------------------------- |
-| `BATCH_WINDOW_SECONDS`           | 90         | Maximum batch duration       |
-| `BATCH_IDLE_TIMEOUT_SECONDS`     | 30         | Close batch if no activity   |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | 0.90       | Bypass batching threshold    |
-| `FAST_PATH_OBJECT_TYPES`         | ["person"] | Types eligible for fast path |
-| `DETECTION_CONFIDENCE_THRESHOLD` | 0.5        | Minimum confidence to store  |
+| Variable                         | Default | Description                                                                 |
+| -------------------------------- | ------- | --------------------------------------------------------------------------- |
+| `BATCH_WINDOW_SECONDS`           | 90      | Maximum batch duration                                                      |
+| `BATCH_IDLE_TIMEOUT_SECONDS`     | 30      | Close batch if no activity                                                  |
+| `BATCH_MAX_DETECTIONS`           | 500     | Close batch at size                                                         |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0     | Generic fast path ships disabled (>1.0)                                     |
+| `USE_REDIS_STREAMS`              | true    | Streams vs list queues                                                      |
+| `DETECTION_CONFIDENCE_THRESHOLD` | 0.40    | Fallback class threshold (per-class overrides in `YOLO26_CLASS_THRESHOLDS`) |
+| `AI_VLM_READ_TIMEOUT`            | 25.0    | Per-attempt VLM ceiling                                                     |
 
 ---
 
 ## Resource Usage
 
-VRAM depends on the deployed model sizes and which enrichment services are enabled. For authoritative ports/env,
-see [Environment Variable Reference](../reference/config/env-reference.md).
+Two GPU-resident services: `ai-gateway` (Triton, YOLO26) on
+`GPU_AI_SERVICES`, and `ai-vlm` (llama.cpp) on `GPU_LLM`. The backend's face
+and re-ID lookup models load in-process only when `BACKEND_MODEL_PRELOAD`
+says so. For authoritative ports/env, see
+[Environment Variable Reference](../reference/config/env-reference.md).
 
 ---
 
@@ -210,7 +223,7 @@ see [Environment Variable Reference](../reference/config/env-reference.md).
 
 - [Detection Service](detection-service.md) - YOLO26 integration details
 - [Batching Logic](batching-logic.md) - How detections are grouped
-- [Risk Analysis](risk-analysis.md) - LLM processing and scoring
+- [Risk Analysis](risk-analysis.md) - VLM processing and scoring
 
 ---
 

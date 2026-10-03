@@ -7,10 +7,11 @@
 
 The `ai-vlm` container sits behind the `vlm` compose profile — the stack runs
 without it and events degrade (no verdicts) rather than fail to boot. No
-measured 24 GB-class residency figure exists yet for the shipped identity; the
-bring-up record owns the per-card numbers. The gateway serves exactly two
-routers (`/yolo26`, `/enrich-lt`) since R8 S3; `GATEWAY_MODEL_SET` resolves
-only `vlm`.
+measured residency figure exists yet for the shipped identity; the bring-up
+record owns the per-card numbers. The gateway serves exactly two routers
+(`/yolo26`, `/enrich-lt`); `GATEWAY_MODEL_SET` resolves only `vlm`, and
+`GATEWAY_ENABLE_THREAT=false` ships the `threat` model opted-in rather than
+resident by default.
 
 ### On-Demand Lookup Models (backend model zoo)
 
@@ -31,9 +32,8 @@ there is no eviction pass; the two CPU face rows cost 0 VRAM):
 
 ### Sizing Guidance
 
-Sizing is dominated by the VLM identity you configure, so there is no fixed
-tier table any more: `VLM_GPU_LAYERS=auto` (default) offloads as many layers as
-the card allows, and the GGUF pair's disk size and layer count set the floor.
-On top of that budget the gateway's Triton process and ~1.0GB of lookup-model
-headroom. The retired 30B-LLM-based tiers this page used to publish (8/16/24GB
-against a ~14.7GB GGUF) died with the legacy path in R8 (2026-09-29).
+Sizing is dominated by the VLM identity you configure: `VLM_GPU_LAYERS=auto`
+(the default) offloads as many layers as the card allows, and the GGUF pair's
+disk size and layer count set the floor. On top of that budget the gateway's
+Triton process and ~1.0GB of lookup-model headroom. `ai-vlm` is the system's
+only LLM service.

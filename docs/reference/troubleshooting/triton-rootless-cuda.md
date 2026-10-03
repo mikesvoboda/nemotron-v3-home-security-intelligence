@@ -1,6 +1,6 @@
 # Triton CUDA Init Failure in Rootless Podman
 
-> **Symptom:** `cudaGetDeviceCount()` returns `err=3` (cudaErrorInitializationError) in ai-gateway container. Triton cannot load GPU models. ai-llm (llama.cpp) works on the same GPU.
+> **Symptom:** `cudaGetDeviceCount()` returns `err=3` (cudaErrorInitializationError) in ai-gateway container. Triton cannot load GPU models. ai-vlm (llama.cpp) works on the same GPU.
 >
 > **Environment:** Ubuntu 24.04, rootless Podman, NVIDIA driver 525+, CDI (`nvidia.com/gpu=0` or `all`)
 
@@ -12,7 +12,7 @@
 
 | Component               | API                               | Rootless behavior   |
 | ----------------------- | --------------------------------- | ------------------- |
-| **ai-llm (llama.cpp)**  | CUDA Driver API (`libcuda.so`)    | ✅ Works            |
+| **ai-vlm (llama.cpp)**  | CUDA Driver API (`libcuda.so`)    | ✅ Works            |
 | **ai-gateway (Triton)** | CUDA Runtime API (`libcudart.so`) | ❌ Fails with err=3 |
 | **nvidia-smi**          | NVML (Driver API)                 | ✅ Works            |
 
@@ -152,7 +152,13 @@ restricts Triton via `CUDA_VISIBLE_DEVICES`. For single GPU (e.g. Brev A100): se
 
 ### USE_AI_GATEWAY fallback
 
-The backend supports `USE_AI_GATEWAY=false` with individual service URLs. However, **docker-compose.prod.yml does not define standalone ai-yolo26, ai-enrichment, ai-florence, ai-clip** — those would need to be added. More importantly, **standalone enrichment services also use PyTorch/ONNX Runtime (CUDA Runtime API)** and would likely fail with the same error in rootless. The only service that works in rootless is ai-llm (llama.cpp, Driver API).
+The backend supports `USE_AI_GATEWAY=false`, in which case `DetectorClient` dials
+`YOLO26_URL` directly instead of `{AI_GATEWAY_URL}/yolo26`
+(`backend/services/detector_client.py:283-287`). That is the host-run dev path:
+`./ai/start_detector.sh` runs `ai/yolo26/model.py` on the host. It does not dodge
+this error — `ai/yolo26/model.py` is a CUDA Runtime API server too, so it hits the
+same rootless `err=3`. The one workload that survives rootless is `ai-vlm`
+(llama.cpp, Driver API); the gateway's Triton needs the fixes above.
 
 ---
 

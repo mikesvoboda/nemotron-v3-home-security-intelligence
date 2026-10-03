@@ -182,16 +182,27 @@ curl http://localhost:8000/api/system/health/full
       "response_time_ms": 45.2,
       "circuit_state": "closed",
       "last_check": "2026-01-08T10:30:00Z"
+    },
+    {
+      "name": "ai-vlm",
+      "display_name": "VLM Verdict Service",
+      "status": "healthy",
+      "url": "http://ai-vlm:8098",
+      "response_time_ms": 1830.4,
+      "circuit_state": "closed",
+      "last_check": "2026-01-08T10:30:00Z"
     }
   ],
   "circuit_breakers": {
-    "total": 5,
+    "total": 4,
     "open": 0,
     "half_open": 0,
-    "closed": 5,
+    "closed": 4,
     "breakers": {
       "yolo26": "closed",
-      "nemotron": "closed"
+      "postgresql": "closed",
+      "redis": "closed",
+      "ai-vlm": "closed"
     }
   },
   "workers": [
@@ -222,22 +233,21 @@ curl http://localhost:8000/api/system/health/full
 
 Critical services must be healthy for the system to be considered ready.
 
-| Service    | Target Availability | Max Response Time | Recovery Time |
-| ---------- | ------------------- | ----------------- | ------------- |
-| PostgreSQL | 99.9%               | 100ms             | 60s           |
-| Redis      | 99.9%               | 50ms              | 30s           |
-| YOLO26     | 99.5%               | 5000ms            | 60s           |
-| Nemotron   | 99.5%               | 10000ms           | 120s          |
+| Service    | Target Availability | Max Response Time               | Recovery Time |
+| ---------- | ------------------- | ------------------------------- | ------------- |
+| PostgreSQL | 99.9%               | 100ms                           | 60s           |
+| Redis      | 99.9%               | 50ms                            | 30s           |
+| YOLO26     | 99.5%               | 5000ms                          | 60s           |
+| ai-vlm     | 99.5%               | 25000ms (`AI_VLM_READ_TIMEOUT`) | 120s          |
 
 ### Non-Critical Services
 
 Non-critical services can fail without blocking system readiness.
 
-| Service    | Target Availability | Max Response Time | Recovery Time |
-| ---------- | ------------------- | ----------------- | ------------- |
-| Florence   | 95.0%               | 5000ms            | 120s          |
-| CLIP       | 95.0%               | 3000ms            | 120s          |
-| Enrichment | 95.0%               | 5000ms            | 180s          |
+| Service                          | Target Availability                                                           | Max Response Time | Recovery Time   |
+| -------------------------------- | ----------------------------------------------------------------------------- | ----------------- | --------------- |
+| `/enrich-lt` readiness lane      | 95.0%                                                                         | 5000ms            | 180s            |
+| Lookup legs (faces/plates/re-ID) | best-effort — a degraded leg reports `unavailable` and never blocks a verdict | —                 | operator action |
 
 ### SLO Metrics
 
@@ -331,12 +341,12 @@ GPU stats are delivered via `/ws/system` stream:
 
 ### Monitored Services
 
-| Service    | Health Endpoint | Recovery                    |
-| ---------- | --------------- | --------------------------- |
-| YOLO26     | `GET /health`   | Restart via service manager |
-| Nemotron   | `GET /health`   | Restart via service manager |
-| Redis      | `PING` command  | Alert only                  |
-| PostgreSQL | Connection test | Alert only                  |
+| Service    | Health Endpoint | Recovery                                              |
+| ---------- | --------------- | ----------------------------------------------------- |
+| YOLO26     | `GET /health`   | Restart via service manager                           |
+| ai-vlm     | `GET /health`   | Restart via service manager — and prove the projector |
+| Redis      | `PING` command  | Alert only                                            |
+| PostgreSQL | Connection test | Alert only                                            |
 
 ### Service Status Values
 
@@ -445,8 +455,8 @@ CircuitBreakerConfig(
       "closed": 4
     },
     "breakers": {
-      "yolo26": "open",
-      "nemotron": "closed"
+      "detector_yolo26": "open",
+      "ai-vlm": "closed"
     }
   }
 }
@@ -613,8 +623,18 @@ Provisioned from `monitoring/grafana/dashboards/`:
 - **consolidated** - single overview dashboard
 - **api-health**, **ai-services**, **ai-service-health** - service and API status
 - **hsi-gpu-metrics** - utilization, memory, temperature trends
-- **enrichment-pipeline**, **clip-florence-intelligence**, **nemotron-prompt-analytics**,
-  **scene-ocr**, **video-analytics**, **analytics** - AI pipeline detail
+- **enrichment-pipeline**, **nemotron-prompt-analytics**, **scene-ocr**,
+  **video-analytics**, **analytics** - AI pipeline detail
+
+> [!WARNING]
+> Several of those dashboards are built on `hsi_enrichment_*` / `hsi_nemotron_*` /
+> `hsi_florence_*` families that are declared in `backend/core/metrics.py` but have **no
+> call site on the live path**. Panels there read as flat-zero, not as degraded — the same
+> trap as a blackbox probe aimed at a router the gateway does not mount. The signals that
+> do exist on the shipped path are `hsi_ai_request_duration_seconds`,
+> `hsi_specialist_unavailable_total`, `hsi_prompts_truncated_total`, the queue depths, and
+> the verdict census in `event_verifications`.
+
 - **hsi-profiling**, **hsi-request-profiling** - profiling regressions
 - **logs**, **tracing** - Loki and Tempo views
 
@@ -653,8 +673,8 @@ Provisioned from `monitoring/grafana/dashboards/`:
 1. Test service endpoints directly:
 
    ```bash
-   curl http://localhost:8095/health  # YOLO26
-   curl http://localhost:8091/health  # Nemotron
+   curl http://localhost:8090/yolo26/health   # ai-gateway detection router
+   curl http://localhost:8098/props | jq              # ai-vlm served model + build
    ```
 
 2. Check service logs in their respective terminals

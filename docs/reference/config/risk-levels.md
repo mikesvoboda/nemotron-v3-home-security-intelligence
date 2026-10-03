@@ -216,7 +216,7 @@ def risk_score_to_severity(self, score: int) -> Severity:
 
 ## See Also
 
-- [Risk Analysis](../../developer/risk-analysis.md) - How Nemotron generates risk scores
+- [Risk Analysis](../../developer/risk-analysis.md) - How the `ai-vlm` verdict engine scores risk
 - [Alerts](../../developer/alerts.md) - How alert rules use risk levels
 - [Dashboard](../../ui/dashboard.md) - Reading the risk gauge
 

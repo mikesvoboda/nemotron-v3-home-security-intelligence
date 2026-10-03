@@ -1,6 +1,6 @@
 # Container Orchestration
 
-> Comprehensive documentation for the Container Orchestrator including startup sequences, health checks, self-healing recovery, and dependency management.
+> Documentation for the Container Orchestrator: startup sequences, health checks, self-healing recovery, and dependency management.
 
 ---
 
@@ -35,14 +35,15 @@ The Container Orchestrator is a self-healing container management system that mo
 
 ### Components
 
-| Component                 | File                                              | Purpose                                        |
-| ------------------------- | ------------------------------------------------- | ---------------------------------------------- |
-| ContainerOrchestrator     | `backend/services/container_orchestrator.py`      | Main coordinator integrating all components    |
-| ContainerDiscoveryService | `backend/services/container_discovery.py`         | Discovers containers by name pattern           |
-| HealthMonitor             | `backend/services/health_monitor_orchestrator.py` | Periodic health check loop                     |
-| LifecycleManager          | `backend/services/lifecycle_manager.py`           | Restart logic with exponential backoff         |
-| ServiceRegistry           | `backend/services/orchestrator/registry.py`       | In-memory service state with Redis persistence |
-| DockerClient              | `backend/core/docker_client.py`                   | Async Docker/Podman API wrapper                |
+| Component                 | File                                              | Purpose                                           |
+| ------------------------- | ------------------------------------------------- | ------------------------------------------------- |
+| ContainerOrchestrator     | `backend/services/container_orchestrator.py`      | Main coordinator integrating all components       |
+| ContainerDiscoveryService | `backend/services/container_discovery.py`         | Discovers containers by name pattern              |
+| HealthMonitor             | `backend/services/health_monitor_orchestrator.py` | Periodic health check loop                        |
+| LifecycleManager          | `backend/services/lifecycle_manager.py`           | Restart logic with exponential backoff            |
+| ServiceRegistry           | `backend/services/orchestrator/registry.py`       | In-memory service state with Redis persistence    |
+| ComposeParser             | `backend/services/compose_parser.py`              | Derives per-service configs from the compose file |
+| DockerClient              | `backend/core/docker_client.py`                   | Async Docker/Podman API wrapper                   |
 
 ---
 
@@ -70,7 +71,7 @@ flowchart TB
         PG[PostgreSQL]
         RS[Redis]
         AI1[ai-gateway]
-        AI2[ai-llm]
+        AI2[ai-vlm]
         G2[go2rtc]
         BE[Backend]
         FE[Frontend]
@@ -119,7 +120,7 @@ flowchart TB
 
 ### Phase Overview
 
-The system starts in four sequential phases, each waiting for the previous to complete via Docker Compose health check dependencies.
+Compose orders the stack with health-check conditions. `ai-vlm` sits behind the `vlm` profile and `ai-llm-vllm` behind the `vllm` profile, so neither is in the default `up` path and neither appears in any `depends_on`; they are started with `--profile vlm` (etc.) and managed on their own schedule.
 
 ```mermaid
 sequenceDiagram
@@ -128,8 +129,8 @@ sequenceDiagram
     participant FI as foscam-init
     participant PG as PostgreSQL
     participant RD as Redis
+    participant G2 as go2rtc
     participant GW as AI Gateway
-    participant NM as Nemotron
     participant BE as Backend
     participant FE as Frontend
 
@@ -137,16 +138,14 @@ sequenceDiagram
     DC->>FI: Camera dir init (one-shot)
     DC->>PG: Start PostgreSQL
     DC->>RD: Start Redis
+    DC->>G2: Start go2rtc
     PG-->>DC: Healthy (10-15s)
     RD-->>DC: Healthy (5-10s)
 
-    Note over DC,FE: Phase 2: AI Services (60-300s)
-    DC->>GW: Start AI Gateway
-    DC->>NM: Start Nemotron
-    Note right of GW: Triton model load; start_period 180s
-    Note right of NM: VRAM allocation; start_period 300s
+    Note over DC,FE: Phase 2: AI Gateway (up to 180s)
+    DC->>GW: Start ai-gateway
+    Note right of GW: Triton plan load; start_period 180s
     GW-->>DC: Healthy
-    NM-->>DC: Healthy
 
     Note over DC,FE: Phase 3: Application (30-60s)
     DC->>BE: Start Backend
@@ -164,238 +163,230 @@ sequenceDiagram
 
 Services with no dependencies start immediately:
 
-| Service     | Startup Time | Health Check                                       | Grace Period           |
-| ----------- | ------------ | -------------------------------------------------- | ---------------------- |
-| PostgreSQL  | 10-15s       | `pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}` | 10s                    |
-| Redis       | 5-10s        | `redis-cli ping` (auth-aware)                      | 15s (category default) |
-| foscam-init | ~1s          | none (one-shot, `service_completed_successfully`)  | n/a                    |
+| Service     | Startup Time | Health Check                                                           | Grace Period           |
+| ----------- | ------------ | ---------------------------------------------------------------------- | ---------------------- |
+| PostgreSQL  | 10-15s       | `pg_isready -U ${POSTGRES_USER:-security} -d ${POSTGRES_DB:-security}` | 10s                    |
+| Redis       | 5-10s        | auth-aware `redis-cli ping`                                            | 15s (category default) |
+| go2rtc      | ~5s          | `wget http://localhost:1984/api/streams`                               | 10s                    |
+| foscam-init | ~1s          | none (one-shot, `service_completed_successfully`)                      | n/a                    |
 
-### Phase 2: AI Services (60-300 seconds)
+### Phase 2: AI Gateway (up to 180 seconds)
 
-AI services start in parallel after infrastructure is healthy:
+| Service    | Startup Time | Health Check                       | Grace Period (start_period) | Notes                                                                 |
+| ---------- | ------------ | ---------------------------------- | --------------------------- | --------------------------------------------------------------------- |
+| ai-gateway | 60-180s      | GET `http://localhost:8090/health` | 180s                        | Triton + FastAPI in one container; routers `/yolo26` and `/enrich-lt` |
 
-| Service           | Startup Time | Health Check                       | Grace Period (start_period) | Notes                                                                                                                       |
-| ----------------- | ------------ | ---------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| ai-gateway        | 60-180s      | GET `http://localhost:8090/health` | 180s                        | Single entrypoint: Triton + FastAPI routers `/yolo26` `/florence` `/clip` `/enrichment` `/enrich-lt`; models load on demand |
-| ai-llm (Nemotron) | 90-300s      | GET `http://localhost:8091/health` | 300s                        | llama.cpp, VRAM allocation for the 30B GGUF                                                                                 |
+Triton starts with `--model-control-mode=none`, so the repository selected by
+`GATEWAY_MODEL_SET` (`vlm` → `{yolo26, reid}`, plus `threat` when
+`GATEWAY_ENABLE_THREAT=true`) is resident from container start. The health check
+passes once Triton reports ready and every active model reports ready.
 
-(The standalone `ai-florence`/`ai-clip`/`ai-enrichment` containers were consolidated into `ai-gateway`; their old 8092-8096 ports survive only as the standalone `ai/*/model.py` dev servers' `PORT` fallbacks and the matching reference values in `.env.example` — they are no longer `OrchestratorSettings` fields and the orchestrator never health-checks them.)
+The optional GPU services live behind compose profiles and are not part of the
+default `up`:
+
+| Service       | Profile | Host port             | Health Check                                | Grace Period |
+| ------------- | ------- | --------------------- | ------------------------------------------- | ------------ |
+| `ai-vlm`      | `vlm`   | 8098                  | GET `http://localhost:8098/health`          | 120s         |
+| `ai-llm-vllm` | `vllm`  | 8097 → container 8000 | GET `http://localhost:8000/health` (inside) | 300s         |
 
 ### Phase 3: Application (30-60 seconds)
 
-Backend starts after PostgreSQL, Redis, both AI services, and go2rtc are healthy (and foscam-init has completed):
+Backend starts after PostgreSQL, Redis, ai-gateway, and go2rtc are healthy (and
+foscam-init has completed):
 
-| Service | Dependencies                                               | Health Check                   | Grace Period |
-| ------- | ---------------------------------------------------------- | ------------------------------ | ------------ |
-| Backend | PostgreSQL, Redis, ai-gateway, ai-llm, go2rtc, foscam-init | GET `/api/system/health/ready` | 30s          |
+| Service | Dependencies                                       | Health Check                   | Grace Period |
+| ------- | -------------------------------------------------- | ------------------------------ | ------------ |
+| Backend | PostgreSQL, Redis, ai-gateway, go2rtc, foscam-init | GET `/api/system/health/ready` | 30s          |
+
+`ai-vlm` is deliberately **not** in the backend's `depends_on`: with the `vlm`
+profile disabled the backend must still boot, and the VLM stage degrades to its
+own unavailable path rather than blocking startup.
 
 ### Phase 4: Frontend (10-20 seconds)
 
-Frontend starts after the backend container has started:
+Frontend starts after the backend container has started (`condition:
+service_started`, not `service_healthy`):
 
-| Service  | Dependencies | Health Check                       | Grace Period |
-| -------- | ------------ | ---------------------------------- | ------------ |
-| Frontend | Backend      | GET `http://localhost:8080/health` | 40s          |
+| Service  | Dependencies | Health Check                                                            | Grace Period |
+| -------- | ------------ | ----------------------------------------------------------------------- | ------------ |
+| Frontend | Backend      | `wget --spider http://localhost:${FRONTEND_INTERNAL_PORT:-8080}/health` | 40s          |
 
 ### Monitoring Stack (Parallel with Core Services)
 
-Monitoring services start independently:
+The observability containers start alongside the core stack with no dependency
+on it, except for these compose-declared orderings:
 
-| Service      | Startup Time | Health Check                            | Grace Period                  |
-| ------------ | ------------ | --------------------------------------- | ----------------------------- |
-| Prometheus   | 15s          | GET `http://localhost:9090/-/healthy`   | default (30s)                 |
-| Grafana      | 20s          | GET `http://localhost:3000/api/health`  | default (30s)                 |
-| Alertmanager | 10s          | GET `http://localhost:9093/-/healthy`   | default (30s)                 |
-| Tempo        | 10s          | GET `http://localhost:3200/ready`       | default (30s)                 |
-| Loki         | 15s          | GET `http://localhost:3100/ready`       | default (30s)                 |
-| Pyroscope    | 15s          | GET `http://localhost:4040/ready`       | default (30s)                 |
-| Alloy        | 15s          | Process check (`pgrep -f alloy`)        | default (30s)                 |
-| go2rtc       | 5s           | GET `http://localhost:1984/api/streams` | 10s (from its `start_period`) |
-
-Distributed tracing runs on **Tempo** (there is no Jaeger container). Exporters (`node-exporter`, `blackbox-exporter`, `dcgm-exporter`, `redis-exporter`, `json-exporter`) round out the stack; `redis-exporter` and `json-exporter` ship without healthchecks.
+| Service        | depends_on (condition)                    |
+| -------------- | ----------------------------------------- |
+| prometheus     | alertmanager (healthy)                    |
+| grafana        | prometheus (healthy)                      |
+| redis-exporter | redis (healthy)                           |
+| alloy          | loki, pyroscope (list form, no condition) |
 
 ---
 
 ## Health Checks
 
-### Health Check Methods
+### Health Check Methods (Priority Order)
 
-The orchestrator supports three health check methods, evaluated in priority order:
+`HealthMonitor` picks one method per service (`backend/services/health_monitor_orchestrator.py`):
 
-#### 1. HTTP Health Endpoint (Preferred for AI Services)
+1. **HTTP endpoint** — used when the service config has `health_endpoint`
+2. **Command** — executed inside the container when `health_cmd` is set
+3. **Container status** — falls back to "container `status == running`" when neither is configured
 
-Used when `health_endpoint` is configured:
+### Compose-Level Health Checks
 
-```python
-# Example: AI services
-async def check_http_health(host: str, port: int, endpoint: str) -> bool:
-    url = f"http://{host}:{port}{endpoint}"
-    response = await httpx.AsyncClient().get(url, timeout=5.0)
-    return response.status_code == 200
-```
+Every parameter below is measured from `docker-compose.prod.yml`. `start_period`
+is what the orchestrator uses as the startup grace period when the service has no
+`orchestrator.startup_grace_period` label.
 
-#### 2. Command Health Check (For Infrastructure)
+| Service                               | interval | timeout | retries | start_period | Check                                                   |
+| ------------------------------------- | -------- | ------- | ------- | ------------ | ------------------------------------------------------- |
+| postgres                              | 10s      | 5s      | 5       | 10s          | `pg_isready`                                            |
+| redis                                 | 10s      | 5s      | 3       | (none)       | auth-aware `redis-cli ping`                             |
+| ai-gateway                            | 15s      | 10s     | 5       | 180s         | `curl -f http://localhost:8090/health`                  |
+| ai-vlm (profile `vlm`)                | 10s      | 5s      | 3       | 120s         | `curl -f http://localhost:8098/health`                  |
+| ai-llm-vllm (profile `vllm`)          | 10s      | 5s      | 3       | 300s         | `curl -f http://localhost:8000/health` (container port) |
+| backend                               | 10s      | 5s      | 3       | 30s          | `httpx` GET `/api/system/health/ready`                  |
+| go2rtc                                | 30s      | 10s     | 3       | 10s          | `wget http://localhost:1984/api/streams`                |
+| frontend                              | 30s      | 10s     | 3       | 40s          | `wget --spider .../health`                              |
+| tempo                                 | 15s      | 5s      | 3       | (none)       | `wget --spider :3200/ready`                             |
+| prometheus                            | 15s      | 5s      | 3       | (none)       | `wget --spider :9090/-/healthy`                         |
+| grafana                               | 15s      | 5s      | 3       | (none)       | `wget --spider :3000/api/health`                        |
+| alertmanager                          | 15s      | 5s      | 3       | (none)       | `wget --spider :9093/-/healthy`                         |
+| blackbox-exporter                     | 15s      | 5s      | 3       | (none)       | `wget --spider :9115/metrics`                           |
+| node-exporter                         | 15s      | 5s      | 3       | (none)       | `wget --spider :9100/metrics`                           |
+| loki                                  | 10s      | 5s      | 5       | (none)       | `wget --spider :3100/ready`                             |
+| pyroscope                             | 10s      | 5s      | 5       | (none)       | `wget --spider :4040/ready`                             |
+| alloy                                 | 10s      | 5s      | 5       | (none)       | `pgrep -f alloy` (process liveness, not HTTP)           |
+| dcgm-exporter (profile `gpu-rootful`) | 30s      | 10s     | 3       | (none)       | `wget -O- :9400/metrics`                                |
+| redis-exporter                        | —        | —       | —       | —            | **`healthcheck.disable: true`** — no probe              |
+| json-exporter                         | —        | —       | —       | —            | no `healthcheck:` block                                 |
+| foscam-init                           | —        | —       | —       | —            | no `healthcheck:` block (one-shot)                      |
 
-Used when `health_cmd` is configured:
+Two consequences worth knowing: `redis-exporter` reports "healthy" as soon as the
+container is running because its probe is explicitly disabled, and
+`json-exporter` falls to the container-status check because it declares none.
 
-```python
-# Example: PostgreSQL
-async def check_cmd_health(docker_client, container_id: str, cmd: str) -> bool:
-    exit_code = await docker_client.exec_run(container_id, cmd)
-    return exit_code == 0
-```
+### Gateway Health Response Shape
 
-#### 3. Container Running Status (Fallback)
-
-Used when neither HTTP endpoint nor command is configured:
-
-```python
-# Fallback check
-status = await docker_client.get_container_status(container_id)
-return status == "running"
-```
-
-### Health Check Configuration by Service
-
-Grace and max-failure values are parsed per service from the compose file (healthcheck `start_period`/`retries`, falling back to category defaults). The orchestrator's own HTTP probe runs every 30s with a 5s timeout (`ORCHESTRATOR_HEALTH_CHECK_INTERVAL`/`_TIMEOUT`).
-
-| Service                  | Method  | Endpoint/Command                                          |
-| ------------------------ | ------- | --------------------------------------------------------- |
-| postgres                 | Command | `pg_isready -U <user> -d <db>` (from compose healthcheck) |
-| redis                    | Command | `redis-cli ping` (auth-aware)                             |
-| ai-gateway               | HTTP    | `/health` (port 8090)                                     |
-| ai-llm                   | HTTP    | `/health` (port 8091)                                     |
-| go2rtc                   | HTTP    | `/api/streams` (port 1984)                                |
-| backend                  | HTTP    | `/api/system/health/ready` (port 8000)                    |
-| frontend                 | HTTP    | `/health` (port 8080)                                     |
-| prometheus               | HTTP    | `/-/healthy`                                              |
-| grafana                  | HTTP    | `/api/health`                                             |
-| alertmanager             | HTTP    | `/-/healthy`                                              |
-| tempo / loki / pyroscope | HTTP    | `/ready`                                                  |
-
-### Health Check Response Examples
-
-**AI Gateway Health Endpoint (`:8090/health`)** — aggregated Triton model readiness:
+`GET http://localhost:8090/health` (`ai/gateway/main.py`) returns:
 
 ```json
 {
   "status": "healthy",
   "triton_server_ready": true,
-  "models": { "yolo26": true, "florence2": true, "clip": true },
-  "models_loaded": 13,
-  "models_total": 13
+  "models": { "yolo26": true, "reid": true },
+  "models_loaded": 2,
+  "models_total": 2
 }
 ```
 
-(`status` is `"degraded"` while any Triton model is still loading. The standalone `ai/yolo26` dev server answers `/health` with `model_loaded` and `gpu_memory_health` fields instead.)
+`status` is `healthy` only when Triton itself is ready **and** every active model
+reports ready; otherwise it is `degraded`. With `GATEWAY_ENABLE_THREAT=true` the
+`threat` model joins the map, so `models_total` becomes 3 — the counts are
+whatever the mounted repository holds, not a fixed 13.
 
-**Backend Readiness Endpoint (`/api/system/health/ready`):**
+### Verifying From the Host
 
-```json
-{
-  "ready": true,
-  "status": "ready",
-  "services": {
-    "database": { "status": "healthy" },
-    "redis": { "status": "healthy" },
-    "ai": { "status": "healthy" }
-  },
-  "workers": [],
-  "timestamp": "2026-09-22T10:00:00Z"
-}
+```bash
+curl -s http://localhost:8090/health | jq '{status, triton_server_ready, models, models_loaded, models_total}'
+curl -s http://localhost:8000/api/system/health/ready | jq .
+# ai-vlm, only when the vlm profile is up:
+curl -s http://localhost:8098/health | jq .
 ```
 
 ---
 
 ## Dependency Graph
 
-### Service Dependencies
+### Compose Dependency Diagram
 
 ```mermaid
-graph TD
-    subgraph Data["Data Layer"]
-        PG[PostgreSQL<br/>port:5432]
-        RD[Redis<br/>port:6379]
-    end
+flowchart TD
+    PG[postgres]
+    RD[redis]
+    G2[go2rtc]
+    FI[foscam-init]
+    GW[ai-gateway port:8090]
+    BE[backend port:8000]
+    FE[frontend port:8080]
+    AM[alertmanager]
+    PR[prometheus]
+    GR[grafana]
+    LK[loki]
+    PY[pyroscope]
+    AL[alloy]
+    RX[redis-exporter]
 
-    subgraph AI["AI Services"]
-        GW[ai-gateway<br/>port:8090<br/>+metrics 8002]
-        NM[ai-llm<br/>port:8091]
-        G2[go2rtc<br/>port:1984]
-    end
+    BE -->|service_healthy| PG
+    BE -->|service_healthy| RD
+    BE -->|service_healthy| GW
+    BE -->|service_healthy| G2
+    BE -->|service_completed_successfully| FI
+    FE -->|service_started| BE
+    PR -->|service_healthy| AM
+    GR -->|service_healthy| PR
+    RX -->|service_healthy| RD
+    AL --> LK
+    AL --> PY
 
-    subgraph App["Application"]
-        BE[Backend<br/>port:8000]
-        FE[Frontend<br/>port:8080/8444]
-    end
-
-    subgraph Mon["Monitoring"]
-        PR[Prometheus<br/>port:9090]
-        GR[Grafana<br/>port:3002]
-        TP[Tempo<br/>port:3200]
-        AL[Alertmanager<br/>port:9093]
-    end
-
-    %% Hard dependencies (must be healthy)
-    BE --> PG
-    BE --> RD
-    BE --> GW
-    BE --> NM
-    BE --> G2
-    FE --> BE
-    GR --> PR
-
-    style PG fill:#c8e6c9
-    style RD fill:#c8e6c9
-    style GW fill:#fff3e0
-    style NM fill:#fff3e0
-    style BE fill:#e1f5fe
-    style FE fill:#e1f5fe
+    VLM[ai-vlm port:8098<br/>profile vlm]
+    VLLM[ai-llm-vllm host:8097<br/>profile vllm]
 ```
 
-**Legend:**
-
-- Solid arrows: Hard dependencies (compose `depends_on` with `condition: service_healthy` — backend also waits for the one-shot `foscam-init` to complete)
+`ai-vlm` and `ai-llm-vllm` have no `depends_on` edges in either direction: the
+profiles gate their existence, and the backend reaches `ai-vlm` over HTTP at
+runtime rather than through a compose ordering.
 
 ### Dependency Matrix
 
-| Service    | Hard Dependencies (compose)                              | Soft Dependencies | Auto-Recovers |
-| ---------- | -------------------------------------------------------- | ----------------- | ------------- |
-| postgres   | None                                                     | None              | Yes           |
-| redis      | None                                                     | None              | Yes           |
-| ai-gateway | GPU                                                      | None              | Yes           |
-| ai-llm     | GPU                                                      | None              | Yes           |
-| go2rtc     | None                                                     | Cameras           | Yes           |
-| backend    | postgres, redis, ai-gateway, ai-llm, go2rtc, foscam-init | None              | Yes           |
-| frontend   | backend                                                  | None              | Yes           |
-| prometheus | None                                                     | None              | Yes           |
-| grafana    | prometheus (data source)                                 | None              | Yes           |
+| Service              | Depends on (compose)                                                   | On the AI path             |
+| -------------------- | ---------------------------------------------------------------------- | -------------------------- |
+| postgres             | —                                                                      | —                          |
+| redis                | —                                                                      | —                          |
+| go2rtc               | —                                                                      | —                          |
+| foscam-init          | —                                                                      | —                          |
+| ai-gateway           | —                                                                      | Triton: `yolo26` (+`reid`) |
+| ai-vlm               | — (profile `vlm`)                                                      | the VLM stage itself       |
+| ai-llm-vllm          | — (profile `vllm`)                                                     | optional benchmark engine  |
+| backend              | postgres, redis, ai-gateway, go2rtc (healthy); foscam-init (completed) | yes — calls the gateway    |
+| frontend             | backend (started)                                                      | —                          |
+| prometheus           | alertmanager (healthy)                                                 | —                          |
+| grafana              | prometheus (healthy)                                                   | —                          |
+| redis-exporter       | redis (healthy)                                                        | —                          |
+| alloy                | loki, pyroscope                                                        | —                          |
+| every other exporter | —                                                                      | —                          |
 
 ---
 
 ## Self-Healing Recovery
 
-### Exponential Backoff Algorithm
+### Restart Flow
 
-The orchestrator uses exponential backoff for restart attempts:
-
-```python
-def calculate_backoff(failure_count: int, base: float, max_backoff: float) -> float:
-    """Calculate backoff: base * 2^failure_count, capped at max_backoff."""
-    return min(base * (2**failure_count), max_backoff)
+```mermaid
+flowchart TD
+    A[Health Check Cycle] --> B{Healthy?}
+    B -->|Yes| C[Reset failure counter]
+    B -->|No| D[Increment failure counter]
+    D --> E{Failures >= max_failures?}
+    E -->|Yes| F[Disable auto-restart<br/>broadcast Service disabled]
+    E -->|No| G{Backoff elapsed?}
+    G -->|No| H[Skip this cycle]
+    G -->|Yes| I[Restart container]
+    I --> J{Restart succeeded?}
+    J -->|Yes| K[Clear backoff<br/>broadcast Restart completed]
+    J -->|No| L[Broadcast Restart failed]
 ```
 
-**Example progression (base=5.0, max=300.0):**
+### Backoff Calculation
 
-| Failure # | Backoff Delay |
-| --------- | ------------- |
-| 1         | 5s            |
-| 2         | 10s           |
-| 3         | 20s           |
-| 4         | 40s           |
-| 5         | 80s           |
-| 6         | 160s          |
-| 7+        | 300s (capped) |
+`LifecycleManager` computes the delay as `min(base * 2^attempt, max_backoff)`
+(`backend/services/lifecycle_manager.py`), so with the AI category defaults
+(base 5.0s, max 300s) consecutive failures wait 5s, 10s, 20s, 40s, 80s, 160s,
+then 300s. `restart_backoff_base` / `restart_backoff_max` come from the
+`orchestrator.*` labels, else the category defaults.
 
 ### Recovery States
 
@@ -415,30 +406,45 @@ stateDiagram-v2
 
 ### Service Status Values
 
-| Status      | Description                                          |
-| ----------- | ---------------------------------------------------- |
-| `RUNNING`   | Container running and health checks passing          |
-| `STARTING`  | Container starting, in grace period                  |
-| `UNHEALTHY` | Health check failed, awaiting restart                |
-| `STOPPED`   | Container stopped                                    |
-| `DISABLED`  | Auto-restart disabled (manual intervention required) |
-| `NOT_FOUND` | Container not found in Docker                        |
+`ContainerServiceStatus` (`backend/api/schemas/services.py`, re-exported by
+`backend/services/orchestrator/enums.py`) is a `StrEnum` built with `auto()`, so
+the wire values are the lowercased names — `running`, `starting`, `unhealthy`,
+`stopped`, `disabled`, `not_found`:
+
+| Status      | Description                                                      |
+| ----------- | ---------------------------------------------------------------- |
+| `RUNNING`   | Container running and health checks passing                      |
+| `STARTING`  | Container starting, in grace period                              |
+| `UNHEALTHY` | Health check failed, awaiting restart                            |
+| `STOPPED`   | Container stopped                                                |
+| `DISABLED`  | Auto-restart disabled (manual intervention required)             |
+| `NOT_FOUND` | Container not found in Docker (also the initial default on load) |
 
 ### Category-Specific Defaults
 
-| Category       | Max Failures | Base Backoff | Max Backoff |
-| -------------- | ------------ | ------------ | ----------- |
-| Infrastructure | 10           | 2.0s         | 60s         |
-| AI             | 5            | 5.0s         | 300s        |
-| Monitoring     | 5            | 10.0s        | 120s        |
+From `backend/services/compose_parser.py` (`CATEGORY_DEFAULTS`) — applied when
+the service carries no `orchestrator.*` label:
+
+| Category       | Grace Period | Max Failures | Base Backoff | Max Backoff |
+| -------------- | ------------ | ------------ | ------------ | ----------- |
+| Infrastructure | 15s          | 10           | 2.0s         | 60s         |
+| AI             | 60s          | 5            | 5.0s         | 300s        |
+| Monitoring     | 30s          | 5            | 10.0s        | 120s        |
 
 ---
 
 ## Service Categories
 
+The compose file carries **no** `orchestrator.*` labels, so every value below
+comes from the parser: category by explicit list or name prefix, display name by
+`_format_display_name()`, grace period by the healthcheck `start_period` (else the
+category default), max failures by the healthcheck `retries` (else the category
+default).
+
 ### Infrastructure Services
 
-Critical services required for application operation (explicit list in `compose_parser.INFRASTRUCTURE_SERVICES`):
+Critical services required for application operation (explicit list in
+`compose_parser.INFRASTRUCTURE_SERVICES`):
 
 | Service  | Display Name | Port | Grace Period                                       |
 | -------- | ------------ | ---- | -------------------------------------------------- |
@@ -452,35 +458,51 @@ Critical services required for application operation (explicit list in `compose_
 
 GPU-accelerated AI inference services (any `ai-*` service name is categorized AI):
 
-| Service    | Display Name   | Port                 | Grace Period | VRAM                                            |
-| ---------- | -------------- | -------------------- | ------------ | ----------------------------------------------- |
-| ai-gateway | Gateway        | 8090 (+8002 metrics) | 180s         | Detection + enrichment models, loaded on demand |
-| ai-llm     | LLM (Nemotron) | 8091                 | 300s         | ~14.7GB GGUF on disk, ~21GB resident (30B prod) |
+| Service     | Display Name | Port                        | Grace Period | Profile   | What it holds                                                  |
+| ----------- | ------------ | --------------------------- | ------------ | --------- | -------------------------------------------------------------- |
+| ai-gateway  | Gateway      | 8090 (+8002 Triton metrics) | 180s         | (default) | Triton + FastAPI; the `GATEWAY_MODEL_SET` repository, resident |
+| ai-vlm      | Vlm          | 8098                        | 120s         | `vlm`     | one llama.cpp server, one GGUF pair                            |
+| ai-llm-vllm | Llm Vllm     | 8097 → container 8000       | 300s         | `vllm`    | optional vLLM benchmarking engine                              |
 
-> **Note:** Detection/enrichment models (YOLO26, Florence-2, CLIP, enrichment) all run inside `ai-gateway`'s Triton process — the standalone `ai-florence`/`ai-clip`/`ai-enrichment` containers no longer exist in `docker-compose.prod.yml`. Nemotron VRAM depends on model selection: Mini 4B (~3GB) is the host-dev default for `./ai/start_llm.sh`; the production container runs Nemotron-3-Nano-30B-A3B Q4_K_M.
-
-`ai-llm-vllm` (port 8097) exists in the compose file behind the `vllm` profile and does not start by default.
+Detection and re-ID models all run inside `ai-gateway`'s Triton process, and the
+VLM stage runs in `ai-vlm`. Triton starts with `--model-control-mode=none`: the
+repository is sized at container start, resident from then on, and never loaded,
+unloaded, or evicted at runtime — see
+[GPU Memory Limits](./gpu-memory-limits.md).
 
 ### Monitoring Services
 
-Observability and alerting stack:
+Observability and alerting stack (category by `CATEGORY_PREFIXES`):
 
-| Service           | Display Name      | Port  | Grace Period |
-| ----------------- | ----------------- | ----- | ------------ |
-| prometheus        | Prometheus        | 9090  | 30s          |
-| grafana           | Grafana           | 3002  | 30s          |
-| alertmanager      | Alertmanager      | 9093  | 30s          |
-| tempo             | Tempo             | 3200  | 30s          |
-| loki              | Loki              | 3100  | 30s          |
-| pyroscope         | Pyroscope         | 4040  | 30s          |
-| alloy             | Alloy             | 12345 | 30s          |
-| node-exporter     | Node Exporter     | 9100  | 30s          |
-| blackbox-exporter | Blackbox Exporter | 9115  | 30s          |
-| dcgm-exporter     | Dcgm Exporter     | 9400  | 30s          |
-| redis-exporter    | Redis Exporter    | 9121  | 30s          |
-| json-exporter     | JSON Exporter     | 7979  | 30s          |
+| Service           | Display Name      | Port  | Grace Period                                       |
+| ----------------- | ----------------- | ----- | -------------------------------------------------- |
+| prometheus        | Prometheus        | 9090  | 30s (category default — no compose `start_period`) |
+| grafana           | Grafana           | 3002  | 30s (category default)                             |
+| alertmanager      | Alertmanager      | 9093  | 30s (category default)                             |
+| tempo             | Tempo             | 3200  | 30s (category default)                             |
+| loki              | Loki              | 3100  | 30s (category default)                             |
+| pyroscope         | Pyroscope         | 4040  | 30s (category default)                             |
+| alloy             | Grafana Alloy     | 12345 | 30s (category default)                             |
+| node-exporter     | Node Exporter     | 9100  | 30s (category default)                             |
+| blackbox-exporter | Blackbox Exporter | 9115  | 30s (category default)                             |
+| dcgm-exporter     | DCGM Exporter     | 9400  | 30s (category default; profile `gpu-rootful`)      |
+| redis-exporter    | Redis Exporter    | 9121  | 30s (category default; healthcheck disabled)       |
+| json-exporter     | JSON Exporter     | 7979  | 30s (category default)                             |
 
-Distributed tracing is served by **Tempo** — there is no Jaeger container, and no Jaeger residue remains: the category-inference table maps the `tempo` prefix (`compose_parser.CATEGORY_PREFIXES`), the port default is `tempo_port` (`TEMPO_PORT`, which replaced `jaeger_port`), and `.env.example` carries only a retirement comment where the JAEGER\_\* block used to be.
+Distributed tracing is served by **Tempo** — there is no Jaeger container.
+
+### Compose Inventory
+
+`docker-compose.prod.yml` declares 21 services on one network (`security-net`):
+`postgres`, `ai-vlm`, `ai-llm-vllm`, `ai-gateway`, `foscam-init`, `backend`,
+`redis`, `go2rtc`, `frontend`, `tempo`, `prometheus`, `grafana`,
+`redis-exporter`, `json-exporter`, `alertmanager`, `blackbox-exporter`, `loki`,
+`pyroscope`, `node-exporter`, `dcgm-exporter`, `alloy`.
+
+Named volumes: `postgres_data`, `redis_data`, `tempo_data`, `hf_cache`,
+`prometheus_data`, `grafana_data`, `alertmanager_data`, `loki_data`,
+`pyroscope_data`, `alloy_symb_cache`, `frontend_certs`, `triton-kernel-cache`,
+`triton-tmp-cache`, `llama-cache`, `llama-nv-cache`.
 
 ---
 
@@ -488,38 +510,52 @@ Distributed tracing is served by **Tempo** — there is no Jaeger container, and
 
 ### Environment Variables
 
-The orchestrator is configured via environment variables with the `ORCHESTRATOR_` prefix (`OrchestratorSettings` in `backend/core/config.py`):
+The orchestrator is configured via environment variables with the `ORCHESTRATOR_`
+prefix (`OrchestratorSettings` in `backend/core/config.py`):
 
 | Variable                                | Default                                                                          | Description                                                                        |
 | --------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `ORCHESTRATOR_ENABLED`                  | `true`                                                                           | Enable container orchestrator                                                      |
 | `ORCHESTRATOR_DOCKER_HOST`              | unset (Docker/Podman default; compose sets `unix:///var/run/podman/podman.sock`) | Docker/Podman API endpoint                                                         |
 | `ORCHESTRATOR_COMPOSE_FILE`             | `docker-compose.prod.yml`                                                        | Compose file parsed for dynamic service discovery; `None` = hardcoded configs only |
-| `ORCHESTRATOR_HEALTH_CHECK_INTERVAL`    | `30`                                                                             | Seconds between health checks                                                      |
-| `ORCHESTRATOR_HEALTH_CHECK_TIMEOUT`     | `5`                                                                              | Timeout for health check requests                                                  |
-| `ORCHESTRATOR_STARTUP_GRACE_PERIOD`     | `60`                                                                             | Global default grace period (per-service values come from compose)                 |
-| `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` | `5`                                                                              | Failures before auto-restart is disabled (per-service may override)                |
-| `ORCHESTRATOR_RESTART_BACKOFF_BASE`     | `5.0`                                                                            | Global backoff base (per-service comes from compose labels/category)               |
+| `ORCHESTRATOR_HEALTH_CHECK_INTERVAL`    | `30` (5-300)                                                                     | Seconds between health checks                                                      |
+| `ORCHESTRATOR_HEALTH_CHECK_TIMEOUT`     | `5` (1-60)                                                                       | Timeout for health check requests                                                  |
+| `ORCHESTRATOR_STARTUP_GRACE_PERIOD`     | `60` (10-600)                                                                    | Global default grace period (per-service values come from compose)                 |
+| `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` | `5` (1-50)                                                                       | Failures before auto-restart is disabled (per-service may override)                |
+| `ORCHESTRATOR_RESTART_BACKOFF_BASE`     | `5.0` (1.0-60.0)                                                                 | Global backoff base (per-service comes from compose labels/category)               |
 | `ORCHESTRATOR_RESTART_BACKOFF_MAX`      | `300.0`                                                                          | Global backoff cap                                                                 |
 | `ORCHESTRATOR_MONITORING_ENABLED`       | `true`                                                                           | Include monitoring services                                                        |
 
-Per-service overrides live in compose labels on each service (interpreted by `ComposeParser`):
-`orchestrator.category`, `orchestrator.display_name`, `orchestrator.startup_grace_period`, `orchestrator.max_failures`, `orchestrator.backoff_base`, `orchestrator.backoff_max`. With no label, grace comes from the service's healthcheck `start_period` (then the category default) and max-failures from its `retries`.
+Per-service overrides are available as compose labels (interpreted by
+`ComposeParser`): `orchestrator.enabled`, `orchestrator.category`,
+`orchestrator.display_name`, `orchestrator.startup_grace_period`,
+`orchestrator.max_failures`, `orchestrator.backoff_base`,
+`orchestrator.backoff_max`. With no label, category comes from
+`INFRASTRUCTURE_SERVICES` / `CATEGORY_PREFIXES`, grace from the healthcheck
+`start_period` (then the category default), and max-failures from `retries` (then
+the category default).
 
 ### Podman/Docker API Access
 
-The orchestrator talks to the container engine over its API socket. In the standard deployment this needs **no setup**: `docker-compose.prod.yml` mounts the host Podman socket into the backend container and sets `ORCHESTRATOR_DOCKER_HOST=unix:///var/run/podman/podman.sock` (it also mounts the compose file read-only so the parser can discover services). The socket comes from the `PODMAN_SOCKET` variable in `.env` — enable the socket on the host with:
+The orchestrator talks to the container engine over its API socket. In the
+standard deployment this needs **no setup**: `docker-compose.prod.yml` mounts the
+host Podman socket into the backend container and sets
+`ORCHESTRATOR_DOCKER_HOST=unix:///var/run/podman/podman.sock` (it also mounts the
+compose file read-only so the parser can discover services). The socket comes from
+the `PODMAN_SOCKET` variable in `.env` — enable the socket on the host with:
 
 ```bash
 systemctl --user enable --now podman.socket   # rootless: /run/user/$UID/podman/podman.sock
 # or system-wide: systemctl enable --now podman.socket
 ```
 
-A TCP listener (`podman system service --time=0 tcp:0.0.0.0:2375`) works as a fallback but is unnecessary and less secure — prefer the socket.
+A TCP listener (`podman system service --time=0 tcp:0.0.0.0:2375`) works as a
+fallback but is unnecessary and less secure — prefer the socket.
 
 ### Port Configuration
 
-Service ports come from the standard `.env` variables (read via Pydantic `validation_alias`, so `.env` remains the single source of truth):
+Service ports come from the standard `.env` variables (read via Pydantic
+`validation_alias`, so `.env` remains the single source of truth):
 
 ```python
 # backend/core/config.py (excerpt)
@@ -528,13 +564,19 @@ class OrchestratorSettings(BaseSettings):
     redis_port: int = Field(6379, validation_alias="REDIS_PORT")
     backend_port: int = Field(8000, validation_alias="API_PORT")
     go2rtc_port: int = Field(1984, validation_alias="GO2RTC_API_PORT")
-    nemotron_port: int = Field(8091, validation_alias="LLM_PORT")
+    ai_gateway_port: int = Field(8090, validation_alias="AI_GATEWAY_PORT")
+    vllm_port: int = Field(8097, validation_alias="VLLM_PORT")
     prometheus_port: int = Field(9090, validation_alias="PROMETHEUS_PORT")
     grafana_port: int = Field(3002, validation_alias="GRAFANA_PORT")
-    # ... etc
+    # ... plus redis_exporter_port, json_exporter_port, alertmanager_port,
+    # blackbox_exporter_port, tempo_port, loki_port, pyroscope_port,
+    # alloy_port (ALLOY_UI_PORT), node_exporter_port, cadvisor_port,
+    # dcgm_exporter_port, frontend_port (FRONTEND_INTERNAL_PORT)
 ```
 
-> **Note:** The `yolo26_port`/`florence_port`/`clip_port`/`enrichment_port`/`enrichment_light_port` fields were removed from `OrchestratorSettings` with the standalone-container retirement (NEM gateway consolidation) — the orchestrator never health-checked them directly. The `YOLO26_PORT=8095`/`FLORENCE_PORT=8092`/`CLIP_PORT=8093`/`ENRICHMENT_PORT=8094`/`ENRICHMENT_LIGHT_PORT=8096` values in `.env.example` are reference-only: nothing in the compose stack consumes them, and only `ai/start_detector.sh` reads one (`YOLO26_PORT`, falling back to 8090).
+`vllm_port` is the **host** port: compose maps `${VLLM_PORT:-8097}:8000`, and the
+in-container health check still targets port 8000 — the same host-port convention
+as Grafana's 3002-over-3000.
 
 ---
 
@@ -542,23 +584,27 @@ class OrchestratorSettings(BaseSettings):
 
 ### Health Endpoints
 
-| Endpoint                        | Method | Description                              |
-| ------------------------------- | ------ | ---------------------------------------- |
-| `/api/system/health`            | GET    | Basic health status                      |
-| `/api/system/health/ready`      | GET    | Kubernetes-style readiness probe         |
-| `/api/system/health/full`       | GET    | Comprehensive health with all services   |
-| `/api/health/ai-services`       | GET    | AI services health with circuit breakers |
-| `/api/system/monitoring/health` | GET    | Monitoring stack health                  |
+| Endpoint                        | Method | Description                                  |
+| ------------------------------- | ------ | -------------------------------------------- |
+| `/api/system/health`            | GET    | Basic health status                          |
+| `/api/system/health/live`       | GET    | Liveness probe                               |
+| `/api/system/health/ready`      | GET    | Readiness probe (what the healthcheck calls) |
+| `/api/system/health/websocket`  | GET    | WebSocket subsystem health                   |
+| `/api/system/health/full`       | GET    | Comprehensive health with all services       |
+| `/api/health/ai-services`       | GET    | AI services health with circuit breakers     |
+| `/api/system/monitoring/health` | GET    | Monitoring stack health                      |
 
 ### Service Management Endpoints
 
-| Endpoint                              | Method | Description                                   |
-| ------------------------------------- | ------ | --------------------------------------------- |
-| `/api/system/services`                | GET    | List all managed services                     |
-| `/api/system/services/{name}/restart` | POST   | Trigger manual restart (resets failure count) |
-| `/api/system/services/{name}/start`   | POST   | Start a stopped service                       |
-| `/api/system/services/{name}/enable`  | POST   | Enable auto-restart                           |
-| `/api/system/services/{name}/disable` | POST   | Disable auto-restart                          |
+Router prefix is `/api/system/services` (`backend/api/routes/services.py`):
+
+| Endpoint                              | Method | Description                                                        |
+| ------------------------------------- | ------ | ------------------------------------------------------------------ |
+| `/api/system/services`                | GET    | List all managed services (503 if the orchestrator is unavailable) |
+| `/api/system/services/{name}/restart` | POST   | Trigger manual restart (resets failure count)                      |
+| `/api/system/services/{name}/start`   | POST   | Start a stopped service                                            |
+| `/api/system/services/{name}/enable`  | POST   | Enable auto-restart                                                |
+| `/api/system/services/{name}/disable` | POST   | Disable auto-restart                                               |
 
 There is no `GET /api/system/services/{name}` — fetch the list and filter by `name`.
 
@@ -587,7 +633,8 @@ Service status changes are broadcast via WebSocket:
 }
 ```
 
-**Event Messages:**
+**Event Messages** (the strings `_broadcast_status()` emits in
+`backend/services/container_orchestrator.py`):
 
 | Message                                   | Description                       |
 | ----------------------------------------- | --------------------------------- |
@@ -607,13 +654,12 @@ Service status changes are broadcast via WebSocket:
 
 ### Common Failure Scenarios
 
-#### Scenario 1: AI Service GPU Out of Memory
+#### Scenario 1: GPU Out Of Memory
 
 **Symptoms:**
 
-- AI service health checks failing
+- `ai-gateway` fails its health check within its start period, or Triton logs a load failure
 - GPU memory usage at 100%
-- Other AI services may be affected
 
 **Recovery Steps:**
 
@@ -624,17 +670,18 @@ nvidia-smi
 # 2. Identify memory-hogging processes
 nvidia-smi --query-compute-apps=pid,used_memory --format=csv
 
-# 3. Stop affected containers
-podman compose -f docker-compose.prod.yml stop ai-llm ai-gateway
+# 3. Stop the GPU consumers
+podman compose -f docker-compose.prod.yml stop ai-gateway
 
-# 4. Clear GPU memory
-nvidia-smi --gpu-reset  # If supported
-
-# 5. Restart services one at a time
-podman compose -f docker-compose.prod.yml start ai-llm
-# Wait for health check to pass
+# 4. Restart one at a time, waiting for health between them
 podman compose -f docker-compose.prod.yml start ai-gateway
+podman compose -f docker-compose.prod.yml ps ai-gateway
 ```
+
+Nothing evicts at runtime, so an OOM is a sizing problem: the mounted Triton
+repository (and whether `GATEWAY_ENABLE_THREAT=true` added the threat model) is
+what has to fit. See
+[GPU Memory Limits](./gpu-memory-limits.md) for which knobs shrink the footprint.
 
 #### Scenario 2: Database Connection Pool Exhausted
 
@@ -736,9 +783,9 @@ podman compose -f docker-compose.prod.yml logs -f ai-gateway
 podman compose -f docker-compose.prod.yml logs backend | grep -E "orchestrator|health"
 
 # Test individual health endpoint
-curl http://localhost:8090/health  # ai-gateway
-curl http://localhost:8091/health  # ai-llm
-curl http://localhost:8000/api/system/health/ready  # backend
+curl http://localhost:8090/health                       # ai-gateway
+curl http://localhost:8000/api/system/health/ready      # backend
+curl http://localhost:8098/health                       # ai-vlm (profile vlm only)
 
 # Check GPU status
 nvidia-smi
@@ -749,14 +796,15 @@ podman info --format '{{.Host.RemoteSocket.Path}}' 2>/dev/null || podman ps
 
 ### Common Issues
 
-| Issue                           | Possible Cause         | Solution                                  |
-| ------------------------------- | ---------------------- | ----------------------------------------- |
-| Service stuck in UNHEALTHY      | Backoff period active  | Wait for backoff or manually restart      |
-| All AI services failing         | GPU driver issue       | Run `nvidia-smi`, restart GPU services    |
-| Health checks timing out        | Service overloaded     | Increase timeout, check resource limits   |
-| Container not discovered        | Name pattern mismatch  | Check container name contains service key |
-| State not persisting            | Redis connection issue | Check Redis health, verify connection     |
-| WebSocket not receiving updates | Broadcast disabled     | Check `broadcast_fn` configuration        |
+| Issue                                  | Possible Cause                     | Solution                                        |
+| -------------------------------------- | ---------------------------------- | ----------------------------------------------- |
+| Service stuck in UNHEALTHY             | Backoff period active              | Wait for backoff or manually restart            |
+| All AI services failing                | GPU driver issue                   | Run `nvidia-smi`, restart GPU services          |
+| Health checks timing out               | Service overloaded                 | Increase timeout, check resource limits         |
+| Container not discovered               | Name pattern mismatch              | Check container name contains service key       |
+| State not persisting                   | Redis connection issue             | Check Redis health, verify connection           |
+| WebSocket not receiving updates        | Broadcast disabled                 | Check `broadcast_fn` configuration              |
+| Profiled service missing from the list | `vlm` / `vllm` profile not enabled | Start with `podman compose --profile vlm up -d` |
 
 ### Log Messages Reference
 
@@ -775,7 +823,8 @@ podman info --format '{{.Host.RemoteSocket.Path}}' 2>/dev/null || podman ps
 
 ## See Also
 
-- [Deployment Guide](../operator/deployment/README.md) - Full deployment instructions
+- [GPU Memory Limits](./gpu-memory-limits.md) - GPU assignment and memory bounds
+- [YOLO26 Deployment Guide](./yolo26-migration.md) - The detector inside `ai-gateway`
 - [Monitoring Guide](../operator/monitoring/README.md) - Observability setup
 - [AI Services](../operator/ai-services.md) - AI service configuration
 - [Service Control](../operator/service-control.md) - Manual service management
@@ -807,8 +856,6 @@ backend:
       condition: service_healthy
     ai-gateway:
       condition: service_healthy
-    ai-llm:
-      condition: service_healthy
     go2rtc:
       condition: service_healthy
     foscam-init:
@@ -823,14 +870,15 @@ ai-gateway:
     retries: 5
     start_period: 180s
 
-# LLM health check (30B GGUF needs minutes to load)
-ai-llm:
+# VLM engine health check (profile: vlm; GGUF pair takes minutes to load)
+ai-vlm:
+  profiles: ['vlm']
   healthcheck:
-    test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
+    test: ['CMD', 'curl', '-f', 'http://localhost:8098/health']
     interval: 10s
     timeout: 5s
     retries: 3
-    start_period: 300s
+    start_period: 120s
 
 # Infrastructure health check
 postgres:

@@ -1,14 +1,15 @@
 ---
 title: NeMo Data Designer Integration
+last_updated: 2026-10-02
 source_refs:
   - docs/plans/2026-01-21-nemo-data-designer-integration-design.md
-  - tools/nemo_data_designer/
-  - backend/tests/fixtures/synthetic/
+  - tools/nemo_data_designer/README.md:1
+  - backend/tests/fixtures/synthetic/images/README.md:1
 ---
 
 # NeMo Data Designer Integration
 
-This document covers the integration of NVIDIA NeMo Data Designer for synthetic data generation to improve testing coverage and Nemotron prompt quality.
+This document covers the integration of NVIDIA NeMo Data Designer for synthetic data generation to improve testing coverage and VLM prompt quality.
 
 ## Overview
 
@@ -139,8 +140,6 @@ uv run python tools/nemo_data_designer/generate_scenarios.py \
 
 The evaluation harness compares prompt templates against synthetic scenarios.
 
-See the [Prompt Evaluation Results](prompt-evaluation-results.md) document for metrics tracking.
-
 ```bash
 # Run full evaluation suite
 uv run pytest backend/tests/integration/test_nemotron_prompts.py -v
@@ -211,7 +210,7 @@ Narrative text generation:
 | Column                 | Type   | Purpose                                |
 | ---------------------- | ------ | -------------------------------------- |
 | `scenario_narrative`   | string | Human-readable scenario description    |
-| `expected_summary`     | string | Expected Nemotron summary output       |
+| `expected_summary`     | string | Expected VLM summary output            |
 | `reasoning_key_points` | string | Comma-separated reasoning expectations |
 
 ### LLM-Judge Columns (6)
@@ -398,6 +397,5 @@ uv run pip show data-designer
 ## Related Documentation
 
 - [Design Document](../plans/2026-01-21-nemo-data-designer-integration-design.md) - Full integration design
-- [Prompt Evaluation Results](prompt-evaluation-results.md) - Metrics tracking template
 - [Testing Guide](testing.md) - General test infrastructure
 - [Testing Workflow](testing-workflow.md) - TDD practices

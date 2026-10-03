@@ -81,15 +81,23 @@ The script ([`ai/download_models.sh`](https://github.com/mikesvoboda/nemotron-v3
 
 ### What it downloads
 
-| Model                                               | Size    | Purpose                | Destination                                                    |
-| --------------------------------------------------- | ------- | ---------------------- | -------------------------------------------------------------- |
-| **Nemotron-3-Nano-30B** (Q4_K_M)                    | ~14.7GB | Risk analysis (LLM)    | `$AI_MODELS_PATH/nemotron/nemotron-3-nano-30b-a3b-q4km/`       |
-| **YOLO26v2** (`PekingU/yolo26_r50vd_coco_o365`)     | ~165MB  | Object detection       | Not downloaded — HuggingFace fetches it on first service start |
-| **Florence-2-Large**                                | varies  | Scene description      | `$AI_MODELS_PATH/model-zoo/`                                   |
-| **CLIP ViT-L**, **Fashion-CLIP**, enrichment models | varies  | Embeddings, attributes | `$AI_MODELS_PATH/model-zoo/`                                   |
-| **YOLO26** Ultralytics variants                     | ~67MB   | Detection (backup)     | `$AI_MODELS_PATH/model-zoo/yolo26/`                            |
+Five artifacts, and `models.yml` at the repo root is the authority on which (`setup_lib/models_config.get_downloadable_models()` is the rule):
 
-If a Nemotron GGUF already exists anywhere the script searches (`$NEMOTRON_GGUF_PATH`, `/export/ai_models/weights/`, the HuggingFace cache), it links or copies that file instead of re-downloading 14.7GB.
+| Model                    | Size   | Purpose                                               | Destination                                           |
+| ------------------------ | ------ | ----------------------------------------------------- | ----------------------------------------------------- |
+| YOLO26 n/s/m `.pt`       | ~67MB  | Triton export input for the gateway's `yolo26`        | `$AI_MODELS_PATH/model-zoo/yolo26/`                   |
+| OSNet-AIN x1.0           | ~10MB  | Person re-ID (Triton `reid` + backend `osnet_loader`) | `$AI_MODELS_PATH/model-zoo/osnet-ain-x1-0/`           |
+| Threat-Detection-YOLOv8n | ~25MB  | Weapon detection (Triton `threat`)                    | `$AI_MODELS_PATH/model-zoo/threat-detection-yolov8n/` |
+| YOLO11 face              | ~11MB  | Face boxes on person crops                            | `$AI_MODELS_PATH/model-zoo/yolo11-face-detection/`    |
+| YOLO11 license-plate     | ~650MB | Plate boxes                                           | `$AI_MODELS_PATH/model-zoo/yolo11-license-plate/`     |
+
+Everything the pipeline needs arrives another way, and the script says so in its header:
+
+- **The reasoning engine's weights.** `${AI_MODELS_PATH}/vlm/` is where you put the GGUF pair named by `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` — the script creates that directory and never fills it, because identity is operator config. Compose mounts the directory read-only into `ai-vlm` at `/models`.
+- **The face leg.** `scrfd_10g_bnkps.onnx` and `w600k_r50.onnx`, unpacked by hand from InsightFace `buffalo_l.zip`; both `models.yml` rows are `download_method: skip` with a sha256 pin.
+- **`fast-alpr` and `paddleocr`.** The libraries fetch what they need at runtime.
+
+See [Models Reference](../reference/models.md#model-download) for sources and pins.
 
 ---
 
@@ -105,17 +113,19 @@ FOSCAM_BASE_PATH=/export/foscam
 AI_MODELS_PATH=/export/ai_models
 
 # GPU assignment (see docs/developer/multi-gpu.md)
-GPU_LLM=0            # GPU running Nemotron
-GPU_AI_SERVICES=1    # GPU running the ai-gateway models
+GPU_LLM=0            # card the ai-vlm container gets
+GPU_AI_SERVICES=1    # card the ai-gateway (Triton) models get
 ```
 
-AI service URLs are already set correctly for the containerized deployment in both `.env.example` and the compose file itself — every model except Nemotron routes through the AI gateway:
+AI service URLs are already set correctly for the containerized deployment in both `.env.example` and the compose file itself:
 
 ```bash
-AI_GATEWAY_URL=http://ai-gateway:8090
-YOLO26_URL=http://ai-gateway:8090/yolo26      # also /florence /clip /enrichment /enrich-lt
-NEMOTRON_URL=http://ai-llm:8091               # llama.cpp keeps its own container
+AI_GATEWAY_URL=http://ai-gateway:8090         # gateway base, used with USE_AI_GATEWAY=true
+YOLO26_URL=http://ai-gateway:8090/yolo26      # detection; the gateway's other router is /enrich-lt
+AI_VLM_URL=http://ai-vlm:8098                 # reasoning serve (compose profile `vlm`)
 ```
+
+`ai-vlm` sits behind the `vlm` compose profile, so a plain `up -d` starts the gateway and not the serve — see [First Run](first-run.md).
 
 Inside the backend container the camera directory is always mounted at `/cameras`, regardless of your host path (the compose file sets `FOSCAM_BASE_PATH=/cameras` for the backend service).
 
@@ -141,8 +151,9 @@ Inside the backend container the camera directory is always mounted at `/cameras
 # .env and override exist and .env is private
 ls -l .env docker-compose.override.yml
 
-# Models are present
-ls -lh /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/
+# Model-zoo artifacts and your own VLM weights
+ls -lh /export/ai_models/model-zoo/yolo26/ /export/ai_models/model-zoo/osnet-ain-x1-0/
+ls -lh /export/ai_models/vlm/        # the GGUF + mmproj you placed here
 
 # Compose file resolves with your .env
 docker compose -f docker-compose.prod.yml config -q   # silent = valid
@@ -173,9 +184,11 @@ python3 --version
 # Check connectivity to HuggingFace
 curl -I https://huggingface.co
 
-# Point the script at a pre-downloaded file instead
-export NEMOTRON_GGUF_PATH=/your/local/model.gguf
+# The five artifacts come from GitHub releases and HuggingFace; retry
 ./ai/download_models.sh
+
+# A model-zoo row whose weights failed the sha256 pin is reported and skipped —
+# re-run rather than hand-placing a file, since the loaders verify the pin too
 ```
 
 ### Node.js dependency issues (dev environment)

@@ -22,8 +22,8 @@ flowchart TB
     end
 
     subgraph AI["AI Services Layer"]
-        GW["ai-gateway :8090<br/>YOLO26 · Florence-2 ·<br/>CLIP · Enrichment<br/>(via Triton)"]
-        LLM["Nemotron 30B<br/>Risk Analysis<br/>:8091"]
+        GW["ai-gateway :8090<br/>YOLO26 · re-ID<br/>(via Triton)"]
+        VLM["ai-vlm :8098<br/>Qwen3VL-8B<br/>llama.cpp llama-server"]
     end
 
     subgraph Data["Data Layer"]
@@ -35,7 +35,7 @@ flowchart TB
     FE <-->|REST API| BE
     FE <-->|WebSocket| WS
     BE --> GW
-    BE --> LLM
+    BE --> VLM
     BE <--> PG
     BE <--> RD
     BE --> FS
@@ -45,18 +45,20 @@ flowchart TB
 
 ![Service Dependency Graph](../../images/architecture/service-dependencies.png)
 
-| Service          | Port                        | Container      | Source                         | Description                                                      |
-| ---------------- | --------------------------- | -------------- | ------------------------------ | ---------------------------------------------------------------- |
-| **Frontend**     | host 8444 HTTPS / 8080 HTTP | `frontend`     | `frontend/`                    | React dashboard with real-time updates                           |
-| **Backend**      | 8000                        | `backend`      | `backend/main.py:1314`         | FastAPI server with WebSocket support                            |
-| **PostgreSQL**   | 5432                        | `postgres`     | `docker-compose.prod.yml:44`   | Primary database for events, detections                          |
-| **Redis**        | 6379                        | `redis`        | `docker-compose.prod.yml:540`  | Queues, pub/sub, batch state                                     |
-| **ai-gateway**   | 8090 (+8002 metrics)        | `ai-gateway`   | `ai/gateway/`                  | YOLO26, Florence-2, CLIP and enrichment models served via Triton |
-| **Nemotron LLM** | 8091                        | `ai-llm`       | `ai/nemotron/`                 | Risk analysis via llama.cpp                                      |
-| **Prometheus**   | 9090                        | `prometheus`   | `docker-compose.prod.yml:871`  | Metrics collection                                               |
-| **Grafana**      | host 3002 (container 3000)  | `grafana`      | `docker-compose.prod.yml:915`  | Monitoring dashboards at `/grafana/` via proxy                   |
-| **Tempo**        | 3200                        | `tempo`        | `docker-compose.prod.yml:842`  | Distributed trace storage (replaces Jaeger)                      |
-| **Alertmanager** | 9093                        | `alertmanager` | `docker-compose.prod.yml:1044` | Alert routing                                                    |
+| Service          | Port                        | Container      | Source                         | Description                                                        |
+| ---------------- | --------------------------- | -------------- | ------------------------------ | ------------------------------------------------------------------ |
+| **Frontend**     | host 8444 HTTPS / 8080 HTTP | `frontend`     | `frontend/`                    | React dashboard with real-time updates                             |
+| **Backend**      | 8000                        | `backend`      | `backend/main.py:1449`         | FastAPI server with WebSocket support                              |
+| **PostgreSQL**   | 5432                        | `postgres`     | `docker-compose.prod.yml:44`   | Primary database for events, detections                            |
+| **Redis**        | 6379                        | `redis`        | `docker-compose.prod.yml:671`  | Queues, pub/sub, batch state                                       |
+| **ai-gateway**   | 8090 (+8002 metrics)        | `ai-gateway`   | `docker-compose.prod.yml:347`  | Triton serving `{yolo26, reid}`; mounts `/yolo26` and `/enrich-lt` |
+| **ai-vlm**       | 8098                        | `ai-vlm`       | `docker-compose.prod.yml:134`  | llama.cpp `llama-server` serving Qwen3VL-8B; compose profile `vlm` |
+| **Prometheus**   | 9090                        | `prometheus`   | `docker-compose.prod.yml:1002` | Metrics collection                                                 |
+| **Grafana**      | host 3002 (container 3000)  | `grafana`      | `docker-compose.prod.yml:1049` | Monitoring dashboards at `/grafana/` via proxy                     |
+| **Tempo**        | 3200                        | `tempo`        | `docker-compose.prod.yml:973`  | Distributed trace storage                                          |
+| **Alertmanager** | 9093                        | `alertmanager` | `docker-compose.prod.yml:1178` | Alert routing                                                      |
+
+There are exactly two AI services: `ai-gateway` and `ai-vlm`. ai-vlm is the only LLM service.
 
 ## Technology Stack
 
@@ -88,9 +90,10 @@ flowchart TB
         subgraph ML["AI/ML"]
             PyTorch["PyTorch 2.x"]
             Triton["Triton (ai-gateway)"]
-            YOLO26["YOLO26"]
-            Nemotron["Nemotron-3-Nano-30B"]
-            LlamaCpp["llama.cpp"]
+            YOLO26["YOLO26 (TensorRT)"]
+            VLM["Qwen3VL-8B-Instruct<br/>Q4_K_M + mmproj"]
+            LlamaCpp["llama.cpp llama-server (ai-vlm)"]
+            ONNX["onnxruntime lookups<br/>face · re-ID · ALPR"]
         end
 
         subgraph Infra["Infrastructure"]
@@ -113,10 +116,15 @@ flowchart TB
 ## Data Flow Summary
 
 1. **Image Capture**: Foscam cameras FTP upload images to `/export/foscam/{camera}/`
-2. **Detection**: FileWatcher queues images, YOLO26 performs object detection
-3. **Batching**: BatchAggregator groups detections (90s window, 30s idle timeout)
-4. **Analysis**: Nemotron LLM analyzes batches, assigns risk scores
-5. **Broadcast**: Events pushed via Redis pub/sub to WebSocket clients
+2. **Detection**: FileWatcher queues images onto `detections:stream`, YOLO26 performs object detection
+3. **Batching**: BatchAggregator groups detections (90s window, 30s idle timeout), closing a batch
+   publishes it to `analysis:stream`
+4. **Analysis**: `VlmAnalyzer.analyze_batch` selects 1-4 key frames, gathers the three in-process
+   lookup legs (faces, plates, person re-ID), and asks ai-vlm for a verdict; the verdict becomes the
+   event's `risk_score` / `risk_level` / `summary` / `reasoning` plus an `event_verifications` row
+5. **Broadcast**: `VlmAnalyzer._broadcast` publishes on the single `security_events` Redis channel;
+   each backend's broadcaster fans that out to its WebSocket clients
+   (`backend/services/vlm_analyzer.py:765-773`, `backend/services/event_broadcaster.py:346`)
 6. **Display**: React dashboard updates in real-time
 
 ## Script Dependencies
@@ -127,10 +135,10 @@ The project includes various scripts for development, testing, and deployment. T
 
 ## Related Documentation
 
-| Document                            | Purpose                             |
-| ----------------------------------- | ----------------------------------- |
-| `/docs/architecture/overview.md`    | Comprehensive architecture overview |
-| `/docs/architecture/decisions.md`   | Full ADR collection                 |
-| `/docs/architecture/ai-pipeline.md` | AI processing pipeline details      |
-| `/docs/architecture/real-time.md`   | WebSocket and pub/sub patterns      |
-| `/AGENTS.md`                        | Project navigation guide            |
+| Document                                          | Purpose                             |
+| ------------------------------------------------- | ----------------------------------- |
+| `/docs/architecture/overview.md`                  | Comprehensive architecture overview |
+| `/docs/architecture/decisions.md`                 | Full ADR collection                 |
+| `/docs/architecture/ai-pipeline-current-state.md` | AI processing pipeline as it runs   |
+| `/docs/architecture/real-time.md`                 | WebSocket and pub/sub patterns      |
+| `/AGENTS.md`                                      | Project navigation guide            |

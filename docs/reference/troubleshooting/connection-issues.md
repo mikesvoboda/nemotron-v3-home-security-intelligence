@@ -20,11 +20,11 @@
 ```bash
 # Check if service is listening (production compose binds these to 127.0.0.1)
 ss -tlnp | grep 8000   # Backend
-ss -tlnp | grep 8090   # AI Gateway (Triton: YOLO26, Florence, CLIP, enrichment)
-ss -tlnp | grep 8091   # Nemotron (llama.cpp)
+ss -tlnp | grep 8090   # ai-gateway (Triton: YOLO26 + the resident specialists)
+ss -tlnp | grep 8098   # ai-vlm (llama.cpp serve)
 
-# Check container status
-docker compose -f docker-compose.prod.yml ps
+# Check container status (--profile vlm so the VLM is not shown as stopped)
+docker compose -f docker-compose.prod.yml --profile vlm ps
 
 # Check container logs
 docker compose -f docker-compose.prod.yml logs backend
@@ -38,8 +38,8 @@ docker compose -f docker-compose.prod.yml logs backend
 # All services
 docker compose -f docker-compose.prod.yml up -d
 
-# AI services only
-docker compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
+# AI services only — the VLM needs its profile named
+docker compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
 ```
 
 **2. Check port conflicts:**
@@ -59,13 +59,19 @@ For Docker:
 - Services on same network can use service names (`postgres`, `redis`)
 - External access uses `localhost:PORT`
 
-For production compose, all AI models run inside `ai-gateway` (Triton) and the LLM runs
-in `ai-llm` — there are no standalone `ai-yolo26`/`ai-florence`/`ai-clip`/
-`ai-enrichment` containers. The backend reaches them by compose DNS:
+For production compose there are exactly two AI containers: `ai-gateway` (Triton —
+the detector and the resident specialists) and `ai-vlm` (llama.cpp, behind the `vlm`
+profile). The backend reaches them by compose DNS:
 
-- `ai-gateway:8090` (path-prefixed routers: `/yolo26`, `/florence`, `/clip`,
-  `/enrichment`, `/enrich-lt` — wired as `YOLO26_URL=http://ai-gateway:8090/yolo26`, etc.)
-- `ai-llm:8091`
+- `ai-gateway:8090` — two path-prefixed routers, `/yolo26` (object detection) and
+  `/enrich-lt` (readiness for the resident specialists). `YOLO26_URL` defaults to
+  `http://ai-gateway:8090/yolo26`.
+- `ai-vlm:8098` — the reasoning serve, dialed over `AI_VLM_URL`. The container-side
+  port is fixed at 8098 (`ai/vlm/Dockerfile:123`), so the internal URL never depends on
+  the host-side `AI_VLM_PORT` mapping.
+
+The `ai-vlm` link is an env var, not a compose dependency: a `depends_on` entry can
+never name a profiled service, so the backend starts whether or not the VLM is up.
 
 For native development:
 
@@ -363,9 +369,9 @@ VITE_API_BASE_URL=http://localhost:8000
 # Check service response time
 time curl http://localhost:8000/health
 
-# Check AI service response time (gateway aggregate + LLM)
+# Check AI service response time (gateway aggregate + reasoning serve)
 time curl http://localhost:8090/health
-time curl http://localhost:8091/health
+time curl http://localhost:8098/health
 ```
 
 ### Solutions
@@ -373,11 +379,16 @@ time curl http://localhost:8091/health
 **1. Increase timeout settings:**
 
 ```bash
-AI_CONNECT_TIMEOUT=30.0       # Default 10.0 (max 60)
-AI_HEALTH_TIMEOUT=10.0        # Default 5.0 (max 30)
-YOLO26_READ_TIMEOUT=120.0     # Default 30.0 (max 120)
-NEMOTRON_READ_TIMEOUT=300.0   # Default 120.0 (max 600)
+AI_CONNECT_TIMEOUT=30.0      # Default 10.0 (max 60)
+AI_HEALTH_TIMEOUT=10.0       # Default 5.0 (max 30)
+YOLO26_READ_TIMEOUT=120.0    # Default 30.0 (max 120)
+AI_VLM_READ_TIMEOUT=45.0     # Default 25.0 (max 300)
 ```
+
+`AI_VLM_READ_TIMEOUT` bounds one verdict attempt, and the retry it makes at
+temperature 0 shares that same budget — a value at or above 30 s leaves the retry no
+room. A sleeping `ai-vlm` is woken under a separate ceiling,
+`AI_VLM_WAKE_TIMEOUT_SECONDS` (default 90.0).
 
 **2. Check service load:**
 

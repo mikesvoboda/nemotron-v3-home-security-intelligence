@@ -2,7 +2,15 @@
 
 > Operational procedures for managing Pyroscope continuous profiling in production.
 
-> **Topology note (2026-09-22).** Since the AI-gateway consolidation, the only service that actually runs the py-spy profiler is **`backend`** (launched by `backend/entrypoint.sh`, log at `/app/data/logs/profiler.log`, service name `backend`), plus the backend's in-process Pyroscope SDK (application name `nemotron-backend`, `backend/core/telemetry.py`). The old per-AI-container profile names (`ai-yolo26`, `ai-florence`, `ai-clip`, …) no longer emit data: those containers are retired. `ai-llm` and `ai-gateway` declare `SERVICE_NAME`/`PYROSCOPE_*` env vars and a `pyroscope.profile` label, but neither image runs a profiler (llama.cpp is native code; the gateway is Triton) — treat those as placeholders.
+Profiling subjects in this deployment are exactly three profile names:
+`nemotron-backend` (the backend's in-process pyroscope-io SDK,
+`backend/core/telemetry.py::init_profiling`) and `backend` (the py-spy loop
+launched by `backend/entrypoint.sh:51`, log at
+`/app/data/logs/profiler.log`) — two views of the **same** backend process —
+plus `ai-vlm`, profiled from outside by Alloy's eBPF component because
+`llama-server` is native code (label `pyroscope.profile: 'true'`,
+`docker-compose.prod.yml:144-145`). `ai-gateway` runs Triton and pushes nothing.
+Mechanism details: [Continuous Profiling Guide](../guides/profiling.md).
 
 ## Quick Reference
 
@@ -13,18 +21,31 @@
 | Restart Pyroscope           | `podman compose -f docker-compose.prod.yml restart pyroscope`         |
 | View profiler log (backend) | `podman exec backend cat /app/data/logs/profiler.log`                 |
 | Check backend SDK profiling | `podman logs backend 2>&1 \| grep -i pyroscope`                       |
-| Disable profiling globally  | Set `PYROSCOPE_ENABLED=false` in `.env`                               |
+| Check the eBPF profiler     | `podman logs alloy 2>&1 \| grep -i pyroscope`                         |
+| Disable backend profiling   | Set `PYROSCOPE_ENABLED=false` in `.env`                               |
 | Profiling dashboard         | `http://localhost:3002/grafana/d/hsi-profiling` (uid `hsi-profiling`) |
+
+Grafana serves from the `/grafana/` sub-path
+(`GF_SERVER_ROOT_URL=/grafana/`, `GF_SERVER_SERVE_FROM_SUB_PATH=true`,
+`docker-compose.prod.yml:1085-1086`) on host port `${GRAFANA_PORT:-3002}`, bound
+to `127.0.0.1`.
 
 ---
 
 ## Automated Regression Alert Response Procedures
 
-This section covers response procedures for automated regression detection alerts (NEM-4133). Alert definitions: `monitoring/profiling-regression-alerts.yml`; recording rules: `monitoring/profiling-recording-rules.yml`.
+Response procedures for the automated regression alerts (NEM-4133). Alert
+definitions: `monitoring/profiling-regression-alerts.yml`; recording rules:
+`monitoring/profiling-recording-rules.yml`. Every ratio below is computed from
+Prometheus container metrics (`job:service_cpu_seconds:rate5m`,
+`job:service_memory_bytes:current`), so the alerts fire whether or not Pyroscope
+is receiving profiles.
 
 ### ALERT-REG-001: ServiceCPUSpike / ServiceCPUSpikeCritical
 
-**Alert Condition:** CPU usage >50% (warning) or >100% (critical) above 24-hour average for 15+ minutes.
+**Alert Condition:** `job:service_cpu_regression_ratio:5m_vs_24h > 1.5` for 15m
+(warning) or `> 2.0` for 10m (critical) — i.e. CPU 50% / 100% above its own
+24-hour average.
 
 **Symptoms:**
 
@@ -40,17 +61,17 @@ curl -s "http://localhost:9090/api/v1/query?query=job:service_cpu_regression_rat
 
 # 2. View CPU profile in Grafana Pyroscope
 # Open: http://localhost:3002/grafana/d/hsi-profiling
-# Select the affected service from dropdown (live names: "backend", "nemotron-backend")
+# Profile names this deployment can return: nemotron-backend, backend, ai-vlm
 
 # 3. Compare current vs baseline flame graphs
-# Enable "Comparison" mode in the dashboard
+# Use the "Profile Comparison" row (baseline_from / baseline_to variables)
 # Look for new hot functions or significantly increased function times
 
 # 4. Check for recent deployments
 git log --oneline --since="24 hours ago"
 
 # 5. Check if workload increased
-curl -s "http://localhost:9090/api/v1/query?query=rate(hsi_detections_processed_total[1h])" | jq
+curl -s "http://localhost:9090/api/v1/query?query=rate(hsi_stage_duration_seconds_count[10m])" | jq
 ```
 
 **Resolution:**
@@ -67,13 +88,14 @@ curl -s "http://localhost:9090/api/v1/query?query=rate(hsi_detections_processed_
 
 2. **If caused by increased workload:**
 
-   - Scale the service if possible
+   - Check the queue-depth gauges (`hsi_detection_queue_depth`,
+     `hsi_analysis_queue_depth`) before scaling
    - Implement rate limiting
-   - Optimize hot code paths identified in flame graph
+   - Optimize hot code paths identified in the flame graph
 
 3. **If caused by memory pressure (GC overhead):**
    - Check memory alerts alongside CPU
-   - Increase memory allocation
+   - Increase the container's host-RAM limit (`deploy.resources.limits.memory`)
    - Investigate memory leaks
 
 **Escalation:** If unresolved after 30 minutes, escalate to on-call engineer.
@@ -82,7 +104,9 @@ curl -s "http://localhost:9090/api/v1/query?query=rate(hsi_detections_processed_
 
 ### ALERT-REG-002: ServiceMemoryGrowth / ServiceMemoryGrowthCritical
 
-**Alert Condition:** Memory usage >25% (warning) or >50% (critical) above 6-hour average for 30+ minutes.
+**Alert Condition:** `(job:service_memory_regression_ratio:current_vs_6h - 1) >
+0.25` for 30m (warning) or `> 0.5` for 15m (critical) — RSS 25% / 50% above its
+own 6-hour average.
 
 **Symptoms:**
 
@@ -101,7 +125,8 @@ curl -s "http://localhost:9090/api/v1/query?query=job:service_memory_bytes:deriv
 
 # 3. Check memory profile in Pyroscope
 # Select "Memory Bytes" or "Memory Allocations" profile type
-# (backend has PYROSCOPE_MEMORY_ENABLED=true, so allocation profiles exist for it)
+# Allocation profiles exist only for nemotron-backend — the py-spy loop and the
+# eBPF profiler both emit process_cpu only
 # Look for functions allocating large amounts
 
 # 4. Check container memory limits
@@ -136,7 +161,9 @@ podman exec [container] python -c "import tracemalloc; tracemalloc.start()"
 
 ### ALERT-REG-003: PotentialMemoryLeak
 
-**Alert Condition:** Memory projected to double within 24 hours based on current growth rate.
+**Alert Condition:** `job:service_memory_bytes:predicted_24h >
+job:service_memory_bytes:current * 2` (with current RSS above 100 MB) for 1h —
+memory projected to double within 24 hours from the 1h `deriv` slope.
 
 **Symptoms:**
 
@@ -154,9 +181,8 @@ curl -s "http://localhost:9090/api/v1/query?query=job:service_memory_bytes:predi
 curl -s "http://localhost:9090/api/v1/query?query=job:service_memory_bytes:deriv1h" | jq '.data.result'
 
 # 3. Analyze memory allocation profile over time
-# In Grafana Pyroscope, compare memory profiles from:
-# - 6 hours ago
-# - Current
+# In Grafana Pyroscope (or the Pyroscope UI), compare alloc_space profiles for
+# nemotron-backend from 6 hours ago and from now
 # Look for functions with significantly more allocations
 
 # 4. For Python: enable memory profiling
@@ -182,7 +208,7 @@ for stat in snapshot.statistics('lineno')[:10]:
 
 2. **Investigation:**
 
-   - Use memory profiler to identify leak source
+   - Use the allocation profile to identify the leak source
    - Check for unclosed database connections
    - Check for unbounded caches or queues
    - Review recent code changes for retained references
@@ -196,7 +222,8 @@ for stat in snapshot.statistics('lineno')[:10]:
 
 ### ALERT-REG-004: BackendHighLatency / BackendHighLatencyCritical
 
-**Alert Condition:** Backend API P99 latency >2s (warning) or >5s (critical) for 10+ minutes.
+**Alert Condition:** `job:backend_api_latency:p99_5m > 2` for 10m (warning) or
+`> 5` for 5m (critical) — backend API P99 above 2s / 5s.
 
 **Symptoms:**
 
@@ -207,19 +234,23 @@ for stat in snapshot.statistics('lineno')[:10]:
 **Diagnosis:**
 
 ```bash
-# 1. Check current latency
+# 1. Check current latency (recording rule over http_request_duration_seconds)
 curl -s "http://localhost:9090/api/v1/query?query=job:backend_api_latency:p99_5m" | jq '.data.result'
 
-# 2. Check database query latency
+# 2. Check which route is slow
+curl -s "http://localhost:9090/api/v1/query" --data-urlencode \
+  'query=topk(5, histogram_quantile(0.99, sum by (le, http_route) (rate(http_request_duration_seconds_bucket[5m]))))' | jq
+
+# 3. Check database query latency
 curl -s "http://localhost:9090/api/v1/query?query=histogram_quantile(0.99,rate(hsi_db_query_duration_seconds_bucket[5m]))" | jq
 
-# 3. Check Redis latency
-curl -s "http://localhost:9090/api/v1/query?query=redis_slowlog_length" | jq
+# 4. Check Redis slowlog growth (redis exporter)
+curl -s "http://localhost:9090/api/v1/query?query=increase(redis_slowlog_length[5m])" | jq
 
-# 4. Check CPU usage (may be contention)
+# 5. Check CPU usage (may be contention)
 curl -s "http://localhost:9090/api/v1/query?query=job:backend_cpu_seconds:rate5m" | jq
 
-# 5. View backend flame graph for hot paths
+# 6. View backend flame graph for hot paths
 # Open http://localhost:3002/grafana/d/hsi-profiling
 # Select "nemotron-backend" (SDK) or "backend" (py-spy)
 ```
@@ -230,10 +261,10 @@ curl -s "http://localhost:9090/api/v1/query?query=job:backend_cpu_seconds:rate5m
 
    ```bash
    # Check for long-running queries
-   podman exec postgres psql -U hsi -c "SELECT * FROM pg_stat_activity WHERE state = 'active';"
+   podman exec postgres psql -U "${POSTGRES_USER:-security}" -c "SELECT pid, state, query_start, left(query,120) FROM pg_stat_activity WHERE state = 'active';"
 
    # Check for missing indexes
-   podman exec postgres psql -U hsi -c "EXPLAIN ANALYZE [slow_query];"
+   podman exec postgres psql -U "${POSTGRES_USER:-security}" -c "EXPLAIN ANALYZE [slow_query];"
    ```
 
 2. **If Redis is slow:**
@@ -247,23 +278,28 @@ curl -s "http://localhost:9090/api/v1/query?query=job:backend_cpu_seconds:rate5m
    ```
 
 3. **If CPU contention:**
-   - Scale backend instances
-   - Optimize hot code paths from flame graph
+   - Look at the flame graph for the dominant path
+   - Optimize hot code paths
    - Add caching for expensive operations
 
 ---
 
-### ALERT-REG-005: YOLO26LatencyRegression
+### ALERT-REG-005: YOLO26LatencyRegression / YOLO26HighLatency
 
-**Alert Condition:** YOLO26 inference P95 latency increased >50% compared to 1-hour average.
+**Alert Condition:** `job:yolo26_latency_regression_ratio:p95_vs_1h > 1.5` for
+10m (detector P95 up >50% on its own hour), or
+`job:yolo26_inference_latency:p95_5m > 0.5` for 10m (P95 above 500ms).
 
-> **Status (2026-09-22):** the recording rule `job:yolo26_inference_latency:p95_5m` is built on `yolo26_inference_latency_seconds_bucket`, which only the retired standalone detector exported — the gateway's Triton exposes no such metric, so this rule has no data in the current topology. Triton's own latency signal is `nv_inference_request_duration_us`, a **cumulative counter** (µs), not a histogram: with the server's default metrics config (`summary_latencies` is NOT enabled) no P95 exists server-side, so the retarget lands on the per-model **mean** until the config changes. Work the equivalent signal directly:
->
-> ```bash
-> # Triton-side mean latency for the yolo26 model (scraped via triton-metrics at ai-gateway:8002)
-> curl -s "http://localhost:9090/api/v1/query" --data-urlencode \
->   'query=sum(rate(nv_inference_request_duration_us{model="yolo26"}[5m])) / (sum(rate(nv_inference_request_success[5m])) + 0.001)' | jq
-> ```
+Both rules read the backend's **client-side** histogram
+`hsi_ai_request_duration_seconds_bucket{service="yolo26"}` — the label is
+`service`, and `yolo26` is the only value the shipped code ever writes
+(`monitoring/profiling-recording-rules.yml:167-174`,
+`monitoring/profiling-recording-rules.yml:208-214`). So this alert measures the
+whole detector round-trip as the backend experienced it: gateway queueing,
+Triton compute and HTTP overhead together. Triton's own counters are cumulative
+(`nv_inference_request_duration_us` over `nv_inference_request_success`), and
+`summary_latencies` is not enabled, so no server-side percentile exists — the
+`triton-metrics` job yields a per-model **mean** only.
 
 **Symptoms:**
 
@@ -274,23 +310,31 @@ curl -s "http://localhost:9090/api/v1/query?query=job:backend_cpu_seconds:rate5m
 **Diagnosis:**
 
 ```bash
-# 1. Triton inference latency + throughput for yolo26
+# 1. The alerting signal itself, plus sample count (a low-rate P95 is noisy)
 curl -s "http://localhost:9090/api/v1/query" --data-urlencode \
-  'query=sum(rate(nv_inference_request_success_total{model="yolo26"}[5m]))' | jq
+  'query=job:yolo26_inference_latency:p95_5m' | jq
+curl -s "http://localhost:9090/api/v1/query" --data-urlencode \
+  'query=sum(rate(hsi_ai_request_duration_seconds_count{service="yolo26"}[5m]))' | jq
 
-# 2. Check GPU utilization (dcgm-exporter)
+# 2. Split gateway-side from Triton-side: Triton mean per model, microseconds
+curl -s "http://localhost:9090/api/v1/query" --data-urlencode \
+  'query=job:triton_inference_latency:avg5m' | jq '.data.result[].metric.model, .data.result[].value'
+
+# 3. Triton request failures piling up?
+curl -s "http://localhost:9090/api/v1/query" --data-urlencode \
+  'query=sum by (model) (rate(nv_inference_request_failure[5m]))' | jq
+
+# 4. Check GPU utilization and temperature (dcgm-exporter)
 curl -s "http://localhost:9090/api/v1/query?query=DCGM_FI_DEV_GPU_UTIL" | jq
-
-# 3. Check GPU temperature (throttling?)
 curl -s "http://localhost:9090/api/v1/query?query=DCGM_FI_DEV_GPU_TEMP" | jq
 
-# 4. Check the router still reports the model ready
+# 5. Check the router still reports the model ready
 curl -s http://localhost:8090/yolo26/health | jq .
-curl -s http://localhost:8090/health | jq '.models.yolo26'
+curl -s http://localhost:8090/health | jq '{status, models_loaded, models_total}'
 
-# 5. Check backend-attributed detector latency
+# 6. Backend-attributed detector latency (same histogram, averaged)
 curl -s "http://localhost:9090/api/v1/query" --data-urlencode \
-  'query=rate(hsi_ai_request_duration_seconds_sum{ai_service="yolo26"}[5m]) / rate(hsi_ai_request_duration_seconds_count{ai_service="yolo26"}[5m])' | jq
+  'query=rate(hsi_ai_request_duration_seconds_sum{service="yolo26"}[5m]) / rate(hsi_ai_request_duration_seconds_count{service="yolo26"}[5m])' | jq
 ```
 
 **Resolution:**
@@ -301,7 +345,7 @@ curl -s "http://localhost:9090/api/v1/query" --data-urlencode \
    - Reduce batch size
    - Lower power limit
 
-2. **If model not optimally loaded:**
+2. **If Triton-side mean is the whole latency (not transport):**
 
    ```bash
    # Restart the gateway to reinitialize Triton/TensorRT
@@ -309,15 +353,17 @@ curl -s "http://localhost:9090/api/v1/query" --data-urlencode \
    # Triton warm-up can take up to its 180s health start_period
    ```
 
-3. **If input resolution changed:**
-   - Verify input preprocessing
-   - Check for larger than expected images
+3. **If input resolution or volume changed:**
+   - Verify input preprocessing and image sizes
+   - Check whether `GATEWAY_ENABLE_THREAT=true` was set, which mounts an extra
+     resident model on this card ([GPU Memory Limits](../deployment/gpu-memory-limits.md))
 
 ---
 
 ### ALERT-REG-006: MultiServiceCPURegression
 
-**Alert Condition:** 2 or more services showing >30% CPU increase simultaneously.
+**Alert Condition:** 2 or more services with a CPU regression ratio above 1.3,
+sustained 15m (critical).
 
 **Symptoms:**
 
@@ -334,13 +380,13 @@ curl -s "http://localhost:9090/api/v1/query?query=job:service_cpu_regression_rat
 # 2. Check host-level metrics
 podman stats --no-stream
 
-# 3. Check for noisy neighbor (other processes)
+# 3. Check for noisy neighbour (other processes)
 top -b -n 1 | head -20
 
 # 4. Check disk I/O (may cause CPU wait)
 iostat -x 1 5
 
-# 5. Check network issues
+# 5. Check network errors
 netstat -s | grep -i error
 ```
 
@@ -358,9 +404,9 @@ netstat -s | grep -i error
    - Check network connectivity
    - Verify shared storage performance
 
-3. **If coordinated attack/abuse:**
+3. **If sustained by load shape:**
    - Implement rate limiting
-   - Block abusive traffic
+   - Reduce batch/key-frame sizes
    - Scale defensive capacity
 
 ---
@@ -371,8 +417,8 @@ netstat -s | grep -i error
 
 **Symptoms:**
 
-- No new profiling data in Grafana dashboard
-- "Connection refused" errors in service logs
+- No new profiling data in the Grafana dashboards
+- Push errors in the backend profiler log
 - Pyroscope UI not accessible at port 4040
 
 **Diagnosis:**
@@ -389,6 +435,9 @@ podman logs pyroscope --tail 100
 
 # Test internal connectivity (from the backend container)
 podman exec backend python -c "import httpx; print(httpx.get('http://pyroscope:4040/ready', timeout=5).status_code)"
+
+# What did the py-spy loop get back?
+podman exec backend tail -30 /app/data/logs/profiler.log
 ```
 
 **Resolution:**
@@ -397,14 +446,18 @@ podman exec backend python -c "import httpx; print(httpx.get('http://pyroscope:4
 # Restart Pyroscope
 podman compose -f docker-compose.prod.yml restart pyroscope
 
-# If restart fails, recreate container
+# If restart fails, recreate the container
 podman compose -f docker-compose.prod.yml up -d --force-recreate pyroscope
 
 # Verify recovery
 curl http://localhost:4040/ready
 ```
 
-**Impact:** Profiling data is lost during outage but services continue operating normally.
+**Impact:** Nothing in the detection path depends on Pyroscope — backend, gateway
+and VLM keep serving. The py-spy loop POSTs one recording per cycle and starts
+the next regardless of the response (`scripts/pyroscope-profiler.sh:69-73` logs
+`Failed to push profile: HTTP $HTTP_CODE` and moves on), so an outage costs at
+most the recordings attempted while it lasted; nothing is buffered for retry.
 
 ---
 
@@ -418,7 +471,9 @@ curl http://localhost:4040/ready
 
 **Diagnosis:**
 
-In the current topology the py-spy profiler runs only inside the `backend` container (started by `backend/entrypoint.sh`; it skips profiling of anything that isn't a Python process, so the LLM/gateway containers never run it).
+In this deployment the in-container profiler runs only inside `backend`; the VLM
+engine is sampled from outside by Alloy, so its overhead appears in the `alloy`
+container.
 
 ```bash
 # Check py-spy processes in backend
@@ -427,21 +482,35 @@ podman exec backend ps aux | grep py-spy
 # Check profiler log for errors
 podman exec backend cat /app/data/logs/profiler.log
 
-# Check profile interval (default 30s, set via PROFILE_INTERVAL)
+# Check interval and sample rate (defaults: PROFILE_INTERVAL=30, PYROSCOPE_SAMPLE_RATE=100)
 podman exec backend env | grep -E "PROFILE_INTERVAL|PYROSCOPE"
+
+# eBPF side: Alloy samples at 97 Hz every 15s for each labelled container
+podman stats --no-stream alloy
 ```
 
 **Resolution:**
 
-Option 1: Increase profile interval (less frequent profiling)
+Option 1: Shorten the py-spy capture window
+
+The loop is `record for PROFILE_INTERVAL`, then `sleep 5` — so the default 30
+means py-spy is attached ~30/35 of the time. Lowering the value shrinks the
+attached duty cycle (`10` → ~10/15), at the cost of coarser profiles:
 
 ```bash
 # Add to docker-compose.override.yml under backend.environment:
-#   - PROFILE_INTERVAL=60      (default is 30)
+#   - PROFILE_INTERVAL=10      (default is 30)
 podman compose -f docker-compose.prod.yml up -d backend
 ```
 
-Option 2: Disable profiling on backend only
+Option 2: Lower the SDK sample rate instead of switching it off
+
+```bash
+#   - PYROSCOPE_SAMPLE_RATE=50  (default is 100 Hz)
+podman compose -f docker-compose.prod.yml up -d backend
+```
+
+Option 3: Disable the backend paths
 
 ```bash
 # Add to docker-compose.override.yml under backend.environment:
@@ -449,68 +518,76 @@ Option 2: Disable profiling on backend only
 podman compose -f docker-compose.prod.yml up -d backend
 ```
 
-Option 3: Disable profiling globally
+Option 4: Disable globally
 
 ```bash
 echo "PYROSCOPE_ENABLED=false" >> .env
 podman compose -f docker-compose.prod.yml up -d
 ```
 
-**Impact:** Reduced profiling coverage but improved service performance.
+Option 5: Stop the VLM eBPF profile — remove the label from `ai-vlm` in an
+override (`pyroscope.profile: 'false'`) and recreate that service.
+
+**Impact:** Reduced profiling coverage, improved service performance.
 
 ---
 
-### INC-PROF-003: Profiler Not Collecting Data for Service
+### INC-PROF-003: Profiler Not Collecting Data for a Subject
 
 **Symptoms:**
 
-- Expected service missing from Pyroscope UI
+- An expected application missing from the Pyroscope UI
 - Service running but no profiles being collected
 - Profiler log shows errors
 
-**Diagnosis:**
+**Diagnosis (backend, py-spy loop):**
 
 ```bash
-# Is the profiler script running in backend?
+# Is the profiler script running?
 podman exec backend pgrep -fa pyroscope-profiler.sh
 
 # Profiler log (launched by backend/entrypoint.sh)
 podman exec backend tail -50 /app/data/logs/profiler.log
 # Expect lines like: "[pyroscope-profiler] ... Starting profiler for backend"
 
-# Pyroscope actually receiving anything?
-curl -s http://localhost:4040/api/services/status 2>/dev/null | head -c 400
+# Last py-spy failure
+podman exec backend cat /tmp/pyspy_error.log
+```
 
-# For backend (SDK-based), check initialization in app logs
+**Diagnosis (backend, SDK):**
+
+```bash
+# Initialization message during app startup
 podman logs backend 2>&1 | grep -i "pyroscope profiling"
+# Expect: "Pyroscope profiling initialized: server=http://pyroscope:4040, sample_rate=100Hz"
+# A "skipped: pyroscope-io not installed" line means the import failed
+
+podman exec backend python -c "import pyroscope; print(pyroscope.__name__)"
+```
+
+**Diagnosis (ai-vlm, Alloy eBPF):**
+
+```bash
+# Labels present?
+podman inspect ai-vlm --format '{{json .Config.Labels}}' | jq '.["pyroscope.profile"], .["pyroscope.service"]'
+
+# Alloy sees the target and can write?
+podman logs alloy 2>&1 | grep -i "pyroscope\|ebpf" | tail -20
 ```
 
 **Resolution:**
 
-For the py-spy profiler (backend):
-
 ```bash
-# Restart the service to reinitialize the profiler
-podman compose -f docker-compose.prod.yml restart backend
+# Is Pyroscope receiving anything at all?
+curl -s http://localhost:4040/api/services/status 2>/dev/null | head -c 400
 
-# Verify profiler started
+# Restart the producer
+podman compose -f docker-compose.prod.yml restart backend   # SDK + py-spy
+podman compose -f docker-compose.prod.yml restart alloy     # eBPF targets
+
+# Verify
 podman exec backend tail -5 /app/data/logs/profiler.log
 ```
-
-For the SDK (in-process):
-
-```bash
-# Check the SDK dependency is installed in the image
-podman exec backend python -c "import pyroscope; print(pyroscope.__name__)"
-
-# Restart backend (SDK initializes during app startup, backend/core/telemetry.py)
-podman compose -f docker-compose.prod.yml restart backend
-
-# Verify initialization
-podman logs backend 2>&1 | grep -i pyroscope
-```
-
-**Historical note:** the old per-AI-service procedure (`podman exec ai-yolo26 env | grep SERVICE_NAME`, `/tmp/profiler.log`) applied to the retired standalone AI containers, which baked `scripts/ai-entrypoint.sh` into their images. Those containers no longer exist in compose; if you are reading an older incident that references them, map them to `ai-gateway` (no profiler) or `backend` (profiler).
 
 ---
 
@@ -519,7 +596,7 @@ podman logs backend 2>&1 | grep -i pyroscope
 **Symptoms:**
 
 - Pyroscope queries becoming slow
-- Disk usage growing rapidly in pyroscope volume
+- Disk usage growing rapidly in the `pyroscope_data` volume
 - "disk full" or "quota exceeded" errors in logs
 
 **Diagnosis:**
@@ -528,10 +605,10 @@ podman logs backend 2>&1 | grep -i pyroscope
 # Check volume usage
 podman volume inspect pyroscope_data
 
-# Check container disk usage (image is busybox-based — invoke df via busybox)
+# Check container disk usage (the image is busybox-based — invoke df via busybox)
 podman exec pyroscope busybox df -h /data
 
-# Check retention settings currently mounted in the container (NEM-3928)
+# Check retention settings currently mounted in the container
 podman exec pyroscope cat /etc/pyroscope/config.yml
 
 # Check compactor status
@@ -540,63 +617,68 @@ podman logs pyroscope 2>&1 | grep -i "compactor\|retention\|cleanup"
 
 **Retention Configuration (NEM-3928):**
 
-The Pyroscope retention policy is configured in `monitoring/pyroscope/pyroscope-config.yml` (mounted read-only at `/etc/pyroscope/config.yml`):
+Configured in `monitoring/pyroscope/pyroscope-config.yml`, bind-mounted read-only
+at `/etc/pyroscope/config.yml`:
 
-| Setting                                     | Value | Description                                     |
-| ------------------------------------------- | ----- | ----------------------------------------------- |
-| `limits.compactor_blocks_retention_period`  | 720h  | Maximum block age (30 days)                     |
-| `pyroscopedb.min_free_disk_gb`              | 10 GB | Delete oldest blocks when free space below this |
-| `pyroscopedb.min_disk_available_percentage` | 0.05  | Secondary disk space threshold (5%)             |
-| `pyroscopedb.enforcement_interval`          | 5m    | How often disk-based retention is checked       |
-| `compactor.cleanup_interval`                | 15m   | How often time-based retention is enforced      |
-| `compactor.deletion_delay`                  | 2h    | Delay before permanent deletion                 |
+| Setting                                     | Value | Effect                                                |
+| ------------------------------------------- | ----- | ----------------------------------------------------- |
+| `limits.compactor_blocks_retention_period`  | 720h  | Maximum block age (30 days)                           |
+| `pyroscopedb.min_free_disk_gb`              | 10    | Delete oldest blocks when free space falls below this |
+| `pyroscopedb.min_disk_available_percentage` | 0.05  | Secondary disk-safety threshold (5%)                  |
+| `pyroscopedb.enforcement_interval`          | 5m    | How often disk-based retention is checked             |
+| `pyroscopedb.max_block_duration`            | 1h    | Maximum duration of one block                         |
+| `compactor.compaction_interval`             | 2h    | How often blocks are merged                           |
+| `compactor.cleanup_interval`                | 15m   | How often retention cleanup runs                      |
+| `compactor.deletion_delay`                  | 2h    | Delay before permanent deletion                       |
 
 **Resolution:**
 
 ```bash
 # Option 1: Wait for automatic cleanup (recommended)
-# The compactor runs every 15 minutes and will delete old blocks
-# when disk space drops below thresholds. Check logs:
+# Cleanup runs every 15m; disk-based retention fires sooner than the 30-day age
+# limit once free space drops. Check:
 podman logs pyroscope 2>&1 | grep -i "deleting\|cleanup\|retention"
 
-# Option 2: Reduce retention period for faster cleanup
+# Option 2: Reduce retention for faster cleanup
 # Edit monitoring/pyroscope/pyroscope-config.yml:
 # Change: compactor_blocks_retention_period: 720h
 # To:     compactor_blocks_retention_period: 168h  # 7 days
-
-# Restart Pyroscope to apply new config
 podman compose -f docker-compose.prod.yml restart pyroscope
 
-# Option 3: Force immediate compaction
-# Trigger a compaction cycle by restarting Pyroscope
+# Option 3: Force a compaction cycle by restarting
 podman compose -f docker-compose.prod.yml restart pyroscope
 
 # Option 4: If urgent, clear all data (last resort)
 podman compose -f docker-compose.prod.yml stop pyroscope
-podman volume rm pyroscope_data  # WARNING: Deletes all profiling history
+podman volume rm pyroscope_data  # WARNING: deletes all profiling history
 podman compose -f docker-compose.prod.yml up -d pyroscope
 ```
 
 **Prevention:**
 
-- Monitor Pyroscope disk usage with the "Storage growth per day" metric
-- Alert when disk usage exceeds 80% of expected maximum (~16GB for 30-day retention)
-- Consider reducing `compactor_blocks_retention_period` for disk-constrained environments
+- Watch the volume (`podman volume inspect pyroscope_data`, or host `df`)
+- Alert before the volume approaches the host's free space
+- Reduce `compactor_blocks_retention_period` on disk-constrained hosts
 
-**Impact:** Automatic retention prevents disk exhaustion. Manual intervention only needed if retention policy is insufficient for workload.
+**Impact:** Automatic retention prevents disk exhaustion in normal operation.
+Manual intervention is only needed when the policy itself is too generous for
+the workload.
 
 ---
 
 ## Maintenance Procedures
 
-### MAINT-PROF-001: Updating Pyroscope Version
+### MAINT-PROF-001: Updating The Pyroscope Version
 
-The Pyroscope image is **built**, not pulled directly: `docker-compose.prod.yml` builds `./monitoring/pyroscope` (a thin layer adding busybox for health checks on top of `docker.io/grafana/pyroscope:1.18.0`). Pin changes go in `monitoring/pyroscope/Dockerfile`, not compose.
+The Pyroscope image is **built**, not pulled directly: `docker-compose.prod.yml`
+builds `./monitoring/pyroscope`, a thin layer that adds a static busybox for
+health checks on top of `docker.io/grafana/pyroscope:1.18.0`. Pin changes go in
+`monitoring/pyroscope/Dockerfile`, not in compose.
 
-**Pre-flight Checks:**
+**Pre-flight checks:**
 
 ```bash
-# Check current base version (pinned in the Dockerfile)
+# Current base version (pinned in the Dockerfile)
 grep "grafana/pyroscope" monitoring/pyroscope/Dockerfile
 
 # Review release notes for breaking changes
@@ -609,14 +691,14 @@ grep "grafana/pyroscope" monitoring/pyroscope/Dockerfile
 # 1. Update the base image tag in monitoring/pyroscope/Dockerfile
 #    e.g. FROM docker.io/grafana/pyroscope:1.18.0 -> 1.19.0
 
-# 2. Backup configuration
+# 2. Back up the config
 cp monitoring/pyroscope/pyroscope-config.yml monitoring/pyroscope/pyroscope-config.yml.bak
 
 # 3. Rebuild (always --no-cache for infra changes) and recreate
 podman compose -f docker-compose.prod.yml build --no-cache pyroscope
 podman compose -f docker-compose.prod.yml up -d pyroscope
 
-# 4. Verify health
+# 4. Verify health and that the existing profiles still render
 curl http://localhost:4040/ready
 ```
 
@@ -628,15 +710,20 @@ podman compose -f docker-compose.prod.yml build --no-cache pyroscope
 podman compose -f docker-compose.prod.yml up -d pyroscope
 ```
 
+The agent side matters as much as the server: `pyproject.toml` requires
+`pyroscope-io>=0.8.7` and the speedscope fix needs a server ≥1.9.2
+(grafana/pyroscope#4568).
+
 ---
 
-### MAINT-PROF-002: Adding Profiling to New Service
+### MAINT-PROF-002: Adding Profiling To A New Service
 
-> **Status (2026-09-22):** the py-spy + `ai-entrypoint.sh` recipe below is the pattern the retired per-AI-container images used (`ai/yolo26`, `ai/clip`, `ai/florence`, `ai/enrichment*` Dockerfiles still reference `scripts/ai-entrypoint.sh`, but no active compose service builds them). `ai-gateway` uses its own `/entrypoint.sh` with no profiler; `ai-llm` runs native llama.cpp, which py-spy cannot profile. For a new **Python** service, follow the backend recipe instead.
+Pick the mechanism by what the process is written in.
 
-**Recommended recipe (backend pattern):**
+**Python service — py-spy sidecar** (the backend pattern):
 
-1. **Install py-spy and copy the profiler script into the image** (see `backend/Dockerfile:174-182`):
+1. Install py-spy and copy the profiler script into the image (as
+   `backend/Dockerfile:189-194` does):
 
    ```dockerfile
    RUN uv tool install py-spy && \
@@ -646,7 +733,8 @@ podman compose -f docker-compose.prod.yml up -d pyroscope
    COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
    ```
 
-2. **Start the profiler from the service entrypoint** (see `backend/entrypoint.sh:50-55`):
+2. Start it from the entrypoint, backgrounded, before `exec "$@"` (as
+   `backend/entrypoint.sh:50-55` does):
 
    ```bash
    if [ "${PYROSCOPE_ENABLED:-true}" = "true" ]; then
@@ -656,62 +744,84 @@ podman compose -f docker-compose.prod.yml up -d pyroscope
    fi
    ```
 
-3. **Add environment variables in docker-compose.prod.yml:**
+3. Give it the endpoint:
 
    ```yaml
    my-new-service:
-     labels:
-       pyroscope.profile: 'true'
-       pyroscope.service: 'my-new-service'
      environment:
        - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
        - PYROSCOPE_URL=http://pyroscope:4040
    ```
 
-4. **Rebuild and deploy:**
+4. Rebuild, deploy, verify:
 
    ```bash
    podman compose -f docker-compose.prod.yml build --no-cache my-new-service
    podman compose -f docker-compose.prod.yml up -d my-new-service
-   ```
-
-5. **Verify profiling:**
-
-   ```bash
    podman exec my-new-service cat /app/data/logs/profiler.log
-   # Should see: "Starting profiler for my-new-service"
+   # Expect: "Starting profiler for my-service"
    ```
 
-For in-process CPU/memory profiles, add the SDK instead (or as well): `pyroscope-io` is already a project dependency; see `backend/core/telemetry.py::init_profiling` for the wiring pattern (`PYROSCOPE_ENABLED`, `PYROSCOPE_URL`, `PYROSCOPE_SAMPLE_RATE`, `PYROSCOPE_MEMORY_ENABLED`).
+**Python service — in-process SDK** (adds memory allocation profiles, which
+py-spy cannot produce): add `pyroscope-io`, then call a `pyroscope.configure`
+setup modelled on `init_profiling()` in `backend/core/telemetry.py` during app
+startup — `application_name`, `server_address` from `PYROSCOPE_URL`,
+`sample_rate` from `PYROSCOPE_SAMPLE_RATE`, plus your own tags, guarded so an
+import failure degrades to "no profiling" instead of crashing.
 
-**Legacy recipe (retired AI containers only):** bake `scripts/ai-entrypoint.sh` as the image ENTRYPOINT; it launches the same profiler script in the background when `SERVICE_NAME` and `PYROSCOPE_ENABLED=true` are set. Kept here for reading old incidents; do not build new services this way.
+**Native service (C/C++/Go/Rust) — Alloy eBPF:** add the labels and nothing
+else; Alloy discovers it over the Podman socket.
+
+```yaml
+my-new-service:
+  labels:
+    pyroscope.profile: 'true'
+    pyroscope.service: 'my-new-service'
+```
+
+`pyroscope.service` is the application name Pyroscope stores; omit it and the
+container name is used instead.
+
+**Verify any of the three:** the name appears in the Pyroscope UI application
+list, and `curl -s http://localhost:4040/api/services/status` mentions it. Then
+add a flame-graph panel keyed on `{service_name="my-new-service"}` if you want
+it on a dashboard.
 
 ---
 
-### MAINT-PROF-003: Configuring Grafana Datasource
+### MAINT-PROF-003: Changing The Pyroscope Datasource
 
-The Pyroscope datasource is **not** auto-provisioned — `monitoring/grafana/provisioning/datasources/` contains only `prometheus.yml`. The profiling dashboards reference a datasource with uid `pyroscope`, so if it is missing, add it via a provisioning file. Grafana serves from the `/grafana/` sub-path (`GF_SERVER_SERVE_FROM_SUB_PATH=true`), so its API lives at `http://localhost:3002/grafana/api/...`.
+The Pyroscope datasource **is** provisioned, inside the shared file
+`monitoring/grafana/provisioning/datasources/prometheus.yml` (name `Pyroscope`,
+uid `pyroscope`, `type: grafana-pyroscope-datasource`,
+`url: http://pyroscope:4040`, `access: proxy`, `editable: false`, around line
+238). That same file also declares `Prometheus`, `Alertmanager`, `Backend-API`,
+`Tempo` and `Loki`, and the Pyroscope entry carries a `tracesToProfiles`-style
+link back to Tempo (`datasourceUid: tempo`). Both profiling dashboards select
+the datasource by uid, so renaming it breaks them.
+
+`editable: false` means UI edits are refused — change the file, not the datasource.
+Grafana serves from `/grafana/`, so its API lives at
+`http://localhost:3002/grafana/api/...`; anonymous access is on by default
+(`GF_AUTH_ANONYMOUS_ENABLED=true`), and the admin pair is
+`GF_ADMIN_USER`/`GF_ADMIN_PASSWORD` (both default `admin`). The provisioning
+directory is bind-mounted read-only
+(`docker-compose.prod.yml:1064`).
 
 **Procedure:**
 
 ```bash
-# 1. Check if datasource exists (creds default to admin/admin unless GF_ADMIN_USER/GF_ADMIN_PASSWORD override in .env)
-curl -s http://admin:admin@localhost:3002/grafana/api/datasources | jq '.[].name' # pragma: allowlist secret
+# 1. Confirm what is live
+curl -s -u admin:admin http://localhost:3002/grafana/api/datasources | jq '.[].uid' # pragma: allowlist secret
 
-# 2. If missing, add via provisioning
-cat > monitoring/grafana/provisioning/datasources/pyroscope.yml << 'EOF'
-apiVersion: 1
-datasources:
-  - name: Pyroscope
-    uid: pyroscope
-    type: grafana-pyroscope-datasource
-    url: http://pyroscope:4040
-    access: proxy
-    isDefault: false
-EOF
+# 2. Edit monitoring/grafana/provisioning/datasources/prometheus.yml
+#    (keep uid: pyroscope unless you are also rewriting the dashboards)
 
-# 3. Restart Grafana
+# 3. Restart Grafana — provisioning is read at startup
 podman compose -f docker-compose.prod.yml restart grafana
+
+# 4. Verify
+curl -s -u admin:admin http://localhost:3002/grafana/api/datasources/uid/pyroscope | jq '.name, .url, .jsonData' # pragma: allowlist secret
 ```
 
 ---
@@ -737,15 +847,11 @@ echo "OK: Pyroscope is healthy"
 
 ```bash
 #!/bin/bash
-# Check if profiles are being collected (data within last 5 minutes)
+# Check that each expected subject has data in the last 5 minutes
 
-# Live profile names in the current topology: "backend" (py-spy) and
-# "nemotron-backend" (SDK). Retired names (ai-yolo26, ai-florence, ai-clip)
-# stopped reporting at the gateway consolidation.
-SERVICES="backend nemotron-backend"
+SERVICES="backend nemotron-backend ai-vlm"
 
 for service in $SERVICES; do
-    # Check for data in last 5 minutes
     RESULT=$(curl -s "http://localhost:4040/pyroscope/render?query=${service}&from=now-5m&until=now&format=json" | jq '.flamebearer.numTicks // 0')
 
     if [ "$RESULT" -eq 0 ]; then
@@ -756,29 +862,47 @@ for service in $SERVICES; do
 done
 ```
 
+`ai-vlm` only appears when the `vlm` compose profile is enabled
+(`--profile vlm up -d`), so gate that entry on the container running.
+
 ---
 
 ## Performance Baselines
 
-| Metric                        | Expected   | Alert Threshold |
-| ----------------------------- | ---------- | --------------- |
-| Pyroscope CPU usage           | < 5%       | > 10%           |
-| Pyroscope memory usage        | < 500MB    | > 1GB           |
-| Profile push latency          | < 1s       | > 5s            |
-| Profiler overhead per service | 1-3%       | > 5%            |
-| Storage growth per day        | ~350-700MB | > 1GB           |
-| Total storage (30-day)        | ~10-20GB   | > 30GB          |
+Overhead expectations for the mechanisms that ship (SDK 100 Hz in-process,
+py-spy 30s cycles, eBPF 97 Hz):
+
+| Metric                            | Expected | Watch  |
+| --------------------------------- | -------- | ------ |
+| Pyroscope server CPU              | < 5%     | > 10%  |
+| Pyroscope server memory           | < 500MB  | > 1GB  |
+| Profile push latency              | < 1s     | > 5s   |
+| Per-subject profiling overhead    | 1-3%     | > 5%   |
+| Storage growth per day            | see note | > 1GB  |
+| Total storage at 30-day retention | see note | > 30GB |
+
+**On the storage numbers:** the 350-700 MB/day figure quoted in
+`monitoring/pyroscope/pyroscope-config.yml`'s comments was written for a stack
+profiling seven AI services. A current deployment pushes two subjects from one
+process plus one native profile, so measure your own volume instead of planning
+against that figure:
+
+```bash
+podman exec pyroscope busybox df -h /data
+```
 
 ---
 
 ## Related Documentation
 
-| Document                                        | Purpose                             |
-| ----------------------------------------------- | ----------------------------------- |
-| [Profiling Guide](../guides/profiling.md)       | User-facing profiling documentation |
-| [Monitoring Guide](../operator/monitoring.md)   | Full observability stack            |
-| [Pyroscope UI](../ui/pyroscope.md)              | Frontend dashboard documentation    |
-| [AI Performance](../operator/ai-performance.md) | AI service performance tuning       |
+| Document                                                | Purpose                                   |
+| ------------------------------------------------------- | ----------------------------------------- |
+| [Profiling Guide](../guides/profiling.md)               | Mechanisms, dashboards, trace correlation |
+| [Metrics Coverage](../guides/metrics-coverage.md)       | Which series have a producer              |
+| [Monitoring Guide](../operator/monitoring.md)           | Full observability stack                  |
+| [Pyroscope UI](../ui/pyroscope.md)                      | Frontend dashboard documentation          |
+| [AI Performance](../operator/ai-performance.md)         | AI service performance tuning             |
+| [GPU Memory Limits](../deployment/gpu-memory-limits.md) | Per-service VRAM sizing                   |
 
 ---
 
@@ -786,7 +910,8 @@ done
 
 ### Pyroscope Server Configuration (NEM-3928)
 
-Location: `monitoring/pyroscope/pyroscope-config.yml` (mounted at `/etc/pyroscope/config.yml`). Actual file contents, abridged:
+Location: `monitoring/pyroscope/pyroscope-config.yml`, mounted at
+`/etc/pyroscope/config.yml`. Actual contents, abridged:
 
 ```yaml
 # Pyroscope 1.18.0 configuration (NEM-3928)
@@ -837,30 +962,23 @@ limits:
 | More disk safety margin    | Increase `min_free_disk_gb` to 20                          |
 | Development/testing        | `compactor_blocks_retention_period: 24h` (1 day)           |
 
-### AI Entrypoint Script (legacy — retired AI images)
-
-Location: `scripts/ai-entrypoint.sh` (still referenced by the retired `ai/yolo26`, `ai/clip`, `ai/florence`, `ai/enrichment*` Dockerfiles; no active compose service uses it — `backend/entrypoint.sh` runs the profiler directly, `ai-gateway` has its own entrypoint without profiling).
-
-```bash
-#!/bin/bash
-# Starts profiler in background if enabled, then runs main command
-set -e
-
-if [ "${PYROSCOPE_ENABLED:-true}" = "true" ] && [ -n "$SERVICE_NAME" ]; then
-    nohup /usr/local/bin/pyroscope-profiler.sh "$SERVICE_NAME" \
-        "${PYROSCOPE_URL:-http://pyroscope:4040}" \
-        "${PROFILE_INTERVAL:-30}" >> /tmp/profiler.log 2>&1 &
-fi
-
-exec "$@"
-```
+The config file is bind-mounted read-only, so edits need a container restart
+(or recreate) to reach the process.
 
 ### Profiler Script
 
-Location: `scripts/pyroscope-profiler.sh`
+Location: `scripts/pyroscope-profiler.sh`, invoked as
+`pyroscope-profiler.sh <service_name> <pyroscope_url> <interval>` with
+`SERVICE_NAME`-style arguments (the backend passes `backend`, `PYROSCOPE_URL`
+and `PROFILE_INTERVAL`). It waits 10s, finds the python/uvicorn PID, and loops:
 
-Captures CPU profiles using py-spy and pushes to Pyroscope in Speedscope format. Key parameters:
+```bash
+py-spy record --pid "$PID" --duration "$PROFILE_INTERVAL" \
+  --format speedscope --output "$PROFILE_FILE" --nonblocking
+```
 
-- `--nonblocking`: Minimizes impact on profiled process
-- `--duration`: Profile capture duration (default 30s, from `PROFILE_INTERVAL`)
-- `--format speedscope`: Compatible with Pyroscope ingestion
+then POSTs the file to `/ingest?name=<service>&from=…&until=…&spyName=pyspy&format=speedscope`.
+
+- `--nonblocking`: minimises impact on the profiled process
+- `--duration`: capture length, from `PROFILE_INTERVAL` (default 30s)
+- `--format speedscope`: what Pyroscope ingests for `process_cpu`

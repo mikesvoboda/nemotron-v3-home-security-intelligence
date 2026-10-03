@@ -29,8 +29,10 @@
 │   └── tests/            # Component and E2E tests
 │
 ├── ai/                   # AI model integration
+│   ├── gateway/          # Triton inference gateway (:8090, /yolo26 + /enrich-lt)
+│   ├── triton/           # Triton model-store configs
 │   ├── yolo26/           # YOLO26 detection server
-│   └── nemotron/         # Nemotron LLM configuration
+│   └── vlm/              # ai-vlm llama.cpp verdict server (:8098)
 │
 ├── docs/                 # Documentation
 │   ├── architecture/     # System design docs
@@ -117,7 +119,12 @@ backend/services/
 ├── dedupe.py             # Prevent duplicate processing
 ├── detector_client.py    # HTTP client for YOLO26
 ├── batch_aggregator.py   # Group detections into batches
-├── nemotron_analyzer.py  # LLM risk analysis
+├── pipeline_factory.py   # Build the analysis stage (returns VlmAnalyzer)
+├── vlm_analyzer.py       # Orchestrate the VLM analysis of a batch
+├── vlm_client.py         # The only ai-vlm caller (prompt fit + verdict)
+├── vlm_specialists.py    # Face/plate/re-ID lookup legs (DB lookups)
+├── key_frame_selector.py # Pick 1-4 stills for the prompt
+├── severity.py           # Risk score to severity level
 ├── thumbnail_generator.py # Create detection thumbnails
 ├── event_broadcaster.py  # WebSocket event distribution
 ├── system_broadcaster.py # System status updates
@@ -134,7 +141,7 @@ Services contain business logic. The AI pipeline flows through these in order:
 1. `file_watcher.py` - Detects new images
 2. `detector_client.py` - Runs YOLO26 detection
 3. `batch_aggregator.py` - Groups detections
-4. `nemotron_analyzer.py` - LLM analysis
+4. `vlm_analyzer.py` - Assembles key frames + lookups, asks `ai-vlm` via `vlm_client.py`
 5. `event_broadcaster.py` - Sends to dashboard
 
 ---
@@ -210,19 +217,28 @@ frontend/src/services/
 
 ## AI Services
 
+Two GPU-resident services carry the pipeline:
+
 ```
 ai/
-├── yolo26/
-│   ├── model.py          # FastAPI server for YOLO26
-│   └── Dockerfile        # Container build
-│                         # (Dependencies in pyproject.toml)
+├── gateway/              # Triton inference gateway (:8090)
+│   ├── main.py           # FastAPI app + routers (/yolo26, /enrich-lt)
+│   ├── triton_client.py  # Triton gRPC client
+│   └── adapters/         # yolo26.py, enrichment_light.py
 │
-└── nemotron/
-    ├── config.json       # llama.cpp configuration
-    └── Dockerfile        # Container with llama.cpp
+├── triton/
+│   └── model_repository/ # Triton model store (YOLO26, threat-detect)
+│
+├── yolo26/
+│   └── model.py          # YOLO26 model + contract used by the gateway
+│
+└── vlm/
+    └── Dockerfile        # ai-vlm: llama.cpp llama-server (:8098) verdict engine
 ```
 
-YOLO26 detects objects. Nemotron analyzes risk.
+The gateway (`ai-gateway`) runs YOLO26 detection through Triton. `ai-vlm`
+(llama.cpp serving a Qwen3-VL checkpoint plus its vision projector) renders the
+risk verdict. `GET /health` on each reports readiness.
 
 ---
 
@@ -262,16 +278,16 @@ User Action → Frontend Component → API Call → Backend Route
 
 ## Important Files to Know
 
-| File                                    | What It Does              |
-| --------------------------------------- | ------------------------- |
-| `backend/core/config.py`                | All environment variables |
-| `backend/main.py`                       | Application startup       |
-| `backend/services/batch_aggregator.py`  | Core batching logic       |
-| `backend/services/nemotron_analyzer.py` | LLM integration           |
-| `frontend/src/hooks/useEventStream.ts`  | Real-time events          |
-| `frontend/src/services/api.ts`          | API client                |
-| `docker-compose.prod.yml`               | Container orchestration   |
-| `.pre-commit-config.yaml`               | Code quality hooks        |
+| File                                   | What It Does              |
+| -------------------------------------- | ------------------------- |
+| `backend/core/config.py`               | All environment variables |
+| `backend/main.py`                      | Application startup       |
+| `backend/services/batch_aggregator.py` | Core batching logic       |
+| `backend/services/vlm_client.py`       | VLM verdict integration   |
+| `frontend/src/hooks/useEventStream.ts` | Real-time events          |
+| `frontend/src/services/api.ts`         | API client                |
+| `docker-compose.prod.yml`              | Container orchestration   |
+| `.pre-commit-config.yaml`              | Code quality hooks        |
 
 ---
 

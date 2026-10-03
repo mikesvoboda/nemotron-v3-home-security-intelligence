@@ -120,6 +120,69 @@ Body content here.
         assert body == content
 
 
+class TestHostAddressIsNotACitation:
+    """A host:port in prose is a service address, never a path in the repo.
+
+    The inline citation pattern asks only for `name.dots:digits` inside
+    backticks, so a mail-relay address written as `smtp.example.com:587`
+    reaches Level 1 as a file path and is reported as a missing file. Rejection
+    is by host shape: no directory component, two or more dots in the name, and
+    a last label that is a real or special-use top-level domain.
+    """
+
+    def test_host_port_in_prose_is_not_a_citation(self) -> None:
+        """A backticked mail host and port yields zero citations."""
+        content = "Grafana relays through `smtp.example.com:587` with TLS on.\n"
+
+        assert extract_markdown_citations(content, "test.md") == []
+
+    def test_special_use_host_port_is_not_a_citation(self) -> None:
+        """`*.docker.internal` is a host, not a file with an .internal suffix."""
+        content = "Poll the service at `host.docker.internal:8188`.\n"
+
+        assert extract_markdown_citations(content, "test.md") == []
+
+    def test_host_port_in_mermaid_note_is_not_a_citation(self) -> None:
+        """The mermaid parser shares the host guard."""
+        content = """
+```mermaid
+sequenceDiagram
+    Note right of AM: alerting routes to `smtp.example.com:587`
+```
+"""
+
+        assert extract_mermaid_citations(content, "test.md") == []
+
+    def test_host_port_never_reaches_file_existence_validation(self, tmp_path: Path) -> None:
+        """Level 1 reports no error for a document that only names a host."""
+        content = "Grafana relays through `smtp.example.com:587` with TLS on.\n"
+
+        for citation in extract_markdown_citations(content, "test.md"):
+            assert validate_file_exists(citation, tmp_path).status != CitationStatus.ERROR
+
+    def test_hidden_multi_dot_file_is_still_a_citation(self) -> None:
+        """.env.example has two dots and is a file, so the guard must not eat it."""
+        content = "Copy the values from `.env.example:231`.\n"
+        citations = extract_markdown_citations(content, "test.md")
+
+        assert [c.file_path for c in citations] == [".env.example"]
+        assert citations[0].start_line == 231
+
+    def test_multi_dot_compose_file_is_still_a_citation(self) -> None:
+        """A dotted basename whose last label is not a TLD stays a citation."""
+        content = "Ports are published in `docker-compose.prod.yml:154`.\n"
+        citations = extract_markdown_citations(content, "test.md")
+
+        assert [c.file_path for c in citations] == ["docker-compose.prod.yml"]
+
+    def test_directory_path_with_dots_is_still_a_citation(self) -> None:
+        """A host has no directory component; a path with one is a file."""
+        content = "See `frontend/src/vite.config.ts:182` for the plugin list.\n"
+        citations = extract_markdown_citations(content, "test.md")
+
+        assert [c.file_path for c in citations] == ["frontend/src/vite.config.ts"]
+
+
 class TestMermaidCitationParsing:
     """Tests for mermaid diagram citation parsing."""
 

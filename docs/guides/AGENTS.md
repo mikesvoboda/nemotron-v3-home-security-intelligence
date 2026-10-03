@@ -36,13 +36,12 @@ docs/guides/
 
 ### Video Analytics Guide
 
-- Object detection with YOLO26
-- Scene understanding with Florence-2
-- Anomaly detection using CLIP baselines
-- Threat detection (weapons, dangerous items)
-- Person analysis (pose, demographics, clothing, re-ID)
-- Vehicle analysis (classification, plates)
-- Risk assessment with Nemotron LLM
+- Object detection with YOLO26 on Triton (`ai-gateway`)
+- Batch verification by the VLM (`ai-vlm`, llama.cpp)
+- Specialist lookup legs: faces, license plates, person re-ID
+- Key-frame selection and verdict invariants
+- Event, verification and detection persistence
+- WebSocket broadcast of verified events
 - Analytics API reference
 
 ### Zone Configuration Guide
@@ -59,9 +58,10 @@ docs/guides/
 
 ### Face Recognition Guide
 
-- Face detection pipeline
-- Person re-identification embeddings
-- Demographics (age, gender) estimation
+- Face detection pipeline and the quality gate
+- The four-outcome vocabulary (match / unknown / not_identifiable / unavailable)
+- Person re-identification embeddings and similarity matching
+- Provenance: every stored vector names its `model_id`
 - Household member registration
 - Cross-camera entity tracking
 - Alert integration for unknown persons
@@ -71,12 +71,13 @@ docs/guides/
 
 | Resource              | Location                                                                                     |
 | --------------------- | -------------------------------------------------------------------------------------------- |
+| AI pipeline truth     | [../architecture/ai-pipeline-current-state.md](../architecture/ai-pipeline-current-state.md) |
 | Analytics API         | [../api/analytics-endpoints.md](../api/analytics-endpoints.md)                               |
 | Cameras API           | [../architecture/api-reference/cameras-api.md](../architecture/api-reference/cameras-api.md) |
 | UI Zone Documentation | [../ui/zones.md](../ui/zones.md)                                                             |
 | UI Analytics          | [../ui/analytics.md](../ui/analytics.md)                                                     |
-| Backend Services      | [../../backend/services/AGENTS.md](../../backend/services/AGENTS.md)                         |
-| AI Enrichment         | [../../ai/enrichment/AGENTS.md](../../ai/enrichment/AGENTS.md)                               |
+| Backend Services      | `../../backend/services/AGENTS.md`                                                           |
+| Gateway adapters      | `../../ai/gateway/AGENTS.md`                                                                 |
 
 ## Entry Points
 

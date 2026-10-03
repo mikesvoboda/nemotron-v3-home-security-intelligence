@@ -5,36 +5,52 @@
 **Time to read:** ~6 min
 **Prerequisites:** NVIDIA GPU with CUDA support
 
+Two containers hold GPU memory: `ai-gateway` (Triton — the YOLO26 detector and the
+resident specialists) and `ai-vlm` (llama.cpp, behind the `vlm` compose profile).
+Which card each one lands on is decided by `GPU_AI_SERVICES` and `GPU_LLM` in `.env`.
+The face, plate, and person-re-ID lookups run in the backend process on CPU.
+
 ---
 
 ## CUDA Not Available
 
 ### Symptoms
 
-- Health check shows `"cuda_available": false`
-- Error: `RuntimeError: CUDA not available`
-- AI services running on CPU (very slow)
+- `nvidia-smi` on the host shows the card, but no process from either AI container
+- `GET http://localhost:8090/health` returns `"status": "degraded"` with
+  `triton_server_ready: false` or every model in `models` false
+- The container probe below returns `err=3, count=0`
 
 ### Diagnosis
 
 ```bash
-# Check if GPU is visible to system
+# Check if GPU is visible to the system
 nvidia-smi
 
-# Check CUDA installation
-nvcc --version
+# Check the CUDA driver on the host
+nvidia-smi --query-gpu=driver_version --format=csv,noheader
 
-# Check PyTorch CUDA support
-python3 -c "import torch; print(torch.cuda.is_available())"
+# Probe CUDA from inside the gateway container — this is the check that matters.
+# The host's Python environment runs a CPU-only torch wheel, so a host
+# torch.cuda.is_available() is false even on a perfectly healthy GPU.
+docker compose -f docker-compose.prod.yml exec -T ai-gateway python3 -c "
+import ctypes
+lib = ctypes.CDLL('libcudart.so')
+count = ctypes.c_int()
+print('err=', lib.cudaGetDeviceCount(ctypes.byref(count)), 'count=', count.value)
+"
 ```
 
 ### Solutions
 
-**1. Install NVIDIA drivers:**
+**1. Install NVIDIA drivers.** The setup script refuses to proceed below driver
+580 (`setup_lib/nvidia_detect.py:38`), so install a driver at or above that floor:
 
 ```bash
-# Ubuntu/Debian
-sudo apt install nvidia-driver-550 nvidia-cuda-toolkit
+# Ubuntu/Debian — the graphics-driver PPA tracks the current production branch
+sudo add-apt-repository ppa:graphics-drivers/ppa
+sudo apt update
+sudo apt install nvidia-driver-580-server
 
 # Fedora
 sudo dnf install akmod-nvidia xorg-x11-drv-nvidia-cuda
@@ -50,9 +66,9 @@ lsmod | grep nvidia
 
 Docker Compose:
 
-The production services (`ai-gateway`, `ai-llm`) already declare GPU access in
-`docker-compose.prod.yml` — Podman CDI device passthrough plus a `deploy.resources`
-reservation. This is the shape to copy for any new GPU service:
+Both AI services already declare GPU access in `docker-compose.prod.yml` — a Podman
+CDI device entry plus a `deploy.resources` reservation. This is the shape to copy for
+any new GPU service:
 
 ```yaml
 services:
@@ -70,6 +86,13 @@ services:
               device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
 ```
+
+`ai-vlm` uses the same two mechanisms and a single-card selector —
+`devices: nvidia.com/gpu=${GPU_LLM:-0}` with `device_ids: ['${GPU_LLM:-0}']`
+(`docker-compose.prod.yml:157-158`, `:264`). The gateway passes `all` deliberately:
+a single `nvidia.com/gpu=N` with N>0 creates only `/dev/nvidiaN`, which the CUDA
+Runtime cannot use, so the gateway takes every card and narrows Triton with
+`CUDA_VISIBLE_DEVICES` instead.
 
 Podman with CDI:
 
@@ -106,33 +129,36 @@ nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
 **1. Free VRAM:**
 
 ```bash
-# Kill GPU processes
-sudo fuser -k /dev/nvidia*
+# Restart the AI services (drops loaded models and re-initialises CUDA)
+docker compose -f docker-compose.prod.yml restart ai-gateway
+docker compose -f docker-compose.prod.yml --profile vlm restart ai-vlm
 
-# Restart AI services (containerized production stack)
-docker compose -f docker-compose.prod.yml restart ai-gateway ai-llm
-
-# Host-run services started with the ./ai/start_*.sh helpers
-pkill -f model.py && ./ai/start_detector.sh
+# A host-run standalone detector, if you started one
+pkill -f "ai/yolo26/model.py"
 ```
 
-**2. Check memory requirements:**
+**2. Know what the two GPU workloads actually cost:**
 
-| Service (container)                     | Expected VRAM  |
-| --------------------------------------- | -------------- |
-| YOLO26 (ai-gateway, TensorRT)           | ~2GB           |
-| Florence-2 (ai-gateway)                 | ~1.5GB         |
-| SigLIP 2 embeddings (ai-gateway)        | ~0.2GB         |
-| Nemotron-3-Nano-30B (ai-llm)            | ~14.7GB (prod) |
-| Nemotron Mini 4B (host-run dev scripts) | ~3GB (dev)     |
-| **Total (prod)**                        | **~19GB**      |
+| What                                                        | Footprint                                                   |
+| ----------------------------------------------------------- | ----------------------------------------------------------- |
+| `ai-vlm` GGUF weights (Q4_K_M + Q8_0 projector)             | ~5.03GB + ~0.75GB                                           |
+| `ai-vlm` KV pool (32 768 ctx × 2 slots, `q8_0` keys/values) | about half the 4 608 MiB an f16 pool of that geometry needs |
+| `ai-gateway` Triton CUDA context + resident ONNX models     | 256 MB pool declared at startup                             |
+| Face, plate and person-re-ID lookups                        | CPU only                                                    |
 
-See the VRAM table in [Operator Hub](../../operator/README.md) (GPU tier guidance:
-8-12GB minimum, 16GB recommended, 24GB+ optimal).
+The KV pool scales with the context and slot counts, not with the weights, so
+`VLM_CTX_SIZE` and `VLM_PARALLEL` are the levers on it. The shipped
+`CACHE_TYPE_K`/`CACHE_TYPE_V=q8_0` is what halves that pool against an f16 default.
+Measured figures and their sources are in
+[VRAM Budget](../nvidia-technology-inventory.md#vram-budget).
 
-**3. Use smaller model (Nemotron):**
+The compose `memory:` limits are host RAM, not VRAM.
 
-Download Q4_K_S quantization instead of Q4_K_M (saves ~500MB).
+**3. Free the KV pool sooner:**
+
+`ai-vlm` releases its VRAM to the host after `VLM_SLEEP_IDLE_SECONDS` (compose
+default 300) of idleness. Lower that value on a shared card, or drop
+`VLM_PARALLEL` to 1 to halve the pool the serve holds while it is awake.
 
 **4. Close other GPU applications:**
 
@@ -146,62 +172,77 @@ Download Q4_K_S quantization instead of Q4_K_M (saves ~500MB).
 
 ### Symptoms
 
-- GPU utilization at 0% in `nvidia-smi`
-- Detection takes >200ms instead of 30-50ms
-- LLM responses take >30s instead of 2-5s
-- Health check shows `"device": "cpu"`
+- GPU utilization at 0% in `nvidia-smi` while events are being processed
+- Detection latency an order of magnitude above the served baseline
+- Verdicts that take tens of seconds
+- `ai-vlm` answers, but each answer is slow and the card is idle
 
 ### Diagnosis
 
 ```bash
-# Production: the gateway health endpoint reports model readiness, not the device
+# The gateway reports model readiness, not a device string
 curl http://localhost:8090/health | jq
 curl http://localhost:8090/yolo26/health | jq .model_loaded
 
-# Host-run standalone server (./ai/start_detector.sh) reports the torch device
-curl http://localhost:8090/health | jq .device
+# Which processes actually hold GPU memory
+nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
 
-# Check if GPU processes exist
-nvidia-smi --query-compute-apps=pid,name --format=csv
+# The serve's own view of its offload
+docker compose -f docker-compose.prod.yml --profile vlm logs ai-vlm 2>&1 | grep -iE "offload|CUDA|BLAS"
 ```
 
-> The `device` field only exists on the standalone host-run server
-> (`ai/yolo26/model.py`, which returns `cuda:0` or `cpu`). The Triton-backed gateway
-> router (`ai/gateway/adapters/yolo26.py`) returns only `status`, `model` and
-> `model_loaded`.
+> Neither production service publishes a `"device"` field. `ai-gateway`'s router
+> returns `status`, `model` and `model_loaded`
+> (`ai/gateway/adapters/yolo26.py:511-520`); the aggregate at `/health` returns
+> `status`, `triton_server_ready` and a per-model readiness map. The only server in
+> this tree that answers with a `device` is the host-run `ai/yolo26/model.py`, which
+> reports `cuda:0` or `cpu`.
 
 ### Solutions
 
-**1. Verify CUDA in container:**
+**1. Verify CUDA inside the gateway container:**
 
 ```bash
-# Check container GPU access
-docker compose -f docker-compose.prod.yml exec ai-gateway nvidia-smi
+# Container sees the card at all?
+docker compose -f docker-compose.prod.yml exec -T ai-gateway nvidia-smi
 
-# Check PyTorch CUDA
-docker compose -f docker-compose.prod.yml exec ai-gateway python3 -c "import torch; print(torch.cuda.is_available())"
+# CUDA Runtime initializes?
+docker compose -f docker-compose.prod.yml exec -T ai-gateway python3 -c "
+import ctypes
+lib = ctypes.CDLL('libcudart.so')
+count = ctypes.c_int()
+print('err=', lib.cudaGetDeviceCount(ctypes.byref(count)), 'count=', count.value)
+"
 ```
 
-**2. Check llama.cpp GPU support:**
+`err=3` with `count=0` while `nvidia-smi` works is the rootless-Podman class — see
+[Triton Rootless CUDA](triton-rootless-cuda.md).
+
+**2. Check the llama.cpp CUDA build:**
+
+The shipped `ai-vlm` image builds `llama-server` from source with `-DGGML_CUDA=ON`
+(`ai/vlm/Dockerfile:74-76`), so the image is CUDA-capable by construction. A
+CPU-only serve is a device-passthrough problem, not a build problem:
 
 ```bash
-# Verify llama-server has CUDA support
-llama-server --version
-
-# If built without CUDA, rebuild:
-cd /tmp
-git clone https://github.com/ggerganov/llama.cpp
-cd llama.cpp
-make LLAMA_CUDA=1 -j$(nproc)
-sudo install -m 755 llama-server /usr/local/bin/
+docker compose -f docker-compose.prod.yml --profile vlm exec -T ai-vlm nvidia-smi
+docker compose -f docker-compose.prod.yml --profile vlm exec -T ai-vlm \
+  ls /dev/nvidia0
 ```
+
+If the device is missing inside the container, the CDI spec is the thing to
+regenerate, not the image.
 
 **3. Verify GPU layer offload:**
 
-- **Containerized `ai-llm`:** `docker-compose.prod.yml` passes `GPU_LAYERS=${GPU_LAYERS:-auto}`
-  (llama.cpp auto-fits layers to free VRAM). Force full offload with `GPU_LAYERS=99` in `.env`.
-- **Host-run `./ai/start_llm.sh`:** hardcoded `--n-gpu-layers 99` (all layers on GPU).
-- **Host-run `./ai/start_nemotron.sh`:** `NEMOTRON_GPU_LAYERS` (default 35).
+The compose file passes `GPU_LAYERS=${VLM_GPU_LAYERS:-auto}`
+(`docker-compose.prod.yml:183`), so llama.cpp fits layers to the free VRAM it finds.
+The image's own default is `99` (`ai/vlm/Dockerfile:124`). If a fixed count was set in
+`.env` it overrides the auto-fit — check the value before blaming the card:
+
+```bash
+docker compose -f docker-compose.prod.yml --profile vlm exec -T ai-vlm env | grep GPU_LAYERS
+```
 
 ---
 
@@ -303,7 +344,7 @@ podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base nvidia-smi
 
 **Verify compose file:**
 
-`ai-gateway` and `ai-llm` in `docker-compose.prod.yml` already combine both mechanisms —
+`ai-gateway` and `ai-vlm` in `docker-compose.prod.yml` already combine both mechanisms —
 the CDI `devices:` entry for Podman rootless, and the `deploy.resources` reservation for
 Docker:
 
@@ -348,18 +389,15 @@ nvidia-smi dmon -s pucvmet
 **1. Specify GPU for service:**
 
 ```bash
-# YOLO26 on GPU 0
-CUDA_VISIBLE_DEVICES=0 python model.py
-
-# Nemotron on GPU 1
-CUDA_VISIBLE_DEVICES=1 llama-server ...
+# Host-run standalone detector on GPU 0
+CUDA_VISIBLE_DEVICES=0 ./ai/start_detector.sh
 ```
 
 **2. In container:**
 
-The compose file parameterizes GPU selection with `GPU_AI_SERVICES` (ai-gateway,
-default 1) and `GPU_LLM` (ai-llm, default 0). To change assignments, set them in `.env`
-rather than editing the compose file:
+The compose file parameterizes GPU selection with two variables: `GPU_AI_SERVICES`
+(`ai-gateway`, default 1) and `GPU_LLM` (`ai-vlm`, default 0). To change assignments,
+set them in `.env` rather than editing the compose file:
 
 ```bash
 # .env — put the Triton gateway on GPU 0 instead of the default GPU 1
@@ -387,7 +425,8 @@ services:
 
 ## Triton CUDA Init Failure (Rootless Podman)
 
-If ai-gateway (Triton) fails with `cudaGetDeviceCount() err=3` while ai-llm works:
+If ai-gateway (Triton) fails with `cudaGetDeviceCount() err=3` while `ai-vlm` runs
+on the same card:
 
 - **Symptom:** Triton models UNAVAILABLE, `cudaErrorInitializationError`
 - **Cause:** CUDA Runtime API vs Driver API — Triton uses Runtime API which may require nvidia-cap in rootless

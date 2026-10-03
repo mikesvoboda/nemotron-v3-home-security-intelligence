@@ -1,7 +1,7 @@
 ---
 title: Architecture Overview
 description: High-level system design, technology stack, data flow, and component responsibilities
-last_updated: 2026-01-04
+last_updated: 2026-10-02
 source_refs:
   - backend/main.py
   - backend/api/routes/cameras.py
@@ -11,14 +11,16 @@ source_refs:
   - backend/services/file_watcher.py:FileWatcher
   - backend/services/detector_client.py:DetectorClient
   - backend/services/batch_aggregator.py:BatchAggregator
-  - backend/services/nemotron_analyzer.py:NemotronAnalyzer
+  - backend/services/pipeline_factory.py:build_pipeline_analyzer
+  - backend/services/vlm_analyzer.py:VlmAnalyzer
+  - backend/services/key_frame_selector.py:select_key_frames
+  - backend/services/vlm_specialists.py:collect_specialist_outputs
+  - backend/services/osnet_loader.py:get_reid_handle
+  - backend/services/face_recognizer_loader.py:get_face_leg_handles
+  - backend/services/fast_alpr_loader.py:load_fast_alpr
   - backend/services/event_broadcaster.py:EventBroadcaster
   - backend/services/gpu_monitor.py:GPUMonitor
   - backend/services/health_monitor.py:ServiceHealthMonitor
-  - backend/services/enrichment_pipeline.py:EnrichmentPipeline
-  - backend/services/enrichment_client.py:EnrichmentClient
-  - backend/services/florence_client.py:FlorenceClient
-  - backend/services/clip_client.py:CLIPClient
   - backend/services/performance_collector.py:PerformanceCollector
   - backend/services/prompt_service.py:PromptService
   - backend/services/audit_logger.py:AuditService
@@ -28,6 +30,7 @@ source_refs:
   - backend/models/camera.py:Camera
   - backend/models/detection.py:Detection
   - backend/models/event.py:Event
+  - backend/models/event_verification.py:EventVerification
   - frontend/src/hooks/useWebSocket.ts
   - frontend/src/hooks/useEventStream.ts
   - frontend/src/hooks/useAIMetrics.ts
@@ -36,18 +39,17 @@ source_refs:
   - frontend/src/hooks/useServiceStatus.ts
   - frontend/src/hooks/useConnectionStatus.ts
   - frontend/src/hooks/useModelZooStatus.ts
-  - ai/yolo26/model.py
-  - ai/nemotron/AGENTS.md
+  - ai/gateway/main.py
+  - ai/vlm/Dockerfile
 ---
 
 # Architecture Overview
 
-![Architecture Overview](../images/architecture-overview.png)
-
-_AI-generated visualization of the full system architecture showing Frontend, Backend, AI Services, and GPU tiers._
-
-> **Last Updated:** 2026-01-04
 > **Target Audience:** Future maintainers, technical contributors
+
+The hop-by-hop description of the live path, with file:line pins, lives in
+[AI pipeline: current state](./ai-pipeline-current-state.md). This page is the map around it:
+layers, stack, components, ports, and schema.
 
 ---
 
@@ -59,34 +61,14 @@ Home Security Intelligence transforms commodity IP cameras into an intelligent t
 
 **Key value proposition:**
 
-- **Contextual alerts:** Not just "person detected" but "unfamiliar person approaching back entrance at 2 AM, risk: high"
+- **Contextual verdicts:** Not just "person detected" — the VLM attaches a scene description, a verdict, and a risk score to each event
 - **Batch reasoning:** Groups multiple detections into coherent events for better context
-- **Fast path:** High-confidence critical detections bypass batching for immediate alerts
+- **Specialist lookups:** Face, license-plate, and person re-identification results are gathered in-process and fed to the VLM as text
 - **Local processing:** All AI inference runs locally on your hardware, no cloud dependencies
 
 ---
 
 ## High-Level Architecture
-
-![System architecture overview diagram showing four layers: Camera Layer (Foscam IP cameras uploading via FTP), Application Layer (React frontend and FastAPI backend with Redis), GPU Services Layer (ai-gateway serving YOLO26/Florence-2/CLIP/enrichment, plus the Nemotron LLM container, with GPU passthrough), and Data Layer (PostgreSQL database and filesystem storage for thumbnails)](../images/arch-system-overview.png)
-
-The system is organized into four layers:
-
-- **Camera Layer:** Foscam IP cameras upload images via FTP
-- **Application Layer:** React frontend + FastAPI backend
-- **GPU Services:** 2 AI containers — `ai-gateway` (YOLO26, Florence-2, CLIP and enrichment models via
-  Triton, port 8090) and `ai-llm` (Nemotron via llama.cpp, port 8091)
-- **Data Layer:** PostgreSQL, Redis, and filesystem storage
-
-> The linked PNG still shows the pre-consolidation layout with separate YOLO26/Florence/CLIP/Enrichment
-> containers; the text above and the diagrams below describe the current tree.
-
-### Detailed System Architecture Diagram
-
-![System architecture diagram showing four layers: Camera Layer with Foscam cameras, FTP Upload storage, Docker Services (Frontend, Backend, Redis), Containerized GPU Services (YOLO26, Nemotron, Florence-2, CLIP, Enrichment), and Persistent Storage (PostgreSQL, Filesystem)](../images/architecture/overview-system-architecture.svg)
-
-<!--
-Original Mermaid diagram preserved for reference:
 
 ```mermaid
 flowchart TB
@@ -103,13 +85,13 @@ flowchart TB
     subgraph Docker["Docker Services"]
         direction TB
         FE["Frontend<br/>React + Vite<br/>:8444 HTTPS"]
-        BE["Backend<br/>FastAPI<br/>:8000"]
+        BE["Backend :8000<br/>FastAPI<br/>+ in-process specialist lookups<br/>faces · plates · person re-ID"]
         RD["Redis<br/>:6379"]
     end
 
-    subgraph GPU["Containerized GPU Services"]
-        GW["ai-gateway :8090<br/>YOLO26 detection<br/>Florence-2 · CLIP ·<br/>Enrichment (Triton)"]
-        LLM["Nemotron LLM<br/>Risk Analysis<br/>:8091"]
+    subgraph GPU["AI Services (GPU via CDI)"]
+        GW["ai-gateway :8090<br/>Triton serving YOLO26<br/>(reid, threat resident)"]
+        VLM["ai-vlm :8098<br/>llama.cpp llama-server<br/>Qwen3VL-8B-Instruct<br/>+ mmproj projector"]
     end
 
     subgraph Storage["Persistent Storage"]
@@ -119,44 +101,57 @@ flowchart TB
 
     CAM1 & CAM2 & CAM3 -->|FTP Upload| FTPS
 
-    FTPS -->|FileWatcher| BE
-    BE <-->|Queues & Pub/Sub| RD
-    BE -->|HTTP /yolo26/detect| GW
-    BE -->|HTTP /florence /clip /enrichment| GW
-    BE -->|HTTP /completion| LLM
+    FTPS -->|FileWatcher inotify| BE
+    BE <-->|Streams & Pub/Sub| RD
+    BE -->|POST /yolo26/detect| GW
+    BE -->|POST /v1/chat/completions| VLM
     BE <-->|SQLAlchemy| DB
     BE -->|PIL/Pillow| FS
     FE <-->|REST API| BE
     FE <-->|WebSocket| BE
+```
 
-````
--->
+The system is organized into four layers:
+
+- **Camera Layer:** Foscam IP cameras upload images via FTP
+- **Application Layer:** React frontend + FastAPI backend. The backend also runs the three specialist lookup legs (faces, plates, person re-identification) in-process
+- **AI Services:** 2 containers — `ai-gateway` (Triton serving YOLO26, port 8090) and `ai-vlm` (llama.cpp serving the Qwen3VL vision-language model, port 8098, behind the `vlm` compose profile)
+- **Data Layer:** PostgreSQL, Redis, and filesystem storage
+
+### The two AI services
+
+| Service      | Port | Engine                   | Serves                                                             |
+| ------------ | ---- | ------------------------ | ------------------------------------------------------------------ |
+| `ai-gateway` | 8090 | Triton Inference Server  | `/yolo26` detection; `/enrich-lt` readiness + resident specialists |
+| `ai-vlm`     | 8098 | llama.cpp `llama-server` | `/v1/chat/completions` on Qwen3VL-8B-Instruct-Q4_K_M + mmproj      |
+
+`ai-vlm` is the only LLM service in the shipped stack.
 
 ---
 
 ## Technology Stack
 
-| Layer                | Technology       | Version | Why This Choice                                                                |
-| -------------------- | ---------------- | ------- | ------------------------------------------------------------------------------ |
-| **Frontend**         | React            | 19.3    | Industry standard, excellent ecosystem, component model fits dashboard UI      |
-|                      | TypeScript       | 6.0     | Type safety catches bugs early, better IDE support, self-documenting code      |
-|                      | Tailwind CSS     | 3.4     | Utility-first approach, dark theme customization, responsive design            |
-|                      | Tremor           | 3.18    | Pre-built data visualization components (charts, gauges) for dashboards        |
-|                      | Vite             | 7.3     | Fast dev server with HMR, modern bundling, excellent DX                        |
-| **Backend**          | Python           | 3.14    | AI/ML ecosystem (PyTorch, transformers), async support, rapid development      |
-|                      | FastAPI          | ≥0.115  | Modern async framework, automatic OpenAPI docs, type hints, WebSocket support  |
-|                      | SQLAlchemy       | 2.0     | Async ORM, excellent PostgreSQL support, type-safe queries with `Mapped` hints |
-|                      | Pydantic         | 2.0     | Request validation, settings management, schema generation                     |
-| **Database**         | PostgreSQL       | 16      | Concurrent writes, JSONB, full-text search, proper transaction isolation       |
-|                      | Redis            | 7.4     | Fast pub/sub for WebSocket, reliable queues for pipeline, ephemeral cache      |
-| **AI - Detection**   | YOLO26           | -       | Real-time transformer detector, 30-50ms inference, COCO-trained; served by ai-gateway via Triton |
-|                      | Triton           | -       | Single inference server hosting detection, vision, embedding and enrichment models |
-|                      | PyTorch          | 2.x     | GPU acceleration, HuggingFace Transformers integration                         |
-| **AI - Reasoning**   | Nemotron-3-Nano-30B | Q4_K_M | NVIDIA v3 Nano 30B LLM, ~14.7GB VRAM; context set by `CTX_SIZE` in `.env`      |
-|                      | llama.cpp        | -       | Efficient inference, GGUF format, GPU offloading, HTTP API                     |
-| **Containerization** | Docker/Podman Compose | -   | Multi-service orchestration, health checks, networking                         |
-| **Monitoring**       | Prometheus       | 3.1     | Time-series metrics, monitoring stack (`docker.io/prom/prometheus:v3.1.0`)     |
-|                      | Grafana          | custom  | Dashboards for system monitoring (built from `monitoring/grafana/Dockerfile`)  |
+| Layer                | Technology            | Version | Why This Choice                                                                |
+| -------------------- | --------------------- | ------- | ------------------------------------------------------------------------------ |
+| **Frontend**         | React                 | 19.2    | Industry standard, excellent ecosystem, component model fits dashboard UI      |
+|                      | TypeScript            | 6.0     | Type safety catches bugs early, better IDE support, self-documenting code      |
+|                      | Tailwind CSS          | 3       | Utility-first approach, dark theme customization, responsive design            |
+|                      | Tremor                | 3.17    | Pre-built data visualization components (charts, gauges) for dashboards        |
+|                      | Vite                  | 7.3     | Fast dev server with HMR, modern bundling, excellent DX                        |
+| **Backend**          | Python                | 3.14    | AI/ML ecosystem (PyTorch, transformers), async support, rapid development      |
+|                      | FastAPI               | ≥0.115  | Modern async framework, automatic OpenAPI docs, type hints, WebSocket support  |
+|                      | SQLAlchemy            | 2.0     | Async ORM, excellent PostgreSQL support, type-safe queries with `Mapped` hints |
+|                      | Pydantic              | 2.0     | Request validation, settings management, schema generation                     |
+| **Database**         | PostgreSQL            | 16      | Concurrent writes, JSONB, full-text search, proper transaction isolation       |
+|                      | Redis                 | 7.4     | Fast pub/sub for WebSocket, Streams for the pipeline, ephemeral cache          |
+| **AI - Detection**   | YOLO26                | -       | Transformer detector served by ai-gateway via Triton (TensorRT engine)         |
+|                      | Triton                | -       | Inference server hosting the shipped `{yolo26, reid, threat}` model set        |
+|                      | PyTorch               | 2.x     | GPU acceleration for in-process specialist loaders                             |
+| **AI - Reasoning**   | Qwen3VL-8B-Instruct   | Q4_K_M  | Vision-language model; scene description + verdict + risk score per batch      |
+|                      | llama.cpp             | -       | GGUF inference with mmproj multimodal projector, HTTP API                      |
+| **Containerization** | Docker/Podman Compose | -       | Multi-service orchestration, health checks, networking                         |
+| **Monitoring**       | Prometheus            | 3.1     | Time-series metrics, monitoring stack (`docker.io/prom/prometheus:v3.1.0`)     |
+|                      | Grafana               | custom  | Dashboards for system monitoring (built from `monitoring/grafana/Dockerfile`)  |
 
 ---
 
@@ -164,58 +159,59 @@ flowchart TB
 
 ### Backend Components
 
-| Component               | Location                  | Responsibility                                                      |
-| ----------------------- | ------------------------- | ------------------------------------------------------------------- |
-| **FastAPI App**         | `backend/main.py`         | HTTP/WebSocket server, middleware, lifespan management              |
-| **API Routes**          | `backend/api/routes/`     | REST endpoints for cameras, events, detections, system, media, logs |
-| **Pydantic Schemas**    | `backend/api/schemas/`    | Request/response validation, OpenAPI documentation                  |
-| **Middleware**          | `backend/api/middleware/` | Authentication (optional), request ID propagation                   |
-| **ORM Models**          | `backend/models/`         | SQLAlchemy models: Camera, Detection, Event, GPUStats, Log, APIKey  |
-| **Core Infrastructure** | `backend/core/`           | Config, database, Redis, logging, metrics                           |
+| Component               | Location                  | Responsibility                                                                        |
+| ----------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
+| **FastAPI App**         | `backend/main.py`         | HTTP/WebSocket server, middleware, lifespan management                                |
+| **API Routes**          | `backend/api/routes/`     | REST endpoints for cameras, events, detections, system, media, logs                   |
+| **Pydantic Schemas**    | `backend/api/schemas/`    | Request/response validation, OpenAPI documentation                                    |
+| **Middleware**          | `backend/api/middleware/` | Authentication (optional), request ID propagation                                     |
+| **ORM Models**          | `backend/models/`         | SQLAlchemy models: Camera, Detection, Event, EventVerification, GPUStats, Log, APIKey |
+| **Core Infrastructure** | `backend/core/`           | Config, database, Redis, logging, metrics                                             |
 
 ### Service Layer (AI Pipeline)
 
-| Service                   | Location                                     | Responsibility                                            |
-| ------------------------- | -------------------------------------------- | --------------------------------------------------------- |
-| **FileWatcher**           | `backend/services/file_watcher.py`           | Monitor camera directories, debounce, queue new images    |
-| **DedupeService**         | `backend/services/dedupe.py`                 | Prevent duplicate processing via content hashes           |
-| **DetectorClient**        | `backend/services/detector_client.py`        | HTTP client for YOLO26, store detections               |
-| **BatchAggregator**       | `backend/services/batch_aggregator.py`       | Group detections into time-windowed batches               |
-| **NemotronAnalyzer**      | `backend/services/nemotron_analyzer.py`      | LLM risk analysis, event creation                         |
-| **ThumbnailGenerator**    | `backend/services/thumbnail_generator.py`    | Bounding box overlays, preview images                     |
-| **EventBroadcaster**      | `backend/services/event_broadcaster.py`      | WebSocket event distribution via Redis pub/sub            |
-| **SystemBroadcaster**     | `backend/services/system_broadcaster.py`     | Periodic system status broadcasts                         |
-| **GPUMonitor**            | `backend/services/gpu_monitor.py`            | NVIDIA GPU metrics via pynvml                             |
-| **CleanupService**        | `backend/services/cleanup_service.py`        | Data retention enforcement                                |
-| **HealthMonitor**         | `backend/services/health_monitor.py`         | Service health checks, auto-recovery                      |
-| **RetryHandler**          | `backend/services/retry_handler.py`          | Exponential backoff, dead-letter queues                   |
-| **PipelineWorkerManager** | `backend/services/pipeline_workers.py`       | Background worker lifecycle management                    |
-| **AlertEngine**           | `backend/services/alert_engine.py`           | Alert rule evaluation and notification triggering         |
-| **ZoneService**           | `backend/services/zone_service.py`           | Geographic zone management for detections                 |
-| **BaselineService**       | `backend/services/baseline.py`               | Anomaly detection via activity baselines                  |
-| **EnrichmentPipeline**    | `backend/services/enrichment_pipeline.py`    | Orchestrate multi-model detection enrichment              |
-| **EnrichmentClient**      | `backend/services/enrichment_client.py`      | HTTP client for enrichment API service                    |
-| **FlorenceClient**        | `backend/services/florence_client.py`        | HTTP client for Florence-2 vision extraction              |
-| **CLIPClient**            | `backend/services/clip_client.py`            | HTTP client for the gateway CLIP router (scene baseline, classification) |
-| **PerformanceCollector**  | `backend/services/performance_collector.py`  | AI pipeline performance metrics collection                |
-| **PromptService**         | `backend/services/prompt_service.py`         | Dynamic prompt template management                        |
-| **PromptVersionService**  | `backend/services/prompt_version_service.py` | Prompt versioning and A/B testing support                 |
-| **AuditService**          | `backend/services/audit_logger.py`          | Security audit logging and compliance tracking            |
-| **NotificationService**   | `backend/services/notification.py`           | Alert delivery via multiple channels                      |
-| **SceneChangeDetector**   | `backend/services/scene_change_detector.py`  | Detect significant scene changes between frames           |
-| **SceneBaseline**         | `backend/services/scene_baseline.py`         | Maintain per-camera scene baselines for anomaly detection |
-| **VideoProcessor**        | `backend/services/video_processor.py`        | Process and analyze video clips                           |
-| **ReidService**           | `backend/services/reid_service.py`           | Person/entity re-identification across detections         |
-| **ContextEnricher**       | `backend/services/context_enricher.py`       | Add contextual metadata to detections                     |
-| **CircuitBreaker**        | `backend/services/circuit_breaker.py`        | Protect services from cascading failures                  |
-| **DegradationManager**    | `backend/services/degradation_manager.py`    | Graceful degradation during service failures              |
-| **CacheService**          | `backend/services/cache_service.py`          | Redis-based caching for frequently accessed data          |
-| **AlertDedupService**     | `backend/services/alert_dedup.py`            | Deduplicate repeated alerts                               |
-| **SearchService**         | `backend/services/search.py`                 | Full-text search across events and detections             |
-| **SeverityService**       | `backend/services/severity.py`               | Calculate and normalize severity scores                   |
-| **ModelZoo**              | `backend/services/model_zoo.py`              | Manage optional ML model loading and inference            |
-| **VisionExtractor**       | `backend/services/vision_extractor.py`       | Extract visual features from detection images             |
-| **BBoxValidation**        | `backend/services/bbox_validation.py`        | Validate and normalize bounding box coordinates           |
+| Service                    | Location                                     | Responsibility                                                                  |
+| -------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------- |
+| **FileWatcher**            | `backend/services/file_watcher.py`           | Monitor camera directories, debounce, queue new images                          |
+| **DedupeService**          | `backend/services/dedupe.py`                 | Prevent duplicate processing via content hashes                                 |
+| **DetectorClient**         | `backend/services/detector_client.py`        | HTTP client for YOLO26 via ai-gateway, store detections                         |
+| **BatchAggregator**        | `backend/services/batch_aggregator.py`       | Group detections into time-windowed batches                                     |
+| **pipeline_factory**       | `backend/services/pipeline_factory.py`       | Build the pipeline analyzer (one mode: VLM)                                     |
+| **VlmAnalyzer**            | `backend/services/vlm_analyzer.py`           | Key-frame selection, specialist gather, VLM call, event write                   |
+| **key_frame_selector**     | `backend/services/key_frame_selector.py`     | Pick 1-4 stills per batch for the VLM                                           |
+| **vlm_specialists**        | `backend/services/vlm_specialists.py`        | Gather the three in-process specialist lookup legs                              |
+| **osnet_loader**           | `backend/services/osnet_loader.py`           | OSNet person re-ID handle (residency-gated)                                     |
+| **face_recognizer_loader** | `backend/services/face_recognizer_loader.py` | SCRFD + w600k face leg handles (residency-gated)                                |
+| **fast_alpr_loader**       | `backend/services/fast_alpr_loader.py`       | FastALPR plate leg (loads on demand)                                            |
+| **vlm_client**             | `backend/services/vlm_client.py`             | POST `/v1/chat/completions` to ai-vlm                                           |
+| **ThumbnailGenerator**     | `backend/services/thumbnail_generator.py`    | Bounding box overlays, preview images                                           |
+| **EventBroadcaster**       | `backend/services/event_broadcaster.py`      | WebSocket event distribution via Redis pub/sub                                  |
+| **SystemBroadcaster**      | `backend/services/system_broadcaster.py`     | Periodic system status broadcasts                                               |
+| **GPUMonitor**             | `backend/services/gpu_monitor.py`            | NVIDIA GPU metrics via pynvml                                                   |
+| **CleanupService**         | `backend/services/cleanup_service.py`        | Data retention enforcement                                                      |
+| **HealthMonitor**          | `backend/services/health_monitor.py`         | Service health checks, auto-recovery                                            |
+| **RetryHandler**           | `backend/services/retry_handler.py`          | Exponential backoff, dead-letter queues                                         |
+| **PipelineWorkerManager**  | `backend/services/pipeline_workers.py`       | Background worker lifecycle management                                          |
+| **AlertEngine**            | `backend/services/alert_engine.py`           | Alert rule evaluation (rule-test endpoint only; no event auto-creates an Alert) |
+| **ZoneService**            | `backend/services/zone_service.py`           | Geographic zone management for detections                                       |
+| **BaselineService**        | `backend/services/baseline.py`               | Anomaly detection via activity baselines                                        |
+| **ReidService**            | `backend/services/reid_service.py`           | Person re-identification gallery matching                                       |
+| **ContextEnricher**        | `backend/services/context_enricher.py`       | Add contextual metadata (zones, baselines) to detection batches                 |
+| **SceneChangeDetector**    | `backend/services/scene_change_detector.py`  | SSIM-based scene change detection between frames                                |
+| **VideoProcessor**         | `backend/services/video_processor.py`        | Extract metadata and thumbnails from video files                                |
+| **ModelZoo**               | `backend/services/model_zoo.py`              | On-demand loading of lookup models (plates, faces, OCR)                         |
+| **PerformanceCollector**   | `backend/services/performance_collector.py`  | AI pipeline performance metrics collection                                      |
+| **PromptService**          | `backend/services/prompt_service.py`         | Dynamic prompt template management                                              |
+| **PromptVersionService**   | `backend/services/prompt_version_service.py` | Prompt versioning and history support                                           |
+| **AuditService**           | `backend/services/audit_logger.py`           | Security audit logging and compliance tracking                                  |
+| **NotificationService**    | `backend/services/notification.py`           | Alert delivery via multiple channels                                            |
+| **CircuitBreaker**         | `backend/services/circuit_breaker.py`        | Protect services from cascading failures                                        |
+| **DegradationManager**     | `backend/services/degradation_manager.py`    | Graceful degradation during service failures                                    |
+| **CacheService**           | `backend/services/cache_service.py`          | Redis-based caching for frequently accessed data                                |
+| **AlertDedupService**      | `backend/services/alert_dedup.py`            | Deduplicate repeated alerts                                                     |
+| **SearchService**          | `backend/services/search.py`                 | Full-text search across events and detections                                   |
+| **SeverityService**        | `backend/services/severity.py`               | Calculate and normalize severity scores                                         |
+| **BBoxValidation**         | `backend/services/bbox_validation.py`        | Validate and normalize bounding box coordinates                                 |
 
 ### Frontend Components
 
@@ -231,34 +227,31 @@ flowchart TB
 
 ### Frontend Hooks
 
-| Hook                       | Location                                       | Responsibility                                       |
-| -------------------------- | ---------------------------------------------- | ---------------------------------------------------- |
-| **useWebSocket**           | `frontend/src/hooks/useWebSocket.ts`           | Core WebSocket connection management                 |
-| **WebSocketManager**       | `frontend/src/hooks/webSocketManager.ts`       | Singleton WebSocket instance with reconnection logic |
-| **useEventStream**         | `frontend/src/hooks/useEventStream.ts`         | Subscribe to real-time security events               |
-| **useSystemStatus**        | `frontend/src/hooks/useSystemStatus.ts`        | Subscribe to system health broadcasts                |
-| **useWebSocketStatus**     | `frontend/src/hooks/useWebSocketStatus.ts`     | Track WebSocket connection state                     |
-| **useConnectionStatus**    | `frontend/src/hooks/useConnectionStatus.ts`    | Combined API and WebSocket connection status         |
-| **useHealthStatus**        | `frontend/src/hooks/useHealthStatus.ts`        | Monitor backend service health                       |
-| **useServiceStatus**       | `frontend/src/hooks/useServiceStatus.ts`       | Track individual AI service availability             |
-| **useAIMetrics**           | `frontend/src/hooks/useAIMetrics.ts`           | AI pipeline performance metrics (latency, accuracy)  |
-| **usePerformanceMetrics**  | `frontend/src/hooks/usePerformanceMetrics.ts`  | System performance metrics (CPU, memory, GPU)        |
-| **useGpuHistory**          | `frontend/src/hooks/useGpuHistory.ts`          | Historical GPU utilization data                      |
-| **useStorageStats**        | `frontend/src/hooks/useStorageStats.ts`        | Storage usage and retention statistics               |
-| **useModelZooStatus**      | `frontend/src/hooks/useModelZooStatus.ts`      | Optional model zoo loading status                    |
-| **useDetectionEnrichment** | `frontend/src/hooks/useDetectionEnrichment.ts` | Fetch enriched detection metadata                    |
-| **useSavedSearches**       | `frontend/src/hooks/useSavedSearches.ts`       | Manage user-saved search filters                     |
-| **useSidebarContext**      | `frontend/src/hooks/useSidebarContext.ts`      | Sidebar state management context                     |
+| Hook                      | Location                                      | Responsibility                                       |
+| ------------------------- | --------------------------------------------- | ---------------------------------------------------- |
+| **useWebSocket**          | `frontend/src/hooks/useWebSocket.ts`          | Core WebSocket connection management                 |
+| **WebSocketManager**      | `frontend/src/hooks/webSocketManager.ts`      | Singleton WebSocket instance with reconnection logic |
+| **useEventStream**        | `frontend/src/hooks/useEventStream.ts`        | Subscribe to real-time security events               |
+| **useSystemStatus**       | `frontend/src/hooks/useSystemStatus.ts`       | Subscribe to system health broadcasts                |
+| **useWebSocketStatus**    | `frontend/src/hooks/useWebSocketStatus.ts`    | Track WebSocket connection state                     |
+| **useConnectionStatus**   | `frontend/src/hooks/useConnectionStatus.ts`   | Combined API and WebSocket connection status         |
+| **useHealthStatus**       | `frontend/src/hooks/useHealthStatus.ts`       | Monitor backend service health                       |
+| **useServiceStatus**      | `frontend/src/hooks/useServiceStatus.ts`      | Track individual AI service availability             |
+| **useAIMetrics**          | `frontend/src/hooks/useAIMetrics.ts`          | AI pipeline performance metrics (latency, accuracy)  |
+| **usePerformanceMetrics** | `frontend/src/hooks/usePerformanceMetrics.ts` | System performance metrics (CPU, memory, GPU)        |
+| **useGpuHistory**         | `frontend/src/hooks/useGpuHistory.ts`         | Historical GPU utilization data                      |
+| **useStorageStats**       | `frontend/src/hooks/useStorageStats.ts`       | Storage usage and retention statistics               |
+| **useModelZooStatus**     | `frontend/src/hooks/useModelZooStatus.ts`     | Optional model zoo loading status                    |
+| **useSavedSearches**      | `frontend/src/hooks/useSavedSearches.ts`      | Manage user-saved search filters                     |
+| **useSidebarContext**     | `frontend/src/hooks/useSidebarContext.ts`     | Sidebar state management context                     |
 
 ### AI Services
 
-| Service              | Location             | Responsibility                                       |
-| -------------------- | -------------------- | ---------------------------------------------------- |
-| **YOLO26 Server** | `ai/yolo26/model.py` | Object detection inference, security-class filtering |
-| **Nemotron LLM**     | `ai/nemotron/`       | Risk reasoning via llama.cpp server                  |
-| **Florence-2**       | `ai/florence/`       | Optional vision extraction used by enrichment        |
-| **CLIP**             | `ai/clip/`           | Optional scene/anomaly embeddings used by enrichment |
-| **Enrichment API**   | `ai/enrichment/`     | Optional higher-level enrichment endpoint            |
+| Service         | Location             | Responsibility                                                    |
+| --------------- | -------------------- | ----------------------------------------------------------------- |
+| **ai-gateway**  | `ai/gateway/`        | FastAPI + Triton front: `/yolo26` detection, `/enrich-lt` lane    |
+| **YOLO26 leaf** | `ai/yolo26/model.py` | Pure-leaf detection contract + TensorRT build used by the gateway |
+| **ai-vlm**      | `ai/vlm/Dockerfile`  | llama.cpp `llama-server` image for the Qwen3VL GGUF pair          |
 
 ---
 
@@ -303,62 +296,55 @@ Used for: Real-time updates without polling
     "summary": "Person detected..."
   }
 }
-````
+```
 
 ### Redis Pub/Sub
 
 Used for: Multi-instance WebSocket broadcasting
 
-| Channel           | Publisher        | Subscribers         | Purpose                                    |
-| ----------------- | ---------------- | ------------------- | ------------------------------------------ |
-| `security_events` | NemotronAnalyzer | EventBroadcaster(s) | Distribute events to all backend instances |
+| Channel              | Publisher         | Subscribers          | Purpose                                    |
+| -------------------- | ----------------- | -------------------- | ------------------------------------------ |
+| `security_events`    | VlmAnalyzer       | EventBroadcaster(s)  | Distribute events to all backend instances |
+| `system_status`      | SystemBroadcaster | SystemBroadcaster(s) | Sync status broadcasts across instances    |
+| `performance_update` | SystemBroadcaster | SystemBroadcaster(s) | Sync detailed performance broadcasts       |
 
-### Redis Queues (Lists)
+### Redis Queues (Streams)
 
-Used for: Reliable async job processing
+Used for: Reliable async job processing with consumer groups and acknowledgment
+(`USE_REDIS_STREAMS=true` ships as the default).
 
-| Queue                 | Producer        | Consumer             | Data                                   |
-| --------------------- | --------------- | -------------------- | -------------------------------------- |
-| `detection_queue`     | FileWatcher     | DetectionQueueWorker | `{camera_id, file_path, timestamp}`    |
-| `analysis_queue`      | BatchAggregator | AnalysisQueueWorker  | `{batch_id, camera_id, detection_ids}` |
-| `dlq:detection_queue` | RetryHandler    | Manual/API           | Failed detection jobs                  |
-| `dlq:analysis_queue`  | RetryHandler    | Manual/API           | Failed analysis jobs                   |
+| Stream              | Producer        | Consumer             | Data                                   |
+| ------------------- | --------------- | -------------------- | -------------------------------------- |
+| `detections:stream` | FileWatcher     | DetectionQueueWorker | `{camera_id, file_path, timestamp}`    |
+| `analysis:stream`   | BatchAggregator | AnalysisQueueWorker  | `{batch_id, camera_id, detection_ids}` |
 
 ### HTTP (Internal Services)
 
 Used for: AI inference requests
 
-| Service  | Endpoint      | Method | Request                             | Response                                    |
-| -------- | ------------- | ------ | ----------------------------------- | ------------------------------------------- |
-| YOLO26   | `/detect`     | POST   | Multipart image                     | `{detections: [{class, confidence, bbox}]}` |
-| YOLO26   | `/health`     | GET    | -                                   | `{status, model_loaded, cuda_available}`    |
-| Nemotron | `/completion` | POST   | `{prompt, temperature, max_tokens}` | `{content: "..."}`                          |
-| Nemotron | `/health`     | GET    | -                                   | `{status: "ok"}`                            |
+| Service    | Endpoint               | Method | Request                          | Response                                          |
+| ---------- | ---------------------- | ------ | -------------------------------- | ------------------------------------------------- |
+| ai-gateway | `/yolo26/detect`       | POST   | Multipart image                  | `{detections: [{class, confidence, bbox}]}`       |
+| ai-gateway | `/yolo26/health`       | GET    | -                                | health + Triton model readiness                   |
+| ai-vlm     | `/v1/chat/completions` | POST   | `{messages, images, max_tokens}` | OpenAI-style completion with the VLM verdict JSON |
+| ai-vlm     | `/health`              | GET    | -                                | `{status: "ok"}`                                  |
 
 ---
 
 ## Deployment Topology
 
-![Deployment topology diagram showing host machine with Docker Compose network (Frontend, Backend, Redis containers), Containerized GPU Services via CDI, Persistent Storage volumes, and the NVIDIA GPU. Image predates the AI-gateway consolidation: YOLO26/Florence/CLIP/Enrichment now run in one `ai-gateway` container (port 8090), not five separate containers.](../images/architecture/overview-deployment-topology.svg)
-
-<!--
-Original Mermaid diagram preserved for reference:
-
 ```mermaid
 flowchart TB
     subgraph Host["Host Machine (with GPU)"]
         subgraph Docker["Docker Compose Network"]
-            FE["Frontend Container<br/>Node 24 Alpine<br/>Port 5173 (dev) / 80 (prod)"]
+            FE["Frontend Container<br/>Port 8444 HTTPS / 8080 HTTP (prod)"]
             BE["Backend Container<br/>Python 3.14<br/>Port 8000"]
             RD["Redis Container<br/>Redis 7 Alpine<br/>Port 6379"]
         end
 
-        subgraph GPUContainers["Containerized GPU Services (CDI)"]
-            DET["YOLO26 Container<br/>PyTorch + Transformers<br/>Port 8095<br/>~3–4GB VRAM"]
-            FLO["Florence-2 Container<br/>Vision extraction (optional)<br/>Port 8092<br/>VRAM varies"]
-            CLIP["CLIP Container<br/>Scene embeddings (optional)<br/>Port 8093<br/>VRAM varies"]
-            ENR["Enrichment Container<br/>Model-zoo API (optional)<br/>Port 8094<br/>VRAM varies"]
-            LLM["Nemotron Container<br/>llama.cpp<br/>Port 8091<br/>~14.7GB VRAM*"]
+        subgraph GPUContainers["AI Services (GPU via CDI)"]
+            GW["ai-gateway<br/>Triton: yolo26, reid, threat<br/>Port 8090 (metrics 8002)"]
+            VLM["ai-vlm (compose profile: vlm)<br/>llama.cpp + Qwen3VL GGUF pair<br/>Port 8098"]
         end
 
         subgraph Storage["Persistent Storage"]
@@ -367,50 +353,44 @@ flowchart TB
             VOL3["redis_data<br/>Redis persistence"]
         end
 
-        GPU["NVIDIA GPU<br/>RTX A5500 (24GB)<br/>CUDA 12.0+"]
+        GPU["NVIDIA GPU<br/>CUDA 12.0+"]
     end
 
     FE <--> BE
 
     BE <--> RD
-    BE -->|localhost:8095| DET
-    BE -->|localhost:8092 (optional)| FLO
-    BE -->|localhost:8093 (optional)| CLIP
-    BE -->|localhost:8094 (optional)| ENR
-    BE -->|localhost:8091| LLM
-    DET --> GPU
-    LLM --> GPU
+    BE -->|ai-gateway:8090| GW
+    BE -->|ai-vlm:8098| VLM
+    GW --> GPU
+    VLM --> GPU
     BE --> VOL1
     BE --> VOL2
     RD --> VOL3
-
-````
--->
+```
 
 ### What Runs Where
 
-| Component          | Deployment                      | Why                                      |
-| ------------------ | ------------------------------- | ---------------------------------------- |
-| **Frontend**       | Podman (dev: Vite, prod: Nginx) | No GPU needed, isolated environment      |
-| **Backend**        | Podman                          | No GPU needed, isolated environment      |
-| **Redis**          | Podman                          | No GPU needed, ephemeral data acceptable |
-| **PostgreSQL**     | Podman                          | Database isolation, volume persistence   |
-| **ai-gateway**     | Podman (GPU via CDI)            | YOLO26 + enrichment models via Triton; GPU access via NVIDIA Container Toolkit |
-| **Nemotron**       | Podman (GPU via CDI)            | GPU access via NVIDIA Container Toolkit  |
+| Component      | Deployment                          | Why                                                    |
+| -------------- | ----------------------------------- | ------------------------------------------------------ |
+| **Frontend**   | Podman (dev: Vite, prod: Nginx)     | No GPU needed, isolated environment                    |
+| **Backend**    | Podman                              | No GPU needed, isolated environment                    |
+| **Redis**      | Podman                              | No GPU needed, ephemeral data acceptable               |
+| **PostgreSQL** | Podman                              | Database isolation, volume persistence                 |
+| **ai-gateway** | Podman (GPU via CDI)                | Triton models; GPU access via NVIDIA Container Toolkit |
+| **ai-vlm**     | Podman (GPU via CDI), profile `vlm` | `up -d` without `--profile vlm` does **not** start it  |
 
 ### Port Summary
 
 Host ports are `.env.example` defaults; all bind `127.0.0.1` except the frontend (`0.0.0.0`).
 
-| Port           | Service                          | Protocol | Exposed To                   |
-| -------------- | -------------------------------- | -------- | ---------------------------- |
-| 8444 / 8080    | Frontend (HTTPS / HTTP)          | HTTP     | Browser                      |
-| 8444 (dev)     | Frontend (Vite dev server, HTTPS) | HTTP    | Browser                      |
-| 8000           | Backend API                      | HTTP/WS  | Browser, Frontend container  |
-| 6379           | Redis                            | TCP      | Backend container only       |
-| 8090           | ai-gateway (YOLO26, Florence-2, CLIP, enrichment routes) | HTTP | Backend container, localhost |
-| 8002           | ai-gateway metrics               | HTTP     | Prometheus, localhost        |
-| 8091           | Nemotron (ai-llm)                | HTTP     | Backend container, localhost |
+| Port        | Service                              | Protocol | Exposed To                   |
+| ----------- | ------------------------------------ | -------- | ---------------------------- |
+| 8444 / 8080 | Frontend (HTTPS / HTTP)              | HTTP     | Browser                      |
+| 8000        | Backend API                          | HTTP/WS  | Browser, Frontend container  |
+| 6379        | Redis                                | TCP      | Backend container only       |
+| 8090        | ai-gateway (`/yolo26`, `/enrich-lt`) | HTTP     | Backend container, localhost |
+| 8002        | ai-gateway metrics                   | HTTP     | Prometheus, localhost        |
+| 8098        | ai-vlm (llama.cpp)                   | HTTP     | Backend container, localhost |
 
 ---
 
@@ -418,72 +398,53 @@ Host ports are `.env.example` defaults; all bind `127.0.0.1` except the frontend
 
 ### Complete Pipeline: Camera to Dashboard
 
-![Sequence diagram showing the complete data flow from camera FTP upload through FileWatcher, detection queue, YOLO26 inference, optional enrichment, fast path vs normal batching decision, Nemotron LLM analysis, and WebSocket broadcast to the dashboard](../images/architecture/overview-pipeline-sequence.svg)
-
-<!--
-Original Mermaid diagram preserved for reference:
-
 ```mermaid
 sequenceDiagram
     participant CAM as Foscam Camera
     participant FTP as /export/foscam/
     participant FW as FileWatcher
-    participant DQ as detection_queue
-    participant DW as DetectionWorker
-    participant DET as YOLO26
+    participant DS as detections:stream
+    participant DW as DetectionQueueWorker
+    participant GW as ai-gateway /yolo26
     participant DB as PostgreSQL
-    participant EN as EnrichmentPipeline
     participant BA as BatchAggregator
-    participant AQ as analysis_queue
-    participant AW as AnalysisWorker
-    participant LLM as Nemotron
+    participant AS as analysis:stream
+    participant AW as AnalysisQueueWorker
+    participant SP as specialist lookups
+    participant VLM as ai-vlm
     participant EB as EventBroadcaster
     participant WS as WebSocket
     participant UI as Dashboard
 
     CAM->>FTP: FTP upload image
-    FTP->>FW: watchdog event (file created)
-    FW->>FW: debounce (0.5s)
-    FW->>FW: validate image (PIL)
-    FW->>DQ: queue {camera_id, file_path}
+    FTP->>FW: watchdog inotify event
+    FW->>FW: debounce 0.5s + size-stability wait
+    FW->>FW: validate media, content-hash dedupe
+    FW->>DS: XADD {camera_id, file_path}
 
-    DQ->>DW: BLPOP (blocking pop)
-    DW->>DW: dedupe check (Redis/DB)
-    DW->>DET: POST /detect (image)
-    DET->>DET: inference (30-50ms)
-    DET-->>DW: {detections: [...]}
+    DS->>DW: XREADGROUP
+    DW->>GW: POST /yolo26/detect (image)
+    GW-->>DW: {detections: [...]}
     DW->>DB: INSERT detections
-    opt Enrichment enabled
-        DW->>EN: enrich detections (context + optional services)
-        EN-->>DW: enriched attributes/entities
-        DW->>DB: UPDATE detection metadata
-    end
+    DW->>BA: add_detection(camera_id, detection_id)
+    BA->>BA: close batch on 90s window / 30s idle / 500 detections
+    BA->>AS: XADD {batch_id, detection_ids}
 
-    alt Fast Path (person > 90% confidence)
-        DW->>LLM: immediate analysis
-        LLM-->>DW: risk assessment
-        DW->>DB: INSERT event (is_fast_path=true)
-        DW->>EB: broadcast_event()
-    else Normal Path
-        DW->>BA: add_detection(camera_id, detection_id)
-        BA->>BA: check batch timeout (90s window / 30s idle)
-        BA->>AQ: queue {batch_id, detection_ids}
-    end
-
-    AQ->>AW: BLPOP
+    AS->>AW: XREADGROUP
     AW->>DB: SELECT detections WHERE id IN (...)
-    AW->>LLM: POST /completion (prompt)
-    LLM->>LLM: inference (2-5s)
-    LLM-->>AW: {risk_score, risk_level, summary, reasoning}
-    AW->>DB: INSERT event
+    AW->>AW: select_key_frames (1-4 stills)
+    AW->>SP: collect faces / plates / person_reid (in-process)
+    SP-->>AW: specialist output text lines
+    AW->>VLM: POST /v1/chat/completions (stills + prompt)
+    VLM-->>AW: verdict + scene description + risk score
+    AW->>AW: apply_verdict_invariants (SeverityService)
+    AW->>DB: INSERT events + event_verifications + event_detections
     AW->>EB: broadcast_event()
 
     EB->>WS: send to connected clients
     WS->>UI: {"type": "event", "data": {...}}
     UI->>UI: update activity feed
-````
-
--->
+```
 
 ### Batching Logic
 
@@ -491,8 +452,8 @@ Why batch detections instead of analyzing each frame?
 
 A single "person walks to door" scenario might generate 15 images over 30 seconds. Batching provides:
 
-1. **Better context:** LLM sees the full sequence, not isolated frames
-2. **Reduced API calls:** One LLM call per event, not per frame
+1. **Better context:** the VLM sees the full sequence, not isolated frames
+2. **Reduced calls:** One VLM call per event, not per frame
 3. **Coherent events:** User sees "Person approached door" not 15 separate alerts
 
 **Batch timing:**
@@ -500,30 +461,6 @@ A single "person walks to door" scenario might generate 15 images over 30 second
 <!-- prettier-ignore-start -->
 --8<-- "docs/_includes/batching-config.md"
 <!-- prettier-ignore-end -->
-
-### Fast Path Flow
-
-Critical detections can bypass batching for immediate alerts:
-
-![Fast path decision flowchart showing detection input flowing to a decision diamond checking if confidence is greater than 90% and type is person, with Yes leading to Fast Path immediate LLM analysis and No leading to Normal Path batch accumulation with timeout](../images/architecture/overview-fast-path-decision.svg)
-
-<!--
-Original Mermaid diagram preserved for reference:
-
-```mermaid
-flowchart TB
-    D[Detection]
-    D --> C{Confidence > 90%<br/>AND<br/>type = person?}
-
-    C -->|Yes| FP[Fast Path<br/>Immediate LLM analysis]
-    C -->|No| NP[Normal Path<br/>Add to batch]
-    FP --> E1[Event created<br/>is_fast_path=true]
-    NP --> B[Batch accumulates]
-    B --> T{Timeout?}
-    T -->|Yes| E2[Event created<br/>is_fast_path=false]
-
-````
--->
 
 ---
 
@@ -533,9 +470,12 @@ flowchart TB
 erDiagram
     cameras ||--o{ detections : "has"
     cameras ||--o{ events : "has"
+    events ||--o| event_verifications : "verified by"
+    events ||--o{ event_detections : "groups"
+    detections ||--o{ event_detections : "member of"
 
     cameras {
-        string id PK "UUID"
+        string id PK "camera id"
         string name "Human-readable name"
         string folder_path "FTP upload path"
         string status "online/offline/error"
@@ -559,18 +499,29 @@ erDiagram
 
     events {
         int id PK "Auto-increment"
-        string batch_id "Groups detections"
+        string batch_id "Groups detections (unique)"
         string camera_id FK
         datetime started_at
         datetime ended_at
-        int risk_score "0-100 from LLM"
+        int risk_score "0-100 from the VLM"
         string risk_level "low/medium/high/critical"
-        text summary "LLM summary"
-        text reasoning "LLM explanation"
-        text detection_ids "JSON array"
+        text summary "VLM summary"
+        text reasoning "VLM explanation"
         bool reviewed "User marked"
         text notes "User notes"
         bool is_fast_path "Bypassed batching"
+    }
+
+    event_verifications {
+        int id PK
+        int event_id FK
+        string verdict "confirmed/rejected/uncertain/verification_failed"
+        text scene_description
+        jsonb criteria
+        jsonb key_frame_detection_ids
+        string engine
+        string model_id
+        int latency_ms
     }
 
     gpu_stats {
@@ -599,13 +550,13 @@ erDiagram
     }
 
     api_keys {
-        int id PK
-        string key_hash "SHA-256"
+        string id PK
+        string key_hash "hashed key"
         string name
         datetime created_at
-        bool is_active
+        datetime expires_at
     }
-````
+```
 
 ### Key Indexes
 
@@ -615,142 +566,9 @@ erDiagram
 | events     | started_at                  | Timeline queries             |
 | events     | risk_score                  | High-risk filtering          |
 | events     | reviewed                    | Workflow queries             |
+| events     | batch_id                    | Idempotent batch writes      |
 | gpu_stats  | recorded_at                 | Time-series queries          |
 | logs       | timestamp, level, component | Dashboard filters            |
-
----
-
-## Component Interaction Diagram
-
-![Component interaction diagram showing Frontend (React pages, custom hooks, services), Backend (FastAPI routes, AI pipeline, background workers, background services), and External Services (Redis, PostgreSQL, YOLO26, Nemotron LLM, Florence-2, CLIP) with connection lines showing data flow between components](../images/architecture/overview-component-interaction.svg)
-
-<!--
-Original Mermaid diagram preserved for reference:
-
-```mermaid
-flowchart TB
-    subgraph Frontend["Frontend (React)"]
-        DASH[DashboardPage]
-        TL[EventTimeline]
-        SET[SettingsPage]
-        AIP[AIPerformancePage]
-
-        subgraph Hooks["Custom Hooks"]
-            HWS[useWebSocket]
-            HES[useEventStream]
-            HSS[useSystemStatus]
-            HAI[useAIMetrics]
-            HPM[usePerformanceMetrics]
-            HHS[useHealthStatus]
-            HSV[useServiceStatus]
-            HCS[useConnectionStatus]
-            HMZ[useModelZooStatus]
-        end
-
-        subgraph Services["Services"]
-            API[api.ts]
-            LOG[logger.ts]
-        end
-    end
-
-    subgraph Backend["Backend (FastAPI)"]
-        subgraph Routes["API Routes"]
-            RC[/cameras]
-            RE[/events]
-            RD[/detections]
-            RS[/system]
-            RM[/media]
-            RW[/ws/*]
-        end
-
-        subgraph Pipeline["AI Pipeline"]
-            FW[FileWatcher]
-            DC[DetectorClient]
-            BA[BatchAggregator]
-            NA[NemotronAnalyzer]
-            TG[ThumbnailGenerator]
-            EP[EnrichmentPipeline]
-            FC[FlorenceClient]
-            CC[CLIPClient]
-        end
-
-        subgraph Workers["Background Workers"]
-            DW[DetectionWorker]
-            AW[AnalysisWorker]
-            BW[BatchTimeoutWorker]
-            QW[QueueMetricsWorker]
-        end
-
-        subgraph Background["Background Services"]
-            GPU[GPUMonitor]
-            CL[CleanupService]
-            HM[HealthMonitor]
-            EB[EventBroadcaster]
-            SB[SystemBroadcaster]
-            PC[PerformanceCollector]
-            CB[CircuitBreaker]
-            DM[DegradationManager]
-        end
-    end
-
-    subgraph External["External Services"]
-        REDIS[(Redis)]
-        POSTGRES[(PostgreSQL)]
-        YOLO26[YOLO26]
-        NEMOTRON[Nemotron LLM]
-        FLORENCE[Florence-2]
-        CLIP[CLIP]
-    end
-
-    %% Frontend connections
-    DASH --> HES
-
-    DASH --> HSS
-    AIP --> HAI
-    AIP --> HPM
-    TL --> API
-    SET --> API
-    SET --> HHS
-    SET --> HSV
-    HES --> HWS
-    HSS --> HWS
-    HAI --> HWS
-    HPM --> API
-    HWS --> RW
-    API --> RC & RE & RD & RS & RM
-
-    %% Backend internal
-    FW --> REDIS
-    DW --> DC
-    DC --> YOLO26
-    DC --> POSTGRES
-    DW --> EP
-    EP --> FC
-    EP --> CC
-    FC --> FLORENCE
-    CC --> CLIP
-    DW --> BA
-    BA --> REDIS
-    AW --> NA
-    NA --> NEMOTRON
-    NA --> POSTGRES
-    NA --> EB
-    TG --> POSTGRES
-    GPU --> POSTGRES
-    GPU --> SB
-    PC --> POSTGRES
-    CL --> POSTGRES
-    EB --> REDIS
-    SB --> RW
-    EB --> RW
-    CB --> DM
-
-    %% Routes to DB
-    RC & RE & RD & RS --> POSTGRES
-    RM --> POSTGRES
-
-````
--->
 
 ---
 
@@ -758,15 +576,13 @@ flowchart TB
 
 ### Graceful Degradation
 
-| Component  | Failure Mode  | Fallback Behavior                                                 |
-| ---------- | ------------- | ----------------------------------------------------------------- |
-| YOLO26  | Unreachable   | DetectorClient returns empty list, skips detection                |
-| Nemotron   | Unreachable   | NemotronAnalyzer returns default risk (50, medium)                |
-| Florence-2 | Unreachable   | EnrichmentPipeline skips vision extraction                        |
-| CLIP       | Unreachable   | EnrichmentPipeline skips re-identification                        |
-| Redis      | Unreachable   | Deduplication fails open (allows processing), pub/sub unavailable |
-| GPU        | Not available | GPUMonitor returns mock data                                      |
-| Enrichment | Unreachable   | EnrichmentClient returns empty enrichment, continues processing   |
+| Component           | Failure Mode                   | Fallback Behavior                                                    |
+| ------------------- | ------------------------------ | -------------------------------------------------------------------- |
+| ai-gateway (YOLO26) | Unreachable                    | DetectorClient returns empty list, skips detection                   |
+| ai-vlm              | Unreachable                    | Event still written; verdict `verification_failed`, score/level NULL |
+| Specialist legs     | Weights absent or not resident | That leg's line reads `unavailable: specialist did not run`          |
+| Redis               | Unreachable                    | Deduplication fails open (allows processing), pub/sub unavailable    |
+| GPU                 | Not available                  | GPUMonitor returns mock data                                         |
 
 ### Circuit Breaker Pattern
 
@@ -782,8 +598,8 @@ The `CircuitBreaker` service (`backend/services/circuit_breaker.py`) protects ag
 
 The `DegradationManager` service (`backend/services/degradation_manager.py`) coordinates graceful degradation:
 
-- Monitors service health across all AI components
-- Automatically disables non-critical enrichment features when resources constrained
+- Monitors service health across components
+- Automatically disables non-critical features when resources are constrained
 - Prioritizes core detection and risk analysis over optional enhancements
 - Broadcasts degradation status changes via WebSocket
 
@@ -802,13 +618,13 @@ flowchart TB
     DLQ --> API["/api/dlq/*"]
     API --> REQUEUE[Manual Requeue]
     REQUEUE --> W
-````
+```
 
 ### Health Monitoring
 
 The `HealthMonitor` service:
 
-1. Periodically checks service health (YOLO26, Nemotron, Redis)
+1. Periodically checks service health (ai-gateway, ai-vlm, Redis)
 2. On failure, attempts restart with exponential backoff
 3. Broadcasts status changes via WebSocket
 4. Gives up after max retries (prevents infinite restart loops)
@@ -834,28 +650,19 @@ The `HealthMonitor` service:
 
 ## Performance Characteristics
 
-| Operation                 | Typical Latency | Notes                               |
-| ------------------------- | --------------- | ----------------------------------- |
-| YOLO26 inference          | 30-50ms         | Per image, on RTX A5500             |
-| Nemotron analysis         | 2-5s            | Per batch, depends on prompt length |
-| WebSocket broadcast       | <10ms           | Redis pub/sub to clients            |
-| Database query            | <5ms            | PostgreSQL with proper indexes      |
-| Full pipeline (fast path) | ~3-6s           | Camera to dashboard notification    |
-| Full pipeline (batched)   | 30-120s         | Depends on batch timeout settings   |
+Latency is dominated by two steps: the ai-gateway detection call per image, and one ai-vlm
+chat-completion call per closed batch (up to four stills ride along in the prompt). Event-to-
+dashboard delivery is a Redis pub/sub fan-out. End-to-end cadence for a batched event is the
+batch close time (90s window / 30s idle / 500 detections, whichever fires first) plus the
+analysis call. Publish the `hsi_specialist_unavailable_total` counter and the
+`event_verifications.verdict` distribution to see what the pipeline is actually doing — see
+[AI pipeline: current state](./ai-pipeline-current-state.md) §8.
 
 ### Resource Usage
 
 <!-- prettier-ignore-start -->
 --8<-- "docs/_includes/vram-requirements.md"
 <!-- prettier-ignore-end -->
-
-**Other resource usage:**
-
-| Resource     | Typical Usage |
-| ------------ | ------------- |
-| Backend RAM  | ~500MB        |
-| Frontend RAM | ~100MB        |
-| Redis RAM    | ~50MB         |
 
 ---
 
@@ -870,23 +677,22 @@ See `docs/reference/config/env-reference.md` for complete reference.
 DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security  # pragma: allowlist secret
 REDIS_URL=redis://localhost:6379/0
 
-# AI Services (all models served by the ai-gateway container on :8090)
+# AI services
+AI_GATEWAY_URL=http://ai-gateway:8090
+USE_AI_GATEWAY=true
 YOLO26_URL=http://localhost:8090/yolo26
-NEMOTRON_URL=http://localhost:8091
-FLORENCE_URL=http://localhost:8090/florence
-CLIP_URL=http://localhost:8090/clip
-ENRICHMENT_URL=http://localhost:8090/enrichment
-ENRICHMENT_LIGHT_URL=http://localhost:8090/enrich-lt
+ENRICHMENT_LIGHT_URL=http://localhost:8090/enrich-lt   # readiness lane
 
-# Optional enrichment feature toggles (see docs/reference/config/env-reference.md for authoritative list)
-VISION_EXTRACTION_ENABLED=true
-REID_ENABLED=true
-SCENE_CHANGE_ENABLED=true
+# Pipeline selection — both accept only "vlm" (anything else hard-raises)
+PIPELINE_MODE=vlm
+GATEWAY_MODEL_SET=vlm
+GATEWAY_ENABLE_THREAT=false
+
+# Specialist leg residency (face + re-ID handle preload; >=24GB hosts opt in)
+BACKEND_MODEL_PRELOAD=false
 
 # Detection
 DETECTION_CONFIDENCE_THRESHOLD=0.5
-FAST_PATH_CONFIDENCE_THRESHOLD=0.90
-FAST_PATH_OBJECT_TYPES=["person"]
 
 # Batching
 BATCH_WINDOW_SECONDS=90
@@ -900,15 +706,16 @@ RETENTION_DAYS=30
 
 ## Related Documentation
 
-| Document                                 | Purpose                                 |
-| ---------------------------------------- | --------------------------------------- |
-| `docs/reference/config/env-reference.md` | Complete environment variable reference |
-| `docs/operator/deployment/`              | Docker deployment guide                 |
-| `docs/operator/ai-installation.md`       | AI services setup and troubleshooting   |
-| `docs/ROADMAP.md`                        | Post-MVP enhancement ideas              |
-| `backend/AGENTS.md`                      | Backend architecture details            |
-| `frontend/AGENTS.md`                     | Frontend architecture details           |
-| `ai/AGENTS.md`                           | AI pipeline details                     |
+| Document                                         | Purpose                                       |
+| ------------------------------------------------ | --------------------------------------------- |
+| `docs/architecture/ai-pipeline-current-state.md` | Measured, pinned description of the live path |
+| `docs/reference/config/env-reference.md`         | Complete environment variable reference       |
+| `docs/operator/deployment/`                      | Docker deployment guide                       |
+| `docs/operator/ai-installation.md`               | AI services setup and troubleshooting         |
+| `docs/ROADMAP.md`                                | Post-MVP enhancement ideas                    |
+| `backend/AGENTS.md`                              | Backend architecture details                  |
+| `frontend/AGENTS.md`                             | Frontend architecture details                 |
+| `ai/AGENTS.md`                                   | AI pipeline details                           |
 
 ---
 

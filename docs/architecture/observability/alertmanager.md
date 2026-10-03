@@ -104,8 +104,7 @@ use; there is no PagerDuty receiver.
 
 ### Inhibition Rules
 
-`monitoring/alertmanager.yml:118-174` defines eight suppressions, all keyed on the `HSI*` alert
-names that actually exist in the rule files:
+`monitoring/alertmanager.yml:118-174` defines eight suppressions, all keyed on `HSI*` alert names:
 
 | Source                  | Suppresses                                                                             |
 | ----------------------- | -------------------------------------------------------------------------------------- |
@@ -118,10 +117,14 @@ names that actually exist in the rule files:
 | `HSIQueueCritical`      | `HSIDetectionQueueHigh`, `HSIAnalysisQueueHigh`                                        |
 | `HSI.*FastBurn` (regex) | `HSI.*SlowBurn` (`equal: ['slo']`)                                                     |
 
-`HSISlowDetection`, `HSISlowAnalysis`, and `HSIExtremeLatency` are referenced by inhibition rules
-but their alert groups are commented out in `monitoring/alerting-rules.yml:274-291` because the
-recording rules they depend on need `hsi_stage_duration_seconds_bucket`, which the backend does not
-yet emit. Those three inhibitions are therefore inert until the latency groups are re-enabled.
+`HSISlowDetection` fires from the `latency_alerts` group (`monitoring/alerting-rules.yml:275-291`):
+the backend writes `hsi_stage_duration_seconds_bucket{stage="detect"}` live
+(`observe_stage_duration` at `backend/services/pipeline_workers.py:527`). The analysis-side names
+`HSISlowAnalysis` and `HSIExtremeLatency` have no alert definitions — the analyze leg records only
+`record_pipeline_stage_latency("batch_to_analyze", ...)`, never `observe_stage_duration("analyze",
+...)` — so the inhibition sourced on `HSIExtremeLatency` (`monitoring/alertmanager.yml:156-158`) is
+inert until an analyze-stage histogram exists, and the `HSISlowAnalysis` alternatives inside the
+other two inhibitions (`:130`) simply never match.
 
 ## Alert Rule Definitions
 
@@ -144,7 +147,7 @@ the json-exporter health gauges, not by `up{job=...}`:
 ### GPU Alerts
 
 Two files contribute GPU alerts. From `monitoring/alerting-rules.yml:116-236` (backend- and
-DCGM-derived metrics):
+json-exporter-derived metrics):
 
 | Alert                  | Expression                                              | Severity | For |
 | ---------------------- | ------------------------------------------------------- | -------- | --- |
@@ -168,7 +171,7 @@ Queues (`monitoring/alerting-rules.yml:238-272`):
 | `HSIAnalysisQueueHigh`  | `hsi_analysis_queue_depth > 50`                                     | warning  | 5m  |
 | `HSIQueueCritical`      | `hsi_detection_queue_depth > 500 or hsi_analysis_queue_depth > 200` | critical | 2m  |
 
-Error rates (`monitoring/alerting-rules.yml:292-317`), driven by an API success-rate recording rule
+Error rates (`monitoring/alerting-rules.yml:293-319`), driven by an API success-rate recording rule
 rather than a pipeline error counter:
 
 | Alert                  | Expression                                    | Severity | For |
@@ -178,30 +181,34 @@ rather than a pipeline error counter:
 
 ### SLO Burn Rate Alerts
 
-Multi-window burn rate on API availability (`monitoring/alerting-rules.yml:329-363`):
+Multi-window burn rate on API availability (`monitoring/alerting-rules.yml:323-351`):
 
 | Alert                        | Expression                                                                           | Severity | For |
 | ---------------------------- | ------------------------------------------------------------------------------------ | -------- | --- |
 | `HSIAPIAvailabilityFastBurn` | `hsi:burn_rate:api_availability_1h > 14.4 and hsi:burn_rate:api_availability_6h > 6` | critical | 2m  |
 | `HSIAPIAvailabilitySlowBurn` | `hsi:burn_rate:api_availability_1d > 3`                                              | warning  | 1h  |
 
-Latency burn-rate alerts are commented out pending the same missing histogram metrics
-(`monitoring/alerting-rules.yml:364-372`).
+### Detection Latency Alerts
+
+`latency_alerts` (`monitoring/alerting-rules.yml:275-291`) holds `HSISlowDetection` —
+`hsi:detection_latency:p95_5m > 2` for 5m, warning, `component: detection`. The recording rule is a
+`histogram_quantile` over `hsi_stage_duration_seconds_bucket{stage="detect"}`
+(`monitoring/prometheus-rules.yml:43-44`), which the detect worker writes on every processed
+detection (`backend/services/pipeline_workers.py:527`).
 
 ### AI Pipeline and Worker Alerts
 
-`monitoring/ai-pipeline-alerts.yml` covers the enrichment pipeline, LLM behaviour, and scoring:
-`GPUInferenceFailures`, `GPUMemoryHigh`, `GPUMemoryCritical`, `EnrichmentPipelineTimeout`,
-`EnrichmentPipelineTimeoutCritical`, `EnrichmentModelErrorRate`, `EnrichmentModelErrorCritical`,
-`EnrichmentQualityDegraded`, `PromptTruncationHigh`, `PromptContextUtilizationHigh`,
-`LLMInferenceLatencyHigh`, `LLMInferenceLatencyCritical`, `CoalescingMergeRateLow`,
-`CoalescingMergeRateHigh`, `RiskScoreCalibrationDrift`, `RiskScoreAllCritical`, `RiskScoreAllLow`,
-`CLIPServiceDown`, `FlorenceServiceDown`, `CLIPAnomalyErrorsHigh`.
+`monitoring/ai-pipeline-alerts.yml` covers GPU inference, memory, and the ai-vlm verification leg:
+`GPUInferenceFailures`, `GPUMemoryHigh`, `GPUMemoryCritical`, `PromptTruncationHigh`,
+`VlmVerificationFailures`, `VlmRequestErrors`, `VlmServiceUnhealthy`,
+`VlmSpecialistLegsUnavailable`.
 
 `monitoring/alerting-rules.yml` also defines Prometheus self-monitoring alerts (`Prometheus*`,
-lines 415-690), worker alerts (`HSIWorkerFailed`, `HSIWorkerNotRunning`,
-`HSIWorkerConsecutiveFailures`, lines 695-748), plus circuit-breaker, profiling, websocket, cache,
-batch, and system groups.
+lines 353-626), worker alerts (`HSIWorkerRestartStorm`, `HSIWorkerRestartSlow`, `HSIWorkerFailed`,
+`HSIWorkerNotRunning`, `HSIWorkerConsecutiveFailures`, `HSIAllWorkersFailing`, lines 628-726),
+plus circuit-breaker, database/cache-cascade, profiling, and GPU groups. The restart alerts are
+live: `record_pipeline_worker_restart()` (`backend/core/metrics.py:4559`) runs on every supervised
+restart (`backend/services/worker_supervisor.py:696-698`).
 
 ## Recording Rules for Alerts
 
@@ -243,12 +250,12 @@ not pass through Prometheus; notification policy is Grafana's own.
 
 Standard labels for routing and filtering, as used across the rule files:
 
-| Label       | Values                                                                                                                                                                                                                                                     | Purpose                       |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `severity`  | `critical`, `warning`, `info`                                                                                                                                                                                                                              | Route selection, escalation   |
-| `component` | `pipeline`, `queue`, `database`, `redis`, `cache`, `gpu`, `api`, `ai`, `llm`, `enrichment`, `scoring`, `batch`, `worker`, `circuit_breaker`, `websocket`, `monitoring`, `profiling`, `system`, `slo`, `backend`, `detection`, `analysis`, `infrastructure` | Route selection, inhibition   |
-| `slo`       | `api_availability`, …                                                                                                                                                                                                                                      | SLO grouping                  |
-| `alertname` | Alert identity                                                                                                                                                                                                                                             | Grouping, inhibition matching |
+| Label       | Values                                                                                                                                                                                                                                                                                                                                                                                                                                         | Purpose                       |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `severity`  | `critical`, `warning`, `info`                                                                                                                                                                                                                                                                                                                                                                                                                  | Route selection, escalation   |
+| `component` | `pipeline`, `queue`, `database`, `redis`, `cache`, `gpu`, `api`, `ai`, `llm`, `worker`, `circuit_breaker`, `monitoring`, `profiling`, `system`, `slo`, `backend`, `detection`, `analysis`, `infrastructure`, `cpu`, `memory` (+ `ai-yolo26`/`ai-florence` in `monitoring/profiling-regression-alerts.yml`, keyed on `hsi_ai_request_duration_seconds_bucket{service=...}` — yolo26 is written live, `service="florence"` by any writer is not) | Route selection, inhibition   |
+| `slo`       | `api_availability`, …                                                                                                                                                                                                                                                                                                                                                                                                                          | SLO grouping                  |
+| `alertname` | Alert identity                                                                                                                                                                                                                                                                                                                                                                                                                                 | Grouping, inhibition matching |
 
 ## Alert Annotations
 

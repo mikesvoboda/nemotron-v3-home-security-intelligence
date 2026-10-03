@@ -1,296 +1,180 @@
 # Model Zoo
 
-The Model Zoo provides on-demand loading of AI models for detection enrichment. It manages VRAM efficiently through LRU eviction and reference counting.
+The Model Zoo is the backend-side registry of the weights the backend process can load: the
+specialist lookup weights (plates, faces, person re-ID) and the detector weights the gateway export
+consumes. `models.yml` at the repo root is the single source of truth for the registry, and
+`backend/services/model_zoo.py` builds it from that file at first use.
 
 ## Source Files
 
-- **Backend Registry**: `backend/services/model_zoo.py`
-- **Enrichment Manager**: `ai/enrichment/model_manager.py`
-- **Enrichment Registry**: `ai/enrichment/model_registry.py`
+- **Registry + manager**: `backend/services/model_zoo.py`
+- **Row source of truth**: `models.yml` (repo root; copied to `/app/models.yml` in the image)
+- **Loaders wired by name**: `backend/services/osnet_loader.py`,
+  `backend/services/face_recognizer_loader.py`, `backend/services/fast_alpr_loader.py`
+- **Provisioning**: `ai/download_models.sh`
 
-## Architecture Overview
+## How The Registry Is Built
 
-The system has two model management layers:
+`MODEL_ZOO` starts empty and `_init_model_zoo()` fills it from `models.yml`
+(`backend/services/model_zoo.py:393`). A row reaches the registry only when both conditions hold:
 
-1. **Backend Model Zoo** (`model_zoo.py`): Defines available models and their configurations for the backend service
-2. **Enrichment Model Manager** (`model_manager.py`): Manages actual model loading/unloading in the enrichment container
+1. `service` is `backend` or `both` (`backend/services/model_zoo.py:423`)
+2. the row's `name` has an entry in `_LOADER_MAP` (`backend/services/model_zoo.py:334-356`)
 
-```mermaid
-%%{init: {
-  'theme': 'dark',
-  'themeVariables': {
-    'primaryColor': '#3B82F6',
-    'primaryTextColor': '#FFFFFF',
-    'primaryBorderColor': '#60A5FA',
-    'secondaryColor': '#A855F7',
-    'tertiaryColor': '#009688',
-    'background': '#121212',
-    'mainBkg': '#1a1a2e',
-    'lineColor': '#666666'
-  }
-}}%%
-flowchart LR
-    BS["Backend Service<br/>model_zoo.py<br/>ModelConfig"]
-    EC["Enrichment Client<br/>enrichment_client.py<br/>HTTP requests"]
-    ES["Enrichment Svc<br/>model_manager.py<br/>OnDemandManager"]
-
-    BS --> EC --> ES
-```
-
-## Backend Model Registry
-
-The backend maintains a registry of available models in `MODEL_ZOO`:
+Rows with no loader are logged at debug and skipped. A row that carries `sha256` gets that hash
+bound into its loader with `functools.partial`, so the loader verifies the bytes before it loads
+them (`backend/services/model_zoo.py:436-440`) — wrong bytes are the same answer as no bytes.
 
 ```python
-# From backend/services/model_zoo.py
-
 @dataclass(slots=True)
 class ModelConfig:
-    """Configuration for a Model Zoo model."""
-    name: str           # Unique identifier (e.g., "yolo11-license-plate")
-    path: str           # HuggingFace repo path or local file path
-    category: str       # Model category ("detection", "recognition", "ocr")
-    vram_mb: int        # Estimated VRAM usage in megabytes
-    load_fn: Callable   # Async callable that loads the model
-    enabled: bool       # Whether the model is enabled for use
-    available: bool     # Set to True after successful initial load
+    name: str            # matches the models.yml row name
+    path: str            # resolved against MODEL_ZOO_PATH
+    category: str
+    vram_mb: int
+    load_fn: Callable[[str], Awaitable[Any]]
+    enabled: bool = True       # models.yml `enabled`
+    available: bool = False    # set True after a successful load
+    priority: str = "medium"
+    preload: bool = False      # models.yml `preload`
+    never_evict: bool = False
 ```
 
-### Available Models (Backend)
+`priority` and `never_evict` are read from the rows and carried on the config, and nothing consumes
+them: the model zoo has no eviction pass (`backend/main.py:653-654`). Treat them as inert.
 
-| Model                            | Category           | VRAM (MB) | Purpose                                                                                                                                |
-| -------------------------------- | ------------------ | --------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `yolo11-license-plate`           | detection          | 300       | License plate detection                                                                                                                |
-| `yolo11-face`                    | detection          | 200       | Face detection                                                                                                                         |
-| `paddleocr`                      | ocr                | 100       | OCR text extraction                                                                                                                    |
-| `clip-vit-l`                     | embedding          | 800       | Re-identification embeddings                                                                                                           |
-| `yolo-world-s`                   | detection          | 1500      | Open-vocabulary detection                                                                                                              |
-| `vitpose-small`                  | pose               | 1500      | Human pose keypoints                                                                                                                   |
-| `depth-anything-v2-small`        | depth              | 150       | Depth estimation                                                                                                                       |
-| `violence-detection`             | classification     | 500       | Violence detection                                                                                                                     |
-| `weather-classification`         | classification     | 200       | Weather conditions                                                                                                                     |
-| `segformer-b2-clothes`           | segmentation       | 1500      | Clothing segmentation                                                                                                                  |
-| `stgcn-plus-plus`                | action-recognition | 20        | Temporal action recognition, skeleton-based (replaced `xclip-base`, whose backend loader was removed 2026-09-23 — full X-CLIP removal) |
-| `fashion-clip`                   | classification     | 500       | Clothing classification                                                                                                                |
-| `brisque-quality`                | quality            | 0         | Image quality (CPU-based)                                                                                                              |
-| `vehicle-segment-classification` | classification     | 1500      | Vehicle type                                                                                                                           |
-| `vehicle-damage-detection`       | detection          | 2000      | Vehicle damage segmentation                                                                                                            |
-| `pet-classifier`                 | classification     | 200       | Cat/dog classification                                                                                                                 |
-| `osnet-x0-25`                    | embedding          | 100       | Person re-identification                                                                                                               |
-| `threat-detection-yolov8n`       | detection          | 300       | Weapon detection                                                                                                                       |
-| `vit-age-classifier`             | classification     | 200       | Age estimation                                                                                                                         |
-| `vit-gender-classifier`          | classification     | 200       | Gender classification                                                                                                                  |
-| `yolov8n-pose`                   | pose               | 200       | Alternative pose model                                                                                                                 |
+## What Is Loadable Today
 
-## Enrichment Model Manager
+These are the `models.yml` rows that survive both filters above. `enabled` governs the backend VRAM
+slot, not whether the file is fetched (`ai/download_models.sh:37`, `:510`).
 
-The enrichment service uses `OnDemandModelManager` for VRAM-efficient model loading:
+| Row name                   | service | enabled | preload | `vram_mb` | Loads as                                    |
+| -------------------------- | ------- | ------- | ------- | --------- | ------------------------------------------- |
+| `yolo26`                   | backend | false   | false   | 0         | `load_yolo_model` (weights feed the export) |
+| `osnet-ain-x1-0`           | both    | true    | true    | 100       | `load_osnet_model` (person re-ID)           |
+| `face-detector-scrfd`      | backend | true    | true    | 0         | `load_face_detector` (CPU onnxruntime)      |
+| `face-recognizer`          | backend | true    | true    | 0         | `load_face_recognizer` (CPU onnxruntime)    |
+| `threat-detection-yolov8n` | both    | true    | false   | 300       | `load_yolo_model`                           |
+| `yolo11-face`              | both    | true    | false   | 200       | `load_yolo_model`                           |
+| `yolo11-license-plate`     | both    | true    | false   | 300       | `load_yolo_model`                           |
+| `fast-alpr`                | backend | true    | false   | 28        | `load_fast_alpr` (plate detect + OCR)       |
+| `paddleocr`                | backend | true    | false   | 100       | `load_paddle_ocr`                           |
+| `yolo26-general`           | backend | false   | false   | 400       | `load_yolo_model` (weights unreleased)      |
 
-```python
-# From ai/enrichment/model_manager.py
+Three of these are the live legs the analyzer actually calls: `face-detector-scrfd` +
+`face-recognizer` for `faces`, `fast-alpr` for `plates`, `osnet-ain-x1-0` for `person_reid`
+(`backend/services/vlm_specialists.py:174,566,705`). The VLM is not in this registry at all —
+`ai-vlm` is a separate container serving GGUF weights
+(`docs/architecture/ai-orchestration/README.md`).
 
-class OnDemandModelManager:
-    """Manages on-demand model loading with VRAM budget constraints."""
+## Residency: The Boot Preload Sweep
 
-    def __init__(self, vram_budget_gb: float = 6.8) -> None:
-        self.vram_budget: float = vram_budget_gb * 1024  # Convert to MB
-        self.loaded_models: OrderedDict[str, ModelInfo] = OrderedDict()
-        self.model_registry: dict[str, ModelConfig] = {}
-        self._lock = asyncio.Lock()
-```
+The face and re-ID legs read a **resident** handle. `get_reid_handle()`
+(`backend/services/osnet_loader.py:182`) and `get_face_leg_handles()`
+(`backend/services/face_recognizer_loader.py:466`) look the handle up in the manager's loaded map
+and return `None` when it is absent — they never load.
 
-### VRAM Budget Management
-
-The enrichment service has a configurable VRAM budget (default: 6.8GB):
+The sweep that places it runs at boot and is gated on the setting:
 
 ```python
-# Budget allocation within enrichment container
-Total Budget: 6,800 MB
-
-# Models load on-demand, evicted when budget exceeded
-# Never concurrent loading - sequential to prevent OOM
-```
-
-### Model Priority Levels
-
-Models have priority levels that affect eviction order:
-
-```python
-class ModelPriority(IntEnum):
-    """Priority levels for model loading decisions.
-
-    Lower values = higher priority = evicted last.
-    """
-    CRITICAL = 0  # Threat detection - never evict if possible
-    HIGH = 1      # Pose, demographics, clothing
-    MEDIUM = 2    # Vehicle, pet, re-ID
-    LOW = 3       # Depth, action recognition
-```
-
-### Model Lifecycle State Machine
-
-![Model Zoo State Machine](../../images/architecture/model-zoo-state-machine.png)
-
-_State machine diagram showing model lifecycle transitions: unloaded, loading, loaded, and eviction states with VRAM budget constraints._
-
-### LRU Eviction Algorithm
-
-When VRAM is constrained, models are evicted in order of:
-
-1. **Priority** (higher number = evicted first): LOW before CRITICAL
-2. **Last used time** (older = evicted first)
-
-```python
-async def _evict_lru_model(self) -> bool:
-    """Evict the least recently used model, respecting priority."""
-    # Sort candidates: higher priority number first, then older first
-    candidates = sorted(
-        self.loaded_models.items(),
-        key=lambda x: (-x[1].priority, x[1].last_used),
+# backend/main.py:1214
+if settings.backend_model_preload:
+    preload_names = select_preload_candidates(
+        model_zoo, preload_enabled=settings.backend_model_preload
     )
-
-    # Evict first candidate (highest priority number, oldest)
-    name, info = candidates[0]
-    await self._unload_model_internal(name)
-    return True
+    for model_name in preload_names:
+        await model_manager.preload(model_name)
 ```
 
-## Model Loading Flow
+`select_preload_candidates()` is the single selection point: a row must be `enabled` **and** declare
+`preload: true`, which selects exactly `osnet-ain-x1-0`, `face-detector-scrfd`, and
+`face-recognizer`.
 
-```mermaid
-%%{init: {
-  'theme': 'dark',
-  'themeVariables': {
-    'primaryColor': '#3B82F6',
-    'primaryTextColor': '#FFFFFF',
-    'primaryBorderColor': '#60A5FA',
-    'secondaryColor': '#A855F7',
-    'tertiaryColor': '#009688',
-    'background': '#121212',
-    'mainBkg': '#1a1a2e',
-    'lineColor': '#666666'
-  }
-}}%%
-flowchart TB
-    START["get_model('vehicle_classifier')"]
-    START --> CHECK{Is model loaded?}
-
-    CHECK -->|Yes| UPDATE[Update last_used]
-    UPDATE --> RET1[Return model]
-
-    CHECK -->|No| VRAM[Check VRAM available]
-    VRAM --> ENOUGH{Enough VRAM?}
-
-    ENOUGH -->|Yes| LOAD[Load model]
-    LOAD --> RET2[Return model]
-
-    ENOUGH -->|No| EVICT[Evict LRU model]
-    EVICT --> LOOP[Loop until space available]
-    LOOP --> VRAM
-```
+`BACKEND_MODEL_PRELOAD` ships **false** (`.env.example:231`, `docker-compose.prod.yml:489`) and
+`setup.py:461-464` auto-sets it true only when detected VRAM is >= 24 GB. So on a smaller host, or
+where the operator answered no, both legs answer `unavailable` on every event and nothing fails. The
+plate leg is the exception — `load_fast_alpr`
+(`backend/services/fast_alpr_loader.py:66`) loads on demand, so `plates` works without residency.
 
 ## Reference Counting
 
-The `ModelManager` supports nested loads with reference counting:
+`ModelManager.load()` is a reference-counted context manager: a nested `load` of the same name
+increments the count, and the model unloads only when the last reference exits
+(`backend/services/model_zoo.py:736-777`).
 
 ```python
-async with manager.load("yolo11-face") as face_model:
-    # Increment reference count
-    # Load if not already loaded
-
-    async with manager.load("yolo11-face") as same_model:
-        # Same model, increment reference count only
-        pass
-    # Decrement reference count (still > 0)
-
-# Decrement reference count (now 0)
-# Model unloaded, CUDA cache cleared
+async with manager.load("fast-alpr") as alpr:
+    async with manager.load("fast-alpr") as same:
+        pass        # count decrements, model still resident
+# last reference exited: unloaded, CUDA cache cleared
 ```
 
-## CUDA Cache Management
+`preload()` and `unload()` are the explicit forms the boot sweep and shutdown use
+(`backend/services/model_zoo.py:780,798`), and `reload()` re-loads a row under a named reason
+(`oom`, `crash`, `manual`, `health_check`) recorded on `hsi_model_restarts_total`
+(`backend/services/model_zoo.py:830`, `backend/core/metrics.py:3496,3508`).
 
-After unloading models, CUDA cache is explicitly cleared:
+## Path Resolution
 
-```python
-async def _unload_model_internal(self, model_name: str) -> None:
-    """Internal method to unload a model."""
-    info = self.loaded_models.pop(model_name)
-    config = self.model_registry[model_name]
+`_resolve_model_path()` derives the runtime path with a fixed priority
+(`backend/services/model_zoo.py:363`):
 
-    # Run unloader in thread pool
-    await loop.run_in_executor(None, config.unloader_fn, info.model)
+1. `runtime_path` — used verbatim (library sentinels such as `fast-alpr`)
+2. `local_path` + `runtime_file` — directory model with a named weight file
+3. `local_path` — directory model
 
-    # Clear CUDA cache to actually free VRAM
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-```
+`local_path` values are relative to `AI_MODELS_PATH` and start with `model-zoo/`; the base path
+comes from `MODEL_ZOO_PATH`, default `/models/model-zoo` (`backend/services/model_zoo.py:313`). In
+compose, `${AI_MODELS_PATH:-/export/ai_models}/model-zoo` mounts read-only at that path
+(`docker-compose.prod.yml:462`).
 
-## Prometheus Metrics
+## Provisioning
 
-The model manager exports metrics for monitoring:
+`ai/download_models.sh` fetches exactly the rows its selection rule picks and reports the rest:
 
-```python
-# VRAM usage gauges
-enrichment_vram_usage_bytes        # Current VRAM usage
-enrichment_vram_budget_bytes       # Configured budget
-enrichment_vram_utilization_percent # Usage percentage
+- **Fetched**: `yolo26`, `osnet-ain-x1-0`, `threat-detection-yolov8n`, `yolo11-face`,
+  `yolo11-license-plate` — 5 entries, 763 MB by `models.yml` `size_mb`
+  (`ai/download_models.sh:480-489`).
+- **Library-fetched at runtime, so excluded by rule**: `face-detector-scrfd`, `face-recognizer`
+  (insightface/onnxruntime), `fast-alpr` (ONNX auto-download), `paddleocr`, and `yolo26-general`
+  (weights not released) — `ai/download_models.sh:505-509`.
+- **Never fetched**: the ai-vlm GGUF pair. The script creates `${AI_MODELS_PATH}/vlm` and stops
+  there (`ai/download_models.sh:311-315`); placing `VLM_MODEL_PATH` and `VLM_MMPROJ_PATH` is
+  operator config. Both files are one identity — without the mmproj the serve is text-only and every
+  `vlm_assess` call degrades silently while events keep landing
+  (`ai/download_models.sh:493-500`).
 
-# Model count gauge
-enrichment_models_loaded           # Number of loaded models
+## CUDA Cache
 
-# Model eviction counter
-enrichment_model_evictions_total{model_name, priority}
-
-# Model load time histogram
-enrichment_model_load_time_seconds{model_name}
-# Buckets: [0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0]
-```
+Unloading runs the row's unloader and then clears the CUDA cache, because dropping the Python
+reference does not return VRAM (`backend/services/model_zoo.py:704-725`).
 
 ## Status Reporting
 
-Get current manager status for health checks:
+`ModelManager.get_status()` is what the model-status surface reads
+(`backend/api/routes/model_management.py`):
 
 ```python
 status = manager.get_status()
-# Returns:
-{
-    "vram_budget_mb": 6963.2,
-    "vram_used_mb": 2100,
-    "vram_available_mb": 4863.2,
-    "vram_utilization_percent": 30.2,
-    "loaded_models": [
-        {
-            "name": "vehicle_classifier",
-            "vram_mb": 1500,
-            "priority": "MEDIUM",
-            "last_used": "2024-01-15T10:30:00Z"
-        }
-    ],
-    "registered_models": [...],
-    "pending_loads": []
-}
-```
-
-## Idle Model Cleanup
-
-Periodic cleanup of unused models:
-
-```python
-# Unload models idle for > 5 minutes
-unloaded = await manager.cleanup_idle_models(idle_seconds=300.0)
-# Returns list of model names that were unloaded
+# ModelManagerStatus: loaded model names, estimated VRAM held, and the registered rows.
 ```
 
 ## Thread Safety
 
-All operations are protected by an asyncio lock:
+Every mutating path takes the same `asyncio.Lock` (`backend/services/model_zoo.py:559`), so a
+concurrent `load`, `preload`, and `get_status` from different request handlers cannot interleave a
+half-loaded model into the map.
 
-```python
-async with self._lock:
-    # Check if loaded
-    # Ensure VRAM available
-    # Load model
-    # Return model
+## Prometheus Metrics
+
+```
+hsi_model_load_duration_seconds{model}
+hsi_model_restart_total{model, reason}
+hsi_model_warmup_duration_seconds{model}
+hsi_specialist_unavailable_total{specialist, reason}
 ```
 
-This ensures safe concurrent access from multiple request handlers.
+`hsi_specialist_unavailable_total` (`backend/core/metrics.py:3388`) is the leg-level counter: a
+degraded specialist's reason is deliberately kept **out** of the prompt text, so the bounded `reason`
+code on this counter (`weights_absent`, `package_absent`, `space_mismatch`, `stage_error`, …) is
+where the why lives.

@@ -61,11 +61,11 @@ async def list_entities(
 
 ### Configuration
 
-| Setting                | Default | Environment Variable         | Description                                                                                                    |
-| ---------------------- | ------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `similarity_threshold` | 0.7     | `REID_SIMILARITY_THRESHOLD`  | Minimum match similarity (OSNet-space value, provisional pending calibration; the 0.85 default was CLIP-tuned) |
-| `embedding_ttl`        | 86400   | `REID_EMBEDDING_TTL_SECONDS` | TTL for stored embeddings (24h)                                                                                |
-| `max_embeddings`       | 1000    | `REID_MAX_EMBEDDINGS`        | Max embeddings per entity type                                                                                 |
+| Setting                | Default | Environment Variable         | Description                                                                   |
+| ---------------------- | ------- | ---------------------------- | ----------------------------------------------------------------------------- |
+| `similarity_threshold` | 0.7     | `REID_SIMILARITY_THRESHOLD`  | Minimum match similarity (OSNet-space value, provisional pending calibration) |
+| `embedding_ttl`        | 86400   | `REID_EMBEDDING_TTL_SECONDS` | TTL for stored embeddings (24h)                                               |
+| `max_embeddings`       | 1000    | `REID_MAX_EMBEDDINGS`        | Max embeddings per entity type                                                |
 
 ---
 
@@ -73,7 +73,7 @@ async def list_entities(
 
 ### What are Person Re-ID Embeddings?
 
-The person-vector space is **OSNet-AIN x1.0** — a dedicated person re-identification network (torchreid's OSNet with AIN, msmt17 weights). Applied to a person crop, it produces a 512-dimensional vector that captures person appearance. CLIP no longer computes person re-ID embeddings; it remains in the system where CLIP's job really is (scene baseline, fashion/threat similarity) behind the ai-gateway `/clip` router.
+The person-vector space is **OSNet-AIN x1.0** — a dedicated person re-identification network (torchreid's OSNet with AIN, msmt17 weights), SHA-256-pinned in its `models.yml` row. Applied to a person crop, it produces a 512-dimensional vector that captures person appearance (`backend/services/reid_service.py`). Person re-ID is exactly what this network is trained for; nothing in the stack embeds people through a general image-semantics model.
 
 Key properties:
 
@@ -95,7 +95,7 @@ Key properties:
 
 ### Provenance (`model_id`)
 
-Every stored person vector carries a `model_id` string naming the weights that produced it, with the grammar `<name>@<weights>@<sha256 prefix 12>` — for the shipped weights, `osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894`. Rows written before provenance decode to the sentinel `legacy-unknown-provenance` and are **never scored**: a mismatched or unprovenanced vector reads as `unavailable (re-enroll)`. Pre-swap rows are dropped and re-enrolled; there is no backfill.
+Every stored person vector carries a `model_id` string naming the weights that produced it, with the grammar `<name>@<weights>@<sha256 prefix 12>` — for the shipped weights, `osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894`. A row whose payload never named its producer decodes to the sentinel `legacy-unknown-provenance` and is **never scored**: a mismatched or unprovenanced vector reads as `unavailable (re-enroll)`. Sentinel rows are dropped and re-enrolled; there is no backfill.
 
 ### Embedding Generation
 
@@ -193,7 +193,7 @@ class EntityEmbedding:
     model_id: str = LEGACY_MODEL_ID  # producer belt, or the legacy sentinel
 ```
 
-A payload that never named its producer decodes to `LEGACY_MODEL_ID` (`"legacy-unknown-provenance"`) rather than to the live model — defaulting a silent gap to the current space would launder old CLIP-era bytes into the OSNet space.
+A payload that never named its producer decodes to `LEGACY_MODEL_ID` (`"legacy-unknown-provenance"`) rather than to the live model — defaulting a silent gap to the live space would launder unprovenanced bytes into the OSNet space.
 
 ### Serialization
 
@@ -260,7 +260,7 @@ Producer vectors arrive L2-normalized, and the helper divides by the norms anywa
 | 0.70-0.90  | Match accepted at the default threshold |
 | < 0.70     | Unlikely to be same entity              |
 
-Default threshold: **0.7** (configurable) — the OSNet-AIN x1.0 space's value, PROVISIONAL pending calibration against real household galleries. The former 0.85 default was tuned to CLIP's 768-d space and would drop every legitimate OSNet match.
+Default threshold: **0.7** (configurable) — the OSNet-AIN x1.0 space's value, PROVISIONAL pending calibration against real household galleries. A threshold tuned to a different embedding space drops every legitimate OSNet match, so keep it in OSNet terms.
 
 Only rows that share the query's `model_id` reach the comparison at all; a mismatched or unprovenanced row is never scored.
 
@@ -638,7 +638,7 @@ Re-identification technology has privacy implications:
 
 ## See Also
 
-- [Re-ID Matches Panel](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/events/ReidMatchesPanel.tsx) - UI component (the enrichment panels that used to sit beside it retired with R8 slice S5)
+- [Re-ID Matches Panel](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/events/ReidMatchesPanel.tsx) - UI component
 - [Entities API Schema](api/core-resources.md) - OpenAPI spec
 - [AI Overview](../operator/ai-overview.md) - Model zoo details (including the OSNet re-ID row)
 

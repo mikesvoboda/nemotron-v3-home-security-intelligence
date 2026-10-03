@@ -6,24 +6,24 @@
 
 ## Overview
 
-| Document                                                | Description                             |
-| ------------------------------------------------------- | --------------------------------------- |
-| [Architecture Overview](../../architecture/overview.md) | High-level system design and data flow  |
-| [Data Model](../../architecture/data-model.md)          | PostgreSQL schemas and Redis structures |
-| [AI Pipeline](../../architecture/ai-pipeline.md)        | Detection to analysis flow              |
-| [Real-time System](../../architecture/real-time.md)     | WebSocket and pub/sub architecture      |
-| [Design Decisions](../../architecture/decisions.md)     | ADRs - why we made key choices          |
-| [Resilience](../../architecture/resilience.md)          | Error handling and graceful degradation |
-| [Frontend Hooks](../../architecture/frontend-hooks.md)  | Custom React hook architecture          |
+| Document                                                                       | Description                             |
+| ------------------------------------------------------------------------------ | --------------------------------------- |
+| [Architecture Overview](../../architecture/overview.md)                        | High-level system design and data flow  |
+| [Data Model](../../architecture/data-model.md)                                 | PostgreSQL schemas and Redis structures |
+| [AI Pipeline — Current State](../../architecture/ai-pipeline-current-state.md) | Detection to analysis flow              |
+| [Real-time System](../../architecture/real-time.md)                            | WebSocket and pub/sub architecture      |
+| [Design Decisions](../../architecture/decisions.md)                            | ADRs - why we made key choices          |
+| [Resilience](../../architecture/resilience.md)                                 | Error handling and graceful degradation |
+| [Frontend Hooks](../../architecture/frontend-hooks.md)                         | Custom React hook architecture          |
 
 ---
 
 ## System Diagram
 
 ```
-Cameras -> FTP -> FileWatcher -> detection_queue -> YOLO26 -> Detections
+Cameras -> FTP -> FileWatcher -> detections:stream -> YOLO26 -> Detections
                                                           |
-Dashboard <- WebSocket <- Events <- Nemotron <- analysis_queue <- BatchAggregator
+Dashboard <- WebSocket <- Events <- VlmAnalyzer -> ai-vlm <- analysis:stream <- BatchAggregator
 ```
 
 ---
@@ -38,7 +38,7 @@ Dashboard <- WebSocket <- Events <- Nemotron <- analysis_queue <- BatchAggregato
 | Database    | PostgreSQL         | Persistent storage                   |
 | Cache/Queue | Redis              | Pub/sub and job queues               |
 | Detection   | YOLO26             | Object detection (30-50ms inference) |
-| Analysis    | Nemotron           | Risk reasoning via llama.cpp         |
+| Analysis    | ai-vlm             | Risk verdict via llama.cpp           |
 
 ---
 
@@ -51,7 +51,7 @@ Dashboard <- WebSocket <- Events <- Nemotron <- analysis_queue <- BatchAggregato
 | FileWatcher      | `backend/services/file_watcher.py`      | Monitor camera directories    |
 | DetectorClient   | `backend/services/detector_client.py`   | YOLO26 HTTP client            |
 | BatchAggregator  | `backend/services/batch_aggregator.py`  | Group detections into batches |
-| NemotronAnalyzer | `backend/services/nemotron_analyzer.py` | LLM risk analysis             |
+| VlmAnalyzer      | `backend/services/vlm_analyzer.py`      | VLM risk analysis             |
 | EventBroadcaster | `backend/services/event_broadcaster.py` | WebSocket distribution        |
 
 ### Frontend Hooks
@@ -70,7 +70,7 @@ For detailed implementation specifics, see:
 
 - [Detection Service](../detection-service.md) - YOLO26 integration
 - [Batching Logic](../batching-logic.md) - Time-windowed aggregation
-- [Risk Analysis](../risk-analysis.md) - Nemotron prompts
+- [Risk Analysis](../risk-analysis.md) - VLM verdicts
 - [Resilience Patterns](../resilience-patterns.md) - Circuit breakers
 
 ---

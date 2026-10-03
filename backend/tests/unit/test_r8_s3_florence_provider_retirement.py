@@ -367,7 +367,14 @@ class TestFlorenceProviderRowRetired:
 
     def test_env_and_compose_stop_injecting_the_url(self) -> None:
         """Assignment lines only -- a ``#`` comment naming FLORENCE_URL is
-        prose and prose is allowed to name the dead."""
+        prose and prose is allowed to name the dead.
+
+        ``setup.py`` is in the list because it GENERATES the operator's ``.env``
+        from a Python string list, so its assignments arrive quoted rather than
+        bare; the leading quote is stripped before the match or the scan would
+        pass while the setup still wrote the line. The scan also asserts the
+        generated file itself stays non-empty, so a green here cannot come from
+        the generator having been emptied."""
         offenders: list[str] = []
         for fname in (
             "docker-compose.prod.yml",
@@ -376,12 +383,13 @@ class TestFlorenceProviderRowRetired:
             "config/docker-compose.gb300.yml",
             "config/docker-compose.test.yml",
             ".env.example",
+            "setup.py",
         ):
             path = REPO_ROOT / fname
             if not path.exists():
                 continue
             for line in path.read_text(encoding="utf-8").splitlines():
-                stripped = line.strip()
+                stripped = line.strip().lstrip("\"'")
                 for gone in ("FLORENCE_URL=", "CLIP_URL=", "ENRICHMENT_URL="):
                     if stripped.startswith(gone):
                         offenders.append(f"{fname}: {stripped}")
@@ -392,6 +400,12 @@ class TestFlorenceProviderRowRetired:
         assert "ai-gateway:" in prod
         assert "GATEWAY_MODEL_SET" in prod
         assert "ENRICHMENT_LIGHT_URL" in prod, "the surviving light lane keeps its wiring"
+        # The generator stays a generator: it still writes the surviving URL
+        # lines, so a green offender list is not the empty-file kind.
+        setup = _src("setup.py")
+        assert '"ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt"' in setup, (
+            "setup.py no longer writes the light lane -- the scan went vacuous"
+        )
 
     def test_ai_fallback_strips_florence_AND_clip_but_the_module_survives(self) -> None:
         """``ai_fallback`` is kept-and-DEAD (zero shipped importers; ledgered as

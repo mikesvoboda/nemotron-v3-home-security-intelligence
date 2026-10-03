@@ -4,12 +4,15 @@ Guide to the face detection and person identification features in Home Security 
 
 ## Overview
 
-Home Security Intelligence includes face detection capabilities that work alongside person re-identification to track individuals across cameras and match them against household members. This enables features like:
+Home Security Intelligence runs face detection and person re-identification as
+lookups beside its vision-language model: they answer "is this a person we
+already know?" precisely, which a generalist should not be asked to guess.
+That enables:
 
 - **Household Member Recognition**: Identify known family members
 - **Cross-Camera Tracking**: Follow individuals across multiple cameras
-- **Unknown Person Alerts**: Get notified when unfamiliar faces are detected
-- **Demographics Analysis**: Estimate age and gender for identification context
+- **Unknown-Face Review**: `GET /api/face-events/unknown` lists faces that never
+  matched the gallery, and the enrollment queue turns them into known persons
 
 ![Multi-Camera Person Tracking](../images/concepts/multi-camera-tracking.png)
 
@@ -17,7 +20,7 @@ Home Security Intelligence includes face detection capabilities that work alongs
 
 ## Architecture
 
-### Face Detection Pipeline
+### Identification Pipelines
 
 ```mermaid
 %%{init: {
@@ -43,72 +46,76 @@ flowchart LR
         BBOX["Person Bounding Box<br/>(x, y, width, height)"]
     end
 
-    subgraph FaceDetection["Face Detection<br/>backend/services/face_detector.py"]
-        HEAD["Head Region Extraction<br/>Top 40% of bbox"]
-        CROP["Crop with 20% Padding"]
-        YOLO11["YOLO11-face<br/>Face Detection"]
-        FACE["FaceDetection<br/>(bbox, confidence, person_id)"]
+    subgraph FaceLeg["Face Leg<br/>vlm_specialists + face_recognizer_loader"]
+        SCRFD["SCRFD-10G-KPS<br/>boxes + 5 landmarks"]
+        ALIGN["ArcFace 5-point align<br/>112x112 crop"]
+        FEMB["w600k_r50<br/>512-d face vector"]
+        GATE["Quality gate<br/>FACE_MIN_SIZE_PX +<br/>FACE_SCRFD_THRESHOLD"]
     end
 
-    subgraph ReID["Re-Identification<br/>backend/services/reid_service.py"]
-        CLIP["CLIP embeddings<br/>ai-gateway /clip"]
-        EMB["768-dim Embedding<br/>L2 normalized"]
-        STORE["Store in Redis<br/>24h TTL"]
-        PG["PostgreSQL<br/>30-day retention"]
+    subgraph ReidLeg["Person Re-ID Leg<br/>osnet_loader"]
+        OSNET["OSNet-AIN x1.0<br/>256x128 person crop"]
+        EMB["512-d person vector<br/>L2 normalized"]
+        STORE["Redis<br/>entity_embeddings:{model_id}:{date}<br/>24h TTL"]
     end
 
-    subgraph Matching["Household Matching<br/>backend/services/household_matcher.py"]
-        SEARCH["Cosine Similarity Search<br/>threshold >= 0.85"]
-        MEMBERS[(Household Members<br/>Stored Embeddings)]
-        MATCH{"Match<br/>Found?"}
-        KNOWN["Known Member<br/>HouseholdMatch"]
-        UNKNOWN["Unknown Person<br/>Entity Record"]
-    end
-
-    subgraph Output["Result"]
-        ALERT["Alert Generation<br/>Based on trust level"]
+    subgraph Matching["Gallery Matching"]
+        FSEARCH["face_recognition_service<br/>cosine >= 0.68"]
+        RSEARCH["household_matcher<br/>cosine >= 0.7"]
+        DB[(face_embeddings<br/>person_embeddings)]
+        OUT["match / unknown /<br/>not_identifiable / unavailable"]
     end
 
     CAM --> YOLO26
     YOLO26 --> BBOX
-    BBOX --> HEAD
-    HEAD --> CROP
-    CROP --> YOLO11
-    YOLO11 --> FACE
-    FACE --> CLIP
-    CLIP --> EMB
+    BBOX --> SCRFD
+    SCRFD --> ALIGN
+    ALIGN --> FEMB
+    FEMB --> GATE
+    BBOX --> OSNET
+    OSNET --> EMB
     EMB --> STORE
-    STORE -.-> PG
-    EMB --> SEARCH
-    MEMBERS --> SEARCH
-    SEARCH --> MATCH
-    MATCH -->|Yes| KNOWN
-    MATCH -->|No| UNKNOWN
-    KNOWN --> ALERT
-    UNKNOWN --> ALERT
+    GATE --> FSEARCH
+    FEMB --> FSEARCH
+    EMB --> RSEARCH
+    DB --> FSEARCH
+    DB --> RSEARCH
+    FSEARCH --> OUT
+    RSEARCH --> OUT
 ```
 
-**Pipeline Stages:**
+**Pipeline stages:**
 
 1. **Person Detection**: YOLO26 identifies person bounding boxes
-2. **Head Region Extraction**: Upper 40% of person bbox extracted
-3. **Face Detection**: YOLO11 face model detects faces in head region
-4. **Embedding Generation**: the gateway `/clip` router (SigLIP 2 Base) produces
-   768-dimensional embeddings
-5. **Matching**: embeddings compared against the household member database
+2. **Face Leg**: SCRFD-10G-KPS finds and landmarks the face; ArcFace
+   `w600k_r50` embeds the aligned 112x112 crop as an L2-normalized 512-d
+   vector (`backend/services/face_recognizer_loader.py`, CPU onnxruntime)
+3. **Re-ID Leg**: OSNet-AIN x1.0 embeds the person crop as a 512-d vector
+   (`backend/services/osnet_loader.py`)
+4. **Gallery Matching**: each vector is cosine-compared against
+   `face_embeddings` / `person_embeddings` rows
+5. **Prompt Lines**: the outcome is rendered as text into the VLM prompt — the
+   model sees "matched Alice, 0.81" or "unknown" or "not identifiable", never
+   a vector
 
 ### Models Used
 
-| Model                 | Purpose                   | VRAM (MB)          | Where it runs            |
-| --------------------- | ------------------------- | ------------------ | ------------------------ |
-| yolo26                | Person detection          | 0 (Triton-managed) | ai-gateway `/yolo26`     |
-| yolo11-face           | Face detection on crops   | 200                | backend model zoo        |
-| siglip2-base          | 768-dim entity embeddings | 200                | ai-gateway `/clip`       |
-| osnet-ain-x1-0        | 512-dim person re-ID      | 100                | ai-gateway `/enrich-lt`  |
-| vit-age-classifier    | Age estimation            | 200                | ai-gateway `/enrichment` |
-| vit-gender-classifier | Gender estimation         | 200                | ai-gateway `/enrichment` |
+| Model                 | Purpose                                     | `vram_mb`        | Where it runs          |
+| --------------------- | ------------------------------------------- | ---------------- | ---------------------- |
+| `yolo26`              | Person detection                            | 0 (Triton-owned) | `ai-gateway` `/yolo26` |
+| `face-detector-scrfd` | Face boxes + 5 landmarks (onnxruntime, CPU) | 0 (CPU)          | backend face leg       |
+| `face-recognizer`     | 512-d face embedding (onnxruntime, CPU)     | 0 (CPU)          | backend face leg       |
+| `osnet-ain-x1-0`      | 512-d person re-ID embedding (torch)        | 100              | backend re-ID leg      |
 
-VRAM figures are the `vram_mb` values in `models.yml`.
+Numbers are the `vram_mb` field of each entry in the root `models.yml`. The
+face leg's two rows are paired by design: `get_face_leg_handles()` returns
+`None` unless both are resident, so a host with one loaded still answers
+`unavailable` rather than half-running the leg.
+
+The model zoo can also load `yolo11-face` (`vram_mb: 200`, `preload: false`)
+from head crops. The event-path face leg does not use it: boxes without
+landmarks cannot be ArcFace-aligned, and an unaligned crop silently costs the
+embedder accuracy.
 
 ---
 
@@ -116,74 +123,91 @@ VRAM figures are the `vram_mb` values in `models.yml`.
 
 ### How It Works
 
-The face detector operates on person detections:
+The event-path face leg runs on the batch's key frames, not on person crops
+from the detector. For each frame `vlm_specialists._collect_face_texts()`
+detects faces with SCRFD-10G-KPS, aligns each one with its five landmarks, and
+embeds the 112x112 crop with ArcFace `w600k_r50`:
 
 ```python
-# Head region extraction
-HEAD_REGION_RATIO = 0.4  # Top 40% of person bbox
-
-# For a person at [x, y, width, height]
-head_region = [x, y, width, height * 0.4]
+# backend/services/face_recognizer_loader.py
+# scrfd_10g_bnkps.onnx  -> boxes + 5 landmarks
+# w600k_r50.onnx        -> aligned 112x112 crop in, L2-normalized 512-d out
 ```
 
-**Why Head Region?**
+### The Quality Gate and the Four Outcomes
 
-For a standing person, the face is typically in the top 40% of the bounding box. This reduces false positives and improves detection accuracy.
+A crop is only worth reporting if it is big enough and the detector believes
+it. The gate (`passes_quality_gate`, shared by the event path and server-side
+enrolment so the two can never disagree) grades every candidate into one of
+four outcomes:
 
-### Face Detection Output
+| Outcome            | Meaning                                                 |
+| ------------------ | ------------------------------------------------------- |
+| `match`            | Gate passed and the gallery had a known person          |
+| `unknown`          | Gate passed, no gallery match                           |
+| `not_identifiable` | Crop too small or too low-confidence to judge           |
+| `unavailable`      | The leg could not run (weights not resident, no frames) |
 
-```json
-{
-  "faces": [
-    {
-      "bbox": [120, 80, 180, 140],
-      "confidence": 0.92,
-      "person_detection_id": 12345
-    }
-  ]
-}
-```
+Order matters: a crop that fails the gate is `not_identifiable` even when it
+also has no match, so a tiny night face never reads as "unknown person" and
+drags the verdict toward alarm. A leg that could not run increments
+`hsi_specialist_unavailable_total` — the only degradation signal.
 
 ### Configuration
 
-These are the parameter defaults on the functions in
-`backend/services/face_detector.py`:
+| Setting                 | Default | Where                    | Description                                               |
+| ----------------------- | ------- | ------------------------ | --------------------------------------------------------- |
+| `face_min_size_px`      | 40      | `backend/core/config.py` | Minimum face box in pixels; below this → not identifiable |
+| `face_scrfd_threshold`  | 0.6     | `backend/core/config.py` | Minimum SCRFD score; also the detection threshold         |
+| `face_match_threshold`  | 0.68    | `backend/core/config.py` | Cosine similarity above which a face is a match           |
+| `backend_model_preload` | `false` | `backend/core/config.py` | Load the leg's weights at boot (≥24GB hosts)              |
 
-| Parameter              | Default | Description                             |
-| ---------------------- | ------- | --------------------------------------- |
-| `head_ratio`           | 0.4     | Fraction of person bbox for head region |
-| `padding`              | 0.2     | Padding around head bbox (20%)          |
-| `confidence_threshold` | 0.3     | Minimum face detection confidence       |
+These are config, not code constants: the gate's job is to keep a tiny or
+night-time crop from reading "unknown", and the right cut-off depends on your
+cameras.
 
 ---
 
 ## Person Re-Identification
 
-Two separate vectors are produced for every person, and they are not
-interchangeable:
+There is exactly **one person-vector space** in this system: OSNet-AIN x1.0,
+512 dimensions, SHA-256-pinned weights. Face vectors are a separate space with
+their own gallery and their own threshold — the two are never compared to each
+other.
 
-| Vector                 | Dimension | Produced by                           | Used for                                                                                           |
-| ---------------------- | --------- | ------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Entity embedding       | 768       | gateway `/clip` (SigLIP 2)            | Cross-camera entity tracking, household matching (`reid_service.py`)                               |
-| Person re-ID embedding | 512       | gateway `/enrich-lt` (OSNet-AIN x1.0) | Stored in `enrichment_data["person_reid"]`, read by `household_matcher.extract_person_embedding()` |
+| Vector                 | Dimension | Produced by         | Gallery table                                                 | Live probe                                     |
+| ---------------------- | --------- | ------------------- | ------------------------------------------------------------- | ---------------------------------------------- |
+| Face embedding         | 512       | ArcFace `w600k_r50` | `face_embeddings` (one row per sample, per `KnownPerson`)     | computed per frame by the face leg             |
+| Person re-ID embedding | 512       | OSNet-AIN x1.0      | `person_embeddings` (one row per household-member enrollment) | `detections.enrichment_data["reid_embedding"]` |
+
+Both gallery tables carry a `model_id` column naming the weights that produced
+the bytes, so a probe computed by one model is never silently scored against a
+gallery built by another (see the F11 provenance rule in
+[ai-pipeline-current-state](../architecture/ai-pipeline-current-state.md)).
 
 ### Embedding Storage
 
-`backend/services/reid_service.py` stores entity embeddings in Redis with a
-24-hour TTL (`EMBEDDING_TTL_SECONDS = 86400`) and mirrors them to PostgreSQL for
-30-day retention. `backend/services/reid_matcher.py` keys its index by an
-`embedding_hash` computed from the vector.
+`backend/services/reid_service.py` caches person vectors in Redis under
+`entity_embeddings:{model_id}:{date}` with a 24-hour TTL
+(`EMBEDDING_TTL_SECONDS = 86400`). The key is partitioned by `model_id` and the
+same id rides inside each payload — a stored vector always declares the weights
+that computed it, so a future weight change cannot silently mix two spaces into
+one comparison. `backend/services/reid_matcher.py` writes
+`detections.enrichment_data["reid_embedding"]` with
+`{vector, dimension, hash, model, stored_at}`.
 
-**Entity embedding properties:**
+`household_matcher.extract_person_embedding()` reads the cached vector from
+`enrichment_data["embeddings"]["person_reid"]`.
 
-- **Dimensionality**: 768 values (`EMBEDDING_DIMENSION` in `reid_service.py`)
+**Person-vector properties:**
+
+- **Dimensionality**: 512 (`EMBEDDING_DIMENSION` in `reid_service.py`)
 - **Normalization**: L2 normalized (unit length)
 - **Comparison**: Cosine similarity
 
 ### Similarity Matching
 
-Two embeddings are compared using cosine similarity. Because both vectors are
-L2 normalized, the dot product is the cosine:
+Because both vectors are L2 normalized, the dot product is the cosine:
 
 ```
 similarity = dot(embedding_a, embedding_b)
@@ -194,58 +218,28 @@ else:
     # Different people
 ```
 
-**Default thresholds in code:** 0.85, set by `DEFAULT_SIMILARITY_THRESHOLD` in
-`backend/services/reid_service.py` and `SIMILARITY_THRESHOLD` in
-`backend/services/household_matcher.py`. Both accept an override at
-construction time.
+**Thresholds, both configurable:**
+
+| Space          | Setting                     | Code default | Where                    |
+| -------------- | --------------------------- | ------------ | ------------------------ |
+| Person (OSNet) | `reid_similarity_threshold` | 0.7          | `backend/core/config.py` |
+| Face (ArcFace) | `face_match_threshold`      | 0.68         | `backend/core/config.py` |
+
+`HouseholdMatcher` prefers the configured `reid_similarity_threshold` and falls
+back to its class constant (`SIMILARITY_THRESHOLD = 0.7`) only when settings
+cannot be read. `FaceRecognitionService.DEFAULT_MATCH_THRESHOLD` mirrors the
+configured face value so the specialist and the gallery API never disagree
+about what "match" means.
+
+Both numbers are provisional and calibrated against your own galleries.
 
 **Guidelines for tuning:**
 
 | Threshold | Use Case                                |
 | --------- | --------------------------------------- |
 | 0.6       | Lenient matching (more false positives) |
-| 0.85      | Default in code                         |
-| 0.9       | Very strict (may miss matches)          |
-
----
-
-## Demographics Analysis
-
-### Age Estimation
-
-`POST http://localhost:8090/enrichment/demographics` returns age and gender in
-one response:
-
-```json
-{
-  "age_range": "21-30",
-  "age_confidence": 0.87,
-  "gender": "male",
-  "gender_confidence": 0.91,
-  "inference_time_ms": 22.1
-}
-```
-
-**Age Ranges:** the heavy enrichment adapter mapped model class indices onto
-0-10, 11-20, 21-30, 31-40, 41-50, 51-60, 61-70, 71+; that adapter
-(`ai/gateway/adapters/enrichment.py`) and the `POST /enrichment/demographics`
-route above retired with the Triton prune in R8 S3, and the gateway now mounts
-only the light enrichment router under `/enrich-lt`. The `age_range` check constraint on the
-old `demographics_results` table additionally accepted `71-80`, `81+` and
-`unknown`; that table and its constraint were dropped by R8 S4, so the list
-above is now the only vocabulary in the shipped code. The label list in the
-legacy `ai/enrichment/models/demographics.py` (0-10, 11-20, 21-35, 36-50, 51-65,
-65+) is a different vocabulary — that module does not run in the gateway
-deployment.
-
-### Gender Estimation
-
-The same call returns `gender` as `male`, `female` or `unknown`, with
-`gender_confidence` beside it.
-
-**Privacy Note:** Demographics are used for identification context only and are not stored long-term. They help distinguish between individuals when other identifying features are similar.
-
----
+| 0.68-0.70 | Shipped defaults                        |
+| 0.9       | Very strict (will miss matches)         |
 
 ## Household Member Registration
 
@@ -394,44 +388,78 @@ curl http://localhost:8000/api/entities/entity-uuid/history
 
 ## API Reference
 
-### Household Members
+### Household Members (`backend/api/routes/household.py`)
 
-| Endpoint                                 | Method | Description        |
-| ---------------------------------------- | ------ | ------------------ |
-| `/api/household/members`                 | GET    | List all members   |
-| `/api/household/members`                 | POST   | Create new member  |
-| `/api/household/members/{id}`            | GET    | Get member details |
-| `/api/household/members/{id}`            | PATCH  | Update member      |
-| `/api/household/members/{id}`            | DELETE | Delete member      |
-| `/api/household/members/{id}/embeddings` | POST   | Add embedding      |
+| Endpoint                                  | Method | Description                                                                     |
+| ----------------------------------------- | ------ | ------------------------------------------------------------------------------- |
+| `/api/household/members`                  | GET    | List all members                                                                |
+| `/api/household/members`                  | POST   | Create new member                                                               |
+| `/api/household/members/{id}`             | GET    | Get member details                                                              |
+| `/api/household/members/{id}`             | PATCH  | Update member                                                                   |
+| `/api/household/members/{id}`             | DELETE | Delete member                                                                   |
+| `/api/household/members/{id}/link-person` | PATCH  | Link a member to a `KnownPerson` row                                            |
+| `/api/household/members/{id}/embeddings`  | POST   | Enroll the person re-ID vector for an event (201; 503 if OSNet is not resident) |
 
-### Household Vehicles
+The embedding route takes an `event_id`, finds the event's first `person`
+detection, and computes the 512-d vector server-side with the resident OSNet
+handle — the response stores the vector beside the `model_id` that produced it.
 
-| Endpoint                       | Method | Description          |
-| ------------------------------ | ------ | -------------------- |
-| `/api/household/vehicles`      | GET    | List all vehicles    |
-| `/api/household/vehicles`      | POST   | Register new vehicle |
-| `/api/household/vehicles/{id}` | GET    | Get vehicle details  |
-| `/api/household/vehicles/{id}` | PATCH  | Update vehicle       |
-| `/api/household/vehicles/{id}` | DELETE | Delete vehicle       |
+### Known Persons and Faces (`backend/api/routes/face_recognition.py`)
+
+| Endpoint                                            | Method | Description                                                |
+| --------------------------------------------------- | ------ | ---------------------------------------------------------- |
+| `/api/known-persons`                                | GET    | List known persons (`household_only` filter)               |
+| `/api/known-persons`                                | POST   | Create known person                                        |
+| `/api/known-persons/{id}`                           | GET    | Get known person                                           |
+| `/api/known-persons/{id}`                           | PATCH  | Update known person                                        |
+| `/api/known-persons/{id}`                           | DELETE | Delete known person (cascades to its embeddings)           |
+| `/api/known-persons/{id}/appearances`               | GET    | Appearance history                                         |
+| `/api/known-persons/{id}/embeddings`                | GET    | List stored face embeddings                                |
+| `/api/known-persons/{id}/embeddings/{embedding_id}` | DELETE | Delete one face embedding                                  |
+| `/api/known-persons/{id}/enroll-from-detection`     | POST   | Compute + store a face vector from a detection's own frame |
+| `/api/known-persons/bulk-enroll`                    | POST   | Compute + store face vectors from an uploaded image        |
+| `/api/face-events`                                  | GET    | Face events (`camera_id` filter)                           |
+| `/api/face-events/stats`                            | GET    | Face-event counts                                          |
+| `/api/face-events/unknown`                          | GET    | Unmatched faces (unknown strangers)                        |
+| `/api/face-events/match`                            | POST   | Score a probe against the gallery                          |
+| `/api/face-events/{event_id}/identify`              | POST   | Identify a stored face event                               |
+| `/api/enrollment-queue`                             | GET    | Auto-enrollment candidates (`status` filter)               |
+| `/api/enrollment-queue/{candidate_id}`              | GET    | One candidate                                              |
+| `/api/enrollment-queue/{candidate_id}/approve`      | POST   | Approve a candidate into the gallery                       |
+| `/api/enrollment-queue/{candidate_id}/reject`       | POST   | Reject a candidate                                         |
+| `/api/auto-enrollment/settings`                     | GET    | Current auto-enrollment thresholds                         |
+
+Every face vector the server stores comes from an image the server read:
+`enroll-from-detection` and `bulk-enroll` are the enrollment surface.
+`POST /api/known-persons/{id}/embeddings` answers **410 Gone** — a vector the
+server did not compute carries no provenance, so it cannot enter a gallery whose
+whole correctness rule is "every stored vector names its weights".
 
 ### Entities
 
-| Endpoint                     | Method | Description             |
-| ---------------------------- | ------ | ----------------------- |
-| `/api/entities`              | GET    | List tracked entities   |
-| `/api/entities/{id}`         | GET    | Get entity details      |
-| `/api/entities/{id}/history` | GET    | Get appearance timeline |
+| Endpoint                               | Method | Description                                             |
+| -------------------------------------- | ------ | ------------------------------------------------------- |
+| `/api/entities`                        | GET    | List tracked entities                                   |
+| `/api/entities/stats`                  | GET    | Entity counts                                           |
+| `/api/entities/trusted`                | GET    | Trusted entities                                        |
+| `/api/entities/untrusted`              | GET    | Untrusted entities                                      |
+| `/api/entities/{id}/trust`             | PATCH  | Set an entity's trust status                            |
+| `/api/entities/{id}`                   | GET    | Get entity details                                      |
+| `/api/entities/{id}/history`           | GET    | Get appearance timeline                                 |
+| `/api/entities/matches/{detection_id}` | GET    | Household member matched to a detection                 |
+| `/api/entities/v2`                     | GET    | Entity list, historical (`source`: redis/postgres/both) |
+| `/api/entities/v2/{id}`                | GET    | Entity detail, historical                               |
+| `/api/entities/v2/{id}/detections`     | GET    | Detections behind an entity                             |
 
 ### Query Parameters (Entities)
 
-| Parameter     | Type     | Description                     |
-| ------------- | -------- | ------------------------------- |
-| `entity_type` | String   | Filter by 'person' or 'vehicle' |
-| `camera_id`   | String   | Filter by camera                |
-| `since`       | DateTime | Entities seen since timestamp   |
-| `limit`       | Integer  | Pagination limit (default: 50)  |
-| `offset`      | Integer  | Pagination offset               |
+| Parameter     | Type     | Description                              |
+| ------------- | -------- | ---------------------------------------- |
+| `entity_type` | String   | Filter by 'person' or 'vehicle'          |
+| `camera_id`   | String   | Filter by camera                         |
+| `since`       | DateTime | Entities seen since timestamp            |
+| `limit`       | Integer  | Pagination limit (default: 50, max 1000) |
+| `offset`      | Integer  | Pagination offset                        |
 
 ---
 
@@ -464,34 +492,62 @@ similarity and embedding count.
 
 ## Alert Integration
 
-### How Alerts Fire
+### What Exists Today
 
-There is no dedicated "unknown person" alert type with a fixed severity table.
-Alerts are rule-driven: `backend/services/alert_engine.py` creates an alert
-when an event matches an `AlertRule` (`backend/models/alert.py` — conditions
-are risk threshold, object types, cameras, zones, detection confidence,
-schedule, and optional dwell time). The rule's own `severity` field
-(`low` / `medium` / `high` / `critical`) is the starting severity.
+Two separate pieces sit behind the words "alert rule", and only one of them
+runs on the event path:
 
-Trust then adjusts it (`SEVERITY_ESCALATION` / `SEVERITY_REDUCTION` in
+| Piece                                        | What it does now                                                                                                                                         |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend/models/alert.py` (`AlertRule`)      | The rule rows and their conditions (risk threshold, object types, cameras, zones, confidence, schedule, dwell time, threat filters).                     |
+| `backend/services/alert_engine.py`           | Evaluates those rules — `evaluate_event()` / `create_alerts_for_event()`, driven on demand by the `POST /api/alerts/rules/{rule_id}/test` dry-run route. |
+| `backend/services/threat_monitor_service.py` | The one place the shipped pipeline writes an `Alert` row for a detection: the batch aggregator's threat fast path.                                       |
+
+`AlertRuleEngine` is complete code with no automatic caller: nothing in the
+watchdog → gateway → VLM path calls `evaluate_event()` or
+`create_alerts_for_event()`, so saving an enabled rule does **not** start alerts
+on its own. The engine runs when you exercise a rule explicitly through
+`POST /api/alerts/{rule_id}/test`, which reports per-event match results without
+creating alerts. Plan alerting around that: today the automatic alert in the
+shipped stack is the threat path, and it is opt-in
+(`GATEWAY_ENABLE_THREAT=true`).
+
+### Trust Adjustment
+
+When the engine does evaluate an event, entity trust changes what it does
+(`_get_aggregate_entity_trust_status()` / `SEVERITY_ESCALATION` in
 `alert_engine.py`):
 
-| Entity trust | Effect on severity                            |
-| ------------ | --------------------------------------------- |
-| Untrusted    | Escalated by one level (medium becomes high)  |
-| Trusted      | Reduced by one level, or the alert is skipped |
+| Aggregate trust | Effect                                                              |
+| --------------- | ------------------------------------------------------------------- |
+| `trusted`       | Evaluation stops before the rules run — no alerts for the event     |
+| `untrusted`     | Each matched rule's severity escalates one level (`critical` stays) |
+| `unknown`       | Rules apply at the severity written on the rule                     |
+
+Aggregation is the most permissive status across the event's detections: one
+trusted entity makes the whole event trusted. The rule's own `severity` field
+(`low` / `medium` / `high` / `critical`) is the starting value in every case.
 
 ### Zone Context
 
-The zone a detection lands in reaches Nemotron as prompt context, not as a
-severity multiplier: `ZONE_RISK_WEIGHTS` in
-`backend/services/context_enricher.py` labels `entry_point` high,
-`driveway`/`yard` medium, `sidewalk`/`other` low. Those five are the complete
-set of `CameraZoneType` values (`backend/models/camera_zone.py`).
+Zones reach the vision-language model as **names, not weights**:
+`build_assess_context()` in `backend/services/vlm_analyzer.py` takes a `zones`
+list plus a `zone_crossing` boolean, and `detect_zone_crossing()` derives the
+flag from a track appearing in two different zone memberships — with no track
+ids or no zone memberships it returns an honest `False` rather than a guess.
+The VLM is the thing that decides whether a person in the `entry_point` zone
+matters.
+
+There is a zone→risk-label table in the tree
+(`ZONE_RISK_WEIGHTS` in `backend/services/context_enricher.py`: `entry_point`
+high, `driveway`/`yard` medium, `sidewalk`/`other` low, over the five
+`CameraZoneType` values in `backend/models/camera_zone.py`), but nothing
+consumes it on the shipped path, so it changes no score today.
 
 To make unknown-person detections at your front door alert at a chosen
 severity, create an alert rule matching `object_types: ["person"]` and that
-zone, with the severity you want.
+zone, with the severity you want — and read the "What Exists Today" box above
+for what saving that rule does and does not do.
 
 ---
 
@@ -503,26 +559,19 @@ zone, with the severity you want.
 | --------------------------- | ------------------- | --------------------------------------------------------------- |
 | Events and detections       | `RETENTION_DAYS=30` | Pruned by `backend/services/cleanup_service.py`                 |
 | Face detections             | 30 days             | Stored on detections, so they age out with them                 |
+| Face gallery vectors        | Until deleted       | `FaceEmbedding` rows, removed with the `KnownPerson`            |
 | Per-detection re-ID vectors | 30 days             | `detections.enrichment_data` JSONB, ages out with the detection |
 | Redis entity embeddings     | 24 hours            | `EMBEDDING_TTL_SECONDS` in `reid_service.py`                    |
 | Member embeddings           | Until deleted       | `PersonEmbedding` rows, removed with the member                 |
 
-Per-detection demographics are not persisted at all. The two per-detection
-tables this used to describe were dropped by R8 S4 (owner ruling 2026-09-30);
-see `docs/api/migrations/2026-09-30-retire-demographics-reid-tables.sql`. The
-`PersonEmbedding` row above is a different thing and stays — it is the live
-member gallery, not a per-detection table.
-
 The 30-day figure is `RETENTION_DAYS` in `.env`, read as `retention_days` in
 `backend/core/config.py`. Short-term cross-camera linking is the job of
-`track_service.prune_old_tracks()`, which prunes by `track_retention_hours`,
-not by a seven-day entity policy.
+`track_service.prune_old_tracks()`, which prunes by `track_retention_hours`.
 
 ### Data Minimization
 
-- Face images are not stored separately
+- Face images are not stored separately from the detection they came from
 - Embeddings are numerical vectors only
-- Demographics are estimates, not identity
 - All data can be deleted via member deletion
 
 ### Local Processing
@@ -556,11 +605,13 @@ All face recognition processing happens locally:
 ### For Performance
 
 1. **Embedding Limit**: Keep member embedding count reasonable (10-20)
-2. **Model Priority**: In the gateway deployment every enrichment model has
-   `priority: medium` in `models.yml` and Triton preloads them, so there is no
-   load-order penalty; the legacy container's HIGH-priority ordering applied
-   only there
-3. **Batch Processing**: Face detection runs in batches with other enrichment
+2. **Residency, not priority**: the re-ID leg is the one vision model that
+   costs the backend VRAM, and it loads only when `BACKEND_MODEL_PRELOAD=true`.
+   On a host below that budget the legs report `unavailable` — counts ride
+   `hsi_specialist_unavailable_total`, which is the only degradation signal.
+3. **Batching**: face and re-ID lookups run per detection inside the batch
+   analyzer's `collect_specialist_outputs()`, so their cost scales with
+   `MAX_KEY_FRAMES` (4) rather than with every frame the detector saw.
 
 ---
 

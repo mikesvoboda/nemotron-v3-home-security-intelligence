@@ -10,11 +10,11 @@
 
 ### Alert Rule
 
-A configurable condition that triggers notifications when events match specified criteria. Rules can filter by risk threshold, object types, cameras, time schedules, and other parameters. See [System Operations API](../developer/api/system-ops.md).
+A stored condition on risk threshold, object types, cameras and schedules (`backend/services/alert_engine.py`, `AlertRuleEngine`), evaluated by the alerts API when it is called — the engine runs no scheduler of its own, so nothing fires on its own. See [System Operations API](../developer/api/system-ops.md).
 
 ### Analysis Worker
 
-Background worker process that sends detection batches to the Nemotron LLM for risk assessment. Part of the [Pipeline](#pipeline).
+Background worker process (`backend/services/pipeline_workers.py`, `AnalysisQueueWorker`) that hands a closed batch to `VlmAnalyzer`, which assembles the key frames and the specialist lookups into one request for `ai-vlm`. Part of the [Pipeline](#pipeline).
 
 ---
 
@@ -22,7 +22,7 @@ Background worker process that sends detection batches to the Nemotron LLM for r
 
 ### Batch
 
-A collection of detections from a single camera grouped within a time window. Batches are sent to Nemotron for analysis as a unit. Controlled by `BATCH_WINDOW_SECONDS` and `BATCH_IDLE_TIMEOUT_SECONDS`.
+A collection of detections from a single camera grouped within a time window. A batch is handed to `ai-vlm` for analysis as a unit. The window and idle timeout come from `BATCH_WINDOW_SECONDS` and `BATCH_IDLE_TIMEOUT_SECONDS`; `batch_max_detections` (500, `backend/core/config.py`, no `.env` override) closes a batch early once it is full.
 
 ### Batch Aggregation
 
@@ -30,7 +30,7 @@ The process of collecting individual detections over configurable time windows b
 
 ### Batch Aggregator
 
-Service that groups individual detections into batches based on camera and time proximity. Batches are closed when either the time window expires or idle timeout is reached.
+Service that groups individual detections into batches based on camera and time proximity (`backend/services/batch_aggregator.py`). A batch closes when the time window expires, the idle timeout is reached, or `batch_max_detections` is hit.
 
 ### Bounding Box
 
@@ -55,10 +55,6 @@ Automated software development practices where code changes are automatically bu
 ### Circuit Breaker
 
 A fault tolerance pattern that temporarily disables calls to a failing service. When failures exceed a threshold, the circuit "opens" and returns cached errors immediately. After a timeout, it allows test calls to check if the service has recovered.
-
-### CLIP
-
-Contrastive Language-Image Pre-training — the family of vision-text embedding models. This system ships **SigLIP 2 base** (Triton model `clip` in the ai-gateway) producing 768-dimensional vectors for scene-baseline comparison, scene classification, and fashion similarity. Person re-identification no longer uses CLIP vectors — see [Re-identification (Re-ID)](#re-identification-re-id).
 
 ### Confidence Score
 
@@ -98,7 +94,7 @@ A test parallelization strategy that splits tests by functional domain (API, Web
 
 ### Embedding
 
-A vector representation of data (such as an image or text) in a high-dimensional space where similar items are positioned close together. Used for similarity search and re-identification. See [CLIP](#clip), [Re-identification](#re-identification-re-id).
+A vector representation of an image in a high-dimensional space where similar items sit close together. The one shipped producer is `osnet-ain-x1-0`, and every stored vector carries the `model_id` of the weights that made it so two spaces are never compared. See [Re-identification (Re-ID)](#re-identification-re-id).
 
 ### Entity Re-ID
 
@@ -106,11 +102,7 @@ See [Re-identification (Re-ID)](#re-identification-re-id).
 
 ### Event
 
-A security incident that may contain one or more detections, analyzed by Nemotron for risk assessment. Events have a risk score, risk level, summary, and reasoning explanation.
-
-### Enrichment Service
-
-Optional AI service that aggregates advanced vision features including vehicle damage detection, clothing segmentation, pet classification, and image quality analysis.
+A security incident containing one or more detections from one camera batch. `ai-vlm` grades it; `apply_verdict_invariants()` (`backend/services/vlm_analyzer.py`) validates the answer before the Event is written. An Event has a risk score, risk level, summary, and reasoning explanation — and a `null` score means the scorer failed, so the event is flagged for review.
 
 ### Event Broadcaster
 
@@ -120,13 +112,9 @@ Service that sends real-time event notifications to connected WebSocket clients.
 
 ## F
 
-### Florence-2
-
-Vision-language model from Microsoft used for extracting rich visual attributes like detailed descriptions, object attributes, and scene understanding.
-
 ### Fast Path
 
-An optimization that bypasses normal batching for high-confidence detections of critical object types, enabling faster alerting. **Currently disabled**: `FAST_PATH_CONFIDENCE_THRESHOLD` defaults to 2.0 (impossible value) and the object-type list is empty, because the fast path skipped enrichment and Nemotron produced wildly inaccurate scores without it (see NEM-5525). Do not re-enable until enrichment runs before the LLM call.
+An optimization that scores a single high-confidence detection ahead of the batch gate. It ships **off**: `FAST_PATH_CONFIDENCE_THRESHOLD` defaults to `2.0`, a confidence no detector can report, and `FAST_PATH_OBJECT_TYPES` is empty (`backend/core/config.py`). Where it is enabled, the request still runs through `VlmAnalyzer` — there is no second analysis path.
 
 ### File Watcher
 
@@ -142,11 +130,11 @@ The protocol used by Foscam cameras to upload images to the server. Images are u
 
 ### GGUF
 
-A file format for storing quantized LLM models, used by llama.cpp. Nemotron models are distributed in GGUF format.
+A file format for storing a quantized LLM for llama.cpp. `ai-vlm` loads two GGUF files as one identity: the weights named by `VLM_MODEL_PATH` and the vision projector named by `VLM_MMPROJ_PATH`.
 
 ### GPU (Graphics Processing Unit)
 
-The hardware accelerator used to run AI models. This system requires an NVIDIA GPU with CUDA support for optimal performance.
+The hardware accelerator behind the two AI containers. An NVIDIA GPU with CUDA support is required for `ai-vlm` (its verdict latency on CPU runs to tens of seconds) and for Triton's CUDA execution provider in `ai-gateway`; the lookup models run on CPU either way.
 
 ---
 
@@ -170,7 +158,7 @@ The time period after which an inactive batch is closed and sent for analysis, e
 
 ### Inference
 
-The process of running an AI model on input data to produce predictions. For this system: YOLO26 inference detects objects; Nemotron inference analyzes risk.
+The process of running an AI model on input data to produce predictions. For this system: Triton runs YOLO26 detection in `ai-gateway`, `ai-vlm` turns a batch into a risk verdict, and the lookup models run in the backend process on CPU.
 
 ---
 
@@ -186,7 +174,7 @@ A compact, URL-safe token format for securely transmitting claims between partie
 
 ### llama.cpp
 
-An open-source C++ implementation for running LLM inference. Used to run the Nemotron model with efficient GPU acceleration.
+An open-source C++ inference server. The `ai-vlm` container runs its `llama-server` binary on the configured GGUF; the backend talks to its OpenAI-compatible `/v1/chat/completions`.
 
 ### Liveness Probe
 
@@ -195,10 +183,6 @@ A health check that indicates whether the application is running. If it fails, t
 ---
 
 ## N
-
-### Nemotron
-
-NVIDIA's family of large language models. Production deployments use **Nemotron-3-Nano-30B-A3B** at Q4_K_M quantization (a ~14.7GB GGUF file, roughly 21GB resident when fully on GPU) for risk assessment and generating human-readable security analysis. Context is set by `CTX_SIZE` (262144 in `.env.example` and compose — llama.cpp splits it evenly across 8 parallel inference slots). The smaller Nemotron Mini 4B is available as a testing model with the optional `vllm` compose profile (`ai-llm-vllm`).
 
 ---
 
@@ -220,11 +204,11 @@ A nonprofit foundation focused on improving software security. OWASP publishes s
 
 The end-to-end processing flow for security images:
 
-1. **File Watcher** detects new image
-2. **Detection Worker** sends to YOLO26
-3. **Batch Aggregator** groups detections
-4. **Analysis Worker** sends to Nemotron
-5. **Event** created with risk assessment
+1. **File Watcher** detects a new image
+2. **Detection Worker** sends it to YOLO26 in `ai-gateway`
+3. **Batch Aggregator** groups the detections by camera and time
+4. **Analysis Worker** runs the specialist lookups and sends the batch to `ai-vlm`
+5. **Event** is created with the verified risk assessment
 
 ### Pipeline Latency
 
@@ -240,7 +224,7 @@ A Redis-backed buffer that holds items waiting to be processed. The main pipelin
 
 ### Quantization
 
-A technique to reduce model size and memory usage by using lower precision numbers. The Nemotron model uses Q4_K_M quantization (4-bit with medium quality K-quants).
+Reducing a model's precision to shrink its memory footprint. The shipped VLM defaults are a `Q4_K_M` weights file with a `Q8_0` vision projector (`VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`), and `q8_0` key/value cache types, which about halve the KV cache pool.
 
 ---
 
@@ -292,7 +276,7 @@ See [Risk Levels Reference](config/risk-levels.md).
 
 ### Risk Score
 
-A numeric value from 0-100 assigned by Nemotron indicating the threat level of an event. Higher scores indicate greater concern. The score is used to determine [Risk Level](#risk-level).
+A numeric value from 0-100 indicating the threat level of an event, produced by `ai-vlm` and checked by `apply_verdict_invariants()`. Higher scores indicate greater concern, and the score determines the [Risk Level](#risk-level). A `null` score is not a low score: it means the scorer failed and the event needs review.
 
 ---
 
@@ -304,7 +288,7 @@ A formal inventory of all software components, libraries, and dependencies used 
 
 ### Scene Change Detection
 
-Feature that tracks baseline scene characteristics to detect significant environmental changes like lighting shifts or camera tampering.
+An SSIM comparison of a camera's frames against its baseline, implemented in `backend/services/scene_change_detector.py` and reported through the settings API. Nothing in the running pipeline calls it, so the lighting-shift and tampering signals it would produce are not part of any verdict.
 
 ### Severity
 
@@ -346,13 +330,9 @@ A 128-bit identifier that is unique across space and time. Used extensively in t
 
 ## V
 
-### Vision Extraction
-
-Process of using Florence-2 to extract detailed visual attributes from detection images, including clothing descriptions, pose information, and contextual details.
-
 ### VRAM (Video RAM)
 
-Memory on the GPU used to store models and data during inference. The core stack (Nemotron Q4_K_M ~14.7GB + YOLO26 ~2GB + Florence-2 ~1.5GB + embeddings) needs a 24GB card for full GPU loading; 16GB works with the LLM partially offloaded via `GPU_LAYERS`. See [Prerequisites](../getting-started/prerequisites.md).
+Memory on the GPU used to store models and data during inference. Two containers hold it: `ai-vlm` (GGUF weights, its vision projector and the KV cache pool) and `ai-gateway` (the Triton CUDA context plus the resident ONNX models). `VLM_GPU_LAYERS` decides how much of the VLM the card gets, and `VLM_CTX_SIZE` / `VLM_PARALLEL` size the KV pool. The face, plate and person-re-ID lookups run on CPU. See [Prerequisites](../getting-started/prerequisites.md) and [VRAM Budget](nvidia-technology-inventory.md#vram-budget).
 
 ---
 
@@ -366,8 +346,9 @@ A protocol providing full-duplex communication over a single TCP connection. Use
 
 A background process that performs asynchronous tasks. The system has several workers:
 
-- Detection Worker
-- Analysis Worker
+- Detection Worker (`DetectionQueueWorker`)
+- Analysis Worker (`AnalysisQueueWorker`)
+- Batch Timeout Worker (`BatchTimeoutWorker`)
 - GPU Monitor
 - Cleanup Service
 - System Broadcaster
@@ -382,7 +363,7 @@ A work distribution strategy used by pytest-xdist where test workers "steal" tes
 
 ### YOLO26
 
-A real-time object detection model from the Ultralytics family, served via TensorRT for accurate detection with low latency. This system uses the **m (Medium)** variant (`yolo26m`); detection runs in the `ai-gateway` Triton container behind the `/yolo26` router. See [YOLO26 Client](../architecture/ai-orchestration/yolo26-client.md).
+A real-time object detection model from the Ultralytics family (CNN-based, NMS-free). This system uses the **m (Medium)** variant (`yolo26m`) as FP32 ONNX under Triton, in the `ai-gateway` container behind the `/yolo26` router. See [YOLO26 Client](../architecture/ai-orchestration/yolo26-client.md) and [Models Reference](models.md).
 
 ---
 

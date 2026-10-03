@@ -167,9 +167,10 @@ data/synthetic/
 - Combine stock and staged footage for comprehensive coverage
 - Document which test cases use which data sources
 
-## Florence-2 Caption Validation
+## Caption Validation
 
-The comparison engine supports semantic caption matching with synonyms. When validating Florence captions against expected labels:
+The comparison engine (`scripts/synthetic/comparison_engine.py`) matches
+expected labels against a caption with synonym expansion:
 
 ```python
 # These are considered equivalent:
@@ -177,7 +178,10 @@ The comparison engine supports semantic caption matching with synonyms. When val
 # because "man" is a synonym for "person" and "cardboard box" for "package"
 ```
 
-However, Florence cannot describe what isn't in the image. If a weapon was not generated, Florence will not mention it, causing validation failures.
+Caption content can only confirm what is actually visible in the image. If a
+weapon was not generated into the scene, no caption will mention it and the
+validation for that scenario fails — which is the correct outcome and the
+reason threat scenarios use real footage.
 
 ## Related Files
 

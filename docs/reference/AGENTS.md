@@ -113,7 +113,7 @@ See `troubleshooting/AGENTS.md` for detailed information.
 **Key Files:**
 
 - `index.md` - Quick symptom lookup table
-- `ai-issues.md` - YOLO26, Nemotron, pipeline problems
+- `ai-issues.md` - `ai-gateway`, `ai-vlm`, pipeline problems
 - `connection-issues.md` - Network, containers, WebSocket
 - `database-issues.md` - PostgreSQL connection, schema setup
 - `gpu-issues.md` - CUDA, VRAM, thermal issues

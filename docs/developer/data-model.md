@@ -406,7 +406,7 @@ counts = await session.execute(
 
 **Table:** `events`
 **Source:** `backend/models/event.py`
-**Purpose:** Aggregated security events analyzed by Nemotron LLM for risk assessment.
+**Purpose:** Aggregated security events carrying the VLM verdict's risk assessment.
 
 #### Schema
 
@@ -1036,13 +1036,13 @@ flowchart TB
 
     subgraph Pipeline["AI Pipeline"]
         FW[FileWatcher]
-        DQ[(Redis: detection_queue)]
+        DQ[(Redis: detections:stream)]
         DQW[DetectionQueueWorker]
         RT[YOLO26]
         BA[BatchAggregator]
-        AQ[(Redis: analysis_queue)]
+        AQ[(Redis: analysis:stream)]
         AQW[AnalysisQueueWorker]
-        NEM[Nemotron LLM]
+        NEM[VlmAnalyzer → ai-vlm]
     end
 
     subgraph Storage["PostgreSQL"]
@@ -1088,12 +1088,12 @@ flowchart TB
 1. **Image Arrival:** Foscam camera uploads via FTP to `/export/foscam/{camera_name}/`
 2. **FileWatcher:** Detects new file, validates, queues for processing
 3. **Deduplication:** SHA256 hash checked against Redis cache
-4. **Detection Queue:** File path pushed to `detection_queue`
+4. **Detection Queue:** File path pushed to the `detections:stream` Redis stream
 5. **Object Detection:** YOLO26 performs inference, creates Detection records
 6. **Batch Aggregation:** Detections grouped by camera in 90s windows
-7. **Analysis Queue:** Completed batch pushed to `analysis_queue`
-8. **LLM Analysis:** Nemotron analyzes batch, generates risk score and summary
-9. **Event Creation:** Event record created with LLM results
+7. **Analysis Queue:** Completed batch pushed to the `analysis:stream` Redis stream
+8. **VLM Analysis:** `VlmAnalyzer` renders key frames + specialist lookups and takes a JSON verdict from `ai-vlm` (risk score, summary, reasoning)
+9. **Event Creation:** Event + EventVerification records created with the verdict results
 10. **Alert Evaluation:** AlertEngine checks event against AlertRules
 11. **Alert Creation:** Matching rules generate Alert records
 12. **Real-time Broadcast:** Event published via Redis pub/sub to WebSocket clients

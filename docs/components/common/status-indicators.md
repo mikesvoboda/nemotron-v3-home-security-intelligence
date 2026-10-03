@@ -12,12 +12,18 @@ Displays overall service health with expandable details dropdown.
 
 ```typescript
 interface ServiceStatusIndicatorProps {
-  services: Record<'redis' | 'rtdetr' | 'nemotron', ServiceStatus | null>;
+  services: Record<ServiceName, ServiceStatusType | null>;
   hasUnhealthy: boolean;
   isAnyRestarting: boolean;
   className?: string;
 }
 ```
+
+`ServiceName` is `'redis' | 'rtdetr' | 'nemotron'` and `ServiceStatusType` covers `healthy`,
+`unhealthy`, `restarting`, `restart_failed`, `restart_disabled` and `failed` — both exported from
+`frontend/src/hooks/useServiceStatus.ts`, which is what supplies the `services` map. The names are
+the health-payload keys the monitor broadcasts, not container names: `rtdetr` is served by
+`ai-gateway` and `nemotron` by `ai-vlm`.
 
 ### Overall Status States
 
