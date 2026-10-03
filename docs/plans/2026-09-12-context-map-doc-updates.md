@@ -16090,3 +16090,106 @@ holds: system.py 328 and system_broadcaster.py 320 (320 surv 57.4468%
 would otherwise rank first) are DEATH-Listed, never batteries. Campaign
 #31, battery letter AG. Gap to 85%: 0.85\*69,175 = 58,798.75 - 53,067 =
 **5,731.75 kt**. Every number measured THIS session.
+
+## MILESTONE 33 — 77.0341567771498% (campaign #31 circuit_breaker closes at 99.2095% — 502/506 — in TWO runs; M20 capture #5 RECURRED: run-1's body reconcile caught one 1->0 KILL LOSS the survivor census could not see, re-earned by one dedicated `is False` test in run 2)
+
+**Badge 77.0341567771498% (completed=true),
++0.32002594953866546407250546 vs M32's 76.71413082761113%.** killed
+53,007 (incl. the 30-key exit-3 `caught_by_type_check` family folded in) +
+timeout 286 = 53,293 kt / 69,181. Denominator disclosure: 69,175 to
+69,181 = +6 mutant keys - run 1's battery coverage growth BORN 5 keys
+(`CircuitBreakerError.__init__` 10 to 15, all same-run-killed) and run 2's
+fix-test grew one MORE `_allow_call_unlocked` slot (family 8 to 9, born
+killed) because executing the `case _` arm with a NON-member state made
+that region enumerable. survived 15,325 to 15,105; timeout 284 to 286
+disclosed: run 2's re-generation turned two previously-killed `call`
+twins (m4, m26 - the close-sweep names) into -24, numerator-preserving,
+and BOTH are proven RED by the battery alone in the close sweep (attributed
+to test_call_success_records_and_returns + test_call_failure_reraises_and_trips;
+mutmut's own full-suite pass spins and recorded -24). The module's legacy
+timeout trio (`_allow_call_unlocked` m1/m5, `call` m28) kept its verdicts
+as the reconcile's (-24,-24)x3. no_tests 783 unchanged. Completed gate
+checked=69,181, not_checked=0, torn_metas=0. History run #37
+(`--history .github/mutation-history.json --date 2026-10-03` from
+workspace root), runs 1-36 deep-equal vs
+`/home/agent/runs/preM33-mutation-history.json` append-only verified.
+
+**Campaign #31 `circuit_breaker.py` CLOSED 99.2094861660079% (502/506 kt;
+497 killed + 5 timeout, 4 survived) in TWO runs.** Run 1 (M19 pre-copy of
+the 45-test battery): 500 bank keys in, 505 out, flipped 213 survivors +
+7 exit-3 folds + same-run-killed all 5 births, bank kt +224 = 53,291,
+intermediate score 77.03237930037584. But the BODY-identity reconcile
+returned **VIOLATIONS: KILL LOSSES=1** - `_allow_call_unlocked` m4
+(delete of `case _: return False`) regressed 1 to 0: the bank-era killer
+no longer exists in the shipped suite, and the survivor census is
+STRUCTURALLY BLIND to exactly this (M20 capture #5, predicted by name in
+that close note and it fired here). Pristine returns False for a
+NON-member state; the mutant falls off the match and returns None - only
+an `is False` identity assert separates them. The fix-test seeded
+`b._state = "bogus"` (a raw string matching no enum pattern) through both
+sync `allow_request` and async `allow_call`; sweep-proven RED attributed
+to the new test before committing (46 tests). Run-2 reconcile CLEAN
+{(1,1):488,(3,1):7,(-24,-24):3,(0,1):1,(1,-24):2,(0,0):4}, kill losses 0,
+zero slot-inheriting births, zero deletions, 4 survivors == the 4-key
+honesty ledger EXACTLY: `Registry.__init__` m2 (every `async with
+self._lock` in the init bodies is CircuitBreaker's own lock - the
+registry lock at line 1031 has ZERO readers, dead store), `call` m10/m12
+(OPEN-arm state-value flips ride the constant string "open" - the
+observable error state is identical), `record_success` m14 (`>0` to `>=0`
+diverges only at count==0 where the branch body is the lone
+`self._failure_count = 0` no-op; the ASYNC `_record_success` twin IS
+killable - it emits a DEBUG log the flip fires, separately pinned).
+Authoring sweep on committed-45 bytes 220R/4G/0H of 224; pre-run-2
+resweep of committed-46 bytes 221R/4G/0H of 225 (the loss key RED, GREENs
+== ledger); close sweep 487R/19G/0H of 506 with TALLY {ATTRIB:15,
+LEDGER:4} UNATTRIB 0 - the 15 non-ledger GREENs all carry PRE verdict 1
+body-exact (shipped-suite kills: `get_circuit_breaker` m2/m4,
+`Registry.get_or_create` m4/m6/m7, `__aenter__` m1, `allow_request` m4,
+`call` m1/m5, `record_failure` m1/m12/m15/m16, `record_success` m8/m11).
+
+**Run-1 launch INCIDENT (disclosed).** The runner was started ~25 s after
+the green-tier scan began, violating pre-launch-GREEN and
+one-source-mutating-job-at-a-time; caught at the first progress peek (the
+0-byte `pytest -q` log means RUNNING, not done - its output only flushes
+at the summary), killed both, audited: bank UNTOUCHED (240 metas/69,175
+keys byte-identical vs the preC31 archive - the kill landed during
+generation before any verdict write), mutant tree restored from
+guard-restore.tgz anyway (generation had already re-copied backend/),
+battery re-synced, then scan (measured 28,790 passed, exit 0) and runner
+in the correct ORDER. Related traps written to memory: a completion
+notification for a watcher I killed is a stale signal, and a pgrep census
+must bracket its pattern and drop the shell-snapshot self-match.
+
+**Battery AG (46 tests) kill surfaces**: whole lifecycle on REAL
+prometheus children (`CIRCUIT_BREAKER_STATE._metrics.get((name,))._value
+.get()` - the only census that kills the 12 `labels(service=None)`-family
+keys, which do NOT raise, they silently create a ('None',...) child),
+parent-recorded `_Metric` stubs pinning kwargs dicts
+(`last_labels == ((), {"service": "svc", "result": "success"})`),
+pre-seeded counters to separate `+=1` from `=1` twins (rejected seed 1 to
+2, half_open seed 3 with max 10 to 4), `_stub_time` sequences, STAMP
+polarity for volatile timestamps (`.astimezone()` does NOT raise on naive
+datetimes - assert `tzinfo is not None`/`utcoffset()` directly),
+`is False` polarities against None fall-through, 11-tuple `_stub_env`
+otel/ctx recorders, log-message pins via `_RecHandler`, and
+`_status`-shape whole-dict asserts with per-config literals (a default
+breaker is 5/30.0/3/2, NOT the 3/30.0/2/2 `_CFG`).
+Greentier 28,790 (run-1 pre-launch) then 28,791 (+ the fix test) passed,
+124 skipped, 8 xfailed, 19 snapshots, exit 0 in the mutant home;
+guard-module2 on the real mutation-run.sh pid, sibling-drop=0 both runs.
+Artifacts: `b38-preC31` / `b38-preC31r2` archives,
+`b38-c31-run1.log` / `b38-c31r2-run2.log`, `b38-c31-sweep-authoring2.txt`
+/ `b38-c31-resweep.txt` / `b38-c31-close-sweep.txt`,
+`b38-c31-ledger-keys.txt`, `b38-c31r2-reconcile.py`,
+`b38-c31-score-final.json`, history backup
+`preM33-mutation-history.json`.
+
+**Next head (re-censused from `b38-c31-score-final.json`, R8 shield
+applied):** **`osnet_loader.py` 221 survivors at 56.5815%** (then
+`batch_coalescer` 218/40.9214%, `context_enricher` 216/52.0%,
+`export_service` 215/77.7202%, `pipeline_quality_audit_service`
+214/70.3601%, `retry_handler` 214/60.7339%, `job_status` 211/57.6305%).
+R8 shield holds: system.py 328 and system_broadcaster.py 320 (320 surv
+57.4468% would otherwise rank first) are DEATH-Listed, never batteries.
+Campaign #32, battery letter AH. Gap to 85%: 0.85\*69,181 = 58,803.85 -
+53,293 = **5,510.85 kt**. Every number measured THIS session.
