@@ -161,7 +161,6 @@ nav:
           - LLM Inference Optimization: developer/llm-inference-optimization.md
           - MoE Offloading: developer/moe-offloading.md
           - Nemotron Prompting: developer/nemotron-prompting.md
-          - NeMo Data Designer: developer/nemo-data-designer.md
       - API Reference:
           - developer/api/README.md
           - Core Resources: developer/api/core-resources.md

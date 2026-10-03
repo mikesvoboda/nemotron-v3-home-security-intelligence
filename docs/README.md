@@ -140,19 +140,6 @@ Every directory contains an `AGENTS.md` file for AI assistant navigation. Start 
 | **Dataflows**           | [architecture/dataflows/README.md](architecture/dataflows/README.md) | End-to-end data traces, pipeline timing             |
 | **Decision Records**    | [decisions/README.md](decisions/README.md)                           | Architectural Decision Records (ADRs)               |
 
-### AI Pipeline Quality Assurance
-
-Synthetic scenario generation using NVIDIA NeMo Data Designer.
-
-| Resource               | Location                                                           | Description                        |
-| ---------------------- | ------------------------------------------------------------------ | ---------------------------------- |
-| **NeMo Data Designer** | [developer/nemo-data-designer.md](developer/nemo-data-designer.md) | Setup, configuration, and workflow |
-
-**Key benefits:**
-
-- **Ground truth validation** - Risk scores evaluated against expected ranges for each scenario type
-- **Edge case coverage** - Systematic testing of ambiguous security scenarios
-
 ### Development Workflow
 
 | Resource               | Location                                                           | Description                          |

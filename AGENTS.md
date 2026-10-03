@@ -304,7 +304,6 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 │   ├── taxonomy/         # Committed Tier B taxonomy YAML and the seeded quota sampler
 │   └── spikes/           # Throwaway harnesses (p1_bakeoff: the P1 model bake-off)
 ├── tests/                # Root-level test suites (benchmark, load, smoke)
-├── tools/                # Bundled tooling (nemo_data_designer)
 ├── archive/              # Not-load-bearing artifacts pending delete sign-off (see archive/README.md)
 └── .github/              # GitHub Actions workflows and configs
     ├── workflows/        # CI/CD workflows

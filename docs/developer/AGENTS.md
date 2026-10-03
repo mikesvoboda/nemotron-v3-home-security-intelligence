@@ -45,7 +45,6 @@ developer/
   model-testing.md                # AI model testing and validation guide
   moe-offloading.md               # MoE-aware tensor offloading for Nemotron
   multi-gpu.md                    # Multi-GPU support and configuration guide
-  nemo-data-designer.md           # NeMo Data Designer integration for synthetic data
   nemotron-buildkit-secrets.md    # Nemotron BuildKit secrets guide
   nemotron-prompting.md           # Nemotron prompting strategies and patterns
   patterns-and-conventions.md                     # Code patterns and conventions
@@ -137,7 +136,6 @@ developer/
 | `model-testing.md`                     | Testing strategies for AI model integrations                  |
 | `moe-offloading.md`                    | MoE-aware tensor offloading for Nemotron                      |
 | `multi-gpu.md`                         | Multi-GPU support and configuration guide                     |
-| `nemo-data-designer.md`                | NeMo Data Designer integration for synthetic test data        |
 | `nemotron-buildkit-secrets.md`         | Nemotron-specific BuildKit secrets configuration              |
 | `nemotron-prompting.md`                | Nemotron prompting strategies and best practices              |
 | `patterns-and-conventions.md`          | Code patterns and conventions used in the project             |
@@ -313,14 +311,6 @@ Purpose, coverage, and triggers for the workflow guides in this directory.
 **Covers:** Feature overview and hardware requirements; accessing the GPU Settings page; understanding GPU cards and VRAM utilization; assignment strategies (Manual, VRAM-based, Latency-optimized, Isolation-first, Balanced); manual assignment and VRAM budget overrides; applying changes and restart flow; troubleshooting common issues; API reference for GPU configuration endpoints; FAQ.
 
 **When to use:** Configuring multi-GPU setups, distributing AI workloads, troubleshooting GPU assignment issues.
-
-### nemo-data-designer.md
-
-**Purpose:** NeMo Data Designer integration for synthetic test data.
-
-**Covers:** Synthetic scenario generation; ground truth validation; test fixture creation.
-
-**When to use:** Generating test data for AI pipelines.
 
 ### nemotron-buildkit-secrets.md
 
