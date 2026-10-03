@@ -10,8 +10,8 @@
 > explicit time matters, because a bare `--since=2026-09-18` takes the current time of day and
 > printed 435 when run at 15:40 EDT on 2026-10-03 [V: I ran both]; a drift audit of this directory;
 > a reading of the docs, spec and ledger; and a verify-and-dedupe pass), ISS-078 to ISS-082 added
-> the same day from the sandbox exercise, ISS-083 to ISS-086 added after `d8482861`, and ISS-087 added
-> after the sweep's control arm. Every
+> the same day from the sandbox exercise, ISS-083 to ISS-086 added after `d8482861`, ISS-087 added
+> after the sweep's control arm, and ISS-088 added after the PR's first CI read. Every
 > issue started `open`; the [Dashboard](#2-dashboard) counts the open and the closed.
 > Add to it by appending to the [Intake log](#intake-log); never renumber.
 >
@@ -213,32 +213,32 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-03 (after `ab3bd002`). The Filed columns count every issue by its filed
+Counts as of 2026-10-03 (after `ab3bd002`, with ISS-087 and ISS-088 counted; ISS-087 had an entry but was missing from these counts until ISS-088). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
-ISS-086 were filed after `d8482861`, and ISS-083 closed in `efa1b586`. Regenerate the counts by hand
+ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 and ISS-088 were filed later. Regenerate the counts by hand
 when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 84    |
+| open        | 86    |
 | in-progress | 0     |
 | done        | 2     |
 | wont-fix    | 0     |
 | superseded  | 0     |
-| total       | 86    |
+| total       | 88    |
 
 | Severity | Filed | Open |
 | -------- | ----- | ---- |
 | P0       | 1     | 1    |
-| P1       | 33    | 32   |
-| P2       | 40    | 39   |
+| P1       | 34    | 33   |
+| P2       | 41    | 40   |
 | P3       | 12    | 12   |
-| total    | 86    | 84   |
+| total    | 88    | 86   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
-| agent-now      | 59    | 59   |
+| agent-now      | 61    | 61   |
 | owner-decision | 23    | 21   |
 | owner-hardware | 4     | 4    |
 | blocked        | 0     | 0    |
@@ -247,9 +247,9 @@ when you add or close an issue (there is no script; the register is prose).
 | -------- | ----- | ---- |
 | bug      | 18    | 18   |
 | gap      | 31    | 31   |
-| debt     | 15    | 15   |
+| debt     | 16    | 16   |
 | decision | 13    | 12   |
-| risk     | 9     | 8    |
+| risk     | 10    | 9    |
 
 | Area                                      | P0  | P1  | P2  | P3  | Filed | Open |
 | ----------------------------------------- | --- | --- | --- | --- | ----- | ---- |
@@ -257,12 +257,12 @@ when you add or close an issue (there is no script; the register is prose).
 | Verdict reliability and observability     | 0   | 6   | 3   | 1   | 10    | 9    |
 | Prompt, verdict quality and calibration   | 0   | 2   | 1   | 0   | 3     | 3    |
 | Video, ingest and key frames              | 0   | 4   | 5   | 1   | 10    | 10   |
-| Evaluation and S-bar measurement          | 0   | 7   | 7   | 1   | 15    | 15   |
+| Evaluation and S-bar measurement          | 0   | 8   | 7   | 1   | 16    | 16   |
 | Specialists                               | 0   | 2   | 3   | 0   | 5     | 5    |
 | Serving, deploy and supply chain          | 0   | 3   | 5   | 0   | 8     | 8    |
 | Security, privacy and licensing           | 0   | 3   | 2   | 1   | 6     | 6    |
 | Operator UI and explainability            | 0   | 1   | 3   | 0   | 4     | 4    |
-| Retired-architecture residue, docs and CI | 0   | 1   | 7   | 8   | 16    | 15   |
+| Retired-architecture residue, docs and CI | 0   | 1   | 8   | 8   | 17    | 16   |
 
 ### P0 and P1 issues
 
@@ -338,6 +338,8 @@ see the Severity note in each block and the calibration paragraph in section 1.
 - **ISS-086** P1, risk, agent-now. The S3 bar may be unreachable from one still: emitted scores are
   polarized and about 26% of incidents may be indistinguishable from benign look-alikes (a
   hypothesis, [A])
+- **ISS-087** P1, risk, agent-now. Measured numbers are specific to the llama.cpp build: `b7972` and
+  `b11376` disagree on 44% of items for the same model, weights and prompt
 
 ## 3. Critical path
 
@@ -4459,6 +4461,29 @@ Either can re-enter through the intake rule with its own evidence.
   controls on `b11376` are recorded in the Intake log.
 - **Depends on** ISS-043 (noise floor and repeat runs). **Tracked as:** none.
 
+#### ISS-088 — The suppression census has two baseline copies; lowering one and not the other passes the local guard and fails CI
+
+`P2` · `debt` · actor `agent-now` · status `open` · added 2026-10-03 (after the PR's first CI read)
+
+- **Evidence**
+  - CI's `Collection Sanity` job on PR #6783 (run `37151109868`, job `111285028083`) printed
+    `MISMATCH pytest_skip_imperative: census=86 expected=99` from
+    `scripts/suppression-census.py --expect "$(cat .github/suppression-baseline.json)"`
+    (`.github/workflows/ci.yml:121`). `efa1b586` had lowered the count 99 to 86 in the spec baseline
+    inside `scripts/test_suppression_census.py` (`:543`) and that file's 8 tests passed; the committed
+    `.github/suppression-baseline.json:11` still read 99 **[V: both read, and the CI log read]**.
+  - The gate is an exact match, so a fall without editing the JSON fails exactly as a rise does; the
+    workflow's own comment says so (`ci.yml:104-119`). Because the failed step stops the job, the
+    ratchet, AI-provider-parity, registry, gate-test and shell-gate steps after it never ran in CI;
+    run locally afterwards, they all pass **[V]**.
+  - The JSON value was lowered to 86 in the PR's next commit; the structural cause below remains.
+- **Why it matters.** A change that removes suppression sites is verified green by the repo-root
+  guard tests and red by CI, found only by reading CI after the push. It cost this PR a round.
+- **Acceptance.** One place holds the baseline numbers, or a test fails when
+  `.github/suppression-baseline.json` and the spec in `scripts/test_suppression_census.py` disagree;
+  the guard's docstring names which gate reads which file.
+- **Depends on** nothing. **Tracked as:** none.
+
 ## Intake log
 
 Append-only. Later sessions add dated entries at the bottom: new issues (with the full block placed
@@ -4684,3 +4709,10 @@ Three more commits landed after `d8482861`, the same day, on `docs/synthbench-h3
   and `20261003T154038Z-qwen3-vl-8b-armA-shipped`]. The sweep's gate stopped there as designed; it
   was resumed with a repeat control and a default-cache control to separate determinism and the cache
   flags from the build. Their results, and the sweep's, are still to be appended here.
+
+### 2026-10-03 (after the PR's first CI read)
+
+- ISS-088 added: two census baseline copies (`.github/suppression-baseline.json` and the spec in
+  `scripts/test_suppression_census.py`); `efa1b586` lowered one, CI reads the other.
+- ISS-087 was filed with an entry but never counted in the Dashboard nor listed under P0 and P1
+  issues; both are corrected above, and the counts now include ISS-087 and ISS-088.

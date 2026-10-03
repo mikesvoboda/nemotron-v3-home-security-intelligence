@@ -1632,7 +1632,9 @@ class TestWebSocketEventMessageContract:
         # Expected fields based on documentation in websocket.py docstring
         # ("verification": P0.4 spec §4 - the EventVerificationPayload,
         # present on vlm-mode events, absent-not-null for legacy; documented
-        # on WebSocketEventData itself, which is this set's source of truth.)
+        # on WebSocketEventData itself, which is this set's source of truth.
+        # "notify": the analyzer's notification decision (M1), absent when no
+        # decision was made.)
         expected_fields = {
             "id",
             "event_id",
@@ -1644,6 +1646,7 @@ class TestWebSocketEventMessageContract:
             "reasoning",
             "started_at",
             "verification",
+            "notify",
         }
 
         actual_fields = set(WebSocketEventData.model_fields.keys())

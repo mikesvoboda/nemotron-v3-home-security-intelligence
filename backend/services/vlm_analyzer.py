@@ -825,7 +825,7 @@ class VlmAnalyzer:
             from backend.services.event_broadcaster import get_broadcaster
 
             broadcaster = await get_broadcaster(self._redis)
-            message = {
+            message: dict[str, Any] = {
                 "type": "event",
                 "data": {
                     "id": event.id,
