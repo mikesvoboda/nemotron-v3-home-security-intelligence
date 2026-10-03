@@ -429,62 +429,6 @@ scenario_name_timestamp/
 }
 ```
 
-### Loading Evaluation Data
-
-```python
-from backend.evaluation.prompt_eval_dataset import (
-    load_synthetic_eval_dataset,
-    get_samples_by_category,
-    get_scenario_summary,
-)
-
-# Load all samples
-samples = load_synthetic_eval_dataset()
-print(f"Loaded {len(samples)} samples")
-
-# Group by category
-by_category = get_samples_by_category(samples)
-for cat, cat_samples in by_category.items():
-    print(f"  {cat}: {len(cat_samples)} samples")
-
-# Get summary statistics
-summary = get_scenario_summary(samples)
-```
-
-**Implementation**: See `backend/evaluation/prompt_eval_dataset.py`
-
-### Evaluating Predictions
-
-```python
-from backend.evaluation.prompt_evaluator import (
-    evaluate_prediction,
-    evaluate_batch,
-    calculate_metrics,
-    summarize_results,
-)
-
-# Evaluate a single prediction
-result = evaluate_prediction(
-    sample=sample,
-    actual_score=25,
-    actual_level="low"
-)
-
-print(f"Score in range: {result.score_in_range}")
-print(f"Level match: {result.level_match}")
-print(f"Deviation: {result.deviation}")
-
-# Batch evaluation
-results = evaluate_batch(samples, predictions)
-metrics = calculate_metrics(results)
-
-print(f"Score accuracy: {metrics['accuracy']:.1%}")
-print(f"Level accuracy: {metrics['level_accuracy']:.1%}")
-print(f"Combined accuracy: {metrics['combined_accuracy']:.1%}")
-```
-
-**Implementation**: See `backend/evaluation/prompt_evaluator.py`
-
 ### E2E Testing with Synthetic Media
 
 To run end-to-end tests with synthetic media:
@@ -535,36 +479,6 @@ custom = PromptExperiment(
 
 **Implementation**: See `backend/config/prompt_ab_config.py`
 
-### Running Experiments
-
-```python
-from backend.evaluation.ab_experiment_runner import (
-    select_variant,
-    analyze_experiment,
-    summarize_results,
-)
-
-# Select variant for a request
-prompt_key = select_variant(experiment)
-
-# After collecting data, analyze results
-results = analyze_experiment(
-    control_scores=[0.82, 0.85, 0.79, 0.88, 0.83],
-    variant_scores=[0.91, 0.89, 0.93, 0.87, 0.92],
-    alpha=0.05  # Significance level
-)
-
-# Check statistical significance
-if results.is_significant:
-    print(f"Significant! p-value: {results.p_value:.4f}")
-    print(f"Effect size (Cohen's d): {results.effect_size:.2f}")
-
-# Generate summary
-print(summarize_results(results))
-```
-
-**Implementation**: See `backend/evaluation/ab_experiment_runner.py`
-
 ### Predefined Experiments
 
 | Experiment Name     | Control           | Variant           | Description                        |
@@ -574,19 +488,16 @@ print(summarize_results(results))
 
 ## Reference Files
 
-| File                                         | Purpose                                |
-| -------------------------------------------- | -------------------------------------- |
-| `backend/services/nemotron_analyzer.py`      | Main analyzer with guided_json support |
-| `backend/services/prompts.py`                | Prompt templates and formatting        |
-| `backend/services/risk_rubrics.py`           | Rubric definitions and scoring         |
-| `backend/services/threat_categories.py`      | Threat category enum and descriptions  |
-| `backend/services/guided_constraints.py`     | Choice and regex constraints           |
-| `backend/api/schemas/llm_response.py`        | JSON schema for risk analysis          |
-| `backend/config/prompt_ab_config.py`         | A/B testing configuration              |
-| `backend/evaluation/prompt_evaluator.py`     | Evaluation metrics                     |
-| `backend/evaluation/ab_experiment_runner.py` | A/B experiment runner                  |
-| `backend/evaluation/prompt_eval_dataset.py`  | Synthetic dataset loading              |
-| `data/synthetic/`                            | Synthetic scenario files               |
+| File                                     | Purpose                                |
+| ---------------------------------------- | -------------------------------------- |
+| `backend/services/nemotron_analyzer.py`  | Main analyzer with guided_json support |
+| `backend/services/prompts.py`            | Prompt templates and formatting        |
+| `backend/services/risk_rubrics.py`       | Rubric definitions and scoring         |
+| `backend/services/threat_categories.py`  | Threat category enum and descriptions  |
+| `backend/services/guided_constraints.py` | Choice and regex constraints           |
+| `backend/api/schemas/llm_response.py`    | JSON schema for risk analysis          |
+| `backend/config/prompt_ab_config.py`     | A/B testing configuration              |
+| `data/synthetic/`                        | Synthetic scenario files               |
 
 ## External Resources
 

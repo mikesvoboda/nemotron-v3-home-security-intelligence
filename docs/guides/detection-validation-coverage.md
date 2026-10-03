@@ -289,8 +289,8 @@ Schedule comprehensive validation runs:
 
 Nightly validation runs in CI, not from a local cron script (there is no
 `scripts/nightly_validation.sh`): `nightly.yml` (07:00 UTC analysis),
-`nightly-full-gate.yml` (04:17 UTC full gate), and `prompt-evaluation.yml` /
-`flaky-test-detection.yml` (02:00 UTC) cover the scheduled tiers.
+`nightly-full-gate.yml` (04:17 UTC full gate), and `flaky-test-detection.yml`
+(02:00 UTC) cover the scheduled tiers.
 
 ## Expanding Coverage
 

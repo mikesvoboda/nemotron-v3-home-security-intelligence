@@ -142,18 +142,15 @@ Every directory contains an `AGENTS.md` file for AI assistant navigation. Start 
 
 ### AI Pipeline Quality Assurance
 
-Synthetic data generation and prompt evaluation using NVIDIA NeMo Data Designer improves Nemotron prompt quality through systematic testing.
+Synthetic scenario generation using NVIDIA NeMo Data Designer.
 
-| Resource                      | Location                                                                         | Description                        |
-| ----------------------------- | -------------------------------------------------------------------------------- | ---------------------------------- |
-| **NeMo Data Designer**        | [developer/nemo-data-designer.md](developer/nemo-data-designer.md)               | Setup, configuration, and workflow |
-| **Prompt Evaluation Results** | [developer/prompt-evaluation-results.md](developer/prompt-evaluation-results.md) | Pre/post metrics tracking          |
+| Resource               | Location                                                           | Description                        |
+| ---------------------- | ------------------------------------------------------------------ | ---------------------------------- |
+| **NeMo Data Designer** | [developer/nemo-data-designer.md](developer/nemo-data-designer.md) | Setup, configuration, and workflow |
 
 **Key benefits:**
 
 - **Ground truth validation** - Risk scores evaluated against expected ranges for each scenario type
-- **Prompt template ranking** - Quantitative comparison across 5 templates
-- **Context utilization testing** - Verify enrichment data appears in reasoning
 - **Edge case coverage** - Systematic testing of ambiguous security scenarios
 
 ### Development Workflow

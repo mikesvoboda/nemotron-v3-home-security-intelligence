@@ -76,15 +76,6 @@ HOST_JUSTIFIED: dict[str, str] = {
     # mount (ledger F6/F5), present only where the fetcher has run - the same
     # data-chain class as scenarios.parquet, not a repo-file guard.
     "backend/tests/unit/evaluation/test_eval_store.py:295": "stock media corpus is staged off-repo data (GPU mount), not repo content",
-    "backend/tests/integration/test_nemotron_prompts.py:45": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:70": "Nemotron service call failed — service process absent",
-    "backend/tests/integration/test_nemotron_prompts.py:100": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:145": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:168": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:186": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:211": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:229": "same scenarios.parquet chain",
-    "backend/tests/integration/test_nemotron_prompts.py:270": "same scenarios.parquet chain",
     "backend/tests/integration/test_risk_score_validation.py:199": "synthetic-scenario DB rows (data chain), not repo content",
     "backend/tests/integration/test_risk_score_validation.py:381": "synthetic-scenario DB rows (data chain), not repo content",
     "backend/tests/integration/test_risk_score_validation.py:386": "synthetic-scenario DB rows (data chain), not repo content",

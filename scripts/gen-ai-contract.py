@@ -101,10 +101,9 @@ LLM_OPS: dict[str, dict[str, Any]] = {
             "type": "object",
             "title": "LlmCompletionRequest",
             "description": (
-                "Wire shape assembled independently at 7 backend sites "
-                "(nemotron_analyzer.py:465,1046,3978 - retired in R8 S2; summary_generator.py:440; "
-                "nemotron_streaming.py:99; prompt_service.py:938; "
-                "pipeline_quality_audit_service.py:391; evaluation/harness.py:549). "
+                "Wire shape assembled independently at 4 backend sites "
+                "(summary_generator.py, constrained_decoding.py, prompt_service.py, "
+                "pipeline_quality_audit_service.py). "
                 "Consolidation is a recorded WP7.1 follow-on (decision: follow-on)."
             ),
             "properties": {

@@ -2556,7 +2556,7 @@ def zone_factory():
 # NeMo Data Designer Synthetic Scenarios (NEM-3230)
 # =============================================================================
 # These fixtures provide access to pre-generated synthetic scenarios for
-# prompt evaluation and testing.
+# testing.
 
 SYNTHETIC_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "synthetic"
 

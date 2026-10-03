@@ -49,7 +49,6 @@ developer/
   nemotron-buildkit-secrets.md    # Nemotron BuildKit secrets guide
   nemotron-prompting.md           # Nemotron prompting strategies and patterns
   patterns-and-conventions.md                     # Code patterns and conventions
-  prompt-evaluation-results.md    # Prompt evaluation results and analysis
   python-3.14-features.md         # Python 3.14 features used in project
   selector-evaluation.md          # Test-selector evaluation (fast_select vs testmon)
   ssl-https.md                    # SSL/HTTPS configuration for development
@@ -143,7 +142,6 @@ developer/
 | `nemotron-prompting.md`                | Nemotron prompting strategies and best practices              |
 | `patterns-and-conventions.md`          | Code patterns and conventions used in the project             |
 | `PORT_STANDARDIZATION.md`              | Port standardization reference for all services               |
-| `prompt-evaluation-results.md`         | Prompt evaluation results and analysis                        |
 | `python-3.14-features.md`              | Python 3.14 features used in the project                      |
 | `selector-evaluation.md`               | Test-selector evaluation (fast_select vs testmon)             |
 | `ssl-https.md`                         | SSL/HTTPS configuration for development and production        |
@@ -320,7 +318,7 @@ Purpose, coverage, and triggers for the workflow guides in this directory.
 
 **Purpose:** NeMo Data Designer integration for synthetic test data.
 
-**Covers:** Synthetic scenario generation; ground truth validation; test fixture creation; prompt evaluation data.
+**Covers:** Synthetic scenario generation; ground truth validation; test fixture creation.
 
 **When to use:** Generating test data for AI pipelines.
 
@@ -355,14 +353,6 @@ Purpose, coverage, and triggers for the workflow guides in this directory.
 **Covers:** Service port assignments; port conflict resolution; development vs production ports.
 
 **When to use:** Configuring service ports, debugging connection issues.
-
-### prompt-evaluation-results.md
-
-**Purpose:** Prompt evaluation results and analysis.
-
-**Covers:** Evaluation metrics; benchmark results; improvement tracking.
-
-**When to use:** Analyzing prompt performance.
 
 ### python-3.14-features.md
 

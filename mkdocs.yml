@@ -162,7 +162,6 @@ nav:
           - MoE Offloading: developer/moe-offloading.md
           - Nemotron Prompting: developer/nemotron-prompting.md
           - NeMo Data Designer: developer/nemo-data-designer.md
-          - Prompt Evaluation Results: developer/prompt-evaluation-results.md
       - API Reference:
           - developer/api/README.md
           - Core Resources: developer/api/core-resources.md

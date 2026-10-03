@@ -11,7 +11,7 @@ This directory contains practical examples for prompt engineering with NVIDIA Ne
 | `basic-risk-analysis.md` | Minimal prompt for quick risk assessments     |
 | `rubric-based-prompt.md` | Explicit rubric-based scoring for consistency |
 | `chain-of-thought.md`    | Transparent reasoning with `<think>` blocks   |
-| `ab-test-config.md`      | A/B experiment setup and analysis             |
+| `ab-test-config.md`      | A/B experiment setup and shadow-mode testing  |
 
 ## When to Use Each Example
 

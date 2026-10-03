@@ -8,9 +8,7 @@ bare percentage off n=5 reads like a verdict when it is an indication.
 Written here rather than imported from scipy on purpose: scipy resolves in
 this venv but is TRANSITIVE, not a declared dependency (absent from
 pyproject.toml, present in `uv tree`), and a fixed bar's report must not rest
-on a package that disappears with someone else's bump. (ab_experiment_runner
-already imports scipy directly - that latent break is noted in the Phase 2
-plan, not fixed here: declaring a dependency is its own call.)
+on a package that disappears with someone else's bump.
 
 The interval is checked against HAND-COMPUTED values, not against scipy -
 re-checking my arithmetic with the same library that did the arithmetic would

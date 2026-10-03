@@ -8,7 +8,7 @@ source_refs:
 
 # NeMo Data Designer Integration
 
-This document covers the integration of NVIDIA NeMo Data Designer for synthetic data generation to improve testing coverage and Nemotron prompt quality.
+This document covers the integration of NVIDIA NeMo Data Designer for synthetic data generation to improve testing coverage.
 
 ## Overview
 
@@ -21,13 +21,12 @@ This document covers the integration of NVIDIA NeMo Data Designer for synthetic 
 
 ### Why We Use It
 
-| Problem                        | Solution                                    |
-| ------------------------------ | ------------------------------------------- |
-| Inconsistent risk scores       | Ground truth ranges for each scenario type  |
-| Poor reasoning quality         | Expected key points for validation          |
-| Context underutilization       | Enrichment-level controlled test scenarios  |
-| No quantitative prompt ranking | Metrics-driven template comparison          |
-| Edge case failures             | Systematic coverage of ambiguous situations |
+| Problem                  | Solution                                    |
+| ------------------------ | ------------------------------------------- |
+| Inconsistent risk scores | Ground truth ranges for each scenario type  |
+| Poor reasoning quality   | Expected key points for validation          |
+| Context underutilization | Enrichment-level controlled test scenarios  |
+| Edge case failures       | Systematic coverage of ambiguous situations |
 
 ## Prerequisites
 
@@ -108,7 +107,7 @@ RISK_RANGES = {
 
 ## Workflow
 
-### 1. Generating Scenarios
+### Generating Scenarios
 
 Use the generation script to create synthetic security scenarios:
 
@@ -134,47 +133,6 @@ uv run python tools/nemo_data_designer/generate_scenarios.py \
 | `scenarios.parquet` | Parquet | All 24 columns of scenario data |
 | `ground_truth.json` | JSON    | Risk ranges and key points      |
 | `embeddings.npy`    | NumPy   | Pre-computed scenario vectors   |
-
-### 2. Running Evaluations
-
-The evaluation harness compares prompt templates against synthetic scenarios.
-
-See the [Prompt Evaluation Results](prompt-evaluation-results.md) document for metrics tracking.
-
-```bash
-# Run full evaluation suite
-uv run pytest backend/tests/integration/test_nemotron_prompts.py -v
-
-# Run evaluation with specific template
-uv run pytest backend/tests/integration/test_nemotron_prompts.py \
-    -k "test_template_enriched" -v
-
-# Generate evaluation report
-uv run python backend/evaluation/reports.py --format html
-```
-
-### 3. CI Integration
-
-The prompt evaluation runs as a nightly scheduled workflow.
-
-See `.github/workflows/prompt-evaluation.yml` for the CI configuration:
-
-```yaml
-prompt-evaluation:
-  runs-on: ubuntu-latest
-  if: github.event_name == 'schedule' # Nightly only
-  steps:
-    - uses: actions/checkout@v4
-    - name: Run prompt evaluation suite
-      run: |
-        uv run pytest backend/tests/integration/test_nemotron_prompts.py \
-          --tb=short -v --json-report
-    - name: Upload evaluation report
-      uses: actions/upload-artifact@v4
-      with:
-        name: prompt-evaluation-report
-        path: reports/prompt_evaluation.json
-```
 
 ## Column Documentation
 
@@ -306,29 +264,22 @@ tools/
     └── README.md
 
 backend/
-├── tests/
-│   ├── fixtures/
-│   │   └── synthetic/            # Generated fixtures
-│   │       ├── scenarios.parquet
-│   │       ├── ground_truth.json
-│   │       ├── embeddings.npy
-│   │       └── images/           # Multimodal test images
-│   │           ├── normal/
-│   │           ├── suspicious/
-│   │           ├── threat/
-│   │           └── edge_case/
-│   │
-│   ├── integration/
-│   │   ├── test_nemotron_prompts.py    # Prompt evaluation tests
-│   │   └── test_multimodal_pipeline.py # Vision comparison tests
-│   │
-│   └── conftest.py               # Fixture loaders
-│
-└── evaluation/                   # Evaluation tooling
-    ├── __init__.py
-    ├── harness.py                # Prompt evaluation runner
-    ├── metrics.py                # Score calculation
-    └── reports.py                # Report generation
+└── tests/
+    ├── fixtures/
+    │   └── synthetic/            # Generated fixtures
+    │       ├── scenarios.parquet
+    │       ├── ground_truth.json
+    │       ├── embeddings.npy
+    │       └── images/           # Multimodal test images
+    │           ├── normal/
+    │           ├── suspicious/
+    │           ├── threat/
+    │           └── edge_case/
+    │
+    ├── integration/
+    │   └── test_multimodal_pipeline.py # Vision comparison tests
+    │
+    └── conftest.py               # Fixture loaders
 ```
 
 ## Troubleshooting
@@ -398,6 +349,5 @@ uv run pip show data-designer
 ## Related Documentation
 
 - [Design Document](../plans/2026-01-21-nemo-data-designer-integration-design.md) - Full integration design
-- [Prompt Evaluation Results](prompt-evaluation-results.md) - Metrics tracking template
 - [Testing Guide](testing.md) - General test infrastructure
 - [Testing Workflow](testing-workflow.md) - TDD practices
