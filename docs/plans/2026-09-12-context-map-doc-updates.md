@@ -15985,3 +15985,108 @@ holds: system.py 328 and system_broadcaster.py 320 (320 surv 57.4468%
 would otherwise rank first) are DEATH-Listed, never batteries. Campaign
 #30, battery letter AF. Gap to 85%: 0.85\*69,175 = 58,798.75 - 52,832 =
 **5,966.75 kt**. Every number measured THIS session.
+
+## MILESTONE 32 — 76.71413082761113% (campaign #30 pg_notify_listener closes at 99.3658% — 470/473 — in ONE run; the cleanest campaign of the arc: zero births, zero renumber, survivors == ledger on the FIRST sweep)
+
+**Badge 76.71413082761113% (completed=true),
++0.33971810625225118901337188 vs M31's 76.0363799360893%.** killed
+52,783 + timeout 284 = 53,067 kt / 69,175. Denominator disclosure: the
+bank is UNCHANGED at 69,175 - the battery's 16 tests flipped 235 verdicts
+but grew the mutant enumeration by ZERO keys (key set identical pre/post,
+added=0 removed=0; the module's full enumeration was already bank-covered,
+the battery only re-earned verdicts). survived 15,560 to 15,325 (-235
+exactly the flip count); timeout 283 to 284 disclosed: the module's legacy
+timeout key connect m31 (attempts +=1 to -=1) was KILLED by the battery
+while two previously-killed listen_loop loop-condition twins (or to and,
+is-None to is-not-None) went killed to timeout - both keep numerator, and BOTH are
+proven RED by the battery alone in the close sweep (mutmut's own
+full-suite pass spins on the removed loop trigger and recorded -24).
+no_tests 783 unchanged. Completed gate checked=69,175, not_checked=0,
+torn_metas=0. History run #36 (`--history .github/mutation-history.json
+--date 2026-10-03` from workspace root), runs 1-35 deep-equal vs
+`/home/agent/runs/preM32-mutation-history.json` append-only verified.
+
+**Campaign #30 `pg_notify_listener.py` CLOSED 99.36575052854123%
+(470/473 kt; 466 killed + 4 timeout, 3 survived) in ONE run via the M19
+pre-copy.** Authoring sweep 235 RED / 3 GREEN / 0 HANG of 238 survivors on
+the first full pass; the 3 GREENs == the 3-key honesty ledger exactly:
+`_listen_loop` m15/m31 (`break` to `return` - the while loop is the last
+statement of the function, exiting the loop IS returning) and `get_status`
+m8 (`if self._connection` to `if (self._connection) or True` - the
+always-true guard keeps the True-branch expression, whose
+`connection is not None and not is_closed()` yields False for a None
+connection anyway, identical on all three polarities). Reconcile CLEAN by
+body identity: {(1,1):230, (0,1):235, (-24,1):1, (1,-24):2, (-24,-24):2,
+(0,0):3}, KILL LOSSES=0, births 0/0, 1-of-240 metas moved (zero sibling
+drift), guard-module2 clean every tick (sibling-drop=0, holes=0).
+
+**TWO CAPTURES.** (1) **BOOL(EXC_INFO) POLARITY**: CPython's LogRecord
+stores falsy exc_info VERBATIM - `logger.error(msg, exc_info=False)` sets
+`record.exc_info = False`, which a `record.exc_info is not None` polarity
+PASSES. Three survivors (connect m40, `_handle_notification` m30,
+`_listen_loop` m20 - all `exc_info=True` to `exc_info=False`) rode my
+first-pass battery GREEN until the assert swapped to `bool(r.exc_info)`;
+a resweep of the 7 first-pass GREENs then flipped exactly those 3 plus
+connect m10 to RED, landing 4 RED / 3 GREEN == the ledger. (2)
+**TRAMPOLINE COROUTINE IDENTITY**: every coroutine created from a mutant-
+tree coroutine function reports `cr_code.co_name ==
+'_trampoline_wrapper'`, so the start-test's `cr_code.co_name ==
+'_listen_loop'` literal failed against the SHIPPED tree in the mutant
+home - BROKEN-BATTERY made b30-sweep exit 3, the batched wrapper matched
+neither RED nor GREEN, and every one of the 238 keys fell to per-key
+retry as a FAKE HANG. The sound assert compares `cr_code` IDENTITY
+against a same-world reference coroutine. Related near-miss: sweep key
+files must be BARE mutant names - b30-sweep prefixes `{target}.` itself,
+and a fully-qualified key double-prefixes `MUTANT_UNDER_TEST`, the
+trampoline treats the mutant as foreign-module, and the sweep goes fake
+ALL-GREEN (caught here only because one key had just gone RED by hand).
+
+**Loop-GUARD boundary polarity (killable, was a sweep GREEN first pass).**
+`while attempts < MAX` vs `<=` twins are separated by entering `_connect`
+with the counter already at MAX: pristine fails the guard and FALLS OFF
+THE LOOP SILENTLY (no connect call, no error record, no raise, counter
+untouched) - the `<=` twin enters attempt 11, whose `>= MAX` arm logs and
+raises. The give-up RAISE and the loop GUARD are separately observable.
+
+**Battery AF (16 tests) kill surfaces**: whole-message-dict equality on
+all four channel handlers with unique values per key (key renames and
+`.get(None)/.get("XXkeyXX)` arms cannot ride through), signature-free
+raw-args PublishSpy pinning the publish as a whole (args, kwargs) tuple,
+log records censused BY ATTRIBUTE NAME (`record.channels`,
+`record.event_id`, ...) plus whole-msg equality, full backoff
+sleep-sequences on both `_connect` and `_listen_loop` (9-element capped
+geometric series; every `* / ** +1 -2` operand twin fails), asyncpg /
+asyncio / get_settings module-global shims that work under the trampoline,
+a fail-once `_connect` polarity (start resets attempts BEFORE `_connect`
+whose success also resets it - only the first retry delay pins m7/m8),
+and singleton `is`-identity with `pg._listener` reset. Handler-raised
+ValueError lands in the PARSE error arm (first except clause covers
+handler bodies - both error-arm polarities pinned). detect-secrets bit
+twice on the stub DSN pair (`pragma: allowlist secret` on both lines).
+
+**HANG trio adjudicated (M26 shape): all bank-killed, never flake
+losses.** connect m23 (success-log msg line deleted), m30 (its msg arg to
+None), m31 (attempts +=1 to -=1): each breaks the success path AFTER
+`_reconnect_attempts = 0`, so the except resets it to 1 and the guard
+`1 < 10` retries FOREVER - faulthandler caught the hot spin (with the
+bank's real sleeps an endless 1 s retry = the legacy -24). m23/m30 are the
+reconcile's (-24,-24) pair; m31 flipped -24 to 1 (killed). The 21
+close-sweep non-ledger GREENs are all shipped-suite kills attributed
+BODY-EXACT (pre-run verdict 1, key set never renumbered):
+`x_stop_pg_notify_listener` m1, `__init__` m5/m6, `_handle_notification`
+m2, `_listen_loop` m7/m8/m21/m22, `is_healthy` m1, `stop` m5, and 13
+`from_json` arms. Close sweep 446R/24G/3H of 473 with TALLY {ATTRIB:21,
+LEDGER:3} UNATTRIB 0 rc=0. Greentier 28,745 passed in the mutant home
+(= M31's 28,729 + the 16 new tests), run log `b38-c30-run1.log`, sweeps
+`b38-c30-sweep-authoring.txt` / `b38-c30-sweep-close.txt`, ledger
+`b38-c30-ledger-keys-prerun.txt` (== live names - no renumber), score
+`b38-c30-score-r1.json`, history backup `preM32-mutation-history.json`.
+
+**Next head (re-censused from `b38-c30-score-r1.json`, R8 shield
+applied):** **`circuit_breaker.py` 224 survivors at 55.2%** (then
+`osnet_loader` 221/56.5815%, `batch_coalescer` 218/40.9214%,
+`context_enricher` 216/52.0%, `export_service` 215/77.7202%). R8 shield
+holds: system.py 328 and system_broadcaster.py 320 (320 surv 57.4468%
+would otherwise rank first) are DEATH-Listed, never batteries. Campaign
+#31, battery letter AG. Gap to 85%: 0.85\*69,175 = 58,798.75 - 53,067 =
+**5,731.75 kt**. Every number measured THIS session.
