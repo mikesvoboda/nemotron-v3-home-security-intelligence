@@ -44,8 +44,10 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import re
 import sys
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 HEAVY_LIBS = {
@@ -110,13 +112,53 @@ def is_test_file(rel_parts: tuple[str, ...]) -> bool:
     return name.startswith("test_") or name.endswith("_test.py") or name == "conftest.py"
 
 
-def import_targets(tree: ast.AST, pkg_parts: tuple[str, ...]) -> set[str]:
-    """Every dotted name this file imports, relative imports resolved to
-    absolute against the file's package."""
+def py_files(root: Path) -> list[Path]:
+    """All non-excluded, non-test .py under root.
+
+    os.walk with the excluded dirs cut from the recursion, not `rglob` plus
+    a post-hoc filter: rglob stat'ed all 164k tree entries (the census's
+    walk alone went from 0.30s to 0.02s here), and test files are dropped
+    before they are ever read or parsed.
+    """
+    out: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDE_DIRS)
+        for f in filenames:
+            if f.endswith(".py"):
+                p = Path(dirpath) / f
+                if not is_test_file(p.relative_to(root).parts):
+                    out.append(p)
+    return sorted(out)
+
+
+def read_parse_extract(root_and_path: tuple[Path, Path]):
+    """Read, parse and extract one file's import facts in one ast.walk.
+
+    Top-level so it can run in a forked process pool: the parse of ~980
+    files is the census's only real work. The worker inherits the already-
+    imported census module through fork, so no per-file import cost — and
+    every test drives the census as a subprocess, so the pool never nests.
+    Relative imports are resolved here (the worker has the path) to the
+    same absolute dotted names the inline import_targets extractor produced.
+    """
+    root, path = root_and_path
+    try:
+        txt = path.read_text(encoding="utf8")
+    except (UnicodeDecodeError, OSError):
+        txt = ""
+    try:
+        tree: ast.AST | None = ast.parse(txt)
+    except SyntaxError:
+        tree = None
+    if tree is None:
+        return path, txt, None, set()
+    pkg_parts = path.parent.relative_to(root).parts
     out: set[str] = set()
+    roots: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             out.update(a.name for a in node.names)
+            roots.update(a.name.split(".")[0] for a in node.names)
         elif isinstance(node, ast.ImportFrom):
             level = node.level or 0
             if level:
@@ -130,17 +172,8 @@ def import_targets(tree: ast.AST, pkg_parts: tuple[str, ...]) -> set[str]:
                 out.add(node.module)
                 for a in node.names:
                     out.add(f"{node.module}.{a.name}")
-    return out
-
-
-def imported_roots(tree: ast.AST) -> set[str]:
-    roots: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            roots.update(a.name.split(".")[0] for a in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            roots.add(node.module.split(".")[0])
-    return roots
+                roots.add(node.module.split(".")[0])
+    return path, txt, out, roots
 
 
 def consumed_by(targets: set[str], mod_dotted: str) -> bool:
@@ -161,34 +194,31 @@ def main() -> int:
         print(f"no backend/services under {root}", file=sys.stderr)
         return 2
 
-    # Prune test files DURING collection, not after parsing them. The
-    # consumer graph already `continue`s every test file, so a test never
-    # feeds a bucket — parsing them first was pure waste and put this tool
-    # on the CI knife-edge (the whole census parsed ~2200 files, ~1200 of
-    # them tests, in ~6s of a ~8s run; the real-tree timing test asserts
-    # <10s with a 30s pytest-timeout watchdog, and CI's cold-cache runs
-    # tripped it). Pruning is output-preserving: only files the walk would
-    # discard are skipped. Verified byte-identical --json against the
-    # unpruned scan at head.
-    all_py = [
-        p
-        for p in root.rglob("*.py")
-        if not EXCLUDE_DIRS.intersection(p.parts)
-        and not is_test_file(p.relative_to(root).parts)
-    ]
+    # Two output-preserving speedups put this tool back under its own
+    # sub-10s contract on CI hardware (the timing test measures the WHOLE
+    # process; CI's cold-cache runners run ~4x slower than dev): test files
+    # are pruned during collection, not parsed and discarded (the consumer
+    # graph already `continue`s every test file, so a test never feeds a
+    # bucket), and the remaining ~980 read+parse+extract passes run in a
+    # forked process pool. Both cuts skip only work whose result was
+    # discarded — verified byte-identical --json against the unpruned,
+    # unpooled scan at head.
+    all_py = py_files(root)
 
-    trees: dict[Path, ast.AST | None] = {}
+    workers = max(1, min(16, os.cpu_count() or 1, len(all_py)))
     texts: dict[Path, str] = {}
-    for p in all_py:
-        try:
-            txt = p.read_text(encoding="utf8")
-        except UnicodeDecodeError, OSError:
-            txt = ""
-        texts[p] = txt
-        try:
-            trees[p] = ast.parse(txt)
-        except SyntaxError:
-            trees[p] = None
+    target_sets: dict[Path, set[str]] = {}
+    root_sets: dict[Path, set[str]] = {}
+    # a file that failed to parse contributes nothing: no target set (the
+    # consumer loop's `continue`), no roots — exactly the old `tree is None`
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        for path, txt, targets, roots in pool.map(
+            read_parse_extract, ((root, p) for p in all_py), chunksize=16
+        ):
+            texts[path] = txt
+            if targets:
+                target_sets[path] = targets
+                root_sets[path] = roots
 
     # module inventory: name (relative to services) -> dotted parts
     modules: dict[str, tuple[str, ...]] = {}
@@ -215,17 +245,13 @@ def main() -> int:
     }
     importers: dict[str, set[str]] = {name: set() for name in modules}
     for p in all_py:
-        tree = trees.get(p)
-        if tree is None:
-            continue
         rel = p.relative_to(root)
-        if is_test_file(rel.parts):
-            continue
         if p == services_init:
             continue  # WP5.6 ruling: package re-exports are not consumers
-        pkg_parts = p.parent.relative_to(root).parts
         own = module_files.get(p)
-        for dotted in import_targets(tree, pkg_parts):
+        # a file that failed to parse has no entry at all — exactly the
+        # old `tree is None: continue`
+        for dotted in target_sets.get(p, ()):
             parts = dotted.split(".")
             for i in range(1, len(parts) + 1):
                 cand = ".".join(parts[:i])
@@ -247,14 +273,12 @@ def main() -> int:
     for name, dotted in modules.items():
         mpath = services.joinpath(*dotted[2:]).with_suffix(".py")  # strip backend.services
         text = texts.get(mpath, "")
-        tree = trees.get(mpath) or ast.parse("")
         imp = sorted(importers[name])
-        roots = imported_roots(tree)
-        heavy = sorted(roots & HEAVY_LIBS)
+        heavy = sorted(root_sets.get(mpath, set()) & HEAVY_LIBS)
         client_hit = any(
-            seg in GATEWAY_STEMS for t in import_targets(tree, ("unused",)) for seg in t.split(".")
+            seg in GATEWAY_STEMS for t in target_sets.get(mpath, ()) for seg in t.split(".")
         )
-        uses_http = bool(roots & HTTP_LIBS)
+        uses_http = bool(root_sets.get(mpath, set()) & HTTP_LIBS)
         route_hits = len(AI_ROUTE_RE.findall(text)) if uses_http else 0
         url_hits = len(PRIVATE_URL_RE.findall(text))
         bypass = route_hits + url_hits
