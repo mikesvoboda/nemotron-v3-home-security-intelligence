@@ -4,7 +4,7 @@
 > docs commit). This is the **living register** of issues, added to as they are discovered
 > [A: the owner's original request is not recorded in the repo, so it is paraphrased and not quoted].
 > Owner decision 2026-10-03 [O] (handoff Addendum 5, item 5): the register lives only in this repo;
-> nothing is filed on GitHub or Linear. It holds 87 issues: ISS-001 to ISS-077 from the 2026-10-03
+> nothing is filed on GitHub or Linear. It holds 88 issues: ISS-001 to ISS-077 from the 2026-10-03
 > discovery pass (a commit-archaeology read of the 437 non-merge commits since 2026-09-18 [C],
 > counted with `git rev-list --count --no-merges --since='2026-09-18T00:00:00-0400' 5c605e1d`; the
 > explicit time matters, because a bare `--since=2026-09-18` takes the current time of day and
@@ -406,11 +406,23 @@ rubric arm leaves S3 about 46 points short of 90% and raises S2 further above it
   merges. Depends on: step 2 (so the row can state the sampling contract).
   - The ledger has no mention of P5a (`grep -ci p5a` is 0). Print refusals beside the S2 rate and
     put the conditions line first. Append-only; identify the row by heading, PR and commit.
+  - Update, appended 2026-10-03 (after the owner merged PR #6783, merge commit `0d740944`): done. The
+    ledger row headed 'VLM-PATH MEASUREMENT AND CLEANUP' records the committed P5a baseline, the two
+    re-runs, the sampling finding and the renderer-check bypass, and `grep -ci p5a` of the ledger
+    returns 2 **[V]**; the bullet above is stale. The row was written as 75 and is 76 on main, because
+    main appended its own R8 row first: cite it by heading, never by number. E36 has four parts; only
+    the P5a replay is discharged. The corpus build and the H3 clip rounds still have no ledger row
+    (`grep -ci "clip round"` is 0; `tierb` has one hit, in that row itself) **[V]**.
 - **Step 4, go.** Dated errata and banners for the stale statements (never in-place rewrites).
   Issues: ISS-026, ISS-069, ISS-074, ISS-080, ISS-081. Who: agent now. Depends on: none.
   - The `docker-compose.prod.yml:578` anchor (now `:484`), the README and AGENTS 'VLM pick is still
     the owner's' and `10/20` sentences, the brief's 'Retired code stays until R8', and the S2/S3
     `[?]` rows. The frozen-prose convention applies: banner above, original kept.
+  - Update, appended 2026-10-03: banners and errata E29 onward are written for docs 00-14. For README
+    and AGENTS the owner has since chosen a different route [O]: both become a maintained State of the
+    stack and their 2026-09-23 bodies move to `21-entry-pages-record-2026-09-23.md` (see the Intake
+    log entry dated 2026-10-03 after the merge). That replaces the banner-above route for those two
+    files; the S2/S3 `[?]` rows stay with the design spec (ISS-081, OD-3).
 - **Step 5, go.** Read the real owner-merge queue before opening any VLM PR. Issues: ISS-060. Who:
   agent now (read-only `gh`; sandbox access unverified [?]). Depends on: none.
   - The ledger's CI numbers are 2026-10-01 snapshots. Note which red classes are owner-held (the
@@ -2042,7 +2054,7 @@ Clips, frame selection, tracking and the detector gate.
 - **Depends on.** None.
 - **Tracked as.** None found.
 
-### Evaluation and S-bar measurement (15)
+### Evaluation and S-bar measurement (16)
 
 Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
 
@@ -2753,6 +2765,48 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     prove it: the 64 are 26.6% of the incidents, and S3 caps at 177/241 = 73.4% only if none of
     them is recoverable [C]. The 2 of 64 for the 8B (arm A) is now [V]; the flagship's 7 and the twin-pair
     AUROCs stay [A]. Severity stays P1: the gating question is still open.
+
+#### ISS-087 — Measured numbers are specific to the llama.cpp build: b7972 and b11376 disagree on 44% of items for the same model, weights and prompt
+
+`P1` · `risk` · actor `agent-now` · status `open` · added 2026-10-03 (after `ab3bd002`)
+
+- **Evidence**
+  - The shipped Qwen3-VL-8B Q4_K_M (weights sha256 `67d1659b…e9e2`), the shipped prompt and greedy
+    decoding, replayed over the same 450 tierb-v0 sets on two llama.cpp builds: on `b7972-e06088da0`
+    (`20261003T154038Z-qwen3-vl-8b-armA-shipped`) S2 18/209, S3 88/241, AUROC 0.703, 0 refusals; on
+    `b11376-a55e952b8` (`20261003T194331Z-control-q4km`, the model sweep's control arm, with
+    `LLAMA_ARG_CACHE_RAM=0` and `LLAMA_ARG_CACHE_IDLE_SLOTS=0`) S2 21/209, S3 94/241, AUROC 0.677,
+    2 refusals (both `VlmTruncatedError`, stop=`length` at 1,024 tokens: `B-batch-2-051`,
+    `B-batch-4-078`). Item by item **250 of 450 (56%)** return an identical (verdict, risk_score);
+    200 differ, 143 of them by 10 points or more **[V: read from `eval.sqlite` in this session]**.
+  - Both builds fail the F14 bars (S2 5%, S3 90%); the build moves S3 by +6 hits and S2 by +3 false
+    alarms, inside the run-to-run noise the shipped 0.1 sampling used to add, but now at a fixed
+    temperature of 0 it is a systematic effect of the build (or of the two cache flags, not yet
+    separated) **[?: a repeat control (determinism on `b11376`) and a default-cache control were
+    running when this was written; append their result to the Intake log]**.
+  - Update, appended 2026-10-03 (after the merge of PR #6783): the repeat control
+    (`20261003T200059Z-control-rep`) and the default-cache control
+    (`20261003T202249Z-control-defaultcache`) both read S2 21/209, S3 94/241, AUROC 0.677 and 2
+    refusals, and match the first control on **450 of 450** items (verdict and risk score) **[V: the
+    off-repo sweep's `results.jsonl`, read this session; not a committed report]**. So the `b11376`
+    replay is deterministic and the two cache flags do not change the answers: the difference from
+    `b7972` is the build. The first model arm, the same 8B at Q8_0 on `b11376`, agrees with the Q4_K_M
+    control on 252 of 450 items, about the size of the build effect (250 of 450) **[V: same file; the
+    sweep is unfinished and its numbers are not recorded as measured until a report is committed]**:
+    quantization changes answers about as much as the build does.
+- **Why it matters.** Every S2/S3/S5 figure in this directory and the ledger was measured on
+  `b7972`. A claim against the bars is a claim about a build; the replay's `run.json` and the score
+  report record the build string, but nothing in the acceptance conditions pins one, and a llama.cpp
+  bump (the Dockerfile default is `b7972`, the model-tier research needs a newer one for most
+  candidates) can flip a marginal reading with no code change.
+- **World-class gap.** A world-class pipeline pins the engine build in its acceptance conditions
+  and treats a build bump as a re-qualification event with a control replay and an item-level
+  agreement count.
+- **Acceptance.** Score reports and ledger rows name the llama.cpp build and the cache flags in
+  their conditions line; a build bump lands with a control replay of the shipped model against the
+  previous build, reporting the identical-item count; the sweep's determinism and cause-attribution
+  controls on `b11376` are recorded in the Intake log.
+- **Depends on** ISS-043 (noise floor and repeat runs). **Tracked as:** none.
 
 ### Specialists (5)
 
@@ -3616,7 +3670,7 @@ What an operator sees of a verdict, and the signals they can send back.
   ISS-066.
 - **Tracked as.** None found.
 
-### Retired-architecture residue, docs and CI (16)
+### Retired-architecture residue, docs and CI (17)
 
 Drift left by the legacy-path retirement, stale docs and CI gaps.
 
@@ -4356,6 +4410,29 @@ design.md`, `2026-09-12-context-map-doc-updates.md`, `2026-09-22-docs-scan-findi
   still assemble the wire shape'); the ledger records the re-home in item 44. Nothing tracks the
   decision.
 
+#### ISS-088 — The suppression census has two baseline copies; lowering one and not the other passes the local guard and fails CI
+
+`P2` · `debt` · actor `agent-now` · status `open` · added 2026-10-03 (after the PR's first CI read)
+
+- **Evidence**
+  - CI's `Collection Sanity` job on PR #6783 (run `37151109868`, job `111285028083`) printed
+    `MISMATCH pytest_skip_imperative: census=86 expected=99` from
+    `scripts/suppression-census.py --expect "$(cat .github/suppression-baseline.json)"`
+    (`.github/workflows/ci.yml:121`). `efa1b586` had lowered the count 99 to 86 in the spec baseline
+    inside `scripts/test_suppression_census.py` (`:543`) and that file's 8 tests passed; the committed
+    `.github/suppression-baseline.json:11` still read 99 **[V: both read, and the CI log read]**.
+  - The gate is an exact match, so a fall without editing the JSON fails exactly as a rise does; the
+    workflow's own comment says so (`ci.yml:104-119`). Because the failed step stops the job, the
+    ratchet, AI-provider-parity, registry, gate-test and shell-gate steps after it never ran in CI;
+    run locally afterwards, they all pass **[V]**.
+  - The JSON value was lowered to 86 in the PR's next commit; the structural cause below remains.
+- **Why it matters.** A change that removes suppression sites is verified green by the repo-root
+  guard tests and red by CI, found only by reading CI after the push. It cost this PR a round.
+- **Acceptance.** One place holds the baseline numbers, or a test fails when
+  `.github/suppression-baseline.json` and the spec in `scripts/test_suppression_census.py` disagree;
+  the guard's docstring names which gate reads which file.
+- **Depends on** nothing. **Tracked as:** none.
+
 ## 6. Withdrawn after re-check
 
 None of the 77 filed issues was withdrawn whole at the tip, but the discovery pass itself dropped
@@ -4428,61 +4505,6 @@ Either can re-enter through the intake rule with its own evidence.
   were overstated. The batch-keyed SSE route `GET /api/events/analyze/{batch_id}/stream` exists
   (`backend/api/routes/events.py:2579`); what stands is that no per-event re-run action exists and
   that the route is idempotency-blocked for about an hour after a batch has an event.
-
-#### ISS-087 — Measured numbers are specific to the llama.cpp build: b7972 and b11376 disagree on 44% of items for the same model, weights and prompt
-
-`P1` · `risk` · actor `agent-now` · status `open` · added 2026-10-03 (after `ab3bd002`)
-
-- **Evidence**
-  - The shipped Qwen3-VL-8B Q4_K_M (weights sha256 `67d1659b…e9e2`), the shipped prompt and greedy
-    decoding, replayed over the same 450 tierb-v0 sets on two llama.cpp builds: on `b7972-e06088da0`
-    (`20261003T154038Z-qwen3-vl-8b-armA-shipped`) S2 18/209, S3 88/241, AUROC 0.703, 0 refusals; on
-    `b11376-a55e952b8` (`20261003T194331Z-control-q4km`, the model sweep's control arm, with
-    `LLAMA_ARG_CACHE_RAM=0` and `LLAMA_ARG_CACHE_IDLE_SLOTS=0`) S2 21/209, S3 94/241, AUROC 0.677,
-    2 refusals (both `VlmTruncatedError`, stop=`length` at 1,024 tokens: `B-batch-2-051`,
-    `B-batch-4-078`). Item by item **250 of 450 (56%)** return an identical (verdict, risk_score);
-    200 differ, 143 of them by 10 points or more **[V: read from `eval.sqlite` in this session]**.
-  - Both builds fail the F14 bars (S2 5%, S3 90%); the build moves S3 by +6 hits and S2 by +3 false
-    alarms, inside the run-to-run noise the shipped 0.1 sampling used to add, but now at a fixed
-    temperature of 0 it is a systematic effect of the build (or of the two cache flags, not yet
-    separated) **[?: a repeat control (determinism on `b11376`) and a default-cache control were
-    running when this was written; append their result to the Intake log]**.
-- **Why it matters.** Every S2/S3/S5 figure in this directory and the ledger was measured on
-  `b7972`. A claim against the bars is a claim about a build; the replay's `run.json` and the score
-  report record the build string, but nothing in the acceptance conditions pins one, and a llama.cpp
-  bump (the Dockerfile default is `b7972`, the model-tier research needs a newer one for most
-  candidates) can flip a marginal reading with no code change.
-- **World-class gap.** A world-class pipeline pins the engine build in its acceptance conditions
-  and treats a build bump as a re-qualification event with a control replay and an item-level
-  agreement count.
-- **Acceptance.** Score reports and ledger rows name the llama.cpp build and the cache flags in
-  their conditions line; a build bump lands with a control replay of the shipped model against the
-  previous build, reporting the identical-item count; the sweep's determinism and cause-attribution
-  controls on `b11376` are recorded in the Intake log.
-- **Depends on** ISS-043 (noise floor and repeat runs). **Tracked as:** none.
-
-#### ISS-088 — The suppression census has two baseline copies; lowering one and not the other passes the local guard and fails CI
-
-`P2` · `debt` · actor `agent-now` · status `open` · added 2026-10-03 (after the PR's first CI read)
-
-- **Evidence**
-  - CI's `Collection Sanity` job on PR #6783 (run `37151109868`, job `111285028083`) printed
-    `MISMATCH pytest_skip_imperative: census=86 expected=99` from
-    `scripts/suppression-census.py --expect "$(cat .github/suppression-baseline.json)"`
-    (`.github/workflows/ci.yml:121`). `efa1b586` had lowered the count 99 to 86 in the spec baseline
-    inside `scripts/test_suppression_census.py` (`:543`) and that file's 8 tests passed; the committed
-    `.github/suppression-baseline.json:11` still read 99 **[V: both read, and the CI log read]**.
-  - The gate is an exact match, so a fall without editing the JSON fails exactly as a rise does; the
-    workflow's own comment says so (`ci.yml:104-119`). Because the failed step stops the job, the
-    ratchet, AI-provider-parity, registry, gate-test and shell-gate steps after it never ran in CI;
-    run locally afterwards, they all pass **[V]**.
-  - The JSON value was lowered to 86 in the PR's next commit; the structural cause below remains.
-- **Why it matters.** A change that removes suppression sites is verified green by the repo-root
-  guard tests and red by CI, found only by reading CI after the push. It cost this PR a round.
-- **Acceptance.** One place holds the baseline numbers, or a test fails when
-  `.github/suppression-baseline.json` and the spec in `scripts/test_suppression_census.py` disagree;
-  the guard's docstring names which gate reads which file.
-- **Depends on** nothing. **Tracked as:** none.
 
 ## Intake log
 
@@ -4716,3 +4738,27 @@ Three more commits landed after `d8482861`, the same day, on `docs/synthbench-h3
   `scripts/test_suppression_census.py`); `efa1b586` lowered one, CI reads the other.
 - ISS-087 was filed with an entry but never counted in the Dashboard nor listed under P0 and P1
   issues; both are corrected above, and the counts now include ISS-087 and ISS-088.
+
+### 2026-10-03 (after the merge of #6783 and the reorganization decisions)
+
+- The owner merged PR #6783 at 2026-10-03T21:27Z as `0d740944`. ISS-088 and the ledger row on the P5a
+  baseline are on main. Main's post-merge `AGENTS.md Validation` run is red on the Linear sync (401
+  from `api.linear.app`) with the same 18 findings as every main push since at least 01:18Z, so it
+  predates the merge **[V: `gh run list`, the job log]**; the Linear key is owner-held (ledger).
+- ISS-087 and ISS-088 had been filed under section 6 (Withdrawn); they now sit in their area sections
+  (Evaluation and S-bar measurement; Retired-architecture residue, docs and CI), and the area headings
+  read (16) and (17). The header says 88 issues; the Dashboard counts 88 filed and 86 open.
+- ISS-087's determinism and cache-flag controls finished: see the update inside its block. That part
+  of its acceptance is met; recording the build and cache flags in every conditions line, and a
+  control replay on a build bump, are not.
+- Owner decisions on how this folder becomes the source of truth **[O: asked and answered one at a
+  time, 2026-10-03]**: README becomes the maintained State of the stack for what is decided, measured,
+  open and next, while main's `docs/architecture/ai-pipeline-current-state.md` stays the description of
+  what runs today and each links to the other without restating it; the 2026-09-23 README and AGENTS
+  bodies move to `21-entry-pages-record-2026-09-23.md`; ISS ids are allocated with a next-id helper
+  that scans every ref, a gate fails on duplicates, a collision gets a lettered suffix (ISS-088b) and
+  nothing is renumbered; the sweep report is committed only after the sweep finishes and a selection
+  rule is set; one-line pointer edits are approved in `docs/AGENTS.md` and in main's current-state
+  page; the work is built on its own branch and PR; the owner will do one confirmation pass over the
+  decisions-in-force rows; the working order stays this register's critical path, labelled as
+  agent-authored sequencing, until the owner rules on OD-1 of doc 18.
