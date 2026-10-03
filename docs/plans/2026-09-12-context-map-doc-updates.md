@@ -16142,8 +16142,11 @@ killable - it emits a DEBUG log the flip fires, separately pinned).
 Authoring sweep on committed-45 bytes 220R/4G/0H of 224; pre-run-2
 resweep of committed-46 bytes 221R/4G/0H of 225 (the loss key RED, GREENs
 == ledger); close sweep 487R/19G/0H of 506 with TALLY {ATTRIB:15,
-LEDGER:4} UNATTRIB 0 - the 15 non-ledger GREENs all carry PRE verdict 1
-body-exact (shipped-suite kills: `get_circuit_breaker` m2/m4,
+LEDGER:4} UNATTRIB 0 - the 15 non-ledger GREENs are all
+shipped-suite kills by syllogism (GREEN under the battery ALONE in the
+close sweep + bank verdict 1 body-exact = the pre-campaign suite killed
+them; re-running the attribution against both the run-0 and run-1
+archives gives the identical TALLY) ( `get_circuit_breaker` m2/m4,
 `Registry.get_or_create` m4/m6/m7, `__aenter__` m1, `allow_request` m4,
 `call` m1/m5, `record_failure` m1/m12/m15/m16, `record_success` m8/m11).
 
