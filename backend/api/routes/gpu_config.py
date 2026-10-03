@@ -519,29 +519,20 @@ def _calculate_auto_assignments(
                 )
 
     elif strategy == GpuAssignmentStrategy.ISOLATION_FIRST:
-        # LLM gets dedicated GPU, others share
+        # The GPU with the most VRAM is kept free for exclusive use; all the
+        # other services share one GPU.
         if len(gpus) >= 2:
-            # LLM on largest GPU
             largest_gpu = max(gpus, key=lambda g: g.vram_total_mb)
             second_gpu = next(g for g in gpus if g.index != largest_gpu.index)
 
             for service in services:
-                if service == "ai-llm":
-                    assignments.append(
-                        GpuAssignment(
-                            service=service,
-                            gpu_index=largest_gpu.index,
-                            vram_budget_override=None,
-                        )
+                assignments.append(
+                    GpuAssignment(
+                        service=service,
+                        gpu_index=second_gpu.index,
+                        vram_budget_override=None,
                     )
-                else:
-                    assignments.append(
-                        GpuAssignment(
-                            service=service,
-                            gpu_index=second_gpu.index,
-                            vram_budget_override=None,
-                        )
-                    )
+                )
         else:
             # Only one GPU - everything goes there
             for service in services:
@@ -571,7 +562,7 @@ def _calculate_auto_assignments(
         sorted_gpus = sorted(gpus, key=get_compute_score, reverse=True)
         fastest_gpu = sorted_gpus[0]
 
-        critical_services = ["ai-yolo26", "ai-enrichment"]
+        critical_services = ["ai-yolo26"]
 
         for service in services:
             if service in critical_services:
