@@ -623,15 +623,10 @@ Provisioned from `monitoring/grafana/dashboards/`:
 - **consolidated** - single overview dashboard
 - **api-health**, **ai-services**, **ai-service-health** - service and API status
 - **hsi-gpu-metrics** - utilization, memory, temperature trends
-- **enrichment-pipeline**, **nemotron-prompt-analytics**, **scene-ocr**,
-  **video-analytics**, **analytics** - AI pipeline detail
+- **video-analytics**, **analytics** - AI pipeline detail
 
-> [!WARNING]
-> Several of those dashboards are built on `hsi_enrichment_*` / `hsi_nemotron_*` /
-> `hsi_florence_*` families that are declared in `backend/core/metrics.py` but have **no
-> call site on the live path**. Panels there read as flat-zero, not as degraded — the same
-> trap as a blackbox probe aimed at a router the gateway does not mount. The signals that
-> do exist on the shipped path are `hsi_ai_request_duration_seconds`,
+> [!NOTE]
+> The shipped-path AI signals are `hsi_ai_request_duration_seconds`,
 > `hsi_specialist_unavailable_total`, `hsi_prompts_truncated_total`, the queue depths, and
 > the verdict census in `event_verifications`.
 

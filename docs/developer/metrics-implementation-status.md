@@ -22,7 +22,7 @@ cleaning them is a monitoring-config task.
 
 ## Backend Metrics With Live Production Observers
 
-Defined in `backend/core/metrics.py` (~160 `hsi_*` families total). These are
+Defined in `backend/core/metrics.py` (119 `hsi_*` families total). These are
 observed by shipped code paths — the ones to build alerts/dashboards on:
 
 | Family                                                                                                                                                                                                   | Observer (production)                                                                                                 |
@@ -35,27 +35,26 @@ observed by shipped code paths — the ones to build alerts/dashboards on:
 | `hsi_ai_request_duration_seconds{service}`                                                                                                                                                               | `DetectorClient` (service=`yolo26`), `backend/services/detector_client.py:1139`                                       |
 | `hsi_ai_inference_duration_seconds`, `hsi_ai_inference_errors_total`                                                                                                                                     | `GatewayMetricsMiddleware`, `ai/gateway/main.py:83,90`                                                                |
 | `hsi_specialist_unavailable_total{leg,reason}`                                                                                                                                                           | face/plate/re-ID lookup legs (bounded reason codes)                                                                   |
-| `hsi_prompt_truncated_total`                                                                                                                                                                             | `backend/services/vlm_client.py` (prompt over the served slot)                                                        |
-| `hsi_prompt_latency_seconds`, `hsi_prompt_rollbacks_total`, shadow comparison families                                                                                                                   | `backend/services/prompt_service.py:247,304,414`                                                                      |
+| `hsi_prompts_truncated_total`                                                                                                                                                                            | `record_prompt_truncated` from `backend/services/vlm_client.py:780` (prompt over the served slot)                     |
+| `hsi_prompt_version_latency_seconds`, `hsi_prompt_rollbacks_total`, shadow comparison families                                                                                                           | `backend/services/prompt_service.py:247,304,414`                                                                      |
 | `hsi_model_load_duration_seconds`, `hsi_model_warmup_duration_seconds`, `hsi_model_cold_start_total`, `hsi_model_warmth_state`                                                                           | residency/warmup paths (`vlm_client`, `detector_client`)                                                              |
 | `hsi_worker_status`, `hsi_worker_active_count`, `hsi_worker_busy_count`, `hsi_worker_idle_count`, `hsi_worker_heartbeat_missed_total`, `hsi_worker_max_restarts_exceeded_total`, `hsi_pipeline_worker_*` | `backend/services/worker_supervisor.py`, `pipeline_workers.py`                                                        |
 | `hsi_face_detections_total`, `hsi_face_embedding_duration_seconds`, `hsi_face_recognition_confidence`                                                                                                    | `backend/services/face_detector.py`                                                                                   |
 | `hsi_reid_match_duration_seconds`, `hsi_track_duration_seconds`                                                                                                                                          | re-ID match / tracking paths                                                                                          |
 | `hsi_zone_occupancy`, `hsi_zone_dwell_time_seconds`, `hsi_loitering_dwell_time_seconds`                                                                                                                  | `backend/services/zone_crossing_service.py`, `dwell_time_service.py`                                                  |
-| `hsi_risk_score`, `hsi_detection_confidence`                                                                                                                                                             | scoring paths                                                                                                         |
+| `hsi_detection_confidence`                                                                                                                                                                               | scoring paths                                                                                                         |
 | `hsi_budget_utilization_ratio`, `hsi_budget_exceeded_total`                                                                                                                                              | inference-budget tracking                                                                                             |
 | `hsi_db_query_duration_seconds`, `hsi_slow_queries_total`                                                                                                                                                | SQLAlchemy event hooks, `backend/core/database.py:1470`                                                               |
 | `hsi_rum_*` (fcp, lcp, inp, cls, fid, ttfb, page_load)                                                                                                                                                   | `POST /api/rum` (`backend/api/routes/rum.py`) fed by `frontend/src/services/rum.ts`                                   |
 
 ## Defined But Never Observed Outside Tests
 
-The majority of defined families have **no production observer** — including
-`hsi_cache_hits_total`/`hsi_cache_misses_total`,
+Several defined families have **no production observer** — including
 `hsi_events_created_total`, `hsi_events_by_risk_level_total`,
-`hsi_detections_by_class_total`, `hsi_loitering_alerts_total`,
-`hsi_daily_cost_usd`/`hsi_monthly_cost_usd`, the
-`hsi_enrichment_model_calls_total`/`hsi_enrichment_model_duration_seconds`
-pair, the `hsi_action_recognition_*` trio, and the `hsi_ab_rollout_*` set.
+`hsi_events_by_camera_total`, the `hsi_face_*` gauges without a recorder call
+(`hsi_face_embeddings_generated_total`, `hsi_face_matches_total`,
+`hsi_face_quality_score`), the
+`hsi_action_recognition_*` trio, and the `hsi_ab_rollout_*` set.
 Two consequences:
 
 - `prometheus_client` exports unlabelled families unconditionally, so some

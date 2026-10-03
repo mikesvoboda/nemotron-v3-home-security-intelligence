@@ -5,14 +5,10 @@ Status: **measured against the working tree at `3054e312`**, whose code is ident
 returns only added test files). This page describes **what runs today**. It is not a redesign
 proposal and it is not the research record.
 
-Why this page exists: `docs/architecture/ai-pipeline.md` (941 lines, `last_updated: 2026-01-04`)
-still documents the pre-R8 pipeline. Its frontmatter cites `backend/services/nemotron_analyzer.py`
-and `ai/nemotron/config.json` — **both deleted** — which `scripts/validate_docs` reports as 3 hard
-errors of 15 citations. The R8 docs sweep (`aabd7cd6`) rewrote `AGENTS.md`, `README.md` and
-`docs/reference/models.md` and touched **no** `docs/operator/*`, **no** compose file and
-**no** `setup.py`. Rather than rewrite nine stale operator pages inside a context document, this
-page states the truth once, and the plan at
-`docs/superpowers/plans/2026-10-02-vlm-bringup-and-residue-sweep.md` retires the stale pages.
+Why this page exists: the shipped pipeline gets one current description, in this page, so the
+running system is stated once instead of spread across operator pages. The decisions, the ordering
+of the work and the protection mechanism live in the companion plan at
+`docs/superpowers/plans/2026-10-02-vlm-bringup-and-residue-sweep.md`.
 
 Epistemic markers follow the repo convention from
 `docs/plans/2026-09-28-r8-legacy-retirement-scope.md`: **[V]** verified by direct read in this

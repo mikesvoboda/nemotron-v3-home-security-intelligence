@@ -89,8 +89,6 @@ datasources:
           # labelled per AI service (backend/core/metrics.py).
           - name: 'YOLO26 Latency (p95)'
             query: 'histogram_quantile(0.95, sum(rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m])) by (le))'
-          - name: 'Nemotron Tokens/sec'
-            query: 'hsi_nemotron_tokens_per_second'
           - name: 'Florence Latency (p95)'
             query: 'histogram_quantile(0.95, sum(rate(hsi_ai_request_duration_seconds_bucket{service="florence"}[5m])) by (le))'
           - name: 'CLIP Latency (p95)'
@@ -145,22 +143,10 @@ datasources:
           # LLM/Nemotron Specific
           - name: 'LLM Context Utilization %'
             query: '100 * hsi_llm_context_utilization_sum / hsi_llm_context_utilization_count'
-          - name: 'Prompt Tokens (avg)'
-            query: 'hsi_prompt_tokens_sum / hsi_prompt_tokens_count'
           - name: 'Prompts Truncated/min'
             query: 'rate(hsi_prompts_truncated_total[1m]) * 60'
           - name: 'High Utilization Prompts/min'
             query: 'rate(hsi_prompts_high_utilization_total[1m]) * 60'
-
-          # Enrichment Model Zoo
-          - name: 'Enrichment Calls/min'
-            query: 'rate(hsi_enrichment_model_calls_total[1m]) * 60'
-          - name: 'Enrichment Errors/min'
-            query: 'rate(hsi_enrichment_model_errors_total[1m]) * 60'
-          - name: 'Enrichment Success Rate %'
-            query: '100 * hsi_enrichment_success_rate'
-          - name: 'Partial Batches/min'
-            query: 'rate(hsi_enrichment_partial_batches_total[1m]) * 60'
 
           # Detection Metrics
           - name: 'Detections/min'
@@ -177,9 +163,6 @@ datasources:
             query: 'rate(hsi_events_by_risk_level_total{level="high"}[1m]) * 60'
           - name: 'Critical Events/min'
             query: 'rate(hsi_events_by_risk_level_total{level="critical"}[1m]) * 60'
-          - name: 'Avg Risk Score'
-            query: 'hsi_risk_score_sum / hsi_risk_score_count'
-
           # Cost Tracking
           - name: 'Daily Cost USD'
             query: 'hsi_daily_cost_usd'

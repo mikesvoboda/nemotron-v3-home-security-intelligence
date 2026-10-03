@@ -297,7 +297,7 @@ Replay never re-runs them — the texts a stored verdict was judged on ride the 
 
 The client renders the prompt from the AssessContext rather than from a template file: the camera, the capture time, the zones and the crossing flag, the detection rows (each naming the attached frame it sits on), the household context, and the specialist texts, followed by the instruction to answer only with the verdict JSON object.
 
-Two budget rules apply at the wire (`_fitted_prompt`, lines 676-742). The slot is `settings.vlm_context_window` minus the image reservation minus the verdict's output budget; and when rows have to go, truncation is visible and deterministic — the strongest detections survive and the prompt says how many rows were omitted (`hsi_prompt_truncated_total` is bumped once, at the wire).
+Two budget rules apply at the wire (`_fitted_prompt`, lines 676-742). The slot is `settings.vlm_context_window` minus the image reservation minus the verdict's output budget; and when rows have to go, truncation is visible and deterministic — the strongest detections survive and the prompt says how many rows were omitted (`hsi_prompts_truncated_total` is bumped once, at the wire).
 
 The request ships `response_format: {"type": "json_schema", ...}` carrying the generated contract schema (`backend/ai_contract/schemas/vlm_assess.response.json`), so the shape is enforced by the engine's grammar and validated again on receipt.
 

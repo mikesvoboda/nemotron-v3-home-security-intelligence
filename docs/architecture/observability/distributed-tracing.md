@@ -7,7 +7,7 @@
 - `backend/core/telemetry.py` - OpenTelemetry configuration
 - `monitoring/alloy/config.alloy` - OTLP collector: receives traces, forwards to Tempo
 - `monitoring/tempo/tempo-config.yml` - Tempo receiver and local storage config
-- `monitoring/grafana/provisioning/datasources/prometheus.yml:48-217` - Tempo datasource (with trace-to-metrics queries)
+- `monitoring/grafana/provisioning/datasources/prometheus.yml:48-200` - Tempo datasource (with trace-to-metrics queries)
 - `monitoring/grafana/dashboards/tracing.json` - Tracing dashboard
 
 ## Overview
@@ -416,8 +416,8 @@ extract_context_from_headers({k: v for k, v in message.items() if k in {"tracepa
 ## Trace-to-Metrics Correlation
 
 Grafana's Tempo datasource is configured with trace-to-metrics queries
-(`monitoring/grafana/provisioning/datasources/prometheus.yml:48-217`; the `tracesToMetrics` block is
-lines 59-207, and `tracesToLogsV2` is lines 56-58):
+(`monitoring/grafana/provisioning/datasources/prometheus.yml:48-200`; the `tracesToMetrics` block is
+lines 59-190, and `tracesToLogsV2` is lines 56-58):
 
 ```yaml
 tracesToMetrics:
@@ -449,7 +449,7 @@ tracesToMetrics:
 
 AI-service latency is read from the backend's own client-side histogram
 `hsi_ai_request_duration_seconds` (`backend/core/metrics.py:324`), labelled per AI service;
-`observe_ai_request_duration()` (`backend/core/metrics.py:2044`) is fed by the detector client
+`observe_ai_request_duration()` (`backend/core/metrics.py:1451`) is fed by the detector client
 (`backend/services/detector_client.py:1139`).
 
 This enables clicking from a trace span to related Prometheus metrics.
@@ -457,8 +457,8 @@ This enables clicking from a trace span to related Prometheus metrics.
 ## Trace-to-Logs Correlation
 
 Logs are correlated via trace ID. The Loki datasource extracts trace IDs from logs and links them
-to Tempo (`monitoring/grafana/provisioning/datasources/prometheus.yml:220-235`, `derivedFields` at
-lines 229-235), and the Tempo datasource links back to Loki from a trace
+to Tempo (`monitoring/grafana/provisioning/datasources/prometheus.yml:202-218`, `derivedFields` at
+lines 212-218), and the Tempo datasource links back to Loki from a trace
 (`tracesToLogsV2.datasourceUid: loki`, `monitoring/grafana/provisioning/datasources/prometheus.yml:56-58`):
 
 ```yaml

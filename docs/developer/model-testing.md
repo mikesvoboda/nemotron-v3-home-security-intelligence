@@ -26,7 +26,6 @@ ai/gateway/tests/                       # the gateway + Triton lane
 
 ai/tests/                               # shared GPU/torch helpers under ai/
 ├── test_module_hygiene.py
-├── test_cpu_offloading.py
 ├── test_cuda_graph_manager.py
 └── ...
 

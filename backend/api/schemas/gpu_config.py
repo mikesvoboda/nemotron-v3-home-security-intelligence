@@ -913,7 +913,7 @@ class GpuConfigImportValidation(BaseModel):
             "example": {
                 "valid": True,
                 "warnings": [
-                    "Service 'ai-florence' not found - will be skipped",
+                    "Service 'ai-vlm' not found - will be skipped",
                     "GPU 2 is over VRAM budget by 512 MB",
                 ],
                 "errors": [],

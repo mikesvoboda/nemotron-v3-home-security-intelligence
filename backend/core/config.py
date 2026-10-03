@@ -2636,9 +2636,10 @@ class Settings(BaseSettings):
     # Service health monitor settings
     ai_restart_enabled: bool = Field(
         default=True,
-        description="Enable automatic restart of AI services (YOLO26; Nemotron only in PIPELINE_MODE=legacy) on health check failure. "
-        "Set to False in containerized deployments where restart scripts are not available. "
-        "Health monitoring and status broadcasts still occur when disabled.",
+        description="Enable automatic restart of the monitored AI service (yolo26) on health check failure. "
+        "ai-vlm is not in the monitored set - compose starts it under the vlm profile and its "
+        "health arrives by breaker push. Set to False in containerized deployments where the "
+        "restart scripts are not available; health monitoring and status broadcasts still occur.",
     )
 
     # Readiness probe: require pipeline workers for 200 OK (NEM-xxxx)

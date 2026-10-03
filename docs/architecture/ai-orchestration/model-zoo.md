@@ -112,7 +112,7 @@ async with manager.load("fast-alpr") as alpr:
 `preload()` and `unload()` are the explicit forms the boot sweep and shutdown use
 (`backend/services/model_zoo.py:780,798`), and `reload()` re-loads a row under a named reason
 (`oom`, `crash`, `manual`, `health_check`) recorded on `hsi_model_restarts_total`
-(`backend/services/model_zoo.py:830`, `backend/core/metrics.py:3496,3508`).
+(`backend/services/model_zoo.py:830`, `backend/core/metrics.py:2465,2477`).
 
 ## Path Resolution
 
@@ -174,7 +174,7 @@ hsi_model_warmup_duration_seconds{model}
 hsi_specialist_unavailable_total{specialist, reason}
 ```
 
-`hsi_specialist_unavailable_total` (`backend/core/metrics.py:3388`) is the leg-level counter: a
+`hsi_specialist_unavailable_total` (`backend/core/metrics.py:2394`) is the leg-level counter: a
 degraded specialist's reason is deliberately kept **out** of the prompt text, so the bounded `reason`
 code on this counter (`weights_absent`, `package_absent`, `space_mismatch`, `stage_error`, …) is
 where the why lives.
