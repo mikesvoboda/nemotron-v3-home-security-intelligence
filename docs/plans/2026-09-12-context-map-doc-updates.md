@@ -14926,3 +14926,225 @@ vlm_analyzer 259/65.4206%, stream_manager 257/28.8089%,
 background_evaluator 248/36.7347%, threat_monitor_service 244/32.5967%). Gap
 to 85%: 0.85×69,056 = 58,697.6 − 50,759 = **7,938.6 kt**. Every number
 measured THIS session.
+
+## 2026-10-03 — MILESTONE 24 PUBLISHES: 73.87931159262958% completed=true (+0.3751989883663782 pts vs M23's 73.5041126042632%) — campaign #22 `webhook_service` CLOSES at 99.009009009009% (1099/1110) over TWO RUNS (battery X, batch-38, 53 tests BOTH runs, 1,861 lines final, md5 32287545…): run 1 was HEALTHY (250 sweep-RED flips + the 12-key ledger preserved as GREENs, zero losses) but the battery's coverage growth BORN 31 keys of which **3 SURVIVED** — `[:500]`-cap twins killable ONLY with an over-cap message — proved killable by construction, closed by a same-count BODY extension (test NAMES identical r1/r2), run 2 landed CLEAN (3 births killed, 11 survivors preserved, 0 new births, 0 moved)
+
+**THE NUMBER** (measured THIS session, `uv run scripts/mutation-score.py` rc=0
+routed to `/home/agent/runs/b38-c22-score-r2.json`). `totals` row by row:
+killed 50,752 (exit-1 50,720 plus suspicious-counted-as-killed 32 — the script
+folds exit 3 into killed) plus timeout 289 equals kt **51,041**; survived
+17,263; no_tests 783 (sticky rows ride on); skipped 0; not_checked 0; total
+**69,087**; score (50,752 + 289)/69,087 = **73.87931159262958%** (the script's
+own float; the raw re-division 100×51,041/69,087 reads identically).
+`progress`: total 69,087, checked 69,087, not_checked 0, torn_metas 0,
+**completed=true** (240 target modules / 201 with results).
+**+0.3751989883663782 pt** vs M23's 73.5041126042632%. History appended via
+`--history .github/mutation-history.json --date 2026-10-02` as run #28 (28
+entries — the append crossed UTC midnight DURING close: the run-2 finish stamp
+is 2026-10-02T19:45 local, so the entry is dated 2026-10-02 in continuity with
+the M23 row's "2026-10-02 — MILESTONE 23" heading-vs-stamp precedent while this
+row's heading carries the 2026-10-03 publish date; pre-append state backed up
+to `/home/agent/runs/mutation-history-preM24.json` — after the append the first
+27 runs verified deep-equal to that backup, the 3,041-line diff is the known
+compact-to-pretty reformat of the SAME bytes). Badge decomposition row by row:
+Delta-kt = +282 = 250 entering-survivor bodies flipped to killed + 1 shipped-
+suite kill (`__init__` m1, battery-INDEPENDENT) + 31 births ended-killed (28
+killed by run 1's own stats pass + 3 by run 2); kt on the runs' target meta:
+817 to 1096 to 1099 = +282; survived 17,514 to 17,263 = −251 (250 entering-
+survivor flips plus the 1 shipped-suite kill of `__init__` m1; ALL 31 births
+ended killed — 28 in run 1, 3 in run 2 — so no birth contributed a survivor);
+total 69,056 to 69,087 = +31 births.
+
+**DENOMINATOR DISCLOSURE:** the battery's coverage growth grew the bank +31
+keys (mutation slots regenerated for lines the battery newly covered) — true
+birth census by fn-name-prefix count diff of the M23-era meta (read from INSIDE
+`guard-restore-preM24-superseded.tgz`, {817 killed, 262 survived}/1,079) vs the
+landing meta: `update_webhook` 56 to 76 (+20), `test_webhook` 54 to 60 (+6),
+`retry_delivery` 50 to 55 (+5); 28 were born AND killed in run 1, 3 born-
+survived until run 2 — all 31 are in the new denominator either way: kt 51,041
+on the OLD denominator 69,056 would read 73.91247683039852% — the +31 births
+cost **−0.03316523776894087 pt** of dilution, already inside the published
++0.3751989883663782 net gain.
+
+**CAMPAIGN #22 — the target.** `backend/services/webhook_service.py` (262
+survivors entering at 75.7183%, the M23-censused head; R8 shield checked against
+the authoritative `DEAD_MODULES` — not on the death list). Bank row entering:
+1,079 keys {killed 817, survived 262}. Mutation map
+`b38-c22-mutation-map.txt` (826 lines, 0 NOT-FOUND) + survivor-key file (262
+bare keys) classified every survivor into 250 KILLABLE and 12 EQUIVALENT before
+a single test was written — dispositions adjudicated over THREE rounds of
+per-key construction probes (16 candidates down to 11, then the sweep GREENs
+`deliver_webhook` m18 and `_send_request` m70 folded IN as true equivalents once
+the `.get(k, )` trailing-comma semantics were measured (the trailing comma
+DELETES the default — one-arg get, returns None, NEVER KeyError)); diff-shape
+never consulted for a disposition.
+
+**THE 12-KEY LEDGER (honesty ledger — each BODY-proved by construction probe
+THIS session; 12 registered, 11 SURVIVED, 1 shipped-killed):**
+
+1. `__init__` m1 (`self._http_client = http_client` to `= None`) — the attribute
+   is read nowhere IN THE MODULE, but a pre-existing shipped test reads it:
+   `TestInitStoresClient::test_http_client_stored_identity`
+   (`test_webhook_service_batch15b.py`) verified RED under the key THIS session
+   (`b38-c22-attr-initm1.log`, rc=1) — bank verdict 1, killed WITHOUT the
+   battery; registered EQUIV-by-construction, the bank's kill is disclosed.
+2. `create_webhook` m2 (`token_hex(32)` to `token_hex(None)`) — both measured
+   64-char hex; the value is only stored and logged.
+3. `deliver_webhook` m12/m18 (`status=PENDING` to `None` / kwarg deleted,
+   default None measured) — every reachable arm overwrites `status` before
+   observation.
+4. `_format_discord_payload` m9 (default `"event"` to `"EVENT"`) — the consumer
+   chains `.replace("_", " ").title()`; `"Event"` both ways (measured).
+5. `_sign_payload` m13 (`encode("utf-8")` to `encode("UTF-8")`) — codec names
+   case-insensitive; digest measured identical.
+6. `_send_request` m16/m18/m21/m22 (auth-type default family) and m68/m70
+   (`header_name` default family) — the defaults' ONLY consumers are the
+   bearer/basic/header equality chain and `if header_name:` truthiness; on the
+   key-absent polarity None/""/"none"/"XXnoneXX"/"NONE" all fall through
+   identically (trailing-comma m18/m70 = one-arg get, NOT a KeyError —
+   re-adjudication #2, see above).
+
+**BATTERY X — what kills what.**
+`test_webhook_service_batch38_x.py`, module-level sync tests only (b30 harness
+contract), 53 tests: COMPILED-SQL MIRRORS (`_sql` with literal_binds — whole-
+string equality per executed statement, kills the `text(...)` flips and the
+trailing-comma ARG DELETIONS by arg count); NON-ENUM POLARITIES (statuses
+200/299/300/404/500 pin the success-window flips; a 2001-char body pins the
+`[:2000]` store cap); LOG RECORD LISTS (whole `(level, msg, kwargs)` equality
+merging the `extra=` dict — deliver-debug/failure-warning/exhaust/
+error-exc_info/trigger/template-warning); WHOLE-CALL SPIES (`_SendSpy`/`_FailSpy`
+class swaps recording `(db, webhook, delivery)` positionally); STRICT JINJA
+SPIES (`_StrictEnv`/`_BoomEnv` pin the render kwargs and the
+`(TemplateSyntaxError, UndefinedError, json.JSONDecodeError)` except tuple);
+the 13-row AUTH MATRIX (whole expected-headers dicts INCLUDING the measured
+httpx defaults host/accept/accept-encoding/connection — a None header value
+RAISES in httpx, so the matrix pins which rows get which headers);
+REAL-MODEL INSPECTION (model_dump full-dict asserts); EXACT BOUNDARIES (fixed
+clock 2026-12-15T10:30Z, backoff-attempt polarities where `- 1`/`+ 1`,
+`* 2`/`* 3`, `min`/`max` all diverge). Gates at authoring: pytest green,
+ruff/format/mypy clean, vulture 0, autospec at every patch.
+
+**COMMIT TRAP, BITE #3 (detect-secrets, disclosed).** The FIRST battery-X commit
+DIED SILENTLY again — `tail -15` showed an all-Passed tail, but the detect-
+secrets hook FAILED on two false-positive "Secret Keyword" lines (`_SIG_SECRET`
+built from `"ff" * 32` and a `"password"` matrix row); HEAD unchanged. Fix: the
+sanctioned `# pragma: allowlist secret` ON each flagged line (a pragma placed
+one line ABOVE does NOT satisfy the hook — measured), every gate re-run,
+committed as f7d2056a. Lesson recorded: a tail-limited commit log HIDES the
+Failed hook line — commit output must surface Failed hooks, not just the tail.
+
+**RUN 1 (plain nohup, launch ~22:24Z; guard pid 1154470 on the exec'd runner).**
+Battery X md5-synced into `mutants/` BEFORE launch; bank verified entering (240
+metas / 69,056 keys; target {817, 262}); unit tier GREEN in the mutant home
+FIRST: **28,622 passed, 124 skipped, 8 xfailed in 18:51**
+(`b38-c22-greentier.log`). Pre-run archive = the `b38-preC22/` whole-tree metas
+and the target meta {817, 262}/1,079 (the dir was later re-created as the RUN-2
+baseline; run-1-era state preserved in prose + this row — disclosed deviation
+from the c21 `.tgz` convention). Ran `mutation-run.sh webhook_service` with
+MUTMAX=14; GUARD RELAUNCH DISCLOSED: the first backgrounded guard launch DIED
+SILENTLY TWICE at startup — the stdout log recorded a `setsid` exec failure
+(Permission denied): the launch wrapper used setsid AND the script had lost its
+exec bit; a pgrep self-match on my own wrapper's argv then made the dead guard
+look alive — the documented bracket trap); the working launch (plain nohup +
+`chmod +x`) attached LATE, first tick 22:32:42Z vs run launch ~22:24Z. From attachment: 11 ticks 22:32:42Z to
+22:49:37Z, EVERY tick sibling-drop=0/stats=yes/nonmod-holes=0, target holes
+peaked at 31 mid-generation and closed to 11 by the done-line; generation done
+at 601,396 ms (240 files). Run-1 bank score `b38-c22-score.json`: target {1096,
+14}/1,110 = 98.73873873873875%; bank 73.87496924168077% (already above M23 —
+the close waits for run 2 anyway: open births).
+
+**RECONCILE RUN 1 — BODY identity.** Authoring sweep `b38-c22-sweep-r1`:
+RED=250 GREEN=12 of 262, GREEN set == the 12-key ledger exactly. Run 1 landing:
+target 1,110 keys; 14 survivors = 11 ledger + 3 BIRTH survivors; reconcile by
+body diff vs the pre-run-1 survivor set: 250 entering survivors KILLED, 11
+preserved, `__init__` m1 preserved-by-battery but shipped-killed (above), 0
+pre-era kill losses. The 3 BIRTH survivors: `test_webhook` m59 (success-flip
+inside an arm only an over-cap `[:500]` dump exposes), m60 and `retry_delivery`
+m49 (the `[:500]` to `[:501]` truncation twins — killable ONLY by an OVER-CAP
+exception message: six hundred chars; a plain 500-char message passes BOTH).
+Proved KILLABLE by construction, NOT ledger candidates.
+
+**EXTENSION + RUN 2.** The extension ADDED NO TESTS — it BODY-extended two
+(`test_test_webhook_error_arms`: `_SendSpy(error=RuntimeError("k" * 600))` +
+FULL model_dump with `"error_message": "Unexpected error: " + "k" * 482`;
+`test_retry_delivery_network_error`: `RequestError("d" * 600)` asserting
+`error_message == "d" * 500` — 23 insertions / 6 deletions, 53 tests both
+runs; commit 8f01e2e5) — the honest close of NAME-stable batteries: the birth
+census by NAME (scope-r2 delta) is the answer, not a test count. Delta sweep
+`b38-c22-sweep-r2.txt`: **RED=253 GREEN=12 of 265 keys** — RED exactly the 250
+scope + 3 births, GREEN set == ledger EXACTLY (diff-verified). Unit tier re-run
+GREEN **28,622 passed, 124 skipped, 8 xfailed in 19:05** (count IDENTICAL to
+run 1's tier — the extension added no tests, exactly accounted); runner pid
+1177137; guard 25 ticks 23:20:49Z to 23:46:28Z ALL sibling-drop=0/holes=0/
+nonmod-holes=0 (0 dirty); generation done at 593,754 ms. **Run-2 reconcile
+`b38-c22-reconcile-body.py`: RESULT CLEAN rc=0** — transition matrix by body
+(pre-meta to cur-meta, verdicts carried by identical body strings — the r2 tree
+was BYTE-IDENTICAL to pre-r2, 1,135 def-indexed bodies each side): 0 to 0: 11
+(ledger preserved), 0 to 1: 3 (the births killed), 1 to 1: 1,096 — no kill
+losses, no new births, no moved verdicts. Sibling drift by
+`exit_code_by_key` CONTENT vs the b38-preC22 whole-tree metas: 239 compared,
+**0** drift, 0 new metas.
+
+**POST-CLOSE SWEEP — all 1,110 keys, committed battery.**
+`b38-c22-sweep-close.txt`: **RED=1,025 GREEN=85** (first attempt read
+RED=0/GREEN=1,110 — the key file was built with `split('.', 2)[-1]` leaving a
+`webhook_service.` prefix on every name, so NO key ever matched the trampoline
+and every key behaved as orig: a silent ALL-GREEN FAKE caught by a two-line
+pin-probe BEFORE any conclusion — close-key files must be BARE `rsplit('.', 1)`
+names). Attribution of the 85 GREENs, complete and measured: 12 == the ledger
+keys (11 bank-survivors + the shipped-killed `__init__` m1), and 73 bank-killed
+keys OUTSIDE battery X's reach — families `get_deliveries` m1–m19,
+`get_delivery` m1–m5, `list_webhooks` m3–m6, `_format_slack_payload` ×6,
+`_format_discord_payload` ×7, `_format_teams_payload` ×8, `_format_for_integration`
+m10, `_send_request` ×17, `retry_delivery` m29/m30, `test_webhook` m30–m33 —
+all bank verdict 1 (meta cross-check: the 85 GREENs split exactly 74 verdict-1 +
+11 verdict-0; the 1,025 REDs ALL verdict 1, zero non-1). The shipped-kill side
+proven for 3 representative keys by REAL pytest under the pin THIS session
+(`b38-c22-attr-spot.sh`, full bare key, rc=1 against the pre-existing
+`test_webhook_service.py` — and `batch15` for the first): the b30 harness never
+collects `Test*` classes ([[b30-battery-harness-module-level-functions-only]])
+so it cannot see these killers. The bank's 1,099 = 1,025 battery-X kills + 74
+shipped-suite kills.
+
+**CLOSE math cross-checked.** Target entering {killed 817, survived 262, total
+1,079} landing {killed 1,099, survived 11, total 1,110} = 99.009009009009%
+(250 entering-survivor flips + 31 births, ALL 31 born-killed; the 11 survivors
+== the ledger bodies exactly — 12 registered ledger keys minus `__init__` m1,
+whose body is a shipped-suite kill). Delta-bank-kt +282 == Delta-target-killed +282; siblings moved 0 both
+runs; survived delta −251 = −250 flips minus 1 shipped kill, and zero birth
+survivors at landing.
+
+**GUARD-RESTORE refresh to M24**: built from INSIDE `mutants/` with
+`tar czf /home/agent/runs/guard-restore.tgz backend mutmut-stats.json`,
+VERIFIED from inside: 240 metas / 69,087 keys {exit-1
+50,720, suspicious 32, timeout 289, survived 17,263, no_tests 783} = kt 51,041
+== published; webhook_service inside at {1099, 11}; battery X inside at its
+committed md5 `32287545…`. M23 tar kept as
+`guard-restore-preM24-superseded.tgz`. `git fetch` before push (origin may
+carry host main-merges).
+
+**NOT PUBLISHED FROM:** the close-sweep RED=1,025 as the module score (the bank
+says 1,099 — 74 shipped-suite kills sit outside battery X; the bank verdicts
+are the score), the 3 run-1 birth survivors as EQUIV candidates (over-cap
+polarities proved each killable — a NARROW-polarity probe lies in BOTH
+directions), or the 12-key ledger as 12 survivors (11 survive; `__init__` m1 is
+shipped-killed — the ledger is a CONSTRUCTION claim, not a verdict claim).
+Commands + snapshots: run logs `b38-c22-run1.log`/`b38-c22-run2.log`; guard
+ticks in `guard.log` (run-1 window disclosed late-attach); sweeps
+`b38-c22-sweep-r1` (250/12 of 262), `b38-c22-sweep-r2.txt` (253/12 of 265),
+`b38-c22-sweep-close.txt` (1,025/85 of 1,110; greens `b38-c22-close-greens.txt`,
+keys `b38-c22-all-keys-close.txt`); reconciles `b38-c22-reconcile-body.py`
+(r2 CLEAN rc=0, matrix in `b38-c22-reconcile-r2.txt`); attribution
+`b38-c22-attr-initm1.log` + `b38-c22-attr-spot.sh`; probes/ledgers
+`b38-c22-ledger-keys.txt` (`-r2` byte-identical); map
+`b38-c22-mutation-map.txt` (826 lines, 0 NOT-FOUND); tiers
+`b38-c22-greentier.log`/`b38-c22-greentier2.log`; scores
+`b38-c22-score.json`/`b38-c22-score-r2.json`; history backup
+`mutation-history-preM24.json`. Next head (re-censused from
+`b38-c22-score-r2.json`, R8 shield applied — vlm_analyzer VERIFIED NOT on the
+authoritative `DEAD_MODULES` list; it is the RETARGETED live VLM home per the
+S3 rename pins): **`vlm_analyzer.py` 259 survivors at 65.4206%** (total 749;
+then stream_manager 257/28.8089%, background_evaluator 248/36.7347%,
+threat_monitor_service 244/32.5967%, worker_supervisor 243/62.6154%). Campaign
+#23, battery letter Y. Gap to 85%: 0.85×69,087 = 58,723.95 − 51,041 = **7,682.95
+kt**. Every number measured THIS session.
