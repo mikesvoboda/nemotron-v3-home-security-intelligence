@@ -34,10 +34,57 @@ Determinism strategy (the loop is real, the clock is not):
     msgs() sequence (msg-equality, never substring - XX-wrap, case flips
     and None-swap all die) plus the extra= attributes where present.
 
-Honesty ledger: PENDING - EQUIV candidates will be REGISTERED BY
-CONSTRUCTION here after the disposition sweep adjudicates every GREEN
-(a construction claim is not a verdict claim; the sweep + probes are the
-evidence).
+Honesty ledger (EQUIV candidates REGISTERED BY CONSTRUCTION; the sweep
+verdict + the per-key probes in the campaign notes are the evidence - a
+construction claim is not a verdict claim). Authoring sweep over the 248
+survivor keys: RED=234 GREEN=14; after the killer additions listed under
+KILLABLE below: RED=242 GREEN=6, and those 6 GREENs are EXACTLY this
+ledger:
+  - process_one m10/m11/m12 (the tracker_job_id/job_id/job_service
+    local inits None -> ""): every consumer of these locals tests only
+    TRUTHINESS (the three gateway gates, _is_job_cancelled's
+    `or self._job_tracker is None` short-circuit), the branch that
+    assigns a local assigns it before its first read, and "" is falsy
+    exactly like None - both values flow through identically. The
+    file's one `is None` comparison on these locals is
+    _is_job_cancelled's first half, which can only ever see
+    tracker_job_id while _job_tracker is None (short-circuited either
+    way).
+  - process_one m50/m51 (event/audit inits None -> ""): both locals
+    are assigned from scalar_one_or_none() before any read; the
+    `is None` checks read the ASSIGNED value, the except path never
+    touches them, and every post-session use sits behind the two
+    early returns. The initializer is unreachable.
+  - process_one m71 (the event-not-found gateway `and` -> `or`): the
+    gate inputs are CORRELATED by the assignment block directly above
+    - tracker_job_id is only ever assigned while _job_tracker is
+    truthy (create_job hands back a non-empty id), so "tracker set +
+    id falsy" cannot occur at this gate and "tracker absent + id
+    truthy" cannot either (the id keeps its falsy init). Even in the
+    pathological id=="" case both gate shapes land on a SILENT
+    gateway (the tracker half then fails _complete_job's own `and`,
+    the legacy half sees two falsy values). Contrast the gateway
+    METHODS (m6 arms under KILLABLE): they take the pair as
+    parameters, so the half-empty polarity IS constructible there.
+  Not equivalent, KILLABLE - the eight arms this battery supplies
+  (each flipped GREEN -> RED in the second sweep):
+  - process_one m183 (exc_info=True -> False): record.exc_info stays
+    False - truthy! - so the except-path asserts demand the 3-TUPLE,
+    not mere truthiness.
+  - process_one m110 (select(EventAudit) -> select(None)): the mutant
+    STILL renders "FROM event_audits ... WHERE event_id = :..." - the
+    killers are the absence of "SELECT NULL" and the presence of an
+    entity column in the rendered audit statement.
+  - process_one m121/m122 + m185/m186 (the audit-missing and
+    except-path _fail_job args job_service/job_id -> None):
+    observable in LEGACY mode only - the two dedicated legacy-mode
+    rounds record the exact (job-id, message) fail pair; a
+    None-dropped half silences the gateway and empties the list.
+  - complete_job m6 / fail_job m6 (`elif job_service and job_id:` ->
+    or): the discriminating polarity is the HALF-EMPTY pair -
+    (service, None-id) must not call (recorded list stays empty) and
+    (None-service, id) must not raise (an `or` mutant reaches
+    None.complete_job / None.fail_job -> AttributeError).
 """
 
 from __future__ import annotations
@@ -561,6 +608,16 @@ def test_complete_job_channels_are_exact() -> None:
     assert svc2.complete_calls == [("js-d", result)]
     # no channels at all -> silent
     run(mgr._complete_job(None, None, None, result))
+    # exactly-one-truthy polarities of the legacy `and` gate: the `or`
+    # mutant enters the branch with a half-empty pair and either calls
+    # with a None id (recorded) or explodes on None.complete_job
+    svc3 = FakeJobService()
+    run(mgr._complete_job(None, svc3, None, result))  # service, no id
+    assert svc3.complete_calls == []
+    try:
+        run(mgr._complete_job(None, None, "js-idonly", result))  # id, no service
+    except AttributeError as exc:  # shipped: gate skips, never reaches None
+        raise AssertionError("a half-empty legacy pair must never be called") from exc
 
 
 def test_complete_job_legacy_signature_is_pinned() -> None:
@@ -597,6 +654,15 @@ def test_fail_job_legacy_signature_is_pinned() -> None:
     svc2 = FakeJobService()
     run(mgr._fail_job(None, svc2, "js-i", "second"))
     assert svc2.fail_calls == [("js-i", "second")]
+    # exactly-one-truthy polarities of the legacy `and` gate (m6: an `or`
+    # mutant calls fail_job(None, ...) - recorded - or dies on None.fail_job)
+    svc3 = FakeJobService()
+    run(mgr._fail_job(None, svc3, None, "half"))  # service, no id
+    assert svc3.fail_calls == []
+    try:
+        run(mgr._fail_job(None, None, "js-idonly", "half"))  # id, no service
+    except AttributeError as exc:
+        raise AssertionError("a half-empty legacy pair must never be called") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -816,7 +882,11 @@ def test_process_one_tracker_happy_path_every_observable() -> None:
     s0, s1 = (stmt_text(st) for st in sess.all_executed)
     assert "events.llm_prompt" in s0 and "events.reasoning" in s0
     assert "WHERE events.id = :" in s0 and "!=" not in s0
+    # select(None) STILL renders the FROM clause - the tell is the empty
+    # column list ("SELECT NULL AS anon_1") replacing the entity columns
     assert "WHERE event_audits.event_id = :" in s1 and "!=" not in s1
+    assert "SELECT NULL" not in s1
+    assert "event_audits.overall_quality_score" in s1
     # whole log sequence, both records carry their extra= fields
     assert cap.msgs() == [
         "Processing background evaluation for event evt-1",
@@ -997,7 +1067,67 @@ def test_llm_failure_lands_in_the_except_path() -> None:
     assert rec.levelno == logging.ERROR
     assert rec.event_id == "evt-7"
     assert rec.error == "llm down"
-    assert rec.exc_info is not None, "the except path must log with exc_info"
+    # EXC_INFO IS THE 3-TUPLE: exc_info=False leaves record.exc_info
+    # False (truthy! - a bare `is not None` passes it), dropped/None
+    # leaves None - only the shipped True installs the tuple
+    assert isinstance(rec.exc_info, tuple) and len(rec.exc_info) == 3
+    assert rec.exc_info[0] is RuntimeError
+
+
+def test_legacy_mode_audit_missing_fails_with_the_exact_job_pair() -> None:
+    """The SAME audit-missing round with NO tracker: the gateway call
+    passes (None, job_service, job_id) - dropping job_service to None or
+    job_id to None makes the legacy gate SILENT (recorded list empty
+    where shipped records the exact pair)."""
+    event = make_event("evt-6L")
+    svc = FakeJobService(job_id="js-6L")
+    sess = FakeSessionFactory(scalars=[event, None])
+
+    def factory(redis_client: Any) -> FakeJobService:
+        return svc
+
+    mgr = make_mgr(queue=FakeQueue(["evt-6L"]))
+    with (
+        patched(be, "get_session", sess),
+        patched(be, "get_job_status_service", factory),
+        logcap() as cap,
+    ):
+        assert run(mgr.process_one()) is True
+    assert svc.progress_calls == [
+        ("js-6L", 10, "Fetching event data"),
+        ("js-6L", 25, "Fetching audit record"),
+    ]
+    assert svc.fail_calls == [("js-6L", "No audit record for event evt-6L")]
+    assert cap.msgs() == [
+        "Processing background evaluation for event evt-6L",
+        "No audit record for event evt-6L, skipping evaluation",
+    ]
+
+
+def test_legacy_mode_llm_failure_fails_the_legacy_job_exact() -> None:
+    """The except-path _fail_job in LEGACY mode: (None, job_service,
+    job_id, str(e)) - a None-dropped job_service or job_id leaves the
+    legacy gate silent where shipped records the exact pair + message."""
+    event, audit_row = make_event("evt-7L"), make_audit("evt-7L")
+    svc = FakeJobService(job_id="js-7L")
+    audit_svc = FakeAudit(raises=RuntimeError("llm melted"))
+    sess = FakeSessionFactory(scalars=[event, audit_row])
+
+    def factory(redis_client: Any) -> FakeJobService:
+        return svc
+
+    mgr = make_mgr(queue=FakeQueue(["evt-7L"]), audit=audit_svc)
+    with (
+        patched(be, "get_session", sess),
+        patched(be, "get_job_status_service", factory),
+        logcap() as cap,
+    ):
+        assert run(mgr.process_one()) is True
+    assert svc.fail_calls == [("js-7L", "llm melted")]
+    assert svc.complete_calls == []
+    assert sess.calls == 1
+    err = cap.one("Failed to process evaluation for event evt-7L: llm melted")
+    assert isinstance(err.exc_info, tuple) and len(err.exc_info) == 3
 
 
 def test_session_red_failure_also_reaches_the_except_path() -> None:
