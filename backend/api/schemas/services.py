@@ -1,8 +1,9 @@
 """Pydantic schemas for service management API (container orchestrator).
 
 This module provides schemas for the container orchestrator endpoints that manage
-the lifecycle of deployment containers including AI services (YOLO26, Nemotron,
-Florence, CLIP, Enrichment), infrastructure (PostgreSQL, Redis), and monitoring
+the lifecycle of deployment containers including AI services (``ai-vlm`` the VLM
+verdict engine, ``ai-gateway`` which serves the yolo26 detection models),
+infrastructure (PostgreSQL, Redis), and monitoring
 (Grafana, Prometheus, Redis Exporter, JSON Exporter).
 """
 
@@ -22,7 +23,7 @@ class ServiceCategory(StrEnum):
     """
 
     INFRASTRUCTURE = auto()  # PostgreSQL, Redis - critical
-    AI = auto()  # YOLO26, Nemotron, Florence, CLIP, Enrichment
+    AI = auto()  # ai-vlm, ai-gateway
     MONITORING = auto()  # Grafana, Prometheus - optional
 
 
@@ -293,14 +294,14 @@ class ServiceStatusEvent(BaseModel):
             "example": {
                 "type": "service_status",
                 "data": {
-                    "name": "ai-florence",
-                    "display_name": "Florence-2",
+                    "name": "ai-vlm",
+                    "display_name": "VLM Verdict Service",
                     "category": "ai",
                     "status": "unhealthy",
                     "enabled": True,
                     "container_id": "ghi789...",
-                    "image": "ghcr.io/.../florence:latest",
-                    "port": 8092,
+                    "image": "nemotron-v3-home-security-intelligence-ai-vlm:latest",
+                    "port": 8098,
                     "failure_count": 3,
                     "restart_count": 1,
                     "last_restart_at": "2026-01-05T15:30:00Z",
