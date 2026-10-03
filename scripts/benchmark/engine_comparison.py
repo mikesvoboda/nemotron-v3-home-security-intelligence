@@ -1,7 +1,7 @@
 """Engine comparison module for LLM performance benchmarking.
 
 This module provides functionality to compare different LLM inference engines:
-- llama.cpp (current default)
+- llama.cpp (the shipped ai-vlm serve)
 - vLLM (optional, for comparison)
 
 Usage:
@@ -64,14 +64,15 @@ class EngineMetrics:
 
 # Default engine configurations
 # Ports read from environment variables (.env is single source of truth)
-_LLM_PORT = os.environ.get("LLM_PORT", "8091")
+_AI_VLM_PORT = os.environ.get("AI_VLM_PORT", "8098")
+_AI_VLM_URL = os.environ.get("AI_VLM_URL", f"http://localhost:{_AI_VLM_PORT}")
 _VLLM_PORT = os.environ.get("VLLM_PORT", "8097")
 
 ENGINE_CONFIGS: dict[EngineType, EngineConfig] = {
     EngineType.LLAMA_CPP: EngineConfig(
         engine_type=EngineType.LLAMA_CPP,
-        service_url=f"http://localhost:{_LLM_PORT}",
-        model_path="/models/nemotron",
+        service_url=_AI_VLM_URL,
+        model_path=os.environ.get("VLM_MODEL_PATH", "/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf"),
         api_format="llama.cpp",
     ),
     EngineType.VLLM: EngineConfig(

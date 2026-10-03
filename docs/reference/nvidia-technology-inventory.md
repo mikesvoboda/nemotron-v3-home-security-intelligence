@@ -427,7 +427,6 @@ tree; the "Reader" column names the file that reads its configuration.
 | `ai/quantization_config.py`    | NEM-3810   | BitsAndBytes 4-bit/8-bit config for HF models                 | bitsandbytes extra, `pyproject.toml:175`          |
 | `ai/static_kv_cache.py`        | --         | memory-efficient KV cache reuse                               | --                                                |
 | `ai/compile_utils.py`          | --         | compile warmup helpers                                        | --                                                |
-| `ai/cpu_offloading.py`         | --         | CPU offload helpers                                           | --                                                |
 | `ai/warmup_utils.py`           | --         | warmup helpers                                                | --                                                |
 | `ai/hub_cache_config.py`       | --         | HF hub cache configuration                                    | --                                                |
 

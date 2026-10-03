@@ -261,10 +261,10 @@ class TestFullConfigurationWorkflow:
         vram_assignments, _warnings = _calculate_auto_assignments(
             GpuAssignmentStrategy.VRAM_BASED, gpus
         )
-        assert len(vram_assignments) == 5  # All known services
-        # LLM should be on larger GPU (index 1)
-        llm_assignment = next(a for a in vram_assignments if a.service == "ai-llm")
-        assert llm_assignment.gpu_index == 1
+        assert len(vram_assignments) == 1  # All known services
+        # The detector is the service the strategy places on the larger GPU
+        detector_assignment = next(a for a in vram_assignments if a.service == "ai-yolo26")
+        assert detector_assignment.gpu_index == 1
 
         # Step 5: Generate override files
         override_path, assignments_path = await gpu_config_service.write_config_files(
@@ -693,15 +693,9 @@ class TestStrategyCalculations:
             GpuAssignmentStrategy.VRAM_BASED, sample_gpus
         )
 
-        # LLM (8GB) should be on GPU 1 (48GB)
-        llm_assignment = next(a for a in assignments if a.service == "ai-llm")
-        assert llm_assignment.gpu_index == 1
-
-        # Smaller models should pack on GPU 1 first, then GPU 0
-        # GPU 1: ai-llm (8GB) + ai-florence (4GB) = 12GB < 48GB ✓
-        # GPU 0: smaller models
-        florence_assignment = next(a for a in assignments if a.service == "ai-florence")
-        assert florence_assignment.gpu_index == 1
+        # The detector is the service the roster sizes; it lands on GPU 1 (48GB)
+        detector_assignment = next(a for a in assignments if a.service == "ai-yolo26")
+        assert detector_assignment.gpu_index == 1
 
     @pytest.mark.asyncio
     async def test_latency_optimized_assigns_detector_to_fastest_gpu(
@@ -719,31 +713,28 @@ class TestStrategyCalculations:
         detector_assignment = next(a for a in assignments if a.service == "ai-yolo26")
         assert detector_assignment.gpu_index == 1
 
-        # Enrichment (also critical) should be on fastest GPU
-        enrichment_assignment = next(a for a in assignments if a.service == "ai-enrichment")
-        assert enrichment_assignment.gpu_index == 1
-
     @pytest.mark.asyncio
-    async def test_isolation_first_dedicates_gpu_to_llm(self, sample_gpus: list[GpuDevice]) -> None:
-        """Test isolation-first strategy dedicates largest GPU to LLM."""
+    async def test_isolation_first_places_services_on_shared_gpu(
+        self, sample_gpus: list[GpuDevice]
+    ) -> None:
+        """Test isolation-first strategy keeps shared services off the dedicated GPU."""
         from backend.api.routes.gpu_config import _calculate_auto_assignments
 
         assignments, _warnings = _calculate_auto_assignments(
             GpuAssignmentStrategy.ISOLATION_FIRST, sample_gpus
         )
 
-        # LLM should get dedicated GPU (largest = GPU 1)
-        llm_assignment = next(a for a in assignments if a.service == "ai-llm")
-        assert llm_assignment.gpu_index == 1
-
-        # All other services should share GPU 0
-        other_services = [a for a in assignments if a.service != "ai-llm"]
-        for assignment in other_services:
+        # Only the dedicated-GPU service goes to the largest GPU; everything
+        # else shares GPU 0
+        assert assignments, "isolation-first produced no assignments"
+        for assignment in assignments:
             assert assignment.gpu_index == 0
 
     @pytest.mark.asyncio
-    async def test_balanced_strategy_distributes_evenly(self, sample_gpus: list[GpuDevice]) -> None:
-        """Test balanced strategy distributes VRAM usage evenly across GPUs."""
+    async def test_balanced_strategy_assigns_least_used_gpu(
+        self, sample_gpus: list[GpuDevice]
+    ) -> None:
+        """Test balanced strategy places each service on the GPU with least usage."""
         from backend.api.routes.gpu_config import _calculate_auto_assignments
 
         assignments, _warnings = _calculate_auto_assignments(
@@ -759,13 +750,11 @@ class TestStrategyCalculations:
             if assignment.gpu_index is not None:
                 gpu_usage[assignment.gpu_index] += vram_mb
 
-        # Both GPUs should have some assignments
+        # With the roster's single sized service, it lands on GPU 0 (both
+        # start empty; the strategy picks the least-used GPU)
         assert gpu_usage[0] > 0
-        assert gpu_usage[1] > 0
-
-        # Usage should be relatively balanced (within 50% of each other)
-        ratio = min(gpu_usage[0], gpu_usage[1]) / max(gpu_usage[0], gpu_usage[1])
-        assert ratio > 0.5, f"Imbalanced distribution: {gpu_usage}"
+        assert gpu_usage[1] == 0
+        assert sum(gpu_usage.values()) == sum(AI_SERVICE_VRAM_REQUIREMENTS_MB.values())
 
     @pytest.mark.asyncio
     async def test_strategy_with_single_gpu_handles_gracefully(self) -> None:
@@ -788,7 +777,7 @@ class TestStrategyCalculations:
             GpuAssignmentStrategy.ISOLATION_FIRST, single_gpu
         )
 
-        assert len(assignments) == 5  # All services assigned
+        assert len(assignments) == 1  # All services assigned
         assert all(a.gpu_index == 0 for a in assignments)  # All on GPU 0
         assert len(warnings) == 1  # Should warn about single GPU
         assert "isolation strategy not possible" in warnings[0].lower()

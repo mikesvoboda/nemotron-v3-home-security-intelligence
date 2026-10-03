@@ -34,7 +34,7 @@ Metrics are defined in `backend/core/metrics.py` (Prometheus client registry) an
 
 ### A series is only signal if something calls its recorder
 
-`backend/core/metrics.py` defines 160 `hsi_*` families, and `prometheus_client`
+`backend/core/metrics.py` defines 119 `hsi_*` families, and `prometheus_client`
 exports an unlabelled counter or histogram **even when nothing ever observes
 it** — it shows up at zero (or with zero-valued buckets, for a histogram). A
 labelled family exports nothing until its first `.labels(...)` call. So "the
@@ -66,10 +66,9 @@ Each row names the production call site that feeds the family.
 | `hsi_queue_items_rejected_total`                          | Counter   | `queue_name`                     | `core/redis.py`                                                                                     | Consolidated: Items Rejected               |
 | `hsi_batch_max_detections_reached_total`                  | Counter   | -                                | `services/batch_aggregator.py`                                                                      | -                                          |
 | `hsi_batch_coalesced_total`                               | Counter   | -                                | `services/batch_coalescer.py`                                                                       | -                                          |
-| `hsi_batch_coalesce_candidates_total`                     | Counter   | -                                | `api/routes/system.py`, `batch_coalescer.py`                                                        | -                                          |
-| `hsi_batch_coalesce_detections_merged_total`              | Counter   | -                                | `api/routes/system.py`, `batch_coalescer.py`                                                        | -                                          |
-| `hsi_batch_coalesce_merge_rate`                           | Gauge     | -                                | `api/routes/system.py`, `batch_coalescer.py`                                                        | -                                          |
-| `hsi_batch_coalesce_llm_calls_saved_total`                | Counter   | -                                | `api/routes/system.py`                                                                              | -                                          |
+| `hsi_batch_coalesce_candidates_total`                     | Counter   | -                                | `services/batch_coalescer.py`                                                                       | -                                          |
+| `hsi_batch_coalesce_detections_merged_total`              | Counter   | -                                | `services/batch_coalescer.py`                                                                       | -                                          |
+| `hsi_batch_coalesce_merge_rate`                           | Gauge     | -                                | `services/batch_coalescer.py`                                                                       | -                                          |
 | `hsi_worker_restarts_total`                               | Counter   | `worker_name`                    | `services/worker_supervisor.py`                                                                     | Consolidated: Worker Restarts              |
 | `hsi_worker_crashes_total`                                | Counter   | `worker_name`                    | `services/worker_supervisor.py`                                                                     | Consolidated: Worker Crashes               |
 | `hsi_worker_heartbeat_missed_total`                       | Counter   | `worker_name`                    | `services/worker_supervisor.py`                                                                     | -                                          |
@@ -159,6 +158,7 @@ dashboard or alert about specialist health must key on this family.
 | `hsi_loitering_alerts_total`       | Counter   | `camera_id`, `zone_id`                | `services/dwell_time_service.py`    | Video Analytics: Loitering Alerts          |
 | `hsi_loitering_events_total`       | Counter   | `zone_id`, `zone_name`, `severity`    | `services/dwell_time_service.py`    | Video Analytics                            |
 | `hsi_loitering_dwell_time_seconds` | Histogram | `camera_id`                           | `services/dwell_time_service.py`    | Video Analytics: Median Loitering Duration |
+| `hsi_track_active_count`           | Gauge     | `camera_id`                           | `services/track_service.py`         | Video Analytics: Active Tracks             |
 
 ### Events, Review, Cost
 
@@ -174,15 +174,14 @@ dashboard or alert about specialist health must key on this family.
 | `hsi_budget_utilization_ratio`                          | Gauge   | `period`                    | `services/cost_tracker.py` | Consolidated, Analytics: Budget Utilization   |
 | `hsi_budget_exceeded_total`                             | Counter | `period`                    | `services/cost_tracker.py` | -                                             |
 
-### Cache And Redis Pool
+### Cache
 
-| Metric                                                                       | Type    | Labels                 | Emitted by                                                    |
-| ---------------------------------------------------------------------------- | ------- | ---------------------- | ------------------------------------------------------------- |
-| `hsi_cache_hits_total` / `hsi_cache_misses_total`                            | Counter | `cache_type`           | `services/cache_service.py`, `services/read_through_cache.py` |
-| `hsi_cache_stale_hits_total`                                                 | Counter | `cache_type`           | `services/cache_service.py`                                   |
-| `hsi_cache_invalidations_total`                                              | Counter | `cache_type`, `reason` | `services/cache_service.py`                                   |
-| `hsi_cache_background_refresh_total`                                         | Counter | `cache_type`, `status` | `services/cache_service.py`                                   |
-| `hsi_redis_pool_size` / `hsi_redis_pool_available` / `hsi_redis_pool_in_use` | Gauge   | `pool_type`            | `services/worker_supervisor.py`                               |
+| Metric                                            | Type    | Labels                 | Emitted by                                                    |
+| ------------------------------------------------- | ------- | ---------------------- | ------------------------------------------------------------- |
+| `hsi_cache_hits_total` / `hsi_cache_misses_total` | Counter | `cache_type`           | `services/cache_service.py`, `services/read_through_cache.py` |
+| `hsi_cache_stale_hits_total`                      | Counter | `cache_type`           | `services/cache_service.py`                                   |
+| `hsi_cache_invalidations_total`                   | Counter | `cache_type`, `reason` | `services/cache_service.py`                                   |
+| `hsi_cache_background_refresh_total`              | Counter | `cache_type`, `status` | `services/cache_service.py`                                   |
 
 ### Database And HTTP
 
@@ -202,29 +201,20 @@ dashboard or alert about specialist health must key on this family.
 
 ### Prompt Utilisation
 
-| Metric                               | Type      | Labels  | Emitted by                  | Panels                                  |
-| ------------------------------------ | --------- | ------- | --------------------------- | --------------------------------------- |
-| `hsi_llm_context_utilization`        | Histogram | -       | `services/token_counter.py` | Nemotron Prompt Analytics               |
-| `hsi_llm_context_utilization_ratio`  | Gauge     | `model` | `services/token_counter.py` | Consolidated, Nemotron Prompt Analytics |
-| `hsi_prompts_truncated_total`        | Counter   | -       | `services/vlm_client.py`    | Consolidated, Nemotron Prompt Analytics |
-| `hsi_prompts_high_utilization_total` | Counter   | -       | `services/token_counter.py` | Consolidated, Nemotron Prompt Analytics |
-| `hsi_prompt_tokens`                  | Histogram | -       | `core/database.py`          | Nemotron Prompt Analytics               |
-| `hsi_prompt_truncated_total`         | Counter   | -       | `core/database.py`          | Nemotron Prompt Analytics               |
+| Metric                        | Type    | Labels | Emitted by               | Panels                      |
+| ----------------------------- | ------- | ------ | ------------------------ | --------------------------- |
+| `hsi_prompts_truncated_total` | Counter | -      | `services/vlm_client.py` | Consolidated: Prompt Health |
 
-The two similarly-named truncation counters are different series:
-`hsi_prompts_truncated_total` counts VLM prompts trimmed by `vlm_client`,
-`hsi_prompt_truncated_total` counts prompt records truncated in the database
-layer.
+`hsi_prompts_truncated_total` counts VLM prompts trimmed by
+`vlm_client._fitted_prompt`, and `PromptTruncationHigh`
+(`monitoring/ai-pipeline-alerts.yml`) alerts on its rate.
 
 ### Shadow / A-B Comparison
 
-Recorded by `api/routes/rum.py`, `services/prompt_service.py` and
-`config/shadow_mode_deployment.py`:
+Recorded by `services/prompt_service.py` and `config/shadow_mode_deployment.py`:
 
-`hsi_prompt_ab_traffic_total`, `hsi_prompt_rollbacks_total`,
-`hsi_prompt_shadow_comparisons_total`, `hsi_ab_rollout_analysis_total`,
-`hsi_ab_rollout_feedback_total`, `hsi_ab_rollout_avg_latency_ms`,
-`hsi_ab_rollout_avg_risk_score`, `hsi_ab_rollout_fp_rate`,
+`hsi_prompt_rollbacks_total`,
+`hsi_prompt_shadow_comparisons_total`,
 `hsi_shadow_avg_risk_score`, `hsi_shadow_risk_score_distribution`,
 `hsi_shadow_risk_score_diff`, `hsi_shadow_risk_level_shift_total`,
 `hsi_shadow_latency_diff_seconds`, `hsi_shadow_latency_warning_total`,
@@ -265,15 +255,13 @@ The following families are **defined in `backend/core/metrics.py` but no shipped
 code path calls their recorder**. A labelled one exports nothing; an unlabelled
 histogram exports zero-valued buckets. Treat every panel over them as flat.
 
-| Family group                       | Series                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Event/risk counters with no caller | `hsi_events_created_total`, `hsi_events_by_risk_level_total`, `hsi_events_by_camera_total`, `hsi_risk_score`, `hsi_risk_score_distribution`, `hsi_risk_tier_total`, `hsi_prompt_template_used_total`                                                                                                                                                                                                                                                                                                                                                      |
-| Action recognition                 | `hsi_action_recognition_total`, `hsi_action_recognition_confidence`, `hsi_action_recognition_duration_seconds`                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Track/face gauges                  | `hsi_active_tracks_count`, `hsi_track_active_count`, `hsi_face_embeddings_generated_total`, `hsi_face_matches_total`, `hsi_face_quality_score`, `hsi_known_faces_database_size`                                                                                                                                                                                                                                                                                                                                                                           |
-| Scene OCR                          | `hsi_scene_ocr_requests_total`, `hsi_scene_ocr_texts_detected_total`, `hsi_scene_ocr_service_providers_matched_total`, `hsi_scene_ocr_processing_seconds`, `hsi_scene_ocr_confidence`                                                                                                                                                                                                                                                                                                                                                                     |
-| Model warmth gauge                 | `hsi_model_last_inference_seconds_ago`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Enrichment lane bookkeeping        | `hsi_enrichment_model_calls_total`, `hsi_enrichment_model_duration_seconds`, `hsi_enrichment_model_errors_total`, `hsi_enrichment_success_rate`, `hsi_enrichment_retry_total`, `hsi_enrichment_partial_batches_total`, `hsi_enrichment_failures_total`, `hsi_enrichment_batch_status_total`, `hsi_enrichment_pipeline_stage_duration_seconds`, `hsi_enrichment_pipeline_timeouts_total`, `hsi_enrichment_cascade_skipped_total`, `hsi_enrichment_cascade_processed_total`, `hsi_enrichment_cascade_models_deferred_total`, `hsi_enrichment_quality_level` |
-| Workload-specific AI histograms    | `hsi_yolo26_inference_seconds`, `hsi_nemotron_inference_seconds`, `hsi_florence_inference_seconds`, `hsi_florence_task_total`, `hsi_nemotron_tokens_input_total`, `hsi_nemotron_tokens_output_total`, `hsi_nemotron_tokens_per_second`, `hsi_nemotron_token_cost_usd_total`                                                                                                                                                                                                                                                                               |
+| Family group                       | Series                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Event/risk counters with no caller | `hsi_events_created_total`, `hsi_events_by_risk_level_total`, `hsi_events_by_camera_total`                                                                                                                                                                                                                                                                                                                       |
+| Action recognition                 | `hsi_action_recognition_total`, `hsi_action_recognition_confidence`, `hsi_action_recognition_duration_seconds`                                                                                                                                                                                                                                                                                                   |
+| Face gauges with no caller         | `hsi_face_embeddings_generated_total`, `hsi_face_matches_total`, `hsi_face_quality_score`                                                                                                                                                                                                                                                                                                                        |
+| Context utilisation                | `hsi_llm_context_utilization`, `hsi_llm_context_utilization_ratio`, `hsi_prompts_high_utilization_total` — the recorders sit in `TokenCounter.validate_prompt`, and no shipped call path reaches it: `vlm_client` uses `TokenCounter` only for `count_tokens` (`vlm_client._fitted_prompt`), and `main.py` only pre-warms the tiktoken encoding. The VLM-era truncation signal is `hsi_prompts_truncated_total`. |
+| AB rollout stats                   | `hsi_ab_rollout_analysis_total`, `hsi_ab_rollout_feedback_total`, `hsi_ab_rollout_avg_latency_ms`, `hsi_ab_rollout_avg_risk_score`, `hsi_ab_rollout_fp_rate` — their `record_ab_rollout_*` / `update_ab_rollout_*` helpers have no caller outside `backend/core/metrics.py` and its tests.                                                                                                                       |
 
 Why these stay defined: `backend/core/metrics.py` is the recording API other
 branches call, and the unit suite in `backend/tests/unit/core/test_metrics.py`
@@ -281,14 +269,15 @@ exercises the recorders. Nothing in the running pipeline reaches them, so:
 
 - The VLM's token and latency numbers come from **llama.cpp's own `llama_*`
   families** on `ai-vlm:8098/metrics` (`llama_tokens_predicted_total`,
-  `llama_generation_time_seconds`, `llama_kv_cache_usage_ratio`, …), not from any
-  `hsi_nemotron_*` / `hsi_llm_*` family. Tokens per second is
-  `rate(llama_tokens_predicted_total[1m])`.
+  `llama_generation_time_seconds`, `llama_kv_cache_usage_ratio`, …). Tokens
+  per second is `rate(llama_tokens_predicted_total[1m])`.
 - Detector latency is the client-side
   `hsi_ai_request_duration_seconds{service="yolo26"}` histogram; the per-model
   server-side view is Triton's `nv_inference_*` (see below).
-- Enrichment-model dashboards have no producer; the readiness-only
-  `/enrich-lt` lane does not publish through these families.
+- The readiness-only `/enrich-lt` lane publishes through the gateway's
+  `hsi_ai_inference_*` families — the Gateway Inference Traffic row of
+  `consolidated.json` and `ai-services.json` graph them.
+  `ai-service-health.json` carries only the `hsi_gpu_memory_*` gauges.
 
 ## Triton And Gateway Series
 
@@ -390,8 +379,8 @@ Every dashboard in `monitoring/grafana/dashboards/` is provisioned by
 | ---------------------------- | ----------------------- | --------------------------------------- | ---------------------------------------------------------------------------------- |
 | `consolidated.json`          | `hsi-consolidated`      | Home Security Intelligence - Operations | live backend families + the JSON-exporter set — plus the empty series listed below |
 | `ai-services.json`           | `ai-services`           | AI Services                             | `hsi_ai_request_duration_seconds`, `hsi_ai_inference_*`, detection + face families |
-| `ai-service-health.json`     | `hsi-ai-service-health` | AI Service Health                       | enrichment model families + `hsi_gpu_memory_*`                                     |
-| `analytics.json`             | `hsi-analytics`         | HSI Analytics                           | cost, cache, redis pool, db queries, RUM                                           |
+| `ai-service-health.json`     | `hsi-ai-service-health` | AI Service Health                       | `hsi_gpu_memory_*`                                                                 |
+| `analytics.json`             | `hsi-analytics`         | HSI Analytics                           | cost, cache, db queries, RUM                                                       |
 | `api-health.json`            | `hsi-api-health`        | HSI API Health & Deprecation            | `hsi_api_deprecated_calls_total`                                                   |
 | `video-analytics.json`       | `video-analytics`       | Video Analytics                         | tracks, zones, loitering, re-ID, face families                                     |
 | `hsi-gpu-metrics.json`       | `hsi-gpu-metrics`       | HSI GPU Metrics                         | the JSON-exporter `hsi_gpu_*` gauges                                               |
@@ -399,7 +388,6 @@ Every dashboard in `monitoring/grafana/dashboards/` is provisioned by
 | `hsi-request-profiling.json` | `hsi-request-profiling` | HSI Request-Level Profiling             | Pyroscope / trace data sources                                                     |
 | `logs.json`                  | `hsi-logs`              | HSI System Logs                         | Loki                                                                               |
 | `tracing.json`               | `hsi-tracing`           | HSI Distributed Tracing                 | **Tempo** datasource                                                               |
-| `scene-ocr.json`             | `hsi-scene-ocr`         | Scene OCR                               | `hsi_scene_ocr_*` only                                                             |
 
 ### Dashboards That Read Empty Series
 
@@ -407,13 +395,11 @@ Auditing the query text in each file against the producer census above, these
 panels are wired to series that no shipped code path writes, and will read zero
 or "No data":
 
-| Dashboard                | Empty series it queries                                                                                                                                                                                                                                                     |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scene-ocr.json`         | every panel — all five `hsi_scene_ocr_*` families                                                                                                                                                                                                                           |
-| `ai-service-health.json` | the three `hsi_enrichment_*` panels (only `hsi_gpu_memory_*` has data)                                                                                                                                                                                                      |
-| `consolidated.json`      | `hsi_events_created_total`, `hsi_events_by_risk_level_total`, `hsi_events_by_camera_total`, `hsi_risk_score*`, `hsi_prompt_template_used_total`, `hsi_florence_task_total`, the four `hsi_nemotron_*` token panels, `hsi_enrichment_*`                                      |
-| `ai-services.json`       | `hsi_action_detections_total`, `hsi_action_confidence`, `hsi_action_recognition_*`, `hsi_florence_inference_seconds`, `hsi_florence_task_total`, `hsi_enrichment_model_*`, `hsi_face_embeddings_generated_total`, `hsi_face_quality_score`, `hsi_known_faces_database_size` |
-| `video-analytics.json`   | `hsi_action_detections_total`, `hsi_action_confidence`, `hsi_action_recognition_*`, `hsi_face_embeddings_generated_total`, `hsi_face_quality_score`, `hsi_enrichment_model_duration_seconds`                                                                                |
+| Dashboard              | Empty series it queries                                                                                                                                                                                                                                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `consolidated.json`    | `hsi_events_created_total`, `hsi_events_by_risk_level_total`, `hsi_events_by_camera_total`, `hsi_llm_context_utilization_ratio`, `hsi_prompts_high_utilization_total`, the shadow / AB-analysis panels (their recorders only fire when a shadow or A/B run executes, and nothing on the shipped path drives one) |
+| `ai-services.json`     | `hsi_action_detections_total`, `hsi_action_confidence`, `hsi_face_embeddings_generated_total`, `hsi_face_quality_score`                                                                                                                                                                                          |
+| `video-analytics.json` | `hsi_action_detections_total`, `hsi_action_confidence`, `hsi_face_embeddings_generated_total`, `hsi_face_quality_score`                                                                                                                                                                                          |
 
 `scripts/audit_grafana_queries.py` exists to re-derive this list from the
 dashboard JSON; run it after any metrics change.

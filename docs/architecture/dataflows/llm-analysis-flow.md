@@ -979,11 +979,11 @@ from backend.core.metrics import (
 
 | Metric                             | Type    | Labels                 | Definition                          |
 | ---------------------------------- | ------- | ---------------------- | ----------------------------------- |
-| `hsi_pipeline_errors_total`        | Counter | `error_type`           | `backend/core/metrics.py:410-415`   |
-| `hsi_prompts_truncated_total`      | Counter | none                   | `backend/core/metrics.py:522-526`   |
-| `hsi_model_cold_start_total`       | Counter | `model`                | `backend/core/metrics.py:3327-3332` |
-| `hsi_ai_service_degraded`          | Gauge   | `service`              | `backend/core/metrics.py:3373-3378` |
-| `hsi_specialist_unavailable_total` | Counter | `specialist`, `reason` | `backend/core/metrics.py:3387-3392` |
+| `hsi_pipeline_errors_total`        | Counter | `error_type`           | `backend/core/metrics.py:342-347`   |
+| `hsi_prompts_truncated_total`      | Counter | none                   | `backend/core/metrics.py:422-426`   |
+| `hsi_model_cold_start_total`       | Counter | `model`                | `backend/core/metrics.py:2341-2346` |
+| `hsi_ai_service_degraded`          | Gauge   | `service`              | `backend/core/metrics.py:2380-2385` |
+| `hsi_specialist_unavailable_total` | Counter | `specialist`, `reason` | `backend/core/metrics.py:2394-2399` |
 
 ### `error_type` Values on This Path
 

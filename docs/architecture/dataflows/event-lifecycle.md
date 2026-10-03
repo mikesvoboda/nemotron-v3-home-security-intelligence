@@ -422,10 +422,10 @@ async def broadcast_with_retry[T](
 ### Event Metrics
 
 - `hsi_events_created_total` - Total events created (`backend/core/metrics.py:294`)
-- `hsi_events_by_risk_level_total` - Events by risk level (`backend/core/metrics.py:462`)
-- `hsi_events_by_camera_total` - Events by camera (`backend/core/metrics.py:652`)
+- `hsi_events_by_risk_level_total` - Events by risk level (`backend/core/metrics.py:388`)
+- `hsi_events_by_camera_total` - Events by camera (`backend/core/metrics.py:441`)
 - `hsi_events_reviewed_total` / `hsi_events_acknowledged_total` - Review tracking
-  (NEM-770 / NEM-3288, `backend/core/metrics.py:659, 667`)
+  (NEM-770 / NEM-3288, `backend/core/metrics.py:448, 456`)
 
 ### Broadcast Metrics
 
