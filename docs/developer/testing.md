@@ -473,9 +473,6 @@ rejects unregistered ones):
 | `@pytest.mark.db`                  | Requires database access                                                                                     | -       |
 | `@pytest.mark.redis`               | Requires Redis access                                                                                        | -       |
 | `@pytest.mark.requires_debug_mode` | Validates `DEBUG=false` enforcement (CI security check)                                                      | -       |
-| `@pytest.mark.prompt_evaluation`   | Prompt evaluation (synthetic scenarios; mock or live engine)                                                 | -       |
-| `@pytest.mark.enrichment`          | Enrichment edge-case tests (VRAM management, circuit-breaker behavior)                                       | -       |
-| `@pytest.mark.multimodal`          | Multimodal evaluation vs vision ground truth                                                                 | -       |
 | `@pytest.mark.load`                | Load/performance test (latency, memory, throughput under load)                                               | -       |
 | `@pytest.mark.ai_pipeline`         | AI pipeline quality smoke test (fast CI validation of VLM output)                                            | -       |
 
