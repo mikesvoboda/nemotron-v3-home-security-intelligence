@@ -174,26 +174,40 @@ class FakeCapture:
     release counting. Script exhaustion CLOSES the capture (loud-but-safe:
     an over-running mutant ends the loop instead of hanging the sweep)."""
 
+    READ_CAP = 400
+
     def __init__(
         self,
         opened: list[bool] | None = None,
         reads: list[Any] | None = None,
+        mgr: Any = None,
     ) -> None:
         self._opened = list(opened if opened is not None else [True])
         self._reads = list(reads or [True])
+        self.mgr = mgr
         self.released = 0
         self.reads_done = 0
 
     def isOpened(self) -> bool:
         return self._opened.pop(0) if len(self._opened) > 1 else self._opened[0]
 
+    def _force_stop(self) -> tuple[Any, Any]:
+        self._opened = [False]
+        if self.mgr is not None:
+            self.mgr.running = False
+        return False, None
+
     def read(self) -> tuple[Any, Any]:
         self.reads_done += 1
+        if self.reads_done > self.READ_CAP:
+            return self._force_stop()
         item = self._reads.pop(0) if len(self._reads) > 1 else self._reads[0]
         if isinstance(item, tuple) and item and item[0] == "raise":
             raise item[1]
         if callable(item):
             item()
+            if self.reads_done > self.READ_CAP:
+                return self._force_stop()
             return True, object()
         return bool(item), object() if item else None
 
@@ -940,6 +954,7 @@ def test_health_loop_disconnect_releases_and_exits() -> None:
     mgr = sm.StreamManager(redis)
     mgr.running = True
     mgr._streams["cam1"] = _stream_dict(capture=cap_fake)
+    cap_fake.mgr = mgr
 
     async def main() -> None:
         loop = FakeLoop([0.0])
@@ -957,6 +972,7 @@ def test_health_loop_read_failure_releases_and_exits() -> None:
     mgr = sm.StreamManager(redis)
     mgr.running = True
     mgr._streams["cam1"] = _stream_dict(capture=cap_fake)
+    cap_fake.mgr = mgr
 
     async def main() -> None:
         loop = FakeLoop([0.0])
@@ -985,6 +1001,7 @@ def test_health_loop_fps_math_exact_and_dither_sequence() -> None:
     mgr = sm.StreamManager(redis, health_update_interval=5.0)
     mgr.running = True
     mgr._streams["cam1"] = _stream_dict(capture=cap_fake)
+    cap_fake.mgr = mgr
 
     async def main() -> None:
         loop = FakeLoop([0.0, 5.0, 7.0, 12.5])
@@ -1023,6 +1040,7 @@ def test_health_loop_zero_elapsed_records_zero_fps() -> None:
     mgr = sm.StreamManager(redis, health_update_interval=0.0)
     mgr.running = True
     mgr._streams["cam1"] = _stream_dict(capture=cap_fake)
+    cap_fake.mgr = mgr
 
     async def main() -> None:
         loop = FakeLoop([7.0, 7.0])
@@ -1050,6 +1068,7 @@ def test_health_loop_exception_releases_logs_and_exits() -> None:
     mgr = sm.StreamManager(redis)
     mgr.running = True
     mgr._streams["cam1"] = _stream_dict(capture=cap_fake)
+    cap_fake.mgr = mgr
 
     async def main() -> None:
         loop = FakeLoop([0.0])
@@ -1069,6 +1088,7 @@ def test_health_loop_cancel_releases_then_reraises() -> None:
     mgr = sm.StreamManager(FakeRedis())
     mgr.running = True
     mgr._streams["cam1"] = _stream_dict(capture=cap_fake)
+    cap_fake.mgr = mgr
 
     async def main() -> None:
         loop = FakeLoop([0.0])
@@ -1094,6 +1114,7 @@ def test_health_loop_exits_when_camera_evicted_midloop() -> None:
     mgr = sm.StreamManager(FakeRedis(), health_update_interval=100.0)
     mgr.running = True
     mgr._streams["cam1"] = _stream_dict(capture=cap_fake)
+    cap_fake.mgr = mgr
 
     async def main() -> None:
         loop = FakeLoop([0.0, 1.0, 2.0])
@@ -1115,6 +1136,7 @@ def test_health_loop_exits_when_manager_stopped_midloop() -> None:
     mgr = sm.StreamManager(FakeRedis(), health_update_interval=100.0)
     mgr.running = True
     mgr._streams["cam1"] = _stream_dict(capture=cap_fake)
+    cap_fake.mgr = mgr
 
     async def main() -> None:
         loop = FakeLoop([0.0, 1.0])
@@ -1172,6 +1194,7 @@ def test_cleanup_stream_cancels_task_and_releases_capture() -> None:
         mgr._background_tasks["connection_cam1"] = task
         cap_fake = FakeCapture(opened=[True])
         mgr._streams["cam1"] = _stream_dict(capture=cap_fake)
+        cap_fake.mgr = mgr
         with patched(mgr, "_release_capture", fake_release):
             await mgr._cleanup_stream("cam1")
         assert task.done() and task.cancelled()
