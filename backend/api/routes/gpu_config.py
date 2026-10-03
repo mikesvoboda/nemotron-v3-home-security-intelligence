@@ -1179,25 +1179,9 @@ async def preview_gpu_config(
 
 # Service display names and descriptions for UI
 AI_SERVICE_METADATA: dict[str, dict[str, str]] = {
-    "ai-llm": {
-        "display_name": "LLM (Nemotron)",
-        "description": "Nemotron LLM for risk analysis and enrichment",
-    },
     "ai-yolo26": {
         "display_name": "Object Detector (YOLO26)",
         "description": "YOLO26m TensorRT real-time object detection",
-    },
-    "ai-enrichment": {
-        "display_name": "Enrichment Models",
-        "description": "Age, gender, and ReID models",
-    },
-    "ai-florence": {
-        "display_name": "Florence-2",
-        "description": "Florence-2 vision-language model",
-    },
-    "ai-clip": {
-        "display_name": "CLIP",
-        "description": "CLIP image-text embedding model",
     },
 }
 

@@ -655,43 +655,13 @@ class TestVramRequirements:
         assert "ai-yolo26" in requirements
         assert requirements["ai-yolo26"] == 100  # ~100 MB TensorRT engine
 
-    def test_nemotron_vram_requirement(self, service_reset: None) -> None:
-        """Test Nemotron enrichment VRAM requirement (~8GB)."""
-        service = GpuDetectionService()
-        requirements = service.get_service_vram_requirements()
-
-        assert "ai-llm" in requirements
-        assert requirements["ai-llm"] == 8192  # 8 GB in MB
-
-    def test_age_gender_vram_requirement(self, service_reset: None) -> None:
-        """Test Age/Gender models VRAM requirement (~1GB each)."""
-        service = GpuDetectionService()
-        requirements = service.get_service_vram_requirements()
-
-        # Age and Gender models are part of the enrichment service
-        assert "ai-enrichment" in requirements
-        # Enrichment includes multiple models
-        assert requirements["ai-enrichment"] >= 1024  # At least 1 GB
-
-    def test_reid_vram_requirement(self, service_reset: None) -> None:
-        """Test ReID model VRAM requirement (~1GB)."""
-        service = GpuDetectionService()
-        requirements = service.get_service_vram_requirements()
-
-        # ReID is part of enrichment service
-        assert "ai-enrichment" in requirements
-
     def test_all_ai_services_have_requirements(self, service_reset: None) -> None:
         """Test that all AI services have VRAM requirements defined."""
         service = GpuDetectionService()
         requirements = service.get_service_vram_requirements()
 
         expected_services = [
-            "ai-llm",
             "ai-yolo26",
-            "ai-enrichment",
-            "ai-florence",
-            "ai-clip",
         ]
 
         for svc in expected_services:
@@ -702,7 +672,7 @@ class TestVramRequirements:
         """Test that AI_SERVICE_VRAM_REQUIREMENTS_MB constant is defined."""
         assert AI_SERVICE_VRAM_REQUIREMENTS_MB is not None
         assert isinstance(AI_SERVICE_VRAM_REQUIREMENTS_MB, dict)
-        assert "ai-llm" in AI_SERVICE_VRAM_REQUIREMENTS_MB
+        assert "ai-yolo26" in AI_SERVICE_VRAM_REQUIREMENTS_MB
 
 
 # =============================================================================
