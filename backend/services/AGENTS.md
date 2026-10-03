@@ -2293,8 +2293,7 @@ class OsnetLoader(ModelLoaderBase[dict]):  # illustrative shape, not a shipped c
     def vram_mb(self) -> int:
         return 100
 
-    async def load(self, device: str = "cuda") -> dict:
-        ...
+    async def load(self, device: str = "cuda") -> dict: ...
 
     async def unload(self) -> None:
         del self._model
@@ -2427,9 +2426,7 @@ if not healthy:
 is_valid = validate_restart_command(
     "ai/start_detector.sh"
 )  # host-run dev stand-in; prod detection is served by Triton inside ai-gateway
-is_valid = validate_restart_command(
-    "docker restart ai-gateway-1"
-)  # prod detection host
+is_valid = validate_restart_command("docker restart ai-gateway-1")  # prod detection host
 is_valid = validate_container_name("ai-gateway-1")
 ```
 
