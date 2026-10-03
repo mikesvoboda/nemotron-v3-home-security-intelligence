@@ -1634,29 +1634,6 @@ async def validate_synthetic_results(
                         "Face expected but no face/demographics enrichment evidence in LLM context"
                     )
 
-            # --- Florence caption validation ---
-            # Check event summary for expected keywords (Florence captions
-            # contribute to the LLM summary, not stored separately)
-            caption_expected = expected.get("florence_caption")
-            if caption_expected and matched_event.summary:
-                caption_ok = True
-
-                must_contain = caption_expected.get("must_contain", [])
-                for keyword in must_contain:
-                    if keyword.lower() not in summary_text:
-                        caption_ok = False
-                        enrichment_errors.append(f"Florence caption missing keyword '{keyword}'")
-
-                must_not_contain = caption_expected.get("must_not_contain", [])
-                for keyword in must_not_contain:
-                    if keyword.lower() in summary_text:
-                        caption_ok = False
-                        enrichment_errors.append(
-                            f"Florence caption contains unwanted keyword '{keyword}'"
-                        )
-
-                enrichment_results["florence"] = caption_ok
-
             # --- Enrichment quality metrics (Fix #6) ---
             # Extract which prompt template was used, prompt size, and
             # which enrichment sections were present in the prompt.
@@ -1949,7 +1926,7 @@ def generate_validation_report(
             )
 
     # Enrichment accuracy by service
-    enrichment_services = ["pose", "threat", "reid", "action", "demographics", "florence"]
+    enrichment_services = ["pose", "threat", "reid", "action", "demographics"]
     by_service: dict[str, dict[str, int]] = {}
     for svc in enrichment_services:
         tested = sum(1 for r in results if svc in r.enrichment_results)

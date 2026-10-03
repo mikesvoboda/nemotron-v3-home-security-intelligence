@@ -52,11 +52,11 @@ Benchmark comparison and analysis utilities.
 
 ### engine_comparison.py
 
-Latency/throughput/VRAM comparison across inference engines (`llama.cpp`, `vllm`), dialing `VLLM_PORT` for the vLLM arm.
+Latency/throughput/VRAM comparison across inference engines (`llama.cpp`, `vllm`). The `llama.cpp` arm dials the shipped `ai-vlm` serve (`AI_VLM_URL`, defaulting to `AI_VLM_PORT` 8098); the `vllm` arm dials the profiled `ai-llm-vllm` service (`VLLM_PORT` 8097).
 
 ### quality_comparison.py
 
-Response-quality comparison across engines using ground-truth evaluation data; built on `QualityScorer`.
+Response-quality comparison across the same two arms using ground-truth evaluation data; built on `QualityScorer`.
 
 ### load_test.py / backend_load_test.py
 
