@@ -471,36 +471,49 @@ def test_add_stream_builds_the_exact_context_spawns_named_task_and_health() -> N
 
 
 def test_add_stream_replaces_an_existing_camera_cleanly() -> None:
+    # THE observable of the replace guard `if camera_id in self._streams:`
+    # is that the FIRST connection task gets CANCELLED by the real
+    # _cleanup_stream (a cleanup-call stub cannot see an in/not-in flip:
+    # swapping the test moved the call to the first add but kept the
+    # count - hence this lives-state assert instead).
     redis = FakeRedis()
     mgr = sm.StreamManager(redis)
+    gate: asyncio.Event | None = None
+
+    async def parked_loop(camera_id: Any, rtsp_url: Any) -> None:
+        assert gate is not None
+        await gate.wait()  # cancelable park - only cleanup may end it
 
     async def done_loop(camera_id: Any, rtsp_url: Any) -> None:
         return None
 
-    cleanup_calls: list[Any] = []
-
-    async def fake_cleanup(camera_id: Any) -> None:
-        cleanup_calls.append(camera_id)
-
     async def main() -> None:
+        nonlocal gate
+        gate = asyncio.Event()
         await mgr.start()
-        with (
-            patched(mgr, "_connection_loop", done_loop),
-            patched(mgr, "_cleanup_stream", fake_cleanup),
-        ):
+        with patched(mgr, "_connection_loop", parked_loop):
             await mgr.add_stream("cam1", "rtsp://old")
-            await mgr._background_tasks["connection_cam1"]
+            task1 = mgr._background_tasks["connection_cam1"]
+        with patched(mgr, "_connection_loop", done_loop):
             await mgr.add_stream("cam1", "rtsp://new")
-            await mgr._background_tasks["connection_cam1"]
-        assert cleanup_calls == ["cam1"]  # only the REPLACE path cleans up
+            task2 = mgr._background_tasks["connection_cam1"]
+            await task2
+        assert task1.cancelled(), "replace must cancel the old connection task"
         assert mgr._streams["cam1"]["rtsp_url"] == "rtsp://new"
         assert mgr._streams["cam1"]["retry_count"] == 0
-        assert redis.hsets()[1] == (
-            "hsi:stream:health:cam1",
-            {"status": "connecting", "retry_count": "0"},
-        )
         assert mgr._streams["cam1"]["capture"] is None
         assert mgr._streams["cam1"]["last_error"] is None
+        assert redis.hsets() == [
+            (
+                "hsi:stream:health:cam1",
+                {"status": "connecting", "retry_count": "0"},
+            ),
+            (
+                "hsi:stream:health:cam1",
+                {"status": "connecting", "retry_count": "0"},
+            ),
+        ]
+        task1.cancel()
 
     run(main())
 
@@ -1054,6 +1067,42 @@ def test_health_loop_zero_elapsed_records_zero_fps() -> None:
             (
                 "hsi:stream:health:cam1",
                 {"status": "connected", "retry_count": "0", "fps": "0.0"},
+            )
+        ]
+        assert sleep.slept == [0.033]
+
+    run(main())
+
+
+def test_health_loop_fractional_elapsed_computes_real_fps() -> None:
+    # The `if elapsed > 0` guard is ONLY reachable-with-work between 0 and
+    # interval... no: it is the ZERO-vs-TINY discriminator. interval 0.5,
+    # clock 0.0 -> 0.5: elapsed 0.5 fires the update (>= pins the boundary
+    # too) and shipped computes 1/0.5 = "2.0". A mutant flipping the guard
+    # to `elapsed > 1` answers 0.0 -> "0.0" for every sub-second update -
+    # this test is the ONLY arm in the battery where 0 < elapsed < 1.
+    redis = FakeRedis()
+    cap_fake = FakeCapture(
+        opened=[True],
+        reads=[lambda: setattr(mgr, "running", False)],
+    )
+    mgr = sm.StreamManager(redis, health_update_interval=0.5)
+    cap_fake.mgr = mgr
+    mgr.running = True
+    mgr._streams["cam1"] = _stream_dict(capture=cap_fake)
+
+    async def main() -> None:
+        loop = FakeLoop([0.0, 0.5])
+        sleep = SleepRec()
+        with (
+            patched(sm.asyncio, "get_running_loop", lambda: loop),
+            patched(sm.asyncio, "sleep", sleep),
+        ):
+            await mgr._health_monitoring_loop("cam1", cap_fake)
+        assert redis.hsets() == [
+            (
+                "hsi:stream:health:cam1",
+                {"status": "connected", "retry_count": "0", "fps": "2.0"},
             )
         ]
         assert sleep.slept == [0.033]
