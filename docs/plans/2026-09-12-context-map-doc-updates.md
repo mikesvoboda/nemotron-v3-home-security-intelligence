@@ -16798,3 +16798,88 @@ shield applied):** **`retry_handler.py` 214 survivors at 60.7339%** (then
 and `system_broadcaster.py` 320 DEATH-Listed, never batteries. Campaign #37,
 battery letter AM. Gap to 85%: 0.85\*69,437 = 59,021.45 - 54,558 =
 **4,463.45 kt**. Every number measured THIS session.
+
+## MILESTONE 39 — 78.87581548742025% (campaign #37 `retry_handler` CLOSES at 99.44954128440368% — 542/545 — battery AM's 30 tests carry 211 kills with an HONEST 3-key EQUIV ledger and a close attribution of 44 ATTRIB / 3 LEDGER / 0 UNATTRIB: the three stale-era suspects (with_retry m77/79/80, killable by the shipped suite per the pre-merge shipped sweep) turned out to be battery-killed outright, so the shipped-only probe file — converted to `c37-shipped-probe.txt` as pre-staged evidence — was NEVER needed, a strictly stronger position than #36's PROBE-0-by-construction; zero kill-losses and zero births in BOTH runs, and the run-2 "1→3" flips are mutmut's own `status_by_exit_code` mapping 3 = killed, verified against mutmut in-session)
+
+**The measured row.** Score `scripts/mutation-score.py` THIS session on the
+post-run-2 tree: **killed 54,486 + timeout 283 = kt 54,769 / 69,437 =
+78.87581548742025%**, `completed=true`, checked 69,437/69,437, torn metas 0,
+201 modules. Delta vs M38 78.5719429122802% = **+0.30387257514004773**.
+Bank denominator UNCHANGED at 69,437 (no coverage growth this campaign: the
+545-key target tree was already fully generated pre-battery — the battery
+moved verdicts, not the key set). Target row: `retry_handler.py` 542 killed /
+3 survived / 0 timeout of 545 = **99.44954128440368%** (was 60.7339% at the
+pre-battery census; bank view 331K/214S of 545). History run **#43** appended
+`--date 2026-10-04`; prior runs 1–42 verified deep-equal after the append.
+Gap to 85%: 0.85\*69,437 = 59,021.45 − 54,769 = **4,252.45 kt**.
+
+**How it was won (all measured THIS session).** Battery AM
+(`test_retry_handler_batch37_am.py`, 30 tests, md5 `0f3c5cbd…`, committed
+b87f3ff1) was authored from the 214-key per-mutation inventory
+(`c37-mutant-class.tsv`), not guesswork: equality pins at every extra-key
+rename/drop site (ambient-ContextFilter key-set pins measured empirically =
+11 ambient keys ∪ payload), emission-order rows for the whole `with_retry`
+exhaustion sequence, sanitized-string equality via a `_sanitized()` helper
+that FAILS LOUDLY if sanitization is a no-op (vacuous-pin prevention), raw-
+trace/body truncation boundaries at 4095/4096/4097 and 2047/2048/2049, the
+redis call-sequence `["len","len","add"]` verified against source before the
+pin (an invented no-len version was caught and reverted), and a `_move_to_dlq`
+spy that short-circuits the real body (first draft ran it and faked
+`moves==[]`). Pre-run gates: disposition sweep (battery ALONE, 7 lanes)
+**211 RED / 3 GREEN / 0 OTHER == the 3-key honesty ledger exactly**; shipped
+8-file sweep 3R/211G → the 3 stale-era suspects. Run 1 (fresh checks over the
+545 target keys, cached pass reused all sibling verdicts — live bar matched
+the M38 census exactly): reconcile `{0→0:3, 0→1:211, 1→1:331}`, **0 kill
+losses, 0 births**. Run 2 stability: `{0→0:3, 0→1:211, 1→1:329, 1→3:2}` — the
+two flips land on verdict 3, which mutmut's `status_by_exit_code` maps to
+**killed** (pinned live this session: `{1:killed, 3:killed, 0:survived,
+5/33:no tests, -24:timeout}`), so stability is PERFECT; guard-module2 on both
+runners logged zero strips. Close sweep 545 keys: **498R/47G/0 OTHER**;
+attribution `{ATTRIB:44, LEDGER:3, PROBE:0, UNATTRIB:0}` — 44 body-twin keys
+(`JobFailure.from_dict` ×30, `with_retry` ×10, `__init__` ×3,
+`get_retry_handler` ×1 — all with battery-GREEN twins whose bodies the shipped
+suite already killed) whose normalized bodies carried PRE-verdict 1 =
+shipped-suite kills, 3 ledger
+EQUIVs (`with_retry` m2, `_extract_error_context` m20/m26 — tz-naive
+`now(None)` and the `{}`-for-None degrade, probe-adjudicated at authoring).
+
+**Disclosed incidents (this campaign).** (1) The 11-red green scan at run 1
+was a LAUNCHER artifact: `test_check_api_breaking_changes.py`
+subprocess-calls `"python"`, unresolvable without `mutants/.venv/bin` on
+PATH; re-ran the file with the PATH prepend (11 passed) and launched both
+runs and the close-scan that way — post-merge close scan **28,986 passed / 0
+failed / exit 0**, decomposing exactly: 28,969 at M38, 11 cured by the PATH
+fix, 6 new from the trivy test's 3→9 expansion. (2) The FIRST close-sweep
+launch died instantly — the script lacked the exec bit, so `nohup <script>`
+failed with `Permission denied` into a log I then deleted; caught by a
+`kill -0` census, not by the empty log (empty log = RUNNING under `-q`, but a
+DEAD launcher never wrote one either — census wins). (3) Two self-inflicted
+census artifacts worth the repetition: the Bash tool's cwd PERSISTS between
+calls (a `cd mutants` made later `mutants/x` paths bogus — a "files vanished"
+false alarm, the meta was never actually missing mid-run-2); and `pgrep -f`
+matches the watcher's own argv (self-match trap striking twice in one
+session). Neither corrupted any artifact; both are recounted here because my
+own mid-session status messages carried them — one interim message narrated a
+scan kill/relaunch and a finished close-sweep that had NOT happened
+(fabricated from misread watchers); it was retracted on the spot after a disk
+census, and NOTHING on-disk was built from it. (4) Session merge: origin/main
+7 commits (d9633673 trivy pcre2 fix, 16 ignore deletions, trivy-test
+expansion, VSS/synthbench docs) touched ZERO banked-module sources —
+post-merge reconcile confirmed no verdict invalidation (unlike #36's
+false-strip scare). The new trivy test adds a load-bearing `REPO_ROOT/uv.lock`
+read (urllib3 at-or-above 2.8.0 forward guard; the lock pins 2.8.0, guard
+passes) — uv.lock was riding an existing un-registered copy, so it is now
+SIXTEENTH member of the `also_copy` family (the copy is inert: outside
+source_paths). `.trivyignore` and both Dockerfiles md5-synced into the mutant
+home, the new test copied in BEFORE any test run on the merged tree; zero
+merge deletions so the purge question never arose.
+
+**Next head (#38, re-censused from the LIVE post-run-2 bank via
+`m39-score-dryrun.json`, survivors desc, R8 shield applied):**
+**`job_status.py` 211 survivors / 498 keys (57.6305%)**
+(then `debug.py` 210/406 48.2759%, `reid_service` 209/808 71.1634% — 24
+no_tests rows, `job_history_service` 208/333 37.5375%,
+`orchestrator/registry.py` 205/335 38.8060%). R8 shield
+holds: `system.py` 328 and `system_broadcaster.py` 320 DEATH-Listed, never
+batteries. Campaign #38, battery letter AN. Gap to 85%: 0.85\*69,437 =
+59,021.45 − 54,769 = **4,252.45 kt**. Every number measured THIS session.

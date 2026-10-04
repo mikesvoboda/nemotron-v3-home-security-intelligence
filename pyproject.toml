@@ -936,6 +936,18 @@ also_copy = [
     # backend/tests/unit read targets re-run (see b38 note at run 1): this is
     # the only remaining root-present/mutant-absent READ target.
     "docker-compose.ci.yml",
+    # 2026-10-04 merge gate (campaign #37 close, SIXTEENTH member of this
+    # family): origin/main d9633673 expanded backend/tests/unit/scripts/
+    # test_backend_image_trivy_clean.py, whose TestAppUrllib3StaysPatched
+    # path-reads REPO_ROOT/uv.lock (parents[4] = the mutant home) and asserts
+    # the urllib3 pin >= 2.8.0 -- a NEW load-bearing read (the prior .trivyignore
+    # note let uv.lock ride on an existing, un-registered copy; that copy is
+    # byte-identical today and the read measured green, but the rule is
+    # "must exist BEFORE any test path-reads it", and a cold mutant-home
+    # restore without it would FileNotFoundError-red under -x and abort the
+    # coverage gather/stats the same way as members 8-15). uv.lock sits
+    # OUTSIDE source_paths (generates ZERO mutants -- the copy is inert), 746K.
+    "uv.lock",
 ]
 
 # =============================================================================
