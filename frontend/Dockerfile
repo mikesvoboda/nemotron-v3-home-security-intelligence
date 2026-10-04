@@ -118,8 +118,28 @@ USER root
 
 # Install wget for healthcheck and openssl for self-signed cert generation
 # Create certs directory for auto-generated SSL certificates
+#
+# The `apk upgrade --no-cache pcre2` is the Alpine half of CVE-2026-103111
+# (HIGH, out-of-bounds write via a crafted regular expression) — the SAME
+# finding the backend prod stage fixes with apt --only-upgrade libpcre2-8-0.
+# Measured at tip 6b33a2af, job 111453726564: "Scan Frontend Image" is RED with
+# exactly one row, pcre2 installed 10.48-r0 against Alpine secdb fix 10.49-r0
+# (v3.24/main). This scan runs ignore-unfixed FALSE, so unlike the backend scan
+# a finding here is never filtered — it is the stronger witness of the two.
+#
+# It has to be explicit: the base is a MOVING tag (:stable-alpine-slim), so
+# rebuilding does not re-resolve it, and a cached base layer keeps serving the
+# digest that carries 10.48-r0. A pinned-image hope is not a fix.
+# --no-cache matches the apk add beside it and makes apk upgrade fetch its own
+# fresh index, so this needs no separate apk update (measured: apk add
+# --no-cache and apk upgrade --no-cache each initialize the db themselves).
+# Naming ONLY pcre2 keeps the upgrade surgical — an unqualified `apk upgrade`
+# would move the whole nginx package set on every build. Runs as root (USER
+# root above); apk as the nginx user exits 99.
+# Guard: TestFrontendProdStageUpgradesPcre2.
 # hadolint ignore=DL3018
 RUN apk add --no-cache wget openssl && \
+    apk upgrade --no-cache pcre2 && \
     mkdir -p /etc/nginx/certs && \
     chown nginx:nginx /etc/nginx/certs
 
