@@ -59,6 +59,18 @@ getattr drops (del-field probe), get_selected_columns m6 `or True` (all-
 invalid selection returns [] instead of EXTENDED), the 6 "UTF-8" alias keys
 (the codec IS identical - but the CALL literal is observable), and the 4
 XXZXX date keys (message-carrying ValueError).
+
+RUN-1 LOSS-FIX (tests 45-48): run 1 grew the module 965 -> 994 keys (battery
+newly covered lines -> 29 births in export_events_with_progress; 25 died
+same-run). The 4 birth survivors were adjudicated KILLABLE and are killed by:
+  * m138 (idx+2 progress pct): invisible at total_count=200 (45/80 both),
+    divergent at total_count=110 where the single tick gives 73 vs 74 (45);
+  * m237/m239 (columns None-default / trailing-comma arg drop -> 9-col
+    EXPORT_COLUMNS fallback): killed by the forwarded-selection sheet shape -
+    2-col header/dims/cells under columns=["event_id","summary"] (46) and the
+    11-col EXTENDED sheet under columns=None (47);
+  * m238 (arg swap, selection as the events arg -> 1+len(cols) empty data
+    rows): killed by the exact row extent through the progress path (48).
 """
 
 import asyncio
@@ -1088,3 +1100,83 @@ def test_c35ak_43_excel_bool_cells_c35():
     row2 = EventExportRow(1, "c", None, None, None, None, None, 0, False)
     ws2 = _excel(events_to_excel([row2]))
     assert ws2["I2"].value == "No"
+
+
+# ===========================================================================
+# run-1 loss-fix: the four export_events_with_progress excel/progress births
+# (the battery newly covered the method body -> 29 slot births; 25 died
+# same-run, these 4 survived run 1)
+# ===========================================================================
+def test_c35ak_45_progress_tick_pct_off_by_one_divergent_total_c35():
+    # m138: progress = 10 + int((idx + 2) / total_count * 70). The 200-row
+    # pin CANNOT see it (i=100 and 101 both floor to the same pct at /200),
+    # so total_count=110: at the ONLY tick (i=100) shipped gives
+    # 10+int(7000/110)=73 while the +2 mutant gives 10+int(7070/110)=74.
+    rows = [ev(id=i, camera_id=None) for i in range(1, 111)]
+    pins = [
+        (("count(*)",), 110, []),
+        (("FROM events", "ORDER BY events.started_at DESC"), None, rows),
+    ]
+    tracker = Tracker()
+    _progress_run("csv", pins, tracker=tracker)
+    assert tracker.calls == [
+        (("job-1", 10), {"message": "Found 110 events to export"}),
+        (("job-1", 73), {"message": "Processing event 100/110"}),
+        (("job-1", 80), {"message": "Writing CSV file..."}),
+        (("job-1", 95), {"message": "Finalizing export..."}),
+    ]
+
+
+def test_c35ak_46_progress_excel_forwards_selected_columns_c35():
+    # shipped excel branch: events_to_excel(export_rows, selected_columns).
+    # The None/dropped/arg-swap births all fall back to the module-default
+    # 9-column EXPORT_COLUMNS sheet; the shipped sheet carries the caller's
+    # 2-column selection. Header + dims + body cells ALL pinned (the entered
+    # branch writes header row, data row, widths, freeze - assert each).
+    pins = three_event_pins()
+    columns = ["event_id", "summary"]
+    _, _, d, _, _ = _progress_run("excel", pins, columns=columns)
+    f = d.sole()
+    ws = _excel(f.buffers[0])
+    assert ws.max_column == 2 and ws.max_row == 4
+    assert ws["A1"].value == "Event ID"
+    assert ws["B1"].value == "Summary"
+    assert ws["A2"].value == 1  # raw int passthrough
+    assert ws["B2"].value == "'=SUM(1)"  # sanitize_export_value quote
+    assert ws["A3"].value == 2 and ws["B3"].value == "'=SUM(1)"
+    assert ws.column_dimensions["A"].width == 10.0  # seed 8, body len 1 stays
+    assert ws.column_dimensions["B"].width == 10.0  # seed 7, body "'=SUM(1)" len 8 -> 8+2
+    assert ws.freeze_panes == "A2"
+    assert ws["A2"].fill.start_color.rgb == "00E9EDF5"  # alt-row fill row 2
+
+
+def test_c35ak_47_progress_excel_default_selection_is_extended_c35():
+    # columns=None: shipped forwards get_selected_columns(None) == the 11-col
+    # EXTENDED selection. The m237/m239 None-default births instead fall back
+    # to events_to_excel's module-level 9-column EXPORT_COLUMNS default, so
+    # the Object Types / Reasoning headers are the discriminator (and the 9
+    # columns the births produce cannot carry them).
+    pins = three_event_pins()
+    _, _, d, _, _ = _progress_run("excel", pins)  # columns=None
+    ws = _excel(d.sole().buffers[0])
+    assert ws.title == "Events"
+    assert ws.max_column == 11 and ws.max_row == 4
+    assert ws["J1"].value == "Object Types"
+    assert ws["K1"].value == "Reasoning"
+    assert ws["J2"].value == "person,car" and ws["K2"].value == "because"
+    assert ws.column_dimensions["J"].width == 14.0  # seed 12, body 10 stays
+    assert ws.column_dimensions["K"].width == 11.0  # seed 9, body 7 stays
+
+
+def test_c35ak_48_progress_excel_arg_swap_row_count_c35():
+    # m238 passes selected_columns as the EVENTS argument (arg swap): the
+    # workbook then has 1 header row + len(selection) all-empty data rows
+    # instead of 1 header + the 3 event rows. Pin the exact row extent, the
+    # column count, and the first data cell through the progress path.
+    pins = three_event_pins()
+    columns = ["event_id", "summary"]
+    _, _, d, _, _ = _progress_run("excel", pins, columns=columns)
+    ws = _excel(d.sole().buffers[0])
+    assert ws.max_row == 4  # swapped call: 1 + len(selected_columns) = 3
+    assert ws.max_column == 2
+    assert ws["A2"].value == 1
