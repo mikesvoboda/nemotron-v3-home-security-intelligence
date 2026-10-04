@@ -16414,3 +16414,131 @@ applied):** **`context_enricher.py` 216 survivors at 52.0000%** (then
 `system_broadcaster.py` 320 remain DEATH-Listed, never batteries.
 Campaign #34, battery letter AJ. Gap to 85%: 0.85\*69,245 = 58,858.25 -
 53,793 = **5,065.25 kt**. Every number measured THIS session.
+
+## MILESTONE 36 — 77.98602287166455% (campaign #34 `context_enricher` CLOSES at 97.8308% — 451/461 — in TWO runs: the bank row was 63-verdict STALE-ERA-decayed (63 "survivors" already shipped-killed today), the battery's second sweep matched the 10-key ledger EXACTLY, and run 1's 3 birth survivors hid inside a branch the battery ENTERED but under-asserted — one loss-fix test closed all three)
+
+**Score (measured THIS session from
+`/home/agent/runs/b38-c34-score.json`):** completed=true,
+`checked=69256/69256`, killed 53,727 + timeout 283 = kt **54,010** of
+**69,256** = **77.98602287166455%**, +0.3009914614544158 vs M35's
+77.68503141021013%. History run #40 appended (`--date 2026-10-04`),
+runs 1-39 prefix deep-equal verified against
+`/home/agent/runs/mutation-history.preM36.json` (backup md5
+`b908ac0536ecf82287c42835056809ab`).
+
+**Campaign #34 = `backend/services/context_enricher.py`** (bank row
+pre-run 450 keys = {1:231, 0:216, -24:3} = 52.0000%). Battery AJ
+`backend/tests/unit/services/test_context_enricher_batch34_aj.py` —
+committed `75d0a554` (37 tests, ledger 10) + run-1 loss-fix `266cca52`
+(38 tests, ledger 10), final md5
+`d8d3daebe8d40b90fcd1edecd6eaf174`, md5-synced into the mutant home
+before BOTH runs. Machinery: `Session` records each executed
+statement's COMPILED Postgres signature (`literal_binds`, whitespace +
+operator spacing normalized) — six static SQL pins kill every
+query-shape mutant text-exactly; `NO_TIME = object()` sentinel so
+`detected_at is None` is REACHABLE (pitfall below); `Spy.is_anomalous`
+records `(args, kwargs)` triples; a fresh real `logging.Logger` swapped
+into `m.logger` captures `record.getMessage()`; `OffMap.value =
+"rooftop"` (not a `ZONE_RISK_WEIGHTS` key) pins the zone-weight
+fallback; `T0` = Monday 10:00 pins every weekday/hour branch.
+
+**Stale-era disclosure (this module's bank row had DECAYED):** an
+independent per-key adjudication of all 216 bank-"survivors" against
+TODAY's shipped suite alone (`c34-mysuite-sweep.txt`, one pytest per
+key with `MUTANT_UNDER_TEST` pinned, 63 RED / 153 GREEN) proved 63 of
+the 216 were already killed by the shipped suite — killed->0
+era-decayed verdicts, the recorded `bank-verdicts-can-be-stale-source-era`
+family, this time at 29% of a module's survivor pool. True pre-battery
+killability was 294/450 = 65.33%, not 52.0%. The battery's real target
+pool was the 153 GREENs; its shipped-suite kill credit at close time is
+proven by SAME-SESSION probes, not by pre-tree verdicts alone.
+
+**Authoring sweeps:** 10 equivalence candidates proven by construction
+(`b38-c34-equiv-probe.py`: AST write-only census of `total_expected`,
+reachable-range enumeration of the ratio/clamp and the ±60 s polarity
+window, `codecs`-style dataclass-default equality) -> registered
+10-key ledger up front. Sweep 1 = 141 RED / 12 GREEN — the 2 extra
+GREENs were a HELPER `None`-DEFAULT collision (`det(at=None)` meant
+"use `T0`", making the `datetime.now(UTC)` fallback branch
+UNREACHABLE -> m27/m32 faked GREEN); the sentinel fix made sweep 2 =
+**143 RED / 10 GREEN == the ledger exactly** before any bank run.
+
+**Run 1** (runner pid 651861, guard-module2 sibling-drop=0 both
+regimes): module grew 450->461 — the battery newly covered lines, so
+generation inserted 11 slots and renumbered the tail; reconcile by
+BODY-identity CLEAN (206 survivor kills re-earned + 3 stale timeouts
+converted to kills, KILL LOSSES 0, 0 lost slots/bodies); module row 448
+killed / 13 survived = 96.3124%. The 13 survivors were the 10-key
+ledger PLUS THREE BIRTH survivors, all inside `if class_anomalies:` —
+my battery ENTERED that block and asserted `class_anomalies`,
+`class_anomaly_context` and the boosted `deviation_score`, but never
+`is_anomalous` (which the same block writes) and its deviation never
+REACHED the 0.95 cap. Loss-fix = two rows: `assert b.is_anomalous is
+True` added to the existing anomalies test, and a cap-REACHING row (40
+detections vs avg 4.0 -> ratio 10 -> pre-boost 0.9; 15/100 = 0.15 so
+1.05 must clamp to 0.95). Post-fix full-tree sweep (461 keys, committed
+bytes) adjudicated by body identity.
+
+**Run 2** (runner pid 670765, guard-module2 sibling-drop=0; GREEN scan
+2 on committed bytes: 28,907 passed = 28,869 shipped + the 38, exit 0;
+scan 1 pre-loss-fix was 28,906 = 28,869 + 37): survivors == the 10-key
+ledger EXACTLY, reconcile vs `b38-preC34` CLEAN (matrix {(0,1): 206,
+(1,1): 231, (0,0): 10, (-24,1): 3}, KILL LOSSES 0, 0 lost bodies, all
+11 births verdict 1). Live meta 461 keys, **451 killed = 97.8308%**
+(score JSON module row 451/461, timeout 0).
+
+**Close sweep (all 461 keys, committed bytes, mutant home,
+battery-only):** 414 RED / 47 GREEN / 0 HANG. Attribution TALLY
+**{LEDGER: 10, ATTRIB: 24, PROBE: 13}, UNATTRIB 0**. The 24 ATTRIBs
+are GREEN to the battery alone but body-exact to PRE-run bank verdict 1
+(M28 pattern). The 13 PROBEs are the stale-era case the M28 rule cannot
+cover — their PRE body-verdicts were the decayed 0s — so each got
+POSITIVE same-session identification instead: current key pinned via
+`MUTANT_UNDER_TEST`, SHIPPED test file ONLY, rc=1 with named killers
+(`c34-shipped-probe.txt`; all 13 also sit inside the 63-key stale-RED
+set). For completeness ALL 37 non-ledger GREENs were shipped-only
+probed: **37/37 SHIPPEDRED** (`c34-shipped-probe-all.txt`). The battery
+file and the shipped `test_context_enricher.py` were md5-identical
+across both trees and unmodified in git at probe time.
+
+**Ledger (10 keys, all proven by construction, disclosed in the
+battery docstring):** `enrich` m15 (falsy early-return never reads the
+value) and m70 (dropped `recent_events=[]` == dataclass default);
+`_get_baseline_context` m19/m34/m35 (`total_expected` AST write-only),
+m68 (`ratio > 1` vs `>= 1` differs only at == 1 where both sides
+evaluate 0.0), m84 (`min(1.0` -> `2.0`: reachable pre-clamp range is
+(0,1), bound never binds); `_get_cross_camera_activity` m48
+(`if time_offsets or True`: the empty case computes 0.0 anyway);
+`format_cross_camera_summary` m20/m21 (polarity differs only in
+(-1,0] which the `abs(offset) > 60` guard excludes).
+
+**Timeout:** 286 -> **283**, NUMERATOR-PRESERVING and disclosed: the 3
+lost timeouts were pre-era `context_enricher` `_get_baseline_context`
+`-24`s that battery AJ converted to fast KILLs in run 1 (they counted
+in the kt numerator as timeouts before, so kt is unaffected).
+
+**Bank census (measured):** 240 metas / 69,256 keys / killed 53,727 +
+timeout 283 = **kt 54,010**; `no_tests` 783 HELD. Denominator
+69,245->69,256 = +11, ALL context_enricher run-1 coverage-growth
+births (8 same-run-killed + 3 closed by the loss-fix in run 2);
+whole-tree pre-vs-live: exactly ONE meta changed key COUNT
+(`context_enricher.py.meta` 450->461) and ZERO sibling metas changed
+verdict shape; all 7 historical nonzero sibling-drop rows in
+`guard.log` predate the #34 windows. Artifacts: `b38-preC34` archive,
+`b38-c34-greentier.log` / `-greentier2.log`, `b38-c34-run1.log` /
+`-run2.log`, `c34-mysuite-sweep.txt` / `c34-mysuite-killers.txt`,
+`c34-sweep-aj-1.txt` / `-aj-2.txt` / `-aj-committed.txt` /
+`c34-close-sweep.txt`, `c34-shipped-probe.txt` / `-probe24.txt` /
+`-probe-all.txt`, `c34-attrib-final.txt`, `b38-c34-reconcile.py`,
+`b38-c34-attribute.py` / `-attribute2.py` (two-route attribution),
+`b38-c34-equiv-probe.py`, `b38-c34-score.json`, history backup
+`mutation-history.preM36.json`.
+
+**Next head (re-censused from `b38-c34-score.json`, R8 shield
+applied):** **`export_service.py` 215 survivors at 77.7202%** (then
+`retry_handler` 214/60.7339%, `pipeline_quality_audit_service`
+214/70.3601%, `job_status` 211/57.6305%, `debug.py` 210/48.2759%,
+`reid_service` 209/71.1634%). R8 shield holds: `system.py` 328 and
+`system_broadcaster.py` 320 remain DEATH-Listed, never batteries.
+Campaign #35, battery letter AK. Gap to 85%: 0.85\*69,256 = 58,867.6 -
+54,010 = **4,857.6 kt**. Every number measured THIS session.
