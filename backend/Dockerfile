@@ -15,9 +15,13 @@
 # =============================================================================
 # Base stage: shared dependencies (backend-specific extensions to base image)
 #
-# Extends shared base image to add backend-specific system dependencies
-# and build tools. This reduces build time by caching common Python packages
-# in the ghcr.io/mikesvoboda/nemotron-base image.
+# Builds FROM python:3.14-slim-bookworm DIRECTLY and adds the backend's own
+# system dependencies and build tools. (The earlier comment here said this stage
+# "extends the shared ghcr.io/mikesvoboda/nemotron-base image"; that stopped
+# being true when the FROM moved — no FROM line in the repo consumes nemotron-
+# base any more, though CI still publishes it. Read 2026-10-04 across every
+# tracked Dockerfile; guarded by
+# backend/tests/unit/scripts/test_backend_image_trivy_clean.py.)
 #
 # Python Image Options:
 #   Standard (GIL enabled):     python:3.14-slim-bookworm
@@ -43,7 +47,13 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="ghcr.io/mikesvoboda/python:3.14t-slim-bookworm"
+# Must name the image this stage actually FROMs (below). It previously said
+# ghcr.io/mikesvoboda/python:3.14t-slim-bookworm — the FREE-THREADED option
+# documented in the comment above, not the base in use — so the published
+# provenance and every SBOM read a GIL-disabled interpreter this image does not
+# have. The prod stage labels itself correctly.
+# Guard: TestBaseLabelMatchesFrom.
+LABEL org.opencontainers.image.base.name="python:3.14-slim-bookworm"
 
 WORKDIR /app
 
