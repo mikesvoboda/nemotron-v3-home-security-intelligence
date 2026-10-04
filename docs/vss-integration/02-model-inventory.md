@@ -1,5 +1,13 @@
 # Model Inventory and Consumer-GPU Sizing
 
+> **Currency - 2026-10-03 [V].** The VSS-side sizing facts here are unchanged; our side moved. "One
+> VL model doing both captioning and reasoning" is the shipped shape (Qwen3-VL-8B `Q4_K_M`, A5500 S1
+> peak 9606 MiB per the ledger), and "our pipeline splits captioning (Florence-2) from reasoning
+> (Nemotron)" is gone (R8 deleted `ai/florence`). "The perception tier must be counted" and "no
+> configuration can be declared to fit" are answered by measurement; open questions 3 and 5 are
+> answered. "Understates 4-bit by roughly 40%" is now measured at 26-45% low with no KV term, and
+> "20.4 GB" is GiB. See [`16`](16-errata-2026-10-03.md) E52-E56 (also E44, E61, E68, E69).
+
 > **Errata (2026-09-23):** E2, E8, E9, E10 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
 
 Source for all **[V]** claims: `skills/vss-build-vision-ai/references/sizing.md`,

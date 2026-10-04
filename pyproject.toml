@@ -148,25 +148,6 @@ dev = [
     # Note: py-spy requires system installation (not pip) - install with:
     # pip install py-spy  # or cargo install py-spy
 ]
-# NeMo Data Designer for synthetic test data generation
-# Usage: `uv sync --extra nemo` or `uv sync --group nemo`
-nemo = [
-    # Lower bound raised to 0.7: data-designer <=0.6 backtracks the *global*
-    # resolution (its engine pins sqlfluff/cryptography/click eras) and those
-    # stale caps leak into the runtime+dev resolution, holding click at 8.3.0
-    # and cryptography at 46.x despite open advisories (PYSEC-2026-2132,
-    # PYSEC-2026-3552/3553/3554). 0.7+ moves click/cryptography forward.
-    # WP0.2 raises 0.7.0 -> 0.9.2: engine 0.7.0 caps cryptography<47, which is
-    # what held the runtime at 46.0.7 through GHSA-537c-gmf6-5ccf (fixed 48.0.1).
-    # 0.9.2 requires cryptography>=48.0.1,<=49 and pyarrow>=24,<25 (clears
-    # CVE-2026-25087, fixed 23.0.1) with NO opentelemetry pins, so it cannot
-    # regress the runtime otel set. dependency-audit.yml's 2026-09-15 review note
-    # named exactly this unblock ("revisit when data-designer supports otel 1.44").
-    "data-designer>=0.9.2",
-    "pandas>=2.0.0",
-    "pyarrow>=14.0.0",
-    "numpy>=1.24.0",
-]
 # GPU quantization support (NEM-3373, NEM-3376)
 # Provides 4-bit and 8-bit quantization for LLMs via bitsandbytes
 # Usage: `uv sync --extra quantization`
@@ -218,7 +199,6 @@ face = [
 #   benchmark - Performance benchmarking tools
 #   security  - Security scanning tools
 #   mutation  - Mutation testing tools
-#   nemo      - NeMo Data Designer for synthetic data generation
 #   dev       - All development dependencies (includes all groups above)
 # Note: OCR (PaddleOCR) is not available as a group due to Python 3.14 incompatibility
 # OCR functionality is provided by the ai/enrichment container (Python 3.12)
@@ -290,22 +270,6 @@ quality = [
     "vulture>=2.11",
 ]
 
-# NeMo Data Designer (synthetic data generation for testing)
-# Usage: uv sync --group nemo
-# Requires NVIDIA_API_KEY environment variable
-nemo = [
-    # Lower bound raised to 0.7: data-designer <=0.6 backtracks the *global*
-    # resolution (its engine pins sqlfluff/cryptography/click eras) and those
-    # stale caps leak into the runtime+dev resolution, holding click at 8.3.0
-    # and cryptography at 46.x despite open advisories (PYSEC-2026-2132,
-    # PYSEC-2026-3552/3553/3554). 0.7+ moves click/cryptography forward.
-    # WP0.2: 0.9.2 clears GHSA-537c-gmf6-5ccf (needs cryptography>=48.0.1) and
-    # CVE-2026-25087 (needs pyarrow>=23) — see the optional-dependencies note.
-    "data-designer>=0.9.2",
-    "pandas>=2.0.0",
-    "pyarrow>=14.0.0",
-    "numpy>=1.24.0",
-]
 
 # Documentation tools (MkDocs site + validation)
 # Usage: uv sync --group docs
@@ -503,19 +467,10 @@ ignore = [
     "ARG002", # unused method argument for fixtures used via side effects
     "PLR2004",# magic values ok in tests
 ]
-"tools/**/*.py" = [
-    "T201",   # print() ok in tool scripts for CLI output
-    "E402",   # module level import not at top ok for sys.path manipulation
-]
-"backend/evaluation/harness.py" = [
-    "T201",   # print() ok for CLI output in evaluation harness
-    "S311",   # pseudo-random ok for mock data generation (not security-sensitive)
-]
 "backend/evaluation/vlm_replay.py" = [
     # print() ok, and only in this module's own main(): the replay is a CLI
     # run on the GPU host, and its stdout (run_id, candidate, commit) is what
-    # the ledger row copies. Same posture as harness.py above - which the
-    # replay deliberately does NOT inherit from (F10: it stands beside it).
+    # the ledger row copies.
     "T201",
 ]
 "scripts/**/*.py" = [
@@ -609,9 +564,6 @@ markers = [
     "db: mark test as requiring database access",
     "redis: mark test as requiring Redis access",
     "requires_debug_mode: mark test as validating DEBUG=false enforcement (CI security check)",
-    "prompt_evaluation: mark test as prompt evaluation (requires synthetic scenarios and Nemotron service or mock mode)",
-    "enrichment: mark test as enrichment pipeline edge case test (tests model zoo orchestration, VRAM management, circuit breaker behavior)",
-    "multimodal: mark test as multimodal evaluation test (compares local pipeline against NVIDIA vision ground truth)",
     "load: mark test as a load/performance test (verifies latency, memory, and throughput under load)",
     "ai_pipeline: mark test as AI pipeline quality smoke test (fast CI validation of LLM output quality)",
 ]

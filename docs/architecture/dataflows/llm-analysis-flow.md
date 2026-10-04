@@ -305,12 +305,12 @@ class VlmTruncatedError(VlmSchemaError):
 
 ### Retry Loop
 
-The loop is a two-element tuple of temperatures over one request body:
+The loop is a two-element tuple over one request body; the first attempt is greedy too, so the retry is a plain re-send:
 
-**Source:** `backend/services/vlm_client.py:804-806`
+**Source:** `backend/services/vlm_client.py:810-812`
 
 ```python
-# Source: backend/services/vlm_client.py:804-806
+# Source: backend/services/vlm_client.py:810-812
         last_error: VlmClientError | None = None
         for attempt, temperature in enumerate((None, 0.0)):
             if temperature is not None:
@@ -333,7 +333,7 @@ and it leaves by returning a verdict or raising the last error:
 
 | Attempt | Temperature | Wait before the attempt | Read budget |
 | ------- | ----------- | ----------------------- | ----------- |
-| 1       | 0.1         | none                    | 25 s        |
+| 1       | 0.0         | none                    | 25 s        |
 | 2       | 0.0         | none                    | 25 s        |
 
 There is no sleep between attempts and no third attempt: the retry re-sends the same body immediately at temperature 0, and a second retry would double the p95 budget a single call already fits (`backend/core/config.py:1117-1124`). A second attempt only lands inside the S4 target when the first one failed fast.
@@ -534,7 +534,7 @@ One user turn holds the image parts and the rendered text:
 **Source:** `backend/services/vlm_client.py:789-802`
 
 ```python
-# Source: backend/services/vlm_client.py:789-802
+# Source: backend/services/vlm_client.py:795-808
         body = {
             "messages": [
                 {
@@ -542,7 +542,7 @@ One user turn holds the image parts and the rendered text:
                     "content": [*parts, {"type": "text", "text": text}],
                 }
             ],
-            "temperature": 0.1,
+            "temperature": _ASSESS_TEMPERATURE,
             "max_tokens": _ASSESS_MAX_TOKENS,
             "response_format": {
                 "type": "json_schema",
@@ -557,7 +557,7 @@ One user turn holds the image parts and the rendered text:
 | --------------------- | --------------------------------- | ---------------------------------------------- |
 | `messages[0].role`    | `user`                            | a single chat turn                             |
 | `messages[0].content` | image parts, then one text part   | up to 4 data-URI stills plus the fitted prompt |
-| `temperature`         | 0.1, and 0.0 on the retry         | near-deterministic verdicts                    |
+| `temperature`         | 0.0 on both attempts              | greedy decoding                                |
 | `max_tokens`          | 1024                              | the verdict's output budget                    |
 | `response_format`     | `json_schema`, name `vlm_verdict` | constrained decoding                           |
 

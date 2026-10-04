@@ -342,14 +342,18 @@ stage lands as three `unavailable` lines on the same keys
 ### 4.3 Retry Logic
 
 The client owns exactly one transport retry, inside the same read budget, and
-the second attempt drops the temperature to 0:
+the second attempt re-sends the same body at temperature 0 (the first attempt is greedy too):
 
 ```python
-# backend/services/vlm_client.py:804-807
+# backend/services/vlm_client.py:810-817
 last_error: VlmClientError | None = None
 for attempt, temperature in enumerate((None, 0.0)):
     if temperature is not None:
-        body["temperature"] = temperature  # §6 step 1: retry at temp 0
+        # §6 step 1: retry at temp 0. The first attempt is greedy too
+        # (_ASSESS_TEMPERATURE), so the retry is a plain re-send; it stays
+        # explicit so changing the first-attempt temperature cannot
+        # silently change the retry.
+        body["temperature"] = temperature
 ```
 
 There is no third attempt and no backoff ladder: a second retry would double

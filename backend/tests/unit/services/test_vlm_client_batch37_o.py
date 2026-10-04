@@ -1864,7 +1864,7 @@ def test_assess_success_body_exact_and_provenance_override():
                     ],
                 }
             ],
-            "temperature": 0.1,
+            "temperature": 0.0,
             "max_tokens": 1024,
             "response_format": {
                 "type": "json_schema",
@@ -1920,8 +1920,8 @@ def test_assess_second_attempt_at_temp_zero_is_the_success_path():
         verdict = asyncio.run(env["c"].assess(_req([env["path"]])))
         calls = env["t"].calls
         assert len(calls) == 2
-        assert calls[0]["body"]["temperature"] == 0.1
-        assert calls[1]["body"]["temperature"] == 0.0  # step 1 of the ladder
+        assert calls[0]["body"]["temperature"] == 0.0  # greedy first attempt
+        assert calls[1]["body"]["temperature"] == 0.0  # step 1 of the ladder: a plain re-send
         assert verdict.verdict is not None
         assert env["spy"].calls == [("allow",), ("failure",), ("success",)]
         assert env["metrics"] == [("pipeline_error", "vlm_schema_invalid")]

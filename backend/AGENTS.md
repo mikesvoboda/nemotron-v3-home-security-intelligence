@@ -65,7 +65,7 @@ backend/
 ├── core/                   # Infrastructure (54 modules)
 │   ├── websocket/          # WebSocket event infrastructure
 │   └── middleware/         # Core middleware components
-├── evaluation/             # Prompt-evaluation harness (datasets, metrics, runner)
+├── evaluation/             # VLM verdict-path evaluation (eval store, importers, S2/S3/S5 metrics, replay)
 ├── models/                 # SQLAlchemy ORM models (54 model modules)
 ├── repositories/           # Data access layer (base + 7 repositories)
 ├── jobs/                   # Background job modules (3 jobs)
@@ -1042,7 +1042,7 @@ The backend provides three health endpoints for different use cases:
 | `/backend/core/AGENTS.md`           | Core infrastructure (54 modules)                 |
 | `/backend/config/AGENTS.md`         | Prompt A/B rollout and experiments               |
 | `/backend/core/websocket/AGENTS.md` | WebSocket event infrastructure                   |
-| `/backend/evaluation/AGENTS.md`     | Prompt-evaluation harness                        |
+| `/backend/evaluation/AGENTS.md`     | VLM verdict-path evaluation and replay           |
 | `/backend/jobs/AGENTS.md`           | Background job modules                           |
 | `/backend/models/AGENTS.md`         | Database models (54 models)                      |
 | `/backend/repositories/AGENTS.md`   | Repository pattern (base + 7 repos)              |

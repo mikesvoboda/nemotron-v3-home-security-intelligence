@@ -1,96 +1,84 @@
 # VSS Integration - Agent Guide
 
-## Start here
+This folder is the maintained source of truth for the AI/VLM stack: what is **decided**, **measured**,
+**open** and **next**, plus the guardrails. What the stack **runs today** is described by
+[`docs/architecture/ai-pipeline-current-state.md`](../architecture/ai-pipeline-current-state.md); the two
+pages link to each other and neither restates the other (owner decision 2026-10-03 [O]). The
+2026-09-23 text of this guide and of the README is kept verbatim in
+[`21-entry-pages-record-2026-09-23.md`](21-entry-pages-record-2026-09-23.md) and is never the answer to
+"what is true now".
 
-> **Currency — 2026-09-29 [V].** The sentence below ("**Nothing is implemented yet.**") was true
-> when written and is now **false** — `4bfd6fa4` made the VLM path the shipped default on
-> 2026-09-27 (`docker-compose.prod.yml:578`), and ledger items 38-41 are a real A5500 run against
-> it. It survived this long because no CI gate reads these status lines. **For "what has actually
-> run?", do not route by this page — route to the ledger**,
-> [`2026-09-23-vss-gaming-gpu-ledger.md`](../plans/2026-09-23-vss-gaming-gpu-ledger.md); this
-> directory stays the research record. M1 is still open — the run's close pointer says the
-> notification link is unwired (ledger `:415`) and S3 sits below its bar in every arm measured
-> (`10/20` at `:401` against `S3_MIN = 90%` at `:221`) — so "implemented" is not "accepted". The
-> sentence stays as the record of 2026-09-23.
+The cold-start order, the recording table and the edit rules below are agent-authored proposals
+(2026-10-03, [A]) until the owner ratifies them; the evidence convention, the VSS-repository note and
+the patterns are carried over unchanged from the 2026-09-23 guide.
 
-This directory is the **research record** behind an approved design for running a VSS-style AI tier
-on one consumer-class GPU. **Nothing is implemented yet.** Pick your branch:
+## Cold start (read in this order, stop when you have your answer)
 
-- **Implementing, planning, or asking "what did we decide?"** → the design spec,
-  [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
-  It holds the locked decisions (D1-D12), success criteria (S1-S6), phases and milestones (M0-M4),
-  and an A5500 bring-up checklist. It is the single source of truth for the plan.
-  **Then read [`13-implementation-brief.md`](13-implementation-brief.md)**: how to work, the risk
-  spikes to run first, the ledger, the guardrails, and where to stop and ask the owner.
-- **Checking "what has actually run?"** → the execution ledger,
-  [`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`](../plans/2026-09-23-vss-gaming-gpu-ledger.md):
-  one row per step and spike, with the command, result and commit behind every status.
-- **Asking "is this deferred, or did we miss it?"** → [`12-postponed-roadmap.md`](12-postponed-roadmap.md)
-  (R1-R14: streaming ingest, NemoClaw, agent features, upstream PRs, model choices, and more).
-- **Choosing or changing a specialist model** (face, plate, re-ID, open-vocabulary, pose, novelty)
-  → [`14-specialist-model-research.md`](14-specialist-model-research.md): verified candidates, the
-  Task 3b picks, and the rev 7 shortlist. Owner rulings are in the ledger as F12.
-- **Citing any claim from docs 00-07** → check [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md)
-  first (E1-E28). Each of those docs carries a banner naming the entries that correct it.
-- **Asking "why was it decided this way?"** → the audits of VSS `1e94133b4`:
-  [`08`](08-audit-profile-anatomy.md) (profiles, placement, architecture, CI),
-  [`09`](09-audit-integration-surfaces.md) (component contracts: what we can incorporate),
-  [`10`](10-audit-feature-inventory.md) (features to import, our differentiators, NemoClaw).
+1. [`README.md`](README.md) sections 1 to 6: which source wins on a conflict, what is shipped and
+   measured, the decisions in force, what is open and next, the guardrails. It carries an as-of date and
+   the commit it was verified against; if that commit is far behind, say so before relying on it.
+2. [`17-action-plan.md`](17-action-plan.md): the living register (`ISS-nnn`, owner decisions `OD-n`).
+3. The newest rows of the execution ledger,
+   [`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`](../plans/2026-09-23-vss-gaming-gpu-ledger.md): what
+   actually ran, one row per step. Cite a row by its heading text and commit, never by number: rows
+   renumber when branches merge.
+4. The design spec,
+   [`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md):
+   the locked decisions (D1-D12), success criteria (S1-S6) and milestones (M0-M4). Its own status line
+   and its S2/S3 rows are stale (README section 7).
+5. The code, compose files and tests at HEAD. They answer what is deployed.
 
-**The design in one breath:** a detector gates FTP stills, and **one VLM** describes, verifies and
-scores each candidate in a single constrained call. llama.cpp serves it first; VSS's RT-VLM joins
-behind the same `ai_contract` op in a gated phase. It is developed on the GB300, proven by replay, measured across a Brev hardware matrix, and goes live
-on a single RTX A5500 (24 GB, sm_86). Since spec rev 5 the legacy text-LLM path is unsupported.
+Do not start from `13-implementation-brief.md`'s kickoff prompt (it predates the shipped VLM path) or
+from the entry-pages record. README section 8 says what each doc is for and what it must never be used for.
 
-## Purpose
+## Recording work
 
-The effort investigated NVIDIA's Video Search and Summarization (VSS) blueprint for a
-**consumer-friendly VSS on gaming GPUs**: a single-box, single-user, offline-capable deployment tier
-VSS does not serve. It began as an evaluation of replacing this project's AI pipeline (docs 00-07,
-2026-09-18/19). It became a downstream-first design (2026-09-23) that imports VSS's **verification
-pattern** rather than its services.
+Pick the row that matches what you found. Every path ends in a commit; ledger rows and spec revisions are
+merged by the owner.
 
-## Directory structure
+| You found                         | Do this                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A defect or missing piece         | Allocate the id with `python scripts/vss-next-id.py iss` (it scans every branch and worktree). Put the `#### ISS-nnn` block in its area section of `17`, add a dated line to its Intake log, and update the header count, the Dashboard, the area heading counts and (for P0 and P1) the P0 and P1 list in the same commit. |
+| A measurement                     | Commit a report under `docs/benchmarks/synthbench/`, append a ledger row (owner merges), then add the README Measured row with its conditions. A number with no committed source is listed as unrecorded.                                                                                                                   |
+| An owner ruling                   | The ledger row (or spec revision) is the record. Then update README section 4 with the ruling marked `[O]`, citing that source. A ruling known only from a commit message or a handoff stays unconfirmed.                                                                                                                   |
+| A wrong statement in an older doc | Append an errata entry at the very end of `16`, under its `Later entries` heading (`python scripts/vss-next-id.py e` gives the number; docs 15 and 18 to 21 are corrected there too), starting with a `Corrects:` line, and add a known-false row to README section 7. Do not rewrite the frozen text.                      |
+| An id collision after a merge     | Never renumber. The later issue takes a lettered suffix (`python scripts/vss-next-id.py iss --suffix-of ISS-088` prints the first letter not yet cited anywhere, for example `ISS-088c` once `ISS-088b` is taken).                                                                                                          |
 
-```
-docs/vss-integration/
-├── AGENTS.md                     # This file - start here
-├── README.md                     # Human entry point
-├── 00-context.md                 # The goal, the two repos, the original decision
-├── 01-vss-architecture.md        # VSS service map and mapping to our pipeline
-├── 02-model-inventory.md         # Models, slots, sizing formula (4-bit column is wrong; see 04)
-├── 03-open-questions.md          # Question register (Q1-Q9)
-├── 04-fp4-and-deployment.md      # FP4 reality, the formula trap, consumer fit arithmetic
-├── 05-hardware-profiles.md       # Halo / volume / entry tiering
-├── 06-repo-a-readiness.md        # This repo's readiness (CI blockers closed 2026-09-21)
-├── 07-lean-backend.md            # Avoiding Milvus/ES/Neo4j/Kafka; overlay recommendation
-├── 08-audit-profile-anatomy.md   # Audit A (2026-09-23): profiles, placement, arch, CI, contribution
-├── 09-audit-integration-surfaces.md  # Audit B: component contracts, what to incorporate
-├── 10-audit-feature-inventory.md # Audit C: features to import, gap matrix, NemoClaw addendum
-├── 11-errata-2026-09-23.md       # Corrections to 00-07 (E1-E28)
-├── 12-postponed-roadmap.md       # Deliberately deferred items (R1-R14)
-├── 13-implementation-brief.md    # How the implementing agent works: spikes, ledger, guardrails, stops
-└── 14-specialist-model-research.md  # Specialist model candidates (2026-09-25), 3b picks, rev 7 shortlist
-```
+`scripts/check-vss-docs-currency.py` is the gate. It recomputes the register's counts from its blocks,
+checks that README's pins still match the code, that every doc is in the map, and that every id README
+cites exists. Run it before you commit; its message says which side moved.
 
-The design spec lives outside this directory, with the repo's other specs:
-[`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
+## Edit rules by file class
+
+| Class                                     | Files                          | Rule                                                                                                                                               |
+| ----------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frozen record                             | `00` to `15`, `18` to `21`     | Not rewritten. A correction is an errata entry plus a README known-false row, or a dated banner above the stale claim where the gate requires one. |
+| Append-only tail                          | `16-errata-2026-10-03.md`      | Add entries at the end; every earlier line stays where it is.                                                                                      |
+| Live, edited in place (git is the record) | `README.md`, `AGENTS.md`, `17` | Fix a status, a count or a typo in place; correct a published issue with a dated note under its block.                                             |
+| Owner-held                                | the ledger, the spec, the bars | Ledger rows and spec revisions are the owner's to merge. Never move a bar.                                                                         |
+
+Cite code by file and symbol, and other docs by file and heading or id, not by line number: line numbers
+rot when anyone inserts a line above them. Commit to the current branch; push, PR and merge need the owner's
+go-ahead (README section 6). A wrong statement in `docs/architecture/ai-pipeline-current-state.md` is the
+owner's page to correct: only one-line pointer edits were approved there.
 
 ## Evidence convention
 
 **Every claim in this directory carries a status marker.** Preserve this when editing: the point is
 that a future agent can tell a verified fact from an inference.
 
-| Marker  | Meaning                                                                        |
-| ------- | ------------------------------------------------------------------------------ |
-| **[V]** | Verified by reading the source in-session. Cited with `path:line`.             |
-| **[C]** | Computed from a verified formula. The formula and inputs are shown.            |
-| **[E]** | External knowledge or web source. Needs confirmation against a primary source. |
-| **[?]** | Open question. Not established.                                                |
-| **[O]** | Stated by a human stakeholder. Outranks repo inference.                        |
-| **[A]** | Agent-reported, not independently verified. Check before acting.               |
+| Marker  | Meaning                                                                                                                               |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **[V]** | Verified by reading the source in-session. Cited by file and symbol, heading or id (a `path:line` only where no symbol can be named). |
+| **[C]** | Computed from a verified formula. The formula and inputs are shown.                                                                   |
+| **[E]** | External knowledge or web source. Needs confirmation against a primary source.                                                        |
+| **[?]** | Open question. Not established.                                                                                                       |
+| **[O]** | Stated by a human stakeholder. Outranks repo inference.                                                                               |
+| **[A]** | Agent-reported, not independently verified. Check before acting.                                                                      |
 
-Promote a **[?]** or **[E]** to **[V]** only with the file and line you read.
+Promote a **[?]** or **[E]** to **[V]** only with the file and line you read. A claim is **[O]** only
+when a durable source records the owner saying it (a ledger heading plus commit, or a spec revision);
+a commit message, a handoff or a memory note is **[A]**.
 
 ## The VSS repository
 
@@ -120,8 +108,9 @@ that fails to resolve means VSS moved, not that the finding was wrong.
 
 - **Size from blob sizes, never the VSS formula.** The formula understates NVFP4 by ~40% (see 02's
   boxed warning and 04). For llama.cpp, sum the weights, mmproj, KV and buffers.
-- **Record corrections as errata.** Add a dated errata file (or entries to 11) and a banner on the
-  corrected doc. The original text stays as the evidence record.
+- **Measure on one build.** A number measured on one llama.cpp build or quantization is not the number on
+  another (ISS-087); a cross-model comparison shares one build, and a build bump is a re-qualification
+  with a control replay.
 - **When a roadmap item is picked up,** give it its own spec and mark it in 12 with the date and a
   link.
 

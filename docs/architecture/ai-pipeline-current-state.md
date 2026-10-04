@@ -10,6 +10,10 @@ running system is stated once instead of spread across operator pages. The decis
 of the work and the protection mechanism live in the companion plan at
 `docs/superpowers/plans/2026-10-02-vlm-bringup-and-residue-sweep.md`.
 
+What is decided, measured, open and next for the stack, and the guardrails, live in
+[the State of the stack](../vss-integration/README.md); this page does not restate them, and that
+page does not restate what runs today.
+
 Epistemic markers follow the repo convention from
 `docs/plans/2026-09-28-r8-legacy-retirement-scope.md`: **[V]** verified by direct read in this
 pass, file:line cited; **[A]** asserted from a source I did not re-measure.
@@ -253,8 +257,9 @@ on the A5500, off-repo, and is not reproducible from the repo.
 
 Two more limits worth stating plainly: CI scores nothing (`addopts` excludes `-m gpu` per
 `pyproject.toml:584`, and the A5500 `gpu/rtx-a5500` job was **removed 2026-09-15** per
-`.github/workflows/nightly.yml:12`), and the nightly `prompt-evaluation.yml` scores the **retired
-Nemotron harness in `--mock` mode** — it is green whether or not the shipped VLM works. The F14
+`.github/workflows/nightly.yml:12`), and the nightly prompt-evaluation workflow that scored the **retired
+Nemotron harness in `--mock` mode** (green whether or not the shipped VLM worked) was **deleted
+with that harness**. The F14
 bars (`S2_MAX 5%`, `S3_MIN 90%`, `s_metrics.py:32-33`) are printed as "bars" and enforced by
 nothing; the file says so.
 

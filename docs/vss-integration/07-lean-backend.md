@@ -1,5 +1,12 @@
 # Lean Backend Feasibility: Can We Avoid VSS's Infrastructure?
 
+> **Currency - 2026-10-03 [V].** The VSS-side analysis is untouched; only repo anchors drifted at
+> `5c605e1d`: "`backend/models/event.py:90,192-256`" is now `:91`, `:204`, `:261-267`;
+> "`docker-compose.prod.yml:562`" is `:693`; "58 of 204 service modules" is 54 of 175; "`redis==5.2.1`"
+> is `redis>=5.2.0` (`pyproject.toml:17`). "that role is **Postgres**" also holds `event_verifications`;
+> Recommendation 4 ("GPU topology", "the profile below") is built as `ai-vlm`. See
+> [`16`](16-errata-2026-10-03.md) E85-E88 (also E44, E73, E84).
+
 > **Errata (2026-09-23):** E1, E19, E20, E21, E22, E23, E24 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
 
 **Investigated 2026-09-19**, 8 agents with two adversarial challengers. Verified against VSS

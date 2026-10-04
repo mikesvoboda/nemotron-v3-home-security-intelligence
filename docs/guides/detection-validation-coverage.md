@@ -294,7 +294,7 @@ gap numbers below as the thing to assert on.
 
 Schedule the tiered runs that already exist in CI: `nightly.yml` (07:00 UTC
 analysis), `nightly-full-gate.yml` (04:17 UTC full gate), and
-`prompt-evaluation.yml` / `flaky-test-detection.yml` (02:00 UTC).
+`flaky-test-detection.yml` (02:00 UTC).
 
 ## Expanding Coverage
 
