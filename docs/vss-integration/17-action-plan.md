@@ -4,14 +4,14 @@
 > docs commit). This is the **living register** of issues, added to as they are discovered
 > [A: the owner's original request is not recorded in the repo, so it is paraphrased and not quoted].
 > Owner decision 2026-10-03 [O] (handoff Addendum 5, item 5): the register lives only in this repo;
-> nothing is filed on GitHub or Linear. It holds 87 issues: ISS-001 to ISS-077 from the 2026-10-03
+> nothing is filed on GitHub or Linear. It holds 98 issues: ISS-001 to ISS-077 from the 2026-10-03
 > discovery pass (a commit-archaeology read of the 437 non-merge commits since 2026-09-18 [C],
 > counted with `git rev-list --count --no-merges --since='2026-09-18T00:00:00-0400' 5c605e1d`; the
 > explicit time matters, because a bare `--since=2026-09-18` takes the current time of day and
 > printed 435 when run at 15:40 EDT on 2026-10-03 [V: I ran both]; a drift audit of this directory;
 > a reading of the docs, spec and ledger; and a verify-and-dedupe pass), ISS-078 to ISS-082 added
 > the same day from the sandbox exercise, ISS-083 to ISS-086 added after `d8482861`, ISS-087 added
-> after the sweep's control arm, and ISS-088 added after the PR's first CI read. Every
+> after the sweep's control arm, ISS-088 added after the PR's first CI read, and ISS-089 to ISS-098 added after the merge of #6783 from open work that existed only in errata and reference text. Every
 > issue started `open`; the [Dashboard](#2-dashboard) counts the open and the closed.
 > Add to it by appending to the [Intake log](#intake-log); never renumber.
 >
@@ -158,6 +158,15 @@ quoted text.
 6. Correct a published issue with a dated note under its block; edit the original only to fix a typo
    or a status. The register is a record: what was believed on a date stays readable.
 
+Update, appended 2026-10-03 (after the reorganization decisions): allocate an id with
+`python scripts/vss-next-id.py iss`, which scans every branch and worktree and the ledger and specs,
+not only this file (rule 1's 'highest plus one' is what that script computes); a collision takes a
+lettered suffix (`ISS-088b`) and nothing is renumbered. The block heading is `####`, as the template
+below now shows (it printed `###` before, which the gate does not count). The Dashboard counts are
+still written by hand, but `scripts/check-vss-docs-currency.py` recomputes them from the blocks and
+prints the right numbers when they disagree, so update the header count, the Dashboard, the area
+heading counts and the P0 and P1 list in the same commit as the block.
+
 ### Severity
 
 - **P0**: blocks a milestone or go-live, or leaves a designed safety behaviour structurally
@@ -202,7 +211,7 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 ### Block format
 
 ```text
-### ISS-nnn — title
+#### ISS-nnn — title
 
 `P1` (verifiers read `P2`) · `gap` · actor `agent-now` · status `open`
 
@@ -213,56 +222,56 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-03 (after `ab3bd002`, with ISS-087 and ISS-088 counted; ISS-087 had an entry but was missing from these counts until ISS-088). The Filed columns count every issue by its filed
+Counts as of 2026-10-03 (after `ab3bd002`, with ISS-087 to ISS-098 counted; ISS-087 had an entry but was missing from these counts until ISS-088). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
-ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 and ISS-088 were filed later. Regenerate the counts by hand
+ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
 when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 86    |
+| open        | 96    |
 | in-progress | 0     |
 | done        | 2     |
 | wont-fix    | 0     |
 | superseded  | 0     |
-| total       | 88    |
+| total       | 98    |
 
 | Severity | Filed | Open |
 | -------- | ----- | ---- |
 | P0       | 1     | 1    |
 | P1       | 34    | 33   |
-| P2       | 41    | 40   |
-| P3       | 12    | 12   |
-| total    | 88    | 86   |
+| P2       | 50    | 49   |
+| P3       | 13    | 13   |
+| total    | 98    | 96   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
-| agent-now      | 61    | 61   |
-| owner-decision | 23    | 21   |
-| owner-hardware | 4     | 4    |
+| agent-now      | 64    | 64   |
+| owner-decision | 28    | 26   |
+| owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
 
 | Kind     | Filed | Open |
 | -------- | ----- | ---- |
-| bug      | 18    | 18   |
-| gap      | 31    | 31   |
-| debt     | 16    | 16   |
-| decision | 13    | 12   |
+| bug      | 19    | 19   |
+| gap      | 35    | 35   |
+| debt     | 17    | 17   |
+| decision | 17    | 16   |
 | risk     | 10    | 9    |
 
 | Area                                      | P0  | P1  | P2  | P3  | Filed | Open |
 | ----------------------------------------- | --- | --- | --- | --- | ----- | ---- |
-| Notification and alerting (M1)            | 1   | 4   | 4   | 0   | 9     | 9    |
+| Notification and alerting (M1)            | 1   | 4   | 5   | 0   | 10    | 10   |
 | Verdict reliability and observability     | 0   | 6   | 3   | 1   | 10    | 9    |
-| Prompt, verdict quality and calibration   | 0   | 2   | 1   | 0   | 3     | 3    |
-| Video, ingest and key frames              | 0   | 4   | 5   | 1   | 10    | 10   |
-| Evaluation and S-bar measurement          | 0   | 8   | 7   | 1   | 16    | 16   |
-| Specialists                               | 0   | 2   | 3   | 0   | 5     | 5    |
+| Prompt, verdict quality and calibration   | 0   | 2   | 2   | 0   | 4     | 4    |
+| Video, ingest and key frames              | 0   | 4   | 6   | 1   | 11    | 11   |
+| Evaluation and S-bar measurement          | 0   | 8   | 11  | 1   | 20    | 20   |
+| Specialists                               | 0   | 2   | 4   | 0   | 6     | 6    |
 | Serving, deploy and supply chain          | 0   | 3   | 5   | 0   | 8     | 8    |
-| Security, privacy and licensing           | 0   | 3   | 2   | 1   | 6     | 6    |
+| Security, privacy and licensing           | 0   | 3   | 3   | 1   | 7     | 7    |
 | Operator UI and explainability            | 0   | 1   | 3   | 0   | 4     | 4    |
-| Retired-architecture residue, docs and CI | 0   | 1   | 8   | 8   | 17    | 16   |
+| Retired-architecture residue, docs and CI | 0   | 1   | 8   | 9   | 18    | 17   |
 
 ### P0 and P1 issues
 
@@ -406,11 +415,23 @@ rubric arm leaves S3 about 46 points short of 90% and raises S2 further above it
   merges. Depends on: step 2 (so the row can state the sampling contract).
   - The ledger has no mention of P5a (`grep -ci p5a` is 0). Print refusals beside the S2 rate and
     put the conditions line first. Append-only; identify the row by heading, PR and commit.
+  - Update, appended 2026-10-03 (after the owner merged PR #6783, merge commit `0d740944`): done. The
+    ledger row headed 'VLM-PATH MEASUREMENT AND CLEANUP' records the committed P5a baseline, the two
+    re-runs, the sampling finding and the renderer-check bypass, and `grep -ci p5a` of the ledger
+    returns 2 **[V]**; the bullet above is stale. The row was written as 75 and is 76 on main, because
+    main appended its own R8 row first: cite it by heading, never by number. E36 has four parts; only
+    the P5a replay is discharged. The corpus build and the H3 clip rounds still have no ledger row
+    (`grep -ci "clip round"` is 0; `tierb` has one hit, in that row itself) **[V]**.
 - **Step 4, go.** Dated errata and banners for the stale statements (never in-place rewrites).
   Issues: ISS-026, ISS-069, ISS-074, ISS-080, ISS-081. Who: agent now. Depends on: none.
   - The `docker-compose.prod.yml:578` anchor (now `:484`), the README and AGENTS 'VLM pick is still
     the owner's' and `10/20` sentences, the brief's 'Retired code stays until R8', and the S2/S3
     `[?]` rows. The frozen-prose convention applies: banner above, original kept.
+  - Update, appended 2026-10-03: banners and errata E29 onward are written for docs 00-14. For README
+    and AGENTS the owner has since chosen a different route [O]: both become a maintained State of the
+    stack and their 2026-09-23 bodies move to `21-entry-pages-record-2026-09-23.md` (see the Intake
+    log entry dated 2026-10-03 after the merge). That replaces the banner-above route for those two
+    files; the S2/S3 `[?]` rows stay with the design spec (ISS-081, OD-3).
 - **Step 5, go.** Read the real owner-merge queue before opening any VLM PR. Issues: ISS-060. Who:
   agent now (read-only `gh`; sandbox access unverified [?]). Depends on: none.
   - The ledger's CI numbers are 2026-10-01 snapshots. Note which red classes are owner-held (the
@@ -521,6 +542,8 @@ this order.
   - Update 2026-10-03 (after `efa1b586`): ISS-083 is `done`; the track now holds ISS-084 and
     ISS-085, which still wait on OD-25. The `cryptography` upgrade that ISS-083 unblocked is
     OD-11's and is not applied.
+  - Update, appended 2026-10-03: it was applied in `f0ff083e` (`cryptography` 50.0.2, the ignore flags
+    removed, `pip-audit` clean); OD-11 still holds the other owner-held CI items.
 
 ## 4. Owner decisions
 
@@ -530,33 +553,36 @@ order). Options are the ones the evidence supports, not a recommendation. A ruli
 dated line in the ledger and referenced from the issue; closing the decision unblocks the issues in
 the last column.
 
-| ID    | Decision                                                                                 | Options                                                                                                                                                             | Unblocks                                             | Source               |
-| ----- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------- |
-| OD-1  | M1: where the notify decision lives                                                      | (a) `vlm_analyzer` persist path only; (b) also the rules engine and `deliver_alert`; (c) filter first, engine later                                                 | ISS-001 (P0), 018, 019, 020, 041, 047, 048, 049, 058 | reading, step 7      |
-| OD-2  | S3 floor, and the remedy for the S3 gap                                                  | floor: midpoint, band minimum, or both; remedy: prompt and calibration slice, accept and re-scope, or bar revision (owner-only)                                     | ISS-015, 008                                         | reading, step 6      |
-| OD-3  | Spec revision: F14 bars, M1, S1 and G0.3 text, 'rev 7' collision                         | approve a rev now, or fold into the next after steps 6-8; do not ask for an `S2_MAX` number                                                                         | ISS-081, 069, 014 (spec rows)                        | reading, step 9      |
-| OD-4  | M2 closure: does declared-truth replay count as the 'real corpus' for flip (iii)?        | yes (the 8B pick reopens at 36% S3; try Nemotron-12B-VL past b7972) or no (wait for P5b or owner footage)                                                           | ISS-007, 024, 016                                    | reading, step 10     |
-| OD-5  | Clips lane: an owner item for a video VLM, or leave clips unscored                       | roadmap entry or spec for a video-capable engine; or keep clips as assets; no frame bursts through the product VLM                                                  | ISS-003, 038, 002                                    | reading, step 12     |
-| OD-6  | P5b: live pipeline instance scored per stage                                             | design now (needs arm64 milestones 1-2) or defer with a date                                                                                                        | ISS-007, 024, 036, 040                               | reading, step 13     |
-| OD-7  | Threat specialist; immediate-alert fast paths; alerts-surface rule for unverified events | `GATEWAY_ENABLE_THREAT` on (re-measure S1) or off; delete the fast-path stubs or specify a trigger; show unverified events or keep high/critical only               | ISS-021, 053, 066                                    | reading, step 11     |
-| OD-8  | A5500 S1/S4 acceptance; Brev spend; re-take after serving changes                        | accept as measured; require a re-take after a budget, context or build change; approve Brev GPU types and duration                                                  | ISS-046, 012, 017, 052, 057, 059, 054                | reading, step 14     |
-| OD-9  | Go-live 3.1 sign-off                                                                     | after M1 closed, S2/S3 read at the F14 bars on an accepted corpus, S5 notification half met, S6 recorded                                                            | terminal gate                                        | reading, step 15     |
-| OD-10 | Push, PR and merge scope for this effort                                                 | see the note below the table                                                                                                                                        | ISS-001 build slice; every PR                        | reading, decision 10 |
-| OD-11 | Owner-held CI items: Linear key, `cryptography` ceiling, smoke ruling, ZAP               | rotate or remove Linear steps; Dependabot options 1/2/3; scope or stub the smoke gate; ZAP timeout                                                                  | ISS-060, 059                                         | reading, decision 11 |
-| OD-12 | Authentication and LAN exposure of the published frontend nginx                          | (a) loopback unless `EXPOSE_LAN=true`; (b) deny-by-default auth on `/api` and `/ws`; (c) keep LAN-trust and fix the docs                                            | ISS-029, 062, 009                                    | ISS-029              |
-| OD-13 | Streaming ingest (R1): trigger and frame-persistence requirement                         | sequence with clip extraction; keep M3-gated; spike decode and wake duty cycle first                                                                                | ISS-039                                              | ISS-039              |
-| OD-14 | Release artifacts: ghcr publish gap; plain prod `up`                                     | (a) publish `ai-vlm` and `ai-gateway`; (b) declare ghcr unsupported for the VLM; plain `up`: start `ai-vlm` or fail loud                                            | ISS-028, 022                                         | ISS-028              |
-| OD-15 | Replace the leading 60-still audit with a blind check                                    | blind audit of 150 or more stills with per-stratum intervals, or keep the check and state its limits                                                                | ISS-044, 038                                         | ISS-044              |
-| OD-16 | Push notification channel                                                                | Web Push, webhook to ntfy, server push (APNs/FCM), or email and webhook only                                                                                        | ISS-049                                              | ISS-049              |
-| OD-17 | Fate of the Triton `reid`/`threat` lane and dead GPU surface                             | backend calls `/enrich-lt/person-reid`, or drop `reid` from the sets; pin or remove `ai-llm-vllm`                                                                   | ISS-050, 051, 055                                    | ISS-050              |
-| OD-18 | Licence register and biometric data model (R12, R13)                                     | machine-checked register from `models.yml` and a corpus manifest; may H3 clips tune a model or only evaluate                                                        | ISS-063, 054, 030, 048                               | ISS-063              |
-| OD-19 | Erasure of a person's data across stores                                                 | an erase-person operation, or a documented procedure tied to the retention matrix                                                                                   | ISS-072, 030                                         | ISS-072              |
-| OD-20 | Retire the dead enrichment surface                                                       | remove hook, route, types and tombstone in one commit, or keep the route                                                                                            | ISS-073, 055                                         | ISS-073              |
-| OD-21 | Detector-independent scene pass, or a stated recall ceiling                              | (a) scene-level pass with a candidate-free prompt; (b) document the detector vocabulary as the ceiling                                                              | ISS-040                                              | ISS-040              |
-| OD-22 | Notification policy: `rejected`, `uncertain`, quiet hours, grouping                      | (a) `rejected` may not suppress a person above a floor; (b) low-score `uncertain` takes the detector-only rule; (c) quiet-hours override and timezone; (d) cooldown | ISS-041, 019                                         | ISS-041              |
-| OD-23 | Replay while the renderer runs; where `eval/` and `runs/` live                           | (1) allow replay for a fenced `agent-gpu` VLM, bypass recorded in `run.json`; (2) a writable mount or a `SYNTHBENCH_ROOT` that also exposes the corpus              | ISS-079, 045                                         | ISS-079              |
-| OD-24 | Sampling policy of the assess call                                                       | temperature 0 and seeded; k-sample median or majority; or keep 0.1 and report means over repeats. Pending the temperature-0 experiment                              | ISS-078, 043, 008, 016, 017                          | ISS-078              |
-| OD-25 | Retire or keep the Nemotron-era neighbors left by `d8482861`                             | (a) retire them in slices as `d8482861` did the harness; (b) keep as supported surfaces on `ai-vlm`, with tests against the real build; (c) decide per issue        | ISS-083, 084, 085                                    | ISS-083, 084, 085    |
+| ID    | Decision                                                                                                    | Options                                                                                                                                                                                                                                       | Unblocks                                             | Source               |
+| ----- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------- |
+| OD-1  | M1: where the notify decision lives                                                                         | (a) `vlm_analyzer` persist path only; (b) also the rules engine and `deliver_alert`; (c) filter first, engine later                                                                                                                           | ISS-001 (P0), 018, 019, 020, 041, 047, 048, 049, 058 | reading, step 7      |
+| OD-2  | S3 floor, and the remedy for the S3 gap                                                                     | floor: midpoint, band minimum, or both; remedy: prompt and calibration slice, accept and re-scope, or bar revision (owner-only)                                                                                                               | ISS-015, 008                                         | reading, step 6      |
+| OD-3  | Spec revision: F14 bars, M1, S1 and G0.3 text, 'rev 7' collision                                            | approve a rev now, or fold into the next after steps 6-8; do not ask for an `S2_MAX` number                                                                                                                                                   | ISS-081, 069, 014 (spec rows)                        | reading, step 9      |
+| OD-4  | M2 closure: does declared-truth replay count as the 'real corpus' for flip (iii)?                           | yes (the 8B pick reopens at 36% S3; try Nemotron-12B-VL past b7972) or no (wait for P5b or owner footage)                                                                                                                                     | ISS-007, 024, 016                                    | reading, step 10     |
+| OD-5  | Clips lane: an owner item for a video VLM, or leave clips unscored                                          | roadmap entry or spec for a video-capable engine; or keep clips as assets; no frame bursts through the product VLM                                                                                                                            | ISS-003, 038, 002                                    | reading, step 12     |
+| OD-6  | P5b: live pipeline instance scored per stage                                                                | design now (needs arm64 milestones 1-2) or defer with a date                                                                                                                                                                                  | ISS-007, 024, 036, 040                               | reading, step 13     |
+| OD-7  | Threat specialist; immediate-alert fast paths; alerts-surface rule for unverified events                    | `GATEWAY_ENABLE_THREAT` on (re-measure S1) or off; delete the fast-path stubs or specify a trigger; show unverified events or keep high/critical only                                                                                         | ISS-021, 053, 066                                    | reading, step 11     |
+| OD-8  | A5500 S1/S4 acceptance; Brev spend; re-take after serving changes                                           | accept as measured; require a re-take after a budget, context or build change; approve Brev GPU types and duration                                                                                                                            | ISS-046, 012, 017, 052, 057, 059, 054                | reading, step 14     |
+| OD-9  | Go-live 3.1 sign-off                                                                                        | after M1 closed, S2/S3 read at the F14 bars on an accepted corpus, S5 notification half met, S6 recorded                                                                                                                                      | terminal gate                                        | reading, step 15     |
+| OD-10 | Push, PR and merge scope for this effort                                                                    | see the note below the table                                                                                                                                                                                                                  | ISS-001 build slice; every PR                        | reading, decision 10 |
+| OD-11 | Owner-held CI items: Linear key, `cryptography` ceiling, smoke ruling, ZAP                                  | rotate or remove Linear steps; Dependabot options 1/2/3; scope or stub the smoke gate; ZAP timeout                                                                                                                                            | ISS-060, 059                                         | reading, decision 11 |
+| OD-12 | Authentication and LAN exposure of the published frontend nginx                                             | (a) loopback unless `EXPOSE_LAN=true`; (b) deny-by-default auth on `/api` and `/ws`; (c) keep LAN-trust and fix the docs                                                                                                                      | ISS-029, 062, 009                                    | ISS-029              |
+| OD-13 | Streaming ingest (R1): trigger and frame-persistence requirement                                            | sequence with clip extraction; keep M3-gated; spike decode and wake duty cycle first                                                                                                                                                          | ISS-039                                              | ISS-039              |
+| OD-14 | Release artifacts: ghcr publish gap; plain prod `up`                                                        | (a) publish `ai-vlm` and `ai-gateway`; (b) declare ghcr unsupported for the VLM; plain `up`: start `ai-vlm` or fail loud                                                                                                                      | ISS-028, 022                                         | ISS-028              |
+| OD-15 | Replace the leading 60-still audit with a blind check                                                       | blind audit of 150 or more stills with per-stratum intervals, or keep the check and state its limits                                                                                                                                          | ISS-044, 038                                         | ISS-044              |
+| OD-16 | Push notification channel                                                                                   | Web Push, webhook to ntfy, server push (APNs/FCM), or email and webhook only                                                                                                                                                                  | ISS-049                                              | ISS-049              |
+| OD-17 | Fate of the Triton `reid`/`threat` lane and dead GPU surface                                                | backend calls `/enrich-lt/person-reid`, or drop `reid` from the sets; pin or remove `ai-llm-vllm`                                                                                                                                             | ISS-050, 051, 055                                    | ISS-050              |
+| OD-18 | Licence register and biometric data model (R12, R13)                                                        | machine-checked register from `models.yml` and a corpus manifest; may H3 clips tune a model or only evaluate                                                                                                                                  | ISS-063, 054, 030, 048                               | ISS-063              |
+| OD-19 | Erasure of a person's data across stores                                                                    | an erase-person operation, or a documented procedure tied to the retention matrix                                                                                                                                                             | ISS-072, 030                                         | ISS-072              |
+| OD-20 | Retire the dead enrichment surface                                                                          | remove hook, route, types and tombstone in one commit, or keep the route                                                                                                                                                                      | ISS-073, 055                                         | ISS-073              |
+| OD-21 | Detector-independent scene pass, or a stated recall ceiling                                                 | (a) scene-level pass with a candidate-free prompt; (b) document the detector vocabulary as the ceiling                                                                                                                                        | ISS-040                                              | ISS-040              |
+| OD-22 | Notification policy: `rejected`, `uncertain`, quiet hours, grouping                                         | (a) `rejected` may not suppress a person above a floor; (b) low-score `uncertain` takes the detector-only rule; (c) quiet-hours override and timezone; (d) cooldown                                                                           | ISS-041, 019                                         | ISS-041              |
+| OD-23 | Replay while the renderer runs; where `eval/` and `runs/` live                                              | (1) allow replay for a fenced `agent-gpu` VLM, bypass recorded in `run.json`; (2) a writable mount or a `SYNTHBENCH_ROOT` that also exposes the corpus                                                                                        | ISS-079, 045                                         | ISS-079              |
+| OD-24 | Sampling policy of the assess call                                                                          | temperature 0 and seeded; k-sample median or majority; or keep 0.1 and report means over repeats. Pending the temperature-0 experiment                                                                                                        | ISS-078, 043, 008, 016, 017                          | ISS-078              |
+| OD-25 | Retire or keep the Nemotron-era neighbors left by `d8482861`                                                | (a) retire them in slices as `d8482861` did the harness; (b) keep as supported surfaces on `ai-vlm`, with tests against the real build; (c) decide per issue                                                                                  | ISS-083, 084, 085                                    | ISS-083, 084, 085    |
+| OD-26 | The sweep's selection rule: what counts as better than the 8B, fixed before any arm is read for a pick      | (a) metrics, order, margin and a paired test on shared items; the 8B control as the yardstick or the F14 bars as absolute gates; gates beyond accuracy (refusals, VRAM, latency); (b) a winner confirmed once on items that did not choose it | ISS-097, ISS-087                                     | ISS-097              |
+| OD-27 | Weight tuning (LoRA, SFT, DPO, GRPO): in scope before go-live, deferred to a named trigger, or out of scope | (a) in scope now, with a data card per input, a locked scenario set and a real-frame holdout; (b) deferred to a trigger (the ISS-086 ceiling, the prompt and calibration rungs on a frozen split); (c) out of scope                           | ISS-095, ISS-096                                     | ISS-095              |
+| OD-28 | Dead service modules and the scene-change vertical: delete, wire or keep each                               | (a) delete the guided-constraints and trajectory modules first, then the scene-change vertical; (b) wire what the VLM path should use; (c) keep behind a committed keep-list with a reason per entry                                          | ISS-092                                              | ISS-092              |
 
 Note on OD-10. The ledger records a merge-authority delegation of 2026-10-01
 (`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md:764`), which per the reading covers merging after
@@ -567,7 +593,7 @@ a VLM branch: treat PR and merge as needing the user's go-ahead.
 Source column: 'reading, step n' is the reading of the docs, spec and ledger on 2026-10-03 (its
 decision list and step list); an `ISS-nnn` source is the issue that raised the decision. OD-1 to
 OD-11 follow the reading's decision list in order, OD-12 onward come from the register, and
-OD-23 and OD-24 from the sandbox intake, and OD-25 from the intake after `d8482861`.
+OD-23 and OD-24 from the sandbox intake, OD-25 from the intake after `d8482861`, and OD-26 to OD-28 from the intake that filed ISS-089 to ISS-098. ISS-093 extends OD-5 (the clip supply, bar and report) and ISS-096 extends OD-18 (the FLUX stills' licence), each by a dated update under the table.
 
 Update 2026-10-03 (later), OD-24: the temperature-0 experiment in its 'Pending' cell has landed
 (handoff Addendum 4; Intake log entry 2026-10-03 (later)). The ruling is still the owner's.
@@ -625,7 +651,7 @@ Grouped by area, most severe first within each area. Each block carries the veri
 it matters, the world-class gap, a checkable acceptance condition, what it depends on and where it
 is already tracked.
 
-### Notification and alerting (M1) (9)
+### Notification and alerting (M1) (10)
 
 The seam from a persisted verdict to a human. The P0 lives here: nothing calls the notify decision.
 
@@ -1029,6 +1055,160 @@ The seam from a persisted verdict to a human. The P0 lives here: nothing calls t
   (OD-16) before it is built.
 - **Depends on.** OD-16; ISS-001; ISS-020.
 - **Tracked as.** None found; absent from `docs/vss-integration/12-postponed-roadmap.md`.
+
+#### ISS-091 — No code emits the `EVENT_CREATED` outbound webhook after R8: a stored VLM verdict fires no event-level webhook
+
+`P2` · `bug` · actor `agent-now` · status `open` · added 2026-10-03 (after `2a3f0883`)
+
+- **Evidence**
+  - The emitter that existed: `git show 602379e2^:backend/services/nemotron_analyzer.py` defines
+    `NemotronAnalyzer._trigger_event_created_webhook` (NEM-3624), called right after the cache
+    invalidation at each of the two sites in that file that committed an Event row. It skipped
+    soft-deleted events, opened its own session, called
+    `get_webhook_service().trigger_webhooks_for_event(db, WebhookEventType.EVENT_CREATED, {...},
+event_id=str(event.id))` and logged and swallowed any failure. Payload keys: `event_id`,
+    `batch_id`, `camera_id`, `risk_score`, `risk_level`, `summary`, `started_at`, `ended_at`,
+    `is_fast_path`. Commit `602379e2` (R8 S2b, 'delete the legacy LLM + enrichment tier') deleted
+    the file; its commit message does not mention webhooks
+    [V: `git show`, `git show -s --format=%B 602379e2`,
+    `git log --diff-filter=D -- backend/services/nemotron_analyzer.py`]
+  - At HEAD `grep -n -i webhook backend/services/vlm_analyzer.py` is empty (exit 1), and
+    `grep -rn "WebhookEventType.EVENT" backend --include=*.py` outside `backend/tests` is empty
+    (exit 1), both re-run [V]. The non-test callers of `trigger_webhooks_for_event(` are
+    `ThreatMonitorService._trigger_webhooks`, `AlertRuleEngine._trigger_alert_webhook`,
+    `AlertService._trigger_webhook`, `EntityClusteringService._trigger_entity_discovered_webhook`
+    and the `trigger_webhook_background` wrapper in `backend/services/webhook_service.py`; none
+    passes `EVENT_CREATED`, and no string-literal `"event_created"` reaches the service. The other
+    `event_created` hits in non-test `backend/` are the two enum definitions
+    (`backend/models/outbound_webhook.py`, `backend/api/schemas/outbound_webhook.py`), WebSocket
+    event types, cache-invalidation reason strings, a metrics counter, a telemetry name list and
+    the test-send table in `webhook_service.py` [V]
+  - Where an emitter would go: the block of `VlmAnalyzer.analyze_batch` after the write session
+    closes calls `_set_idempotency`, then (production only) `_notify_decision` and `_broadcast`, logs
+    and returns; it has no webhook step. `analyze_detection_fast_path` and
+    `analyze_batch_streaming` both route through `analyze_batch`, so it is the single
+    event-producing path; an idempotency hit returns the existing event before any write, and
+    `replay=True` skips every outward call by design (the `if not self._replay` guards) [V].
+    `VlmAnalyzer` never sets `Event.is_fast_path` (grep of the file is empty; the column defaults
+    to False in `backend/models/event.py`), so the pre-R8 payload key would read False even for the
+    `fast_path_<id>` batches [V]
+  - What still emits, from the callers above [V: grep and read]: `AlertService._trigger_webhook`
+    (`ALERT_FIRED`, `ALERT_ACKNOWLEDGED`, `ALERT_DISMISSED`) is reached by the create, acknowledge and
+    dismiss routes of `backend/api/routes/alert_service.py` (router prefix `/api/alert-service`),
+    and the acknowledge and dismiss routes in `backend/api/routes/alerts.py` schedule
+    `trigger_webhook_background`. `AlertRuleEngine._trigger_alert_webhook` is called only from
+    `create_alerts_for_event`, which has no non-test caller (ISS-001).
+    `ThreatMonitorService._trigger_webhooks` is reached only from `_process_threat_fast_path` in
+    `backend/services/batch_aggregator.py`, which builds the service with `session=None` and calls
+    `process_threat_detection(threat_detection=None, event=None)`, which raises `ValueError`
+    (ISS-021). `EntityClusteringService.assign_entity` has one non-test caller,
+    `HybridEntityStorage.store_detection_embedding`, and `pipeline_workers.py`, `vlm_analyzer.py`,
+    `batch_aggregator.py` and `main.py` do not reference the entity modules (ISS-036). So 4 of the
+    11 members of the `WebhookEventType` enum in `backend/api/schemas/outbound_webhook.py` (the
+    enum the service, the routes, the API doc and the frontend use) have any non-test emitter, and
+    none of the 4 fires from a stored VLM verdict. The other 7 have none: `EVENT_CREATED`,
+    `EVENT_ENRICHED`, `ANOMALY_DETECTED`, `SYSTEM_HEALTH_CHANGED` and the three
+    `BATCH_ANALYSIS_*`; `git grep "WebhookEventType\." 602379e2^ -- backend ':!backend/tests'`
+    shows `EVENT_CREATED` was the only one of those 7 with an emitter at that commit. A second,
+    13-member `WebhookEventType` in `backend/models/outbound_webhook.py` adds `PACKAGE_*`,
+    `SMOKE_DETECTED` and `FIRE_DETECTED`, which no non-test code references; the service does not
+    import it
+  - Still advertised: `docs/developer/api/webhooks.md` ('Event Types' table) lists `event_created`
+    as 'Security event was created'; `frontend/src/types/webhook.ts` `WEBHOOK_EVENT_TYPES` and
+    `WEBHOOK_EVENT_LABELS` include it, `frontend/src/components/webhooks/WebhookForm.tsx` offers
+    every member of `WEBHOOK_EVENT_TYPES` as a subscription choice, and
+    `frontend/src/components/webhooks/WebhookTestModal.tsx` offers it for test-send [V].
+    `WebhookService._build_test_event_data` answers a test-send for `event_created` with
+    `event_id`, `camera_id` and `event_type: "motion_detected"` plus the base keys `test` and
+    `timestamp`, a shape the deleted emitter never sent, so a test-send can succeed while a real
+    event never delivers [V]. The currency banner of `10-audit-feature-inventory.md` already lists
+    'Outbound webhooks' as mis-wired (E102), but the O26 row still reads 'WIRED' with the cite
+    `nemotron_analyzer.py:4540-4543`, which at `602379e2^` is the LLM client-error branch, not the
+    trigger (that is near line 4950), and section 6 item 10 still counts 'Outbound webhooks with
+    HMAC and retries (O26)' as an integration strength [V]
+  - The loss was tested before R8 and untested after: at `602379e2^`
+    `backend/tests/unit/services/test_nemotron_analyzer_batch25_25.py` drove the emitter with four
+    tests (`test_trigger_webhook_payload_is_pinned_exactly`,
+    `test_trigger_webhook_skips_soft_deleted_event`,
+    `test_trigger_webhook_payload_without_optional_timestamps`,
+    `test_trigger_webhook_failure_log_is_pinned`) and other `test_nemotron_analyzer_batch25_*` files
+    patched it; `602379e2` deleted all 34 `test_nemotron_analyzer*` files, and none remains at HEAD.
+    `backend/tests/unit/services/test_webhook_integration.py` lists 'Events are created
+    (EVENT_CREATED)' in its docstring but never had a class for it (the same four classes at
+    `602379e2^` and HEAD). At HEAD `find backend/tests -iname "*vlm*" | xargs grep -il webhook`
+    finds nothing, and `test_build_test_event_data_event_created` in
+    `backend/tests/unit/services/test_webhook_service.py` asserts only `test`, `event_id` and
+    `camera_id` [V]
+  - Scope note: the bulk-create route in `backend/api/routes/events.py` and the seed path in
+    `backend/api/routes/admin.py` also build `Event` rows, and neither mentioned a webhook at
+    `602379e2^` (0 hits in both files), so they are outside this issue [V]
+- **Why it matters.** An operator who subscribed a webhook to `event_created`, the only
+  event-level trigger that had an emitter, which the form offers and the API doc lists, receives
+  nothing for any VLM event, and nothing records the miss: the service is never called, so there is
+  no delivery row and no log line to look for. R8 S2b removed the only emitter along with the legacy
+  tier, its commit message does not mention it, the tests that pinned it went with the module, and
+  the audit row and the API doc still say it fires. With ISS-001 (the engine's `ALERT_FIRED` webhook
+  sits behind `create_alerts_for_event`, which has no production caller) a stored, confirmed verdict
+  reaches no outbound webhook by any route at HEAD; the surviving webhooks fire only on calls to the
+  alert API (and on entity-store calls, ISS-036). The audit's list of integration strengths counts
+  'Outbound webhooks with HMAC and retries (O26)' (`10-audit-feature-inventory.md`, section 6 item
+  10), so the claim is stronger than the behaviour. The impact is bounded: it matters only to an
+  operator with a subscribed webhook, and I found no record of one [?].
+- **World-class gap.** One best-effort fan-out after the event and verification rows commit: the
+  analyzer hands the creation fact to the webhook service in its own short session, never undoing
+  the commit, skipped in replay and on an idempotency hit, with the stored verdict in the payload
+  next to the score so a receiver can tell confirmed from rejected or `verification_failed` without
+  a second call. Every advertised `WebhookEventType` either has an emitter or is marked reserved in
+  the docs and the form, with a test that fails when an advertised type has neither, and the
+  test-send payload is built from the same key set as the real one.
+- **Acceptance.**
+  1. A new unit test through `VlmAnalyzer.analyze_batch` with the stubbed VLM, in the style of
+     `TestAnalyzeBatchScored` in `backend/tests/unit/services/test_vlm_analyzer.py`, fails first on
+     the current tree and passes after the change: with `get_webhook_service` patched where the
+     analyzer imports it, a confirmed event produces exactly one `trigger_webhooks_for_event` call
+     with `WebhookEventType.EVENT_CREATED`, `event_id=str(event.id)` and data keys `event_id`,
+     `batch_id`, `camera_id`, `risk_score`, `risk_level`, `summary`, `started_at`, `ended_at` plus
+     `verdict`; an idempotency hit and `replay=True` make zero calls; a raising webhook service
+     leaves the returned event and the broadcast intact (the shape of
+     `test_broadcast_failure_does_not_undo_the_event`). The pre-R8 `is_fast_path` key is either
+     dropped or derived from the `fast_path_` batch-id prefix, and the test pins the choice. Run as
+     `uv run pytest backend/tests/unit/services/test_vlm_analyzer.py -k event_created_webhook`, with
+     the failing and passing output recorded in the commit message.
+  2. For `rejected`, `uncertain` and `verification_failed` (NULL score: the score and level keys
+     are present with `None`) a test pins the chosen behaviour. The first cut is pre-R8 parity, one
+     call per stored event with `verdict` in the payload so a receiver can filter, unless an owner
+     ruling under OD-1 or ISS-041 says a `rejected` verdict must not leave the box (spec section 6
+     rule 'rejected => never notifies', `docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md`
+     line 334), in which case the test pins suppression and the API doc says so.
+  3. A test fails if any member of the `WebhookEventType` enum in
+     `backend/api/schemas/outbound_webhook.py` that `docs/developer/api/webhooks.md` lists has no
+     non-test emitter and is not on an explicit reserved list (the six that had none at
+     `602379e2^`: `EVENT_ENRICHED`, `ANOMALY_DETECTED`, `SYSTEM_HEALTH_CHANGED`,
+     `BATCH_ANALYSIS_STARTED`, `BATCH_ANALYSIS_COMPLETED`, `BATCH_ANALYSIS_FAILED`, unless an owner
+     ruling retires them); the doc table and the O26 row and strengths item of
+     `10-audit-feature-inventory.md` state which types fire.
+  4. A test pins `WebhookService._build_test_event_data("event_created")` to the emitted payload's
+     key set plus the base keys `test` and `timestamp`, extending
+     `test_build_test_event_data_event_created`.
+- **Depends on.** ISS-048 for the field list: `summary` is model text that can carry identity names
+  (`vlm_specialists` feeds names into the prompt), so the first cut keeps the pre-R8 keys plus
+  `verdict` and that issue's per-channel allowlist narrows them later; ISS-064 (private-IP webhook
+  targets are blocked, so every payload leaves the box). ISS-041 and OD-1 for whether a `rejected`
+  or `verification_failed` event may fire the webhook at all (clause 2); the first cut does not wait
+  for them. Relates to ISS-001: an event-created fact is not the notify decision, and the
+  owner's 2026-10-03 'analyzer-only first' order for M1 puts outbound steps in the analyzer
+  (ISS-001 update) [A]; if the owner rules that one post-commit stage owns all outbound delivery,
+  the emitter moves there (placement only). The other two halves of E102 are filed as ISS-021 (O8)
+  and ISS-036 (O19). Retiring `event_created` from the enum, docs and form is a different slice and
+  would need an owner ruling that is not filed.
+- **Tracked as.** E102 in `16-errata-2026-10-03.md`, as a correction with 'candidate action items'
+  and no owner ruling; `grep -i webhook` over the VSS spec, the phase-1 plan, the ledger, the
+  2026-10-03 handoff, `12-postponed-roadmap.md`, `15` and `18` finds nothing on it (the one ledger
+  hit is an unrelated GitHub-sync workflow). None found.
+- **Severity note.** Filed P2; an independent re-check at `2a3f0883` re-ran the greps and agreed.
+  E102 rates the impact medium, and P1 is arguable for a silent regression of a documented
+  integration; P2 because delivery is opt-in, I found no configured subscriber [?], and the owner's
+  M1 order is analyzer-only first.
 
 ### Verdict reliability and observability (10)
 
@@ -1536,7 +1716,7 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
 - **Severity note.** Verifier read P3: asks to reverse a ruled compose default, and the per-call
   proof softens the impact.
 
-### Prompt, verdict quality and calibration (3)
+### Prompt, verdict quality and calibration (4)
 
 What the model is asked, what it is shown, and how its score maps to the levels users see.
 
@@ -1680,7 +1860,196 @@ What the model is asked, what it is shown, and how its score maps to the levels 
   ISS-005.
 - **Tracked as.** None found.
 
-### Video, ingest and key frames (10)
+#### ISS-095 — Decide whether to fine-tune the VLM: the owner asked about LoRA and the research is written, but no ruling, gate, data-use term or held-out set is recorded
+
+`P2` · `decision` · actor `owner-decision` · status `open` · added 2026-10-03 (after `2a3f0883`)
+
+- **Evidence**
+  - The question is the owner's and is recorded as open. `docs/vss-integration/20-model-tiers-benchmark-and-training.md`
+    section 1 lists the owner's question 1 ('do we need a simple security benchmark ... then LoRA
+    fine-tuning or training our own?') and four owner answers (run the two free S3 experiments,
+    decide whether S3 at least 90% is attainable afterwards, temperature 0, label bypassed replays);
+    none rules on fine-tuning. Handoff Addendum 5
+    (`docs/plans/2026-10-03-vss-vlm-exercise-handoff.md`, heading 'Addendum 5') lists the same
+    decisions and none concerns fine-tuning [V: read both; O for the Addendum's owner items]
+  - The plan exists only as an unaudited checkpoint (doc 20 banner: 'has not been audited'). Doc 20
+    section 4, track 'LoRA/QLoRA fine-tuning vs training our own model', stages it: Stage 0 a prompt
+    ladder and a closed-criteria arm, Stage 1 a calibrator, Stage 2 SFT-LoRA distillation of the
+    flagship into Qwen3-VL-8B, Stage 3 per tier, Stage 4 DPO or GRPO, Stage 5 from scratch (not
+    recommended); gates G1 and G2; and three owner decisions: D1 approve the severity policy and say
+    whether the bars are point estimates or Wilson-interval bars, D2 training-data licensing, render
+    budget and a held-out real-frame set, D3 how many tiers justify an adapter, GGUF, mmproj and eval
+    each. Its own 'Not verified' list says no source predicts a LoRA's gain on this task and training
+    VRAM was never measured; the published gains it cites (for example Qwen3-VL-8B 30.9 to 53.9 on
+    TAR-Bench after SFT) are other tasks. Its section 5 critic adds that the plan never says the
+    corpus itself may cap S3 [V: read; the external figures are [A], not fetched here]
+  - Nothing in the repo trains or serves a fine-tuned VLM [V: `git grep -n -i -E
+    'fine-?tun|\blora\b|qlora|distill'` over `*.py`, `*.toml`, `*.yml`, `*.yaml`, `*.sh`,
+    Dockerfiles, `models.yml` and Makefiles, excluding `archive/` and `data/`, at `2a3f0883`: the
+    hits are ComfyUI generator LoRAs and distilled generators (`synthbench/generate/comfy/graphs.py`,
+    `synthbench/spikes/p1_bakeoff/`, tests under `backend/tests/unit/synthbench/`), 'fine-tuned' in
+    the docstrings of three export scripts under `ai/gateway/export/`, the plate weight name
+    `license-plate-finetune-v1n.pt` (`models.yml`, and an example path in
+    `backend/api/schemas/system.py`) and one unrelated 'distilled' in
+    `backend/services/constrained_decoding.py`; a word-boundary grep for `peft`, `trl`, `unsloth`,
+    `ms-swift`, `axolotl`, `llamafactory`, `convert_lora_to_gguf` and `export-lora` over those types
+    plus `*.txt` and `*.cfg` finds none]. The backend resolves CPU-only PyTorch wheels
+    (`pyproject.toml`, comment above `[tool.uv]`) and `ai/vlm/` holds only a `Dockerfile` [V]
+  - What a fine-tune would learn, and from what [V unless marked]: the labels are scenario-level.
+    `synthbench/taxonomy/tier_b_v0.yaml` gives each of its 32 scenarios one fixed `risk_band`
+    (`package_theft` [60, 90], benign `delivery_driver` [0, 20]), and S3's floor is that band's
+    midpoint through the shipped banding (`backend/evaluation/eval_store.py` `_midpoint`,
+    `backend/evaluation/levels.py` `floor_for_expected_score`). `synthbench/export/vss.py`
+    `labels_document` writes the band, the declared detections and the scenario facts but no
+    description, reasoning or criteria text, which the verdict schema requires
+    (`backend/ai_contract/schemas/vlm_assess.response.json`, `required`: verdict, risk_score,
+    summary, reasoning, description, criteria, provenance), so SFT targets need a teacher or
+    templated text (doc 20 finding 12). The replay input is an ideal detector: `declared_detections`
+    returns the declared subjects and props at confidence 1.0, which a model trained on
+    replay-shaped inputs could learn to read instead of the pixels (doc 20 finding 12 trap (b) [A:
+    argument, not tested])
+  - The pool is small and single-source [C: Python over `/synthbench/corpus/tierb-v0`, run in this
+    session, 2026-10-03]: `index.jsonl` folded by `event_id` gives 460 events (241 incident and 209
+    benign `ready`, 1 benign `failed`, 9 ambiguous); `events/B/*/provenance.json` holds 475 render
+    attempts, each with a still on disk (445 events with one still, 15 with two), of which 459 have
+    triage verdict `ok` and 16 `reroll`; the eval store scores 450 items (241 incident, 209 benign;
+    the 9 ambiguous are not scored). All 475 attempts record the same diffusion-weights sha256
+    `863a82e4...`, which `synthbench/generate/manifests/p1-slate.json` names `flux2-dev`, with one
+    `camera_params` value (`default-v1`). Whether 64 of the 241 incidents can be told from their
+    benign twins in one still is ISS-086's open question; doc 20's completeness critic warns that a
+    LoRA on per-scenario bands would memorize scenario to band on exactly those scenes [A:
+    agent-reported, doc 20 section 5]
+  - The rungs doc 20 puts before any fine-tune are only partly tracked. The prompt carries no scale
+    (`backend/services/vlm_client.py` `_render_prompt`: 'how threatening it is (risk_score
+    0-100)') [V]. S3 is 88/241 = 36.5% with it (S2 18/209) and 105/241 = 43.6% with a rubric arm
+    that raises S2 to 34/209 = 16.3%, both development arms and not holdout readings [V: re-derived
+    in this session from `$AGENT_GPU_DIR/out/sbroot/eval/tierb-v0/eval.sqlite`, runs `4a94b256` and
+    `696c7168`, through `backend/evaluation/levels.py`; the same counts as ISS-086's update]. ISS-008
+    and ISS-086 cover the rubric, the calibration map and E1 to E3; the closed-criteria code
+    aggregator (doc 20 finding 14 B, Stage 0 arm C) is in no block [V: grep of `17-action-plan.md`
+    for 'aggregator' finds only `batch_aggregator.py` citations]
+  - The register's remedy options omit weight tuning. OD-2's remedy cell reads 'prompt and
+    calibration slice, accept and re-scope, or bar revision'; ISS-086's acceptance ends 'keep the
+    bar, add multi-frame input (ISS-003, ISS-037), relabel visually indeterminate scenarios, or
+    revise the bar'. The only fine-tuning mention in the register is ISS-063's acceptance clause on
+    H3 clips (OD-18) [V: `grep -n -i -E '\bfine-?tun|\blora\b|qlora|distill|\bteacher\b|\bsft\b'`
+    over `17-action-plan.md` finds that one line; adding 'train' adds only the doc 20 filename in
+    ISS-086 and ISS-067's 'labeled training/eval record']
+  - The gate wording differs from a bar the owner set [V: read both; C: Wilson 95%, z 1.96,
+    computed in this session]. F14 (`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md` item 19, owner
+    ruling 2026-09-25 [O]) says at `:228` that pass means the point estimate meets the bar and
+    marginal means the interval straddles it, and at `:227` that both bars are judged at one
+    operating point. Doc 20's G1 reads 'S3 Wilson-lower >= 90% and S2 <= 5% out-of-scenario'. Its D1
+    asks whether the bars are 'point estimates or Wilson-interval bars' and gives the certification
+    counts (S3 needs 227/241; S2 at most 4 false alarms of 209), and its section 4 finding
+    'Benchmark size ... for LoRA' argues that reading on purpose: a 50/50 split leaves about 120
+    incidents, and certifying S3 at 90% there needs 115/120 (Wilson lower 90.62%). Counts: S3 passes
+    under F14 at 217/241 (90.04%; 216 is 89.63%) and under G1's S3 clause at 227/241 (lower bound
+    90.49%; 226 gives 89.99%). S2 passes under F14 at 10/209 or fewer (4.78%; 11 is 5.26%); G1's S2
+    clause as written matches that, while D1's at most 4/209 (upper bound 4.82%; 5 gives 5.48%) is
+    the certification reading. F14 therefore already settles how the bars are read; what stays open
+    is whether a tuned candidate must clear the stricter certification standard
+  - Data-use terms are unrecorded for the inputs a run would use [V unless marked]. Every exported
+    still is stamped 'FLUX.2 [dev] Non-Commercial License' (`synthbench/export/vss.py` `LICENSE`,
+    `attribution`). Owner ruling D8
+    (`docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md:43`: 'Licenses are
+    not a selection criterion', 'Models are picked on fit, measured in P1') is about choosing
+    generators for the benchmark; doc 20 finding 13 reads it as not covering the training of a
+    shipped model [A: its reading; I found no ruling that does]. H3 clips:
+    `docs/benchmarks/synthbench/p1-bakeoff.md:72` and `:129` record that outputs 'may not be used to
+    improve other AI models' and that the owner decided with the terms known; whether that bars
+    tuning is OD-18 (ISS-063). The teacher doc 20 proposes is the flagship,
+    `nvidia/Qwen3.8-Flash-Next-NVFP4` served as `claude-flagship`
+    (`docs/superpowers/specs/2026-09-29-synthbench-p5a-vlm-replay-design.md:45`); no line outside
+    doc 20 names it with a licence [V: `git grep -n -i 'Flash-Next'` filtered for 'licen' and
+    'community'; none]. For the served Qwen3-VL pair the gaming-GPU spec's candidate table lists
+    Apache-2.0 (`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md:589`, section
+    'Implementation facts'), which the errata call secondary, model card not read
+    (`docs/vss-integration/16-errata-2026-10-03.md`, heading '`03-open-questions.md`'), and
+    `models.yml` has no entry for the pair (ISS-063). The terms themselves (FLUX Non-Commercial v2.1
+    sections 1(c) and 2(d), the Qwen Community License 1.0) are doc 20's external reading and were
+    not fetched here [A]
+  - A held-out real-frame set has no source or date [V: read]. The benchmark is fully synthetic by
+    ruling D3 (`docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md:38`);
+    real-camera data stays out of git in the eval store (D10,
+    `docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md:73`); real events become
+    labeled items only after go-live, through `EventFeedback` (same spec, section 5 table, row
+    'Real events, post-go-live', `:253`); and this register withdrew 'build a real-camera labeled
+    eval path' as dormant wiring plus an owner privacy ruling (section 6, 'Dropped upstream').
+    Whether the owner holds footage that could serve is not recorded [?]
+  - A candidate's reading is a claim about a build and a quantization. The pin is `ARG
+LLAMA_CPP_REF=b7972` (`ai/vlm/Dockerfile:46`); ISS-087 reports that b7972 and b11376 return an
+    identical (verdict, score) on 250 of 450 items and that Q8_0 and Q4_K_M agree on 252 of 450
+    [V: read in the register; the sweep is off-repo and was not re-run here]. A merged and
+    re-quantized adapter must therefore be scored through `synthbench replay` and the shipped
+    `VlmClient` on a named build, never in Hugging Face (doc 20 findings 9 and 10, which also report
+    llama.cpp issues #19217, #19280 and #29251 [A: not fetched here])
+- **Why it matters.** The owner asked whether to fine-tune and the answer exists only as research
+  with its own open caveats. Without a ruling an agent can neither start a training run nor rule one
+  out, and the S3 remedy ruling (OD-2) is made among options that omit the lever the owner named.
+  Three hazards are specific to this repo: the only labels are one fixed band per scenario on one
+  generator's stills (verified), so a tuned model can gain by memorizing scenario to band (doc 20's
+  argument [A]); the inputs a run would use (FLUX stills, H3 clips, teacher outputs) carry terms the
+  repo records only in part (the H3 clause is recorded, the FLUX and teacher terms are doc 20's
+  reading), and a model trained on inputs whose terms bar it would have to be discarded; and doc 20's
+  gate G1 is stricter than F14 on S3, so one document's pass could be the other's fail. None of this
+  says fine-tuning is wrong: doc 20 itself says the gain on this task is unpredicted and the decision
+  has to be empirical. The issue is that the decision, its gates and its data terms are unrecorded.
+- **World-class gap.** Every route to a better verdict is a documented ladder (prompt, criteria,
+  calibrator, tuned weights), each rung with an entry gate, a keep gate, a recorded owner ruling and
+  cleared data. A tuned model ships only with a data card per training input (source, licence, date
+  cleared), a locked scenario set and a real-frame holdout, and a replay through the shipped client
+  on a pinned build.
+- **Acceptance.** A dated ledger row quoting the owner's ruling is committed, and section 4 of this
+  register gains one owner-decision row (id allocated at intake) linking it. The row answers five
+  things, and 'no' or 'not before trigger X' is an acceptable answer if it is recorded with its
+  trigger: (1) scope: whether weight tuning (LoRA or SFT distillation, DPO, GRPO) is in scope before
+  go-live, deferred to a named trigger (for example the ISS-086 ceiling and the prompt, criteria and
+  calibration rungs reported on a frozen split), or ruled out; OD-2's remedy cell and ISS-086's
+  owner options are updated to say which. (2) gates: the entry gate and the keep gate (doc 20 G1 and
+  G2) are written in F14's terms (point estimate, marginal when the Wilson interval straddles, one
+  operating point), on scenario-grouped folds and a locked scenario set, with the counts they imply
+  (S3 217/241 and S2 10/209 or fewer), or the row says they are stricter on purpose and names the
+  numbers (S3 227/241, S2 4/209 or fewer, or the equivalent on the holdout size actually used); G2's
+  margin of 15 points over the best untuned arm is accepted or edited. (3) data use: a table, one
+  row per candidate input (FLUX.2 [dev] stills, MiniMax-H3 clips and frames taken from them,
+  flagship teacher outputs, the owner's real frames, public sets), each marked train, evaluate-only
+  or excluded, with the licence text and version read and the date, and whether counsel is needed;
+  the rows live in ISS-063's licence register once it exists. (4) policy: the owner approves, edits
+  or disclaims the per-scenario `risk_band` table as the product's severity policy and says whether
+  policy lives in the prompt, in code or in weights. (5) held-out data and tiers: where a real-frame
+  test set comes from (or that any tuned result is labelled synthetic-only), and how many base
+  models would carry an adapter (doc 20 D3), or that the tier count is decided first. If the ruling
+  is 'go', the first training run does not start until a scenario-grouped split with a locked
+  scenario set is committed (ISS-016 extended from its scenario-stratified split to locked whole
+  scenarios), a 20-step dry run on the GB300 has printed peak reserved VRAM at the serving sequence
+  length (replacing doc 20's estimates), and the candidate is scored only through `synthbench
+replay` and the shipped `VlmClient`, on a named llama.cpp build and quantization, paired against
+  the best untuned arm (exact McNemar on shared items) with the conditions line stating build and
+  cache flags (ISS-087). A reviewer checks that the ledger row, the section 4 row and the data-use
+  table exist and answer (1) to (5).
+- **Depends on.** OD-2 (S3 floor and remedy); OD-18 and ISS-063 (H3 clips tune or evaluate; the
+  licence register this adds rows to); ISS-016 (a frozen split, here with locked whole scenarios);
+  ISS-086 (the ceiling and E3); ISS-008 (the prompt and calibration rung); ISS-087 (build and
+  quantization pin); ISS-043 (cluster-aware intervals). Filed as OD-27.
+  Related: ISS-015 (the floor), ISS-014 (the F14 reporting rule), ISS-012 (the contract's
+  `properties` are alphabetical with `verdict` last, and which order the pinned build emits is
+  unverified there; an SFT target must follow the emitted order), ISS-067 (operator corrections as
+  future labelled records), ISS-072 (erasure, if real frames or names enter a training set).
+- **Tracked as.** Doc 20 section 4 and its D1 to D3, G1 and G2 only; the handoff (Addendum 5) names
+  doc 20 as where the research lives and records no decision. No ledger row, roadmap item or
+  register block [V: grep for `fine-tun*`, `lora`, `distill*` over
+  `docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`, `docs/vss-integration/12-postponed-roadmap.md`,
+  the gaming-GPU spec, the P5a replay spec and `docs/benchmarks/synthbench/p5a-2026-09-30.md` finds
+  none; the handoff's only hit is its pointer to doc 20]. R10 (final model choices) covers the model
+  pick and R12 (licensing) is deferred to 'before any consumer distribution'; neither covers tuning.
+- **Severity note.** Filed P2: no run is under way, doc 20 itself stages weight tuning after the
+  prompt, criteria and calibration rungs, and the owner's order is to decide attainability after the
+  free experiments (Addendum 5, item 2). P1 is a defensible reading, since it is the one lever the
+  owner named that OD-2 omits and a first run could be spent on uncleared data. An independent
+  re-read on 2026-10-03, against the sources above, agrees with P2.
+
+### Video, ingest and key frames (11)
 
 Clips, frame selection, tracking and the detector gate.
 
@@ -2042,7 +2411,148 @@ Clips, frame selection, tracking and the detector gate.
 - **Depends on.** None.
 - **Tracked as.** None found.
 
-### Evaluation and S-bar measurement (15)
+#### ISS-093 — The clip supply is lopsided and unplanned: 17 of the 164 ready clips are incidents, none is from the threat group, and no bar, supply target or ledger row exists
+
+`P2` · `decision` · actor `owner-decision` · status `open` · added 2026-10-03 (after `2a3f0883`)
+
+- **Evidence**
+  - The roadmap has no video or clips row. The Index table of
+    `docs/vss-integration/12-postponed-roadmap.md` lists R1 to R14 and none is video or clips;
+    `grep -n -i "clip\|video"` over the file hits two lines, the currency banner ('no R-item covers
+    video or clips') and the R7 sentence 'First confirm whether Foscam clips carry audio'. Errata
+    E114 (`docs/vss-integration/16-errata-2026-10-03.md`, its Now paragraph: 'no R-item for video or
+    clips: the clip lane has no owner, bar or reopen condition') and E32 (same file: the clips 'have
+    no consumer, no scoring bar and no roadmap item') say the same. The register cites neither id
+    (grep of `17-action-plan.md` for 'E32' and 'E114' finds no hit) [V]
+  - No bar exists for clips. The S2 and S3 rows of the parent spec
+    (`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md`) read 'labeled-benign
+    items' and 'labeled incidents' and name no media type; its only clip hits are the diagram's 'FTP
+    still/clip' and the 'Owner-generated media' row ('frames are sampled into stills, because
+    ingest is stills (D6)'). The clips design
+    (`docs/superpowers/specs/2026-09-30-synthbench-h3-clips-design.md`) decides in C1 'There is no
+    camera stage, no ingest change and no scoring in this design', lists 'Scoring clips with a video
+    VLM' under Out of scope, and in C13 leaves an audit of clips 'to whoever first uses them'. They
+    are owner decisions of 2026-09-30 (the table is headed 'Decisions (owner, 2026-09-30)') [V, O]
+  - The only reopen-like statement is a benchmark one: decision D4 of
+    `docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md` says the benchmark
+    'scores the VLM in stills mode now and in video mode once a video-capable VLM exists'. It names
+    no owner, bar, supply or date, and the roadmap does not carry it [V]
+  - The supply is lopsided. Last status per `event_id` in
+    `/synthbench/corpus/tierb-v0/clip-index.jsonl` (459 clips): ready 164 = benign 144, incident 17,
+    ambiguous 3; failed 80 = benign 65, incident 9, ambiguous 6; prompted 205 and rendered 10 are
+    all incidents. By the group in each clip's `events/C/<id>/spec.json` `cell`: threat 196, all
+    `prompted` (none rendered, ready or failed); suspicious 45, of which ready 17, failed 9,
+    rendered 10, prompted 9. The 17 ready incident clips cover 5 of the 19 incident scenarios in
+    the index (`loitering` 5, `tailgating` 5, `trying_car_doors` 4, `peering_into_windows` 2,
+    `casing_with_phone` 1), so every scenario slice is under `MIN_N = 10`
+    (`synthbench/score/metrics.py`) and reads 'insufficient'; no weapon, fire, forced-entry or
+    package-theft clip is ready. 481 mp4 files are on disk, re-rolls included [C: Python read of
+    the mounted corpus, re-run in this session, outside the repo; the totals match ISS-038, the mp4
+    count is a `find events/C -name '*.mp4'` count, and the group split matches the snapshot in doc
+    18 section 4, rung L7]
+  - The order is a side effect of group names. `draw` in `synthbench/clips/sample.py` returns the
+    round 'ordered by group, then lighting, then draw' (`for group, k in sorted(shares.items())`),
+    and `event_ids` in `rounds/clips-1/round.json` is sorted with the groups as contiguous runs:
+    ambiguous 0-8, benign 9-72, hard_negative 73-217, suspicious 218-262, threat 263-458 [C: read of
+    `round.json` and each `spec.json`]. `clip render` (`synthbench/commands/clip_render.py`) takes
+    only `--round`; `execute` renders `todo[0]`, one attempt per call, from `_frozen_clips`, which
+    walks `record.event_ids` in order [V]. So the threat group renders last because 'threat' sorts
+    last. The clips design decides a stratified draw (C8) and states no render order (a grep of it
+    for 'order' and 'priorit' finds none) [V]. By clip number the statuses are 0-114: 85 ready, 30
+    failed; 115-229: 69 ready, 46 failed; 230-344: 10 ready, 4 failed, 10 rendered, 91 prompted;
+    345-458: all 114 prompted [C: same read]
+  - The queue is idle but unfinished. The clip index was last written 2026-10-03T12:37Z (file
+    mtime, last row `C-clips-1-253` rendered), about nine hours before this check [V]. At about
+    21:47Z a read-only GET of `http://host.docker.internal:8188/queue` returned 'connection
+    refused' and `/synthbench/status/flagship.json` read healthy with 0 running and 0 waiting [V],
+    so no ComfyUI was listening on that port then; no `systemctl` is present to read the unit [?].
+    Recorded render time has a median of 280.5 s over the 481 attempts in
+    `events/C/*/provenance.json` (`attempts[].render_seconds`; 285.8 s in the 2026-10-02 report)
+    and the probe clip took 328.7 s (`docs/benchmarks/synthbench/clips-probes.md`), so the 205
+    prompted clips need about 16 to 19 hours before rerolls [C: 205 x 280.5 s and 205 x 328.7 s]
+  - The report has no aggregate that shows the imbalance. `markdown` in
+    `synthbench/commands/clip_report.py` prints progress by state, the draw by group and lighting,
+    rerolls by reason, failed clips (with scenario), timing, switches and a `## Clips` table with
+    one row per clip (Scenario, Label, Lighting, State). It totals no state by label, group or
+    scenario, and the group is not a column, so the imbalance is found only by counting rows. The
+    `clips-1` report generated 2026-10-02T16:04Z reads 158 ready, 71 failed, 229 awaiting render
+    and 1 awaiting verdict [V]. Its test is `test_the_report_counts_states_switches_and_links_the_media`
+    in `backend/tests/unit/synthbench/test_clip_triage_report.py` [V]
+  - Two register conditions meet this supply badly. ISS-003 asks for 'the same N>=60 clips' scored
+    for S2 and S3: 60 clips can be drawn from the 164 ready, but an S3 reading would rest on at
+    most 17 incident clips. ISS-038 asks for an audit of n>=60 'stratified by group and motion
+    type': no threat-group clip is rendered. Separately, OD-5 and step 12 say 'no frame bursts
+    through the product VLM' while ISS-003's acceptance arm (a) is 4-frame still bursts through
+    `VlmClient`; the clips design's Rejected table rejects that burst and doc 18's OD-3 would admit
+    it as a control arm only [V: read of the four]
+  - Doc 18 (`docs/vss-integration/18-world-class-target.md`, section 4 rung 'L7. Clip eval and the
+    temporal-value gate', section 9 and section 10) holds the proposed clip bar (at least 100 ready
+    incident and 100 ready benign clips, a 60-clip audit, a paired decision rule whose constants it
+    calls placeholders [?]), the same supply snapshot and a doc-local 'OD-8. Clip supply for L7'.
+    Its section 10 reads 'ISS-038 clip evaluation design (OD-8)', but OD-8 there is local to that
+    file: ISS-038's block names OD-5 only, and the register's OD-8 is the A5500 acceptance, so a
+    reader following doc 18 into the register lands on the wrong decision. The register has no
+    issue for the bar or the supply (grep of `17-action-plan.md` for 'clip supply', 'ready incident'
+    and 'L7' finds nothing relevant) [V]
+  - The ledger has no row for the H3 clip rounds: `grep -ci "clip round\|clips-1\|minimax"` over
+    `docs/plans/2026-09-23-vss-gaming-gpu-ledger.md` is 0. The critical path notes it under step 3
+    (the corpus build and the H3 clip rounds, the unfinished part of E36), and ISS-080's acceptance
+    names the P5a baseline, the two re-runs and the bypass only [V]
+  - No clip or strip was viewed: 'ready' is the recorded triage verdict, not checked here [?]
+- **Why it matters.** The owner asked for clips of the whole corpus
+  (`docs/benchmarks/synthbench/clips-probes.md`, 'The owner's verdict': 'asked to generate clips
+  for the whole corpus') [O]. The lane has triaged 244 of 459 clips and holds 164 ready, 144 of
+  them benign; 215 incident clips (205 prompted, 10 rendered) are unfinished. OD-5 and step 12 ask
+  whether the lane gets an owner item and list the tally, but not that the unfinished clips are the
+  incident side, that the order comes from group names, or that the ready supply cannot support an
+  incident-side reading. Until it is ruled, any clip reading could only be a false-alarm
+  (S2-side) claim [C: analysis], the incident arm of ISS-003 and the by-group audit of ISS-038 have
+  no clips to run on, and about 16 to 19 hours of renderer time will be spent or dropped by
+  default, not by decision.
+- **World-class gap.** A lane that is kept has an owner, a bar, a supply target and a reopen
+  trigger written where agents look (the roadmap and the ledger), and its progress report shows the
+  supply by label, group and scenario against that target, so a lopsided queue is visible before
+  anyone relies on it.
+- **Acceptance.**
+  1. Agent now, no ruling needed (the one slice that can go first). A test that fails first on a
+     fixture round whose ready clips are all benign and whose incident clips are all `prompted`:
+     `markdown` in `synthbench/commands/clip_report.py` has no state-by-label aggregate, so the
+     assertion on it fails. After the change `python -m synthbench clip report --round clips-1`
+     prints ready, failed and pending clips by label, by group and by scenario, and on the index as
+     read on 2026-10-03 it reads incident ready 17 of 241 and threat ready 0 of 196 (re-count if
+     the renderer has run since).
+  2. Owner ruling, recorded as a dated ledger row (which also records the clip rounds that ran,
+     the unfinished part of E36) and as the resolution of OD-5: (a) the lane is funded, or kept as
+     unscored assets; (b) if funded, a spec section or plan names the scoring unit, the bar as
+     owner-set numbers (doc 18's rung L7 placeholders resolved or replaced, not inherited from the
+     stills bars by default), the minimum ready clips per label and per scenario that the audit and
+     the arms need, and who renders what and when (a render order or a new round that reaches the
+     196 threat clips, sequenced with replay as OD-23 rules); (c) if kept unscored, a stop rule for
+     the 205 `prompted` and 10 `rendered` clips (stop, or finish a named subset) and a dated roadmap
+     row, added as a dated entry and not a rewrite of R1 to R14, giving the reopen trigger; (d)
+     whether the owner's cameras produce clips at all, which ISS-002's severity note and R7's
+     audio question assume [?].
+  3. ISS-003 and ISS-038 each get a dated note restating their n against the ruled supply or
+     pointing at the ruling, a dated note under ISS-003 or in the OD-5 row says which of the two
+     governs the burst arm, and doc 18's 'ISS-038 (OD-8)' pointer is corrected by a dated note so
+     it does not read as the register's OD-8.
+- **Depends on.** OD-5 (this block adds the supply, the bar and the ledger row to its cell; step 12
+  of the critical path is where it is asked); ISS-003 and ISS-038 (their n depends on the supply);
+  ISS-044 (blind audit method). Related: ISS-037, ISS-002, ISS-063 (H3 output terms; the clips
+  design Risks table says the clips are used for evaluation only), ISS-079 and OD-23 (replay while
+  the renderer runs), ISS-080 (the P5a ledger row).
+- **Tracked as.** Errata E114 and E32 (neither cited in the register); the roadmap currency
+  banner; doc 18 section 4 rung L7 and its doc-local OD-8 and OD-11; clips design C1, C8, C13 and
+  Out of scope; critical-path step 12 and the step 3 note on the missing clip-round ledger row. No
+  register issue before this one holds the supply, the bar or the report aggregate; OD-5 asks
+  whether the lane gets an owner item, and its option of a roadmap entry or spec is the roadmap
+  row.
+- **Severity note.** Filed P2: nothing shipped depends on clips, ISS-038 is P2, and ISS-002's own
+  severity note says P1 holds only if the owner's cameras upload clips. A decision that gates P1
+  work (OD-5 gates ISS-002 and ISS-003) could be read as P1. The supply figures are [C] from an
+  off-repo index that changes if the renderer runs; re-count before relying on them.
+
+### Evaluation and S-bar measurement (20)
 
 Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
 
@@ -2754,7 +3264,733 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     them is recoverable [C]. The 2 of 64 for the 8B (arm A) is now [V]; the flagship's 7 and the twin-pair
     AUROCs stay [A]. Severity stays P1: the gating question is still open.
 
-### Specialists (5)
+#### ISS-087 — Measured numbers are specific to the llama.cpp build: b7972 and b11376 disagree on 44% of items for the same model, weights and prompt
+
+`P1` · `risk` · actor `agent-now` · status `open` · added 2026-10-03 (after `ab3bd002`)
+
+- **Evidence**
+  - The shipped Qwen3-VL-8B Q4_K_M (weights sha256 `67d1659b…e9e2`), the shipped prompt and greedy
+    decoding, replayed over the same 450 tierb-v0 sets on two llama.cpp builds: on `b7972-e06088da0`
+    (`20261003T154038Z-qwen3-vl-8b-armA-shipped`) S2 18/209, S3 88/241, AUROC 0.703, 0 refusals; on
+    `b11376-a55e952b8` (`20261003T194331Z-control-q4km`, the model sweep's control arm, with
+    `LLAMA_ARG_CACHE_RAM=0` and `LLAMA_ARG_CACHE_IDLE_SLOTS=0`) S2 21/209, S3 94/241, AUROC 0.677,
+    2 refusals (both `VlmTruncatedError`, stop=`length` at 1,024 tokens: `B-batch-2-051`,
+    `B-batch-4-078`). Item by item **250 of 450 (56%)** return an identical (verdict, risk_score);
+    200 differ, 143 of them by 10 points or more **[V: read from `eval.sqlite` in this session]**.
+  - Both builds fail the F14 bars (S2 5%, S3 90%); the build moves S3 by +6 hits and S2 by +3 false
+    alarms, inside the run-to-run noise the shipped 0.1 sampling used to add, but now at a fixed
+    temperature of 0 it is a systematic effect of the build (or of the two cache flags, not yet
+    separated) **[?: a repeat control (determinism on `b11376`) and a default-cache control were
+    running when this was written; append their result to the Intake log]**.
+  - Update, appended 2026-10-03 (after the merge of PR #6783): the repeat control
+    (`20261003T200059Z-control-rep`) and the default-cache control
+    (`20261003T202249Z-control-defaultcache`) both read S2 21/209, S3 94/241, AUROC 0.677 and 2
+    refusals, and match the first control on **450 of 450** items (verdict and risk score) **[V: the
+    off-repo sweep's `results.jsonl`, read this session; not a committed report]**. So the `b11376`
+    replay is deterministic and the two cache flags do not change the answers: the difference from
+    `b7972` is the build. The first model arm, the same 8B at Q8_0 on `b11376`, agrees with the Q4_K_M
+    control on 252 of 450 items, about the size of the build effect (250 of 450) **[V: same file; the
+    sweep is unfinished and its numbers are not recorded as measured until a report is committed]**:
+    quantization changes answers about as much as the build does.
+- **Why it matters.** Every S2/S3/S5 figure in this directory and the ledger was measured on
+  `b7972`. A claim against the bars is a claim about a build; the replay's `run.json` and the score
+  report record the build string, but nothing in the acceptance conditions pins one, and a llama.cpp
+  bump (the Dockerfile default is `b7972`, the model-tier research needs a newer one for most
+  candidates) can flip a marginal reading with no code change.
+- **World-class gap.** A world-class pipeline pins the engine build in its acceptance conditions
+  and treats a build bump as a re-qualification event with a control replay and an item-level
+  agreement count.
+- **Acceptance.** Score reports and ledger rows name the llama.cpp build and the cache flags in
+  their conditions line; a build bump lands with a control replay of the shipped model against the
+  previous build, reporting the identical-item count; the sweep's determinism and cause-attribution
+  controls on `b11376` are recorded in the Intake log.
+- **Depends on** ISS-043 (noise floor and repeat runs). **Tracked as:** none.
+
+#### ISS-089 — NVFP4 on consumer Blackwell (sm_120) is unanswered: no sm_120 run exists, and the one planned reading is owner-run, unrun and untracked in the register
+
+`P2` · `gap` · actor `owner-hardware` · status `open` · added 2026-10-03 (at `2a3f0883`)
+
+- **Evidence**
+  - The register has no block for it. `grep -n -i -E 'nvfp4|fp4|sm_120|sm120|5090|5080|5070|rtx 50'` over
+    `docs/vss-integration/17-action-plan.md` finds no line; `blackwell` finds one (ISS-059's remark that
+    the Blackwell kernel path is unused on the GB300). A second grep for
+    `quantiz|w4a16|vllm|halo|consumer|compute_cap|cuda_arch|Brev` finds no NVFP4 or sm_120 issue: its
+    hits are ISS-046's Tracked as ('R11 covers other tiers'), OD-8 ('Brev spend'), ISS-050's
+    `ai-llm-vllm` image pin and ISS-087's remark that quantization changes answers [V: greps run at the
+    tip]
+  - The shipped path does not use NVFP4: the `ai-vlm` service defaults to
+    `/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf` (`docker-compose.prod.yml:179`). `models.yml` has no VLM
+    or FP4 row (a case-insensitive grep for `qwen3|vlm|gguf|nvfp4|fp4` hits two comment lines: the
+    `nemotron_gguf` download method in the header and the face leg of the VLM specialist stage). A grep
+    for `nvfp4|fp4|sm_120` over `backend`, `ai`, `scripts`, `synthbench`, `setup_lib`, the compose
+    files, `.env.example` and `setup.py` finds only: the bitsandbytes `fp4` option
+    (`backend/services/quantization.py`, `ai/quantization_config.py`) and its tests; the renderer's
+    ComfyUI text-encoder file name `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors`
+    (`synthbench/generate/comfy/graphs.py`, `object_info`, a manifest and a test); the arch note in
+    `ai/vlm/Dockerfile`; `scripts/benchmark/quality_comparison.py`; the retired `ai-llm-vllm` profile
+    in `docker-compose.prod.yml`; and a comment in `test_model_downloader.py` [V]
+  - No run on any sm_120 card exists. Errata E55 ('no `sm_120` run exists'), E61 (the Brev RTX PRO 4500
+    step 'never ran'), E70 ('No log line from any such run exists') and E72 (NVFP4 on `sm_120` 'was
+    never run') in `docs/vss-integration/16-errata-2026-10-03.md`. Spec D2
+    (`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md:65`) names the GB300, the
+    A5500 (sm_86) and Brev VMs. A grep for `sm_120|sm120` over `docs/` outside `docs/vss-integration`
+    finds the spec's step 2.3, the bake-off plan's task 2.3.1, the Brev checklist, the ledger row for
+    step 2.3 and a compute-capability table in `docs/research/cosmos-b300-docker-research.md` (RTX
+    50-series 12.0); none is a measurement. No `CUDA_ARCHITECTURES=120` appears in `docs/plans`,
+    `docs/superpowers`, `docs/benchmarks`, `ai/vlm`, `.env.example` or the compose file [V]. That the
+    RTX PRO 4500 is sm_120 is the spec's own `[A]` (`:467-468`), and it is a workstation card, so a
+    reading there stands in for GeForce RTX 50-series cards only if both report `12.0` [?]
+  - The planned reading is owner-run and unrun. Spec step 2.3
+    (`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md:466-471`) says to serve the
+    NVFP4-QAD checkpoint in vLLM on the RTX PRO 4500 and read the resolved quantization method from the
+    startup log. `docs/superpowers/plans/2026-09-27-brev-hardware-matrix-checklist.md` (section 'The
+    NVFP4 question - stated as a reading task, 2.3.2') asserts no answer and its header says 'This
+    document claims no execution'. The ledger row '2.3 hardware matrix on Brev - repo-side half only'
+    says 'the RUN is owner-run [O]' (`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`). The A5500
+    handoff's 'Out of scope' paragraph says 'No candidate-D / NVFP4 work unless the owner points you at
+    the Brev checklist' (`docs/superpowers/plans/2026-09-28-a5500-operator-handoff.md:248`) [V]
+  - The only NVFP4 checkpoint scored here is the GB300's 'flagship', and not on sm_120. The P5a
+    design's inventory table (`docs/superpowers/specs/2026-09-29-synthbench-p5a-vlm-replay-design.md:45`)
+    says the flagship is `nvidia/Qwen3.8-Flash-Next-NVFP4` served as `claude-flagship` by
+    `vllm/vllm-openai:nightly-aarch64`. Replay `20260930T015856Z-flagship` scored it on all 450
+    tierb-v0 sets (S2 8.6% [5.5-13.2], n=209; S3 58.9% [52.6-65.0], n=241;
+    `docs/benchmarks/synthbench/p5a-2026-09-30.md`) while it held 191.5 GB of the GB300's 256.7 GB
+    (`docs/benchmarks/synthbench/p5a-probes.md`, header). That report's run table lists the flagship's
+    weights as 'unrecorded' and its build as a dash, and its 'Run identity' section says 'no endpoint
+    reports' the vLLM image (the digest and version `0.28.1rc1.dev681+ge7edf17ce` are in
+    `p5a-probes.md:49`). So an NVFP4 checkpoint has served and answered under vLLM on sm_103, with no
+    record of the quantization kernel path that ran, and it says nothing about sm_120 or a tier pick;
+    the checkpoint identity is the spec's claim, since the report records none [V: read; identity [A]]
+  - The only NVFP4 run on a consumer-class GPU in the repo failed on Ampere:
+    `docs/archive/llm-inference-optimization-report.md` (dated 2026-02-05, RTX A5500, sm_86), section
+    1.4 'NVFP4 Testing Results', served Nemotron-3-Nano-30B-A3B-NVFP4 on
+    `docker.io/vllm/vllm-openai:cu130-nightly` and got `NotImplementedError: No NvFp4 MoE backend
+supports the deployment configuration`; its root-cause paragraph and section 3.1 ('vLLM Status')
+    say the kernels exist only on H100 and A100 and that vLLM cannot serve this model 'on consumer
+    GPUs'. The comment at `docker-compose.prod.yml:305` ('NVFP4: Requires H100/A100 datacenter GPUs,
+    not supported on RTX A5500') repeats it, for the same epic (NEM-5441, `docker-compose.prod.yml:271`),
+    and errata E70 reads it as concerning Ampere, not sm_120. The report's root cause is its own and was
+    not re-checked, and it ran no Blackwell card [V: read; ?]. The `ai-llm-vllm` profile's fate is OD-17
+    and ISS-050, not this question
+  - The docs assert more than a run supports. Doc 03 Q1 reads 'PARTIALLY ANSWERED', open on 'whether
+    NVFP4 actually _computes_ on `sm_120` versus dequantizing to 16-bit'. Doc 04 section 5 item 1 is the
+    same question (it records that upstream vLLM has an `sm >= 120 && sm < 130` branch and that RT-VLM
+    pins an NVIDIA-internal vLLM build); item 2 records the checkpoint card's 'supports single image
+    inference' with hardware 'B100 SXM' [V: read; the card is [E], not re-fetched], while the product
+    sends up to four stills per verdict call (`MAX_KEY_FRAMES = 4`,
+    `backend/services/key_frame_selector.py`) [V]. Doc 20 section 3, '32 GB card', 'Ambitious', picks
+    `nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-NVFP4` on vLLM 0.20.0 with an alternative
+    `nvidia/Qwen3.8-27B-NVFP4`, and gives as a reason 'NVFP4 is native on consumer Blackwell sm_120'
+    (that sentence carries no marker of its own; the bullet's card citation is [E]). Its open
+    questions end 'NVFP4 on consumer sm_120 under vLLM is otherwise unverified [?]', its '16 GB card'
+    section rejects the NVFP4 route partly because 'NVFP4 has FP4 tensor cores only on sm_120 (Ada
+    falls back to Marlin W4A16)' [E], and its completeness critic notes 'The 16 and 32 GB tiers include
+    sm_120 cards, which nobody tested' [V: read; doc 20 is an unaudited [A] checkpoint]. R11 holds the
+    halo tier's question as 'Does NVFP4 compute natively rather than dequantizing' and its 'Partly
+    pulled in' note says step 2.3 'settles' it (`12-postponed-roadmap.md`) [V]
+  - Doc 19 records that NVIDIA benchmarks NVFP4 for speed only (RTX PRO 4500 at 40 streams, BF16 versus
+    FP8 versus NVFP4, latency columns), warns that 'hallucinations may occur' with the NVFP4 variants
+    while BF16 is 'the tested variant', and recommends measuring accuracy per quantization on the frozen
+    corpus 'on the target consumer card' (`19-nvidia-accuracy-benchmarking.md`, sections 1 and 'VLM
+    weight precision') [V: read; the NVIDIA pages are [E], not re-fetched, and doc 19 is an unaudited
+    [A] checkpoint]. ISS-087's update shows a quantization change moves answers about as much as a
+    build change (the same 8B at Q8_0 and Q4_K_M agree on 252 of 450 items) [V: off-repo sweep file, not
+    a committed report], so a GGUF reading cannot stand in for an NVFP4 one
+  - Doc 20's own run order for the 32 GB tier puts a llama.cpp fit gate on a real sm_120 card first
+    ('because GB300 and A5500 numbers do not transfer') and the vLLM NVFP4 path last ('Only after that
+    ... needs its own S-2 probe') (doc 20, section 3, '32 GB card', 'Order'); nothing in the register
+    tracks that gate [V: read; ?]
+  - The model sweep does not reach it: the handoff's 'The model sweep' paragraph
+    (`docs/plans/2026-10-03-vss-vlm-exercise-handoff.md`, Addendum 9) lists only GGUF arms served as
+    `ai-vlm:sm103-b11376`, with no NVFP4 or vLLM arm, although its decision is to evaluate 'every
+    discovered tier pick' and doc 20 names two NVFP4 picks. The sweep was running when written, so the
+    order may have changed [?]
+  - The GB300 cannot stand in for the card on speed or memory. `ai/vlm/Dockerfile` ('NOTE for every pin
+    through HEAD (b11165)') says ggml gates its Blackwell tensor-core path on `__CUDA_ARCH__ >= 1200`,
+    so a GB300 (cc 10.3) runs the Ampere/Turing path, and E55 concludes GB300 speed and VRAM readings
+    do not transfer to sm_120 while accuracy readings do [V: read]. Whether vLLM's NVFP4 kernels on
+    sm_103 match sm_120's was not checked [?]; doc 03 says kernel availability 'is not uniform across'
+    sm_100 and sm_120 [E]
+  - The harness can take an NVFP4 row but records less for vLLM. `synthbench/run/models.py` `MODELS` has
+    no named NVFP4 tier row and already has two `vllm` rows (`cosmos-reason2-8b`, `flagship`);
+    `synthbench/run/replay.py` `client_settings` sets `vlm_enforcement_probe_enabled` to False for the
+    vllm transport and `served_identity` returns an empty build for it (the P5a report's conditions
+    table reads 'off' for the flagship's enforcement probe). ISS-045 already asks for the flagship's
+    image digest and weights revision [V]
+  - A 450-set replay cannot test the product's multi-image shape or compute S1 or S4. Each exported set
+    is one still (`synthbench/export/vss.py` `STILL_FILE = "still.jpg"`; ISS-037), replay sends only a
+    set's own `media_paths` (`backend/evaluation/vlm_replay.py`), and its module docstring says 'S1/S4
+    are NOT computed here' (ISS-046); doc 20's plan for 'S4 p95 ... on 4-image calls' has no corpus to
+    run on [V]
+  - The one repo script that compares vLLM NVFP4 with llama.cpp Q4_K_M
+    (`scripts/benchmark/quality_comparison.py`, `QUALITY_ENGINE_CONFIGS`) is text-only (`grep -c -i -E
+'image|jpg|base64|image_url'` prints 0) and compares different models: the vLLM arm is
+    Nemotron-3-Nano-30B-A3B NVFP4 and the llama.cpp arm is the shipped Qwen3VL-8B Q4_K_M via `ai-vlm`
+    (commit `5ff2b39d`), so it is not a reading of the verdict path or of NVFP4 against its own
+    baseline [V]
+  - Consumer Blackwell is not a declared target. `docs/operator/gpu-setup.md` 'Supported GPUs' lists RTX
+    20, 30 and 40 series, RTX A-series and Tesla/V100/A100, and no RTX 50 or Blackwell;
+    `docs/reference/nvidia-technology-inventory.md` ('The two hosts the AI images are built for') lists
+    the GB300 and the A5500; E72 says the halo, volume and entry tiers 'remain proposals; the design's
+    one supported target is a single 24 GB card' [V]. S1 and S4 are defined on 24 GB-class hardware only
+    (spec `:83`, `:86`), so a 32 GB card has no bar; doc 20 budgets 0.85 x 32 = 27.2 GiB [C: 0.85 x 32]
+  - A control arm needs a 120 build: `.env.example:413` ships `CUDA_ARCHITECTURES=89`, and `setup.py`
+    derives the value from `compute_cap` (`cuda_arch = compute_cap.replace(".", "")`, three sites), so a
+    12.0 card would get 120; the `ai/vlm` image takes it as a build argument. No record of a 120 build
+    of `ai/vlm` was found [V: read; ?]
+- **Why it matters.** Doc 20's ambitious 32 GB route, its 16 GB reasoning for rejecting NVFP4 and R11's
+  halo-tier question all take 'NVFP4 is native on sm_120' as a premise nobody has run, and the one NVFP4
+  checkpoint scored here (the flagship on the GB300) recorded neither its weights nor which kernel path
+  ran. The first sm_120 reading would also be the first sm_120 reading of anything in this repo,
+  including the shipped llama.cpp path and its sm_120-only branch. The impact is bounded: the shipped
+  path (Q4_K_M on sm_86 and sm_103) does not depend on the answer (E55, E61, E70), E70 says it matters
+  only to a Phase 4 RT-VLM provider on the shipped GGUF path, and consumer Blackwell is not a declared
+  tier, which is why this is P2 and not P1. If the owner wants the halo tier or doc 20's NVFP4 picks,
+  the question gates that work and the model sweep cannot answer it, because it serves GGUF on the GB300.
+- **World-class gap.** Every GPU class the docs name as a tier has one labelled reading of the model and
+  quantization it would ship, and a quantization format is claimed for a card only after the engine's
+  own log says which kernel ran; otherwise the claim is withdrawn from the docs.
+- **Acceptance.** A committed report (a ledger row and a note under `docs/benchmarks/synthbench/`) from
+  one run on a card whose `nvidia-smi --query-gpu=name,compute_cap,driver_version --format=csv` output
+  is printed in it and shows `12.0`, containing: (1) the verbatim vLLM startup line naming the resolved
+  quantization method for the NVFP4 checkpoint (native FP4 compute, or W4A16 or dequantization), or the
+  verbatim failure if it does not start, with the vLLM version and image digest; (2) the memory reading
+  as vLLM's own weights and KV-cache log lines plus the `--gpu-memory-utilization`, `--max-model-len`
+  and `--max-num-seqs` values used (vLLM reserves a configured fraction, so peak `nvidia-smi` alone is
+  not a fit reading; the report states how those flags map to the product's 2 slots x 16,384), set
+  against doc 20's computed 27.2 GiB as a budget and not as a bar; (3) one request carrying four stills
+  (the product's `MAX_KEY_FRAMES` shape, any four exported stills) that returns a schema-valid verdict or
+  the verbatim error, because the checkpoint card says 'single image' and no corpus replay can send four;
+  (4) if it serves, a 450-set tierb-v0 replay (one still per set) through `synthbench replay` using a new
+  `vllm` `MODELS` row, reporting S2, S3 and S5 with the enforcement result stated (the probe is off for
+  vllm arms today) and the replay's latency distribution labelled indicative (S4 is not computed by
+  replay, ISS-046), compared item by item against a same-day control of the shipped Q4_K_M on the same
+  card built with `CUDA_ARCHITECTURES=120`, with each engine's build and weights revision in the
+  conditions line (ISS-087, ISS-045); (5) a dated note under E55, E61, E70, E72, doc 03 Q1, doc 12 R11
+  and doc 20's open questions that replaces the `[?]` with the reading. Checkable by `grep -n
+'compute_cap' <report>` showing 12.0 and by the report naming the checkpoint and the log line. An
+  accuracy-only arm on the GB300 (sm_103) may run first, labelled as sm_103; it does not close this
+  issue. If the owner rules the halo tier out of scope instead, the issue is set `wont-fix` on a dated
+  note linking that ruling [O] (an agent cannot set it), and the NVFP4 premises in docs 04 and 20 are
+  re-marked as untested.
+- **Depends on.** OD-8 (approve Brev GPU types and duration: the spec's RTX PRO 4500 is the only sm_120
+  SKU in its list and its sm_120 is `[A]`; or a borrowed 5090, doc 07's organizational question 'can you
+  borrow a 5090'); ISS-045 (flagship and vLLM image and weights identity); ISS-087 (engine build in the
+  conditions line). Related: ISS-043 (paired comparison and noise floor), ISS-037 (the corpus is
+  single-still), ISS-046 (S1/S4 harness), ISS-071 (the enforcement probe is llama.cpp-only), ISS-059
+  (llama.cpp pin), OD-17 and ISS-050 (the `ai-llm-vllm` profile).
+- **Tracked as.** None in the register. Outside it: spec step 2.3, bake-off plan tasks 2.3.1 and 2.3.2,
+  the Brev checklist section 'The NVFP4 question', the ledger row '2.3 hardware matrix on Brev -
+  repo-side half only' (run owner-run), R11 (halo tier), doc 03 Q1, doc 04 sections 5 and 6, errata E55,
+  E61, E70 and E72 (open, gates nothing on the shipped path), doc 19 (measure accuracy per quantization
+  on the target card) and doc 20 (32 GB tier order and open questions).
+- **Severity note.** Filed P2 as a measurement shortfall with bounded impact, off the shipped path.
+  Errata E55 and E70 rate their own impact low and E61 says it gates nothing, so P3 is a defensible
+  reading while consumer Blackwell stays undeclared; P1 would need the owner to declare the halo tier
+  in scope.
+
+#### ISS-094 — No issue owns a real-camera evaluation set: every S2/S3 figure is on synthetic stills, the real-event importer has no caller, and the scorer cannot take a real item
+
+`P2` · `gap` · actor `owner-hardware` · status `open` · added 2026-10-03 (at `2a3f0883`)
+
+- **Evidence**
+  - A grep of this register (`17-action-plan.md`) for `real footage`, `real-footage`, `real camera`,
+    `real-camera`, `owner footage`, `real corpus`, `MEVA`, `UCF`, `domain gap`, `import_labeled_events`,
+    `freeze_events`, `m0_size`, `wikimedia` and `footage` finds only: the OD-4 option text ('wait for
+    P5b or owner footage'); ISS-038's acceptance (a note comparing synthetic clip length and motion to
+    real camera clips; clips only) and its line 'No real Foscam clips are known to exist to compare
+    against [A]'; ISS-054 (face and re-ID thresholds on owner footage; identity only); ISS-061 (the
+    guard that 'any future real-footage set' relies on); ISS-007 (a claim-scope block that says
+    synthetic FLUX stills; it does not ask for a real set); and the Section 6 'Dropped upstream' entry
+    'Build a real-camera labeled eval path', which says it can re-enter through the intake rule. No
+    block acquires, labels or scores a real-camera set. Doc 18 L6 names `Issues. ISS-044, 061, 066,
+067` (blind audit, residence guard, review queue, feedback panel), and none of them produces the
+    set [V: grep, and a read of ISS-007, 016, 038, 044, 054, 061, 066, 067 and Section 6 at `2a3f0883`]
+  - Every committed S2/S3 reading is synthetic.
+    `docs/vss-integration/19-nvidia-accuracy-benchmarking.md` section 4: 'Our corpus is synthetic
+    FLUX stills ... we carry domain-gap risk that declared truth does not remove'.
+    `docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md` D3 (no real camera
+    frame in the corpus) and section 9.1 risk R4 ('scores are relative, not field accuracy'; the
+    mitigation is a 'later comparison against owner-labeled real events after VSS go-live').
+    `docs/vss-integration/20-model-tiers-benchmark-and-training.md` finding 18 (section 4, LoRA
+    track): the benchmark lacks 'real frames from the owner's own cameras as a never-trained-on
+    test'. The camera stage is not fitted to Foscam footage (`synthbench/generate/camera/model.py`
+    module docstring: committed defaults 'until `camera calibrate` fits them';
+    `docs/vss-integration/15-progress-since-the-design.md`, the `tierb-v0` paragraph: 'never fitted to
+    Foscam footage'), and `grep -rn calibrate synthbench --include=*.py` finds that docstring and
+    prose in `synthbench/spikes/p1_bakeoff` only, so no `camera calibrate` command exists
+    (`docs/synthbench/command-reference.md` `camera` section has `--batch` only) [V]
+  - The only real photographs I found run through the VLM are the 75 Wikimedia Commons stock frames
+    on Qwen3-VL-4B (ledger row 'S-3 Salience smoke', re-run on real imagery, 2026-09-25): stock
+    photographs, not camera footage; the row does not mention a detector arm; and its incident half
+    reads 'correct' 2/48 because 'nobody publishes real doorbell break-ins as encyclopedic media'
+    [V: ledger row read; `s3_salience_stock.py` is off-repo and was not read]
+  - The owner's footage was probed once and is not mounted anywhere I can read.
+    `docs/superpowers/plans/2026-09-27-synthbench-p0-capture-time.md` records Foscam file patterns
+    'probed on the owner's footage, 2026-09-27' (`snap/MDAlarm_*.jpg`, `snap/HMDAlarm_*.jpg`,
+    `record/MDalarm_*.mkv`); `docs/superpowers/specs/2026-09-28-synthbench-agent-driven-generation-design.md`
+    says calibration 'runs on the host, by the owner: it reads the real footage, which no sandbox
+    mounts'. In this sandbox `/export/foscam` exists and `find /export/foscam -type f | wc -l`
+    prints 0 [V: ran it 2026-10-03]. How much footage survives, and whether it holds any incident, is
+    unverified; ISS-038 records that no real clips are known [A]. Doc 18 L6 calls the owner's Foscam
+    stills on the A5500 box 'unverified' [V: read]
+  - There is no live traffic to label, as of the latest statement I found. Ledger F9, owner
+    2026-09-25: 'We do not have a functional system at the moment. We are building one now. The
+    previous system has been offline.', which moved label provenance to born-labeled synthetic
+    generation; the P0.5 row keeps the 'owner labeling EXECUTION box' open 'for a returning home
+    stack' [O: ledger F9, quoted; V: both rows read; a grep of the ledger, the handoff, errata and
+    doc 15 for 'home stack', 'live events' and 'returning' finds no later statement]
+  - The size floor cannot tell real from synthetic. `backend/evaluation/label_import.py`
+    `m0_size_report` counts `expected_label` over every item and has no provenance field; the
+    ledger's P0.5 row records `m0_complete: True` at benign 139 and incidents 282 with 'no
+    real-camera labels involved'. Doc 18 L6's exit bar ('at least 100 benign and 20 incident
+    real-camera items') therefore cannot be read from it. `EvalItem.source`
+    (`backend/evaluation/assess_input.py`, default 'synthetic') exists; the importers set
+    `FEEDBACK_KIND` 'historical-post-switch' (`label_import`), `GENERATED_KIND` 'synthetic-generated'
+    or, in `control_freeze`, `CONTROL_KIND` 'historical-pre-switch'; a grep of
+    `backend/evaluation/s_metrics.py`, `backend/evaluation/vlm_replay.py` and `synthbench/score/` for
+    `source` finds no reader of it [V]
+  - The real-event importer is dormant. `import_event`, `import_labeled_events`,
+    `write_import_manifest` and `m0_size_report` (`backend/evaluation/label_import.py`) and
+    `freeze_events` (`backend/evaluation/control_freeze.py`) are called only from `backend/tests/`
+    (a grep over `*.py`, `*.sh`, `*.yml`, `*.yaml`, `*.toml` and `*.md`, excluding tests, `docs/plans`
+    and this register, finds only their own modules), and no `synthbench` command lists a real-event
+    import (`docs/synthbench/command-reference.md` headings). The importer with a production caller
+    is `import_generated_items` (`synthbench/run/replay.py` `_import`). The spec's go-live procedure
+    depends on the dormant path: `docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md`
+    section 5, 'Go-live' step 4, 'The triggering events become eval items, and the gate re-runs before
+    the next deploy' [V]
+  - The scoring path cannot take a real set, by reading and not by running. `synthbench/run/replay.py`
+    `check_stills` raises `ReplayRefused` for a store holding any item whose stills lie outside the
+    export, `client_settings` pins `foscam_base_path` to the export, and `VlmClient._image_parts`
+    (`backend/services/vlm_client.py`) refuses any path outside that root. `synthbench/score/scoring.py`
+    `load_items` keeps only items the export holds, `execute` raises `ScoreRefused` when a replayed
+    item is not in it, and `synthbench/score/metrics.py` `Item` takes `facts` (`event_id`,
+    `risk_band`, `cell`) from the export's `synthbench` block, which a real event does not have;
+    `synthbench/score/report.py` `_card` embeds each item's still in `report.html`.
+    `python -m backend.evaluation.vlm_replay --store` has no export check but takes the capture root
+    from settings (`client_factory` copies `get_settings()`), so a real store replays only if
+    `FOSCAM_BASE_PATH` points at the store's media directory [V: read; not run]
+  - An imported real event is replayed with a thin snapshot. `label_import._build_snapshot` writes
+    `zones=[]`, `zone_crossing=False` and `household={}` ('zone and household state is NOT recorded
+    on event rows'); `import_generated_items` writes the same, so the real and synthetic arms would
+    be equally thin against production [V]. `control_freeze.map_feedback` makes benign only from
+    `false_positive` and leaves accurate-on-low and `severity_wrong` unlabeled, so a real S2 built
+    from feedback alone is selected on the owner's complaints; doc 18 L6 asks for a random-audit
+    benign stratum of at least 50 for that reason [V: read]. The snapshot timestamp is
+    `event.started_at`, which the P0 plan keeps as arrival time
+    (`docs/superpowers/plans/2026-09-27-synthbench-p0-capture-time.md`), while
+    `backend/evaluation/assess_input.py` says production's prompt timestamp is the earliest per-row
+    capture time; whether an imported real item shows the VLM the time production showed it is
+    unread [?]
+  - Doc 20 already proposes the probe and no ISS adopted it: section 4, 'EXISTING SECURITY /
+    SURVEILLANCE BENCHMARKS AND DATASETS', 'Smallest next step. Eval-only real-footage probe': write
+    the class-to-band table before looking at output, take one frame per UCF-Crime test video (150
+    normal, 140 incident), run the existing detector gate and `vlm_assess` unchanged, report S2 and
+    band-floor hits with Wilson intervals tagged `real-v0` and never mixed into tierb-v0, and read
+    'If S2 on real normals diverges from tierb-v0's 6.7-9.1% by more than the CI, the synthetic
+    corpus is mis-calibrated for S2'; its completeness critic (section 5, item 9) adds 'A real-frame
+    S3 is therefore not yet supportable'. Doc 20 is an unaudited checkpoint, and the dataset sizes and
+    licences in it (MEVA CC BY 4.0; UCF-Crime terms 'unclear') are [E] and were not re-checked [A]
+- **Why it matters.** The step 15 precondition in this register is 'S2/S3 read at the F14 bars on a
+  corpus the owner accepts', and OD-4 asks whether declared-truth replay counts as the 'real corpus'.
+  If the owner rules no, nothing in the register produces the 'owner footage' half of OD-4's option
+  (P5b, OD-6, is the other half). If the owner rules yes, nobody has measured how far the synthetic
+  S2 sits from a real one (real JPEG compression, low light, IR and fisheye, which the camera stage
+  only simulates with committed defaults), so the headline could be off in either direction: doc 20
+  notes that synthetic benign may be too clean or staged, and that the VLM's conservatism could be a
+  'staged-look' artifact of the generator [A]. The one real-data stage the spec has, the 14-day
+  hold, can turn the owner's feedback into eval items only through an importer with no command and a
+  scorer that cannot take the result. This is not a defect in the shipped path: the spec schedules
+  real events after go-live (Phase 3) and D10 allows them on the owner's machines. It is a missing
+  work item and a dormant path, and the register's own dropped candidate recorded the same narrow
+  fact.
+- **World-class gap.** A held-out real-camera set from the owner's cameras (day, IR, the camera
+  types), labelled under the F14 rules with a random-audit benign stratum, replayed through the same
+  client, prompt, build and detector arm as the synthetic corpus, and reported beside tierb-v0 with
+  the real-minus-synthetic gap and its interval; plus the post-go-live loop that grows it from the
+  owner's feedback.
+- **Acceptance.** Part A, `agent-now`, offline and with fabricated fixtures only, each test failing
+  first. (A1) A unit test over a store holding one `GENERATED_KIND`, one `FEEDBACK_KIND` and one
+  `CONTROL_KIND` item asserts that the size report returns real-camera counts (`FEEDBACK_KIND` and
+  `CONTROL_KIND`) and synthetic counts separately, and a `real_complete` flag that is false; today
+  `m0_size_report` returns one pooled count. (A2) A command (a `synthbench` subcommand or a script)
+  imports labelled events from a database into a store and writes the manifest
+  (`write_import_manifest`); a test drives its entry point with fabricated event rows and asserts
+  that a labelled event imports and an unlabelled one is a loud skip in the manifest (it fails first
+  because no entry point exists; the core is already pinned by `test_label_import.py`). (A3) A test
+  with one `FEEDBACK_KIND` item whose still lies under the store's own media directory replays it
+  through the shipped `VlmClient` with that directory as the capture root, and the score output
+  carries it as its own `real` cell (n, rate, Wilson interval, 'insufficient' under `MIN_N`), never
+  inside a tierb-v0 cell, with neither `synthbench replay` (`check_stills`) nor `synthbench score`
+  (`load_items`, `Item.facts`) refusing or pooling it, and with the real cell's per-item rows and
+  stills left in the off-repo score directory. Part B, `owner-hardware`: a committed aggregate-only
+  report (`docs/benchmarks/synthbench/owner-footage-<date>.md`; aggregate JSON or tables only, as
+  `save_vlm_report` does for D10: no per-item rows, no imagery) of the owner's footage replayed
+  through the shipped `VlmClient` at greedy decoding, naming the llama.cpp build and cache flags
+  (ISS-087) and the detector arm (ideal list, production detector or none, in ISS-007's claim-scope
+  block). It states each cell's n and how its items were chosen (a random-audit benign stratum of at
+  least 50, not only feedback-flagged items); S2 and S3 with Wilson intervals and the F14 pass,
+  marginal or fail label (ISS-014); the `uncertain` and `rejected` rates, refusals and truncations
+  (S5) and p95 latency (S4); and the gap to tierb-v0 on the same build (S2 and `uncertain`
+  differences with intervals, or 'not resolvable at this n'). Size is at least 100 benign and 20
+  incident real items (spec section 5; doc 18 L6), or an owner ruling [O] recorded in the ledger that
+  accepts a smaller set for a stated reason (real incidents are scarce: see the S-3 row). The set is
+  frozen and never used to tune a prompt (the ISS-016 discipline), and the labelling cost in labels
+  per minute is recorded. A public-footage arm (doc 20's `real-v0` from UCF-Crime or MEVA) may
+  precede Part B only after the licence review of ISS-063 and OD-18; it does not satisfy this
+  acceptance.
+- **Depends on.** The owner's footage and a labelling ruling (who labels, how many hours, which
+  footage; no register OD covers it, and doc 18's own OD-9 'Labeling effort for L6' is not the
+  register's OD-9, which is go-live sign-off); ISS-007 (the claim-scope block and the detector arm),
+  ISS-014 (the F14 label), ISS-061 (the residence guard must know `/export/foscam` before a store is
+  placed near the capture root), ISS-087 (pin the build), ISS-044 (a blind labelling method),
+  ISS-072 and OD-19 (a real still copied into the eval store has no purge path), ISS-016 (the same
+  freeze discipline for the real set). Relates to OD-4 (sets the urgency, below), ISS-038 (clip
+  realism), ISS-054 (identity thresholds need the same footage), ISS-063 and OD-18 (public footage
+  terms), OD-6 (the live detector arm), ISS-066 and ISS-067 (the feedback loop that grows the set).
+- **Tracked as.** Partly: the spec's 'Real events, post-go-live' row and go-live step 4 (section 5);
+  the synthbench spec's risk R4; doc 18's L6 (`[?]`, mapped to ISS-044, 061, 066, 067, none of which
+  builds the set); the ledger's P0.5 row (the labelling box 'stays open'); doc 20's 'Smallest next
+  step'. The Section 6 candidate 'Build a real-camera labeled eval path' was dropped upstream and
+  re-enters here with its own evidence.
+- **Severity note.** Filed `P2` as a measurement shortfall with latent impact: the spec schedules
+  real events after go-live, D10 is satisfied by an off-repo store, and the synthetic reading is
+  disclosed. A second read against the severity definitions at `2a3f0883` agrees. It is `P1` if OD-4
+  is ruled 'no', because OD-4 gates ISS-007, ISS-016 and ISS-024 and the M2 closure would then wait
+  on this set.
+
+#### ISS-097 — The model sweep's results live only in off-repo scratch: commit its report once the sweep ends, and set the rule for what beats the 8B
+
+`P2` · `decision` · actor `owner-decision` · status `open` · added 2026-10-03 (after `2a3f0883`, with the sweep at 5 of 15 rows)
+
+- **Evidence**
+  - The sweep is 12 model arms (`SPEC` in `sweep.py`: Qwen3-VL-8B Q8_0, Qwen3.5-4B Q8_0, Qwen3.5-9B
+    Q4_K_M and Q6_K, Gemma-4-12B QAT Q4_0, Qwen3-VL-32B Q4_K_M, Gemma-4-26B-A4B QAT Q4_0, Qwen3.8-27B
+    UD-Q4_K_M, UD-Q6_K and GSQ-RCO IQ2_S, Qwen3-VL-30B-A3B Q8_0, Qwen3.6-35B-A3B UD-Q6_K) and 3
+    controls (`CONTROLS`: `control-q4km`, `control-rep`, `control-defaultcache`), replayed over the 450
+    tierb-v0 sets. Driver, results and weights live in
+    `$AGENT_GPU_DIR/out/experiments/model-sweep/` and `$AGENT_GPU_DIR/models/sweep/`, outside the repo:
+    a `git ls-files | grep -i sweep` at the tip lists only unrelated files (none is a model-sweep
+    driver or report), and `docs/benchmarks/synthbench/` holds six pages (`clips-probes`,
+    `p1-bakeoff`, `p3-acceptance`, `p3-probes`, `p5a-2026-09-30`, `p5a-probes`), none a sweep report [V]
+  - It is unfinished. At 17:49 EDT on 2026-10-03 `results.jsonl` held 5 of 15 rows (the three
+    controls, `qwen3vl-8b-q8`, `qwen35-4b-q8`) and `sweep.log` showed `qwen35-9b-q4km` serving. The
+    live sweep process (`/proc/<pid>/environ`) carries no `EXP_RUBRIC`, `SWEEP_LIMIT` or
+    `SWEEP_DELETE_WEIGHTS`, so the remaining arms run the shipped prompt over all 450 sets and keep
+    their weights. The ledger's row headed 'VLM-PATH MEASUREMENT AND CLEANUP (2026-10-03)', in its
+    close pointer, says the sweep 'is RUNNING and its results are not claimed here', and ISS-087 says
+    the sweep 'is unfinished and its numbers are not recorded as measured until a report is committed' [V]
+  - The sequencing is recorded in the repo, not quoted from the owner. The Intake log entry 'after the
+    merge of #6783 and the reorganization decisions' says 'the sweep report is committed only after
+    the sweep finishes and a selection rule is set', and handoff Addendum 9 records the sweep itself
+    as 'owner decision: evaluate every discovered tier pick on tierb-v0' [V: read; both are
+    agent-written records of an owner answer of 2026-10-03, so the owner's statement itself is [A]
+    and its own words are not in the repo]. The target directory `docs/benchmarks/synthbench/` is not
+    named in any repo document about the sweep [V: grep of `docs/plans` and `docs/vss-integration`];
+    it is where the committed P5a pages live [V], and the owner's choice of it is [A: stated in the
+    request that triggered this block]
+  - No rule for what beats the 8B exists [V: grep of the register, the ledger, the handoff and docs 18
+    and 20 for 'selection rule', 'beats the 8B' and 'beat the 8B', then a read of the hits]. What
+    exists: ledger item 35's three flip conditions (heading 'The flip conditions, written falsifiable
+    while they are fresh'): (i) the 8B fails S1 on 24 GB, then the 4B pair; (ii) KV density binds
+    stream count, then Nemotron-Nano-12B-v2-VL reopens; (iii) corpus S3 below `S3_MIN` 90%, or
+    candidate C's `uncertain` rate proves a real hedging prior, then the pick reopens. These are
+    triggers, not a test a challenger must pass. OD-4 asks whether declared-truth replay counts for
+    (iii); `18-world-class-target.md` R10 calls the pick 'provisional'; doc 20's E3 reads its 2x2
+    informally ('If 32B/shipped clearly beats 8B/rubric on B, capability is real') and does not
+    define 'clearly'. The pick itself is the owner's 'lets go with Qwen3-VL-8B for now. we can revisit
+    later if needed.' (ledger item 35) [V]. The sweep schedules no Nemotron arm, although flip
+    condition (ii) and OD-4 name Nemotron-Nano-12B-v2-VL as the challenger [V: `nemotron` occurs
+    0 times in `sweep.py` and in `recipes.json`]
+  - The replay artifacts do not carry the conditions a report must print. `synthbench/run/replay.py`
+    `conditions()` returns six fields (`enforcement_probe`, `request_extra`, `max_tokens`,
+    `read_timeout`, `system_message`, `thinking`); the `run.json` of
+    `20261003T204300Z-qwen3vl-8b-q8` adds `build`, `commit` and `served_id` and has no key for
+    temperature, quantization, mmproj, weight hash, image-token cap, KV type, context or the two
+    cache flags [V: read both `run.json` files of the control and the Q8 arm]. They have to be
+    assembled from `sweep.py` (`COMMON`, `SPEC`, `CONTROLS`), `recipes.json` and `results.jsonl`.
+    What those say [V]: - Build `b11376-a55e952b8`, image `ai-vlm:sm103-b11376`, in every row read; `COMMON` env
+    `CTX_SIZE` 32768, `PARALLEL` 2, q8_0 K and V cache, flash attention, `LLAMA_ARG_IMAGE_MAX_TOKENS`
+    1280, `LLAMA_ARG_CACHE_RAM` 0 and `LLAMA_ARG_CACHE_IDLE_SLOTS` 0 (both unset only for
+    `control-defaultcache`). `COMMON` equals the `ai-vlm` env defaults of `docker-compose.prod.yml`
+    (`VLM_CTX_SIZE`, `VLM_PARALLEL`, `VLM_THREADS`, `VLM_BATCH_SIZE`, `VLM_UBATCH_SIZE`, the q8_0
+    cache types, flash attention, the 1280 image-token cap) except `GPU_LAYERS` (99 in the sweep,
+    `auto` in compose) and the two cache flags, which neither the compose file nor `ai/vlm` sets
+    (`grep` for `CACHE_RAM`, `cache-ram` and `CACHE_IDLE` finds nothing) - Temperature: the sweep sets none. `replay_arm.py`'s shim adds only `EXP_REQUEST_EXTRA` (and the
+    rubric when `EXP_RUBRIC=1`), so the request carries the shipped client's `_ASSESS_TEMPERATURE =
+0.0` (`backend/services/vlm_client.py`); that constant is 0.0 at `ab3bd002` and at `2cd619db`
+    (the `commit` in the control's and the Q8 arm's `run.json`; both are ancestors of the tip), and
+    `git diff --stat ab3bd002 2cd619db -- backend/services/vlm_client.py backend/evaluation
+synthbench ai/vlm` is empty. Not recorded in any `run.json`, and a dirty checkout would read as
+    its HEAD commit (ISS-045) [?] - Read timeout 180 s for every arm (`READ_TIMEOUT`), against 25 s in the committed P5a 'Conditions
+    per model' table; `max_tokens` 1024 as shipped - Differences between arms, which handoff Addendum 9 names as confounders: thinking forced off
+    (`LLAMA_ARG_REASONING=off` plus request `chat_template_kwargs`) on 9 arms (Qwen3.5 x3, Qwen3.8
+    x3, Qwen3.6, Gemma x2) and not on the Qwen3-VL arms or the controls; the two Gemma arms use
+    `UBATCH_SIZE` 2048 and an image-token cap of 1120; mmproj precision by file name is Q8_0 (the
+    Qwen3-VL arms and the controls), F16 (Qwen3.5, Qwen3.8 Q4_K_M and Q6_K) and BF16 (Qwen3.6,
+    Qwen3.8 IQ2_S), and not stated in the two Gemma file names [?]; `--vram` declared per arm runs
+    10 to 40 and affects admission only - VRAM peak is the largest `vram_actual_mib` that `sample_vram` read from `agent-gpu status` at
+    60 s intervals, so it is a lower bound [C]. F13 reserves S1 and S4 to 24 GB-class hardware
+    (spec rev 7 header), the committed P5a page says that on the GB300 'no latency or memory figure
+    here stands for a deployment', and doc 20 (bullet 'Keep extending synthbench: what exists, what
+    is missing') says the 10/12/16/24/32/48 GB fit 'must come from real blob sizes + KV + buffers',
+    so the column is a sizing hint and not a tier-fit result
+  - Provenance is partly in scratch. `recipes.json` carries repo, file, byte size and sha256 for every
+    model and mmproj file of the 12 arms, and `download()` raises on a size or sha256 mismatch; the
+    control arm's files carry no hash in `run_arm` (the shipped files already on disk), though ledger
+    item 35 pins the shipped pair (`Qwen3VL-8B-Instruct-Q4_K_M.gguf` sha256 `67d1659b…e9e2`,
+    `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` sha256 `c6ba85508d82…`) and the Q8_0 arm's mmproj has the
+    same `c6ba85508d82` prefix. `sweep.py` reads `recipes.json` from a session scratchpad when it
+    exists and from the sweep directory otherwise; the two copies are byte-identical today (`cmp`).
+    All arms write to one off-repo store (`sbroot/eval/tierb-v0/eval.sqlite`), and two replays carry
+    the tag `control-q4km` (the first scored 3 items per `sweep.log` 15:42:53; the control of record
+    is `20261003T194331Z-control-q4km`). Handoff Addendum 9 still says weights are deleted after each
+    arm; `sweep.py` now keeps them [V]
+  - The scoring path is the sweep's own in part. S2 and S3 counts are parsed from `run_replay`'s
+    printed report; AUROC, recall at 5% false alarms, scene-group hits and hard-negative false alarms
+    come from `analyze()` in `sweep.py`. A grep of `backend/evaluation` and `synthbench` finds no
+    AUROC, and `$AGENT_GPU_DIR/out/sbroot/runs/scores/` holds two entries, both from before the sweep
+    (`20261003T133003Z`, `20261003T134742Z`): no sweep replay has been through `synthbench score` [V].
+    The committed P5a page shows the format to follow: 'Conditions per model' and 'Run identity'
+    tables (replay id, endpoint, build, weights sha256, replay commit) and Wilson cells [V]
+  - Why one column cannot order the arms, sized only from what ISS-087 already records: the same 8B
+    at Q8_0 agrees with its Q4_K_M control on 252 of 450 items, so 198 of 450 answers differ under a
+    precision change alone [C: 450 - 252], and the control is deterministic (450 of 450 on two
+    repeats) [V: `results.jsonl` rows `control-rep`, `control-defaultcache`, `qwen3vl-8b-q8`]. A
+    margin smaller than that cannot be told from a precision or configuration effect, and the rows
+    read so far already show the metrics the sweep prints (S2, S3, AUROC, recall at 5% false alarms)
+    disagreeing in direction for at least one arm [V: `results.jsonl` at 17:49 EDT]. The other arms'
+    numbers are deliberately not copied into this register: the owner's sequencing sets the rule
+    before the report, and a rule written beside the results invites fitting to them [C]
+- **Why it matters.** Until the report is committed the sweep's numbers are session artifacts that no
+  document may cite as measured (ISS-087, ledger row 76), and the pick they bear on (flip condition
+  (iii) and OD-4, and the model-size lever of ISS-086's E3 under OD-2) cannot move. Committing the
+  table without a rule either leaves a table nobody can act on or makes the pick by whoever writes its
+  summary line. Choosing the best of 12 arms on the same 450 items that are then quoted as the result
+  is a selection on the test set [C], and no holdout (ISS-016) or paired test (ISS-043) exists yet.
+  Every number also carries the claim scope of ISS-007 (declared truth, ideal detector, no specialist
+  context), and if ISS-086's ceiling hypothesis holds (64 of 241 incidents not recoverable from one
+  still, S3 capped near 73.4% for any model), a candidate's S3 is not the whole story.
+- **World-class gap.** A model change is gated by a rule fixed before the arms were read, applied to
+  an archived report whose per-arm conditions are complete and reproducible from the repo; failures,
+  refusals and the 8B control print beside every candidate; and a winner is confirmed once on items
+  that did not choose it.
+- **Acceptance.**
+  1. The owner rules on OD-26 (filed with this block) and the ruling is recorded
+     as a dated line in the ledger and under section 4. The ruling settles: (a) which metrics count,
+     in what order and direction (S3 hits, S2 false alarms, AUROC, recall at 5% false alarms,
+     refusals); (b) the margin and the test (a paired test on shared items per ISS-043, or a fixed
+     margin), and whether the F14 bars (S2 5%, S3 90%) are absolute gates or the 8B control is the
+     yardstick; (c) gates beyond accuracy: S5 refusals, tier fit against the doc 20 budgets (which
+     this sweep cannot measure, F13), licence (ISS-063); (d) whether selection and confirmation use
+     the same 450 items (ISS-016); (e) how arms run under unequal conditions (thinking forced off,
+     the 1120 image-token cap, mmproj precision) are compared. A check: `grep -n 'OD-26'` finds the
+     section-4 row and the ledger line, and the ruling text answers (a) to (e).
+  2. After `sweep.log` ends with `sweep finished` and `results.jsonl` holds 15 rows (an arm that
+     errored keeps its `error` row and is printed as an error), a dated page is committed under
+     `docs/benchmarks/synthbench/` with: a conditions table per arm (build and image tag; repo, file,
+     quantization, byte size and sha256 of the model and of the mmproj, with the mmproj precision;
+     server env that differs from `COMMON`; thinking and request extras; image-token cap;
+     `max_tokens` and read timeout; temperature read from the client constant at the arm's replay
+     `commit`; cache flags); a run-identity table (replay id, `eval_run_id`, `run.json` path); S2, S3
+     with Wilson cells, AUROC, recall at 5% false alarms, refusals and truncations, and each arm's
+     agreement with the control; VRAM peak with its sampling method and the F13 caveat; the three
+     controls' identical-item counts; the claim scope of ISS-007; and the sha256 of `sweep.py`,
+     `replay_arm.py` and `recipes.json`.
+  3. A reviewer can re-derive it: each `eval_run_id` on the page is found in `eval.sqlite` and the S2
+     and S3 counts recomputed from that run equal the page's; `sha256sum` of each kept weights file
+     equals the page's value; `grep -c` of each of the 15 arm keys on the page is at least 1; and the
+     numbers that came from `analyze()` are either re-run through `synthbench score` or labelled as
+     the sweep's own computation.
+  4. The page applies the OD-26 rule and states its outcome, which may be that no arm beats the 8B;
+     the ledger row cites the page, and the notes under ISS-087, ISS-086 (E3) and OD-4 are updated.
+- **Depends on.** OD-26 (new; the highest id in section 4 at `2a3f0883` is OD-25, so confirm the next
+  free id when filing); the sweep finishing (agent-run, in progress). Related: ISS-087 (the report is
+  the first user of its 'build and cache flags on the conditions line' acceptance), ISS-045 (the
+  temperature on the run identity) and ISS-046 (KV, context and image-token settings on the run
+  identity; until both land the conditions table is assembled by hand), ISS-043 (paired test),
+  ISS-016 (dev/holdout), ISS-063 (licences), ISS-007, ISS-086 (the sweep's `qwen3vl-32b-q4km` arm is
+  the shipped-prompt cell of its E3 on `b11376`; the 32B weights were downloaded and hash-verified at
+  17:18 EDT per `download_all.log`; `SPEC` schedules no rubric arm, so the rubric cells are not
+  run [V]), OD-2, OD-4 (whose named challenger, Nemotron-Nano-12B-v2-VL, is not in the sweep).
+- **Tracked as.** Handoff Addendum 9 (the sweep and its confounders); ledger row 76 close pointer
+  (the sweep RUNNING, results not claimed); the Intake log entry after the merge of #6783 (the
+  sequencing); ledger item 35 (the provisional pick and its flip conditions). No register issue or
+  decision names the report or the rule before this one.
+- **Severity note.** Filed `P2`: neither the report nor the rule changes a bar reading or shipped
+  behaviour, and the owner can rule at any time. `P1` is defensible, because the rule gates the
+  model-pick question of Step 10 (flip condition (iii), OD-4) and the model-size lever of ISS-086's
+  E3; it does not gate Step 6's floor and remedy rulings (OD-2's options name no model change).
+
+#### ISS-098 — The ledger has no row of its own for the tierb-v0 corpus build, the owner's 60-still audit or the H3 clip rounds (three of E36's four parts)
+
+`P2` · `gap` · actor `agent-now` · status `open` · added 2026-10-03 (after `0d740944`)
+
+- **Evidence**
+  - E36 (`docs/vss-integration/16-errata-2026-10-03.md`, entry E36) names four things the ledger lacks:
+    the synthbench corpus, the P5a replay, the owner audit and the H3 clips rounds, and says 'an owed
+    ledger row is the proper fix, and the ledger is owner-merged'. Its own grep (`grep -ci
+"p5a\|tierb"` = 0, `wc -l` = 798) predates the row headed 'VLM-PATH MEASUREMENT AND CLEANUP'.
+    At tip `2a3f0883` `docs/plans/2026-09-23-vss-gaming-gpu-ledger.md` has 822 lines (`git diff
+--stat 0d740944 HEAD` on it is empty, so it equals the ledger at the merge of #6783),
+    `grep -ci p5a` returns 2 and `grep -ci tierb` returns 1, and every hit sits inside that one row
+    (cite it by heading, not number). Only the replay is discharged, and that is ISS-080's subject
+    **[V: ran the greps and read the hit lines]**
+  - The other parts leave no row of their own. Case-insensitive greps of the same file return 0 for
+    `clip round`, `clips round`, `owner audit`, `H3 clip`, `minimax`, `flux`, `audit.jsonl`,
+    `clips-1`, `clip-index`, `fb8de9c6` (the taxonomy hash prefix) and `55aaa482` (the audit-log hash
+    prefix); the one `h3` hit is the branch name `docs/synthbench-h3-notes-crossing` inside that row
+    **[V: ran]**
+  - What the ledger does carry, so the gap is not overstated **[V: read]**: that row's baseline
+    bullet names the corpus by identity only (450 `tierb-v0` sets, labels sha256
+    `3a9b16e3212ee799...`) and carries the audit's result in one clause ('the owner's 60-still audit
+    is DONE', scene, people and conditions error 0.0% [0.0-6.0], prop missing 1 of 15), with no
+    sample, log or method. The earlier item headed 'Item 2 SYNTHETIC-EVAL INTAKE' (2026-09-27, code
+    `bae92f47`) pins the intake door and a 124-set fake-oracle dry run that it says is 'not a
+    generation: it is not gen-3'; it predates the corpus, whose `corpus.json` has `created`
+    2026-09-29T03:59:50Z
+  - The corpus build as the mount records it **[C: computed 2026-10-03 from
+    `/synthbench/corpus/tierb-v0/index.jsonl` (last status per `event_id`), `corpus.json` and the six
+    `batches/*/triage.jsonl`; read-only, re-run by the verifier]**: 460 events drawn (pilot-1 10,
+    batch-1 50, batch-2 to batch-5 100 each), 459 `ready` and 1 `failed` (`B-batch-4-063`,
+    `pet_activity`, rerolls `text_overlay` then `wrong_scene`); ready labels incident 241, benign 209,
+    ambiguous 9, so the 450 scored sets are incident plus benign; 16 reroll verdicts (`text_overlay`
+    14, `broken_anatomy` 1, `wrong_scene` 1); taxonomy sha256 `fb8de9c6176d76aa...` (full value in
+    `corpus.json`), render size 1280x720; sampler seeds from each batch report header: pilot-1
+    2566691490, batch-1 2404914502, batch-2 671975924, batch-3 4203215722, batch-4 2517309453,
+    batch-5 1410937669 **[V: read]**
+  - What the repo already holds about the build **[V: read]**: `docs/synthbench/flux-prompt-notes.md`
+    (agent-authored) has a 'Batch log' table of events, renders, rerolls by reason and failed per
+    batch (15 rerolled events, 1 failed, which equals the index); the section 'Agent-side failure:
+    the reroll lever cuts both ways (batch-4, cost 1 event)' explains `B-batch-4-063` (the agent
+    misjudged the second verdict and the verdict is final); 'Owner notes (2026-09-29, before
+    batch-2)' records the owner's decision that the 400 run is 4 x 100 and that batch-5 deepens five
+    hard-negative scenarios with `--only`; 'Getting real signal, not anecdotes' prints the pilot-1
+    and batch-1 seeds. The seeds of batches 2 to 5 appear in no tracked file (grep of `docs/`,
+    `synthbench/` and `README.md` for the four values returns nothing **[V: ran]**) and the batch
+    reports exist only on the mount (`ls docs/benchmarks/synthbench` holds the P1, P3, P5a and
+    clip-probe pages and no batch report **[V: ran]**). Two owner questions stay open in that file
+    (heading 'Owner notes (2026-09-29, after batch-5)'): whether object-count drift (agent-counted
+    11/460, **[A]**) needs a triage reason, and whether the roughly 56/44 incident weight is the
+    intended evaluation design
+  - Composition that conditions every S2 reading **[V: P5a report 'group' table; C: 145/209]**:
+    batch-5's five scenarios (`flashlight_neighbor`, `hooded_jogger`, `landscaper_machete`,
+    `power_tools_at_night`, `winter_face_covering`, named in its `report.md` header) are all
+    `group: hard_negative` in `synthbench/taxonomy/tier_b_v0.yaml`, and the qwen3-vl-8b group table
+    has benign n=64 and hard_negative n=145, so 69% of the S2 denominator (209) is hard negatives by
+    the owner's design
+  - Stated limits that are committed but scattered **[V: read]**: truth is declared by the sampler
+    and unverified (`docs/benchmarks/synthbench/p5a-2026-09-30.md`, 'Conditions' paragraph); P4, the
+    independent verifier, is 'not built; audit stands in' (`docs/vss-integration/
+15-progress-since-the-design.md`, the synthbench phase table) and has no command in `COMMANDS`
+    in `synthbench/cli.py`; stills are 1280x720 renders staged to 1920x1080 by the camera stage
+    (commit `237363e7`), whose parameters are 'committed defaults ... until `camera calibrate` fits
+    them to the owner's footage' (`synthbench/generate/camera/model.py` docstring; the camera
+    directory has no calibrate code); the generation stack and owner approvals are in
+    `docs/benchmarks/synthbench/p1-bakeoff.md`, heading 'Owner decision (2026-09-28)' (FLUX.2 [dev]
+    for every still, `t2i_volume` an owner override, animator `minimax-h3-turbo` 'on automated
+    evidence'; the same page says clips were unrated); and `docs/benchmarks/synthbench/
+p3-acceptance.md` still has two owner-fill blanks (headings 'Stop-and-ask questions and nudges'
+    and 'Camera stage against a real still (owner)')
+  - The owner audit **[V: read]**: `synthbench/audit/sample.py` `SEED = 20260929` and `STRATA`
+    (threat 20, suspicious 10, hard_negative 15, benign 15) define the 60 stills; `questions()` asks
+    scene, prop (threat stills with props only), people and conditions, and the scene question
+    shows the declared answer ('Does this show <scenario>: <cast>, with <props>?'), so the audit is
+    not blind (ISS-044); `synthbench/score/metrics.py` `audit_summary` computes each question's
+    error as `cell(no, yes + no)` over all sampled stills, one pooled Wilson interval with no stratum
+    weights; the owner's answers append to `$SYNTHBENCH_ROOT/audits/<version>/audit.jsonl`
+    (`synthbench/commands/audit.py` docstring). The committed P5a report ('Run identity' and
+    'Audit') gives the log sha256 `55aaa4828aa4...`, 195 answers, scene 60 of 60, people 60 of 60,
+    conditions 60 of 60, prop 14 of 15; the clips design (decision C3) names the missed prop as
+    `B-batch-4-039`, a knife. `ls /synthbench` shows only `corpus` and `status`, so the log cannot be
+    re-read or re-hashed from this sandbox **[V: ran]**
+  - The H3 clip rounds, committed parts **[V: read]**: the probe page
+    `docs/benchmarks/synthbench/clips-probes.md` (three 243-frame clips of 327.0 to 328.7 s with
+    renderer peaks of 42.4 to 43.3 GiB; the highest peak of the run, 48.3 GiB, was the 124-frame
+    reference clip, against the 59.9 GiB ceiling; `/free` is asynchronous; the owner's 'clips look
+    good'; constants `CLIP_FRAMES` 243 in `synthbench/clips/settings.py` and `H3_PEAK_GIB` 49,
+    `CLIP_TIMEOUT_S` 500, `WARMUP_TIMEOUT_S` 240 in `synthbench/commands/clip_render.py`); the design
+    `docs/superpowers/specs/2026-09-30-synthbench-h3-clips-design.md` (C1 clips are kept for a video
+    VLM and not scored; C13 the owner waived the pilot gate, recorded in `1eeda952`, gate code
+    removed in `b74ca19d`; no clip audit is required); the notes
+    `docs/synthbench/h3-prompt-notes.md` (section 'Subjects that cross the frame (clips-1, seen
+    once)': crossing subjects mostly fail). The P1 animator pick carries a licence condition
+    (`p1-bakeoff.md`, 'Owner decision (2026-09-28)')
+  - Round `clips-1` **[C: computed 2026-10-03 from the mount, re-run by the verifier]**:
+    `rounds/clips-1/round.json` has `n` 459, `seed` 140409927, `created` 2026-09-30T15:14:09Z, 243
+    frames at 24 fps, 1344x768. Latest status per `event_id` in `clip-index.jsonl`: 164 ready, 80
+    failed, 205 prompted (not rendered), 10 rendered (not triaged): the round is unfinished, and the
+    tally equals ISS-038's, so it has not moved since. `rounds/clips-1/triage.jsonl` has 471 rows:
+    164 `ok` and 307 `reroll` (`camera_moved` 196, `subject_duplicated` 65, `scene_cut` 37,
+    `subject_lost` 6, `morphing` 3). The round's own `report.md` (generated 2026-10-02T16:04:07Z)
+    reads 158 ready and 71 failed **[V: read]**, so it is already behind the index; a row has to
+    print the command and the time its counts were taken
+  - Not covered elsewhere in this register **[V: grep of `17-action-plan.md` for `E36`, `corpus
+    build`, `clip round`, `owner audit`, `ledger row`]**: only the Step 3 update under the critical
+    path (it says the corpus build and the H3 clip rounds still have no ledger row) names the gap,
+    as prose. ISS-080 asks for the P5a row; ISS-038 and ISS-044 design the clip evaluation and a
+    blind audit and do not ask for ledger rows; ISS-063 asks the owner to record the clip-use ruling
+    in the ledger, a different entry; ISS-045, ISS-079 and ISS-087 concern replay identity
+- **Why it matters.** The ledger is the one place the README and AGENTS banners send a reader for
+  'what has actually run', and every P5a figure stands on this corpus. Its provenance, its truth
+  error bar and its composition caveats (declared truth, a hard-negative-heavy S2 denominator,
+  camera defaults never fitted, one failed event, seeds that are in no tracked file) sit in off-repo
+  reports and agent-authored notes, so 'a carried number is a claim' applies to every count this
+  register and doc 15 quote from the corpus (241 incidents, 209 benign, 459 clips) with no dated
+  row to cite. The audit's identity (which stills, which log, which limits) is one clause in a row
+  about something else. The clip round is unfinished, and nothing in the ledger says its clips are
+  unscored, unaudited and skewed toward in-place motion, which ISS-038 needs recorded before anyone
+  cites a clip number. Whether `/synthbench` is backed up is not known **[?]**; if it is not, the
+  batch-2 to batch-5 seeds, which are in no tracked file, exist only there.
+- **World-class gap.** Every artifact a bar reading rests on, the corpus, its audit and the clip
+  stock, has an append-only row with its identity (version, hashes, seeds, counts as of a date and
+  the command that recomputes them), its conditions, its known limits and its open owner items, and
+  a reader who starts at the ledger reaches all three.
+- **Acceptance.** Three new append-only ledger rows, or one row with three headed parts, identified
+  by heading, commit and PR and not by number; the owner merges. Each puts a conditions line first
+  and ends in a close pointer that lists open items as `[ ]`, and each count is one the row's
+  printed command recomputes.
+  - Corpus build: version, `created`, full taxonomy sha256, render and export sizes, events per
+    batch with each sampler seed (from each batch report header, since four are in no tracked file),
+    ready and failed by label, rerolls by reason per batch, the failed event, batch-5 as the owner's
+    hard-negative deepening and the resulting S2 composition (hard negatives 145 of 209), the
+    generation stack and the owner approvals (P1 report; the FLUX.2 [dev] licence stamp as a pointer
+    to ISS-063), the camera stage's unfitted defaults, the commits (doc 15's phase table: P1
+    `e316ad79`; P2 `27d87993` to `84a0e5e1`; P3 `0e6d3100`, `237363e7`, `5c84dd3c`; acceptance
+    `2e2186e7`), 'truth is declared', 'P4 not built', and as `[ ]` the two P3 owner blanks and the
+    two open owner questions in `flux-prompt-notes.md` (count drift, incident weight).
+  - Owner audit: the sample definition (`SEED`, `STRATA`), the four questions, the answer table
+    (scene 60/60, people 60/60, conditions 60/60, prop 14/15, the missed prop `B-batch-4-039`), the
+    log sha256 `55aaa482...` stated as read from the committed report and not re-hashed, with `[ ]`
+    for the owner's host re-hash and the audit date, and the limits (not blind, one pooled interval
+    over a stratified sample, scene placement and not risk band; ISS-044).
+  - H3 clip rounds: the P1 animator pick and its basis (automated evidence, no clip rated), the
+    licence terms as a pointer (ISS-063, OD-18), the probe measurements and constants, the
+    pilot-gate waiver (C13), the `clips-1` identity (`n`, `seed`, `created`, settings), the status
+    tally and reroll-reason table with the command and the time they were taken, the
+    crossing-subject finding labelled 'seen once', 'unscored; clips cannot reach `vlm_assess`'
+    (ISS-002, ISS-003), and 'round unfinished'. The closing numbers arrive as an addendum under the
+    pointer rule (as the P5a row's addendum did), not as an edit.
+  - Checkable at the merge: each of `grep -ci "clip round"`, `grep -c "55aaa482"`, `grep -c
+"fb8de9c6"`, `grep -c "clips-1"` and `grep -ci "minimax-h3"` over the ledger returns at least 1
+    (all are 0 today); `git diff --numstat <base> HEAD --
+docs/plans/2026-09-23-vss-gaming-gpu-ledger.md` shows 0 in its deleted column (append-only); and
+    a dated since-note under E36 in `16-errata-2026-10-03.md` points at the rows.
+  - Who can act. An agent drafts the rows from the committed reports and the read-only corpus mount
+    (the P5a row is the pattern). The owner merges (OD-10: the register's note reads the
+    2026-10-01 delegation in the ledger as covering merging after an observed-green gate only
+    **[A]**, and treats PR and merge on this branch as needing the user's go-ahead). Only the owner
+    can re-hash the audit log, give the audit date, fill the P3 blanks and answer the two open
+    questions, and an agent must leave those as `[ ]`.
+- **Depends on.** Nothing to start; OD-10 for the PR and merge scope. Related: ISS-080 (sibling, the
+  P5a row), ISS-044, ISS-038, ISS-063 and OD-18, ISS-045.
+- **Tracked as.** E36 says 'an owed ledger row is the proper fix' and the Step 3 update in this
+  register's critical path says the corpus build and the H3 clip rounds still have no ledger row; no
+  R-row in doc 12 (`grep -iE "synthbench|clip round|corpus"` of
+  `docs/vss-integration/12-postponed-roadmap.md` is empty); no ISS block before this one.
+
+### Specialists (6)
 
 Face, plate and re-ID legs and the specialists not yet built.
 
@@ -2929,6 +4165,167 @@ Face, plate and re-ID legs and the specialists not yet built.
   calibration item.
 - **Severity note.** Verifiers read P2 for calibration and P3 for licensing (F12 waives licence as a
   selection criterion).
+
+#### ISS-090 — The in-process specialist legs have no declared interface, shared fake or CI run on real bytes
+
+`P2` · `gap` · actor `agent-now` · status `open` · added 2026-10-03 (after `2a3f0883`)
+
+- **Evidence**
+  - The claim as filed. `docs/vss-integration/03-open-questions.md` heading 'Q9' says the in-process
+    tier 'has no socket, so none of those suites can see it swap or break';
+    `docs/vss-integration/06-repo-a-readiness.md` heading '2a. The in-process AI tier is OUT of
+    HTTP-conformance scope' (counted at `a140d244`, 2026-09-20) adds 'no fake, no contract snapshot,
+    and no golden divergence'; `docs/vss-integration/16-errata-2026-10-03.md` E59 calls the gap
+    'load-bearing' because the three surviving loaders are now the specialist stage of every
+    `vlm_assess` prompt [V: read]. The claim is narrower at the tip than those pages state, and
+    'every prompt' means every production prompt: in replay `backend/services/vlm_analyzer.py` (the
+    `if self._replay` branch of the specialist stage) reads stored texts and never runs the legs [V].
+    What exists is listed first.
+  - What exists at the tip [V: read]: per-leg unit tests on hand-built fakes
+    (`backend/tests/unit/services/test_vlm_specialists.py`, `test_vlm_specialists_batch36_m.py`,
+    `test_vlm_specialists_batch36_n.py`, `test_osnet_loader.py`, `test_face_recognizer_loader.py`);
+    `test_vlm_specialists.py` `TestPromptHygiene`, which pins on the absent-weights path that each
+    shipped leg and the stage belt return a single short line starting with `unavailable` and
+    passing `_assert_prompt_line`, and reads the real `SPECIALIST_UNAVAILABLE_TOTAL` in one test
+    (`test_unavailable_increments_a_metric`, faces and `weights_absent` only; the batch-36 batteries
+    stub `record_specialist_unavailable`); contract-tier pins of the one 512-d space and of the
+    loaders' wrong-dimension raise
+    (`backend/tests/contracts/ai_providers/test_conformance_numeric.py`
+    `TestN5DimConfusion.test_N5c_osnet_loader_raises_on_wrong_dim`;
+    `test_conformance_dbvocabulary.py` `TestMissingInvariants.test_embedding_dim_registry_is_one_512_space`
+    and `test_backend_unit_norm_normalizer_is_the_face_loader`); an inventory pin of the loader set
+    (`scripts/test_ai_surface_census.py` `TestRealTree.test_loaders_are_inproc`, run by the
+    `.github/workflows/ci.yml` step "Run the anti-rot gates' own tests"); weights identity pinned by
+    sha256 for osnet and both face files (`test_face_recognizer_loader.py`
+    `TestCatalogRows.test_rows_pinned_by_sha256`, `test_osnet_loader.py` `TestModelsYmlOsnetRow`,
+    enforced before load per `TestOsnetShaPinEnforcedBeforeLoad`); and
+    `backend/tests/unit/services/test_vlm_analyzer.py`
+    `TestSpecialistStageWiring.test_default_legs_degrade_to_texts_not_crash`, which runs the three
+    real legs with weights and package absent and asserts three non-blank texts.
+  - What the HTTP tier has and this tier lacks [V: read]: `backend/ai_contract/provider.py`
+    `AIProvider` with signature-verified registration (`register_provider`), the FakeProvider ASGI
+    app (`backend/ai_contract/fake/app.py`) and the generated
+    `backend/tests/contracts/ai_providers/golden/`. The registry
+    `backend/ai_contract/operations.py` `OPERATIONS` holds 9 operations, each an HTTP method and
+    path; none is the face, plate or person-reid leg the analyzer calls (`enrich_lt_person_reid` is
+    the gateway route no backend code calls, see ISS-050).
+  - No declared interface [V: grep for `Protocol` and for an `ABC` base over
+    `backend/services/vlm_specialists.py`, `osnet_loader.py`, `fast_alpr_loader.py`,
+    `face_recognizer_loader.py` and `ai_services.py` finds none; the only hits are
+    `collections.abc` and the docstring plate 'ABC123']. The three loaders are unrelated function
+    sets with different handles: `osnet_loader.load_osnet_model(...) -> dict[str, Any]`,
+    `face_recognizer_loader.load_face_detector(...) -> dict[str, Any]`,
+    `fast_alpr_loader.load_fast_alpr(...) -> Any` (an ALPR instance). The three legs have three
+    signatures: `collect_face_text(frame_paths, settings, gallery, session)`,
+    `collect_plate_text(frame_paths)`, `collect_reid_text(frame_paths, detections, settings, session,
+gallery)`. The gallery lookup is injectable (the `gallery` parameter) but the model handles are
+    not: each leg imports its loader inside the function body, the face handles come from
+    `face_recognizer_loader.get_face_leg_handles`, which reads the private
+    `get_model_manager()._loaded_models`, and re-ID reads `osnet_loader.get_reid_handle`; tests swap
+    them by `monkeypatch.setattr` on module attributes (`test_vlm_specialists.py` `_wire_manager`,
+    and `ol.get_reid_handle` in the re-ID tests). Each test file hand-builds its own fakes
+    (`_FakeManager` and `_FakeDetector` in `test_vlm_specialists.py`, `FakeEmbedSession` and
+    `FakeScrfdSession` in `test_face_recognizer_loader.py`); no shared fake exists.
+  - The one declared loader interface is unused: `backend/services/model_loader_base.py`
+    `ModelLoaderBase` has no subclass in non-test code (grep of `backend`, `scripts`, `ai` and
+    `synthbench` for the name outside tests finds its own definition and the `CLIPLoader` example in
+    its docstring), yet `backend/tests/unit/test_r8_s2b_nemotron_deletion.py` `ALIVE_LOADERS` calls
+    it 'the base class they share', `scripts/test_ai_surface_census.py` `test_loaders_are_inproc`
+    says 'it is their shared base class', and `docs/plans/2026-09-28-r8-legacy-retirement-scope.md`
+    (loader census table, row 'shared base (1)') says KEEP 'it is the base class of the three
+    survivors' [V]. The DI wrappers in `backend/services/ai_services.py` (`FaceDetectorService`,
+    `PlateDetectorService`, `OCRService`) have getters in `backend/api/dependencies.py` and
+    `backend/core/dependencies.py` but no non-test caller [C: grep of `backend` for the getter
+    names, excluding their definitions and `__all__`], so they are not the interface either.
+  - No CI run on real bytes [V unless marked]. osnet: `test_osnet_loader.py`
+    `TestRealWeightsProof.test_pinned_weights_load_end_to_end` skips unless
+    `$AGENT_GPU_DIR/models/model-zoo/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth` exists;
+    `.github/suppression-registry.yml` records the skip (id `...test_osnet_loader.py:1387`) as kind
+    `todo`, tracking `UNTRACKED:GENERAL`, expires `2026-12-31`; the docstring of
+    `scripts/test_suppression_census.py` says 'every CI env takes all three skips' and a grep of
+    `.github` finds no `AGENT_GPU_DIR` setting; the proof asserts model id, dimension, shape, unit
+    norm and finiteness on a flat-colour synthetic crop, not that two crops of one identity sit
+    closer than crops of two. The osnet transform constants (`transforms.Resize((256, 128))` and the
+    ImageNet mean and std in `osnet_loader.load_osnet_model`) are pinned by no test (grep of
+    `backend/tests` for them finds none) and the unit tier mocks `torchvision.transforms`; face
+    preprocessing has a shape, dtype and range pin only
+    (`test_face_recognizer_loader.py` `test_preprocess_is_neg_one_to_one_chw`). Face: the docstring
+    of `test_face_recognizer_loader.py` cites a weights-gated `test_face_recognizer_live.py`, which
+    is absent from the tree (`git ls-files`) and from history (`git log --all --
+'**/test_face_recognizer_live.py'` is empty; the name enters history only as that docstring).
+    Plate: `backend/tests/integration/services/test_fast_alpr_loader.py` covers availability, the
+    missing-package error (skipped when the package is present) and a `MagicMock` error path only,
+    and the `fast-alpr` row in `models.yml` has no digest (ISS-023).
+    `backend/tests/integration/services/test_model_loaders.py` stubs its loads. This sandbox holds no
+    specialist weights either (`ls "$AGENT_GPU_DIR/models"` shows `library`, `sweep`, `vlm`; a
+    depth-3 `find` for osnet, w600k, scrfd, alpr, `.pth` and `.onnx` names finds none) [V: ran
+    both].
+  - The key vocabulary is restated, not shared [V]: the wire schema
+    `backend/ai_contract/schemas/vlm_assess.request.json` types `specialist_outputs` as an object
+    whose `additionalProperties` are strings (the golden payload's key is `sample`); the keys live
+    in `backend/services/vlm_specialists.py` `SPECIALIST_KEYS` and again as a literal tuple in the
+    `backend/services/vlm_analyzer.py` fallback, which writes 'unavailable: specialist stage error'
+    directly and so, unlike every line built by `_unavailable_line`, does not increment
+    `hsi_specialist_unavailable_total` (the metric's only non-test call site,
+    `record_specialist_unavailable`, is inside `_unavailable_line`). `test_vlm_analyzer.py`
+    `TestSpecialistStageWiring.test_stage_bug_cannot_fail_the_verdict` pins the three keys by a
+    literal set.
+- **Why it matters.** The three legs are live evidence in every production prompt (E59), and the
+  module's own rule is that a false 'household' is the dangerous lie (`vlm_specialists.py`
+  `_match_plate_vehicles` docstring). Everything the committed tests prove about them is proved on
+  fakes or on the absent-weights path, and nothing in them or in the registry feeds real weights
+  through a leg in CI: a bump of `onnxruntime`, `fast-alpr` or `torchreid`, or an edit to the osnet
+  transform constants, would not be seen, and a weights swap is caught by identity (the hash) and
+  not by behaviour. No swap is proposed here; the point is that nothing would say so if one
+  happened, and that what a replacement leg must satisfy is written only in docstrings and per-leg
+  tests. The degradation design is sound and well tested, so the exposure is latent.
+- **World-class gap.** Every specialist leg is a declared interface checked by behaviour, with one
+  shared fake, a conformance suite that drives the shipped legs and the fake through the same
+  assertions, and a live proof per leg that reports 'not run' loudly instead of skipping. The
+  project's own retired `AIServiceProtocol` (`backend/ai_contract/provider.py`, comment above
+  `ProviderContractError`) shows attribute presence alone rots, so the check must not rest on it.
+- **Acceptance.** (1) Interface: one declared interface for a specialist leg exists and the three
+  shipped legs satisfy it; `collect_specialist_outputs` takes its legs through it (default: the
+  shipped three), so a fake leg is injected without `monkeypatch.setattr` on `vlm_specialists`. A
+  test fails first on the current tree and then passes: it asserts each key of `SPECIALIST_KEYS`
+  has a leg that satisfies the interface by signature, not by attribute presence. `ModelLoaderBase`
+  is either implemented by the three loaders and asserted by a test, or the owner rules it removed
+  (the R8 design and scope say keep it) and its tests, its `ALIVE_LOADERS` entry and the three
+  statements that call it the survivors' shared base are corrected in the same change.
+  (2) Conformance: one contract-tier suite beside `backend/tests/contracts/ai_providers/` drives
+  each shipped leg on its absent-weights path and one shared fake leg through identical assertions,
+  extending what `TestPromptHygiene` already does per leg: the result is a `str`; nothing raises
+  when a dependency raises; a degraded line starts with `unavailable` and passes the same
+  prompt-line check; each degradation increments the real `hsi_specialist_unavailable_total` exactly
+  once with a code from the set documented in `backend/core/metrics.py`, read for all three legs
+  (today one test reads it, for faces). Red first: a deliberately non-conforming fake leg (returns
+  `None`, or leaks a path) fails the suite and names the leg. (3) One vocabulary: the
+  `vlm_analyzer.py` fallback builds its keys from `SPECIALIST_KEYS` and its lines through the same
+  funnel as the legs; a test with `collect_specialist_outputs` raising shows the counter
+  incremented once per key and the keys equal `SPECIALIST_KEYS` (red first: today the counter does
+  not move). (4) Real bytes: each leg has a live test that runs when its weights or package are
+  present: face (the file its docstring promises, or the docstring corrected), osnet
+  (`TestRealWeightsProof` extended to a same-identity versus different-identity check on committed
+  crops, and the transform constants pinned), plate (the fixture read in ISS-023 acceptance (3)).
+  One run on a host that holds the weights is committed as a short report (command, weights
+  sha256 from `models.yml`, outcome). (5) Docs: E59 gets a dated note stating what stayed unguarded
+  after this work; 03 Q9 and 06 section 2a are left as frozen prose.
+- **Depends on.** ISS-023 (the plate package and fixture; its acceptance (3) is the plate half of
+  item 4); ISS-025 (weights provisioning and per-leg readiness; face weights are hand-placed,
+  `models.yml` `download_method: skip`). Items 1 to 3 and 5 need no weights and can be done in this
+  sandbox; item 4's committed run needs a host that holds the weights, and this sandbox has none.
+  If OD-17 (ISS-050) moves re-ID to the gateway route, the interface must cover both homes.
+  Related: ISS-052 (a per-leg budget is one more conformance assertion), ISS-024, ISS-054, ISS-026.
+- **Tracked as.** None found. `03-open-questions.md` Q9 and `06-repo-a-readiness.md` section 2a
+  record the gap and say the second project needs 'its own suite'; `12-postponed-roadmap.md` R8
+  resolved the parked swap question 'by retirement, not by swapping' but kept the three loaders,
+  which left this surface unguarded. The osnet skip is a registry `todo` with `UNTRACKED:GENERAL`;
+  that registry is minted by `scripts/suppression-registry-gen.py` (a CI step runs it with
+  `--check`), whose `TRACK_RE` reads only `NEM-n` and `R-...` tokens from the skip reason, so this
+  issue's id cannot be written into it by hand. A grep of the register for 'in-process', 'no
+  socket' and 'specialist contract' finds no block; the same grep of the ledger and the gaming-GPU
+  profile spec finds no row or issue about this gap (the one ledger hit for 'in-process' is the R8
+  sweep's 'surviving-path guard' entry).
 
 ### Serving, deploy and supply chain (8)
 
@@ -3220,7 +4617,7 @@ The `ai-vlm` image, compose files, provisioning, restart tooling and release art
 - **Depends on.** ISS-023, ISS-057; relates to ISS-029 (what is reachable from outside).
 - **Tracked as.** None found.
 
-### Security, privacy and licensing (6)
+### Security, privacy and licensing (7)
 
 Exposure of the API, prompt trust, retention, erasure, egress and licences.
 
@@ -3480,6 +4877,155 @@ Exposure of the API, prompt trust, retention, erasure, egress and licences.
   `docs/vss-integration/12-postponed-roadmap.md:28` (at `5c605e1d`) and `:202`; deferred to 'before
   any consumer distribution'.
 
+#### ISS-096 — Decide what the FLUX.2 [dev] licence lets the corpus stills be used for (evaluating a surveillance product, training a model, sharing): the text is read in part and no ruling is recorded
+
+`P2` · `decision` · actor `owner-decision` · status `open` · added 2026-10-03 (after `2a3f0883`)
+
+- **Evidence**
+  - Every still of the evaluation corpus is a FLUX.2 [dev] Output. `synthbench/export/vss.py` constant
+    `LICENSE` ('FLUX.2 [dev] Non-Commercial License (black-forest-labs/FLUX.2-dev)') and `attribution()`
+    stamp that licence and the artist 'synthbench <version>, FLUX.2 [dev] (synthetic)' on each exported
+    still (the P5a design spec, `docs/superpowers/specs/2026-09-29-synthbench-p5a-vlm-replay-design.md`,
+    paragraph 'Attribution sidecar', says the same); the sidecar names a licence and carries no field
+    for what use it allows [V]. All 475 render attempts in the 460 `provenance.json` files under
+    `/synthbench/corpus/tierb-v0/events/B/` record one `diffusion_models` hash, `863a82e4...b486`, the
+    `flux2-dev` `flux2_dev_fp8mixed.safetensors` row of `synthbench/generate/manifests/p1-slate.json`
+    (repo `Comfy-Org/flux2-dev`); the index folds to 241 incident, 209 benign and 9 ambiguous sets
+    `ready` and 1 `failed`, so no other generator contributes to a still [C: counted from those files
+    and `index.jsonl` this session].
+  - The licence text, read in part. I fetched 'FLUX Non-Commercial License v2.1' from the
+    `black-forest-labs/flux2` repo (`model_licenses/LICENSE-FLUX-NON-COMMERICAL`, 18,157 bytes, sha256
+    `e98f298dae1bcc91aeb13e30948d8600418d8a161840e34078bbaf2b18abcecc`) on 2026-10-03 and read
+    sections 1 to 4 in full [E]. Section 1(c) defines Non-Commercial Purpose as, among others, 'use by
+    commercial or for-profit entities for testing, evaluation, or non-commercial research and
+    development in a non-production environment', and says use 'for revenue-generating activity', 'in
+    direct interactions with or that has impact on end users', or 'to train, fine tune, or distill other
+    models for commercial use' is not one. Sections 2(a) and 2(b) grant use of the FLUX Model only for
+    Non-Commercial Purposes. Section 2(d) says 'You may use Output for any purpose (including for
+    commercial purposes), except as expressly prohibited herein. You may not use the Output to train,
+    fine-tune, or distill a model that is competitive with a FLUX Model'; section 1(a) says Outputs are
+    not Derivatives. Section 2(e) conditions use of Output on content filtering or output review for
+    unlawful or infringing content, and on AI disclosure 'to the extent required under applicable law'.
+  - Section 4(a) is the clause neither doc 20 nor this register cites. It reads, in the parts that
+    matter here, 'You will not ... use, modify, copy, reproduce, create Derivatives of, or Distribute
+    the FLUX Model (or any Derivative thereof, or any data produced by the FLUX Model), in whole or in
+    part, (i) for any commercial or production purposes ... (iii) purposes of surveillance, including
+    any research or development relating to surveillance, (iv) biometric processing' [E: same file].
+    Because 2(d) allows Output use only 'except as expressly prohibited herein', whether 4(a) reaches the
+    stills turns on whether 'data produced by the FLUX Model' includes Outputs and whether building and
+    scoring a home-security camera pipeline (with face and plate specialists) is 'research or development
+    relating to surveillance' or 'biometric processing'. That is a counsel reading and I do not settle
+    it; it reaches the evaluation use that exists today, not only a future tuning run [?: not legal
+    advice]. My plain reading of 2(d) alone is that a security VLM is not 'competitive with a FLUX
+    Model', so 2(d) would not bar tuning one, but 1(c) (a commercial tuned model) and 4(a) (commercial
+    and surveillance use of the data) both pull the other way [C].
+  - The owner's own ruling flags this class of clause. F12
+    (`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`, item 17, sub-item 2) quotes the owner, 'dont worry
+    about license problems', accepts 'AGPL ... GPL, CC BY-NC and research-only weights and datasets', and
+    says 'A license is still flagged only when it restricts the _use_ itself: KPR's Hippocratic License
+    3.0 (surveillance clauses), and BlazeFace's card, which excludes surveillance and identity use'.
+    Section 4(a)(iii) and (iv) is a surveillance and biometric clause of that class; no ledger row,
+    spec or report in the repo records that it was read or that the owner accepted it [V: read F12; a
+    grep of the ledger, `docs/plans` and `synthbench/` finds no mention of 4(a)]. Row D8 of
+    `docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md` reads 'Licenses are not
+    a selection criterion (standing ruling 2026-09-25). Models are picked on fit, measured in P1.'; it
+    is about selection, not about the use of what a chosen generator produces [V].
+  - Which text the owner accepted is unconfirmed. The upstream card `black-forest-labs/FLUX.2-dev`
+    names `flux-non-commercial-license` and is gated (`gated: auto`); its public file list names
+    `LICENSE.md`, and raw fetches of `LICENSE.md` and `LICENSE.txt` both return HTTP 401
+    unauthenticated. The ComfyUI repack the generator actually downloads, `Comfy-Org/flux2-dev`
+    (not gated), is tagged `flux-1-dev-non-commercial-license` and links a `FLUX.1-Krea-dev`
+    `LICENSE.md`, which also returns HTTP 401 [E: HF API and raw fetches, 2026-10-03]. Three texts are in
+    play and I read one (the GitHub copy); whether the repack tag is a stale FLUX.1 label or a different
+    grant, and whether the gated `LICENSE.md` matches v2.1 including 4(a), is not established [?].
+  - The question is raised and left unanswered in the research record.
+    `docs/vss-integration/20-model-tiers-benchmark-and-training.md` section 4: in the 'EVAL HARNESSES
+    INCLUDING HARBOR' track, the bullet 'Licence risk on the synthetic corpus gates fine-tuning and any
+    public/registry sharing' and that track's 'Smallest next step' ('a read of the FLUX.2 [dev]
+    licence output/training clause by someone with HF access, before any LoRA data is cut'); in the
+    'LoRA/QLoRA fine-tuning' track, the Recommendation ('treat training-data licensing as an owner
+    decision before any pixels are used'), Stage 2 'DECISION D2 (owner/counsel): (i) training-data
+    licensing: FLUX.2 [dev] stills (reading of FLUX NC v2.1 sections 1(c) vs 2(d); option of a BFL
+    commercial license)', and finding '13. Licensing of generated data, public data, and base weights'
+    (concludes 'counsel/owner decision'); section 5 adds that Harbor Hub 'and any HF/lmms-eval registry'
+    'would share FLUX outputs publicly' [V: read; doc 20 is an unaudited checkpoint dump, and I
+    re-verified only the FLUX text, not its other [E] claims]. 'D2' is that page's own label, not an
+    `OD-n`. The page reads sections 1(c), 2(d) and 2(e) only; it does not cite 4(a) [V].
+    `docs/research/open-weight-image-models-hailuo-ltx.md` (the FLUX.2 [dev] paragraph) says 'Generated
+    outputs have broader allowances described in the model license' without naming 4(a) [V].
+  - Not covered in this register: a grep of `17-action-plan.md` for `flux` hits only ISS-007 (the
+    'Claim scope' Acceptance, 'synthetic FLUX.2'), ISS-044 (a reference to
+    `docs/synthbench/flux-prompt-notes.md`) and ISS-063 (the exporter-stamp bullet); a grep for `counsel`,
+    `distill`, `LoRA`, `SFT`, `Harbor` and `surveillance` finds nothing in a licensing sense. ISS-063's
+    Acceptance asks for a licence register with a 'restriction summary' per artifact and for the H3
+    clip ruling; OD-18 (the table row) asks 'may H3 clips tune a model or only evaluate'. Neither asks
+    anyone to read and rule on the FLUX terms for the stills [V: ran the greps]. R12 in
+    `docs/vss-integration/12-postponed-roadmap.md` (heading 'R12-R14. Distribution prerequisites') lists
+    model licences, the VSS Evaluation licence, SLA section 8.9 and 'image redistribution' (VSS
+    container images) and does not name the generator's output terms [V].
+  - The training and sharing paths are prospective; the evaluation use is not. A grep for `peft`,
+    `ms-swift`, `trl`, `qlora`, `axolotl` and `unsloth` finds no hit in any `.py`, `.toml`, `.txt`,
+    `.lock`, `.yml`, `.yaml`, `.json` or `.sh` file (the one hit outside `docs/` is a markdown file under
+    `data/` that links Unsloth-published GGUF repos); the only `huggingface_hub` use in `synthbench/` is
+    `hf_hub_download` in `synthbench/generate/weights.py`, so there is no upload path; and `synthbench
+export vss` writes one flat store with no train and held-out split (ISS-016) [V]. A grep of
+    `synthbench/` for 'unlawful', 'infring', 'content filter', 'ai-generated' and 'disclos' finds no
+    match, so whether the corpus meets 2(e) is not recorded; the sidecar's 'FLUX.2 [dev] (synthetic)'
+    artist string may or may not count as the AI indication, and I did not read the triage stage or the
+    audit code, so whether they count as the output review is [?].
+- **Why it matters.** The corpus is the labelled data in hand for S2/S3, and it is the data for the fine-tune
+  path doc 20 sets out as the lever with large published gains on the same 8B (Stage 2, an SFT-LoRA on
+  Qwen3-VL-8B); ISS-086 keeps open that the remedies short of tuning may not reach S3. Two things follow.
+  First, the go-live gate (OD-9) needs S2/S3 'on an accepted corpus'; if 4(a) bars surveillance research
+  and development with the stills, the evidence under that gate rests on data whose use is restricted, and
+  F12 says exactly this kind of clause is the one to flag. Second, if the free experiments fail, the next
+  step is a training run on these stills: cutting a split, rendering 1.5-3K more stills (doc 20's
+  figure) and training before the reading is done risks a tuned adapter or GGUF that cannot ship with the
+  product, or a corpus that cannot be shared. The H3 half is already clearer (the H3 licence bars using
+  outputs to improve other models, ISS-063); the FLUX half is not. The same reading decides whether the
+  stills may go to an HF dataset or a registry such as Harbor Hub, and whether a licence-clean generator is
+  needed. That alternative is not free: the Apache-2.0 `FLUX.2-klein-4B` failed four of the six rated
+  threat props at 0% in the P1 bake-off (`docs/benchmarks/synthbench/p1-bakeoff.md`, the '**R1** (threat
+  props)' bullet) [V]; Z-Image-Turbo (card tag apache-2.0) failed the same four and HiDream-I1-Full (card
+  tag mit) scored 0/3 on the crowbar and 75% on handgun_in_hand and forced_door (same file, 'Threat props
+  per case' table) [V; E: upstream HF card tags, 2026-10-03, the repack repos the generator would
+  download were not checked]. Doing the reading now is cheap; doing it after the data is cut is not.
+- **World-class gap.** Every corpus artifact carries a machine-readable record of the generator licence
+  text it was made under (a pinned hash) and the uses a ruling allows (evaluate a surveillance product,
+  tune, ship a tuned model, share), and an export or training job checks that record first.
+- **Acceptance.** All of these, each checkable by someone else. (1) A committed note (a ledger row, or a
+  page under `docs/benchmarks/synthbench/`) quotes the licence text actually in force for the generator
+  that was used: the authenticated HF read of `black-forest-labs/FLUX.2-dev` `LICENSE.md` and the
+  `LICENSE.md` linked from the `Comfy-Org/flux2-dev` card, each with fetch date and sha256, and says
+  whether either differs from the v2.1 text above in sections 1(c), 2(d), 2(e) and 4(a). (2) The note
+  states, for each of evaluating a security pipeline with the stills (the current use), tuning or
+  distilling a locally served model, distributing a tuned adapter or GGUF with the product, and sharing
+  the stills publicly: permitted, permitted with a BFL commercial licence, or prohibited, with the 1(c)
+  versus 2(d) reading, the reading of 4(a)(i), (iii) and (iv) and of 2(d)'s 'except as expressly
+  prohibited herein', its source (counsel or the owner), and how 2(e) is met for the corpus. (3) The
+  owner's ruling is recorded in the ledger as an extension of OD-18, whose table row today names only H3
+  clips, and says whether F12's flag for surveillance clauses is accepted for FLUX 4(a) [O]. (4) The
+  ruling is machine-visible: the licence register that ISS-063's Acceptance asks for (or the corpus
+  manifest it names) has a row for the corpus stills carrying the ruling and its date, checked by a test
+  that fails before the row exists (the existing sidecar test is
+  `backend/tests/unit/synthbench/test_export_vss.py`). (5) Doc 20 Stage 2 is annotated (an erratum or a
+  status line) with the ruling, so the fine-tune path is either unblocked or re-planned with a
+  licence-clean generator.
+- **Depends on.** OD-18 (extend it from H3 clips to the FLUX stills; add a dated update under the
+  Owner decisions table); ISS-063 (the register that records the ruling; this is the ruling half for
+  the FLUX stills, which ISS-063's Acceptance does not ask for). Sequenced before any training split or
+  data cut: ISS-016. Related: ISS-086 (the S3 remedy that could lead to a tuning path), OD-9 (its
+  'accepted corpus' condition), ISS-038 and ISS-044 (the corpus's own audit status).
+- **Tracked as.** None found in the register, the ledger or the roadmap. Raised only in doc 20 section 4
+  (the Harbor track's licence-risk bullet and 'Smallest next step'; the LoRA track's Recommendation,
+  finding 13 and Stage 2 'DECISION D2') and the section 5 completeness-critic note; section 4(a) is raised
+  nowhere.
+- **Severity note.** P2 `decision`: nothing trains on or shares the stills at HEAD, and the licence reading
+  is not a runtime behaviour. P1 if counsel reads 4(a) as barring the evaluation use that exists today
+  (the stills then sit under OD-9's 'accepted corpus' gate) or if a tuning run or public export is
+  scheduled; P3 only if the owner rules the fine-tune and sharing paths out and counsel reads 4(a) as not
+  reaching Outputs.
+
 ### Operator UI and explainability (4)
 
 What an operator sees of a verdict, and the signals they can send back.
@@ -3616,7 +5162,7 @@ What an operator sees of a verdict, and the signals they can send back.
   ISS-066.
 - **Tracked as.** None found.
 
-### Retired-architecture residue, docs and CI (16)
+### Retired-architecture residue, docs and CI (18)
 
 Drift left by the legacy-path retirement, stale docs and CI gaps.
 
@@ -4356,6 +5902,220 @@ design.md`, `2026-09-12-context-map-doc-updates.md`, `2026-09-22-docs-scan-findi
   still assemble the wire shape'); the ledger records the re-home in item 44. Nothing tracks the
   decision.
 
+#### ISS-088 — The suppression census has two baseline copies; lowering one and not the other passes the local guard and fails CI
+
+`P2` · `debt` · actor `agent-now` · status `open` · added 2026-10-03 (after the PR's first CI read)
+
+- **Evidence**
+  - CI's `Collection Sanity` job on PR #6783 (run `37151109868`, job `111285028083`) printed
+    `MISMATCH pytest_skip_imperative: census=86 expected=99` from
+    `scripts/suppression-census.py --expect "$(cat .github/suppression-baseline.json)"`
+    (`.github/workflows/ci.yml:121`). `efa1b586` had lowered the count 99 to 86 in the spec baseline
+    inside `scripts/test_suppression_census.py` (`:543`) and that file's 8 tests passed; the committed
+    `.github/suppression-baseline.json:11` still read 99 **[V: both read, and the CI log read]**.
+  - The gate is an exact match, so a fall without editing the JSON fails exactly as a rise does; the
+    workflow's own comment says so (`ci.yml:104-119`). Because the failed step stops the job, the
+    ratchet, AI-provider-parity, registry, gate-test and shell-gate steps after it never ran in CI;
+    run locally afterwards, they all pass **[V]**.
+  - The JSON value was lowered to 86 in the PR's next commit; the structural cause below remains.
+- **Why it matters.** A change that removes suppression sites is verified green by the repo-root
+  guard tests and red by CI, found only by reading CI after the push. It cost this PR a round.
+- **Acceptance.** One place holds the baseline numbers, or a test fails when
+  `.github/suppression-baseline.json` and the spec in `scripts/test_suppression_census.py` disagree;
+  the guard's docstring names which gate reads which file.
+- **Depends on** nothing. **Tracked as:** none.
+
+#### ISS-092 — 49 service modules have no production importer, among them the three errata E83 and E93 name, and nothing bounds the count
+
+`P3` · `debt` · actor `owner-decision` · status `open` · added 2026-10-03 (after `2a3f0883`)
+
+- **Evidence**
+  - Census at HEAD `2a3f0883`: `python3 scripts/ai-surface-census.py --root . --json` buckets the 177
+    modules under `backend/services` as 118 DOMAIN, 6 HTTP-AI, 4 INPROC-AI and **49 DEAD** (no
+    non-test importer once the package `__init__.py` is excluded, the rule in the script's
+    docstring), 21,546 lines (`totals.dead_lines`) [V: ran it]. The only files under `backend/`,
+    `scripts/`, `frontend/src`, `.github` and `ai` that differ from `0d740944` are the docs-gate
+    script, `scripts/vss-next-id.py` and their two tests [C: `git diff --stat 0d740944 HEAD`].
+  - The census resolves `from backend.services import Name` only when `Name` is a module, so the 49
+    were re-derived without that blind spot: a scratch AST scan of the 794 non-test `.py` files
+    (outside `archive/`, `docs/`, `mutants/`) that resolves relative imports and maps each name
+    `backend/services/__init__.py` re-exports back to its module finds zero importers for all 49,
+    and no package-level import of a name from any of them. Quoted-string references find only the
+    words `calibration` and `quantization` in unrelated files; `git grep -w` over yml, sh, toml,
+    Dockerfile, json, ts and tsx outside `docs/` and `archive/` finds only unrelated words (a
+    comment in `.github/workflows/ci.yml`, a comment in `.pre-commit-config.yaml`, a form id in
+    `frontend/src/components/settings/MqttSettings.tsx`, generated API text); the dynamic-import
+    sites in non-test backend (`importlib.import_module` in `backend/ai_contract/providers.py` and
+    `backend/services/osnet_loader.py`, `__import__` in `backend/main.py` and
+    `backend/services/restore_service.py`) take constants or model paths and name none of the 49
+    [C: scratch scripts, not committed]. Of the 49, 12 are re-exported by
+    `backend/services/__init__.py`, 48 are imported by at least one test, and
+    `backend/services/calibration.py` is a 0-byte file [C].
+  - `scene_change_detector` (325 lines): `backend/services/__init__.py:276` imports it and `:482`,
+    `:483`, `:568`, `:611` list four names in `__all__`; the only other importers are tests
+    (`backend/tests/unit/services/test_scene_change_detector.py`, 55 test functions;
+    `backend/tests/integration/test_vision_extraction_pipeline.py:33`;
+    `backend/tests/unit/services/test_enrichment_data_consistency.py:25`). Its one production
+    importer was `backend/services/enrichment_pipeline.py:142` at `602379e2^`, deleted by
+    `602379e2` (R8 S2b, 2026-09-29) [V: `git grep` at `602379e2^`, `git log --diff-filter=D`].
+  - `trajectory_analyzer` (543 lines): no importer outside tests and not in `__init__.py`; `git grep
+-nw trajectory_analyzer -- backend ':!backend/tests' ':!*.md'` prints nothing. Its production
+    importer was `backend/services/nemotron_analyzer.py` (`:151` at `734f5e40^`), deleted by
+    `602379e2`. The module docstring still says it is wired into the enrichment pipeline and
+    formatted by `format_trajectory_context()` in `prompts.py`; neither exists (that name appears
+    only in the docstring). It is pinned by
+    `backend/tests/unit/test_r8_s3_florence_provider_retirement.py`
+    `TestDeadWithItsProvider::test_trajectory_analyzer_is_NOT_collaterally_deleted`, which asserts
+    the file exists ('no ruling retires it in S3'), and ledger item 44's holes list calls it
+    'kept-and-DEAD, flagged not deleted (deletion is a slice that must say so)' without naming a
+    slice [V].
+  - `guided_constraints` (172 lines; `get_guided_choice_config` and `get_guided_regex_config` build
+    NIM `nvext` dicts): `backend/services/__init__.py:130` imports it and ten names are in
+    `__all__` (`:374-377`, `:551-552`, `:627-630`); the only other importer is the test
+    `backend/tests/unit/services/test_guided_constraints.py` (95 test functions). **It is not an R8
+    orphan**: at `734f5e40^` and at `602379e2^` its only non-test reference was already that
+    re-export, and the analyzer built its own `nvext` dict under `nemotron_use_guided_json`, not
+    these builders; the module arrived in `2d9c9fbb` (NEM-3724, 2026-01-26) [V: `git grep` at both
+    commits]. Errata E93's 'residue' framing is therefore partly wrong, and its anchor
+    (`__init__.py:130` only) omits the ten `__all__` lines; E83 cites `:568` and `:611` and omits
+    `:482-483`.
+  - Against R8 [C: the census script run on `git archive` of three commits]: `734f5e40^` (parent of
+    the first R8 code commit) 49 DEAD and 21,909 lines; `ab3bd002^` (after R8, before M1) 50 DEAD
+    and 21,737 lines; HEAD 49 and 21,546. 45 of today's 49 were already DEAD before R8. R8 made
+    four modules DEAD by deleting their last importer: `scene_change_detector` and
+    `trajectory_analyzer` (above), `model_loader_base` (imported by `clip_loader.py`, deleted in
+    `602379e2`) and `service_provider_matcher` (imported by `scene_ocr_service.py`, deleted in
+    `3b73b9b6`, R8 S3, 2026-09-30). It deleted three earlier-dead modules (`florence_extractor`,
+    `package_tracking_service`, `pose_analysis_service`, all in `602379e2`). `ab3bd002` (M1,
+    2026-10-03) then wired `notification_filter`, DEAD before R8, into
+    `backend/services/vlm_analyzer.py:77`, which is why the count reads 49 again. 'Dead after R8' is
+    the smaller part of the class.
+  - The scene-change feature has a consumer side and no production producer. Consumers [V]:
+    `backend/api/routes/cameras.py` `get_camera_scene_changes` (`GET /{camera_id}/scene-changes`,
+    `:1751`) and `acknowledge_scene_change` (`:1852`; router mounted at `backend/main.py:1599`), the
+    `SceneChange` model (`backend/models/scene_change.py`, table `scene_changes`), the
+    `scene_change.detected` WebSocket type (`backend/core/websocket/event_types.py:182`) with its
+    dispatch branch (`backend/services/websocket_emitter.py:448`) and
+    `EventBroadcaster.broadcast_scene_change` (`backend/services/event_broadcaster.py:891`), the
+    setting `scene_change_enabled` (`backend/core/config.py:1709`, default true; its only reader is
+    `backend/api/routes/settings_api.py:129`, which echoes it, with `:57` mapping it to its env
+    name), and in the frontend the routed `/scene-changes` page (`frontend/src/App.tsx:325`,
+    `frontend/src/pages/SceneChangesPage.tsx`, change types `view_blocked`, `angle_changed`,
+    `view_tampered`) linked from the sidebar (`frontend/src/components/layout/sidebarNav.ts:96`),
+    `useSceneChangeEvents` used by `frontend/src/components/dashboard/DashboardPage.tsx:97`,
+    `useSceneChangeAlerts` imported by `frontend/src/components/layout/Header.tsx:10`, and
+    `SceneChangePanel` ('camera tampering monitoring',
+    `frontend/src/components/analytics/SceneChangePanel.tsx:16`) rendered at
+    `frontend/src/components/settings/CamerasSettings.tsx:1325`. Producers [V]: `git grep -nE
+'SceneChange\(' -- backend ':!backend/tests'` finds only the model's `__repr__`; no
+    `INSERT INTO scene_changes`; nothing emits `WebSocketEventType.SCENE_CHANGE_DETECTED`. The one
+    constructor call outside tests is the dev seeder `scripts/seed-events.py` (`seed_scene_changes`
+    at `:4551`, the constructor at `:4600`).
+  - That absence predates R8 [C: `git grep` at `eada4ba9^` and `602379e2^`, `git log -S`]: the
+    persister and broadcaster `SceneChangeService.create_scene_change`
+    (`backend/services/scene_change_service.py`, added `c23095f3`, 2026-01-25) had no importer
+    other than the `__init__.py` re-export at `eada4ba9^`, and `git log -S SceneChangeService` over
+    non-test backend touches only that commit and `eada4ba9` (2026-09-19, #6562), which deleted
+    it. At `602379e2^` the detector's only production use was `enrichment_pipeline.py:2803`
+    setting the in-memory `EnrichmentResult.scene_change`; nothing wrote a row or broadcast. So
+    the rows, the event and the page have had no production writer in this repository's history as
+    `git log -S` sees it, and wiring the detector back in would need a new persister, not just a
+    caller. Rows from the dev seeder may exist in a development database; a deployed database was
+    not checked [?].
+  - Nothing bounds the count: `scripts/test_ai_surface_census.py` runs in CI (the anti-rot pytest
+    list, `.github/workflows/ci.yml:210`) but pins only the absence of deleted modules
+    (`test_known_dead_land_dead`, `test_known_http_surface`) and the shape of the totals
+    (`test_json_totals_shape`); no test bounds `totals.DEAD` [V]. Its `test_loaders_are_inproc`
+    comment says `model_loader_base` 'stays too - it is their shared base class', but no module
+    imports or subclasses `ModelLoaderBase` at HEAD (`git grep -nE 'ModelLoaderBase|model_loader_base'
+-- . ':!docs' ':!archive' ':!*.md' ':!backend/tests'` finds only the module itself and that
+    comment) [V].
+  - Docs still list the detector without caveat: `backend/services/AGENTS.md` (table row `:79`,
+    section `### scene_change_detector.py` at `:654`), `backend/AGENTS.md:636` and
+    `docs/architecture/overview.md` (`:28`, `:200`), while `docs/reference/glossary.md` ('Scene
+    Change Detection') already says nothing in the running pipeline calls it [V].
+  - Precedent and constraints: the two earlier DEAD modules (`job_state_service`,
+    `scene_change_service`) were deleted in `eada4ba9` (the WP5.6 anchors in
+    `scripts/test_ai_surface_census.py` `test_known_dead_land_dead`;
+    `docs/vss-integration/06-repo-a-readiness.md` section 1.4). `.github/mutation-history.json` has
+    records for 44 of the 49 [C]; per `docs/plans/2026-09-29-r8-teardown-mutation-impact.md`
+    ('Merge-time protocol', lines 90-122 read) a deletion leaves orphan mutant copies that can
+    re-arm the bank-strip family and shifts the key-floor, so a deletion slice must be coordinated
+    with that campaign; whether the campaign is still running was not read [V: those lines only;
+    ?].
+  - Overlap, so the new work does not duplicate it: eight of the 49 are named in other blocks.
+    ISS-030 (`FileCleanupService` has no non-test caller; `orphan_cleanup_service` is named for
+    what it scans), ISS-039 (`frame_extractor`, `StreamManager` export-only), ISS-041
+    (`AlertDeduplicationService`, module `alert_dedup`), ISS-050 (`quantization.py`, named for
+    descriptive strings) and ISS-084 (`prompt_storage`, `typed_prompt_config`, named only as grep
+    targets for VLM-path imports). Only four of those (`file_cleanup_service`, `frame_extractor`,
+    `stream_manager`, `alert_dedup`) have their no-caller status stated. The other 41, including
+    the three above, are named by no block by module or class name [C: grep of this register].
+  - Not read: whether each of the other 46 is a deliberate keep (for example `frigate_integration`,
+    `mqtt_publisher`, `ha_discovery`, `zone_crossing_service`, `reid_matcher`), whether any
+    reachability root outside `backend/services` (routes, `main.py` lifespan) is itself unmounted
+    (any importer anywhere counted as live), a deployed database, the rest of the mutation brief,
+    the UI (no run; what `/scene-changes` renders when empty), and no test or CI job was run [?].
+- **Why it matters.** About 21,500 lines, tests for 48 of the 49 modules (not run here),
+  mutation-bank records for 44 and several AGENTS and architecture pages describe code nothing
+  runs. For scene change it is operator-facing: `SCENE_CHANGE_ENABLED` defaults to true,
+  `/scene-changes` is a routed, sidebar-linked page with tamper filters, and a dashboard hook and a
+  header hook subscribe to an event nothing sends, while the VLM path names no tampering
+  (`git grep -n -i tamper -- 'backend/services/vlm_*.py'` prints nothing; ISS-040 lists tampering
+  among events that never create a candidate), so an operator can believe camera tampering is
+  watched. The count stayed at 49 across R8 and M1 only because R8 orphaned four modules while
+  deleting three and M1 wired one; the R8 S2b ledger entry wrote a 'kept-and-DEAD' list and S3
+  pinned one member with a test, rather than a gate.
+- **World-class gap.** Reachability is a gate, not a report: a service module with no production
+  caller is either on a committed keep-list with a reason or fails CI, and a retirement slice
+  finishes the orphans it creates in the same change.
+- **Acceptance.** (1) Red-first ratchet: `scripts/test_ai_surface_census.py` gains a real-tree test
+  that fails when a module is DEAD and not on a committed keep-list that carries a reason per
+  entry; against an empty keep-list it fails at HEAD and names 49 modules. (2) `guided_constraints`
+  goes first, in one commit with `backend/tests/unit/services/test_guided_constraints.py`, the
+  `__init__.py:130` import and its ten `__all__` names: `git grep -nE
+'guided_constraints|get_guided_(choice|regex)_config|(ENTITY_TYPE|RECOMMENDED_ACTION|RISK_LEVEL|THREAT_LEVEL)_CHOICES'
+-- backend ':!backend/tests' ':!*.md'` prints nothing and `python3 scripts/ai-surface-census.py
+--root . --json` reports `totals.DEAD` 48. (3) The owner's ruling on `trajectory_analyzer` and on
+  the scene-change vertical is a dated ledger line. For `trajectory_analyzer`, a deletion retargets
+  `test_trajectory_analyzer_is_NOT_collaterally_deleted` to assert absence in the same commit, and
+  a decision to keep names the issue that will call it. For scene change, either (a) the vertical
+  goes in one commit (both `cameras.py` routes, the model and `backend/api/schemas/scene_change.py`,
+  the WebSocket type, dispatch branch and `broadcast_scene_change`, the setting and its
+  `settings_api` mapping and schema fields, the detector and its `__init__` exports,
+  `seed_scene_changes` in `scripts/seed-events.py`, the page, route, sidebar entry, hooks and
+  components; a dated DROP SQL under `docs/api/migrations/` as
+  `2026-09-30-retire-demographics-reid-tables.sql` did; OpenAPI and generated types regenerated)
+  and `git grep -n -i -E 'scene[_-]?change' -- backend frontend/src scripts ':!backend/tests'
+':!*.md'` prints nothing outside a named tombstone, or (b) a test drives a blocked-view fixture
+  frame through the shipped VLM path and shows a persisted `SceneChange` row and a
+  `scene_change.detected` broadcast. (4) Every other DEAD module is deleted, wired (naming the
+  issue) or on the keep-list; the ratchet test passes and the census prints only keep-list names.
+  (5) `git grep -n scene_change_detector -- backend/AGENTS.md backend/services/AGENTS.md
+docs/architecture/overview.md` shows only lines that say it is removed or unwired, the
+  `test_loaders_are_inproc` comment no longer calls `model_loader_base` the loaders' shared base,
+  and a deletion that touches modules with mutation-bank rows follows the brief's merge-time
+  protocol.
+- **Depends on.** A new owner-decision row in section 4 (delete, wire or keep each DEAD module and
+  the scene-change vertical) [?: not yet filed]; the nearest existing row, OD-25, scopes the
+  Nemotron-era neighbors left by `d8482861` (ISS-083 to ISS-085), and the `efa1b586` commit text
+  records 'no backward compatibility is kept' [V: commit message read; not a recorded ruling for
+  these modules]. ISS-035 (a tracker supplies the `track_id` and `track_points` that
+  `TrajectoryAnalyzer.analyze_trajectory` takes; ISS-035 does not name the module); ISS-040 (a
+  tamper cue bears on wiring versus deleting the detector); OD-21 (ISS-040's ruling). Same residue
+  family: ISS-055, ISS-073 (OD-20); overlaps ISS-030, ISS-039, ISS-041, ISS-050, ISS-084.
+- **Tracked as.** Partial. Ledger item 44 (R8 S2b) holes list names `trajectory_analyzer.py` and
+  `ai_fallback.py`'s zero-consumer binding as 'kept-and-DEAD, flagged not deleted' and names no
+  slice for them; errata E83 and E93 call the three modules 'dead-code candidates for an R8 tail
+  slice'; the R8 section of `docs/vss-integration/12-postponed-roadmap.md` names none of them;
+  the ledger names neither `scene_change_detector` nor `guided_constraints`. The census (plan P
+  WP5.5) and the deletion in `eada4ba9` are the precedent; no register block, ledger row or roadmap
+  entry tracks the class.
+- **Severity note.** Filed P3: none of the 49 modules runs. The scene-change vertical alone could
+  be read as P2, because a setting that defaults on, two API routes, a WebSocket type, a
+  sidebar-linked page and two header and dashboard hooks advertise camera-tamper detection that
+  nothing produces; it is kept here because the page's empty-state behaviour was not run.
+
 ## 6. Withdrawn after re-check
 
 None of the 77 filed issues was withdrawn whole at the tip, but the discovery pass itself dropped
@@ -4428,61 +6188,6 @@ Either can re-enter through the intake rule with its own evidence.
   were overstated. The batch-keyed SSE route `GET /api/events/analyze/{batch_id}/stream` exists
   (`backend/api/routes/events.py:2579`); what stands is that no per-event re-run action exists and
   that the route is idempotency-blocked for about an hour after a batch has an event.
-
-#### ISS-087 — Measured numbers are specific to the llama.cpp build: b7972 and b11376 disagree on 44% of items for the same model, weights and prompt
-
-`P1` · `risk` · actor `agent-now` · status `open` · added 2026-10-03 (after `ab3bd002`)
-
-- **Evidence**
-  - The shipped Qwen3-VL-8B Q4_K_M (weights sha256 `67d1659b…e9e2`), the shipped prompt and greedy
-    decoding, replayed over the same 450 tierb-v0 sets on two llama.cpp builds: on `b7972-e06088da0`
-    (`20261003T154038Z-qwen3-vl-8b-armA-shipped`) S2 18/209, S3 88/241, AUROC 0.703, 0 refusals; on
-    `b11376-a55e952b8` (`20261003T194331Z-control-q4km`, the model sweep's control arm, with
-    `LLAMA_ARG_CACHE_RAM=0` and `LLAMA_ARG_CACHE_IDLE_SLOTS=0`) S2 21/209, S3 94/241, AUROC 0.677,
-    2 refusals (both `VlmTruncatedError`, stop=`length` at 1,024 tokens: `B-batch-2-051`,
-    `B-batch-4-078`). Item by item **250 of 450 (56%)** return an identical (verdict, risk_score);
-    200 differ, 143 of them by 10 points or more **[V: read from `eval.sqlite` in this session]**.
-  - Both builds fail the F14 bars (S2 5%, S3 90%); the build moves S3 by +6 hits and S2 by +3 false
-    alarms, inside the run-to-run noise the shipped 0.1 sampling used to add, but now at a fixed
-    temperature of 0 it is a systematic effect of the build (or of the two cache flags, not yet
-    separated) **[?: a repeat control (determinism on `b11376`) and a default-cache control were
-    running when this was written; append their result to the Intake log]**.
-- **Why it matters.** Every S2/S3/S5 figure in this directory and the ledger was measured on
-  `b7972`. A claim against the bars is a claim about a build; the replay's `run.json` and the score
-  report record the build string, but nothing in the acceptance conditions pins one, and a llama.cpp
-  bump (the Dockerfile default is `b7972`, the model-tier research needs a newer one for most
-  candidates) can flip a marginal reading with no code change.
-- **World-class gap.** A world-class pipeline pins the engine build in its acceptance conditions
-  and treats a build bump as a re-qualification event with a control replay and an item-level
-  agreement count.
-- **Acceptance.** Score reports and ledger rows name the llama.cpp build and the cache flags in
-  their conditions line; a build bump lands with a control replay of the shipped model against the
-  previous build, reporting the identical-item count; the sweep's determinism and cause-attribution
-  controls on `b11376` are recorded in the Intake log.
-- **Depends on** ISS-043 (noise floor and repeat runs). **Tracked as:** none.
-
-#### ISS-088 — The suppression census has two baseline copies; lowering one and not the other passes the local guard and fails CI
-
-`P2` · `debt` · actor `agent-now` · status `open` · added 2026-10-03 (after the PR's first CI read)
-
-- **Evidence**
-  - CI's `Collection Sanity` job on PR #6783 (run `37151109868`, job `111285028083`) printed
-    `MISMATCH pytest_skip_imperative: census=86 expected=99` from
-    `scripts/suppression-census.py --expect "$(cat .github/suppression-baseline.json)"`
-    (`.github/workflows/ci.yml:121`). `efa1b586` had lowered the count 99 to 86 in the spec baseline
-    inside `scripts/test_suppression_census.py` (`:543`) and that file's 8 tests passed; the committed
-    `.github/suppression-baseline.json:11` still read 99 **[V: both read, and the CI log read]**.
-  - The gate is an exact match, so a fall without editing the JSON fails exactly as a rise does; the
-    workflow's own comment says so (`ci.yml:104-119`). Because the failed step stops the job, the
-    ratchet, AI-provider-parity, registry, gate-test and shell-gate steps after it never ran in CI;
-    run locally afterwards, they all pass **[V]**.
-  - The JSON value was lowered to 86 in the PR's next commit; the structural cause below remains.
-- **Why it matters.** A change that removes suppression sites is verified green by the repo-root
-  guard tests and red by CI, found only by reading CI after the push. It cost this PR a round.
-- **Acceptance.** One place holds the baseline numbers, or a test fails when
-  `.github/suppression-baseline.json` and the spec in `scripts/test_suppression_census.py` disagree;
-  the guard's docstring names which gate reads which file.
-- **Depends on** nothing. **Tracked as:** none.
 
 ## Intake log
 
@@ -4716,3 +6421,45 @@ Three more commits landed after `d8482861`, the same day, on `docs/synthbench-h3
   `scripts/test_suppression_census.py`); `efa1b586` lowered one, CI reads the other.
 - ISS-087 was filed with an entry but never counted in the Dashboard nor listed under P0 and P1
   issues; both are corrected above, and the counts now include ISS-087 and ISS-088.
+
+### 2026-10-03 (after the merge of #6783 and the reorganization decisions)
+
+- The owner merged PR #6783 at 2026-10-03T21:27Z as `0d740944`. ISS-088 and the ledger row on the P5a
+  baseline are on main. Main's post-merge `AGENTS.md Validation` run is red on the Linear sync (401
+  from `api.linear.app`) with the same 18 findings as every main push since at least 01:18Z, so it
+  predates the merge **[V: `gh run list`, the job log]**; the Linear key is owner-held (ledger).
+- ISS-087 and ISS-088 had been filed under section 6 (Withdrawn); they now sit in their area sections
+  (Evaluation and S-bar measurement; Retired-architecture residue, docs and CI), and the area headings
+  read (16) and (17). The header says 88 issues; the Dashboard counts 88 filed and 86 open.
+- ISS-087's determinism and cache-flag controls finished: see the update inside its block. That part
+  of its acceptance is met; recording the build and cache flags in every conditions line, and a
+  control replay on a build bump, are not.
+- Owner decisions on how this folder becomes the source of truth **[O: asked and answered one at a
+  time, 2026-10-03]**: README becomes the maintained State of the stack for what is decided, measured,
+  open and next, while main's `docs/architecture/ai-pipeline-current-state.md` stays the description of
+  what runs today and each links to the other without restating it; the 2026-09-23 README and AGENTS
+  bodies move to `21-entry-pages-record-2026-09-23.md`; ISS ids are allocated with a next-id helper
+  that scans every ref, a gate fails on duplicates, a collision gets a lettered suffix (ISS-088b) and
+  nothing is renumbered; the sweep report is committed only after the sweep finishes and a selection
+  rule is set; one-line pointer edits are approved in `docs/AGENTS.md` and in main's current-state
+  page; the work is built on its own branch and PR; the owner will do one confirmation pass over the
+  decisions-in-force rows; the working order stays this register's critical path, labelled as
+  agent-authored sequencing, until the owner rules on OD-1 of doc 18.
+
+### 2026-10-03 (the open work that lived only in errata and reference text)
+
+- ISS-089 to ISS-098 added, each drafted by one agent against the code at the tip and re-read by an independent verifier, who corrected every draft before it was filed: ISS-089 NVFP4 on consumer Blackwell (sm_120) is unanswered; ISS-090 The in-process specialist legs have no declared interface, shared fake or CI run; ISS-091 No code emits the `EVENT_CREATED` outbound webhook after R8; ISS-092 49 service modules have no production importer, among them the three errata E83 ; ISS-093 The clip supply is lopsided and unplanned; ISS-094 No issue owns a real-camera evaluation set; ISS-095 Decide whether to fine-tune the VLM; ISS-096 Decide what the FLUX.2 [dev] licence lets the corpus stills be used for (evaluat; ISS-097 The model sweep's results live only in off-repo scratch; ISS-098 The ledger has no row of its own for the tierb-v0 corpus build, the owner's 60-s. OD-26 (the sweep's selection rule), OD-27 (weight tuning) and OD-28 (dead service modules) were added to section 4; ISS-093 extends OD-5 and ISS-096 extends OD-18.
+- Not filed: errata E96 ('EventResponse.risk_level is recomputed from hard-coded 29/59/84') was true at the errata pin and is false at the tip: `e40d69f5` derives it from the severity settings and `test_risk_level_follows_runtime_thresholds` pins it **[V]**, so an issue would be a false open item. A latent neighbour was noticed and is not filed: `VlmAnalyzer` captures its severity service once at construction, so a runtime update through `PUT /severity` may not reach the stored `risk_level` until the analyzer is rebuilt **[A: read by the verifier agent, not run]**.
+
+### 2026-10-03 (the model weights are kept)
+
+- Owner direction **[O: asked and answered in the session, recorded here as its durable source]**:
+  the storage quota was raised from 50 GB to 200 GB and then 300 GB, and the owner asked that the sweep's
+  model weights not be deleted. This supersedes the "download, verify sha256, serve, replay, delete" cycle in
+  the ledger row headed 'VLM-PATH MEASUREMENT AND CLEANUP' and in handoff Addendum 9, which was written for
+  a mount of about 42 GB. All 12 sweep models (186.8 GB by the recipes' sizes) are kept in a permanent,
+  read-only, sha256-verified library under `$AGENT_GPU_DIR/models/library/<recipe>/` (a `MANIFEST.json`
+  records each file's source, size and hash), hard-linked into `models/sweep/<arm>/`; the sweep driver no
+  longer deletes weights unless `SWEEP_DELETE_WEIGHTS=1` is set. The library and the sweep are off-repo
+  scratch; nothing about them is committed except this note **[A: read from the driver and the manifest
+  this session]**.

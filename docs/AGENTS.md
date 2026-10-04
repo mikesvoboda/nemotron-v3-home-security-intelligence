@@ -20,7 +20,7 @@ This directory contains all project documentation organized into role-based hubs
 | `reference/`       | Env vars, glossary, troubleshooting                                       | [README](reference/README.md)          |
 | `deployment/`      | Container orchestration documentation                                     | [AGENTS.md](deployment/AGENTS.md)      |
 | `style-guides/`    | Documentation style guides                                                | [AGENTS.md](style-guides/AGENTS.md)    |
-| `vss-integration/` | NVIDIA VSS pipeline research (in progress)                                | [AGENTS.md](vss-integration/AGENTS.md) |
+| `vss-integration/` | AI/VLM stack: decided, measured, open, next (the source of truth)         | [AGENTS.md](vss-integration/AGENTS.md) |
 | `synthbench/`      | Synthbench generation: agent handoff, command reference, operator runbook | [AGENTS.md](synthbench/AGENTS.md)      |
 
 ## Directory Structure
@@ -104,7 +104,7 @@ docs/
 │   ├── AGENTS.md                # Style guides navigation
 │   └── diagrams.md              # Mermaid diagram style guide
 │
-├── vss-integration/             # NVIDIA VSS pipeline research (in progress)
+├── vss-integration/             # AI/VLM stack: state, decisions, register (start at README)
 │   ├── AGENTS.md                # VSS research navigation
 │   ├── README.md                # Human entry point
 │   ├── 00-context.md            # Goal, repos, decision this feeds
@@ -240,7 +240,7 @@ Each major directory has its own AGENTS.md:
 | `user/AGENTS.md`                      | End-user documentation          |
 | `style-guides/AGENTS.md`              | Documentation style guides      |
 | `templates/AGENTS.md`                 | Document templates              |
-| `vss-integration/AGENTS.md`           | NVIDIA VSS pipeline research    |
+| `vss-integration/AGENTS.md`           | AI/VLM stack source of truth    |
 | `synthbench/AGENTS.md`                | Synthbench generation documents |
 
 ## Visual Assets
