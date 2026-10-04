@@ -243,10 +243,10 @@ def test_a_vllm_model_gets_its_name_the_schema_and_no_probe(tmp_path: Path) -> N
     assert [call["path"] for call in seen] == ["/v1/chat/completions"]  # no /props probe
     assert seen[0]["model"] == "claude-flagship"
     assert seen[0]["response_format"]["type"] == "json_schema"
-    # The flagship thinks before answering and spent the whole shipped 1024-token budget
+    # The flagship thinks before answering and spent the whole shipped budget
     # thinking (Task 1 Step 7): it runs with thinking off, at the shipped budget.
     assert seen[0]["chat_template_kwargs"]["enable_thinking"] is False
-    assert seen[0]["max_tokens"] == 1024
+    assert seen[0]["max_tokens"] == vc._ASSESS_MAX_TOKENS
     assert [message["role"] for message in seen[0]["messages"]] == ["user"]  # no system message
 
 
@@ -265,7 +265,7 @@ def test_cosmos_gets_the_budget_its_long_evidence_needs(tmp_path: Path) -> None:
     )
     assert verdict.provenance.model_id == "nvidia/Cosmos-Reason2-8B"
     assert seen[0]["model"] == "nvidia/Cosmos-Reason2-8B"
-    assert seen[0]["max_tokens"] == 4096  # over the client's shipped 1024
+    assert seen[0]["max_tokens"] == 4096  # over the client's shipped budget
     assert seen[0]["response_format"]["type"] == "json_schema"
     assert "chat_template_kwargs" not in seen[0]
 
