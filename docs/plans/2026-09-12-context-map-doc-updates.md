@@ -16542,3 +16542,142 @@ applied):** **`export_service.py` 215 survivors at 77.7202%** (then
 `system_broadcaster.py` 320 remain DEATH-Listed, never batteries.
 Campaign #35, battery letter AK. Gap to 85%: 0.85\*69,256 = 58,867.6 -
 54,010 = **4,857.6 kt**. Every number measured THIS session.
+
+## MILESTONE 37 — 78.30410622789927% (campaign #35 `export_service` CLOSES at 99.89939637826963% — 993/994 — in TWO runs: a FRESH 215-key pool (shipped-only sweep 0 red / 215 green) let the close attribute on the M28 route ALONE (105 ATTRIB + 1 LEDGER, 0 PROBE, 0 UNATTRIB), run 1's 4 birth survivors were all killable — one off-by-one hidden behind a pin total where BOTH formulas floor equal, three excel call-shape births hidden behind a byte-only bytes test — and the loss-fix closed all four)
+
+**Score (measured THIS session from
+`/home/agent/runs/c35-score.json`):** completed=true,
+`checked=69285/69285`, killed 53,970 + timeout 283 = kt **54,253** of
+**69,285** = **78.30410622789927%**, +0.31808335623472317 vs M36's
+77.98602287166455%. History run #41 appended (`--date 2026-10-04`),
+runs 1-40 prefix deep-equal verified against
+`/home/agent/runs/c35-history-prefix.json` (backup md5
+`5be58e01aa2a497875fc8842a105a2a5`).
+
+**Campaign #35 = `backend/services/export_service.py`** (bank row
+pre-run 965 keys = {1:750, 0:215} = 77.7202%). Battery AK
+`backend/tests/unit/services/test_export_service_batch35_ak.py` —
+committed `fc9f8124` (44 tests, ledger 1, md5
+`fbade7caf487ed7fa6ae19d33e6886dc`) + run-1 loss-fix `0341664c` (48
+tests, md5 `b05c4ca1170b15ecea69651f33cb280b`), md5-synced into the
+mutant home before BOTH runs. Machinery: `SpyFile/SpyDir` pin
+`Path.write_text` kwargs EXACTLY `{"encoding": "utf-8"}` alongside
+byte-equal content (the sandbox forces `sys.flags.utf8_mode==1` so
+"utf-8"/"UTF-8"/None/dropped write IDENTICAL bytes — the CALL literal is
+the only observable, and it kills all 19 encoding mutants incl. the
+alias polarity); a fake zipfile module over `es.zipfile` pinning the
+`ZipFile(fp, "w", ZIP_DEFLATED)` ctor and every writestr byte; a
+statement-signature `FakeSession` pinning every execute by compiled
+Postgres text (`literal_binds`, whitespace-normalized — UNPINNED sql
+raises, so select(None)/WHERE-flips/execute(None) all RED); exact
+update_progress/report_progress CALL-SEQUENCE spies; a plain
+`logging.Logger` swap (`LoggerSwap`) so the extra= key-set assert is not
+blurred by the app logger's injected context keys; the TZ lever
+(`TZ=Etc/GMT+11` + `time.tzset()`, restored in `__exit__`) pinning
+filename stamps within 2 s of `datetime.now(UTC)`; openpyxl readback
+pins (colors VERBATIM: `4472c4` != `4472C4`; dropped start_color reads
+"00000000"; freeze "a2" != "A2"); raw sheet XML for "" vs None
+(`t="inlineStr"`); the del-attribute discriminator for the 2-arg
+getattr drops (must delete a field WITHOUT a class-level default);
+width-family seed-0 and above-cap-tie rows; Z-date family killed via
+VALUEERROR MESSAGE (mid-string "2026Z-01-05" carries the REPLACED
+"2026+00:00-01-05") and shipped-raises polarity on lowercase z.
+
+**Fresh-pool disclosure:** a shipped-only per-key sweep over the whole
+215-survivor pool BEFORE authoring (`c35-shipped-sweep.txt`: 0 red / 215
+green / 0 other) proved the module row FRESH — no stale-era decay
+unlike #34 — so no keys were re-authored, none skipped, and the close
+attribution needed route 1 (body-exact PRE-verdict-1) ONLY; the PROBE
+route tally is 0 BY CONSTRUCTION (`c35-shipped-probe.txt` deliberately
+empty).
+
+**Ledger (1 key, proven by construction, disclosed in the battery
+docstring + `/home/agent/runs/c35-ledger.md`):**
+`events_to_excel__mutmut_144` — `len(str(value)) if value else 0` ->
+`if (value) or True`: `value = format_export_value(...)` ALWAYS returns
+str and falsy str <=> "" with `len(str("")) == 0` == the else-branch 0
+-> identical for every input. Earlier EQUIV drafts DEMOTED to killable
+after probing: the 19 encoding keys (kwargs spy), excel m145 (seed-0
+column: 3.0 != 2.0), m146 (above-cap tie 52.0 != 57.0), m124 ""->None
+(raw XML), the 4 2-arg getattr drops (del-field probe),
+`get_selected_columns` m6 `or True` ([] vs EXTENDED), the 6 "UTF-8"
+alias keys, the 4 XXZXX date keys.
+
+**Authoring sweeps:** sweep 1 = 208 RED / 7 GREEN — six GREENs were
+AUTHORING bugs, all fixed and recorded (del-target shadowed by a
+dataclass class-default x2, wrong-branch ""-cell test, neighbour-width
+guard row, zip-branch columns=None pass-through row, ws end_date
+message, duplicate-id UNKNOWN_ROW literal). Sweep 2 (committed bytes):
+**RED=214 GREEN=1 == the ledger exactly** before any bank run; shipped
+control 44 passed unmutated.
+
+**Run 1** (runner pid 731179, guard-module2 sibling-drop=0 holes=0
+stats=yes BOTH regimes): module grew 965->994 — the battery newly
+covered `export_events_with_progress`, generation inserted 29 slots and
+renumbered the tail; reconcile by BODY-identity CLEAN (matrix {(0,1):
+214, (1,1): 750, (0,0): 1}, KILL LOSSES 0, 0 lost slots/bodies); births
+25 same-run-killed + 4 SURVIVORS. All 4 births adjudicated KILLABLE by
+construction, each hidden behind an assertion the battery's run-1 self
+had pinned at a NON-DIVERGENT point:
+
+- m138 progress pct `(idx+2)/(idx+1)` — at the ONLY reachable pins
+  (total=200, ticks i=100/200) BOTH formulas floor to 45/80; killable
+  ONLY at a total where the floor-divergence lands on a tick:
+  total=110 -> shipped 73 vs mutant 74 (test 45);
+- m237 `events_to_excel(export_rows, None)` + m239 trailing-comma drop
+  (2-arg rule -> 1-arg call) — both fall back to the 9-col
+  EXPORT_COLUMNS default; run-1's excel test pinned only BYTES LENGTH,
+  which is shape-blind. Killed by forwarded-selection sheet shape:
+  2-col pins under `columns=[event_id,summary]` (test 46) + 11-col
+  EXTENDED J/K headers under `columns=None` (test 47);
+- m238 `events_to_excel(selected_columns)` arg swap -> 1+len(cols)
+  all-empty data rows; killed by exact row extent via the progress path
+  (test 48).
+  Loss-fix committed `0341664c`; sweep-3 on the 5 live survivors RED=4 /
+  GREEN=1 == ledger exactly; shipped control 48 passed.
+
+**Run 2** (runner pid 754611, guard-module2 sibling-drop=0; GREEN scan
+on committed bytes: 28,955 passed / 124 skipped / 8 xfailed exit 0):
+survivors == the 1-key ledger EXACTLY, reconcile vs `b38-preC35r2`
+CLEAN (matrix {(0,1): 4, (1,1): 989, (0,0): 1}, KILL LOSSES 0, 0
+births — the loss-fix tests covered NO new lines, so the predicted
+zero-birth run held), census delta +0 (994->994). Live meta 994 keys,
+**993 killed = 99.89939637826963%** (score JSON module row, timeout 0).
+
+**Close sweep (all 994 keys, committed bytes, mutant home,
+battery-only):** 888 RED / 106 GREEN / 0 HANG. Attribution TALLY
+**{LEDGER: 1, ATTRIB: 105, PROBE: 0}, UNATTRIB 0** — every close-GREEN
+is GREEN to the battery ALONE (AK targeted the 215-shipped-GREEN pool;
+the shipped suite kills the rest) and body-exact to a PRE-run bank
+verdict 1 (M28 pattern; the fresh-pool sweep means NO probe evidence
+was needed anywhere).
+
+**Bank census (measured):** 240 metas / 69,285 keys / killed 53,970 +
+timeout 283 = **kt 54,253**; `no_tests` 783 HELD; timeout 283 UNCHANGED
+(numerator-preserving nothing to disclose). Denominator 69,256->69,285
+= +29, ALL export_service run-1 coverage-growth births (25 same-run + 4
+closed in run 2); whole-tree pre-run1-vs-live byte audit: exactly ONE
+meta changed at ALL (`export_service.py.meta` 965->994->994), ZERO
+sibling metas changed a single BYTE across BOTH runs; all nonzero
+sibling-drop/STRIP rows in `guard.log` predate the #35 windows (129
+in-window ticks, every one sibling-drop=0 holes=0). Artifacts:
+`b38-preC35` / `b38-preC35r2` archives,
+`c35-greentier.txt` / `c35-greentier2.txt`, `b38-c35-run.log` /
+`b38-c35r2-run.log`, `c35-shipped-sweep.txt`, `c35-sweep-1.txt` /
+`-2.txt` / `-3.txt` / `c35-sweep-close.txt`, `c35-ledger.md`,
+`c35-probe/` (construction probes incl. `probe5-ledger.py`),
+`b38-c35-reconcile.py` / `b38-c35r2-reconcile.py`,
+`b38-c35-attribute2.py`, `b38-c35-launch.sh` / `-r2-launch.sh`,
+`c35-score.json`, `c35-history-prefix.json`, history backup
+`mutation-history.preM37.json`.
+
+**Next head (re-censused from `c35-score.json`, survivors desc, R8
+shield applied):** **`pipeline_quality_audit_service.py` 214 survivors
+at 70.3601%** (ties `retry_handler` 214 at 60.7339% — pool-first, then
+killability-first order; then `job_status` 211/57.6305%, `debug.py`
+210/48.2759%, `job_history_service` 208/37.5375%,
+`orchestrator/registry.py` 205/38.8060%). R8 shield
+holds: `system.py` 328 and `system_broadcaster.py` 320 remain
+DEATH-Listed, never batteries. Campaign #36, battery letter AL. Gap to
+85%: 0.85\*69,285 = 58,892.25 - 54,253 = **4,639.25 kt**. Every number
+measured THIS session.
