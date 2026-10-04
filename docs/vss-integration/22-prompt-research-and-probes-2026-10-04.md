@@ -67,12 +67,19 @@ the penalty arm look better than it is. The rule this came from: **one client pe
 always** (the stage-1 experiment kit guards this mechanically).
 
 EV-over-logprobs follow-up (G-Eval-style expected value over `risk_score`'s first digit,
-section 3, from the same runs' captured logprobs): on the provable-clean subset
-(26 events/arm, 6 incidents) EV did not beat argmax (nc 0.625 vs 0.663; `nc_rp1` 0.708
-both), median |EV − argmax| 0.2-0.4 points — the grammar saturates the digit distribution
-at 30/60, leaving no mass to monetize; recalibration collapsed out-of-sample (LOO ~0.41-0.55).
-A full-n re-run with the corrected logprobs was in flight when this froze; the subset
-verdict (non-win) is unlikely to flip on n=6 → 17 [I].
+section 3, from the same runs' captured logprobs) — **complete at full n, non-win.** First
+run on the provable-clean 26-event subset (6 incidents): EV ≈ argmax (nc 0.625 vs 0.663;
+`nc_rp1` 0.708 both). Re-run at full n (37/arm, 17 incidents; alignment re-proven 74/74 by
+content equality with offset and cross-arm controls, both audits unrebutted; EV_C = the
+primary two-position variant): AUROC nc argmax 0.6250 vs EV_C 0.6324, `nc_rp1` 0.6426 vs
+0.6676 — paired-bootstrap gaps −0.007 [−0.109, +0.089] and −0.025 [−0.109, +0.055],
+P(argmax wins) 0.43/0.26: coin-flip. What looks like an EV edge is **tie-breaking, not
+signal**: argmax ties 31-36% of incident×benign pairs (20 of 37 rows emit exactly 30),
+EV_C ties 0% — it converts 0.5-credits into random credits. On the native-floor rule EV_C
+is strictly worse: 7/17 hits vs argmax's 12/17 (`nc`) buying 6 fewer FA — the same trade,
+3× the n. Median |EV − argmax| ≈ 0.1 point: the grammar saturates the digit distribution,
+leaving no mass to monetize. The subset's higher argmax numbers did NOT carry
+(0.6625 → 0.6250; 0.7083 → 0.6426) — a caution on subset-first reading [I].
 
 ## 3. What the external evidence says (researcher track 1: few-shot, calibration, ordering)
 
