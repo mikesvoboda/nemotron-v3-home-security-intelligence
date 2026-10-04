@@ -16314,3 +16314,103 @@ R8 shield holds: `system.py` 328 and `system_broadcaster.py` 320 remain
 DEATH-Listed, never batteries. Campaign #33, battery letter AI. Gap to
 85%: 0.85\*69,218 = 58,835.3 - 53,550 = **5,285.3 kt**. Every number
 measured THIS session.
+
+## MILESTONE 35 — 77.68503141021013% (campaign #33 `batch_coalescer` CLOSES at 99.4949% — 394/396 — in TWO runs: run 1 grew the module 369->396 and its 6 surviving BIRTHS plus the 1 old survivor were adjudicated by body-construction into 5 kills + a 2-key codec EQUIV ledger, run 2 landed one-pass CLEAN)
+
+**Score (measured THIS session from
+`/home/agent/runs/b38-c33-score.json`):** completed=true,
+`checked=69245/69245`, killed 53,507 + timeout 286 = kt **53,793** of
+**69,245** = **77.68503141021013%**, +0.3207620005190108 vs M34's
+77.36426940969112%. History run #39 appended (`--date 2026-10-03`),
+runs 1-38 prefix deep-equal verified against
+`/home/agent/runs/mutation-history.preM35.json`.
+
+**Campaign #33 = `backend/services/batch_coalescer.py`** (bank row
+pre-run 369 keys = {1:151, 0:218} = 40.9214%). Battery AI
+`backend/tests/unit/services/test_batch_coalescer_batch38_ai.py` —
+committed `472845b9` (29 tests, ledger 1) + run-1 loss-fix `28d1e869`
+(30 tests, ledger 2), final md5 `3c2a740f7d99792149a035989a53ce3d`,
+md5-synced into the mutant home before BOTH runs. Machinery: FakeRedis
+records whole `(name, args, kwargs)` triples (M30 raw-kwargs spy
+pattern); `get_settings` swapped with an attr-carrying fake (7/3.5/0.25)
+AND a bare `object()` to pin the literal defaults 10/5.0/0.15; the
+ALWAYS-TRUE gauge guard (`total_batches_processed > 0`) killed by
+SEEDING state to -2 so the post-increment lands EXACTLY on the `>= 0`
+and `> 1` twin boundaries; combined_size == max_batch_size EXACTLY and
+confidence diff == tolerance EXACTLY (binary-exact 0.5 vs 0.75 @ 0.25)
+pin the two is_compatible boundary flips.
+
+**Authoring sweep:** 217 RED / 1 GREEN of the 218-survivor pool — the
+GREEN was exactly the then-1-key ledger (`find_compatible_candidates`
+m22, a `codecs.lookup('utf-8') is codecs.lookup('UTF-8')` equivalence:
+2,000 random byte strings decode value- and error-identically under
+both spellings). GREEN scan 1: 28,868 passed (28,839 + the 29), exit 0.
+
+**Run 1** (runner pid 575801, guard-module2 sibling-drop=0 both
+regimes): module grew 369->396 — the battery newly covered lines, so
+generation inserted 27 slots and renumbered the tail; reconcile by
+BODY-identity CLEAN (217 survivor kills re-earned, KILL LOSSES 0);
+survivors 7 = {find m22} + SIX BIRTH survivors (4 x `_get_redis` debug
+family, find m30, from_json m4) — 21 of the 27 births same-run-killed;
+389/396 = 98.2323%. Adjudication: the 4 `_get_redis` survivors were
+debug-log-shape flips killable by asserting the exact log message +
+empty `extra` + acquire-called-exactly-ONCE; find m30 is a
+continue-vs-break flip observable ONLY by ordering the data-None entry
+FIRST in zset order (`test_find_continue_after_data_none`); from_json
+m4 is the SAME codec equivalence family as find m22 -> registered as
+EQUIV #2 (ledger 1->2). Post-loss-fix 7-key sweep: RED=5 GREEN=2 ==
+the 2-key ledger exactly.
+
+**Run 2** (runner pid 593968, guard-module2 sibling-drop=0, guard log
+empty; GREEN scan 2 on the committed loss-fix bytes: 28,869 passed =
+28,839 + the 30, exit 0): survivors == the 2-key ledger EXACTLY
+(`{find m22, from_json m4}`), reconcile vs `b38-preC33` CLEAN — 0->1
+kills 217, 1->1 kept 151, KILL LOSSES 0, 0 lost slots/bodies, births
+26 killed same-run + 1 survived (the ledger EQUIV). Live meta 396 keys,
+**394 killed = 99.4949%** (score JSON module row `394/396`, timeout 0).
+
+**Close sweep (all 396 keys, committed bytes, mutant home):** 392 RED /
+4 GREEN / 0 HANG. Attribution TALLY **{LEDGER: 2, ATTRIB: 2},
+UNATTRIB 0** — the 2 ATTRIBs are `is_compatible` m6/m8, GREEN to the
+battery alone but body-exact to PRE-run bank verdict 1 (killed by the
+then-shipped suite, M28 pattern; never in the 218-survivor pool). Full
+committed-bytes 396-key sweep pre-run-2 had already shown the same
+RED=392 GREEN=4.
+
+**Ledger (2 keys, both codec EQUIVs, disclosed in the battery
+docstring):** `xǁBatchCoalescerǁfind_compatible_candidates__mutmut_22`
+and `xǁCoalesceCandidateǁfrom_json__mutmut_4` — the `decode('utf-8')`
+-> `decode('UTF-8')` spelling swap; `codecs.lookup` identity + the
+2,000-string value/error survey prove no battery can distinguish them.
+
+**Timeout:** 286 HELD (legacy pair untouched; batch_coalescer row
+timeout 0).
+
+**Bank census (measured):** 240 metas / 69,245 keys / killed 53,507
+(incl the 30-key exit-3 `caught_by_type_check` family folded in) +
+timeout 286 = **kt 53,793**. Denominator 69,218->69,245 = +27, ALL
+batch_coalescer run-1 coverage-growth births (26 same-run-killed + 1
+ledger EQUIV survivor); no sibling meta changed shape (guard2 logged
+zero drop events across both runs). Artifacts: `b38-preC33` archive,
+`b38-c33-greentier.log` / `-greentier2.log`, `b38-c33-run1.log` /
+`-run2.log`, `b38-c33-sweep-authoring.txt` / `-sweep-committed.txt` /
+`-sweep-close.txt` (+ `.launch` logs), `b38-c33-reconcile.py`,
+`b38-c33-attribute.py`, `b38-c33-score.json`, history backup
+`mutation-history.preM35.json`. Also disclosed: the bash tool's cwd
+RESETS to the workspace root between calls, so a b30-sweep launched
+without `cd mutants &&` INSIDE the same command loads the PRISTINE
+trampoline-less module and reports a FAKE all-GREEN sweep (M25 family,
+fired twice here — the 396-key sweep said GREEN=396 until re-run from
+the mutant home); and survivor/ledger bare names carry a SINGLE class
+segment (`xǁCoalesceCandidateǁfrom_json__mutmut_4` — NO parent-class
+prefix) — copy them VERBATIM from sweep output, reconstructing from the
+meta or the class path silently misses the ledger match.
+
+**Next head (re-censused from `b38-c33-score.json`, R8 shield
+applied):** **`context_enricher.py` 216 survivors at 52.0000%** (then
+`export_service` 215/77.7202%, `pipeline_quality_audit_service`
+214/70.3601%, `retry_handler` 214/60.7339%, `job_status` 211/57.6305%,
+`debug.py` 210/48.2759%). R8 shield holds: `system.py` 328 and
+`system_broadcaster.py` 320 remain DEATH-Listed, never batteries.
+Campaign #34, battery letter AJ. Gap to 85%: 0.85\*69,245 = 58,858.25 -
+53,793 = **5,065.25 kt**. Every number measured THIS session.
