@@ -399,6 +399,23 @@ def test_baseline_context_carries_anomalies_and_context():
     assert b.class_anomaly_context == "CTX-STRING"
     assert isinstance(b.class_anomalies, list)
     assert abs(b.deviation_score - 0.65) < 1e-9  # 0.5 + risk_modifier 15/100
+    # the anomaly block must SET the flag, not merely leave it alone
+    assert b.is_anomalous is True
+
+
+def test_class_anomaly_risk_boost_is_capped_at_ninety_five():
+    """pre-boost 0.9 + 15/100 = 1.05 -> 0.95; a raised cap leaks 1.05."""
+    anomaly = ClassAnomalyResult(class_name="person", message="rare", severity="high")
+
+    def fake(**kw):
+        return "CTX", [anomaly]
+
+    e = enricher()
+    s = Session([Res(rows=[]), Res(one=SimpleNamespace(avg_count=4.0, sample_count=10))])
+    with patch(f"{MOD}.format_class_anomaly_context", fake):
+        b = run(e._get_baseline_context(CAM, people(40), T0, s))  # ratio 10 -> 0.9
+    assert abs(b.deviation_score - 0.95) < 1e-9
+    assert b.is_anomalous is True
 
 
 # ----------------------------------------------------------------------- zone context
