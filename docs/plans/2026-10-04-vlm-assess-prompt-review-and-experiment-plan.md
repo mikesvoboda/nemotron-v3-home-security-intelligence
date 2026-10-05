@@ -69,9 +69,11 @@ clusters these intervals are illustrative, not decisive.
     OD-24) comes from sequential replays.
   - **Scope:** observed on `b11376`; `b7972` is unverified. A register entry is pending,
     coordinated with vss5, which edits the same docs.
-- **Stage 1 is handed to vss5** at the owner's direction. The handoff is
-  `docs/plans/2026-10-04-stage1-handoff-to-vss5.md` in vss5's clone, untracked. The kit and the
-  coming `results/REPORT.md` are in `/agents/agent-vss5/gpu/out/experiments/2026-10-04-stage1/`.
+- **Stage 1 is handed to vss5** at the owner's direction. The handoff was
+  `docs/plans/2026-10-04-stage1-handoff-to-vss5.md` in vss5's clone, untracked (deleted on the
+  owner's direction 2026-10-05, after stage 1 ran; its unique §0 concurrency finding survives in
+  the kit's `RUN-NOTES.md` and doc 22 section 2). The kit and the
+  `results/REPORT.md` are in `/agents/agent-vss5/gpu/out/experiments/2026-10-04-stage1/`.
   vss5 serves a dedicated container: `b7972` paired with arm A if its image remains, otherwise
   `b11376` paired with the control.
 - **Related independent work:** vss5's draft doc 22 (untracked in its clone) reports 37-event prompt

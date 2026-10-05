@@ -4253,9 +4253,12 @@ docs/plans/2026-09-23-vss-gaming-gpu-ledger.md` shows 0 in its deleted column (a
 - **Evidence.** Two streams on one llama.cpp server decode in one batch and batched greedy decoding
   differs from solo: the host replay matched the `b11376` control 305/305 solo, then differed on 5 of
   the next 13 (10 → 75, 60 → 85) while sharing `probe8b` with probe 4 from 19:07-19:14 UTC; probe 4's
-  first 11 rows per arm were re-run solo and 5 of 29 (verdict, score) pairs changed [A:
-  `docs/plans/2026-10-04-stage1-handoff-to-vss5.md` section 0, an untracked file, and doc 22 section
-  2]. The guard: `replay_stage1.py` waits for an idle server and requires the server's counters to move
+  first 11 rows per arm were re-run solo and 5 of 29 (verdict, score) pairs changed [A: doc 22
+  section 2, and the kit's own
+  `$AGENT_GPU_DIR/out/experiments/2026-10-04-stage1/RUN-NOTES.md`, which carries the same window
+  and counts; the untracked handoff that first recorded it was deleted on the owner's direction
+  2026-10-05]. The guard: `replay_stage1.py` waits for an idle server and requires the server's
+  counters to move
   by exactly the call's own usage, with "a `d_prompt` deficit is NOT an overlap: llama.cpp's
   prompt-prefix cache serves part of a solo call's prompt", marked "Owner-approved 2026-10-04" [A:
   read from off-repo scratch at `$AGENT_GPU_DIR/out/experiments/2026-10-04-stage1/`].
