@@ -231,9 +231,9 @@ when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 100   |
+| open        | 99    |
 | in-progress | 0     |
-| done        | 3     |
+| done        | 4     |
 | wont-fix    | 0     |
 | superseded  | 0     |
 | total       | 103   |
@@ -241,14 +241,14 @@ when you add or close an issue (there is no script; the register is prose).
 | Severity | Filed | Open |
 | -------- | ----- | ---- |
 | P0       | 1     | 1    |
-| P1       | 36    | 35   |
+| P1       | 36    | 34   |
 | P2       | 51    | 49   |
 | P3       | 15    | 15   |
-| total    | 103   | 100  |
+| total    | 103   | 99   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
-| agent-now      | 68    | 68   |
+| agent-now      | 68    | 67   |
 | owner-decision | 29    | 26   |
 | owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
@@ -256,14 +256,14 @@ when you add or close an issue (there is no script; the register is prose).
 | Kind     | Filed | Open |
 | -------- | ----- | ---- |
 | bug      | 19    | 19   |
-| gap      | 37    | 37   |
+| gap      | 37    | 36   |
 | debt     | 18    | 18   |
 | decision | 17    | 15   |
 | risk     | 12    | 11   |
 
 | Area                                      | P0  | P1  | P2  | P3  | Filed | Open |
 | ----------------------------------------- | --- | --- | --- | --- | ----- | ---- |
-| Notification and alerting (M1)            | 1   | 5   | 5   | 0   | 11    | 11   |
+| Notification and alerting (M1)            | 1   | 5   | 5   | 0   | 11    | 10   |
 | Verdict reliability and observability     | 0   | 6   | 3   | 1   | 10    | 9    |
 | Prompt, verdict quality and calibration   | 0   | 2   | 2   | 1   | 5     | 5    |
 | Video, ingest and key frames              | 0   | 4   | 6   | 1   | 11    | 11   |
@@ -357,7 +357,8 @@ see the Severity note in each block and the calibration paragraph in section 1.
   before the merge: that row stores `risk_threshold` 0, saves-wins keeps it, and the level map lets
   anything ≥ 40 alert — measured arm B at that gate at 21/209 = 10.0% benign alerts against the
   cited 4.3%. **No such install exists** (owner statement, Intake 2026-10-05): the remaining work
-  is the pinning test
+  is the pinning test. **done 2026-10-05** — `test_stored_zero_floor.py` pins both rows, run
+  against a live Postgres
 
 ## 3. Critical path
 
@@ -599,6 +600,9 @@ the last column.
 | OD-29 | The alert operating point: which prompt text and which numeric camera floor ship                                                                                                                           | ruled 2026-10-05 (a): the arm B rubric text and the per-camera default floor 60 ship as one paired change (mechanism: the owner's choice of the per-camera `risk_threshold`, `risk_filters` and the level map untouched)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | the shipped operating point; ISS-008's first rung                                                                                                                                                                                       | owner ruling 2026-10-05, Intake log                           |
 | OD-30 | What the OD-29 floor 60 means for a camera row written before the merge (it stores 0, saves-wins keeps it, and the level map then alerts at score ≥ 40): the shipped 4.3% FP reading is fresh-install-only | **ruled 2026-10-05 (c):** accept the fresh-install scope and document it, no code — and the owner answered the population question the options could not see: no real install has saved camera settings ('we are building the first installation'), backwards compatibility explicitly out of scope, so no stored-0 row exists or can be produced by current code. Options as filed, kept for the record: (a) treat a stored 0 as 'unset, use the floor' — caveat measured here: a human can legitimately save 0 (`CameraNotificationSettingUpdate.risk_threshold` is `ge=0`), so value alone cannot separate the two populations and the ruling must say which owner intent wins; (b) hand-applied SQL backfill 0→60 on upgrade (the repo is `create_all`-only, so 'on upgrade' means a documented operator step, not code); (c) as ruled; (d) a nullable column or explicit 'use default' flag so 'unset' becomes representable (schema change, the only durable fix; kept as the answer for any future install that predates a change) | ISS-103 (test-only remainder); the honest scope of the shipped operating point; T=70 could have ridden this ruling and did not — the ruling reached (c) only, so floor 60 stands and T=70 remains an unruled option, not a declined one | owner ruling 2026-10-05, Intake log                           |
 
+| OD-31 | ISS-001's acceptance as written cannot be met under the same-day smallest-slice ruling: the acceptance says it stands AND three of its four AST-guarded functions stay parked. Confirm the narrow reading, or amend | options as put by the 2026-10-05 Intake entry: (a) narrow the guard to `should_notify`, read '(or recorded delivery)' as the persisted decision, and let closure be the live-DB notify=true-reaches-a-surface test (the reading the slice is built on; recommended); (b) keep the literal guard and park the slice until the parked functions are unwired (reopens the ruling); (c) an owner line amending the acceptance paragraph explicitly, superseding style as in ISS-018/OD-30. Either way the owner's words are the fix: agent dated notes record, they do not amend owner acceptance text | ISS-001; OD-1's follow-up | the notification slice's AST guard and clause (a); the rest of the slice does not wait |
+| OD-32 | `requires_ack` acks at a raw score >= 80; the bands of record make 80-84 'high'. ISS-018's agreement test forces a choice: a user-visible behavior change or a documented drift | (a) keep the raw 80 edge, document it as deliberate early-ack, and carve it out of the agreement test by name (the shipped test that pins 80-acks stays untouched; recommended if no user has asked for fewer acks); (b) move the edge to critical-at-85 (the bands' own spelling) and re-pin `test_message_buffer.py::test_high_risk_score_requires_ack` — fewer ack prompts, a real behavior change riding inside a band-alignment fix | ISS-018; `backend/services/event_broadcaster.py` `requires_ack` | inside the slice's ISS-018 half; nothing else waits |
+
 Note on OD-10. The ledger records a merge-authority delegation of 2026-10-01
 (`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md:764`), which per the reading covers merging after
 an observed-green gate only, not acceptance blanks, secrets, Dependabot or ZAP options [A]. The
@@ -794,6 +798,28 @@ The seam from a persisted verdict to a human. The P0 lives here: nothing calls t
   the consumer makes today's dormant divergence live. This turns the P0 from a blocked question
   into well-defined agent work: the acceptance above stands, and its closure condition is a test
   that an event decided `notify=true` reaches a surface a human sees, run against a live database.
+- **Update 2026-10-05 (the slice's mechanism chosen; the acceptance-vs-ruling conflict raised as
+  OD-31) [A survey at HEAD; the closure test's live-DB shape [V run here]].** The delegated
+  mechanism pick is on the record in the Intake log entry "the notification slice planned by
+  evidence": persist the decision in **a new table** (the `EventVerification` precedent — the
+  migration note there states `create_all` creates new tables and never ALTERs, so the
+  alternatives that need a new `events` column are out on repo law), expose it on the events REST
+  surface mirroring the shipped `verification` field's `exclude_if` absence semantics (absent
+  means "no decision", never `False`), and render it in the ActivityFeed/EventTimeline mapping —
+  which `AlertsPage` also rides (`useAlertsQuery` reads `GET /api/events`), so one change covers
+  both surfaces. Eliminated by measured facts, so nobody re-litigates: a frontend-only WS badge
+  (no reader of `notify` exists outside generated types, `backend/api/routes/events.py` carries
+  none, and a live-only badge fails the [O] closure test and vanishes on reload); read-time
+  recompute (re-arms the ISS-018 divergence on the display path; a post-hoc preference edit
+  rewrites an event's history); emitting via `alert.created` (re-touches machinery the [O] ruling
+  parks). Dead neighbors needing nothing: `useAlertWebSocket` (unmounted), the notification-history
+  stub, `PgNotifyListener` (dead code — never started in `main.py`). Two things this block cannot
+  self-resolve: the AST-guard conflict (the acceptance says it stands while the ruling parks
+  three of its four functions — raised as **OD-31**, recommended narrow reading there), and
+  acceptance clause (c), the NULL-score alert, which stays gated on ISS-019/OD-22 — the slice's
+  tests map (a) to the persisted-decision closure and (b) to the rejected rule, not to a
+  `deliver_alert` call count. The live-DB criterion is measured achievable here: the conftest
+  Postgres tier ran ISS-103's pins green in ~5s on `-n0 --timeout=30`.
 
 #### ISS-018 — `notification_filter` maps score to level with 40/60/80 bands; shipped bands are 30/60/85
 
@@ -855,6 +881,28 @@ The seam from a persisted verdict to a human. The P0 lives here: nothing calls t
   met. The warning text above stays as the record of what was measured when it was written, and it
   keeps force only against a hypothetical pre-`c0191f4d` database, which the owner has stated does
   not exist.
+- **Update 2026-10-05 (the full band census for the fix; the ack-boundary conflict raised as
+  OD-32) [V survey at HEAD].** The acceptance names two spellings; the code has six, and the fix
+  has to know which are in scope. Measured today: the filter's
+  `NotificationFilterService._risk_score_to_level` (40/60/80), `SeverityService.risk_score_to_severity`
+  (the bands of record 29/59/84), `summary_parser._severity_from_score` (80/60/40),
+  `event_broadcaster.requires_ack` (raw `risk_score >= 80`), and — missing from every prior
+  inventory — `NotificationSettings.tsx`'s `RISK_LEVEL_RANGES`, which is the 40/60/80 ladder
+  _rendered to users_ on the settings screen and must move with the bands or the UI lies about
+  what a saved threshold means. Exempt on the record: the frontend visual ladders in
+  `severityColors.ts`, whose docstring says the critical-at-80 early-warn is "deliberately NOT"
+  the backend bands and tells future readers not to "unify" them. Two constraints the survey
+  pins: `test_p04_verification_field.py` AST-pins the _existence_ of `_risk_score_to_level`, so
+  the fix must **delegate, not delete** — a removal fails a shipped test before ISS-018 can pass
+  its own; and the zero-consumers path (`PUT /api/system/severity`, no caller reads the value
+  back) is noted as an observation, not slice work. One clause the agent cannot settle: aligning
+  `requires_ack` to the bands would move its boundary off the raw 80, but
+  `test_message_buffer.py::test_high_risk_score_requires_ack` pins score 80 / level `high` →
+  **ack required** — under bands of record, 80 is `high`, and a "make ack follow the band"
+  reading inverts that user-visible behavior instead of fixing it. Raised as **OD-32** with the
+  recommendation to keep the raw 80 and treat ack as its own critical test. The bands of record
+  sit in no shipped test's expectations at the boundaries ISS-103's pins touch (score 45 is
+  `medium` under both spellings), so whichever way OD-32 lands, the two blocks stay order-safe.
 
 #### ISS-019 — The NULL-score notify path ignores camera-enabled and quiet hours and has no input producer
 
@@ -994,7 +1042,7 @@ The seam from a persisted verdict to a human. The P0 lives here: nothing calls t
 
 #### ISS-103 — OD-29's floor 60 never reaches a camera row written before the merge: the row stores 0, saves-wins keeps it, and the level map alerts at ≥ 40
 
-`P1` · `gap` · actor `agent-now` · status `open` · added 2026-10-05 (the OD-29 verification pass; actor moved from `owner-decision` the same day on the OD-30 ruling — see this block's ruling update)
+`P1` · `gap` · actor `agent-now` · status `done` · added 2026-10-05 (the OD-29 verification pass; actor moved from `owner-decision` the same day on the OD-30 ruling — see this block's ruling update; closed the same day on the pinning tests — see the closure note)
 
 - **Evidence**
   - The get-or-create branch of `backend/api/routes/notification_preferences.py`
@@ -1127,6 +1175,19 @@ The seam from a persisted verdict to a human. The P0 lives here: nothing calls t
 
 `P2` · `decision` · actor `owner-decision` · status `open`
 
+- **Closure 2026-10-05 (the pinning tests landed the same day OD-30 was ruled) [V:
+  `backend/tests/integration/test_stored_zero_floor.py`, 2 passed against a live Postgres on the
+  CI shape `-n0 --timeout=30`].** Both acceptance tests are in: the pre-merge row shape inserted
+  directly (`risk_threshold=0`, `enabled=true`) pins that score 45 alerts through the 40/60/80
+  level map — a stored 0 is a saved value and it wins; and a 0 saved deliberately through the PUT
+  route behaves identically — the two meanings inseparable by value, which is precisely what
+  ruling (c) accepted. They are pin tests, not red-first: under (c) a correct pin passes on first
+  run, and this block's own ruling update had already reframed the work as pinning documented
+  behavior (the acceptance's 'red-first' wording predates the ruling by hours). 45 is `medium`
+  under both band spellings, so neither test can flip when the ISS-018 fix lands. The deferred
+  meaning-collision (option (d) as the durable fix, if a pre-dating install ever exists) stays
+  exactly that: deferred, and named in the test file's docstring. Filed P1 kept, per the ruling
+  above; the P2 argument stands in the severity note.
 - **Evidence**
   - `backend/services/notification_filter.py:75` `rejected` returns False unconditionally and first,
     even for a high-confidence person detection; `backend/services/vlm_analyzer.py:288` clamps a
@@ -7092,3 +7153,90 @@ Three more commits landed after `d8482861`, the same day, on `docs/synthbench-h3
   registration are a drafting task, not a ruling; ISS-002, ISS-093 and OD-5/OD-6 are its issue
   anchors; ISS-016's dev/holdout gate applies before any tuning claim (programme precedent: the
   stage-1 arms are labelled development arms precisely so this stays cheap to honour).
+
+### 2026-10-05 (the notification slice planned by evidence, not by plan: the mechanism note, the two conflicts that go to the owner as OD-31 and OD-32, and ISS-103's pins landed)
+
+- **What was asked, and the shape of the answer.** The owner asked whether the ruled work (the
+  notification slice, ISS-103's test, the clip experiment) needed a design or a plan, then said
+  go ahead with: a mechanism note for the slice, the pinning tests, and the clip pre-registration
+  left undrafted until called. Nine read-only agents surveyed the register text, the consumer code
+  path, every band spelling in the stack, the test infrastructure, and the pre-registration
+  anatomy; three assessed; one adversarially checked the assessments. The answer the evidence
+  gave: **no programme plan — the rulings already are the plan.** What the survey earned was the
+  mechanism choice below (which the ruling delegated), two genuine conflicts that neither the
+  ruling nor an agent should resolve silently (raised as OD-31 and OD-32), and one refutation of
+  a worry this session carried (below, the live database).
+- **The mechanism, chosen and on the record [A, the delegated pick].** The ruling said the agent
+  picks the minimal mechanism the code supports. Three of the candidates are eliminated by
+  measured code facts, not taste: a frontend-only badge fails the [O] closure test and vanishes on
+  REST reload (`backend/api/routes/events.py` carries no `notify`; the WS frame already carries it
+  and no frontend reader exists — a live-only badge is a toast, not a record); read-time recompute
+  re-arms the exact ISS-018 divergence on the display path and lets a post-hoc preference edit
+  rewrite an event's history; emitting through `alert.created` re-touches the machinery the ruling
+  says stays parked. A new column on `events` is out on repo law — the migration note in
+  `backend/models/event_verification.py` states `create_all` never ALTERs; **a new small table is
+  the sanctioned pattern that same note documents.** So: persist the decision in a new table (the
+  `EventVerification` precedent), expose it on the events REST surface mirroring the shipped
+  `verification` field's absence semantics (`exclude_if`; absent means "no decision", never
+  `False`), and render it where events already render — the ActivityFeed/EventTimeline mapping,
+  which `AlertsPage` also rides (`useAlertsQuery` reads `GET /api/events`, so the alerts page is
+  covered by the same change). Dead or parked neighbors — `useAlertWebSocket`, the
+  notification-history stub, `PgNotifyListener` (dead code, never started in `main.py`) — need
+  nothing; record that so a future reader does not "fix" them.
+- **Two conflicts measured in code that an agent must not resolve alone — raised as OD-31 and
+  OD-32.** **(OD-31)** ISS-001's written acceptance demands an AST guard over four functions
+  (`should_notify`, `evaluate_event`, `create_alerts_for_event`, `deliver_alert`) and a
+  `deliver_alert`-call integration test; the same-day [O] ruling parks three of the four **while
+  also saying "the acceptance above stands"** — the two owner sentences cannot both be met
+  literally, and the register's only precedent for amending acceptance-level text is an owner
+  entry marked as superseding (the ISS-018/OD-30 note). What is asked: confirm the narrow reading
+  (closure = the live-DB `notify=true`-reaches-a-surface test; the guard narrows to `should_notify`;
+  "(or recorded delivery)" is satisfied by the persisted decision; acceptance clause (c), the
+  NULL-score alert, stays gated on ISS-019/OD-22, which are owner decisions already).
+  **(OD-32)** ISS-018's acceptance demands `requires_ack`'s critical test agree with the bands of
+  record — but `backend/services/event_broadcaster.py` `requires_ack` tests a raw `risk_score >=
+80`, and `test_message_buffer.py::test_high_risk_score_requires_ack` pins a `{risk_score: 80,
+risk_level: 'high'}` message acking **as desired behavior**. Band alignment means 80-84 stops
+  over-acking — a real, user-visible behavior change wearing a refactor's clothes. What is asked:
+  keep 80 (documented drift, test untouched) or move to critical-at-85 (re-pin the test by name).
+- **Band census for ISS-018's fix, measured today [V]:** the filter's 40/60/80
+  (`_risk_score_to_level`), the ack rule's raw 80, `_severity_from_score`'s 80/60/40 in
+  `summary_parser.py`, the settings page's 40/60/80 rendered to users
+  (`NotificationSettings.tsx` `RISK_LEVEL_RANGES` — drives the "your alerts will be blocked"
+  banner; missing from the acceptance's list, fix it with the slice), and the bands of record
+  29/59/84. Explicitly **not** in scope: the frontend's documented visual ladders —
+  `severityColors.ts` says in its own docstring that its critical-at-80 early-warn is deliberate
+  and "do not 'unify' them"; exempting them beats collapsing them, and the note says so. Also
+  named as an observation, not slice work: the dynamic-threshold path (`PUT /api/system/severity`
+  makes bands runtime-mutable, zero consumers read the configured values today — the agreement
+  test the acceptance wants pins a coincidence until something consumes them).
+- **The live-database worry is dead, measured, not assumed.** This session earlier carried the
+  fear that ISS-001/ISS-103's "run against a live database" acceptance could not be met in the
+  sandbox (the Intake's own "no Postgres, no compose stack running" line). `backend/tests/integration/conftest.py`
+  ships a three-tier Postgres resolution with a testcontainers fallback, and it **ran green here**:
+  ISS-103's two pinning tests passed in ~5s against a live container on the CI invocation shape
+  (`-n0 --timeout=30`). That line in the Intake was about ad-hoc verification, not the test tier —
+  worth stating before someone defers test-bearing acceptance on a false infrastructure blocker.
+  One contributor-loop trap recorded in passing: bare `pytest` runs use a 5s per-test stamp and the
+  container cold start sits at ~5s, so run integration files with `--timeout=30` as CI and
+  `scripts/validate.sh` do.
+- **ISS-103's remaining work is landed and it goes `done` in this PR.**
+  `backend/tests/integration/test_stored_zero_floor.py`: test 1 inserts the pre-merge row shape
+  (`risk_threshold=0`, `enabled=true`) directly and pins that score 45 alerts through the
+  40/60/80 level map (a saved value wins; the shipped 60 would withhold it); test 2 saves a 0
+  deliberately through the PUT route and pins byte-identical behavior — the two meanings stay
+  inseparable by value, which is exactly what OD-30 (c) accepted. They are **pin tests, not
+  red-first**: under ruling (c) (no code change) a correct pin passes on first run, and the
+  acceptance's "red-first" wording predates the ruling by hours — the block's own ruling update
+  had already reframed the work as pinning documented behavior. 45 is `medium` under both band
+  spellings, so the tests cannot flip when ISS-018 lands. The block flips to `done` and the
+  Dashboard recounts; the filed P1 stands (the block's severity note carries the P2 argument, as
+  ruled).
+- **What this entry does not do.** It does not rule OD-31/OD-32 (both open, and ISS-001's slice
+  should not land its AST-guard or ack changes until OD-31/OD-32 have words — the rest of the
+  slice does not wait); it does not start the slice's implementation; it does not draft the clip
+  pre-registration (left on the owner's call per this same day's ruling — its drafting is
+  zero-GPU and now has a found trap to engage: doc 22's probe 1 already measured 4-frames-vs-1-still
+  as null, 0/17, under the pre-OD-29 prompt, so any pre-registration must carry a 1-frame control
+  or it re-runs a known-null while moving input and operating point together). Nothing here
+  pushes GPU hours or opens GitHub/Linear issues; OD-10 still governs.
