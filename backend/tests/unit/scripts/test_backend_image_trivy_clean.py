@@ -43,6 +43,7 @@ marks ``open`` don't claim a shipped fix.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -134,6 +135,41 @@ UPGRADED_OUT_OF_IGNORE = (
 # so this asserts the stale claim does not come back.
 OPEN_ENTRIES = ("CVE-2025-48965", "CVE-2025-52496", "CVE-2025-7458")
 
+# The five files AVD-DS-0002 actually suppresses, attributed by deleting the ID
+# alone and re-running the CI-pinned scanner (aquasec/trivy:0.74.0 =
+# .github/workflows/trivy.yml:280; repo-wide config scan like trivy.yml:93-108).
+# Each reason is measured, not assumed — see .trivyignore's rationale and the
+# 2026-10-04 ledger row: two published BASE images (a base with USER breaks every
+# consumer's first apt-get/uv install), one image that runs under ROOTLESS PODMAN
+# with no --user (synthbench/generate/comfy/serve.py:106-136 — container root is
+# already the host UID, so an in-image USER strands its rw host binds at
+# serve.py:131,133), one GPU SERVICE deferred with a fix recipe (ai/gateway needs
+# host-side ownership of the rw model bind before it can drop privileges, and
+# nothing in CI builds it), and one ARCHIVED file no job builds.
+MISCONFIG_TARGETS = (
+    "ai/gateway/Dockerfile",
+    "archive/Dockerfile.yolo26-benchmark",
+    "docker/base.Dockerfile",
+    "docker/python-freethreaded/Dockerfile",
+    "synthbench/generate/comfy/Containerfile",
+)
+
+# Substrings identifying the two images this repo PUBLISHES but nobody here
+# builds FROM. Measured 2026-10-04 across every tracked Dockerfile.
+BASE_IMAGE_MARKERS = ("nemotron-base", "3.14t")
+
+# Directories a Dockerfile walk must skip: dependency trees and build output.
+# (Measured: 12 image definitions found, matching `git ls-files`, in 20 ms.)
+_WALK_PRUNE = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "mutants",
+    "node_modules",
+}
+
 
 def _prod_stage() -> str:
     text = DOCKERFILE.read_text()
@@ -195,6 +231,73 @@ def _entry_comment_block(text: str, cve: str) -> str:
         else:
             break
     return "\n".join(reversed(block))
+
+
+def _stages_with_from(text: str) -> list[dict[str, str | None]]:
+    """Per-stage FROM image + org.opencontainers.image.base.name label.
+
+    A stage's image is recorded with its tag stripped of a registry prefix only
+    when the label carries one (the frontend pins docker.io/...); both sides are
+    compared as-written so the check stays textual — no registry lookup, which a
+    unit test must not need.
+    """
+    stages: list[dict[str, str | None]] = []
+    current: dict[str, str | None] | None = None
+    for line in _logical_lines(text):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        m = re.match(r"^FROM\s+(\S+)(?:\s+AS\s+(\S+))?", stripped, re.IGNORECASE)
+        if m:
+            image = m.group(1)
+            # --platform=... and other FROM options are not part of the image
+            image = image.split("=", 1)[-1] if image.startswith("--platform") else image
+            current = {
+                "name": m.group(2) or image,
+                "from": image,
+                "label": None,
+            }
+            stages.append(current)
+            continue
+        if current is not None and "org.opencontainers.image.base.name" in stripped:
+            m2 = re.search(r"org\.opencontainers\.image\.base\.name=\"?([^\s\"]+)", stripped)
+            if m2:
+                current["label"] = m2.group(1)
+    return stages
+
+
+def _from_consumers_of(markers: tuple[str, ...]) -> list[str]:
+    """Repo-relative paths of Dockerfiles whose FROM names one of `markers`.
+
+    Walks the tree rather than shelling out to git — the test runs under mutmut
+    against copied paths where a git subprocess may not resolve the way it does
+    in a checkout.
+    """
+    hits: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(REPO_ROOT):
+        dirnames[:] = [d for d in dirnames if d not in _WALK_PRUNE]
+        for name in filenames:
+            low = name.lower()
+            if not (
+                low.startswith("dockerfile")
+                or low.endswith(".dockerfile")
+                or "containerfile" in low
+            ):
+                continue
+            path = Path(dirpath) / name
+            try:
+                text = path.read_text(errors="replace")
+            except OSError:  # pragma: no cover - unreadable file is not a consumer
+                continue
+            for line in _logical_lines(text):
+                stripped = line.strip()
+                if stripped.startswith("#") or not stripped.upper().startswith("FROM "):
+                    continue
+                image = stripped.split(None, 1)[1].split()[0]
+                if any(marker in image for marker in markers):
+                    hits.append(str(path.relative_to(REPO_ROOT)))
+                    break
+    return hits
 
 
 class TestProdStagePatchesLibexpat:
@@ -356,6 +459,138 @@ class TestOpenEntriesDoNotClaimShippedFixes:
                 f"{cve} comment claims a shipped fix again — the Debian "
                 "tracker marks it open (2026-10-04 pull); do not re-add the claim"
             )
+
+
+class TestDeadMisconfigIgnoreStaysDeleted:
+    def test_avd_ds_0001_is_not_an_active_entry(self) -> None:
+        """AVD-DS-0001 (":latest base tag") must stay out of the register.
+
+        Measured 2026-10-04 with the CI-pinned scanner (aquasec/trivy:0.74.0,
+        .github/workflows/trivy.yml:280) running the same repo-wide config scan
+        CI runs (trivy.yml:93-108): deleting the ID reveals NOTHING — it
+        suppressed zero findings, so it was dead register. Its stated premise is
+        gone too: no FROM line in the repo builds FROM nemotron-base anymore
+        (backend/Dockerfile:36 is python:3.14-slim-bookworm), and the docker
+        checks do not flag :latest on a COPY --from= (the two uv:latest lines,
+        backend/Dockerfile:51,236, are unsuppressed and unreported).
+        """
+        text = TRIVYIGNORE.read_text()
+        alive = set(re.findall(r"^(AVD-[A-Z]+-[0-9]+)$", text, re.MULTILINE))
+        assert "AVD-DS-0001" not in alive, (
+            "AVD-DS-0001 is back in .trivyignore — it suppressed zero findings "
+            "(measured by deletion, trivy 0.74.0 = the CI pin). If a FROM "
+            "nemotron-base line ever comes back, re-argue it with that scan output"
+        )
+
+    def test_removed_block_records_the_deletion(self) -> None:
+        """The deletion survives as a dated record in the history block.
+
+        Same discipline as the CVE sweep: an entry that leaves the register
+        leaves a trace naming what was removed and the evidence, or the next
+        reviewer repeats the audit.
+        """
+        text = TRIVYIGNORE.read_text()
+        m = re.search(r"^# REMOVED.*?\n# =+\n", text, re.MULTILINE | re.DOTALL)
+        assert m, "REMOVED history block missing from .trivyignore"
+        assert "AVD-DS-0001" in m.group(0), "REMOVED block does not record the AVD-DS-0001 deletion"
+
+
+class TestMisconfigIgnoreNamesRealTargets:
+    def test_avd_ds_0002_block_names_every_suppressed_file(self) -> None:
+        """The blanket non-root ignore must name what it actually silences.
+
+        AVD-DS-0002 suppresses FIVE HIGH "no USER directive" findings —
+        measured by deleting the ID alone and attributing the result
+        (trivy 0.74.0, repo-wide config scan):
+
+            ai/gateway/Dockerfile
+            archive/Dockerfile.yolo26-benchmark
+            docker/base.Dockerfile
+            docker/python-freethreaded/Dockerfile
+            synthbench/generate/comfy/Containerfile
+
+        The rationale this replaces described vsftpd instead — a file that is
+        NOT flagged (archive/vsftpd/Dockerfile:48 carries USER ftpsecure). One
+        ID covering five files is forced, not lazy: the docker checks report at
+        file level with no line number, and neither an INI-section ignore file
+        (ids+paths, both ID spellings, globs, paths=["*"]) nor an inline
+        '# trivy:ignore:' comment suppressed anything in measurement — so
+        path-scoping does not exist for config scans.
+        """
+        text = TRIVYIGNORE.read_text()
+        block = _entry_comment_block(text, "AVD-DS-0002")
+        missing = sorted(p for p in MISCONFIG_TARGETS if p not in block)
+        assert not missing, (
+            ".trivyignore's AVD-DS-0002 rationale does not name: "
+            f"{', '.join(missing)} — those files are what the entry actually "
+            "suppresses; a rationale that names other files is how a register "
+            "rots silently"
+        )
+        assert not re.search(r"vsftpd requires root|needs root privileges", block), (
+            "AVD-DS-0002's rationale re-claims vsftpd as the reason — that file "
+            "is clean (USER ftpsecure at archive/vsftpd/Dockerfile:48) and is "
+            "not one of the five suppressed targets"
+        )
+
+    def test_entry_stays_dated(self) -> None:
+        """Every accepted risk keeps a REVIEW BY date the owner can police.
+
+        The expiry script only parses CVE-shaped lines, so a dated AVD entry is
+        unpoliced by CI — which makes the date a human contract and worth
+        pinning here.
+        """
+        text = TRIVYIGNORE.read_text()
+        assert re.search(r"AVD-DS-0002.*REVIEW BY: (\d{4}-\d{2}-\d{2})", text), (
+            "AVD-DS-0002 must keep its dated review comment"
+        )
+
+
+class TestBaseLabelMatchesFrom:
+    def test_base_name_label_matches_the_stage_from(self) -> None:
+        """An OCI base.name label must name the image its stage actually uses.
+
+        The base stage labels itself ghcr.io/mikesvoboda/python:3.14t-slim-bookworm
+        (backend/Dockerfile:46) while its own FROM (backend/Dockerfile:36) is
+        python:3.14-slim-bookworm — a GIL-enabled build, not the free-threaded
+        one. The free-threaded image is a documented OPTION in the comment above
+        (:22-35), not the current base. A wrong base label misreports provenance
+        to every scanner and every SBOM that reads the built image.
+        """
+        text = DOCKERFILE.read_text()
+        mismatches: list[str] = []
+        for stage in _stages_with_from(text):
+            if stage["label"] is None or stage["label"] == stage["from"]:
+                continue
+            # an internal multi-stage reference (FROM base AS builder) is not a
+            # registry base and carries no label; only flag registry mismatches
+            if ":" in stage["from"] and stage["from"] != stage["label"]:
+                mismatches.append(
+                    f"stage {stage['name']!r}: FROM {stage['from']} vs "
+                    f"base.name label {stage['label']}"
+                )
+        assert not mismatches, "backend/Dockerfile OCI base label drift: " + "; ".join(mismatches)
+
+
+class TestNoRepoConsumerOfPublishedBases:
+    def test_no_dockerfile_builds_from_the_published_bases(self) -> None:
+        """Tripwire: the two published bases have ZERO in-repo FROM consumers.
+
+        Measured 2026-10-04 over every tracked Dockerfile/Containerfile: nothing
+        builds FROM ghcr.io/mikesvoboda/nemotron-base or the free-threaded
+        python:3.14t image — backend builds FROM python:3.14-slim-bookworm
+        directly. That fact is the load-bearing premise of three statements: the
+        two bases' non-root deferral rationale, the AVD-DS-0001 deletion, and the
+        corrected comments in backend/Dockerfile and setup_lib/deploy_phases.py.
+        If a future PR wires one in as a real dependency, those rationales must
+        be re-argued — which is the point of failing here.
+        """
+        consumers = _from_consumers_of(BASE_IMAGE_MARKERS)
+        assert not consumers, (
+            "a Dockerfile now builds FROM a published base image: "
+            f"{', '.join(consumers)} — the AVD-DS-0002 rationale for those two "
+            "files (and the AVD-DS-0001 deletion) assume they have no "
+            "in-repo consumers; re-measure and re-argue before merging"
+        )
 
 
 class TestAppUrllib3StaysPatched:

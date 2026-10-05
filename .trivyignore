@@ -179,6 +179,23 @@ CVE-2024-23342
 # Also this sweep: pcre2 CVE-2026-103111 (HIGH) was the ONLY live image finding
 # at 6b33a2af — fixed via apt --only-upgrade libpcre2-8-0 (backend) and apk
 # upgrade pcre2 (frontend); it was never an ignore entry, so nothing to delete.
+# 2026-10-04 misconfig re-audit (same day, follow-on; the CI-pinned scanner is
+# aquasec/trivy:0.74.0, .github/workflows/trivy.yml:280, run repo-wide exactly
+# as trivy.yml's Config/IaC job does):
+#   AVD-DS-0001 - DELETED as dead register. Removing the ID changes no scan
+#     result: zero findings underneath it. Its rationale ("the nemotron-base
+#     image uses :latest") describes a dependency that no longer exists — no
+#     FROM line in the repo consumes nemotron-base (backend/Dockerfile:36 is
+#     python:3.14-slim-bookworm), and the docker checks do not flag :latest on
+#     a COPY --from=, so the two uv:latest lines are neither suppressed nor
+#     reported. Tripwire: TestNoRepoConsumerOfPublishedBases.
+#   AVD-DS-0002 - entry KEPT (deleting it reddens the PR-gated Config/IaC scan
+#     with five HIGH findings), rationale REWRITTEN. The old comment justified
+#     the ignore with vsftpd's port-21 story — but archive/vsftpd/Dockerfile
+#     carries USER ftpsecure (:48), is NOT flagged, and is not one of the five
+#     findings the ID actually suppresses. The true five, with per-file reasons,
+#     are named in the entry's new rationale; that text is the review record
+#     now, guarded by TestMisconfigIgnoreNamesRealTargets.
 # The file's own rule: "Remove entries when fixes become available."
 # =============================================================================
 
@@ -186,21 +203,76 @@ CVE-2024-23342
 # Dockerfile Misconfigurations - Accepted Risks
 # =============================================================================
 # These are Trivy misconfiguration checks that are intentionally accepted.
+#
+# NOTE (2026-10-04 re-audit): this section was rewritten against the scanner CI
+# actually runs, because both entries' rationales had come false. Measured with
+# aquasec/trivy:0.74.0 — the exact pin at .github/workflows/trivy.yml:280 —
+# running the same repo-wide config scan as CI (trivy.yml:93-108, severity
+# CRITICAL,HIGH,MEDIUM, exit-code 1):
+#   AVD-DS-0001 deleted: removing the ID reveals NOTHING. It suppressed zero
+#     findings, and its stated premise is gone — no FROM line in the repo builds
+#     FROM nemotron-base anymore, and the docker checks do not flag :latest on a
+#     COPY --from= (see REMOVED).
+#   AVD-DS-0002 kept, rationale corrected: deleting ONLY this ID surfaces five
+#     HIGH "no USER directive" findings, and none of them is the file the old
+#     comment described (see the attribution list below, and REMOVED).
+# One ID covering five files is forced, not sloppy: these checks report at FILE
+# level with no line number, and per-file scoping does not exist for config
+# scans — measured, each attempt still returned all five findings: INI-section
+# ignore files with ids+paths (both ID spellings, AVD-DS-0002 and DS-0002), glob
+# paths, paths=["*"], and an inline "# trivy:ignore:AVD-DS-0002" comment. So the
+# honest lever is the rationale below, not a narrower ignore.
 
-# AVD-DS-0001 - Base image uses :latest tag for continuous development (REVIEW BY: 2027-07-05)
-# The nemotron-base image uses :latest tag because:
-# 1. The base image is built and published from the same repository
-# 2. Using :latest allows automatic pickup of base image updates
-# 3. Production deployments can pin to specific SHA tags if needed
-# 4. The base image build is controlled and not external
-AVD-DS-0001
-
-# AVD-DS-0002 - vsftpd requires root to bind to privileged port 21 (REVIEW BY: 2027-07-05)
-# vsftpd is an FTP server that needs root privileges to:
-# 1. Bind to port 21 (privileged port)
-# 2. Create system users via useradd/chpasswd in entrypoint
-# 3. Manage FTP user sessions
-# The service is isolated in its own container with limited network exposure.
+# AVD-DS-0002 - no USER directive (non-root) in five image definitions (REVIEW BY: 2027-07-05)
+# Attributed by deleting this ID alone and re-running the CI-pinned scanner
+# (trivy 0.74.0, repo-wide config scan, 2026-10-04). The five HIGH findings, and
+# the measured reason each is deferred rather than fixed:
+#   docker/base.Dockerfile                  PUBLISHED BASE IMAGE. Every layer
+#     needs root (apt-get install; uv pip install --system writes
+#     /usr/local/lib/python3.14/site-packages; the cache mount is literally
+#     /root/.cache/uv). A base that ends in USER forces non-root on every
+#     consumer, whose first instruction is apt-get — a base image with USER is a
+#     broken base, not a hardened one.
+#   docker/python-freethreaded/Dockerfile   PUBLISHED BASE IMAGE, same class and
+#     stronger: it mirrors the official python Dockerfile (build-from-source
+#     configure/make install, ldconfig, apt-mark/purge, symlinks into
+#     /usr/local/bin). It is published under a python-lookalike name precisely so
+#     third parties FROM it, so an in-image USER is a semantic change to an
+#     advertised public base. Guarded against silent misuse by
+#     TestNoRepoConsumerOfPublishedBases.
+#   synthbench/generate/comfy/Containerfile  NOT FIXABLE THIS WAY, measured. It
+#     runs under ROOTLESS podman with no --user
+#     (synthbench/generate/comfy/serve.py:106-136), so container root already
+#     maps to the invoking host UID — which is exactly why its two read-write
+#     HOST binds, {out_dir}:/opt/ComfyUI/output and {cache_dir}:/root/.cache
+#     (serve.py:131,133, both created by that same host user at serve.py:151-153)
+#     are writable today. An in-image USER remaps that to a different sub-UID
+#     inside the userns and strands the mounts, plus ComfyUI's own writes inside
+#     /opt/ComfyUI. The correct lever is run-time --user, not a Dockerfile USER.
+#   ai/gateway/Dockerfile                   DEFERRED WITH A FIX RECIPE (owner
+#     decision, 2026-10-04). This one IS a genuine hardening win and the only
+#     service image in the set. Recipe: mirror the in-repo precedent
+#     ai/vlm/Dockerfile:94-136 (groupadd/useradd uid 1000, chown the dirs, USER
+#     last) AND (a) build-time chown of the image-baked /models/repository, which
+#     three runtime writers mutate — ai/gateway/patch_triton_configs.py:130
+#     write_text, ai/gateway/entrypoint.sh:109-110 rm -rf + ln -sf,
+#     ai/gateway/residency.py:114-133 rmtree/move (deliberately no "|| true", so a
+#     permission failure stops the container — loud, not silent); (b) host-side
+#     ownership of the read-write bind ${AI_MODELS_PATH:-/export/ai_models}/triton:
+#     /models/cache and of the HF cache bind, since the service runs with
+#     cap_drop [ALL] + no-new-privileges and cannot fix ownership from inside;
+#     (c) move the /root/.nv + /root/.cache/huggingface volume mounts off root's
+#     home. Must be validated live on the GPU box: NO CI job builds this image
+#     (deploy.yml's matrix is backend+frontend only, ci.yml:1889-1901), so nothing
+#     here can prove it.
+#   archive/Dockerfile.yolo26-benchmark     ARCHIVED, built by nobody — manual
+#     podman only; the YOLO26 image job was retired by owner ruling 2026-09-23
+#     (.github/workflows/ci.yml:1889-1901). A finding in a file no pipeline
+#     builds is documentation, not risk.
+# Deliberately NOT a fix here: adding USER to the two bases or to comfy would
+# satisfy the scanner while breaking real builds. Guard:
+# TestMisconfigIgnoreNamesRealTargets (the ID's rationale must keep naming these
+# five, and must not re-claim the file the old comment described).
 AVD-DS-0002
 
 # =============================================================================
@@ -220,11 +292,17 @@ AVD-DS-0002
 # comment claimed a bookworm fix the tracker says is open — CVE-2025-48965,
 # CVE-2025-52496, CVE-2025-7458; pcre2 CVE-2026-103111 fixed via both prod
 # stages; the sole live image finding. Python entries were last OSV-queried
-# 2026-10-03 and stay as-is except where noted. 16 CVE + 1 GHSA + 2 AVD-DS
-# entries remain, every one tracker/OSV-open or a dated accepted misconfig.)
+# 2026-10-03 and stay as-is except where noted. THEN the misconfig re-audit same
+# day: AVD-DS-0001 DELETED (zero findings underneath, premise gone) and
+# AVD-DS-0002's rationale rewritten to name the five files it really suppresses
+# with per-file reasons — see REMOVED. 16 CVE + 1 GHSA + 1 AVD-DS entries remain,
+# every one tracker/OSV-open or a dated accepted misconfig whose rationale names
+# its actual targets.)
 # Next review: 2026-12-20 (the earliest active REVIEW BY date — the four
 # pip-vendored entries; when the base image ships a newer pip, re-check those
-# and re-run the Debian/Alpine sweep in full)
+# and re-run the Debian/Alpine sweep in full). AVD-DS-0002 is due 2027-07-05, but
+# the ai/gateway deferral should be revisited the next time that image is
+# deployed from — its fix recipe is in the entry and needs the GPU box.
 
 # =============================================================================
 # pip's VENDORED bundle (backend image scan, added 2026-09-20)
