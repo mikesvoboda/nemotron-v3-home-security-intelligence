@@ -88,6 +88,15 @@ export interface NotificationPreferencesUpdate {
 // ============================================================================
 
 /**
+ * Shipped numeric alert floor (OD-29, owner ruling 2026-10-05): the
+ * risk_threshold a camera gets when it has no saved setting. Mirrors
+ * `DEFAULT_CAMERA_RISK_THRESHOLD` in
+ * `backend/models/notification_preferences.py` - the value the backend gate
+ * applies to a no-row camera, so the UI must show it, not 0.
+ */
+export const DEFAULT_CAMERA_RISK_THRESHOLD = 60;
+
+/**
  * Camera notification setting response.
  */
 export interface CameraNotificationSetting {
