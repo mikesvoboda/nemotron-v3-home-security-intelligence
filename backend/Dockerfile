@@ -15,9 +15,13 @@
 # =============================================================================
 # Base stage: shared dependencies (backend-specific extensions to base image)
 #
-# Extends shared base image to add backend-specific system dependencies
-# and build tools. This reduces build time by caching common Python packages
-# in the ghcr.io/mikesvoboda/nemotron-base image.
+# Builds FROM python:3.14-slim-bookworm DIRECTLY and adds the backend's own
+# system dependencies and build tools. (The earlier comment here said this stage
+# "extends the shared ghcr.io/mikesvoboda/nemotron-base image"; that stopped
+# being true when the FROM moved — no FROM line in the repo consumes nemotron-
+# base any more, though CI still publishes it. Read 2026-10-04 across every
+# tracked Dockerfile; guarded by
+# backend/tests/unit/scripts/test_backend_image_trivy_clean.py.)
 #
 # Python Image Options:
 #   Standard (GIL enabled):     python:3.14-slim-bookworm
@@ -43,7 +47,13 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="ghcr.io/mikesvoboda/python:3.14t-slim-bookworm"
+# Must name the image this stage actually FROMs (below). It previously said
+# ghcr.io/mikesvoboda/python:3.14t-slim-bookworm — the FREE-THREADED option
+# documented in the comment above, not the base in use — so the published
+# provenance and every SBOM read a GIL-disabled interpreter this image does not
+# have. The prod stage labels itself correctly.
+# Guard: TestBaseLabelMatchesFrom.
+LABEL org.opencontainers.image.base.name="python:3.14-slim-bookworm"
 
 WORKDIR /app
 
@@ -165,6 +175,41 @@ WORKDIR /app
 # older installed copy, it moves it to the candidate, and once the base
 # absorbs the fix it no-ops (exit 0) — unlike a version pin it cannot rot
 # into a build failure. Guard: test_backend_image_trivy_clean.py
+#
+# The rest of the --only-upgrade names are the 2026-10-04 upgradeable-CVE
+# sweep; .trivyignore's REMOVED block records the entries it deleted. Three
+# classes, measured (amd64 CI install log, run 37208159907 @ 6b33a2af; the base
+# image's own dpkg status; a live upgrade simulation in the base — rc 0,
+# "1 upgraded, 0 newly installed"):
+#
+#   MOVED TODAY: libpcre2-8-0 — the only line that changes what the image
+#   installs. CVE-2026-103111 (HIGH), installed 10.42-1+deb12u1, fixed
+#   10.42-1+deb12u2 (bookworm "resolved"); it arrives via the BASE image, whose
+#   digest predates the point release. The tip scan is RED on it, exactly one
+#   finding. (Alpine carries the same CVE; frontend/Dockerfile fixes its half.)
+#
+#   BASE-OWNED, AT/ABOVE THE FIX TODAY: libc6/libc-bin 2.36-9+deb12u14,
+#   libpam* 1.5.2-6+deb12u2, gpgv 2.2.40-1.1+deb12u2. --only-upgrade is the
+#   only lever that can move a package the base owns, and the base can be old:
+#   a pinned digest, a cached FROM layer, or an upstream that hasn't rebuilt
+#   carries an older copy back in with no test noticing. These names close
+#   that silent-rollback vector; today they run empty (rc 0 no-op).
+#
+#   INSTALLED BY THIS VERY RUN, AT ARCHIVE-NEWEST: libpng16-16 u5,
+#   libglib2.0-0 u9, libgdk-pixbuf-2.0-0 u4, libzvbi0+libzvbi-common u1,
+#   libssh-gcrypt-4 u2 — ffmpeg's closure. apt fetched these from the same
+#   lists minutes apart, so the upgrade can never move them; the names are the
+#   register's pin-forward record for the deleted CVEs and keep its promise
+#   honest if the RUN is ever restructured (pinned versions, holds, a split
+#   layer). libzvbi0 hard-pins libzvbi-common (= same version), so both must
+#   be named or apt holds libzvbi0 back.
+#
+# Safety, measured: --only-upgrade no-ops (exit 0) when the installed version
+# is already newest, and SKIPS (exit 0, "not installed") a real package that
+# isn't present — so this line cannot grow the image or fail when the base
+# stops shipping one of these. It fails (exit 100) only on a name absent from
+# the archive entirely, which is why every name here is bookworm-stable.
+# Guards: TestProdStageUpgradesPcre2 / TestProdStageCoversTrackerResolvedPkgs.
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
@@ -172,7 +217,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     procps \
     curl \
-    && apt-get install -y --only-upgrade libexpat1 \
+    && apt-get install -y --only-upgrade \
+         libexpat1 \
+         libpcre2-8-0 \
+         libc6 \
+         libc-bin \
+         libpng16-16 \
+         libglib2.0-0 \
+         libgdk-pixbuf-2.0-0 \
+         libzvbi0 \
+         libzvbi-common \
+         libssh-gcrypt-4 \
+         libpam-modules \
+         libpam0g \
+         gpgv \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 

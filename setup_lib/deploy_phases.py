@@ -487,7 +487,14 @@ def phase_build(config: DeployConfig) -> DeployResult:
     if not cuda_args:
         print("  GPU not detected - building for common architectures (slower)")
 
-    # Build base image first (backend depends on it)
+    # Build base image first. (The comment here used to say "backend depends on
+    # it" — measured false on 2026-10-04: no FROM line in any tracked Dockerfile
+    # consumes nemotron-base; backend/Dockerfile builds FROM
+    # python:3.14-slim-bookworm directly and the compose builds below are
+    # independent of this image. The build is kept anyway, owner call: the image
+    # is still PUBLISHED from this repo (build-base-image.yml) and third parties
+    # may consume it, so a deploy must not ship a base that fails to build. Its
+    # failure still aborts this phase.)
     print("  Building base image...")
     base_cmd = [
         "podman",

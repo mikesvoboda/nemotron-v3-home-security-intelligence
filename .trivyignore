@@ -17,41 +17,39 @@
 # =============================================================================
 # Alpine Linux Base Image
 # =============================================================================
-# Alpine-specific CVEs that are false positives or have no fix
-# These often relate to packages not installed in our production image
-
-# CVE-2024-58251 - BusyBox vulnerability affecting busybox-binsh and ssl_client (REVIEW BY: 2027-03-16)
-# Low severity, no fix available in current Alpine stable
-CVE-2024-58251
-
-# CVE-2025-46394 - BusyBox vulnerability affecting busybox-binsh (REVIEW BY: 2027-03-16)
-# Low severity, no fix available in current Alpine stable
-CVE-2025-46394
+# (no active entries since the 2026-10-04 sweep: the two BusyBox ignores were
+# dead — the frontend image ships busybox 1.37.0-r31, past the Alpine secdb
+# fixes 1.37.0-r24 / 1.37.0-r27, so Trivy no longer reports them. The frontend
+# scan runs ignore-unfixed FALSE and showed zero BusyBox rows. See REMOVED.)
 
 # =============================================================================
 # Debian/Ubuntu Base Image - No Fix Available
 # =============================================================================
 # These CVEs are in system packages with no upstream fix available
 
-# NOTE (review 2026-09-16): the Debian security tracker now shows fix versions
-# in bookworm point releases for several entries below (e.g. libsqlite3
-# 3.40.1-2+deb12u2, libpng 1.6.39-2+deb12u2, libzvbi 0.2.41-1+deb12u1,
-# glibc 2.36-9+deb12u14). They stay listed because the production image's apt
-# package versions are only verifiable by rebuilding the image and running the
-# push-main image scan (scan-backend/scan-frontend jobs), which was not done
-# for this review. Each entry that the next image rebuild proves fixed should
-# be DELETED at that rebuild, not at the calendar date.
-
-# CVE-2025-2176 - libzvbi critical vulnerability (REVIEW BY: 2027-05-05)
-# Fix shipped in bookworm 0.2.41-1+deb12u1 (tracker, verified 2026-09-16);
-# remove once the production image rebuild proves the patched version.
-# Affects libzvbi0 package used by ffmpeg dependencies
-CVE-2025-2176
-
-# CVE-2023-45853 - zlib integer overflow (REVIEW BY: 2027-06-05)
-# Marked "will_not_fix" by Debian
-# Affects minizip functionality in zipOpenNewFileInZip4_6, not used by application
-CVE-2023-45853
+# NOTE (sweep 2026-10-04): the 2026-09-16 NOTE below was kept but is now
+# EXECUTED. Every entry the Debian tracker marks "resolved" with the fix in the
+# archive has been DELETED on image evidence, not assumption: the amd64 CI
+# install log (run 37208159907 @ 6b33a2af) and the base image's own dpkg status
+# show the installed version at/above each fixed version — libzvbi u1,
+# libglib2.0 u9, gdk-pixbuf u4, libssh u2, pam u2, glibc u14, libpng u5, gpgv
+# u2. What remains in this section is ONLY what the tracker still marks
+# "open" (re-verified 2026-10-04) or that is not in the runtime image at all.
+# The two prod stages also changed: backend apt --only-upgrade now names
+# libpcre2-8-0 (the one real move — a base-owned package, where an old digest
+# or cached layer IS the rollback vector) plus the base-owned fixed set
+# (libc6/libc-bin, libpam*, gpgv) as a guard against exactly that; the
+# ffmpeg-closure names there run empty by construction (this same RUN installs
+# them from current lists). frontend apk upgrade --no-cache pcre2 does the
+# Alpine half. See each Dockerfile's comment for the measured split.
+# Guard: backend/tests/unit/scripts/test_backend_image_trivy_clean.py
+#
+# NOTE (review 2026-09-16, historical): the Debian security tracker showed fix
+# versions in bookworm point releases for several entries then listed (e.g.
+# libsqlite3 3.40.1-2+deb12u2, libpng 1.6.39-2+deb12u2, libzvbi
+# 0.2.41-1+deb12u1, glibc 2.36-9+deb12u14). They stayed pending image-proof;
+# the 2026-10-04 sweep gathered it (and note libsqlite3 turned out to be
+# tracker-OPEN — that entry was corrected, not deleted).
 
 # CVE-2023-6879 - libaom heap-buffer-overflow CRITICAL (REVIEW BY: 2027-05-05)
 # No fix in Debian stable
@@ -89,75 +87,26 @@ CVE-2024-23775
 CVE-2025-47917
 
 # CVE-2025-48965 - libmbedcrypto NULL pointer dereference (REVIEW BY: 2027-05-05)
-# Fix shipped in bookworm 2.28.3-1 per tracker; keep until image rebuild proves it
+# Tracker status OPEN on bookworm — no fix version exists (re-verified
+# 2026-10-04). An earlier note here cited 2.28.3-1 as a fix release; it is not —
+# that is simply the CURRENT published version. Do not hunt for a point release;
+# there is none.
 # Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 CVE-2025-48965
 
 # CVE-2025-52496 - libmbedcrypto AESNI race condition (REVIEW BY: 2027-05-05)
-# Fix shipped in bookworm per tracker; keep until image rebuild proves it
+# Tracker status OPEN on bookworm — no fix version exists (re-verified
+# 2026-10-04); same corrected entry as CVE-2025-48965 above.
 # Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 CVE-2025-52496
 
-# CVE-2025-13601 - libglib2.0 integer overflow in g_escape_uri_string (REVIEW BY: 2027-05-05)
-# Affected status
-# GLib utility function, not directly exploitable in our context
-CVE-2025-13601
-
-# CVE-2025-68973 - gpgv information disclosure/code execution (REVIEW BY: 2027-05-05)
-# Affected status
-# Used for apt signature verification, not user-exposed
-CVE-2025-68973
-
-# CVE-2025-7345 - libgdk-pixbuf heap buffer overflow (REVIEW BY: 2027-05-05)
-# Fix deferred status
-# Image processing library, input validation handles malicious images
-CVE-2025-7345
-
 # CVE-2025-7458 - libsqlite3-0 integer overflow CRITICAL (REVIEW BY: 2027-04-05)
-# Fix shipped in bookworm 3.40.1-2+deb12u2 per tracker (verified 2026-09-16);
-# remove once the production image rebuild proves the patched version.
+# Tracker status OPEN on bookworm — no fix version exists (re-verified
+# 2026-10-04). The 3.40.1-2+deb12u2 cited by the 2026-09-16 review is the
+# CURRENT published version (the base image installs exactly it), not a fix —
+# the entry is a genuine no-fix risk, not a pending deletion.
 # SQLite vulnerability, affects libsqlite3-0 package used by Python stdlib
 CVE-2025-7458
-
-# CVE-2025-2173 - libzvbi vulnerability (REVIEW BY: 2027-05-05)
-# Fix shipped in bookworm 0.2.41-1+deb12u1 per tracker; keep until rebuild
-# Affects libzvbi0/libzvbi-common used by ffmpeg, not directly used by application
-CVE-2025-2173
-
-# CVE-2025-2174 - libzvbi vulnerability (REVIEW BY: 2027-05-05)
-# Fix shipped in bookworm 0.2.41-1+deb12u1 per tracker; keep until rebuild
-# Affects libzvbi0/libzvbi-common used by ffmpeg, not directly used by application
-CVE-2025-2174
-
-# CVE-2025-5318 - libssh-gcrypt out-of-bounds read in sftp_handle() (REVIEW BY: 2027-05-05)
-# Affected, no fix available
-# SSH library used by ffmpeg libavformat, not directly used by application
-CVE-2025-5318
-
-# CVE-2025-5372 - libssh-gcrypt incorrect return code handling in ssh_kdf() (REVIEW BY: 2027-05-05)
-# Affected, no fix available
-# SSH library used by ffmpeg libavformat, not directly used by application
-CVE-2025-5372
-
-# CVE-2025-5987 - libssh-gcrypt invalid return code for chacha20 poly1305 (REVIEW BY: 2027-05-05)
-# Affected, no fix available
-# SSH library used by ffmpeg libavformat, not directly used by application
-CVE-2025-5987
-
-# CVE-2025-6020 - libpam directory traversal (REVIEW BY: 2027-05-05)
-# Affected, no fix available in Debian stable
-# PAM modules used for system authentication, not user-exposed in container
-CVE-2025-6020
-
-# CVE-2026-0861 - glibc integer overflow in memalign (REVIEW BY: 2027-03-16)
-# CRITICAL per Trivy, but Debian marks as "Minor issue" with <no-dsa>
-# Affects libc-bin and libc6; fix shipped in bookworm 2.36-9+deb12u14 per
-# tracker (verified 2026-09-16) — keep until image rebuild proves the version.
-# Exploitation requires attacker control of BOTH size (near PTRDIFF_MAX) and
-# alignment (range [1<<62+1, 1<<63]) arguments to memalign/posix_memalign/aligned_alloc
-# Our application doesn't expose memory allocation controls to untrusted input
-# Reference: https://security-tracker.debian.org/tracker/CVE-2026-0861
-CVE-2026-0861
 
 # CVE-2023-2953 - OpenLDAP null pointer dereference in ber_memalloc_x (REVIEW BY: 2027-04-21)
 # HIGH severity, no DSA for bookworm (tracker <no-dsa>, verified 2026-09-16)
@@ -168,21 +117,6 @@ CVE-2026-0861
 #   3. The vulnerability requires LDAP operations to trigger
 # Reference: https://security-tracker.debian.org/tracker/CVE-2023-2953
 CVE-2023-2953
-
-# CVE-2026-22695 - libpng denial of service and information disclosure (REVIEW BY: 2027-04-23)
-# HIGH severity; fix shipped in bookworm 1.6.39-2+deb12u2 per tracker
-# (verified 2026-09-16) — remove once the image rebuild proves the patch.
-# Affects libpng16-16 package used by image processing libraries (PIL/Pillow)
-# Mitigated by:
-#   1. Application validates image input sizes before processing
-#   2. Image processing happens in controlled pipeline with trusted FTP sources
-#   3. Memory limits enforced at container level
-CVE-2026-22695
-
-# CVE-2026-22801 - libpng information disclosure and denial of service (REVIEW BY: 2027-04-23)
-# HIGH severity; fix shipped in bookworm 1.6.39-2+deb12u2 per tracker.
-# Same package and mitigation as CVE-2026-22695
-CVE-2026-22801
 
 # =============================================================================
 # Python Package Vulnerabilities - No Fix Available
@@ -207,12 +141,61 @@ CVE-2024-23342
 # (no entries: the one cryptography advisory that lived here was fixed by the 2026-10-03 upgrade; see the log below)
 
 # =============================================================================
-# REMOVED 2026-09-16 and 2026-10-03 reviews (fixes present in the LOCKED versions — OSV-clean):
+# REMOVED 2026-09-16 / 2026-10-03 / 2026-10-04 reviews.
+# 2026-09-16 + 2026-10-03 (fixes present in the LOCKED versions — OSV-clean):
 #   CVE-2024-56326 / CVE-2024-22195 / CVE-2025-27516  (jinja2 fixed in shipped 3.1.6)
 #   GHSA-58pv-8j8x-9vj2 / CVE-2026-23949              (setuptools 84.0.0 vendors jaraco.context 6.1.0)
 #   CVE-2026-24049                                    (setuptools 84.0.0 vendors wheel 0.46.3)
 #   CVE-2026-0994                                     (protobuf 7.36.1 in uv.lock, OSV-clean)
 #   CVE-2026-69247                                    (cryptography 50.0.2 in uv.lock, OSV-clean; the nemo extra that capped it at <=49 was removed)
+# 2026-10-04 upgradeable-CVE sweep (thirteen bookworm-"resolved" entries proven
+# at/above their fix in the INSTALLED image — amd64 CI install log run
+# 37208159907 @ 6b33a2af + base-image dpkg status — this is the NOTE's "delete
+# at the rebuild that proves it", executed; the prod stages now pin these
+# forward so an older base digest can't regress behind the removed ignores):
+#   CVE-2025-2173 / CVE-2025-2174 / CVE-2025-2176     (libzvbi u1 = fix)
+#   CVE-2025-13601                                    (libglib2.0-0 u9 >= fix u8)
+#   CVE-2025-68973                                    (gpgv u2 = fix, base-owned)
+#   CVE-2025-7345                                     (libgdk-pixbuf-2.0-0 u4 >= fix u3)
+#   CVE-2025-5318 / CVE-2025-5372 / CVE-2025-5987     (libssh-gcrypt-4 u2 = fix)
+#   CVE-2025-6020                                     (libpam u2 = fix, base-owned)
+#   CVE-2026-0861                                     (libc6/libc-bin u14 = fix, base-owned)
+#   CVE-2026-22695 / CVE-2026-22801                   (libpng16-16 u5 >= fix u2)
+#   CVE-2023-45853                                    (DEAD entry, two reasons: the vulnerable
+#                                                      function lives in libminizip1, which is NOT
+#                                                      installed (revdeps are chromium, not
+#                                                      ffmpeg), so the rationale never applied to
+#                                                      this image; and the scanner cannot surface
+#                                                      it either way — Debian marks it OPEN with
+#                                                      no fixed version and the backend scan runs
+#                                                      ignore-unfixed:true, while Alpine maps
+#                                                      zlib's copy to secfixes "0" = never
+#                                                      reported. An ignore for a finding no scan
+#                                                      can emit is dead register.)
+#   CVE-2024-58251 / CVE-2025-46394                   (DEAD Alpine ignores: busybox 1.37.0-r31 in
+#                                                      the frontend image is past the r24/r27
+#                                                      secdb fixes; the ignore-unfixed-FALSE
+#                                                      frontend scan shows zero BusyBox rows)
+# Also this sweep: pcre2 CVE-2026-103111 (HIGH) was the ONLY live image finding
+# at 6b33a2af — fixed via apt --only-upgrade libpcre2-8-0 (backend) and apk
+# upgrade pcre2 (frontend); it was never an ignore entry, so nothing to delete.
+# 2026-10-04 misconfig re-audit (same day, follow-on; the CI-pinned scanner is
+# aquasec/trivy:0.74.0, .github/workflows/trivy.yml:280, run repo-wide exactly
+# as trivy.yml's Config/IaC job does):
+#   AVD-DS-0001 - DELETED as dead register. Removing the ID changes no scan
+#     result: zero findings underneath it. Its rationale ("the nemotron-base
+#     image uses :latest") describes a dependency that no longer exists — no
+#     FROM line in the repo consumes nemotron-base (backend/Dockerfile:36 is
+#     python:3.14-slim-bookworm), and the docker checks do not flag :latest on
+#     a COPY --from=, so the two uv:latest lines are neither suppressed nor
+#     reported. Tripwire: TestNoRepoConsumerOfPublishedBases.
+#   AVD-DS-0002 - entry KEPT (deleting it reddens the PR-gated Config/IaC scan
+#     with five HIGH findings), rationale REWRITTEN. The old comment justified
+#     the ignore with vsftpd's port-21 story — but archive/vsftpd/Dockerfile
+#     carries USER ftpsecure (:48), is NOT flagged, and is not one of the five
+#     findings the ID actually suppresses. The true five, with per-file reasons,
+#     are named in the entry's new rationale; that text is the review record
+#     now, guarded by TestMisconfigIgnoreNamesRealTargets.
 # The file's own rule: "Remove entries when fixes become available."
 # =============================================================================
 
@@ -220,21 +203,76 @@ CVE-2024-23342
 # Dockerfile Misconfigurations - Accepted Risks
 # =============================================================================
 # These are Trivy misconfiguration checks that are intentionally accepted.
+#
+# NOTE (2026-10-04 re-audit): this section was rewritten against the scanner CI
+# actually runs, because both entries' rationales had come false. Measured with
+# aquasec/trivy:0.74.0 — the exact pin at .github/workflows/trivy.yml:280 —
+# running the same repo-wide config scan as CI (trivy.yml:93-108, severity
+# CRITICAL,HIGH,MEDIUM, exit-code 1):
+#   AVD-DS-0001 deleted: removing the ID reveals NOTHING. It suppressed zero
+#     findings, and its stated premise is gone — no FROM line in the repo builds
+#     FROM nemotron-base anymore, and the docker checks do not flag :latest on a
+#     COPY --from= (see REMOVED).
+#   AVD-DS-0002 kept, rationale corrected: deleting ONLY this ID surfaces five
+#     HIGH "no USER directive" findings, and none of them is the file the old
+#     comment described (see the attribution list below, and REMOVED).
+# One ID covering five files is forced, not sloppy: these checks report at FILE
+# level with no line number, and per-file scoping does not exist for config
+# scans — measured, each attempt still returned all five findings: INI-section
+# ignore files with ids+paths (both ID spellings, AVD-DS-0002 and DS-0002), glob
+# paths, paths=["*"], and an inline "# trivy:ignore:AVD-DS-0002" comment. So the
+# honest lever is the rationale below, not a narrower ignore.
 
-# AVD-DS-0001 - Base image uses :latest tag for continuous development (REVIEW BY: 2027-07-05)
-# The nemotron-base image uses :latest tag because:
-# 1. The base image is built and published from the same repository
-# 2. Using :latest allows automatic pickup of base image updates
-# 3. Production deployments can pin to specific SHA tags if needed
-# 4. The base image build is controlled and not external
-AVD-DS-0001
-
-# AVD-DS-0002 - vsftpd requires root to bind to privileged port 21 (REVIEW BY: 2027-07-05)
-# vsftpd is an FTP server that needs root privileges to:
-# 1. Bind to port 21 (privileged port)
-# 2. Create system users via useradd/chpasswd in entrypoint
-# 3. Manage FTP user sessions
-# The service is isolated in its own container with limited network exposure.
+# AVD-DS-0002 - no USER directive (non-root) in five image definitions (REVIEW BY: 2027-07-05)
+# Attributed by deleting this ID alone and re-running the CI-pinned scanner
+# (trivy 0.74.0, repo-wide config scan, 2026-10-04). The five HIGH findings, and
+# the measured reason each is deferred rather than fixed:
+#   docker/base.Dockerfile                  PUBLISHED BASE IMAGE. Every layer
+#     needs root (apt-get install; uv pip install --system writes
+#     /usr/local/lib/python3.14/site-packages; the cache mount is literally
+#     /root/.cache/uv). A base that ends in USER forces non-root on every
+#     consumer, whose first instruction is apt-get — a base image with USER is a
+#     broken base, not a hardened one.
+#   docker/python-freethreaded/Dockerfile   PUBLISHED BASE IMAGE, same class and
+#     stronger: it mirrors the official python Dockerfile (build-from-source
+#     configure/make install, ldconfig, apt-mark/purge, symlinks into
+#     /usr/local/bin). It is published under a python-lookalike name precisely so
+#     third parties FROM it, so an in-image USER is a semantic change to an
+#     advertised public base. Guarded against silent misuse by
+#     TestNoRepoConsumerOfPublishedBases.
+#   synthbench/generate/comfy/Containerfile  NOT FIXABLE THIS WAY, measured. It
+#     runs under ROOTLESS podman with no --user
+#     (synthbench/generate/comfy/serve.py:106-136), so container root already
+#     maps to the invoking host UID — which is exactly why its two read-write
+#     HOST binds, {out_dir}:/opt/ComfyUI/output and {cache_dir}:/root/.cache
+#     (serve.py:131,133, both created by that same host user at serve.py:151-153)
+#     are writable today. An in-image USER remaps that to a different sub-UID
+#     inside the userns and strands the mounts, plus ComfyUI's own writes inside
+#     /opt/ComfyUI. The correct lever is run-time --user, not a Dockerfile USER.
+#   ai/gateway/Dockerfile                   DEFERRED WITH A FIX RECIPE (owner
+#     decision, 2026-10-04). This one IS a genuine hardening win and the only
+#     service image in the set. Recipe: mirror the in-repo precedent
+#     ai/vlm/Dockerfile:94-136 (groupadd/useradd uid 1000, chown the dirs, USER
+#     last) AND (a) build-time chown of the image-baked /models/repository, which
+#     three runtime writers mutate — ai/gateway/patch_triton_configs.py:130
+#     write_text, ai/gateway/entrypoint.sh:109-110 rm -rf + ln -sf,
+#     ai/gateway/residency.py:114-133 rmtree/move (deliberately no "|| true", so a
+#     permission failure stops the container — loud, not silent); (b) host-side
+#     ownership of the read-write bind ${AI_MODELS_PATH:-/export/ai_models}/triton:
+#     /models/cache and of the HF cache bind, since the service runs with
+#     cap_drop [ALL] + no-new-privileges and cannot fix ownership from inside;
+#     (c) move the /root/.nv + /root/.cache/huggingface volume mounts off root's
+#     home. Must be validated live on the GPU box: NO CI job builds this image
+#     (deploy.yml's matrix is backend+frontend only, ci.yml:1889-1901), so nothing
+#     here can prove it.
+#   archive/Dockerfile.yolo26-benchmark     ARCHIVED, built by nobody — manual
+#     podman only; the YOLO26 image job was retired by owner ruling 2026-09-23
+#     (.github/workflows/ci.yml:1889-1901). A finding in a file no pipeline
+#     builds is documentation, not risk.
+# Deliberately NOT a fix here: adding USER to the two bases or to comfy would
+# satisfy the scanner while breaking real builds. Guard:
+# TestMisconfigIgnoreNamesRealTargets (the ID's rationale must keep naming these
+# five, and must not re-claim the file the old comment described).
 AVD-DS-0002
 
 # =============================================================================
@@ -247,10 +285,24 @@ AVD-DS-0002
 #
 # Remove entries when fixes become available.
 #
-# Last reviewed: 2026-09-16 (full pass: OSV-queried every Python entry against
-# the locked version; Debian tracker checked for every base-image entry;
-# filesystem-scan findings remediated where the dependency graph allows)
-# Next review: 2027-03-16
+# Last reviewed: 2026-10-04 (upgradeable-CVE sweep: Debian tracker re-pulled and
+# every base-image entry re-checked; 16 entries DELETED on image evidence — the
+# 13 bookworm-"resolved" ones proven fixed at the installed version, plus the
+# dead busybox pair and the dead minizip entry; 3 entries re-worded where the
+# comment claimed a bookworm fix the tracker says is open — CVE-2025-48965,
+# CVE-2025-52496, CVE-2025-7458; pcre2 CVE-2026-103111 fixed via both prod
+# stages; the sole live image finding. Python entries were last OSV-queried
+# 2026-10-03 and stay as-is except where noted. THEN the misconfig re-audit same
+# day: AVD-DS-0001 DELETED (zero findings underneath, premise gone) and
+# AVD-DS-0002's rationale rewritten to name the five files it really suppresses
+# with per-file reasons — see REMOVED. 16 CVE + 1 GHSA + 1 AVD-DS entries remain,
+# every one tracker/OSV-open or a dated accepted misconfig whose rationale names
+# its actual targets.)
+# Next review: 2026-12-20 (the earliest active REVIEW BY date — the four
+# pip-vendored entries; when the base image ships a newer pip, re-check those
+# and re-run the Debian/Alpine sweep in full). AVD-DS-0002 is due 2027-07-05, but
+# the ai/gateway deferral should be revisited the next time that image is
+# deployed from — its fix recipe is in the entry and needs the GPU box.
 
 # =============================================================================
 # pip's VENDORED bundle (backend image scan, added 2026-09-20)

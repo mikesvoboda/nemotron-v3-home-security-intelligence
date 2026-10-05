@@ -222,7 +222,7 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-04 (after the prompt-programme intake: ISS-087 to ISS-098 counted as before, plus ISS-099 to ISS-102 filed 2026-10-04; ISS-087 had an entry but was missing from these counts until ISS-088). The Filed columns count every issue by its filed
+Counts as of 2026-10-04 (both intakes of the day counted: ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, plus ISS-099 to ISS-102 filed 2026-10-04; ISS-087 had an entry but was missing from these counts until ISS-088). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
 ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
@@ -230,9 +230,9 @@ when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 100   |
+| open        | 99    |
 | in-progress | 0     |
-| done        | 2     |
+| done        | 3     |
 | wont-fix    | 0     |
 | superseded  | 0     |
 | total       | 102   |
@@ -241,14 +241,14 @@ when you add or close an issue (there is no script; the register is prose).
 | -------- | ----- | ---- |
 | P0       | 1     | 1    |
 | P1       | 35    | 34   |
-| P2       | 51    | 50   |
+| P2       | 51    | 49   |
 | P3       | 15    | 15   |
-| total    | 102   | 100  |
+| total    | 102   | 99   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
 | agent-now      | 67    | 67   |
-| owner-decision | 29    | 27   |
+| owner-decision | 29    | 26   |
 | owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
 
@@ -257,7 +257,7 @@ when you add or close an issue (there is no script; the register is prose).
 | bug      | 19    | 19   |
 | gap      | 36    | 36   |
 | debt     | 18    | 18   |
-| decision | 17    | 16   |
+| decision | 17    | 15   |
 | risk     | 12    | 11   |
 
 | Area                                      | P0  | P1  | P2  | P3  | Filed | Open |
@@ -266,7 +266,7 @@ when you add or close an issue (there is no script; the register is prose).
 | Verdict reliability and observability     | 0   | 6   | 3   | 1   | 10    | 9    |
 | Prompt, verdict quality and calibration   | 0   | 2   | 2   | 1   | 5     | 5    |
 | Video, ingest and key frames              | 0   | 4   | 6   | 1   | 11    | 11   |
-| Evaluation and S-bar measurement          | 0   | 9   | 12  | 2   | 23    | 23   |
+| Evaluation and S-bar measurement          | 0   | 9   | 12  | 2   | 23    | 22   |
 | Specialists                               | 0   | 2   | 4   | 0   | 6     | 6    |
 | Serving, deploy and supply chain          | 0   | 3   | 5   | 0   | 8     | 8    |
 | Security, privacy and licensing           | 0   | 3   | 3   | 1   | 7     | 7    |
@@ -600,6 +600,19 @@ OD-23 and OD-24 from the sandbox intake, OD-25 from the intake after `d8482861`,
 
 Update 2026-10-03 (later), OD-24: the temperature-0 experiment in its 'Pending' cell has landed
 (handoff Addendum 4; Intake log entry 2026-10-03 (later)). The ruling is still the owner's.
+
+Update 2026-10-04, OD-26: set at the owner's direction ("set the selection rule and sweep report") and applied
+in `docs/benchmarks/synthbench/sweep-2026-10-03/report.md`. The rule: the shipped 8B is the yardstick; an arm is compared with it by a paired
+bootstrap that resamples whole scenarios; it must pass gates on refusals (at most the control's 2) and
+peak VRAM (at most 18.4 GiB, an assumption pending the S1 re-take, ISS-046) and show no clear harm
+(dS2 upper bound at most +2 points, dS3 lower bound at least -5) and a clear benefit (dS2 upper bound
+below 0 or dS3 lower bound above 0); the output is a shortlist to confirm once on a frozen holdout
+(ISS-016), never a pick. It was set after the readings were seen, and its content is the agent's
+**[A]**. Outcome: **no arm advances**; the nearest miss is Qwen3.8-27B Q4_K_M.
+
+Update 2026-10-04, OD-4: its named challenger, Nemotron-Nano-12B-v2-VL, was not among the sweep's twelve
+arms, and no arm advances under OD-26, so the sweep gives the owner no model to prefer to the shipped
+8B. Whether the pick reopens stays the owner's.
 
 Update 2026-10-03 (after `9f4e65cd`), OD-24: ruled. The owner answered [O] 'move the shipped assess
 call from temperature 0.1 to 0 as a small code change on this branch' (handoff Addendum 5, item 3,
@@ -3237,6 +3250,12 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     vocabulary ceiling; none asks whether the bar is reachable from a single still, or runs a
     logprob arm or a prompt-by-size grid [V: read of those blocks; a grep of this register for
     'ceiling' and 'single still' finds no such issue]
+  - Update, appended 2026-10-04: the sweep's `qwen3vl-32b-q4km` arm is the shipped-prompt cell of E3's
+    model-size axis on `b11376`: S3 95/241 = 39.4% [33.5-45.7] against 94/241 = 39.0% for the 8B, so size
+    alone did not move S3 inside the Qwen3-VL family. Across all twelve model arms the stranger-or-intent
+    incidents score at most 7 of 64 (the shipped model 0 of 64) and the best S3 is 57.3%, below the
+    73.4% cap this issue's hypothesis implies, so the sweep neither confirms nor contradicts it. The
+    rubric cells were not run **[V: the report]**.
 - **Why it matters.** If it holds, no prompt, calibration or model change can take S3 past about
   73% on this corpus, and the plan's S3 remedy ruling (step 6, OD-2) and the M2 closure question
   (step 10, OD-4) would be choosing between remedies of which only a change to the corpus construct
@@ -3340,6 +3359,12 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     control on 252 of 450 items, about the size of the build effect (250 of 450) **[V: same file; the
     sweep is unfinished and its numbers are not recorded as measured until a report is committed]**:
     quantization changes answers about as much as the build does.
+  - Update, appended 2026-10-04: the sweep is now a committed report (ISS-097). The three controls on
+    `b11376` match on all 450 items, and the twelve model arms were all run on `b11376` at temperature 0;
+    none was replayed on `b7972`, so how any arm behaves on the pinned build is unmeasured. Across the
+    model arms the items matching the shipped model's verdict and score range from 72 to 252 of 450
+    **[V: the report's readings table]**; quantization alone moves answers (the 27B at Q4_K_M, Q6_K and
+    IQ2_S read S3 49.4%, 54.8% and 44.0%).
 - **Why it matters.** Every S2/S3/S5 figure in this directory and the ledger was measured on
   `b7972`. A claim against the bars is a claim about a build; the replay's `run.json` and the score
   report record the build string, but nothing in the acceptance conditions pins one, and a llama.cpp
@@ -3710,7 +3735,7 @@ supports the deployment configuration`; its root-cause paragraph and section 3.1
 
 #### ISS-097 — The model sweep's results live only in off-repo scratch: commit its report once the sweep ends, and set the rule for what beats the 8B
 
-`P2` · `decision` · actor `owner-decision` · status `open` · added 2026-10-03 (after `2a3f0883`, with the sweep at 5 of 15 rows)
+`P2` · `decision` · actor `owner-decision` · status `done` · added 2026-10-03 (after `2a3f0883`, with the sweep at 5 of 15 rows)
 
 - **Evidence**
   - The sweep is 12 model arms (`SPEC` in `sweep.py`: Qwen3-VL-8B Q8_0, Qwen3.5-4B Q8_0, Qwen3.5-9B
@@ -3811,6 +3836,15 @@ synthbench ai/vlm` is empty. Not recorded in any `run.json`, and a dirty checkou
     disagreeing in direction for at least one arm [V: `results.jsonl` at 17:49 EDT]. The other arms'
     numbers are deliberately not copied into this register: the owner's sequencing sets the rule
     before the report, and a rule written beside the results invites fitting to them [C]
+  - Update, appended 2026-10-04: done. The owner told the agent "set the selection rule and sweep report"
+    (17 Intake log, 'the sweep report and the selection rule'). The report is `docs/benchmarks/synthbench/sweep-2026-10-03/report.md`, with its
+    data (`items.csv`, `arms.csv`, `stats.json`) and `analysis.py`, which recomputes every reading from
+    those files and asserts each count equals the harness's **[V: run this session, `stats.json`
+    reproduced byte for byte]**. The OD-26 rule was set after the readings were seen, its output is a
+    shortlist for confirmation and not a pick, and **no arm advances**; the nearest miss is Qwen3.8-27B
+    Q4_K_M. The rule's content is agent-authored **[A]** and open to the owner's amendment. What remains
+    is not this issue's: a frozen holdout to confirm any arm (ISS-016), the power to separate arms at the
+    scenario level (ISS-043) and re-qualification on the pinned build (ISS-087).
 - **Why it matters.** Until the report is committed the sweep's numbers are session artifacts that no
   document may cite as measured (ISS-087, ledger row 76), and the pick they bear on (flip condition
   (iii) and OD-4, and the model-size lever of ISS-086's E3 under OD-2) cannot move. Committing the
@@ -6585,6 +6619,15 @@ Three more commits landed after `d8482861`, the same day, on `docs/synthbench-h3
   longer deletes weights unless `SWEEP_DELETE_WEIGHTS=1` is set. The library and the sweep are off-repo
   scratch; nothing about them is committed except this note **[A: read from the driver and the manifest
   this session]**.
+
+### 2026-10-04 (the sweep report and the selection rule)
+
+- The sweep finished at 2026-10-04 01:38 EDT with all 15 arms recorded (12 model arms and 3 controls).
+  The owner told the agent "set the selection rule and sweep report" **[O: the owner's words, quoted here as
+  their durable record]**. The report is `docs/benchmarks/synthbench/sweep-2026-10-03/report.md` with its data and `analysis.py`; it applies the
+  OD-26 rule, whose content is the agent's **[A]** and was set after the readings were seen. **No arm
+  advances.** ISS-097 is `done`. The Dashboard counts it.
+- PR #6785 (the State of the stack) was merged by the owner as `6b33a2af`.
 
 ### 2026-10-04 (the prompt-programme intake: ISS-099 to ISS-102)
 
