@@ -4,14 +4,14 @@
 > docs commit). This is the **living register** of issues, added to as they are discovered
 > [A: the owner's original request is not recorded in the repo, so it is paraphrased and not quoted].
 > Owner decision 2026-10-03 [O] (handoff Addendum 5, item 5): the register lives only in this repo;
-> nothing is filed on GitHub or Linear. It holds 98 issues: ISS-001 to ISS-077 from the 2026-10-03
+> nothing is filed on GitHub or Linear. It holds 102 issues: ISS-001 to ISS-077 from the 2026-10-03
 > discovery pass (a commit-archaeology read of the 437 non-merge commits since 2026-09-18 [C],
 > counted with `git rev-list --count --no-merges --since='2026-09-18T00:00:00-0400' 5c605e1d`; the
 > explicit time matters, because a bare `--since=2026-09-18` takes the current time of day and
 > printed 435 when run at 15:40 EDT on 2026-10-03 [V: I ran both]; a drift audit of this directory;
 > a reading of the docs, spec and ledger; and a verify-and-dedupe pass), ISS-078 to ISS-082 added
 > the same day from the sandbox exercise, ISS-083 to ISS-086 added after `d8482861`, ISS-087 added
-> after the sweep's control arm, ISS-088 added after the PR's first CI read, and ISS-089 to ISS-098 added after the merge of #6783 from open work that existed only in errata and reference text. Every
+> after the sweep's control arm, ISS-088 added after the PR's first CI read, and ISS-089 to ISS-098 added after the merge of #6783 from open work that existed only in errata and reference text, and ISS-099 to ISS-102 added from the 2026-10-04 prompt-programme intake. Every
 > issue started `open`; the [Dashboard](#2-dashboard) counts the open and the closed.
 > Add to it by appending to the [Intake log](#intake-log); never renumber.
 >
@@ -222,7 +222,7 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-03 (after `ab3bd002`, with ISS-087 to ISS-098 counted; ISS-087 had an entry but was missing from these counts until ISS-088). The Filed columns count every issue by its filed
+Counts as of 2026-10-04 (both intakes of the day counted: ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, plus ISS-099 to ISS-102 filed 2026-10-04; ISS-087 had an entry but was missing from these counts until ISS-088). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
 ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
@@ -230,43 +230,43 @@ when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 95    |
+| open        | 99    |
 | in-progress | 0     |
 | done        | 3     |
 | wont-fix    | 0     |
 | superseded  | 0     |
-| total       | 98    |
+| total       | 102   |
 
 | Severity | Filed | Open |
 | -------- | ----- | ---- |
 | P0       | 1     | 1    |
-| P1       | 34    | 33   |
-| P2       | 50    | 48   |
-| P3       | 13    | 13   |
-| total    | 98    | 95   |
+| P1       | 35    | 34   |
+| P2       | 51    | 49   |
+| P3       | 15    | 15   |
+| total    | 102   | 99   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
-| agent-now      | 64    | 64   |
-| owner-decision | 28    | 25   |
+| agent-now      | 67    | 67   |
+| owner-decision | 29    | 26   |
 | owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
 
 | Kind     | Filed | Open |
 | -------- | ----- | ---- |
 | bug      | 19    | 19   |
-| gap      | 35    | 35   |
-| debt     | 17    | 17   |
+| gap      | 36    | 36   |
+| debt     | 18    | 18   |
 | decision | 17    | 15   |
-| risk     | 10    | 9    |
+| risk     | 12    | 11   |
 
 | Area                                      | P0  | P1  | P2  | P3  | Filed | Open |
 | ----------------------------------------- | --- | --- | --- | --- | ----- | ---- |
 | Notification and alerting (M1)            | 1   | 4   | 5   | 0   | 10    | 10   |
 | Verdict reliability and observability     | 0   | 6   | 3   | 1   | 10    | 9    |
-| Prompt, verdict quality and calibration   | 0   | 2   | 2   | 0   | 4     | 4    |
+| Prompt, verdict quality and calibration   | 0   | 2   | 2   | 1   | 5     | 5    |
 | Video, ingest and key frames              | 0   | 4   | 6   | 1   | 11    | 11   |
-| Evaluation and S-bar measurement          | 0   | 8   | 11  | 1   | 20    | 19   |
+| Evaluation and S-bar measurement          | 0   | 9   | 12  | 2   | 23    | 22   |
 | Specialists                               | 0   | 2   | 4   | 0   | 6     | 6    |
 | Serving, deploy and supply chain          | 0   | 3   | 5   | 0   | 8     | 8    |
 | Security, privacy and licensing           | 0   | 3   | 3   | 1   | 7     | 7    |
@@ -349,6 +349,8 @@ see the Severity note in each block and the calibration paragraph in section 1.
   hypothesis, [A])
 - **ISS-087** P1, risk, agent-now. Measured numbers are specific to the llama.cpp build: `b7972` and
   `b11376` disagree on 44% of items for the same model, weights and prompt
+- **ISS-099** P1, risk, agent-now. The sweep ranked 12 model arms under one prompt format, so the
+  finish order may measure format fit and not model quality
 
 ## 3. Critical path
 
@@ -583,6 +585,7 @@ the last column.
 | OD-26 | The sweep's selection rule: what counts as better than the 8B, fixed before any arm is read for a pick      | (a) metrics, order, margin and a paired test on shared items; the 8B control as the yardstick or the F14 bars as absolute gates; gates beyond accuracy (refusals, VRAM, latency); (b) a winner confirmed once on items that did not choose it | ISS-097, ISS-087                                     | ISS-097              |
 | OD-27 | Weight tuning (LoRA, SFT, DPO, GRPO): in scope before go-live, deferred to a named trigger, or out of scope | (a) in scope now, with a data card per input, a locked scenario set and a real-frame holdout; (b) deferred to a trigger (the ISS-086 ceiling, the prompt and calibration rungs on a frozen split); (c) out of scope                           | ISS-095, ISS-096                                     | ISS-095              |
 | OD-28 | Dead service modules and the scene-change vertical: delete, wire or keep each                               | (a) delete the guided-constraints and trajectory modules first, then the scene-change vertical; (b) wire what the VLM path should use; (c) keep behind a committed keep-list with a reason per entry                                          | ISS-092                                              | ISS-092              |
+| OD-29 | The alert operating point: which prompt text and which numeric camera floor ship                            | ruled 2026-10-05 (a): the arm B rubric text and the per-camera default floor 60 ship as one paired change (mechanism: the owner's choice of the per-camera `risk_threshold`, `risk_filters` and the level map untouched)                      | the shipped operating point; ISS-008's first rung    | owner ruling 2026-10-05, Intake log |
 
 Note on OD-10. The ledger records a merge-authority delegation of 2026-10-01
 (`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md:764`), which per the reading covers merging after
@@ -593,7 +596,7 @@ a VLM branch: treat PR and merge as needing the user's go-ahead.
 Source column: 'reading, step n' is the reading of the docs, spec and ledger on 2026-10-03 (its
 decision list and step list); an `ISS-nnn` source is the issue that raised the decision. OD-1 to
 OD-11 follow the reading's decision list in order, OD-12 onward come from the register, and
-OD-23 and OD-24 from the sandbox intake, OD-25 from the intake after `d8482861`, and OD-26 to OD-28 from the intake that filed ISS-089 to ISS-098. ISS-093 extends OD-5 (the clip supply, bar and report) and ISS-096 extends OD-18 (the FLUX stills' licence), each by a dated update under the table.
+OD-23 and OD-24 from the sandbox intake, OD-25 from the intake after `d8482861`, and OD-26 to OD-28 from the intake that filed ISS-089 to ISS-098, and OD-29 from the 2026-10-05 owner ruling on the prompt-programme handoff. ISS-093 extends OD-5 (the clip supply, bar and report) and ISS-096 extends OD-18 (the FLUX stills' licence), each by a dated update under the table.
 
 Update 2026-10-03 (later), OD-24: the temperature-0 experiment in its 'Pending' cell has landed
 (handoff Addendum 4; Intake log entry 2026-10-03 (later)). The ruling is still the owner's.
@@ -657,6 +660,17 @@ broadcast it on the existing WebSocket event, leaving alert rules and delivery c
 follow-ups [A: no ruling is recorded in `docs/plans`]. That is option (a) of the cell above and
 does not choose or exclude (b) or (c) for the follow-ups. ISS-001 stays `open` (its update).
 The cell is kept as written.
+
+Update 2026-10-05, OD-29: ruled. Asked whether the stages 1-4 programme's one held-out survivor —
+arm B's rubric prompt text plus a numeric alert floor of 60 (doc 23, stage 3.5) — ships, the owner
+answered [O] 'accept', and when the pairing was put plainly (the arm B text alone at the shipped
+floor is FP-worse: 16.3% vs 6.7% benign alerts) chose the mechanism [O]: the per-camera
+`risk_threshold`, shipped default 60, with `risk_filters` and the `_risk_score_to_level` map
+untouched, and saved per-camera values keeping precedence. The pair is the operating point
+(measured: benign alerts 9/209 = 4.3% [2.3-8.0], incident hits 104/241 = 43.2% [37.1-49.5] against
+the shipped 6.7% [4.0-10.9] and 36.5% [30.7-42.8]; stage-3.5 recomputation, production-effective
+gate semantics). Durable source: the Intake log entry 2026-10-05; code as committed on
+`fix/vlm-assess-token-budget`.
 
 ## 5. The register
 
@@ -1729,7 +1743,7 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
 - **Severity note.** Verifier read P3: asks to reverse a ruled compose default, and the per-call
   proof softens the impact.
 
-### Prompt, verdict quality and calibration (4)
+### Prompt, verdict quality and calibration (5)
 
 What the model is asked, what it is shown, and how its score maps to the levels users see.
 
@@ -1788,7 +1802,12 @@ What the model is asked, what it is shown, and how its score maps to the levels 
   - `backend/services/vlm_client.py:518` `_render_prompt`: the whole scoring instruction is one
     clause, 'how threatening it is (`risk_score` 0-100)' (`backend/services/vlm_client.py:541`); no
     band anchors or examples, and the request is a single `user` message
-    (`backend/services/vlm_client.py:792`) with no system role [V]
+    (`backend/services/vlm_client.py:792`) with no system role [V].
+    - Update 2026-10-05 [V]: false at this tip. OD-29 (ruled 2026-10-05, Intake log) ships the arm B
+      severity-rubric clause in `_render_prompt` — band anchors 0-29/30-59/60-84/85-100 with the
+      calm-neutrality and ordinary-visitor rules. This block's subject (a rubric, then a measured
+      mapping from scores to the level bands) is half done: the rubric rung is met by the shipped
+      text, the measured mapping is not. The single-message, no-system-role facts still hold.
   - The bands S2/S3 are judged on are 29/59/84 (`backend/core/config.py:2423` `severity_low_max`
     default 29, `:2429` 59, `:2435` 84; `backend/evaluation/levels.py:22`); the prompt never
     mentions them [V]
@@ -1934,7 +1953,8 @@ What the model is asked, what it is shown, and how its score maps to the levels 
     agent-reported, doc 20 section 5]
   - The rungs doc 20 puts before any fine-tune are only partly tracked. The prompt carries no scale
     (`backend/services/vlm_client.py` `_render_prompt`: 'how threatening it is (risk_score
-    0-100)') [V]. S3 is 88/241 = 36.5% with it (S2 18/209) and 105/241 = 43.6% with a rubric arm
+    0-100)') [V]. Update 2026-10-05 [V]: false at this tip — OD-29 ships the band-anchored rubric
+    clause; the scale rung is met. S3 is 88/241 = 36.5% with it (S2 18/209) and 105/241 = 43.6% with a rubric arm
     that raises S2 to 34/209 = 16.3%, both development arms and not holdout readings [V: re-derived
     in this session from `$AGENT_GPU_DIR/out/sbroot/eval/tierb-v0/eval.sqlite`, runs `4a94b256` and
     `696c7168`, through `backend/evaluation/levels.py`; the same counts as ISS-086's update]. ISS-008
@@ -2061,6 +2081,31 @@ replay` and the shipped `VlmClient`, on a named llama.cpp build and quantization
   free experiments (Addendum 5, item 2). P1 is a defensible reading, since it is the one lever the
   owner named that OD-2 omits and a first run could be spent on uncleared data. An independent
   re-read on 2026-10-03, against the sources above, agrees with P2.
+
+
+#### ISS-101 — `repeat_penalty: 1.0` moves the score on 8 of 37 events in both directions and nets ~0 discrimination: the sampler-order mechanism is confirmed, the knob is useless, no action
+
+`P3` · `risk` · actor `agent-now` · status `open` · added 2026-10-04 (after `ab094046`)
+
+- **Evidence.** Probe 4, concurrency-corrected, 37 events: `nc` AUROC 0.625 vs `nc_rp1` 0.643 — ~6 of
+  340 incident×benign pairs — with 8 scores changed in both directions (a floor-60 incident falls
+  60 → 30 and loses its hit, three benigns rise); the pre-correction read had `nc_rp1` at 0.666
+  taking 12/17 hits, so the contamination had flattered the penalty arm [A: doc 22 section 2].
+  Mechanism: llama.cpp runs penalties (`repeat_penalty` default 1.1) before temperature and the
+  penalties see grammar-feasible candidates, digits included, so temp-0 greedy is reproducible but
+  penalty-shaped rather than the model's argmax [A: doc 22 section 4 item 4]; the shipped assess body
+  sets `temperature` and `max_tokens` and neither knob, so nothing here is a production diff [V: grep
+  of `backend/services/vlm_client.py` for `repeat_penalty`/`presence_penalty`/`frequency_penalty`,
+  empty].
+- **Acceptance / closes it.** No code change is proposed: the row exists to bound a claim ("our
+  greedy scores are the model's ranking") and to retire `repeat_penalty: 1.0` from doc 22 section 6
+  item 2's estimator list. Closes on the owner reading it into the OD-24 residual (the shipped
+  sampling policy) or ruling the knob out of scope. Depends on OD-24. Tracked as: doc 22 sections 2,
+  4.4 and 6 item 2.
+- **Update 2026-10-05 (this block's filing).** Merged by the owner's instruction of 2026-10-05
+  ('merge'); filed unverified by a second reader, as the draft flags. OD-29 changed the shipped
+  prompt TEXT (the rubric clause), not the sampler knobs, so the production-diff claim above still
+  holds at this tip [V: the same grep re-run at this tip].
 
 ### Video, ingest and key frames (11)
 
@@ -2565,7 +2610,7 @@ Clips, frame selection, tracking and the detector gate.
   work (OD-5 gates ISS-002 and ISS-003) could be read as P1. The supply figures are [C] from an
   off-repo index that changes if the renderer runs; re-count before relying on them.
 
-### Evaluation and S-bar measurement (20)
+### Evaluation and S-bar measurement (23)
 
 Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
 
@@ -3196,7 +3241,8 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     still separates them is the open question]
   - S3 at temperature 0 is 88/241 = 36.5% (handoff Addendum 4); the shipped prompt gives no scoring
     rubric (`backend/services/vlm_client.py` `_render_prompt`: 'how threatening it is (`risk_score`
-    0-100)'), see ISS-008 [V]
+    0-100)'), see ISS-008 [V]. Update 2026-10-05 [V]: false at this tip — OD-29 ships the rubric
+    clause; this experiment's arm B text is now the shipped text, at the paired floor 60.
   - The owner ruled that whether S3 at least 90% is attainable from a single still is decided after
     the free experiments, with the bar kept as is until then (handoff Addendum 5, item 2) [O]
   - Not covered elsewhere in this register: ISS-008 tests a prompt-and-calibration remedy, ISS-015
@@ -3244,7 +3290,9 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   450 sets, greedy, through the shipped client with the renderer check bypassed and labelled: arm A,
   the shipped prompt (`20261003T154038Z-qwen3-vl-8b-armA-shipped`), and arm B, a rubric that replaces
   the one clause 'how threatening it is (`risk_score` 0-100)'
-  (`20261003T161804Z-qwen3-vl-8b-armB-rubric`). Both are development arms and not a holdout: the
+  (`20261003T161804Z-qwen3-vl-8b-armB-rubric`). Update 2026-10-05: under OD-29 that arm's text is
+  the shipped text, paired with the numeric floor 60 (Intake log); the development-arm label stands
+  as filed. Both are development arms and not a holdout: the
   rubric was written knowing the corpus, so adopting it needs ISS-016's frozen split. I re-derived
   the readings from the eval store (`$AGENT_GPU_DIR/out/sbroot/eval/tierb-v0/eval.sqlite`: the
   `results` rows of the two `eval_run_id`s in the `run.json` files (`4a94b256...` for arm A and
@@ -4023,6 +4071,80 @@ docs/plans/2026-09-23-vss-gaming-gpu-ledger.md` shows 0 in its deleted column (a
   register's critical path says the corpus build and the H3 clip rounds still have no ledger row; no
   R-row in doc 12 (`grep -iE "synthbench|clip round|corpus"` of
   `docs/vss-integration/12-postponed-roadmap.md` is empty); no ISS block before this one.
+
+#### ISS-099 — The sweep ranked 12 model arms under one prompt format, so the finish order may measure format fit and not model quality: finalists need a top-2 x 2-3 format re-qualification
+
+`P1` · `risk` · actor `agent-now` · status `open` · added 2026-10-04 (after `95505d7d`)
+
+- **Evidence.** Doc 22 section 5: meaning-preserving reformatting swings scores up to 76 points and
+  format performance correlates weakly across families (Sclar et al., arXiv:2310.11324), so "one
+  fixed prompt format across models is methodologically unsound for comparison" — and the 15-arm
+  sweep used the one shipped prompt for every family; doc 22 section 6 item 4 states the rule the
+  re-runs must follow (≥ 2 formats) [A: read; the sweep is off-repo, not re-run].
+- **Acceptance / closes it.** The owner writes a format term into OD-26 (the sweep's selection rule)
+  and the top-2 finalists are re-qualified at 2-3 formats each on the 450 tierb-v0 sets, item-level,
+  committed beside the sweep report — owner-decision for the rule, agent-now for the runs. Depends on
+  ISS-097 (the report and the rule). Tracked as: doc 22 sections 5 and 6 item 4; nothing in the
+  register or ledger names format as a sweep confound.
+- **Update 2026-10-05 (this block's filing).** Merged into this register by the owner's instruction
+  of 2026-10-05 ('merge'), from the draft kit banked with the stage-1 scratch; filed unverified by a
+  second reader, which the draft itself flags — the register's pattern is that verifiers read
+  severity lower than the drafter.
+
+
+#### ISS-100 — The 2026-10-04 banking follow-up is met and gets an id so the record can point at it: probe arm texts, harnesses, result rows and both researcher reports are in-repo at `docs/research/2026-10-04-vlm-prompt/`
+
+`P3` · `debt` · actor `agent-now` · status `open` · added 2026-10-04 (after `ab094046`)
+
+- **Evidence.** `ab094046` adds 9 files there — both researcher tracks' full reports, the probe-3 arm
+  ladder, `probe3.py`/`results3.jsonl` (185 rows), `probe4.py`/`probe4_redo.py`/`results4-final.jsonl`
+  (the concurrency-corrected 90-row merge) — with a README saying the multi-MB logprobs captures
+  stayed out [V: `git show --stat ab094046`; `ls` of the directory]; doc 22 section 7 strikes the
+  older "bank the arm texts + probe logs in-repo" entry as done and names the directory [V: read].
+- **Acceptance / closes it.** Write the `ab094046` closure line under the older entry and put this id
+  into the pointer that still reads "(ISS pending)" at doc 22 line 37, which section 2 never got
+  after section 7 declared it closed [V: both lines read]. The older entry is doc 22's own follow-up
+  line and not a register block: a grep of this register for `bank`, `arm text`, `in-repo` and
+  `scratchpad` finds no filed issue whose subject is the 2026-10-04 artifact store (ISS-086's
+  acceptance is the three doc-20 experiments) [V: grep and read]. Tracked as: doc 22 section 7 and
+  the README doc map's doc-22 row.
+- **Update 2026-10-05 (this block's filing).** Merged by the owner's instruction of 2026-10-05
+  ('merge'). Both doc-22 pointers now carry dated notes — section 2's follow-up line and the
+  section-5 heading's `/tmp/research/` path (notes appended, the frozen text unchanged) — which
+  meets the acceptance; it stays `open` until the owner rules that a dated note on a frozen doc
+  closes a record row (the draft itself offers dropping the block and keeping only its Intake
+  lines, so the id's status is the owner's call).
+
+#### ISS-102 — One client per server is the rule for every run kit and the stage-1 kit enforces it mechanically; a prompt-cache deficit is NOT an overlap (owner-approved 2026-10-04) — candidate standing rule
+
+`P2` · `gap` · actor `owner-decision` · status `open` · added 2026-10-04 (after `95505d7d`)
+
+- **Evidence.** Two streams on one llama.cpp server decode in one batch and batched greedy decoding
+  differs from solo: the host replay matched the `b11376` control 305/305 solo, then differed on 5 of
+  the next 13 (10 → 75, 60 → 85) while sharing `probe8b` with probe 4 from 19:07-19:14 UTC; probe 4's
+  first 11 rows per arm were re-run solo and 5 of 29 (verdict, score) pairs changed [A:
+  `docs/plans/2026-10-04-stage1-handoff-to-vss5.md` section 0, an untracked file, and doc 22 section
+  2]. The guard: `replay_stage1.py` waits for an idle server and requires the server's counters to move
+  by exactly the call's own usage, with "a `d_prompt` deficit is NOT an overlap: llama.cpp's
+  prompt-prefix cache serves part of a solo call's prompt", marked "Owner-approved 2026-10-04" [A:
+  read from off-repo scratch at `$AGENT_GPU_DIR/out/experiments/2026-10-04-stage1/`].
+- **Acceptance / closes it.** Both definitions land in a committed document (a run-kit README or
+  `docs/vss-integration/AGENTS.md`) — (i) one client per server, enforced by a guard not a convention;
+  (ii) the overlap test (waited, anything left in flight, or counters moved beyond the call's own
+  usage) with a prefix-cache deficit explicitly excluded — and the owner's approval gets a tracked
+  source, since today it exists only as a comment in off-repo scratch and an untracked handoff.
+  Depends on ISS-087 (the conditions line that should carry occupancy). Tracked as: the stage-1 guard;
+  no repo document states the rule.
+- **Update 2026-10-05 (this block's filing).** Merged by the owner's instruction of 2026-10-05
+  ('merge'). Half of the acceptance is now met: the two definitions are committed as the
+  'GPU run kits: one client per server' section of `docs/vss-integration/AGENTS.md`, and the
+  owner's 2026-10-04 approval of the cache-deficit exclusion plus the 2026-10-05 ratification of
+  the `d_predicted` amendment have a tracked source in this register's Intake log entry
+  2026-10-05. Stays open for the guard's own home: the stage-4 programme's
+  amendment (the co-tenancy test is wait ∨ anything left in flight ∨ `d_prompt` surplus over the
+  call's own usage by more than 8 — `d_predicted` is a client ESTIMATE and wobbles ±10 between
+  byte-identical replays, so it does not carry the rule) still lives only in the off-repo stage-1
+  kit, and no committed run kit yet enforces (i) mechanically.
 
 ### Specialists (6)
 
@@ -6506,3 +6628,69 @@ Three more commits landed after `d8482861`, the same day, on `docs/synthbench-h3
   OD-26 rule, whose content is the agent's **[A]** and was set after the readings were seen. **No arm
   advances.** ISS-097 is `done`. The Dashboard counts it.
 - PR #6785 (the State of the stack) was merged by the owner as `6b33a2af`.
+
+### 2026-10-04 (the prompt-programme intake: ISS-099 to ISS-102)
+
+- ISS-099 added (P1, risk, agent-now; 'Evaluation and S-bar measurement'): the sweep's
+  one-fixed-format cross-model ranking is format-confounded (Sclar et al., arXiv:2310.11324 — doc 22
+  section 5), so the finalists re-qualify at top-2 models x 2-3 formats on the 450 sets under a format
+  term in OD-26 [A]. Depends on ISS-097, whose "once the sweep ends" clause is now met: `results.jsonl`
+  holds 15 of 15 rows and `sweep.log` ends `sweep finished` at 01:38 UTC 2026-10-04 [V: read off-repo;
+  the sweep's numbers are not analysed or claimed here].
+- ISS-100 added (P3, debt, agent-now; 'Evaluation and S-bar measurement'): `ab094046` banks the probe-3
+  arm ladder, the probe 3/4 harnesses and result rows and both researcher reports in
+  `docs/research/2026-10-04-vlm-prompt/`, which closes the older banking entry (doc 22 section 2's
+  follow-up line, struck in section 7) and gives it the id that line still calls "(ISS pending)". Two
+  stale doc-22 pointers take dated notes, not body edits, since the doc is marked frozen: the
+  "(ISS pending)" line, and the section 5 heading's `/tmp/research/qwen-gemma-report.md` path
+  [V: read].
+- ISS-101 added (P3, risk, agent-now; 'Prompt, verdict quality and calibration'):
+  `repeat_penalty: 1.0` moves the score on 8 of 37 events and nets ~6 of 340 pairs of AUROC (corrected
+  `nc` 0.625 vs `nc_rp1` 0.643) — the sampler-order mechanism of doc 22 section 4.4 is confirmed, the
+  knob is useless, no action; it also corrects the pre-correction `nc_rp1` 0.666/12-of-17 read, which
+  the shared-server window had flattered [A]. Closes on the OD-24 residual.
+- ISS-102 added (P2, gap, owner-decision; 'Evaluation and S-bar measurement'): one client per server
+  becomes a candidate standing rule for future run kits, with the stage-1 guard's mechanical check and
+  the owner-approved definition that a prompt-prefix-cache deficit is NOT an overlap; closes when both
+  definitions sit in a committed document and the approval has a tracked source. Depends on ISS-087.
+- Filed as drafted at tip `95505d7d`, unverified by a second reader (the draft flags this; the
+  register's pattern is that verifiers read severity lower). The owner's instruction to merge them
+  into this register is [O: asked and answered in the session on 2026-10-05, recorded by this entry
+  as its durable source]; the four blocks, the Dashboard counts and this entry land in one commit.
+
+### 2026-10-05 (OD-29: the operating point ships, and the co-tenancy rule is ratified)
+
+- OD-29 ruled [O: asked and answered in the session on 2026-10-05, recorded by this entry as its
+  durable source]: the owner accepted the stages 1-4 programme's one held-out survivor — the arm B
+  rubric prompt text plus a numeric alert floor of 60 (doc 23, stage 3.5) — as the shipped operating
+  point, and chose the mechanism: the per-camera `risk_threshold` with shipped default 60, set in the
+  model default, the get-or-create route and the filter's no-row fallback; `risk_filters` and the
+  `_risk_score_to_level` map untouched; a camera with a saved threshold keeps its value. The pair
+  ships as ONE change — the arm B text alone at the old effective floor is FP-worse (16.3% vs 6.7%
+  benign alerts) — measured production-effective on the 450 `tierb-v0` stills at temp 0: benign alerts
+  9/209 = 4.3% [2.3-8.0], incident hits 104/241 = 43.2% [37.1-49.5], against the shipped
+  6.7% [4.0-10.9] and 36.5% [30.7-42.8] [V: recomputed in-session from the stage-3.5 captures,
+  `$AGENT_GPU_DIR/out/experiments/2026-10-04-stage1/stage35/results-operating-point-ship.txt`].
+  Code: the rubric clause ships byte-identical to the measured arm (rubric_text in `run.json` of eval
+  run `696c71687e264577b4deb6bd5c99af26`, clause sha256
+  `75564981ca9d22cdaab967e83052b55061abf770b8fcb20e2cfe69babc929811`; the edit is AST-verified as
+  `old.replace(old_clause, rubric)`), `DEFAULT_CAMERA_RISK_THRESHOLD = 60` in
+  `backend/models/notification_preferences.py`, the filter's no-row fallback and the get-or-create
+  route read the same constant, and two tests pin that a no-row camera takes the floor and a saved
+  lower value still wins. This is an operating-point change, not a bar claim: those figures are the
+  production-effective gate reading (alerts on benign stills 6.7% to 4.3%, incident hits 36.5% to
+  43.2%), while the F14 S2/S3 bars are band metrics — S3's 90% remains far away, and doc 23's
+  A0 bound (44/64 incidents prompt-addressable) says no prompt reaches it.
+- ISS-102's owner-approval half is ratified [O, same ruling]: the co-tenancy guard rule is (i) one
+  client per server, enforced by a guard and not a convention, and (ii) the overlap test — the
+  guard waited for an idle server, nothing is left in flight, and a `d_prompt` surplus over the
+  call's own usage greater than 8 means overlap — with the amendment of 2026-10-05 that
+  `d_predicted` (a client ESTIMATE, wobbles ±10 between byte-identical replays) does not carry the
+  rule and a prompt-prefix-cache deficit is NOT an overlap. The definitions now have a committed
+  home (`docs/vss-integration/AGENTS.md`, 'GPU run kits: one client per server'); ISS-102 stays
+  open for the guard's mechanical home.
+- The push the programme's item 4 authorised is executed same-day: branch
+  `fix/vlm-assess-token-budget` (the token-budget fix `26b900bc`, the OD-29 pair, and the register
+  and doc updates of this entry) moves to the owner's remote by push from the sandbox. This
+  supersedes nothing in OD-10 — the delegation reading in section 4's OD-10 note still treats a new
+  PR or merge as needing the owner's go-ahead; this entry records the push of this branch only.

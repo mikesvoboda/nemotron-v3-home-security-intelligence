@@ -17,6 +17,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from backend.models.notification_preferences import (
+    DEFAULT_CAMERA_RISK_THRESHOLD,
     CameraNotificationSetting,
     DayOfWeek,
     NotificationPreferences,
@@ -150,11 +151,16 @@ class TestCameraNotificationSetting:
     """Tests for CameraNotificationSetting model."""
 
     def test_default_values(self):
-        """Test that model initializes with correct default values."""
+        """Test that model initializes with correct default values.
+
+        The risk-threshold default is the OD-29 shipped alert floor (60),
+        paired with the severity-rubric scoring clause in the assess prompt;
+        a saved per-camera value still wins.
+        """
         setting = CameraNotificationSetting(camera_id="front_door")
         assert setting.camera_id == "front_door"
         assert setting.enabled is True
-        assert setting.risk_threshold == 0
+        assert setting.risk_threshold == DEFAULT_CAMERA_RISK_THRESHOLD == 60
         assert setting.id is not None  # UUID generated
 
     def test_custom_values(self):

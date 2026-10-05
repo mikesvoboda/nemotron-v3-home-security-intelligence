@@ -141,6 +141,61 @@ class TestNotificationFilterService:
 
         assert result is True
 
+    def test_no_camera_setting_takes_the_shipped_default_floor(self):
+        """OD-29 (owner ruling 2026-10-05): "no setting row" means the shipped
+        default floor (60), not "no floor". Before OD-29 the default was 0 and
+        the two were indistinguishable; under the shipped operating point a
+        camera that never saved a setting must NOT exempt itself from the
+        alert floor - the pair (rubric prompt text + floor 60) is the measured
+        operating point, and exemptions are exactly what breaks it."""
+        prefs = NotificationPreferences(enabled=True)  # shipped: {crit,high,med}
+        service = NotificationFilterService()
+
+        # medium band score 45 clears the level filter but sits under 60
+        assert (
+            service.should_notify(
+                risk_score=45,
+                camera_id="unset_camera",
+                timestamp=datetime(2025, 1, 7, 12, 0),
+                global_prefs=prefs,
+                camera_setting=None,
+            )
+            is False
+        )
+        # at the floor it passes
+        assert (
+            service.should_notify(
+                risk_score=60,
+                camera_id="unset_camera",
+                timestamp=datetime(2025, 1, 7, 12, 0),
+                global_prefs=prefs,
+                camera_setting=None,
+            )
+            is True
+        )
+
+    def test_saved_camera_threshold_below_default_still_wins(self):
+        """OD-29 keeps a saved per-camera value authoritative, including one
+        LOWER than the shipped floor - the floor is a default, not a clamp."""
+        prefs = NotificationPreferences(enabled=True)
+        camera_setting = CameraNotificationSetting(
+            camera_id="test_camera",
+            enabled=True,
+            risk_threshold=10,  # a homeowner-saved value below the shipped default
+        )
+        service = NotificationFilterService()
+
+        assert (
+            service.should_notify(
+                risk_score=45,
+                camera_id="test_camera",
+                timestamp=datetime(2025, 1, 7, 12, 0),
+                global_prefs=prefs,
+                camera_setting=camera_setting,
+            )
+            is True
+        )
+
     def test_should_notify_during_quiet_hours(self):
         """Test that notifications are blocked during quiet hours."""
         prefs = NotificationPreferences(enabled=True, risk_filters=[RiskLevel.HIGH.value])

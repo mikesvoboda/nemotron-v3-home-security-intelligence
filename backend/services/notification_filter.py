@@ -18,6 +18,7 @@ from sqlalchemy import select
 
 from backend.core.config import get_settings
 from backend.models.notification_preferences import (
+    DEFAULT_CAMERA_RISK_THRESHOLD,
     CameraNotificationSetting,
     NotificationPreferences,
     QuietHoursPeriod,
@@ -115,15 +116,23 @@ class NotificationFilterService:
         if risk_level.value not in global_prefs.risk_filters:
             return False
 
-        # Check per-camera settings if provided
-        if camera_setting is not None:
-            # Check if camera notifications are enabled
-            if not camera_setting.enabled:
-                return False
+        # Check per-camera settings if provided. OD-29 (owner ruling
+        # 2026-10-05): "no row" means the shipped default setting, not "no
+        # floor" - the numeric floor is DEFAULT_CAMERA_RISK_THRESHOLD either
+        # way. Under the old default 0 the two were indistinguishable; with
+        # the floor at 60 they are not, and a camera that never saved a
+        # setting must not silently exempt itself from the alert floor.
+        if camera_setting is not None and not camera_setting.enabled:
+            return False
 
-            # Check if risk score meets camera threshold
-            if risk_score < camera_setting.risk_threshold:
-                return False
+        # Check if risk score meets the camera's threshold (OD-29)
+        threshold = (
+            camera_setting.risk_threshold
+            if camera_setting is not None
+            else DEFAULT_CAMERA_RISK_THRESHOLD
+        )
+        if risk_score < threshold:
+            return False
 
         # Check quiet hours if provided
         if quiet_periods:
@@ -213,7 +222,8 @@ async def decide_notification(
 
     A failed settings read never silences an alert: on any read error (or with
     no session) the decision falls back to the shipped default preferences
-    (enabled; medium, high and critical), so a high-risk verdict still pages and
+    (enabled; medium, high and critical) and the shipped default camera floor
+    (OD-29: 60), so a high-risk verdict still pages and
     a NULL-score event still follows the detector-only rule. The caller owns the
     session; run this in its OWN short session after the event has committed,
     because a failed statement can abort the surrounding Postgres transaction.
