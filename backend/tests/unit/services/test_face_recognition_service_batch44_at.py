@@ -406,6 +406,19 @@ async def test_add_face_embedding_zero_norm_not_divided() -> None:
     assert rec.calls == [("info", (ADDED_MSG, "Ann", 7, 1.0), {})]
 
 
+async def test_add_face_embedding_default_quality_is_one() -> None:
+    # DISPOSITION EXTENSION (pre-run-1): the 1.0 -> 2.0 default twin survived
+    # the first sweep because every other success-path row passes
+    # quality_score EXPLICITLY — an unobserved default. Omitting the arg
+    # makes the default OBSERVABLE twice: stored field + logged arg.
+    s = Session(results=[person(7, "Ann")])
+    svc = frs.FaceRecognitionService.__new__(frs.FaceRecognitionService)
+    with log_rec() as rec:
+        await svc.add_face_embedding(s, 7, [3, 4], model_id="m1")
+    assert s.added[0].quality_score == 1.0
+    assert rec.calls == [("info", (ADDED_MSG, "Ann", 7, 1.0), {})]
+
+
 async def test_add_face_embedding_half_norm_vector_normalized() -> None:
     # '> 1' twin stores the RAW half-length bytes 9a99993ecdcccc3e;
     # shipped normalizes to exactly N068 bytes (measured).
