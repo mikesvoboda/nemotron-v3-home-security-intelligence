@@ -33,6 +33,21 @@ observable-it-writes]]).
   (stable-sort tie breaks by input order — measured).
 - GpuDevice.vram_available_mb is a COMPUTED property (total - used —
   measured), so expected values derive from the ctor numbers.
+- BIRTH extension (post-run-1: the battery newly covered 73 keys, 11
+  survived).  The AI_SERVICE_VRAM_REQUIREMENTS_MB miss-default trio (0 ->
+  1 / None / trailing-comma) needs an absent service ACCUMULATED with a
+  present one landing EXACTLY on capacity: shipped silent, default-1 tips
+  the overage, None / trailing-comma (both miss -> None) raise TypeError
+  on `usage += None` (measured).  The VRAM fallback max(sorted_gpus, key=
+  ...) trio only raises / diverges with >=2 GPUs and a PRIOR successful
+  assignment skewing gpu_remaining (a pure fallback keeps remaining ==
+  totals so max-by-remaining agrees with first-element) — measured.
+  GpuDevice is an UNORDERED dataclass, so max(sorted_gpus, ) / key=None
+  RAISES once a real comparison happens.  The joiner and == -> != affinity
+  twins need 2+ co-tenants (single co-tenant join is separator-blind) and a
+  THIRD unrelated one (the self-match and shipped-match strings are BYTE-
+  IDENTICAL, so only the COUNT differs — [[fragment-count-asserts-pass-xx-
+  mutants]]).
 """
 
 from __future__ import annotations
@@ -519,6 +534,20 @@ def test_validate_vram_total_one_still_flags() -> None:
     assert out == ["GPU 0 is over budget by 1 MB (assigned: 2 MB, available: 1 MB)"]
 
 
+def test_validate_vram_absent_service_accumulates_with_present() -> None:
+    # BIRTH trio (vram_mb default 0 -> 1 / None / trailing-comma): 'ghost'
+    # is ABSENT from the table and ACCUMULATES after yolo fills the GPU
+    # EXACTLY.  Shipped default 0 -> usage 100 == total 100 -> SILENT
+    # (the used>total>0 chain stays false).  Default 1 -> 101 > 100 > 0 ->
+    # exact overage message.  Default None / trailing-comma-2-arg: the 2-arg
+    # .get RAISES KeyError and the None default poisons `usage += None`
+    # with TypeError (measured) — both RED by raising.
+    gpus = [dev(0, 100)]
+    with mock.patch.object(gc, "AI_SERVICE_VRAM_REQUIREMENTS_MB", {"ai-yolo26": 100}):
+        out = gc._validate_vram_assignments([asg("ai-yolo26", 0), asg("ghost", 0)], gpus)
+    assert out == []
+
+
 # ============================================================================
 # _validate_affinity_constraints
 # ============================================================================
@@ -548,6 +577,33 @@ def test_affinity_none_gpu_participates_in_no_group() -> None:
 
 def test_affinity_exclusive_alone_is_silent() -> None:
     assert gc._validate_affinity_constraints([asg("solo", 0, exclusive=True)]) == []
+
+
+def test_affinity_joiner_and_incompatible_count_pin() -> None:
+    # BIRTH pair.  m13 mutmaps the joiner ", " -> "XX, XX": a SINGLE co-
+    # tenant never exercises the separator (one element joins to itself), so
+    # 'mine' shares GPU 0 with TWO others — shipped renders "b, c", the XX
+    # joiner renders "bXX, XXc" (FULL-string equality, not a fragment).
+    # m14 flips `other.service == incompatible_service` to !=: the mutant
+    # matches every OTHER co-tenant with the SAME byte-identical message,
+    # so 'hater' (incompatible_with ['enemy']) on a GPU shared with 'enemy'
+    # AND an unrelated 'bystander' yields shipped 1 warning vs the mutant's 2
+    # — the count differs, the strings do not ([[fragment-count-asserts...]]
+    # territory: exact LIST equality is the pin).
+    out = gc._validate_affinity_constraints(
+        [
+            asg("mine", 0, exclusive=True),
+            asg("b", 0),
+            asg("c", 0),
+            asg("hater", 1, incompatible=["enemy"]),
+            asg("enemy", 1),
+            asg("bystander", 1),
+        ]
+    )
+    assert out == [
+        "Service 'mine' requires exclusive GPU but shares GPU 0 with: b, c",
+        "Service 'hater' is incompatible with 'enemy' but both are on GPU 1",
+    ]
 
 
 # ============================================================================
@@ -732,6 +788,44 @@ def test_calc_vram_based_overflow_warns_with_pinned_index() -> None:
         )
     assert [(x.service, x.gpu_index) for x in a] == [("huge", 0)]
     assert w == ["Service 'huge' assigned to GPU 0 but may exceed VRAM budget"]
+    assert_explicit_none_overrides(a)
+
+
+def test_calc_vram_based_fallback_max_by_remaining_skewed() -> None:
+    # BIRTH trio on the fallback line `best_gpu = max(sorted_gpus, key=
+    # lambda g: gpu_remaining[g.index])`.  Construction (measured against
+    # the VRAM_BASED loop): gpus sorted DESC by total = [g0(100), g1(50)];
+    # table {"s1": 60, "s2": 60}.  s1 fits g0 first (100>=60) -> remaining
+    # [40, 50]; s2 does NOT fit 40 -> fallback branch.  Shipped max-by-
+    # remaining picks g1 (50>40) -> GPU 1.  key=None and the 1-arg max()
+    # twin RAISE (GpuDevice is an UNORDERED dataclass and a real comparison
+    # happens between two different GPUs), and key=lambda g: None also
+    # raises comparing None keys — a pure 2-service input with NO prior fit
+    # would keep remaining == totals where max-by-remaining agrees with
+    # first-element, so the prior fit is load-bearing.
+    gpus = [dev(0, 100), dev(1, 50)]
+    with mock.patch.object(gc, "AI_SERVICE_VRAM_REQUIREMENTS_MB", {"s1": 60, "s2": 60}):
+        a, w = gc._calculate_auto_assignments(
+            GpuAssignmentStrategy.VRAM_BASED, gpus, services=["s1", "s2"]
+        )
+    assert [(x.service, x.gpu_index) for x in a] == [("s1", 0), ("s2", 1)]
+    assert w == ["Service 's2' assigned to GPU 1 but may exceed VRAM budget"]
+    assert_explicit_none_overrides(a)
+
+
+def test_calc_latency_three_gpus_pick_last_not_next() -> None:
+    # BIRTH m131: `other_gpu = sorted_gpus[-1]` -> [+1].  With exactly TWO
+    # GPUs [+1] == [-1] (that's why the old 2-GPU rows can't kill it): with
+    # THREE GPUs sorted by compute score [g0(9.0), g1(8.6), g2(1.0)],
+    # shipped picks g2 (the SLOWEST, index 2) while [+1] picks g1 (index 1).
+    # (m130 `or True` / m133 `>= 1` twins are EQUIV: they only change which
+    # branch runs when len==1, where sorted_gpus[-1] IS fastest_gpu.)
+    gpus = [dev(0, 1000, cc="9.0"), dev(1, 500, cc="8.6"), dev(2, 100, cc="1.0")]
+    a, w = gc._calculate_auto_assignments(
+        GpuAssignmentStrategy.LATENCY_OPTIMIZED, gpus, services=["ai-yolo26", "rest"]
+    )
+    assert w == []
+    assert [(x.service, x.gpu_index) for x in a] == [("ai-yolo26", 0), ("rest", 2)]
     assert_explicit_none_overrides(a)
 
 
