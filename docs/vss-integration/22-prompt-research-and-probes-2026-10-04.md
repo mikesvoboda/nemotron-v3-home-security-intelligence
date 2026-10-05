@@ -35,6 +35,8 @@ Probe 3 artifacts: `results3.jsonl` (185 rows) and the arm texts live in the ses
 scratchpad (not durable); the arm ladder is specified in `prompt-draft-1.md` (two
 INDEPENDENT questions + band names / + taxonomy / + tiebreakers / + point examples).
 **Open follow-up: bank the arm texts in-repo before the scratchpad is lost** (ISS pending).
+Update 2026-10-05: the follow-up was met in `ab094046` (see section 7) and carries the id
+ISS-100; the "(ISS pending)" text above is kept as frozen.
 
 **Probe 4 (complete 2026-10-04, corrected — see the concurrency note below).** Arms:
 NVIDIA-condensed criterion text (`nc`), the same text with `repeat_penalty: 1.0`
@@ -218,6 +220,10 @@ seconds>`); stills get no template timestamps — frame labels must be our own p
    (replay determinism), but it should be a stated trade-off, not an assumption. — V.
 
 ## 5. Qwen vs Gemma: what is portable (researcher track 2, full report `/tmp/research/qwen-gemma-report.md`, bank this file)
+
+Update 2026-10-05: the banking in the heading was done — the report is in-repo at
+[`docs/research/2026-10-04-vlm-prompt/qwen-gemma-portability-report.md`](../research/2026-10-04-vlm-prompt/qwen-gemma-portability-report.md)
+(`ab094046`, ISS-100); the `/tmp/` path above is kept as frozen.
 
 - **Semantics carry, format does not.** "Format performance only weakly correlates between
   models" — one fixed prompt format across models is methodologically unsound for comparison

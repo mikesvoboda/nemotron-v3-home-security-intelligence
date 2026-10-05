@@ -111,9 +111,27 @@ that fails to resolve means VSS moved, not that the finding was wrong.
 - **Measure on one build.** A number measured on one llama.cpp build or quantization is not the number on
   another (ISS-087); a cross-model comparison shares one build, and a build bump is a re-qualification
   with a control replay.
+
 - **When a roadmap item is picked up,** give it its own spec and mark it in 12 with the date and a
   link.
 
+## GPU run kits: one client per server
+
+Ratified by the owner 2026-10-05 (the approval of the cache-deficit exclusion is 2026-10-04; the
+durable source is this directory's 17 Intake log entry 2026-10-05; the live instrument and its
+history are ISS-102).
+
+- **One client per llama.cpp server, per run.** Two streams decode in one batch, and batched greedy
+  decoding differs from solo: a control that matched its solo twin 305/305 changed on 5 of its next
+  13 items while another stream shared the server. Enforce this with a guard in the kit, not a
+  convention.
+- **The overlap test.** A call is solo when the guard waited for an idle server, nothing is left in
+  flight, and the server's counters move by the call's own usage: a `d_prompt` surplus over the
+  call's own usage greater than 8 means overlap. `d_predicted` is a client ESTIMATE and wobbles
+  ±10 between byte-identical replays — it never carries the test alone.
+- **A prompt-prefix-cache deficit is NOT an overlap.** llama.cpp serves part of a solo call's
+  prompt from the prefix cache, so a `d_prompt` deficit against the call's estimate is normal and
+  must not trip the guard (owner-approved 2026-10-04).
 ## Related documentation
 
 - [`ai/AGENTS.md`](../../ai/AGENTS.md): the AI tier. Note that E4 corrects its on-demand Triton

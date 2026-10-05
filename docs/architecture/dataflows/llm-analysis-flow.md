@@ -188,7 +188,7 @@ Its two `ValueError` branches enforce the rule that the VLM never originates an 
 | Connect timeout                | 10 s                                                    | `ai_connect_timeout` (`backend/core/config.py:1093-1097`)                                         |
 | Wake ping read budget          | 90 s                                                    | `ai_vlm_wake_timeout_seconds` (`backend/core/config.py:1126-1133`)                                |
 | Engine URL                     | `http://localhost:8098`; `http://ai-vlm:8098` in Docker | `ai_vlm_url` (`backend/core/config.py:1042-1045`)                                                 |
-| Verdict output budget          | 1024 tokens                                             | `_ASSESS_MAX_TOKENS` (`backend/services/vlm_client.py:91`)                                        |
+| Verdict output budget          | 2048 tokens (raised from 1024 on 2026-10-04)             | `_ASSESS_MAX_TOKENS` (`backend/services/vlm_client.py:98`)                                        |
 | Context pool and slots         | 32768 across 2 slots = 16384 each                       | `docker-compose.prod.yml:205-206`, divided by the validator at `backend/core/config.py:1351-1365` |
 | Largest embedded key frame     | 8 MiB                                                   | `vlm_max_image_bytes` (`backend/core/config.py:1367-1374`)                                        |
 | Breaker threshold and recovery | 5 failures, 60 s                                        | `backend/services/vlm_client.py:247-250`                                                          |
@@ -424,16 +424,40 @@ One function renders the text half of the message. It is public because the anal
 
 The text it builds:
 
-**Source:** `backend/services/vlm_client.py:536-556`
+**Source:** `backend/services/vlm_client.py:549-593`
 
 ```python
-# Source: backend/services/vlm_client.py:536-556
+# Source: backend/services/vlm_client.py:549-593
         rows = self._grounded_boxes(rows, request)
         return (
             "You are the verification expert. The detections below were produced "
             "by an object detector on the attached frame(s). Decide whether the "
             "detected candidate is REAL and CORRECTLY IDENTIFIED (verdict), and "
-            "how threatening it is (risk_score 0-100). Answer ONLY with the "
+            # OD-29 (owner ruling 2026-10-05): the severity-rubric scoring clause
+            # from the 2026-10-03 arm B replay ships as the paired operating
+            # point with the per-camera numeric alert floor 60 - the two are one
+            # change (arm B text alone at the old floor is FP-WORSE than shipped:
+            # 16.3% vs 6.7% benign alerts; with floor 60: 4.3%). Text shipped
+            # byte-identical to the measured arm (rubric_text in run.json of
+            # eval run 696c71687e264577b4deb6bd5c99af26, sha256 of the clause
+            # 75564981ca9d22cdaab967e83052b55061abf770b8fcb20e2cfe69babc929811);
+            # evidence: docs/vss-integration/23-*.md and stage35/
+            # results-operating-point-ship.py there.
+            "how much risk the scene poses (risk_score 0-100): the potential "
+            "for harm to people or property if the scene is as it appears, "
+            "whether or not any aggression is visible yet. Score by these "
+            "bands: 0-29 low = routine, expected or harmless activity; "
+            "30-59 medium = unusual or ambiguous activity that warrants "
+            "attention, or an unfamiliar person or vehicle whose purpose is "
+            "unclear; 60-84 high = clear signs of a likely crime, hazard or "
+            "person in danger (for example someone entering or tampering with "
+            "a closed space or vehicle, taking items, holding a weapon or tool "
+            "in a threatening way, a child or injured person without "
+            "supervision near a hazard, fire or smoke); 85-100 critical = an "
+            "immediate, serious threat to life or property. A person who looks "
+            "calm can still be a high risk, so do not lower the score because "
+            "a person is calm or stationary; do not raise it for ordinary "
+            "visitors, residents, workers or animals. Answer ONLY with the "
             "verdict JSON object: verdict, risk_score, summary, reasoning, "
             "description, criteria (each name/passed/evidence), provenance "
             "(engine, model_id - copy the values from the served model's own "
@@ -456,6 +480,7 @@ The text it builds:
 | Component             | Source                                                             | Content                                                                                       |
 | --------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | Task sentence         | `_render_prompt`                                                   | verify the detector's candidates; answer only with the verdict JSON                           |
+| Scoring rubric        | `_render_prompt` (OD-29, 2026-10-05)                               | the `risk_score` bands 0-29/30-59/60-84/85-100 with examples; ships paired with the numeric alert floor 60 |
 | `Camera:`             | `VlmAssessContext.camera_id`                                       | the camera id; no camera name is read                                                         |
 | `Time:`               | `render_prompt_time` (`backend/services/capture_time.py:87`)       | the capture moment, as local wall time with zone and UTC offset when `CAMERA_TIMEZONE` is set |
 | `Zones:`              | `get_zones_for_detection` (`backend/services/zone_service.py:169`) | the zone names the batch sits in, plus the `zone_crossing` signal                             |
@@ -558,7 +583,7 @@ One user turn holds the image parts and the rendered text:
 | `messages[0].role`    | `user`                            | a single chat turn                             |
 | `messages[0].content` | image parts, then one text part   | up to 4 data-URI stills plus the fitted prompt |
 | `temperature`         | 0.0 on both attempts              | greedy decoding                                |
-| `max_tokens`          | 1024                              | the verdict's output budget                    |
+| `max_tokens`          | 2048                              | the verdict's output budget                    |
 | `response_format`     | `json_schema`, name `vlm_verdict` | constrained decoding                           |
 
 The schema is the generated contract file with `$ref`s inlined and grammar-unsafe constraints stripped — one source, never hand-copied:

@@ -93,3 +93,22 @@ doc 22's table, which is why "development arms" never shipped either.
 stage 4 ~3.0), each measured as run-name timestamp → capture last-write and logged against its
 pre-registered estimate at close-out; stage 3.5, A0, all analyses and the two-turn collapse probe
 were CPU-only. No arm was collected twice at temp 0.
+
+
+## 5. Follow-up (appended 2026-10-05, after the owner's answers; no text above changed)
+
+All four queued items got answers on 2026-10-05 [O: asked and answered in the session; durable
+sources named per item]:
+
+- **Ship-adjacent became shipped:** the owner accepted arm B text + floor 60 (OD-29; mechanism
+  chosen: the per-camera `risk_threshold` default 60, `risk_filters` and the level map untouched,
+  saved values win). Durable source: `17-action-plan.md` Intake log entry 2026-10-05 and the code on
+  `fix/vlm-assess-token-budget`; §3's first bullet reads "flagged, queued" as of its freeze and is
+  superseded by this entry, not rewritten.
+- **Register rows filed:** ISS-099..ISS-102 merged into `17-action-plan.md` on the owner's
+  instruction; §3's last bullet stands as the drafting record.
+- **The guard amendment is ratified** (co-tenancy = wait ∨ inflight ∨ d_prompt surplus over own+8;
+  `d_predicted` does not carry it): committed as 'GPU run kits: one client per server' in
+  `docs/vss-integration/AGENTS.md`, sourced to the same Intake entry; ISS-102 tracks the guard's
+  mechanical home.
+- **The push executed:** this branch moves to the owner's remote; nothing else about OD-10 changed.

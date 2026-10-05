@@ -109,6 +109,18 @@ class NotificationPreferences(Base):
         )
 
 
+# OD-29 (owner ruling 2026-10-05): the shipped numeric alert floor. Raised from
+# 0 to 60 as one change with the severity-rubric scoring clause in the assess
+# prompt (VLM client ``_render_prompt``); the pair is the operating point
+# measured at 450 tierb-v0 stills (benign alerts 9/209 = 4.3%, incident hits
+# 104/241 = 43.2%, frozen stage-3.5 semantics - see
+# docs/vss-integration/23-prompt-programme-stages-1-4-2026-10-05.md and OD-29
+# in docs/vss-integration/17-action-plan.md). A saved per-camera value wins;
+# a camera with no setting row takes this default too (NotificationFilterService
+# treats no-row as the shipped default setting, not as no floor).
+DEFAULT_CAMERA_RISK_THRESHOLD = 60
+
+
 class CameraNotificationSetting(Base):
     """Per-camera notification settings.
 
@@ -142,7 +154,7 @@ class CameraNotificationSetting(Base):
         if not hasattr(self, "enabled") or self.enabled is None:
             self.enabled = True
         if not hasattr(self, "risk_threshold") or self.risk_threshold is None:
-            self.risk_threshold = 0
+            self.risk_threshold = DEFAULT_CAMERA_RISK_THRESHOLD
 
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="notification_setting")

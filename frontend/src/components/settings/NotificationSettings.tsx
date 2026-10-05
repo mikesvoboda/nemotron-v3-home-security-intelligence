@@ -37,6 +37,7 @@ import {
   testNotification,
   type NotificationConfig,
 } from '../../services/api';
+import { DEFAULT_CAMERA_RISK_THRESHOLD } from '../../types/notificationPreferences';
 import NotificationHistoryPanel from '../notifications/NotificationHistoryPanel';
 
 export interface NotificationSettingsProps {
@@ -804,7 +805,8 @@ export default function NotificationSettings({ className }: NotificationSettings
                 {cameras.map((camera) => {
                   const setting = getCameraSetting(camera.id);
                   const isEnabled = setting?.enabled ?? true;
-                  const threshold = setting?.risk_threshold ?? 0;
+                  // No saved row => the shipped default floor, not 0 (OD-29)
+                  const threshold = setting?.risk_threshold ?? DEFAULT_CAMERA_RISK_THRESHOLD;
 
                   // Detect potential conflicts between camera threshold and global filters
                   const conflict = detectThresholdConflict(

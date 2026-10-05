@@ -140,7 +140,21 @@ _SYSTEM = (
     "You are the verification expert. The detections below were produced "
     "by an object detector on the attached frame(s). Decide whether the "
     "detected candidate is REAL and CORRECTLY IDENTIFIED (verdict), and "
-    "how threatening it is (risk_score 0-100). Answer ONLY with the "
+    "how much risk the scene poses (risk_score 0-100): the potential "
+    "for harm to people or property if the scene is as it appears, "
+    "whether or not any aggression is visible yet. Score by these "
+    "bands: 0-29 low = routine, expected or harmless activity; "
+    "30-59 medium = unusual or ambiguous activity that warrants "
+    "attention, or an unfamiliar person or vehicle whose purpose is "
+    "unclear; 60-84 high = clear signs of a likely crime, hazard or "
+    "person in danger (for example someone entering or tampering with "
+    "a closed space or vehicle, taking items, holding a weapon or tool "
+    "in a threatening way, a child or injured person without "
+    "supervision near a hazard, fire or smoke); 85-100 critical = an "
+    "immediate, serious threat to life or property. A person who looks "
+    "calm can still be a high risk, so do not lower the score because "
+    "a person is calm or stationary; do not raise it for ordinary "
+    "visitors, residents, workers or animals. Answer ONLY with the "
     "verdict JSON object: verdict, risk_score, summary, reasoning, "
     "description, criteria (each name/passed/evidence), provenance "
     "(engine, model_id - copy the values from the served model's own "
@@ -1136,7 +1150,9 @@ class _Fit:
         return math.ceil((self.char_len(kept, omitted) // 4) * 1.5)
 
     def window(self, kept, total, frames=1, buf=0):
-        return self.served(kept, total - kept) + 1024 + 1280 * frames + buf
+        # budget terms read from the module (26b900bc moved the assess cap to
+        # 2048; the literals here were pinned at the old 1024 and broke)
+        return self.served(kept, total - kept) + vc._ASSESS_MAX_TOKENS + vc._IMAGE_TOKENS_PER_FRAME * frames + buf
 
     def expected(self, kept, total):
         # survivors are the ranked top-kept (own sort - the rank function is
@@ -1178,7 +1194,7 @@ def test_fitted_prompt_boundary_keeps_exactly_the_fitting_prefix():
         # richer than the budget and 10 exactly consumes it (the `<=` at the
         # fit test is what makes 10 fit here)
         cw = fit.window(10, 12)
-        assert fit.served(11, 1) > cw - 1024 - 1280 >= fit.served(10, 2)
+        assert fit.served(11, 1) > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME >= fit.served(10, 2)
         c._settings = c._settings.model_copy(update={"vlm_context_window": cw})
         text, truncated = c._fitted_prompt(req)
         assert truncated is True
@@ -1199,7 +1215,7 @@ def test_fitted_prompt_binary_search_reaches_the_last_and_first_slot():
     c, req, rows, fit, undo = _fit_env(13)
     try:
         cw = fit.window(11, 13)
-        assert fit.served(12, 1) > cw - 1024 - 1280 >= fit.served(11, 2)
+        assert fit.served(12, 1) > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME >= fit.served(11, 2)
         c._settings = c._settings.model_copy(update={"vlm_context_window": cw})
         text, truncated = c._fitted_prompt(req)
         assert truncated is True
@@ -1212,7 +1228,7 @@ def test_fitted_prompt_binary_search_reaches_the_last_and_first_slot():
     c2, req2, rows2, fit2, undo2 = _fit_env(3)
     try:
         cw2 = fit2.window(1, 3)
-        assert fit2.served(2, 1) > cw2 - 1024 - 1280 >= fit2.served(1, 2)
+        assert fit2.served(2, 1) > cw2 - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME >= fit2.served(1, 2)
         c2._settings = c2._settings.model_copy(update={"vlm_context_window": cw2})
         text, truncated = c2._fitted_prompt(req2)
         assert truncated is True
@@ -1227,7 +1243,7 @@ def test_fitted_prompt_marker_only_when_nothing_fits():
     c, req, rows, fit, undo = _fit_env(3)
     try:
         cw = fit.window(0, 3)
-        assert fit.served(1, 2) > cw - 1024 - 1280 >= fit.served(0, 3)
+        assert fit.served(1, 2) > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME >= fit.served(0, 3)
         c._settings = c._settings.model_copy(update={"vlm_context_window": cw})
         text, truncated = c._fitted_prompt(req)
         assert truncated is True
@@ -1237,14 +1253,14 @@ def test_fitted_prompt_marker_only_when_nothing_fits():
         undo()
 
 
-def test_fitted_budget_is_window_less_1024_less_reservation():
+def test_fitted_budget_is_window_less_assess_budget_less_reservation():
     # the SAME batch under the SAME window flips on the image reservation
     # alone: one more still reserves 1280 served tokens - the rows cannot
     # pay that back
     c1, req1, rows, fit1, undo = _fit_env(12, frames=1)
     try:
         cw = fit1.window(2, 12, frames=1)  # 2 of 12 fit with one still
-        assert fit1.served(3, 9) > cw - 1024 - 1280 >= fit1.served(2, 10)
+        assert fit1.served(3, 9) > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME >= fit1.served(2, 10)
         c1._settings = c1._settings.model_copy(update={"vlm_context_window": cw})
         text, truncated = c1._fitted_prompt(req1)
         assert truncated is True and text == fit1.expected(2, 12)
@@ -1332,7 +1348,7 @@ def test_probe_enforced_exact_body_state_and_log():
             }
         ],
         "temperature": 0.0,
-        "max_tokens": 1088,
+        "max_tokens": vc._PROBE_MAX_TOKENS,
         "response_format": {
             "type": "json_schema",
             "json_schema": {"name": "vlm_probe", "schema": observed_schema},
@@ -1670,7 +1686,8 @@ def test_probe_length_stop_is_budget_exhausted_not_a_breaker_failure():
             assert exc.verdict == "inconclusive"
             assert str(exc) == (
                 "vlm probe reply hit its token budget (stop='length', "
-                "max_tokens=1088) before the const could be read - enforcement "
+                f"max_tokens={vc._PROBE_MAX_TOKENS}) before the const could be "
+                "read - enforcement "
                 "is UNMEASURED at this budget, not absent. Fail closed."
             )
         assert seen == [("pipeline_error", "vlm_probe_truncated")]
@@ -1865,7 +1882,7 @@ def test_assess_success_body_exact_and_provenance_override():
                 }
             ],
             "temperature": 0.0,
-            "max_tokens": 1024,
+            "max_tokens": vc._ASSESS_MAX_TOKENS,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": "vlm_verdict", "schema": observed_schema},
@@ -2061,8 +2078,8 @@ def test_assess_truncated_reply_raises_from_and_blames_the_budget():
         except vc.VlmTruncatedError as exc:
             assert str(exc) == (
                 "vlm verdict reply hit its token budget before the object closed "
-                "(stop='length', max_tokens=1024); verdict UNMEASURED at this "
-                "budget, not invalid"
+                f"(stop='length', max_tokens={vc._ASSESS_MAX_TOKENS}); verdict "
+                "UNMEASURED at this budget, not invalid"
             )
             assert isinstance(exc.__cause__, Exception)
             assert type(exc.__cause__).__name__ == "ValidationError"
@@ -2070,7 +2087,7 @@ def test_assess_truncated_reply_raises_from_and_blames_the_budget():
         assert env["spy"].calls == [("allow",)]
         assert env["metrics"] == [("pipeline_error", "vlm_assess_truncated")]
         assert _log_sig(env["records"], ("stop",)) == [
-            ("WARNING", "vlm verdict truncated at max_tokens=%d", (1024,), ("length",), None)
+            ("WARNING", "vlm verdict truncated at max_tokens=%d", (vc._ASSESS_MAX_TOKENS,), ("length",), None)
         ]
     finally:
         _close_all(env)

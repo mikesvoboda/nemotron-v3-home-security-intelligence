@@ -551,7 +551,31 @@ class VlmClient:
             "You are the verification expert. The detections below were produced "
             "by an object detector on the attached frame(s). Decide whether the "
             "detected candidate is REAL and CORRECTLY IDENTIFIED (verdict), and "
-            "how threatening it is (risk_score 0-100). Answer ONLY with the "
+            # OD-29 (owner ruling 2026-10-05): the severity-rubric scoring clause
+            # from the 2026-10-03 arm B replay ships as the paired operating
+            # point with the per-camera numeric alert floor 60 - the two are one
+            # change (arm B text alone at the old floor is FP-WORSE than shipped:
+            # 16.3% vs 6.7% benign alerts; with floor 60: 4.3%). Text shipped
+            # byte-identical to the measured arm (rubric_text in run.json of
+            # eval run 696c71687e264577b4deb6bd5c99af26, sha256 of the clause
+            # 75564981ca9d22cdaab967e83052b55061abf770b8fcb20e2cfe69babc929811);
+            # evidence: docs/vss-integration/23-*.md and stage35/
+            # results-operating-point-ship.py there.
+            "how much risk the scene poses (risk_score 0-100): the potential "
+            "for harm to people or property if the scene is as it appears, "
+            "whether or not any aggression is visible yet. Score by these "
+            "bands: 0-29 low = routine, expected or harmless activity; "
+            "30-59 medium = unusual or ambiguous activity that warrants "
+            "attention, or an unfamiliar person or vehicle whose purpose is "
+            "unclear; 60-84 high = clear signs of a likely crime, hazard or "
+            "person in danger (for example someone entering or tampering with "
+            "a closed space or vehicle, taking items, holding a weapon or tool "
+            "in a threatening way, a child or injured person without "
+            "supervision near a hazard, fire or smoke); 85-100 critical = an "
+            "immediate, serious threat to life or property. A person who looks "
+            "calm can still be a high risk, so do not lower the score because "
+            "a person is calm or stationary; do not raise it for ordinary "
+            "visitors, residents, workers or animals. Answer ONLY with the "
             "verdict JSON object: verdict, risk_score, summary, reasoning, "
             "description, criteria (each name/passed/evidence), provenance "
             "(engine, model_id - copy the values from the served model's own "

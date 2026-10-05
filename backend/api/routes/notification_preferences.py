@@ -21,6 +21,7 @@ from backend.api.schemas.notification_preferences import (
 from backend.api.schemas.pagination import PaginationMeta
 from backend.core import get_db
 from backend.models.notification_preferences import (
+    DEFAULT_CAMERA_RISK_THRESHOLD,
     CameraNotificationSetting,
     NotificationPreferences,
     NotificationSound,
@@ -265,11 +266,11 @@ async def update_camera_setting(
     setting = result.scalar_one_or_none()
 
     if setting is None:
-        # Create new setting
+        # Create new setting at the shipped default floor (OD-29: 60, was 0)
         setting = CameraNotificationSetting(
             camera_id=camera_id,
             enabled=True,
-            risk_threshold=0,
+            risk_threshold=DEFAULT_CAMERA_RISK_THRESHOLD,
         )
         db.add(setting)
 
