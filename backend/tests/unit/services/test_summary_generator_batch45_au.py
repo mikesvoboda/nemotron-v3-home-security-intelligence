@@ -480,6 +480,12 @@ def test_zero_events_path_writes_every_observable():
     # SummaryRepository(None) die on the captured session identity)
     assert e.repo_sessions == ["S"]
     assert e.sum_sessions == ["S"]
+    # the entered branch FORWARDS its window to the repo: pin the call args
+    # (m6's window_end->None twin is observable ONLY here - the direct
+    # _get_high_critical_events tests drive WS/WE themselves and never see
+    # what _generate_summary hands it)
+    assert e.repo_calls == [(WS, WE)]
+    assert e.eager == [True]
     # m70/m71/m72 -> None and m77/m78/m79 (deletion -> MISSING key) die on
     # FULL key-set + value equality of the raw create_summary capture
     assert len(e.create_calls) == 1
@@ -530,6 +536,30 @@ def test_llm_success_path_writes_every_observable():
         out = _drive(e, [row], None, {"content": CONTENT})
     assert out.id == CREATED_ID
     assert e.repo_sessions == ["S"] and e.sum_sessions == ["S"]
+    assert e.repo_calls == [(WS, WE)]  # m6 forwarding twin
+    assert e.eager == [True]
+    # the branch hands its OWN arguments to _call_nemotron, which forwards
+    # them to build_summary_prompt: FULL equality here kills m44
+    # (period_type->None: the mock never raises on it, so ONLY this capture
+    # sees it) and the m45/m46/m47 deletion twins.
+    assert e.bsp_calls == [
+        {
+            "window_start": WSF,
+            "window_end": WEF,
+            "period_type": "hour",
+            "events": [
+                {
+                    "timestamp": WSF,
+                    "camera_name": "cam-1",
+                    "risk_level": "high",
+                    "risk_score": 8,
+                    "summary": "Person at door",
+                    "object_types": "person",
+                }
+            ],
+            "routine_count": 0,
+        }
+    ]
     cc = e.create_calls[0]
     assert cc["content"] == STRIPPED
     assert cc["event_count"] == 1
@@ -559,6 +589,8 @@ def test_llm_failure_path_writes_every_observable():
     boom = httpx.ConnectError("no route")
     with env(rows=[row], post_exc=boom, session="S") as e, logcap() as cap:
         out = _drive(e, [row], boom, None)
+    assert e.repo_calls == [(WS, WE)]  # m6 on the fallback path too
+    assert e.eager == [True]
     cc = e.create_calls[0]
     assert cc["content"] == (
         "Summary temporarily unavailable. 1 high/critical events in this period."
