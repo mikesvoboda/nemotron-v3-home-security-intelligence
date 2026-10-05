@@ -814,3 +814,85 @@ pre-dating this change; the honest fix is a threshold raise or test
 optimization, tracked as a follow-up, not a revert. **New ambient signature
 for the ledger: `Test Performance Audit` on `test_zero_dce_loader` grayscale
 case** — signature-match against either head before believing it.
+
+---
+
+## Wave-5 closeout (executed 2026-10-05, dependabot PRs #6795–#6802)
+
+Eight PRs, three ecosystems, all opened by the Mon 06:00 CT pass; combined into two
+superseder PRs the owner chose ("one or two"), zero merged from dependabot directly.
+
+| PR | Content | Disposition | Landed as |
+| --- | --- | --- | --- |
+| #6799 uv group ×21 | uv.lock | supersede-close | #6805 `0f8277c0` |
+| #6800 rich 14.3.4→15 | uv.lock major | supersede-close | #6805 `0f8277c0` |
+| #6801 av 18.1→19 | uv.lock major | supersede-close | #6805 `0f8277c0` |
+| #6802 python-json-logger 3.3→4.2 | uv.lock major | supersede-close | #6805 `0f8277c0` |
+| #6798 actions pair | deploy.yml + release-drafter.yml | supersede-close | #6805 `0f8277c0` |
+| #6795 npm group ×9 | package*.json | supersede-close | #6806 `bd67001c` |
+| #6796 vitest 5.0.3 pair | package*.json | supersede-close | #6806 `bd67001c` |
+| #6797 typescript-eslint 8.71 | package*.json | supersede-close | #6806 `bd67001c` |
+
+**Supersede verification was mechanical, not by title.** Each dependabot head was
+fetched to `dependabot-saved/*` BEFORE closing (wave-3 practice) and its lock diff
+compared package-by-package against the superseder's regenerated lock: every proposed
+version is present at that version or newer in all eight. Where the batch lands beyond
+the proposal it is published-after-open drift a re-roll would have picked anyway:
+av 19.0.1, sqlalchemy 2.1.3, ultralytics 8.4.173, @sentry/react 11.4.0, lucide-react
+1.52.0.
+
+**The uv ecosystem's KNOWN SCOPE held.** #6805 touches `uv.lock` and the two workflow
+files only — zero `ai/*/requirements.txt` hunks, the floor-rewrite hazard dependabot.yml
+documents stays contained by hand-review, not by luck.
+
+**Three majors were genuinely landable this wave, and why.** `rich` 15,
+`python-json-logger` 4.2 and `av` 19 all sit inside existing pyproject floors
+(`>=13.0.0`, `>=2.0.7`, `>=18.1`) — no constraint edits. Group A's rich/json-logger
+refusals traced to `data-designer` 0.9.2 extras; `data-designer` is absent from the
+2026-10-05 lock, so that cap is dead history, recorded here because the wave-1 table
+still cites it.
+
+**why-is-node-running 3.2.2→3.2.1 in the npm union is NOT a downgrade.** vitest 5.0.2
+declared `"^3.2.1"` (the committed lock had floated to 3.2.2); vitest 5.0.3 tightened
+its own dependency to exact `"3.2.1"`. 3.2.2 remains published and latest upstream.
+Anyone re-seeing this move should read vitest's manifest, not their resolver.
+
+**Post-merge observations (#6805 @ `0f8277c0`, 2026-10-05).** Release Drafter green —
+the first execution of the v7.9.0 pin, and `SBOM & Sign (backend)`/`(frontend)` +
+`Create multi-arch manifest` ×2 + `Deploy to Staging` all green — the first execution of
+sbom-action v0.24.3 in its real environment, proven not assumed. Semantic Release green.
+CI Gate was SUCCESS on the PR head (65 pass / 0 fail) before the owner merged. The merge
+commit's `Smoke Test Deployment` red is the documented ambient item, now with its current
+step signature recorded: **`Perform health check validation`** (wave-3's heads failed the
+same job at `Start services`) — all six recent main Deploy runs fail at it identically,
+four on heads predating this wave. `AGENTS.md Validation` — content validation PASSED;
+the main-only `Sync to Linear` step died on `LINEAR_API_KEY` **401**. Same signature on
+the previous merge (`eea4cfd5`, #6803) and nowhere on branch heads (the step is
+main-only). Owner action: rotate the Linear API key repo secret. New ambient signature
+for the ledger: **`AGENTS.md Validation` 401 at Sync-to-Linear, main-push only.**
+
+**The merge commit also carried one REAL red, and it is not wave-5 fallout — and one
+ambient red this section initially missed.** `Security - Trivy / Scan Backend Image`
+(job `111815714866`) went red with 7 findings (3 CRITICAL, 4 HIGH), every row on
+`perl-base` `5.36.0-7+deb12u3` → `5.36.0-7+deb12u4` (DLA-4821-1, all seven
+tracker-resolved for bookworm) — and dragged `CI Gate` with it. Measured in the same
+scan: every `python-pkg` target zero (fresh `av-19.0.1` included), so the wave-5 lock is
+security-clean by scan; the fix is Debian `perl-base` in the prod-stage `--only-upgrade`
+list, shipped as PR #6809 (its own ledger row 80, with the container-run measurements).
+This section first wrote "one red on the merge commit" naming only AGENTS.md: the
+signature-match was incomplete — the CI Gate failure was the Trivy pair, not the
+main-only Linear step. Lesson held to the wave-3 rule: enumerate ALL failed required
+jobs before writing a post-merge paragraph. The missed one was
+`Complexity Trends` in the scheduled `Nightly Analysis` workflow (`nightly.yml`, which
+fetches the tip so it checks-run against the newest SHA): its own log shows
+`Invalid value for '-f' / '--format': 'html' is not one of 'CONSOLE', 'HTML'` — the
+nightly has failed identically five runs running (2026-10-01…10-05), an analysis-tool
+CLI drift independent of any merge. New ambient signature for the ledger: **`Complexity
+Trends` `-f html` rejected, nightly.yml, fails every schedule regardless of head.**
+#6806's merge read the same two ambient signatures at `bd67001c` (Smoke Test, nightly
+Complexity Trends) plus the perl-base Trivy red still open pending #6809 — and green
+across everything #6806 owns: Vitest 8/8 shards, E2E 3/3, Type/Lint, npm Audit, both
+SBOM & Sign.
+
+**Final state:** zero open dependabot PRs after the closes (#6806 merged `bd67001c`);
+next scheduled re-roll is Mon 2026-10-12 06:00 CT against these locks.
