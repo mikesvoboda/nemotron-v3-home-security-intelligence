@@ -39,6 +39,20 @@ measured evidence. The classes below pin both halves so a regression is caught
 here rather than in a push-only image scan: the prod stages keep their
 upgrade lines, the deleted IDs stay deleted, and the entries the tracker still
 marks ``open`` don't claim a shipped fix.
+
+2026-10-05 extension (the perl-base surfacing). Measured at main ``0f8277c0``
+(job 111815714866, the first image build after the wave-5 Python merge): the
+backend scan is RED with **seven findings, one source package** — ``perl-base``
+5.36.0-7+deb12u3 → 5.36.0-7+deb12u4 (CRITICAL CVE-2026-13221, HIGH
+CVE-2026-42496/-8376/-42497/-48962/-57432/-57433; Debian DLA-4821-1, all seven
+tracker-``resolved`` for bookworm). The frontend leg stayed green; every
+python-pkg target scanned zero, so this is the base image's Debian layer, not
+the wave-5 lock. The immediately preceding head ``eea4cfd5`` scanned green on
+the same base — the DB/tracker caught up and the fix became reachable between
+the two builds, the same MOVED-TODAY class as pcre2. ``TestProdStageUpgradesPerlBase``
+pins the prod-stage upgrade (RED until the Dockerfile carries it) and
+``TestPerlBaseCvesStayOutOfIgnore`` pins that a fix-available finding never
+slides into the ignore register instead.
 """
 
 from __future__ import annotations
@@ -71,6 +85,20 @@ VENDORED_URLLIB3_CVES = ("CVE-2026-97687", "CVE-2026-97689")
 # unlike the vendored-pip entries it is OURS to apply, in the backend prod
 # stage (Debian) and the frontend prod stage (Alpine) alike.
 PCRE2_CVE = "CVE-2026-103111"
+
+# The seven CVEs the 0f8277c0 backend scan reported on perl-base — ONE source
+# package, fix 5.36.0-7+deb12u4 published in bookworm-security (DLA-4821-1),
+# all seven tracker-resolved for bookworm. Fix-available, so the backend scan's
+# ``ignore-unfixed: true`` does not hide them: the only lever is the upgrade.
+PERL_BASE_CVES = (
+    "CVE-2026-13221",  # CRITICAL: incorrect regexp processing on large regexps
+    "CVE-2026-42496",  # perl-archive-tar: path traversal via crafted symlinks
+    "CVE-2026-8376",  # heap overflow compiling regexps (32-bit builds)
+    "CVE-2026-42497",  # perl-Archive-Tar: arbitrary file mod via hardlinks
+    "CVE-2026-48962",  # perl-IO-Compress: code exec via attacker output glob
+    "CVE-2026-57432",  # info disclosure via integer overflow in pack/unpack
+    "CVE-2026-57433",  # Storable: DoS via signed integer (also CVE-2026-13733)
+)
 
 # The Debian binary packages the prod stage pins forward. Every one of these is
 # bookworm "resolved" in the Debian tracker with a fix version at/below what the
@@ -394,6 +422,52 @@ class TestProdStageCoversTrackerResolvedPkgs:
             "backend/Dockerfile prod --only-upgrade line is missing: "
             f"{', '.join(missing)} — these carry bookworm-resolved fixes per "
             "the 2026-10-04 tracker pull; see .trivyignore REMOVED block"
+        )
+
+
+class TestProdStageUpgradesPerlBase:
+    def test_prod_stage_upgrades_perl_base(self) -> None:
+        """The backend prod stage must carry the perl-base upgrade.
+
+        Scan at 0f8277c0 (job 111815714866): seven findings — one source
+        package, perl-base installed 5.36.0-7+deb12u3, fixed 5.36.0-7+deb12u4
+        in bookworm-security (DLA-4821-1). Three CRITICAL + four HIGH, and
+        because a fix EXISTS the backend scan's ``ignore-unfixed: true`` reports
+        all seven rather than filtering them. Measured live in
+        ``python:3.14-slim-bookworm`` pulled today: candidate u4 from
+        bookworm-security, and ``apt-get install -y --only-upgrade perl-base``
+        gives rc 0 / "1 upgraded, 0 newly installed" landing 5.36.0-7+deb12u4,
+        then rc 0 as a no-op once installed — the same cannot-rot shape as the
+        pcre2 line. Unlike the thirteen tracker-resolved names, this one changes
+        what the image installs TODAY.
+        """
+        pkgs = _only_upgrade_pkgs(_prod_stage())
+        assert "perl-base" in pkgs, (
+            "backend/Dockerfile prod stage has no perl-base upgrade — the "
+            "0f8277c0 scan flagged "
+            f"{', '.join(PERL_BASE_CVES)} on perl-base 5.36.0-7+deb12u3; "
+            "fixed 5.36.0-7+deb12u4 (bookworm-security, DLA-4821-1)"
+        )
+
+
+class TestPerlBaseCvesStayOutOfIgnore:
+    def test_trivyignore_does_not_carry_perl_base_ids(self) -> None:
+        """A fix-available finding must not be ignored instead of upgraded.
+
+        These seven have a published bookworm fix, so an ignore entry would be
+        exactly the misuse the file's own rule forbids ("Remove entries when
+        fixes become available") run in reverse: it would mute the only signal
+        that the base regressed. If they ever reappear in CI the fix is the
+        Dockerfile line (already present, pinned above), not a new entry.
+        """
+        text = TRIVYIGNORE.read_text()
+        alive = set(re.findall(r"^(CVE-[0-9]{4}-[0-9]+)$", text, re.MULTILINE))
+        back = sorted(set(PERL_BASE_CVES) & alive)
+        assert not back, (
+            ".trivyignore carries fix-available perl-base entries: "
+            f"{', '.join(back)} — these have a published bookworm fix "
+            "(5.36.0-7+deb12u4) — the Dockerfile upgrade is the fix, "
+            "not an ignore entry"
         )
 
 
