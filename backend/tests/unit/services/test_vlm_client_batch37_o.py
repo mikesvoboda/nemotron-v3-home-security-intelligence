@@ -1152,7 +1152,12 @@ class _Fit:
     def window(self, kept, total, frames=1, buf=0):
         # budget terms read from the module (26b900bc moved the assess cap to
         # 2048; the literals here were pinned at the old 1024 and broke)
-        return self.served(kept, total - kept) + vc._ASSESS_MAX_TOKENS + vc._IMAGE_TOKENS_PER_FRAME * frames + buf
+        return (
+            self.served(kept, total - kept)
+            + vc._ASSESS_MAX_TOKENS
+            + vc._IMAGE_TOKENS_PER_FRAME * frames
+            + buf
+        )
 
     def expected(self, kept, total):
         # survivors are the ranked top-kept (own sort - the rank function is
@@ -1194,7 +1199,11 @@ def test_fitted_prompt_boundary_keeps_exactly_the_fitting_prefix():
         # richer than the budget and 10 exactly consumes it (the `<=` at the
         # fit test is what makes 10 fit here)
         cw = fit.window(10, 12)
-        assert fit.served(11, 1) > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME >= fit.served(10, 2)
+        assert (
+            fit.served(11, 1)
+            > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME
+            >= fit.served(10, 2)
+        )
         c._settings = c._settings.model_copy(update={"vlm_context_window": cw})
         text, truncated = c._fitted_prompt(req)
         assert truncated is True
@@ -1215,7 +1224,11 @@ def test_fitted_prompt_binary_search_reaches_the_last_and_first_slot():
     c, req, rows, fit, undo = _fit_env(13)
     try:
         cw = fit.window(11, 13)
-        assert fit.served(12, 1) > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME >= fit.served(11, 2)
+        assert (
+            fit.served(12, 1)
+            > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME
+            >= fit.served(11, 2)
+        )
         c._settings = c._settings.model_copy(update={"vlm_context_window": cw})
         text, truncated = c._fitted_prompt(req)
         assert truncated is True
@@ -1228,7 +1241,11 @@ def test_fitted_prompt_binary_search_reaches_the_last_and_first_slot():
     c2, req2, rows2, fit2, undo2 = _fit_env(3)
     try:
         cw2 = fit2.window(1, 3)
-        assert fit2.served(2, 1) > cw2 - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME >= fit2.served(1, 2)
+        assert (
+            fit2.served(2, 1)
+            > cw2 - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME
+            >= fit2.served(1, 2)
+        )
         c2._settings = c2._settings.model_copy(update={"vlm_context_window": cw2})
         text, truncated = c2._fitted_prompt(req2)
         assert truncated is True
@@ -1243,7 +1260,11 @@ def test_fitted_prompt_marker_only_when_nothing_fits():
     c, req, rows, fit, undo = _fit_env(3)
     try:
         cw = fit.window(0, 3)
-        assert fit.served(1, 2) > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME >= fit.served(0, 3)
+        assert (
+            fit.served(1, 2)
+            > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME
+            >= fit.served(0, 3)
+        )
         c._settings = c._settings.model_copy(update={"vlm_context_window": cw})
         text, truncated = c._fitted_prompt(req)
         assert truncated is True
@@ -1260,7 +1281,11 @@ def test_fitted_budget_is_window_less_assess_budget_less_reservation():
     c1, req1, rows, fit1, undo = _fit_env(12, frames=1)
     try:
         cw = fit1.window(2, 12, frames=1)  # 2 of 12 fit with one still
-        assert fit1.served(3, 9) > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME >= fit1.served(2, 10)
+        assert (
+            fit1.served(3, 9)
+            > cw - vc._ASSESS_MAX_TOKENS - vc._IMAGE_TOKENS_PER_FRAME
+            >= fit1.served(2, 10)
+        )
         c1._settings = c1._settings.model_copy(update={"vlm_context_window": cw})
         text, truncated = c1._fitted_prompt(req1)
         assert truncated is True and text == fit1.expected(2, 12)
@@ -2087,7 +2112,13 @@ def test_assess_truncated_reply_raises_from_and_blames_the_budget():
         assert env["spy"].calls == [("allow",)]
         assert env["metrics"] == [("pipeline_error", "vlm_assess_truncated")]
         assert _log_sig(env["records"], ("stop",)) == [
-            ("WARNING", "vlm verdict truncated at max_tokens=%d", (vc._ASSESS_MAX_TOKENS,), ("length",), None)
+            (
+                "WARNING",
+                "vlm verdict truncated at max_tokens=%d",
+                (vc._ASSESS_MAX_TOKENS,),
+                ("length",),
+                None,
+            )
         ]
     finally:
         _close_all(env)
