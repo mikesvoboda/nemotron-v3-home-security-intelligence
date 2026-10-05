@@ -4,14 +4,15 @@
 > docs commit). This is the **living register** of issues, added to as they are discovered
 > [A: the owner's original request is not recorded in the repo, so it is paraphrased and not quoted].
 > Owner decision 2026-10-03 [O] (handoff Addendum 5, item 5): the register lives only in this repo;
-> nothing is filed on GitHub or Linear. It holds 102 issues: ISS-001 to ISS-077 from the 2026-10-03
+> nothing is filed on GitHub or Linear. It holds 103 issues: ISS-001 to ISS-077 from the 2026-10-03
 > discovery pass (a commit-archaeology read of the 437 non-merge commits since 2026-09-18 [C],
 > counted with `git rev-list --count --no-merges --since='2026-09-18T00:00:00-0400' 5c605e1d`; the
 > explicit time matters, because a bare `--since=2026-09-18` takes the current time of day and
 > printed 435 when run at 15:40 EDT on 2026-10-03 [V: I ran both]; a drift audit of this directory;
 > a reading of the docs, spec and ledger; and a verify-and-dedupe pass), ISS-078 to ISS-082 added
 > the same day from the sandbox exercise, ISS-083 to ISS-086 added after `d8482861`, ISS-087 added
-> after the sweep's control arm, ISS-088 added after the PR's first CI read, and ISS-089 to ISS-098 added after the merge of #6783 from open work that existed only in errata and reference text, and ISS-099 to ISS-102 added from the 2026-10-04 prompt-programme intake. Every
+> after the sweep's control arm, ISS-088 added after the PR's first CI read, and ISS-089 to ISS-098 added after the merge of #6783 from open work that existed only in errata and reference text, and ISS-099 to ISS-102 added from the 2026-10-04 prompt-programme intake, and ISS-103
+> added from the 2026-10-05 OD-29 verification pass. Every
 > issue started `open`; the [Dashboard](#2-dashboard) counts the open and the closed.
 > Add to it by appending to the [Intake log](#intake-log); never renumber.
 >
@@ -222,7 +223,7 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-04 (both intakes of the day counted: ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, plus ISS-099 to ISS-102 filed 2026-10-04; ISS-087 had an entry but was missing from these counts until ISS-088). The Filed columns count every issue by its filed
+Counts as of 2026-10-05 (ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
 ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
@@ -230,39 +231,39 @@ when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 99    |
+| open        | 100   |
 | in-progress | 0     |
 | done        | 3     |
 | wont-fix    | 0     |
 | superseded  | 0     |
-| total       | 102   |
+| total       | 103   |
 
 | Severity | Filed | Open |
 | -------- | ----- | ---- |
 | P0       | 1     | 1    |
-| P1       | 35    | 34   |
+| P1       | 36    | 35   |
 | P2       | 51    | 49   |
 | P3       | 15    | 15   |
-| total    | 102   | 99   |
+| total    | 103   | 100  |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
 | agent-now      | 67    | 67   |
-| owner-decision | 29    | 26   |
+| owner-decision | 30    | 27   |
 | owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
 
 | Kind     | Filed | Open |
 | -------- | ----- | ---- |
 | bug      | 19    | 19   |
-| gap      | 36    | 36   |
+| gap      | 37    | 37   |
 | debt     | 18    | 18   |
 | decision | 17    | 15   |
 | risk     | 12    | 11   |
 
 | Area                                      | P0  | P1  | P2  | P3  | Filed | Open |
 | ----------------------------------------- | --- | --- | --- | --- | ----- | ---- |
-| Notification and alerting (M1)            | 1   | 4   | 5   | 0   | 10    | 10   |
+| Notification and alerting (M1)            | 1   | 5   | 5   | 0   | 11    | 11   |
 | Verdict reliability and observability     | 0   | 6   | 3   | 1   | 10    | 9    |
 | Prompt, verdict quality and calibration   | 0   | 2   | 2   | 1   | 5     | 5    |
 | Video, ingest and key frames              | 0   | 4   | 6   | 1   | 11    | 11   |
@@ -351,6 +352,10 @@ see the Severity note in each block and the calibration paragraph in section 1.
   `b11376` disagree on 44% of items for the same model, weights and prompt
 - **ISS-099** P1, risk, agent-now. The sweep ranked 12 model arms under one prompt format, so the
   finish order may measure format fit and not model quality
+- **ISS-103** P1, gap, owner-decision. OD-29's floor 60 never reaches a camera row written before
+  the merge: that row stores `risk_threshold` 0, saves-wins keeps it, and the level map lets
+  anything ≥ 40 alert — measured arm B at that gate at 21/209 = 10.0% benign alerts against the
+  cited 4.3%
 
 ## 3. Critical path
 
@@ -555,37 +560,38 @@ order). Options are the ones the evidence supports, not a recommendation. A ruli
 dated line in the ledger and referenced from the issue; closing the decision unblocks the issues in
 the last column.
 
-| ID    | Decision                                                                                                    | Options                                                                                                                                                                                                                                       | Unblocks                                             | Source               |
-| ----- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------- |
-| OD-1  | M1: where the notify decision lives                                                                         | (a) `vlm_analyzer` persist path only; (b) also the rules engine and `deliver_alert`; (c) filter first, engine later                                                                                                                           | ISS-001 (P0), 018, 019, 020, 041, 047, 048, 049, 058 | reading, step 7      |
-| OD-2  | S3 floor, and the remedy for the S3 gap                                                                     | floor: midpoint, band minimum, or both; remedy: prompt and calibration slice, accept and re-scope, or bar revision (owner-only)                                                                                                               | ISS-015, 008                                         | reading, step 6      |
-| OD-3  | Spec revision: F14 bars, M1, S1 and G0.3 text, 'rev 7' collision                                            | approve a rev now, or fold into the next after steps 6-8; do not ask for an `S2_MAX` number                                                                                                                                                   | ISS-081, 069, 014 (spec rows)                        | reading, step 9      |
-| OD-4  | M2 closure: does declared-truth replay count as the 'real corpus' for flip (iii)?                           | yes (the 8B pick reopens at 36% S3; try Nemotron-12B-VL past b7972) or no (wait for P5b or owner footage)                                                                                                                                     | ISS-007, 024, 016                                    | reading, step 10     |
-| OD-5  | Clips lane: an owner item for a video VLM, or leave clips unscored                                          | roadmap entry or spec for a video-capable engine; or keep clips as assets; no frame bursts through the product VLM                                                                                                                            | ISS-003, 038, 002                                    | reading, step 12     |
-| OD-6  | P5b: live pipeline instance scored per stage                                                                | design now (needs arm64 milestones 1-2) or defer with a date                                                                                                                                                                                  | ISS-007, 024, 036, 040                               | reading, step 13     |
-| OD-7  | Threat specialist; immediate-alert fast paths; alerts-surface rule for unverified events                    | `GATEWAY_ENABLE_THREAT` on (re-measure S1) or off; delete the fast-path stubs or specify a trigger; show unverified events or keep high/critical only                                                                                         | ISS-021, 053, 066                                    | reading, step 11     |
-| OD-8  | A5500 S1/S4 acceptance; Brev spend; re-take after serving changes                                           | accept as measured; require a re-take after a budget, context or build change; approve Brev GPU types and duration                                                                                                                            | ISS-046, 012, 017, 052, 057, 059, 054                | reading, step 14     |
-| OD-9  | Go-live 3.1 sign-off                                                                                        | after M1 closed, S2/S3 read at the F14 bars on an accepted corpus, S5 notification half met, S6 recorded                                                                                                                                      | terminal gate                                        | reading, step 15     |
-| OD-10 | Push, PR and merge scope for this effort                                                                    | see the note below the table                                                                                                                                                                                                                  | ISS-001 build slice; every PR                        | reading, decision 10 |
-| OD-11 | Owner-held CI items: Linear key, `cryptography` ceiling, smoke ruling, ZAP                                  | rotate or remove Linear steps; Dependabot options 1/2/3; scope or stub the smoke gate; ZAP timeout                                                                                                                                            | ISS-060, 059                                         | reading, decision 11 |
-| OD-12 | Authentication and LAN exposure of the published frontend nginx                                             | (a) loopback unless `EXPOSE_LAN=true`; (b) deny-by-default auth on `/api` and `/ws`; (c) keep LAN-trust and fix the docs                                                                                                                      | ISS-029, 062, 009                                    | ISS-029              |
-| OD-13 | Streaming ingest (R1): trigger and frame-persistence requirement                                            | sequence with clip extraction; keep M3-gated; spike decode and wake duty cycle first                                                                                                                                                          | ISS-039                                              | ISS-039              |
-| OD-14 | Release artifacts: ghcr publish gap; plain prod `up`                                                        | (a) publish `ai-vlm` and `ai-gateway`; (b) declare ghcr unsupported for the VLM; plain `up`: start `ai-vlm` or fail loud                                                                                                                      | ISS-028, 022                                         | ISS-028              |
-| OD-15 | Replace the leading 60-still audit with a blind check                                                       | blind audit of 150 or more stills with per-stratum intervals, or keep the check and state its limits                                                                                                                                          | ISS-044, 038                                         | ISS-044              |
-| OD-16 | Push notification channel                                                                                   | Web Push, webhook to ntfy, server push (APNs/FCM), or email and webhook only                                                                                                                                                                  | ISS-049                                              | ISS-049              |
-| OD-17 | Fate of the Triton `reid`/`threat` lane and dead GPU surface                                                | backend calls `/enrich-lt/person-reid`, or drop `reid` from the sets; pin or remove `ai-llm-vllm`                                                                                                                                             | ISS-050, 051, 055                                    | ISS-050              |
-| OD-18 | Licence register and biometric data model (R12, R13)                                                        | machine-checked register from `models.yml` and a corpus manifest; may H3 clips tune a model or only evaluate                                                                                                                                  | ISS-063, 054, 030, 048                               | ISS-063              |
-| OD-19 | Erasure of a person's data across stores                                                                    | an erase-person operation, or a documented procedure tied to the retention matrix                                                                                                                                                             | ISS-072, 030                                         | ISS-072              |
-| OD-20 | Retire the dead enrichment surface                                                                          | remove hook, route, types and tombstone in one commit, or keep the route                                                                                                                                                                      | ISS-073, 055                                         | ISS-073              |
-| OD-21 | Detector-independent scene pass, or a stated recall ceiling                                                 | (a) scene-level pass with a candidate-free prompt; (b) document the detector vocabulary as the ceiling                                                                                                                                        | ISS-040                                              | ISS-040              |
-| OD-22 | Notification policy: `rejected`, `uncertain`, quiet hours, grouping                                         | (a) `rejected` may not suppress a person above a floor; (b) low-score `uncertain` takes the detector-only rule; (c) quiet-hours override and timezone; (d) cooldown                                                                           | ISS-041, 019                                         | ISS-041              |
-| OD-23 | Replay while the renderer runs; where `eval/` and `runs/` live                                              | (1) allow replay for a fenced `agent-gpu` VLM, bypass recorded in `run.json`; (2) a writable mount or a `SYNTHBENCH_ROOT` that also exposes the corpus                                                                                        | ISS-079, 045                                         | ISS-079              |
-| OD-24 | Sampling policy of the assess call                                                                          | temperature 0 and seeded; k-sample median or majority; or keep 0.1 and report means over repeats. Pending the temperature-0 experiment                                                                                                        | ISS-078, 043, 008, 016, 017                          | ISS-078              |
-| OD-25 | Retire or keep the Nemotron-era neighbors left by `d8482861`                                                | (a) retire them in slices as `d8482861` did the harness; (b) keep as supported surfaces on `ai-vlm`, with tests against the real build; (c) decide per issue                                                                                  | ISS-083, 084, 085                                    | ISS-083, 084, 085    |
-| OD-26 | The sweep's selection rule: what counts as better than the 8B, fixed before any arm is read for a pick      | (a) metrics, order, margin and a paired test on shared items; the 8B control as the yardstick or the F14 bars as absolute gates; gates beyond accuracy (refusals, VRAM, latency); (b) a winner confirmed once on items that did not choose it | ISS-097, ISS-087                                     | ISS-097              |
-| OD-27 | Weight tuning (LoRA, SFT, DPO, GRPO): in scope before go-live, deferred to a named trigger, or out of scope | (a) in scope now, with a data card per input, a locked scenario set and a real-frame holdout; (b) deferred to a trigger (the ISS-086 ceiling, the prompt and calibration rungs on a frozen split); (c) out of scope                           | ISS-095, ISS-096                                     | ISS-095              |
-| OD-28 | Dead service modules and the scene-change vertical: delete, wire or keep each                               | (a) delete the guided-constraints and trajectory modules first, then the scene-change vertical; (b) wire what the VLM path should use; (c) keep behind a committed keep-list with a reason per entry                                          | ISS-092                                              | ISS-092              |
-| OD-29 | The alert operating point: which prompt text and which numeric camera floor ship                            | ruled 2026-10-05 (a): the arm B rubric text and the per-camera default floor 60 ship as one paired change (mechanism: the owner's choice of the per-camera `risk_threshold`, `risk_filters` and the level map untouched)                      | the shipped operating point; ISS-008's first rung    | owner ruling 2026-10-05, Intake log |
+| ID    | Decision                                                                                                                                                                                                   | Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Unblocks                                                                                                                                   | Source                              |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| OD-1  | M1: where the notify decision lives                                                                                                                                                                        | (a) `vlm_analyzer` persist path only; (b) also the rules engine and `deliver_alert`; (c) filter first, engine later                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | ISS-001 (P0), 018, 019, 020, 041, 047, 048, 049, 058                                                                                       | reading, step 7                     |
+| OD-2  | S3 floor, and the remedy for the S3 gap                                                                                                                                                                    | floor: midpoint, band minimum, or both; remedy: prompt and calibration slice, accept and re-scope, or bar revision (owner-only)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | ISS-015, 008                                                                                                                               | reading, step 6                     |
+| OD-3  | Spec revision: F14 bars, M1, S1 and G0.3 text, 'rev 7' collision                                                                                                                                           | approve a rev now, or fold into the next after steps 6-8; do not ask for an `S2_MAX` number                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | ISS-081, 069, 014 (spec rows)                                                                                                              | reading, step 9                     |
+| OD-4  | M2 closure: does declared-truth replay count as the 'real corpus' for flip (iii)?                                                                                                                          | yes (the 8B pick reopens at 36% S3; try Nemotron-12B-VL past b7972) or no (wait for P5b or owner footage)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | ISS-007, 024, 016                                                                                                                          | reading, step 10                    |
+| OD-5  | Clips lane: an owner item for a video VLM, or leave clips unscored                                                                                                                                         | roadmap entry or spec for a video-capable engine; or keep clips as assets; no frame bursts through the product VLM                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | ISS-003, 038, 002                                                                                                                          | reading, step 12                    |
+| OD-6  | P5b: live pipeline instance scored per stage                                                                                                                                                               | design now (needs arm64 milestones 1-2) or defer with a date                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | ISS-007, 024, 036, 040                                                                                                                     | reading, step 13                    |
+| OD-7  | Threat specialist; immediate-alert fast paths; alerts-surface rule for unverified events                                                                                                                   | `GATEWAY_ENABLE_THREAT` on (re-measure S1) or off; delete the fast-path stubs or specify a trigger; show unverified events or keep high/critical only                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | ISS-021, 053, 066                                                                                                                          | reading, step 11                    |
+| OD-8  | A5500 S1/S4 acceptance; Brev spend; re-take after serving changes                                                                                                                                          | accept as measured; require a re-take after a budget, context or build change; approve Brev GPU types and duration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | ISS-046, 012, 017, 052, 057, 059, 054                                                                                                      | reading, step 14                    |
+| OD-9  | Go-live 3.1 sign-off                                                                                                                                                                                       | after M1 closed, S2/S3 read at the F14 bars on an accepted corpus, S5 notification half met, S6 recorded                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | terminal gate                                                                                                                              | reading, step 15                    |
+| OD-10 | Push, PR and merge scope for this effort                                                                                                                                                                   | see the note below the table                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | ISS-001 build slice; every PR                                                                                                              | reading, decision 10                |
+| OD-11 | Owner-held CI items: Linear key, `cryptography` ceiling, smoke ruling, ZAP                                                                                                                                 | rotate or remove Linear steps; Dependabot options 1/2/3; scope or stub the smoke gate; ZAP timeout                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | ISS-060, 059                                                                                                                               | reading, decision 11                |
+| OD-12 | Authentication and LAN exposure of the published frontend nginx                                                                                                                                            | (a) loopback unless `EXPOSE_LAN=true`; (b) deny-by-default auth on `/api` and `/ws`; (c) keep LAN-trust and fix the docs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | ISS-029, 062, 009                                                                                                                          | ISS-029                             |
+| OD-13 | Streaming ingest (R1): trigger and frame-persistence requirement                                                                                                                                           | sequence with clip extraction; keep M3-gated; spike decode and wake duty cycle first                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ISS-039                                                                                                                                    | ISS-039                             |
+| OD-14 | Release artifacts: ghcr publish gap; plain prod `up`                                                                                                                                                       | (a) publish `ai-vlm` and `ai-gateway`; (b) declare ghcr unsupported for the VLM; plain `up`: start `ai-vlm` or fail loud                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | ISS-028, 022                                                                                                                               | ISS-028                             |
+| OD-15 | Replace the leading 60-still audit with a blind check                                                                                                                                                      | blind audit of 150 or more stills with per-stratum intervals, or keep the check and state its limits                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ISS-044, 038                                                                                                                               | ISS-044                             |
+| OD-16 | Push notification channel                                                                                                                                                                                  | Web Push, webhook to ntfy, server push (APNs/FCM), or email and webhook only                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | ISS-049                                                                                                                                    | ISS-049                             |
+| OD-17 | Fate of the Triton `reid`/`threat` lane and dead GPU surface                                                                                                                                               | backend calls `/enrich-lt/person-reid`, or drop `reid` from the sets; pin or remove `ai-llm-vllm`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | ISS-050, 051, 055                                                                                                                          | ISS-050                             |
+| OD-18 | Licence register and biometric data model (R12, R13)                                                                                                                                                       | machine-checked register from `models.yml` and a corpus manifest; may H3 clips tune a model or only evaluate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | ISS-063, 054, 030, 048                                                                                                                     | ISS-063                             |
+| OD-19 | Erasure of a person's data across stores                                                                                                                                                                   | an erase-person operation, or a documented procedure tied to the retention matrix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | ISS-072, 030                                                                                                                               | ISS-072                             |
+| OD-20 | Retire the dead enrichment surface                                                                                                                                                                         | remove hook, route, types and tombstone in one commit, or keep the route                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | ISS-073, 055                                                                                                                               | ISS-073                             |
+| OD-21 | Detector-independent scene pass, or a stated recall ceiling                                                                                                                                                | (a) scene-level pass with a candidate-free prompt; (b) document the detector vocabulary as the ceiling                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | ISS-040                                                                                                                                    | ISS-040                             |
+| OD-22 | Notification policy: `rejected`, `uncertain`, quiet hours, grouping                                                                                                                                        | (a) `rejected` may not suppress a person above a floor; (b) low-score `uncertain` takes the detector-only rule; (c) quiet-hours override and timezone; (d) cooldown                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | ISS-041, 019                                                                                                                               | ISS-041                             |
+| OD-23 | Replay while the renderer runs; where `eval/` and `runs/` live                                                                                                                                             | (1) allow replay for a fenced `agent-gpu` VLM, bypass recorded in `run.json`; (2) a writable mount or a `SYNTHBENCH_ROOT` that also exposes the corpus                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | ISS-079, 045                                                                                                                               | ISS-079                             |
+| OD-24 | Sampling policy of the assess call                                                                                                                                                                         | temperature 0 and seeded; k-sample median or majority; or keep 0.1 and report means over repeats. Pending the temperature-0 experiment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | ISS-078, 043, 008, 016, 017                                                                                                                | ISS-078                             |
+| OD-25 | Retire or keep the Nemotron-era neighbors left by `d8482861`                                                                                                                                               | (a) retire them in slices as `d8482861` did the harness; (b) keep as supported surfaces on `ai-vlm`, with tests against the real build; (c) decide per issue                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | ISS-083, 084, 085                                                                                                                          | ISS-083, 084, 085                   |
+| OD-26 | The sweep's selection rule: what counts as better than the 8B, fixed before any arm is read for a pick                                                                                                     | (a) metrics, order, margin and a paired test on shared items; the 8B control as the yardstick or the F14 bars as absolute gates; gates beyond accuracy (refusals, VRAM, latency); (b) a winner confirmed once on items that did not choose it                                                                                                                                                                                                                                                                                                                                                                                                                                                 | ISS-097, ISS-087                                                                                                                           | ISS-097                             |
+| OD-27 | Weight tuning (LoRA, SFT, DPO, GRPO): in scope before go-live, deferred to a named trigger, or out of scope                                                                                                | (a) in scope now, with a data card per input, a locked scenario set and a real-frame holdout; (b) deferred to a trigger (the ISS-086 ceiling, the prompt and calibration rungs on a frozen split); (c) out of scope                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | ISS-095, ISS-096                                                                                                                           | ISS-095                             |
+| OD-28 | Dead service modules and the scene-change vertical: delete, wire or keep each                                                                                                                              | (a) delete the guided-constraints and trajectory modules first, then the scene-change vertical; (b) wire what the VLM path should use; (c) keep behind a committed keep-list with a reason per entry                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ISS-092                                                                                                                                    | ISS-092                             |
+| OD-29 | The alert operating point: which prompt text and which numeric camera floor ship                                                                                                                           | ruled 2026-10-05 (a): the arm B rubric text and the per-camera default floor 60 ship as one paired change (mechanism: the owner's choice of the per-camera `risk_threshold`, `risk_filters` and the level map untouched)                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | the shipped operating point; ISS-008's first rung                                                                                          | owner ruling 2026-10-05, Intake log |
+| OD-30 | What the OD-29 floor 60 means for a camera row written before the merge (it stores 0, saves-wins keeps it, and the level map then alerts at score ≥ 40): the shipped 4.3% FP reading is fresh-install-only | (a) treat a stored 0 as 'unset, use the floor' — caveat measured here: a human can legitimately save 0 (`CameraNotificationSettingUpdate.risk_threshold` is `ge=0`), so value alone cannot separate the two populations and the ruling must say which owner intent wins; (b) hand-applied SQL backfill 0→60 on upgrade (the repo is `create_all`-only, so 'on upgrade' means a documented operator step, not code); (c) accept fresh-install scope and restate the §3/§4 pair as fresh-install-only, documenting that pre-merge rows keep the old effective gate; (d) a nullable column or explicit 'use default' flag so 'unset' becomes representable (schema change, the only durable fix) | ISS-103; the honest scope of the shipped operating point; T=70 can ride the same ruling (stage 3.5 prices it at 0/209 benign, 94/241 hits) | ISS-103                             |
 
 Note on OD-10. The ledger records a merge-authority delegation of 2026-10-01
 (`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md:764`), which per the reading covers merging after
@@ -596,7 +602,7 @@ a VLM branch: treat PR and merge as needing the user's go-ahead.
 Source column: 'reading, step n' is the reading of the docs, spec and ledger on 2026-10-03 (its
 decision list and step list); an `ISS-nnn` source is the issue that raised the decision. OD-1 to
 OD-11 follow the reading's decision list in order, OD-12 onward come from the register, and
-OD-23 and OD-24 from the sandbox intake, OD-25 from the intake after `d8482861`, and OD-26 to OD-28 from the intake that filed ISS-089 to ISS-098, and OD-29 from the 2026-10-05 owner ruling on the prompt-programme handoff. ISS-093 extends OD-5 (the clip supply, bar and report) and ISS-096 extends OD-18 (the FLUX stills' licence), each by a dated update under the table.
+OD-23 and OD-24 from the sandbox intake, OD-25 from the intake after `d8482861`, and OD-26 to OD-28 from the intake that filed ISS-089 to ISS-098, OD-29 from the 2026-10-05 owner ruling on the prompt-programme handoff, and OD-30 from ISS-103. ISS-093 extends OD-5 (the clip supply, bar and report) and ISS-096 extends OD-18 (the FLUX stills' licence), each by a dated update under the table.
 
 Update 2026-10-03 (later), OD-24: the temperature-0 experiment in its 'Pending' cell has landed
 (handoff Addendum 4; Intake log entry 2026-10-03 (later)). The ruling is still the owner's.
@@ -672,13 +678,26 @@ the shipped 6.7% [4.0-10.9] and 36.5% [30.7-42.8]; stage-3.5 recomputation, prod
 gate semantics). Durable source: the Intake log entry 2026-10-05; code as committed on
 `fix/vlm-assess-token-budget`.
 
+Update 2026-10-05 (the same day's verification pass) [A: measured here, ISS-103's evidence]: the
+ruled pair stands and all six stage-3.5 rows reproduce exactly, but the FP half (6.7% → 4.3%)
+carries a population the ruling's wording does not name — it is a FRESH-INSTALL reading. A camera
+row written by the pre-merge route stores `risk_threshold` 0, the `create_all`-only schema
+migrates nothing, and the ruled saves-wins property keeps the 0, under which the shipped filter
+alerts at score ≥ 40; arm B at that gate measures 21/209 = 10.0% [6.7-14.9] benign alerts
+(paired McNemar vs the shipped 6.7%: p = 0.167, not separated — a sign flip of the claim, not a
+proven regression; the hits half 36.5% → 43.2% is paired-significant, p = 0.0226, and holds on
+both populations). Nothing here contradicts the ruling: floor 60 is what the owner chose for
+cameras the default governs; what is undetermined is whether a stored 0 is 'no saved preference'
+or 'a preference that wins', which is OD-30. The 4.3% figure stays as recorded; its scope moves by
+dated note, per the record rules.
+
 ## 5. The register
 
 Grouped by area, most severe first within each area. Each block carries the verified evidence, why
 it matters, the world-class gap, a checkable acceptance condition, what it depends on and where it
 is already tracked.
 
-### Notification and alerting (M1) (10)
+### Notification and alerting (M1) (11)
 
 The seam from a persisted verdict to a human. The P0 lives here: nothing calls the notify decision.
 
@@ -803,6 +822,14 @@ The seam from a persisted verdict to a human. The P0 lives here: nothing calls t
   the retired Nemotron harness was deleted in `d8482861`, so drop it from the list the test must
   cover. The other named copies (`backend/api/routes/analytics.py`, `backend/models/event.py`) are
   not touched by that commit, and the issue stays `open`.
+- **Update 2026-10-05 (the OD-29 verification pass) [A measured here, ISS-103's evidence].**
+  Sequencing, do not invert: ISS-018 must **not** merge before OD-30 rules on stored zeros. The
+  band collapse moves `_risk_score_to_level`'s edges from 40/60/80 to the bands of record 29/59/84,
+  which drops a pre-merge camera row's effective floor (that row stores `risk_threshold` 0, and
+  OD-29's saves-wins honours it) from 40 to 30 — measured at arm B at 34/209 = 16.3% benign alerts,
+  up from the 10.0% the same row produces today and the 6.7% it produced under the pre-merge arm A
+  text. The band fix stays right; it just cannot land first, because the 40 edge is currently the
+  only thing between a stored-0 install and the medium band's full traffic.
 
 #### ISS-019 — The NULL-score notify path ignores camera-enabled and quiet hours and has no input producer
 
@@ -939,6 +966,112 @@ The seam from a persisted verdict to a human. The P0 lives here: nothing calls t
   status sentence; it asks for no owner ruling.
 - **Severity note.** Verifiers read P1 as defensible for the design gap and P2 for the dead-stub
   half; the real P1 is the unwired notification link (ISS-001).
+
+#### ISS-103 — OD-29's floor 60 never reaches a camera row written before the merge: the row stores 0, saves-wins keeps it, and the level map alerts at ≥ 40
+
+`P1` · `gap` · actor `owner-decision` · status `open` · added 2026-10-05 (the OD-29 verification pass)
+
+- **Evidence**
+  - The get-or-create branch of `backend/api/routes/notification_preferences.py`
+    (`update_camera_setting`, the `@router.put` whose path carries the camera id) writes
+    `risk_threshold=DEFAULT_CAMERA_RISK_THRESHOLD` when it creates the row [V]. At the parent of
+    `c0191f4d` that same branch wrote `risk_threshold=0` explicitly
+    (`git show d8482861:backend/api/routes/notification_preferences.py`, the same branch) [V]
+  - The schema allows 0 as a saved value:
+    `backend/api/schemas/notification_preferences.py`
+    `CameraNotificationSettingUpdate.risk_threshold` is `Field(None, ge=0, le=100)`, and the table's
+    `CheckConstraint` is `risk_threshold >= 0 AND risk_threshold <= 100`
+    (`backend/models/notification_preferences.py`, `CameraNotificationSetting.__table_args__`) [V]
+  - The repo is `create_all`-only, so no upgrade migrates an existing row to 60:
+    `backend/core/database.py` runs `ModelsBase.metadata.create_all` (Alembic removed in #4465, and
+    `create_all` "creates NEW tables on an existing database and never ALTERS existing ones", per
+    the migration note in `backend/models/event_verification.py`) [V]
+  - Saves win, by ruling and by code: `backend/services/notification_filter.py`
+    `_scored_notify` takes `camera_setting.risk_threshold` when a row exists and only falls back to
+    `DEFAULT_CAMERA_RISK_THRESHOLD` when there is no row [V: the OD-29 comment above that branch
+    states the rule]
+  - With the stored 0, the gate that actually fires is the level map, not the floor:
+    `_scored_notify` first maps the score through `_risk_score_to_level` (80/60/40) and tests it
+    against `global_prefs.risk_filters`, whose model default is `[critical, high, medium]`
+    (`backend/models/notification_preferences.py`, the `risk_filters` default in
+    `NotificationPreferences.__init__`), so any score ≥ 40 passes the level test and then passes the
+    threshold test too (`risk_score < 0` is never true) [C from the two reads above: effective gate
+    = `score >= 40`]
+  - The cited ship pair does not cover that population: re-running the frozen stage-3.5 driver
+    (`stage35/operating_point_ship.py` under
+    `/agents/agent-vss5/gpu/out/experiments/2026-10-04-stage1/`, read-only, over
+    `/agents/agent-vss5/gpu/out/sbroot/eval/tierb-v0/eval.sqlite`, runs
+    `4a94b2562919419a975bed4972646740` and `696c71687e264577b4deb6bd5c99af26`) reproduces all six
+    shipped rows to the digit, and the one row the record does not carry — arm B at the effective
+    floor 40 a stored-0 row enforces — reads **benign alerts 21/209 = 10.0% [6.7-14.9], incident
+    hits 104/241 = 43.2% [37.1-49.5]** [A measured here at `eea4cfd5`; Wilson per F14; same
+    store, same frozen gate semantics as the cited [V] rows]. The pass is itself scripted and its
+    output left on disk: `stage35/verify_stored_zero_2026-10-05.py` (self-checking — it repeats
+    the six ship rows first, then adds the seventh, the McNemar pairs and the refutation census)
+    and `stage35/results-verify-stored-zero-2026-10-05.txt`, same off-repo kit
+  - Paired, exact McNemar over the same 209 benign items: upgraded install A@40 → B@40 is 14 → 21
+    (13 newly alerting, 6 stopped, p = 0.167); the cited fresh-install move A@40 → B@60 is itself
+    14 → 9 (9 stopped, 4 newly, p = 0.267); the hits half is 88 → 104 (30 gained, 14 lost,
+    p = 0.0226) and is identical at floors 40 and 60 [A measured here, same store]
+  - Why the hits are floor-indifferent, measured rather than assumed: of the 18 incidents whose
+    declared `floor_level` is 30, **none** scores in [40, 60) in either arm, so raising the floor
+    from 40 to 60 cannot change a hit; meanwhile the rubric text moves _benign_ scores INTO that
+    band — 4 arm-A benigns score in [40, 60) against 12 arm-B ones — which is the mechanism of the
+    false-positive move [A measured here, same store]
+  - The population is unmeasured and is owner-only knowledge: only that `@router.put` creates a row
+    — the two GETs do not (`backend/api/routes/notification_preferences.py`, `get_camera_settings`
+    and `get_camera_setting` have no `db.add`) — so a camera is affected only if someone ever saved
+    a setting; no deployment inventory exists in the repo [V: read of all seven routes]
+  - The UI states the stored number honestly, so the gap is invisible from the settings page:
+    `frontend/src/components/settings/NotificationSettings.tsx` renders
+    `setting?.risk_threshold ?? DEFAULT_CAMERA_RISK_THRESHOLD`, and in JavaScript `??` does not fall
+    back on a stored 0, so a stored-0 camera displays 0 while the backend gates at 40 [V]
+  - This defect is not registered anywhere: `grep -in "stored.0\|risk_threshold = 0\|backfill"
+17-action-plan.md` returned zero hits before this block [V: run in-session]
+- **Why it matters.** OD-29 ships an operating point whose false-positive half (6.7% → 4.3%) is a
+  fresh-install reading, and on an upgraded install the same shipped code moves benign alerts
+  6.7% → 10.0% — the wrong way. Stated exactly, because the statistics matter: the hit gain is
+  paired-significant and population-independent, the FP move is NOT separated in either population
+  (p = 0.167 upgraded, p = 0.267 fresh), so the honest claim is _the FP half of the ship claim flips
+  sign and is underpowered in both populations_, never 'a proven regression'. The trigger is the
+  ordinary upgrade path, and the affected population is exactly "anyone who ever saved a camera
+  setting", which no repo artifact can count.
+- **World-class gap.** One owner-visible floor with one mechanism: a stored value that means
+  "unset" is distinguishable from a value a human chose (a nullable column, or an explicit
+  `use_default` flag), the effective floor is one function the UI, the filter and the report all
+  read, and an upgrade either migrates rows or is documented as not applying to them — with a
+  migration test that builds a pre-merge database, upgrades it, and asserts the effective gate.
+- **Acceptance.** The owner rules OD-30 (below); then a red-first integration test that (1) inserts
+  a row with the pre-merge shape (`risk_threshold=0`, `enabled=true`) into a live database, (2)
+  calls `should_notify` at a score of 45 with default `risk_filters`, and (3) asserts the outcome
+  the ruling chooses — alerting today, silent under (b)/(c) — plus a second test pinning that a
+  DELIBERATELY saved 0 behaves as the ruling says it must. The record closes when the shipped
+  README §3 and §4 rows state their population, and the dated ledger note exists.
+- **Depends on.** OD-30 (raised by this issue). Sequencing notes, both measured here: **ISS-018 must
+  NOT precede the ruling** — pointing the filter at the bands of record (29/59/84, ISS-018's fix)
+  moves a stored-0 row's effective floor from 40 to 30, which measures 16.3% benign alerts (the
+  stage-3.5 file's own `arm B text only @ 30` row); and wiring M1's consumer (ISS-001) before the
+  ruling makes the two-population divergence user-visible. OD-22's quiet-hours/cooldown remainder
+  can be ruled with OD-30 or apart from it; this issue does not touch suppression.
+- **Tracked as.** None found — the grep above; the OD-29 rows in 17 §4, README §3/§4 and the
+  `DEFAULT_CAMERA_RISK_THRESHOLD` comment all carry the 4.3% pair without a population qualifier
+  (that is what this issue corrects, by dated note, not by rewrite).
+- **Severity note.** P1 by the definition — "wrong … behaviour on the shipped path that changes …
+  an alert" — with the live effect gated on (a) a stored-0 row existing at all and (b) ISS-001's
+  consumer half, which is unbuilt, so nothing pages a user on it yet. A P2 read is defensible for
+  the same reason; the filed value is P1 because the upgrade path is the normal path.
+- **Two claims this issue does NOT make, pre-empted here.** (1) Not claimed that the 2048 budget
+  raise is unmeasured on the shipped text: arm B never truncated at 1024 (that run has 450 rows, 0
+  `verification_failed`, 0 NULL scores, longest raw response 3182 chars — [V: `results` table], so
+  no 2048 twin was owed. (2) Not claimed that any [V] ship row is wrong: all six reproduce exactly;
+  what was missing is the seventh row, and the population the six describe.
+- **Provenance caveat carried from OD-29, not added by this issue.** Runs `4a94b256…`/`696c7168…`
+  were collected 2026-10-03 at client `d8482861` with the rubric applied by an off-repo replay shim
+  (`experiments/2026-10-03-rubric-logprob/replay_exp.py` replaced the prompt clause on the wire and
+  set `logprobs: true` on every call). The recomputation over stored scores is faithful, but no
+  committed command reproduces the measured REQUEST byte-for-byte; the OLD→RUBRIC literal
+  equivalence is the check that should become a committed test before any re-measure is quoted
+  [A: shim read in-session].
 
 #### ISS-041 — Decide the notification policy for `rejected`, `uncertain` and quiet-hours cases against measured recall
 
@@ -2081,7 +2214,6 @@ replay` and the shipped `VlmClient`, on a named llama.cpp build and quantization
   free experiments (Addendum 5, item 2). P1 is a defensible reading, since it is the one lever the
   owner named that OD-2 omits and a first run could be spent on uncleared data. An independent
   re-read on 2026-10-03, against the sources above, agrees with P2.
-
 
 #### ISS-101 — `repeat_penalty: 1.0` moves the score on 8 of 37 events in both directions and nets ~0 discrimination: the sampler-order mechanism is confirmed, the knob is useless, no action
 
@@ -4090,7 +4222,6 @@ docs/plans/2026-09-23-vss-gaming-gpu-ledger.md` shows 0 in its deleted column (a
   of 2026-10-05 ('merge'), from the draft kit banked with the stage-1 scratch; filed unverified by a
   second reader, which the draft itself flags — the register's pattern is that verifiers read
   severity lower than the drafter.
-
 
 #### ISS-100 — The 2026-10-04 banking follow-up is met and gets an id so the record can point at it: probe arm texts, harnesses, result rows and both researcher reports are in-repo at `docs/research/2026-10-04-vlm-prompt/`
 
@@ -6694,3 +6825,69 @@ Three more commits landed after `d8482861`, the same day, on `docs/synthbench-h3
   and doc updates of this entry) moves to the owner's remote by push from the sandbox. This
   supersedes nothing in OD-10 — the delegation reading in section 4's OD-10 note still treats a new
   PR or merge as needing the owner's go-ahead; this entry records the push of this branch only.
+
+### 2026-10-05 (the OD-29 verification pass: the shipped pair is fresh-install-only — ISS-103, OD-30, and the record catches up to main)
+
+- **ISS-103 filed (P1, `gap`, `owner-decision`) and OD-30 raised from it, after re-running the
+  frozen stage-3.5 recomputation at `eea4cfd5` rather than trusting the carried numbers.** The
+  driver's six shipped rows reproduce to the digit (arm A@40 14/209 = 6.7% and 88/241 = 36.5%;
+  arm A@30 18/209 and 88/241; arm B@30 34/209 = 16.3% and 105/241 = 43.6%; **ship arm B@60 9/209 =
+  4.3% and 104/241 = 43.2%**; arm B@70 0/209 and 94/241 = 39.0%; arm A@60 10/209 and 88/241) — the
+  [V] ship record is right [A re-measured here, 2026-10-05, over
+  `$AGENT_GPU_DIR/out/sbroot/eval/tierb-v0/eval.sqlite`, runs `4a94b2562919419a975bed4972646740`
+  and `696c71687e264577b4deb6bd5c99af26`]. The row nobody had computed is the one the merge created
+  a second population for: **arm B at the effective floor 40 that a pre-merge stored row enforces —
+  21/209 = 10.0% [6.7-14.9] benign alerts, 104/241 = 43.2% [37.1-49.5] hits.** Mechanism, each step
+  read at the tip: the pre-merge get-or-create route wrote `risk_threshold = 0` explicitly
+  (`git show d8482861:backend/api/routes/notification_preferences.py`) → the repo is
+  `create_all`-only (Alembic removed in #4465) so nothing migrates it → the ruled saves-wins branch
+  keeps the 0 → `_risk_score_to_level` (80/60/40) × the default `risk_filters`
+  `[critical, high, medium]` admit everything ≥ 40. So on an upgraded install the shipped change
+  moves benign alerts 6.7% → 10.0% — the wrong way — while the cited 4.3% describes a fresh
+  install. Paired exact McNemar keeps the claim honest: the FP move is **not separated** (13 newly
+  alerting, 6 stopped, p = 0.167; the cited fresh-install 14 → 9 is also ns at p = 0.267), so this
+  is a **claim-inversion in an underpowered half**, not a proven regression; the hits half (30
+  gained, 14 lost, p = 0.0226) is the only paired-significant half and is identical at floors 40
+  and 60. Measured reason for that insensitivity, which corrects a first guess of ours: it is not
+  that no incident scores in [40, 60) (six arm-A and twelve arm-B incidents do) — it is that **none
+  of the eighteen `floor_level` 30 incidents** does, so the floor cannot reach a hit; the same band
+  is where the rubric text moves benign scores (arm A 4 → arm B 12), which is the FP mechanism.
+- **Two claims pre-empted rather than filed.** (1) The 1024→2048 raise is NOT an unmeasured delta
+  on the shipped text: arm B never truncated at 1024 (450 rows, 0 `verification_failed`, 0 NULL,
+  longest raw response 3182 chars), so no 2048 twin was owed [V: `results` table]. (2) The settings
+  UI does NOT misreport the stored floor: `NotificationSettings.tsx` renders
+  `setting?.risk_threshold ?? DEFAULT_CAMERA_RISK_THRESHOLD`, and `??` does not fall back on 0, so a
+  stored-0 row shows its real 0 [V]. Both were reached as candidate findings and refuted by
+  reading; they are recorded here so the next reader does not spend a GPU-hour or a UI fix on them.
+- **OD-30 raised (owner):** what floor 60 means for a row written before the merge — (a) treat a
+  stored 0 as unset (caveat measured here: `CameraNotificationSettingUpdate.risk_threshold` is
+  `ge=0`, so a human-saved 0 is legal and value alone cannot separate the populations), (b)
+  hand-applied SQL backfill on upgrade, (c) accept fresh-install scope and restate §3/§4's pair as
+  fresh-install-only, or (d) make 'unset' representable (nullable / explicit flag — the durable
+  fix). T=70 can ride the same ruling (stage 3.5: 0/209 benign, 94/241 hits). The population is
+  owner-only knowledge — only the per-camera `@router.put` creates a row, the GETs do not, and no
+  deployment inventory exists in-repo.
+- **Sequencing warning, measured:** ISS-018 (collapse the filter to the bands of record) must NOT
+  run before OD-30 — it moves a stored-0 row's effective floor 40 → 30, which measures 16.3%
+  benign alerts. Dated note added under ISS-018.
+- **The record catches up to main [V].** README §2's rubric row and its banner said the OD-29 pair
+  was "not in main yet — it is the unmerged `fix/vlm-assess-token-budget` work". False at
+  `eea4cfd5`: that branch, `c0191f4d` and `1e7128fc` are ancestors of `origin/main` (all four docs
+  branches are fully merged too; nothing VLM is branch-only), and the currency gate cannot see it
+  because it checks code pins and ids, not prose. README's banner, that row, §3's OD-29 row scope,
+  §4's OD-29 row and §5's OD table (OD-30) are updated in place — the live, edited-in-place class —
+  and README's `verified-at` moves to `eea4cfd5`.
+- **Ledger row drafted for the owner's merge, not self-merged.** The stages 1-4 programme (≈10.8
+  GPU-h, ten arms) and the OD-29 ship had no ledger row — the ledger stopped at row 79 — which by
+  the recording table makes a production operating-point change unrecorded ground truth. The draft
+  is appended to the ledger as usual; the owner merges, and per the row-78 lesson the tail was read
+  before writing: open PRs **#6809** (perl-base CVEs) and **#6810** (dependabot wave-5) each append
+  a tail row of their own, both dated 2026-10-05, read from their own diffs, so the merge order is
+  the owner's call. The ledger's own formatter (prettier, via pre-commit) renumbers that ordered
+  list by position, which makes the printed number cosmetic — the 80th item at `eea4cfd5`, first of
+  the three tails appended here — and it is the row's content, never its number, that carries the
+  claim. (An earlier check this session found no open PRs; the two above were opened after it. The
+  check has to run at write time, not at planning time.)
+- **Nothing pushed.** OD-10 still governs: every artifact of this pass (ISS-103, OD-30, the README
+  and doc-23 notes, the ledger draft) is committed to the branch and waits there for the owner's
+  push/PR go-ahead.
