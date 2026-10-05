@@ -17,3 +17,8 @@ The probe scripts hardcode scratchpad and GPU-out paths and run against a `PROBE
 server with the transport shim; they are records of what was executed, not supported entry
 points. The captured logprobs (multi-MB per arm) stayed out of the repo; the EV-over-logprobs
 method and result are described in doc 22 section 2.
+
+The follow-on controlled programme these probes motivated (stages 1-4, 2026-10-04/05, ten arms
+under a frozen ship rule) is recorded in
+[`docs/vss-integration/23-prompt-programme-stages-1-4-2026-10-05.md`](../../vss-integration/23-prompt-programme-stages-1-4-2026-10-05.md);
+its own arm texts, pre-registrations and captures stayed off-repo with the GPU scratch.

@@ -270,3 +270,12 @@ seconds>`); stills get no template timestamps — frame labels must be our own p
   arm ladder, probe scripts, probe 3/4 result rows and both researcher tracks' full
   reports are in [`docs/research/2026-10-04-vlm-prompt/`](../research/2026-10-04-vlm-prompt/README.md);
   the multi-MB logprobs captures stayed out of the repo.
+
+## 8. Follow-up (appended 2026-10-05, no text above changed) [A]
+
+The section-6 ladder ran, enlarged, as a four-stage controlled programme (10 prompt arms, a frozen
+OD-26 ship rule, a token-budget ablation, a held-out threshold protocol, three VSS-architecture
+arms) on 2026-10-04/05. Its outcome and the mechanisms it measured are the frozen record in
+[`23-prompt-programme-stages-1-4-2026-10-05.md`](23-prompt-programme-stages-1-4-2026-10-05.md):
+no prompt arm ships at T=30; the budget was measurably never binding; the one held-out survivor is
+a threshold change (owner-gated).
