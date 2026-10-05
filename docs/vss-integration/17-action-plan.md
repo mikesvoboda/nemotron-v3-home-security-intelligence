@@ -600,8 +600,8 @@ the last column.
 | OD-29 | The alert operating point: which prompt text and which numeric camera floor ship                                                                                                                           | ruled 2026-10-05 (a): the arm B rubric text and the per-camera default floor 60 ship as one paired change (mechanism: the owner's choice of the per-camera `risk_threshold`, `risk_filters` and the level map untouched)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | the shipped operating point; ISS-008's first rung                                                                                                                                                                                       | owner ruling 2026-10-05, Intake log                           |
 | OD-30 | What the OD-29 floor 60 means for a camera row written before the merge (it stores 0, saves-wins keeps it, and the level map then alerts at score ≥ 40): the shipped 4.3% FP reading is fresh-install-only | **ruled 2026-10-05 (c):** accept the fresh-install scope and document it, no code — and the owner answered the population question the options could not see: no real install has saved camera settings ('we are building the first installation'), backwards compatibility explicitly out of scope, so no stored-0 row exists or can be produced by current code. Options as filed, kept for the record: (a) treat a stored 0 as 'unset, use the floor' — caveat measured here: a human can legitimately save 0 (`CameraNotificationSettingUpdate.risk_threshold` is `ge=0`), so value alone cannot separate the two populations and the ruling must say which owner intent wins; (b) hand-applied SQL backfill 0→60 on upgrade (the repo is `create_all`-only, so 'on upgrade' means a documented operator step, not code); (c) as ruled; (d) a nullable column or explicit 'use default' flag so 'unset' becomes representable (schema change, the only durable fix; kept as the answer for any future install that predates a change) | ISS-103 (test-only remainder); the honest scope of the shipped operating point; T=70 could have ridden this ruling and did not — the ruling reached (c) only, so floor 60 stands and T=70 remains an unruled option, not a declined one | owner ruling 2026-10-05, Intake log                           |
 
-| OD-31 | ISS-001's acceptance as written cannot be met under the same-day smallest-slice ruling: the acceptance says it stands AND three of its four AST-guarded functions stay parked. Confirm the narrow reading, or amend | options as put by the 2026-10-05 Intake entry: (a) narrow the guard to `should_notify`, read '(or recorded delivery)' as the persisted decision, and let closure be the live-DB notify=true-reaches-a-surface test (the reading the slice is built on; recommended); (b) keep the literal guard and park the slice until the parked functions are unwired (reopens the ruling); (c) an owner line amending the acceptance paragraph explicitly, superseding style as in ISS-018/OD-30. Either way the owner's words are the fix: agent dated notes record, they do not amend owner acceptance text | ISS-001; OD-1's follow-up | the notification slice's AST guard and clause (a); the rest of the slice does not wait |
-| OD-32 | `requires_ack` acks at a raw score >= 80; the bands of record make 80-84 'high'. ISS-018's agreement test forces a choice: a user-visible behavior change or a documented drift | (a) keep the raw 80 edge, document it as deliberate early-ack, and carve it out of the agreement test by name (the shipped test that pins 80-acks stays untouched; recommended if no user has asked for fewer acks); (b) move the edge to critical-at-85 (the bands' own spelling) and re-pin `test_message_buffer.py::test_high_risk_score_requires_ack` — fewer ack prompts, a real behavior change riding inside a band-alignment fix | ISS-018; `backend/services/event_broadcaster.py` `requires_ack` | inside the slice's ISS-018 half; nothing else waits |
+| OD-31 | ISS-001's acceptance as written cannot be met under the same-day smallest-slice ruling: the acceptance says it stands AND three of its four AST-guarded functions stay parked. Confirm the narrow reading, or amend | **ruled 2026-10-05 (a) 'Check the one live function':** the guard narrows to `should_notify`, '(or recorded delivery)' is the persisted decision, closure is the live-DB notify=true-reaches-a-surface test; the parked functions stay unguarded; the acceptance text itself is NOT amended — the owner construed the existing words | ISS-001; OD-1's follow-up | 17 Intake log entry 2026-10-05 (asked and answered in the session) |
+| OD-32 | `requires_ack` acks at a raw score >= 80; the bands of record make 80-84 'high'. ISS-018's agreement test forces a choice: a user-visible behavior change or a documented drift | **ruled 2026-10-05 (a) 'Keep the popup':** the raw 80 edge stands as a documented deliberate early-ack, carved out of ISS-018's agreement test by name; `test_message_buffer.py::test_high_risk_score_requires_ack` stays untouched; 80-84 keeps prompting | ISS-018; `backend/services/event_broadcaster.py` `requires_ack` | 17 Intake log entry 2026-10-05 (asked and answered in the session) |
 
 Note on OD-10. The ledger records a merge-authority delegation of 2026-10-01
 (`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md:764`), which per the reading covers merging after
@@ -820,6 +820,13 @@ The seam from a persisted verdict to a human. The P0 lives here: nothing calls t
   tests map (a) to the persisted-decision closure and (b) to the rejected rule, not to a
   `deliver_alert` call count. The live-DB criterion is measured achievable here: the conftest
   Postgres tier ran ISS-103's pins green in ~5s on `-n0 --timeout=30`.
+- **Update 2026-10-05 (OD-31 ruled) [O: Intake log entry 2026-10-05].** The owner ruled "check the
+  one live function": the guard narrows to `should_notify`, "(or recorded delivery)" is the
+  persisted decision in the new table, closure is the live-DB `notify=true`-reaches-a-surface test,
+  and the parked functions stay unguarded. The reading the update above describes as the slice's
+  working assumption is now the owner's construction of the acceptance text — the text itself
+  stands unamended. Clause (c)'s gate on ISS-019/OD-22 is unchanged. **No open owner question
+  remains inside this block**; the remaining work is the implementation itself (agent-now).
 
 #### ISS-018 — `notification_filter` maps score to level with 40/60/80 bands; shipped bands are 30/60/85
 
@@ -903,6 +910,12 @@ The seam from a persisted verdict to a human. The P0 lives here: nothing calls t
   recommendation to keep the raw 80 and treat ack as its own critical test. The bands of record
   sit in no shipped test's expectations at the boundaries ISS-103's pins touch (score 45 is
   `medium` under both spellings), so whichever way OD-32 lands, the two blocks stay order-safe.
+- **Update 2026-10-05 (OD-32 ruled) [O: Intake log entry 2026-10-05].** The owner ruled "keep the
+  popup": `requires_ack`'s raw `risk_score >= 80` edge stands as a documented deliberate
+  early-ack, carved out of the agreement test by name, and
+  `test_message_buffer.py::test_high_risk_score_requires_ack` is not touched — so scores 80-84
+  keep prompting, and the agreement test the acceptance demands ships with that one named,
+  owner-blessed exception. **No open owner question remains inside this block.**
 
 #### ISS-019 — The NULL-score notify path ignores camera-enabled and quiet hours and has no input producer
 
@@ -7240,3 +7253,39 @@ risk_level: 'high'}` message acking **as desired behavior**. Band alignment mean
   as null, 0/17, under the pre-OD-29 prompt, so any pre-registration must carry a 1-frame control
   or it re-runs a known-null while moving input and operating point together). Nothing here
   pushes GPU hours or opens GitHub/Linear issues; OD-10 still governs.
+
+### 2026-10-05 (OD-31 and OD-32 ruled in the session, both at the recommended option; the slice gets its go-ahead)
+
+- **Asked and answered in the session; recorded here as the durable source (the OD-30 pattern).**
+  The two conflicts raised by "the notification slice planned by evidence" were put to the owner in
+  plain words, each with the recommended option marked, together with a logistics question. The
+  owner answered all three in one exchange, taking the recommendation each time. The rulings, as
+  chosen:
+  - **OD-31: "Check the one live function."** The narrow reading is the owner's, not the agent's
+    working assumption any more: ISS-001's guard narrows to `should_notify` (the one live
+    function), "(or recorded delivery)" is satisfied by the persisted decision in the new table,
+    and closure is the live-database test that a `notify=true` event reaches a surface a human
+    sees. The parked functions stay parked and are not guarded; the acceptance paragraph itself is
+    NOT amended — the ruling confirms the reading, so the written text stands as the owner has now
+    construed it. Acceptance clause (c) (the NULL-score alert) stays gated on ISS-019/OD-22 as
+    before.
+  - **OD-32: "Keep the popup."** `requires_ack` keeps its raw `risk_score >= 80` edge as a
+    documented deliberate early-ack; it is carved out of ISS-018's agreement test by name, and
+    `test_message_buffer.py::test_high_risk_score_requires_ack` (80 acks, pinned as desired) is
+    not touched. Scores 80-84 keep prompting for acknowledgment; nothing user-visible changes on
+    that path in this slice.
+  - **Delivery (OD-10-consistent):** build on a fresh branch off main, commit as the work goes,
+    and when the suite is green push and open a PR against main for the owner to review — merge
+    remains the owner's.
+- **What the rulings do, register-side:** ISS-001's remaining owner-wait is gone; the block's
+  closure test is now unambiguous (guard on `should_notify` + the live-DB reaches-a-surface test).
+  ISS-018's agreement test has a named, owner-blessed exception (ack), which also tells the
+  agreement test's author that ack's behavior is a deliberate divergence rather than a miss. The
+  slice implementation — the new table, the REST field with `exclude_if` absence semantics, the
+  ActivityFeed/EventTimeline rendering, the band delegation, and their tests — is agent-now work
+  with no open owner question inside it.
+- **What this entry does not do:** it does not amend any acceptance paragraph (OD-31 construed the
+  existing text; only a superseding entry could change it, and none was needed); it does not
+  pre-approve the slice's specific test names or table schema (implementation detail, delegated by
+  OD-1's follow-up ruling); and it does not start or size the clip pre-registration, which stays on
+  the owner's call.
