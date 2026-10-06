@@ -90,10 +90,22 @@ a same-day live probe of every world pinned below:
   ServiceRegistry singleton'.
 EQUIV DISPOSITIONS (proof sketch per family; each is RE-PROVEN by the 485-key
 redcheck sweep + the close-sweep attribution - NOTHING is tolerated):
-- none claimed at authoring. Every one of the 189 survivor keys has a
-  deliberate divergence world above (full-instance/full-dict equality, exact
-  call tuples, or full ordered log sequences). Families that LOOK unreachable
-  are still given rows and adjudicated by measurement, not diff-shape
+- from_config __mutmut_22 (amended post-redcheck; body-proven + sweep-proven):
+  the mutant drops the keyword `status=ContainerServiceStatus.NOT_FOUND` from
+  the ManagedService(...) call, but status is an EXPLICIT keyword write (never
+  copied from config) and the dataclass field default IS
+  ContainerServiceStatus.NOT_FOUND, so the mutant constructs a field-identical
+  instance - full _CONFIG_EXPECTED equality passes by construction. Measured
+  on the committed battery bytes: RED=480 GREEN=5 of 485 keys, and this key is
+  one of the 5 GREENs (188 of the 189 survivors flipped 0->1 by row 1). The
+  other four GREENs are NOT dispositions - they are bank-verdict-1 m1
+  return->None keys re-judged by the sweep (get_all, get_by_category,
+  get_last_failure_timestamp, increment_failures) and go to ATTRIB at close.
+  Ledger candidate list at close: exactly this ONE key.
+- Every one of the remaining 188 survivor keys has a deliberate divergence
+  world above (full-instance/full-dict equality, exact call tuples, or full
+  ordered log sequences). Families that LOOK unreachable are still given rows
+  and adjudicated by measurement, not diff-shape
   ([[survivor-disposition-requires-sweep-not-diffshape]]): the get-default
   twins get an ABSENT-key world (the helper-None-default trap does not apply -
   no local `at=None` shim exists in this module), the `... if v or True else
