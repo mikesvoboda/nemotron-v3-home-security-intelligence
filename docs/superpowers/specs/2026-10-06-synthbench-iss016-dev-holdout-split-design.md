@@ -175,10 +175,10 @@ Two edges, stated so no caller has to guess:
   rosters for no reason, so there is no fallback seed. The command prints `no split registered for
 <version>` and exits 0 — B6's optionality is the same code path.
 - **`k` never empties dev, and never goes negative.** The draw size is
-  `max(0, min(k, n_incident - 1))`: `tierb-v0` draws its full six; a 1- or 2-scenario incident arm
-  draws zero, records `holdout_k: 0` beside the draw's full ranked list, and keeps dev non-empty (a
-  split with no dev incidents measures nothing). This only fires on test fixtures and a
-  hypothetically stunted corpus.
+  `max(0, min(k, n_incident - 1))`: `tierb-v0` draws its full six; a 1-scenario incident arm
+  draws zero, a 2-scenario arm draws one, each recording `holdout_k` beside the draw's full ranked
+  list, and dev stays non-empty (a split with no dev incidents measures nothing). This only fires
+  on test fixtures and a hypothetically stunted corpus.
 
 ## §3 The eval store: a `splits` table
 
@@ -200,10 +200,14 @@ CREATE TABLE IF NOT EXISTS splits(
   recorded `manifest_sha256` differs from the one being written, raises `ValueError`. Same shape as
   the frozen-item rule: a store's split is born once and is not edited in place.
 - `EvalStore.get_split(corpus_version) -> list[dict] | None`.
-- `backend/evaluation/label_import.py` and `synthbench/run/replay.py`: replay's import step reads
-  `<export>/splits.json` if present and records it, in the same transaction as the item import,
-  refusing (its existing `_ImportRefused` path → exit 2) when the store already holds a different
-  roster for that corpus version.
+- `backend/evaluation/label_import.py` stays untouched and `synthbench/run/replay.py` records the
+  split: replay's `_import` step reads `<export>/splits.json` if present and calls `put_split`
+  after the item import — the store commits per item, so there is no shared transaction, and none
+  is needed: the import step is idempotent end to end, so a run that crashed between items and
+  split re-records both on rerun. A store already holding a different roster for that corpus
+  version raises through the existing `ImportRefused` path (→ exit 2, ask the owner). The root
+  placement of `splits.json` cannot disturb either reader: `read_sets` and
+  `import_generated_items` both glob `*/*/expected_labels.json` only.
 
 `replay`'s `run.json` gains `split_sha256` and the holdout roster (the six names), so a replay
 states the split it measured under beside the labels digest it already states. Items and their
@@ -224,15 +228,26 @@ fingerprints are untouched — B5.
   through the existing `_by_scenario` grouping and calls `headline()` per side:
   `{"all": …, "audited": …, "dev": …, "holdout": …, "slices": …}`. The audited subset is unchanged
   and un-split — it answers "is the declared truth right", not "did tuning leak".
-- `comparison()` runs per split, returning `{"all": [...], "dev": [...], "holdout": [...]}`, each
-  list in the current shape. Dev is where the OD-26 selection rule is applied; holdout is not a
-  selection gate and the report says the rule is not applied there.
+- `comparison()` keeps its current signature and list shape. With a recorded split,
+  `score_models` calls it three times and adds **`split_comparison: {"dev": [...], "holdout": [...]}`**;
+  without one, `comparison` stays the single all-items list it is today. Dev is where the OD-26
+  selection rule is applied; holdout is not a selection gate and the report says the rule is not
+  applied there.
+- **B6's shape rule, stated once:** with an unrecorded split, every new _metric_ key is absent —
+  model blocks have no `dev`/`holdout`, there is no `split_comparison`, the slices shape is
+  unchanged. What still differs on a pre-split export, and may: `score_version` (3),
+  `identity.split == {"source": "unrecorded"}`, the per-row `"split": "unrecorded"` in
+  `results.jsonl`, and the report's `unrecorded` Split row. The measurement math itself never
+  changes for an unrecorded export.
 
 Because the holdout holds no benign items, its S2 leg runs over an empty population. The existing
 conventions already make that honest, and this design uses them rather than adding a special case:
 `s_metrics`' denominator is 0 → rate `None`, `wilson_interval(0, 0)` is the full-width `(0.0, 1.0)`
 ("no data is NOT a 0% rate"), `cell()` flags `insufficient`, and `cluster_bootstrap` returns
-`point_pct: None` with `ci_pct: [0, 100]`. The renderer prints `—` for those, with the reason.
+`point_pct: None` with `ci_pct: [0, 100]`. No renderer change: the Wilson cell prints
+`insufficient (n=0)` (`fmt`'s existing MIN_N path) and the cluster prints `—` (`fmt_cluster`'s
+existing None path) — the shapes today's report already uses for empty denominators, with the
+section footnote stating why this one is empty by design.
 
 ## §5 Report: label every number, hide nothing, show no holdout stills
 
@@ -264,9 +279,11 @@ holds all 209 benign items by design (ISS-016 B1)`.
   would cost comparability for no leakage protection.
 - `html()` gains the split as an argument and filters rows to dev **twice**: by scenario arm, and
   by a `split` field it refuses to render without (a row carrying `split: unrecorded` renders,
-  because that gallery predates the split; a row that simply lacks the field raises). A holdout
-  still reaching the gallery is a defect, not a cosmetic slip, so the check is written to fail
-  loudly rather than to filter quietly.
+  because that gallery predates the split; a row that simply lacks the field raises `ValueError`).
+  A holdout still reaching the gallery is a defect, not a cosmetic slip, so the check fails loudly:
+  `report.py` raises, the score command crashes nonzero with a stack trace, and the score
+  directory is left half-written (everything but `report.html`) as evidence. This is the first
+  raise in `report.py` — deliberate: every other report choice is cosmetic, this one is not.
 - `results.jsonl` gains `"split": "dev" | "holdout" | "unrecorded"` per row — the file is the tuning
   input downstream tools read, so the arm belongs in the row, not only in the header.
 
@@ -287,23 +304,23 @@ holds all 209 benign items by design (ISS-016 B1)`.
 
 TDD: each test written and watched to fail first.
 
-| Test                                               | Pins                                                                                                                                                                                            |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `draw_split` on the 19 exported incident scenarios | recomputes exactly the six names above, in the recorded order, and the 64/177/209 counts. The seed string is asserted literally, so a silent edit fails here.                                   |
-| `draw_split` determinism                           | same inputs → same bytes; changing the seed string changes the roster; the roster is invariant to input order                                                                                   |
-| benign scenarios never drawn                       | a corpus of only benign scenarios yields `holdout: []` and an empty-population holdout, not a crash                                                                                             |
-| the two §2 edges                                   | a corpus version absent from `SPLIT_SEEDS` exports with no manifest and that line on stdout; a 1-incident-scenario arm draws `holdout_k: 0`, a 2-scenario arm draws 1 — both keep dev non-empty |
-| `splits.json` canonical bytes                      | stable under dict insertion order; `write_split` is create-once and raises `ExportConflict` on different content                                                                                |
-| store `put_split`                                  | identical re-put is a no-op; a changed arm for one scenario raises; a different `manifest_sha256` raises                                                                                        |
-| replay with a split-carrying export                | store holds 31 scenario rows; `run.json` carries `split_sha256` and the roster                                                                                                                  |
-| replay against a store holding a different roster  | exit 2 `_ImportRefused`, message names the store and the fix                                                                                                                                    |
-| `score` on a pre-split export (no `splits.json`)   | byte-for-byte the metrics and report of today, `split.source == "unrecorded"` (snapshot-pinned)                                                                                                 |
-| `score` with a split                               | model block has `all`/`dev`/`holdout`; `holdout` S2 is the empty-population shape; dev+holdout item counts sum to `all`                                                                         |
-| `score` where store and export disagree            | `ScoreRefused`, exit 2                                                                                                                                                                          |
-| `report.md`                                        | prints the Split row, the can/cannot-say section, the labelled dev and holdout tables, and the `—` with its reason for holdout S2                                                               |
-| `report.html`                                      | contains no holdout event id or still path; a dev row missing its `split` field raises; an `unrecorded` row still renders                                                                       |
-| `results.jsonl`                                    | every row carries `split`; counts per arm match the manifest                                                                                                                                    |
-| frozen P5a and sweep records re-read               | the existing snapshot tests stay green unchanged                                                                                                                                                |
+| Test                                               | Pins                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `draw_split` on the 19 exported incident scenarios | recomputes exactly the six names above, in the recorded order, and the 64/177/209 counts. The seed string is asserted literally, so a silent edit fails here.                                                                                                                                                          |
+| `draw_split` determinism                           | same inputs → same bytes; changing the seed string changes the roster; the roster is invariant to input order                                                                                                                                                                                                          |
+| benign scenarios never drawn                       | a corpus of only benign scenarios yields `holdout: []` and an empty-population holdout, not a crash                                                                                                                                                                                                                    |
+| the two §2 edges                                   | a corpus version absent from `SPLIT_SEEDS` exports with no manifest and that line on stdout; a 1-incident-scenario arm draws `holdout_k: 0`, a 2-scenario arm draws 1 — both keep dev non-empty                                                                                                                        |
+| `splits.json` canonical bytes                      | stable under dict insertion order; `write_split` is create-once and raises `ExportConflict` on different content                                                                                                                                                                                                       |
+| store `put_split`                                  | identical re-put is a no-op; a changed arm for one scenario raises; a different `manifest_sha256` raises                                                                                                                                                                                                               |
+| replay with a split-carrying export                | store holds 31 scenario rows; `run.json` carries `split_sha256` and the roster                                                                                                                                                                                                                                         |
+| replay against a store holding a different roster  | exit 2 `_ImportRefused`, message names the store and the fix                                                                                                                                                                                                                                                           |
+| `score` on a pre-split export (no `splits.json`)   | B6's shape rule: no `dev`/`holdout` keys, no `split_comparison`, headline/slice numbers identical to the same fixture run before this change (fixture-pinned by asserting the today-shape keys and values; synthbench has no syrupy snapshots — the suite pins with string and key assertions, and does the same here) |
+| `score` with a split                               | model block has `all`/`dev`/`holdout`; `holdout` S2 is the empty-population shape; dev+holdout item counts sum to `all`                                                                                                                                                                                                |
+| `score` where store and export disagree            | `ScoreRefused`, exit 2                                                                                                                                                                                                                                                                                                 |
+| `report.md`                                        | prints the Split row, the can/cannot-say section, the labelled dev and holdout tables, and the `—` with its reason for holdout S2                                                                                                                                                                                      |
+| `report.html`                                      | contains no holdout event id or still path; a dev row missing its `split` field raises; an `unrecorded` row still renders                                                                                                                                                                                              |
+| `results.jsonl`                                    | every row carries `split`; counts per arm match the manifest                                                                                                                                                                                                                                                           |
+| frozen P5a and sweep records re-read               | the existing snapshot tests stay green unchanged                                                                                                                                                                                                                                                                       |
 
 Acceptance against ISS-016's acceptance text: _"fixed, hash-pinned split stratified by scenario,
 recorded in the eval store"_ — drawn by published hash order, keyed and stratified within the
