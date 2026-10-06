@@ -16,6 +16,7 @@ import json
 import logging
 import sqlite3
 import uuid
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -70,6 +71,14 @@ class EvalStore:
                 risk_score INTEGER,
                 raw_response TEXT NOT NULL,
                 UNIQUE(run_id, item_id)
+            );
+            CREATE TABLE IF NOT EXISTS splits(
+                corpus_version TEXT NOT NULL,
+                scenario TEXT NOT NULL,
+                arm TEXT NOT NULL CHECK (arm IN ('dev','holdout')),
+                seed TEXT NOT NULL,
+                manifest_sha256 TEXT NOT NULL,
+                PRIMARY KEY (corpus_version, scenario)
             );
             """
         )
@@ -154,6 +163,98 @@ class EvalStore:
                 continue
             out.append(item)
         return out
+
+    # -- splits (ISS-016) ----------------------------------------------------
+    def put_split(
+        self,
+        corpus_version: str,
+        rows: Sequence[Mapping[str, Any]],
+        *,
+        seed: str,
+        manifest_sha256: str,
+    ) -> None:
+        """Record one corpus version's dev/holdout roster (spec §3).
+
+        Flat rows on purpose: the table stores no JSON, so a later change to
+        `splits.json`'s shape is the writer's problem, not the store's. A
+        store's split is born once, same posture as the frozen-item rule —
+        re-putting identical rows is a no-op (the replay's import step is
+        idempotent end to end, so a rerun of a crashed run re-puts every row
+        it already wrote), and anything that would EDIT a recorded row raises.
+
+        The version-level manifest check runs BEFORE the first write, not off
+        the primary-key conflict: a roster that only ADDS a scenario never
+        collides, so a sha check hung off the conflict alone would silently
+        accept a second manifest for one corpus version. Commits are per row
+        like `put_item`'s — §3 needs no shared transaction, because every
+        refusal is decided by the recorded rows and the incoming digest, so a
+        rerun reaches the same answer whichever row it stopped at.
+        """
+        stored = {
+            scenario: (arm, row_seed, row_sha)
+            for scenario, arm, row_seed, row_sha in self._db.execute(
+                "SELECT scenario, arm, seed, manifest_sha256 FROM splits WHERE corpus_version=?",
+                (corpus_version,),
+            )
+        }
+        recorded = {sha for _, _, sha in stored.values()}
+        if recorded and recorded != {manifest_sha256}:
+            raise ValueError(
+                f"split for corpus version {corpus_version!r} is already recorded under "
+                f"manifest_sha256 {sorted(recorded)}; refusing {manifest_sha256!r}"
+            )
+        for row in rows:
+            scenario, arm = str(row["scenario"]), str(row["arm"])
+            if existing := stored.get(scenario):
+                stored_arm, stored_seed, stored_sha = existing
+                if stored_arm != arm:
+                    raise ValueError(
+                        f"split for {corpus_version!r}: scenario {scenario!r} is already "
+                        f"recorded as {stored_arm!r}; refusing {arm!r}"
+                    )
+                if (stored_seed, stored_sha) != (seed, manifest_sha256):
+                    raise ValueError(
+                        f"split for {corpus_version!r}: scenario {scenario!r} is already "
+                        f"recorded under seed {stored_seed!r}/"
+                        f"manifest_sha256 {stored_sha!r}; refusing {seed!r}/{manifest_sha256!r}"
+                    )
+                continue
+            try:
+                self._db.execute(
+                    "INSERT INTO splits(corpus_version, scenario, arm, seed, manifest_sha256) "
+                    "VALUES(?,?,?,?,?)",
+                    (corpus_version, scenario, arm, seed, manifest_sha256),
+                )
+                self._db.commit()
+            except sqlite3.IntegrityError as e:
+                row_now = self._db.execute(
+                    "SELECT arm, seed, manifest_sha256 FROM splits "
+                    "WHERE corpus_version=? AND scenario=?",
+                    (corpus_version, scenario),
+                ).fetchone()
+                if row_now == (arm, seed, manifest_sha256):
+                    # identical re-put racing another writer: a no-op, like items
+                    continue
+                # an arm outside dev/holdout trips the CHECK, which arrives as
+                # IntegrityError; the caller's refusal path is ValueError (the
+                # frozen-item rule's shape), so wrap it with the row shown.
+                raise ValueError(
+                    f"split row for corpus version {corpus_version!r} is refused: {row!r}"
+                ) from e
+
+    def get_split(self, corpus_version: str) -> list[dict[str, Any]] | None:
+        """The recorded roster by scenario, or None when this version was
+        never split — an unsplit export must not read as an empty roster."""
+        rows = self._db.execute(
+            "SELECT scenario, arm, seed, manifest_sha256 FROM splits "
+            "WHERE corpus_version=? ORDER BY scenario",
+            (corpus_version,),
+        ).fetchall()
+        if not rows:
+            return None
+        return [
+            {"scenario": r[0], "arm": r[1], "seed": r[2], "manifest_sha256": r[3]} for r in rows
+        ]
 
     # -- runs / results ------------------------------------------------------
     def start_run(self, engine: str, model: str) -> str:
