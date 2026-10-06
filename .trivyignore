@@ -133,14 +133,22 @@ CVE-2023-2953
 #   3. No ECDH operations or ECDSA signing in production code paths
 CVE-2024-23342
 
-# CVE-2026-85394 - python-jose 3.5.0 algorithm-confusion bypass via DER public keys (REVIEW BY: 2027-04-06)
-# CRITICAL upstream (GHSA-3qf3-8w2g-rqmx, incomplete fix of CVE-2024-33663); NO FIX EXISTS —
-# 3.5.0 is still the newest PyPI release (OSV last_affected 3.5.0, no fixed event). Not
-# exploitable here: the advisory needs an unrestricted-algorithms decode plus an attacker-held
-# PUBLIC key; our sole jose consumer pins algorithms=[HS256] with a server-held secret at
-# jwt.decode (backend/services/auth_service.py:217). Mirrors the --ignore-vuln added for the
-# same ID in .github/workflows/dependency-audit.yml (precedent: CVE-2024-23342 above lives in
-# both registers). Remove when python-jose ships a release past 3.5.0 fixing the DER path.
+# CVE-2026-85394 - python-jose 3.5.0 algorithm-confusion guard bypassed by DER-encoded public keys (REVIEW BY: 2027-01-06)
+# CRITICAL severity per the advisory; status "affected" with NO fix versions
+# published (re-verified 2026-10-06: OSV lists no fixed release and 3.5.0 is
+# the newest python-jose ever released — the project is dormant upstream).
+# Not exploitable in our context — the forge needs a caller-SUPPLIED key and
+# a permissive algorithms= so an HS256 token can be signed with a public key:
+#   1. all three JWT call sites pin the algorithm explicitly (auth_service.py
+#      :162 and :197 jwt.encode(algorithm=_JWT_ALGORITHM); :217
+#      jwt.decode(..., algorithms=[_JWT_ALGORITHM])) — the exact mitigation
+#      the advisory text names ("when algorithms are not explicitly
+#      restricted")
+#   2. verification uses the symmetric config secret, never a key material an
+#      attacker can hand in, so the DER-public-key-as-HMAC-secret path cannot
+#      be reached
+# Re-check at the review date; if upstream never ships, replacing python-jose
+# (e.g. pyjwt) is an owner-sized call, not a lockfile bump.
 CVE-2026-85394
 
 # =============================================================================
@@ -308,19 +316,6 @@ AVD-DS-0002
 # with per-file reasons — see REMOVED. 16 CVE + 1 GHSA + 1 AVD-DS entries remain,
 # every one tracker/OSV-open or a dated accepted misconfig whose rationale names
 # its actual targets.)
-#
-# Last lockfile audit: 2026-10-06 (the 2026-10-05 disclosure wave that redden
-# PR #6811's audit gates: python — fsspec CVE-2026-104851 fixed by the bump to
-# 2026.9.0, nothing deleted here (it was never ignored); python-jose
-# CVE-2026-85394 added HERE and as --ignore-vuln in
-# .github/workflows/dependency-audit.yml, no fix exists (3.5.0 newest), HS256-
-# pinned decode not exploitable — the CVE-2024-23342 dual-register precedent
-# followed. npm — seroval x2 + source-map-js + smol-toml + postcss-selector-
-# parser all fixed in package-lock.json (overrides floors where a parent range
-# cannot reach the fix) and carried into bun.lock by hand; no new entries here,
-# the findings resolved. Measured green after: pip-audit (CI flags, 4 ignores)
-# rc=0, trivy fs of all three lockfiles 0 findings, npm exemption checker rc=0
-# both CI shapes, 17 CVEs tracked here, 0 expired.)
 # Next review: 2026-12-20 (the earliest active REVIEW BY date — the four
 # pip-vendored entries; when the base image ships a newer pip, re-check those
 # and re-run the Debian/Alpine sweep in full). AVD-DS-0002 is due 2027-07-05, but
@@ -381,3 +376,21 @@ CVE-2026-97689
 #
 # CVE-2026-93687 - braces 3.0.3 stack overflow on deeply nested patterns, via tailwindcss (REVIEW BY: 2027-01-03)
 CVE-2026-93687
+
+# 2026-10-06 advisory-wave addendum (seroval, via the react-query devtools
+# chain). Published in the Oct-5/6 OSV wave; both fixed upstream (1.6.2 /
+# 1.6.3) but UNREACHABLE through this tree's graph: @tanstack/react-query-
+# devtools@5.104.1 -> @tanstack/query-devtools -> solid-js pins seroval
+# ~1.5.4, so taking the fix is the major devtools migration (same blocked-
+# major class as braces), and the same premise is registered on the npm side
+# in frontend/.npm-audit-exemptions.json. No app code imports solid-js or
+# seroval (measured 2026-10-06: zero references under frontend/src); the
+# chain is reached only through devtools' own cache-state serialization.
+# Pinned here, not silently: if a future graph change ever admits seroval
+# >=1.6, delete these two entries at that PR (the sibling npm entries fail
+# CI the moment npm reports an in-range path).
+#
+# CVE-2026-104846 - seroval <1.6.2 fromJSON() promise-thenable assimilation invokes plugin callables (REVIEW BY: 2027-04-06)
+CVE-2026-104846
+# CVE-2026-104845 - seroval <1.6.3 memory-exhaustion DoS via unchecked TypedArray length on deserialize (REVIEW BY: 2027-04-06)
+CVE-2026-104845

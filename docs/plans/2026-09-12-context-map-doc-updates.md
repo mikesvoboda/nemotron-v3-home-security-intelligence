@@ -15343,3 +15343,1684 @@ on the do-not-start list): **`stream_manager.py` 257 survivors at 28.8089%**
 `threat_monitor_service` 244/32.5967%, `worker_supervisor` 243/62.6154%). Campaign #24, battery letter Z.
 Gap to 85%: 0.85×69,127 = 58,757.95 − 51,328 = **7,429.95 kt**. Every number
 measured THIS session.
+
+## MILESTONE 26 — 74.62188033199341% (campaign #24 stream_manager closes; TWO runs; one disclosed sibling-hole event)
+
+**DECIDE (ordering):** M25 head as censused — `stream_manager.py` 257 survivors at
+28.8089% (361 keys; R8-shield clean). `api/routes/system.py` 328 and
+`system_broadcaster.py` 320 skipped (do-not-start list). Battery letter Z.
+
+**Badge:** **74.62188033199341%** completed=true (killed 51,322 + timeout 285 =
+51,607 kt / 69,158; no_tests 783; survived 16,768; not_checked 0; torn 0). Delta vs
+M25's 74.25173955183936% = **+0.3701407801540455**. Bank grew 69,127 -> 69,158
+(+31, ALL stream_manager coverage-growth births); dilution on the pre-existing
+51,328 kt = −0.033403702… pt; kill-growth +279 kt = +0.4035… pt.
+
+**Campaign #24 `backend/services/stream_manager.py` CLOSED at 97.70408163265306%**
+(383 kt / 392; survivors 9; 4 timeout inside kt). Entering bank row {1:96, -24:8,
+0:257} of 361. Disposition: authoring sweep RED=248 GREEN=9 of 257 -> 7 registered
+EQUIV + 2 KILLABLE; the killer pair (fractional-fps arm `elapsed > 0` -> `> 1`
+needs `0 < elapsed < 1`; replace-guard `in` -> `not in` needs the REAL
+`_cleanup_stream` cancel-observation, a call-count stub is guard-blind) flipped
+both -> sweep RED=250 GREEN=7 == ledger. Battery Z committed at md5 `9ead909c…`
+(pre-run sweep bytes 4021ddaf… authoring; the two md5 pairs re-verified
+committed==gated at every step).
+
+**TWO-RUN close, one disclosed SIBLING-HOLE event:** run 1 (04:51Z, 240 files
+mutated, done 590s) reconciled CLEAN by body identity — matrix {(1,1):96,
+(0,1):250, (0,0):7, (-24,1):4, (-24,-24):4}, 0 kill losses, 31 new-body births
+(29 killed same-run, 2 survived == run-born EQUIVs). BUT the published score came
+completed=FALSE, not_checked=58: run 1's coverage gather grew
+`vlm_specialists.collect_specialist_outputs` from zero coverage to 58 mutant slots
+whose cached verdicts were invalidated to None (mutmut dependency-change notice
+"cannot be tracked for behavioral changes" — the battery's module scope never
+checked them; the pre-row was {917:1, 13:0} with zero Nones). Run 2 (05:20Z,
+scoped `mutation-run.sh vlm_specialists`) re-checked all 69,158 (the fn is NOT on
+DEAD_MODULES/DEAD_LOADERS — verified; sibling drift vs pre-run archive: **0
+verdict changes across all 239 sibling metas**, vsm row lands byte-identical to
+its pre-run {917,13}). The goal-prompt's "never launch run 2 without a body audit"
+guard held: run 2 launched only AFTER run 1's stream_manager reconcile was CLEAN
+and the 58 holes were proven sibling-coverage artifacts, not stream_manager
+survivors.
+
+**Run-born EQUIVs (2, registered in the battery ledger):** both
+`_health_monitoring_loop` `break` -> `return` slots at the two in-`try` exits
+(disconnect branch, read-failure branch) — the while loop is the function's LAST
+statement (no `finally`, release awaited before the break), so both exits unwind
+identically; the same construction as m51 from the authoring ledger.
+
+**Close sweep (388 sweepable keys — the 4 timeout keys excluded as unsweepable,
+disclosed; battery at committed md5 `e6d5f9bc…`):** RED=375 GREEN=9 == the 9 bank
+survivors EXACTLY (`_cleanup_stream` m5, `_handle_connection_failure` m32/33/36/37,
+`_health_monitoring_loop` m9/m18/m57 — the three break-twins incl. the two births —
+`remove_stream` m7). The 9 GREEN verdicts are all bank 0. The single-process
+all-keys sweep HUNG on `connection_loop`/`_create_capture` keys that BYPASS the
+battery's DI seam (mutants flipping the `if self._capture_factory:` gate falsy fall
+through to REAL cv2 opens + REAL backoff sleeps -> infinite loop): batched
+re-sweep (20-key batches, 120s caps, per-key retry) dispositioned all 388 with 4
+recorded HANGs (`connection_loop` m3/m6/m9, `_create_capture` m1) — all four are
+bank verdict-1 (killed); a sweep HANG is battery-inapplicability, never a
+disposition. This hang-proofing gap is the battery's ONLY known blind side and is
+disclosed here rather than papered over.
+
+**Ledger row-by-row (9 survivors, all bank verdict-0):** 7 authoring-registered
+(2 guarded-pop default deletions: key-always-present so the deleted `None` default
+is unreachable; 4 `_handle_connection_failure` override kwarg arms: the handler
+writes the SAME values to ctx first and `_update_health`'s None-fallbacks re-read
+them -> byte-identical hset mapping; 1 `break`->`return` at a function-tail loop)
+
+- 2 run-born break-twins (same construction as m51).
+
+**Merge absorbed pre-close:** origin took a host segment between beats (PR #6778
+metrics-dead-writer deletion + legacy-residue cleanup + main merge, 55 files
++1,757/−9,318) — ZERO file overlap with the five #24 commits; merge commit
+carrying the disclosure; battery md5 re-verified unchanged (`e6d5f9bc…`). Merge
+deleted two metric test files -> mutant-tree orphan copies PRUNED + pycache swept
+before any later generation (orphan-collect family). The merge EDITS backend
+source (metrics.py, config.py, gpu_config, gpu_detection_service, schemas) —
+those metas are era-stale NOW (next generation re-enumerates them; the
+stale-era-family reconcile applies at whatever module takes them next); no run
+was launched for them tonight.
+
+**Bank at close:** 240 metas / 69,158 keys {exit-1 51,237, suspicious 32, timeout
+285, survived 16,768, no_tests 783} = kt 51,607 (suspicious folds into kt per the
+score script; the published totals attribute 51,322+285 = 51,607 exactly).
+History run #30 appended `--date 2026-10-03` (UTC and local both 2026-10-03 at
+append — no cross-midnight disclosure needed). guard-restore.tgz refreshed +
+verified from inside; M25 tar kept as `guard-restore-preM26-superseded.tgz`.
+Guard: run-1 22 ticks + run-2 22 ticks, ALL clean, sibling-drop=0 throughout
+(the tight-regime guard never fired; both runs' [gen]->[tight] transitions seen).
+
+**NOT PUBLISHED FROM:** the close-sweep RED=375 as the module score (bank 383 —
+14 kills come from the timeout arms + shipped-suite arms outside the b30
+single-process contract), the 4 sweep HANGs as survivors (bank verdict-1), or
+run 1's completed=false as a campaign failure (the 58 holes were sibling
+coverage-growth, not #24 survivors; run 2 restored completed=true with 0 drift).
+Commands + snapshots: runs `b38-c24-run.log` / `b38-c24-run2.log`; guard ticks
+`guard.log`; sweeps `b38-c24-sweep-authoring.txt` (248/9 of 257),
+`b38-c24-sweep-committed.txt` (250/7 of 257, committed 4021ddaf bytes),
+`b38-c24-sweep-close.txt` + `b38-c24-sweep-batched.sh` (close: 375/9 + 4 HANG of
+388); reconcile `b38-c24-reconcile-body.py` -> `b38-c24-reconcile-r1.txt` (CLEAN
+rc=0); map `b38-c24-mutation-map.txt` (257 keys, 0 NOT-FOUND); keys
+`b38-c24-sweep-keys.txt`, `b38-c24-all-keys.txt`; tiers
+`b38-c24-greentier.log` (28,715 passed / 124 skipped / 8 xfailed, 0 FAILED);
+pre-run archive `b38-preC24/` (240 metas; target {96,8,257}); scores
+`b38-c24-score-r1.json` (74.54524422337256, completed=FALSE, not_checked=58),
+`b38-c24-score-r2.json` (74.62188033199341, completed=TRUE); history backup
+`mutation-history-preM26.json`. Next head (re-censused from
+`b38-c24-score-r2.json`, R8 shield applied): **`background_evaluator.py` 248
+survivors at 36.7347%** (408 keys; then `threat_monitor_service` 244/32.5967%,
+`worker_supervisor` 243/62.6154%). Campaign #25, battery letter AA. Gap to 85%:
+0.85×69,158 = 58,784.3 − 51,607 = **7,177.3 kt**. Every number measured THIS
+session.
+
+## MILESTONE 27 — 74.98408933117334% (campaign #25 background_evaluator closes; ONE run + one hole-repair run; the guard-restore disaster disclosed)
+
+**DECIDE (ordering):** M26 head as censused — `background_evaluator.py` 248 survivors at
+36.7347% (392 keys; R8-shield verified CLEAN against DEAD_MODULES/DEAD_LOADERS).
+`api/routes/system.py` 328 and `system_broadcaster.py` 320 skipped (do-not-start list).
+Battery letter AA (48 tests).
+
+**Badge:** **74.98408933117334%** completed=true (killed 51,556 + timeout 285 =
+51,841 kt / 69,136; no_tests 783; survived 16,512; not_checked 0; torn 0). Delta vs
+M26's 74.62188033199341% = **+0.3622089991799271**. Bank: 69,158 -> 69,136 keys
+(−22 = +2 background_evaluator births −24 api/routes/gpu_config era-transition
+deletions, both disclosed below); kt +234 = +244 background_evaluator − 10
+gpu_config. Per-module diff is EXHAUSTIVE — zero other module moved.
+
+**Campaign #25 `backend/services/background_evaluator.py` CLOSED at 98.4772%**
+(388 kt / 394; survivors 6; 0 timeout). Entering bank row {1:144, 0:248} of 392.
+Disposition: authoring sweep RED=234 GREEN=14 of 248 -> 8 registered EQUIV arms
+collapsed to 6 distinct GREENs + 6 KILLABLE arms (the eight arms listed under
+KILLABLE in the battery docstring: m183 exc_info-3-tuple demand — `exc_info=False`
+is TRUTHY so truthiness asserts are fake; m110 `select(None)` still renders
+"FROM event_audits…" so the kill is `"SELECT NULL" not in str(stmt)` + entity-column
+presence; m121/m122+m185/m186 `_fail_job` arg-drops observable only in LEGACY mode
+via two dedicated rounds recording the exact (job-id, message) pair; complete_job
+m6 / fail_job m6 half-empty gateway polarities — (service, None-id) must not call,
+(None-service, id) must not raise). Second sweep RED=242 GREEN=6 == ledger EXACTLY.
+Committed-bytes re-sweep (md5 `603cade0…`) reproduced 242/6/0-HANG with the GREEN
+set identical — a docstring-only ledger commit re-gated by full sweep per protocol
+(a bytecode-identity shortcut was attempted and ABANDONED as unreliable, disclosed).
+
+**The 6 survivors == the ledger (row-by-row, all bank verdict-0):**
+
+- process_one m10/m11/m12 (tracker_job_id/job_id/job_service inits `None` -> `""`):
+  every consumer is truthiness-only; the one `is None` compare is short-circuited by
+  `_job_tracker is None` on the same gate; `""` falsy exactly like `None`.
+- process_one m50/m51 (event/audit inits `None` -> `""`): both locals assigned from
+  `scalar_one_or_none()` before any read — the initializer is unreachable.
+- process_one m71 (event-not-found gateway `and` -> `or`): gate inputs CORRELATED by
+  the assignment block (id only assigned while `_job_tracker` truthy); the polarities
+  that would discriminate cannot occur; even pathologically both shapes land on a
+  silent gateway. Contrast the gateway METHODS' m6 arms where the pair is a PARAMETER
+  — half-empty IS constructible there (KILLABLE, killed).
+
+**One-run close via the M19 PRE-COPY discipline:** battery AA pre-copied into the
+mutant home (md5-verified `603cade0…`) before run 1 -> the run's OWN stats pass saw
+the new coverage; the 2 births at `xǁBackgroundEvaluatorǁ_get_job_status_service`
+(function mutant census 1 -> 3 — my cache test newly covered it; same-run-killed,
+M19 pattern) never survived to need a run 2. Pre-launch green scan 28,718 passed /
+124 skipped / 8 xfailed, 0 failed. Pre-run archive `b38-preC25/` (240 metas; target
+{1:144, 0:248} of 392).
+
+**Era-transition on a sibling — the 24-key drop, DISCLOSED:** run 1's coverage gather
+killed coverage of `api/routes/gpu_config.x__calculate_auto_assignments` (the M26 row
+predicted exactly this: "the merge EDITS backend source (… gpu_config …) — those
+metas are era-stale NOW"); the module's meta re-enumerated 367 -> 343 keys — ALL 24
+removals verified to belong to that one function (12 killed + 12 survived cached
+verdicts die with their keys), 0 births, and 151 cached verdicts invalidated to None.
+That module's 343-key row RE-EARNED whole in run 3: {0:123, 1:69, None:151} ->
+{0:199, 1:144}, key set byte-identical, exactly ONE verdict moved among the previously
+checked keys — `x__validate_vram_assignments__mutmut_9` 0 -> 1 (improvement flip; the
+battery is source-unchanged; the re-check itself caught it). Whole-tree drift audit:
+240 metas, 0 siblings changed (guard [tight] sibling-drop=0 every tick, both runs).
+
+**THE RUN-2 DISASTER AND ITS RECOVERY, disclosed:** the first hole-repair attempt used
+`mutation-run.sh gpu_config` — its services filter `backend.services.gpu_config.*`
+matches ZERO keys (the services module is `gpu_config_service`), and mutmut's
+stats-merge REWROTE sibling metas against the empty filtered set BEFORE mutmut's own
+no-match assert fired: 13,704 sibling keys dropped. guard-module2 caught it
+([tight] sibling-drop=13704 worst=1068@webhook), killed the runner and RESTORED from
+guard-restore.tgz — the first PRODUCTION end-to-end prove of the guard: restore
+verified byte-equal to the pre-run archive (cmp on sampled metas from INSIDE mutants/
+— the same check from the workspace root yields false DIFFs). Campaign #25 re-ran on
+unchanged bytes: body reconcile CLEAN (matrix {(1,1):144, (0,1):242, (0,0):6},
+0 kill losses, 2 births same-run-killed), byte-identical to the ORIGINAL run 1 that
+the restore rolled back. The `|| routes` fallback in mutation-run.sh can NEVER rescue
+the chained case — by the time invocation 1 exits non-zero the tree is strip-poisoned.
+New rule (recorded in memory + the run-3 launcher header): routes-level repairs get a
+DIRECT single-filter `mutmut run` with a VERIFIED-non-empty pattern, never the
+chained launcher.
+
+**Bank at close:** 240 metas / 69,136 keys = kt 51,841 (killed 51,556 + timeout 285;
+no_tests 783 — the sticky session_service 60 + trajectory_analyzer 452 family, count
+UNCHANGED vs pre-campaign; suspicious 0; not_checked 0; torn 0). History run #31
+appended `--date 2026-10-03`; append ADD-ONLY (3,041 lines, 0 deletions), runs 1–29
+deep-equal vs `mutation-history-preM26.json`, pre-M27 backup
+`mutation-history-preM27.json` (30 runs). guard-restore.tgz refreshed at close (the
+pre-disaster refresh had used the metas-only b32 recipe and was REDONE canonically as
+`backend mutmut-stats.json` — 4,744 entries, 52.9 MB, gzip -t verified, ONE scratch
+dir extracted for the spot-check then DELETED, df clean;
+the run-3-era tar — post-restore bank with the
+151 holes, the base the guard WOULD have restored during run 3 — kept as
+`guard-restore-preM27-superseded.tgz`; the true M26-close tar had already
+been superseded by the sanctioned pre-run refresh, a known consequence of
+the disaster arc).
+
+**Commands + snapshots:** runs `b38-c25-run.log` (re-run, CLEAN; done in 607,725ms,
+240 files mutated, 0 ignored) / `b38-c25-run2.log` (disaster; its own generation
+done-line 602,049ms then `AssertionError: Filtered for specific mutants, but nothing
+matches`) / `b38-c25-run3.log` (done in 600,483ms, 240 files mutated, 0 ignored);
+guard ticks `guard.log`; sweeps
+`b38-c25-sweep-authoring.txt` (234/14 of 248), `b38-c25-sweep-committed.txt` +
+`sweep-final.txt` (242/6/0-HANG, committed bytes), batched wrapper
+`b38-c25-sweep-batched.sh`; reconcile `b38-c25-reconcile-body.py` ->
+`b38-c25-reconcile-r1.txt` (CLEAN rc=0); map `b38-c25-mutation-map.txt` (248 keys,
+0 NOT-FOUND); green scan `b38-c25-greenscan.log`; pre-run archive `b38-preC25/`;
+scores `b38-c25-score-postrestore.json` (M26-exact after restore), `b38-c25-score-r1.json`
+(74.88%-shape, completed=FALSE, not_checked=151), `b38-c25-score-final.json`
+(74.98408933117334 completed=TRUE); snapshot `b38-c25-postR1-gpu_config.meta` (drift
+check base).
+
+**Next head (re-censused from `b38-c25-score-final.json`, R8 shield applied):**
+**`threat_monitor_service.py` 244 survivors at 32.5967%** (362 keys; then
+`worker_supervisor` 243/62.6154%, `audit_logger` 242/40.6863%). Campaign #26,
+battery letter AB. Gap to 85%: 0.85×69,136 = 58,765.6 − 51,841 = **6,924.6 kt**.
+Every number measured THIS session.
+
+## MILESTONE 28 — 75.33836543466944% (campaign #26 threat_monitor_service closes in ONE run via the M19 pre-copy; zero-killer battery — the GREEN set was the ledger on sweep #1)
+
+**DECIDE (ordering):** M27 head as censused — `threat_monitor_service.py` 244
+survivors at 32.5967% (362 keys). R8 shield verified CLEAN: absent from
+DEAD_MODULES/DEAD_LOADERS and none of its 14 imports touch a dead module
+(`threat_detection_loader` is dead — a DIFFERENT module). `api/routes/system.py`
+328 and `system_broadcaster.py` 320 skipped (do-not-start list). Battery letter
+AB (35 tests).
+
+**Badge:** **75.33836543466944%** completed=true (killed 51,816 + timeout 285 =
+52,101 kt / 69,156; no_tests 783 sticky-unchanged; not_checked 0; torn 0). Delta
+vs M27's 74.98408933117334% = **+0.3542761034961046**. Bank 69,136 -> 69,156
+keys (+20, ALL threat_monitor_service coverage-growth births); per-module diff
+EXHAUSTIVE — threat_monitor_service is the ONLY module that moved: kt +260
+(118 -> 378 killed; 244 -> 4 survived), tree kt +260 exactly.
+
+**Campaign #26 `backend/services/threat_monitor_service.py` CLOSED at
+98.95287958115183%** (378 kt / 382; survivors 4; 0 timeout). Disposition:
+survivors concentrated in 5 methods (pmd 71, ptd 54, broadcast 52, webhooks
+43, cooldown 24) and the module is DATA-MAPPING-shaped — the shipped suite
+never pins emitted payloads, log messages, call args or SQL text. Battery AB
+pins instead: whole-payload equality (json.loads of the published WebSocket
+string incl. the {"type","data"} wrapper), the webhook call as ONE tuple with
+session object IDENTITY against a required-slot fake (positional deletions ->
+TypeErrors), a call-site SPY over the bound `_check_cooldown`, rendered SQL +
+compiled PARAM values (tz-aware recent cutoff; LIMIT param == 1; the
+select(None) tell is `"SELECT NULL" not in sql`), plain `_Obj` rows with exact
+attribute polarities for the hasattr-guard family, FULL msgs() sequences +
+extra attributes, and whole-Alert metadata equality. **Authoring sweep RED=240
+GREEN=4 HANG=0 of 244 — the GREEN set was EXACTLY the registered EQUIV ledger
+on the first sweep; no killer round was needed** (every KILLABLE construction
+claim fired RED immediately). Battery committed `bf23636d` md5
+`a2f60d58629c29cab23010e069d340ee` (pre-commit hook bytes verified
+byte-identical); committed-bytes re-sweep reproduced 240/4/0-HANG.
+
+**The 4 survivors == the ledger (row-by-row, all bank verdict-0):**
+
+- `_check_cooldown` m19 (pre-run m16 slot, and->or in
+  `existing_alert is not None and not isinstance(existing_alert, Alert)`):
+  the shapes disagree only at (None, not-Alert) -> mutant enters the guard,
+  hasattr(None,"id") False -> returns None identically; and (real Alert) ->
+  mutant enters, the instrumented attrs EXIST (reading None) -> falls through
+  -> returns the alert. Every reachable input returns identically.
+- pmd m12/m14/m15 (`SEVERITY_PRIORITY.get` default -> None / deleted / -> 1):
+  the default is read only when the key is absent; get_threat_severity returns
+  ONLY AlertSeverity members and every member is keyed — unreachable slot.
+
+**One-run close, M19 pre-copy 5th deployment:** battery AB pre-copied md5-sync
+into the mutant home -> run 1's own stats pass saw the new coverage; **20
+new-body births ALL killed same-run** (fn census: `_build_dedup_key` 1 -> 8 —
+the direct-call rounds newly covered it; `_broadcast_alert_created` 55 -> 64;
+`_check_cooldown` 33 -> 36; pmd +1). Body reconcile CLEAN: matrix {(1,1):118,
+(0,1):240, (0,0):4}, 0 kill losses, 0 lost groups, 382 keys / 378 killed.
+Pre-launch unit-tier scan GREEN 28,643 passed / 124 skipped / 8 xfailed, 0
+failed (count < c25's 28,718 because the M26-era host merge deleted metrics
+test files; disclosed). Guard-module2 [gen]->[tight], sibling-drop=0 every
+tick, never fired. Launch used the NEW launcher-zero-match discipline: the
+services filter VERIFIED non-empty (362 keys) before `mutation-run.sh`.
+
+**Close sweep (all 382 sweepable keys, committed bytes):** RED=356 GREEN=6
+HANG=0. The 6 sweep GREENs are 6 of the 4 bank survivors PLUS two extra
+GREENs: bank survivors (new numbering) = `_check_cooldown` m19 + pmd
+m12/m14/m15 ⊆ sweep GREEN. The two EXTRA battery-GREENs
+(`process_threat_detection` m22/m24, the severity-HINT drop at the ptd call)
+are bank verdict-1 — killed by the SHIPPED suite's hint scenarios (unknown
+types + severity hints), battery-INAPPLICABLE because every battery ptd threat
+type is in THREAT_SEVERITY_MAPPING (the hint is never consulted for them).
+Disclosed, not papered over: the battery alone does not kill those two; the
+bank's shipped-suite kill stands and is credited as measured.
+
+**Honesty note on the reconcile:** the FIRST reconcile run of this campaign
+reported CLEAN on the WRONG module — the sed chain built from the c25
+template no-oped (c25's file had already renamed stream_manager ->
+background_evaluator, so `preC24`/`stream_manager` matched nothing). Caught
+by the output naming (BACKGROUND evaluator names in a #26 log); rebuilt with
+correct paths and RE-run — the numbers above are from the corrected run. The
+accidental background_evaluator audit independently confirmed that module's
+bank is still 388/394 with 0 losses.
+
+**Bank at close:** 240 metas / 69,156 keys = kt 52,101 (killed 51,816 + timeout
+285; no_tests 783 sticky; suspicious 0; not_checked 0; torn 0). History run #32
+appended `--date 2026-10-03` (add-only +3,041 lines / 0 deletions; runs 1-31
+deep-equal vs `mutation-history-preM28.json` (31 runs) — the FIRST real close on
+this branch that appended FROM the workspace root after a cwd mistake in the
+mutant home failed loudly with "no mutants/ tree", never silently).
+guard-restore.tgz refreshed at close from INSIDE mutants/ (canonical
+`backend mutmut-stats.json` membership, 4,744 entries, gzip -t verified, ONE
+scratch dir extracted then DELETED, df 48%); M27 tar kept as
+`guard-restore-preM28-superseded.tgz`.
+
+**NOT PUBLISHED FROM:** the close-sweep RED=356 as the module score (bank 378 —
+22 kills come from the shipped suite + the run's own stats pass outside the b30
+single-process contract), nor the 2 extra sweep GREENs as ledger survivors (the
+ledger is the 4 bank verdict-0 keys).
+
+**Commands + snapshots:** run `b38-c26-run.log` (done in 591,676ms, 240 files
+mutated, 0 ignored); guard ticks `guard.log`; sweeps
+`b38-c26-sweep-authoring.txt` (240/4 of 244) / `b38-c26-sweep-committed.txt`
+(240/4, committed bytes) / `b38-c26-sweep-close.txt` (356/6 of 382), batched
+wrapper `b38-c25-sweep-batched.sh` (reused); reconcile
+`b38-c26-reconcile-body.py` -> `b38-c26-reconcile-r1.txt` (CLEAN rc=0, corrected
+paths); map `b38-c26-mutation-map.txt` (244 keys, 0 NOT-FOUND); keys
+`b38-c26-sweep-keys.txt` / `b38-c26-all-keys.txt`; green scan
+`b38-c26-greenscan-unit.log` (28,643/124/8, 0 FAILED; the tier-mis-scoped
+first scan `b38-c26-greenscan.log` (11F/49E, all OUTSIDE the unit tier:
+benchmark-plugin errors, docker-compose security tests needing the host git
+tree, integration ImportErrors) is the artifact that forced the tier fix);
+pre-run archive `b38-preC26/`; scores `b38-c26-score-r1.json`; history backup
+`mutation-history-preM28.json`.
+
+**Next head (re-censused from `b38-c26-score-r1.json`, R8 shield applied):**
+**`worker_supervisor.py` 243 survivors at 62.6154%** (650 keys; then
+`audit_logger` 242/40.6863%, `alert_engine` 241/68.2058%). Campaign #27,
+battery letter AC. R8 CLEAN (absent from both death lists). Gap to 85%:
+0.85\*69,156 = 58,782.6 - 52,101 = **6,681.6 kt**. Every number measured THIS
+session.
+
+## MILESTONE 29 — 75.68646163189173% (campaign #27 worker_supervisor closes at 99.5406% in ONE run; the LIVE-TASK polarity converts three claimed EQUIVs into kills)
+
+**DECIDE (ordering):** M28 head as censused — `worker_supervisor.py` 243
+survivors at 62.6154% (650 keys). R8 shield verified CLEAN by AST: absent from
+DEAD_MODULES/DEAD_LOADERS in `test_r8_s2b_nemotron_deletion.py` and no import
+chain touches a dead module. `api/routes/system.py` 328 and
+`system_broadcaster.py` 320 skipped (do-not-start list). Battery letter AC
+(37 tests).
+
+**Badge:** **75.68646163189173%** completed=true (killed 52,059 + timeout 285 =
+52,344 kt / 69,159; the killed figure includes the 32 `caught_by_type_check`
+(exit-code-3) keys the score script counts as caught — raw meta census
+{1: 52,027, 0: 16,032, -24: 285, 3: 32, 33: 783}; no_tests 783
+sticky-unchanged; not_checked 0; torn 0). Delta vs M28's 75.33836543466944% =
+**+0.34809619722229**. Bank 69,156 -> 69,159 keys (+3, ALL worker_supervisor
+coverage-growth births: fn census `_start_worker` 43 -> 45,
+`_check_worker_heartbeat` 25 -> 26); per-module diff EXHAUSTIVE —
+worker_supervisor is the ONLY meta that moved (243 verdict changes, 0 siblings,
+0 new meta files).
+
+**Campaign #27 `backend/services/worker_supervisor.py` CLOSED at
+99.5405819295559%** (650 kt / 653; survivors 3; 0 timeout). Disposition: the
+survivor pool was the emission surface of the lifecycle machinery
+(\_handle_crashed_worker 44, \_handle_stuck_worker 35, stop 26, \_run_worker 22,
+start 16, \_start_worker 14, \_monitor_loop 14, stop_worker 13, \_broadcast_status
+10, ...). Battery AC pins raw `backend.core.metrics` call tuples via CallSpies
+swapped into the `ws` namespace (the real gauges case-fold state strings —
+gauge-level observation could never kill the case-flip arms), whole WebSocket
+payloads, FULL log-msgs() sequences with exc_info identity, REAL-asyncio task
+polarities for the task-guard conjunctions, the stuck-worker
+wait_for(shield(task), 2.0) family via a cancel-ignoring task (wall-clock
+pinned to (1.9, 2.5) + task still PENDING), >=/> boundaries as real polarities
+(rc==max, count==threshold, threshold 1 and 0, overdue sentinel), whole-dict
+to_dict/history pins, and a required-kwargs Spy class for the singleton's
+kwarg arms.
+
+**THE LIVE-TASK LESSON (capture #6):** authoring sweep RED=237/GREEN=6 of 243.
+Three sweep-GREENs (hc m53 `status=RESTARTING`->None, hc m103/m107
+history-event `error=worker.error` ->None/deleted) had been REGISTERED EQUIV on
+an overwrite argument (\_start_worker clobbers status/error before any read).
+WRONG: `_handle_stuck_worker` deliberately leaves the shielded task PENDING, so
+the monitor's NEXT cycle on that residue hits `_start_worker`'s
+already-running EARLY-RETURN and the clobber never happens — the values stay
+observable, and the polarity is production-reachable (stuck -> restart is
+exactly the NEM-4148 flow). Phase 2 of `test_stuck_worker_full_surface` runs
+that next cycle (status stays RESTARTING, history error keeps the stuck
+message, "Worker 'w' already running" in the msgs tail): spot-probe RED x3,
+full re-sweep **RED=240 / GREEN=3 == the final EQUIV ledger** —
+backoff_static m2 (<=0 vs <=1 both yield base at rc=1), rre m14 (`len>max` vs
+`>=max` under the `history[-max:]` slice), rwt m13 (dead store: the pre-cancel
+awards the task to done so `_start_worker` always clobbers the reset). Overwrite
+claims must enumerate the EARLY-RETURN polarities of the clobbering callee.
+
+**Close sweep 616R/37G of 653 (0 HANG):** 37 GREEN = 3 ledger survivors + 34
+shipped-suite kills attributed BODY-EXACT (every one of the 34 current-tree
+bodies carries pre-verdict-1; renumber means a close-sweep key number is NOT
+the pre-key — `_start_worker__mutmut_13` GREEN-closed but cur-verdict-1: its
+body is a pre-killed mutant, battery-in-isolation cannot kill it, disclosed,
+never claimed as ledger).
+
+**ONE-RUN close, M19 pre-copy 6th deployment:** battery md5-synced into the
+mutant home BEFORE the run (committed bytes 954029f5...; unit-tier scan
+POST-sync counted it — 28,680 = 28,643 (M28) + 37 new tests, 0 failed,
+483.94s). 3 births ALL same-run-killed. Reconcile by BODY identity CLEAN
+{(1,1): 407, (0,1): 240, (0,0): 3}, 0 kill-losses, 0 lost groups; self-check
+keys-without-body 0/0. Launcher pre-flight verified 650 services-filter keys;
+guard-module2 on runner pid 182682 ticked tight-regime sibling-drop=0
+nonmod-holes=0 to clean exit (its log NAMED worker_supervisor — the c26
+wrong-module rule applied to the sed-built reconcile script too: substitutions
+grep-VERIFIED, 0 threat_monitor strings remained).
+
+**Commit-gate arc:** check-test-timeouts fired at commit on `stubborn()`'s
+3600s sleep (line-precise: the three other 3600s sleeps carried the sanctioned
+`# cancelled` comment, this one did not); safe-comment added — the first cancel
+provably lands on that sleep and is swallowed BY DESIGN. Second attempt all
+hooks Passed, committed 45470a50, committed bytes md5 == gated battery.
+
+**NOT PUBLISHED FROM:** the close-sweep RED=616 as the module score (bank 650 —
+34 kills come from the shipped suite outside the b30 single-process contract),
+nor the 34 shipped-suite GREENs as ledger survivors (the ledger is the 3
+bank verdict-0 keys).
+
+**Commands + snapshots:** run `b38-c27-run.log` (guard log `guard.log`;
+launcher `b38-c27-launch.sh`); sweeps `b38-c27-sweep-authoring.txt` (237/6 of 243) / `b38-c27-sweep-authoring2.txt` (240/3, post-phase-2) /
+`b38-c27-sweep-close.txt` (616/37 of 653), batched wrapper
+`b38-c25-sweep-batched.sh` (reused); reconcile `b38-c27-reconcile-body.py`
+(CLEAN rc=0); map `b38-c27-mutation-map.txt` (243 keys, 0 NOT-FOUND); keys
+`b38-c27-sweep-keys.txt` / `b38-c27-allkeys653.txt`; green scan
+`b38-c27-greenscan-unit.log` (28,680/124/8, 0 FAILED); pre-run archive
+`b38-preC27/`; score `b38-c27-score-r1.json`; history backup
+`mutation-history-preM29.json` (runs 1-32 deep-equal, append-only verified).
+
+**Next head (re-censused from `b38-c27-score-r1.json`, R8 shield applied):**
+**`audit_logger.py` 242 survivors at 40.6863%** (then `alert_engine`
+241/68.2058%, `pg_notify_listener` 238/49.6829%, `circuit_breaker` 224).
+Campaign #28, battery letter AD. Gap to 85%: 0.85\*69,159 = 58,785.15 - 52,344
+= **6,441.15 kt**. Every number measured THIS session.
+
+## MILESTONE 30 — 76.0363799360893% (campaign #28 audit_logger closes at 100.0% — 408/408 — in ONE run; the signature-free raw-kwargs spy turns every callee-default-hidden kwarg deletion into a missing key)
+
+**Badge 76.0363799360893% (completed=true), +0.34991830419757 vs M29's
+75.68646163189173%.** killed 52,301 (52,269 raw + the 32 exit-code-3
+caught_by_type_check keys the score script folds in) + timeout 285 =
+52,586 kt / 69,159. Denominator UNCHANGED (no births, no deaths — 408 ->
+408); completed gate checked=69,159, not_checked=0, torn_metas=0; no_tests
+783 unchanged. History run #34 (`--history .github/mutation-history.json
+--date 2026-10-03` from workspace root), runs 1-33 deep-equal vs
+`/home/agent/runs/preM30-mutation-history.json` append-only verified.
+
+**Campaign #28 `backend/services/audit_logger.py` CLOSED at 100.0%
+(408 kt / 408)** — the second 100% module of the ladder (after redis_json
+at M12) and the FIRST closed with ZERO equivalents and ZERO close-sweep
+adjudication debt. Started at 242 survivors / 40.6863%. Battery AD
+(`test_audit_logger_batch38_ad.py`, 20 tests, committed `4d13f5db`, md5
+1776f6efd97686cd9b8dc41936c93ea5, md5-synced into the mutant home BEFORE
+the run — M19 pre-copy 7th deployment).
+
+**THE RAW-KWARGS SPY (the campaign's design capture).** `log_action` is a
+`@staticmethod` whose params carry defaults (`resource_id=None`,
+`status=AuditStatus.SUCCESS`) — a signature-faithful spy REFILLS a
+deleted kwarg with the default and the deletion arms are VALUE-INVISIBLE
+at the callee (dropped-kwarg memory, weaponized in reverse): the recorder
+takes `**kwargs` with NO signature, installed by swapping the
+`al.AuditService` module global before constructing a fresh
+SecurityAuditLogger, so it sees the call as literally made and a deleted
+kwarg is a MISSING KEY in the sorted-key census + whole-dict equality.
+Volatile timestamp slots ride the STAMP polarity placeholder (name
+censused + ISO parse + `utcoffset() is not None` — kills
+`datetime.now(None)`'s naive stamp) so whole-dict equality survives
+without clock-pinning. Three surfaces per method: raw kwargs (identity
+pins on db/request/enum members), except-branch warning (full msgs()
+sequence + extras BY NAME under RuntimeError("boom")), tail record (exact
+f-string msg + exact LEVELNO — security alert is the only WARNING tail —
+
+- extras by selected names; ContextFilter ambient keys are never
+  censused, campaign #12 lesson).
+
+**ZERO-GREEN SWEEP FIRST PASS: 242 RED / 0 GREEN / 0 HANG** of the 242
+survivor keys. Honesty ledger registered NO equivalents and the sweep
+agreed — no adjudication, no killer rounds, no ledger. Green vs pristine:
+20 passed FIRST TRY — the first battery of the arc with zero
+authored-draft defects, because mask_ip's output shapes, every msg
+string, every extras name and the per-method log levels were read from
+source BEFORE writing (the msg/level/str() renderings verified against
+audit_logger.py lines 102-121 etc.). Commit arc clean ONE-SHOT (all hooks
+Passed AND landed — no prettier escape, no timeout bite: no long sleeps
+this module).
+
+**ONE-RUN CLOSE (no run 2, no delta sweep):** pre-run archive
+`b38-preC28/` 408 keys {1:166, 0:242}; post-run: 408 {1:408}. Reconcile
+`b38-c28-reconcile-body.py` (sed-built from c27, grep-verified: 0
+wrong-module residue) CLEAN rc=0: transition {(1,1):166, (0,1):242} —
+ALL 242 survivors killed, 0 kill losses, 0 births (slot or new-body),
+fn-prefix census delta +0. The battery adds ASSERTS, not new code paths,
+so coverage did not grow and generation re-enumerated the same 408 defs —
+births-zero is the honest disclosure for pre-copy campaigns where the
+shipped suite already covered every def.
+
+**Post-launch evidence chain:** unit tier GREEN in the mutant home POST
+battery-sync — 28,700 passed, 124 skipped, 8 xfailed (= 28,680 at M29 +
+the 20 new battery tests; the scan counting them proves the pre-copy
+timing). Launcher pre-flight: services filter matched 408 keys (non-empty
+rule); `mutants/data/runtime.env` poison removed pre-launch.
+guard-module2 attached to the REAL runner pid 208176 (plain nohup, never
+setsid): `[gen]`->`[tight]` on the done-line, siblings=239 drop=0 every
+tick, clean exit. Per-module meta diff EXHAUSTIVE: 1 of 240 metas moved
+(the target). Bank after: 240 metas / 69,159 keys {1:52269, 0:15790,
+-24:285, 3:32, 33:783}; reconciles with score JSON via the exit-3 family:
+52,269 + 32 = 52,301 killed.
+
+**Close sweep 403 RED / 5 GREEN / 0 HANG of 408** — battery ALONE kills 403. All 5 GREENs (`_serialize_value` m2-m5 +
+`log_rate_limit_exceeded` m1) ATTRIBUTED BODY-EXACT to shipped-suite
+kills (`b38-c28-attribute.py`: pre-tree body group verdict list == [1]
+for each; TALLY {ATTRIB: 5} UNATTRIBUTED 0). Those 5 were pre-run-killed
+(their pre-verdicts are 1) — the bank verdict is the FULL suite's doing,
+and body-exact attribution (never key-number identity — the renumber
+trap) is the proof.
+
+Artifacts: launcher `b38-c28-launch.sh`, pre-archive
+`b38-c28-prearchive.sh`, sweeps `b38-c28-sweep-authoring.txt` (242/0) +
+`b38-c28-sweep-close.txt` (403/5 of `b38-c28-allkeys408.txt`), attribution
+`b38-c28-attribute.py`, map `b38-c28-mutation-map.txt` (242 keys, 0
+NOT-FOUND), keys `b38-c28-sweep-keys.txt`, run log `b38-c28-run.log`,
+runner pidfile `b38-c28-runner.pid`, green scan
+`b38-c28-greenscan-unit.log` (28,700/124/8, 0 FAILED), pre-run archive
+`b38-preC28/`, score `b38-c28-score-r1.json`, history backup
+`preM30-mutation-history.json`.
+
+**Next head (re-censused from `b38-c28-score-r1.json`, R8 shield applied):**
+**`alert_engine.py` 241 survivors at 68.2058%** (then
+`pg_notify_listener` 238/49.6829%, `circuit_breaker` 224/55.2%,
+`osnet_loader` 221/56.5815%, `batch_coalescer` 218/40.9214%,
+`context_enricher` 216/52.0%). R8 shield holds: system.py 328 and
+system_broadcaster.py 320 are DEATH-Listed, never batteries. Campaign
+#29, battery letter AE. Gap to 85%: 0.85\*69,159 = 58,785.15 - 52,586 =
+**6,199.15 kt**. Every number measured THIS session.
+
+## MILESTONE 31 — 76.37441272135888% (campaign #29 alert_engine closes at 98.5788% — 763/774 — in TWO runs; `_ProbeEvent`'s data-descriptor property beats its own `state.dict` key, finally making the unreachable fast-path return observable)
+
+**Badge 76.37441272135888% (completed=true), +0.33803278526958 vs M30's
+76.0363799360893%.** killed 52,549 (52,517 raw + the 32 exit-code-3
+caught_by_type_check keys the score script folds in) + timeout 283 =
+52,832 kt / 69,175. Denominator disclosure: the bank GREW 69,159 to
+69,175 because the battery's coverage grew the alert_engine meta 758 to
+774 (16 coverage-growth births, all killed by close of the campaign);
+timeout 285 to 283 because the module's two legacy timeout keys were
+actually KILLED in run 2 (timeout to killed, disclosed - no timeout was
+lost to a re-verification flake); survived 15,790 to 15,560 (-230);
+no_tests 783 unchanged. Completed gate checked=69,175, not_checked=0,
+torn_metas=0. History run #35 (`--history .github/mutation-history.json
+--date 2026-10-03` from workspace root), runs 1-34 deep-equal vs
+`/home/agent/runs/preM31-mutation-history.json` append-only verified.
+
+**Campaign #29 `backend/services/alert_engine.py` CLOSED at
+98.57881136950904% (763 kt / 774)** over TWO runs, started at 241
+survivors / 68.2058%. Battery AE (`test_alert_engine_batch38_ae.py`, 29
+tests, committed `10f32ae5`, md5 ab96a614067a44ad6f80f85d0c4e19e9,
+md5-synced into the mutant home before every launch).
+
+**THE STATIC SQL PINS (the campaign's harness capture).** All 12
+statement families of the module are transcribed into the battery as
+STATIC pristine-compiled literals and FakeSession routes on the
+whitespace-normalized text plus the bound-param dict. Deriving the
+expected text at runtime from the module source is UNSOUND under the
+trampoline tree - `inspect.getsource` there contains every MUTANT body,
+so a runtime first-anchor extraction could compile a mutant's statement
+as the "expected" text - and semgrep rightly blocks the `exec()` shape
+that would be needed to evaluate the extracted expression. Unrouted
+statement text raises, which also kills the guard `or` to `and` flips
+that run a query on a query-free round.
+
+**CAPTURE #9 - THE PROPERTY-BEATS-DICT PROBE EVENT.**
+`_load_event_detections` tries `state.dict["detections"]` and falls back
+to `event.detections` - on every REAL instrumented instance those two
+reads see the SAME relationship, and on mocks the try raises before the
+dict read, so the fast-path return line was OBSERVABLE BY NOTHING the
+battery could build: its whole mutant family (`list(None)`,
+`dict["XXdetectionsXX"]`, `dict["DETECTIONS"]`, plus the `state=None` /
+`inspect(None)` arms that only look equivalent when the fast path never
+runs) survived everything. `_ProbeEvent` - a real DeclarativeBase
+instance whose CLASS-LEVEL property (a data descriptor) outranks its own
+`__dict__` key - forces the two paths to DIFFERENT values: `p.__dict__`
+carries `[d1]`, `p.detections` answers None, so only the correct
+fast-path return yields `[d1]` with zero queries. One test killed the
+whole family - two ledger DEMOTIONS (`_load_event_detections` m1/m2 had
+been registered EQUIVs) plus the three run-1 births m6/m7/m8.
+
+**Ledger adjudication history (three corrections, each sweep-proven).**
+Authoring sweep 226 RED / 15 GREEN / 0 HANG of 241 exposed (a)
+UNDER-registration: `evaluate_rule` m92/m102 - the
+`threat_detected`/`smoke_fire_detected` label appends live in
+`_evaluate_rule`, the direct `_check_*` rounds never observe them - fixed
+by a through-`_evaluate_rule` test; (b) OVER-registration: the webhook
+hasattr-forced-False family is KILLABLE because
+`type(payload["severity"]) is str` is strict where plain payload equality
+is blind (AlertSeverity/AlertStatus ARE str subclasses) - all 58 webhook
+keys RED; then run-1 reconcile exposed (c) the `_ProbeEvent` demotions
+above. Final ledger 11 keys (skip_locked x2, dwell clock x2, threat
+`or True`, schedule len-compare, dedup KeyError fallback, unreachable
+map-get defaults x4) == the close-sweep GREEN set exactly.
+
+**TWO-RUN mechanics.** Run 1 (generation 601.78 s, meta 758 to 774,
++16 births): 228 pre-run survivors flipped, 13 births died same-run, 3
+births survived (the `_load_event_detections` return-line family) -
+delta-audited by body identity against `b38-preC29`, adjudicated by
+symmetric-normalization diff, killed by the 29th test (mini-sweep 5 RED).
+Greentier scans in the mutant home: 28,728 passed pre-run-1, 28,729
+(= 28,700 + the 29 new) pre-run-2. Run 2 (post `_ProbeEvent` commit):
+ZERO births, 5 ledger flips + the 2 legacy timeouts, meta settles at
+774 {1:763, 0:11}. Reconcile vs pre-run archive: 0-to-1 kills=230,
+1-to-0 KILL LOSSES=0, all 16 births killed, survivors 11 == ledger
+(threat m21-to-m23 was a pure renumber). Close sweep over all 774 keys:
+710 RED / 64 GREEN / 0 HANG, attribution TALLY {ATTRIB:53, LEDGER:11}
+UNATTRIB 0 rc=0 - every non-ledger GREEN BODY-EXACT to a pre-run
+shipped-suite kill, so the battery is credited with nothing the suite
+had already earned.
+
+**Guards/gates:** `guard-module2` on the real runner pid BOTH runs (239
+siblings, sibling-drop=0, holes=0 throughout, `[gen]` to exit);
+launcher pre-flight counted the services filter (758 keys run 1, 774 run
+2, never zero); `runtime.env` poison removed pre-exec both runs; bank
+census {1:52517, 0:15560, -24:283, 3:32, 33:783} = 69,175 reconciles
+with the score JSON via the exit-3 family (52,517+32=52,549).
+
+**Artifacts:** pre-run archive `b38-preC29/`, runs `b38-c29-run1.log` /
+`b38-c29-run2.log`, green scans `b38-c29-greentier.log` /
+`b38-c29-greentier2.log`, sweeps
+`b38-c29-sweep-authoring{,2}.txt` / `b38-c29-spot.txt` /
+`b38-c29-sweep-close.txt`, ledger `b38-c29-ledger-keys.txt`, score
+`b38-c29-score-r2.json`, history backup `preM31-mutation-history.json`.
+
+**Next head (re-censused from `b38-c29-score-r2.json`, R8 shield
+applied):** **`pg_notify_listener.py` 238 survivors at 49.6829%** (then
+`circuit_breaker` 224/55.2%, `osnet_loader` 221/56.5815%,
+`batch_coalescer` 218/40.9214%, `context_enricher` 216/52.0%). R8 shield
+holds: system.py 328 and system_broadcaster.py 320 (320 surv 57.4468%
+would otherwise rank first) are DEATH-Listed, never batteries. Campaign
+#30, battery letter AF. Gap to 85%: 0.85\*69,175 = 58,798.75 - 52,832 =
+**5,966.75 kt**. Every number measured THIS session.
+
+## MILESTONE 32 — 76.71413082761113% (campaign #30 pg_notify_listener closes at 99.3658% — 470/473 — in ONE run; the cleanest campaign of the arc: zero births, zero renumber, survivors == ledger on the FIRST sweep)
+
+**Badge 76.71413082761113% (completed=true),
++0.33971810625225118901337188 vs M31's 76.0363799360893%.** killed
+52,783 + timeout 284 = 53,067 kt / 69,175. Denominator disclosure: the
+bank is UNCHANGED at 69,175 - the battery's 16 tests flipped 235 verdicts
+but grew the mutant enumeration by ZERO keys (key set identical pre/post,
+added=0 removed=0; the module's full enumeration was already bank-covered,
+the battery only re-earned verdicts). survived 15,560 to 15,325 (-235
+exactly the flip count); timeout 283 to 284 disclosed: the module's legacy
+timeout key connect m31 (attempts +=1 to -=1) was KILLED by the battery
+while two previously-killed listen_loop loop-condition twins (or to and,
+is-None to is-not-None) went killed to timeout - both keep numerator, and BOTH are
+proven RED by the battery alone in the close sweep (mutmut's own
+full-suite pass spins on the removed loop trigger and recorded -24).
+no_tests 783 unchanged. Completed gate checked=69,175, not_checked=0,
+torn_metas=0. History run #36 (`--history .github/mutation-history.json
+--date 2026-10-03` from workspace root), runs 1-35 deep-equal vs
+`/home/agent/runs/preM32-mutation-history.json` append-only verified.
+
+**Campaign #30 `pg_notify_listener.py` CLOSED 99.36575052854123%
+(470/473 kt; 466 killed + 4 timeout, 3 survived) in ONE run via the M19
+pre-copy.** Authoring sweep 235 RED / 3 GREEN / 0 HANG of 238 survivors on
+the first full pass; the 3 GREENs == the 3-key honesty ledger exactly:
+`_listen_loop` m15/m31 (`break` to `return` - the while loop is the last
+statement of the function, exiting the loop IS returning) and `get_status`
+m8 (`if self._connection` to `if (self._connection) or True` - the
+always-true guard keeps the True-branch expression, whose
+`connection is not None and not is_closed()` yields False for a None
+connection anyway, identical on all three polarities). Reconcile CLEAN by
+body identity: {(1,1):230, (0,1):235, (-24,1):1, (1,-24):2, (-24,-24):2,
+(0,0):3}, KILL LOSSES=0, births 0/0, 1-of-240 metas moved (zero sibling
+drift), guard-module2 clean every tick (sibling-drop=0, holes=0).
+
+**TWO CAPTURES.** (1) **BOOL(EXC_INFO) POLARITY**: CPython's LogRecord
+stores falsy exc_info VERBATIM - `logger.error(msg, exc_info=False)` sets
+`record.exc_info = False`, which a `record.exc_info is not None` polarity
+PASSES. Three survivors (connect m40, `_handle_notification` m30,
+`_listen_loop` m20 - all `exc_info=True` to `exc_info=False`) rode my
+first-pass battery GREEN until the assert swapped to `bool(r.exc_info)`;
+a resweep of the 7 first-pass GREENs then flipped exactly those 3 plus
+connect m10 to RED, landing 4 RED / 3 GREEN == the ledger. (2)
+**TRAMPOLINE COROUTINE IDENTITY**: every coroutine created from a mutant-
+tree coroutine function reports `cr_code.co_name ==
+'_trampoline_wrapper'`, so the start-test's `cr_code.co_name ==
+'_listen_loop'` literal failed against the SHIPPED tree in the mutant
+home - BROKEN-BATTERY made b30-sweep exit 3, the batched wrapper matched
+neither RED nor GREEN, and every one of the 238 keys fell to per-key
+retry as a FAKE HANG. The sound assert compares `cr_code` IDENTITY
+against a same-world reference coroutine. Related near-miss: sweep key
+files must be BARE mutant names - b30-sweep prefixes `{target}.` itself,
+and a fully-qualified key double-prefixes `MUTANT_UNDER_TEST`, the
+trampoline treats the mutant as foreign-module, and the sweep goes fake
+ALL-GREEN (caught here only because one key had just gone RED by hand).
+
+**Loop-GUARD boundary polarity (killable, was a sweep GREEN first pass).**
+`while attempts < MAX` vs `<=` twins are separated by entering `_connect`
+with the counter already at MAX: pristine fails the guard and FALLS OFF
+THE LOOP SILENTLY (no connect call, no error record, no raise, counter
+untouched) - the `<=` twin enters attempt 11, whose `>= MAX` arm logs and
+raises. The give-up RAISE and the loop GUARD are separately observable.
+
+**Battery AF (16 tests) kill surfaces**: whole-message-dict equality on
+all four channel handlers with unique values per key (key renames and
+`.get(None)/.get("XXkeyXX)` arms cannot ride through), signature-free
+raw-args PublishSpy pinning the publish as a whole (args, kwargs) tuple,
+log records censused BY ATTRIBUTE NAME (`record.channels`,
+`record.event_id`, ...) plus whole-msg equality, full backoff
+sleep-sequences on both `_connect` and `_listen_loop` (9-element capped
+geometric series; every `* / ** +1 -2` operand twin fails), asyncpg /
+asyncio / get_settings module-global shims that work under the trampoline,
+a fail-once `_connect` polarity (start resets attempts BEFORE `_connect`
+whose success also resets it - only the first retry delay pins m7/m8),
+and singleton `is`-identity with `pg._listener` reset. Handler-raised
+ValueError lands in the PARSE error arm (first except clause covers
+handler bodies - both error-arm polarities pinned). detect-secrets bit
+twice on the stub DSN pair (`pragma: allowlist secret` on both lines).
+
+**HANG trio adjudicated (M26 shape): all bank-killed, never flake
+losses.** connect m23 (success-log msg line deleted), m30 (its msg arg to
+None), m31 (attempts +=1 to -=1): each breaks the success path AFTER
+`_reconnect_attempts = 0`, so the except resets it to 1 and the guard
+`1 < 10` retries FOREVER - faulthandler caught the hot spin (with the
+bank's real sleeps an endless 1 s retry = the legacy -24). m23/m30 are the
+reconcile's (-24,-24) pair; m31 flipped -24 to 1 (killed). The 21
+close-sweep non-ledger GREENs are all shipped-suite kills attributed
+BODY-EXACT (pre-run verdict 1, key set never renumbered):
+`x_stop_pg_notify_listener` m1, `__init__` m5/m6, `_handle_notification`
+m2, `_listen_loop` m7/m8/m21/m22, `is_healthy` m1, `stop` m5, and 13
+`from_json` arms. Close sweep 446R/24G/3H of 473 with TALLY {ATTRIB:21,
+LEDGER:3} UNATTRIB 0 rc=0. Greentier 28,745 passed in the mutant home
+(= M31's 28,729 + the 16 new tests), run log `b38-c30-run1.log`, sweeps
+`b38-c30-sweep-authoring.txt` / `b38-c30-sweep-close.txt`, ledger
+`b38-c30-ledger-keys-prerun.txt` (== live names - no renumber), score
+`b38-c30-score-r1.json`, history backup `preM32-mutation-history.json`.
+
+**Next head (re-censused from `b38-c30-score-r1.json`, R8 shield
+applied):** **`circuit_breaker.py` 224 survivors at 55.2%** (then
+`osnet_loader` 221/56.5815%, `batch_coalescer` 218/40.9214%,
+`context_enricher` 216/52.0%, `export_service` 215/77.7202%). R8 shield
+holds: system.py 328 and system_broadcaster.py 320 (320 surv 57.4468%
+would otherwise rank first) are DEATH-Listed, never batteries. Campaign
+#31, battery letter AG. Gap to 85%: 0.85\*69,175 = 58,798.75 - 53,067 =
+**5,731.75 kt**. Every number measured THIS session.
+
+## MILESTONE 33 — 77.0341567771498% (campaign #31 circuit_breaker closes at 99.2095% — 502/506 — in TWO runs; M20 capture #5 RECURRED: run-1's body reconcile caught one 1->0 KILL LOSS the survivor census could not see, re-earned by one dedicated `is False` test in run 2)
+
+**Badge 77.0341567771498% (completed=true),
++0.32002594953866546407250546 vs M32's 76.71413082761113%.** killed
+53,007 (incl. the 30-key exit-3 `caught_by_type_check` family folded in) +
+timeout 286 = 53,293 kt / 69,181. Denominator disclosure: 69,175 to
+69,181 = +6 mutant keys - run 1's battery coverage growth BORN 5 keys
+(`CircuitBreakerError.__init__` 10 to 15, all same-run-killed) and run 2's
+fix-test grew one MORE `_allow_call_unlocked` slot (family 8 to 9, born
+killed) because executing the `case _` arm with a NON-member state made
+that region enumerable. survived 15,325 to 15,105; timeout 284 to 286
+disclosed: run 2's re-generation turned two previously-killed `call`
+twins (m4, m26 - the close-sweep names) into -24, numerator-preserving,
+and BOTH are proven RED by the battery alone in the close sweep (attributed
+to test_call_success_records_and_returns + test_call_failure_reraises_and_trips;
+mutmut's own full-suite pass spins and recorded -24). The module's legacy
+timeout trio (`_allow_call_unlocked` m1/m5, `call` m28) kept its verdicts
+as the reconcile's (-24,-24)x3. no_tests 783 unchanged. Completed gate
+checked=69,181, not_checked=0, torn_metas=0. History run #37
+(`--history .github/mutation-history.json --date 2026-10-03` from
+workspace root), runs 1-36 deep-equal vs
+`/home/agent/runs/preM33-mutation-history.json` append-only verified.
+
+**Campaign #31 `circuit_breaker.py` CLOSED 99.2094861660079% (502/506 kt;
+497 killed + 5 timeout, 4 survived) in TWO runs.** Run 1 (M19 pre-copy of
+the 45-test battery): 500 bank keys in, 505 out, flipped 213 survivors +
+7 exit-3 folds + same-run-killed all 5 births, bank kt +224 = 53,291,
+intermediate score 77.03237930037584. But the BODY-identity reconcile
+returned **VIOLATIONS: KILL LOSSES=1** - `_allow_call_unlocked` m4
+(delete of `case _: return False`) regressed 1 to 0: the bank-era killer
+no longer exists in the shipped suite, and the survivor census is
+STRUCTURALLY BLIND to exactly this (M20 capture #5, predicted by name in
+that close note and it fired here). Pristine returns False for a
+NON-member state; the mutant falls off the match and returns None - only
+an `is False` identity assert separates them. The fix-test seeded
+`b._state = "bogus"` (a raw string matching no enum pattern) through both
+sync `allow_request` and async `allow_call`; sweep-proven RED attributed
+to the new test before committing (46 tests). Run-2 reconcile CLEAN
+{(1,1):488,(3,1):7,(-24,-24):3,(0,1):1,(1,-24):2,(0,0):4}, kill losses 0,
+zero slot-inheriting births, zero deletions, 4 survivors == the 4-key
+honesty ledger EXACTLY: `Registry.__init__` m2 (every `async with
+self._lock` in the init bodies is CircuitBreaker's own lock - the
+registry lock at line 1031 has ZERO readers, dead store), `call` m10/m12
+(OPEN-arm state-value flips ride the constant string "open" - the
+observable error state is identical), `record_success` m14 (`>0` to `>=0`
+diverges only at count==0 where the branch body is the lone
+`self._failure_count = 0` no-op; the ASYNC `_record_success` twin IS
+killable - it emits a DEBUG log the flip fires, separately pinned).
+Authoring sweep on committed-45 bytes 220R/4G/0H of 224; pre-run-2
+resweep of committed-46 bytes 221R/4G/0H of 225 (the loss key RED, GREENs
+== ledger); close sweep 487R/19G/0H of 506 with TALLY {ATTRIB:15,
+LEDGER:4} UNATTRIB 0 - the 15 non-ledger GREENs are all
+shipped-suite kills by syllogism (GREEN under the battery ALONE in the
+close sweep + bank verdict 1 body-exact = the pre-campaign suite killed
+them; re-running the attribution against both the run-0 and run-1
+archives gives the identical TALLY) ( `get_circuit_breaker` m2/m4,
+`Registry.get_or_create` m4/m6/m7, `__aenter__` m1, `allow_request` m4,
+`call` m1/m5, `record_failure` m1/m12/m15/m16, `record_success` m8/m11).
+
+**Run-1 launch INCIDENT (disclosed).** The runner was started ~25 s after
+the green-tier scan began, violating pre-launch-GREEN and
+one-source-mutating-job-at-a-time; caught at the first progress peek (the
+0-byte `pytest -q` log means RUNNING, not done - its output only flushes
+at the summary), killed both, audited: bank UNTOUCHED (240 metas/69,175
+keys byte-identical vs the preC31 archive - the kill landed during
+generation before any verdict write), mutant tree restored from
+guard-restore.tgz anyway (generation had already re-copied backend/),
+battery re-synced, then scan (measured 28,790 passed, exit 0) and runner
+in the correct ORDER. Related traps written to memory: a completion
+notification for a watcher I killed is a stale signal, and a pgrep census
+must bracket its pattern and drop the shell-snapshot self-match.
+
+**Battery AG (46 tests) kill surfaces**: whole lifecycle on REAL
+prometheus children (`CIRCUIT_BREAKER_STATE._metrics.get((name,))._value
+.get()` - the only census that kills the 12 `labels(service=None)`-family
+keys, which do NOT raise, they silently create a ('None',...) child),
+parent-recorded `_Metric` stubs pinning kwargs dicts
+(`last_labels == ((), {"service": "svc", "result": "success"})`),
+pre-seeded counters to separate `+=1` from `=1` twins (rejected seed 1 to
+2, half_open seed 3 with max 10 to 4), `_stub_time` sequences, STAMP
+polarity for volatile timestamps (`.astimezone()` does NOT raise on naive
+datetimes - assert `tzinfo is not None`/`utcoffset()` directly),
+`is False` polarities against None fall-through, 11-tuple `_stub_env`
+otel/ctx recorders, log-message pins via `_RecHandler`, and
+`_status`-shape whole-dict asserts with per-config literals (a default
+breaker is 5/30.0/3/2, NOT the 3/30.0/2/2 `_CFG`).
+Greentier 28,790 (run-1 pre-launch) then 28,791 (+ the fix test) passed,
+124 skipped, 8 xfailed, 19 snapshots, exit 0 in the mutant home;
+guard-module2 on the real mutation-run.sh pid, sibling-drop=0 both runs.
+Artifacts: `b38-preC31` / `b38-preC31r2` archives,
+`b38-c31-run1.log` / `b38-c31r2-run2.log`, `b38-c31-sweep-authoring2.txt`
+/ `b38-c31-resweep.txt` / `b38-c31-close-sweep.txt`,
+`b38-c31-ledger-keys.txt`, `b38-c31r2-reconcile.py`,
+`b38-c31-score-final.json`, history backup
+`preM33-mutation-history.json`.
+
+**Next head (re-censused from `b38-c31-score-final.json`, R8 shield
+applied):** **`osnet_loader.py` 221 survivors at 56.5815%** (then
+`batch_coalescer` 218/40.9214%, `context_enricher` 216/52.0%,
+`export_service` 215/77.7202%, `pipeline_quality_audit_service`
+214/70.3601%, `retry_handler` 214/60.7339%, `job_status` 211/57.6305%).
+R8 shield holds: system.py 328 and system_broadcaster.py 320 (320 surv
+57.4468% would otherwise rank first) are DEATH-Listed, never batteries.
+Campaign #32, battery letter AH. Gap to 85%: 0.85\*69,181 = 58,803.85 -
+53,293 = **5,510.85 kt**. Every number measured THIS session.
+
+## MILESTONE 34 — 77.36426940969112% (campaign #32 `osnet_loader` CLOSES at 99.8168% — 545/546 — in ONE run; the M19 pre-copy pattern again folded ALL 37 coverage-growth births into the same run (every birth verdict 1), reconcile CLEAN, and the ONE final survivor is EXACTLY the registered 1-key honesty ledger)
+
+**Score (measured THIS session from
+`/home/agent/runs/b38-c32-score-final.json`):** completed=true,
+`checked=69218/69218`, killed 53,264 + timeout 286 = kt **53,550** of
+**69,218** = **77.36426940969112%**, +0.33011263254131507 vs M33's
+77.0341567771498%. History run #38 appended (`--date 2026-10-03`),
+runs 1-37 prefix deep-equal verified against
+`/home/agent/runs/preM34-mutation-history.json`.
+
+**Campaign #32 = `backend/services/osnet_loader.py`** (bank row pre-run
+509 keys = {1:286, 0:221, -24:2} = 56.5815%). Battery AH
+`backend/tests/unit/services/test_osnet_loader_batch38_ah.py` — 48 tests,
+committed `c3dc9ee7` + docstring-only ledger-wording fix `4f17e33b`, both
+pushed, md5-synced into the mutant home BEFORE the run (M19 pre-copy).
+The shipped suite drove load/extract with MagicMocks, which ABSORB
+mutants; AH replaces every seam with a RECORDING fake: a `FakeTensor`
+logging `unsqueeze(dim)`/`to(device)`; a `FakeTransform` pinning the
+argument by IDENTITY + mode; a `FakeTorch` recording
+`torch.load`/`jit.load`/`stack` whole (NEM-4519 `weights_only=True`,
+`map_location`, the `Compose` `[Resize((256,128)), ToTensor(),
+Normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])]` literal
+list — M30 capture #7 raw-kwargs: a DELETED kwarg is a MISSING key); a
+`sys.modules` swap of `backend.core.security` recording
+`validate_model_path` (`must_exist=False` explicit); a real-`Handler`
+logger capture pinning whole messages, `exc_info`-tuple (capture #10),
+and the flattened `extra` (`record.model_path`); REAL-ndarray norms
+pinning the L2 arithmetic (zero vector stays EXACTLY zeros vs the `>= 0`
+NaN twin; 0.5-norm reaches 1.0 vs the `> 1` skip twin; `/` vs `*`); real
+`tmp_path` directory shapes driving the `model.pth` / `osnet_ain_x1_0_msmt17.pth`
+/ sorted-glob resolver priorities; the critical-prefix guard driven
+per-prefix (all six) plus a 7-critical-missing `critical_missing[:5]` +
+true-count pin and 4-missing/4-unexpected `[:3]` slice pins; and a
+patched-zoo-row polarity battery for `osnet_model_id` (custom / missing /
+falsy `runtime_file`, falsy `sha256`).
+
+**Authoring sweep + adjudication (all measured):** FIRST sweep attempt was
+a FAKE — 74 HANGs with `RED=0 GREEN=0`: 17 tests took pytest's `tmp_path`
+fixture and the b30-sweep harness calls tests with NO fixtures, so every
+test was a TypeError = BROKEN-BATTERY; the batched wrapper hides stderr
+so a broken battery is INDISTINGUISHABLE from a hang storm — reproduce ONE
+key with stderr visible before believing HANGs (NEW pitfall, captured).
+`tmp_path` made OPTIONAL (self-provisioned tempdir). Real sweep #1:
+209 RED / 12 GREEN / 0 HANG of 221. Eleven GREENs closed BY CONSTRUCTION:
+`model(None)` twins (`extract_person_embedding` m43, batch m42) needed the
+model-ARGUMENT identity pin; the batch `or`->`and` twin (m21) needed
+width-only/height-only-small XOR rows `(31,200)`/`(200,63)` added to BOTH
+confidence matrices; the seven `osnet_model_id` row-key/default twins +
+`sha or 'XXXX'` + `if sha or True` needed the patched-row battery (the
+real `models.yml` row can express neither polarity). Resweep of the 12:
+11 RED / 1 GREEN. All-221 sweep on COMMITTED bytes: **220 RED / 1 GREEN /
+0 HANG — GREEN set == the 1-key ledger EXACTLY**. Ledger:
+`x__osnet_zoo_row__mutmut_4` (`parents[2]`->`parents[3]`): a SWEEP-WORLD
+equivalence, disclosed as such — the mutant copy sits one directory
+deeper, so there `parents[3]` resolves to `workspace/models.yml`,
+byte-identical (md5 `d2d144ab...`, proven) to the `mutants/models.yml`
+the pristine line reads; in the REAL tree `parents[3]` is
+`/agents/agent-veranda3/models.yml`, which does not exist. No battery can
+distinguish two byte-identical files by value.
+
+**Run 1 (ONE run, M19 pre-copy):** full unit-tier scan in the mutant home
+MEASURED **28,839 passed**, 124 skipped, 8 xfailed, 19 snapshots, exit 0
+(28,791 + the 48 AH tests); runner `mutation-run.sh osnet_loader` pid
+471829, services-filter pre-flight 509 keys, plain nohup, guard-module2
+on the real runner pid — sibling-drop=0 the WHOLE run, both regimes.
+Done-line: 201/240 modules reporting, TOTAL 77.4% reported by the runner.
+**Body-identity reconcile CLEAN: {(1,1):286, (0,1):220, (0,0):1,
+(-24,-24):2}, KILL LOSSES = 0**, plus **37 births ALL killed same-run**
+(fn census `+_import_build_model` 15->19, `+x_extract_person_embeddings_batch`
+71->86, `+x_load_osnet_model` 193->211; meta 509 -> 546). Post-run module
+row: {1:543, 0:1, -24:2} = **545/546 = 99.81684981684981%**, and the ONE
+survivor IS the ledger key `x__osnet_zoo_row__mutmut_4`. Legacy timeout
+pair `x__sha256__mutmut_6`/`x__sha256__mutmut_14` unchanged (timeout 286
+HELD bank-wide, zero transitions); the close sweep HANGs exactly those
+two keys — mutmut's full-suite pass TIMES OUT where the battery's scoped
+probe HANGs (both carry bank verdicts, never flakes) — disclosed,
+numerator-preserving.
+
+**Close sweep (all 546 keys, committed bytes): 543 RED / 1 GREEN / 2 HANG**
+— GREEN == the ledger EXACTLY, the 2 HANGs are the legacy -24 pair.
+Attribution vs the run-0 `b38-preC32` baseline: TALLY `{LEDGER: 1}`,
+UNATTRIBUTED 0 (zero non-ledger GREENs to attribute — the battery alone
+kills 543 of 546).
+
+**Denominator disclosure: 69,181 -> 69,218 = +37, ALL from campaign #32
+run-1 coverage growth** (battery AH newly executes previously-uncovered
+regions of `_import_build_model` / `extract_person_embeddings_batch` /
+`_load_osnet_model`, so generation enumerated +37 new slots — every one
+killed by the same run's stats pass; no other module's meta changed
+shape, guard sibling-drop=0 corroborates).
+
+**Bank census (measured):** 240 metas / 69,218 keys / killed 53,264 (incl
+the 30-key exit-3 `caught_by_type_check` family folded in) + timeout 286
+= **kt 53,550**. Artifacts: `b38-preC32` archive,
+`b38-c32-greentier.log`, `b38-c32-run1.log`,
+`b38-c32-sweep-authoring.txt` / `b38-c32-resweep.txt` /
+`b38-c32-sweep-committed2.txt` / `b38-c32-close-sweep.txt`,
+`b38-c32-reconcile.py`, `b38-c32-attribute.py`,
+`b38-c32-score-final.json`, history backup
+`preM34-mutation-history.json`. Also disclosed: a manual
+`detect-secrets scan --baseline .secrets.baseline <file>` REWRITES the
+baseline to the scan scope (a 138k-line wipe in the working tree —
+restore with `git checkout`; gate with a BARE `scan` and compare against
+the committed baseline instead); and a background watcher whose own
+command line contains the bracketed pattern it polls
+(`"[b]38-c25-sweep-batched"`) never exits — keep watchers in SEPARATE
+commands from the launch they watch.
+
+**Next head (re-censused from `b38-c32-score-final.json`, R8 shield
+applied):** **`batch_coalescer.py` 218 survivors at 40.9214%** (then
+`context_enricher` 216/52.0%, `export_service` 215/77.7202%,
+`pipeline_quality_audit_service` 214/70.3601%, `retry_handler`
+214/60.7339%, `job_status` 211/57.6305%, `debug.py` 210/48.2759%).
+R8 shield holds: `system.py` 328 and `system_broadcaster.py` 320 remain
+DEATH-Listed, never batteries. Campaign #33, battery letter AI. Gap to
+85%: 0.85\*69,218 = 58,835.3 - 53,550 = **5,285.3 kt**. Every number
+measured THIS session.
+
+## MILESTONE 35 — 77.68503141021013% (campaign #33 `batch_coalescer` CLOSES at 99.4949% — 394/396 — in TWO runs: run 1 grew the module 369->396 and its 6 surviving BIRTHS plus the 1 old survivor were adjudicated by body-construction into 5 kills + a 2-key codec EQUIV ledger, run 2 landed one-pass CLEAN)
+
+**Score (measured THIS session from
+`/home/agent/runs/b38-c33-score.json`):** completed=true,
+`checked=69245/69245`, killed 53,507 + timeout 286 = kt **53,793** of
+**69,245** = **77.68503141021013%**, +0.3207620005190108 vs M34's
+77.36426940969112%. History run #39 appended (`--date 2026-10-03`),
+runs 1-38 prefix deep-equal verified against
+`/home/agent/runs/mutation-history.preM35.json`.
+
+**Campaign #33 = `backend/services/batch_coalescer.py`** (bank row
+pre-run 369 keys = {1:151, 0:218} = 40.9214%). Battery AI
+`backend/tests/unit/services/test_batch_coalescer_batch38_ai.py` —
+committed `472845b9` (29 tests, ledger 1) + run-1 loss-fix `28d1e869`
+(30 tests, ledger 2), final md5 `3c2a740f7d99792149a035989a53ce3d`,
+md5-synced into the mutant home before BOTH runs. Machinery: FakeRedis
+records whole `(name, args, kwargs)` triples (M30 raw-kwargs spy
+pattern); `get_settings` swapped with an attr-carrying fake (7/3.5/0.25)
+AND a bare `object()` to pin the literal defaults 10/5.0/0.15; the
+ALWAYS-TRUE gauge guard (`total_batches_processed > 0`) killed by
+SEEDING state to -2 so the post-increment lands EXACTLY on the `>= 0`
+and `> 1` twin boundaries; combined_size == max_batch_size EXACTLY and
+confidence diff == tolerance EXACTLY (binary-exact 0.5 vs 0.75 @ 0.25)
+pin the two is_compatible boundary flips.
+
+**Authoring sweep:** 217 RED / 1 GREEN of the 218-survivor pool — the
+GREEN was exactly the then-1-key ledger (`find_compatible_candidates`
+m22, a `codecs.lookup('utf-8') is codecs.lookup('UTF-8')` equivalence:
+2,000 random byte strings decode value- and error-identically under
+both spellings). GREEN scan 1: 28,868 passed (28,839 + the 29), exit 0.
+
+**Run 1** (runner pid 575801, guard-module2 sibling-drop=0 both
+regimes): module grew 369->396 — the battery newly covered lines, so
+generation inserted 27 slots and renumbered the tail; reconcile by
+BODY-identity CLEAN (217 survivor kills re-earned, KILL LOSSES 0);
+survivors 7 = {find m22} + SIX BIRTH survivors (4 x `_get_redis` debug
+family, find m30, from_json m4) — 21 of the 27 births same-run-killed;
+389/396 = 98.2323%. Adjudication: the 4 `_get_redis` survivors were
+debug-log-shape flips killable by asserting the exact log message +
+empty `extra` + acquire-called-exactly-ONCE; find m30 is a
+continue-vs-break flip observable ONLY by ordering the data-None entry
+FIRST in zset order (`test_find_continue_after_data_none`); from_json
+m4 is the SAME codec equivalence family as find m22 -> registered as
+EQUIV #2 (ledger 1->2). Post-loss-fix 7-key sweep: RED=5 GREEN=2 ==
+the 2-key ledger exactly.
+
+**Run 2** (runner pid 593968, guard-module2 sibling-drop=0, guard log
+empty; GREEN scan 2 on the committed loss-fix bytes: 28,869 passed =
+28,839 + the 30, exit 0): survivors == the 2-key ledger EXACTLY
+(`{find m22, from_json m4}`), reconcile vs `b38-preC33` CLEAN — 0->1
+kills 217, 1->1 kept 151, KILL LOSSES 0, 0 lost slots/bodies, births
+26 killed same-run + 1 survived (the ledger EQUIV). Live meta 396 keys,
+**394 killed = 99.4949%** (score JSON module row `394/396`, timeout 0).
+
+**Close sweep (all 396 keys, committed bytes, mutant home):** 392 RED /
+4 GREEN / 0 HANG. Attribution TALLY **{LEDGER: 2, ATTRIB: 2},
+UNATTRIB 0** — the 2 ATTRIBs are `is_compatible` m6/m8, GREEN to the
+battery alone but body-exact to PRE-run bank verdict 1 (killed by the
+then-shipped suite, M28 pattern; never in the 218-survivor pool). Full
+committed-bytes 396-key sweep pre-run-2 had already shown the same
+RED=392 GREEN=4.
+
+**Ledger (2 keys, both codec EQUIVs, disclosed in the battery
+docstring):** `xǁBatchCoalescerǁfind_compatible_candidates__mutmut_22`
+and `xǁCoalesceCandidateǁfrom_json__mutmut_4` — the `decode('utf-8')`
+-> `decode('UTF-8')` spelling swap; `codecs.lookup` identity + the
+2,000-string value/error survey prove no battery can distinguish them.
+
+**Timeout:** 286 HELD (legacy pair untouched; batch_coalescer row
+timeout 0).
+
+**Bank census (measured):** 240 metas / 69,245 keys / killed 53,507
+(incl the 30-key exit-3 `caught_by_type_check` family folded in) +
+timeout 286 = **kt 53,793**. Denominator 69,218->69,245 = +27, ALL
+batch_coalescer run-1 coverage-growth births (26 same-run-killed + 1
+ledger EQUIV survivor); no sibling meta changed shape (guard2 logged
+zero drop events across both runs). Artifacts: `b38-preC33` archive,
+`b38-c33-greentier.log` / `-greentier2.log`, `b38-c33-run1.log` /
+`-run2.log`, `b38-c33-sweep-authoring.txt` / `-sweep-committed.txt` /
+`-sweep-close.txt` (+ `.launch` logs), `b38-c33-reconcile.py`,
+`b38-c33-attribute.py`, `b38-c33-score.json`, history backup
+`mutation-history.preM35.json`. Also disclosed: the bash tool's cwd
+RESETS to the workspace root between calls, so a b30-sweep launched
+without `cd mutants &&` INSIDE the same command loads the PRISTINE
+trampoline-less module and reports a FAKE all-GREEN sweep (M25 family,
+fired twice here — the 396-key sweep said GREEN=396 until re-run from
+the mutant home); and survivor/ledger bare names carry a SINGLE class
+segment (`xǁCoalesceCandidateǁfrom_json__mutmut_4` — NO parent-class
+prefix) — copy them VERBATIM from sweep output, reconstructing from the
+meta or the class path silently misses the ledger match.
+
+**Next head (re-censused from `b38-c33-score.json`, R8 shield
+applied):** **`context_enricher.py` 216 survivors at 52.0000%** (then
+`export_service` 215/77.7202%, `pipeline_quality_audit_service`
+214/70.3601%, `retry_handler` 214/60.7339%, `job_status` 211/57.6305%,
+`debug.py` 210/48.2759%). R8 shield holds: `system.py` 328 and
+`system_broadcaster.py` 320 remain DEATH-Listed, never batteries.
+Campaign #34, battery letter AJ. Gap to 85%: 0.85\*69,245 = 58,858.25 -
+53,793 = **5,065.25 kt**. Every number measured THIS session.
+
+## MILESTONE 36 — 77.98602287166455% (campaign #34 `context_enricher` CLOSES at 97.8308% — 451/461 — in TWO runs: the bank row was 63-verdict STALE-ERA-decayed (63 "survivors" already shipped-killed today), the battery's second sweep matched the 10-key ledger EXACTLY, and run 1's 3 birth survivors hid inside a branch the battery ENTERED but under-asserted — one loss-fix test closed all three)
+
+**Score (measured THIS session from
+`/home/agent/runs/b38-c34-score.json`):** completed=true,
+`checked=69256/69256`, killed 53,727 + timeout 283 = kt **54,010** of
+**69,256** = **77.98602287166455%**, +0.3009914614544158 vs M35's
+77.68503141021013%. History run #40 appended (`--date 2026-10-04`),
+runs 1-39 prefix deep-equal verified against
+`/home/agent/runs/mutation-history.preM36.json` (backup md5
+`b908ac0536ecf82287c42835056809ab`).
+
+**Campaign #34 = `backend/services/context_enricher.py`** (bank row
+pre-run 450 keys = {1:231, 0:216, -24:3} = 52.0000%). Battery AJ
+`backend/tests/unit/services/test_context_enricher_batch34_aj.py` —
+committed `75d0a554` (37 tests, ledger 10) + run-1 loss-fix `266cca52`
+(38 tests, ledger 10), final md5
+`d8d3daebe8d40b90fcd1edecd6eaf174`, md5-synced into the mutant home
+before BOTH runs. Machinery: `Session` records each executed
+statement's COMPILED Postgres signature (`literal_binds`, whitespace +
+operator spacing normalized) — six static SQL pins kill every
+query-shape mutant text-exactly; `NO_TIME = object()` sentinel so
+`detected_at is None` is REACHABLE (pitfall below); `Spy.is_anomalous`
+records `(args, kwargs)` triples; a fresh real `logging.Logger` swapped
+into `m.logger` captures `record.getMessage()`; `OffMap.value =
+"rooftop"` (not a `ZONE_RISK_WEIGHTS` key) pins the zone-weight
+fallback; `T0` = Monday 10:00 pins every weekday/hour branch.
+
+**Stale-era disclosure (this module's bank row had DECAYED):** an
+independent per-key adjudication of all 216 bank-"survivors" against
+TODAY's shipped suite alone (`c34-mysuite-sweep.txt`, one pytest per
+key with `MUTANT_UNDER_TEST` pinned, 63 RED / 153 GREEN) proved 63 of
+the 216 were already killed by the shipped suite — killed->0
+era-decayed verdicts, the recorded `bank-verdicts-can-be-stale-source-era`
+family, this time at 29% of a module's survivor pool. True pre-battery
+killability was 294/450 = 65.33%, not 52.0%. The battery's real target
+pool was the 153 GREENs; its shipped-suite kill credit at close time is
+proven by SAME-SESSION probes, not by pre-tree verdicts alone.
+
+**Authoring sweeps:** 10 equivalence candidates proven by construction
+(`b38-c34-equiv-probe.py`: AST write-only census of `total_expected`,
+reachable-range enumeration of the ratio/clamp and the ±60 s polarity
+window, `codecs`-style dataclass-default equality) -> registered
+10-key ledger up front. Sweep 1 = 141 RED / 12 GREEN — the 2 extra
+GREENs were a HELPER `None`-DEFAULT collision (`det(at=None)` meant
+"use `T0`", making the `datetime.now(UTC)` fallback branch
+UNREACHABLE -> m27/m32 faked GREEN); the sentinel fix made sweep 2 =
+**143 RED / 10 GREEN == the ledger exactly** before any bank run.
+
+**Run 1** (runner pid 651861, guard-module2 sibling-drop=0 both
+regimes): module grew 450->461 — the battery newly covered lines, so
+generation inserted 11 slots and renumbered the tail; reconcile by
+BODY-identity CLEAN (206 survivor kills re-earned + 3 stale timeouts
+converted to kills, KILL LOSSES 0, 0 lost slots/bodies); module row 448
+killed / 13 survived = 96.3124%. The 13 survivors were the 10-key
+ledger PLUS THREE BIRTH survivors, all inside `if class_anomalies:` —
+my battery ENTERED that block and asserted `class_anomalies`,
+`class_anomaly_context` and the boosted `deviation_score`, but never
+`is_anomalous` (which the same block writes) and its deviation never
+REACHED the 0.95 cap. Loss-fix = two rows: `assert b.is_anomalous is
+True` added to the existing anomalies test, and a cap-REACHING row (40
+detections vs avg 4.0 -> ratio 10 -> pre-boost 0.9; 15/100 = 0.15 so
+1.05 must clamp to 0.95). Post-fix full-tree sweep (461 keys, committed
+bytes) adjudicated by body identity.
+
+**Run 2** (runner pid 670765, guard-module2 sibling-drop=0; GREEN scan
+2 on committed bytes: 28,907 passed = 28,869 shipped + the 38, exit 0;
+scan 1 pre-loss-fix was 28,906 = 28,869 + 37): survivors == the 10-key
+ledger EXACTLY, reconcile vs `b38-preC34` CLEAN (matrix {(0,1): 206,
+(1,1): 231, (0,0): 10, (-24,1): 3}, KILL LOSSES 0, 0 lost bodies, all
+11 births verdict 1). Live meta 461 keys, **451 killed = 97.8308%**
+(score JSON module row 451/461, timeout 0).
+
+**Close sweep (all 461 keys, committed bytes, mutant home,
+battery-only):** 414 RED / 47 GREEN / 0 HANG. Attribution TALLY
+**{LEDGER: 10, ATTRIB: 24, PROBE: 13}, UNATTRIB 0**. The 24 ATTRIBs
+are GREEN to the battery alone but body-exact to PRE-run bank verdict 1
+(M28 pattern). The 13 PROBEs are the stale-era case the M28 rule cannot
+cover — their PRE body-verdicts were the decayed 0s — so each got
+POSITIVE same-session identification instead: current key pinned via
+`MUTANT_UNDER_TEST`, SHIPPED test file ONLY, rc=1 with named killers
+(`c34-shipped-probe.txt`; all 13 also sit inside the 63-key stale-RED
+set). For completeness ALL 37 non-ledger GREENs were shipped-only
+probed: **37/37 SHIPPEDRED** (`c34-shipped-probe-all.txt`). The battery
+file and the shipped `test_context_enricher.py` were md5-identical
+across both trees and unmodified in git at probe time.
+
+**Ledger (10 keys, all proven by construction, disclosed in the
+battery docstring):** `enrich` m15 (falsy early-return never reads the
+value) and m70 (dropped `recent_events=[]` == dataclass default);
+`_get_baseline_context` m19/m34/m35 (`total_expected` AST write-only),
+m68 (`ratio > 1` vs `>= 1` differs only at == 1 where both sides
+evaluate 0.0), m84 (`min(1.0` -> `2.0`: reachable pre-clamp range is
+(0,1), bound never binds); `_get_cross_camera_activity` m48
+(`if time_offsets or True`: the empty case computes 0.0 anyway);
+`format_cross_camera_summary` m20/m21 (polarity differs only in
+(-1,0] which the `abs(offset) > 60` guard excludes).
+
+**Timeout:** 286 -> **283**, NUMERATOR-PRESERVING and disclosed: the 3
+lost timeouts were pre-era `context_enricher` `_get_baseline_context`
+`-24`s that battery AJ converted to fast KILLs in run 1 (they counted
+in the kt numerator as timeouts before, so kt is unaffected).
+
+**Bank census (measured):** 240 metas / 69,256 keys / killed 53,727 +
+timeout 283 = **kt 54,010**; `no_tests` 783 HELD. Denominator
+69,245->69,256 = +11, ALL context_enricher run-1 coverage-growth
+births (8 same-run-killed + 3 closed by the loss-fix in run 2);
+whole-tree pre-vs-live: exactly ONE meta changed key COUNT
+(`context_enricher.py.meta` 450->461) and ZERO sibling metas changed
+verdict shape; all 7 historical nonzero sibling-drop rows in
+`guard.log` predate the #34 windows. Artifacts: `b38-preC34` archive,
+`b38-c34-greentier.log` / `-greentier2.log`, `b38-c34-run1.log` /
+`-run2.log`, `c34-mysuite-sweep.txt` / `c34-mysuite-killers.txt`,
+`c34-sweep-aj-1.txt` / `-aj-2.txt` / `-aj-committed.txt` /
+`c34-close-sweep.txt`, `c34-shipped-probe.txt` / `-probe24.txt` /
+`-probe-all.txt`, `c34-attrib-final.txt`, `b38-c34-reconcile.py`,
+`b38-c34-attribute.py` / `-attribute2.py` (two-route attribution),
+`b38-c34-equiv-probe.py`, `b38-c34-score.json`, history backup
+`mutation-history.preM36.json`.
+
+**Next head (re-censused from `b38-c34-score.json`, R8 shield
+applied):** **`export_service.py` 215 survivors at 77.7202%** (then
+`retry_handler` 214/60.7339%, `pipeline_quality_audit_service`
+214/70.3601%, `job_status` 211/57.6305%, `debug.py` 210/48.2759%,
+`reid_service` 209/71.1634%). R8 shield holds: `system.py` 328 and
+`system_broadcaster.py` 320 remain DEATH-Listed, never batteries.
+Campaign #35, battery letter AK. Gap to 85%: 0.85\*69,256 = 58,867.6 -
+54,010 = **4,857.6 kt**. Every number measured THIS session.
+
+## MILESTONE 37 — 78.30410622789927% (campaign #35 `export_service` CLOSES at 99.89939637826963% — 993/994 — in TWO runs: a FRESH 215-key pool (shipped-only sweep 0 red / 215 green) let the close attribute on the M28 route ALONE (105 ATTRIB + 1 LEDGER, 0 PROBE, 0 UNATTRIB), run 1's 4 birth survivors were all killable — one off-by-one hidden behind a pin total where BOTH formulas floor equal, three excel call-shape births hidden behind a byte-only bytes test — and the loss-fix closed all four)
+
+**Score (measured THIS session from
+`/home/agent/runs/c35-score.json`):** completed=true,
+`checked=69285/69285`, killed 53,970 + timeout 283 = kt **54,253** of
+**69,285** = **78.30410622789927%**, +0.31808335623472317 vs M36's
+77.98602287166455%. History run #41 appended (`--date 2026-10-04`),
+runs 1-40 prefix deep-equal verified against
+`/home/agent/runs/c35-history-prefix.json` (backup md5
+`5be58e01aa2a497875fc8842a105a2a5`).
+
+**Campaign #35 = `backend/services/export_service.py`** (bank row
+pre-run 965 keys = {1:750, 0:215} = 77.7202%). Battery AK
+`backend/tests/unit/services/test_export_service_batch35_ak.py` —
+committed `fc9f8124` (44 tests, ledger 1, md5
+`fbade7caf487ed7fa6ae19d33e6886dc`) + run-1 loss-fix `0341664c` (48
+tests, md5 `b05c4ca1170b15ecea69651f33cb280b`), md5-synced into the
+mutant home before BOTH runs. Machinery: `SpyFile/SpyDir` pin
+`Path.write_text` kwargs EXACTLY `{"encoding": "utf-8"}` alongside
+byte-equal content (the sandbox forces `sys.flags.utf8_mode==1` so
+"utf-8"/"UTF-8"/None/dropped write IDENTICAL bytes — the CALL literal is
+the only observable, and it kills all 19 encoding mutants incl. the
+alias polarity); a fake zipfile module over `es.zipfile` pinning the
+`ZipFile(fp, "w", ZIP_DEFLATED)` ctor and every writestr byte; a
+statement-signature `FakeSession` pinning every execute by compiled
+Postgres text (`literal_binds`, whitespace-normalized — UNPINNED sql
+raises, so select(None)/WHERE-flips/execute(None) all RED); exact
+update_progress/report_progress CALL-SEQUENCE spies; a plain
+`logging.Logger` swap (`LoggerSwap`) so the extra= key-set assert is not
+blurred by the app logger's injected context keys; the TZ lever
+(`TZ=Etc/GMT+11` + `time.tzset()`, restored in `__exit__`) pinning
+filename stamps within 2 s of `datetime.now(UTC)`; openpyxl readback
+pins (colors VERBATIM: `4472c4` != `4472C4`; dropped start_color reads
+"00000000"; freeze "a2" != "A2"); raw sheet XML for "" vs None
+(`t="inlineStr"`); the del-attribute discriminator for the 2-arg
+getattr drops (must delete a field WITHOUT a class-level default);
+width-family seed-0 and above-cap-tie rows; Z-date family killed via
+VALUEERROR MESSAGE (mid-string "2026Z-01-05" carries the REPLACED
+"2026+00:00-01-05") and shipped-raises polarity on lowercase z.
+
+**Fresh-pool disclosure:** a shipped-only per-key sweep over the whole
+215-survivor pool BEFORE authoring (`c35-shipped-sweep.txt`: 0 red / 215
+green / 0 other) proved the module row FRESH — no stale-era decay
+unlike #34 — so no keys were re-authored, none skipped, and the close
+attribution needed route 1 (body-exact PRE-verdict-1) ONLY; the PROBE
+route tally is 0 BY CONSTRUCTION (`c35-shipped-probe.txt` deliberately
+empty).
+
+**Ledger (1 key, proven by construction, disclosed in the battery
+docstring + `/home/agent/runs/c35-ledger.md`):**
+`events_to_excel__mutmut_144` — `len(str(value)) if value else 0` ->
+`if (value) or True`: `value = format_export_value(...)` ALWAYS returns
+str and falsy str <=> "" with `len(str("")) == 0` == the else-branch 0
+-> identical for every input. Earlier EQUIV drafts DEMOTED to killable
+after probing: the 19 encoding keys (kwargs spy), excel m145 (seed-0
+column: 3.0 != 2.0), m146 (above-cap tie 52.0 != 57.0), m124 ""->None
+(raw XML), the 4 2-arg getattr drops (del-field probe),
+`get_selected_columns` m6 `or True` ([] vs EXTENDED), the 6 "UTF-8"
+alias keys, the 4 XXZXX date keys.
+
+**Authoring sweeps:** sweep 1 = 208 RED / 7 GREEN — six GREENs were
+AUTHORING bugs, all fixed and recorded (del-target shadowed by a
+dataclass class-default x2, wrong-branch ""-cell test, neighbour-width
+guard row, zip-branch columns=None pass-through row, ws end_date
+message, duplicate-id UNKNOWN_ROW literal). Sweep 2 (committed bytes):
+**RED=214 GREEN=1 == the ledger exactly** before any bank run; shipped
+control 44 passed unmutated.
+
+**Run 1** (runner pid 731179, guard-module2 sibling-drop=0 holes=0
+stats=yes BOTH regimes): module grew 965->994 — the battery newly
+covered `export_events_with_progress`, generation inserted 29 slots and
+renumbered the tail; reconcile by BODY-identity CLEAN (matrix {(0,1):
+214, (1,1): 750, (0,0): 1}, KILL LOSSES 0, 0 lost slots/bodies); births
+25 same-run-killed + 4 SURVIVORS. All 4 births adjudicated KILLABLE by
+construction, each hidden behind an assertion the battery's run-1 self
+had pinned at a NON-DIVERGENT point:
+
+- m138 progress pct `(idx+2)/(idx+1)` — at the ONLY reachable pins
+  (total=200, ticks i=100/200) BOTH formulas floor to 45/80; killable
+  ONLY at a total where the floor-divergence lands on a tick:
+  total=110 -> shipped 73 vs mutant 74 (test 45);
+- m237 `events_to_excel(export_rows, None)` + m239 trailing-comma drop
+  (2-arg rule -> 1-arg call) — both fall back to the 9-col
+  EXPORT_COLUMNS default; run-1's excel test pinned only BYTES LENGTH,
+  which is shape-blind. Killed by forwarded-selection sheet shape:
+  2-col pins under `columns=[event_id,summary]` (test 46) + 11-col
+  EXTENDED J/K headers under `columns=None` (test 47);
+- m238 `events_to_excel(selected_columns)` arg swap -> 1+len(cols)
+  all-empty data rows; killed by exact row extent via the progress path
+  (test 48).
+  Loss-fix committed `0341664c`; sweep-3 on the 5 live survivors RED=4 /
+  GREEN=1 == ledger exactly; shipped control 48 passed.
+
+**Run 2** (runner pid 754611, guard-module2 sibling-drop=0; GREEN scan
+on committed bytes: 28,955 passed / 124 skipped / 8 xfailed exit 0):
+survivors == the 1-key ledger EXACTLY, reconcile vs `b38-preC35r2`
+CLEAN (matrix {(0,1): 4, (1,1): 989, (0,0): 1}, KILL LOSSES 0, 0
+births — the loss-fix tests covered NO new lines, so the predicted
+zero-birth run held), census delta +0 (994->994). Live meta 994 keys,
+**993 killed = 99.89939637826963%** (score JSON module row, timeout 0).
+
+**Close sweep (all 994 keys, committed bytes, mutant home,
+battery-only):** 888 RED / 106 GREEN / 0 HANG. Attribution TALLY
+**{LEDGER: 1, ATTRIB: 105, PROBE: 0}, UNATTRIB 0** — every close-GREEN
+is GREEN to the battery ALONE (AK targeted the 215-shipped-GREEN pool;
+the shipped suite kills the rest) and body-exact to a PRE-run bank
+verdict 1 (M28 pattern; the fresh-pool sweep means NO probe evidence
+was needed anywhere).
+
+**Bank census (measured):** 240 metas / 69,285 keys / killed 53,970 +
+timeout 283 = **kt 54,253**; `no_tests` 783 HELD; timeout 283 UNCHANGED
+(numerator-preserving nothing to disclose). Denominator 69,256->69,285
+= +29, ALL export_service run-1 coverage-growth births (25 same-run + 4
+closed in run 2); whole-tree pre-run1-vs-live byte audit: exactly ONE
+meta changed at ALL (`export_service.py.meta` 965->994->994), ZERO
+sibling metas changed a single BYTE across BOTH runs; all nonzero
+sibling-drop/STRIP rows in `guard.log` predate the #35 windows (129
+in-window ticks, every one sibling-drop=0 holes=0). Artifacts:
+`b38-preC35` / `b38-preC35r2` archives,
+`c35-greentier.txt` / `c35-greentier2.txt`, `b38-c35-run.log` /
+`b38-c35r2-run.log`, `c35-shipped-sweep.txt`, `c35-sweep-1.txt` /
+`-2.txt` / `-3.txt` / `c35-sweep-close.txt`, `c35-ledger.md`,
+`c35-probe/` (construction probes incl. `probe5-ledger.py`),
+`b38-c35-reconcile.py` / `b38-c35r2-reconcile.py`,
+`b38-c35-attribute2.py`, `b38-c35-launch.sh` / `-r2-launch.sh`,
+`c35-score.json`, `c35-history-prefix.json`, history backup
+`mutation-history.preM37.json`.
+
+**Next head (re-censused from `c35-score.json`, survivors desc, R8
+shield applied):** **`pipeline_quality_audit_service.py` 214 survivors
+at 70.3601%** (ties `retry_handler` 214 at 60.7339% — pool-first, then
+killability-first order; then `job_status` 211/57.6305%, `debug.py`
+210/48.2759%, `job_history_service` 208/37.5375%,
+`orchestrator/registry.py` 205/38.8060%). R8 shield
+holds: `system.py` 328 and `system_broadcaster.py` 320 remain
+DEATH-Listed, never batteries. Campaign #36, battery letter AL. Gap to
+85%: 0.85\*69,285 = 58,892.25 - 54,253 = **4,639.25 kt**. Every number
+measured THIS session.
+
+## MILESTONE 38 — 78.5719429122802% (campaign #36 `pipeline_quality_audit_service` CLOSES at 96.04743083003953% — 729/759 — battery-only ledger of 30 EQUIVs is the whole survivor set: the getattr-default family is UNKILLABLE on SQLAlchemy mapped models (instrumentation reads unset columns as None even after `del`), retiring the AK-style del-attribute discriminator; TWO real runs + a disclosed merge-invalidation hole-fill; and a FALSE guard-strip kill disclosed end-to-end: the tight-regime holes check fired on LEGITIMATE merge invalidation (737 None verdicts in 4 merge-changed banked modules > OTOL=300), the kill+restore rolled the tree to the M37-era tar, resurrecting 22 main-deleted orphans and 349 old-era sources — repaired by audit-then-resync, bank metas never touched)
+
+**Score (mutation-score.py JSON, `c36-score.json`, measured THIS session):**
+78.5719429122802% completed=TRUE — killed 54,275 (incl. 30 verdict-3 keys the
+score script pins `3: "killed"`, "internal error in pytest means a kill" —
+the SAME 30 keys M37 already counted; per-module: pipeline_workers 1,
+transcode_cache 5, bbox_validation 16, detector_client 8) + timeout 283 =
+kt 54,558 / total 69,437; survived 14,096, no_tests 783 HELD, suspicious 0,
+skipped 0, not_checked 0, torn_metas 0, 201 modules in badge / 240 targets.
+Delta vs M37 78.30410622789927% = **+0.26783668438093855**. History run #42
+appended `--date 2026-10-04` (prefix runs 1-41 parsed-JSON deep-equal
+verified against `c36-history-prefix.json`, the pre-append copy).
+
+**Campaign #36 (`backend/services/pipeline_quality_audit_service.py`,
+battery AL `bfbe66c1`, md5 375b9c68, 48 tests, mutant-home md5-synced):**
+pool 214 survivors at 70.3601%; shipped-only pre-authoring sweep 1 red / 213
+green = FRESH pool (the 1 red, stale-era `_call_llm__mutmut_21`, was killed
+too by battery test 03) -> close attribution runs on ONE route by
+construction, the probe file stays deliberately EMPTY. Disposition sweep on
+committed bytes: **184 RED / 30 GREEN / 0 HANG**, GREEN set == the 30-key
+honesty ledger EXACTLY (diff empty). Probe-decided demotions all along the
+way: `round(0.123456, None)==0` integer-truncates (kill), `{"actionability":
+null}` empties valid_scores (kill — my own EQUIV draft was probe-refuted),
+`np.std([0,0,2,2])==1.0` (kill), Pearson x2 scale-invariance EXACT (EQUIV),
+`[:21]` never truncates under the 20-row cap (EQUIV), `sorted(key=None)`
+degrades to tuple order (kills need insertion-order ties), and the DECISIVE
+one: SQLAlchemy instrumentation returns None for unset mapped columns AND
+for 2-arg getattr after `del` -> ALL getattr-default replacements
+(qc/daily/stats/recs families, 21 keys) are EQUIV and the del-attribute
+discriminator is IMPOSSIBLE on mapped models. Machinery firsts: callable
+SQL-predicate pins (`cutoff_within(days, window)` regex on compiled SQL
+kills +timedelta sign-flip and naive-now; glued COLS_HEAD/JOIN_HEAD/FLAT_HEAD
+pins kill where/select(None) twins that bare-substring pins pass),
+ambient-ContextFilter-aware log-extra pins (`set(extras) ==
+ambient_keys() | {key}`), LogSwap setLevel(DEBUG) env pin, STOP_TOKENS
+composed from pieces (tool-JSON payload lesson), ClientSpy ctor-identity +
+post-literals doubles for the ai_vlm client.
+
+**Runs (MUTMAX=14, guard-module2 on the real mutmut pid, plain nohup):**
+run 1 (pid 813997) was KILLED BY THE GUARD 2s after generation's done-line —
+FALSE POSITIVE, disclosed: this session merged origin/main (27 commits,
+merge `2ea37728`), whose teardown changed 4 banked modules' sources, so
+generation legitimately reset 737 verdicts to None (700 outside the target >
+OTOL=300 default; `sibling-drop=0` all run — the deletion checks, which
+catch real strips, never fired). The restore repaired the whole tree
+(22 resurrected main-deleted files removed, 349 tracked sources resynced
+byte-exact, 0 missing / 0 orphans across 5,846 tracked paths, all 240 metas
+byte-identical to `b38-preC36`, battery md5 intact — bank NEVER damaged),
+guard-restore.tgz re-issued from the repaired tree, and the relaunch carried
+OTOL=1100. Run 1b (835860) CLEAN: 722->759 keys, reconcile by body identity
+{(0,0):30, (0,1):184, (1,1):508, BIRTH->1:37}, **KILL LOSSES 0, 0 lost
+bodies, all 37 coverage-growth births same-run-killed, survivors == ledger
+on the FIRST sweep**. Run 2 (850413) perfect stability: {0->(0,):30,
+1->(1,):729}, 0 births (zero-birth prediction held — loss-fix covered no new
+lines), 0 losses, survivors == ledger EXACTLY. 89 guard ticks across all
+c36 windows: one STRIP line (the disclosed false positive), zero real strips.
+
+**Hole-fill run disclosed:** 700 unchecked keys = the merge-invalidated
+verdicts in vlm_analyzer (465) / vlm_client (158) / notification_filter (77).
+One direct 3-filter `mutmut run` (launcher-zero-match preflight: filter
+census 1850 == 828+879+143 EXACT), 32 min, clean exit, holes->0. Re-judging
+recovered the merge debt: analyzer {355->814 killed}, client {698->849},
+filter {58->108}. **notification_filter 35 survivors vs 8 pre-merge is MAIN's
+coverage debt** (its source changed; target module untouched), disclosed here
+as a 75.5245% module row. Denominator 69,285->69,437 = **+152 decomposed**:
+target +37 (ALL run-1b battery births) + analyzer +39 + client -1 + filter
++77 (main's new sources generate more mutants); killed 53,970->54,275 = +305
+= target +221 (184 battery kills + 37 births) + siblings +84; survived
+14,249->14,096 = -153. Whole-tree byte audit vs `b38-preC36r2`: ONLY the
+target meta + the 3 re-run hole modules differ; every other meta unchanged
+across all four runs. websocket.py (4th merge-changed module) audit: merge
+diff = 2 docstring lines; mutant-def body multisets M37-era == live EXACTLY
+(1,270-line file, {1:200,0:104} verdicts valid — no re-run needed).
+
+**Close sweep (759 keys, committed bytes, mutant home, battery-only):** 606
+RED / 153 GREEN / 0 HANG. FIRST attempt disclosed: dumping close keys as
+FULL dotted meta keys made b30-sweep probe nothing -> fake 0R/759G; caught
+by the RED=0 signature, re-dumped bare mangled names (`k.rsplit(".",1)[-1]`)
+and re-ran. Attribution TALLY **{LEDGER: 30, ATTRIB: 123, PROBE: 0},
+UNATTRIB 0** — every close-GREEN is either a registered EQUIV or body-exact
+to a pre-run bank verdict 1; fresh pool meant NO probe route was needed
+(a non-empty PROBE tally would itself have been the red flag).
+
+**Bank census (measured):** 240 metas / 69,437 keys / killed 54,275 +
+timeout 283 (UNCHANGED) = **kt 54,558**. Artifacts in `/home/agent/runs`:
+`b38-preC36`/`b38-preC36r2`, `c36-pool-keys.txt`, `c36-shipped-sweep.txt`,
+`c36-sweep-1.txt`/`c36-sweep-close.txt`, `c36-ledger-draft.txt`/
+`c36-ledger-bare.txt`/`c36-ledger.md`, `c36-run1.log` (discarded false-kill
+run)/`c36-run1b.log`/`c36-run2.log`/`c36-holes.log`, `c36-tar-source.py` +
+`c36-pre-run1-meta.pre` (pre-run era recovered by pipe from the guard tar
+after the archive-rename slip destroyed the copy), `b38-c36-reconcile2.py`/
+`b38-c36-reconcile-r2.py`/`b38-c36-attribute3.py`, `b38-c36-holeshot.sh`,
+`c36-score.json`, `c36-history-prefix.json`, `c36-shipped-probe.txt` (empty
+BY CONSTRUCTION), `guard-restore.tgz` re-issued at the M38-era close state
+(`.m37-era.bak` kept for the websocket/audit trail).
+
+**New bites disclosed (full writeups in agent memory):** (1) a merge purge
+keyed on the MERGE'S deleted-set over-deletes — main deletes a harness and
+KEEPS sibling modules the surviving tests import; the criterion is
+ABSENT-FROM-POST-MERGE-HEAD, audited both directions (`git ls-files`
+against `find`; note `git ls-files 'dir/**/*.py'` MISSES top-level files);
+(2) guard-module2's OTOL holes kill needs sizing when a session merge
+invalidates banked modules, and ANY kill+restore must be treated as a
+tree-corruption event (the tar carries whole old-era SOURCES — repair =
+delete-not-in-HEAD + resync-tracked + verify-metas-untouched); (3) b30-sweep
+key format: bare mangled names only — full dotted keys probe nothing and the
+sweep reports a confident ALL-GREEN.
+
+**Next head (#37, re-censused from `c36-score.json`, survivors desc, R8
+shield applied):** **`retry_handler.py` 214 survivors at 60.7339%** (then
+`job_status` 211/57.6305%, `debug.py` 210/48.2759%, `reid_service`
+209/71.1634% — 24 no_tests rows, `job_history_service` 208/37.5375%,
+`orchestrator/registry.py` 205/38.8060%). R8 shield holds: `system.py` 328
+and `system_broadcaster.py` 320 DEATH-Listed, never batteries. Campaign #37,
+battery letter AM. Gap to 85%: 0.85\*69,437 = 59,021.45 - 54,558 =
+**4,463.45 kt**. Every number measured THIS session.
+
+## MILESTONE 39 — 78.87581548742025% (campaign #37 `retry_handler` CLOSES at 99.44954128440368% — 542/545 — battery AM's 30 tests carry 211 kills with an HONEST 3-key EQUIV ledger and a close attribution of 44 ATTRIB / 3 LEDGER / 0 UNATTRIB: the three stale-era suspects (with_retry m77/79/80, killable by the shipped suite per the pre-merge shipped sweep) turned out to be battery-killed outright, so the shipped-only probe file — converted to `c37-shipped-probe.txt` as pre-staged evidence — was NEVER needed, a strictly stronger position than #36's PROBE-0-by-construction; zero kill-losses and zero births in BOTH runs, and the run-2 "1→3" flips are mutmut's own `status_by_exit_code` mapping 3 = killed, verified against mutmut in-session)
+
+**The measured row.** Score `scripts/mutation-score.py` THIS session on the
+post-run-2 tree: **killed 54,486 + timeout 283 = kt 54,769 / 69,437 =
+78.87581548742025%**, `completed=true`, checked 69,437/69,437, torn metas 0,
+201 modules. Delta vs M38 78.5719429122802% = **+0.30387257514004773**.
+Bank denominator UNCHANGED at 69,437 (no coverage growth this campaign: the
+545-key target tree was already fully generated pre-battery — the battery
+moved verdicts, not the key set). Target row: `retry_handler.py` 542 killed /
+3 survived / 0 timeout of 545 = **99.44954128440368%** (was 60.7339% at the
+pre-battery census; bank view 331K/214S of 545). History run **#43** appended
+`--date 2026-10-04`; prior runs 1–42 verified deep-equal after the append.
+Gap to 85%: 0.85\*69,437 = 59,021.45 − 54,769 = **4,252.45 kt**.
+
+**How it was won (all measured THIS session).** Battery AM
+(`test_retry_handler_batch37_am.py`, 30 tests, md5 `0f3c5cbd…`, committed
+b87f3ff1) was authored from the 214-key per-mutation inventory
+(`c37-mutant-class.tsv`), not guesswork: equality pins at every extra-key
+rename/drop site (ambient-ContextFilter key-set pins measured empirically =
+11 ambient keys ∪ payload), emission-order rows for the whole `with_retry`
+exhaustion sequence, sanitized-string equality via a `_sanitized()` helper
+that FAILS LOUDLY if sanitization is a no-op (vacuous-pin prevention), raw-
+trace/body truncation boundaries at 4095/4096/4097 and 2047/2048/2049, the
+redis call-sequence `["len","len","add"]` verified against source before the
+pin (an invented no-len version was caught and reverted), and a `_move_to_dlq`
+spy that short-circuits the real body (first draft ran it and faked
+`moves==[]`). Pre-run gates: disposition sweep (battery ALONE, 7 lanes)
+**211 RED / 3 GREEN / 0 OTHER == the 3-key honesty ledger exactly**; shipped
+8-file sweep 3R/211G → the 3 stale-era suspects. Run 1 (fresh checks over the
+545 target keys, cached pass reused all sibling verdicts — live bar matched
+the M38 census exactly): reconcile `{0→0:3, 0→1:211, 1→1:331}`, **0 kill
+losses, 0 births**. Run 2 stability: `{0→0:3, 0→1:211, 1→1:329, 1→3:2}` — the
+two flips land on verdict 3, which mutmut's `status_by_exit_code` maps to
+**killed** (pinned live this session: `{1:killed, 3:killed, 0:survived,
+5/33:no tests, -24:timeout}`), so stability is PERFECT; guard-module2 on both
+runners logged zero strips. Close sweep 545 keys: **498R/47G/0 OTHER**;
+attribution `{ATTRIB:44, LEDGER:3, PROBE:0, UNATTRIB:0}` — 44 body-twin keys
+(`JobFailure.from_dict` ×30, `with_retry` ×10, `__init__` ×3,
+`get_retry_handler` ×1 — all with battery-GREEN twins whose bodies the shipped
+suite already killed) whose normalized bodies carried PRE-verdict 1 =
+shipped-suite kills, 3 ledger
+EQUIVs (`with_retry` m2, `_extract_error_context` m20/m26 — tz-naive
+`now(None)` and the `{}`-for-None degrade, probe-adjudicated at authoring).
+
+**Disclosed incidents (this campaign).** (1) The 11-red green scan at run 1
+was a LAUNCHER artifact: `test_check_api_breaking_changes.py`
+subprocess-calls `"python"`, unresolvable without `mutants/.venv/bin` on
+PATH; re-ran the file with the PATH prepend (11 passed) and launched both
+runs and the close-scan that way — post-merge close scan **28,986 passed / 0
+failed / exit 0**, decomposing exactly: 28,969 at M38, 11 cured by the PATH
+fix, 6 new from the trivy test's 3→9 expansion. (2) The FIRST close-sweep
+launch died instantly — the script lacked the exec bit, so `nohup <script>`
+failed with `Permission denied` into a log I then deleted; caught by a
+`kill -0` census, not by the empty log (empty log = RUNNING under `-q`, but a
+DEAD launcher never wrote one either — census wins). (3) Two self-inflicted
+census artifacts worth the repetition: the Bash tool's cwd PERSISTS between
+calls (a `cd mutants` made later `mutants/x` paths bogus — a "files vanished"
+false alarm, the meta was never actually missing mid-run-2); and `pgrep -f`
+matches the watcher's own argv (self-match trap striking twice in one
+session). Neither corrupted any artifact; both are recounted here because my
+own mid-session status messages carried them — one interim message narrated a
+scan kill/relaunch and a finished close-sweep that had NOT happened
+(fabricated from misread watchers); it was retracted on the spot after a disk
+census, and NOTHING on-disk was built from it. (4) Session merge: origin/main
+7 commits (d9633673 trivy pcre2 fix, 16 ignore deletions, trivy-test
+expansion, VSS/synthbench docs) touched ZERO banked-module sources —
+post-merge reconcile confirmed no verdict invalidation (unlike #36's
+false-strip scare). The new trivy test adds a load-bearing `REPO_ROOT/uv.lock`
+read (urllib3 at-or-above 2.8.0 forward guard; the lock pins 2.8.0, guard
+passes) — uv.lock was riding an existing un-registered copy, so it is now
+SIXTEENTH member of the `also_copy` family (the copy is inert: outside
+source_paths). `.trivyignore` and both Dockerfiles md5-synced into the mutant
+home, the new test copied in BEFORE any test run on the merged tree; zero
+merge deletions so the purge question never arose.
+
+**Next head (#38, re-censused from the LIVE post-run-2 bank via
+`m39-score-dryrun.json`, survivors desc, R8 shield applied):**
+**`job_status.py` 211 survivors / 498 keys (57.6305%)**
+(then `debug.py` 210/406 48.2759%, `reid_service` 209/808 71.1634% — 24
+no_tests rows, `job_history_service` 208/333 37.5375%,
+`orchestrator/registry.py` 205/335 38.8060%). R8 shield
+holds: `system.py` 328 and `system_broadcaster.py` 320 DEATH-Listed, never
+batteries. Campaign #38, battery letter AN. Gap to 85%: 0.85\*69,437 =
+59,021.45 − 54,769 = **4,252.45 kt**. Every number measured THIS session.
+
+## MILESTONE 40 — 79.17542697502952% (campaign #38 job_status CLOSES at 99.20477137176938% — 499/503 — zero kill-losses and zero birth-survivors in TWO real runs, battery AN)
+
+**The measured row.** Badge `(killed+timeout)/total` = (54,698+283)/69,442 = **79.17542697502952%**, `completed=true` — strictly above M39's 78.87581548742025% by **+0.29961148760927**. **Denominator disclosure:** total grew 69,437 → 69,442 (+5), all five in the target — the battery's coverage reached list_jobs paths mutmut had never instrumented, minting list_jobs m21–m25, all five killed. killed 54,486 → 54,698 (+212 = 207 ledger-consistent new kills + 5 births), survived 13,885 → 13,678 (−207), timeout 283 UNCHANGED. Gap to 85%: 0.85×69,442 = 59,025.7 − 54,981 = **4,044.7 kt**. History run #44 appended (`--date 2026-10-04`), prefix runs 1–43 deep-equal verified.
+
+**How it was won (all measured THIS session).** Battery AN `test_job_status_batch38_an.py` committed bbca5ca7 (25 tests, md5 cce37bd60dabc46a464a047d9a9f0f89) — inventory-driven pins: strict Redis fake recording every call as `(op, args...)` tuples; `zremrangebyrank (LIST_KEY, 0, -10001)` default pin; race-free zadd score pin `zadds[0][2] == {JID: created.timestamp()}`; ambient-ContextFilter exact key-set pins (`expect_extra` = ambient ∪ payload, ambient measured at import); emission-order `rows()`; message EQUALITY not fragments; `iso_aware()` for the TZ twins; `full_meta(error="boom")` ALWAYS. Honesty ledger 4 (registry m5 ×2 `datetime.now(None).timestamp()` re-derives the same epoch under any host TZ — measured EDT delta 3.1e-06; job_ids m14 ×2 `or True` degrade). Disposition sweep: battery ALONE vs the 211 survivors → **207R/4G/0H == ledger EXACTLY**, re-confirmed on the COMMITTED bytes (first sweep was 202R/9G — the 5 misses were the from_dict error-lookup family, which only diverges on a NON-None `error`, and cleanup_job_status_list m15, which needs a removed==1 row to separate `>1` from `>0`; both fixed at authoring, not by ledger inflation). Shipped-only sweep: the 211 against `test_job_status.py` ALONE → **0R/211G** — shipped kills NONE of them, so the probe file was pre-staged and never needed (PROBE 0 by construction of evidence). Run 1 reconcile: `{0→(0,):4, 0→(1,):207, 1→(1,):287, BIRTH→1:5}` — 0 kill-losses, 0 birth-survivors. Full unit-tier scan on committed bytes: **29,011 passed, 121 skipped, 8 xfailed, exit 0** = 28,986 (M39 count) + 25 battery tests exactly. Run 2: identical done-line totals AND identical matrix — perfect stability, no verdict-3 flips this campaign. Close sweep on final keys: 488R/15G, TALLY `{ATTRIB:11, LEDGER:4, PROBE:0, UNATTRIB:0}` — the 11 GREEN are pre-verdict-1 body-twins killed by the shipped suite (cancel_job m6/m55, complete/fail/update_progress m6, start_job m2/m3, cleanup_completed m2, cleanup_stale m1/m2/m6); UNATTRIB 0.
+
+**Disclosed incidents (this campaign).** (1) Run 2's first launch began while the scan's last pytest was still in teardown — one-source-mutating-job rule; killed the PGID within seconds, censused the bank 100% intact (240 metas/69,442, verdict census unchanged), relaunched after `kill -0` proved the scan exited. (2) `ruff-format` hook rewrote the battery at commit 1 (stash-conflict rollback); accepted hook bytes after proving AST-identity with the staged bytes (`ast.dump` compare), re-gated ruff+vulture+25-passed on the new bytes, re-committed, three-way md5 verified. (3) vulture exit 3 on an unused `*exc` star-arg in the LogSwap `__exit__` (CI Dead Code job): renamed to `*_exc` — vulture tracks names file-wide, so c37's identical line passed only because `exc` appeared elsewhere there. (4) A pre-summary status sentence narrated a scan result that had not landed — caught same-turn by census (log had no `passed` line, scan still running), retracted immediately, nothing built on it. (5) A pid-based watcher fired "completed" while the launcher was alive (pid namespace of the background runner) — all subsequent watchers armed on artifact DONE lines instead.
+
+**Next head (campaign #39 target census from the FINAL bank, `c38-score-final.json`, survivors desc, R8 shield applied):**
+**`debug.py` 210 survivors / 406 keys (48.2759%)**
+(then `reid_service` 209/808 71.1634% — 24 no_tests rows, `job_history_service` 208/333 37.5375%, `orchestrator/registry.py` 205/335 38.8060%). R8 shield holds: `system.py` 328 and `system_broadcaster.py` 320 DEATH-Listed, never batteries. Campaign #39, battery letter AO. Gap to 85%: 0.85\*69,442 = 59,025.7 − 54,981 = **4,044.7 kt**. Every number measured THIS session.
+
+## MILESTONE 41 — 79.47916966573575% (campaign #39 debug.py CLOSES at 99.06976744186046% — 426/430 — zero kill-losses in TWO real runs, one ledgered birth-survivor, battery AO)
+
+**The measured row.** Badge `(killed+timeout)/total` = (54,928+283)/69,466 = **79.47916966573575%**, `completed=true` (`checked=69466`, `not_checked=0`, `torn_metas=0`, 201 modules) — strictly above M40's 79.17542697502952% by **+0.30374269070623**. **Denominator disclosure:** total grew 69,442 → 69,466 (+24), all in the target — the battery's coverage reached websocket-broadcaster and recording paths mutmut had never instrumented, minting 24 keys at generation; 23 killed, 1 became the 4th ledger key (`websocket m38`). **Renumber disclosure:** that generation re-enumerated the target 406 → 430 and SHIFTED tail keys (ws m11→m22, m27→m48), so every adjudication this campaign ran on (family, normalized-body) identity, never key number. killed 54,698 → 54,928 (+230 = 207 converted survivors + 23 killed births), survived 13,678 → 13,472 (−206 = −207+1), timeout 283 UNCHANGED, `no_tests` 783 UNCHANGED, suspicious 0. kt 54,981 → 55,211. Gap to 85%: 0.85×69,466 = 59,046.1 − 55,211 = **3,835.1 kt**. History run #45 appended (`--date 2026-10-05`), prefix runs 1–44 deep-equal verified.
+
+**How it was won (all measured THIS session).** Battery AO `test_debug_batch39_ao.py` committed cedf41a2 (31 tests, md5 42f96e06dbf15693d0ea940422c7b7f1) — inventory-driven: all 210 survivors profiled to exact mutant diffs in `c39-inventory.txt`, eight families pinned. Craft: strict Redis fake recording every call as `(op, *args)` and raising TypeError on non-str/int args so the arg mutants die on signature; `RecordingNow` recording the **tz argument** so `datetime.now(UTC)` → `now(None)` dies on the call, not the value (works because debug.py does `from datetime import UTC, datetime`); `del inst.field` absent-key polarities — pydantic 2.13.5 keeps the field in `model_fields` while `hasattr` goes False, which kills the trailing-comma-getattr 2-arg twins that defeated M38's SQLAlchemy capture; `LogRec` MESSAGE EQUALITY (the debug helpers log plain f-strings, no `extra=`); `lrange (0,9)/(0,1)/(0,99)` window pins plus a 12-seed default-limit row; `json.dumps({})` fully-absent defaults row (`timestamp:""`, `error_type/component:"unknown"`); `lpush/ltrim/expire` exact sequence; falsy-zero `or 1` discriminator; failure-path message equality `Failed to get queue depths: boom`. Honesty ledger 4: ws m22/m38/m48 = deleted `channel_name=None` kwarg whose value equals the model default (the present-branch row already pins `channel_name: None`), m38 being the BIRTH twin; `safe_recording_path` m6 = charset mutation adding `X`, which is alnum, so no input discriminates — measured shipped `'recX1'` → `'recX1.json'`. Disposition sweep: battery ALONE vs the 210 survivors → **207R/3G/0H == the then-3-key ledger exactly**, re-confirmed on the committed bytes. Shipped-only sweep: the 210 against `test_debug.py` + `test_debug_api.py` ALONE → **0R/210G** — shipped kills none of them, so the probe file was pre-staged empty and never needed (PROBE 0 by construction of evidence). Run 1: final meta `{1:426, 0:4}`; reconcile vs the pre-run archive `{0→(0,):3, 0→(1,):207, 1→(1,):196, BIRTH→0:1, BIRTH→1:23}` — **0 kill-losses**, and the one birth-survivor adjudicated into the ledger by the already-pinned default-kwarg argument. Full unit-tier scan on committed bytes: **29,042 passed, 121 skipped, 8 xfailed, exit 0 in 1182.06 s** = 29,011 (M40 count) + 31 battery tests exactly. Run 2: identical done-line (240 files mutated, 621,564 ms) and the **identical transition matrix** against the same prearchive — perfect stability, no verdict-3 flips, and the bank census bit-for-bit the run-1 era (240 metas / 69,466 keys `{1:54896, 3:32, 0:13472, −24:283, 33:783}`); guard-module2 log 0 bytes on both runs. Close sweep on the final 430 keys: **425R/5G/0H**, TALLY `{ATTRIB:1, LEDGER:4, PROBE:0, UNATTRIB:0}` — the single GREEN outside the ledger is `get_all_circuit_breakers` m1, a pre-verdict-1 body-twin the shipped suite kills.
+
+**Disclosed incidents (this campaign).** (1) The first disposition sweep left 8 `recent_errors` GREENs: my "sparse" fixture row omitted only `timestamp`, leaving the `error_type`/`component` `.get`-default mutants unexercised — row changed to `json.dumps({})`, stale sweep killed mid-run, amended, 8 flips spot-verified. (2) The re-sweep showed 7 websocket GREENs against a 2-key ledger: my fallback test asserted the event dict but never the system dict while my own comment claimed both — an `entered-branch-must-assert-every-observable-it-writes` recurrence; fixed to assert both statuses and disclosed in the amend. (3) `ruff-format` rewrote the battery at commit 1; accepted hook bytes after `ast.dump` identity proof, re-gated ruff+vulture+31-passed, three-way md5. (4) Semgrep `hardcoded-password` fired at commit 2 on a bare-name `api_key` assignment; fixed WITHOUT suppression by using real Settings shapes (`api_keys: list[str]`, nested `token_inner`), which also exercise redact's list branch. (5) My `safe_recording_path` test failed asserting `'recX1'` → `'rec1.json'` — the shipped code keeps the `X` (`X.isalnum()`), so the mutant charset is unreachable: the key became a LEDGER evidence row instead of a fabricated kill. (6) A completion watcher keyed on "meta fully checked" would have fake-fired instantly (the meta was already 406/406 from the old era) — caught same-turn, re-armed on runner-exit plus meta census. (7) `pgrep`/`pkill` self-killed my own census twice (exit 144) because the pattern matched its own argv; bracket spellings thereafter. (8) The close-attribution script died on its own self-check ("430 current keys lack a body") because `CUR_SRC` was still the cloned c38 path — fixed to `routes/debug.py`, rc=0; the score script likewise must run from the repo root, not the mutant home. (9) Run 2's launch waited out the scan process (`kill -0` polled ~55 s past the summary line) instead of firing at the summary — the c38 teardown-overlap lesson applied, zero overlap this campaign.
+
+**Next head (campaign #40 target census from the FINAL bank, `c39-score-final.json`, survivors desc, R8 shield applied):**
+**`reid_service` 209 survivors / 808 keys (71.1634%) — 24 `no_tests` rows**
+(then `job_history_service` 208/333 37.5375%, `orchestrator/registry.py` 205/335 38.8060%, `gpu_config` 199/343 41.9825%). R8 shield holds: `system.py` 328 survivors / 1,928 keys and `system_broadcaster.py` 320/752 DEATH-Listed, never batteries. Campaign #40, battery letter AP. Gap to 85%: 0.85\*69,466 = 59,046.1 − 55,211 = **3,835.1 kt**. Every number measured THIS session.
+
+## MILESTONE 42 — 79.80329566042619% (campaign #40 reid_service CLOSES at 97.2972972972973% — 864/888 — zero kill-losses in TWO real runs, 24-key honesty ledger, battery AP)
+
+**Badge.** `completed=true`, score **79.80329566042619%** = (55,218 killed + 282 timeout + 0 suspicious)/69,546 — **+0.32412599469044** vs M41's 79.47916966573575%. History run **#46** appended `--date 2026-10-05`; prefix runs 1–45 deep-equal verified (proper `runs`-list comparison — the first draft of the check zipped top-level dict KEYS and passed vacuously, caught and redone). Gap to 85%: 0.85×69,546 = 59,114.1 − 55,500 = **3,614.1 kt**.
+
+**Campaign #40 close.** `backend/services/reid_service.py` **97.2972972972973%** (killed 863 + timeout 1 = 864 of 888; survived 24; no_tests **0** — all 24 stale `no_tests` rows flipped and adjudicated). Battery AP `eec0da76` (53 tests, md5 `ce4828ed`, three-way md5 repo/commit/mutant-home verified) — disposition sweep pre-run against the then-209 survivors **187R/22G/0H == then-22-key ledger EXACTLY**, re-confirmed after the WP4.2 autospec conversion (identical 187/22/0). Run 1 (generation + verification, `done in 601546ms`, 240 files mutated) re-enumerated the target **808→888 keys (80 BIRTHs)**; run-1 meta `{1:847, 0:40, −24:1}`; reconcile vs prearchive `{−24→1:2, 0→0:23, 0→1:186, 1→−24:1, 1→1:572, 33→0:12, 33→1:12, BIRTH→0:5, BIRTH→1:75}` — **0 kill-losses**. The 40 run-1 survivors were adjudicated by (family, normalized-body) identity — 22 ledger body-exacts + 12 `no_tests`-flipped `_history_partition_keys` getattr/close keys + 6 births (2 of them EQUIV: `find_matching_entities` m120 `continue→break` on the loop-invariant `model_id` guard, `store_embedding` m37 trailing-comma `getattr` dominated by the preceding `hasattr` short-circuit) + the one hash-order flip (old m110/new m125, below). Round-2 battery (+5 rows, 48→53 tests, all authored from run-1 survivors) re-swept the 40: **16R/24G/0H == final 24-key ledger EXACTLY**. Run 2 (`done in 601141ms`, 240 files mutated) final meta `{1:863, 0:24, −24:1}`; reconcile `{−24→1:2, 0→0:22, 0→1:187, 1→−24:1, 1→1:572, 33→1:24, BIRTH→0:2, BIRTH→1:78}` — **0 kill-losses, 0 ledger drift**; run-2 differs from run-1 ONLY by the intended round-2 kills (hp-12 flipped and killed, hp m4 + find m171 + gen m70 births killed, m125 killed order-robustly). Guard-module2 on the real runner pid both runs: 53 tick lines, `sibling-drop=0` throughout, **zero kill/restore**. Close sweep on the final 888 keys, battery ALONE: **815R/71G/2 OTHER**, TALLY `{LEDGER:24, ATTRIB:47, PROBE:0, UNATTRIB:0}` rc=0 re-derived from banked artifacts this session; the 2 OTHER are rc=124 battery-hangs (meta-verdicted, non-GREEN, no ledger impact). Shipped-only sweep on the 209: 208G/**1R** — the one shipped kill (`reset_reid_service` m1 by `test_reset_reid_service_clears_singleton`) is a stale-era bank verdict the battery also kills (disposition RED), banked as the single `SHIPPEDRED` probe line; PROBE 0 in the close tally.
+
+**Ledger 24 (every claim measured).** `batch_cosine_similarity` m27/m34/m35/m44 — restamp-equivalent on the measured batch outputs `[0.8911944031715393, 0.9999998211860657]` (batch normalizes-then-dots: self-similarity is NOT 1.0). `format_entity_match` m31/m40/m49/m58 + `format_full_reid_context` m4/m6/m7/m8/m17/m19/m20/m21 — `entity_type` never renders (consumed only in `"No {entity_type}…"` whose `startswith("No ")` guard cannot flip) and `clean_vqa_output("") == clean(None) == None` makes the `or True` attr-if twins EQUIV. `find_matching_entities` m200/m203/m204 — `zip(strict=)` unobservable (lockstep appends + dimension guard dominate); m120 — the mutated `continue` sits on the loop-invariant `if not model_id or model_id == LEGACY_MODEL_ID` guard, so `break(N dates) ≡ continue(N dates)`. `store_embedding` m20/m23 truth-table; m37 — `hasattr(raw_client, "eval")` short-circuits before the trailing-comma `getattr`, default unreachable. `generate_embedding` m49 — `np.where(None, fallback, arr) == arr` under the all-False mask.
+
+**Denominator DISCLOSED.** Total 69,466→69,546 (**+80**, all target births: 78 killed + 2 ledgered). RENUMBER DISCLOSED: generation re-enumerated the target 808→888 and shifted keys inside families (find 168/171/172→200/203/204, store 22→23; round-2 coverage shifted again) — every adjudication ran on (family, normalized-body) identity, never key number. Killed 54,928→55,218 (**+290** = 187 conversions + 24 no_tests-flipped-and-killed + 78 births + net +1 from the timeout reclassifications); survived 13,472→13,287 (−185 = −187 + 2 ledgered births); timeout 283→**282** (two `−24→1` kills, one `1→−24` — kt-neutral); no_tests 783→**759** (the 24 target rows flipped 12+12); suspicious 32 UNCHANGED (folded as killed by the scorer, unchanged convention).
+
+**Green scan on committed bytes: 29,101 passed, 121 skipped, 8 xfailed, exit 0, 1165.27s** = 29,042 (M41) + 53 (battery AP) + 6 (PR 6792 merge test-defs, `git diff 71c23c7d 26d67cda -- backend/tests` = +6/−0) exact. The scan also proved the merge-audit gate: PR 6792's new `test_backend_image_trivy_clean.py` ran from the mutant home green (its path-reads satisfied in `also_copy` — a missing copy would truncate coverage at generation).
+
+**Disclosed incidents (this campaign).** (1) Four authored EQUIV predictions were REFUTED by the disposition sweep (find m86/m94 strftime-wrap, m101 None-accumulator, store m23-or-era) — honest direction: they are killed and off the ledger; the sweep is the adjudicator, never my prediction. (2) `dates_to_check = list({today, yesterday})` is a SET — old m110/new m125 `continue→break` killed in the sweep process but survived the mutmut child (different PYTHONHASHSEED): the single `0→0` beyond the 22-key ledger in run 1, measured; round-2 row runs seeded-first AND seeded-last under whatever order the set yields → run 2 kills it (0→1 count 187). (3) `2**attempt → 3**attempt` birth was invisible to the retries=2 rows (2⁰ == 3⁰ == 1) — the retries=3 backoff rows pin `sleeps == [1, 2]` and both warning texts. (4) WP4.2 `--staged` fast-path flagged 3 `return_value=` sites (licensing cannot pass it); converted to `autospec=True`, which then exposed the redundant nested `_settings_stub` (`InvalidSpecError`: autospec of an already-mocked attr) — outer stub removed, svc() patches `get_settings` itself. (5) First hp-test draft used `odate = YDAY` — both scans hit one branch, shipped failed `assert [] == [1 key]`; caught same-turn, branch-distinct date. (6) A `sed -e 's#OUT=…'` missed the real variable names (`OUTF=`/`KILLF=`) so the r4 re-sweep truncated the r3 209-row table at the shared path — r3 summary preserved in `b40-disp-r3.log` + ledger file, r4 result is the standing artifact; later lanes relabeled to distinct paths. (7) First close-sweep launch read a mismatched pool filename → `[close-sweep] 0 keys over 7 lanes` — a read-only no-op (bank untouched); path fixed, relaunched at 888 keys (the launcher-zero-match family, sweep flavor). (8) A bank census ran with `glob` missing `recursive=True` and falsely reported `0 metas`; caught before any action (nothing was launched on it), re-run correctly. (9) The r4-pool rename sed chain left the close-sweep `FILES` pointing at `api/routes/` after cloning — fixed before any launch. (10) Attribution's ATTRIB count is 47 (highest yet): with renumber-shifted bodies the battery-only close sweep GREENs a wide set of shipped-suite-killed body-twins — every one carries a pre-verdict-1 body in the prearchive, UNATTRIB 0.
+
+**Next head (campaign #41 target census from `c40-score-final.json`, survivors desc, R8 shield applied):**
+**`job_history_service` 208 survivors / 333 keys (37.5375%)**
+(then `orchestrator/registry.py` 205/335 38.8060%, `gpu_config` 199/343 41.9825%, `face_recognition_service` 196/385 49.0909%, `summary_generator` 196/381 48.5564%). R8 shield holds: `system.py` 328/1,928 and `system_broadcaster.py` 320/752 DEATH-Listed, never batteries. Campaign #41, battery letter **AQ**. Gap to 85%: **3,614.1 kt**. Every number measured THIS session.
+
+## MILESTONE 43 — 80.10436582666073% (campaign #41 job_history_service CLOSES at 99.42857142857143% — 348/350 — zero kill-losses in TWO bit-for-bit-identical real runs, 2-key honesty ledger, battery AQ)
+
+**Badge.** `completed=true`, score **80.10436582666073%** = (55,441 killed + 282 timeout)/69,563 — **+0.30107016623454** vs M42's 79.80329566042619%, and the FIRST crossing of the 80% line. History run **#47** appended `--date 2026-10-05`; prefix runs 1–46 deep-equal verified on the `runs` list. Denominator gates: modules **201 == metas-with-keys 201**, total 69,563 (M42 69,546 + 17 target births only), `not_checked=0`, `torn_metas=0`.
+
+**Campaign #41 close.** `backend/services/job_history_service.py` **99.42857142857143%** (killed 348 + timeout 0 = 348 of 350; survived **2**; no_tests **0**). Battery AQ `6d277f6c` (26 tests, md5 `91cc1edcaf9e3887a417091b8968556c`, three-way md5 repo/commit/mutant-home verified) — disposition sweep **206R/2G/0H == the 2-key ledger EXACTLY** pre-run, and the post-sweep emitter-helper hardening was re-swept over the whole `add_job_log` family (21/21 still RED) before the commit. SHIPPED-ONLY sweep **0R/208G** — a fresh pool, so the PROBE route has nothing to credit: the empty probe file is the honest evidence (PROBE 0 by construction, M37 pattern). Kill-map: 208 survivors / 8 families from `b41-inventory.txt`; every mutant is a query-shape rename, dict-key rename/XX/CASE/lower, `and False`/`or True` polarity, extra-dict key/value swap, str(None) swap, or removed/None'd ctor kwarg — all die on full-observable EQUALITY: strict recording session asserting the FULL `(normalized-statement-string, compiled-params)` list per execute (measured: `.where(None)` compiles to `WHERE NULL`, `select(None)` to `SELECT NULL AS anon_1`, `order_by(None)`/`limit(None)` DROP their clauses; a None statement raises TypeError mirroring SQLAlchemy's "query expected"), log recorder capturing `(method, args, kwargs)` with full tuple equality (this module logs via `extra=` kwargs — every key rename/XX/lower/str(None) twin dies), real SQLAlchemy model construction asserting every ctor field (`status="started"`, attempt_number≠default pins ctor-vs-default confusion, `ended_at.tzinfo is not None` kills `datetime.now(None)`), and the x2 occurrence twins (`context`/`message` removed-vs-None at BOTH the JobLog ctor and the emitter call) killed because ONE success row exercises both sites.
+
+**Ledger 2 (every claim measured).** `get_job_logs` m21/m22 — `level_order` key `"DEBUG": 0` renamed to `"XXDEBUGXX"`/`"debug"`: `level_upper = level.upper()` inside `if level:` is ALWAYS the `.upper()` form, so the renamed/lowercased key never matches, `.get(level_upper, 0)` misses → default **0 == the shipped value 0**, `min_level > 0` is False exactly as shipped, for EVERY input — genuinely unkillable. Its killable siblings are all RED: m23 (`"DEBUG": 1`, killed by the debug-adds-no-clause row), m34 key→None / m35 default→None / m37 trailing-comma→None (miss-lookup raises at `None > 0`; killed by the bogus-level row), m38 default 1 (adds a filter, killed), m39/m40 guard relax (`>=0`, `>1`; killed by debug/info rows). No EQUIV prediction REFUTED this campaign and no ledger candidate was fabricated: both GREENs were predicted pre-sweep by argument and confirmed by the sweep.
+
+**Renumber + births (measured by (family, normalized-body) identity, never key number).** Generation re-enumerated the target **333→350** (+17 true birth groups: `record_attempt_end` 10 + `add_job_log` 7 — battery AQ newly covered the emitter call-site and second kwargs site, so mutmut materialized new mutants there); renumbered groups: **41, all inside `record_attempt_end`** (e.g. old m4→new m14); 303 groups kept numbers; ZERO groups disappeared (the x2 context/message twins dedup-consolidated under the old numbers, so the old survivor-key set maps cleanly into the new tree). All adjudication ran on body identity per [[renumber-of-mutant-keys-on-coverage-growth]].
+
+**Two real runs, identical.** Run 1 done-line `69563/69563 🎉 55441 🫥 759 ⏰ 282 🤔 0 🙁 13081 🔇 0 🧙 0`; run 2 **same characters**. Target final meta BOTH runs: `{1: 348, 0: 2}`. Reconcile vs the PRE-RUN-1 archive for BOTH runs gave the identical transition matrix `{0→(1,): 206, 0→(0,): 2, 1→(1,): 125, BIRTH→1: 17}` = **0 kill-losses, 0 birth-survivors** — the 2 `0→0` ARE the ledger. Close sweep on the 350-key pool: **337R/13G/0H**, attribution **TALLY {LEDGER: 2, ATTRIB: 11, PROBE: 0, UNATTRIB: 0} rc=0** — the 11 non-ledger GREENs are all `JobLogEntry.to_dict` keys whose bodies carry pre-verdict 1 (shipped-suite body-twins; the battery alone doesn't kill them, exactly the ATTRIB route). The close sweep was RE-RUN on the run-2 tree (pool re-derived from run-2 meta, verified deep-equal to the run-1 pool) and gave the same 337/13/0 + same TALLY. guard-module2 attached to the REAL runner pids (1437439/1475183), both runs **0 bytes of guard output, zero kill/restore**; whole-bank per-module diff pre→post: exactly **1 module changed** (the target), 239 siblings bit-for-bit.
+
+**Bank arithmetic (measured, this session).** total 69,546→**69,563** (+17, all target births, 17 killed + 0 ledgered); killed 55,218→**55,441** (+223 = 206 conversions + 17 births); timeout 282 UNCHANGED; survived 13,287→**13,081** (−206); no_tests 759 UNCHANGED; suspicious 32 UNCHANGED (folded-as-killed); kt 55,500→**55,723**; gap to 85% **3,405.5 kt**. Green scans on committed bytes BOTH exit 0: pre-run **29,127 passed** 121 skipped 8 xfailed in 1158.51s and post-generation **29,127** in 1182.56s — 29,127 = the M42-committed 29,101 + the 26 AQ tests exactly, and the identical counts prove generation didn't perturb the suite.
+
+**DISCLOSED.** (1) The b41 inventory-script clone DIED mid-pipe (`sed` `#` delimiter collided with `#40` in the pattern) leaving a 0-byte file; recreated with plain string-replace + assertion guards, fallback origs-path fixed. (2) First `patch_emitter` used `AsyncMock(return_value=…)` — replaced by a plain `new=` coroutine function before the commit (WP4.2-ratchet-safe, no `return_value` patch site); re-gated ruff/vulture/timeouts/26-passed and RE-SWEPT all 21 `add_job_log` keys (21/21 RED, no disposition flip). (3) Pre-sweep analysis caught that the `get_job_history` job row originally had `completed_at=None` — `completed_at→None` (m28) would have been invisible against a None-on-both-sides row; fixed to non-None before the sweep (sweep then killed m28). (4) The six-script chain clone needed FOUR stale-literal fixes the first swap list missed (`reid-c40-*` close-sweep path prefix, `b40-preC41r1` dir prefix, inventory fallback path, usage line) — all caught by assert-guarded cloning + follow-up greps BEFORE any launch; zero path incidents at runtime this campaign. (5) One STALE task notification arrived referencing a task id never launched in this window; ignored after the real sweep pid was verified alive (stale-notification pitfall [[empty-q-log-and-killed-watcher-fake-completion]]). (6) The score script first ran with `--root mutants` and correctly refused (`no mutants/ tree` guard, rc=1, read-only — the script takes the REPO root and appends `mutants/`); re-run with default root, rc=0. (7) Shipped-only sweep 208/208 GREEN means the probe evidence file is legitimately EMPTY (PROBE 0 by construction). (8) Emitter failure-injection point measured: the service re-imports `get_job_log_emitter` inside every `add_job_log` call, so the patch target is the emitter MODULE attribute and the getter itself must raise (patching `emit_log` would never fire before the import).
+
+**Next head (campaign #42 target census from `c41-score-final.json`, survivors desc, R8 shield applied):**
+**`backend/services/orchestrator/registry.py` 205 survivors / 335 keys (38.8060%)** — R8-CLEAR verified against ALL four death-list constants (DEAD_MODULES 9 / DEAD_LOADERS 19 / DEAD_SUPPORT 3 / DEAD_TOP_NAMES 24: no `registry`/`orchestrator` entries).
+(then `gpu_config` 199/343 41.9825%, `face_recognition_service` 196/385 49.0909%, `summary_generator` 196/381 48.5564%, `transcoding_service` 192/333 42.3423%). R8 shield holds: `system_broadcaster.py` 320/752 (57.4468%) remains DEATH-Listed, never a battery. Campaign #42, battery letter **AR**. Gap to 85%: **3,405.5 kt**. Every number measured THIS session.
+
+## MILESTONE 44 — 80.40469654944454% (campaign #42 orchestrator/registry.py CLOSES at 100.0% — 355/355 — zero kill-losses in TWO real runs with character-identical done-lines, EMPTY honesty ledger, battery AR)
+
+**Badge.** `completed=true`, score **80.40469654944454%** = (55,666 killed + 282 timeout)/69,583 — **+0.30033072278381** vs M43's 80.10436582666073%; official JSON gates: 201 modules == 240 metas, total 69,583, not_checked 0, torn_metas 0 (`c42-score-final.json`).
+
+**Campaign #42 close.** `backend/services/orchestrator/registry.py` **100.0%** — every one of the 355 final keys killed (final meta {1:355}; zero survivors, zero timeouts, zero no_tests). Battery AR `74178487` (35 tests, three-way md5 `acc50c52eb987f11cd8dea5163847567` worktree == mutants == committed blob, re-verified post-generation). Disposition sweep pre-run **205R/0G/0H** against the 205 survivors — EXACTLY the EMPTY ledger predicted from measured diff-shapes (the run killed the prediction zero). Shipped-only sweep 0R/205G → **PROBE 0 by construction** (0-byte probe file is the honest evidence). Kill-craft: every log call pinned as FULL `(level, args, kwargs)` tuple equality (module logs via `extra=` — message None/XX/UPPER/lower, key renames, `str(None)` and dropped-extras all die); Redis key string pinned `orchestrator:service:svc:state`; persist payload pinned WHOLE incl. both null-datetime polarities (`and False` twins); `_apply_loaded_state` fed truthy dict with target keys ABSENT kills the trailing-comma `.get(k, )` 2-arg KeyError family while shipped defaults True/0/0 are asserted over non-defaults; singleton test awaits the async getter, pins `init_redis` call-count == 1 and logger-patched construction log.
+
+**Close sweep + attribution.** 355-key pool, battery ALONE, 7 lanes: **351R/4G/0H**; TALLY **{LEDGER: 0, ATTRIB: 4, PROBE: 0, UNATTRIB: 0} rc=0** — the 4 close-GREENs (`_apply_loaded_state` m5/m9/m10 + `update_container_id` m3) ALL carry pre-verdict-1 body twins killed by the shipped suite, so the bank keeps them killed.
+
+**Renumber + births (measured by (family, normalized-body) identity, never key number).** Generation re-enumerated the target **335→355** (+20 TRUE birth groups: `_apply_loaded_state` +11, `load_state` +9 — the battery newly covers the persist/absent-keys rows); **280 bodies kept number+body; 55 renumbered ALL inside `load_state`** (e.g. old m2→new m11, m3→m12…); zero bodies disappeared; all 20 births killed.
+
+**Two real runs, identical.** Run 1 (626,485 ms) and run 2 (600,719 ms) final done-lines are the SAME CHARACTERS `69583/69583 🎉 55666 🫥 759 ⏰ 282 🤔 0 🙁 12876 🔇 0 🧙 0`; target reconcile vs the pre-run-1 archive **{0→1: 205, 1→1: 130, BIRTH→1: 20}** — zero kill-losses, zero birth-survivors, final survivors 0, RE-DERIVED this session from the banked archive; whole-bank per-module diff pre→post: **EXACTLY 1 module changed** (registry.py.meta), 239 siblings bit-for-bit, none missing, none new. guard-module2 on both REAL runner pids (1540273/1558008), 0 bytes guard output both runs, zero kill/restore.
+
+**Bank arithmetic (measured, this session).** total 69,563→**69,583** (+20, all target births, 20 killed + 0 ledgered); killed 55,441→**55,666** (+225 = 205 conversions + 20 births); survived 13,081→**12,876** (−205); timeout **282 UNCHANGED**; no_tests **759 UNCHANGED**; suspicious **32 UNCHANGED** folded-as-killed; bank counters {1:55,634, 0:12,876, −24:282, 3:32, 33:759}; kt 55,723→**55,948**; gap to 85% **3,197.55 kt**. Green scans on committed bytes BOTH exit 0: pre-run **29,162** passed 121 skipped 8 xfailed in 1191.05s (= 29,127 M43 + 35 AR exact) and post-generation 29,162/121/8 in 1150.49s — identical counts. History run **#48** appended `--date 2026-10-05`; prefix runs 1–47 deep-equal on the `runs` LIST (other top keys equal).
+
+**DISCLOSED.** (1) A nohup launcher emitted a FALSE completion notification (the tracked wrapper exits right after backgrounding) while the real green-scan pid was alive — handled by the alive census + pid-based watcher, nothing relaunched. (2) Scan 2 overwrote scan 1's fixed-redirect log path; scan-1's counts are preserved in the session transcript (both exit 0 with 29,162/121/8). (3) The bank-diff script first compared './'-prefixed post keys against stripped pre names and falsely reported every module NEW; fixed by path normalization — true answer EXACTLY 1 changed. (4) The run-1 vs run-2 close pools LOOKED different (`diff` shows reordering) — adjudicated as a sort-tie artifact of ordering by numeric suffix only; pools are SET-IDENTICAL both directions (comm empty), settled by set-equality before the sweep, not by key position. (5) First official score call ran with a reset cwd (no same-command `cd`) and correctly refused 'no mutants/ tree'; re-run rc=0 from repo root. (6) Run-log parsing: a max-numerator spinner-frame heuristic grabbed a mid-run frame (55,638); the authoritative done-line is the LAST frame — re-measured, identical. (7) Pre-archive metas live under `whole-tree/`; a naive glob reported 0 pre metas and 'new: 240' until the layout was inspected — caught before acting.
+
+**Next head (campaign #43 target census from `c42-score-final.json`, survivors desc, R8 shield applied):**
+**`backend/api/routes/gpu_config.py` 199 survivors / 343 keys (41.9825%)** — R8-CLEAR verified against ALL four death-list constants (DEAD_MODULES 9 / DEAD_LOADERS 19 / DEAD_SUPPORT 3 / DEAD_TOP_NAMES 24).
+(then `face_recognition_service` 196/385 49.0909%, `summary_generator` 196/381 48.5564%, `transcoding_service` 192/333 42.3423%, `scenario_classifier` 190/412 53.8835%). R8 shield holds: `system.py` 328/1928 and `system_broadcaster.py` 320/752 stay DEATH-Listed. Battery letter AS.
+
+## MILESTONE 45 — 80.6994372344091% (campaign #43 api/routes/gpu_config.py CLOSES at 98.0769% — 408/416, honesty ledger 8, zero kill-losses across THREE real runs whose runs 2+3 done-lines are the same characters, battery AS 48+4 tests)
+
+**Badge.** `completed=true`, score **80.6994372344091%** = (55,930 killed + 282 timeout)/69,656 — **+0.29474068496456596** vs M44's 80.40469654944454%; official JSON gates: 201 modules == 240 metas, total 69,656, checked 69,656, not_checked 0, torn_metas 0 (`c43-score-final.json`).
+
+**Campaign #43 close.** `backend/api/routes/gpu_config.py` **98.0769%** (408 killed / 416 keys; final meta {1:408, 0:8}). Battery AS committed `bd08897a` (48 tests) + BIRTH extension `c072c69e` (4 rows, 52 total); final three-way md5 `4e8e5d7fdd84315cbc5fe89fe7dbe60b` worktree == mutants == committed blob, identical in runs 2 and 3. Disposition sweep pre-run **193R/6G/0H** == the 6-key honesty ledger exactly; shipped-only sweep 0R/199G → **PROBE 0 by construction** (0-byte probe file is the honest evidence). Kill-craft: recording Session pins the FULL (normalized-statement-string, compiled-params) per execute (`.where(None)` → `WHERE NULL`, `select(None)` → `SELECT NULL AS anon_1`, `max(NULL)`, None statement raises); `model_fields_set` kills the explicit-None-drop x6 family; stable-sort tie order kills the key/default-0→1 families (needs the absent service ordered AFTER a service worth exactly 0); `GpuDevice.vram_available_mb` is a COMPUTED property (total − used); f-string logger pins (method, args, kwargs) FULL tuple equality; OPS/STRAT Redis key strings + TTL 3600 pinned. BIRTH-extension craft (from measured diffs): the `AI_TABLE.get(service, default)` trio needs an ABSENT service ACCUMULATED with a present one landing EXACTLY on capacity (shipped 0 silent, 1 tips the overage msg, None/2-arg raise); the fallback `max(sorted_gpus, key=…)` trio needs ≥2 GPUs AND a PRIOR successful assignment skewing `gpu_remaining` (a pure fallback keeps remaining == totals where max-by-remaining agrees with first-element) — GpuDevice is an UNORDERED dataclass so the 1-arg/None-key forms RAISE; the affinity joiner needs 2+ co-tenants and the `==`→`!=` twin needs a THIRD unrelated co-tenant (its matches are byte-identical to shipped, only the COUNT differs).
+
+**BIRTH adjudication (the campaign's fork).** Run 1 re-enumerated the target **343→416**: +73 TRUE birth groups (`calculate_auto_assignments` 26, `set_current_operation_id` 10, `save_assignments_to_db` 9, `validate_affinity_constraints` 8, `validate_vram_assignments` 7, `update_gpu_devices_in_db` 6, `set_current_strategy` 3, `get_assignments_from_db` 2, both operation/strategy getters 1+1); **190 bodies kept number+body, 153 renumbered across 6 families** (calc 88, validate_vram 22, save 19, update_dev 14, set_strategy 8, get_assign 2), zero bodies disappeared. Run-1 reconcile **{0→0: 6, 0→1: 193, 1→1: 144, BIRTH→1: 62, BIRTH→0: 11}** — 0 kill-losses but 11 BIRTH survivors ≠ the 6-key ledger: NOT closed over them. Adjudicated against measured diffs: **9 KILLABLE** (coverage gaps — the battery reached the lines but under-asserted, [[entered-branch-must-assert-every-observable-it-writes]]) and **2 EQUIV** (`other_gpu = sorted_gpus[-1] if len(sorted_gpus) > 1` relaxed to `or True` / `>= 1`: they differ ONLY at len==1 where `sorted_gpus[-1]` IS `fastest_gpu` → identical output for every input) → ledger v2 = **8 keys**. The 4 additive rows were authored, gated (52/52 pristine + in-mutants, ruff clean), committed `c072c69e`, mutants copy md5-synced, and PROVEN by a 17-key sweep: **9R/8G/0H with the GREEN set comm-identical to ledger-v2 both directions**, killers exactly the 4 new rows.
+
+**Three real runs.** Run 1 (v1 battery, ~21.5 min) done-line `69656/69656 🎉 55921 🫥 759 ⏰ 282 🤔 0 🙁 12694 🔇 0 🧙 0`. Run 2 (v2 battery, ~21.3 min): reconcile vs the pre-run-2 archive {0→1: 9, 0→0: 8, 1→1: 399} — the extension landed with **zero collateral** (0 losses, 0 new births), target meta {1:408, 0:8}, whole-bank diff EXACTLY 1 module changed, 239 siblings bit-for-bit. Run 3 (confirmatory, SAME battery md5, ~21.4 min): {0→0: 8, 1→1: 408}, whole-bank diff **ZERO modules changed** (pure verdict-confirmation replay). **Runs 2+3 final done-lines are the SAME CHARACTERS** `69656/69656 🎉 55930 🫥 759 ⏰ 282 🤔 0 🙁 12685 🔇 0 🧙 0`; run 1 was the v1-battery era (disclosed — it is NOT part of the identical pair). guard-module2 on all THREE REAL runner pids (1630951/1653723/1674354), 0 bytes guard output every run, zero kill/restore.
+
+**Close sweep + attribution.** 416-key pool (all keys, battery ALONE, 7 lanes): **396R/20G/0H**; TALLY **{LEDGER: 8, ATTRIB: 12, PROBE: 0, UNATTRIB: 0} rc=0** — the 12 close-GREENs (`_gpu_device_to_response` m1–m10 + `_validate_vram_assignments` m13/m26) ALL carry pre-verdict-1 body twins killed by the shipped suite (bank keeps them killed); the 8 GREENs are exactly ledger-v2 (the 6 old miss-default EQUIVs renumbered to current numbering m25/m27/m28/m49/m143/m163 + the two `len>1`-relaxation EQUIVs m130/m133).
+
+**Bank arithmetic (measured, this session).** total 69,583→**69,656** (+73, ALL target births: 71 killed + 2 ledgered); killed 55,666→**55,930** (+264 = 193 old-pool conversions + 71 births-killed, of which 62 died in run 1 and the 9 BIRTH coverage-gaps died in run 2); survived 12,876→**12,685** (−191 = −193 conversions −71 births-dead +73 births-born); timeout **282 UNCHANGED**; no_tests **759 UNCHANGED**; suspicious **32 UNCHANGED** folded-as-killed; bank counters {1:55,898, 0:12,685, −24:282, 3:32, 33:759}; kt 55,948→**56,212**; gap to 85% **2,995.6 kt**. Green scans on committed bytes, UNIQUE log paths, ALL exit 0: pre-run **29,210** passed 121 skipped 8 xfailed in 1144.67s (= 29,162 M44 + 48 AS exact), post-extension **29,214** (= +4 rows) in 1160.32s, post-run-3 **29,214/121/8** in 1154.85s. History run **#49** appended `--date 2026-10-05`; prefix runs 1–48 deep-equal on the `runs` LIST.
+
+**DISCLOSED.** (1) The guard's sibling-exclusion is `endswith("/<MOD>.py.meta")` against a PATH like `mutants/backend/api/routes/gpu_config.py.meta` — a dotted module arg would have made the RUNNING module count as a sibling and false-fired during re-enumeration; armed with the path substring `api/routes/gpu_config` (caught pre-arm). (2) The first scan watcher's pgrep pattern could never match the post-`exec` pytest argv (would have false-completed); stopped and replaced by a log-summary-line watcher. (3) Scan-2's pytest pid lingered after its summary line — TERM+KILL'd and verified GONE before launching run 2 (one tree-mutating job at a time). (4) A bank-diff glob hit the documented './'-prefix false-zero (0 pre metas) and was re-run with the `whole-tree/**` layout honored — true answer 1 changed (r2 baseline), 0 changed (r3). (5) The FIRST battery AS commit was silently aborted by a hook (file left staged); re-added and recommitted (`bd08897a`), then the hook REWROTE bytes (md5 e648→73ff) — re-gated 48 passed on committed bytes and md5-synced the mutants copy; the extension commit `c072c69e` saw no rewrite (md5 stable three-way). (6) Chain clones were assert-guarded: greenscan needs a per-file need-token exception (legitimately names no module), the orchestrator→api substitution had DOUBLED `services/api/routes` in 3 sweep FILES paths, and the prearchive mkdir needed `generated/backend/api/routes` (the M43-era killer) — all fixed BEFORE any launch, zero path incidents at runtime. (7) The launch script's filter count is DYNAMIC (343 at run 1, 416 at runs 2–3) — no stale literal. (8) Two dispositions I had predicted from diff-shape were REFUTED by sweep (m50/m61 RED): sweep is the adjudicator ([[survivor-disposition-requires-sweep-not-diffshape]]). (9) The reconcile script's 'expect == c43 ledger' line was written when the ledger was 6; run 1's 17 survivors were legitimately 6 + 11 births and were ADJUDICATED, not silently tolerated. (10) The score script needs the VENV interpreter (system python3 has no `mutmut` module) — first call rc=1 ModuleNotFoundError, rc=0 re-run. (11) Done-lines read from the LAST `\r`-frame (documented max-numerator trap avoided).
+
+**Next head (campaign #44 target census from `c43-score-final.json`, survivors desc, R8 shield applied):**
+**`backend/services/face_recognition_service.py` 196 survivors / 385 keys (49.0909% killed)** — R8-CLEAR verified against ALL four death-list constants READ VERBATIM this session (DEAD_MODULES 9 / DEAD_LOADERS 19 / DEAD_SUPPORT 3 → 31 modules; DEAD_TOP_NAMES 24; the service is distinct from the ALIVE `face_recognizer_loader`). (then `summary_generator` 196/381 48.5564%, `transcoding_service` 192/333 42.3423%, `scenario_classifier` 190/412 46.1165% killed). R8 shield holds: `system.py` 328/1928 and `system_broadcaster.py` 320/752 stay DEATH-Listed. Battery letter AT.
+
+## MILESTONE 46 — 80.99657195312612% (campaign #44 services/face_recognition_service.py CLOSES at 99.5485% — 441/443, honesty ledger 2, zero kill-losses across TWO real runs whose 443-line results blocks are diff-identical, battery AT 24+1 tests; plus merge-churn REPAIR discipline: 155 reset verdicts refilled by two filtered guarded repair runs before scoring)
+
+**Badge.** `completed=true`, score **80.99657195312612%** = (56,188 killed + 282 timeout)/69,719 — **+0.29713471871702** vs M45's 80.6994372344091%; official JSON gates: 201 modules == 240 target metas, total 69,719, checked 69,719, not_checked 0, torn_metas 0 (`m46-score.json`).
+
+**Campaign #44 close.** `backend/services/face_recognition_service.py` **99.5485%** (441 killed / 443 keys; final meta {1:441, 0:2}). Battery AT committed `b16b3ec6` (24 tests) + disposition-extension `63aefa26` (+1 = 25 rows); three-way md5 `7293764e57afc6918776eebbcec48275` worktree == mutants == committed blob, unchanged across BOTH runs and both repair runs. Kill-craft: recording `Session` fake pins the FULL (normalized-statement, compiled-params) tuple per execute and raises TypeError on a None statement (measured SQLAlchemy pins: `.where(None)` → `WHERE NULL`, `id == None` → `IS NULL` params {}, `limit(None)` → `LIMIT -1`, `offset(None)`/`order_by(None)` DROP clauses); `sqlalchemy.inspect(obj).unloaded` kills drop-kwarg vs explicit-None (key unloaded vs key SET-to-None — both read back None); a `PlainEvent` WITHOUT `model_id` kills the trailing-comma 2-arg `getattr` twin via AttributeError; first-tie-BY-NAME at threshold=1.0 (both comparables score exactly 1.0) kills the `>` gate twin; cosine pins `cos([3,4],[4,3]) = 0.9599999785423279` and `cos([1,0],N068) = 0.6000000238418579` (between the 0.5 service floor and 0.68 default threshold); f64-vs-f32 probe (1.000000023841858 vs 1.0 at threshold 1.0) kills `astype(None)`; refusal-INFO logger call discriminates twins whose RETURNED dicts are byte-identical; skipped=2 counter row kills the `skipped=1 / +=2 / -=1` family.
+
+**Disposition + adjudication.** Pre-run disposition sweep **193R/3G/0H** over the 196 survivors. The 3 GREENs adjudicated, not tolerated: **2 ULP-EQUIV** (`if norm > 0:` → `if norm > 1:` and normalize `/ norm` → `* norm`) — cosine similarity is scale-invariant in exact math; brute-forced 200k random float32 pairs, divergence exists ONLY at last-bit level (e.g. 0.9884952306747437 vs 0.9884951710700989) → no environment-independent pin exists (an ULP-exact assert would be a CI flake hazard) → ledger 2; **1 KILLABLE coverage-gap** (`add_face_embedding` `quality_score` default 1.0→2.0 unobserved because every success-path row passed the arg explicitly) → 1 additive extension row omitting the arg makes the default OBSERVABLE twice (stored field + logged arg), PROVEN by a 3-key sweep (extension row RED on m1, m7/m9 stay GREEN). Shipped-only sweep **0R/196G** → PROBE 0 by construction (0-byte probe file is the evidence).
+
+**Two real runs + renumber.** Run 1 (612,546 ms): target re-enumerated **385→443** — 191 bodies kept number+body, **202 renumbered** (match_face 148, get_person_appearances 47, cosine_similarity 7), **58 birth groups, zero bodies gone**; reconcile vs `b44-preC44r1` **{0→0: 2, 0→1: 194, 1→1: 189, BIRTH→1: 58}** — 0 kill-losses, **0 BIRTH survivors** (all 58 births killed in-run); the 2 survivors `match_face__mutmut_13/__mutmut_15` were BODY-IDENTITY-PROVEN (`ast` def-body diff) to be the pre-era ledger m7/m9 renumbered. Run 2 (confirmatory, 606,415 ms, same battery md5): reconcile vs `b44-preC44r2` **{0→0: 2, 1→1: 441}**, 0 losses, 0 births, whole-bank diff **0 changed / 0 missing of 240 metas** (pure confirmation replay); **the two runs' 443-line results blocks are `diff`-identical** and the final progress frames count-identical `69564/69719 🎉 56063 🫥 759 ⏰ 282 🤔 0 🙁 12460 🔇 0 🧙 0` (braille spinner glyph differs; 69,564 = 69,719 minus the 155 keys OUTSIDE the run filter — DISCLOSED: neither #44 run itself ever reaches 69,719 while the 155 reset verdicts sit None; the repair runs below closed the bank to 69,719/69,719).
+
+**Merge-churn repair (new discipline, first use).** The `b68e1b32` merge audit was WRONG: it claimed the merge's 4 modified sources were all NOT banked — `notification_filter.py` and `vlm_client.py` ARE banked; the merge legitimately verdict-RESET 99+56 = **155 keys** (guard saw `holes=155 nonmod-holes=155` and correctly stayed idle: 155 < OTOL=300; measured 0 killed GONE, 0 killed→0 collateral). Before scoring, TWO FILTERED repair runs re-proved them against the merged sources with committed batteries: `notification_filter` (602,344 ms) → {1:42→114, 0:7→34} of 148 — incl. **+5 legitimate NEW keys** (143→148: the merged source genuinely grew mutant enumeration; 4 of 5 killed) and `vlm_client` (607,842 ms) → {1:796→849, 0:23→26} of 879 — the 56 resets resolved to EXACTLY the pre-merge verdicts. Post-repair bank **None: 0**, collateral: EXACTLY those 2 metas changed vs pre-run-2 baseline, 238 siblings bit-for-bit. `guard-restore.tgz` was REFRESHED from the post-run-2 tree BEFORE the repair runs (443-key target meta verified inside the tarball; M45-era rotated `.bak-m45-era`) so a repair-run guard fire could not have resurrected the pre-campaign 385-key source. guard-module2 on all FOUR real runner pids (1756433 / 1768486 / 1779963 / 1789253) — **0 bytes guard stdout on every run, zero kill/restore**.
+
+**Close sweep + attribution.** 443-key pool (ALL final keys, battery AT ALONE, 7 lanes): **432R/11G/0H**; TALLY **{LEDGER: 2, ATTRIB: 9, PROBE: 0, UNATTRIB: 0} rc=0** — the 2 GREENs are exactly the ledger pair m13/m15 (ULP-EQUIV); the 9 (`identify_face_event` m11/m20/m26/m38/m44/m45 + `get_person_appearances` m26/m38/m52) ALL carry pre-verdict-1 body twins killed by the SHIPPED suite (attribution baseline = the SHIPPED-era pre-run-1 archive — pointing PRE\_\* at the post-run battery-era archive would self-credit battery kills as ATTRIB and mask UNATTRIB; caught and reverted same-session).
+
+**Bank arithmetic (measured, this session).** total 69,656→**69,719** (+63 = target +58 + notification_filter +5); killed(1) 55,898→**56,156** (+258 = target +252 + nf +6); score-killed 55,930→**56,188** (suspicious **32 UNCHANGED** folded); survived 12,685→**12,490** (−195 = target −194 + nf −1); timeout **282 UNCHANGED**; no_tests **759 UNCHANGED**; vlm_client byte-identical to M45-era verdicts; bank counters {1:56,156, 0:12,490, −24:282, 3:32, 33:759}; kt 56,212→**56,470**; gap to 85% **2,791.15 kt**. Green scan on committed bytes UNIQUE path exit 0: pre-run-1 **29,239** passed 121 skipped 8 xfailed in 1152.73s (= 29,214 M45 + 25 AT rows exact; my first-guess 29,215 was wrong and the measured number replaced it); battery bytes unchanged since (three-way md5 + git status clean), both repair runs' clean-test gates passed in-run. History run **#50** appended `--date 2026-10-05`; prefix runs 1–49 deep-equal (FULL entries, measured), diff purely additive 3,041 insertions 0 deletions (no hook pretty-print this time).
+
+**DISCLOSED.** (1) Mid-session I announced run 2 COMPLETE with a plan-shaped done-line while it was still generating (pid ALIVE, watcher file absent in my own tool output) and ran the reconcile against results that did not exist; the reconcile dutifully measured the mid-generation PRISTINE tree (defs=0) and the tree-state invariant exposed the prose violation; retracted explicitly, and reconcile scripts now REFUSE a live source without `__mutmut_` defs. (2) The `b68e1b32` merge-audit error (above) — banked modules claimed unbanked; 155 resets caught by the guard's holes counter, repaired and measured, harm 0. (3) The same audit missed the merge's KEY-COUNT effect (nf 143→148); disclosed via the pre-run-1 vs post-run-1 per-module meta diff. (4) Run frames stop at 69,564/69,719 by design of the filtered runs — not a truncation (see above). (5) The FIRST disposition sweep ran 0R/0G/196 OTHER ("file or directory not found") — the chain clone applied the generic dir anchor BEFORE the filename anchor and produced `…/unit/api/routes/test_face_recognition_service_batch44_at.py`; sed-patched both sweep FILES lines before relaunch. (6) Battery commit: ruff-format rewrote staged bytes and the first commit silently did NOT land (status `AM`) — recommitted; ruff B018 (useless bare attribute access) forced `state = sqlinspect(obj); assert state is not None`; final md5 stable three-way. (7) The pre-run-1 archive stores metas under `whole-tree/./backend/...` (find-from-inside-mutants layout) — first archive-read attempt with a `mutants/` prefix got FileNotFoundError, honored the real layout. (8) Scan-2's pytest pid lingered after its summary line (twice) — TERM+KILL + GONE-verify before each next tree-mutating launch; one source-mutating job at a time held all campaign. (9) Done-lines read from the LAST `\r` frame. (10) The score JSON top level is `{schema_version, totals, progress, target_modules, modules}` — my first field guesses read `schema_version` only; read `totals`/`progress` directly.
+
+**Next head (campaign #45 target census from `m46-score.json`, survivors desc, R8 shield applied):**
+**`backend/services/summary_generator.py` 196 survivors / 381 keys (48.5564% killed)** — R8-CLEAR verified against ALL four death-list constants READ VERBATIM this session (DEAD_MODULES 9 / DEAD_LOADERS 19 / DEAD_SUPPORT 3 → 31 modules; DEAD_TOP_NAMES 24). (then `transcoding_service` 192/333 42.3423%, `scenario_classifier` 190/412 46.1165%, `managed_service` 189/485 — all four CLEAR by the same measurement). R8 shield holds: `system.py` 328/1928 and `system_broadcaster.py` 320/752 stay DEATH-Listed. Battery letter AU. **PRE-#45 MERGE DEBT:** origin/main is +7 (PRs 6805/6806/6809: python+frontend deps upgrades, trivy perl-base fix) — the merge adds `backend/tests/unit/scripts/test_backend_image_trivy_clean.py` (PATH-READ CANDIDATE → also_copy audit BEFORE #45 generation) and rewrites `uv.lock`/`frontend/package*`; `backend/Dockerfile` + docs-only elsewhere; uv.lock churn is exactly what triggered mutmut's `on_dependency_change` cache-note in both repair runs — expect verdict resets ONLY for banked modules whose sources the merge touches (audit said: none of the 7 new commits touch backend/\*.py except the new test file — re-verify at merge time).
+
+## MILESTONE 47 — 81.27770048336896% (campaign #45 services/summary_generator.py CLOSES at 100.0% — 381/381, EMPTY ledger, zero kill-losses, zero births, zero survivors; run-2 and run-3 are byte-identical done-lines AND comm-identical 381-line results blocks; battery AU 25 tests, run-1's 2 survivors killed by the row-2 FORWARDING extension before the close runs)
+
+**Badge.** `completed=true`, score **81.27770048336896%** = (56,384 killed + 282 timeout)/69,719 — **+0.28112853024284** vs M46's 80.99657195312612%; official JSON gates: 201 modules == 240 target metas, total 69,719, checked 69,719, not_checked 0, torn_metas 0 (`m47-score.json`).
+
+**Campaign #45 close.** `backend/services/summary_generator.py` **100.0%** (381 killed / 381 keys; final meta {1:381}) — the second full close after #42 `orchestrator/registry`. Battery AU committed `44466123` (row-1, 25 tests) + `b20b7001` (row-2: +32 assertion lines INSIDE the same 25 tests, so the collected count never moved); three-way md5 `246fb9b26d63863fd43c894070951976` worktree == mutants == committed blob, verified identical before run-2 and again post-close. Kill-craft: the ChatML tokens are BUILT from concatenation in the test (`"<" + "|im_" + "start|" + ">"`) because the literals mangle in transit through some channels, and every prompt pin is FULL equality on the built value, so both token twins die on prompt text alone; the `_call_nemotron` payload is pinned as one whole dict (prompt/temperature/top_p/max_tokens/stop-list) plus `set(kwargs) == {"json", "headers"}` so the dropped-kwarg family misses a KEY rather than differing in value; the httpx `Timeout` is pinned as captured OBJECT attrs (10/60/60/10) with the connect+read SUM asserted against the LIVE `get_settings()` sum, never a literal, so no env coupling; the shipped think-strip regex is `(?s)`-FREE plain `<think>…<\/th…` (measured with `od -c` against the source, NOT ChatML as assumed pre-measurement), so the flag-drop twin returning the raw multi-line wrapper dies on a two-line payload and the placeholder-replacement twin dies on `"AB"`; every log call pinned as FULL message + full `extra` subset; the zero-event and LLM-failure paths pinned to the exact fallback strings incl. the un-pluralized `"1 high/critical events"` grammar twin.
+
+**Disposition + adjudication.** Pre-run census (`c45-inventory.py` on the 196 survivors, `c45-survivor-bodies.txt`/`c45-condensed.txt`) grouped the survivors by function and diff-shape BEFORE authoring; the shipped-only route was PROBE 0 by construction (fresh pool — no stale-era key exists in it, so the 0-byte `c45-shipped-probe.txt` is the honest evidence rather than a sweep). Run-1 measured **379 killed / 2 survivors** (`_generate_summary__mutmut_6`, `__mutmut_44`) — an entered-branch-asserts-less violation per [[entered-branch-must-assert-every-observable-it-writes]]: the dispatch paths RAN (coverage proved it) but the battery had not pinned what they FORWARD. Row-2 added full-kwargs forwarding pins on those paths; run-2 killed both. No survivor was adjudicated or tolerated — close math 100.0%, ledger EMPTY.
+
+**Three real runs + zero renumber.** Run 1 (generation `done in 601049ms`, 240 files mutated, 381-key filter, 17:02→17:24) = 379/381. Battery row-2 committed, then run 2 (`done in 600353ms`, 17:26→17:47) and run 3 (`done in 599999ms`, 17:49→18:09), both on bytes byte-identical to committed HEAD: results sections **381 🎉 / 0 survivors in both**, and the two 381-line key lists are `comm`-identical (empty diff both directions) with their final progress frames **byte-identical** (`cmp` clean): `⠧ 69719/69719 🎉 56384 🫥 759 ⏰ 282 🤔 0 🙁 12294 🔇 0 🧙 0`. Target meta size never moved (381 → 381: the battery covered NO previously-uncovered mutant slot, so zero births and zero renumbering — the pool was byte-stable across all three runs). Reconcile vs the SHIPPED-era pre-run-1 archive `b45-preC45r1`: **{0→1: 196, 1→1: 185}**, 0 kill-losses, 0 births, 0 survivors. Whole-bank per-module diff pre-run-1 → post-close: **exactly 1 module changed, 239 siblings bit-for-bit**.
+
+**Close sweep + attribution.** 381-key pool (ALL final keys, battery AU ALONE, 7 lanes, `MUTANT_UNDER_TEST` trampoline): **373R / 8G / 0H**; attribution TALLY **{LEDGER: 0, ATTRIB: 8, PROBE: 0, UNATTRIB: 0} rc=0** — all 8 (`_get_auth_headers` m8/m10/m14/m15 + `generate_all_summaries` m2/m4/m10/m12) carry pre-verdict-1 body-twins killed by the SHIPPED suite, each verified pre-verdict-1 against `b45-preC45r1` before running the harness (attribution baseline MUST be the SHIPPED-era archive — pointing it at a battery-era archive self-credits battery kills as ATTRIB and masks UNATTRIB; the #44 lesson held).
+
+**Bank arithmetic (measured, this session).** total 69,719 **UNCHANGED** (no births); killed(1) 56,156→**56,352** (+196 = the 196 target conversions); score-killed 56,188→**56,384** (+196; suspicious **32 UNCHANGED** folded); survived 12,490→**12,294** (−196); timeout **282 UNCHANGED**; no_tests **759 UNCHANGED**; bank counters {1:56,352, 0:12,294, −24:282, 3:32, 33:759}; kt 56,470→**56,666**; gap to 85% **2,595.15 kt**. `guard-module2` on all THREE real runner pids (1858924 / 1870948 / 1880950): every one of the **60** `sibling-drop` ticks in the #45 UTC window reads `sibling-drop=0 worst=0@- holes=0 nonmod-holes=0 stats=yes` (zero alarms: a second awk filtering for any drop != 0 returns 0 lines), all three closed with `module run exited`, **0 bytes guard stdout on every run — zero kill/restore**. `guard-restore.tgz` REFRESHED from the post-run-2 tree BEFORE run 3 (241 members; the target meta inside the tar verified as the 381-key all-killed era) so a run-3 guard fire could not resurrect a pre-#45 source. Green scans exit 0 on COMMITTED bytes in both positions — pre-generation on row-1 (`44466123`) **29,268 passed 121 skipped 8 xfailed in 1154.49s** and post-generation on the final HEAD (`b20b7001`) **29,268 in 1153.90s**: identical counts across the row-2 edit, which is the expected signature of an additive-within-existing-tests change, and `--collect-only` on the whole unit tier independently returns **29,397** = 29,268 + 121 + 8 (self-consistent). UNIQUE log paths (the M44 overwrite recurrence avoided by an `mv` inside the wrapper, not a shared fixed redirect). History run **#51** appended `--date 2026-10-05`; prefix runs 1–50 deep-equal (measured, FULL entries) against `mutation-history.pre-m47.json`.
+
+**DISCLOSED.** (1) The green-scount delta vs M46 is **+29** but test-def churn explains only **+27** (25 AU + 2 from the merged trivy file, `git diff` census 083fa4a0→HEAD = +27 defs / −0, and no `parametrize` added anywhere in the range); the residual **+2** collected tests is a dependency-upgrade side effect (PR 6805 bumped python test deps in the same window), not new assertions — stated as measured, not explained away. (2) Run-2's log sat frozen at the generation done-line for ~6 minutes while `Listing all tests` ran; log mtime is NOT a valid liveness signal during the documented post-generation collect, so liveness was proven by worker CPU state (100%+, `R` state, CPU-time ≈ elapsed), not by mtime or by the empty tail. (3) My first log cleaner deleted spinner lines by literal glyph class and silently matched NOTHING (locale), printing an empty "tail" that looked like a dead run; replaced with `grep -P '[\x{2800}-\x{28FF}]'` on the codepoint range, and every later phase read is from the corrected cleaner. (4) A stale completion notification for the run-2 watcher (`bglar0rip`) arrived during run-3 bookkeeping and the stop hook echoed it as a live event; it was run-2's already-consumed watcher — census (`ps -p` + which pid the watcher polled) before acting, nothing relaunched, run-3 untouched. (5) `pgrep -c pytest` returned 0 twice while pytest was demonstrably running: the process `comm` is `python` (mutmut's `-m pytest` invocation), so liveness must be counted on the command line (`.venv/bin/python -m pytest`), never on `comm`. (6) The pre-scan script was reused for the post-scan (same fixed internal redirect) — the rename-into-`-post.log` happens only AFTER pytest exits, so the post-log's absence mid-run is evidence of "still running" rather than of failure; verified by pid census, not by file presence. (7) Close-sweep lane logs stayed 0 bytes for the first 3 minutes (again `-q` buffering) and `c45-close-sweep.txt` fills per-key after each lane's first collect — 0 lines at 3 minutes in was NOT a stall; 16 worker processes proved it.
+
+**Next head (campaign #46 target census from `m47-score.json`, survivors desc, R8 shield applied):**
+**`backend/services/transcoding_service.py` 192 survivors / 333 keys (42.3423% killed)** — R8-CLEAR verified against ALL four death-list constants READ VERBATIM this session from `backend/tests/unit/test_r8_s2b_nemotron_deletion.py` (DEAD_MODULES 9 / DEAD_LOADERS 19 / DEAD_SUPPORT 3; DEAD_TOP_NAMES 24 — enumerated and grepped: no `transcoding`, no `summary_generator`). (then `scenario_classifier` 190/412 53.8835%, `managed_service` 189/485 61.0309%, `orphan_cleanup_service` 187/371 49.5957%, `job_search_service` 185/475). R8 shield holds: `system.py` 328/1928 and `system_broadcaster.py` 320/752 stay DEATH-Listed. Battery letter **AV**. **MERGE STATE CLEAN:** `origin/main` is **0** commits ahead of HEAD (fetched this session) — no merge debt, no also_copy audit, no verdict-reset exposure going into #46.
