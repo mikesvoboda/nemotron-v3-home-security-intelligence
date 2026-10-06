@@ -123,6 +123,13 @@ def run_vss(args: argparse.Namespace, env: Mapping[str, str]) -> int:
                 f"{scenario} contributes both labels, but the split's unit is the scenario and a "
                 "scenario sits in exactly one arm: the split's premise has broken."
             )
+    if not items:
+        # A registered seed is not a population: nothing was exported, so there is nothing to
+        # draw, and the degenerate manifest a draw over the empty set implies would burn the
+        # create-once slot against the real export that follows. B6's path instead: sets only,
+        # split unrecorded, exit 0 — and the slot stays fresh for the export that has events.
+        sys.stdout.write(f"no ready tier B events for {tax.version}: no split written\n")
+        return EXIT_OK
     # Only a scenario with an incident item can be drawn; benign joins the arm table as dev (B1).
     incident = sorted(name for name, counts in items.items() if counts["incident"])
     arm = {

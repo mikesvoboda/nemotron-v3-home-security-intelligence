@@ -435,6 +435,18 @@ class TestSplitDraw:
                 "tierb-v0", arm, items_by_scenario={n: ITEMS_BY_SCENARIO[n] for n in arm}
             )
 
+    def test_a_label_outside_benign_and_incident_stops_the_manifest(self) -> None:
+        """The arm guard above has a twin one level down: the counts are aggregated by label, and
+        a label the arm table has no column for is the same kind of disagreement with the corpus,
+        so it names the scenario and the label instead of raising a bare KeyError."""
+        arm = {"knife_visible": "dev", "loitering": "dev"}
+        items = {
+            "knife_visible": {"benign": 0, "incident": 3, "weird": 1},
+            "loitering": {"benign": 0, "incident": 1},
+        }
+        with pytest.raises(vss.ExportConflict, match=r"knife_visible contributes label 'weird'"):
+            vss.split_manifest_document("tierb-v0", arm, items_by_scenario=items)
+
     def test_the_manifest_items_are_the_arm_totals(self) -> None:
         """64/177/209: the split's published arithmetic, from the count table above."""
         assert _manifest()["items"] == {
@@ -590,6 +602,36 @@ class TestSplitExport:
         assert f"no split registered for {h.VERSION}" in out
         assert vss.read_split(_out(tmp_path)) is None
         assert not list(tmp_path.rglob(vss.SPLIT_FILE))  # sets written, manifest none
+
+    def test_an_export_of_nothing_leaves_the_split_slot_fresh(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """A registered seed is not a population: with nothing exportable there is nothing to
+        draw, so a manifest written here would be a degenerate one that burns the create-once slot
+        — the real export would then exit 2 against its own empty predecessor."""
+        _ready_batch(tmp_path, "costume_weapon", 2)  # ready, but every event is ambiguous
+        out = _export(tmp_path, capsys)
+        assert "0 written now" in out
+        assert f"no ready tier B events for {h.VERSION}: no split written" in out
+        assert not list(tmp_path.rglob(vss.SPLIT_FILE))
+        assert vss.read_split(_out(tmp_path)) is None
+
+    def test_the_real_export_after_an_empty_one_writes_the_manifest(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """The slot the empty export left behind is still fresh: once events are ready the same
+        default directory takes the real manifest, with no create-once conflict."""
+        _ready_batch(tmp_path, "costume_weapon", 2)
+        _export(tmp_path, capsys)
+        _ready_batch(tmp_path, MIXED, 8, batch="pilot-2")
+        out = _export(tmp_path, capsys)
+        assert "8 written now" in out
+        manifest = vss.read_split(_out(tmp_path))
+        assert manifest is not None
+        assert manifest["arms"] == {
+            "holdout": ["knife_visible"],
+            "dev": ["delivery_driver", "hooded_jogger", "loitering"],
+        }
 
     def test_a_scenario_carrying_both_labels_stops_the_export(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]

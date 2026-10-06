@@ -1884,8 +1884,9 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
   at least 3 runs with its spread. Whichever is chosen: the sampling contract is on the conditions
   line, a test pins the request body's temperature and seed, and an identical-verdict share between
   repeat runs is reported beside S2/S3.
-- **Depends on.** OD-24; ISS-043 (the measurement side); blocks the reading of ISS-008, ISS-016 and
-  ISS-017.
+- **Depends on.** OD-24; ISS-043 (the measurement side); blocks the reading of ISS-008 and ISS-017
+  (ISS-016 is off this list: `done` 2026-10-06 on `vlm-pipeline`, so the split its reading needed
+  exists).
 - **Tracked as.** None. The handoff lists it as a candidate issue
   (`docs/plans/2026-10-03-vss-vlm-exercise-handoff.md:272`).
 - **Closed 2026-10-03 in `9f4e65cd`** (`fix(vlm): the assess call samples greedily`). What was
@@ -4353,6 +4354,15 @@ synthbench ai/vlm` is empty. Not recorded in any `run.json`, and a dirty checkou
   the shipped-prompt cell of its E3 on `b11376`; the 32B weights were downloaded and hash-verified at
   17:18 EDT per `download_all.log`; `SPEC` schedules no rubric arm, so the rubric cells are not
   run [V]), OD-2, OD-4 (whose named challenger, Nemotron-Nano-12B-v2-VL, is not in the sweep).
+- **Update 2026-10-06 (ISS-016 and ISS-043 closed on `vlm-pipeline`) [V].** The 'no holdout
+  (ISS-016) or paired test (ISS-043) exists yet' above is no longer true: both now exist on this
+  branch (neither in main yet). The holdout is the published hash order
+  (`SPLIT_SEEDS`/`SPLIT_HOLDOUT_K` in `synthbench/export/vss.py`, realized roster in ISS-016's
+  closure note) and the paired test is the cluster bootstrap plus dS2/dS3 and exact McNemar in
+  `backend/evaluation/cluster_stats.py`, so the OD-26 rule can name a confirmation set that did
+  not choose the arm and a test that separates arms at the scenario level. What the rule still
+  cannot do is run that confirmation: the split is recorded only once the owner re-exports, and
+  the sweep's 450 items were read before either existed.
 - **Tracked as.** Handoff Addendum 9 (the sweep and its confounders); ledger row 76 close pointer
   (the sweep RUNNING, results not claimed); the Intake log entry after the merge of #6783 (the
   sequencing); ledger item 35 (the provisional pick and its flip conditions). No register issue or
@@ -5634,6 +5644,12 @@ export vss` writes one flat store with no train and held-out split (ISS-016) [V]
   the FLUX stills, which ISS-063's Acceptance does not ask for). Sequenced before any training split or
   data cut: ISS-016. Related: ISS-086 (the S3 remedy that could lead to a tuning path), OD-9 (its
   'accepted corpus' condition), ISS-038 and ISS-044 (the corpus's own audit status).
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** The `[V]` on the evidence line
+  'export vss writes one flat store with no train and held-out split (ISS-016)' verified a fact that
+  has since moved: on this branch `export vss` writes the dev/holdout manifest beside the sets
+  (`splits.json`, `synthbench/export/vss.py`), so the licence question now reaches a divided corpus as
+  well as a flat one. Not in main yet, and the real `splits.json` waits on the owner's next export
+  (README row, ISS-016 closure note); the licence reading itself is unchanged.
 - **Tracked as.** None found in the register, the ledger or the roadmap. Raised only in doc 20 section 4
   (the Harbor track's licence-risk bullet and 'Smallest next step'; the LoRA track's Recommendation,
   finding 13 and Stage 2 'DECISION D2') and the section 5 completeness-critic note; section 4(a) is raised
