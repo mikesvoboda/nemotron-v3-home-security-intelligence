@@ -246,8 +246,8 @@ def _world(
     `scenarios` overrides an event's scenario name (the default names one scenario per group).
     `split` records a dev/holdout split on that export, in the store as well as on disk:
     `"recorded"` is the honest pair, the other modes are the drift `score` has to catch — see
-    `_record_split`. A run.json for a split export carries the digest the replay measured under,
-    which `records[model]` may still override.
+    `_record_split`. A run.json for a split export carries the digest the replay measured under
+    (Task 4's fields), which `records[model]` may still override.
     """
     events = [(f"B-t-{i:03d}", "threat") for i in range(3)]
     events += [(f"B-b-{i:03d}", "benign") for i in range(12)]
@@ -384,21 +384,29 @@ def _record_split(
     """Write (or withhold) the fixture's split, in both places it is recorded, and give back the
     run.json fields a replay of that export would carry.
 
-    `mode` is the drift to pin: `"recorded"` (manifest on disk, the same roster in the store),
-    `"file_only"` (the store was never told), `"store_only"` (the store holds a roster the export
-    cannot show), `"rival_in_store"` (the export's manifest and the store's rows are two different
-    splits), `"no_replay_record"` (an honest pair, but the replay says it measured no split).
+    `mode` is the drift to pin, and it says what each of the three places holds. On disk and in the
+    store: `"recorded"` the manifest and the same roster in both, `"file_only"` the manifest with
+    the store never told, `"store_only"` a roster in the store and no manifest on disk,
+    `"rival_in_store"` two different splits, one in each place. In the replay record:
+    `"no_replay_record"` an honest manifest AND an honest store, but the run.json carries no
+    `split_sha256` key at all — the shape of a replay made before the split existed;
+    `"replay_only"` no manifest and an empty store, but the run.json carries a digest.
+    `"rival_in_replay"` is the honest pair; the caller moves the replay's digest with `records`.
     `None` leaves the export a pre-split one. The run.json fields are the honest ones for the
     manifest on disk, which is what a replay of that export would have written.
     """
     if mode is None:
         return {}
+    # What each place holds, per drift: (the manifest on disk?, the roster in the store?). Every
+    # mode not listed here with `False` carries the honest manifest.
+    ON_DISK = ("recorded", "file_only", "rival_in_store", "no_replay_record", "rival_in_replay")
+    IN_STORE = ("recorded", "store_only", "rival_in_store", "no_replay_record", "rival_in_replay")
     counts = _scenario_counts(scenarios)
     document = vss.split_manifest_document(h.VERSION, _drawn(scenarios), items_by_scenario=counts)
     stored_document = _swap_arm(document, counts) if mode == "rival_in_store" else document
-    if mode != "store_only":
+    if mode in ON_DISK:
         vss.write_split(export, document)
-    if mode not in ("file_only", "no_replay_record"):
+    if mode in IN_STORE:
         with EvalStore(store_path) as store:
             store.put_split(
                 h.VERSION,
@@ -406,16 +414,33 @@ def _record_split(
                 seed=str(stored_document["seed"]),
                 manifest_sha256=vss.split_sha256(stored_document),
             )
-    digest = vss.split_sha256(document) if mode != "store_only" else None
-    if digest is None:
+    if mode == "replay_only":
+        # No manifest and an empty store, but the replay names a digest: a store and an export
+        # replaced by pre-split copies after the replay ran. The digest is the one the split this
+        # export no longer carries would have had.
+        return {"split_sha256": vss.split_sha256(document), "split_holdout": []}
+    if mode == "no_replay_record":
+        # The key absent entirely, which is what a run.json written before Task 4's fields reads
+        # like — as opposed to replay's own pre-split shape, which writes the key as null.
+        return {}
+    if mode == "store_only":
+        # replay's own shape for an export with no manifest: the key present and null.
         return {"split_sha256": None, "split_holdout": []}
-    return {"split_sha256": digest, "split_holdout": list(document["arms"]["holdout"])}
+    return {
+        "split_sha256": vss.split_sha256(document),
+        "split_holdout": list(document["arms"]["holdout"]),
+    }
 
 
-def _split_fixture(root: Path, mode: str, scores: dict[str, dict[str, int | None]]) -> list[str]:
+def _split_fixture(
+    root: Path,
+    mode: str,
+    scores: dict[str, dict[str, int | None]],
+    records: dict[str, dict[str, Any]] | None = None,
+) -> list[str]:
     """`_world` over the split fixture's scenarios: two incident ones (the draw, clamped to n-1,
     sends one to holdout) and one benign scenario carrying every benign item."""
-    return _world(root, scores, scenarios=SPLIT_SCENARIOS, split=mode)
+    return _world(root, scores, records, scenarios=SPLIT_SCENARIOS, split=mode)
 
 
 def _rows(out: Path) -> list[dict[str, Any]]:
@@ -485,25 +510,83 @@ def test_a_pre_split_export_scores_as_unrecorded(tmp_path: Path) -> None:
     assert {row["split"] for row in rows} == {"unrecorded"}
 
 
+def test_a_silent_replay_beside_a_split_truth_is_asked_about(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A replay whose run.json carries no ``split_sha256`` at all, against a store and an export
+    that agree: the third reading is silent where the other two state a truth, so it cannot confirm
+    them and is refused (B8), not scored by a silent 2-way fallback.
+
+    This is the honest form of the ``no_replay_record`` fixture: the run.json omits the key the way
+    a pre-Task-4 replay's does. A live replay of THIS export always carries the digest
+    (``replay.py`` writes ``split_sha256: None`` only for a manifestless export), so a silent
+    run.json beside a manifest-bearing export is a hand-edit or a pre-split replay pointed at a
+    split export — and a pre-split replay scored every item including today's holdout, so scoring
+    it beside a split-aware replay is the leak the split exists to close. The ``carried != digest``
+    loop says so in the message: a replay that recorded NOTHING fails the agreement just as a rival
+    digest does, because it is the agreement that is being asked for."""
+    ids = _split_fixture(tmp_path, "no_replay_record", {"qwen3-vl-8b": {}})
+    run = tmp_path / "runs" / "replays" / ids[0] / "run.json"
+    assert "split_sha256" not in json.loads(run.read_text())  # the fixture really omits the key
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_ASK
+    assert not (tmp_path / "runs" / "scores").exists()
+    err = capsys.readouterr().err
+    export = tmp_path / "exports" / h.VERSION / "vss"
+    manifest = vss.read_split(export)
+    assert manifest is not None
+    assert "recorded split_sha256 nothing" in err  # names the silence, not a mismatched digest
+    assert vss.split_sha256(manifest) in err  # and the truth the silent replay failed to state
+
+
 @pytest.mark.parametrize(
     "mode,drift",
     [
-        ("file_only", "the store never recorded the manifest the export carries"),
-        ("store_only", "the store holds a roster the export cannot show"),
-        ("rival_in_store", "store and export hold two different splits"),
-        ("no_replay_record", "the replay says it measured no split at all"),
+        pytest.param("file_only", "a manifest the store was never told about"),
+        pytest.param("store_only", "a roster in the store that the export cannot show"),
+        pytest.param("rival_in_store", "two different splits, one in each place"),
+        pytest.param(
+            "replay_only",
+            "a replay carrying a digest for an export that has no manifest",
+        ),
+        pytest.param(
+            "rival_in_replay",
+            "a store and a manifest that agree, under a digest neither of them states",
+        ),
     ],
 )
 def test_a_split_disagreement_refuses_the_score(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], mode: str, drift: str
 ) -> None:
-    """B8: each way the three records can drift apart ({drift}) stops the run with exit 2 and
-    writes nothing — the same disposition as the stale-fingerprint check."""
-    ids = _split_fixture(tmp_path, mode, {"qwen3-vl-8b": {}})
+    """B8: each way the three records can hold a real disagreement stops the run with exit 2 and
+    writes nothing — the same disposition as the stale-fingerprint check. One drift per param:
+    ``file_only`` a manifest the store never heard of, ``store_only`` a roster the export cannot
+    show, ``rival_in_store`` two different splits in the two places, ``replay_only`` a replay
+    naming a digest for a manifestless export, ``rival_in_replay`` a digest the other two do not
+    state. A replay that records NOTHING is not on this list: beside a stated truth the third
+    reading's silence is refused too, pinned by
+    ``test_a_silent_replay_beside_a_split_truth_is_asked_about``."""
+    scores: dict[str, dict[str, int | None]] = {"qwen3-vl-8b": {}}
+    records = None
+    if mode == "rival_in_replay":
+        # Two replays, both measured under a digest that exists nowhere else: the store and the
+        # manifest agree with each other, so only the third reading can catch this.
+        scores = {"qwen3-vl-8b": {}, "flagship": {}}
+        records = {model: {"split_sha256": "b" * 64} for model in scores}
+    ids = _split_fixture(tmp_path, mode, scores, records)
     argv = [a for replay_id in ids for a in ("--replay", replay_id)]
     assert h.run(tmp_path, "score", *argv) == cli.EXIT_ASK
     assert not (tmp_path / "runs" / "scores").exists()
-    assert "split" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "split" in err
+    if mode == "rival_in_replay":
+        # Store and manifest agree, so the only thing wrong is what the replays carry — and the
+        # owner has to be able to see which digest that was to know which side to move.
+        assert "b" * 64 in err
+    if mode == "replay_only":
+        # The manifestless export's refusal names the replay's digest and says the export predates
+        # it, so the owner sees the missing splits.json, not a silent unrecorded score.
+        assert "predates the split" in err
 
 
 def test_a_store_roster_that_disagrees_names_both_digests(
