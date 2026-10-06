@@ -203,15 +203,36 @@ def test_headline_carries_a_scenario_cluster_bootstrap_beside_wilson() -> None:
 
 
 def test_the_comparison_is_paired_with_mcnemar_and_a_cluster_ci() -> None:
-    """The 3-item fixture: one item each arm wins -> discordants 1/1, exact p
-    1.0 by hand (two fair-coin draws each side). Pooled hits are 2 for each arm
-    over the same 3 shared incidents: dS3 = 0.0 points by hand - the paired
+    """The 6-item fixture: one item each arm wins -> discordants 1/1, exact p
+    1.0 by hand (two fair-coin draws each side). Pooled hits are 3 for each arm
+    over the same 6 shared incidents: dS3 = 0.0 points by hand - the paired
     reading says 'this disagreement is within fair-coin noise', which is the
-    whole point of testing the discordants instead of the two rates."""
+    whole point of testing the discordants instead of the two rates. The last
+    three items agree on every leg so those hand readings hold, and they widen
+    what ISS-087's `identical` count sees: a 90-hit against a 70-hit agrees
+    without being identical, a double refusal is identical, and a refusal
+    against a scored miss is neither."""
     a_only, b_only, both = (_item(f"B-t-{i:03d}", "threat") for i in range(3))
-    items = _items(a_only, b_only, both)
-    rows_a = [_row(a_only, 90), _row(b_only, 20), _row(both, 90)]
-    rows_b = [_row(a_only, 20), _row(b_only, 90), _row(both, 90)]
+    re_scored, both_refused, refused_and_missed = (
+        _item(f"B-t-{i:03d}", "threat") for i in range(3, 6)
+    )
+    items = _items(a_only, b_only, both, re_scored, both_refused, refused_and_missed)
+    rows_a = [
+        _row(a_only, 90),
+        _row(b_only, 20),
+        _row(both, 90),
+        _row(re_scored, 90),
+        _row(both_refused, None),
+        _row(refused_and_missed, None),
+    ]
+    rows_b = [
+        _row(a_only, 20),
+        _row(b_only, 90),
+        _row(both, 90),
+        _row(re_scored, 70),  # same leg (hit), a different score: agrees, not identical
+        _row(both_refused, None),  # both refused: identical
+        _row(refused_and_missed, 20),  # refused vs scored miss: neither
+    ]
     pair = score_models([("a", "ra", rows_a), ("b", "rb", rows_b)], items, {}, [])["comparison"][0]
     assert pair["s3_discordants"]["only_a"] == 1
     assert pair["s3_discordants"]["only_b"] == 1
@@ -220,6 +241,21 @@ def test_the_comparison_is_paired_with_mcnemar_and_a_cluster_ci() -> None:
     assert pair["dS3"]["clusters"] == 1  # every fixture item shares one scenario
     assert pair["s2_discordants"]["only_a"] == 0 and pair["s2_discordants"]["p"] == 1.0
     assert pair["dS2"]["point_pts"] is None  # no benign items: no S2 leg
+    # identical == same outcome AND same risk_score: `both` (90/90) and the double refusal
+    # (None/None) count; the 90-vs-70 hit pair and the refusal-vs-miss pair are in n only.
+    assert pair["identical"] == {"k": 2, "n": 6}
+
+
+def test_an_unarmed_score_still_reports_the_identical_count() -> None:
+    """ISS-087's key rides every pair dict, unarmed (manifestless, B6's shape) scores included;
+    a pair over byte-identical replays is identical on every shared item."""
+    shared = [_item(f"B-t-{i:03d}", "threat") for i in range(3)]
+    items = _items(*shared)
+    rows = [_row(item, 90) for item in shared]
+    metrics = score_models([("a", "ra", rows), ("b", "rb", rows)], items, {}, [])
+    assert "split_comparison" not in metrics  # unarmed: no roster, no per-arm pairs
+    assert "identical" in set(metrics["comparison"][0])
+    assert metrics["comparison"][0]["identical"] == {"k": 3, "n": 3}
 
 
 def test_the_report_prints_the_cluster_interval_and_the_paired_test() -> None:

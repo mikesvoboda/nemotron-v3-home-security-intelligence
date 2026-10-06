@@ -248,14 +248,19 @@ def _leg_is_event(item: Item, outcome_name: str) -> bool:
 def comparison(
     replays: Sequence[tuple[str, Sequence[Row]]], items: Mapping[str, Item]
 ) -> list[dict[str, Any]]:
-    """Per pair of models, over the items both replayed: how often their outcomes agree, the
-    items one gets wrong (a miss, a false alarm or a refusal) that the other gets right, and
-    ISS-043's paired statistics - exact McNemar on the discordants plus dS2/dS3 with a
-    scenario-cluster CI (the OD-26 selection rule's test, computed in the report now)."""
+    """Per pair of models, over the items both replayed: how often their outcomes agree, how
+    often the outcome AND the risk_score agree (ISS-087's stricter reading), the items one gets
+    wrong (a miss, a false alarm or a refusal) that the other gets right, and ISS-043's paired
+    statistics - exact McNemar on the discordants plus dS2/dS3 with a scenario-cluster CI
+    (the OD-26 selection rule's test, computed in the report now)."""
     out: list[dict[str, Any]] = []
     for (a, rows_a), (b, rows_b) in itertools.combinations(replays, 2):
         by_a = {row["item_id"]: outcome(items[row["item_id"]], row) for row in rows_a}
         by_b = {row["item_id"]: outcome(items[row["item_id"]], row) for row in rows_b}
+        # The risk_score behind each outcome, read off the same rows (never back from a store):
+        # ISS-087's identical count asks whether the score agreed too, not just the verdict.
+        scored_a = {row["item_id"]: row.get("risk_score") for row in rows_a}
+        scored_b = {row["item_id"]: row.get("risk_score") for row in rows_b}
         common = sorted(by_a.keys() & by_b.keys())
 
         # McNemar's unit is the bar's event per label: a benign item one arm
@@ -304,6 +309,14 @@ def comparison(
                 "a": a,
                 "b": b,
                 "agree": cell(sum(1 for i in common if by_a[i] == by_b[i]), len(common)),
+                # ISS-087's build-bump re-qualification measure: agreement in outcome is not
+                # agreement in severity — two `hit`s at 70 and 80 agree but are not identical.
+                "identical": {
+                    "k": sum(
+                        1 for i in common if by_a[i] == by_b[i] and scored_a[i] == scored_b[i]
+                    ),
+                    "n": len(common),
+                },
                 "a_wrong_b_right": [i for i in common if by_a[i] not in RIGHT and by_b[i] in RIGHT],
                 "b_wrong_a_right": [i for i in common if by_b[i] not in RIGHT and by_a[i] in RIGHT],
                 "s2_discordants": {"only_a": b_a, "only_b": b_b, "p": mcnemar_exact(b_a, b_b)},
