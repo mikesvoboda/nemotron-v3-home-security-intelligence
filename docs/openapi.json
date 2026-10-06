@@ -15185,6 +15185,18 @@
             "description": "User notes for the event",
             "title": "Notes"
           },
+          "notify": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Notify decision for this event; absent when none was made",
+            "title": "Notify"
+          },
           "reasoning": {
             "anyOf": [
               {

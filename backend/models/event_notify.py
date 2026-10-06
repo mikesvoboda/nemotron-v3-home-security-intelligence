@@ -124,9 +124,10 @@ def notify_decision_value(event: object | None) -> bool | None:
     but not real rows - only a loaded relationship ever produces a value.
     """
     row = getattr(event, "notify_decision", None) if event is not None else None
-    if row is None or not isinstance(getattr(row, "notify", None), bool):
+    value = getattr(row, "notify", None) if row is not None else None
+    if not isinstance(value, bool):
         return None
-    return row.notify
+    return value
 
 
 __all__ = ["EventNotifyDecision", "notify_decision_value"]
