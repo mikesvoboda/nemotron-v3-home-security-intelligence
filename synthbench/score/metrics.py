@@ -33,6 +33,7 @@ Row = dict[str, Any]  # a replay row, as `EvalStore.replay` returns it
 MIN_N = 10  # a cell under this many items reads "insufficient (n=…)"
 AUDIT_KEYS = ("scene", "prop", "people", "conditions")
 RIGHT = {"hit", "clear"}
+ARMS = ("dev", "holdout")  # the split's two sides (ISS-016), in the order a reader sees them
 
 
 @dataclass(frozen=True)
@@ -378,29 +379,73 @@ def result_rows(
     return out
 
 
+def _partition_by_arm(
+    kept: Sequence[Row], items: Mapping[str, Item], scenario_arm: Mapping[str, str]
+) -> dict[str, list[Row]]:
+    """`kept` split into one list per arm, by each row's item's scenario. The arm is read from the
+    roster and never guessed (ISS-016 B5): a scenario the roster does not arm is `scoring`'s to
+    refuse before it gets here, and one that reaches it anyway raises rather than joins a side."""
+    sides: dict[str, list[Row]] = {arm: [] for arm in ARMS}
+    for row in kept:
+        scenario = str(items[row["item_id"]].facts["cell"]["scenario"])
+        sides[scenario_arm[scenario]].append(row)
+    return sides
+
+
 def score_models(
     replays: Sequence[tuple[str, str, Sequence[Row]]],
     items: Mapping[str, Item],
     answers: Mapping[tuple[str, str], str],
     sampled: Sequence[str],
+    *,
+    scenario_arm: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """Every model's headline (on every item, and on the audited stills whose scene the owner
     confirmed), slices, and the comparison. `replays` is (model, replay id, rows). An event the
-    owner answered no for is a generation error: it leaves every metric (design §4)."""
+    owner answered no for is a generation error: it leaves every metric (design §4).
+
+    `scenario_arm` is the reconciled roster (ISS-016) that `result_rows` already reads: with one,
+    each model gains a `dev` and a `holdout` headline beside `all`, a `scenario_slice_dev` for
+    Task 7's report, and the metrics gain a `split_comparison` holding `comparison()` per side.
+    Without one — a pre-split export (B6) — the returned structure is exactly what it was before
+    the split existed, keys and values both, which is what keeps frozen records byte-comparable.
+    The arms are an added reading and never a narrower one: `audited`, `slices` and the top-level
+    `comparison` keep reading every kept row.
+    """
     audit = audit_summary(answers, sampled)
     excluded = set(audit["generation_errors"])
     confirmed = set(audit["confirmed"])
     models: dict[str, Any] = {}
     kept_by_model: list[tuple[str, Sequence[Row]]] = []
+    by_arm: dict[str, list[tuple[str, Sequence[Row]]]] = {arm: [] for arm in ARMS}
     for model, replay_id, rows in replays:
         kept = [row for row in rows if items[row["item_id"]].event_id not in excluded]
         audited = [row for row in kept if items[row["item_id"]].event_id in confirmed]
-        models[model] = {
+        block: dict[str, Any] = {
             "replay_id": replay_id,
             "excluded": len(rows) - len(kept),
             "all": headline(kept, items),
             "audited": headline(audited, items),
             "slices": slices(kept, items),
         }
+        if scenario_arm is not None:
+            sides = _partition_by_arm(kept, items, scenario_arm)
+            for arm, rows_in_arm in sides.items():
+                block[arm] = headline(rows_in_arm, items)
+                by_arm[arm].append((model, rows_in_arm))
+            # Task 7 reads this from the metrics json; computing it here is why `dev_rows` needs no
+            # route out of this function.
+            block["scenario_slice_dev"] = slices(sides["dev"], items)["scenario"]
+        models[model] = block
         kept_by_model.append((model, kept))
-    return {"audit": audit, "models": models, "comparison": comparison(kept_by_model, items)}
+    out: dict[str, Any] = {
+        "audit": audit,
+        "models": models,
+        "comparison": comparison(kept_by_model, items),
+    }
+    if scenario_arm is not None:
+        # Per side, the same paired test over only that side's items: a model that moved only on
+        # scenarios tuning never saw is invisible in the whole-corpus pair, because dev's larger
+        # item count carries the pooled number.
+        out["split_comparison"] = {arm: comparison(pairs, items) for arm, pairs in by_arm.items()}
+    return out

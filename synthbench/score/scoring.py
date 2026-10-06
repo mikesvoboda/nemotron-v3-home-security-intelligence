@@ -348,7 +348,7 @@ def execute(
             )
     answers = load_answers(audit_log)
     sampled = [str(exported.facts["event_id"]) for exported in audit_sample(sets)]
-    metrics = score_models(loaded, items, answers, sampled)
+    metrics = score_models(loaded, items, answers, sampled, scenario_arm=scenario_arm)
     score_id = f"{now:%Y%m%dT%H%M%SZ}"
     identity = {
         "score_id": score_id,

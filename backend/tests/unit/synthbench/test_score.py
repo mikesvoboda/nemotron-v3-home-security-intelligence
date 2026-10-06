@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -443,6 +443,49 @@ def _split_fixture(
     return _world(root, scores, records, scenarios=SPLIT_SCENARIOS, split=mode)
 
 
+# Task 6 reads the same fixture one level down: `score_models` over these items and rows directly,
+# so the arms' arithmetic is checkable without a store, and against an armless run of the very
+# same rows.
+
+SPLIT_EVENTS = tuple(
+    [(f"B-t-{i:03d}", "threat") for i in range(3)] + [(f"B-b-{i:03d}", "benign") for i in range(12)]
+)
+
+
+def _arms_of(items: Mapping[str, Item], arm_of: Mapping[str, str]) -> dict[str, list[str]]:
+    """The fixture's items grouped by the arm of their scenario: the per-side n to check against."""
+    out: dict[str, list[str]] = {"dev": [], "holdout": []}
+    for item in items.values():
+        out[arm_of[str(item.facts["cell"]["scenario"])]].append(item.item_id)
+    return out
+
+
+def _split_unit(
+    misses: Sequence[str] = (),
+) -> tuple[dict[str, Item], dict[str, str], list[dict[str, Any]]]:
+    """The split fixture's items, roster and rows, for `score_models` called directly.
+
+    The fifteen events `_world` exports, each carrying its `SPLIT_SCENARIOS` scenario, beside the
+    honest roster `_drawn` computes for those scenarios and one row per item: an incident scores 90
+    (a hit) and a benign scene 10 (a clear) unless its event is named in `misses`, which is how a
+    test moves one model's outcomes without touching the roster.
+    """
+    items = _items(
+        *[
+            _item(event_id, group, scenario=SPLIT_SCENARIOS[event_id])
+            for event_id, group in SPLIT_EVENTS
+        ]
+    )
+    rows = [
+        _row(
+            item,
+            20 if item.event_id in misses else 90 if item.label == "incident" else 10,
+        )
+        for item in items.values()
+    ]
+    return items, _drawn(SPLIT_SCENARIOS), rows
+
+
 def _rows(out: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in (out / "results.jsonl").read_text().splitlines()]
 
@@ -497,7 +540,9 @@ def test_the_identity_states_the_holdout_and_its_item_counts(tmp_path: Path) -> 
 
 def test_a_pre_split_export_scores_as_unrecorded(tmp_path: Path) -> None:
     """B6: the manifestless fixture still scores, and says so — but the version bump is real, so a
-    reader can tell this metrics.json from one written before the split existed."""
+    reader can tell this metrics.json from one written before the split existed. Its metrics keep
+    today's shape exactly: the frozen records elsewhere are byte-compared against regenerated ones,
+    and an absent arm is the difference between that check passing and failing."""
     ids = _world(tmp_path, {"qwen3-vl-8b": {}})
     argv = [a for replay_id in ids for a in ("--replay", replay_id)]
     assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
@@ -508,6 +553,14 @@ def test_a_pre_split_export_scores_as_unrecorded(tmp_path: Path) -> None:
     rows = _rows(out)
     assert len(rows) == 15
     assert {row["split"] for row in rows} == {"unrecorded"}
+    # Nothing per-arm appears: an unrecorded score has no arms to report, and a key that showed up
+    # here would change every pre-split record regenerated since.
+    assert set(metrics) == {"identity", "audit", "models", "comparison"}
+    assert "split_comparison" not in metrics
+    block = metrics["models"]["qwen3-vl-8b"]
+    assert set(block) == {"replay_id", "excluded", "all", "audited", "slices"}
+    assert "dev" not in block and "holdout" not in block
+    assert "scenario_slice_dev" not in block
 
 
 def test_a_silent_replay_beside_a_split_truth_is_asked_about(
@@ -622,6 +675,125 @@ def test_a_row_whose_scenario_the_roster_does_not_arm_is_refused(
     assert h.run(tmp_path, "score", *argv) == cli.EXIT_ASK
     assert "unedited_never_armed" in capsys.readouterr().err
     assert not (tmp_path / "runs" / "scores").exists()
+
+
+# Task 6: an armed score reads each headline twice, once per arm, so a model that improved only on
+# the scenarios tuning never saw says so (design §4's per-arm tables). The armless run of the same
+# rows stays byte-identical (B6).
+
+
+def test_an_armed_score_reports_each_model_once_per_arm() -> None:
+    """dev + holdout partition `all` exactly, and the holdout's benign leg is empty by rule B1:
+    every benign scenario stays in dev, so its S2 reads as no data, not as a clean 0%."""
+    items, arm_of, rows = _split_unit()
+    side = _arms_of(items, arm_of)
+    block = score_models([("m", "r", rows)], items, {}, [], scenario_arm=arm_of)["models"]["m"]
+    assert block["all"]["n"] == 15
+    assert (block["dev"]["n"], block["holdout"]["n"]) == (len(side["dev"]), len(side["holdout"]))
+    assert block["dev"]["n"] + block["holdout"]["n"] == block["all"]["n"]
+    # Both bars' denominators partition with the items.
+    for arm in ("dev", "holdout"):
+        assert block[arm]["s2"]["n"] + block[arm]["s3"]["all"]["n"] == len(side[arm])
+    assert (block["dev"]["s3"]["all"]["n"], block["holdout"]["s3"]["all"]["n"]) == (1, 2)
+    # B1: the holdout holds no benign item, so S2 has nothing to measure. Both objects that state
+    # it — `s2_false_positive_rate`'s own dict and the `cell()` wrapper beside it — read as no data.
+    assert block["holdout"]["s2"]["n"] == 0
+    assert block["holdout"]["s2"]["fp_rate"] is None
+    assert block["holdout"]["s2_cell"]["n"] == 0
+    assert block["holdout"]["s2_cell"]["rate"] is None
+    assert block["holdout"]["s2_cell"]["insufficient"] is True
+    assert block["dev"]["s2_cell"]["n"] == 12  # every benign item, all of them in dev by B1
+    # The manifest's per-arm item counts are the same partition (design §4's arithmetic).
+    counts = vss.split_manifest_document(
+        h.VERSION, arm_of, items_by_scenario=_scenario_counts(SPLIT_SCENARIOS)
+    )["items"]
+    assert {
+        arm: {
+            "incident": block[arm]["s3"]["all"]["n"],
+            "benign": block[arm]["s2"]["n"],
+        }
+        for arm in ("dev", "holdout")
+    } == counts
+
+
+def test_the_per_arm_comparison_sees_only_its_side_of_the_split() -> None:
+    """`split_comparison` holds one `comparison()` per arm, over that arm's rows only. Model `b`
+    misses the lone DEV incident and nothing in the holdout: the dev pair carries the disagreement,
+    the holdout pair is concordant — which is what computing them apart is for."""
+    missed = "B-t-002"  # the event in the dev incident scenario
+    items, arm_of, rows_m = _split_unit()
+    _, _, rows_b = _split_unit((missed,))
+    replays = [("m", "r-m", rows_m), ("b", "r-b", rows_b)]
+    lost = next(i.item_id for i in items.values() if i.event_id == missed)
+    metrics = score_models(replays, items, {}, [], scenario_arm=arm_of)
+    split = metrics["split_comparison"]
+    assert set(split) == {"dev", "holdout"}
+    assert [len(split[arm]) for arm in ("dev", "holdout")] == [1, 1]  # one pair, two models
+    assert [(p["a"], p["b"]) for p in split["dev"]] == [("m", "b")]
+    assert split["dev"][0]["b_wrong_a_right"] == [lost]
+    assert split["dev"][0]["agree"]["n"] == 13  # 12 benign + 1 incident
+    assert split["holdout"][0]["b_wrong_a_right"] == []
+    assert split["holdout"][0]["agree"]["n"] == 2
+    assert split["holdout"][0]["s3_discordants"] == {"only_a": 0, "only_b": 0, "p": 1.0}
+    # The whole-corpus comparison ISS-043 built is still there, reading every item: the arms add a
+    # view, they do not replace it.
+    assert metrics["comparison"][0]["b_wrong_a_right"] == [lost]
+    assert metrics["comparison"][0]["agree"]["n"] == 15
+
+
+def test_the_split_moves_nothing_the_armless_metrics_already_said() -> None:
+    """Arming a score adds keys and changes none: `audited`, `slices` and the top-level
+    `comparison` read the same rows they always did (B6's shape rule, applied to a split export).
+    The dev scenario slice is the one addition, and it sees only dev scenarios."""
+    items, arm_of, rows = _split_unit()
+    answers = {("B-t-000", "scene"): "y", ("B-b-000", "scene"): "n"}
+    sampled = ["B-t-000", "B-b-000", "B-t-002"]
+    replays = [("m", "r", rows), ("b", "r-b", rows)]
+    armless = score_models(replays, items, answers, sampled)
+    armed = score_models(replays, items, answers, sampled, scenario_arm=arm_of)
+    for model in ("m", "b"):
+        before, after = armless["models"][model], armed["models"][model]
+        # `audited` is the scene-confirmed subset of every kept row — not of dev — so arming the
+        # score must leave it byte-identical.
+        assert after["audited"] == before["audited"]
+        assert after["all"] == before["all"]
+        assert after["slices"] == before["slices"]
+        assert after["excluded"] == before["excluded"] == 1
+    assert armed["comparison"] == armless["comparison"]
+    assert set(armed) == set(armless) | {"split_comparison"}
+    assert set(armed["models"]["m"]) == set(armless["models"]["m"]) | {
+        "dev",
+        "holdout",
+        "scenario_slice_dev",
+    }
+    # Task 7's dev scenario slice: scenario values only, over dev rows, so the holdout's scenario
+    # cannot appear in it and no other slice name can.
+    scenario = armed["models"]["m"]["scenario_slice_dev"]
+    assert set(scenario) == {"hooded_jogger", "loitering"}
+    assert scenario["loitering"]["s3"]["n"] == 1
+    assert scenario["hooded_jogger"]["s2"]["n"] == 11  # 12 benign, one a generation error
+    assert "knife_visible" not in scenario
+
+
+def test_a_recorded_split_scores_both_arms_from_one_pass(tmp_path: Path) -> None:
+    """End to end: the arms' item counts are the manifest's, and every model carries both sides
+    beside `all`."""
+    ids = _split_fixture(tmp_path, "recorded", {"qwen3-vl-8b": {}, "flagship": {}})
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
+    metrics = json.loads((_scored_dir(tmp_path) / "metrics.json").read_text())
+    manifest_items = metrics["identity"]["split"]["items"]
+    assert set(metrics) == {"identity", "audit", "models", "comparison", "split_comparison"}
+    for model in ("qwen3-vl-8b", "flagship"):
+        block = metrics["models"][model]
+        for arm in ("dev", "holdout"):
+            counts = manifest_items[arm]
+            assert block[arm]["s2"]["n"] == counts["benign"]
+            assert block[arm]["s3"]["all"]["n"] == counts["incident"]
+            assert block[arm]["n"] == counts["benign"] + counts["incident"]
+        assert block["dev"]["n"] + block["holdout"]["n"] == block["all"]["n"] == 15
+        assert block["scenario_slice_dev"]
+    assert [len(metrics["split_comparison"][arm]) for arm in ("dev", "holdout")] == [1, 1]
 
 
 def test_score_writes_results_metrics_and_both_reports(tmp_path: Path) -> None:
