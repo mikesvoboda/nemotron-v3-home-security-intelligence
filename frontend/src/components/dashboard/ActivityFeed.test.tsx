@@ -662,4 +662,52 @@ describe('ActivityFeed', () => {
       expect(document.querySelector('[data-verdict]')).toBeNull();
     });
   });
+
+  // ISS-001: the persisted notify decision rides the feed too (the WS frame
+  // and REST list both carry it). These pins prove the ActivityEvent ->
+  // badge plumbing, distinct from NotifyBadge.test.tsx's component pins.
+  describe('notify decision badge (ISS-001)', () => {
+    const ev = (over: Partial<ActivityEvent>): ActivityEvent => ({
+      id: '9',
+      timestamp: new Date(BASE_TIME - 60 * 1000).toISOString(),
+      camera_name: 'Front Door',
+      risk_score: 80,
+      summary: 'Person at the door',
+      ...over,
+    });
+
+    it('renders "Notifies" when the event carries notify=true', () => {
+      render(<ActivityFeed events={[ev({ notify: true })]} />);
+      expect(screen.getByText('Notifies')).toBeInTheDocument();
+    });
+
+    it('renders "Not notifying" when the event carries notify=false', () => {
+      // The whole point of the narrow reading: a RECORDED decision not to
+      // page is an answer and shows up - an operator asking "why was I not
+      // paged?" sees the event say so.
+      render(<ActivityFeed events={[ev({ notify: false })]} />);
+      expect(screen.getByText('Not notifying')).toBeInTheDocument();
+    });
+
+    it('renders no badge and says nothing in aria when no decision exists', () => {
+      // Absence is not False: a legacy/live event with no decision gets
+      // neither a chip nor an aria claim.
+      render(<ActivityFeed events={[ev({})]} />);
+      expect(screen.queryByText('Notifies')).not.toBeInTheDocument();
+      expect(screen.queryByText('Not notifying')).not.toBeInTheDocument();
+      expect(document.querySelector('[data-notify]')).toBeNull();
+      const card = screen.getByLabelText(/Event from Front Door/);
+      expect(card.getAttribute('aria-label')).not.toMatch(/notifying/i);
+    });
+
+    it('names the decision in the card aria-label', () => {
+      // Same reason the verdict rides the label: the card's label replaces
+      // its inner content for screen readers. Query the CARD (role=button)
+      // specifically - the badge's own role=status label also says the
+      // words, and a bare /not notifying/ label query would find both.
+      render(<ActivityFeed events={[ev({ notify: false })]} />);
+      const card = screen.getByRole('button', { name: /not notifying/i });
+      expect(card).toBeInTheDocument();
+    });
+  });
 });

@@ -23657,6 +23657,11 @@ export interface components {
              */
             notes?: string | null;
             /**
+             * Notify
+             * @description Notify decision for this event; absent when none was made
+             */
+            notify?: boolean | null;
+            /**
              * Reasoning
              * @description LLM reasoning for risk score. DEFERRED: This field is not loaded by default in list queries to reduce memory usage. Use undefer() when querying to include it.
              */

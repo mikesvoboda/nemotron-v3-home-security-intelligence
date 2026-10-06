@@ -12,6 +12,7 @@ import { memo } from 'react';
 import { useSwipeGesture } from '../../hooks/useSwipeGesture';
 import { getRiskLevel } from '../../utils/risk';
 import { formatDuration } from '../../utils/time';
+import NotifyBadge from '../common/NotifyBadge';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
 import VerdictBadge from '../common/VerdictBadge';
@@ -35,6 +36,12 @@ export interface MobileEventCardProps {
   risk_label?: string;
   /** VLM verdict for the no-level badge swap (1.6). */
   verdict?: EventVerificationPayload['verdict'] | null;
+  /**
+   * Persisted notify decision (ISS-001). true/false is a decision on the
+   * record (render it); undefined/null means NO DECISION and renders
+   * nothing - absence is not False (the `verdict` absence contract).
+   */
+  notify?: boolean | null;
   summary: string;
   thumbnail_url?: string;
   detections: Detection[];
@@ -56,6 +63,7 @@ const MobileEventCard = memo(function MobileEventCard({
   camera_name,
   risk_score,
   verdict,
+  notify,
   summary,
   thumbnail_url,
   detections,
@@ -185,16 +193,22 @@ const MobileEventCard = memo(function MobileEventCard({
               )}
             </div>
           </div>
-          {riskLevel !== null ? (
-            <RiskBadge
-              level={riskLevel}
-              score={risk_score ?? undefined}
-              showScore={true}
-              size="sm"
-            />
-          ) : (
-            <VerdictBadge verdict={verdict} size="sm" />
-          )}
+          {/* Badge column: the level/verdict badge, and beneath it the
+              notify decision when one exists (ISS-001 - renders nothing
+              for an absent decision, so no empty slot opens up). */}
+          <div className="flex flex-col items-end gap-1">
+            {riskLevel !== null ? (
+              <RiskBadge
+                level={riskLevel}
+                score={risk_score ?? undefined}
+                showScore={true}
+                size="sm"
+              />
+            ) : (
+              <VerdictBadge verdict={verdict} size="sm" />
+            )}
+            <NotifyBadge notify={notify} size="sm" />
+          </div>
         </div>
 
         {/* Summary */}

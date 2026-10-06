@@ -353,6 +353,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       risk_score: event.risk_score,
       // 1.6: the verdict rides so the feed badges the VERDICT, not the score.
       verdict: event.verification?.verdict,
+      // ISS-001: the WS frame's notify decision rides the same way - the
+      // generated SecurityEventData type carries it, key absent when none
+      // was made (absence is not false).
+      notify: event.notify,
       summary: event.summary,
     }));
   }, [wsEvents, cameraNameMap]);
@@ -775,6 +779,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         risk_score: event.risk_score ?? null,
         risk_label: event.risk_level ?? undefined,
         verdict: event.verification?.verdict,
+        // ISS-001: persisted notify decision; absent key = no decision.
+        notify: event.notify,
         summary: event.summary || 'No summary available',
         thumbnail_url: event.thumbnail_url || undefined,
         detections,
@@ -1035,6 +1041,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         risk_score: event.risk_score ?? null,
         risk_label: event.risk_level ?? undefined,
         verdict: event.verification?.verdict,
+        // ISS-001: persisted notify decision; absent key = no decision.
+        notify: event.notify,
         summary: event.summary || 'No summary available',
         thumbnail_url: event.thumbnail_url || undefined,
         detections: [], // Detections not available in list view
@@ -1064,6 +1072,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       risk_score: event.risk_score ?? null,
       risk_label: event.risk_level ?? undefined,
       verdict: event.verification?.verdict,
+      // ISS-001: persisted notify decision; absent key = no decision.
+      notify: event.notify,
       // 1.6: the full row rides to the modal's verification section
       // (scene description, criteria, reviewed frames - spec §4).
       verification: event.verification,
@@ -1669,6 +1679,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                     // `|| 0` score - the lie this replaces.
                     risk_level: event.risk_level ?? '',
                     verdict: event.verification?.verdict,
+                    // ISS-001: persisted notify decision; absent = none.
+                    notify: event.notify,
                     summary: event.summary || null,
                     thumbnail_url: event.thumbnail_url || null,
                     reviewed: event.reviewed || false,
