@@ -297,6 +297,9 @@ export default function DashboardPage() {
       risk_score: event.risk_score,
       // 1.6: the verdict rides so the feed badges the VERDICT, not the score.
       verdict: event.verification?.verdict,
+      // ISS-001: the notify decision rides the same way; absent = none was
+      // made (the feed's badge renders nothing for absence).
+      notify: event.notify,
       summary: event.summary,
       thumbnail_url: getCameraSnapshotUrl(event.camera_id),
     };

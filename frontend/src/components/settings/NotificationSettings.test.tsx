@@ -786,9 +786,11 @@ describe('NotificationSettings - Threshold Conflict Detection', () => {
     render(<NotificationSettings />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      // Should show warning about blocked levels
+      // Should show warning about blocked levels. ISS-018: the critical floor
+      // is 85 under the bands of record (was 80), so the computed warning
+      // names 85 — the number the backend filter now actually enforces.
       expect(
-        screen.getByText(/alerts below 80% are blocked by global risk filters/i)
+        screen.getByText(/alerts below 85% are blocked by global risk filters/i)
       ).toBeInTheDocument();
     });
   });

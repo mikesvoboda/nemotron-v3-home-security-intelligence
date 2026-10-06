@@ -250,6 +250,17 @@ class EventResponse(BaseModel):
         exclude_if=lambda v: v is None,
         description="VLM verification provenance (spec §4); absent on legacy events",
     )
+    # ISS-001 (OD-1 follow-up + OD-31 rulings, 17 Intake log 2026-10-05): the
+    # analyzer's notify decision, persisted per event and rendered from the
+    # row. The SAME exclude_if absence rule as `verification` and the WS
+    # `notify` key: no row means NO DECISION and the key is absent - present
+    # False is a decided "do not notify". A consumer must never read absence
+    # as False.
+    notify: bool | None = Field(
+        None,
+        exclude_if=lambda v: v is None,
+        description="Notify decision for this event; absent when none was made",
+    )
 
     def model_dump_list(self) -> dict:
         """Serialize for list views (exclude detail-only fields).

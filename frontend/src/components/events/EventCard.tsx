@@ -29,6 +29,7 @@ import { getRiskLevel } from '../../utils/risk';
 import { getSeverityConfig } from '../../utils/severityColors';
 import { formatDuration } from '../../utils/time';
 import ApproachVectorIndicator from '../common/ApproachVectorIndicator';
+import NotifyBadge from '../common/NotifyBadge';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
 import SnoozeBadge from '../common/SnoozeBadge';
@@ -171,6 +172,12 @@ export interface EventCardProps {
    * verdict (or 'Unverified') instead of a fabricated score color.
    */
   verdict?: EventVerificationPayload['verdict'] | null;
+  /**
+   * The persisted notify decision (ISS-001): true/false is a DECISION on the
+   * record (render it), undefined/null means NO DECISION (render nothing -
+   * absence is not False, the `verification` absence rule).
+   */
+  notify?: boolean | null;
   summary: string;
   reasoning?: string;
   thumbnail_url?: string;
@@ -209,6 +216,7 @@ const EventCard = memo(function EventCard({
   camera_name,
   risk_score,
   verdict,
+  notify,
   summary,
   reasoning,
   thumbnail_url,
@@ -441,6 +449,10 @@ const EventCard = memo(function EventCard({
             ) : (
               <VerdictBadge verdict={verdict} size="md" />
             )}
+            {/* ISS-001: the persisted notify decision rides the same row;
+                the component itself renders nothing for a missing decision
+                (absence = no decision, never a false 'Not notifying'). */}
+            <NotifyBadge notify={notify} size="sm" />
             {/* Threat Indicator (NEM-5019) - shown when threats are detected */}
             <ThreatIndicator threats={threats} compact={true} />
             {(started_at || ended_at !== undefined) && (

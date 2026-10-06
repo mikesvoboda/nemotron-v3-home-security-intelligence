@@ -328,6 +328,13 @@ def requires_ack(message: dict[str, Any]) -> bool:
     # applies to an absent key, so None reached `>= 80` as a TypeError that
     # would kill the subscriber loop. NULL never acks; the critical-level
     # arm below still can.
+    #
+    # ISS-018 / OD-32 (owner ruling 2026-10-05, "keep the popup"): this raw
+    # 80 is a DELIBERATE early-ack, carved out of the band-agreement test by
+    # name. The bands of record call 80-84 'high', so this edge acks one
+    # band earlier than severity would; the owner ruled to keep prompting
+    # there. Do not "align" this to the bands — the shipped pin
+    # `test_high_risk_score_requires_ack` encodes 80-acks as desired behavior.
     risk_score = data.get("risk_score")
     if risk_score is not None and risk_score >= 80:
         return True

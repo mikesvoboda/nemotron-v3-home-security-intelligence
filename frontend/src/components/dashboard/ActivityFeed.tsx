@@ -3,6 +3,7 @@ import { Camera, Clock, Pause, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { getRiskLevel } from '../../utils/risk';
+import NotifyBadge from '../common/NotifyBadge';
 import RiskBadge from '../common/RiskBadge';
 import ThumbnailImage from '../common/ThumbnailImage';
 import VerdictBadge, { verdictLabel } from '../common/VerdictBadge';
@@ -29,6 +30,13 @@ export interface ActivityEvent {
    * `verification?.verdict`; absent = no verification row.
    */
   verdict?: EventVerificationPayload['verdict'] | null;
+  /**
+   * ISS-001: the analyzer's persisted notify decision, when one was made.
+   * Producers map it from the REST `notify` field or the WS frame's `notify`
+   * (both omit the key when NO DECISION exists - absence is not `false`, the
+   * same contract `verdict` keeps). The badge renders only a real decision.
+   */
+  notify?: boolean | null;
   summary: string;
   thumbnail_url?: string;
 }
@@ -219,7 +227,13 @@ export default function ActivityFeed({
                   aria-label={
                     `Event from ${event.camera_name} at ${formatTimestamp(event.timestamp)}, ` +
                     `risk level ${risk?.level ?? 'unverified'}` +
-                    (showVerdictBadge ? `, verdict ${verdictLabel(event.verdict)}` : '')
+                    (showVerdictBadge ? `, verdict ${verdictLabel(event.verdict)}` : '') +
+                    // The card's aria-label replaces its inner content for
+                    // screen readers, so the notify decision rides here the
+                    // same way the verdict does (only a real decision is
+                    // announced - absence is not a state).
+                    (event.notify === true ? ', notifies' : '') +
+                    (event.notify === false ? ', not notifying' : '')
                   }
                   data-testid={`detection-card-${event.id}`}
                 >
@@ -244,6 +258,11 @@ export default function ActivityFeed({
                           <RiskBadge level={risk.level} score={risk.score} showScore size="sm" />
                         )}
                         {showVerdictBadge && <VerdictBadge verdict={event.verdict} size="sm" />}
+                        {/* ISS-001: the delivery decision rides beside the
+                            verdict chip; the component renders nothing when
+                            no decision exists (absence is not "not
+                            notifying" - same contract as verdict). */}
+                        <NotifyBadge notify={event.notify} size="sm" />
                       </div>
                     </div>
 
