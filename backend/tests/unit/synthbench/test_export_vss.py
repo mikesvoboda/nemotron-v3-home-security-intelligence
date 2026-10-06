@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -475,3 +476,134 @@ class TestSplitDraw:
         assert vss.write_split(tmp_path, _manifest()) is True
         assert (tmp_path / vss.SPLIT_FILE).is_file()
         assert vss.read_split(tmp_path) == _manifest()
+
+
+class TestSplitExport:
+    """ISS-016 (spec §2): `export vss` records the split its own population implies.
+
+    The population is the export's scenarios, so `MIXED` at n=8 holds 4 scenarios and exactly 2
+    incident ones (`knife_visible` threat, `loitering` suspicious) — the k-edge clamps the draw to
+    1, which is what makes the roster observable here at all.
+    """
+
+    def test_the_export_writes_the_manifest_its_population_draws(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """MIXED at n=8 holds 4 scenarios and exactly 2 incident ones, so the k-edge clamps the
+        draw to 1 — the roster is observable in a fixture only because the clamp fires."""
+        _ready_batch(tmp_path, MIXED, 8)
+        assert not _out(tmp_path).exists()  # nothing exported yet
+        _export(tmp_path, capsys)
+        # the population is what actually landed on disk, not what the fixture asked for
+        on_disk: dict[str, dict[str, int]] = {}
+        sets = vss.read_sets(_out(tmp_path))
+        for exported in sets:
+            row = on_disk.setdefault(
+                exported.facts["cell"]["scenario"], {"benign": 0, "incident": 0}
+            )
+            row[exported.facts["label"]] += 1
+        assert on_disk == {
+            "knife_visible": {"benign": 0, "incident": 3},
+            "loitering": {"benign": 0, "incident": 1},
+            "delivery_driver": {"benign": 2, "incident": 0},
+            "hooded_jogger": {"benign": 2, "incident": 0},
+        }
+        manifest = vss.read_split(_out(tmp_path))
+        assert manifest is not None
+        assert manifest["corpus_version"] == h.VERSION
+        assert manifest["unit"] == "scenario"
+        assert manifest["seed"] == vss.SPLIT_SEEDS[h.VERSION]
+        # two incident scenarios -> k clamps to 1; knife's 2aad… ranks before loitering's a911…
+        assert manifest["holdout_k"] == 1
+        assert manifest["arms"] == {
+            "holdout": ["knife_visible"],
+            "dev": ["delivery_driver", "hooded_jogger", "loitering"],
+        }
+        assert manifest["items"] == {
+            "holdout": {"benign": 0, "incident": 3},
+            "dev": {"benign": 4, "incident": 1},
+        }
+        # the arms cover exactly the exported scenarios and their totals are every exported set
+        assert set(manifest["arms"]["dev"]) | set(manifest["arms"]["holdout"]) == set(on_disk)
+        assert sum(row["incident"] for row in manifest["items"].values()) + sum(
+            row["benign"] for row in manifest["items"].values()
+        ) == len(sets)
+        assert [row["scenario"] for row in manifest["draw"]] == ["knife_visible", "loitering"]
+        assert [row["arm"] for row in manifest["draw"]] == ["holdout", "dev"]
+        # the invariant the manifest exists to keep: nothing is armed holdout that the draw did
+        # not hold out, and no benign scenario is ever drawn (rule B1).
+        assert set(manifest["arms"]["holdout"]) <= {
+            row["scenario"] for row in manifest["draw"] if row["arm"] == "holdout"
+        }
+        assert not set(manifest["arms"]["holdout"]) & set(BENIGN_ITEMS)
+        data = (_out(tmp_path) / vss.SPLIT_FILE).read_bytes()
+        assert data == json.dumps(manifest, indent=2, sort_keys=True).encode() + b"\n"
+        assert vss.split_sha256(manifest) == hashlib.sha256(data).hexdigest()
+
+    def test_the_export_line_reports_the_roster_counts_and_manifest_sha(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _ready_batch(tmp_path, MIXED, 8)
+        out = _export(tmp_path, capsys)
+        manifest = vss.read_split(_out(tmp_path))
+        assert manifest is not None
+        sha = vss.split_sha256(manifest)
+        assert "8 written now" in out  # the existing summary line keeps its shape
+        assert (
+            re.search(
+                rf"split {h.VERSION}: holdout_k 1; holdout knife_visible; dev "
+                rf"delivery_driver, hooded_jogger, loitering; items holdout \d+ incident, "
+                rf"\d+ benign; dev \d+ incident, \d+ benign; sha256 {sha}\n",
+                out,
+            )
+            is not None
+        )
+        # the re-export recomputes the identical manifest and says so; `test_a_second_export_
+        # changes_nothing` pins that it leaves the bytes alone.
+        before = (_out(tmp_path) / vss.SPLIT_FILE).read_bytes()
+        assert f"sha256 {sha} (unchanged)" in _export(tmp_path, capsys)
+        assert (_out(tmp_path) / vss.SPLIT_FILE).read_bytes() == before
+
+    def test_a_planted_split_that_differs_from_the_corpus_exits_2(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _ready_batch(tmp_path, MIXED, 4)
+        path = _out(tmp_path) / vss.SPLIT_FILE
+        path.parent.mkdir(parents=True)
+        planted = '{"corpus_version": "tierb-v0", "holdout_k": 0}\n'
+        path.write_text(planted, encoding="utf-8")
+        assert h.run(tmp_path, "export", "vss") == cli.EXIT_ASK
+        assert "differs from the corpus" in capsys.readouterr().err
+        assert path.read_text(encoding="utf-8") == planted  # create-once: never overwritten
+
+    def test_a_version_with_no_registered_seed_exports_without_a_manifest(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """B6's optionality is the same code path: no pre-registered seed, no manifest, exit 0.
+
+        Every fixture runs on `tierb-v0` — the one registered version — so an empty table is the
+        only way this branch is reachable in CI.
+        """
+        monkeypatch.setattr(vss, "SPLIT_SEEDS", {})
+        _ready_batch(tmp_path, MIXED, 4)
+        out = _export(tmp_path, capsys)
+        assert f"no split registered for {h.VERSION}" in out
+        assert vss.read_split(_out(tmp_path)) is None
+        assert not list(tmp_path.rglob(vss.SPLIT_FILE))  # sets written, manifest none
+
+    def test_a_scenario_carrying_both_labels_stops_the_export(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """The split's unit is a scenario, which sits in exactly one arm: a scenario exporting
+        both labels would be in both at once, so the premise breaking is the owner's to fix."""
+        specs = _ready_batch(tmp_path, MIXED, 8)
+        benign = next(s for s in specs if s.cell.scenario == "delivery_driver")
+        spec_file = h.store(tmp_path).spec_file(benign.event_id)
+        document = json.loads(spec_file.read_text(encoding="utf-8"))
+        # the group moves with the label, so the per-event check above stays satisfied and the
+        # only thing wrong with the corpus is the scenario now carrying both labels.
+        document["cell"]["group"] = "suspicious"
+        spec_file.write_text(json.dumps(document | {"label": "incident"}), encoding="utf-8")
+        assert h.run(tmp_path, "export", "vss") == cli.EXIT_ASK
+        assert "delivery_driver contributes both labels" in capsys.readouterr().err
+        assert not (_out(tmp_path) / vss.SPLIT_FILE).exists()
