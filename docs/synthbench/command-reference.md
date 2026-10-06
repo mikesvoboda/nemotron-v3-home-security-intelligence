@@ -506,6 +506,11 @@ truth error, and, with two or more replays, the comparison between models.
 - **Paths:** `report.md` shows paths under `$SYNTHBENCH_ROOT` relative to it (for example
   `exports/<version>/vss`), never an absolute host path; `metrics.json` keeps them absolute.
 - **Cells:** rate, 95% Wilson interval and n; under n = 10 a cell reads "insufficient".
+- **Comparison:** with two or more replays, each pair records `identical` as `{k, n}`: of the n
+  items both replayed, the k whose bar-level outcome AND `risk_score` both agree (ISS-087). Two
+  hits at 70 and 80 agree without being identical, and a double refusal is identical.
+  `report.md` prints the count as its own column, appended after the paired statistics; a pair
+  recorded before the key existed renders without it.
 - **Prints:** the audit's progress, each model's S2, S3 and refusals, and the path of `report.md`.
 - **Exit 1:** a replay id is unknown, two replays are of the same model, or the replays name
   different eval stores or exports.

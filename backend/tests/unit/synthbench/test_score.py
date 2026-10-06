@@ -274,6 +274,63 @@ def test_the_report_prints_the_cluster_interval_and_the_paired_test() -> None:
     assert "generated:" not in text  # still aggregate
 
 
+# ISS-087's reporting half: the identical count reaches the reader. The fixture is Task 2's
+# 6-item comparison fixture, whose `identical` is {k: 2, n: 6} — `both` (90/90) and the double
+# refusal agree in outcome AND risk_score; the 90-vs-70 hit and the refusal-vs-miss items are in
+# n only. Every item shares one scenario, so the paired dS3 is exactly 0 points at zero width.
+
+
+def _six_item_comparison() -> tuple[dict[str, Item], list[dict[str, Any]], list[dict[str, Any]]]:
+    a_only, b_only, both = (_item(f"B-t-{i:03d}", "threat") for i in range(3))
+    re_scored, both_refused, refused_and_missed = (
+        _item(f"B-t-{i:03d}", "threat") for i in range(3, 6)
+    )
+    items = _items(a_only, b_only, both, re_scored, both_refused, refused_and_missed)
+    rows_a = [
+        _row(a_only, 90),
+        _row(b_only, 20),
+        _row(both, 90),
+        _row(re_scored, 90),
+        _row(both_refused, None),
+        _row(refused_and_missed, None),
+    ]
+    rows_b = [
+        _row(a_only, 20),
+        _row(b_only, 90),
+        _row(both, 90),
+        _row(re_scored, 70),
+        _row(both_refused, None),
+        _row(refused_and_missed, 20),
+    ]
+    return items, rows_a, rows_b
+
+
+def test_the_report_prints_the_identical_count_for_a_pair() -> None:
+    """The column is last, so every earlier column keeps its position, and the row ends with
+    the count beside the paired dS3 the ISS-043 note already reads."""
+    items, rows_a, rows_b = _six_item_comparison()
+    metrics = score_models([("a", "ra", rows_a), ("b", "rb", rows_b)], items, {}, [])
+    text = markdown(metrics, {"score_id": "S", "replays": [], "export": {}, "audit": {}})
+    assert "| Identical items (same outcome and score) |" in text
+    assert "| +0.0 pts [+0.0 to +0.0] | 2 of 6 |" in text
+
+
+def test_a_pair_without_the_identical_key_renders_the_table_exactly_as_before() -> None:
+    """The old-frozen-report path: a `metrics.json` written before the key existed renders its
+    pair with the nine columns it had — no added empty cell, no `—`, no KeyError."""
+    items, rows_a, rows_b = _six_item_comparison()
+    metrics = score_models([("a", "ra", rows_a), ("b", "rb", rows_b)], items, {}, [])
+    frozen = json.loads(json.dumps(metrics))
+    del frozen["comparison"][0]["identical"]
+    text = markdown(frozen, {"score_id": "S", "replays": [], "export": {}, "audit": {}})
+    block = text.split("\n## Comparison\n")[1]
+    header = next(line for line in block.splitlines() if line.startswith("| Models |"))
+    row = next(line for line in block.splitlines() if line.startswith("| a / b |"))
+    assert "Identical" not in text
+    assert header.count("|") == row.count("|") == 10  # nine columns, as before ISS-087
+    assert row.endswith("+0.0 pts [+0.0 to +0.0] |")  # the row ends where it always ended
+
+
 # The command, end to end, over a real export and eval store.
 
 

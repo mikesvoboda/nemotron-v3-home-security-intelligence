@@ -376,12 +376,36 @@ def _slices(models: Mapping[str, Any]) -> list[str]:
     return lines
 
 
+def _identical(count: Mapping[str, Any] | None) -> str:
+    """One pair's ISS-087 identical count as a cell: `2 of 6`. An empty cell is a record written
+    before the key existed — see `_comparison` for why that case removes the column instead of
+    printing a dash for a report whose numbers were already committed."""
+    return "" if count is None else f"{count['k']} of {count['n']}"
+
+
 def _comparison(pairs: Sequence[Mapping[str, Any]], note: bool = True) -> list[str]:
     """One comparison table; `note` prints ISS-043's closing reading after it. With a recorded
     split the report prints two tables and one note (`note=False` on the first), because the
     reading below is the same sentence for both sides of the split."""
     if not pairs:
         return ["One model scored: nothing to compare."]
+    # The identical column is LAST, so every column a reader has already compared keeps its
+    # position, and it appears only when the data carries the count: a frozen `metrics.json` from
+    # before ISS-087 keeps the table it was written with, which is the report a claim rests on.
+    header = [
+        "Models",
+        "Common items",
+        "Agreement",
+        "Only the first wrong",
+        "Only the second wrong",
+        "S2 discordants first / second (McNemar p)",
+        "dS2 [cluster CI]",
+        "S3 discordants first / second (McNemar p)",
+        "dS3 [cluster CI]",
+    ]
+    counts = [_identical(p.get("identical")) for p in pairs]
+    if any(counts):
+        header += ["Identical items (same outcome and score)"]
     rows = [
         [
             f"{p['a']} / {p['b']}",
@@ -398,17 +422,9 @@ def _comparison(pairs: Sequence[Mapping[str, Any]], note: bool = True) -> list[s
         ]
         for p in pairs
     ]
-    header = (
-        "Models",
-        "Common items",
-        "Agreement",
-        "Only the first wrong",
-        "Only the second wrong",
-        "S2 discordants first / second (McNemar p)",
-        "dS2 [cluster CI]",
-        "S3 discordants first / second (McNemar p)",
-        "dS3 [cluster CI]",
-    )
+    if any(counts):
+        for row, count in zip(rows, counts, strict=True):
+            row.append(count)
     lines = _table(header, rows)
     if note:
         lines += [

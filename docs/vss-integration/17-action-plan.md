@@ -3823,6 +3823,26 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     model arms the items matching the shipped model's verdict and score range from 72 to 252 of 450
     **[V: the report's readings table]**; quantization alone moves answers (the 27B at Q4_K_M, Q6_K and
     IQ2_S read S3 49.4%, 54.8% and 44.0%).
+  - Update, appended 2026-10-06 (the reporting half, on `iss087-conditions-line` — `53a524a7`,
+    `42ad6c4f`, `1cd05f99` and the commit carrying this entry, stacked on `vlm-pipeline` at `96669bd2`
+    and merged to neither `vlm-pipeline` nor `main` as of this note): the reporting clause of the
+    acceptance is met for score reports. `synthbench replay` takes
+    `--server-settings`, the operator's verbatim declaration of how the endpoint was started, recorded
+    in `run.json` as `server_settings` (`null` when nothing was declared), and the conditions table in
+    `report.md` gained Build and Server settings as its last two columns, so no existing column moved
+    (Build reads `—` for an endpoint that never reported one, settings read `unrecorded` for a replay
+    that declared none). `comparison()` now carries `identical` — `{k, n}` over the items both arms
+    replayed, where `k` counts the items agreeing in bar-level outcome **and** in `risk_score`, the
+    stricter reading this issue's own measure (two `hit`s at 70 and 80 agree and are not identical) —
+    and `report.md` prints it as a last comparison column. `SCORE_VERSION` is 4 for those keys, and a
+    record written before them renders the table it was written with: the column is appended only when
+    the data carries the count, so a frozen report keeps its shape. Of the three control replays, the
+    sweep's committed report already records the determinism and cause-attribution controls named in
+    the acceptance: `control-rep` and `control-defaultcache` each match `control-q4km` on 450 of 450
+    items **[V: `docs/benchmarks/synthbench/sweep-2026-10-03/report.md`'s readings table and its
+    "The controls" paragraph]**. Still open on this issue: the control-replay-at-bump half — a real
+    control replay of the shipped model at the next llama.cpp bump needs `agent-gpu` and the owner's
+    go-ahead — and the ledger rows, whose conditions text the owner authors. **Status stays `open`.**
 - **Why it matters.** Every S2/S3/S5 figure in this directory and the ledger was measured on
   `b7972`. A claim against the bars is a claim about a build; the replay's `run.json` and the score
   report record the build string, but nothing in the acceptance conditions pins one, and a llama.cpp
@@ -7812,3 +7832,40 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   host, so the manifest lands on the next `synthbench export vss`, with no GPU and before any replay.
   If that run's printed roster is not the six above, the export population has changed and the
   design's premise is the owner's call, not a code fix.
+
+### 2026-10-06 (ISS-087's reporting half lands on `iss087-conditions-line`: the conditions line names the build and settings, and comparisons state identical counts)
+
+- **What ran.** The reporting half of ISS-087, test-first, in three commits on
+  `iss087-conditions-line` stacked on `vlm-pipeline` at `96669bd2` (`53a524a7` records the
+  conditions, `42ad6c4f` bumps the score format, `1cd05f99` computes the count, plus the commit
+  landing this entry, which renders it). `synthbench replay` gains `--server-settings`: the
+  operator's verbatim declaration of how the endpoint was started, stored in `run.json` as
+  `server_settings` — `replay` never starts a server, so it can read the build an `ai-vlm`
+  endpoint answers at `/props` and nothing about the flags behind it. The conditions table in
+  `report.md` gained Build and Server settings as its last two columns, so no existing column
+  moved; a build no endpoint reported reads `—` and an undeclared setting reads `unrecorded`.
+  `comparison()` gained the realized measure this issue asked for, **`identical: {k, n}`**: `n` is
+  the items both arms replayed and `k` counts those agreeing in bar-level outcome **and** in
+  `risk_score` — the stricter reading, because two `hit`s at 70 and 80 agree and are not
+  identical, while a double refusal is. `report.md` prints it as `2 of 6` in a comparison column.
+  `SCORE_VERSION` is 4, for those keys. A report over a `metrics.json` written before them renders
+  the nine-column table it was written with: the column is appended only when the data carries the
+  count, so a frozen report keeps its shape and its committed numbers mean what they meant.
+- **Tested.** `backend/tests/unit/synthbench` plus `backend/tests/unit/evaluation` green: 1280
+  passed, 1 skipped. The count is pinned on the 6-item comparison fixture by hand at `{k: 2, n: 6}`
+  (the 90/90 hit and the double refusal count; the 90-vs-70 hit and the refusal-vs-miss item are in
+  `n` only), and again at `{k: 3, n: 3}` for a pair over byte-identical replays. The render has both
+  its pins: the new column's cell, and a hand-built record with the key deleted rendering exactly
+  the header and row it had before. No replay, no GPU, no export: unit fixtures only.
+- **Register.** ISS-087's acceptance first clause is met for score reports (named in its Update);
+  its third clause — the sweep's determinism and cause-attribution controls on `b11376` recorded in
+  the Intake log — is met by pointing here at the committed report, whose readings table and
+  "The controls" paragraph carry all three controls matching on 450 of 450 items
+  **[V: `docs/benchmarks/synthbench/sweep-2026-10-03/report.md`]**, so no new measurement was run.
+  **ISS-087 stays `open`** and the Dashboard does not move: the control replay at the next
+  llama.cpp bump and the ledger rows' conditions text are both still open, so no status flip and no
+  recount. README's Next-five step 3 and its needs-no-ruling line record the half that landed.
+- **What this entry does not do:** no new ids; no bar, D or S line moved; the shipped image's
+  `b7972` pin is untouched; no control replay ran here (it needs `agent-gpu` and the owner's
+  go-ahead, and is event-driven on a build bump); no ledger row is written — the register's rows are
+  prose the owner authors, and this entry is the pattern; no frozen report is re-scored.
