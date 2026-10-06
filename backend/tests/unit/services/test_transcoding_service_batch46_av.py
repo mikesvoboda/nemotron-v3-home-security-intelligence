@@ -1332,6 +1332,303 @@ def test_delete_cached_oserror_warns_false():
 
 
 # ============================================================================
+# ROW-2 - campaign #46 close adjudication kill rows (run-1 survivors)
+#
+# run-1 left 15 survivors. Disposition (measured PER-KEY, all 15 disposed,
+# none tolerated - every claim below is a per-key rc=1/rc=0 run on the
+# committed bytes, killer row named):
+#  KILLED BY ROW-2 (13), each MEASURED rc=1 with the killer:
+#    _remux_video m49/m50 (L437 rc-fail unlink; absent-file rows) ......... rc_fail row
+#    _remux_video m55/m56 (L442 timeout unlink; absent-file rows) ......... timeout row
+#    _remux_video m46/m47 (L432 small-file unlink, PRESENT file) ......... small-file spy
+#    get_cached_video m10/m11 (L344 corrupted unlink, present file) ...... corrupted spy
+#      - m46/47/m10/11 looked behavior-EQUIV (the file is always present at
+#        these sites, so True/False/None all delete it identically) but the
+#        RAW call-site kwargs spy reads the passed VALUE anyway, and turned
+#        all four from ledger candidates into kills. Behavior-EQUIV is NOT
+#        equivalent to unkillable - spy the observables, not just outcomes
+#        ([[dropped-kwarg-mutants-needs-call-site-spy]]).
+#    get_or_transcode m6 (FORWARDING: cached hit never awaits transcode) .. never-awaits row
+#    transcode_video m9 (_remux_video(None,...) -> "-i None" in argv) ..... full-argv row
+#    get_video_encoder_args m1 (signature default True->False) ........... default-arg row
+#    cleanup_cache m1 (default 7->8) / m23 (summary gate >0 -> >1) ........ age/summary rows
+#  LEDGER EQUIV (2), FULL-BATTERY-GREEN sweep proof (rc=0 against ALL rows
+#  incl. row-2) + structural proof, never diff-shape:
+#    _validate_video_path m8/m9 - the dash-guard tests str(video_path_obj),
+#      an ALWAYS-absolute resolve() result; no input on any platform makes it
+#      start with "-", so shipped and mutant take the same branch on EVERY
+#      path (row-1 header measured this: "UNREACHABLE through a real
+#      resolve() - no row is written for an unreachable branch").
+# ============================================================================
+
+
+def _unlink_spy():
+    """Patch Path.unlink to record RAW kwargs and still delete when it can.
+
+    The real bound method is kept and called for the real effect; captures
+    show EXACTLY what the call site passed. A spy that faked deletion would
+    hide FileNotFoundError differences this file does NOT want hidden in the
+    present-file rows (there, only the kwargs VALUE distinguishes shipped).
+    """
+    calls: list[dict] = []
+    real = Path.unlink
+
+    def _spy(self: Path, *args: Any, **kwargs: Any) -> Any:
+        calls.append(dict(kwargs))
+        return real(self, *args, **kwargs)
+
+    return calls, mock.patch.object(Path, "unlink", _spy)
+
+
+def test_remux_small_file_unlink_passes_missing_ok_true_present_file():
+    """L432 (present-file): only the passed VALUE kills missing_ok twins -
+    with the file present True/False/None all delete, so the pin is the
+    RAW kwargs {"missing_ok": True} plus the unchanged present-file outcome.
+    Kills _remux_video m46/m47 (ledger: behavior-EQUIV at the site - the
+    VALUE pin is what turns an UNKILLABLE-by-behavior key into a kill)."""
+    with tmpdir() as d:
+        svc, video, cp = _remux_setup(d)
+
+        def make() -> None:
+            cp.write_bytes(b"z" * 1000)
+
+        calls, patcher = _unlink_spy()
+        with patcher, exec_world([_process(0)], actions=[make]), logcap() as cap:
+            assert _run(svc._remux_video(video, cp)) is None
+            assert not cp.exists()
+            assert calls == [{"missing_ok": True}]
+            cap.one(
+                "Remux produced suspiciously small file (1000 bytes), falling back to transcode",
+                logging.WARNING,
+            )
+
+
+def test_remux_rc_fail_absent_file_unlink_kwargs_and_no_handler_chain():
+    """rc!=0 with NO output file: shipped deletes a missing file SILENTLY.
+    missing_ok=False/None raises FileNotFoundError into _remux_video's OWN
+    `except Exception`, whose DEBUG line must NOT exist, and the partial-file
+    message must NOT be claimed - the observable is the kwargs VALUE plus
+    these two negative log pins. Kills _remux_video m49/m50."""
+    with tmpdir() as d:
+        svc, video, cp = _remux_setup(d)
+        calls, patcher = _unlink_spy()
+        with patcher, exec_world([_process(42)]), logcap() as cap:
+            assert _run(svc._remux_video(video, cp)) is None
+            assert calls == [{"missing_ok": True}]
+            cap.one("Remux failed (returncode=42), will try full transcode", logging.DEBUG)
+            cap.none_containing("Remux failed with exception")
+
+
+def test_remux_timeout_absent_file_unlink_kwargs_and_no_handler_chain():
+    """Timeout with NO output file: same shape as the rc-fail row on the
+    timeout unlink site L442. Kills _remux_video m55/m56."""
+    with tmpdir() as d:
+        svc, video, cp = _remux_setup(d)
+        calls, patcher = _unlink_spy()
+        with patcher, exec_world([_process(0)], wait_exc=TimeoutError()), logcap() as cap:
+            assert _run(svc._remux_video(video, cp)) is None
+            assert calls == [{"missing_ok": True}]
+            cap.one("Remux timed out, falling back to transcode", logging.WARNING)
+            cap.none_containing("Remux failed with exception")
+
+
+def test_cleanup_cache_unlink_passes_no_kwargs():
+    """cleanup_cache's delete site is `cache_file.unlink()` with NO kwargs
+    (measured shipped L593) - the KEY-SET capture kills any missing_ok-family
+    twin of this site (an added kwarg shows an extra key); the present-file
+    behavior pin (file gone, count 1) rides the same row. Frozen clock,
+    environment-independent."""
+    with tmpdir() as d:
+        svc = _service(d)
+        now = 1_800_000_000.0
+        f = d / "one_transcoded.mp4"
+        f.write_bytes(b"x" * 10)
+        os.utime(f, (now - 8 * 86400, now - 8 * 86400))
+        calls, patcher = _unlink_spy()
+        with patcher, mock.patch.object(time, "time", lambda: now), logcap():
+            assert svc.cleanup_cache(max_age_days=7) == 1
+            assert not f.exists()
+            assert calls == [{}]
+
+
+def test_remux_success_path_never_unlinks():
+    """The success branch must NOT unlink (a move-the-unlink-above-the-return
+    or an always-unlink twin deletes the remuxed file here). Call-count pin:
+    spy sees NOTHING while _remux_video succeeds. Complements the row-1
+    success row, which never observed unlink calls at all."""
+    with tmpdir() as d:
+        svc, video, cp = _remux_setup(d)
+
+        def make() -> None:
+            cp.write_bytes(b"z" * 1001)
+
+        calls, patcher = _unlink_spy()
+        with patcher, exec_world([_process(0)], actions=[make]):
+            assert _run(svc._remux_video(video, cp)) == cp
+            assert calls == []
+
+
+def test_corrupted_cache_unlink_passes_missing_ok_true_present_file():
+    """get_cached_video L344 (inside the exists()+size block, present file):
+    the VALUE pin. Kills get_cached_video m10/m11 (behavior-EQUIV: the pin
+    is what makes them killable)."""
+    with tmpdir() as d:
+        video = d / "v.avi"
+        video.write_bytes(b"x" * 1600)
+        svc = _service(d / "cache")
+        cp = _cache_path_for(svc, video.resolve())
+        cp.write_bytes(b"y" * 999)
+        calls, patcher = _unlink_spy()
+        with patcher, logcap() as cap:
+            assert svc.get_cached_video(video) is None
+            assert not cp.exists()
+            assert calls == [{"missing_ok": True}]
+            cap.one(f"Removing corrupted cache file (999 bytes): {cp}", logging.WARNING)
+
+
+def test_delete_cached_success_unlink_passes_no_kwargs():
+    """delete_cached calls cache_path.unlink() with NO kwargs - the KEY-SET
+    capture (not a value read) kills both an added-kwarg twin and the
+    missing_ok family here (a mutant adding missing_ok shows an extra key)."""
+    with tmpdir() as d:
+        video = d / "v.avi"
+        video.write_bytes(b"x" * 1600)
+        svc = _service(d / "cache")
+        cp = _cache_path_for(svc, video.resolve())
+        cp.write_bytes(b"c" * 1500)
+        calls, patcher = _unlink_spy()
+        with patcher, logcap() as cap:
+            assert svc.delete_cached(video) is True
+            assert not cp.exists()
+            assert calls == [{}]
+            cap.one(f"Deleted cached transcoded file: {cp}", logging.DEBUG)
+
+
+def test_get_or_transcode_cache_hit_never_awaits_transcode():
+    """The FORWARDING contract on the cache-hit leg: transcode_video is
+    NEVER awaited when get_cached_video returns a path. m6's `cached = None`
+    returns the SAME value via transcode_video's own cache short-circuit, so
+    only the call-witness separates shipped from mutant (the #45 forwarding
+    pattern). Kills get_or_transcode m6."""
+    with tmpdir() as d:
+        avi = d / "v.avi"
+        avi.write_bytes(b"x" * 1600)
+        svc = _service(d / "cache")
+        cp = _cache_path_for(svc, avi.resolve())
+        cp.write_bytes(b"c" * 1500)
+        transcode_calls: list[tuple] = []
+
+        async def _no_transcode(path: Any, force: bool = False) -> Path:
+            transcode_calls.append((path, force))
+            return Path("MUST-NOT-RUN")
+
+        with mock.patch.object(svc, "transcode_video", _no_transcode):
+            out = _run(svc.get_or_transcode(avi))
+            assert out == cp
+            assert transcode_calls == []
+
+
+def test_transcode_remux_call_forwards_validated_path_in_full_argv():
+    """transcode_video's remux attempt must hand _remux_video the VALIDATED
+    path: m9 passes None, which str()-interpolates into the ffmpeg argv as
+    "-i None" (subprocess is mocked, so argv is the observable). FULL argv
+    equality at exec call 0, then the full-path outcome rides the row-1
+    shape. Kills transcode_video m9."""
+    with tmpdir() as d:
+        svc, video, cp = _remux_setup(d)
+
+        def make() -> None:
+            cp.write_bytes(b"t" * 4321)
+
+        with (
+            mock.patch.object(ts, "get_video_encoder_args", lambda **_kw: ["-c:v", SW_CODEC]),
+            logcap(),
+        ):
+            with exec_world([_process(7), _process(0)], actions=[None, make]) as w:
+                assert _run(svc.transcode_video(video)) == cp
+                assert list(w.exec.calls[0][0]) == [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    str(video),
+                    "-c:v",
+                    "copy",
+                    "-c:a",
+                    "copy",
+                    "-movflags",
+                    "+faststart",
+                    str(cp),
+                ]
+
+
+def test_encoder_args_default_argument_is_hardware_true():
+    """Signature default: get_video_encoder_args() with NO argument must
+    attempt hardware in a hardware-ready world (m1 defaults use_hardware to
+    False -> silent software encoder on every NVENC host). The detector
+    witness sees the call, and the returned list is the FULL NVENC list.
+    Kills get_video_encoder_args m1."""
+    seen: list[int] = []
+    with (
+        mock.patch.object(
+            ts,
+            "get_settings",
+            _settings(hardware_acceleration_enabled=True, nvenc_preset="p7", nvenc_cq=19),
+        ),
+        mock.patch.object(ts, "check_nvenc_available", _hw_probe(seen, True)),
+    ):
+        assert ts.get_video_encoder_args() == [
+            "-c:v",
+            NV_CODEC,
+            "-preset",
+            "p7",
+            "-cq",
+            "19",
+            "-pix_fmt",
+            PIX,
+        ]
+        assert seen == [1]
+
+
+def test_cleanup_default_age_deletes_a_7_5_day_file():
+    """Signature default: cleanup_cache() with NO argument must use 7 days.
+    The FROZEN-clock file at age 7.5 days deletes at default-7 (m1's default
+    8 keeps it -> count 0 -> dead here). Environment-independent: the clock
+    is patched, the age exact in float64. Kills cleanup_cache m1."""
+    with tmpdir() as d:
+        svc = _service(d)
+        now = 1_800_000_000.0
+
+        def touch(name: str, age: float) -> Path:
+            f = d / name
+            f.write_bytes(b"x" * 10)
+            os.utime(f, (now - age, now - age))
+            return f
+
+        mid = touch("mid_transcoded.mp4", 7 * 86400 + 43200)
+        with mock.patch.object(time, "time", lambda: now):
+            assert svc.cleanup_cache() == 1
+            assert not mid.exists()
+
+
+def test_cleanup_single_delete_still_logs_summary():
+    """The summary gate is `deleted_count > 0`: EXACTLY ONE deletion must
+    still log the summary (m23's `> 1` swallows it). The message carries the
+    un-pluralized "1 files" grammar - pinned FULL, never a fragment
+    ([[fragment-count-asserts-pass-xx-mutants]]). Frozen clock, environment-
+    independent. Kills cleanup_cache m23."""
+    with tmpdir() as d:
+        svc = _service(d)
+        now = 1_800_000_000.0
+        one = d / "only_transcoded.mp4"
+        one.write_bytes(b"x" * 10)
+        os.utime(one, (now - 8 * 86400, now - 8 * 86400))
+        with mock.patch.object(time, "time", lambda: now), logcap() as cap:
+            assert svc.cleanup_cache(max_age_days=7) == 1
+            assert not one.exists()
+            cap.one("Cache cleanup: deleted 1 files older than 7 days", logging.INFO)
+
+
+# ============================================================================
 # singleton (module-level)
 # ============================================================================
 
