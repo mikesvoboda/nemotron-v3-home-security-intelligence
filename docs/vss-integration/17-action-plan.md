@@ -223,7 +223,7 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-06 (ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`). The Filed columns count every issue by its filed
+Counts as of 2026-10-06 (ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
 ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
@@ -231,9 +231,9 @@ when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 97    |
+| open        | 96    |
 | in-progress | 0     |
-| done        | 6     |
+| done        | 7     |
 | wont-fix    | 0     |
 | superseded  | 0     |
 | total       | 103   |
@@ -242,13 +242,13 @@ when you add or close an issue (there is no script; the register is prose).
 | -------- | ----- | ---- |
 | P0       | 1     | 0    |
 | P1       | 36    | 33   |
-| P2       | 51    | 49   |
+| P2       | 51    | 48   |
 | P3       | 15    | 15   |
-| total    | 103   | 97   |
+| total    | 103   | 96   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
-| agent-now      | 68    | 65   |
+| agent-now      | 68    | 64   |
 | owner-decision | 29    | 26   |
 | owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
@@ -256,7 +256,7 @@ when you add or close an issue (there is no script; the register is prose).
 | Kind     | Filed | Open |
 | -------- | ----- | ---- |
 | bug      | 19    | 18   |
-| gap      | 37    | 35   |
+| gap      | 37    | 34   |
 | debt     | 18    | 18   |
 | decision | 17    | 15   |
 | risk     | 12    | 11   |
@@ -267,7 +267,7 @@ when you add or close an issue (there is no script; the register is prose).
 | Verdict reliability and observability     | 0   | 6   | 3   | 1   | 10    | 9    |
 | Prompt, verdict quality and calibration   | 0   | 2   | 2   | 1   | 5     | 5    |
 | Video, ingest and key frames              | 0   | 4   | 6   | 1   | 11    | 11   |
-| Evaluation and S-bar measurement          | 0   | 9   | 12  | 2   | 23    | 22   |
+| Evaluation and S-bar measurement          | 0   | 9   | 12  | 2   | 23    | 21   |
 | Specialists                               | 0   | 2   | 4   | 0   | 6     | 6    |
 | Serving, deploy and supply chain          | 0   | 3   | 5   | 0   | 8     | 8    |
 | Security, privacy and licensing           | 0   | 3   | 3   | 1   | 7     | 7    |
@@ -3153,6 +3153,12 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   holdout is replayed k times per candidate, not once, with the spread reported; `report.md` labels
   dev and holdout numbers.
 - **Depends on.** ISS-043 and ISS-078 (repeat runs before any split decision); blocks ISS-008.
+- **Update 2026-10-06 (ISS-043 closed on `vlm-pipeline`) [V].** The precondition is met: the
+  scenario-cluster bootstrap, the paired dS2/dS3 form and exact McNemar are in
+  `backend/evaluation/cluster_stats.py` and print in every `report.md`; the sampling choice is on
+  each replay's conditions line. Split design is free to proceed; 'replayed k times per candidate'
+  reads per the 2026-10-03 update above (one replay plus the determinism check the conditions line
+  now makes inspectable).
 - **Tracked as.** None found.
 - **Severity note.** Verifiers read P1 (agree) and P2 (prospective, cheap if done first). Sequence
   it before ISS-008, ISS-024 and ISS-053 start.
@@ -3284,7 +3290,7 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
 
 #### ISS-043 — Add cluster-aware intervals, repeat runs and a noise floor to S2/S3
 
-`P2` · `gap` · actor `agent-now` · status `open`
+`P2` · `gap` · actor `agent-now` · status `done` · closed 2026-10-06 (see the closure note)
 
 - **Evidence**
   - `backend/evaluation/s_metrics.py:36` `wilson_interval` treats items as independent; events share
@@ -3324,6 +3330,28 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   not depend on sampling. Determinism was shown on two runs on one server and one build; hardware,
   concurrent slots and a build change are untested [?], so a repeat-run check is still worth one
   line in any report that compares two arms.
+- **Closure 2026-10-06 (branch `vlm-pipeline`, owner-authorized slice) [V].** All three acceptance
+  terms are in the shipped report path:
+  **(1) Cluster interval beside Wilson** — `backend/evaluation/cluster_stats.py` (new; stdlib-only,
+  the sweep script's estimators promoted: the scenario-cluster bootstrap and its paired form, exact
+  McNemar, and the noise-floor spread). `synthbench/score/metrics.py` `headline()` gains
+  `s2_cluster`/`s3_cluster` (scenario tables over the same rows as the Wilson cells) and
+  `comparison()` gains `dS2`/`dS3` with 95% cluster CIs over the shared items plus per-bar exact
+  McNemar on the discordants; `report.md` prints clustered columns beside every Wilson cell and the
+  paired columns in the Comparison table, with a note stating what each resamples. `SCORE_VERSION`
+  bumps to 2 for the `metrics.json` schema change. **(2) The sampling choice recorded** —
+  `run.json` and the report's conditions table now carry `temperature` and `seed` per model, and a
+  test pins the record against the request actually sent (the ISS-045 2026-10-03 acceptance addition
+  is met for the sampling half; ISS-045 stays open for its own terms). The repeat-run spread stays a
+  per-report term (the noise floor lives in `cluster_stats.noise_floor`; it is computed when a report
+  has reruns to describe). **(3) Paired comparisons, never 'improvement' inside the floor** — the
+  paired statistics are in every comparison the report prints; OD-26's rule text (already
+  'never a pick') and the Intake entry of 2026-10-06 keep the wording binding. Tests:
+  `backend/tests/unit/evaluation/test_cluster_stats.py` (hand-computed pins — identical clusters at
+  zero width, heterogeneous clusters strictly wider than Wilson, McNemar small-numbers by hand) and
+  the additions to `test_score.py` / `test_replay.py`; full unit suite green (30,461 passed, 122
+  skipped, 8 xfailed) on `vlm-pipeline`. Not in this closure: the sweep's `stats.json` was not recomputed (it is a frozen
+  record of its own run) and ISS-045's remaining terms are untouched.
 
 #### ISS-044 — Replace the leading audit with a blind check, and report its limits
 
@@ -3413,6 +3441,12 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   scoring.
 - **Depends on.** ISS-079 (the run driver); ISS-082 (settings needed to run the tools).
 - **Tracked as.** None found.
+- **Update 2026-10-06 (branch `vlm-pipeline`, ISS-043 closure) [V].** The 2026-10-03 acceptance
+  addition below is met: `run.json` records the temperature read from the client constant, the seed
+  slot is recorded as absent, the report's conditions table prints both, and a test fails if either
+  the record or the printed column omits it. The rest of ISS-045's acceptance (dirty-tree flag,
+  still re-hash, flagship image identity, store-row conditions, read-only scoring) is untouched and
+  this issue stays `open`.
 - **Update 2026-10-03 (after `9f4e65cd`) [V].** Carried from the ISS-078 closure: the shipped
   sampling contract is now temperature 0 (`_ASSESS_TEMPERATURE`), but no replay artifact records it.
   A grep of `synthbench/run`, `synthbench/score` and `backend/evaluation` for `temperature` finds
@@ -7628,3 +7662,31 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   authorizes a draft only); it files no ids; it does not start ISS-043's implementation (that
   follows next on this branch); the pre-screen's build is agent work under the OD-15 ruling, and its
   runs will carry their conditions line.
+
+### 2026-10-06 (ISS-043 closes on `vlm-pipeline`: the cluster interval and the paired test are in the report path, and so is the sampling choice on the conditions line)
+
+- **What ran.** The measurement-validity slice's first item, implemented test-first on
+  `vlm-pipeline`: `backend/evaluation/cluster_stats.py` (new) promotes the sweep script's
+  estimators - scenario-cluster bootstrap, its paired form, exact McNemar, the run-to-run spread -
+  to a tested, stdlib-only module (`s_metrics`' no-undeclared-dependency rule for anything a fixed
+  bar's report rests on). `synthbench/score` prints them: `headline()` carries `s2_cluster`/
+  `s3_cluster` beside every Wilson cell, `comparison()` carries the paired McNemar and dS2/dS3 with
+  cluster CIs over the shared items, and `report.md` states in prose what each column resamples;
+  `SCORE_VERSION` is 2 because `metrics.json` gained keys. The sampling choice - `temperature` read
+  from the client constant and the absent `seed` - is recorded per replay in `run.json` and printed
+  in the report's conditions table, a test pinning the record against the request that was actually
+  sent (this satisfies ISS-045's 2026-10-03 acceptance addition; ISS-045 itself stays open for its
+  own terms). The ISS-043 block carries the closure note; the Dashboard moves open 97->96, done
+  6->7.
+- **Tested.** New pins are hand-computed where a bootstrap answer is seed-independent (identical
+  clusters at zero width; heterogeneous clusters strictly wider than Wilson - the ISS-043 claim
+  itself; McNemar 5-vs-0 = 0.0625 by hand). Unit suite green: 30,461 passed, 122 skipped, 8
+  xfailed.
+- **Sandbox note (not a repo fact).** Two sandbox-environment fixes this session needed, neither
+  committed: the venv had the GUI `opencv-python` wheel and no `libxcb`, so synthbench's conftest
+  could not import at all - fixed in the sandbox venv with `uv pip install opencv-python-headless`
+  (the lock already resolves headless; `uv sync` reverts this); and `pre-commit` hooks are now
+  installed in this sandbox's `.git/hooks` (pre + commit-msg).
+- **What this entry does not do:** no new ids; no bar, D or S line moved; the sweep's frozen
+  `stats.json` is not recomputed; ISS-016's split design has not started (it is next in the
+  slice's order).

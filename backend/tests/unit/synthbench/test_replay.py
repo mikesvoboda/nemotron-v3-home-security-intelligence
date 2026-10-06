@@ -397,6 +397,26 @@ def test_a_vllm_replay_records_the_conditions_it_ran_under(
     assert (body["max_tokens"], timeout["read"]) == (record["max_tokens"], record["read_timeout"])
 
 
+def test_the_conditions_line_records_the_sampling_choice(tmp_path: Path) -> None:
+    """ISS-043's repeat-run term: a comparison is only comparable if the report
+    can show both arms sampled alike. The shipped assess path samples at
+    temperature 0 with no seed (ISS-078); the conditions line must SAY so, per
+    model, and say what the requests actually carried - the record is not
+    allowed to claim a sampling the wire did not show."""
+    export = _export(tmp_path, n=1)
+    recording = _Recording(httpx.MockTransport(lambda _: _vllm_reply()))
+    deps = Deps(get=_get(served=FLAGSHIP.served_id), run=_run(), inner_transport=recording)
+    result = execute(
+        FLAGSHIP, URL, export, tmp_path / "eval" / "eval.sqlite", tmp_path / "runs", None, deps
+    )
+    record = json.loads((result.run_dir / "run.json").read_text(encoding="utf-8"))
+    assert record["temperature"] == 0.0
+    assert record["seed"] is None
+    [(body, _)] = recording.verdicts
+    assert body["temperature"] == record["temperature"]
+    assert "seed" not in body  # unseeded means the wire carries no seed, not seed=None
+
+
 def test_a_relative_export_is_resolved_before_the_import(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -19,7 +19,7 @@ from synthbench.score.scoring import weights_identity
 from backend.evaluation.eval_store import EvalStore
 from backend.evaluation.label_import import import_generated_items
 from backend.evaluation.levels import floor_for_expected_score
-from backend.evaluation.s_metrics import s2_false_positive_rate, s3_recall
+from backend.evaluation.s_metrics import s2_false_positive_rate, s3_recall, wilson_interval
 from backend.tests.unit.synthbench import helpers as h
 
 BANDS = {"threat": (70, 95), "suspicious": (30, 59), "hard_negative": (0, 25), "benign": (0, 15)}
@@ -170,6 +170,65 @@ def test_the_markdown_is_aggregate_with_n_intervals_and_insufficient() -> None:
     assert "generated:" not in text and "B-b-" not in text  # no per-item rows
 
 
+# ISS-043: cluster bootstrap beside Wilson, and the paired test on the comparison.
+
+
+def test_headline_carries_a_scenario_cluster_bootstrap_beside_wilson() -> None:
+    """Three scenarios, one of them ALL false alarms: Wilson reads the 15 benign
+    items as independent; the cluster resample can draw the bad scenario thrice
+    and must read wider. The point rate is the same 33.3% either way."""
+    groups = [
+        [_item(f"B-b-{g}{i:02d}", "benign", scenario=f"s{g}") for i in range(5)]
+        for g in range(3)  # s0, s1: 0 flagged; s2: all flagged
+    ]
+    items = _items(*[i for g in groups for i in g])
+    rows = [_row(i, 10) for i in groups[0]] + [_row(i, 10) for i in groups[1]]
+    rows += [_row(i, 70) for i in groups[2]]
+
+    cluster = score_models([("m", "r", rows)], items, {}, [])["models"]["m"]["all"]["s2_cluster"]
+    assert cluster["point_pct"] == pytest.approx(100 * 5 / 15, abs=1e-3)  # 5/15; 4dp JSON rounding
+    assert cluster["clusters"] == 3
+    lo, hi = wilson_interval(2, 15)  # pinned on its own in test_s_metrics.py
+    assert cluster["ci_pct"][0] < 100 * lo  # the clustered reading is the WIDER one
+    assert cluster["ci_pct"][1] > 100 * hi
+
+
+def test_the_comparison_is_paired_with_mcnemar_and_a_cluster_ci() -> None:
+    """The 3-item fixture: one item each arm wins -> discordants 1/1, exact p
+    1.0 by hand (two fair-coin draws each side). Pooled hits are 2 for each arm
+    over the same 3 shared incidents: dS3 = 0.0 points by hand - the paired
+    reading says 'this disagreement is within fair-coin noise', which is the
+    whole point of testing the discordants instead of the two rates."""
+    a_only, b_only, both = (_item(f"B-t-{i:03d}", "threat") for i in range(3))
+    items = _items(a_only, b_only, both)
+    rows_a = [_row(a_only, 90), _row(b_only, 20), _row(both, 90)]
+    rows_b = [_row(a_only, 20), _row(b_only, 90), _row(both, 90)]
+    pair = score_models([("a", "ra", rows_a), ("b", "rb", rows_b)], items, {}, [])["comparison"][0]
+    assert pair["s3_discordants"]["only_a"] == 1
+    assert pair["s3_discordants"]["only_b"] == 1
+    assert pair["s3_discordants"]["p"] == pytest.approx(1.0)
+    assert pair["dS3"]["point_pts"] == pytest.approx(0.0)
+    assert pair["dS3"]["clusters"] == 1  # every fixture item shares one scenario
+    assert pair["s2_discordants"]["only_a"] == 0 and pair["s2_discordants"]["p"] == 1.0
+    assert pair["dS2"]["point_pts"] is None  # no benign items: no S2 leg
+
+
+def test_the_report_prints_the_cluster_interval_and_the_paired_test() -> None:
+    benign = [_item(f"B-b-{i:03d}", "benign") for i in range(12)]
+    threats = [_item(f"B-t-{i:03d}", "threat") for i in range(12)]
+    items = _items(*benign, *threats)
+    rows_a = [_row(b, 45 if i < 3 else 10) for i, b in enumerate(benign)]
+    rows_a += [_row(t, 90 if i < 8 else 40) for i, t in enumerate(threats)]
+    rows_b = [_row(b, 10) for b in benign] + [_row(t, 90) for t in threats]
+    metrics = score_models([("a", "ra", rows_a), ("b", "rb", rows_b)], items, {}, [])
+    text = markdown(metrics, {"score_id": "S", "replays": [], "export": {}, "audit": {}})
+    assert "Clustered S2" in text and "Clustered S3" in text
+    assert re.search(r"clustered \d+\.\d% \[-?\d+\.\d+-?\d+\.\d\] \(n=\d+, \d+ scenarios\)", text)
+    assert "McNemar p" in text
+    assert "dS3 [cluster CI]" in text
+    assert "generated:" not in text  # still aggregate
+
+
 # The command, end to end, over a real export and eval store.
 
 
@@ -311,6 +370,8 @@ CONDITIONS = {
         "read_timeout": 25.0,
         "system_message": None,
         "thinking": "—",
+        "temperature": 0.0,
+        "seed": None,
     },
     "cosmos-reason2-8b": {
         "transport": "vllm",
@@ -320,6 +381,8 @@ CONDITIONS = {
         "read_timeout": 120.0,
         "system_message": COSMOS_FORMAT,
         "thinking": "on (asked by its system message; parsed by vLLM)",
+        "temperature": 0.0,
+        "seed": None,
     },
     "flagship": {
         "transport": "vllm",
@@ -329,6 +392,8 @@ CONDITIONS = {
         "read_timeout": 25.0,
         "system_message": None,
         "thinking": "off",
+        "temperature": 0.0,
+        "seed": None,
     },
 }
 
@@ -349,10 +414,10 @@ def test_the_report_states_each_models_conditions(tmp_path: Path) -> None:
     text = (out / "report.md").read_text(encoding="utf-8")
     assert "Comparison models may run under different conditions" in text
     rows = {
-        "| qwen3-vl-8b | ai-vlm | shipped | — | 1024 | 25 s | on |",
+        "| qwen3-vl-8b | ai-vlm | shipped | — | 1024 | 25 s | on | temp 0.0, unseeded |",
         "| cosmos-reason2-8b | vllm | shipped + system message (A7) | on (asked by its system "
-        "message; parsed by vLLM) | 4096 | 120 s | off |",
-        "| flagship | vllm | shipped | off | 1024 | 25 s | off |",
+        "message; parsed by vLLM) | 4096 | 120 s | off | temp 0.0, unseeded |",
+        "| flagship | vllm | shipped | off | 1024 | 25 s | off | temp 0.0, unseeded |",
     }
     assert rows <= set(text.splitlines())
     assert json.dumps(COSMOS_FORMAT) in text  # the system message, verbatim

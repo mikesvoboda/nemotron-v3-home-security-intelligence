@@ -213,6 +213,15 @@ def conditions(model: Model, export: Path) -> dict[str, Any]:
         "read_timeout": settings.ai_vlm_read_timeout,
         "system_message": model.system_message if applied else None,
         "thinking": model.thinking,
+        # ISS-043's repeat-run term: the sampling choice, as the requests carry
+        # it. The shipped assess path is greedy at temperature 0 with NO seed
+        # (ISS-078) — the report must be able to show two arms were sampled
+        # alike, and a "the runs are deterministic" claim must rest on this
+        # line, not on memory. `seed` is None because the assess body carries
+        # no seed key; an empty slot here would read the same as "seeded
+        # nothing" only because that is what it is.
+        "temperature": float(extra.get("temperature", vlm_client._ASSESS_TEMPERATURE)),
+        "seed": extra.get("seed"),
     }
 
 

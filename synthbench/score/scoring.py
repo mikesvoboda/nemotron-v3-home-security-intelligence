@@ -25,7 +25,10 @@ from synthbench.export.vss import ExportedSet, read_sets
 from synthbench.score import report
 from synthbench.score.metrics import Item, result_rows, score_models
 
-SCORE_VERSION = 1
+# 2 (2026-10-06, ISS-043): `models.*.all` gains s2_cluster/s3_cluster and
+# `comparison[]` gains the paired test; metrics.json from before that differs
+# in keys, and this field is the only signal a reader has for it.
+SCORE_VERSION = 2
 _REPLAY_KEYS = (
     "replay_id",
     "model",
@@ -44,6 +47,9 @@ _REPLAY_KEYS = (
     "read_timeout",
     "system_message",
     "thinking",
+    # ISS-043: the sampling choice rides with the rest of the conditions.
+    "temperature",
+    "seed",
 )
 
 

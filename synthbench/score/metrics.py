@@ -15,6 +15,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from backend.evaluation.cluster_stats import (
+    cluster_bootstrap,
+    cluster_bootstrap_diff,
+    mcnemar_exact,
+)
 from backend.evaluation.levels import level_at_or_above, score_to_level
 from backend.evaluation.s_metrics import (
     s2_false_positive_rate,
@@ -123,8 +128,46 @@ def _band(rows: Sequence[Row], items: Mapping[str, Item]) -> dict[str, Any]:
     return out
 
 
+def _by_scenario(rows: Sequence[Row], items: Mapping[str, Item]) -> dict[str, list[Row]]:
+    """Rows grouped by the scenario cell: the cluster unit ISS-043 resamples
+    (items share a scenario, and a rendering or framing artifact misread once
+    tends to be misread on every still of that scenario)."""
+    groups: dict[str, list[Row]] = defaultdict(list)
+    for row in rows:
+        groups[str(items[row["item_id"]].facts["cell"]["scenario"])].append(row)
+    return groups
+
+
+def _s2_clusters(rows: Sequence[Row], items: Mapping[str, Item]) -> list[tuple[int, int]]:
+    """(benign items, false alarms) per scenario - S2's cluster table."""
+    out = []
+    for members in _by_scenario(rows, items).values():
+        eligible = [r for r in members if items[r["item_id"]].label == "benign"]
+        out.append(
+            (
+                len(eligible),
+                sum(1 for r in eligible if outcome(items[r["item_id"]], r) == "false_alarm"),
+            )
+        )
+    return out
+
+
+def _s3_clusters(rows: Sequence[Row], items: Mapping[str, Item]) -> list[tuple[int, int]]:
+    """(incident-leg items, floor hits) per scenario - S3's cluster table. The
+    denominator is hit+miss+refused, refusals included exactly as `s3_recall`
+    counts them (the module's shared convention)."""
+    out = []
+    for members in _by_scenario(rows, items).values():
+        eligible = [r for r in members if items[r["item_id"]].label == "incident"]
+        out.append(
+            (len(eligible), sum(1 for r in eligible if outcome(items[r["item_id"]], r) == "hit"))
+        )
+    return out
+
+
 def headline(rows: Sequence[Row], items: Mapping[str, Item]) -> dict[str, Any]:
-    """One model's metrics over some rows: `s_metrics`' own dicts plus a cell for each rate."""
+    """One model's metrics over some rows: `s_metrics`' own dicts plus a cell for each rate,
+    and ISS-043's scenario-cluster bootstrap beside each bar's Wilson interval."""
     rows = list(rows)
     labels = {item_id: item.label for item_id, item in items.items()}
     floors = {
@@ -142,6 +185,8 @@ def headline(rows: Sequence[Row], items: Mapping[str, Item]) -> dict[str, Any]:
         "verdicts": verdicts,
         "s2_cell": cell(s2["fp"], s2["n"]),
         "s3_cell": cell(s3["all"]["hit"], s3["all"]["n"]),
+        "s2_cluster": cluster_bootstrap(_s2_clusters(rows, items)),
+        "s3_cluster": cluster_bootstrap(_s3_clusters(rows, items)),
         "s3_excluding_zero_floor_cell": cell(
             s3["excluding_zero_floor"]["hit"], s3["excluding_zero_floor"]["n"]
         ),
@@ -192,16 +237,67 @@ def audit_summary(answers: Mapping[tuple[str, str], str], sampled: Sequence[str]
     }
 
 
+def _leg_is_event(item: Item, outcome_name: str) -> bool:
+    """Whether an outcome counts as the bar's flagged event in a cluster leg:
+    a false alarm for the benign leg, a hit for the incident leg. Refused and
+    the quiet outcomes are non-events (they stay in the denominator)."""
+    return outcome_name == ("false_alarm" if item.label == "benign" else "hit")
+
+
 def comparison(
     replays: Sequence[tuple[str, Sequence[Row]]], items: Mapping[str, Item]
 ) -> list[dict[str, Any]]:
-    """Per pair of models, over the items both replayed: how often their outcomes agree, and the
-    items one gets wrong (a miss, a false alarm or a refusal) that the other gets right."""
+    """Per pair of models, over the items both replayed: how often their outcomes agree, the
+    items one gets wrong (a miss, a false alarm or a refusal) that the other gets right, and
+    ISS-043's paired statistics - exact McNemar on the discordants plus dS2/dS3 with a
+    scenario-cluster CI (the OD-26 selection rule's test, computed in the report now)."""
     out: list[dict[str, Any]] = []
     for (a, rows_a), (b, rows_b) in itertools.combinations(replays, 2):
         by_a = {row["item_id"]: outcome(items[row["item_id"]], row) for row in rows_a}
         by_b = {row["item_id"]: outcome(items[row["item_id"]], row) for row in rows_b}
         common = sorted(by_a.keys() & by_b.keys())
+
+        # McNemar's unit is the bar's event per label: a benign item one arm
+        # false-alarms and the other clears, an incident one arm hits and the
+        # other misses. Two RIGHT-but-different outcomes (clear vs hit across
+        # labels cannot happen; hit-vs-hit always agrees) are concordant.
+        def discordants(
+            label: str,
+            common: Sequence[str],
+            by_a: Mapping[str, str],
+            by_b: Mapping[str, str],
+        ) -> tuple[int, int]:
+            only_a = only_b = 0
+            for item_id in common:
+                item = items[item_id]
+                if item.label != label:
+                    continue
+                ev_a = _leg_is_event(item, by_a[item_id])
+                ev_b = _leg_is_event(item, by_b[item_id])
+                only_a += ev_a and not ev_b
+                only_b += ev_b and not ev_a
+            return only_a, only_b
+
+        b_a, b_b = discordants("benign", common, by_a, by_b)
+        i_a, i_b = discordants("incident", common, by_a, by_b)
+        # The paired cluster table over the SHARED items only (the pairing is
+        # the point): (nb, fa_a, fa_b, ni, hit_a, hit_b) per scenario.
+        pairs: list[tuple[int, int, int, int, int, int]] = []
+        shared = set(common)
+        for members in _by_scenario([r for r in rows_a if r["item_id"] in shared], items).values():
+            nb = fa_a = fa_b = ni = hit_a = hit_b = 0
+            for row in members:
+                item = items[row["item_id"]]
+                if item.label == "benign":
+                    nb += 1
+                    fa_a += _leg_is_event(item, by_a[row["item_id"]])
+                    fa_b += _leg_is_event(item, by_b[row["item_id"]])
+                else:
+                    ni += 1
+                    hit_a += _leg_is_event(item, by_a[row["item_id"]])
+                    hit_b += _leg_is_event(item, by_b[row["item_id"]])
+            pairs.append((nb, fa_a, fa_b, ni, hit_a, hit_b))
+        diff = cluster_bootstrap_diff(pairs)
         out.append(
             {
                 "a": a,
@@ -209,6 +305,18 @@ def comparison(
                 "agree": cell(sum(1 for i in common if by_a[i] == by_b[i]), len(common)),
                 "a_wrong_b_right": [i for i in common if by_a[i] not in RIGHT and by_b[i] in RIGHT],
                 "b_wrong_a_right": [i for i in common if by_b[i] not in RIGHT and by_a[i] in RIGHT],
+                "s2_discordants": {"only_a": b_a, "only_b": b_b, "p": mcnemar_exact(b_a, b_b)},
+                "s3_discordants": {"only_a": i_a, "only_b": i_b, "p": mcnemar_exact(i_a, i_b)},
+                "dS2": {
+                    "point_pts": diff["point_pts"],
+                    "ci_pts": diff["ci_pts"],
+                    "clusters": diff["clusters"],
+                },
+                "dS3": {
+                    "point_pts": diff["point3_pts"],
+                    "ci_pts": diff["ci3_pts"],
+                    "clusters": diff["clusters"],
+                },
             }
         )
     return out

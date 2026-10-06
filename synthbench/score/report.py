@@ -21,7 +21,10 @@ CONDITIONS = (
 )
 CELLS = (
     'Each cell reads rate [95% Wilson interval] (n); under n = 10 it reads "insufficient". '
-    "S2 is benign scenes scored medium or above; S3 is incidents scored at or above their level."
+    "S2 is benign scenes scored medium or above; S3 is incidents scored at or above their "
+    "level. The clustered columns resample SCENARIOS, not items (ISS-043): items share a "
+    "scenario, so the Wilson interval understates the uncertainty whenever a scenario's "
+    "errors come in groups; the clustered reading is the one to read when the two disagree."
 )
 
 
@@ -33,6 +36,30 @@ def fmt(cell: Mapping[str, Any] | None) -> str:
         return f"insufficient (n={cell['n']})"
     lo, hi = cell["wilson_95"]
     return f"{cell['rate']:.1%} [{lo * 100:.1f}-{hi * 100:.1f}] (n={cell['n']})"
+
+
+def fmt_cluster(cluster: Mapping[str, Any] | None) -> str:
+    """A scenario-cluster bootstrap as text: `clustered X% [lo-hi] (n, c scenarios)`. The
+    point rate is the pooled reading (identical to the Wilson cell's); only the width
+    moves - that is the whole comparison ISS-043 asks the reader to make."""
+    if cluster is None or cluster["point_pct"] is None:
+        return "—"
+    lo, hi = cluster["ci_pct"]
+    return (
+        f"clustered {cluster['point_pct']:.1f}% [{lo:.1f}-{hi:.1f}] "
+        f"(n={cluster['n']}, {cluster['clusters']} scenarios)"
+    )
+
+
+def fmt_diff(diff: Mapping[str, Any] | None) -> str:
+    """A paired dS2/dS3 as text: `+X.X pts [lo to hi]`, or em-dash when this leg has no
+    eligible item (no benign items means no S2 leg, and the report says so by absence)."""
+    if diff is None or diff["point_pts"] is None:
+        return "—"
+    if diff["ci_pts"] is None:
+        return f"{diff['point_pts']:+.1f} pts [no clustered draw]"
+    lo, hi = diff["ci_pts"]
+    return f"{diff['point_pts']:+.1f} pts [{lo:+.1f} to {hi:+.1f}]"
 
 
 def _table(header: Sequence[str], rows: Sequence[Sequence[Any]]) -> list[str]:
@@ -47,14 +74,26 @@ def _headline(models: Mapping[str, Any], key: str) -> list[str]:
             model,
             m[key]["n"],
             fmt(m[key]["s2_cell"]),
+            fmt_cluster(m[key].get("s2_cluster")),
             fmt(m[key]["s3_cell"]),
+            fmt_cluster(m[key].get("s3_cluster")),
             fmt(m[key]["s3_excluding_zero_floor_cell"]),
             fmt(m[key]["refusal_cell"]),
             fmt(m[key]["uncertain_cell"]),
         ]
         for model, m in models.items()
     ]
-    header = ("Model", "Items", "S2", "S3", "S3, low floor excluded", "Refusals", "Uncertain")
+    header = (
+        "Model",
+        "Items",
+        "S2",
+        "Clustered S2",
+        "S3",
+        "Clustered S3",
+        "S3, low floor excluded",
+        "Refusals",
+        "Uncertain",
+    )
     return _table(header, rows)
 
 
@@ -117,6 +156,14 @@ def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
     def shown(value: Any, show: Callable[[Any], str]) -> str:
         return "unrecorded" if value is None else show(value)
 
+    def sampling(record: Mapping[str, Any]) -> str:
+        # ISS-043: two arms are only comparable if they were sampled alike.
+        if record.get("temperature") is None:
+            return "unrecorded"
+        return f"temp {record['temperature']}" + (
+            ", seeded" if record.get("seed") is not None else ", unseeded"
+        )
+
     rows = [
         [
             r.get("model"),
@@ -126,6 +173,7 @@ def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
             shown(r.get("max_tokens"), str),
             shown(r.get("read_timeout"), lambda seconds: f"{seconds:g} s"),
             shown(r.get("enforcement_probe"), lambda on: "on" if on else "off"),
+            sampling(r),
         ]
         for r in replays
     ]
@@ -137,6 +185,7 @@ def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
         "Max tokens",
         "Read timeout",
         "Enforcement probe",
+        "Sampling",
     )
     lines = _table(header, rows)
     for r in replays:
@@ -223,6 +272,12 @@ def _comparison(pairs: Sequence[Mapping[str, Any]]) -> list[str]:
             fmt(p["agree"]),
             len(p["a_wrong_b_right"]),
             len(p["b_wrong_a_right"]),
+            f"{p['s2_discordants']['only_a']} / {p['s2_discordants']['only_b']}"
+            f" (p={p['s2_discordants']['p']:.3g})",
+            fmt_diff(p.get("dS2")),
+            f"{p['s3_discordants']['only_a']} / {p['s3_discordants']['only_b']}"
+            f" (p={p['s3_discordants']['p']:.3g})",
+            fmt_diff(p.get("dS3")),
         ]
         for p in pairs
     ]
@@ -232,8 +287,20 @@ def _comparison(pairs: Sequence[Mapping[str, Any]]) -> list[str]:
         "Agreement",
         "Only the first wrong",
         "Only the second wrong",
+        "S2 discordants first / second (McNemar p)",
+        "dS2 [cluster CI]",
+        "S3 discordants first / second (McNemar p)",
+        "dS3 [cluster CI]",
     )
-    return _table(header, rows)
+    lines = _table(header, rows)
+    lines += [
+        "",
+        "The paired columns are ISS-043's: McNemar's exact p treats the discordant ITEMS as "
+        "independent, the dS2/dS3 interval resamples SCENARIOS (OD-26's form). A comparison "
+        "whose dS interval spans 0 is inside the run-to-run and scenario noise: neither arm "
+        "moved, whatever the point rates look like side by side.",
+    ]
+    return lines
 
 
 def markdown(
