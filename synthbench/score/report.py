@@ -212,8 +212,11 @@ def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
             sampling(r),
             _build(r.get("build")),
             # ISS-087: `shown`, not `_build`, because the absence means something different: the
-            # operator never declared what the endpoint was started with.
-            shown(r.get("server_settings"), str),
+            # operator never declared what the endpoint was started with. The `|` escape is for
+            # this table only — it is markdown's column separator, and an unescaped one in the
+            # free text of a declaration shifts every later cell's label; `run.json` and
+            # `metrics.json` keep the string exactly as the operator gave it.
+            shown(r.get("server_settings"), lambda text: text.replace("|", "\\|")),
         ]
         for r in replays
     ]

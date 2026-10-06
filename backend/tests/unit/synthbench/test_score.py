@@ -557,7 +557,7 @@ def test_a_pre_split_export_scores_as_unrecorded(tmp_path: Path) -> None:
     out = _scored_dir(tmp_path)
     metrics = json.loads((out / "metrics.json").read_text())
     assert metrics["identity"]["split"] == {"source": "unrecorded"}
-    assert metrics["identity"]["score_version"] == 3
+    assert metrics["identity"]["score_version"] == 4
     rows = _rows(out)
     assert len(rows) == 15
     assert {row["split"] for row in rows} == {"unrecorded"}
@@ -997,6 +997,44 @@ def test_the_conditions_line_names_the_build_and_the_declared_server_settings(
     assert by_model[declared]["server_settings"] == SERVER_SETTINGS
     assert by_model[older]["server_settings"] is None  # the key rides with the conditions
     assert by_model[older]["build"] is None
+
+
+def _conditions_table(lines: Sequence[str]) -> list[str]:
+    """The `## Conditions per model` table's own lines: a test's row match must not land on a
+    headline table, whose rows start with a model name just the same."""
+    start = lines.index("## Conditions per model") + 2
+    table = []
+    for line in lines[start:]:
+        if not line.startswith("|"):
+            break
+        table.append(line)
+    return table
+
+
+def test_a_pipe_in_the_declared_settings_cannot_split_the_row(tmp_path: Path) -> None:
+    """The declaration is free text and `|` is markdown's column separator: an unescaped one
+    silently moves every later cell, so a reader reads an 11-pipe row against a 10-column header
+    and the row's own labels lie about which condition is which. The markdown cell escapes it;
+    the record keeps the string exactly as given (ISS-087)."""
+    declared = "prompt cache off | idle slots 0"
+    model = "qwen3-vl-8b"
+    ids = _world(
+        tmp_path,
+        {model: {}},
+        {model: {"build": BUILD_NEW, "server_settings": declared} | CONDITIONS[model]},
+    )
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
+    out = _scored_dir(tmp_path)
+    table = _conditions_table((out / "report.md").read_text(encoding="utf-8").splitlines())
+    header, row = table[0], table[-1]
+    assert "prompt cache off \\| idle slots 0 |" in row  # the cell, escaped
+    # The separators a markdown reader sees (an escaped `\|` is text, not a boundary): the row
+    # must still have exactly one per column pair, or a later cell's label is on the wrong value.
+    separators = re.compile(r"(?<!\\)\|")
+    assert len(separators.findall(row)) == len(separators.findall(header)) == 11  # ten columns
+    identity = json.loads((out / "metrics.json").read_text())["identity"]
+    assert identity["replays"][0]["server_settings"] == declared  # markdown only: not the record
 
 
 def test_the_report_shows_no_absolute_host_path(tmp_path: Path) -> None:

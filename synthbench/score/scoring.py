@@ -31,11 +31,15 @@ from synthbench.export.vss import (
 from synthbench.score import report
 from synthbench.score.metrics import Item, result_rows, score_models
 
-# 3 (2026-10-06, ISS-016): `identity.split` and each results row's `split` appear; with a
-# recorded split the model blocks gain dev/holdout siblings of `all`. 2 (2026-10-06, ISS-043):
-# `models.*.all` gains s2_cluster/s3_cluster and `comparison[]` gains the paired test. Metrics
-# from before each differ in keys, and this field is the only signal a reader has for it.
-SCORE_VERSION = 3
+# 4 (2026-10-06, ISS-087): each `identity.replays[]` block gains `server_settings` — the
+# operator's declaration of what the endpoint was started with, which replay cannot observe. The
+# key rides unconditionally, so a score over run.json files written before it differs in keys
+# from the version-3 score the same replays produced. 3 (2026-10-06, ISS-016): `identity.split`
+# and each results row's `split` appear; with a recorded split the model blocks gain dev/holdout
+# siblings of `all`. 2 (2026-10-06, ISS-043): `models.*.all` gains s2_cluster/s3_cluster and
+# `comparison[]` gains the paired test. Metrics from before each differ in keys, and this field
+# is the only signal a reader has for it.
+SCORE_VERSION = 4
 _REPLAY_KEYS = (
     "replay_id",
     "model",
