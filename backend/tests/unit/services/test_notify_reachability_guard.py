@@ -268,6 +268,24 @@ class TestScanIsSound:
         leaked = sorted({r.module for r in references if r.module.startswith("tests/")})
         assert not leaked, f"test modules leaked into the reference set: {leaked}"
 
+    @pytest.mark.skipif(
+        # ABOUTME: under mutmut this row's scan root is mutants/backend/** - the
+        # GENERATED copies, which carry thousands of mutant functions per file.
+        # Measured 2026-10-06 (contention-free): 4.01s there vs 1.64s on the
+        # shipped tree, so the 2.0s premise is structurally false in the mutant
+        # home, and -x turned it into "failed to collect stats. runner returned
+        # 1" for every run that re-triggers stats. Same family as the
+        # timeout(600) raise in backend/tests/unit/test_no_legacy_pipeline_
+        # branches.py (its in-test assert carries no wall-clock ceiling, so it
+        # could raise the ceiling instead; here the ceiling IS the assertion).
+        # Skipping is verdict-safe the same way that precedent argues: this
+        # module imports no backend code, so dependency tracking associates it
+        # with NO mutant - the only runs that execute it are mutmut's stats
+        # pass and clean gate, which bank no verdicts. A clean CI checkout has
+        # no "mutants" path ancestor, so the shipped premise stays pinned.
+        "mutants" in Path(__file__).resolve().parts,
+        reason="mutant-home copies break the timing premise (see skipif comment)",
+    )
     def test_the_scan_is_fast_enough_to_belong_in_the_unit_tier(self):
         """All 510 shipped modules are walked on every run, so the substring
         pre-filter is what pays for that. The ceiling is deliberately generous:
@@ -474,7 +492,9 @@ class TestGuardIsNarrow:
             frozenset({"evaluate_event", "create_alerts_for_event", "deliver_alert"})
             == PARKED_BY_OD31
         ), "the parked set drifted from ISS-001's acceptance names"
-        module_text = Path(__file__).read_text(encoding="utf-8")
+        # This test file reads ITSELF - no external input (the prompt_storage.py
+        # precedent for this marker).
+        module_text = Path(__file__).read_text(encoding="utf-8")  # nosemgrep: path-traversal-open
         for name in PARKED_BY_OD31:
             assert name in module_text, f"{name} must stay named here, with its ruling"
         # ...and none of them is fed to the scanner - the scan's matcher set is
