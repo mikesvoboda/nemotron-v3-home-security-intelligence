@@ -13,7 +13,15 @@ import pytest
 from synthbench import cli
 from synthbench.commands.audit import audit_log
 from synthbench.export import vss
-from synthbench.score.metrics import MIN_N, Item, band_position, outcome, score_models
+from synthbench.score.metrics import (
+    MIN_N,
+    Item,
+    band_position,
+    outcome,
+    result_rows,
+    score_models,
+)
+from synthbench.score.report import html as render_gallery
 from synthbench.score.report import markdown
 from synthbench.score.scoring import weights_identity
 
@@ -943,3 +951,194 @@ def test_the_report_shows_no_absolute_host_path(tmp_path: Path) -> None:
     assert f"`audits/{h.VERSION}/audit.jsonl`" in text
     identity = json.loads((out / "metrics.json").read_text())["identity"]
     assert identity["export"]["path"] == str(tmp_path / "exports" / h.VERSION / "vss")
+
+
+# Task 7: report.md labels which side of the split every number belongs to and report.html shows
+# dev stills only (ISS-016 B7). The strings are the design's §5 strings; the counts in them are
+# computed from this run's own data, never transcribed from the real corpus.
+
+# What the split fixture's draw lands on: one incident scenario in the holdout (the k=1 clamp of
+# §2's edge, so 2 of the 3 incident items) and every benign item in dev (rule B1).
+SPLIT_HOLDOUT_EVENTS = ("B-t-000", "B-t-001")  # knife_visible
+SPLIT_DEV_EVENT = "B-t-002"  # loitering, the one incident item dev keeps
+
+
+def _split_scored(tmp_path: Path, misses: Mapping[str, int] | None = None) -> Path:
+    """A recorded-split score over two models, the second missing `misses`: its output dir.
+    Two models because the comparison is part of what §5 relabels, and one miss per arm so both
+    comparison tables and both gallery legs have something in them."""
+    ids = _split_fixture(
+        tmp_path,
+        "recorded",
+        {"qwen3-vl-8b": {}, "flagship": {**(misses or {}), SPLIT_DEV_EVENT: 20}},
+    )
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
+    return _scored_dir(tmp_path)
+
+
+def test_a_recorded_split_report_labels_its_headlines_and_identity(tmp_path: Path) -> None:
+    """§5's headings, verbatim, and the Split row's numbers computed from the manifest this score
+    checked. The all-items headline keeps its heading and its place: today's numbers keep their
+    meaning and stay comparable with the frozen records."""
+    out = _split_scored(tmp_path)
+    text = (out / "report.md").read_text(encoding="utf-8")
+    identity = json.loads((out / "metrics.json").read_text())["identity"]["split"]
+    lines = text.splitlines()
+    assert "## Headline: every scored item" in text
+    assert "## Headline: dev split (tuning may see this)" in text
+    assert "## Headline: holdout split (tuning never saw this)" in text
+    # The all-items table comes first, then dev, then holdout.
+    order = [
+        text.index("## Headline: every scored item"),
+        text.index("## Headline: dev split (tuning may see this)"),
+        text.index("## Headline: holdout split (tuning never saw this)"),
+    ]
+    assert order == sorted(order)
+    held, dev = identity["items"]["holdout"], identity["items"]["dev"]
+    [row] = [line for line in lines if line.startswith("- Split: ")]
+    assert row == (
+        f"- Split: {identity['source']} sha256 {identity['sha256']}; seed {identity['seed']}; "
+        f"holdout {identity['holdout_k']} scenarios / {held['incident']} incident items; "
+        f"dev {dev['incident'] + dev['benign']} ({dev['benign']} benign)"
+    )
+    assert "holdout 1 scenarios / 2 incident items; dev 13 (12 benign)" in row
+    assert "B-t-" not in text and "B-b-" not in text  # still aggregate: no item is named
+
+
+def test_a_recorded_split_report_states_what_the_split_can_and_cannot_say(
+    tmp_path: Path,
+) -> None:
+    """The section sits directly after Run identity and carries the draw's two bound-setting
+    properties, the S2-by-design note and the tuning rule — every number in it this run's own."""
+    out = _split_scored(tmp_path)
+    text = (out / "report.md").read_text(encoding="utf-8")
+    identity = json.loads((out / "metrics.json").read_text())["identity"]["split"]
+    assert "## What this split can and cannot say" in text
+    assert (
+        text.index("## Run identity")
+        < text.index("## What this split can and cannot say")
+        < text.index("## Headline: every scored item")
+    )
+    # The realized draw's two properties, plus B1's S2 note and B7's tuning rule.
+    assert "leak detector" in text
+    assert "suspicious-heavy" in text
+    assert "S2 is measured on dev by design" in text
+    assert "excluded from" in text and "has not seen them" in text
+    # The n the section discounts the holdout by is the manifest's, not a transcribed corpus size.
+    block = text.split("## What this split can and cannot say")[1].split("\n## ")[0]
+    assert f"{identity['items']['holdout']['incident']} incident items" in block
+    assert "209" not in block and "64 incident items" not in block
+
+
+def test_the_holdout_s2_cell_reads_as_no_data_with_its_reason(tmp_path: Path) -> None:
+    """The holdout holds no benign item (B1), so its S2 cell is `insufficient (n=0)` and the
+    section says why. The benign count in that sentence is THIS run's dev benign n — the real
+    corpus's 209 belongs to the design doc, not to a report over 15 items."""
+    out = _split_scored(tmp_path)
+    text = (out / "report.md").read_text(encoding="utf-8")
+    models = json.loads((out / "metrics.json").read_text())["models"]
+    leg = text.split("## Headline: holdout split (tuning never saw this)")[1].split("\n## ")[0]
+    assert "insufficient (n=0)" in leg
+    dev_benign = {m["dev"]["s2"]["n"] for m in models.values()}
+    assert dev_benign == {12}  # every benign item sits in dev, by rule B1
+    assert "no benign items in the holdout: S2 is measured on dev, which" in leg
+    assert f"holds all {next(iter(dev_benign))} benign items by design (ISS-016 B1)" in leg
+    assert "209 benign" not in text
+
+
+def test_the_scenario_slice_dev_only_sits_under_the_dev_headline(tmp_path: Path) -> None:
+    """§5's one slice addition: per-scenario failure detail — what a tuner reads to pick what to
+    fix — printed where tuning may see it. The all-items slice block stays as it was, so the
+    holdout's scenario still appears THERE and must not appear in the dev-only table."""
+    out = _split_scored(tmp_path)
+    text = (out / "report.md").read_text(encoding="utf-8")
+    assert "### Scenario slice, dev only" in text
+    assert text.index("## Headline: dev split") < text.index("### Scenario slice, dev only")
+    assert text.index("### Scenario slice, dev only") < text.index("## Headline: holdout split")
+    block = text.split("### Scenario slice, dev only")[1].split("\n## ")[0]
+    assert "loitering" in block and "hooded_jogger" in block  # the dev scenarios
+    assert "knife_visible" not in block  # the holdout's, absent by construction
+    assert "**scenario**" in text  # the unchanged all-items slice block still prints
+
+
+def test_the_comparison_prints_once_per_split_with_the_rule_on_dev(tmp_path: Path) -> None:
+    """Dev first and named as where the OD-26 rule decides, holdout second as the generalization
+    check with the rule not applied, and ISS-043's spans-zero note printed once for both."""
+    out = _split_scored(tmp_path, {SPLIT_HOLDOUT_EVENTS[0]: 20})
+    text = (out / "report.md").read_text(encoding="utf-8")
+    dev_label = "### Comparison: dev split (where the OD-26 rule decides)"
+    held_label = "### Comparison: holdout split (the generalization check; the rule is not applied)"
+    assert dev_label in text and held_label in text
+    assert text.index("## Comparison") < text.index(dev_label) < text.index(held_label)
+    # `## Comparison` is a substring of the `### Comparison: …` labels, so anchor on its line.
+    block = text.split("\n## Comparison\n")[1]
+    assert block.count("spans 0") == 1  # the closing note, printed once for both tables
+    assert block.count("| Models |") == 2
+
+
+def test_an_unrecorded_report_says_so_and_gains_no_sections(tmp_path: Path) -> None:
+    """B6 at the report layer: the manifestless export's report differs from today's by one line
+    and nothing else — no can/cannot-say section, no labelled headlines, no dev slice."""
+    ids = _world(tmp_path, {"qwen3-vl-8b": {}})
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
+    text = (_scored_dir(tmp_path) / "report.md").read_text(encoding="utf-8")
+    assert "- Split: unrecorded — this export predates ISS-016" in text
+    for heading in (
+        "## What this split can and cannot say",
+        "## Headline: dev split (tuning may see this)",
+        "## Headline: holdout split (tuning never saw this)",
+        "### Scenario slice, dev only",
+        "### Comparison: dev split",
+    ):
+        assert heading not in text
+    assert "## Headline: every scored item" in text
+    assert "## Comparison" in text and "### Comparison" not in text
+
+
+def test_the_gallery_shows_no_holdout_still(tmp_path: Path) -> None:
+    """B7's enforcement half: the failure gallery is what tuning actually looks at, so a holdout
+    miss must not appear in it, and neither must its still path (which carries its event id)."""
+    out = _split_scored(tmp_path, {SPLIT_HOLDOUT_EVENTS[0]: 20})
+    gallery = (out / "report.html").read_text(encoding="utf-8")
+    rows = _rows(out)
+    held = [row for row in rows if row["split"] == "holdout"]
+    assert held and all(row["event_id"] in SPLIT_HOLDOUT_EVENTS for row in held)
+    for row in held:
+        assert row["event_id"] not in gallery
+        assert row["still"] not in gallery
+        assert f"/{row['event_id']}/" not in gallery  # the still's path names the event
+    kept = next(r for r in rows if r["split"] == "dev" and r["event_id"] == SPLIT_DEV_EVENT)
+    assert f"/{kept['event_id']}/" in gallery  # the dev miss is still there to look at
+
+
+def _gallery_rows(
+    misses: Sequence[str] = (), *, unrecorded: bool = False
+) -> tuple[dict[str, Item], list[dict[str, Any]]]:
+    """One model's `result_rows` over the split fixture with `misses` scored low: the rows the
+    gallery renders, built the way `scoring` builds them. `unrecorded` withholds the roster,
+    which is the shape a pre-split export's rows carry."""
+    items, drawn, rows = _split_unit(misses)
+    arm_of = None if unrecorded else drawn
+    return items, result_rows([("m", "r", rows)], items, {}, set(), scenario_arm=arm_of)
+
+
+def test_the_gallery_renders_dev_and_unrecorded_but_never_a_splitless_row() -> None:
+    """The filter's three ways: a dev row renders, a holdout row does not, a row that simply
+    lacks the field raises (report.py's first and only raise), and an `unrecorded` row renders
+    because that gallery predates the split."""
+    _, rows = _gallery_rows((SPLIT_DEV_EVENT, SPLIT_HOLDOUT_EVENTS[0]))
+    assert {row["split"] for row in rows} == {"dev", "holdout"}
+    gallery = render_gallery({"score_id": "S"}, rows, Path("/out"))
+    assert "/x/B-t-002/still.jpg" in gallery  # the dev miss
+    assert "B-t-000" not in gallery  # the holdout miss: no card, no path, no caption
+    # A pre-split export's gallery renders everything, because there was no holdout to hide.
+    _, unrecorded = _gallery_rows((SPLIT_DEV_EVENT, SPLIT_HOLDOUT_EVENTS[0]), unrecorded=True)
+    assert all(row["split"] == "unrecorded" for row in unrecorded)
+    old = render_gallery({"score_id": "S"}, unrecorded, Path("/out"))
+    assert "/x/B-t-000/still.jpg" in old and "/x/B-t-002/still.jpg" in old
+    # The defect case: a row that reaches the gallery with no `split` to filter on.
+    nameless = [{k: v for k, v in row.items() if k != "split"} for row in rows]
+    with pytest.raises(ValueError, match="B-t-000"):
+        render_gallery({"score_id": "S"}, nameless, Path("/out"))

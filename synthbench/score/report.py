@@ -26,6 +26,17 @@ CELLS = (
     "scenario, so the Wilson interval understates the uncertainty whenever a scenario's "
     "errors come in groups; the clustered reading is the one to read when the two disagree."
 )
+UNRECORDED = "unrecorded"  # identity.split's source for an export written before ISS-016
+# §5's headings, verbatim. The two arms share `_headline`, so their columns are literally the
+# columns of the all-items table a reader has already been shown.
+SAYS = "## What this split can and cannot say"
+DEV_HEADLINE = "## Headline: dev split (tuning may see this)"
+HOLDOUT_HEADLINE = "## Headline: holdout split (tuning never saw this)"
+DEV_SLICE = "### Scenario slice, dev only"
+DEV_COMPARISON = "### Comparison: dev split (where the OD-26 rule decides)"
+HOLDOUT_COMPARISON = (
+    "### Comparison: holdout split (the generalization check; the rule is not applied)"
+)
 
 
 def fmt(cell: Mapping[str, Any] | None) -> str:
@@ -111,6 +122,22 @@ def shown_path(path: str | None, root: Path | None) -> str:
     return f"{target.name} (outside $SYNTHBENCH_ROOT)"
 
 
+def _split_row(split: Mapping[str, Any]) -> str:
+    """The Run identity's `Split` row (spec §5). A recorded split quotes the manifest this score
+    cross-checked, so every number in the row is the score's own; an export predating ISS-016 says
+    so and the report prints none of the split's sections."""
+    if not split.get("sha256"):  # unrecorded, or no split block at all (B6's shape)
+        return f"- Split: {UNRECORDED} — this export predates ISS-016"
+    items = split.get("items", {})
+    holdout, dev = items.get("holdout", {}), items.get("dev", {})
+    dev_items = int(dev.get("benign", 0)) + int(dev.get("incident", 0))
+    return (
+        f"- Split: {split.get('source')} sha256 {split.get('sha256')}; seed {split.get('seed')}; "
+        f"holdout {split.get('holdout_k')} scenarios / {holdout.get('incident')} incident items; "
+        f"dev {dev_items} ({dev.get('benign')} benign)"
+    )
+
+
 def _identity(identity: Mapping[str, Any], root: Path | None) -> list[str]:
     export, audit = identity.get("export", {}), identity.get("audit", {})
     store = identity.get("eval_store", {})
@@ -123,6 +150,7 @@ def _identity(identity: Mapping[str, Any], root: Path | None) -> list[str]:
         f"`{shown_path(store.get('path'), root)}`.",
         f"- Audit log `{shown_path(audit.get('path'), root)}`, sha256 "
         f"`{audit.get('sha256') or 'none yet'}`.",
+        _split_row(identity.get("split", {})),
         "- vLLM models: the image is pinned by digest in the operator runbook's start command; "
         "no endpoint reports it.",
         "",
@@ -252,6 +280,75 @@ def _verdicts(models: Mapping[str, Any]) -> list[str]:
     return _table(("Model", "Verdicts", "Unparseable", "Unavailable", "No cause"), rows)
 
 
+def _recorded(split: Mapping[str, Any]) -> bool:
+    """Whether this score read a split (Task 5's identity block). Everything §5 adds hangs on
+    this one test, so an export predating ISS-016 prints the report it printed before."""
+    return bool(split.get("sha256"))
+
+
+def _can_and_cannot(split: Mapping[str, Any]) -> list[str]:
+    """§5's bounds section, printed only when a split is recorded. The n it discounts the holdout
+    by is this run's own (the manifest `load_split` accepted), never the shipped corpus's."""
+    items = split.get("items", {})
+    holdout = items.get("holdout", {})
+    return [
+        SAYS,
+        "",
+        f"- The holdout is {holdout.get('incident', '?')} incident items over "
+        f"{split.get('holdout_k')} scenarios. That is a leak detector, not a precise estimate: "
+        "items share a scenario, so the scenario-cluster interval on this many items is several "
+        "times wider than the same count of independent items would be. A holdout rate here "
+        "checks that tuning on dev did not collapse generalization; it is not a competing "
+        "measurement of the 90% bar.",
+        "- The draw is unstratified (ISS-016 B4), so the holdout's group mix is the hash's luck "
+        "rather than a design choice, and it can land suspicious-heavy — the leg where recall is "
+        "worst. A holdout S3 below dev's is therefore expected for any prompt that has not fixed "
+        "that leg: read the dev-versus-holdout gap, never the holdout's level as a bar attempt.",
+        "- S2 is measured on dev by design: every benign scenario stays in dev (ISS-016 B1), so "
+        "the holdout says nothing at all about false alarms.",
+        "- Tuning rule: holdout stills and failures are excluded from `report.html`, the gallery "
+        "tuning reads, so a prompt tuned on this run's dev material has not seen them.",
+        "",
+    ]
+
+
+def _dev_benign(models: Mapping[str, Any], split: Mapping[str, Any]) -> int | None:
+    """The dev arm's benign item count, as the dev table beside the footnote shows it. Taken from
+    the run's own dev headlines; the manifest's own count is the fallback for a score with no
+    model block to read."""
+    counts = [int(m["dev"]["s2"]["n"]) for m in models.values() if "dev" in m]
+    if counts:
+        return max(counts)
+    benign = split.get("items", {}).get("dev", {}).get("benign")
+    return None if benign is None else int(benign)
+
+
+def _holdout_s2_note(models: Mapping[str, Any], split: Mapping[str, Any]) -> list[str]:
+    """Why the holdout's S2 cell is empty. The count is computed, never the shipped corpus's."""
+    if any(int(m["holdout"]["s2"]["n"]) for m in models.values() if "holdout" in m):
+        return []  # a stratified draw would have benign items here: nothing to explain
+    benign = _dev_benign(models, split)
+    if benign is None:
+        return []
+    return [
+        "",
+        f"Footnote: no benign items in the holdout: S2 is measured on dev, which holds all "
+        f"{benign} benign items by design (ISS-016 B1).",
+    ]
+
+
+def _scenario_slice_dev(models: Mapping[str, Any]) -> list[str]:
+    """§5's one slice addition: the per-scenario failure detail a tuner reads to pick what to fix,
+    over dev rows only (B7). The other slice dimensions stay all-items — they are aggregates, not
+    the unit of the split, and suppressing them would cost comparability for nothing."""
+    lines = [DEV_SLICE]
+    for model, m in models.items():
+        values = m.get("scenario_slice_dev") or {}
+        rows = [[value, fmt(c["s2"]), fmt(c["s3"])] for value, c in values.items()]
+        lines += ["", f"**{model}**", "", *_table(("Scenario", "S2", "S3"), rows)]
+    return lines
+
+
 def _slices(models: Mapping[str, Any]) -> list[str]:
     lines: list[str] = []
     for model, m in models.items():
@@ -262,7 +359,10 @@ def _slices(models: Mapping[str, Any]) -> list[str]:
     return lines
 
 
-def _comparison(pairs: Sequence[Mapping[str, Any]]) -> list[str]:
+def _comparison(pairs: Sequence[Mapping[str, Any]], note: bool = True) -> list[str]:
+    """One comparison table; `note` prints ISS-043's closing reading after it. With a recorded
+    split the report prints two tables and one note (`note=False` on the first), because the
+    reading below is the same sentence for both sides of the split."""
     if not pairs:
         return ["One model scored: nothing to compare."]
     rows = [
@@ -293,14 +393,36 @@ def _comparison(pairs: Sequence[Mapping[str, Any]]) -> list[str]:
         "dS3 [cluster CI]",
     )
     lines = _table(header, rows)
-    lines += [
-        "",
-        "The paired columns are ISS-043's: McNemar's exact p treats the discordant ITEMS as "
-        "independent, the dS2/dS3 interval resamples SCENARIOS (OD-26's form). A comparison "
-        "whose dS interval spans 0 is inside the run-to-run and scenario noise: neither arm "
-        "moved, whatever the point rates look like side by side.",
-    ]
+    if note:
+        lines += [
+            "",
+            "The paired columns are ISS-043's: McNemar's exact p treats the discordant ITEMS as "
+            "independent, the dS2/dS3 interval resamples SCENARIOS (OD-26's form). A comparison "
+            "whose dS interval spans 0 is inside the run-to-run and scenario noise: neither arm "
+            "moved, whatever the point rates look like side by side.",
+        ]
     return lines
+
+
+def _comparisons(metrics: Mapping[str, Any]) -> list[str]:
+    """Today's single table, or §5's two: dev first because that is where the OD-26 rule decides,
+    holdout second as the generalization check the rule is not applied to. The all-items
+    comparison the split_comparison sits beside keeps printing in `## Comparison`'s own voice when
+    no split was recorded, so pre-split records read unchanged."""
+    split = metrics.get("split_comparison")
+    if not split:
+        return _comparison(metrics["comparison"])
+    return [
+        DEV_COMPARISON,
+        "",
+        *_comparison(split["dev"], note=False),
+        "",
+        HOLDOUT_COMPARISON,
+        "",
+        # The reading applies to both tables and is printed once, after them — unless one model
+        # was scored and neither table exists, where a note about paired tests would mislead.
+        *_comparison(split["holdout"], note=bool(split["dev"] or split["holdout"])),
+    ]
 
 
 def markdown(
@@ -309,6 +431,8 @@ def markdown(
     """The aggregate report: rates, n and intervals, never a per-item row. Paths show relative
     to `root` ($SYNTHBENCH_ROOT)."""
     models = metrics["models"]
+    split = identity.get("split", {})
+    recorded = _recorded(split)
     lines = [
         f"# Synthbench P5a scores: {identity.get('score_id', '?')}",
         "",
@@ -324,10 +448,32 @@ def markdown(
         "",
         *_identity(identity, root),
         "",
+    ]
+    if recorded:
+        lines += _can_and_cannot(split)
+    lines += [
         "## Headline: every scored item",
         "",
         *_headline(models, "all"),
         "",
+    ]
+    if recorded:
+        # Same helper, same columns, different label: a reader compares the arms against the
+        # all-items table because the tables are the same shape.
+        lines += [
+            DEV_HEADLINE,
+            "",
+            *_headline(models, "dev"),
+            "",
+            *_scenario_slice_dev(models),
+            "",
+            HOLDOUT_HEADLINE,
+            "",
+            *_headline(models, "holdout"),
+            *_holdout_s2_note(models, split),
+            "",
+        ]
+    lines += [
         "## Headline: audited stills whose scene the owner confirmed",
         "",
         *_headline(models, "audited"),
@@ -349,7 +495,7 @@ def markdown(
         "",
         "## Comparison",
         "",
-        *_comparison(metrics["comparison"]),
+        *_comparisons(metrics),
     ]
     return "\n".join(lines) + "\n"
 
@@ -386,14 +532,35 @@ def _card(row: Mapping[str, Any], out_dir: Path) -> str:
     )
 
 
+def _shown(row: Mapping[str, Any]) -> bool:
+    """Whether this row's still may enter the gallery (ISS-016 B7).
+
+    The gallery is what prompt tuning actually looks at, so a holdout still reaching it is a
+    leak, not a cosmetic slip — which is why this is `report.py`'s only `raise` and why it
+    happens before any card is built: the score directory is left half-written as evidence.
+    `unrecorded` renders because that gallery predates the split; a row with no `split` at all
+    is the shape that cannot be checked, so it is refused rather than guessed at.
+    """
+    if "split" not in row:
+        raise ValueError(
+            f"the gallery row for {row.get('item_id')} carries no `split`: the failure gallery "
+            "shows dev and unrecorded stills only (ISS-016 B7), and a row that cannot be "
+            "checked for its arm cannot be shown"
+        )
+    return row["split"] in ("dev", UNRECORDED)
+
+
 def html(identity: Mapping[str, Any], results: Sequence[Mapping[str, Any]], out_dir: Path) -> str:
-    """The failure gallery, per model: each still with its facts and the VLM's reasoning."""
+    """The failure gallery, per model: each still with its facts and the VLM's reasoning. The
+    stills are dev's and, for a pre-split export, all of them (`_shown`). The heading for every
+    scored model is today's, so the filter changes which cards appear and nothing else."""
+    shown = [row for row in results if _shown(row)]
     sections: list[str] = []
     for model in dict.fromkeys(row["model"] for row in results):
         for wanted, heading in _GALLERIES:
             cards = [
                 _card(row, out_dir)
-                for row in results
+                for row in shown
                 if row["model"] == model and row["outcome"] == wanted and not row["excluded"]
             ]
             sections.append(
