@@ -7400,3 +7400,119 @@ risk_level: 'high'}` message acking **as desired behavior**. Band alignment mean
   acceptance's own "listed in the test or fixed with it" clause (listed, pinned, delete-don't-edit
   note) and the `EventResponse.model_dump_list` `exclude_none` worry was disproven on the live
   path by closure-test arm (b) — present-false survives the list route's serialization.
+
+### 2026-10-06 (the 2026-10-05 dependency-disclosure wave: four audit reds fixed, all shared with main)
+
+- **What happened**: PR #6811's first CI read went red on four audit jobs — pip-audit, the two
+  npm audit gates, and the Trivy filesystem scan. Triage proved they were **not the slice's
+  doing**: every lockfile at that head (`uv.lock`, `frontend/package-lock.json`,
+  `frontend/bun.lock`, `archive/package-lock.json`) is **byte-identical to `origin/main`**, and
+  main's own `ci.yml` ran **green 2026-10-05T16:14Z** with those exact lockfiles, before these
+  advisories were published (ours first failed ~04:15Z the next day). The disclosures landed
+  between the two runs, so main is red on the same checks — this is upstream drift a merge
+  would inherit, not a slice defect. Owner ruled (in-session, 2026-10-06): **fix them**.
+- **The five advisories, and each disposition under house doctrine (take the fix when one
+  exists; date every register a scanner reads when one does not)**:
+  - **fsspec CVE-2026-104851** (GHSA-27vj-qcqg-25rc, HIGH — `ReferenceFileSystem` renders
+    attacker Kerchunk JSON through **unsandboxed** `jinja2.Template`, SSTI→RCE): **fix taken**,
+    `uv lock --upgrade-package fsspec` → **2026.9.0** (OSV: introduced 0.9.0, fixed 2026.6.0;
+    verified against api.osv.dev + pypi.org, not the audit row alone). Single lock entry; the
+    source moves cpu-index→PyPI (a universal wheel — recon confirmed the cpu index tops out at
+    2026.7.0). Proven fallback if that flip is ever rejected: `==2026.6.0` stays on the cpu
+    index and audits clean.
+  - **python-jose CVE-2026-85394** (GHSA-3qf3-8w2g-rqmx, CRITICAL upstream — DER-encoded public
+    keys accepted in HMAC init forge HS256 tokens **when algorithms are unrestricted**; an
+    incomplete fix of CVE-2024-33663): **no fix exists** — 3.5.0 is still the newest PyPI
+    release, OSV `last_affected 3.5.0`, no fixed event. So a **dated exception in both
+    registers** (the CVE-2024-23342 dual-register precedent): `--ignore-vuln` in
+    `dependency-audit.yml` **and** a `.trivyignore` entry (REVIEW BY 2027-04-06), each naming
+    the non-exploitability — the sole consumer `backend/services/auth_service.py` pins
+    `algorithms=[HS256]` with a server-held secret, while the advisory *needs* unrestricted
+    algorithms **and** an attacker-held public key; neither precondition holds. Migrating off
+    python-jose is an owner product decision, **not** a CI gate, and was not planned here.
+  - **seroval ×2** (CVE-2026-104846 CRITICAL / CVE-2026-104845 HIGH): reached *only* through
+    `@tanstack/react-query-devtools → solid-js`, which declares `seroval ~1.5.4` — a range that
+    **cannot** reach the fix. A plain `npm install seroval@1.6.x` measurably adds a root copy
+    while `solid-js` keeps a **nested 1.5.6** (the critical CVE survives on disk) and pollutes
+    `package.json` with a phantom dep — so an **`overrides` floor `>=1.6.3`** is the only
+    mechanism that actually moves the chain (the same tmp/minimatch/qs shape the repo already
+    ships, 3bfffecc). Resolves to 1.6.8.
+  - **source-map-js CVE-2026-93749** and **smol-toml (moderate)**: parents already admit the
+    fix (`^1.2.1` → 1.2.2; knip `^1.5.2` → 1.9.0), so a plain `npm update` takes it.
+    An exemption would be **rule-5-red** here — the checker fails any exemption while npm
+    reports a non-major fix path (that is the whole point of the fail-closed registry).
+  - **postcss-selector-parser (moderate, under tailwindcss 3.4.19)**: the fix 7.1.6 is a
+    **major** jump (npm reports no in-range fix), so an exemption *would* be technically
+    legitimate — but the fix was taken because the surface was **measured** identical, not
+    assumed: same 37-file tarball list, runtime export sets compared key-by-key in node, d.ts
+    diff is only signature widenings + doc comments, and production CSS **byte-identical**
+    (`index-a9Z4oA3H.css`, `cmp` clean). Take the fix over dating it when the evidence says the
+    jump is safe.
+- **`bun.lock` is a second record Trivy reads independently.** The fs scan parses it as its own
+  lockfile target, so fixing the npm tree alone left it reporting the `seroval` +
+  `source-map-js` rows. Carried by a **surgical ten-line edit** (five fixed versions with
+  registry-computed sha512 SRI, deps unchanged or absent at every new version, overrides
+  section brought current with `package.json`) — *not* a `bun install` regeneration, because
+  reconcile rewrites **~200 unrelated transitive entries** (the file's workspace snapshot
+  drifted from `package.json` in-repo well before this PR; first-hand verified that
+  `--frozen-lockfile` already fails at the **pristine** checkout, and that **no workflow
+  installs from it** — frontend CI and Docker go through `npm ci`; grep of `.github/workflows`
+  finds the one comment that npm "is not bun"). A full `bun.lock` regen is its own
+  owner-sized front-end-refresh slice, where the ~200-entry rewrite actually belongs.
+- **Measured green after the fixes (every number re-run first-hand by the parent, none
+  inherited from an agent)**: at the merged PR head `fccd0510` — pip-audit with the exact CI
+  flags (four `--ignore-vuln`) **rc=0** "No known vulnerabilities found, 3 ignored"; the npm
+  exemption checker **rc=0 in both CI job shapes** ("1 active, 1 advisories all covered, no
+  expiry within 14d" — the braces exemption still matches a live finding, so the rule-4 stale
+  check stays green and the registry file is untouched); **Trivy 0.74.0 `fs` with the job's own
+  flags: 0 vulnerabilities across `uv.lock`, `frontend/package-lock.json` and
+  `frontend/bun.lock`**; `check-trivyignore-expiry.sh --warn-days 14` **rc=0**, 17 tracked,
+  none expired; auth/JWT unit slice **251 passed, 20 skipped**; the live-DB closure test
+  **5 passed** (6.2 s); `npm run build` **rc=0** with dist **byte-identical to baseline**
+  (166 assets + CSS `cmp`-clean; only `sw.js.map` differs, workbox embedding the absolute build
+  path); the ledger's `validate_docs` ERR is the **exact item-set of main's copy, 10 == 10**
+  (citation fix below); full backend unit tier **29,696 passed, 121 skipped, 8 xfailed** twice
+  (measurement discipline below). The second merge of main (its frontend-deps refresh #6810)
+  conflicted on `package-lock.json` only; resolved by re-applying the security fix onto
+  **main's** lock from the merged `package.json`, so the lock-vs-main delta is **exactly the
+  five security entries**, zero churn from the refresh.
+- **A flake found and named, not swept**: the first head-tier run failed
+  `test_clip_render.py::test_the_switch_waits_for_the_freed_memory` (1 failed, 29,695 passed).
+  Root cause measured, not assumed: the sandbox disk had filled to **95%** (the python-audit
+  agent's own log said "Disk almost full ... (95% used)"), and the test's clock-wait loop inside
+  ComfyUI's 10 s poll timeout is exactly the shape resource pressure breaks. Evidence chain:
+  file re-run 8× on the same head → **8× 23 passed**; head tier re-run on the freed disk →
+  **29,696 passed, 0 failed**, twice; CI's own history — same test **passed at the pre-merge
+  head `bd9a484f`**, and this branch's changes to the clip path (`timestamper.py`,
+  `clip_render.py`) are the exact files **main already ships** (they arrive via
+  `origin/main~1:45193721`); main's own run shows the **sibling**
+  `test_the_warmup_frees_memory_first` hit the identical 10 s failure **on main** at this
+  window. Conclusion: pre-existing timing sensitivity under sandbox disk pressure, **not a
+  slice defect**, no production code touched for it; if CI strikes at the new head the honest
+  reading is the same as main's — environmental flake, rerun, not a revert.
+- **The `validate_docs` citation lesson**: the closure note quoted plan-line-67's pointer
+  verbatim with only the filename and line number (no package path in front), which the
+  validator resolves against the **project root** and rejects ("Cannot check line bounds: file does not exist") — the exact shape main's
+  ten baseline ERRs carry (a quoted `path:line` kept bare inside prose). The earlier "ERR 81
+  parity" line in the prior entry was a whole-file count taken before this citation existed and
+  is now **superseded by an exact-set measurement**: fix the citation to the full path the tool
+  resolves and the ledger's ERR set is item-for-item main's, **10 == 10, no delta**. Quoted is
+  not exempt; "a carried number is a claim — measure it where you cite it," and measure the
+  *set*, not just the count.
+- **The fleet lesson repeated, the discipline held**: this wave was recon+apply across five
+  agents, and the parent still refused to trust any completion report — every shipped number was
+  re-run first-hand, and the agents' honest caveats were honored as load-bearing (the npm agent
+  flagged the disclosure set had **grown to five, not the three this session first scoped**, and
+  corrected a wrong install command mid-flight — `npm install seroval@…` would have left the
+  critical nested 1.5.6 on disk; the python agent reported it could **not** complete a final
+  Trivy run because the sandbox disk filled at 95%, and that its read rode on the other agent's
+  in-flight edits — both true, and the parent closed both gaps: made the surgical `bun.lock`
+  carry and ran Trivy to 0-findings first-hand). No agent number was taken on faith and none was
+  found fabricated this time; the difference from the slice's earlier fleet lesson is that
+  verification was the default, not the recovery.
+- **What this entry does NOT do**: it does not bump anything beyond the five advisories above
+  (dependency policy is the owner's; nothing here was done unilaterally past the fix ruling); it
+  does not migrate off python-jose or regenerate `bun.lock` wholesale (both named as owner-sized
+  follow-ups); it does not merge (the owner's action, and only the owner's — this is written
+  from PR #6811's branch head, OPEN and MERGEABLE); it adds no new ISS/OD ids. A re-audit at
+  merge time is warranted: these advisories are ~24 h old and the wave may extend.
