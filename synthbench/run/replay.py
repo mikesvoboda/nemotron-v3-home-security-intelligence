@@ -28,6 +28,7 @@ from backend.evaluation.vlm_replay import git_commit, run_replay
 from backend.services import vlm_client
 from backend.services.vlm_client import VlmClient
 
+from synthbench.export.vss import read_split, split_sha256
 from synthbench.generate.comfy import serve
 from synthbench.run.models import Model
 
@@ -242,6 +243,33 @@ def _import(store: EvalStore, export: Path) -> tuple[int, int]:
     return len(rows) - len(already), len(already)
 
 
+def import_split(store: EvalStore, export: Path) -> dict[str, Any]:
+    """Record the export's dev/holdout split in `store`; the run.json fields for it (ISS-016).
+
+    An export written before the split carries no manifest and records nothing — the run reports
+    the split as unrecorded (`None`/`[]`) rather than as an empty holdout. A store that already
+    holds a different roster for the corpus version raises `ValueError` naming both digests; that
+    is a refusal like any other import refusal, so it comes back as `ImportRefused`.
+    """
+    document = read_split(export)
+    if document is None:
+        return {"split_sha256": None, "split_holdout": []}
+    rows = [
+        {"scenario": name, "arm": arm} for arm, names in document["arms"].items() for name in names
+    ]
+    digest = split_sha256(document)
+    try:
+        store.put_split(
+            str(document["corpus_version"]),
+            rows,
+            seed=str(document["seed"]),
+            manifest_sha256=digest,
+        )
+    except ValueError as error:
+        raise ImportRefused(str(error)) from error
+    return {"split_sha256": digest, "split_holdout": list(document["arms"]["holdout"])}
+
+
 def _differing_fields(held: EvalItem, declared: EvalItem) -> list[str]:
     """The item fields (and snapshot fields) where the store and the export disagree."""
     now, before = declared.model_dump(), held.model_dump()
@@ -335,6 +363,9 @@ def execute(
         # this export's sets, so their stills lie under it.
         check_stills(store, export)
         new, already = import_export(store, export)
+        # After the items: a store whose recorded roster disagrees with this export's manifest is
+        # refused before the run directory is made. The export carried no manifest -> unrecorded.
+        split = import_split(store, export)
         # Made before the replay, so a failure here costs no GPU time and one after it cannot
         # lose the run's place; run.json is written once the replay ends.
         try:
@@ -365,6 +396,7 @@ def execute(
         "imported_new": new,
         "already_imported": already,
         "limit": limit,
+        **split,
         "commit": git_commit(),
         "started_utc": started.isoformat(timespec="seconds"),
         "report": report,
