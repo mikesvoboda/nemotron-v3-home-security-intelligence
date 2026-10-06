@@ -290,33 +290,42 @@ class TestNotificationFilterService:
         result = service.is_quiet_period(datetime(2025, 1, 7, 12, 0), period)
         assert result is False
 
+    # ISS-018 (OD-1 follow-up ruling): the edges below moved from 40/60/80 to
+    # the bands of record 29/59/84 - `_risk_score_to_level` now DELEGATES to
+    # SeverityService, so these are that service's defaults, restated at the
+    # filter seam. The agreement test that owns 0..100 lives in
+    # test_severity_band_agreement.py (unit); these keep the seam honest.
+
     def test_risk_score_to_level_critical(self):
-        """Test risk score to level conversion for critical (80-100)."""
+        """Critical is 85-100 under the bands of record (was 80-100)."""
         service = NotificationFilterService()
-        assert service._risk_score_to_level(80) == RiskLevel.CRITICAL
+        assert service._risk_score_to_level(84) == RiskLevel.HIGH, "80-84 is high now"
+        assert service._risk_score_to_level(85) == RiskLevel.CRITICAL
         assert service._risk_score_to_level(90) == RiskLevel.CRITICAL
         assert service._risk_score_to_level(100) == RiskLevel.CRITICAL
 
     def test_risk_score_to_level_high(self):
-        """Test risk score to level conversion for high (60-79)."""
+        """High is 60-84 under the bands of record (was 60-79)."""
         service = NotificationFilterService()
+        assert service._risk_score_to_level(59) == RiskLevel.MEDIUM, "59 is medium now"
         assert service._risk_score_to_level(60) == RiskLevel.HIGH
         assert service._risk_score_to_level(70) == RiskLevel.HIGH
-        assert service._risk_score_to_level(79) == RiskLevel.HIGH
+        assert service._risk_score_to_level(84) == RiskLevel.HIGH
 
     def test_risk_score_to_level_medium(self):
-        """Test risk score to level conversion for medium (40-59)."""
+        """Medium is 30-59 under the bands of record (was 40-59)."""
         service = NotificationFilterService()
-        assert service._risk_score_to_level(40) == RiskLevel.MEDIUM
-        assert service._risk_score_to_level(50) == RiskLevel.MEDIUM
+        assert service._risk_score_to_level(29) == RiskLevel.LOW, "29 is low now"
+        assert service._risk_score_to_level(30) == RiskLevel.MEDIUM
+        assert service._risk_score_to_level(45) == RiskLevel.MEDIUM
         assert service._risk_score_to_level(59) == RiskLevel.MEDIUM
 
     def test_risk_score_to_level_low(self):
-        """Test risk score to level conversion for low (0-39)."""
+        """Low is 0-29 under the bands of record (was 0-39)."""
         service = NotificationFilterService()
         assert service._risk_score_to_level(0) == RiskLevel.LOW
         assert service._risk_score_to_level(20) == RiskLevel.LOW
-        assert service._risk_score_to_level(39) == RiskLevel.LOW
+        assert service._risk_score_to_level(29) == RiskLevel.LOW
 
     def test_multiple_quiet_periods(self):
         """Test notification filtering with multiple quiet periods."""
