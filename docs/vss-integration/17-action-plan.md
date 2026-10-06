@@ -3843,6 +3843,19 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     "The controls" paragraph]**. Still open on this issue: the control-replay-at-bump half — a real
     control replay of the shipped model at the next llama.cpp bump needs `agent-gpu` and the owner's
     go-ahead — and the ledger rows, whose conditions text the owner authors. **Status stays `open`.**
+  - Update, appended 2026-10-06 (the reporting half, dogfooded end-to-end): the shipped replay
+    machinery ran the full 450-still `tierb-v0` corpus on the pinned `b7972` from the fenced
+    `agent-gpu` container, in the OD-23 shape (the out-of-repo driver is `execute()` minus exactly
+    the `renderer_stopped` check, labelled in `run.json`; every other shipped guard ran from the
+    library). 450 of 450 items scored, 0 refusals, 0 verification failures; `run.json` carried the
+    `/props` build string and the hand-declared `server_settings`, and the score report rendered
+    the conditions row with both new columns **[V: `docs/benchmarks/synthbench/dogfood-2026-10-06/`
+    — summary.md, report.md, driver/]**. Against the 10-03 control on the same weights, S2 read
+    16.3% where `b11376` read 10.0% and S3 43.6% where it read 39.0%; with no paired control in
+    this run none of that movement is attributed to anything (one build plus two cache flags
+    separate the two readings — precisely the drift this issue is about), and the single-model
+    score correctly rendered no comparison ("One model scored: nothing to compare"), which is the
+    `identical` column's designed degenerate path. **Status stays `open`.**
 - **Why it matters.** Every S2/S3/S5 figure in this directory and the ledger was measured on
   `b7972`. A claim against the bars is a claim about a build; the replay's `run.json` and the score
   report record the build string, but nothing in the acceptance conditions pins one, and a llama.cpp
@@ -7869,3 +7882,40 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   `b7972` pin is untouched; no control replay ran here (it needs `agent-gpu` and the owner's
   go-ahead, and is event-driven on a build bump); no ledger row is written — the register's rows are
   prose the owner authors, and this entry is the pattern; no frozen report is re-scored.
+
+### 2026-10-06 (ISS-087's reporting half, dogfooded: the shipped replay path runs the corpus on the pinned build and its report names the conditions)
+
+- **What ran.** The owner said "go ahead with the dogfood" on 2026-10-06; the chosen shape was one
+  replay, not a campaign. The fenced `agent-gpu` container `vss8-dogfood` (image
+  `localhost/agent-vss8/ai-vlm:sm103`, weights sha256-verified against the register pins before
+  serve) answered `/health` and reported `Qwen3VL-8B-Instruct-Q4_K_M` at `/props` with build
+  `b7972-e06088da0`; the out-of-repo driver — shipped `execute()` minus exactly the
+  `renderer_stopped` check, labelled as such in `run.json`, every other shipped guard imported from
+  the library — replayed all 450 `tierb-v0` stills at temperature 0, then `synthbench score`
+  scored them. 450 of 450 items, 0 refusals, 0 verification failures, median 5.76 s per still
+  (indicative, GB300). `run.json` carried the build string and the hand-declared
+  `server_settings`; `report.md`'s conditions row rendered both new columns; scoring version 4;
+  the single-model comparison degraded to "One model scored: nothing to compare" — the `identical`
+  column's designed degenerate path, not a failure. Readings: S2 16.3% [11.9-21.9] (n=209),
+  S3 all 43.6% [37.5-49.9] (n=241), dev S3 47.5%, holdout S3 32.8% (a leak check, suspicious-heavy
+  by draw, expected below dev). Against the 10-03 control's S2 10.0% / S3 39.0% on `b11376` with
+  prompt cache off, nothing is attributed: one build plus two cache flags separate the readings,
+  no paired control ran, and the `2026-10-03` report already declines to say what the pinned build
+  does. A second replay is a new ask, not this one's remainder.
+- **Tested.** This entry measured nothing new about the code — the reporting half is pinned by the
+  unit suite (previous entry). What the run proves is the chain that suite cannot reach: a live
+  endpoint, the identity assert refusing a wrong server, the declared settings surviving into
+  `run.json` and the rendered conditions row, and 450 patient client reads against a server with a
+  300 s sleep timer (one pre-wake request; the shipped 25 s read timeout was overridden to 180 s
+  client-side and recorded — the earlier smoke arm's 3-of-3 transport failures were that timeout
+  losing a 5.7 GB model wake, not the transport). Artifacts and their re-derive line:
+  `docs/benchmarks/synthbench/dogfood-2026-10-06/`.
+- **Register.** ISS-087's status stays `open` — the control-replay-at-bump half is event-driven on
+  a future build bump and the ledger rows' conditions text is the owner's; this run is a dogfood of
+  the machinery, not that control replay. The one-replay authorization is spent; a multi-arm gap-fill
+  campaign remains a fresh owner ask. Dashboard untouched: no status changed, no recount.
+- **What this entry does not do:** no new ids; no bar, D or S line moved; nothing selected and
+  nothing attributed to `b7972` versus `b11376` — the S2/S3 movement against the 10-03 control is
+  reported as unattributed drift, which is the point of the issue, not a finding of harm; no
+  second replay, no holdout re-run, no shipped-image pin change, and the container was torn down
+  after the run.
