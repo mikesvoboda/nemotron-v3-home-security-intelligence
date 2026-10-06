@@ -24,6 +24,7 @@ from backend.models.notification_preferences import (
     QuietHoursPeriod,
     RiskLevel,
 )
+from backend.services.severity import get_severity_service
 
 logger = logging.getLogger(__name__)
 
@@ -191,20 +192,27 @@ class NotificationFilterService:
     def _risk_score_to_level(self, score: int) -> RiskLevel:
         """Convert risk score to risk level category.
 
+        ISS-018 (OD-1 follow-up ruling, 17 Intake log 2026-10-05): the
+        40/60/80 edges this method used to hard-code are GONE — the level now
+        DELEGATES to `SeverityService.risk_score_to_severity`, the one
+        severity function of record (bands 29/59/84 at defaults, and
+        whatever `SEVERITY_*` settings configure). Delegation, not removal:
+        `test_p04_verification_field.py` AST-pins that `_scored_notify`'s only
+        level source is a call to this method on `risk_score`, so the seam
+        stays and the bands become single-sourced here.
+
+        Severity and RiskLevel share the same four lower-case values
+        (Severity is a str Enum; RiskLevel a StrEnum), so the level is the
+        severity's value re-typed — the mapping is total.
+
         Args:
             score: Risk score (0-100)
 
         Returns:
             RiskLevel enum value
         """
-        if score >= 80:
-            return RiskLevel.CRITICAL
-        elif score >= 60:
-            return RiskLevel.HIGH
-        elif score >= 40:
-            return RiskLevel.MEDIUM
-        else:
-            return RiskLevel.LOW
+        severity = get_severity_service().risk_score_to_severity(score)
+        return RiskLevel(severity.value)
 
 
 async def decide_notification(

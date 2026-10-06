@@ -322,6 +322,11 @@ def _determine_severity(
 def _severity_from_score(score: int | None) -> str | None:
     """Determine severity level from a risk score.
 
+    ISS-018 (OD-1 follow-up ruling, 17 Intake log 2026-10-05): the hard-coded
+    80/60/40 edges are gone — this delegates to `SeverityService`, the one
+    severity function of record, so summaries cannot disagree with the
+    filter or the stored level about what a score means.
+
     Args:
         score: Risk score (0-100) or None
 
@@ -330,13 +335,9 @@ def _severity_from_score(score: int | None) -> str | None:
     """
     if score is None:
         return None
-    if score >= 80:
-        return "critical"
-    if score >= 60:
-        return "high"
-    if score >= 40:
-        return "medium"
-    return "low"
+    from backend.services.severity import get_severity_service
+
+    return get_severity_service().risk_score_to_severity(score).value
 
 
 def _generate_bullet_points(

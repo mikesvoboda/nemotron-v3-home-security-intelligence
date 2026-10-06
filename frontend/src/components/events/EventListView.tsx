@@ -3,6 +3,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 
 import { useDeferredList } from '../../hooks/useDeferredList';
 import { resolveRiskLevel } from '../../utils/risk';
+import NotifyBadge from '../common/NotifyBadge';
 import RiskBadge from '../common/RiskBadge';
 import VerdictBadge from '../common/VerdictBadge';
 
@@ -26,6 +27,11 @@ export interface EventListItem {
   risk_level: string;
   /** VLM verdict (1.6) - the no-level cell names it; 'none' renders Unverified. */
   verdict?: EventVerificationPayload['verdict'] | null;
+  /**
+   * Persisted notify decision (ISS-001); undefined/null = NO DECISION and
+   * renders nothing (absence is not False, the verdict contract).
+   */
+  notify?: boolean | null;
   summary: string | null;
   thumbnail_url: string | null;
   reviewed: boolean;
@@ -370,17 +376,22 @@ const EventListView = memo(function EventListView({
                       Unverified - never a green Low for a score that
                       doesn't exist) */}
                   <td className="px-4 py-3">
-                    {riskLevel !== null ? (
-                      <RiskBadge
-                        level={riskLevel}
-                        score={event.risk_score ?? undefined}
-                        showScore={true}
-                        size="sm"
-                        animated={false}
-                      />
-                    ) : (
-                      <VerdictBadge verdict={event.verdict ?? 'none'} size="sm" />
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {riskLevel !== null ? (
+                        <RiskBadge
+                          level={riskLevel}
+                          score={event.risk_score ?? undefined}
+                          showScore={true}
+                          size="sm"
+                          animated={false}
+                        />
+                      ) : (
+                        <VerdictBadge verdict={event.verdict ?? 'none'} size="sm" />
+                      )}
+                      {/* ISS-001: decision chip rides beside the level; the
+                          component renders nothing when none exists. */}
+                      <NotifyBadge notify={event.notify} size="sm" />
+                    </div>
                   </td>
 
                   {/* Actions */}

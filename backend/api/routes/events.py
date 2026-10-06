@@ -86,6 +86,7 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.event_detection import EventDetection
+from backend.models.event_notify import notify_decision_value
 from backend.models.event_verification import (
     VerdictFilterLiteral as VerdictFilter,
 )
@@ -154,6 +155,9 @@ VALID_EVENT_LIST_FIELDS = frozenset(
         # P0.4 (spec §4): the verification object is selectable like any other
         # list field; absent for legacy events regardless (exclude_if).
         "verification",
+        # ISS-001: the notify decision, selectable the same way; absent where
+        # no decision row exists.
+        "notify",
     }
 )
 
@@ -509,6 +513,13 @@ async def list_events(
             # P0.4: None for legacy events; dropped from the payload by the
             # schema's exclude_if (spec §4: legacy carries NO verification key)
             "verification": verification_payload(event),
+            # ISS-001: the persisted notify decision. None (no row) is dropped
+            # below by the EventListResponse revalidation: the dict is
+            # re-validated against EventResponse, whose exclude_if strips the
+            # key when the value is None - the identical absence path the
+            # "verification" key above takes (measured, not assumed: both
+            # keys vanish for None, both survive as false).
+            "notify": notify_decision_value(event),
         }
         # Apply sparse fieldsets filter if fields parameter was provided (NEM-1434)
         filtered_event = filter_fields(event_dict, validated_fields)
@@ -1450,6 +1461,7 @@ async def list_deleted_events(
                 thumbnail_url=thumbnail_url,
                 enrichment_status=None,
                 verification=verification_payload(event),  # P0.4: None -> key absent
+                notify=notify_decision_value(event),  # ISS-001: None -> key absent
                 deleted_at=event.deleted_at,
             )
         )
@@ -1901,6 +1913,7 @@ async def get_event(
         detection_ids=parsed_detection_ids,
         thumbnail_url=thumbnail_url,
         verification=verification_payload(event),  # P0.4: None -> key absent (legacy)
+        notify=notify_decision_value(event),  # ISS-001: None -> key absent (no decision)
         links=build_event_links(request, event.id, event.camera_id),
         version=event.version,  # Include version for optimistic locking (NEM-3625)
     )
@@ -2100,6 +2113,7 @@ async def update_event(  # Allow branches for audit logging logic
         detection_ids=parsed_detection_ids,
         thumbnail_url=thumbnail_url,
         verification=verification_payload(event),  # P0.4: None -> key absent (legacy)
+        notify=notify_decision_value(event),  # ISS-001: None -> key absent (no decision)
         version=event.version,  # Include version for optimistic locking (NEM-3625)
     )
 
@@ -2792,6 +2806,7 @@ async def restore_event(
             thumbnail_url=thumbnail_url,
             enrichment_status=None,
             verification=verification_payload(event),  # P0.4: None -> key absent
+            notify=notify_decision_value(event),  # ISS-001: None -> key absent
             version=event.version,  # Include version for optimistic locking (NEM-3625)
         )
 

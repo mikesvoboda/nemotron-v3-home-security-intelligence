@@ -57,6 +57,7 @@ import { formatDuration } from '../../utils/time';
 import { EventAuditDetail } from '../audit';
 import IconButton from '../common/IconButton';
 import Lightbox from '../common/Lightbox';
+import NotifyBadge from '../common/NotifyBadge';
 import RiskBadge from '../common/RiskBadge';
 import SnoozeBadge from '../common/SnoozeBadge';
 import SnoozeButton from '../common/SnoozeButton';
@@ -99,6 +100,12 @@ export interface Event {
   risk_label?: string;
   /** VLM verdict from the event's verification row (1.6, spec §4). */
   verdict?: EventVerificationPayload['verdict'] | null;
+  /**
+   * Persisted notify decision (ISS-001). true/false is a decision on the
+   * record (the badge renders it); undefined/null means NO DECISION and
+   * renders nothing - absence is not False (the `verification` contract).
+   */
+  notify?: boolean | null;
   /**
    * The full verification row (1.6, spec §4 "Event detail"): scene
    * description, criteria checklist, reviewed frames. Undefined = no row
@@ -612,6 +619,10 @@ export default function EventDetailModal({
                   <div className="flex items-center gap-3">
                     {/* Snooze Status Badge (NEM-3640) */}
                     <SnoozeBadge snoozeUntil={event.snooze_until} size="md" showEndTime={true} />
+                    {/* ISS-001: the notify decision belongs to the detail
+                        surface at md size. Renders NOTHING when no decision
+                        exists (absence is not a decision not to page). */}
+                    <NotifyBadge notify={event.notify} size="md" />
                     <div data-testid="risk-score">
                       {riskLevel !== null ? (
                         <RiskBadge

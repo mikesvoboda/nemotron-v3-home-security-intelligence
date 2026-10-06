@@ -65,6 +65,7 @@ from backend.core.config import get_settings
 from backend.core.database import get_session
 from backend.core.logging import get_logger
 from backend.core.metrics import record_pipeline_error
+from backend.core.time_utils import utc_now
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.event_detection import event_detections
@@ -645,6 +646,7 @@ class VlmAnalyzer:
         notify: bool | None = None
         if not self._replay:
             notify = await self._notify_decision(
+                event_id=event.id,
                 camera_id=camera_id,
                 timestamp=start_time,
                 risk_score=outcome["risk_score"],
@@ -780,6 +782,7 @@ class VlmAnalyzer:
     async def _notify_decision(
         self,
         *,
+        event_id: int,
         camera_id: str,
         timestamp: datetime,
         risk_score: int | None,
@@ -790,7 +793,16 @@ class VlmAnalyzer:
         never notifies; a NULL score falls back to the detector-only rule. If
         even opening the session fails the decision falls back to the shipped
         default preferences rather than to silence; None (no key on the wire)
-        only if the decision itself cannot be computed."""
+        only if the decision itself cannot be computed.
+
+        ISS-001 (OD-31): a decided answer is PERSISTED as
+        `EventNotifyDecision` in this same short session - that persistence IS
+        what "(or recorded delivery)" means for the smallest slice. The write
+        sits post-commit on purpose, the same session rule that keeps a failed
+        settings read from aborting the committed event: a persist failure
+        logs and keeps the decision (the WS frame still carries it; the REST
+        key stays absent, which consumers read as no-decision, never False).
+        """
         kwargs: dict[str, Any] = {
             "risk_score": risk_score,
             "camera_id": camera_id,
@@ -798,21 +810,45 @@ class VlmAnalyzer:
             "verification_verdict": verdict,
             "detections": detections,
         }
+        notify: bool | None = None
         try:
             async with get_session() as session:
-                return await decide_notification(session, **kwargs)
+                notify = await decide_notification(session, **kwargs)
+                await self._persist_notify_decision(session, event_id, notify)
         except Exception as exc:
             logger.warning(
                 "notify decision session failed - deciding on the shipped defaults",
                 extra={"camera_id": camera_id, "error": str(exc)},
             )
-        try:
-            return await decide_notification(None, **kwargs)
-        except Exception as exc:  # pragma: no cover - the pure path cannot fail on valid input
-            logger.error(
-                "notify decision failed", extra={"camera_id": camera_id, "error": str(exc)}
+        if notify is None:
+            try:
+                notify = await decide_notification(None, **kwargs)
+            except Exception as exc:  # pragma: no cover - the pure path cannot fail on valid input
+                logger.error(
+                    "notify decision failed", extra={"camera_id": camera_id, "error": str(exc)}
+                )
+                return None
+        return notify
+
+    @staticmethod
+    async def _persist_notify_decision(session: Any, event_id: int, notify: bool) -> None:
+        """Write (or re-decide) the event's notify row. Best-effort by
+        doctrine, one-row-per-event by schema: the unique(event_id) makes a
+        re-analyzed batch UPSERT the decision - the decision belongs to the
+        event, not to the run (unlike stacked verification rows)."""
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        from backend.models.event_notify import EventNotifyDecision
+
+        stmt = (
+            pg_insert(EventNotifyDecision)
+            .values(event_id=event_id, notify=notify, decided_by="vlm")
+            .on_conflict_do_update(
+                index_elements=["event_id"],
+                set_={"notify": notify, "created_at": utc_now()},
             )
-            return None
+        )
+        await session.execute(stmt)
 
     async def _broadcast(self, event: Event, verification: Any, notify: bool | None = None) -> None:
         if self._redis is None:

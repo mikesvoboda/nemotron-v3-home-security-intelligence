@@ -238,6 +238,9 @@ class TestConstantsAndValidation:
             # P0.4 (spec §4): the verification object is selectable like any
             # other list field; absent for legacy events regardless (exclude_if).
             "verification",
+            # ISS-001 (2026-10-05 slice): the notify decision is selectable the
+            # same way; absent means "no decision was made", never false.
+            "notify",
         }
         assert frozenset(expected_fields) == VALID_EVENT_LIST_FIELDS
 

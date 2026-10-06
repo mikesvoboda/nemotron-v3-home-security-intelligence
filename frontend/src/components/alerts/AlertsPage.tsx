@@ -259,6 +259,9 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       camera_name,
       risk_score: event.risk_score || 0,
       risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
+      // ISS-001: the decision that made this an alert rides to the card -
+      // the alerts surface is where "why was I not paged?" gets asked.
+      notify: event.notify,
       summary: event.summary || 'No summary available',
       detections,
       started_at: event.started_at,
@@ -316,6 +319,8 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       camera_name,
       risk_score: event.risk_score || 0,
       risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
+      // ISS-001: persisted notify decision; absent key = no decision.
+      notify: event.notify,
       summary: event.summary || 'No summary available',
       detections: [], // Detections will be loaded by the modal
       started_at: event.started_at,

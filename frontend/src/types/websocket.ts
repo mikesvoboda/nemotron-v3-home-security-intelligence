@@ -125,6 +125,14 @@ export interface SecurityEventData {
    * read it off a live event. Absent on legacy events.
    */
   verification?: EventVerificationPayload | null;
+  /**
+   * The analyzer's notify decision (ISS-001), present on vlm-mode events
+   * whose decision was made. Mirrors the generated WebSocketEventData field
+   * this hand-written twin shadows. Absent when NO decision exists — which
+   * is NOT the same as `false` (the same contract `verification` keeps, and
+   * the REST `notify` field's exclude_if rule).
+   */
+  notify?: boolean | null;
   /** AI-generated event summary */
   summary: string;
   /** Event timestamp (ISO format) */

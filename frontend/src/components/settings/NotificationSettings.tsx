@@ -98,11 +98,18 @@ const DAYS_OF_WEEK = [
 ];
 
 /** Risk level score ranges for threshold conflict detection */
+// ISS-018: these ranges render the notification bands to users ("your alerts
+// will be blocked" math), so they MUST match the bands the backend filter now
+// enforces — the SeverityService defaults (backend/core/config.py, mirrored
+// in frontend/src/utils/risk.ts RISK_THRESHOLDS): 0-29 low, 30-59 medium,
+// 60-84 high, 85-100 critical. They used to be the retired 40/60/80 edges.
+// The visual color ladders in utils/severityColors.ts are a DIFFERENT,
+// documented early-warn concern and deliberately do not follow these edges.
 const RISK_LEVEL_RANGES = {
-  critical: { min: 80, max: 100 },
-  high: { min: 60, max: 79 },
-  medium: { min: 40, max: 59 },
-  low: { min: 0, max: 39 },
+  critical: { min: 85, max: 100 },
+  high: { min: 60, max: 84 },
+  medium: { min: 30, max: 59 },
+  low: { min: 0, max: 29 },
 } as const;
 
 /**
