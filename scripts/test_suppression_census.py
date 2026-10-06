@@ -529,6 +529,13 @@ def test_real_tree_matches_spec_baselines():
     registry rows died with their sites. d8482861 itself left this guard red:
     its verification ran backend/tests/unit/scripts, not the repo-root scripts/
     tests.
+    pytest_skipif 56→57 (2026-10-06): the campaign-#46 mutant-home timing-row
+    skip, test_notify_reachability_guard.py test_the_scan_is_fast_enough_... —
+    the skipif predicate is `"mutants" in Path(__file__).resolve().parts`, so
+    every CI env (a clean checkout has no mutants ancestor) RUNS the test; only
+    mutmut's stats/clean-gate pass skips it. Classified todo by the generator
+    (the guard names the tree layout, not host state — environment is earned,
+    WP2.4b), registry row + baseline raised the same commit.
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -538,7 +545,7 @@ def test_real_tree_matches_spec_baselines():
         "flake_allowlist": 0,
         "frontend_quarantine": 16,
         "pytest_skip": 32,
-        "pytest_skipif": 56,
+        "pytest_skipif": 57,
         "pytest_xfail": 4,
         "pytest_skip_imperative": 86,
         "frontend_skip": 54,
