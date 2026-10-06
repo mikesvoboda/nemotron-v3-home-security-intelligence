@@ -223,7 +223,7 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-06 (ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`). The Filed columns count every issue by its filed
+Counts as of 2026-10-06 (ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`; ISS-016 `done` 2026-10-06 on `vlm-pipeline`, commits `54d036d5`..`8cdbb412`). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
 ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
@@ -231,9 +231,9 @@ when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 97    |
+| open        | 95    |
 | in-progress | 0     |
-| done        | 6     |
+| done        | 8     |
 | wont-fix    | 0     |
 | superseded  | 0     |
 | total       | 103   |
@@ -241,14 +241,14 @@ when you add or close an issue (there is no script; the register is prose).
 | Severity | Filed | Open |
 | -------- | ----- | ---- |
 | P0       | 1     | 0    |
-| P1       | 36    | 33   |
-| P2       | 51    | 49   |
+| P1       | 36    | 32   |
+| P2       | 51    | 48   |
 | P3       | 15    | 15   |
-| total    | 103   | 97   |
+| total    | 103   | 95   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
-| agent-now      | 68    | 65   |
+| agent-now      | 68    | 63   |
 | owner-decision | 29    | 26   |
 | owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
@@ -256,10 +256,10 @@ when you add or close an issue (there is no script; the register is prose).
 | Kind     | Filed | Open |
 | -------- | ----- | ---- |
 | bug      | 19    | 18   |
-| gap      | 37    | 35   |
+| gap      | 37    | 34   |
 | debt     | 18    | 18   |
 | decision | 17    | 15   |
-| risk     | 12    | 11   |
+| risk     | 12    | 10   |
 
 | Area                                      | P0  | P1  | P2  | P3  | Filed | Open |
 | ----------------------------------------- | --- | --- | --- | --- | ----- | ---- |
@@ -267,7 +267,7 @@ when you add or close an issue (there is no script; the register is prose).
 | Verdict reliability and observability     | 0   | 6   | 3   | 1   | 10    | 9    |
 | Prompt, verdict quality and calibration   | 0   | 2   | 2   | 1   | 5     | 5    |
 | Video, ingest and key frames              | 0   | 4   | 6   | 1   | 11    | 11   |
-| Evaluation and S-bar measurement          | 0   | 9   | 12  | 2   | 23    | 22   |
+| Evaluation and S-bar measurement          | 0   | 9   | 12  | 2   | 23    | 20   |
 | Specialists                               | 0   | 2   | 4   | 0   | 6     | 6    |
 | Serving, deploy and supply chain          | 0   | 3   | 5   | 0   | 8     | 8    |
 | Security, privacy and licensing           | 0   | 3   | 3   | 1   | 7     | 7    |
@@ -539,7 +539,8 @@ this order.
   (truncation; a budget change needs OD-8), ISS-011 (residual alerts and latency histogram), ISS-010
   (re-verification sweeper), ISS-042 (batches that vanish), ISS-013 (retry and breaker accounting),
   ISS-034, ISS-071, ISS-058.
-- **Measurement validity.** ISS-016 (freeze a split before any tuning), ISS-086 (the free S3
+- **Measurement validity.** ISS-016 (freeze a split before any tuning; `done` 2026-10-06 on
+  `vlm-pipeline` — the split exists, so the tuning arms below read against it), ISS-086 (the free S3
   experiments and the single-still ceiling), ISS-037 (replay that runs the selector and multi-frame
   items), ISS-014 (per-bar verdict), ISS-061 (residence guard), ISS-045 and ISS-082 (reproducible,
   runnable tools), ISS-044 (blind audit, OD-15).
@@ -573,24 +574,24 @@ the last column.
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | OD-1  | M1: where the notify decision lives                                                                                                                                                                        | options as read: (a) `vlm_analyzer` persist path only; (b) also the rules engine and `deliver_alert`; (c) filter first, engine later. **Follow-up scope ruled 2026-10-05: the smallest slice — the in-app alert path consumes `data.notify`, the rules engine and `deliver_alert` stay parked (option (c) as the follow-up), OD-16's push channel stays separate, and ISS-018's band fix rides inside the slice** (Intake log entry 2026-10-05)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | ISS-001 (P0), 018, 019, 020, 041, 047, 048, 049, 058                                                                                                                                                                                    | reading, step 7; follow-up ruled in the 2026-10-05 Intake log |
 | OD-2  | S3 floor, and the remedy for the S3 gap                                                                                                                                                                    | floor: midpoint, band minimum, or both; remedy: prompt and calibration slice, accept and re-scope, or bar revision (owner-only). **Both floors are measured as of 2026-10-05** (owner funded the computation, not the choice): arm B 43.6% midpoint → 50.6% minimum, +17/0 rows, p = 0.000015, all inside the 9 changed scenarios — the choice is now disclosure, not a lever, because 50.6% against the 90% bar passes nothing. 17 Intake log "B then A"; ISS-015 update                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | ISS-015, 008                                                                                                                                                                                                                            | reading, step 6                                               |
-| OD-3  | Spec revision: F14 bars, M1, S1 and G0.3 text, 'rev 7' collision                                                                                                                                           | approve a rev now, or fold into the next after steps 6-8; do not ask for an `S2_MAX` number                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | ISS-081, 069, 014 (spec rows)                                                                                                                                                                                                           | reading, step 9                                               |
+| OD-3  | Spec revision: F14 bars, M1, S1 and G0.3 text, 'rev 7' collision                                                                                                                                           | approve a rev now, or fold into the next after steps 6-8; do not ask for an `S2_MAX` number **Ruled 2026-10-06 (in-session): approve a rev now** — an agent drafts spec rev 8 on `vlm-pipeline`, the owner approves the final text; the spec stays owner-held (17 Intake log 2026-10-06)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | ISS-081, 069, 014 (spec rows)                                                                                                                                                                                                           | reading, step 9                                               |
 | OD-4  | M2 closure: does declared-truth replay count as the 'real corpus' for flip (iii)?                                                                                                                          | yes (the 8B pick reopens at 36% S3; try Nemotron-12B-VL past b7972) or no (wait for P5b or owner footage)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | ISS-007, 024, 016                                                                                                                                                                                                                       | reading, step 10                                              |
 | OD-5  | Clips lane: an owner item for a video VLM, or leave clips unscored                                                                                                                                         | roadmap entry or spec for a video-capable engine; or keep clips as assets; no frame bursts through the product VLM. **Input landed 2026-10-05, not a ruling:** the owner funded multi-frame clip experiments as the next GPU project after the notification slice ("B then A", 17 Intake log) — its result is the evidence this cell gets ruled on; the experiment still needs its own pre-registration and spend go-ahead                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | ISS-003, 038, 002                                                                                                                                                                                                                       | reading, step 12                                              |
 | OD-6  | P5b: live pipeline instance scored per stage                                                                                                                                                               | design now (needs arm64 milestones 1-2) or defer with a date                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | ISS-007, 024, 036, 040                                                                                                                                                                                                                  | reading, step 13                                              |
 | OD-7  | Threat specialist; immediate-alert fast paths; alerts-surface rule for unverified events                                                                                                                   | `GATEWAY_ENABLE_THREAT` on (re-measure S1) or off; delete the fast-path stubs or specify a trigger; show unverified events or keep high/critical only                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | ISS-021, 053, 066                                                                                                                                                                                                                       | reading, step 11                                              |
-| OD-8  | A5500 S1/S4 acceptance; Brev spend; re-take after serving changes                                                                                                                                          | accept as measured; require a re-take after a budget, context or build change; approve Brev GPU types and duration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | ISS-046, 012, 017, 052, 057, 059, 054                                                                                                                                                                                                   | reading, step 14                                              |
+| OD-8  | A5500 S1/S4 acceptance; Brev spend; re-take after serving changes                                                                                                                                          | accept as measured; require a re-take after a budget, context or build change; approve Brev GPU types and duration **Acceptance half ruled 2026-10-06 (in-session): accept the A5500 S1 and S4 as measured**; the re-take rule keeps its existing terms; **Brev spend and GPU-type approval stay open** (17 Intake log 2026-10-06)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | ISS-046, 012, 017, 052, 057, 059, 054                                                                                                                                                                                                   | reading, step 14                                              |
 | OD-9  | Go-live 3.1 sign-off                                                                                                                                                                                       | after M1 closed, S2/S3 read at the F14 bars on an accepted corpus, S5 notification half met, S6 recorded                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | terminal gate                                                                                                                                                                                                                           | reading, step 15                                              |
 | OD-10 | Push, PR and merge scope for this effort                                                                                                                                                                   | see the note below the table                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | ISS-001 build slice; every PR                                                                                                                                                                                                           | reading, decision 10                                          |
 | OD-11 | Owner-held CI items: Linear key, `cryptography` ceiling, smoke ruling, ZAP                                                                                                                                 | rotate or remove Linear steps; Dependabot options 1/2/3; scope or stub the smoke gate; ZAP timeout                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | ISS-060, 059                                                                                                                                                                                                                            | reading, decision 11                                          |
-| OD-12 | Authentication and LAN exposure of the published frontend nginx                                                                                                                                            | (a) loopback unless `EXPOSE_LAN=true`; (b) deny-by-default auth on `/api` and `/ws`; (c) keep LAN-trust and fix the docs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | ISS-029, 062, 009                                                                                                                                                                                                                       | ISS-029                                                       |
+| OD-12 | Authentication and LAN exposure of the published frontend nginx                                                                                                                                            | (a) loopback unless `EXPOSE_LAN=true`; (b) deny-by-default auth on `/api` and `/ws`; (c) keep LAN-trust and fix the docs **Ruled 2026-10-06 (in-session): (a)+(b) together** — loopback unless `EXPOSE_LAN=true`, deny-by-default auth on `/api` and `/ws` when exposed; LAN-trust (c) declined (17 Intake log 2026-10-06)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | ISS-029, 062, 009                                                                                                                                                                                                                       | ISS-029                                                       |
 | OD-13 | Streaming ingest (R1): trigger and frame-persistence requirement                                                                                                                                           | sequence with clip extraction; keep M3-gated; spike decode and wake duty cycle first                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | ISS-039                                                                                                                                                                                                                                 | ISS-039                                                       |
 | OD-14 | Release artifacts: ghcr publish gap; plain prod `up`                                                                                                                                                       | (a) publish `ai-vlm` and `ai-gateway`; (b) declare ghcr unsupported for the VLM; plain `up`: start `ai-vlm` or fail loud                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | ISS-028, 022                                                                                                                                                                                                                            | ISS-028                                                       |
-| OD-15 | Replace the leading 60-still audit with a blind check                                                                                                                                                      | blind audit of 150 or more stills with per-stratum intervals, or keep the check and state its limits                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | ISS-044, 038                                                                                                                                                                                                                            | ISS-044                                                       |
+| OD-15 | Replace the leading 60-still audit with a blind check                                                                                                                                                      | blind audit of 150 or more stills with per-stratum intervals, or keep the check and state its limits **Ruled 2026-10-06 (in-session): machine pre-screen plus a blind targeted human audit** — pre-screen all 450 stills on the resident flagship (batch use ok by the option choice), then a blind human audit of the flagged residue plus a blind random calibration sample, the pre-screen validated against the human labels; the fixed-150 form is superseded as the method (17 of 31 strata stay under n=10 even at 450). ISS-044 carries acceptance v2 (17 Intake log 2026-10-06)                                                                                                                                                                                                                                                                                                                                                                                                                                                  | ISS-044, 038                                                                                                                                                                                                                            | ISS-044                                                       |
 | OD-16 | Push notification channel                                                                                                                                                                                  | Web Push, webhook to ntfy, server push (APNs/FCM), or email and webhook only                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | ISS-049                                                                                                                                                                                                                                 | ISS-049                                                       |
 | OD-17 | Fate of the Triton `reid`/`threat` lane and dead GPU surface                                                                                                                                               | backend calls `/enrich-lt/person-reid`, or drop `reid` from the sets; pin or remove `ai-llm-vllm`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | ISS-050, 051, 055                                                                                                                                                                                                                       | ISS-050                                                       |
 | OD-18 | Licence register and biometric data model (R12, R13)                                                                                                                                                       | machine-checked register from `models.yml` and a corpus manifest; may H3 clips tune a model or only evaluate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | ISS-063, 054, 030, 048                                                                                                                                                                                                                  | ISS-063                                                       |
 | OD-19 | Erasure of a person's data across stores                                                                                                                                                                   | an erase-person operation, or a documented procedure tied to the retention matrix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | ISS-072, 030                                                                                                                                                                                                                            | ISS-072                                                       |
-| OD-20 | Retire the dead enrichment surface                                                                                                                                                                         | remove hook, route, types and tombstone in one commit, or keep the route                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | ISS-073, 055                                                                                                                                                                                                                            | ISS-073                                                       |
+| OD-20 | Retire the dead enrichment surface                                                                                                                                                                         | remove hook, route, types and tombstone in one commit, or keep the route **Ruled 2026-10-06 (in-session): retire** — hook, route, types and tombstone in one commit (17 Intake log 2026-10-06)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | ISS-073, 055                                                                                                                                                                                                                            | ISS-073                                                       |
 | OD-21 | Detector-independent scene pass, or a stated recall ceiling                                                                                                                                                | (a) scene-level pass with a candidate-free prompt; (b) document the detector vocabulary as the ceiling                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | ISS-040                                                                                                                                                                                                                                 | ISS-040                                                       |
 | OD-22 | Notification policy: `rejected`, `uncertain`, quiet hours, grouping                                                                                                                                        | (a) `rejected` may not suppress a person above a floor; (b) low-score `uncertain` takes the detector-only rule; (c) quiet-hours override and timezone; (d) cooldown                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | ISS-041, 019                                                                                                                                                                                                                            | ISS-041                                                       |
 | OD-23 | Replay while the renderer runs; where `eval/` and `runs/` live                                                                                                                                             | (1) allow replay for a fenced `agent-gpu` VLM, bypass recorded in `run.json`; (2) a writable mount or a `SYNTHBENCH_ROOT` that also exposes the corpus                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | ISS-079, 045                                                                                                                                                                                                                            | ISS-079                                                       |
@@ -598,7 +599,7 @@ the last column.
 | OD-25 | Retire or keep the Nemotron-era neighbors left by `d8482861`                                                                                                                                               | (a) retire them in slices as `d8482861` did the harness; (b) keep as supported surfaces on `ai-vlm`, with tests against the real build; (c) decide per issue                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | ISS-083, 084, 085                                                                                                                                                                                                                       | ISS-083, 084, 085                                             |
 | OD-26 | The sweep's selection rule: what counts as better than the 8B, fixed before any arm is read for a pick                                                                                                     | (a) metrics, order, margin and a paired test on shared items; the 8B control as the yardstick or the F14 bars as absolute gates; gates beyond accuracy (refusals, VRAM, latency); (b) a winner confirmed once on items that did not choose it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | ISS-097, ISS-087                                                                                                                                                                                                                        | ISS-097                                                       |
 | OD-27 | Weight tuning (LoRA, SFT, DPO, GRPO): in scope before go-live, deferred to a named trigger, or out of scope                                                                                                | (a) in scope now, with a data card per input, a locked scenario set and a real-frame holdout; (b) deferred to a trigger (the ISS-086 ceiling, the prompt and calibration rungs on a frozen split); (c) out of scope                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | ISS-095, ISS-096                                                                                                                                                                                                                        | ISS-095                                                       |
-| OD-28 | Dead service modules and the scene-change vertical: delete, wire or keep each                                                                                                                              | (a) delete the guided-constraints and trajectory modules first, then the scene-change vertical; (b) wire what the VLM path should use; (c) keep behind a committed keep-list with a reason per entry                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | ISS-092                                                                                                                                                                                                                                 | ISS-092                                                       |
+| OD-28 | Dead service modules and the scene-change vertical: delete, wire or keep each                                                                                                                              | (a) delete the guided-constraints and trajectory modules first, then the scene-change vertical; (b) wire what the VLM path should use; (c) keep behind a committed keep-list with a reason per entry **Ruled 2026-10-06 (in-session): (a) delete** — the guided-constraints and trajectory modules first, then the scene-change vertical (17 Intake log 2026-10-06)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | ISS-092                                                                                                                                                                                                                                 | ISS-092                                                       |
 | OD-29 | The alert operating point: which prompt text and which numeric camera floor ship                                                                                                                           | ruled 2026-10-05 (a): the arm B rubric text and the per-camera default floor 60 ship as one paired change (mechanism: the owner's choice of the per-camera `risk_threshold`, `risk_filters` and the level map untouched)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | the shipped operating point; ISS-008's first rung                                                                                                                                                                                       | owner ruling 2026-10-05, Intake log                           |
 | OD-30 | What the OD-29 floor 60 means for a camera row written before the merge (it stores 0, saves-wins keeps it, and the level map then alerts at score ≥ 40): the shipped 4.3% FP reading is fresh-install-only | **ruled 2026-10-05 (c):** accept the fresh-install scope and document it, no code — and the owner answered the population question the options could not see: no real install has saved camera settings ('we are building the first installation'), backwards compatibility explicitly out of scope, so no stored-0 row exists or can be produced by current code. Options as filed, kept for the record: (a) treat a stored 0 as 'unset, use the floor' — caveat measured here: a human can legitimately save 0 (`CameraNotificationSettingUpdate.risk_threshold` is `ge=0`), so value alone cannot separate the two populations and the ruling must say which owner intent wins; (b) hand-applied SQL backfill 0→60 on upgrade (the repo is `create_all`-only, so 'on upgrade' means a documented operator step, not code); (c) as ruled; (d) a nullable column or explicit 'use default' flag so 'unset' becomes representable (schema change, the only durable fix; kept as the answer for any future install that predates a change) | ISS-103 (test-only remainder); the honest scope of the shipped operating point; T=70 could have ridden this ruling and did not — the ruling reached (c) only, so floor 60 stands and T=70 remains an unruled option, not a declined one | owner ruling 2026-10-05, Intake log                           |
 
@@ -838,7 +839,7 @@ track open.
   number below was executed in this session at these commits]: **the OD-31 closure criterion is
   met** — `backend/tests/integration/test_notify_decision_wiring.py` runs the analyzer's own
   `analyze_batch` with the scripted fake VLM against the live test Postgres and asserts the
-  *decision reaches a surface a human sees*: arm (a) confirmed/score 75/default prefs persists
+  _decision reaches a surface a human sees_: arm (a) confirmed/score 75/default prefs persists
   `EventNotifyDecision(notify=true)` **and** both REST surfaces (`GET /api/events`,
   `GET /api/events/{id}`) carry `"notify": true`; arm (b) rejected persists `notify=false` and the
   false rides the payload PRESENT (a recorded quiet is a real answer); arm (c) a decision-less row
@@ -1883,8 +1884,9 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
   at least 3 runs with its spread. Whichever is chosen: the sampling contract is on the conditions
   line, a test pins the request body's temperature and seed, and an identical-verdict share between
   repeat runs is reported beside S2/S3.
-- **Depends on.** OD-24; ISS-043 (the measurement side); blocks the reading of ISS-008, ISS-016 and
-  ISS-017.
+- **Depends on.** OD-24; ISS-043 (the measurement side); blocks the reading of ISS-008 and ISS-017
+  (ISS-016 is off this list: `done` 2026-10-06 on `vlm-pipeline`, so the split its reading needed
+  exists).
 - **Tracked as.** None. The handoff lists it as a candidate issue
   (`docs/plans/2026-10-03-vss-vlm-exercise-handoff.md:272`).
 - **Closed 2026-10-03 in `9f4e65cd`** (`fix(vlm): the assess call samples greedily`). What was
@@ -2165,6 +2167,13 @@ What the model is asked, what it is shown, and how its score maps to the levels 
   variant ships only if S2 does not worsen. Tuning uses the dev split only.
 - **Depends on.** ISS-016 (a dev/holdout split must exist before tuning), ISS-043 and ISS-078
   (run-to-run noise sets the size of any detectable effect), OD-2 (S3 floor and remedy).
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** Its prerequisite is met: the split
+  exists and is published (`SPLIT_SEEDS` and `SPLIT_HOLDOUT_K` in `synthbench/export/vss.py`, the
+  realized roster under ISS-016's closure note), so a prompt arm may tune on dev and be read on the
+  holdout, and the acceptance's 'monotone calibration map (fitted on a held-out split)' now has a
+  split to fit on. The gallery and `report.html` carry dev items only, so the tuning surface is
+  dev-side by construction. Nothing here is met yet: the ablation has not run and the shipped arm B
+  text was written knowing the corpus, so it is still a development arm until re-read on the split.
 - **Tracked as.** Ledger item 35 flip-condition (iii) reopens the model pick if real-corpus S3 <
   90%; the ledger records S3 as 'the owner's' bar, not a planned prompt fix. No roadmap row.
 - **Update 2026-10-03 (after `9f4e65cd`) [V].** The dependency on ISS-078 is lifted: the shipped
@@ -3124,7 +3133,7 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
 
 #### ISS-016 — Freeze a dev/holdout split before any prompt or specialist tuning on tierb-v0
 
-`P1` (verifiers read `P1`, `P2`) · `risk` · actor `agent-now` · status `open`
+`P1` (verifiers read `P1`, `P2`) · `risk` · actor `agent-now` · status `done` · closed 2026-10-06 (see the closure note)
 
 - **Evidence**
   - Grep for `holdout` and `held-out` over `synthbench/`, `backend/evaluation/`,
@@ -3153,6 +3162,12 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   holdout is replayed k times per candidate, not once, with the spread reported; `report.md` labels
   dev and holdout numbers.
 - **Depends on.** ISS-043 and ISS-078 (repeat runs before any split decision); blocks ISS-008.
+- **Update 2026-10-06 (ISS-043 closed on `vlm-pipeline`) [V].** The precondition is met: the
+  scenario-cluster bootstrap, the paired dS2/dS3 form and exact McNemar are in
+  `backend/evaluation/cluster_stats.py` and print in every `report.md`; the sampling choice is on
+  each replay's conditions line. Split design is free to proceed; 'replayed k times per candidate'
+  reads per the 2026-10-03 update above (one replay plus the determinism check the conditions line
+  now makes inspectable).
 - **Tracked as.** None found.
 - **Severity note.** Verifiers read P1 (agree) and P2 (prospective, cheap if done first). Sequence
   it before ISS-008, ISS-024 and ISS-053 start.
@@ -3169,6 +3184,44 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   04:16Z, 16 minutes after `corpus.json` `created` 2026-09-29T03:59:50Z. The handoff's 'unchanged
   since `ca73f1ef`' holds: `git diff --numstat ca73f1ef 5c605e1d` over `vlm_client.py`,
   `vlm_analyzer.py`, `vlm_verdict.py` and `backend/evaluation/vlm_replay.py` is empty.
+- **Closure 2026-10-06 (branch `vlm-pipeline`, owner-authorized slice; commits `54d036d5`..`8cdbb412`) [V].**
+  Design `docs/superpowers/specs/2026-10-06-synthbench-iss016-dev-holdout-split-design.md`, plan
+  `docs/superpowers/plans/2026-10-06-synthbench-iss016-dev-holdout-split.md`. The acceptance's
+  'fixed, hash-pinned split' is a published hash order rather than a choice: incident scenarios are
+  ranked by `sha256("tierb-v0|vss-iss016-s3-holdout-2026-10-06|<scenario>")` and the first `k` = 6
+  are the holdout, so anyone holding the three published strings recomputes the roster and nobody —
+  the owner included — can pick a flattering six. **The realized roster**, beside each one's item
+  count and group: `tailgating` 9 suspicious, `blunt_weapon` 9 threat, `car_break_in` 9 threat,
+  `casing_with_phone` 9 suspicious, `knife_visible` 19 threat, `peering_into_windows` 9 suspicious —
+  **holdout 64 incident items (27% of 241), 0 benign; dev 386 items, 209 benign and 177 incident.**
+  All 209 benign items stay in dev by rule, so S2's benign arm is intact and tunable, which is what
+  the acceptance's power-limit clause asked for. Unit is the scenario, never the item, so no item's
+  identity or store fingerprint moves and every frozen record keeps its meaning. The split is
+  recorded where it is used and checked where it is read: `splits.json` at the export root
+  (create-once, canonical bytes, its sha256 the fingerprint), a `splits` table in the eval store
+  (`backend/evaluation/eval_store.py`) written by replay from the export's manifest and refused on a
+  store that already holds a different roster, and `score` reconciling store against export — any
+  disagreement is `ScoreRefused`/exit 2, never a silent re-labelling. Tuning's enforcement half is
+  the surface a tuner actually reads: `report.md` labels every dev and holdout number and states what
+  the holdout cannot say (n=64 clustered, and suspicious-heavy by luck, so it reads below dev for
+  any prompt that has not fixed the weak leg), while `report.html` and the failure gallery carry dev
+  items only. Per-arm headlines and the dev-vs-holdout comparison print beside the ISS-043 statistics.
+  Tests: `test_export_vss.py` (the six names and their order recomputed from the recipe, the seed
+  asserted literally, a fixed digest pin, create-once and the conflicting-manifest exit),
+  `test_eval_store.py`, `test_replay.py`, `test_score.py`; `backend/tests/unit/synthbench` plus
+  `backend/tests/unit/evaluation` green (1268 passed, 1 skipped).
+  **What this closure does NOT do.** It is the mechanism and the labelling, not the tuning: prompt,
+  threshold and specialist-context work is ISS-008, ISS-086, ISS-024 and ISS-053, which this issue
+  gates. It is not the OD-15 label work either — the pre-screen reads all 450 stills for label
+  correctness, which is not tuning, and corrected labels apply to both arms; what must never touch
+  the holdout is a prompt or threshold change derived from reading it. It re-scores nothing: P5a's and
+  the sweep's committed records stay as frozen, and a pre-split export still scores and reports
+  `split: unrecorded` exactly as before. And the real `splits.json` is not an artifact of this
+  branch: the owner's export host holds the corpus, so the manifest lands on the owner's next
+  `synthbench export vss` (no GPU needed, and it lands before any replay). If that run's printed
+  roster is not these six, the export population changed and the design's premise needs the owner,
+  not a code fix. **What it unblocks:** ISS-008's before-and-after reading (this issue was its
+  blocker), and E1's rubric arm may now tune on dev instead of reporting itself exploratory.
 
 #### ISS-017 — Add CI for the VLM path: real-engine smoke tests and a baseline-replay regression gate
 
@@ -3219,6 +3272,12 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   `.github/workflows/prompt-evaluation.yml` (the nightly harness run, deleted in `d8482861`) was a
   text-LLM job and was never a VLM gate, so removing it changes nothing here: a grep of
   `.github/workflows` for `vlm_replay` and `s_metrics` still finds nothing.
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** The split blocker is lifted: the
+  holdout exists, is published and is keyed on scenario, so a baseline-replay gate has something to
+  hold a candidate against, and `report.md` labels which arm each number came from. The gate's
+  remaining blocker is the runner question (OD-8, open for its Brev half) plus ISS-017's own smoke
+  half; nothing here is met by the split alone — there is still no workflow that replays items or
+  compares a run to a stored baseline.
 
 #### ISS-024 — The 450-item replay carries no `specialist_context`: S2/S3 are measured without the specialist lines
 
@@ -3254,6 +3313,10 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   with repeat-run spread (ISS-078); a guard refuses a replay whose items all have empty specialist
   outputs unless a flag says so.
 - **Depends on.** ISS-023 and ISS-025 (the legs must exist to be measured); ISS-016; OD-6 (P5b).
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** The split dependency is met: the
+  with/without specialist delta can now be published as a dev reading with a holdout confirmation,
+  and a specialist-context change derived from the holdout is what the split forbids (ISS-016's
+  closure note). ISS-023/ISS-025 and OD-6 still gate this issue; nothing here is met by the split.
 - **Tracked as.** P5a design defers it to P5b; ledger finding D is open. P5b has no owner or date.
 - **Severity note.** Verifiers read P2: documented scope and already partly tracked; the issue's
   'report does not say no specialists' claim was false.
@@ -3284,7 +3347,7 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
 
 #### ISS-043 — Add cluster-aware intervals, repeat runs and a noise floor to S2/S3
 
-`P2` · `gap` · actor `agent-now` · status `open`
+`P2` · `gap` · actor `agent-now` · status `done` · closed 2026-10-06 (see the closure note)
 
 - **Evidence**
   - `backend/evaluation/s_metrics.py:36` `wilson_interval` treats items as independent; events share
@@ -3324,6 +3387,28 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   not depend on sampling. Determinism was shown on two runs on one server and one build; hardware,
   concurrent slots and a build change are untested [?], so a repeat-run check is still worth one
   line in any report that compares two arms.
+- **Closure 2026-10-06 (branch `vlm-pipeline`, owner-authorized slice) [V].** All three acceptance
+  terms are in the shipped report path:
+  **(1) Cluster interval beside Wilson** — `backend/evaluation/cluster_stats.py` (new; stdlib-only,
+  the sweep script's estimators promoted: the scenario-cluster bootstrap and its paired form, exact
+  McNemar, and the noise-floor spread). `synthbench/score/metrics.py` `headline()` gains
+  `s2_cluster`/`s3_cluster` (scenario tables over the same rows as the Wilson cells) and
+  `comparison()` gains `dS2`/`dS3` with 95% cluster CIs over the shared items plus per-bar exact
+  McNemar on the discordants; `report.md` prints clustered columns beside every Wilson cell and the
+  paired columns in the Comparison table, with a note stating what each resamples. `SCORE_VERSION`
+  bumps to 2 for the `metrics.json` schema change. **(2) The sampling choice recorded** —
+  `run.json` and the report's conditions table now carry `temperature` and `seed` per model, and a
+  test pins the record against the request actually sent (the ISS-045 2026-10-03 acceptance addition
+  is met for the sampling half; ISS-045 stays open for its own terms). The repeat-run spread stays a
+  per-report term (the noise floor lives in `cluster_stats.noise_floor`; it is computed when a report
+  has reruns to describe). **(3) Paired comparisons, never 'improvement' inside the floor** — the
+  paired statistics are in every comparison the report prints; OD-26's rule text (already
+  'never a pick') and the Intake entry of 2026-10-06 keep the wording binding. Tests:
+  `backend/tests/unit/evaluation/test_cluster_stats.py` (hand-computed pins — identical clusters at
+  zero width, heterogeneous clusters strictly wider than Wilson, McNemar small-numbers by hand) and
+  the additions to `test_score.py` / `test_replay.py`; full unit suite green (30,461 passed, 122
+  skipped, 8 xfailed) on `vlm-pipeline`. Not in this closure: the sweep's `stats.json` was not recomputed (it is a frozen
+  record of its own run) and ISS-045's remaining terms are untouched.
 
 #### ISS-044 — Replace the leading audit with a blind check, and report its limits
 
@@ -3355,6 +3440,27 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   own interval; the same method is reused for the clip audit (ISS-038).
 - **Depends on.** OD-15; the owner's time is the cost.
 - **Tracked as.** P5a design A2 (60-still audit as the error bar); a blind variant is not tracked.
+- **Update 2026-10-06 (OD-15 ruled in-session [O]).** The method is replaced by the owner's chosen
+  option: **machine pre-screen of all 450 plus a blind targeted human audit**, not a fixed-size
+  blind sample. Acceptance v2: (1) a committed pre-screen driver batch-scores all 450 stills on the
+  resident flagship for the mechanical questions (declared-prop presence; an incident-shaped object
+  in a benign scene), with its conditions recorded (weights, endpoint, prompt, date); (2) the owner
+  blind-audits the flagged residue plus a blind random calibration sample - scenario and threat
+  level chosen from the taxonomy list with no declared text shown (the v1 blind requirement stands
+  unamended); (3) the pre-screen's agreement with the human labels (confusion matrix; sensitivity
+  and specificity) is reported before the flagged residue counts as sufficient audit - if
+  sensitivity is poor the human sample widens toward stratified, it does not shrink; (4) the
+  mismatch rate and confusion matrix are reported with per-stratum intervals where stratum n allows
+  and the pooled interval always (strata are 8-29 items, so 17 of 31 stay under n=10 even at 450 -
+  the v1 per-stratum clause is unachievable as written at any human budget; per-scenario
+  pre-screen coverage replaces it); (5) S2/S3 are re-scored on the audited subset with its own
+  interval; (6) the same method is reused for the clip audit (ISS-038). Why not 150 and not a full
+  human census: a 6.7% rate's Wilson interval spans 8.2 points at n=150 and 4.6 at n=450 - three
+  times the human cost buys 3.6 points - while the errors that threaten an ISS-016 freeze are
+  systematic-within-scenario and need per-scenario resolution, which the pre-screen supplies across
+  the whole corpus. The burned flagship-judge reading (55%, kappa 0.06, threat severity,
+  `docs/benchmarks/synthbench/p1-bakeoff.md`) is a different question from object presence, but it
+  is why item (3) is mandatory. Status stays `open`.
 
 #### ISS-045 — Make replay runs reproducible: dirty-tree flag, still hashes, flagship identity, store conditions
 
@@ -3392,6 +3498,12 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   scoring.
 - **Depends on.** ISS-079 (the run driver); ISS-082 (settings needed to run the tools).
 - **Tracked as.** None found.
+- **Update 2026-10-06 (branch `vlm-pipeline`, ISS-043 closure) [V].** The 2026-10-03 acceptance
+  addition below is met: `run.json` records the temperature read from the client constant, the seed
+  slot is recorded as absent, the report's conditions table prints both, and a test fails if either
+  the record or the printed column omits it. The rest of ISS-045's acceptance (dirty-tree flag,
+  still re-hash, flagship image identity, store-row conditions, read-only scoring) is untouched and
+  this issue stays `open`.
 - **Update 2026-10-03 (after `9f4e65cd`) [V].** Carried from the ISS-078 closure: the shipped
   sampling contract is now temperature 0 (`_ASSESS_TEMPERATURE`), but no replay artifact records it.
   A grep of `synthbench/run`, `synthbench/score` and `backend/evaluation` for `temperature` finds
@@ -3620,6 +3732,12 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   ISS-037), relabel visually indeterminate scenarios, or revise the bar.
 - **Depends on.** OD-2; ISS-016 (a dev split before E1 tunes anything); ISS-043 (the paired test).
   Related: ISS-008 (its arm 1 is E1), ISS-015, ISS-007, ISS-038.
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** E1's precondition is met: the dev
+  split exists (ISS-016's closure note names the roster), so a rubric arm may now tune on dev and be
+  read on the holdout instead of labelling itself exploratory. The arms already run (arm B shipped
+  under OD-29) were written knowing the whole corpus and stay development arms; any re-run under this
+  issue tunes on dev only, and the report prints the dev and holdout numbers labelled with the
+  holdout's stated limits.
 - **Tracked as.** Handoff Addenda 4 and 5 and doc 20 section 2 (E1 to E3); no ledger row and no
   register issue before this one.
 - **Severity note.** Filed P1 because it gates the S3 remedy ruling and the M2 closure question.
@@ -4236,6 +4354,15 @@ synthbench ai/vlm` is empty. Not recorded in any `run.json`, and a dirty checkou
   the shipped-prompt cell of its E3 on `b11376`; the 32B weights were downloaded and hash-verified at
   17:18 EDT per `download_all.log`; `SPEC` schedules no rubric arm, so the rubric cells are not
   run [V]), OD-2, OD-4 (whose named challenger, Nemotron-Nano-12B-v2-VL, is not in the sweep).
+- **Update 2026-10-06 (ISS-016 and ISS-043 closed on `vlm-pipeline`) [V].** The 'no holdout
+  (ISS-016) or paired test (ISS-043) exists yet' above is no longer true: both now exist on this
+  branch (neither in main yet). The holdout is the published hash order
+  (`SPLIT_SEEDS`/`SPLIT_HOLDOUT_K` in `synthbench/export/vss.py`, realized roster in ISS-016's
+  closure note) and the paired test is the cluster bootstrap plus dS2/dS3 and exact McNemar in
+  `backend/evaluation/cluster_stats.py`, so the OD-26 rule can name a confirmation set that did
+  not choose the arm and a test that separates arms at the scenario level. What the rule still
+  cannot do is run that confirmation: the split is recorded only once the owner re-exports, and
+  the sweep's 450 items were read before either existed.
 - **Tracked as.** Handoff Addendum 9 (the sweep and its confounders); ledger row 76 close pointer
   (the sweep RUNNING, results not claimed); the Intake log entry after the merge of #6783 (the
   sequencing); ledger item 35 (the provisional pick and its flip conditions). No register issue or
@@ -4626,6 +4753,9 @@ Face, plate and re-ID legs and the specialists not yet built.
   needs an owner-approved spec revision, a verdict-changing case and an FP measurement on the
   owner's night footage, which synthetic stills cannot stand in for.
 - **Depends on.** OD-7 (threat specialist on or off); ISS-024; ISS-016 (tune on dev only).
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** 'Tune on dev only' has a dev to mean
+  it with: the split is published and the failure gallery carries dev items only, so a specialist's
+  context or threshold may be fitted on dev and read on the holdout. OD-7 and ISS-024 still gate it.
 - **Tracked as.** R6 and the doc-14 rev-7 proposals; the F12 approval of YOLOE-26 is in the ledger.
   No ranked decision row.
 
@@ -5514,6 +5644,12 @@ export vss` writes one flat store with no train and held-out split (ISS-016) [V]
   the FLUX stills, which ISS-063's Acceptance does not ask for). Sequenced before any training split or
   data cut: ISS-016. Related: ISS-086 (the S3 remedy that could lead to a tuning path), OD-9 (its
   'accepted corpus' condition), ISS-038 and ISS-044 (the corpus's own audit status).
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** The `[V]` on the evidence line
+  'export vss writes one flat store with no train and held-out split (ISS-016)' verified a fact that
+  has since moved: on this branch `export vss` writes the dev/holdout manifest beside the sets
+  (`splits.json`, `synthbench/export/vss.py`), so the licence question now reaches a divided corpus as
+  well as a flat one. Not in main yet, and the real `splits.json` waits on the owner's next export
+  (README row, ISS-016 closure note); the licence reading itself is unchanged.
 - **Tracked as.** None found in the register, the ledger or the roadmap. Raised only in doc 20 section 4
   (the Harbor track's licence-risk bullet and 'Smallest next step'; the LoRA track's Recommendation,
   finding 13 and Stage 2 'DECISION D2') and the section 5 completeness-critic note; section 4(a) is raised
@@ -7385,7 +7521,7 @@ risk_level: 'high'}` message acking **as desired behavior**. Band alignment mean
   caught only because the standing discipline says an agent's report is a CLAIM until `git log`,
   `git status` and a first-hand re-run say otherwise. Every number in these closure notes was run in
   this session by the parent (1157 passed twice; 5 passed twice on the testcontainers tier; ruff
-  rc=0 on each file); none is inherited from a subagent report. The agent's *content* was good —
+  rc=0 on each file); none is inherited from a subagent report. The agent's _content_ was good —
   the test files it eventually wrote are the shipped ones, its numbers matched `--collect-only`
   exactly — the failure mode was its narration of work-in-progress as work-done. Related
   discipline this entry re-confirms the same way the ISS-103 pins did: the live-DB acceptance was
@@ -7427,10 +7563,10 @@ risk_level: 'high'}` message acking **as desired behavior**. Band alignment mean
     registers** (the CVE-2024-23342 dual-register precedent): `--ignore-vuln` in
     `dependency-audit.yml` **and** a `.trivyignore` entry (REVIEW BY 2027-04-06), each naming
     the non-exploitability — the sole consumer `backend/services/auth_service.py` pins
-    `algorithms=[HS256]` with a server-held secret, while the advisory *needs* unrestricted
+    `algorithms=[HS256]` with a server-held secret, while the advisory _needs_ unrestricted
     algorithms **and** an attacker-held public key; neither precondition holds. Migrating off
     python-jose is an owner product decision, **not** a CI gate, and was not planned here.
-  - **seroval ×2** (CVE-2026-104846 CRITICAL / CVE-2026-104845 HIGH): reached *only* through
+  - **seroval ×2** (CVE-2026-104846 CRITICAL / CVE-2026-104845 HIGH): reached _only_ through
     `@tanstack/react-query-devtools → solid-js`, which declares `seroval ~1.5.4` — a range that
     **cannot** reach the fix. A plain `npm install seroval@1.6.x` measurably adds a root copy
     while `solid-js` keeps a **nested 1.5.6** (the critical CVE survives on disk) and pollutes
@@ -7442,7 +7578,7 @@ risk_level: 'high'}` message acking **as desired behavior**. Band alignment mean
     An exemption would be **rule-5-red** here — the checker fails any exemption while npm
     reports a non-major fix path (that is the whole point of the fail-closed registry).
   - **postcss-selector-parser (moderate, under tailwindcss 3.4.19)**: the fix 7.1.6 is a
-    **major** jump (npm reports no in-range fix), so an exemption *would* be technically
+    **major** jump (npm reports no in-range fix), so an exemption _would_ be technically
     legitimate — but the fix was taken because the surface was **measured** identical, not
     assumed: same 37-file tarball list, runtime export sets compared key-by-key in node, d.ts
     diff is only signature widenings + doc comments, and production CSS **byte-identical**
@@ -7452,7 +7588,7 @@ risk_level: 'high'}` message acking **as desired behavior**. Band alignment mean
   lockfile target, so fixing the npm tree alone left it reporting the `seroval` +
   `source-map-js` rows. Carried by a **surgical ten-line edit** (five fixed versions with
   registry-computed sha512 SRI, deps unchanged or absent at every new version, overrides
-  section brought current with `package.json`) — *not* a `bun install` regeneration, because
+  section brought current with `package.json`) — _not_ a `bun install` regeneration, because
   reconcile rewrites **~200 unrelated transitive entries** (the file's workspace snapshot
   drifted from `package.json` in-repo well before this PR; first-hand verified that
   `--frozen-lockfile` already fails at the **pristine** checkout, and that **no workflow
@@ -7498,7 +7634,7 @@ risk_level: 'high'}` message acking **as desired behavior**. Band alignment mean
   is now **superseded by an exact-set measurement**: fix the citation to the full path the tool
   resolves and the ledger's ERR set is item-for-item main's, **10 == 10, no delta**. Quoted is
   not exempt; "a carried number is a claim — measure it where you cite it," and measure the
-  *set*, not just the count.
+  _set_, not just the count.
 - **The fleet lesson repeated, the discipline held**: this wave was recon+apply across five
   agents, and the parent still refused to trust any completion report — every shipped number was
   re-run first-hand, and the agents' honest caveats were honored as load-bearing (the npm agent
@@ -7533,13 +7669,13 @@ risk_level: 'high'}` message acking **as desired behavior**. Band alignment mean
   branch adopts).
 - **Both dispositions are honest** — main's registry reasons state the blocked-major premise
   accurately (solid-js `~1.5.4` genuinely caps the chain; npm reports the devtools-major
-  migration as the only fix path). This branch's floors were a *different* judgment call —
+  migration as the only fix path). This branch's floors were a _different_ judgment call —
   force the fixed version via `overrides` — not a better one, and a branch does not overrule
   what main shipped. The checker's rule 5 (fix-available ⇒ exemption red) stays green for all
   four dated entries because npm reports `isSemVerMajor` on their fix paths; measured at the
   merge head `6cb16820`: exemption checker **rc=0 in both CI shapes** ("4 active, 4 advisories
   all covered"), pip-audit with the exact CI pipeline **rc=0 "3 ignored"**, `check-trivyignore-
-  expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: rc=0, zero
+expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: rc=0, zero
   vulnerabilities across the bun/npm/uv lock targets** (with the suppressed-ignored note the
   dated jose/ecdsa rows earn), and the full backend unit tier **30,441 passed, 121 skipped,
   8 xfailed, 0 failed** — the count grew with main's mutation-battery batches (#6814), zero
@@ -7549,3 +7685,130 @@ risk_level: 'high'}` message acking **as desired behavior**. Band alignment mean
   records what this branch did and measured at its head, which is history, not error); it does
   not re-open the overrides-vs-exemptions question (owner's call if they ever prefer forcing
   the majors; both gates pass as shipped on main); it does not merge.
+
+### 2026-10-06 (owner in-session batch: the measurement-validity slice is authorized on `vlm-pipeline`, OD-15's method is ruled to a machine pre-screen with a blind human audit, and OD-3/8/12/20/28 are ruled; the synthbench mounts arrive on this sandbox)
+
+- **Sandbox state, first-hand [V].** The owner restarted `agent-vss8` with the GPU flag: `agent-gpu`
+  is present and `agent-gpu status` reads `ok: true`, session `vss8`, free 64,110 MiB under a 40,960
+  MiB cap, fence on; the resident flagship reports `healthy: true` in
+  `/synthbench/status/flagship.json`. The mount pair `docs/benchmarks/synthbench/p3-probes.md`
+  documents arrived: `/synthbench/corpus` (tierb-v0 — all 450 scored items in the committed
+  `docs/benchmarks/synthbench/sweep-2026-10-03/items.csv` resolve to event dirs under `events/`
+  with their `stills/*.jpg` present: 436 items carry one still, 14 carry two; item labels agree
+  with `index.jsonl` on 450 of 450) and `/synthbench/status`. The branch `vlm-pipeline` was cut
+  from `290fa121`, then equal to `origin/main` (0 ahead, 0 behind).
+
+- **The slice is authorized [O].** The owner authorized the measurement-validity slice as the
+  working package on `vlm-pipeline`, in the register's own order: ISS-043 (cluster-aware intervals,
+  repeat runs, noise floor) first, then ISS-016 (the frozen dev/holdout split — ISS-016's own
+  Depends-on places ISS-043 ahead of the freeze; README's step-4 line lists the pair together, not
+  ordered), then ISS-087's reporting half, ISS-084's read-only finding and ISS-088. No new ids. Push,
+  PR and merge still need the owner's go-ahead (OD-10 unchanged).
+
+- **OD-15 is ruled [O] — method: machine pre-screen plus a blind targeted human audit.** The owner
+  chose the recommended option, and its approval carries the owner's ok for the pre-screen's batch
+  use of the resident flagship against the corpus (the `dgx-inference` stack is otherwise untouched).
+  Method: pre-screen all 450 stills on the narrow mechanical question (is the declared prop present;
+  does any benign scene carry an incident-shaped object); the owner then blind-audits the flagged
+  residue plus a blind random calibration sample, declared text not shown (ISS-044's blind
+  requirement survives); the pre-screen's own error rate is measured against the human labels before
+  its routing is trusted. The burned 55% / kappa 0.06 flagship-judge reading
+  (`docs/benchmarks/synthbench/p1-bakeoff.md`) is a threat-_severity_ judgment, not an
+  object-presence question — it does not bar this use, but it is why the calibration arm is
+  mandatory. The fixed-150 form is superseded as the method, with the arithmetic that chose it: the
+  31 scenario strata hold 8-29 items, so even a full 450-still human census leaves 17 of 31 strata
+  under n=10 (Wilson width of a 6.7% rate: 28.6 points at n=15, 8.2 at n=150, 4.6 at n=450); the
+  errors that threaten an ISS-016 freeze are systematic-within-scenario, so per-scenario resolution
+  is what buys, and the pre-screen supplies it across all 450 for about an hour of GPU at the
+  corpus's recorded 8.1 s/still. ISS-044 carries the dated acceptance note; its status stays `open`
+  (neither the pre-screen nor the human audit has run).
+
+- **OD-3, OD-8, OD-12, OD-20 and OD-28 are ruled [O] — "take all of the recommendations" resolves
+  the rows that were put with one** (each row in 17 section 4 carries the ruling text): OD-3
+  approve-a-rev-now (an agent drafts spec rev 8 on this branch; the owner approves the final text;
+  the spec stays owner-held); OD-8 **acceptance half only** — accept the A5500 S1 and S4 as measured,
+  the re-take rule keeps its existing terms, **Brev spend and GPU-type approval stay open**; OD-12
+  (a)+(b) together — loopback unless `EXPOSE_LAN=true`, deny-by-default auth on `/api` and `/ws`
+  when exposed, LAN-trust (c) declined; OD-20 retire the dead enrichment surface in one commit;
+  OD-28 (a) delete — the guided-constraints and trajectory modules first, then the scene-change
+  vertical.
+
+- **What "take all of the recommendations" cannot resolve, recorded so the next read does not
+  over-read the instruction.** OD-14, OD-16, OD-22 and OD-25 were put with options and no
+  recommendation and stay open, as does OD-8's Brev half; OD-2's floor half stays a disclosure
+  decision (both floors measured, neither near the bar); section 4's one confirmation pass is still
+  pending.
+
+- **What this entry does not do:** it moves no bar, D or S line, and no spec text (OD-3's ruling
+  authorizes a draft only); it files no ids; it does not start ISS-043's implementation (that
+  follows next on this branch); the pre-screen's build is agent work under the OD-15 ruling, and its
+  runs will carry their conditions line.
+
+### 2026-10-06 (ISS-043 closes on `vlm-pipeline`: the cluster interval and the paired test are in the report path, and so is the sampling choice on the conditions line)
+
+- **What ran.** The measurement-validity slice's first item, implemented test-first on
+  `vlm-pipeline`: `backend/evaluation/cluster_stats.py` (new) promotes the sweep script's
+  estimators - scenario-cluster bootstrap, its paired form, exact McNemar, the run-to-run spread -
+  to a tested, stdlib-only module (`s_metrics`' no-undeclared-dependency rule for anything a fixed
+  bar's report rests on). `synthbench/score` prints them: `headline()` carries `s2_cluster`/
+  `s3_cluster` beside every Wilson cell, `comparison()` carries the paired McNemar and dS2/dS3 with
+  cluster CIs over the shared items, and `report.md` states in prose what each column resamples;
+  `SCORE_VERSION` is 2 because `metrics.json` gained keys. The sampling choice - `temperature` read
+  from the client constant and the absent `seed` - is recorded per replay in `run.json` and printed
+  in the report's conditions table, a test pinning the record against the request that was actually
+  sent (this satisfies ISS-045's 2026-10-03 acceptance addition; ISS-045 itself stays open for its
+  own terms). The ISS-043 block carries the closure note; the Dashboard moves open 97->96, done
+  6->7.
+- **Tested.** New pins are hand-computed where a bootstrap answer is seed-independent (identical
+  clusters at zero width; heterogeneous clusters strictly wider than Wilson - the ISS-043 claim
+  itself; McNemar 5-vs-0 = 0.0625 by hand). Unit suite green: 30,461 passed, 122 skipped, 8
+  xfailed.
+- **Sandbox note (not a repo fact).** Two sandbox-environment fixes this session needed, neither
+  committed: the venv had the GUI `opencv-python` wheel and no `libxcb`, so synthbench's conftest
+  could not import at all - fixed in the sandbox venv with `uv pip install opencv-python-headless`
+  (the lock already resolves headless; `uv sync` reverts this); and `pre-commit` hooks are now
+  installed in this sandbox's `.git/hooks` (pre + commit-msg).
+- **What this entry does not do:** no new ids; no bar, D or S line moved; the sweep's frozen
+  `stats.json` is not recomputed; ISS-016's split design has not started (it is next in the
+  slice's order).
+
+### 2026-10-06 (ISS-016 closes on `vlm-pipeline`: the tierb-v0 dev/holdout split is a published hash draw, recorded in the export, the store and the report)
+
+- **What ran.** The measurement-validity slice's second item, test-first on `vlm-pipeline`, commits
+  `54d036d5`..`8cdbb412`. Design
+  `docs/superpowers/specs/2026-10-06-synthbench-iss016-dev-holdout-split-design.md`, plan
+  `docs/superpowers/plans/2026-10-06-synthbench-iss016-dev-holdout-split.md`. Scope in one sentence:
+  the corpus is divided into a dev set tuning may see and a holdout it never sees, the division is a
+  published hash order nobody can pick, and it is recorded at export, imported at replay, reconciled
+  at score and labelled in the report. `synthbench/export/vss.py` draws it - incident scenarios
+  ranked by `sha256("tierb-v0|vss-iss016-s3-holdout-2026-10-06|<scenario>")`, first 6 held out - and
+  `export vss` writes `splits.json` (create-once, canonical bytes, sha256 fingerprint);
+  `backend/evaluation/eval_store.py` gains a `splits` table that replay fills from the export's
+  manifest and refuses to overwrite; `score` reconciles store against export and stops on
+  disagreement (`ScoreRefused`, exit 2) rather than re-labelling; `report.md` prints labelled dev and
+  holdout tables with the holdout's stated limits and the dev-vs-holdout comparison beside the
+  ISS-043 statistics, while `report.html` and the failure gallery carry dev items only - the
+  enforcement half of 'tuning uses dev only'. **The realized roster** (verbatim from the spec's
+  realized draw, recomputable from the three published strings): `tailgating` 9 suspicious,
+  `blunt_weapon` 9 threat, `car_break_in` 9 threat, `casing_with_phone` 9 suspicious,
+  `knife_visible` 19 threat, `peering_into_windows` 9 suspicious - holdout 64 incident items (27% of
+  241), 0 benign; dev 386 items, 209 benign and 177 incident. Unit is the scenario, so no item's
+  payload or store fingerprint moves and every frozen record keeps its meaning; a corpus without a
+  manifest scores exactly as before and reports `split: unrecorded`.
+- **Tested.** `backend/tests/unit/synthbench` plus `backend/tests/unit/evaluation` green: 1268
+  passed, 1 skipped. The roster is pinned by recomputation from the recipe with the seed string
+  asserted literally and one hand-checked digest, so a silent seed edit fails there; the create-once
+  manifest, the store's refusal of a second roster, the score reconciliation, the per-arm headline
+  and the dev-only gallery each have their own pins.
+- **Register.** ISS-016 flips `open` -> `done` with its closure note; ISS-008, ISS-017, ISS-024,
+  ISS-086 and ISS-053 carry dated notes lifting the split precondition; the Dashboard moves open
+  96->95, done 7->8; README's Next-five step 4 closes and §2 gains the split's fact and its two
+  pins.
+- **What this entry does not do:** no new ids; no bar, D or S line moved; no tuning - prompt and
+  specialist work stays in ISS-008, ISS-086, ISS-024 and ISS-053, now gated by a split that exists;
+  nothing about the OD-15 label work (the pre-screen reads all 450 stills for label correctness,
+  which is not tuning, and corrected labels apply to both arms); P5a's and the sweep's frozen records
+  are not re-scored; and no real `splits.json` on this branch - the corpus is on the owner's export
+  host, so the manifest lands on the next `synthbench export vss`, with no GPU and before any replay.
+  If that run's printed roster is not the six above, the export population has changed and the
+  design's premise is the owner's call, not a code fix.

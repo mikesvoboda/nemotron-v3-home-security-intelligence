@@ -349,6 +349,25 @@ and never writes it.
   and still.
 - **Writes:** `<out>/<category>/<id>/` holding `expected_labels.json`, `still.jpg` and
   `still.json` (its attribution). Each set is written once; a re-export skips an identical set.
+- **`splits.json`** (ISS-016): the dev/holdout split of the version, written once at `<out>` in
+  canonical JSON (sorted keys), so its sha256 is the manifest's fingerprint and a hand-edited
+  differing copy is detected at the next export or score. Contents: `corpus_version`, `seed` (the
+  version's pre-registered string in `SPLIT_SEEDS`, `synthbench/export/vss.py`), `holdout_k`,
+  `unit` (`scenario` — a scenario sits in exactly one arm, benign always dev), `arms` (the dev and
+  holdout rosters), `draw` (every incident scenario with its `rank_sha256` and arm, in hash order)
+  and `items` (benign and incident counts per arm). The roster is recomputed, never chosen:
+  rank each incident scenario by `sha256("<version>|<seed>|<scenario>")` and take the first
+  `holdout_k`, clamped to `max(0, min(k, n - 1))` of the `n` incident scenarios, so dev always
+  keeps an incident scenario (the `holdout_k` on disk is the clamped value).
+- **No registered seed:** a version absent from `SPLIT_SEEDS` exports its sets and writes no
+  manifest, printing `no split registered for <version>` and exiting 0. Such an export scores as
+  `split: unrecorded`, exactly as a pre-split export does.
+- **No ready events:** a registered version whose export holds no scenario at all (every event
+  ambiguous, or none ready) writes no manifest either, printing
+  `no ready tier B events for <version>: no split written` and exiting 0. A registered seed is not
+  a population: the draw has nothing to draw from, and an empty manifest would spend the
+  create-once slot against the real export that follows. Once events are ready, the next export
+  writes the split into that fresh slot.
 - **Categories:** benign and hard_negative go to `normal/`, suspicious to `suspicious/`, threat to
   `threats/`. Ambiguous events are not exported: S2 and S3 count neither label.
 - **`expected_labels.json`:** `category`, `risk` (the risk band), `timestamp` (the scene time on
@@ -356,12 +375,16 @@ and never writes it.
   subjects and props as an ideal detector reports them: object type and confidence 1.0, no box)
   and a `synthbench` block with the event's facts.
 - **Prints:** how many sets were written and how many were unchanged, and how many events were not
-  exported, by reason.
+  exported, by reason. With a registered seed it then prints the split line: `holdout_k`, the two
+  rosters, the item counts by arm and the manifest's `sha256` (with ` (unchanged)` when the
+  manifest on disk already held these bytes).
 - **Exit 1:** the corpus has no events, or `--out` lies inside the corpus
   (`$SYNTHBENCH_ROOT/corpus`, which is append-only).
 - **Exit 2:** a set on disk differs from the corpus, a still no longer matches its sha256, a ready
-  event has no still, an event's label disagrees with its group, or a corpus file cannot be read
-  or written.
+  event has no still, an event's label disagrees with its group, a scenario contributes both
+  labels (`<scenario> contributes both labels, but the split's unit is the scenario` — the split's
+  premise has broken), a `splits.json` on disk differs from the draw the corpus implies (an
+  export's split is not editable), or a corpus file cannot be read or written.
 
 ## `audit`
 
@@ -440,9 +463,11 @@ already be served: `replay` never starts, stops or reconfigures a model server.
   `run.json`.
 - **Exit 1:** the export has no sets.
 - **Exit 2:** a check failed (including an eval store that predates the export: move it aside),
-  a set did not import for a reason other than "already imported", or the importer refused the
-  export outright (a set's declared category contradicts its directory, or the eval store's
-  residence guard refused its media).
+  a set did not import for a reason other than "already imported", the split import refused the
+  store (it already records a different manifest for the version, or a scenario in the other arm
+  — `split for <version>: scenario <scenario> is already recorded as <arm>`), or the importer
+  refused the export outright (a set's declared category contradicts its directory, or the eval
+  store's residence guard refused its media).
 
 ## `score`
 
@@ -477,6 +502,16 @@ truth error, and, with two or more replays, the comparison between models.
   different eval stores or exports.
 - **Exit 2:** a replay's `run.json` does not read, its eval store is missing or holds none of its
   results, or it scored items the export does not hold.
+- **Exit 2, the split:** the export's `splits.json`, the eval store's split rows and each
+  replay's recorded `split_sha256` must agree. Each refusal names the artifacts it compared; none
+  picks a source silently:
+  - the store's roster or digest is not the manifest's — `the split disagrees`, naming both
+    digests and up to three scenarios armed differently;
+  - a replay recorded another digest, `nothing` included, the one case the refusal answers with
+    a rule: score replays of one export together, and replays of different exports apart;
+  - a manifest has no rows behind it in the store — it was imported `before the split existed`,
+    so move the store aside and replay this export;
+  - the store or a replay carries split truth for an export that `carries no splits.json`.
 
 ## `corpus snapshot`
 
