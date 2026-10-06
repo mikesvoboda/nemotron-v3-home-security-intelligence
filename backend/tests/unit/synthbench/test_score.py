@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -236,14 +237,23 @@ def _world(
     root: Path,
     scores: dict[str, dict[str, int | None]],
     records: dict[str, dict[str, Any]] | None = None,
+    scenarios: Mapping[str, str] | None = None,
+    split: str | None = None,
 ) -> list[str]:
     """An export of three threats and twelve benign scenes, imported; one replay per model,
-    its `run.json` updated with `records[model]`."""
+    its `run.json` updated with `records[model]`.
+
+    `scenarios` overrides an event's scenario name (the default names one scenario per group).
+    `split` records a dev/holdout split on that export, in the store as well as on disk:
+    `"recorded"` is the honest pair, the other modes are the drift `score` has to catch — see
+    `_record_split`. A run.json for a split export carries the digest the replay measured under,
+    which `records[model]` may still override.
+    """
     events = [(f"B-t-{i:03d}", "threat") for i in range(3)]
     events += [(f"B-b-{i:03d}", "benign") for i in range(12)]
     export = root / "exports" / h.VERSION / "vss"
     for event_id, group in events:
-        facts = _facts(event_id, group)
+        facts = _facts(event_id, group, scenario=(scenarios or {}).get(event_id, f"{group}_scene"))
         labels = {
             "category": vss.CATEGORY[group],
             "risk": {"min_score": facts["risk_band"][0], "max_score": facts["risk_band"][1]},
@@ -258,13 +268,17 @@ def _world(
         vss.write_set(export, vss.CATEGORY[group], event_id, files)
     store_path = root / "eval" / h.VERSION / "eval.sqlite"
     store_path.parent.mkdir(parents=True)
+    carried = _record_split(export, store_path, split, scenarios or {})
     ids = []
     with EvalStore(store_path) as store:
         assert not [r for r in import_generated_items(corpus_dir=export, store=store) if r.skipped]
         for model, by_event in scores.items():
             run_id = store.start_run(engine="llama.cpp", model=model)
             for event_id, group in events:
-                item = _item(event_id, group)
+                cell: dict[str, Any] = {}
+                if scenario := (scenarios or {}).get(event_id):
+                    cell["scenario"] = scenario  # the item's facts must match the export's
+                item = _item(event_id, group, **cell)
                 row = _row(item, by_event.get(event_id, 10 if group == "benign" else 90))
                 store.put_result(
                     run_id,
@@ -286,12 +300,245 @@ def _world(
                 "eval_run_id": run_id,
                 "commit": "abc",
                 "started_utc": "2026-09-30T10:00:00+00:00",
-            } | (records or {}).get(model, {})
+            }
+            # The split the replay measured under (Task 4's run.json fields); a test's own
+            # `records[model]` still wins, which is how the disagreement tests move one of them.
+            record |= carried | (records or {}).get(model, {})
             run_dir = root / "runs" / "replays" / replay_id
             run_dir.mkdir(parents=True)
             (run_dir / "run.json").write_text(json.dumps(record))
             ids.append(replay_id)
     return ids
+
+
+# ISS-016: score reads ONE split truth out of three places that can hold it — the export's
+# `splits.json`, the store's `splits` table, and each replay's run.json. Any disagreement between
+# them is a refusal (B8), never a silent pick of the convenient one.
+
+
+def _arms(document: Mapping[str, Any]) -> list[dict[str, str]]:
+    """The store's flat rows for a manifest: one per armed scenario, as `put_split` takes them."""
+    return [
+        {"scenario": name, "arm": arm} for arm, names in document["arms"].items() for name in names
+    ]
+
+
+# The split fixture's scenarios: two incident scenarios (so the draw, clamped to n-1, sends one
+# of them to holdout) and one benign scenario holding every benign item. Label-pure, as the corpus
+# is (B5), so a scenario belongs to exactly one arm.
+SPLIT_SCENARIOS = {
+    "B-t-000": "knife_visible",
+    "B-t-001": "knife_visible",
+    "B-t-002": "loitering",
+    **{f"B-b-{i:03d}": "hooded_jogger" for i in range(12)},
+}
+
+
+def _scenario_counts(scenarios: Mapping[str, str]) -> dict[str, dict[str, int]]:
+    """The export's per-scenario item counts by label, from the fixture's own event list."""
+    counts: dict[str, dict[str, int]] = {}
+    for event_id, scenario in scenarios.items():
+        label = "incident" if event_id.startswith("B-t") else "benign"
+        per = counts.setdefault(scenario, {"benign": 0, "incident": 0})
+        per[label] += 1
+    return counts
+
+
+def _drawn(scenarios: Mapping[str, str]) -> dict[str, str]:
+    """The fixture's scenario -> arm table: the real hash draw over its incident scenarios, with
+    benign joined as dev — the way the export command arms (B1)."""
+    counts = _scenario_counts(scenarios)
+    incident = [name for name, per in counts.items() if per["incident"]]
+    drawn = {
+        row["scenario"]: row["arm"] for row in vss.draw_split(h.VERSION, incident)["scenarios"]
+    }
+    return {name: drawn.get(name, "dev") for name in counts}
+
+
+def _swap_arm(document: dict[str, Any], counts: Mapping[str, Mapping[str, int]]) -> dict[str, Any]:
+    """The same manifest with one scenario armed the other way: roster, draw, size and item counts
+    all moved with it, so it is a different split under a different digest — what a hand-edit of
+    the store's rows leaves behind."""
+    held = document["arms"]["holdout"][0]
+    moved = next(n for n in document["arms"]["dev"] if counts[n]["incident"])
+    arms = {
+        "dev": sorted([n for n in document["arms"]["dev"] if n != moved] + [held]),
+        "holdout": sorted([n for n in document["arms"]["holdout"] if n != held] + [moved]),
+    }
+    arm_of = {name: arm for arm, names in arms.items() for name in names}
+    items = {
+        arm: {label: sum(counts[name][label] for name in names) for label in ("benign", "incident")}
+        for arm, names in arms.items()
+    }
+    return document | {
+        "arms": arms,
+        "draw": [row | {"arm": arm_of[row["scenario"]]} for row in document["draw"]],
+        "holdout_k": len(arms["holdout"]),
+        "items": items,
+    }
+
+
+def _record_split(
+    export: Path, store_path: Path, mode: str | None, scenarios: Mapping[str, str]
+) -> dict[str, Any]:
+    """Write (or withhold) the fixture's split, in both places it is recorded, and give back the
+    run.json fields a replay of that export would carry.
+
+    `mode` is the drift to pin: `"recorded"` (manifest on disk, the same roster in the store),
+    `"file_only"` (the store was never told), `"store_only"` (the store holds a roster the export
+    cannot show), `"rival_in_store"` (the export's manifest and the store's rows are two different
+    splits), `"no_replay_record"` (an honest pair, but the replay says it measured no split).
+    `None` leaves the export a pre-split one. The run.json fields are the honest ones for the
+    manifest on disk, which is what a replay of that export would have written.
+    """
+    if mode is None:
+        return {}
+    counts = _scenario_counts(scenarios)
+    document = vss.split_manifest_document(h.VERSION, _drawn(scenarios), items_by_scenario=counts)
+    stored_document = _swap_arm(document, counts) if mode == "rival_in_store" else document
+    if mode != "store_only":
+        vss.write_split(export, document)
+    if mode not in ("file_only", "no_replay_record"):
+        with EvalStore(store_path) as store:
+            store.put_split(
+                h.VERSION,
+                _arms(stored_document),
+                seed=str(stored_document["seed"]),
+                manifest_sha256=vss.split_sha256(stored_document),
+            )
+    digest = vss.split_sha256(document) if mode != "store_only" else None
+    if digest is None:
+        return {"split_sha256": None, "split_holdout": []}
+    return {"split_sha256": digest, "split_holdout": list(document["arms"]["holdout"])}
+
+
+def _split_fixture(root: Path, mode: str, scores: dict[str, dict[str, int | None]]) -> list[str]:
+    """`_world` over the split fixture's scenarios: two incident ones (the draw, clamped to n-1,
+    sends one to holdout) and one benign scenario carrying every benign item."""
+    return _world(root, scores, scenarios=SPLIT_SCENARIOS, split=mode)
+
+
+def _rows(out: Path) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in (out / "results.jsonl").read_text().splitlines()]
+
+
+def _scored_dir(root: Path) -> Path:
+    [out] = (root / "runs" / "scores").iterdir()
+    return out
+
+
+def test_a_recorded_split_scores_under_one_roster(tmp_path: Path) -> None:
+    """The export's manifest and the store's rows are the same split: score states it once in the
+    identity, and every results row carries the arm of its scenario (ISS-016 B5/B8)."""
+    ids = _split_fixture(tmp_path, "recorded", {"qwen3-vl-8b": {}})
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
+    out = _scored_dir(tmp_path)
+    metrics = json.loads((out / "metrics.json").read_text())
+    export = tmp_path / "exports" / h.VERSION / "vss"
+    manifest = vss.read_split(export)
+    assert manifest is not None
+    digest = vss.split_sha256(manifest)
+    assert metrics["identity"]["split"] == {
+        "source": "splits.json",
+        "sha256": digest,
+        "seed": manifest["seed"],
+        "holdout_k": manifest["holdout_k"],
+        "holdout": manifest["arms"]["holdout"],
+        "items": manifest["items"],
+    }
+    # The row's arm is its scenario's arm — computed from the scenario, never from the identity.
+    arm_of = {name: arm for arm, names in manifest["arms"].items() for name in names}
+    rows = _rows(out)
+    assert len(rows) == 15  # one model, fifteen items
+    assert {row["split"] for row in rows} == {"dev", "holdout"}
+    assert [row["split"] for row in rows] == [arm_of[row["cell"]["scenario"]] for row in rows]
+
+
+def test_the_identity_states_the_holdout_and_its_item_counts(tmp_path: Path) -> None:
+    """The two numbers a reader discounts a holdout by: which scenarios tuning never saw, and how
+    many items they are. Both come from the manifest the score checked, not from the fixture."""
+    ids = _split_fixture(tmp_path, "recorded", {"qwen3-vl-8b": {}})
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
+    metrics = json.loads((_scored_dir(tmp_path) / "metrics.json").read_text())
+    identity = metrics["identity"]["split"]
+    # The hash draw over two incident scenarios puts knife_visible in the holdout (the k=1 clamp
+    # of §2's edge), and every benign item stays in dev by rule B1.
+    assert identity["holdout"] == ["knife_visible"]
+    assert identity["items"]["holdout"] == {"benign": 0, "incident": 2}
+    assert identity["items"]["dev"] == {"benign": 12, "incident": 1}
+
+
+def test_a_pre_split_export_scores_as_unrecorded(tmp_path: Path) -> None:
+    """B6: the manifestless fixture still scores, and says so — but the version bump is real, so a
+    reader can tell this metrics.json from one written before the split existed."""
+    ids = _world(tmp_path, {"qwen3-vl-8b": {}})
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
+    out = _scored_dir(tmp_path)
+    metrics = json.loads((out / "metrics.json").read_text())
+    assert metrics["identity"]["split"] == {"source": "unrecorded"}
+    assert metrics["identity"]["score_version"] == 3
+    rows = _rows(out)
+    assert len(rows) == 15
+    assert {row["split"] for row in rows} == {"unrecorded"}
+
+
+@pytest.mark.parametrize(
+    "mode,drift",
+    [
+        ("file_only", "the store never recorded the manifest the export carries"),
+        ("store_only", "the store holds a roster the export cannot show"),
+        ("rival_in_store", "store and export hold two different splits"),
+        ("no_replay_record", "the replay says it measured no split at all"),
+    ],
+)
+def test_a_split_disagreement_refuses_the_score(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], mode: str, drift: str
+) -> None:
+    """B8: each way the three records can drift apart ({drift}) stops the run with exit 2 and
+    writes nothing — the same disposition as the stale-fingerprint check."""
+    ids = _split_fixture(tmp_path, mode, {"qwen3-vl-8b": {}})
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_ASK
+    assert not (tmp_path / "runs" / "scores").exists()
+    assert "split" in capsys.readouterr().err
+
+
+def test_a_store_roster_that_disagrees_names_both_digests(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The owner-readable form of the refusal: the store's digest and the export's, so the fix
+    (which side to move) is decidable from the message."""
+    ids = _split_fixture(tmp_path, "rival_in_store", {"qwen3-vl-8b": {}})
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_ASK
+    err = capsys.readouterr().err
+    stored = re.findall(r"\b[0-9a-f]{64}\b", err)
+    assert len(stored) == 2
+    with EvalStore(tmp_path / "eval" / h.VERSION / "eval.sqlite") as store:
+        rows = store.get_split(h.VERSION)
+    assert rows is not None
+    in_store = {row["manifest_sha256"] for row in rows}
+    export = tmp_path / "exports" / h.VERSION / "vss"
+    assert in_store | {vss.split_sha256(vss.read_split(export))} == set(stored)
+
+
+def test_a_row_whose_scenario_the_roster_does_not_arm_is_refused(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The roster covers every exported scenario (Task 2), so a scenario it does not arm is
+    hand-edited or mismatched data: name it and stop rather than call it unrecorded."""
+    ids = _split_fixture(tmp_path, "recorded", {"qwen3-vl-8b": {}})
+    edited = tmp_path / "exports" / h.VERSION / "vss" / "threats" / "B-t-002" / vss.LABELS_FILE
+    labels = json.loads(edited.read_text())
+    labels["synthbench"]["cell"]["scenario"] = "unedited_never_armed"
+    edited.write_text(json.dumps(labels))
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_ASK
+    assert "unedited_never_armed" in capsys.readouterr().err
+    assert not (tmp_path / "runs" / "scores").exists()
 
 
 def test_score_writes_results_metrics_and_both_reports(tmp_path: Path) -> None:

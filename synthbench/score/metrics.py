@@ -327,8 +327,16 @@ def result_rows(
     items: Mapping[str, Item],
     answers: Mapping[tuple[str, str], str],
     excluded: set[str],
+    *,
+    scenario_arm: Mapping[str, str] | None = None,
 ) -> list[dict[str, Any]]:
-    """One row per item per model, for `results.jsonl` and the failure gallery."""
+    """One row per item per model, for `results.jsonl` and the failure gallery.
+
+    `scenario_arm` is the reconciled roster (ISS-016): each row's `split` is its own scenario's
+    arm, read from the table and never from the identity, so the rows say which side of the split
+    they are on for whatever reads the file. `None` is a pre-split export (B6): every row is
+    `unrecorded`. A pure helper on purpose — Task 7's gallery test calls it directly.
+    """
     out: list[dict[str, Any]] = []
     for model, replay_id, rows in replays:
         for row in rows:
@@ -338,6 +346,13 @@ def result_rows(
                 band_position(item, int(score)) if score is not None else (None, None)
             )
             raw = row.get("raw_response") or {}
+            # The arm of this item's scenario, from the roster: the split's unit is the scenario
+            # (ISS-016 B5), and a row without a roster to look in says so (B6).
+            arm = (
+                "unrecorded"
+                if scenario_arm is None
+                else scenario_arm[str(item.facts["cell"]["scenario"])]
+            )
             out.append(
                 {
                     "model": model,
@@ -356,6 +371,7 @@ def result_rows(
                     "excluded": item.event_id in excluded,
                     "cell": dict(item.facts["cell"]),
                     "still": str(item.still),
+                    "split": arm,
                     "reasoning": raw.get("reasoning") or raw.get("detail"),
                 }
             )

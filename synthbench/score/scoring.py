@@ -21,14 +21,21 @@ from backend.evaluation.vlm_replay import git_commit
 from synthbench.audit.page import load_answers
 from synthbench.audit.sample import sample as audit_sample
 from synthbench.contract.store import DEFAULT_SYNTHBENCH_ROOT
-from synthbench.export.vss import ExportedSet, read_sets
+from synthbench.export.vss import (
+    SPLIT_FILE,
+    ExportedSet,
+    read_sets,
+    read_split,
+    split_sha256,
+)
 from synthbench.score import report
 from synthbench.score.metrics import Item, result_rows, score_models
 
-# 2 (2026-10-06, ISS-043): `models.*.all` gains s2_cluster/s3_cluster and
-# `comparison[]` gains the paired test; metrics.json from before that differs
-# in keys, and this field is the only signal a reader has for it.
-SCORE_VERSION = 2
+# 3 (2026-10-06, ISS-016): `identity.split` and each results row's `split` appear; with a
+# recorded split the model blocks gain dev/holdout siblings of `all`. 2 (2026-10-06, ISS-043):
+# `models.*.all` gains s2_cluster/s3_cluster and `comparison[]` gains the paired test. Metrics
+# from before each differ in keys, and this field is the only signal a reader has for it.
+SCORE_VERSION = 3
 _REPLAY_KEYS = (
     "replay_id",
     "model",
@@ -63,6 +70,13 @@ class ScoreRequestError(Exception):
 
 class ScoreRefused(Exception):
     """A replay, its eval store and the export disagree: stop and ask the owner."""
+
+
+# The export's manifest is where the roster comes from; the identity says so, so a reader knows
+# which artifact the number was computed under. B6: no manifest means `unrecorded`, and that is
+# the only value a pre-split export's identity can carry.
+SPLIT_SOURCE = "splits.json"
+UNRECORDED = {"source": "unrecorded"}
 
 
 @dataclass(frozen=True)
@@ -168,6 +182,117 @@ def _one(values: set[Path], what: str) -> Path:
     return next(iter(values))
 
 
+def _split_of(manifest: dict[str, Any]) -> dict[str, Any]:
+    """The identity's `split` block: exactly the keys a reader needs, taken from the manifest the
+    cross-check just accepted."""
+    return {
+        "source": SPLIT_SOURCE,
+        "sha256": split_sha256(manifest),
+        "seed": manifest["seed"],
+        "holdout_k": manifest["holdout_k"],
+        "holdout": list(manifest["arms"]["holdout"]),
+        "items": manifest["items"],
+    }
+
+
+def _candidate_versions(
+    export: Path, store: EvalStore, manifest: Mapping[str, Any] | None
+) -> list[str]:
+    """The corpus version keys worth asking the store about (its `splits` rows are keyed by it).
+
+    A manifest states its own version, which is the case that matters. Without one there is
+    nothing inside the export to read, so fall back to the two names the layout gives it: the
+    store's directory (`eval_store`'s own rule — the directory names the generation it holds) and
+    the export's parent (`$SYNTHBENCH_ROOT/exports/<version>/vss`, what `export vss` writes). A
+    store kept somewhere else entirely answers nothing, which reads as unrecorded: the one drift
+    this function cannot see is a roster in a store that hides its version from both paths.
+    """
+    if manifest is not None:
+        return [str(manifest["corpus_version"])]
+    names = [store.dir_name]
+    if export.name == "vss":
+        names.append(export.parent.name)
+    return list(dict.fromkeys(names))
+
+
+def load_split(
+    store: EvalStore,
+    export: Path,
+    replay_records: Sequence[Mapping[str, Any]],
+) -> tuple[dict[str, str] | None, dict[str, Any]]:
+    """One split truth for this score, from the three places that can hold it (design §4).
+
+    The export's `splits.json`, the store's `splits` rows and each replay's `run.json` are read
+    together and cross-checked before any of them is trusted; the function returns the
+    scenario→arm table and the identity block built from the same manifest. `unrecorded` —
+    `(None, {"source": "unrecorded"})` — requires that the store AND the export are both empty
+    (B6); one holding a split the other does not is `ScoreRefused`, not a silent fallback, and so
+    is a replay record naming a different digest (B8).
+
+    The manifest is the authority for the identity's numbers; the store's rows are what the import
+    actually recorded, so the roster, the digest on every row and each replay's digest are all
+    checked against it. An arm outside dev/holdout is refused by the store at import, so a row
+    that agrees on arm and digest needs no further rule.
+    """
+    manifest = read_split(export)
+    digest = split_sha256(manifest) if manifest is not None else None
+    versions = _candidate_versions(export, store, manifest)
+    stored: list[dict[str, Any]] | None = None
+    found = versions[0]  # only the message's subject when no version holds rows at all
+    for version in versions:
+        if rows := store.get_split(version):
+            stored, found = rows, version
+            break
+
+    if manifest is None:
+        if stored is not None:
+            raise ScoreRefused(
+                f"the eval store records a split for {found!r} "
+                f"({stored[0]['manifest_sha256']}, {len(stored)} scenarios) but {export} carries "
+                f"no {SPLIT_FILE}: the export this store was imported from is not the one being "
+                "scored; move the eval store aside and replay the export you mean to score"
+            )
+        for record in replay_records:
+            if carried := record.get("split_sha256"):
+                raise ScoreRefused(
+                    f"the split disagrees: the replay {str(record.get('replay_id'))!r} recorded "
+                    f"split_sha256 {carried}, but {export} carries no {SPLIT_FILE}: its export "
+                    "predates the split these replays measured"
+                )
+        # Both sources empty: the export predates the split and scores exactly as it did (B6).
+        return None, dict(UNRECORDED)
+
+    if stored is None:
+        armed = manifest["arms"]["dev"] + manifest["arms"]["holdout"]
+        raise ScoreRefused(
+            f"{export / SPLIT_FILE} carries a split ({digest}, {len(armed)} scenarios) but the "
+            f"eval store records none for {manifest['corpus_version']!r}: the store was imported "
+            "before the split existed; move it aside and replay this export"
+        )
+
+    arm_of = {name: arm for arm, names in manifest["arms"].items() for name in names}
+    roster = {str(row["scenario"]): str(row["arm"]) for row in stored}
+    stale = sorted({str(row["manifest_sha256"]) for row in stored} - {digest})
+    if roster != arm_of or stale:
+        moved = sorted(name for name, arm in arm_of.items() if roster.get(name) != arm)
+        shown = ", ".join(map(repr, moved[:3])) or "none"
+        raise ScoreRefused(
+            f"the split disagrees: for {found!r} the eval store holds {len(roster)} scenarios "
+            f"under manifest_sha256 {stored[0]['manifest_sha256']}, {export / SPLIT_FILE} holds "
+            f"{len(arm_of)} under {digest} (armed differently: {shown}"
+            f"{'' if len(moved) <= 3 else f', +{len(moved) - 3} more'})"
+        )
+    for record in replay_records:
+        carried = record.get("split_sha256")
+        if carried != digest:
+            raise ScoreRefused(
+                f"the split disagrees: the replay {str(record.get('replay_id'))!r} recorded "
+                f"split_sha256 {carried or 'nothing'}, not the export's {digest}: score replays of "
+                "one export together, and replays of different exports apart"
+            )
+    return arm_of, _split_of(manifest)
+
+
 def execute(
     replay_ids: Sequence[str],
     replays_dir: Path,
@@ -192,6 +317,26 @@ def execute(
             (replay.model, replay.replay_id, store.replay(str(replay.record["eval_run_id"])))
             for replay in replays
         ]
+        # One roster for the whole score: the rows' arms and the identity's split come from here,
+        # and the report's dev/holdout tables (Task 6) take the same table.
+        scenario_arm, split_identity = load_split(
+            store, export, [replay.record for replay in replays]
+        )
+        if scenario_arm is not None:
+            # `export vss` arms every scenario it exports, so a scenario missing from a roster
+            # that exists means hand-edited or mismatched data — name it, never label it
+            # `unrecorded` and let it score as if it were in dev.
+            unarmed = sorted(
+                {str(item.facts["cell"]["scenario"]) for item in items.values()}
+                - scenario_arm.keys()
+            )
+            if unarmed:
+                raise ScoreRefused(
+                    f"{export / SPLIT_FILE} does not arm {unarmed[0]}"
+                    f"{' (+' + str(len(unarmed) - 1) + ' more)' if len(unarmed) > 1 else ''}, which "
+                    "this export holds items for: the roster and the export are not the same "
+                    "export's; move the eval store aside and replay the export you mean to score"
+                )
     for model, _, rows in loaded:
         if not rows:
             raise ScoreRefused(f"{model}'s replay has no results in {store_path}")
@@ -215,6 +360,7 @@ def execute(
         ),
         "export": {"path": str(export), "items": len(sets), "labels_sha256": _labels_digest(sets)},
         "eval_store": {"path": str(store_path)},
+        "split": split_identity,
         "audit": {"path": str(audit_log), "sha256": _sha256(audit_log)},
         "replays": [
             {key: replay.record.get(key) for key in _REPLAY_KEYS}
@@ -228,7 +374,13 @@ def execute(
             for replay in replays
         ],
     }
-    results = result_rows(loaded, items, answers, set(metrics["audit"]["generation_errors"]))
+    results = result_rows(
+        loaded,
+        items,
+        answers,
+        set(metrics["audit"]["generation_errors"]),
+        scenario_arm=scenario_arm,
+    )
     out_dir = scores_dir / score_id
     out_dir.mkdir(parents=True)
     (out_dir / "results.jsonl").write_text(
