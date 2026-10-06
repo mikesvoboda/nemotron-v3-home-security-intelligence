@@ -59,6 +59,13 @@ RED=250 GREEN=7, and the 7 GREENs below are EXACTLY this ledger:
     exit - the while loop is the LAST statement of the function (nothing
     follows it, no finally); both exits unwind identically (release
     already awaited before the break).
+  - BORN in the campaign #24 run's generation (2 slots,
+    _health_monitoring_loop; pre-run these lines had fewer mutants -
+    battery coverage grew the function): both are break -> return at the
+    two in-try exits (disconnect branch, read-failure branch) - the same
+    registered construction as m51 above (the while loop is the LAST
+    statement of the function, no finally, release already awaited), so
+    both exits unwind identically. verdict-0 in the live bank.
   Not equivalent, KILLABLE - the two arms this battery supplies:
   - _health_monitoring_loop m25 (elapsed > 0 -> elapsed > 1): every other
     update arm has elapsed exactly 0 or >= 5; the fractional-elapsed test

@@ -133,6 +133,24 @@ CVE-2023-2953
 #   3. No ECDH operations or ECDSA signing in production code paths
 CVE-2024-23342
 
+# CVE-2026-85394 - python-jose 3.5.0 algorithm-confusion guard bypassed by DER-encoded public keys (REVIEW BY: 2027-01-06)
+# CRITICAL severity per the advisory; status "affected" with NO fix versions
+# published (re-verified 2026-10-06: OSV lists no fixed release and 3.5.0 is
+# the newest python-jose ever released — the project is dormant upstream).
+# Not exploitable in our context — the forge needs a caller-SUPPLIED key and
+# a permissive algorithms= so an HS256 token can be signed with a public key:
+#   1. all three JWT call sites pin the algorithm explicitly (auth_service.py
+#      :162 and :197 jwt.encode(algorithm=_JWT_ALGORITHM); :217
+#      jwt.decode(..., algorithms=[_JWT_ALGORITHM])) — the exact mitigation
+#      the advisory text names ("when algorithms are not explicitly
+#      restricted")
+#   2. verification uses the symmetric config secret, never a key material an
+#      attacker can hand in, so the DER-public-key-as-HMAC-secret path cannot
+#      be reached
+# Re-check at the review date; if upstream never ships, replacing python-jose
+# (e.g. pyjwt) is an owner-sized call, not a lockfile bump.
+CVE-2026-85394
+
 # =============================================================================
 # Python Package Vulnerabilities - Accepted Risk (fix exists but is
 # unreachable through the dependency graph)
@@ -358,3 +376,21 @@ CVE-2026-97689
 #
 # CVE-2026-93687 - braces 3.0.3 stack overflow on deeply nested patterns, via tailwindcss (REVIEW BY: 2027-01-03)
 CVE-2026-93687
+
+# 2026-10-06 advisory-wave addendum (seroval, via the react-query devtools
+# chain). Published in the Oct-5/6 OSV wave; both fixed upstream (1.6.2 /
+# 1.6.3) but UNREACHABLE through this tree's graph: @tanstack/react-query-
+# devtools@5.104.1 -> @tanstack/query-devtools -> solid-js pins seroval
+# ~1.5.4, so taking the fix is the major devtools migration (same blocked-
+# major class as braces), and the same premise is registered on the npm side
+# in frontend/.npm-audit-exemptions.json. No app code imports solid-js or
+# seroval (measured 2026-10-06: zero references under frontend/src); the
+# chain is reached only through devtools' own cache-state serialization.
+# Pinned here, not silently: if a future graph change ever admits seroval
+# >=1.6, delete these two entries at that PR (the sibling npm entries fail
+# CI the moment npm reports an in-range path).
+#
+# CVE-2026-104846 - seroval <1.6.2 fromJSON() promise-thenable assimilation invokes plugin callables (REVIEW BY: 2027-04-06)
+CVE-2026-104846
+# CVE-2026-104845 - seroval <1.6.3 memory-exhaustion DoS via unchecked TypedArray length on deserialize (REVIEW BY: 2027-04-06)
+CVE-2026-104845

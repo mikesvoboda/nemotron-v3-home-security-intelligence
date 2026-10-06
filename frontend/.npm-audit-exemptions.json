@@ -11,6 +11,39 @@
       "affectedChain": "braces <- micromatch <- fast-glob <- chokidar <- tailwindcss@3 (dependency) ; braces <- micromatch <- fast-glob <- knip@5 (devDependency)",
       "reason": "No released fix: the advisory covers every published braces (<=3.0.3, and 3.0.3 IS the latest version). npm's only resolution path is a semver-major migration - tailwindcss 3 -> 4 (drops the chokidar/fast-glob chain) and knip 5 -> 6 - which is a separate, owner-sized frontend slice, not a lockfile bump.",
       "exitCriterion": "Remove when tailwind v4 (or another release breaking the chain) lands; scripts/check-npm-audit-exemptions.py already fails CI the moment npm reports a non-major fix path, so this entry cannot silently outlive its premise."
+    },
+    {
+      "id": "GHSA-p6vx-979v-rg4c",
+      "package": "seroval",
+      "severity": "critical",
+      "title": "Seroval: `fromJSON()` Promise thenable assimilation invokes plugin-produced callables (bypass of GHSA-mv8w-475r-vwqw)",
+      "added": "2026-10-06",
+      "reviewBy": "2027-04-06",
+      "affectedChain": "seroval@1.5.6 <- solid-js@~1.5.4 <- @tanstack/query-devtools <- @tanstack/react-query-devtools <- frontend/package.json dependency",
+      "reason": "Advisory published in the 2026-10-05/06 window; fixed in seroval 1.6.2, but the only requirer in this tree pins solid-js ~1.5.4 which caps seroval <1.6 - npm's sole resolution path is the semver-major @tanstack/react-query-devtools -> 5.102.8 migration (which moves the solid line). No app code imports solid-js or seroval (measured: 0 references under frontend/src); the chain is reached only through react-query-devtools' internal state serialization, and the deserialization input there is the query cache this same app serialized - not an attacker-supplied document.",
+      "exitCriterion": "Remove when @tanstack/react-query-devtools ships a line where solid-js admits seroval >=1.6.2; the checker already fails CI the moment npm reports a non-major fix path."
+    },
+    {
+      "id": "GHSA-jp82-f5mq-hwhp",
+      "package": "seroval",
+      "severity": "high",
+      "title": "Seroval: Memory exhaustion via unchecked TypedArray length in JSON deserialization",
+      "added": "2026-10-06",
+      "reviewBy": "2027-04-06",
+      "affectedChain": "seroval@1.5.6 <- solid-js@~1.5.4 <- @tanstack/query-devtools <- @tanstack/react-query-devtools <- frontend/package.json dependency",
+      "reason": "Same chain and same blocked-major premise as GHSA-p6vx-979v-rg4c above: fix is seroval 1.6.3, solid-js ~1.5.4 caps the installed tree at <1.6, and npm's only fix path is the major devtools->5.102.8 migration.",
+      "exitCriterion": "Remove together with GHSA-p6vx-979v-rg4c when the solid-js cap lifts; the checker fails CI the moment npm reports a non-major fix path."
+    },
+    {
+      "id": "GHSA-rj75-hqrm-r3gf",
+      "package": "postcss-selector-parser",
+      "severity": "moderate",
+      "title": "PostCSS: Quadratic complexity in flat selector parsing allows CPU exhaustion",
+      "added": "2026-10-06",
+      "reviewBy": "2027-04-06",
+      "affectedChain": "postcss-selector-parser@6.1.4 <- postcss-nested@^6.2.0 <- tailwindcss@3 (build-time CSS generation only)",
+      "reason": "Fix is postcss-selector-parser 7.1.6, but tailwindcss@3 pins postcss-nested ^6.2.0, which pins postcss-selector-parser ^6.1.x - npm's only fix path is the tailwindcss 3 -> 4.3.3 semver-major migration (the same migration the braces entry above is blocked on). Build-time-only chain: the production image copies /app/dist into nginx, the parser ships in neither the runtime image nor any request path, and the advisory needs attacker-controlled CSS input.",
+      "exitCriterion": "Remove when tailwind v4 lands (shares the exit with the braces entry) or postcss-nested 6.x reopens ^7; the checker fails CI the moment npm reports a non-major fix path."
     }
   ]
 }
