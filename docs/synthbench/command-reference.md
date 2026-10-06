@@ -349,6 +349,18 @@ and never writes it.
   and still.
 - **Writes:** `<out>/<category>/<id>/` holding `expected_labels.json`, `still.jpg` and
   `still.json` (its attribution). Each set is written once; a re-export skips an identical set.
+- **`splits.json`** (ISS-016): the dev/holdout split of the version, written once at `<out>` in
+  canonical JSON (sorted keys), so its sha256 is the manifest's fingerprint and a hand-edited
+  differing copy is detected at the next export or score. Contents: `corpus_version`, `seed` (the
+  version's pre-registered string in `SPLIT_SEEDS`, `synthbench/export/vss.py`), `holdout_k`,
+  `unit` (`scenario` — a scenario sits in exactly one arm, benign always dev), `arms` (the dev and
+  holdout rosters), `draw` (every incident scenario with its `rank_sha256` and arm, in hash order)
+  and `items` (benign and incident counts per arm). The roster is recomputed, never chosen:
+  rank each incident scenario by `sha256("<version>|<seed>|<scenario>")` and take the first
+  `holdout_k`.
+- **No registered seed:** a version absent from `SPLIT_SEEDS` exports its sets and writes no
+  manifest, printing `no split registered for <version>` and exiting 0. Such an export scores as
+  `split: unrecorded`, exactly as a pre-split export does.
 - **Categories:** benign and hard_negative go to `normal/`, suspicious to `suspicious/`, threat to
   `threats/`. Ambiguous events are not exported: S2 and S3 count neither label.
 - **`expected_labels.json`:** `category`, `risk` (the risk band), `timestamp` (the scene time on
@@ -356,12 +368,15 @@ and never writes it.
   subjects and props as an ideal detector reports them: object type and confidence 1.0, no box)
   and a `synthbench` block with the event's facts.
 - **Prints:** how many sets were written and how many were unchanged, and how many events were not
-  exported, by reason.
+  exported, by reason. With a registered seed it then prints the split line: `holdout_k`, the two
+  rosters, the item counts by arm and the manifest's `sha256` (with ` (unchanged)` when the
+  manifest on disk already held these bytes).
 - **Exit 1:** the corpus has no events, or `--out` lies inside the corpus
   (`$SYNTHBENCH_ROOT/corpus`, which is append-only).
 - **Exit 2:** a set on disk differs from the corpus, a still no longer matches its sha256, a ready
-  event has no still, an event's label disagrees with its group, or a corpus file cannot be read
-  or written.
+  event has no still, an event's label disagrees with its group, a `splits.json` on disk differs
+  from the draw the corpus implies (an export's split is not editable), or a corpus file cannot be
+  read or written.
 
 ## `audit`
 

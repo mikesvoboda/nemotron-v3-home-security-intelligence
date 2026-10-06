@@ -223,7 +223,7 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-06 (ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`). The Filed columns count every issue by its filed
+Counts as of 2026-10-06 (ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`; ISS-016 `done` 2026-10-06 on `vlm-pipeline`, commits `54d036d5`..`8cdbb412`). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
 ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
@@ -231,9 +231,9 @@ when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 96    |
+| open        | 95    |
 | in-progress | 0     |
-| done        | 7     |
+| done        | 8     |
 | wont-fix    | 0     |
 | superseded  | 0     |
 | total       | 103   |
@@ -241,14 +241,14 @@ when you add or close an issue (there is no script; the register is prose).
 | Severity | Filed | Open |
 | -------- | ----- | ---- |
 | P0       | 1     | 0    |
-| P1       | 36    | 33   |
+| P1       | 36    | 32   |
 | P2       | 51    | 48   |
 | P3       | 15    | 15   |
-| total    | 103   | 96   |
+| total    | 103   | 95   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
-| agent-now      | 68    | 64   |
+| agent-now      | 68    | 63   |
 | owner-decision | 29    | 26   |
 | owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
@@ -259,7 +259,7 @@ when you add or close an issue (there is no script; the register is prose).
 | gap      | 37    | 34   |
 | debt     | 18    | 18   |
 | decision | 17    | 15   |
-| risk     | 12    | 11   |
+| risk     | 12    | 10   |
 
 | Area                                      | P0  | P1  | P2  | P3  | Filed | Open |
 | ----------------------------------------- | --- | --- | --- | --- | ----- | ---- |
@@ -267,7 +267,7 @@ when you add or close an issue (there is no script; the register is prose).
 | Verdict reliability and observability     | 0   | 6   | 3   | 1   | 10    | 9    |
 | Prompt, verdict quality and calibration   | 0   | 2   | 2   | 1   | 5     | 5    |
 | Video, ingest and key frames              | 0   | 4   | 6   | 1   | 11    | 11   |
-| Evaluation and S-bar measurement          | 0   | 9   | 12  | 2   | 23    | 21   |
+| Evaluation and S-bar measurement          | 0   | 9   | 12  | 2   | 23    | 20   |
 | Specialists                               | 0   | 2   | 4   | 0   | 6     | 6    |
 | Serving, deploy and supply chain          | 0   | 3   | 5   | 0   | 8     | 8    |
 | Security, privacy and licensing           | 0   | 3   | 3   | 1   | 7     | 7    |
@@ -539,7 +539,8 @@ this order.
   (truncation; a budget change needs OD-8), ISS-011 (residual alerts and latency histogram), ISS-010
   (re-verification sweeper), ISS-042 (batches that vanish), ISS-013 (retry and breaker accounting),
   ISS-034, ISS-071, ISS-058.
-- **Measurement validity.** ISS-016 (freeze a split before any tuning), ISS-086 (the free S3
+- **Measurement validity.** ISS-016 (freeze a split before any tuning; `done` 2026-10-06 on
+  `vlm-pipeline` — the split exists, so the tuning arms below read against it), ISS-086 (the free S3
   experiments and the single-still ceiling), ISS-037 (replay that runs the selector and multi-frame
   items), ISS-014 (per-bar verdict), ISS-061 (residence guard), ISS-045 and ISS-082 (reproducible,
   runnable tools), ISS-044 (blind audit, OD-15).
@@ -2165,6 +2166,13 @@ What the model is asked, what it is shown, and how its score maps to the levels 
   variant ships only if S2 does not worsen. Tuning uses the dev split only.
 - **Depends on.** ISS-016 (a dev/holdout split must exist before tuning), ISS-043 and ISS-078
   (run-to-run noise sets the size of any detectable effect), OD-2 (S3 floor and remedy).
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** Its prerequisite is met: the split
+  exists and is published (`SPLIT_SEEDS` and `SPLIT_HOLDOUT_K` in `synthbench/export/vss.py`, the
+  realized roster under ISS-016's closure note), so a prompt arm may tune on dev and be read on the
+  holdout, and the acceptance's 'monotone calibration map (fitted on a held-out split)' now has a
+  split to fit on. The gallery and `report.html` carry dev items only, so the tuning surface is
+  dev-side by construction. Nothing here is met yet: the ablation has not run and the shipped arm B
+  text was written knowing the corpus, so it is still a development arm until re-read on the split.
 - **Tracked as.** Ledger item 35 flip-condition (iii) reopens the model pick if real-corpus S3 <
   90%; the ledger records S3 as 'the owner's' bar, not a planned prompt fix. No roadmap row.
 - **Update 2026-10-03 (after `9f4e65cd`) [V].** The dependency on ISS-078 is lifted: the shipped
@@ -3124,7 +3132,7 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
 
 #### ISS-016 — Freeze a dev/holdout split before any prompt or specialist tuning on tierb-v0
 
-`P1` (verifiers read `P1`, `P2`) · `risk` · actor `agent-now` · status `open`
+`P1` (verifiers read `P1`, `P2`) · `risk` · actor `agent-now` · status `done` · closed 2026-10-06 (see the closure note)
 
 - **Evidence**
   - Grep for `holdout` and `held-out` over `synthbench/`, `backend/evaluation/`,
@@ -3175,6 +3183,44 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   04:16Z, 16 minutes after `corpus.json` `created` 2026-09-29T03:59:50Z. The handoff's 'unchanged
   since `ca73f1ef`' holds: `git diff --numstat ca73f1ef 5c605e1d` over `vlm_client.py`,
   `vlm_analyzer.py`, `vlm_verdict.py` and `backend/evaluation/vlm_replay.py` is empty.
+- **Closure 2026-10-06 (branch `vlm-pipeline`, owner-authorized slice; commits `54d036d5`..`8cdbb412`) [V].**
+  Design `docs/superpowers/specs/2026-10-06-synthbench-iss016-dev-holdout-split-design.md`, plan
+  `docs/superpowers/plans/2026-10-06-synthbench-iss016-dev-holdout-split.md`. The acceptance's
+  'fixed, hash-pinned split' is a published hash order rather than a choice: incident scenarios are
+  ranked by `sha256("tierb-v0|vss-iss016-s3-holdout-2026-10-06|<scenario>")` and the first `k` = 6
+  are the holdout, so anyone holding the three published strings recomputes the roster and nobody —
+  the owner included — can pick a flattering six. **The realized roster**, beside each one's item
+  count and group: `tailgating` 9 suspicious, `blunt_weapon` 9 threat, `car_break_in` 9 threat,
+  `casing_with_phone` 9 suspicious, `knife_visible` 19 threat, `peering_into_windows` 9 suspicious —
+  **holdout 64 incident items (27% of 241), 0 benign; dev 386 items, 209 benign and 177 incident.**
+  All 209 benign items stay in dev by rule, so S2's benign arm is intact and tunable, which is what
+  the acceptance's power-limit clause asked for. Unit is the scenario, never the item, so no item's
+  identity or store fingerprint moves and every frozen record keeps its meaning. The split is
+  recorded where it is used and checked where it is read: `splits.json` at the export root
+  (create-once, canonical bytes, its sha256 the fingerprint), a `splits` table in the eval store
+  (`backend/evaluation/eval_store.py`) written by replay from the export's manifest and refused on a
+  store that already holds a different roster, and `score` reconciling store against export — any
+  disagreement is `ScoreRefused`/exit 2, never a silent re-labelling. Tuning's enforcement half is
+  the surface a tuner actually reads: `report.md` labels every dev and holdout number and states what
+  the holdout cannot say (n=64 clustered, and suspicious-heavy by luck, so it reads below dev for
+  any prompt that has not fixed the weak leg), while `report.html` and the failure gallery carry dev
+  items only. Per-arm headlines and the dev-vs-holdout comparison print beside the ISS-043 statistics.
+  Tests: `test_export_vss.py` (the six names and their order recomputed from the recipe, the seed
+  asserted literally, a fixed digest pin, create-once and the conflicting-manifest exit),
+  `test_eval_store.py`, `test_replay.py`, `test_score.py`; `backend/tests/unit/synthbench` plus
+  `backend/tests/unit/evaluation` green (1268 passed, 1 skipped).
+  **What this closure does NOT do.** It is the mechanism and the labelling, not the tuning: prompt,
+  threshold and specialist-context work is ISS-008, ISS-086, ISS-024 and ISS-053, which this issue
+  gates. It is not the OD-15 label work either — the pre-screen reads all 450 stills for label
+  correctness, which is not tuning, and corrected labels apply to both arms; what must never touch
+  the holdout is a prompt or threshold change derived from reading it. It re-scores nothing: P5a's and
+  the sweep's committed records stay as frozen, and a pre-split export still scores and reports
+  `split: unrecorded` exactly as before. And the real `splits.json` is not an artifact of this
+  branch: the owner's export host holds the corpus, so the manifest lands on the owner's next
+  `synthbench export vss` (no GPU needed, and it lands before any replay). If that run's printed
+  roster is not these six, the export population changed and the design's premise needs the owner,
+  not a code fix. **What it unblocks:** ISS-008's before-and-after reading (this issue was its
+  blocker), and E1's rubric arm may now tune on dev instead of reporting itself exploratory.
 
 #### ISS-017 — Add CI for the VLM path: real-engine smoke tests and a baseline-replay regression gate
 
@@ -3225,6 +3271,12 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   `.github/workflows/prompt-evaluation.yml` (the nightly harness run, deleted in `d8482861`) was a
   text-LLM job and was never a VLM gate, so removing it changes nothing here: a grep of
   `.github/workflows` for `vlm_replay` and `s_metrics` still finds nothing.
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** The split blocker is lifted: the
+  holdout exists, is published and is keyed on scenario, so a baseline-replay gate has something to
+  hold a candidate against, and `report.md` labels which arm each number came from. The gate's
+  remaining blocker is the runner question (OD-8, open for its Brev half) plus ISS-017's own smoke
+  half; nothing here is met by the split alone — there is still no workflow that replays items or
+  compares a run to a stored baseline.
 
 #### ISS-024 — The 450-item replay carries no `specialist_context`: S2/S3 are measured without the specialist lines
 
@@ -3260,6 +3312,10 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   with repeat-run spread (ISS-078); a guard refuses a replay whose items all have empty specialist
   outputs unless a flag says so.
 - **Depends on.** ISS-023 and ISS-025 (the legs must exist to be measured); ISS-016; OD-6 (P5b).
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** The split dependency is met: the
+  with/without specialist delta can now be published as a dev reading with a holdout confirmation,
+  and a specialist-context change derived from the holdout is what the split forbids (ISS-016's
+  closure note). ISS-023/ISS-025 and OD-6 still gate this issue; nothing here is met by the split.
 - **Tracked as.** P5a design defers it to P5b; ledger finding D is open. P5b has no owner or date.
 - **Severity note.** Verifiers read P2: documented scope and already partly tracked; the issue's
   'report does not say no specialists' claim was false.
@@ -3675,6 +3731,12 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   ISS-037), relabel visually indeterminate scenarios, or revise the bar.
 - **Depends on.** OD-2; ISS-016 (a dev split before E1 tunes anything); ISS-043 (the paired test).
   Related: ISS-008 (its arm 1 is E1), ISS-015, ISS-007, ISS-038.
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** E1's precondition is met: the dev
+  split exists (ISS-016's closure note names the roster), so a rubric arm may now tune on dev and be
+  read on the holdout instead of labelling itself exploratory. The arms already run (arm B shipped
+  under OD-29) were written knowing the whole corpus and stay development arms; any re-run under this
+  issue tunes on dev only, and the report prints the dev and holdout numbers labelled with the
+  holdout's stated limits.
 - **Tracked as.** Handoff Addenda 4 and 5 and doc 20 section 2 (E1 to E3); no ledger row and no
   register issue before this one.
 - **Severity note.** Filed P1 because it gates the S3 remedy ruling and the M2 closure question.
@@ -4681,6 +4743,9 @@ Face, plate and re-ID legs and the specialists not yet built.
   needs an owner-approved spec revision, a verdict-changing case and an FP measurement on the
   owner's night footage, which synthetic stills cannot stand in for.
 - **Depends on.** OD-7 (threat specialist on or off); ISS-024; ISS-016 (tune on dev only).
+- **Update 2026-10-06 (ISS-016 closed on `vlm-pipeline`) [V].** 'Tune on dev only' has a dev to mean
+  it with: the split is published and the failure gallery carries dev items only, so a specialist's
+  context or threshold may be fitted on dev and read on the holdout. OD-7 and ISS-024 still gate it.
 - **Tracked as.** R6 and the doc-14 rev-7 proposals; the F12 approval of YOLOE-26 is in the ledger.
   No ranked decision row.
 
@@ -7690,3 +7755,44 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
 - **What this entry does not do:** no new ids; no bar, D or S line moved; the sweep's frozen
   `stats.json` is not recomputed; ISS-016's split design has not started (it is next in the
   slice's order).
+
+### 2026-10-06 (ISS-016 closes on `vlm-pipeline`: the tierb-v0 dev/holdout split is a published hash draw, recorded in the export, the store and the report)
+
+- **What ran.** The measurement-validity slice's second item, test-first on `vlm-pipeline`, commits
+  `54d036d5`..`8cdbb412`. Design
+  `docs/superpowers/specs/2026-10-06-synthbench-iss016-dev-holdout-split-design.md`, plan
+  `docs/superpowers/plans/2026-10-06-synthbench-iss016-dev-holdout-split.md`. Scope in one sentence:
+  the corpus is divided into a dev set tuning may see and a holdout it never sees, the division is a
+  published hash order nobody can pick, and it is recorded at export, imported at replay, reconciled
+  at score and labelled in the report. `synthbench/export/vss.py` draws it - incident scenarios
+  ranked by `sha256("tierb-v0|vss-iss016-s3-holdout-2026-10-06|<scenario>")`, first 6 held out - and
+  `export vss` writes `splits.json` (create-once, canonical bytes, sha256 fingerprint);
+  `backend/evaluation/eval_store.py` gains a `splits` table that replay fills from the export's
+  manifest and refuses to overwrite; `score` reconciles store against export and stops on
+  disagreement (`ScoreRefused`, exit 2) rather than re-labelling; `report.md` prints labelled dev and
+  holdout tables with the holdout's stated limits and the dev-vs-holdout comparison beside the
+  ISS-043 statistics, while `report.html` and the failure gallery carry dev items only - the
+  enforcement half of 'tuning uses dev only'. **The realized roster** (verbatim from the spec's
+  realized draw, recomputable from the three published strings): `tailgating` 9 suspicious,
+  `blunt_weapon` 9 threat, `car_break_in` 9 threat, `casing_with_phone` 9 suspicious,
+  `knife_visible` 19 threat, `peering_into_windows` 9 suspicious - holdout 64 incident items (27% of
+  241), 0 benign; dev 386 items, 209 benign and 177 incident. Unit is the scenario, so no item's
+  payload or store fingerprint moves and every frozen record keeps its meaning; a corpus without a
+  manifest scores exactly as before and reports `split: unrecorded`.
+- **Tested.** `backend/tests/unit/synthbench` plus `backend/tests/unit/evaluation` green: 1268
+  passed, 1 skipped. The roster is pinned by recomputation from the recipe with the seed string
+  asserted literally and one hand-checked digest, so a silent seed edit fails there; the create-once
+  manifest, the store's refusal of a second roster, the score reconciliation, the per-arm headline
+  and the dev-only gallery each have their own pins.
+- **Register.** ISS-016 flips `open` -> `done` with its closure note; ISS-008, ISS-017, ISS-024,
+  ISS-086 and ISS-053 carry dated notes lifting the split precondition; the Dashboard moves open
+  96->95, done 7->8; README's Next-five step 4 closes and §2 gains the split's fact and its two
+  pins.
+- **What this entry does not do:** no new ids; no bar, D or S line moved; no tuning - prompt and
+  specialist work stays in ISS-008, ISS-086, ISS-024 and ISS-053, now gated by a split that exists;
+  nothing about the OD-15 label work (the pre-screen reads all 450 stills for label correctness,
+  which is not tuning, and corrected labels apply to both arms); P5a's and the sweep's frozen records
+  are not re-scored; and no real `splits.json` on this branch - the corpus is on the owner's export
+  host, so the manifest lands on the next `synthbench export vss`, with no GPU and before any replay.
+  If that run's printed roster is not the six above, the export population has changed and the
+  design's premise is the owner's call, not a code fix.
