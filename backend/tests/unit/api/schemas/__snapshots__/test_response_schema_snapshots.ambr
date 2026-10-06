@@ -1552,6 +1552,19 @@
             'description': 'User notes for the event',
             'title': 'Notes',
           }),
+          'notify': dict({
+            'anyOf': list([
+              dict({
+                'type': 'boolean',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Notify decision for this event; absent when none was made',
+            'title': 'Notify',
+          }),
           'reasoning': dict({
             'anyOf': list([
               dict({
@@ -2763,6 +2776,19 @@
         'default': None,
         'description': 'User notes for the event',
         'title': 'Notes',
+      }),
+      'notify': dict({
+        'anyOf': list([
+          dict({
+            'type': 'boolean',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Notify decision for this event; absent when none was made',
+        'title': 'Notify',
       }),
       'reasoning': dict({
         'anyOf': list([

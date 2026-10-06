@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from .event_audit import EventAudit
     from .event_detection import EventDetection
     from .event_feedback import EventFeedback
+    from .event_notify import EventNotifyDecision
     from .event_verification import EventVerification
     from .llm_interaction import LLMInteraction
 
@@ -196,6 +197,18 @@ class Event(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
         lazy="selectin",  # eager like `detections`: the API reads it with every event
+    )
+    # The persisted notify decision (ISS-001). ONE row per decided event or
+    # none - absence means "no decision was made" (legacy events, replay),
+    # never False; the REST/WS `notify` key is excluded when None.
+    # UNIQUE(event_id) backs the one-row rule at the database level.
+    notify_decision: Mapped[EventNotifyDecision | None] = relationship(
+        "EventNotifyDecision",
+        back_populates="event",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+        lazy="selectin",  # eager like `verifications`: the API reads it with every event
     )
 
     # Indexes for common queries
