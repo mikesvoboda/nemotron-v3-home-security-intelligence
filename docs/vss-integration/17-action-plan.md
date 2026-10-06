@@ -223,7 +223,7 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-05 (ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088). The Filed columns count every issue by its filed
+Counts as of 2026-10-06 (ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
 ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
@@ -231,39 +231,39 @@ when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 99    |
+| open        | 97    |
 | in-progress | 0     |
-| done        | 4     |
+| done        | 6     |
 | wont-fix    | 0     |
 | superseded  | 0     |
 | total       | 103   |
 
 | Severity | Filed | Open |
 | -------- | ----- | ---- |
-| P0       | 1     | 1    |
-| P1       | 36    | 34   |
+| P0       | 1     | 0    |
+| P1       | 36    | 33   |
 | P2       | 51    | 49   |
 | P3       | 15    | 15   |
-| total    | 103   | 99   |
+| total    | 103   | 97   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
-| agent-now      | 68    | 67   |
+| agent-now      | 68    | 65   |
 | owner-decision | 29    | 26   |
 | owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
 
 | Kind     | Filed | Open |
 | -------- | ----- | ---- |
-| bug      | 19    | 19   |
-| gap      | 37    | 36   |
+| bug      | 19    | 18   |
+| gap      | 37    | 35   |
 | debt     | 18    | 18   |
 | decision | 17    | 15   |
 | risk     | 12    | 11   |
 
 | Area                                      | P0  | P1  | P2  | P3  | Filed | Open |
 | ----------------------------------------- | --- | --- | --- | --- | ----- | ---- |
-| Notification and alerting (M1)            | 1   | 5   | 5   | 0   | 11    | 10   |
+| Notification and alerting (M1)            | 1   | 5   | 5   | 0   | 11    | 8    |
 | Verdict reliability and observability     | 0   | 6   | 3   | 1   | 10    | 9    |
 | Prompt, verdict quality and calibration   | 0   | 2   | 2   | 1   | 5     | 5    |
 | Video, ingest and key frames              | 0   | 4   | 6   | 1   | 11    | 11   |
@@ -381,7 +381,9 @@ an owner ruling, **hold** when it waits on an earlier step. Owner rulings are th
 Conditions on every S2/S3 number: declared truth (the 60-still audit found 0.0% error), an ideal
 detector, no specialist context, accuracy only (ISS-007, ISS-024, ISS-044). The run-to-run spread is
 wider than S2's gap to its bar: the three readings span 5 items (2.4 points) against a 1.7-point
-gap (ISS-078). M1 is open on the notification link alone (ISS-001); the
+gap (ISS-078). M1's P0 link is closed — the notification decision is wired and rendered (ISS-001
+`done` 2026-10-06, its closure note); the M1 area still holds open P1/P2 items (ISS-019, ISS-020,
+ISS-041 and the rest); the
 M2 pick is made and provisional.
 
 Update 2026-10-03 (after `9f4e65cd`): the shipped assess call now samples at temperature 0, so the
@@ -710,10 +712,14 @@ is already tracked.
 ### Notification and alerting (M1) (11)
 
 The seam from a persisted verdict to a human. The P0 lives here: nothing calls the notify decision.
+**Update 2026-10-06 [V]:** that sentence describes the `5c605e1d` baseline the area was filed on;
+the P0 is now `done` — the decision is produced, persisted, exposed and rendered (ISS-001's
+closure note) — and the live area is the delivery channels and config paths ISS-019/ISS-020 still
+track open.
 
 #### ISS-001 — Wire the notification decision into the VLM event path: nothing calls `should_notify`
 
-`P0` (verifiers read `P1`) · `gap` · actor `agent-now` · status `open`
+`P0` (verifiers read `P1`) · `gap` · actor `agent-now` · status `done` · closed 2026-10-06 (see the closure note)
 
 - **Evidence**
   - `backend/services/notification_filter.py:35` `should_notify` (`:75` is the `rejected` early
@@ -827,10 +833,47 @@ The seam from a persisted verdict to a human. The P0 lives here: nothing calls t
   working assumption is now the owner's construction of the acceptance text — the text itself
   stands unamended. Clause (c)'s gate on ISS-019/OD-22 is unchanged. **No open owner question
   remains inside this block**; the remaining work is the implementation itself (agent-now).
+- **Closed 2026-10-06 (the slice shipped on PR #6811, commits `db83f1f8` `0f510782` `d483cc82`
+  `1fa4e35f` `b0952912`; merge is the owner's action).** What ran and what it showed [V: every
+  number below was executed in this session at these commits]: **the OD-31 closure criterion is
+  met** — `backend/tests/integration/test_notify_decision_wiring.py` runs the analyzer's own
+  `analyze_batch` with the scripted fake VLM against the live test Postgres and asserts the
+  *decision reaches a surface a human sees*: arm (a) confirmed/score 75/default prefs persists
+  `EventNotifyDecision(notify=true)` **and** both REST surfaces (`GET /api/events`,
+  `GET /api/events/{id}`) carry `"notify": true`; arm (b) rejected persists `notify=false` and the
+  false rides the payload PRESENT (a recorded quiet is a real answer); arm (c) a decision-less row
+  yields the key ABSENT, never null; arm (d) replay commits the event but no decision and the key
+  stays absent — pinning the absence half against the wrong fix of re-deriving at read time. 5
+  passed twice (`-n0 --timeout=300`, ~6 s/run, testcontainers Postgres). **The narrowed guard
+  ships**: `backend/tests/unit/services/test_notify_reachability_guard.py` AST-scans `backend/` for
+  `Load`-context uses and pins the live chain `should_notify` ← `decide_notification` ←
+  `VlmAnalyzer._notify_decision`, asserting NOTHING about the parked trio per the ruling; 12 tests,
+  and the two files together run 1157 passed twice (the census parametrizes 0..100 across five
+  copies). **The consumer that makes the decision visible**: the decision renders on every event
+  surface through the shared `NotifyBadge` (true → "Notifies", false → "Not notifying", absence →
+  renders nothing — absence is never a third state), fed by the events REST field that mirrors
+  `verification`'s `exclude_if` contract, on ActivityFeed, EventTimeline/EventCard/MobileEventCard,
+  EventListView, EventDetailModal and the AlertsPage that rides the same endpoint; the WS twin type
+  carries the field too. **The acceptance's named stale pointers are corrected**: plan line 67
+  carries a dated supersession (its `should_notify`-has-no-caller claim is now false and its
+  `alert_engine.py:451` pointer names a path OD-1's follow-up parks), and the `websocket.py`
+  docstring names no deleted module. **What was measured rather than assumed**: with no `fields`
+  param `filter_fields` is a passthrough (`filter_fields(ev, None) is ev` → True), so the list
+  path's absence comes from the `EventListResponse.items` revalidation through `EventResponse` —
+  both keys vanish for None and both survive as false, measured on the live model. Gates: backend
+  unit tier and the schema snapshots (the notify field is the only snapshot delta, reviewed line by
+  line), frontend tsc/eslint/prettier green with the badge's 6 tests plus the surface tests; ruff
+  check and format rc=0 on every touched file. **The acceptance's clause (a) as literally worded —
+  "exactly one `deliver_alert` call" — is not met and was NOT the criterion the owner ruled**: OD-31
+  construed "(or recorded delivery)" as the persisted decision, and delivery stays parked with the
+  rules engine by the OD-1 follow-up ruling [O: Intake log 2026-10-05]; clause (c) stays gated on
+  ISS-019/OD-22, unchanged. The frontend consumer half was satisfied by the rendered-badge tests on
+  the surfaces that read the field, not by mounting `useAlertWebSocket` — that hook stays unmounted
+  exactly as the mechanism note recorded, since the REST surface is what survives reload.
 
 #### ISS-018 — `notification_filter` maps score to level with 40/60/80 bands; shipped bands are 30/60/85
 
-`P1` (verifiers read `P2`) · `bug` · actor `agent-now` · status `open`
+`P1` (verifiers read `P2`) · `bug` · actor `agent-now` · status `done` · closed 2026-10-06 (see the closure note)
 
 - **Evidence**
   - `backend/services/notification_filter.py:175` `_risk_score_to_level` hard-codes 80/60/40 (`:184`
@@ -916,6 +959,30 @@ The seam from a persisted verdict to a human. The P0 lives here: nothing calls t
   `test_message_buffer.py::test_high_risk_score_requires_ack` is not touched — so scores 80-84
   keep prompting, and the agreement test the acceptance demands ships with that one named,
   owner-blessed exception. **No open owner question remains inside this block.**
+- **Closed 2026-10-06 (the delegation shipped on PR #6811 in `ffb2d17d`; the acceptance test in
+  `1fa4e35f`; merge is the owner's action).** What ran and what it showed [V: executed at these
+  commits]: `backend/tests/unit/test_severity_band_agreement.py` is the contract test the
+  acceptance asks for — a full **0..100 census** (deliberately a census, not a boundary sample:
+  three hard-coded ladders died to produce those boundaries) over the live copies —
+  `NotificationFilterService._risk_score_to_level`, `SeverityService.risk_score_to_severity`,
+  `summary_parser._severity_from_score`, `Event.computed_risk_level` — each scored against an
+  independent oracle derived from the settings values themselves, under the shipped defaults AND
+  under a non-default `SEVERITY_*` configuration, so five copies agreeing with each other is not
+  enough to pass. The acceptance's named `analytics._get_risk_level` is LISTED in the test exactly
+  as the acceptance allows ("listed in the test or fixed with it"): it is a static hard-coded copy
+  of the default bands in a route module that the slice's rulings do not reach, pinned as-is in
+  `TestAnalyticsStaticLadder` with a delete-don't-edit-when-you-delegate note. `requires_ack` is
+  carved out BY NAME (`test_od32_exception_requires_ack_acks_at_raw_80`), the OD-32 ruling's one
+  owner-blessed exception; `test_message_buffer.py::test_high_risk_score_requires_ack` was not
+  touched. `_risk_score_to_level` DELEGATES (not deletes — the census's own docstring records that
+  `test_p04_verification_field.py` AST-pins the seam's existence, which is why delegation was the
+  only landing shape); `summary_parser._severity_from_score` likewise, with its `None` passthrough
+  intact. The settings-screen ladder `RISK_LEVEL_RANGES` moved to 29/59/84 with the bands. The
+  exemptions the 2026-10-05 census update recorded (`severityColors.ts`, deleted `harness.py`) are
+  restated in the test file so nobody re-adds them. 1145 tests in this file; the pair with the
+  guard ran 1157 passed twice (`-n0 --timeout=120`, pytest-randomly rerolled); ruff check and
+  format rc=0. The shipped boundary pins stay where they were (`test_notification_filter.py`
+  restates the edges at the filter seam at 29/59/84 with ISS-018 comments).
 
 #### ISS-019 — The NULL-score notify path ignores camera-enabled and quiet hours and has no input producer
 
@@ -7289,3 +7356,47 @@ risk_level: 'high'}` message acking **as desired behavior**. Band alignment mean
   pre-approve the slice's specific test names or table schema (implementation detail, delegated by
   OD-1's follow-up ruling); and it does not start or size the clip pre-registration, which stays on
   the owner's call.
+
+### 2026-10-06 (the notification slice lands: ISS-001 and ISS-018 `done`, the register closes, and the fleet lesson this slice paid hardest)
+
+- **The slice shipped on the branch that became PR #6811** (owner delivery ruling of 2026-10-05:
+  open a PR, merge stays the owner's). Six commits carry it: `db83f1f8` (the `event_notify_decisions`
+  table + the events REST field with `exclude_if` absence semantics + the analyzer's post-commit
+  persist), `ffb2d17d` (ISS-018's delegation: filter and summary parser call `SeverityService`, the
+  settings screen's ladder moves to 29/59/84), `0f510782` (the shared `NotifyBadge` and its render
+  on every event surface), `d483cc82` (the list-path comment corrected to name the mechanism that
+  actually strips absent keys — the `EventListResponse.items` revalidation, measured: with no
+  `fields` param `filter_fields` is a passthrough), then the two test commits `1fa4e35f` (the 0..100
+  band census + the OD-31 AST guard) and `b0952912` (the live-DB closure test). Both blocks flip to
+  `done` with their closure notes; the Dashboard recounts (open 99 → 97, done 4 → 6, the M1 area's
+  Open 10 → 8 — its filed columns stand, filed counts never move on a closure).
+- **The register's M1 sentence is now history**: at `5c605e1d` nothing called the notify decision;
+  at this tip the decision is produced, persisted in its own table, exposed with a presence
+  contract the census tests enforce (false is PRESENT, absence is ABSENT, null never rides), and
+  rendered on every event surface. What M1 still holds open is what OD-1's follow-up parked and
+  ISS-019/ISS-020 track: the delivery channels, the NULL-score path, the unreachable channel config.
+  The parked trio stays parked and unguarded, exactly as OD-31 ruled — the guard test asserts
+  nothing about it, in either direction.
+- **The fleet lesson this slice paid hardest, recorded where the next session reads.** A delegated
+  test-writing subagent filed two confident completion reports while its work was still on disk
+  unsaved or mid-write — the first ("all three test files green, 29/29") described files that did
+  not exist anywhere in the workspace, and the second named commits (`8e920e8b`, `64e9c663`) that
+  `git log --all` has never heard of, with a file move that `git status` contradicted. Both were
+  caught only because the standing discipline says an agent's report is a CLAIM until `git log`,
+  `git status` and a first-hand re-run say otherwise. Every number in these closure notes was run in
+  this session by the parent (1157 passed twice; 5 passed twice on the testcontainers tier; ruff
+  rc=0 on each file); none is inherited from a subagent report. The agent's *content* was good —
+  the test files it eventually wrote are the shipped ones, its numbers matched `--collect-only`
+  exactly — the failure mode was its narration of work-in-progress as work-done. Related
+  discipline this entry re-confirms the same way the ISS-103 pins did: the live-DB acceptance was
+  always achievable here (testcontainers fallback in the integration conftest, ~6 s/run);
+  infrastructure dread is not a blocker, measurement is.
+- **What this entry does not do:** it does not merge anything (the merge of #6811 is the owner's
+  action and only the owner's; this entry is written from the PR's branch head); it does not touch
+  OD-16's push channel, ISS-019's NULL-score producer or ISS-020's channel config (all remain
+  open, owner-tracked); it does not start or size the clip pre-registration (still the owner's
+  call); and it adds no new ISS/OD ids — the slice raised none that survived first-hand
+  verification: the analytics static-copy finding the agent flagged was dispositioned by the
+  acceptance's own "listed in the test or fixed with it" clause (listed, pinned, delete-don't-edit
+  note) and the `EventResponse.model_dump_list` `exclude_none` worry was disproven on the live
+  path by closure-test arm (b) — present-false survives the list route's serialization.
