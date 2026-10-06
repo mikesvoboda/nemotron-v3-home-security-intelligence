@@ -514,8 +514,11 @@ async def list_events(
             # schema's exclude_if (spec §4: legacy carries NO verification key)
             "verification": verification_payload(event),
             # ISS-001: the persisted notify decision. None (no row) is dropped
-            # below by the sparse-fieldset filter's exclude-None default, the
-            # same absence path as the dict's other optional keys.
+            # below by the EventListResponse revalidation: the dict is
+            # re-validated against EventResponse, whose exclude_if strips the
+            # key when the value is None - the identical absence path the
+            # "verification" key above takes (measured, not assumed: both
+            # keys vanish for None, both survive as false).
             "notify": notify_decision_value(event),
         }
         # Apply sparse fieldsets filter if fields parameter was provided (NEM-1434)
