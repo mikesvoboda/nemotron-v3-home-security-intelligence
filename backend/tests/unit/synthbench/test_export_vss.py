@@ -424,6 +424,16 @@ class TestSplitDraw:
             "items",
         }
 
+    def test_an_arm_outside_dev_and_holdout_stops_the_manifest(self) -> None:
+        """The module fails two ways only — KeyError for an absent seed, ExportConflict for an
+        export that disagrees with the corpus — so a mis-armed scenario is Task 2's exit 2, not a
+        bare KeyError the command reads as the seed being missing."""
+        arm = {"knife_visible": "dev", "loitering": "test"}
+        with pytest.raises(vss.ExportConflict, match=r"loitering is armed 'test'"):
+            vss.split_manifest_document(
+                "tierb-v0", arm, items_by_scenario={n: ITEMS_BY_SCENARIO[n] for n in arm}
+            )
+
     def test_the_manifest_items_are_the_arm_totals(self) -> None:
         """64/177/209: the split's published arithmetic, from the count table above."""
         assert _manifest()["items"] == {

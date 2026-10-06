@@ -249,7 +249,8 @@ def split_manifest_document(
     and joins benign as `dev` — the way the export command does — cannot put one document's `arms`
     and `draw` at odds. Item totals are aggregated by arm, so the published 64/177/209 arithmetic
     is derived here rather than transcribed. Raises KeyError for a corpus version with no
-    pre-registered seed.
+    pre-registered seed and ExportConflict for a scenario armed outside dev/holdout — the two
+    ways this module fails, both of which the command turns into its exit-2 paths.
     """
     draw = draw_split(
         corpus_version,
@@ -263,6 +264,8 @@ def split_manifest_document(
         "holdout": {"benign": 0, "incident": 0},
     }
     for name, arm in sorted(scenario_arm.items()):
+        if arm not in arms:
+            raise ExportConflict(f"{name} is armed '{arm}'; the split arms are dev and holdout")
         arms[arm].append(name)
         for label, count in items_by_scenario[name].items():
             items[arm][label] += count
