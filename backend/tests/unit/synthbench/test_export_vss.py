@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from synthbench import cli
@@ -16,6 +18,87 @@ from backend.tests.unit.synthbench import helpers as h
 
 # One scenario per exported group: threat, suspicious, hard_negative, benign.
 MIXED = "knife_visible,loitering,hooded_jogger,delivery_driver"
+
+# The 450 exported items of tierb-v0, by scenario and label, transcribed from the frozen sweep's
+# items.csv (docs/benchmarks/synthbench/sweep-2026-10-03). The split's whole arithmetic — 64
+# holdout and 177 dev incident items beside 209 dev benign — reads off these two tables, and they
+# are asserted as data so a re-freeze that changes the population fails here, not in a score.
+ALL_19_ITEMS: dict[str, int] = {
+    "blunt_weapon": 9,
+    "car_break_in": 9,
+    "casing_with_phone": 9,
+    "catalytic_converter_theft": 9,
+    "child_alone_at_pool": 19,
+    "fence_climbing": 9,
+    "fire_or_smoke": 19,
+    "firearm_visible": 19,
+    "forced_entry": 19,
+    "knife_visible": 19,
+    "loitering": 9,
+    "masked_intruder_night": 19,
+    "package_theft": 19,
+    "peering_into_windows": 9,
+    "person_down": 9,
+    "pool_trespass": 9,
+    "tailgating": 9,
+    "trying_car_doors": 9,
+    "vandalism": 9,
+}
+BENIGN_ITEMS: dict[str, int] = {
+    "delivery_driver": 10,
+    "flashlight_neighbor": 29,
+    "hooded_jogger": 29,
+    "landscaper_machete": 29,
+    "neighbor_passing": 9,
+    "pet_activity": 8,
+    "pool_service": 9,
+    "power_tools_at_night": 29,
+    "resident_arrival": 10,
+    "wildlife": 9,
+    "winter_face_covering": 29,
+    "yard_maintenance": 9,
+}
+ITEMS_BY_SCENARIO: dict[str, dict[str, int]] = {
+    **{name: {"benign": 0, "incident": n} for name, n in ALL_19_ITEMS.items()},
+    **{name: {"benign": n, "incident": 0} for name, n in BENIGN_ITEMS.items()},
+}
+
+# The six the published hash order gives (spec "The realized draw"), in rank order.
+HOLDOUT_SIX = [
+    "tailgating",
+    "blunt_weapon",
+    "car_break_in",
+    "casing_with_phone",
+    "knife_visible",
+    "peering_into_windows",
+]
+
+
+def _items_in_construction_order(scrambled: bool = False) -> dict[str, dict[str, int]]:
+    """The 31-scenario item table, optionally built in the reverse order (bytes must not care)."""
+    names = sorted(ITEMS_BY_SCENARIO, reverse=scrambled)
+    return {name: dict(ITEMS_BY_SCENARIO[name]) for name in names}
+
+
+def _scenario_arm() -> dict[str, str]:
+    """The full 31-scenario arm table: incident arms from the draw, benign arms by rule (B1)."""
+    arm = {row["scenario"]: row["arm"] for row in _draw()["scenarios"]}
+    arm.update(dict.fromkeys(BENIGN_ITEMS, "dev"))
+    return arm
+
+
+def _draw() -> dict[str, Any]:
+    return vss.draw_split("tierb-v0", sorted(ALL_19_ITEMS))
+
+
+def _holdout_names(draw: dict[str, Any]) -> list[str]:
+    return [row["scenario"] for row in draw["scenarios"] if row["arm"] == "holdout"]
+
+
+def _manifest() -> dict[str, Any]:
+    return vss.split_manifest_document(
+        "tierb-v0", _scenario_arm(), items_by_scenario=_items_in_construction_order()
+    )
 
 
 def _ready_batch(root: Path, only: str, n: int, batch: str = "pilot-1") -> list[Spec]:
@@ -216,3 +299,169 @@ def test_an_out_inside_the_corpus_is_refused(
     assert h.run(tmp_path, "export", "vss", "--out", str(tmp_path / out)) == cli.EXIT_ERROR
     assert "inside the corpus" in capsys.readouterr().err
     assert _tree(tmp_path / "corpus") == before
+
+
+class TestSplitDraw:
+    """ISS-016 (spec §2): the holdout is a published hash order, not anyone's choice.
+
+    `draw_split` sees only the incident scenarios — a benign name reaching it is the export
+    command's error to prevent, which Task 2's population test pins.
+    """
+
+    def test_the_registered_seed_is_the_pre_registered_string(self) -> None:
+        """Changing this value changes the roster, which is the point of pre-registering it."""
+        assert vss.SPLIT_SEEDS == {"tierb-v0": "vss-iss016-s3-holdout-2026-10-06"}
+        assert vss.SPLIT_FILE == "splits.json"
+        assert vss.SPLIT_HOLDOUT_K == 6
+
+    def test_a_fixed_digest_pins_the_hash_recipe(self) -> None:
+        # Computed by hand on 2026-10-06 and transcribed here: a deliberate tripwire, not a magic
+        # string. If the recipe (its fields, separator or encoding) changes, this fails first.
+        seed = vss.SPLIT_SEEDS["tierb-v0"]
+        assert vss.scenario_rank("tierb-v0", seed, "knife_visible").startswith("2aad74ed")
+        assert (
+            vss.scenario_rank("tierb-v0", seed, "knife_visible")
+            == hashlib.sha256(f"tierb-v0|{seed}|knife_visible".encode()).hexdigest()
+        )
+
+    def test_the_realized_draw_is_the_six_the_spec_publishes(self) -> None:
+        draw = _draw()
+        assert draw["seed"] == vss.SPLIT_SEEDS["tierb-v0"]
+        assert draw["k"] == vss.SPLIT_HOLDOUT_K
+        assert _holdout_names(draw) == HOLDOUT_SIX
+        assert [row["scenario"] for row in draw["scenarios"]] == [
+            *HOLDOUT_SIX,
+            "forced_entry",
+            "trying_car_doors",
+            "child_alone_at_pool",
+            "package_theft",
+            "loitering",
+            "fire_or_smoke",
+            "catalytic_converter_theft",
+            "person_down",
+            "masked_intruder_night",
+            "vandalism",
+            "pool_trespass",
+            "fence_climbing",
+            "firearm_visible",
+        ]
+        assert all(row["arm"] == "holdout" for row in draw["scenarios"][:6])
+        assert all(row["arm"] == "dev" for row in draw["scenarios"][6:])
+        # the spec's arithmetic, read off the count table asserted above
+        assert sum(ALL_19_ITEMS[name] for name in HOLDOUT_SIX) == 64
+        assert sum(n for name, n in ALL_19_ITEMS.items() if name not in HOLDOUT_SIX) == 177
+        assert sum(BENIGN_ITEMS.values()) == 209
+
+    def test_the_draw_rows_carry_their_own_digests(self) -> None:
+        """The manifest is its own audit trail: the roster is checkable without the seed."""
+        draw = _draw()
+        digests = [row["rank_sha256"] for row in draw["scenarios"]]
+        assert all(len(d) == 64 for d in digests)
+        assert digests == sorted(digests)
+        for row in draw["scenarios"]:
+            assert row["rank_sha256"] == vss.scenario_rank(
+                "tierb-v0", vss.SPLIT_SEEDS["tierb-v0"], row["scenario"]
+            )
+
+    def test_the_roster_ignores_the_order_names_arrive_in(self) -> None:
+        names = sorted(ALL_19_ITEMS)
+        drawn = vss.draw_split("tierb-v0", list(reversed(names)))
+        assert _holdout_names(drawn) == HOLDOUT_SIX
+        rotated = vss.draw_split("tierb-v0", names[7:] + names[:7])
+        assert rotated == _draw()  # the identical document, not merely the identical roster
+
+    def test_a_different_seed_draws_a_different_roster(self) -> None:
+        seed = vss.SPLIT_SEEDS["tierb-v0"]
+        other = vss.draw_split("tierb-v0", sorted(ALL_19_ITEMS), seed=f"{seed}-next")
+        assert _holdout_names(other) != HOLDOUT_SIX
+        assert other["k"] == vss.SPLIT_HOLDOUT_K  # the roster moved; the size did not
+
+    def test_the_size_never_empties_dev_or_goes_negative(self) -> None:
+        """`max(0, min(k, n - 1))` — fires on fixtures and a stunted corpus, never on tierb-v0."""
+        assert vss.draw_split("tierb-v0", []) == {
+            "seed": vss.SPLIT_SEEDS["tierb-v0"],
+            "k": 0,
+            "scenarios": [],
+        }
+        one = vss.draw_split("tierb-v0", ["knife_visible"])
+        assert one["k"] == 0 and [r["arm"] for r in one["scenarios"]] == ["dev"]
+        two = vss.draw_split("tierb-v0", ["loitering", "knife_visible"], k=9)
+        assert two["k"] == 1 and _holdout_names(two) == ["knife_visible"]  # 2aad… beats a911…
+
+    def test_an_unregistered_corpus_version_has_no_seed_to_draw_on(self) -> None:
+        """No fallback seed: reusing another corpus's seed would correlate two rosters."""
+        with pytest.raises(KeyError, match="tierc-v0"):
+            vss.draw_split("tierc-v0", sorted(ALL_19_ITEMS))
+        with pytest.raises(KeyError, match="tierc-v0"):
+            vss.split_manifest_document(
+                "tierc-v0",
+                dict.fromkeys(sorted(ALL_19_ITEMS), "dev"),
+                items_by_scenario=_items_in_construction_order(),
+            )
+
+    def test_the_manifest_covers_every_exported_scenario(self) -> None:
+        """Spec §2: `arms` lists all 31 so a reader never re-derives which scenarios exist."""
+        manifest = _manifest()
+        assert manifest["corpus_version"] == "tierb-v0"
+        assert manifest["seed"] == vss.SPLIT_SEEDS["tierb-v0"]
+        assert manifest["holdout_k"] == vss.SPLIT_HOLDOUT_K
+        assert manifest["unit"] == "scenario"
+        assert manifest["arms"] == {
+            "holdout": sorted(HOLDOUT_SIX),
+            "dev": sorted(set(ALL_19_ITEMS) - set(HOLDOUT_SIX) | set(BENIGN_ITEMS)),
+        }
+        assert not set(BENIGN_ITEMS) & set(manifest["arms"]["holdout"])  # benign is always dev (B1)
+        assert [row["scenario"] for row in manifest["draw"]] == [
+            row["scenario"] for row in _draw()["scenarios"]
+        ]
+        assert set(manifest) == {
+            "corpus_version",
+            "seed",
+            "holdout_k",
+            "unit",
+            "arms",
+            "draw",
+            "items",
+        }
+
+    def test_the_manifest_items_are_the_arm_totals(self) -> None:
+        """64/177/209: the split's published arithmetic, from the count table above."""
+        assert _manifest()["items"] == {
+            "holdout": {"benign": 0, "incident": 64},
+            "dev": {"benign": 209, "incident": 177},
+        }
+
+    def test_the_manifest_bytes_ignore_dict_construction_order(self) -> None:
+        """`splits.json` is canonical bytes, so its sha256 names the split, not a dict's history."""
+        arm = _scenario_arm()
+        forward = vss.split_manifest_document(
+            "tierb-v0", arm, items_by_scenario=_items_in_construction_order()
+        )
+        reverse = vss.split_manifest_document(
+            "tierb-v0",
+            {name: arm[name] for name in sorted(arm, reverse=True)},
+            items_by_scenario=_items_in_construction_order(scrambled=True),
+        )
+        assert vss.split_sha256(forward) == vss.split_sha256(reverse)
+        assert (
+            vss.split_sha256(forward)
+            == hashlib.sha256(
+                json.dumps(forward, indent=2, sort_keys=True).encode() + b"\n"
+            ).hexdigest()
+        )
+
+    def test_write_split_is_create_once(self, tmp_path: Path) -> None:
+        manifest = _manifest()
+        assert vss.write_split(tmp_path, manifest) is True
+        assert json.loads((tmp_path / vss.SPLIT_FILE).read_text(encoding="utf-8")) == manifest
+        assert vss.write_split(tmp_path, manifest) is False  # identical bytes: left alone
+        assert vss.read_split(tmp_path) == manifest
+        with pytest.raises(vss.ExportConflict, match="differs"):
+            vss.write_split(tmp_path, manifest | {"holdout_k": 5})
+
+    def test_read_split_is_none_for_a_pre_split_export(self, tmp_path: Path) -> None:
+        """B6: an export without a manifest stays readable and scores as `split: unrecorded`."""
+        assert vss.read_split(tmp_path) is None
+        assert vss.write_split(tmp_path, _manifest()) is True
+        assert (tmp_path / vss.SPLIT_FILE).is_file()
+        assert vss.read_split(tmp_path) == _manifest()
