@@ -856,8 +856,8 @@ track open.
   EventListView, EventDetailModal and the AlertsPage that rides the same endpoint; the WS twin type
   carries the field too. **The acceptance's named stale pointers are corrected**: plan line 67
   carries a dated supersession (its `should_notify`-has-no-caller claim is now false and its
-  `alert_engine.py:451` pointer names a path OD-1's follow-up parks), and the `websocket.py`
-  docstring names no deleted module. **What was measured rather than assumed**: with no `fields`
+  `backend/services/alert_engine.py:451` pointer names a path OD-1's follow-up parks), and the
+  `websocket.py` docstring names no deleted module. **What was measured rather than assumed**: with no `fields`
   param `filter_fields` is a passthrough (`filter_fields(ev, None) is ev` → True), so the list
   path's absence comes from the `EventListResponse.items` revalidation through `EventResponse` —
   both keys vanish for None and both survive as false, measured on the live model. Gates: backend
