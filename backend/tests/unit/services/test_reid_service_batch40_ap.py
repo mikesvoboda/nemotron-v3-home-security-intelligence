@@ -11,10 +11,15 @@ assertion where shipped and mutant AGREE
 ([[assertion-pinned-where-shipped-and-mutant-agree-fake-equiv]]).
 
 Measured this session (py3.14 / numpy, this sandbox), the kill-critical facts:
-cosine PIN pair float32 = 0.8911944627761841 while a dropped
+cosine PIN pair float32 = 0.8911944627761841 HERE while a dropped
 dtype=np.float32 evaluates float64 -> 0.891194426263832 and a one-side drop
--> ...3856183319, so the EXACT-equality row kills the whole 4-key dtype
-family; clamp_bbox_to_image((99,99,100,100),100,100) -> the box under
+-> ...3856183319, so EXACT equality kills the whole 4-key dtype family — but
+the expected side is RECOMPUTED from the shipped expression in-process
+(COS_F32 / _f32_batch_ref), never a literal: the f32 last bit is BLAS-build
+dependent (x86_64 CI lands 1 ULP off for the SAME numpy 2.5.3), and no
+tolerance can cover that drift without also forgiving the float64 gap,
+which is smaller than one ULP (see the V1/COS_F32 block);
+clamp_bbox_to_image((99,99,100,100),100,100) -> the box under
 min_size=1 but None under min_size=2 (and int 1 vs the float 1.0 default is
 pinned with isinstance); time-gap renders 0.5s -> "0 seconds ago", 60s/90s ->
 "1 minutes ago", 3540s -> "59 minutes ago", 3600s/3630s -> "1.0 hours ago",
@@ -99,8 +104,16 @@ from backend.services.reid_service import (
 
 MODEL = "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894"
 
-# Measured this session: the EXACT float32 cosine of this pair (a dropped
-# dtype evaluates float64 and lands on ...426263832 instead).
+# The EXACT float32 cosine of this pair — but computed IN-PROCESS from the
+# shipped expression, never pinned as a literal: the f32 last bit is
+# BLAS-reduction-order dependent (measured 2026-10-05: this pair lands on
+# ...4627761841 on aarch64 and ...4031715393 on x86_64 CI with the SAME
+# numpy 2.5.3 — a 1-ULP arch drift, the #44 ULP hazard recurring in CI).
+# A literal pin cannot survive both arches, and a TOLERANCE pin cannot
+# either: the float64 build lands only 3.65e-8 away, INSIDE one f32 ULP
+# (5.96e-8), so any tolerance covering the drift also forgives the dropped-
+# dtype mutants these rows exist to kill. Same-process equality drifts both
+# sides together and keeps EXACT equality as the dtype pin.
 V1 = [
     0.12857020276919962,
     0.49927786244011496,
@@ -125,7 +138,35 @@ V2 = [
     0.8167364359696581,
     0.5490752688700263,
 ]
-COS_F32 = 0.8911944627761841
+COS_F32 = float(
+    np.dot(np.array(V1, dtype=np.float32), np.array(V2, dtype=np.float32))
+    / (
+        np.linalg.norm(np.array(V1, dtype=np.float32))
+        * np.linalg.norm(np.array(V2, dtype=np.float32))
+    )
+)
+
+
+def _f32_batch_ref(query: list[float], candidates: list[list[float]]) -> list[float]:
+    """Shipped batch_cosine_similarity's EXACT arithmetic, recomputed here.
+
+    Never calls the shipped function (a tautology would forfeit every kill):
+    the same numpy ops on the same inputs, so LHS and RHS drift together on
+    any BLAS build, while a dropped-dtype mutant recomputes differently and
+    still fails EXACT equality (measured float64 gap 3.65e-8 != 0 here).
+    """
+    q = np.array(query, dtype=np.float32)
+    c = np.array(candidates, dtype=np.float32)
+    q_norm = np.linalg.norm(q)
+    if q_norm == 0:
+        return [0.0] * len(candidates)
+    q_hat = q / q_norm
+    c_norms = np.linalg.norm(c, axis=1)
+    safe = np.where(c_norms == 0, 1.0, c_norms)
+    sims = np.dot(c / safe[:, np.newaxis], q_hat)
+    sims = np.where(c_norms == 0, 0.0, sims)
+    return [float(s) for s in sims]
+
 
 # The shipped Lua body extracted VERBATIM from the source this session
 # (leading newline, indentation and trailing spaces included) — the
@@ -565,11 +606,13 @@ def test_cosine_dtype_exact_and_boundaries() -> None:
 
 
 def test_batch_dtype_exact_and_zero_polarities() -> None:
-    # Measured EXACT: the batch path normalizes THEN dots, so it lands on
-    # ...4031715393 (not the cosine_similarity ...4627761841) and the
-    # self-similarity is 0.9999998211860657 — a float64 build shifts every
-    # digit, so EXACT equality is the dtype pin for this family too.
-    assert batch_cosine_similarity(V1, [V2, V1]) == [0.8911944031715393, 0.9999998211860657]
+    # EXACT equality is the dtype pin for this family too — but the expected
+    # values come from _f32_batch_ref (the shipped expression recomputed in
+    # THIS process), not from literals: the batch path normalizes THEN dots,
+    # so it lands on a different f32 last bit than cosine_similarity, and
+    # both values drift with the BLAS build. A float64 mutant recomputes
+    # differently and still fails EXACT equality here.
+    assert batch_cosine_similarity(V1, [V2, V1]) == _f32_batch_ref(V1, [V2, V1])
     assert batch_cosine_similarity([1.0, 0.0, 0.0], [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]) == [
         0.0,
         1.0,
