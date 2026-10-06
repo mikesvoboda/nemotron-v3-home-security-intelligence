@@ -210,6 +210,23 @@ WORKDIR /app
 # stops shipping one of these. It fails (exit 100) only on a name absent from
 # the archive entirely, which is why every name here is bookworm-stable.
 # Guards: TestProdStageUpgradesPcre2 / TestProdStageCoversTrackerResolvedPkgs.
+#
+# 2026-10-05 (perl-base): the first image build after the wave-5 Python merge
+# (main 0f8277c0, scan job 111815714866) came back RED with seven findings on
+# ONE source package: perl-base 5.36.0-7+deb12u3, fixed 5.36.0-7+deb12u4 in
+# bookworm-security (DLA-4821-1) — CVE-2026-13221 CRITICAL + CVE-2026-42496/
+# 8376/42497/48962/57432/57433 HIGH. All seven are tracker-resolved for
+# bookworm, so they are fix-AVAILABLE: the ignore-unfixed filter that hides
+# this scan's no-fix rows does not hide these, and an ignore entry for a
+# fix-available CVE is exactly what the register's own rule forbids. The
+# preceding head eea4cfd5 scanned GREEN on the same base — between the two
+# builds the vuln DB caught up and the fix became reachable, the same
+# MOVED-TODAY class as libpcre2-8-0 above (the frontend Alpine leg stayed
+# green: perl-base exists only on the Debian half). Measured in the base image
+# pulled today: candidate u4 from bookworm-security; the upgrade below gives
+# rc 0 "1 upgraded, 0 newly installed" landing u4, then rc 0 as a no-op —
+# cannot grow the image, cannot rot into a build failure when the base absorbs
+# u4. Guard: TestProdStageUpgradesPerlBase / TestPerlBaseCvesStayOutOfIgnore.
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
@@ -220,6 +237,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --only-upgrade \
          libexpat1 \
          libpcre2-8-0 \
+         perl-base \
          libc6 \
          libc-bin \
          libpng16-16 \
