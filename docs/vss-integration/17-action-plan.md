@@ -7516,3 +7516,36 @@ risk_level: 'high'}` message acking **as desired behavior**. Band alignment mean
   follow-ups); it does not merge (the owner's action, and only the owner's — this is written
   from PR #6811's branch head, OPEN and MERGEABLE); it adds no new ISS/OD ids. A re-audit at
   merge time is warranted: these advisories are ~24 h old and the wave may extend.
+
+### 2026-10-06 (supersession of the entry above: main landed the same wave first, with a different disposition)
+
+- Between this branch's fix push and its merge, main absorbed the **same disclosure wave** in
+  parallel (#6814, commits `e2e179d1` + `282e0ea6`, green on main's own CI). Where the two
+  responses differ, **main's is canonical and this branch yields**: the npm side takes only the
+  two in-range fixes and **dates the three blocked majors** (seroval ×2, postcss-selector-
+  parser) in `.npm-audit-exemptions.json` rather than forcing them via `overrides` floors; the
+  `bun.lock` keeps main's two-line carry, not this branch's ten-line surgical one;
+  `package.json` keeps **no** new overrides. All seven dependency surfaces (`uv.lock`,
+  `.trivyignore`, `dependency-audit.yml`, `package.json`, `package-lock.json`, `bun.lock`,
+  `.npm-audit-exemptions.json`) are **byte-identical to main** at the merge head — measured by
+  `git diff --quiet` per file, not asserted. The python side converges: same fsspec 2026.9.0
+  fix, same dated jose exception in both registers (main's review date 2027-01-06, which this
+  branch adopts).
+- **Both dispositions are honest** — main's registry reasons state the blocked-major premise
+  accurately (solid-js `~1.5.4` genuinely caps the chain; npm reports the devtools-major
+  migration as the only fix path). This branch's floors were a *different* judgment call —
+  force the fixed version via `overrides` — not a better one, and a branch does not overrule
+  what main shipped. The checker's rule 5 (fix-available ⇒ exemption red) stays green for all
+  four dated entries because npm reports `isSemVerMajor` on their fix paths; measured at the
+  merge head `6cb16820`: exemption checker **rc=0 in both CI shapes** ("4 active, 4 advisories
+  all covered"), pip-audit with the exact CI pipeline **rc=0 "3 ignored"**, `check-trivyignore-
+  expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: rc=0, zero
+  vulnerabilities across the bun/npm/uv lock targets** (with the suppressed-ignored note the
+  dated jose/ecdsa rows earn), and the full backend unit tier **30,441 passed, 121 skipped,
+  8 xfailed, 0 failed** — the count grew with main's mutation-battery batches (#6814), zero
+  failures at the merge. The prior entry's first-hand numbers stay true **as of `fccd0510`**,
+  where they were measured; this entry is what is true now.
+- **What this entry does NOT do**: it does not edit the entry above (append-only — that entry
+  records what this branch did and measured at its head, which is history, not error); it does
+  not re-open the overrides-vs-exemptions question (owner's call if they ever prefer forcing
+  the majors; both gates pass as shipped on main); it does not merge.
