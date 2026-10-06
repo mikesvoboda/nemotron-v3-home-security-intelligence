@@ -417,6 +417,64 @@ def test_the_conditions_line_records_the_sampling_choice(tmp_path: Path) -> None
     assert "seed" not in body  # unseeded means the wire carries no seed, not seed=None
 
 
+DECLARED = "cache flags: CACHE_RAM=0, CACHE_IDLE_SLOTS=0"
+
+
+@pytest.mark.parametrize(
+    ("extra", "recorded"),
+    [
+        pytest.param({"server_settings": DECLARED}, DECLARED, id="declared"),
+        pytest.param({}, None, id="omitted"),  # execute's own default
+        pytest.param({"server_settings": ""}, None, id="empty"),  # an empty string declares nothing
+    ],
+)
+def test_a_replay_records_the_server_settings_the_operator_declares(
+    tmp_path: Path, extra: dict[str, Any], recorded: str | None
+) -> None:
+    """ISS-087: the build and the cache flags an endpoint was started with change its answers,
+    and `replay` cannot observe either — it never starts the server. So the operator declares
+    them and the record keeps the declaration as given, including its absence."""
+    export = _export(tmp_path, n=1)
+    app = make_fake_llama(model_path="/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf")
+    deps = Deps(get=_get(), run=_run(), inner_transport=httpx.ASGITransport(app=app))
+    result = execute(
+        QWEN,
+        URL,
+        export,
+        tmp_path / "eval" / "eval.sqlite",
+        tmp_path / "runs",
+        None,
+        deps,
+        **extra,
+    )
+    record = json.loads((result.run_dir / "run.json").read_text(encoding="utf-8"))
+    assert "server_settings" in record  # the key is written even when nobody declares
+    assert record["server_settings"] == recorded
+
+
+def test_the_option_reaches_the_record(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`--server-settings` is only a declaration if the command threads it to the record: a
+    mis-named attribute or a dropped argument would replay happily and record nothing."""
+    export = _export(tmp_path, n=1)
+    _fake_deps(monkeypatch, httpx.MockTransport(lambda _: _vllm_reply()))
+    assert (
+        h.run(
+            tmp_path,
+            "replay",
+            "--model",
+            "flagship",
+            "--export",
+            str(export),
+            "--server-settings",
+            DECLARED,
+        )
+        == cli.EXIT_OK
+    )
+    [run_dir] = (tmp_path / "runs" / "replays").iterdir()
+    record = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    assert record["server_settings"] == DECLARED
+
+
 def test_a_relative_export_is_resolved_before_the_import(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

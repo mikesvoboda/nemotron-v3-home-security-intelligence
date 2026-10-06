@@ -919,15 +919,20 @@ def _scored(tmp_path: Path) -> Path:
 
 def test_the_report_states_each_models_conditions(tmp_path: Path) -> None:
     """Cosmos's system message, budget and timeout and the flagship's thinking-off are the
-    price of their columns (decision A7): the report states them beside the product model's."""
+    price of their columns (decision A7): the report states them beside the product model's.
+    The build and the server settings come last (ISS-087): the fixture's run.json records
+    `b7972` and declares no server settings, which is what an older replay reads like."""
     out = _scored(tmp_path)
     text = (out / "report.md").read_text(encoding="utf-8")
     assert "Comparison models may run under different conditions" in text
     rows = {
-        "| qwen3-vl-8b | ai-vlm | shipped | — | 1024 | 25 s | on | temp 0.0, unseeded |",
+        "| qwen3-vl-8b | ai-vlm | shipped | — | 1024 | 25 s | on | temp 0.0, unseeded | b7972 "
+        "| unrecorded |",
         "| cosmos-reason2-8b | vllm | shipped + system message (A7) | on (asked by its system "
-        "message; parsed by vLLM) | 4096 | 120 s | off | temp 0.0, unseeded |",
-        "| flagship | vllm | shipped | off | 1024 | 25 s | off | temp 0.0, unseeded |",
+        "message; parsed by vLLM) | 4096 | 120 s | off | temp 0.0, unseeded | b7972 | "
+        "unrecorded |",
+        "| flagship | vllm | shipped | off | 1024 | 25 s | off | temp 0.0, unseeded | b7972 | "
+        "unrecorded |",
     }
     assert rows <= set(text.splitlines())
     assert json.dumps(COSMOS_FORMAT) in text  # the system message, verbatim
@@ -937,6 +942,61 @@ def test_the_report_states_each_models_conditions(tmp_path: Path) -> None:
         assert {key: by_model[model][key] for key in conditions} == conditions
     store = tmp_path / "eval" / h.VERSION / "eval.sqlite"
     assert identity["eval_store"] == {"path": str(store)}
+
+
+# ISS-087: a llama.cpp build and the flags an endpoint was started with change its answers, and
+# `replay` cannot observe either (it never starts a server). The operator declares the second with
+# `--server-settings`; both land in run.json and the conditions row names them per model.
+
+BUILD_NEW = "b11376-a55e952b8"
+SERVER_SETTINGS = "prompt cache off (LLAMA_ARG_CACHE_RAM=0)"
+
+
+def _forget(root: Path, replay_id: str, keys: Sequence[str]) -> None:
+    """Rewrite a replay's `run.json` without `keys`: the shape of a record written before they
+    were recorded, as opposed to one written since with an empty value."""
+    path = root / "runs" / "replays" / replay_id / "run.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    for key in keys:
+        del record[key]
+    path.write_text(json.dumps(record), encoding="utf-8")
+
+
+def test_the_conditions_line_names_the_build_and_the_declared_server_settings(
+    tmp_path: Path,
+) -> None:
+    """Two replays of one export that ran on different builds, one with flags declared and one
+    recorded before either fact existed, are not one comparable row of numbers, so each row
+    carries both facts (ISS-087). The declared string is quoted as the operator gave it; a
+    replay that recorded neither says so per cell — `—` for a build never observed, `unrecorded`
+    for settings never declared — and still scores."""
+    declared, older = "qwen3-vl-8b", "flagship"
+    ids = _world(
+        tmp_path,
+        {declared: {}, older: {}},
+        {
+            declared: {"build": BUILD_NEW, "server_settings": SERVER_SETTINGS}
+            | CONDITIONS[declared],
+            older: CONDITIONS[older],
+        },
+    )
+    _forget(tmp_path, ids[1], ["build"])  # a run.json from before the build was recorded
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
+    [out] = (tmp_path / "runs" / "scores").iterdir()
+    text = (out / "report.md").read_text(encoding="utf-8")
+    rows = {
+        f"| {declared} | ai-vlm | shipped | — | 1024 | 25 s | on | temp 0.0, unseeded | "
+        f"{BUILD_NEW} | {SERVER_SETTINGS} |",
+        f"| {older} | vllm | shipped | off | 1024 | 25 s | off | temp 0.0, unseeded | — | "
+        "unrecorded |",
+    }
+    assert rows <= set(text.splitlines())
+    identity = json.loads((out / "metrics.json").read_text())["identity"]
+    by_model = {replay["model"]: replay for replay in identity["replays"]}
+    assert by_model[declared]["server_settings"] == SERVER_SETTINGS
+    assert by_model[older]["server_settings"] is None  # the key rides with the conditions
+    assert by_model[older]["build"] is None
 
 
 def test_the_report_shows_no_absolute_host_path(tmp_path: Path) -> None:

@@ -16,8 +16,9 @@ CONDITIONS = (
     "context; a real detector misses some of them, so this is optimistic. Accuracy only: the "
     "GB300 is shared, so no latency or memory figure here stands for a deployment. Ambiguous "
     "events are not scored. Comparison models may run under different conditions from the "
-    "product model (a system message, a token budget, a read timeout, thinking off): the "
-    "Conditions per model table in report.md lists each model's."
+    "product model (a system message, a token budget, a read timeout, thinking off, a build, "
+    "server flags the operator declared): the Conditions per model table in report.md lists "
+    "each model's."
 )
 CELLS = (
     'Each cell reads rate [95% Wilson interval] (n); under n = 10 it reads "insufficient". '
@@ -177,6 +178,13 @@ def _thinking(value: str | None) -> str:
     return "—" if value is None else value
 
 
+def _build(value: str | None) -> str:
+    """The build the endpoint reported to `check` (recorded as `build`). An endpoint that answers
+    `/props` always reports one, and an empty answer reads the same as an older record's missing
+    key: `—`, because nothing was observed (as opposed to server settings: never DECLARED)."""
+    return value if value else "—"
+
+
 def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
     """Each model's conditions as its replay recorded them; older replays did not record
     them all."""
@@ -202,6 +210,10 @@ def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
             shown(r.get("read_timeout"), lambda seconds: f"{seconds:g} s"),
             shown(r.get("enforcement_probe"), lambda on: "on" if on else "off"),
             sampling(r),
+            _build(r.get("build")),
+            # ISS-087: `shown`, not `_build`, because the absence means something different: the
+            # operator never declared what the endpoint was started with.
+            shown(r.get("server_settings"), str),
         ]
         for r in replays
     ]
@@ -214,6 +226,8 @@ def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
         "Read timeout",
         "Enforcement probe",
         "Sampling",
+        "Build",
+        "Server settings",
     )
     lines = _table(header, rows)
     for r in replays:

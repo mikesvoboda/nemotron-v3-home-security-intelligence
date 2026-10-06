@@ -57,6 +57,9 @@ _REPLAY_KEYS = (
     # ISS-043: the sampling choice rides with the rest of the conditions.
     "temperature",
     "seed",
+    # ISS-087: the operator's declaration of what the endpoint was started with. Absent for a
+    # replay run before it, so the read is .get()-based like the keys above.
+    "server_settings",
     # ISS-016: which scenarios the replay never scored. Absent for a replay of a pre-split
     # export, so the read is .get()-based like the conditions keys above.
     "split_sha256",

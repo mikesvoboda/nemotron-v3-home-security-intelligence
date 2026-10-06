@@ -420,12 +420,13 @@ Owner only. Replays one served VLM over the exported items through the shipped r
 (`docs/superpowers/specs/2026-09-29-synthbench-p5a-vlm-replay-design.md` §3). The model must
 already be served: `replay` never starts, stops or reconfigures a model server.
 
-| Option           | Default                                  | Meaning                                                                            |
-| ---------------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
-| `--model <name>` | required                                 | `qwen3-vl-8b`, `qwen3-vl-4b`, `nemotron-12b-vl`, `cosmos-reason2-8b` or `flagship` |
-| `--url <url>`    | per model (below)                        | the model's endpoint                                                               |
-| `--limit <n>`    | every item                               | replay only the first n items                                                      |
-| `--export <dir>` | `$SYNTHBENCH_ROOT/exports/<version>/vss` | export directory                                                                   |
+| Option                  | Default                                  | Meaning                                                                            |
+| ----------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| `--model <name>`        | required                                 | `qwen3-vl-8b`, `qwen3-vl-4b`, `nemotron-12b-vl`, `cosmos-reason2-8b` or `flagship` |
+| `--url <url>`           | per model (below)                        | the model's endpoint                                                               |
+| `--limit <n>`           | every item                               | replay only the first n items                                                      |
+| `--export <dir>`        | `$SYNTHBENCH_ROOT/exports/<version>/vss` | export directory                                                                   |
+| `--server-settings <s>` | nothing recorded                         | how the endpoint was started, declared by the operator (ISS-087)                   |
 
 - **Endpoints:** the three `ai-vlm` models at `$AI_VLM_URL`, else `http://127.0.0.1:8098`;
   `cosmos-reason2-8b` at `$SYNTHBENCH_COSMOS_URL`, else `http://127.0.0.1:8099`; `flagship` at
@@ -452,12 +453,18 @@ already be served: `replay` never starts, stops or reconfigures a model server.
   only prompt change, and only Cosmos has it (the owner's decision). Every other model keeps the
   shipped prompt, budget and timeout (`AI_VLM_READ_TIMEOUT`, 25 s by default).
 - **Reads:** the export's sets.
+- **Server settings:** `--server-settings` records what the endpoint was started with. `replay`
+  never starts a server, so it can read the build an `ai-vlm` endpoint reports at `/props` but
+  nothing about the flags behind it — and a llama.cpp build or a cache flag changes the answers
+  (ISS-087). The string is stored verbatim in `run.json` as `server_settings`, empty or omitted
+  records `null`, and `report.md` prints the cell as `unrecorded` for every replay that declared
+  none. Quote the start command's flags, or say what cannot be known.
 - **Writes:** imports the export into `$SYNTHBENCH_ROOT/eval/<version>/eval.sqlite` (a set
   already imported is skipped), creates `$SYNTHBENCH_ROOT/runs/replays/<replay_id>/` before the
   first item, then writes the replay's results to the eval store under a new eval run id, and
   `run.json` in that directory: the model, endpoint, build, the conditions it ran under as its
   requests carried them (enforcement probe, request fields, `max_tokens`, read timeout, system
-  message), eval run id, commit and the replay's report.
+  message, server settings), eval run id, commit and the replay's report.
 - **Prints:** the items replayed, S2 false alarms, S3 incidents at level, refusals with their
   error classes when any (for example `2 refused (VlmTruncatedError 2)`), and the path of
   `run.json`.
@@ -492,8 +499,10 @@ truth error, and, with two or more replays, the comparison between models.
   committing) and `report.html` (the failure gallery: incidents scored below their level and
   benign scenes scored medium or above, with the VLM's reasoning).
 - **Conditions per model:** `report.md` states each model's transport, prompt (`shipped`, or
-  `shipped + system message (A7)` with the message quoted), thinking, max tokens, read timeout
-  and enforcement probe, as its replay recorded them (`unrecorded` for an older replay).
+  `shipped + system message (A7)` with the message quoted), thinking, max tokens, read timeout,
+  enforcement probe, build and server settings, as its replay recorded them (`unrecorded` for an
+  older replay, and for settings no `--server-settings` declared; `—` for a build the endpoint
+  never reported).
 - **Paths:** `report.md` shows paths under `$SYNTHBENCH_ROOT` relative to it (for example
   `exports/<version>/vss`), never an absolute host path; `metrics.json` keeps them absolute.
 - **Cells:** rate, 95% Wilson interval and n; under n = 10 a cell reads "insufficient".
