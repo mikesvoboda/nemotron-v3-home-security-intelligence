@@ -15,6 +15,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from backend.evaluation.cluster_stats import (
+    cluster_bootstrap,
+    cluster_bootstrap_diff,
+    mcnemar_exact,
+)
 from backend.evaluation.levels import level_at_or_above, score_to_level
 from backend.evaluation.s_metrics import (
     s2_false_positive_rate,
@@ -28,6 +33,7 @@ Row = dict[str, Any]  # a replay row, as `EvalStore.replay` returns it
 MIN_N = 10  # a cell under this many items reads "insufficient (n=…)"
 AUDIT_KEYS = ("scene", "prop", "people", "conditions")
 RIGHT = {"hit", "clear"}
+ARMS = ("dev", "holdout")  # the split's two sides (ISS-016), in the order a reader sees them
 
 
 @dataclass(frozen=True)
@@ -123,8 +129,46 @@ def _band(rows: Sequence[Row], items: Mapping[str, Item]) -> dict[str, Any]:
     return out
 
 
+def _by_scenario(rows: Sequence[Row], items: Mapping[str, Item]) -> dict[str, list[Row]]:
+    """Rows grouped by the scenario cell: the cluster unit ISS-043 resamples
+    (items share a scenario, and a rendering or framing artifact misread once
+    tends to be misread on every still of that scenario)."""
+    groups: dict[str, list[Row]] = defaultdict(list)
+    for row in rows:
+        groups[str(items[row["item_id"]].facts["cell"]["scenario"])].append(row)
+    return groups
+
+
+def _s2_clusters(rows: Sequence[Row], items: Mapping[str, Item]) -> list[tuple[int, int]]:
+    """(benign items, false alarms) per scenario - S2's cluster table."""
+    out = []
+    for members in _by_scenario(rows, items).values():
+        eligible = [r for r in members if items[r["item_id"]].label == "benign"]
+        out.append(
+            (
+                len(eligible),
+                sum(1 for r in eligible if outcome(items[r["item_id"]], r) == "false_alarm"),
+            )
+        )
+    return out
+
+
+def _s3_clusters(rows: Sequence[Row], items: Mapping[str, Item]) -> list[tuple[int, int]]:
+    """(incident-leg items, floor hits) per scenario - S3's cluster table. The
+    denominator is hit+miss+refused, refusals included exactly as `s3_recall`
+    counts them (the module's shared convention)."""
+    out = []
+    for members in _by_scenario(rows, items).values():
+        eligible = [r for r in members if items[r["item_id"]].label == "incident"]
+        out.append(
+            (len(eligible), sum(1 for r in eligible if outcome(items[r["item_id"]], r) == "hit"))
+        )
+    return out
+
+
 def headline(rows: Sequence[Row], items: Mapping[str, Item]) -> dict[str, Any]:
-    """One model's metrics over some rows: `s_metrics`' own dicts plus a cell for each rate."""
+    """One model's metrics over some rows: `s_metrics`' own dicts plus a cell for each rate,
+    and ISS-043's scenario-cluster bootstrap beside each bar's Wilson interval."""
     rows = list(rows)
     labels = {item_id: item.label for item_id, item in items.items()}
     floors = {
@@ -142,6 +186,8 @@ def headline(rows: Sequence[Row], items: Mapping[str, Item]) -> dict[str, Any]:
         "verdicts": verdicts,
         "s2_cell": cell(s2["fp"], s2["n"]),
         "s3_cell": cell(s3["all"]["hit"], s3["all"]["n"]),
+        "s2_cluster": cluster_bootstrap(_s2_clusters(rows, items)),
+        "s3_cluster": cluster_bootstrap(_s3_clusters(rows, items)),
         "s3_excluding_zero_floor_cell": cell(
             s3["excluding_zero_floor"]["hit"], s3["excluding_zero_floor"]["n"]
         ),
@@ -192,16 +238,67 @@ def audit_summary(answers: Mapping[tuple[str, str], str], sampled: Sequence[str]
     }
 
 
+def _leg_is_event(item: Item, outcome_name: str) -> bool:
+    """Whether an outcome counts as the bar's flagged event in a cluster leg:
+    a false alarm for the benign leg, a hit for the incident leg. Refused and
+    the quiet outcomes are non-events (they stay in the denominator)."""
+    return outcome_name == ("false_alarm" if item.label == "benign" else "hit")
+
+
 def comparison(
     replays: Sequence[tuple[str, Sequence[Row]]], items: Mapping[str, Item]
 ) -> list[dict[str, Any]]:
-    """Per pair of models, over the items both replayed: how often their outcomes agree, and the
-    items one gets wrong (a miss, a false alarm or a refusal) that the other gets right."""
+    """Per pair of models, over the items both replayed: how often their outcomes agree, the
+    items one gets wrong (a miss, a false alarm or a refusal) that the other gets right, and
+    ISS-043's paired statistics - exact McNemar on the discordants plus dS2/dS3 with a
+    scenario-cluster CI (the OD-26 selection rule's test, computed in the report now)."""
     out: list[dict[str, Any]] = []
     for (a, rows_a), (b, rows_b) in itertools.combinations(replays, 2):
         by_a = {row["item_id"]: outcome(items[row["item_id"]], row) for row in rows_a}
         by_b = {row["item_id"]: outcome(items[row["item_id"]], row) for row in rows_b}
         common = sorted(by_a.keys() & by_b.keys())
+
+        # McNemar's unit is the bar's event per label: a benign item one arm
+        # false-alarms and the other clears, an incident one arm hits and the
+        # other misses. Two RIGHT-but-different outcomes (clear vs hit across
+        # labels cannot happen; hit-vs-hit always agrees) are concordant.
+        def discordants(
+            label: str,
+            common: Sequence[str],
+            by_a: Mapping[str, str],
+            by_b: Mapping[str, str],
+        ) -> tuple[int, int]:
+            only_a = only_b = 0
+            for item_id in common:
+                item = items[item_id]
+                if item.label != label:
+                    continue
+                ev_a = _leg_is_event(item, by_a[item_id])
+                ev_b = _leg_is_event(item, by_b[item_id])
+                only_a += ev_a and not ev_b
+                only_b += ev_b and not ev_a
+            return only_a, only_b
+
+        b_a, b_b = discordants("benign", common, by_a, by_b)
+        i_a, i_b = discordants("incident", common, by_a, by_b)
+        # The paired cluster table over the SHARED items only (the pairing is
+        # the point): (nb, fa_a, fa_b, ni, hit_a, hit_b) per scenario.
+        pairs: list[tuple[int, int, int, int, int, int]] = []
+        shared = set(common)
+        for members in _by_scenario([r for r in rows_a if r["item_id"] in shared], items).values():
+            nb = fa_a = fa_b = ni = hit_a = hit_b = 0
+            for row in members:
+                item = items[row["item_id"]]
+                if item.label == "benign":
+                    nb += 1
+                    fa_a += _leg_is_event(item, by_a[row["item_id"]])
+                    fa_b += _leg_is_event(item, by_b[row["item_id"]])
+                else:
+                    ni += 1
+                    hit_a += _leg_is_event(item, by_a[row["item_id"]])
+                    hit_b += _leg_is_event(item, by_b[row["item_id"]])
+            pairs.append((nb, fa_a, fa_b, ni, hit_a, hit_b))
+        diff = cluster_bootstrap_diff(pairs)
         out.append(
             {
                 "a": a,
@@ -209,6 +306,18 @@ def comparison(
                 "agree": cell(sum(1 for i in common if by_a[i] == by_b[i]), len(common)),
                 "a_wrong_b_right": [i for i in common if by_a[i] not in RIGHT and by_b[i] in RIGHT],
                 "b_wrong_a_right": [i for i in common if by_b[i] not in RIGHT and by_a[i] in RIGHT],
+                "s2_discordants": {"only_a": b_a, "only_b": b_b, "p": mcnemar_exact(b_a, b_b)},
+                "s3_discordants": {"only_a": i_a, "only_b": i_b, "p": mcnemar_exact(i_a, i_b)},
+                "dS2": {
+                    "point_pts": diff["point_pts"],
+                    "ci_pts": diff["ci_pts"],
+                    "clusters": diff["clusters"],
+                },
+                "dS3": {
+                    "point_pts": diff["point3_pts"],
+                    "ci_pts": diff["ci3_pts"],
+                    "clusters": diff["clusters"],
+                },
             }
         )
     return out
@@ -219,8 +328,16 @@ def result_rows(
     items: Mapping[str, Item],
     answers: Mapping[tuple[str, str], str],
     excluded: set[str],
+    *,
+    scenario_arm: Mapping[str, str] | None = None,
 ) -> list[dict[str, Any]]:
-    """One row per item per model, for `results.jsonl` and the failure gallery."""
+    """One row per item per model, for `results.jsonl` and the failure gallery.
+
+    `scenario_arm` is the reconciled roster (ISS-016): each row's `split` is its own scenario's
+    arm, read from the table and never from the identity, so the rows say which side of the split
+    they are on for whatever reads the file. `None` is a pre-split export (B6): every row is
+    `unrecorded`. A pure helper on purpose — Task 7's gallery test calls it directly.
+    """
     out: list[dict[str, Any]] = []
     for model, replay_id, rows in replays:
         for row in rows:
@@ -230,6 +347,13 @@ def result_rows(
                 band_position(item, int(score)) if score is not None else (None, None)
             )
             raw = row.get("raw_response") or {}
+            # The arm of this item's scenario, from the roster: the split's unit is the scenario
+            # (ISS-016 B5), and a row without a roster to look in says so (B6).
+            arm = (
+                "unrecorded"
+                if scenario_arm is None
+                else scenario_arm[str(item.facts["cell"]["scenario"])]
+            )
             out.append(
                 {
                     "model": model,
@@ -248,10 +372,24 @@ def result_rows(
                     "excluded": item.event_id in excluded,
                     "cell": dict(item.facts["cell"]),
                     "still": str(item.still),
+                    "split": arm,
                     "reasoning": raw.get("reasoning") or raw.get("detail"),
                 }
             )
     return out
+
+
+def _partition_by_arm(
+    kept: Sequence[Row], items: Mapping[str, Item], scenario_arm: Mapping[str, str]
+) -> dict[str, list[Row]]:
+    """`kept` split into one list per arm, by each row's item's scenario. The arm is read from the
+    roster and never guessed (ISS-016 B5): a scenario the roster does not arm is `scoring`'s to
+    refuse before it gets here, and one that reaches it anyway raises rather than joins a side."""
+    sides: dict[str, list[Row]] = {arm: [] for arm in ARMS}
+    for row in kept:
+        scenario = str(items[row["item_id"]].facts["cell"]["scenario"])
+        sides[scenario_arm[scenario]].append(row)
+    return sides
 
 
 def score_models(
@@ -259,24 +397,55 @@ def score_models(
     items: Mapping[str, Item],
     answers: Mapping[tuple[str, str], str],
     sampled: Sequence[str],
+    *,
+    scenario_arm: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """Every model's headline (on every item, and on the audited stills whose scene the owner
     confirmed), slices, and the comparison. `replays` is (model, replay id, rows). An event the
-    owner answered no for is a generation error: it leaves every metric (design §4)."""
+    owner answered no for is a generation error: it leaves every metric (design §4).
+
+    `scenario_arm` is the reconciled roster (ISS-016) that `result_rows` already reads: with one,
+    each model gains a `dev` and a `holdout` headline beside `all`, a `scenario_slice_dev` for
+    Task 7's report, and the metrics gain a `split_comparison` holding `comparison()` per side.
+    Without one — a pre-split export (B6) — the returned structure is exactly what it was before
+    the split existed, keys and values both, which is what keeps frozen records byte-comparable.
+    The arms are an added reading and never a narrower one: `audited`, `slices` and the top-level
+    `comparison` keep reading every kept row.
+    """
     audit = audit_summary(answers, sampled)
     excluded = set(audit["generation_errors"])
     confirmed = set(audit["confirmed"])
     models: dict[str, Any] = {}
     kept_by_model: list[tuple[str, Sequence[Row]]] = []
+    by_arm: dict[str, list[tuple[str, Sequence[Row]]]] = {arm: [] for arm in ARMS}
     for model, replay_id, rows in replays:
         kept = [row for row in rows if items[row["item_id"]].event_id not in excluded]
         audited = [row for row in kept if items[row["item_id"]].event_id in confirmed]
-        models[model] = {
+        block: dict[str, Any] = {
             "replay_id": replay_id,
             "excluded": len(rows) - len(kept),
             "all": headline(kept, items),
             "audited": headline(audited, items),
             "slices": slices(kept, items),
         }
+        if scenario_arm is not None:
+            sides = _partition_by_arm(kept, items, scenario_arm)
+            for arm, rows_in_arm in sides.items():
+                block[arm] = headline(rows_in_arm, items)
+                by_arm[arm].append((model, rows_in_arm))
+            # Task 7 reads this from the metrics json; computing it here is why `dev_rows` needs no
+            # route out of this function.
+            block["scenario_slice_dev"] = slices(sides["dev"], items)["scenario"]
+        models[model] = block
         kept_by_model.append((model, kept))
-    return {"audit": audit, "models": models, "comparison": comparison(kept_by_model, items)}
+    out: dict[str, Any] = {
+        "audit": audit,
+        "models": models,
+        "comparison": comparison(kept_by_model, items),
+    }
+    if scenario_arm is not None:
+        # Per side, the same paired test over only that side's items: a model that moved only on
+        # scenarios tuning never saw is invisible in the whole-corpus pair, because dev's larger
+        # item count carries the pooled number.
+        out["split_comparison"] = {arm: comparison(pairs, items) for arm, pairs in by_arm.items()}
+    return out

@@ -397,6 +397,26 @@ def test_a_vllm_replay_records_the_conditions_it_ran_under(
     assert (body["max_tokens"], timeout["read"]) == (record["max_tokens"], record["read_timeout"])
 
 
+def test_the_conditions_line_records_the_sampling_choice(tmp_path: Path) -> None:
+    """ISS-043's repeat-run term: a comparison is only comparable if the report
+    can show both arms sampled alike. The shipped assess path samples at
+    temperature 0 with no seed (ISS-078); the conditions line must SAY so, per
+    model, and say what the requests actually carried - the record is not
+    allowed to claim a sampling the wire did not show."""
+    export = _export(tmp_path, n=1)
+    recording = _Recording(httpx.MockTransport(lambda _: _vllm_reply()))
+    deps = Deps(get=_get(served=FLAGSHIP.served_id), run=_run(), inner_transport=recording)
+    result = execute(
+        FLAGSHIP, URL, export, tmp_path / "eval" / "eval.sqlite", tmp_path / "runs", None, deps
+    )
+    record = json.loads((result.run_dir / "run.json").read_text(encoding="utf-8"))
+    assert record["temperature"] == 0.0
+    assert record["seed"] is None
+    [(body, _)] = recording.verdicts
+    assert body["temperature"] == record["temperature"]
+    assert "seed" not in body  # unseeded means the wire carries no seed, not seed=None
+
+
 def test_a_relative_export_is_resolved_before_the_import(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -446,6 +466,126 @@ def test_a_store_whose_stills_lie_outside_the_export_is_refused(
         execute(QWEN, URL, export, store_path, tmp_path / "runs", None, deps)
     assert requests == []
     assert not (tmp_path / "runs").exists()
+
+
+# The export fixture's roster: two incident scenarios enter the draw, the two benign ones join
+# dev by rule (B1), so the store ends with four rows and the clamped draw holds one scenario.
+SPLIT_ITEMS = {
+    "knife_visible": {"benign": 0, "incident": 1},
+    "loitering": {"benign": 0, "incident": 1},
+    "hooded_jogger": {"benign": 1, "incident": 0},
+    "delivery_driver": {"benign": 1, "incident": 0},
+}
+
+
+def _split(export: Path) -> dict[str, Any]:
+    """The export's `splits.json` (Task 1's writer) over the roster above; returns the manifest."""
+    incident = [name for name, counts in SPLIT_ITEMS.items() if counts["incident"]]
+    arm = {row["scenario"]: row["arm"] for row in vss.draw_split(h.VERSION, incident)["scenarios"]}
+    arm |= {name: "dev" for name in SPLIT_ITEMS if name not in arm}
+    manifest = vss.split_manifest_document(h.VERSION, arm, items_by_scenario=SPLIT_ITEMS)
+    vss.write_split(export, manifest)
+    return manifest
+
+
+def _arms_rows(document: dict[str, Any]) -> list[dict[str, str]]:
+    """The store's flat rows for a manifest: one per armed scenario, as `put_split` takes them."""
+    return [
+        {"scenario": name, "arm": arm} for arm, names in document["arms"].items() for name in names
+    ]
+
+
+def _swapped(document: dict[str, Any]) -> dict[str, Any]:
+    """A rival manifest: the fixture's two incident scenarios armed the other way round."""
+    arms = {
+        "holdout": ["loitering"],
+        "dev": ["knife_visible", "hooded_jogger", "delivery_driver"],
+    }
+    draw = [
+        row | {"arm": "holdout" if row["scenario"] == "loitering" else "dev"}
+        for row in document["draw"]
+    ]
+    return document | {"arms": arms, "draw": draw, "holdout_k": 1}
+
+
+def _qwen_app() -> httpx.ASGITransport:
+    """The fake llama.cpp server `QWEN` is served by."""
+    return httpx.ASGITransport(
+        app=make_fake_llama(model_path="/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf")
+    )
+
+
+def test_a_split_export_lands_in_the_store_and_in_run_json(tmp_path: Path) -> None:
+    """The replay records the export's roster under the corpus version and names its digest in
+    `run.json`, so a later score can say which scenarios it never scored (ISS-016)."""
+    export = _export(tmp_path)
+    manifest = _split(export)
+    digest = vss.split_sha256(manifest)
+    store_path = tmp_path / "eval" / "eval.sqlite"
+    deps = Deps(get=_get(), run=_run(), inner_transport=_qwen_app())
+    result = execute(QWEN, URL, export, store_path, tmp_path / "runs", None, deps)
+    record = json.loads((result.run_dir / "run.json").read_text(encoding="utf-8"))
+    assert record["split_sha256"] == digest == vss.split_sha256(vss.read_split(export))
+    assert record["split_holdout"] == ["knife_visible"]
+    with EvalStore(store_path) as store:
+        rows = store.get_split(h.VERSION)
+    assert [(row["scenario"], row["arm"]) for row in rows] == [
+        ("delivery_driver", "dev"),
+        ("hooded_jogger", "dev"),
+        ("knife_visible", "holdout"),
+        ("loitering", "dev"),
+    ]
+    assert [(row["seed"], row["manifest_sha256"]) for row in rows] == [
+        (manifest["seed"], digest)
+    ] * len(rows)
+
+
+def test_a_store_that_records_another_roster_refuses_the_export(tmp_path: Path) -> None:
+    """The store's split is born once (the frozen-item rule again): a replay whose export draws
+    the roster the other way round is refused before any GPU time, naming both digests."""
+    export = _export(tmp_path)
+    manifest = _split(export)
+    rival = _swapped(manifest)
+    assert vss.split_sha256(rival) != vss.split_sha256(manifest)
+    store_path = tmp_path / "eval" / "eval.sqlite"
+    store_path.parent.mkdir()
+    with EvalStore(store_path) as store:
+        store.put_split(
+            h.VERSION,
+            _arms_rows(rival),
+            seed=rival["seed"],
+            manifest_sha256=vss.split_sha256(rival),
+        )
+    requests: list[httpx.Request] = []
+    deps = Deps(get=_get(), run=_run(), inner_transport=_refusing(requests))
+    recorded, carried = vss.split_sha256(rival), vss.split_sha256(manifest)
+    with pytest.raises(ImportRefused) as refusal:
+        execute(QWEN, URL, export, store_path, tmp_path / "runs", None, deps)
+    # The reader sees both sides of the disagreement: the store's digest and the export's.
+    assert re.search(rf"{recorded}.*{carried}", str(refusal.value), re.DOTALL)
+    assert requests == []
+    assert not (tmp_path / "runs").exists()
+    with EvalStore(store_path) as store:
+        assert [(row["scenario"], row["arm"]) for row in store.get_split(h.VERSION)] == [
+            ("delivery_driver", "dev"),
+            ("hooded_jogger", "dev"),
+            ("knife_visible", "dev"),  # the store's own roster stands
+            ("loitering", "holdout"),
+        ]
+
+
+def test_a_manifestless_export_records_no_split(tmp_path: Path) -> None:
+    """B6: an export predating the split still replays; its `run.json` says the split is
+    unrecorded rather than claiming an empty holdout."""
+    export = _export(tmp_path)
+    store_path = tmp_path / "eval" / "eval.sqlite"
+    deps = Deps(get=_get(), run=_run(), inner_transport=_qwen_app())
+    result = execute(QWEN, URL, export, store_path, tmp_path / "runs", None, deps)
+    record = json.loads((result.run_dir / "run.json").read_text(encoding="utf-8"))
+    assert record["split_sha256"] is None
+    assert record["split_holdout"] == []
+    with EvalStore(store_path) as store:
+        assert store.get_split(h.VERSION) is None
 
 
 def test_the_model_table_imports_no_backend() -> None:

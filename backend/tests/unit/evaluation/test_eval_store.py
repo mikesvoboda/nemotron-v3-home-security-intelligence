@@ -215,6 +215,153 @@ class TestEvalStore:
             assert s.get_item(item.item_id) is not None
 
 
+class TestSplitStore:
+    """ISS-016 §3: the store remembers a dev/holdout split so a replay can
+    refuse a manifest that disagrees with the one it already recorded.
+
+    Same posture as the frozen-item rule: a store's split is born once and is
+    never edited in place. Rows are deliberately flat - the table stores no
+    JSON, so it does not care what shape `splits.json` has (or has later).
+    """
+
+    @staticmethod
+    def _rows(*pairs: tuple[str, str]) -> list[dict[str, str]]:
+        return [{"scenario": name, "arm": arm} for name, arm in pairs]
+
+    def test_get_split_is_none_before_any_put(self, tmp_path) -> None:
+        """An export with no `splits.json` records nothing, and the reader
+        distinguishes "never split" from "split with no rows" by returning
+        None - a truthy empty list here would read as a roster."""
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            assert s.get_split("tierb-v0") is None
+
+    def test_put_then_get_roundtrip_sorted_by_scenario(self, tmp_path) -> None:
+        """The roster reads back with the scenario as its key and the draw's
+        provenance beside it, in scenario order - not insertion order, which
+        would make the recorded roster depend on the caller's loop."""
+        rows = self._rows(("package_theft", "holdout"), ("casing", "dev"), ("loitering", "dev"))
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            s.put_split("tierb-v0", rows, seed="seed-a", manifest_sha256="a" * 64)
+            got = s.get_split("tierb-v0")
+            assert got is not None
+            assert [r["scenario"] for r in got] == ["casing", "loitering", "package_theft"]
+            assert [r["arm"] for r in got] == ["dev", "dev", "holdout"]
+            assert all(r["seed"] == "seed-a" for r in got)
+            assert all(r["manifest_sha256"] == "a" * 64 for r in got)
+
+    def test_identical_reput_is_a_noop(self, tmp_path) -> None:
+        """Re-importing the same export must not grow the table or fail: the
+        item import is idempotent end to end and the split records after it,
+        so a rerun of a crashed run re-puts every row."""
+        rows = self._rows(("casing", "dev"), ("package_theft", "holdout"))
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            s.put_split("tierb-v0", rows, seed="seed-a", manifest_sha256="a" * 64)
+            s.put_split("tierb-v0", rows, seed="seed-a", manifest_sha256="a" * 64)
+            assert len(s.get_split("tierb-v0")) == 2
+
+    def test_changing_one_scenarios_arm_raises_and_names_it(self, tmp_path) -> None:
+        """The refusal that protects the measurement: a scenario moving
+        between arms between runs would move items across the dev/holdout
+        line without saying so. The scenario must be named - a bare "arm
+        differs" is not actionable across a 13-scenario roster."""
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            s.put_split(
+                "tierb-v0", self._rows(("casing", "dev")), seed="seed-a", manifest_sha256="a" * 64
+            )
+            with pytest.raises(ValueError, match="casing") as excinfo:
+                s.put_split(
+                    "tierb-v0",
+                    self._rows(("casing", "holdout")),
+                    seed="seed-a",
+                    manifest_sha256="a" * 64,
+                )
+            msg = str(excinfo.value)
+            assert "dev" in msg and "holdout" in msg
+            # the refused write left the recorded arm alone
+            assert s.get_split("tierb-v0")[0]["arm"] == "dev"
+
+    def test_a_different_manifest_sha_raises(self, tmp_path) -> None:
+        """Two `splits.json` files claiming one corpus version is the
+        disagreement this table exists to catch."""
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            s.put_split(
+                "tierb-v0", self._rows(("casing", "dev")), seed="seed-a", manifest_sha256="a" * 64
+            )
+            with pytest.raises(ValueError, match="manifest"):
+                s.put_split(
+                    "tierb-v0",
+                    self._rows(("casing", "dev")),
+                    seed="seed-a",
+                    manifest_sha256="b" * 64,
+                )
+
+    def test_a_new_scenario_under_a_different_manifest_sha_raises(self, tmp_path) -> None:
+        """The case a per-scenario key cannot catch: an incoming roster that
+        only ADDS a scenario never collides on the primary key, so a sha check
+        that only ran on PK conflict would accept a second manifest."""
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            s.put_split(
+                "tierb-v0", self._rows(("casing", "dev")), seed="seed-a", manifest_sha256="a" * 64
+            )
+            with pytest.raises(ValueError, match="manifest"):
+                s.put_split(
+                    "tierb-v0",
+                    self._rows(("package_theft", "holdout")),
+                    seed="seed-a",
+                    manifest_sha256="b" * 64,
+                )
+            assert [r["scenario"] for r in s.get_split("tierb-v0")] == ["casing"]
+
+    def test_a_different_seed_raises(self, tmp_path) -> None:
+        """The seed IS the roster: re-recording a corpus version under another
+        seed is a redraw, not an edit."""
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            s.put_split(
+                "tierb-v0", self._rows(("casing", "dev")), seed="seed-a", manifest_sha256="a" * 64
+            )
+            with pytest.raises(ValueError, match="seed"):
+                s.put_split(
+                    "tierb-v0",
+                    self._rows(("casing", "dev")),
+                    seed="seed-b",
+                    manifest_sha256="a" * 64,
+                )
+
+    def test_an_arm_outside_dev_holdout_raises_valueerror(self, tmp_path) -> None:
+        """The CHECK constraint is the last line, and sqlite's IntegrityError
+        is not the contract: the importer's refusal path catches ValueError
+        (matching put_item's wrapping), so a malformed arm must arrive as one
+        with the offending row shown."""
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            with pytest.raises(ValueError) as excinfo:
+                s.put_split(
+                    "tierb-v0",
+                    self._rows(("casing", "maybe")),
+                    seed="seed-a",
+                    manifest_sha256="a" * 64,
+                )
+            assert "maybe" in str(excinfo.value)
+            assert s.get_split("tierb-v0") is None
+
+    def test_two_corpus_versions_keep_their_own_rosters(self, tmp_path) -> None:
+        """The version is part of the key for real: a pre-registered seed is
+        per corpus version, and the next generation must not inherit this
+        one's arm assignments or its manifest digest."""
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            s.put_split(
+                "tierb-v0", self._rows(("casing", "dev")), seed="seed-a", manifest_sha256="a" * 64
+            )
+            s.put_split(
+                "tierb-v1",
+                self._rows(("casing", "holdout")),
+                seed="seed-b",
+                manifest_sha256="b" * 64,
+            )
+            assert s.get_split("tierb-v0")[0]["arm"] == "dev"
+            assert s.get_split("tierb-v1")[0]["arm"] == "holdout"
+            assert s.get_split("tierb-v2") is None
+
+
 class TestSyntheticLoader:
     """The committed label corpus is the item source; the loader turns each
     label set into a draft EvalItem WITHOUT freezing it (freezing waits on the
