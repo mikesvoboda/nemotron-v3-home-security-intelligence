@@ -2,6 +2,8 @@
 
 This file is the project's **single root instruction file** (owner ruling 2026-09: one root file, `CLAUDE.md` retired). It combines codebase navigation with all operational rules. Read it before touching anything.
 
+> **Uplevel programme in progress (2026-10).** Before you change code, tests, compose, CI or docs, read [`docs/uplevel/README.md`](docs/uplevel/README.md). It names your lane, the package you may take next, and the contract every PR follows; open PRs with `gh pr create --template uplevel.md`. Mutation testing follows [`docs/uplevel/01-mutation-policy.md`](docs/uplevel/01-mutation-policy.md).
+
 ## Purpose
 
 This is the root directory of the **Home Security Intelligence** project - an AI-powered home security monitoring dashboard that processes Foscam camera uploads through YOLO26 for object detection and the local `ai-vlm` llama.cpp engine (VLMAnalyzer) for contextual risk assessment. (R8 S2, 2026-09-29: this line named Nemotron until the legacy LLM path was deleted - see ledger row 44 and commit `602379e2`.)

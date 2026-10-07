@@ -6,6 +6,8 @@
 
 This file provides deployment and architecture context for LLM-powered coding assistants.
 
+**Uplevel programme in progress (2026-10):** before changing code, tests, compose, CI or docs, read `docs/uplevel/README.md` — lanes, packages and the PR contract. Mutation testing follows `docs/uplevel/01-mutation-policy.md`.
+
 **Key entry points:**
 - `docker-compose.prod.yml` - Container orchestration (core + monitoring stack; `ai-gateway` is the detection entrypoint, `ai-vlm` the shipped reasoning engine)
 - `backend/` - Python FastAPI backend (REST API, WebSocket, AI pipeline)
