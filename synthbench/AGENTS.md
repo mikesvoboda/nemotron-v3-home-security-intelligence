@@ -19,7 +19,7 @@ Phase plans live in `docs/superpowers/plans/*-synthbench-*.md`.
 | `cli.py` + `__main__.py`                      | `python -m synthbench <command>`; exit 0 done, 1 error, 2 stop and ask the owner                                |
 | `commands/`                                   | one module per command, all listed in `docs/synthbench/command-reference.md`; `cli.py` dispatches               |
 | `export/`                                     | exports of corpus events for other tools: `vss.py`, the VSS eval store's import layout (P5a)                    |
-| `audit/`                                      | the owner's audit: the stratified 60-still sample, its questions and the loopback page (P5a)                    |
+| `audit/`                                      | the owner's audits: the 60-still sample and page (P5a); the blind clip draw and page (ISS-038)                  |
 | `run/`                                        | `replay`: served VLMs over the export, through the shipped `VlmClient`; imports `backend` (P5a)                 |
 | `score/`                                      | `score`: metrics and the report over replays, S2 and S3 from `s_metrics`; imports `backend` (P5a)               |
 | `prompt/`                                     | the prompt rules and the content blocklist that `check` enforces                                                |

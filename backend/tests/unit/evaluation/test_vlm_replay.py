@@ -393,6 +393,7 @@ class TestRunReplay:
                 "s5": {},
                 "run_id": "r1",
                 "candidate": "F@test",
+                "frames_mode": "stored",
                 "engine": "llama.cpp",
                 "commit": "unknown",
                 "n_items": 0,
@@ -534,6 +535,179 @@ class TestReportIsAggregateOnly:
         assert report["s3"]["all"]["n"] == 1
         path = save_vlm_report(report, tmp_path / "reports" / "r.json")
         assert json.loads(path.read_text())["s2"]["fp"] == 1
+
+
+def _sequence_item(tmp_path: Path, n: int, *, classes: tuple[str, ...] = ("knife",)) -> EvalItem:
+    """An ISS-037 sequence set as the store holds it: N frames, and detection rows that
+    NAME the frame each object was seen on (a still's declared rows name none). Rows are
+    one class per frame, times a second apart — the exported shape."""
+    frames = []
+    for i in range(1, 4):
+        f = tmp_path / f"seq{n}-frame{i}.jpg"
+        f.write_bytes(b"\xff\xd8z" * 100)
+        frames.append(str(f))
+    detections = [
+        {
+            "id": idx,
+            "object_type": classes[(idx - 1) % len(classes)],
+            "confidence": 1.0,
+            # the exported shape: the frame's NAME inside the set, not a path —
+            # `_sequence_rows` is what resolves it to the store's media path
+            "file_path": Path(frames[idx - 1]).name,
+            "detected_at": f"2026-04-15T14:32:0{idx}.000000-04:00",
+        }
+        for idx in range(1, 4)
+    ]
+    return EvalItem(
+        item_id=f"seq-{n}",
+        media_paths=frames,
+        expected_label="incident",
+        expected_risk_score=80,
+        snapshot=AssessInput(
+            camera_id="cam-front",
+            detections=detections,
+            zones=["front_yard"],
+            timestamp="2026-04-15T18:32:01+00:00",
+        ),
+        source="synthetic",
+    )
+
+
+class TestFramesModes:
+    """ISS-037: how frames reach the wire is a MODE, and the harness audited it.
+
+    The mode a row was fed under is the measurement's independent variable — a report
+    that cannot recover `frames_fed` per item cannot answer the question the funded
+    head-to-head was run for. The collapse here is ISS-005's claim, measured."""
+
+    async def test_stored_mode_builds_the_historical_request_byte_identically(
+        self, tmp_path
+    ) -> None:
+        """The comparability premise: the mode flag must not touch the stored-mode
+        request at all — a re-run of a committed corpus sends the committed bytes."""
+        import inspect
+
+        from backend.evaluation import vlm_replay
+
+        item = _item(tmp_path, 1)
+        fake = FakeClient({item.media_paths[0]: _verdict()})
+        await replay_item(fake, item, frames_mode="stored")
+        sent = fake.requests[item.media_paths[0]]
+        assert sent.image_paths == item.media_paths
+        assert sent.frame_detection_ids is None  # the historical shape: no link at all
+        # mode defaults to stored: a mode-blind caller sends the same request
+        fake2 = FakeClient({item.media_paths[0]: _verdict()})
+        await replay_item(fake2, item)
+        assert fake2.requests[item.media_paths[0]] == sent
+        # the lazy-import doctrine in source form: the selector's import lives in the
+        # branch, so stored-mode replay never pulls vlm_analyzer (and thus vlm_specialists)
+        src = inspect.getsource(vlm_replay._build_request)
+        assert "from backend.services.vlm_analyzer import build_assess_request" in src
+
+    async def test_selector_mode_collapses_a_same_class_triplet_to_one_frame(
+        self, tmp_path
+    ) -> None:
+        """ISS-005, measured: production's own selector over one class across three
+        frames attaches ONE still — which is why the funded arm runs the burst mode."""
+        item = _sequence_item(tmp_path, 1)
+        fake = FakeClient({p: _verdict() for p in item.media_paths})
+        row = await replay_item(fake, item, frames_mode="selector")
+        sent = fake.requests[item.media_paths[2]]  # the recency tiebreak picks the newest
+        assert len(sent.image_paths) == 1
+        harness = row["raw_response"]["harness"]
+        assert harness["frames_fed"] == 1
+        assert harness["selector_collapsed"] is True
+        assert harness["frames_mode"] == "selector"
+        # a row naming a frame the item lacks is dropped, not pointed at the wire
+        broken = item.model_copy(
+            update={
+                "snapshot": item.snapshot.model_copy(
+                    update={
+                        "detections": [
+                            {**item.snapshot.detections[0], "file_path": "/elsewhere/x.jpg"},
+                            *item.snapshot.detections[1:],
+                        ]
+                    }
+                )
+            }
+        )
+        fake2 = FakeClient({p: _verdict() for p in broken.media_paths})
+        row2 = await replay_item(fake2, broken, frames_mode="selector")
+        assert len(fake2.requests[item.media_paths[2]].image_paths) == 1
+
+    async def test_selector_mode_falls_back_to_stored_and_says_so(self, tmp_path) -> None:
+        """A still has no per-frame rows; an unknown-but-plausible item must not send an
+        empty request — it sends the stored one, with the fallback counted."""
+        item = _item(tmp_path, 2)
+        fake = FakeClient({item.media_paths[0]: _verdict()})
+        row = await replay_item(fake, item, frames_mode="selector")
+        assert fake.requests[item.media_paths[0]].image_paths == item.media_paths
+        harness = row["raw_response"]["harness"]
+        assert harness["mode_fell_back"] == "no per-frame detection rows"
+        assert harness["frames_fed"] == 1
+
+    async def test_burst_mode_feeds_every_frame_with_index_aligned_detection_links(
+        self, tmp_path
+    ) -> None:
+        """Funded arm (a)'s shape: all frames, and each frame names the rows on it —
+        misalignment here would attribute a knife to the wrong frame on the wire."""
+        item = _sequence_item(tmp_path, 3, classes=("knife", "knife", "person"))
+        fake = FakeClient({p: _verdict() for p in item.media_paths})
+        row = await replay_item(fake, item, frames_mode="burst")
+        sent = fake.requests[item.media_paths[0]]
+        assert sent.image_paths == item.media_paths
+        assert sent.frame_detection_ids == [[1], [2], [3]]
+        harness = row["raw_response"]["harness"]
+        assert harness == {
+            "frames_mode": "burst",
+            "frames_fed": 3,
+            "selector_collapsed": False,
+        }
+
+    async def test_the_harness_audit_rides_the_refusal_row_too(self, tmp_path) -> None:
+        """A refusal fed 3 frames is a data point about 3-frame input; dropping the
+        audit from refusals would bias every per-mode bucket toward items that answered."""
+        item = _sequence_item(tmp_path, 4)
+        fake = FakeClient({p: VlmTransportError("no gpu") for p in item.media_paths})
+        row = await replay_item(fake, item, frames_mode="burst")
+        assert row["verdict"] == "verification_failed"
+        assert row["raw_response"]["harness"] == {
+            "frames_mode": "burst",
+            "frames_fed": 3,
+            "selector_collapsed": False,
+        }
+
+    async def test_an_unknown_mode_is_refused_before_the_wire(self, tmp_path) -> None:
+        item = _item(tmp_path, 5)
+        fake = FakeClient({item.media_paths[0]: _verdict()})
+        with pytest.raises(ValueError, match="frames_mode must be one of"):
+            await replay_item(fake, item, frames_mode="vidual")
+
+    async def test_run_replay_refuses_an_unknown_mode_before_the_run_row(self, tmp_path) -> None:
+        """Like `limit`: a typo that surfaced on the first item would leave a started run
+        that never completes sitting in the store's runs table."""
+        store = _store(tmp_path, [_item(tmp_path, 1)])
+        with pytest.raises(ValueError, match="frames_mode"):
+            await run_replay(
+                store,
+                candidate="F@test",
+                make_client=lambda: FakeClient({}),
+                frames_mode="frames",
+            )
+        assert store._db.execute("SELECT COUNT(*) FROM runs").fetchone()[0] == 0
+
+    async def test_run_replay_records_the_mode_it_ran(self, tmp_path) -> None:
+        items = [_sequence_item(tmp_path, 6)]
+        store = _store(tmp_path, items)
+        report = await run_replay(
+            store,
+            candidate="F@test",
+            make_client=lambda: FakeClient({p: _verdict() for p in items[0].media_paths}),
+            frames_mode="burst",
+        )
+        assert report["frames_mode"] == "burst"
+        row = store.replay(report["run_id"])[0]
+        assert row["raw_response"]["harness"]["frames_fed"] == 3
 
 
 class TestModuleHygiene:
