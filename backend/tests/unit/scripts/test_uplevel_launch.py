@@ -76,6 +76,9 @@ DOCS = "uplevel-docs"
 HEAVY = "uplevel-heavy"
 
 RUNNING = {"head": MAIN_SHA, "sandbox": "running"}
+# the state the owner's inspect showed for a session whose agent's pane was closed: the
+# sandbox record remains, reading "status": "stopped"
+STOPPED = {"head": MAIN_SHA, "sandbox": "stopped"}
 NO_SANDBOX = {"head": MAIN_SHA, "sandbox": None}
 PUSHED = {"main": MAIN_SHA, "agent-branch": MAIN_SHA}
 
@@ -589,6 +592,23 @@ def test_up_refuses_a_half_removed_session(
     with pytest.raises(launch.Refused, match=f"agent-dgx session rm {CO} --force"):
         launch.up(host(tmp_path, fake), phase=0)
     assert "nothing to do" not in capsys.readouterr().out
+    assert not fake.ran("agent-dgx", "run")
+    assert not fake.changes()
+
+
+def test_up_reports_a_stopped_session_as_stopped(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The owner's `inspect uplevel-scratch2 --json` on #6855: manifest and sandbox record
+    side by side, `"status": "stopped"`, no `agent-dgx stop` ever run - closing the
+    agent's pane leaves every session in this state, so it is the normal one an `up` meets
+    on a re-run. `up` called it "already runs", which is true of nothing running. It now
+    echoes the status inspect reported, and the old claim is pinned gone."""
+    fake = FakeHost(sessions={CO: STOPPED, OPS_B: RUNNING})
+    launch.up(host(tmp_path, fake), phase=0)
+    out = capsys.readouterr().out
+    assert f"{CO} already exists at {MAIN_SHA[:8]}, sandbox stopped: nothing to do" in out
+    assert "already runs" not in out
     assert not fake.ran("agent-dgx", "run")
     assert not fake.changes()
 

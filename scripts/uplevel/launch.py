@@ -309,6 +309,21 @@ def _source_head(session: Mapping[str, Any]) -> str | None:
     return str(head) if head else None
 
 
+def _sandbox_state(session: Mapping[str, Any]) -> str:
+    """The sandbox's own reported status, for a line that must not claim it runs.
+
+    The owner's inspect on #6855 shows a session whose agent's pane was closed reading
+    `"status": "stopped"` with its sandbox record still present - the ordinary state after
+    an agent finishes, not a stop or a removal. `up` used to print "already runs" for every
+    non-absent session, which is false of that one; this echoes the status string as
+    inspect gives it (or "unknown" if it has none) so the summary states what was read.
+    """
+    sandbox = session.get("sandbox")
+    if isinstance(sandbox, Mapping):
+        return str(sandbox.get("status") or "unknown")
+    return "unknown"
+
+
 def _preflight(host: Host) -> str:
     """Every check `up` runs before it changes anything. Returns origin/main's commit."""
     if not host.env.get("HERDR_PANE_ID") or host.which("herdr") is None:
@@ -404,7 +419,20 @@ def up(host: Host, *, phase: int) -> None:
                 f"(`retire {session.name}`) and run this again for a fresh clone."
             )
         else:
-            _say(f"{session.name} already runs at {target[:8]}: nothing to do")
+            # Not "already runs". The owner's `inspect uplevel-scratch2 --json` on #6855
+            # shows the state a session is left in when its agent's pane is simply closed:
+            # a manifest and a sandbox record beside each other, the sandbox reading
+            # "status": "stopped" - and nobody ran `agent-dgx stop`. `up` filed that under
+            # "already runs", which is true of nothing, and this is the ordinary case, not
+            # the corner (an agent finishing its turn leaves every session stopped), so the
+            # line reports what inspect actually says and asserts nothing about whether
+            # anything is running. The status value is echoed, not matched on: "stopped" is
+            # the only one ever read here, so inventing a vocabulary to branch over - and
+            # refusing on it - would break the normal bring-up.
+            _say(
+                f"{session.name} already exists at {target[:8]}, sandbox "
+                f"{_sandbox_state(found)}: nothing to do"
+            )
 
     # the clone is the host's commit by construction, and checked anyway - but only after
     # a real create: under --dry-run nothing was created, so there is no manifest to read
