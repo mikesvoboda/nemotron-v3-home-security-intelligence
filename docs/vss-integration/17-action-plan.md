@@ -8117,3 +8117,41 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   confound is a design requirement, not a ruling); and it settles no `[C]` — the token-load
   arithmetic that puts a 4 fps clip over the 16,384 slot stays an estimate until a probe measures
   it, exactly as §7 row 4 already says.
+
+### 2026-10-07 (Phase 1f's CPU half, offline: the multi-frame harness decodes and imports five real clips end-to-end — zero corpus claims, no window opened)
+
+- **What ran, through shipped code only.** A driver (throwaway, `/tmp`) imported the shipped
+  `synthbench/export/sequence.py` and `synthbench/export/vss.py` from the #6831 head and ran the real
+  `export vss --sequences 4` frame path over five ready clips from the mounted `tierb-v0` corpus:
+  `clip_frame_count`, `sample_indices`, `sample_frames`, `offsets_ms`, `sequence_timestamps`,
+  `frame_detections`, `sequence_files`, `write_sequence_set`, then the written sets through the
+  shipped `import_generated_items` into a throwaway `EvalStore`. Only the loop bound (5 clips, not 164) and the reporting are the driver's; every decode, index, offset, JPEG, timestamp and import
+  function is the product's, unmodified. The corpus is read-only; every set and both stores are under
+  `/tmp`. This is 1f's rule: it sizes the harness, it claims nothing about the corpus.
+- **The five, and what they measured.** Pool census from the read clip index: threats 0, suspicious
+  17, normal 144 ready (matches ISS-093's recount) — so the incident pick takes `suspicious`
+  (3 loitering: C-clips-1-218/221/222) and the benign pick takes `normal` (delivery_driver 009,
+  pool_service 011). All five are 243 frames at 24.0 fps, so depth-4 `FRAME_FRACTIONS` land on the
+  identical indices `[24, 87, 150, 218]` for every clip, at offsets `[1000, 3625, 6250, 9083]` ms —
+  a 9.083 s burst span. Decode is 0.10–0.24 s per clip (0.74 s for all five); frames JPEG q95 at
+  235–421 KB each. Every mp4 sha256 re-verified against its provenance `attempt.clip.sha256` before
+  decode. All five imported clean as `generated:{normal|suspicious}:…__seq4` with 4 media paths,
+  per-frame detections carrying chronology, and labels born from placement (incident 55, benign 10/7).
+- **What this sizes, and what it does not.** A depth-4 burst is 4 × 1,280 = 5,120 declared image
+  tokens against the serve's 16,384-token slot (ctx-size 32,768 over two parallel slots;
+  `_IMAGE_TOKENS_PER_FRAME` is the product's declared
+  constant, arithmetic here, not a served count). The served token count, per-clip latency and VRAM
+  are window 2's GPU measurement — inside §7's unsigned row 4, unchanged by this run. Nothing here
+  says the harness is correct end to end against a live endpoint; it says the shipped frame path
+  decodes the real corpus, writes the shape the store reads, and imports as items with chronology —
+  the CPU-half precondition §7 window 2's endpoint legs stand on.
+- **Register.** No id, no OD, no status, no bar or D/S line moved; ISS-037's block is unchanged (its
+  merge gate is the owner's). This entry logs the smoke the campaign names 1f; §7 stays unsigned and
+  no window was opened — the endpoint legs (served tokens, latency, VRAM) are still the owner's to
+  authorize.
+- **What this entry does not do.** No GPU, no container, no endpoint call, no probe of the served
+  path; no clip S2/S3 number (the Phase 3 gate holds — no clip number before the blind audit); no
+  corpus claim beyond the smoke's own decode/import facts (the 0/17/144 census is the read index, the
+  same one ISS-093 recounted, not a new measurement); and the driver is not committed — 1f's
+  "zero corpus claims" rule argues for a throwaway, so it lives in `/tmp` and this entry is its
+  record.
