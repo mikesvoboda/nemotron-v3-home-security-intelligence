@@ -156,7 +156,26 @@ def _do(
     try:
         host.run([str(a) for a in argv], cwd=cwd, check=True, timeout=timeout)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as error:
-        raise Refused(f"{what} failed ({error}). Fix it and run this again.") from error
+        # No blanket "fix it and run this again". The owner's first real retire (the PR's
+        # Evidence record) got through every step and failed at the last: the paste shows
+        # `agent-dgx session rm` print "Sandbox 'agent-uplevel-scratch' removed", then
+        # "cannot unmount '/agents/agent-uplevel-scratch': pool or dataset is busy" from
+        # `sudo agent-ws destroy`, exit 1. What agent-dgx does on a repeat of a partly-done
+        # removal is not shown anywhere this repo shows (and agent-dgx reads an unknown
+        # word as a session name, so nothing here probes it). This launcher's own re-run is
+        # safe but uninforming: _session() answers "no session: nothing to retire" for a
+        # name with neither manifest nor sandbox, which is what a deleted session inspects
+        # like - so a repeat cannot finish a half-done removal, it just declines. Say that,
+        # and name the step, instead of sending the owner to a rerun that may be a no-op.
+        raise Refused(
+            f"{what} failed ({error}) after every step before it succeeded. The work is "
+            "already exported and verified, so nothing here needs redoing: if the failed "
+            "step removed the session, the sandbox may already be gone and only its "
+            "workspace left mounted; run `agent-dgx inspect <name> --json` - with no "
+            "manifest and no sandbox, this command answers 'nothing to retire', and the "
+            "mount is agent-dgx's to clear. For any other failed step, fix the cause and "
+            "run this again."
+        ) from error
 
 
 def _in_sandbox(

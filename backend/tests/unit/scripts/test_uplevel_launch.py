@@ -704,6 +704,22 @@ def test_a_bundle_that_does_not_verify_stops_before_removal(tmp_path: Path) -> N
     assert not fake.ran("agent-dgx", "session", "rm")
 
 
+def test_a_failed_removal_does_not_advice_a_rerun(tmp_path: Path) -> None:
+    """The owner's first real retire on #6855 reached the last step and failed there: the
+    export, copy, verify and stop all ran, then `agent-dgx session rm` returned 1 after
+    printing that it removed the sandbox ("cannot unmount '/agents/agent-uplevel-scratch':
+    pool or dataset is busy"). "Fix it and run this again" is the wrong advice for that
+    failure, because this same command re-run cannot finish it: a deleted session inspects
+    as having neither manifest nor sandbox, which answers "nothing to retire". The refusal
+    therefore says what is already safe (the work is exported) and names the check, so the
+    owner learns the state instead of discovering the no-op by running it."""
+    fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=_clean_ws(), fail="session rm")
+    with pytest.raises(launch.Refused, match="nothing to retire") as caught:
+        launch.retire(host(tmp_path, fake), SCRATCH)
+    assert fake.ran("agent-dgx", "stop")  # everything up to the removal did happen
+    assert "exported" in str(caught.value)
+
+
 def test_retire_dry_run_only_reads(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=_clean_ws())
     launch.retire(host(tmp_path, fake, dry_run=True), SCRATCH)
