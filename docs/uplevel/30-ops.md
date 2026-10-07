@@ -249,6 +249,9 @@ in the roster, so the launcher creates it from the Phase 2 boundary on.
       the strongest model's arguments.
 - [ ] Add `uplevel-operator` to phase 1, model `fast`, kickoff line "Follow the kickoff prompt at
       the end of docs/uplevel/operator.md."
+- [ ] `up` refuses to create a `gpu` session when the launching shell lacks
+      `AGENT_GPU_RUNNER_URL`, and adds no `--mount` for the model library: `agent-dgx --gpu` mounts
+      `/srv/agent-models` itself and refuses any mount at or under it.
 - [ ] A test pins that `uplevel-operator` is the only session declaring `gpu`, in every phase.
 
 **Done when:** the tests pass, including one that runs `up --phase 1 --dry-run` against a fake host
@@ -331,8 +334,9 @@ commands and output); the conformance suite passes against the container.
       start times, volumes, published ports, the bind-mount host paths of any running stack — and
       abort if the run's project name, a container name, a host port, a volume, or a writable host
       path overlaps.
-- [ ] On the real tier, check headroom with `agent-gpu status` before serving, and refuse when
-      `free_mib` does not cover the declarations plus the floor (`operator.md`, step 1).
+- [ ] On the real tier, check the weights' sha256 against the pin before serving, and record
+      `agent-gpu status`; the runner's admission rule guards VRAM (`operator.md`, "The agent-gpu
+      path").
 - [ ] **In-run check.** Once the stack is up, assert that no container in it holds an engine socket
       and that its orchestrator reports disabled.
 - [ ] **Teardown and postflight.** Tear down with `docker compose -p <run project> down -v` only,
@@ -349,7 +353,8 @@ commands and output); the conformance suite passes against the container.
 - [ ] `--real` runs in the `uplevel-operator` sandbox (UR-30): the same test deployment in the
       sandbox's own Docker, with each GPU model served through `agent-gpu` and reached at the port
       `run` prints (`operator.md`, "The agent-gpu path"). **DECIDE** per real model — the VLM, the
-      detector — its image and VRAM declaration, within the session cap of 40,960 MiB. The
+      detector — its image and VRAM declaration, within the runner's 40 GiB cap,
+      which every GPU session on the host shares. The
       preflight also refuses any configured host address but those ports. It prints a summary
       (date, commit, image tags and `build_info`, VRAM declared and actual, per-spec result, the
       preflight snapshot, the postflight result) for the operator to paste into the PR or the

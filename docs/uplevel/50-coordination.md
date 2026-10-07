@@ -85,7 +85,7 @@ HOST (owner)               agent-dgx · sbx · the launcher (O0.1) · the local 
   the host's git opens the repository (`docs/synthbench/operator-runbook.md`).
 - **Only `uplevel-operator` holds the GPU (UR-30).** The owner starts it with `agent-dgx --gpu`,
   which gives its sandbox the `agent-gpu` broker. Real-tier runs go one at a time through that one
-  session, under the broker's per-session cap (40,960 MiB), and no lane sandbox gets the flag.
+  session, under the runner's 40 GiB cap, which every GPU session on the host shares, and no lane sandbox gets the flag.
 - **Provisioning stays with the owner.** Creating and removing sandboxes, setting their secrets and
   opening their network policy are privileged, so no agent holds `agent-dgx` or `sbx`. The owner
   starts Phases 0 and 1 by hand and runs the launcher at the later phase boundaries. The

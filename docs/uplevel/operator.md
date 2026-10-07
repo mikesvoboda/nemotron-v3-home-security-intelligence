@@ -28,57 +28,78 @@ production.
 ## The agent-gpu path
 
 The default path, and the operator agent's only one. Once `O2.2` lands, `scripts/feature-check.sh
---real` runs these steps itself; until then, follow them by hand.
+--real` runs these steps itself; until then, follow them by hand. The source for `agent-gpu` is the
+stack repository's `docs/operations/agent-gpu-runner.md`; `agent-gpu <verb> --help` contacts
+nothing, so it is safe to read.
 
-**What the sandbox gives you.** `agent-gpu` (`status`, `pull`, `build`, `run`, `ps`, `logs`,
-`stop`, `rm`); `$AGENT_GPU_DIR` with `models/` (weights, read-only in a container) and `out/`
-(writable); and the sandbox's own Docker for everything that needs no GPU. There is no `podman`, no
-`nvidia-smi` and no engine socket, and the broker runs your containers in a namespace fenced to
-this session, so nothing you start can see or restart the live stack's containers. The one way
-out is the network: `host.docker.internal` reaches the host's loopback ports, where the live
-stack's API, database and engine listen. Step 3 closes it.
+**How it works.** The GPU never enters the sandbox. The `agent-gpu` CLI sends typed requests to
+`agent-gpu-runner`, a host daemon that runs rootless podman as the user `agent-gpu` and accepts no
+raw podman flags. `agent-dgx --gpu` gives the sandbox:
 
-**Once, by the owner:** stage the VLM weights in `$AGENT_GPU_DIR/models/vlm/`, sha256-matched to
-the compose pin, and readable by the container's user: files `644`, a traversal bit on `models/`
-(both have hidden the weights before: finding E in `docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`).
+- `agent-gpu` on the `PATH` (`status`, `pull`, `build`, `job`, `run`, `ps`, `logs`, `stop`, `rm`,
+  `renew`, `images`, `rmi`);
+- `$AGENT_GPU_DIR`, with `models/` and `out/`;
+- `$AGENT_GPU_LIBRARY` (`/srv/agent-models`), the shared model library: read-only, indexed by its
+  `MANIFEST.json`.
 
-1. **Check headroom.** `agent-gpu status` must show `fence: true` and a `free_mib` that covers your
-   declaration plus `floor_mib`. If it does not, stop: the run goes to the owner's batch (another
-   time, or a smaller model). **MEASURE** once, with the owner, whether `agent-gpu run` refuses a
-   declaration above `free_mib`, using a probe that allocates nothing
-   (`agent-gpu run --name probe --vram <free GiB + 2> --wait --image <a CUDA image> --entrypoint nvidia-smi -- -L`,
-   then `agent-gpu rm probe`), and record the answer here; until then this check is the only
-   guard for the live services sharing the GPU.
-2. **Serve the model.** Check out the commit the PR names. Build the image once per state of
-   `ai/vlm/`, tagged with its tree hash (`git rev-parse --short HEAD:ai/vlm`):
+A GPU container sees only the roots you pass as `--mount ROOT:TARGET`, where ROOT is `workspace`
+(read-only), `models` (read-only), `out` (writable) or `library` (read-only). The sandbox's own
+Docker runs everything that needs no GPU. Nothing you start can see or restart the live stack's
+containers. The one way out is the network: `host.docker.internal` reaches the host's loopback
+ports, where the live stack's API, database and engine listen. Step 4 closes it.
+
+**Admission is the runner's.** `--vram <GiB>` is required. The runner admits a run only if the VRAM
+declared by every GPU session plus this request stays within the 40 GiB cap, and free VRAM stays
+above the 4 GiB floor. Its watchdog kills a container that uses more than it declared.
+
+1. **Check the weights.** Real-tier numbers are about the production pin
+   (`docker-compose.prod.yml:179-180`) and nothing else. Run
+   `(cd $AGENT_GPU_LIBRARY/qwen3vl-8b-instruct-q4km && sha256sum *.gguf)` and stop unless it prints
+   exactly:
+
+   ```text
+   67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2  Qwen3VL-8B-Instruct-Q4_K_M.gguf
+   c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd  mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf
+   ```
+
+   The library also holds `qwen3vl-8b-instruct-q8_0/`, a Q8_0 build of the model itself. It is
+   not the pin; serve only `qwen3vl-8b-instruct-q4km/`.
+
+2. **Build the image.** Check out the commit the PR names. Builds never pull, so first
+   `agent-gpu pull` each `FROM` image in `ai/vlm/Dockerfile`. Build once per state of `ai/vlm/`,
+   tagged with its tree hash (`git rev-parse --short HEAD:ai/vlm`):
    `agent-gpu build --context workspace:ai/vlm --tag ai-vlm:<tree> --build-arg CUDA_ARCHITECTURES=103`.
-   Then:
+   An image name without a registry is this session's own build.
+3. **Serve the model from the library:**
 
    ```bash
-   agent-gpu run --name vlm --image ai-vlm:<tree> --vram 14 --port 8098 \
-     --mount models:/models --user 0 --ttl 12 \
-     --env MODEL_PATH=/models/vlm/<gguf> --env MMPROJ_PATH=/models/vlm/<mmproj> \
+   agent-gpu status   # record the budget
+   agent-gpu run --name vlm --image ai-vlm:<tree> --vram 14 --port 8098 --ttl 12 \
+     --mount library:/library \
+     --env MODEL_PATH=/library/qwen3vl-8b-instruct-q4km/Qwen3VL-8B-Instruct-Q4_K_M.gguf \
+     --env MMPROJ_PATH=/library/qwen3vl-8b-instruct-q4km/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf \
      --env <each other ai-vlm variable from docker-compose.prod.yml, verbatim>
    ```
 
-   The broker remaps the port: read it from the JSON that `run` prints (`ports."8098"`), and set
-   `VLM_URL=http://host.docker.internal:<that port>`. Wait for `$VLM_URL/health` to return 200,
-   and record `/props`' `build_info` and `model_path`. Known traps: `--image` is required;
-   `--wait` goes before `--`; `--user 0` is needed to read the weights; declare honestly, since the
-   watchdog kills a container over its budget in about 15 s (this config measured 9,056 MiB
-   actual against 14 GiB declared).
+   The runner publishes the port on the host from the pool 18100–18199. Read it from the line
+   `run` prints, `port 8098 -> http://host.docker.internal:<hostport>`, and set `VLM_URL` to that
+   URL. Wait for `$VLM_URL/health` to return 200, then record `/props`' `build_info` and
+   `model_path`; stop unless `model_path` names the Q4_K_M file above. If the runner refuses
+   admission, the run waits: report it in the daily batch with the `status` output. Library files
+   are readable by any container user, so add `--user 0` only for a container that writes to
+   `out/`. This config measured 9,056 MiB actual against 14 GiB declared.
 
-3. **Bring up the test deployment in the sandbox's Docker,** with its own project
+4. **Bring up the test deployment in the sandbox's Docker,** with its own project
    (`docker compose -p <run project>`), its own env file, `ORCHESTRATOR_ENABLED=false` and no
    engine socket, and the backend's VLM URL set to `$VLM_URL`. Render the configuration first
    (`docker compose -p <run project> … config`) and refuse to start when any value points at
    `host.docker.internal` or another host address on any port but the one `agent-gpu run` printed.
-4. **Run the PR's command** as written, with `VLM_URL` set.
-5. **Tear down, also after a failure:** `docker compose -p <run project> down -v`, then
+5. **Run the PR's command** as written, with `VLM_URL` set.
+6. **Tear down, also after a failure:** `docker compose -p <run project> down -v`, then
    `agent-gpu stop vlm` and `agent-gpu rm vlm`. `agent-gpu ps` must list none of your containers.
 
 **Runs the owner keeps,** following "The owner on the host" below: a run that must exercise the
-deployed compose `ai-vlm` service itself; a run whose headroom check fails; and latency claims for
+deployed compose `ai-vlm` service itself; a run the runner will not admit; and latency claims for
 S1 and S4, which are defined on 24 GB-class hardware (`docs/vss-integration/README.md`), so GB300
 numbers do not make them.
 
@@ -115,7 +136,7 @@ hand-written command yourself:
 
 1. Paste the command's output, verbatim, as a comment on the PR, headed with the date, the commit,
    and the hardware: for the agent-gpu path, "GB300 through agent-gpu", the image tag, `build_info`,
-   and VRAM declared and actual; on the host, the GPU and host (GB300 or A5500). Latency numbers
+   `model_path`, the weights' `sha256sum` output, and VRAM declared and actual; on the host, the GPU and host (GB300 or A5500). Latency numbers
    such as S4's p95 belong to the hardware that produced them. Every number in the comment comes
    from output in the comment (UR-29).
 2. Add the teardown evidence: on the agent-gpu path, the empty `agent-gpu ps`; on the host, the
