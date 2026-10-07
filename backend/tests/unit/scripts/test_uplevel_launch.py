@@ -78,6 +78,9 @@ RUNNING = {"head": MAIN_SHA, "sandbox": "running"}
 NO_SANDBOX = {"head": MAIN_SHA, "sandbox": None}
 PUSHED = {"main": MAIN_SHA, "agent-branch": MAIN_SHA}
 
+# what both the host checkout and a well-behaved agent's clone call `origin`
+ORIGIN_URL = "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+
 
 def remote_heads(mapping: dict[str, str]) -> str:
     """What `git ls-remote --heads origin` prints: one line per pushed branch."""
@@ -85,7 +88,7 @@ def remote_heads(mapping: dict[str, str]) -> str:
 
 
 def sections_body(**over: tuple[str, int]) -> str:
-    """A fixture inspection output: the six sections, each overridden with (text, code)."""
+    """A fixture inspection output: every section, each overridden with (text, code)."""
     defaults: dict[str, tuple[str, int]] = {
         "dirty": ("", 0),
         "stash": ("", 0),
@@ -93,6 +96,7 @@ def sections_body(**over: tuple[str, int]) -> str:
         "head": (MAIN_SHA, 0),
         "refs": (f"{MAIN_SHA} refs/heads/main\n", 0),
         "remote": (remote_heads({"main": MAIN_SHA}), 0),
+        "origin": (ORIGIN_URL, 0),
     }
     defaults.update(over)
     return "".join(
@@ -122,11 +126,13 @@ class FakeHost:
         new_head: str = MAIN_SHA,
         fail: str | None = None,
         agents_root: Path | None = None,
+        origin_url: str = ORIGIN_URL,
     ) -> None:
         self.sessions = sessions or {}
         self.checkout_head = checkout_head
         self.checkout_branch = checkout_branch
         self.checkout_dirty = checkout_dirty
+        self.origin_url = origin_url
         self.ws = ws if ws is not None else {}
         self.new_head = new_head
         self.fail = fail
@@ -169,6 +175,8 @@ class FakeHost:
             answer = (0, self.checkout_branch + "\n", "")
         elif "rev-parse" in argv and "HEAD" in joined:
             answer = (0, self.checkout_head + "\n", "")
+        elif "get-url" in argv:
+            answer = (0, self.origin_url + "\n", "")
         elif "bundle" in argv and "verify" in argv:
             answer = (0, "the bundle requires this ref\n", "")
         elif argv[:2] == ["tar", "-tzf"]:
@@ -215,6 +223,7 @@ class FakeHost:
             "head": self.ws.get("head", MAIN_SHA),
             "refs": "".join(f"{sha} refs/heads/{name}\n" for name, sha in (refs or {}).items()),
             "remote": self.ws.get("remote", remote_heads({"main": MAIN_SHA})),
+            "origin": self.ws.get("origin", ORIGIN_URL),
         }
         codes: dict[str, int] = self.ws.get("codes", {})
         body, failed = "", 0
@@ -241,6 +250,8 @@ class FakeHost:
         checks = (
             argv[:2] == ["agent-dgx", "inspect"],
             "rev-parse" in argv,
+            # reading the host checkout's own remote URL changes nothing
+            "remote" in argv and "get-url" in argv,
             # a fetch moves only a remote-tracking ref: never the worktree or a branch
             argv[:2] == ["git", "-C"] and "fetch" in argv,
             "status" in argv and "--porcelain" in argv,
@@ -341,6 +352,38 @@ def test_manifest_models_override_the_builtin_fast(tmp_path: Path) -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("row", "missing"),
+    [
+        # the coordinator hand-edits this file ("the coordinator adds rows as the plan
+        # changes"), so a row with a key missing is the expected failure, not a bug.
+        ('[[phase]]\nnumber = 0\n[[phase.session]]\nname = "s"\nkickoff = "k"\n', "model"),
+        ('[[phase]]\nnumber = 0\n[[phase.session]]\nname = "s"\nmodel = "fast"\n', "kickoff"),
+        ('[[phase]]\n[[phase.session]]\nname = "s"\nmodel = "fast"\nkickoff = "k"\n', "number"),
+    ],
+)
+def test_a_malformed_manifest_refuses_naming_the_missing_key(
+    tmp_path: Path, row: str, missing: str
+) -> None:
+    """Every other manifest failure raises Refused; a bare KeyError traceback would be
+    exit 1 and name nothing (synthbench/host/agent.py: exit 2 naming the next step)."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(row, encoding="utf-8")
+    with pytest.raises(launch.Refused, match=f"has no `{missing}`"):
+        launch.load_manifest(manifest)
+
+
+def test_a_phase_number_that_is_not_a_number_refuses(tmp_path: Path) -> None:
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        '[[phase]]\nnumber = "one"\n'
+        f'[[phase.session]]\nname = "{CO}"\nmodel = "fast"\nkickoff = "k"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(launch.Refused, match="whole number"):
+        launch.load_manifest(manifest)
+
+
 # ---------------------------------------------------------------------- up
 
 
@@ -367,6 +410,17 @@ def test_up_refuses_a_stale_host_checkout(tmp_path: Path) -> None:
     with pytest.raises(launch.Refused, match=BASE_SHA[:8]):
         launch.up(host(tmp_path, fake), phase=0)
     assert not fake.changes()
+
+
+def test_up_refuses_when_the_fetch_fails(tmp_path: Path) -> None:
+    """The at-origin/main check is worthless against a stale ref, so a failed fetch is a
+    refusal, not a shrug (`check=False` once meant the launcher could create sandboxes at
+    a commit main had moved past). A fetch moves only a remote-tracking ref."""
+    fake = FakeHost(fail="fetch")
+    with pytest.raises(launch.Refused, match="fetch"):
+        launch.up(host(tmp_path, fake), phase=0)
+    assert not fake.changes()
+    assert not fake.ran("agent-dgx", "run")
 
 
 @pytest.mark.parametrize(
@@ -607,6 +661,20 @@ def test_retire_dry_run_only_reads(tmp_path: Path, capsys: pytest.CaptureFixture
     assert not (tmp_path / "exports").exists()
     out = capsys.readouterr().out
     assert f"agent-dgx session rm {SCRATCH} --force" in out
+    # its help is "run the checks and print the steps", so the inspection really runs
+    assert fake.ran("sbx", "exec")
+
+
+def test_retire_dry_run_refuses_a_workspace_the_real_run_would_refuse(
+    tmp_path: Path,
+) -> None:
+    """A dry run that skipped the inspection printed a clean plan ending in
+    `session rm --force` for a session the real run refuses - hedged in parentheses,
+    which is not a refusal. The inspection only reads, so --dry-run runs it."""
+    fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=_clean_ws(dirty=" M backend/main.py"))
+    with pytest.raises(launch.Refused, match="changed files"):
+        launch.retire(host(tmp_path, fake, dry_run=True), SCRATCH)
+    assert fake.changes() == []
 
 
 def test_retire_without_a_session_changes_nothing(tmp_path: Path) -> None:
@@ -667,6 +735,23 @@ def _scratch_repo(tmp_path: Path) -> Path:
     return work
 
 
+def _redirect_origin(work: Path) -> str:
+    """Point the clone's `origin` at a second bare repo and push there - what an agent
+    rewriting its own .git/config does: every branch is "pushed", and the teams remote is
+    one this clone no longer mentions. Returns the new URL, which the host's checkout
+    will not have."""
+    elsewhere = work.parent / "not-the-teams-repo.git"
+    _git(work.parent, "init", "-q", "--bare", str(elsewhere))
+    _git(work, "push", "-q", str(elsewhere), "main")
+    _git(work, "remote", "set-url", "origin", str(elsewhere))
+    return str(elsewhere)
+
+
+def _remote_url(repo: Path) -> str:
+    """What `git remote get-url origin` answers in `repo` - the section's real text."""
+    return _git(repo, "remote", "get-url", "origin").strip()
+
+
 def _run_inspection(workspace: Path) -> dict[str, tuple[str, int]]:
     """Run the launcher's real inspection script, as `sbx exec` would, and parse it.
 
@@ -694,7 +779,28 @@ def test_the_inspection_script_runs_and_passes_a_pushed_workspace(tmp_path: Path
     sections = _run_inspection(workspace)
     assert set(sections) == set(launch.SECTION_NAMES), "every section must answer"
     assert all(code == 0 for _, code in sections.values()), sections
-    assert launch.assess_inspection(sections, session=SCRATCH) == []
+    assert (
+        launch.assess_inspection(sections, session=SCRATCH, expected_origin=_remote_url(workspace))
+        == []
+    )
+
+
+def test_a_redirected_origin_refuses_even_with_everything_pushed(tmp_path: Path) -> None:
+    """`remote` asks the origin the agent's own .git/config names, and the agent writes
+    that config. Push everything to a second repo, repoint origin at it, and every
+    `pushed` answer is true of a remote the team never sees - the one assurance retire
+    must never give falsely (50-coordination.md: GitHub is the only channel)."""
+    workspace = _scratch_repo(tmp_path)
+    elsewhere = _redirect_origin(workspace)
+    sections = _run_inspection(workspace)
+    assert sections["origin"] == (elsewhere, 0), "the seventh section names the real remote"
+    # against the URL the clone itself reports, nothing looks wrong - that is the trap
+    assert launch.assess_inspection(sections, session=SCRATCH, expected_origin=elsewhere) == []
+    risks = launch.assess_inspection(
+        sections, session=SCRATCH, expected_origin=str(tmp_path / "origin.git")
+    )
+    assert any("origin" in r and "not the host checkout's" in r for r in risks), risks
+    assert not any("not pushed" in r for r in risks), "the refs really are pushed, there"
 
 
 def test_the_inspection_script_spots_an_unpushed_branch_for_real(tmp_path: Path) -> None:
@@ -705,7 +811,9 @@ def test_the_inspection_script_spots_an_unpushed_branch_for_real(tmp_path: Path)
     _git(workspace, "add", "-A")
     _git(workspace, "commit", "-q", "-m", "unpushed work")
 
-    risks = launch.assess_inspection(_run_inspection(workspace), session=SCRATCH)
+    risks = launch.assess_inspection(
+        _run_inspection(workspace), session=SCRATCH, expected_origin=_remote_url(workspace)
+    )
     assert any("wip" in r and "not pushed" in r for r in risks), risks
 
 
@@ -716,7 +824,9 @@ def test_the_inspection_script_spots_changed_and_untracked_files_for_real(
     (workspace / "main.py").write_text("print('changed')\n", encoding="utf-8")
     (workspace / "loose.py").write_text("new\n", encoding="utf-8")
 
-    risks = launch.assess_inspection(_run_inspection(workspace), session=SCRATCH)
+    risks = launch.assess_inspection(
+        _run_inspection(workspace), session=SCRATCH, expected_origin=_remote_url(workspace)
+    )
     assert any("changed" in r and "main.py" in r for r in risks), risks
     assert any("untracked" in r and "loose.py" in r for r in risks), risks
 
@@ -737,11 +847,18 @@ def test_a_failed_retire_does_not_poison_its_own_retry(tmp_path: Path) -> None:
     (staged / f"{SCRATCH}.bundle").write_bytes(BUNDLE_BYTES)
     (staged / "worktree.tar.gz").write_bytes(TREE_BYTES)
 
-    assert launch.assess_inspection(_run_inspection(workspace), session=SCRATCH) == []
+    assert (
+        launch.assess_inspection(
+            _run_inspection(workspace), session=SCRATCH, expected_origin=_remote_url(workspace)
+        )
+        == []
+    )
 
     (staged / "agent-notes.md").write_text("work the agent wrote here\n", encoding="utf-8")
     (workspace / "real-work.py").write_text("still here\n", encoding="utf-8")
-    risks = launch.assess_inspection(_run_inspection(workspace), session=SCRATCH)
+    risks = launch.assess_inspection(
+        _run_inspection(workspace), session=SCRATCH, expected_origin=_remote_url(workspace)
+    )
     assert any("real-work.py" in r for r in risks), "the exclusion must not hide real work"
     assert any("agent-notes.md" in r for r in risks), "nor a file left inside the export dir"
     assert not any(f"{SCRATCH}.bundle" in r or "worktree.tar.gz" in r for r in risks), risks
@@ -764,6 +881,36 @@ def test_assess_refuses_a_failed_section() -> None:
     risks = launch.assess_inspection(
         launch.parse_inspection(sections_body(dirty=("", 128))), session=SCRATCH
     )
+    assert any("inspection failed" in r for r in risks)
+    # a section failing for the same reason twice is reported once, not "dirty, dirty"
+    assert risks[0].count("dirty") == 1, risks
+
+
+def test_a_failed_section_carries_its_stderr_for_real(tmp_path: Path) -> None:
+    """`2>/dev/null` once turned a bash syntax error into a refusal that blamed the open
+    MEASURE: the section failed, its cause vanished. A failing section now carries the
+    first line of its stderr into the body, so the refusal can show why it refused."""
+    workspace = _scratch_repo(tmp_path)
+    session = launch.Session(name=SCRATCH, model="", kickoff="")
+    script = launch._inspect_argv(session)[-1].replace(session.workspace, str(workspace))
+    # fail one command at runtime (an unknown flag: parses fine, writes git's error to
+    # stderr, exits 129) - exactly the shape of a real section failure
+    broken = script.replace(
+        "git -c core.fsmonitor=false stash list",
+        "git -c core.fsmonitor=false stash --no-such-flag list",
+    )
+    assert broken != script, "the fixture must really alter the script"
+    done = subprocess.run(  # noqa: S603
+        ["bash", "-lc", broken],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+        env=GIT_ENV,
+    )
+    sections = launch.parse_inspection(done.stdout)
+    assert sections["stash"][1] != 0, "the broken section must fail"
+    assert "stderr:" in sections["stash"][0], "and its cause must survive into the body"
+    risks = launch.assess_inspection(sections, session=SCRATCH)
     assert any("inspection failed" in r for r in risks)
 
 

@@ -67,7 +67,7 @@ EXIT_REFUSED = 2
 MANIFEST = Path(__file__).resolve().parent / "sandboxes.toml"
 
 MARKER = "@@UPLEVEL_RETIRE@@"
-SECTION_NAMES = ("dirty", "stash", "branch", "head", "refs", "remote")
+SECTION_NAMES = ("dirty", "stash", "branch", "head", "refs", "remote", "origin")
 EXPORT_DIR = ".uplevel-retire"
 
 # git inside the sandbox. core.fsmonitor is off because the workspace's .git/config is the
@@ -182,26 +182,49 @@ def _inspect_argv(session: Session) -> list[str]:
 
 def load_manifest(path: Path) -> dict[int, list[Session]]:
     """sandboxes.toml -> phase number -> its sessions, in file order."""
-    try:
-        data = _load_toml(path)
-    except Refused:
-        raise
+    # The file is hand-edited by other people ("the coordinator adds rows as the plan
+    # changes"), and the launcher's whole contract is a refusal that names the next
+    # step. A bare KeyError traceback would be the wrong answer to a missing `model`.
+    data = _load_toml(path)
     phases: dict[int, list[Session]] = {}
-    for entry in data.get("phase", []):
-        number = int(entry["number"])
+    for position, entry in enumerate(data.get("phase", []), start=1):
+        number = _phase_number(entry, path, position)
         sessions = [
-            Session(
-                name=str(s["name"]),
-                model=str(s["model"]),
-                kickoff=" ".join(str(s["kickoff"]).split()),
-                mounts=tuple(str(m) for m in s.get("mount", ())),
-            )
-            for s in entry.get("session", [])
+            _session_row(s, path, f"phase {number} in {path}") for s in entry.get("session", [])
         ]
         if not sessions:
             raise Refused(f"phase {number} in {path} declares no session")
         phases.setdefault(number, []).extend(sessions)
     return phases
+
+
+def _phase_number(entry: Mapping[str, Any], path: Path, position: int) -> int:
+    where = f"[[phase]] #{position} in {path}"
+    value = _required(entry, "number", path, where)
+    try:
+        return int(value)
+    except (TypeError, ValueError) as error:
+        raise Refused(f"{where} has `number = {value!r}`, not a whole number") from error
+
+
+def _session_row(row: Mapping[str, Any], path: Path, where: str) -> Session:
+    label = f"{where} session {row.get('name', '?')}"
+    return Session(
+        name=str(_required(row, "name", path, label)),
+        model=str(_required(row, "model", path, label)),
+        kickoff=" ".join(str(_required(row, "kickoff", path, label)).split()),
+        mounts=tuple(str(m) for m in row.get("mount", ())),
+    )
+
+
+def _required(row: Mapping[str, Any], key: str, path: Path, where: str) -> Any:
+    """One manifest key that must be there, or a refusal naming the row and the key."""
+    if key not in row:
+        raise Refused(
+            f"{where} has no `{key}`. Fix {path}: every session names `name`, `model` and "
+            "`kickoff`, and every phase names `number`."
+        )
+    return row[key]
 
 
 def _load_toml(path: Path) -> dict[str, Any]:
@@ -272,11 +295,10 @@ def _preflight(host: Host) -> str:
             f"the host checkout {host.checkout} has uncommitted changes, and agent-dgx "
             f"copies them into every clone:\n{dirty}"
         )
-    # a fetch moves only a remote-tracking ref; nothing here touches the worktree
-    _read(host, ["git", "-C", host.checkout, "fetch", "origin", "main"], check=False)
     # the commit check below is not enough on its own: a feature branch cut from, or merged
     # with, main can match origin/main's sha, and `agent-dgx run` copies the checkout - so
     # the agent would start on that branch. "clean checkout of main" names the branch too.
+    # Checked before the fetch: a wrong branch should refuse without a network round trip.
     branch = _read(host, ["git", "-C", host.checkout, "rev-parse", "--abbrev-ref", "HEAD"])
     if branch != "main":
         where = "at a detached HEAD" if branch == "HEAD" else f"on branch {branch}"
@@ -284,6 +306,13 @@ def _preflight(host: Host) -> str:
             f"the host checkout is {where}, not on main. Every agent starts from a clean "
             "checkout of main (50-coordination.md): `git checkout main`, then run this again."
         )
+    # The fetch is what makes the origin/main check worth running at all, and it moves only a
+    # remote-tracking ref - never the worktree, never a branch. A failed fetch is refused, not
+    # swallowed: against a stale ref the check below can pass while main has moved on, and a
+    # sandbox cloned from the wrong commit is worse to undo than a refused command.
+    fetch = ["git", "-C", host.checkout, "fetch", "origin", "main"]
+    _say(f"== check origin/main is current: {shlex.join(map(str, fetch))}")
+    _read(host, fetch)
     origin_main = _read(host, ["git", "-C", host.checkout, "rev-parse", "origin/main"])
     head = _read(host, ["git", "-C", host.checkout, "rev-parse", "HEAD"])
     if head != origin_main:
@@ -297,7 +326,9 @@ def _preflight(host: Host) -> str:
 
 def up(host: Host, *, phase: int) -> None:
     """Create the phase's missing sessions from the host checkout; print each kickoff."""
-    declared = {int(e["number"]) for e in _load_toml(host.manifest).get("phase", [])}
+    # load_manifest reads every row, so a typo refuses before anything else happens and
+    # the "phase is not declared" check below sees a well-formed set.
+    declared = set(load_manifest(host.manifest))
     if phase not in declared:
         raise Refused(
             f"phase {phase} is not in {host.manifest}. The coordinator declares later "
@@ -353,8 +384,10 @@ def up(host: Host, *, phase: int) -> None:
 
 
 def _inspection_script(name: str) -> str:
-    """One script, run inside the sandbox, printing six sections. Each `say` line ends with
-    MARKER <name> <exit code>, so a read that failed is a refusal, not an empty answer.
+    """One script, run inside the sandbox, printing seven sections. Each `say` line ends with
+    MARKER <name> <exit code>, so a read that failed is a refusal, not an empty answer; a
+    failed section also carries the first line of its stderr, so the refusal shows its cause
+    instead of leaving one guess (a syntax error here once read as the MEASURE item).
 
     The script is a string handed to `bash -lc`, so every argument goes through shlex.quote:
     `--format=%(objectname) %(refname)` carries a space and parentheses, which unquoted would
@@ -367,11 +400,21 @@ def _inspection_script(name: str) -> str:
     reported, because `retire` also excludes the whole directory from the worktree archive,
     and a file hidden by both would be lost. A refusal loses nothing - it stops before
     `agent-dgx stop` - so naming the stray file is the safe direction.
+
+    The `origin` section answers "pushed to WHAT?" - `ls-remote` asks the remote the agent's
+    own .git/config names, and the agent writes that config. `assess_inspection` compares
+    the answer with the host checkout's, so a redirected origin cannot pass as pushed.
     """
     own = (f"{EXPORT_DIR}/{name}.bundle", f"{EXPORT_DIR}/worktree.tar.gz")
+    # The helper sticks to bash builtins and one /tmp file: a missing coreutil (mktemp,
+    # head) would fail every section at once, and every section failing is the whole
+    # feature refusing - the same total-failure shape as the quoting bug above.
     lines = [
-        f'say() {{ name=$1; shift; out="$("$@" 2>/dev/null)"; code=$?; '
-        f'printf \'%s\\n\' "$out"; printf \'{MARKER} %s %s\\n\' "$name" "$code"; }}'
+        'say() { name=$1; shift; err=/tmp/uplevel-retire-$$.$name; out="$("$@" 2>"$err")"; '
+        "code=$?; printf '%s\\n' \"$out\"; "
+        'if [ "$code" -ne 0 ]; then first=""; { read -r first || :; } <"$err" 2>/dev/null || :; '
+        'printf \'stderr: %s\\n\' "$first"; fi; rm -f "$err"; '
+        f'printf \'{MARKER} %s %s\\n\' "$name" "$code"; }}'
     ]
     for section, *command in (
         (
@@ -389,6 +432,7 @@ def _inspection_script(name: str) -> str:
         ("head", *GIT, "rev-parse", "HEAD"),
         ("refs", *GIT, "for-each-ref", "--format=%(objectname) %(refname)", "refs/heads"),
         ("remote", *GIT, "ls-remote", "--heads", "origin"),
+        ("origin", *GIT, "remote", "get-url", "origin"),
     ):
         quoted = [shlex.quote(str(part)) for part in command]
         lines.append(" ".join(["say", section, *quoted]))
@@ -421,18 +465,38 @@ def _branches(text: str) -> dict[str, str]:
     return found
 
 
-def assess_inspection(sections: Mapping[str, tuple[str, int]], *, session: str) -> list[str]:
-    """Every reason this sandbox still holds work. Empty means safe to retire."""
+def assess_inspection(
+    sections: Mapping[str, tuple[str, int]],
+    *,
+    session: str,
+    expected_origin: str | None = None,
+) -> list[str]:
+    """Every reason this sandbox still holds work. Empty means safe to retire.
+
+    `expected_origin` is the host checkout's own origin URL: `retire` always passes it, so
+    "pushed" is only believed when the sandbox and the host agree on what `origin` is.
+    None exists for tests of this function alone - the launcher never skips the check.
+    """
     missing = [name for name in SECTION_NAMES if name not in sections]
     failed = [name for name in SECTION_NAMES if sections.get(name, ("", 1))[1] != 0]
     if missing or failed:
+        # each failed section carries the first line of its stderr, when the script got
+        # far enough to record one: the cause belongs in the refusal, not in a guess
+        causes = [
+            line
+            for name in dict.fromkeys(missing + failed)
+            for line in sections.get(name, ("", 0))[0].splitlines()
+            if line.startswith("stderr:")
+        ]
         return [
-            f"the inspection failed (no clean answer from: {', '.join(missing + failed)}). "
-            "The likely cause is the open MEASURE in 30-ops.md §O0.1 - whether `sbx exec` "
-            "still reaches the sandbox once the agent's session has ended. Retirement is "
-            f"the owner's manual call for {session}: read the workspace's files and run git "
-            "in it only through `sbx exec`, export a bundle and a tree archive by hand, "
-            "then remove the session."
+            f"the inspection failed (no clean answer from: "
+            f"{', '.join(dict.fromkeys(missing + failed))}). "
+            + "".join(f"\n- {cause}" for cause in causes)
+            + " The likely cause, if none is shown, is the open MEASURE in 30-ops.md §O0.1 "
+            "- whether `sbx exec` still reaches the sandbox once the agent's session has "
+            f"ended. Retirement is the owner's manual call for {session}: read the "
+            "workspace's files and run git in it only through `sbx exec`, export a bundle "
+            "and a tree archive by hand, then remove the session."
         ]
 
     risks: list[str] = []
@@ -447,6 +511,18 @@ def assess_inspection(sections: Mapping[str, tuple[str, int]], *, session: str) 
     stash, _ = sections["stash"]
     if stash.strip():
         risks.append("stashes: " + "; ".join(stash.splitlines()))
+
+    # `remote` asked the origin the AGENT's .git/config names - and the agent writes that
+    # config. Work pushed to a local path or a sibling sandbox would answer "all pushed"
+    # while GitHub never saw it, so the URL itself must match the host's before any of it
+    # counts (50-coordination.md: GitHub is the only channel between sandboxes).
+    origin, _ = sections["origin"]
+    if expected_origin is not None and origin.strip() != expected_origin:
+        risks.append(
+            f"its `origin` is {origin.strip()!r}, not the host checkout's {expected_origin!r}: "
+            f"every `pushed` answer above was read from that remote, so none of it can be "
+            f"trusted. Point {session}'s origin at the real one and push, or retire by hand."
+        )
 
     branch, _ = sections["branch"]
     head, _ = sections["head"]
@@ -468,6 +544,12 @@ def assess_inspection(sections: Mapping[str, tuple[str, int]], *, session: str) 
     return risks
 
 
+def _origin_url(host: Host) -> str:
+    """The host checkout's own `origin` URL - the answer `pushed` should mean. Read from
+    the host's checkout, which the launcher already reads git in (unlike an agent's)."""
+    return _read(host, ["git", "-C", host.checkout, "remote", "get-url", "origin"])
+
+
 def retire(host: Host, name: str) -> None:
     """Retire one session, once its work is exported to the host and verified there."""
     session = Session(name=name, model="", kickoff="")
@@ -482,24 +564,23 @@ def retire(host: Host, name: str) -> None:
             f"clone is safe, `agent-dgx session rm {name} --force`."
         )
 
+    # The inspection only reads, so --dry-run runs it too (its help: "run the checks and
+    # print the steps"). A dry run that skipped it would print a clean plan ending in
+    # `session rm --force` for a workspace the real run refuses - the hedge it replaces
+    # said so in parentheses, which is not the same as the refusal.
     argv = _inspect_argv(session)
-    if host.dry_run:
-        # read-only, but its answer decides the steps below: show them as a clean plan
-        _say(f"would inspect: {shlex.join(argv)}")
-        _say("(dry-run: shown as if the workspace were clean and fully pushed)")
-    else:
-        _say(f"== inspect {name}'s workspace inside the sandbox")
-        try:
-            done = host.run(argv, capture_output=True, text=True, timeout=600, check=False)
-        except (subprocess.TimeoutExpired, OSError) as error:
-            raise Refused(
-                f"the inspection of {name} failed ({error}). Retirement is the owner's manual call."
-            ) from error
-        risks = assess_inspection(parse_inspection(str(done.stdout)), session=name)
-        if risks:
-            raise Refused(
-                f"{name} still holds work, so it was not retired:\n- " + "\n- ".join(risks)
-            )
+    _say(f"== inspect {name}'s workspace inside the sandbox: {shlex.join(argv)}")
+    try:
+        done = host.run(argv, capture_output=True, text=True, timeout=600, check=False)
+    except (subprocess.TimeoutExpired, OSError) as error:
+        raise Refused(
+            f"the inspection of {name} failed ({error}). Retirement is the owner's manual call."
+        ) from error
+    risks = assess_inspection(
+        parse_inspection(str(done.stdout)), session=name, expected_origin=_origin_url(host)
+    )
+    if risks:
+        raise Refused(f"{name} still holds work, so it was not retired:\n- " + "\n- ".join(risks))
 
     dest_dir = host.exports / name
     bundle = dest_dir / f"{name}.bundle"
