@@ -389,7 +389,11 @@ def up(host: Host, *, phase: int) -> None:
             _say(f"tell {session.name}: {session.kickoff}")
 
     if created:
-        _say(f"created {len(created)}: {', '.join(s.name for s in created)}")
+        # the owner's Phase-2 dry-run on #6855 caught this: every line above a dry run
+        # says "would", but this summary said "created" for sessions a dry run never
+        # created - the one line a skimming reader trusts, stating a false past.
+        verb = "would create" if host.dry_run else "created"
+        _say(f"{verb} {len(created)}: {', '.join(s.name for s in created)}")
 
 
 # -------------------------------------------------------------------- retire

@@ -580,6 +580,19 @@ def test_up_dry_run_only_reads(tmp_path: Path, capsys: pytest.CaptureFixture[str
     assert fake.changes() == []
     out = capsys.readouterr().out
     assert f"agent-dgx run {CO} --agent claude --endpoint dgx --split" in out
+    # the owner's Phase-2 dry-run on #6855 showed the summary line claiming "created 2"
+    # for sessions nothing created - the only past-tense line in a "would"-tense run
+    assert "created" not in out
+
+
+def test_up_reports_what_it_created_in_the_past_tense(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other tense: a real run's summary says `created`, naming the sessions, so the
+    owner can see at a glance what the command added."""
+    fake = FakeHost(sessions={CO: RUNNING})
+    launch.up(host(tmp_path, fake), phase=0)
+    assert "created 1: uplevel-ops-b" in capsys.readouterr().out
 
 
 # ------------------------------------------------------------------- retire
