@@ -2718,6 +2718,57 @@ Clips, frame selection, tracking and the detector gate.
 - **Depends on.** OD-5 (clips lane); ISS-003; ISS-044 (blind audit method).
 - **Tracked as.** `docs/superpowers/specs/2026-09-30-synthbench-h3-clips-design.md:42` leaves the
   audit to 'whoever first uses them'; clips kept for a video VLM is owner direction (C1).
+- **Update 2026-10-07 (the audit instrument is built and tested; the audit has not been run)
+  [V unless marked].** Branch `clip-audit-instrument` ships the blind clip audit as three commands
+  over one round — `clip audit sample`, `page`, `bias`, all documented in
+  `docs/synthbench/command-reference.md` — designed in
+  `docs/superpowers/specs/2026-10-07-synthbench-clip-audit-design.md` (**that spec's Status line
+  says the design is not yet owner-reviewed**; it was written beside the code under the campaign's
+  standing instruction to keep working the funded phases, and no chat design here was approved).
+  What each clause of the acceptance now has:
+  - _the audit sample, stratified by group and motion, with scene/prop/motion questions recorded
+    in the corpus_: `rounds/<r>/audit-draw.jsonl` (write-once through `CorpusStore.write_new_bytes`)
+    holds a ready-incident **census** plus a benign mirror seeded-stratified over
+    (group × intended-motion) strata, and the five recorded questions are motion → scene → prop →
+    conditions → threat. A **census, not a 60-clip sample**, because prereg freeze F4 rules the
+    audited subset _is_ the measurement corpus and 17 ready incidents (ISS-093's supply) cannot
+    fill a stratified n≥60 incident sample. The group axis therefore waits on the Phase 2 render
+    window (0 threat-group clips exist), and the draw row keeps `group` so the stratification is
+    already in the file when the supply arrives [V: read of the shipped code and tests].
+  - _blind_: the page's whole input is the manifest row, the ready attempt's `provenance.json` and
+    the mp4 bytes — it never opens a `spec.json`, because a clip's frozen motion names its
+    scenario's props, which is the strongest leak available to this audit. Enforced by shape
+    (`build_items` takes no taxonomy) and pinned by a test that greps each drawn clip's page for
+    its own motion words, with `<select>` blocks stripped first and the 32-id pick list checked
+    separately for a pre-`selected` option. Lighting and weather are the one declared fact shown,
+    carried onto the draw row (clips design C5 says they carry through from the still, so a
+    disagreement is a clip defect, not a label leak). OD-15's machine pre-screen is **not**
+    implemented: only its row shape is pinned, and `--flagged` accepts a screen's output whenever
+    the owner authorizes one [V].
+  - _the survivor-bias disclosure_: `clip audit bias` prints ready-over-**decided** rates per
+    intended-motion class with the shared Wilson interval (the statistics live in
+    `synthbench/score/` because spec §7.1 is what keeps `audit/` off `backend`), counting
+    sampled/prompted/rendered/rerolled clips as `open` — out of the denominator, printed beside
+    it, because an undecided clip has survived nothing yet; and the declared-versus-picked
+    matrices for scenario and for band [V].
+  - _how clips enter the eval store_: **not here.** That is ISS-037's harness (#6831) and the
+    export line; this instrument only makes a clip number auditable. The acceptance clause stays
+    open.
+  - _the realism note_: printed on every report as two disclosures — the triplet corpus is
+    frame-sampled from rendered clips rather than scripted, and the clips are H3-rendered, so a
+    correct verdict is evidence about the model's reading of motion and not about any real scene.
+    Comparison against real camera clips stays exactly where this block and ISS-094 (no issue owns
+    a real-camera eval set) left it: none known to exist, and `/export/foscam` holds 0 files
+    [V: ran `find /export/foscam -type f | wc -l` → 0 in this sandbox 2026-10-07; the count says
+    nothing about footage on the A5500 box, which no sandbox mounts].
+  - Verified here: `uv run pytest backend/tests/unit/synthbench -q` → 1131 passed on this branch,
+    of which the three new files are 66; `ruff check` / `ruff format --check` / `mypy` clean over
+    the changed files; `test_command_reference.py` pins the three new headings and their option
+    rows against argparse [V: ran all of them in this session].
+  - **Status stays `open`** and the gate is unchanged: shipping the instrument is not running the
+    audit. No clip number is published before the owner's audit — the design was built first and
+    is presented for correction, which is the one order of operations this entry has to be honest
+    about.
 
 #### ISS-039 — Streaming ingest (R1) premise 'VLM path is ingest-agnostic' is only true for persisted stills
 
@@ -8003,3 +8054,38 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   writes (opened read-only); ISS-016's split itself is untouched — the holdout-skew note is the
   caveat its closure named, instantiated; nothing here licenses relabelling any scenario, it
   only shows relabelling could be scenario-selectable if the owner goes that way.
+
+### 2026-10-07 (the blind clip audit instrument is built and tested: census-not-sample draw, a page that never opens a spec, survivor rates over decided clips — the audit itself is the owner's run, and no clip number moves)
+
+- 2026-10-07 — ISS-038 — dated **Update** added to the block; **status stays `open`**. Branch
+  `clip-audit-instrument` ships `python -m synthbench clip audit sample|page|bias` over one round:
+  a write-once `rounds/<r>/audit-draw.jsonl` (ready-incident census + a benign mirror stratified
+  over group × intended-motion + optional `--flagged` residue); a loopback page whose inputs are
+  the manifest, the ready attempt's provenance and the mp4 bytes and that **never opens a
+  `spec.json`**, because a clip's frozen motion names its scenario's props; an append-only answer
+  log at `$SYNTHBENCH_ROOT/audits/<version>/clip-<round>.jsonl`; and a `bias` report printing
+  ready-over-decided survivor rates per motion class with Wilson intervals plus the
+  declared-versus-picked scenario and band matrices. Design:
+  `docs/superpowers/specs/2026-10-07-synthbench-clip-audit-design.md`; command docs:
+  `docs/synthbench/command-reference.md`. Measured: the synthbench unit suite passes at **1131
+  tests** (66 in the three new files), ruff/ruff-format/mypy clean on the changed files,
+  `test_command_reference.py` and `test_import_rule.py` green, prettier 3.2.4 clean, and
+  `scripts/check-vss-docs-currency.py` ok [V: all run in this session].
+- **Why a census and not the n≥60 sample the acceptance names.** Prereg freeze F4 rules the audited
+  subset _is_ the measurement corpus, and ISS-093's supply is 17 ready incidents — a stratified
+  n≥60 incident sample does not exist to draw. A census of ready incidents stays correct as a
+  render window grows (new clips join the next round's draw; nothing half-audited moves), and the
+  `group` axis the acceptance asks for is already a column on the row, waiting on the threat-clip
+  render window that ISS-093 gates. The instrument does not fix the supply and claims not to.
+- **Order of operations, stated plainly.** Under the campaign's standing instruction to keep
+  working the funded phases, the design was written beside the code rather than approved in chat
+  first, and this segment contains **no owner approval of any part of it** — the spec's Status line
+  says so, and the design is presented for correction. The gate the register already carries is
+  untouched: no clip S2/S3 number is published before the owner runs this audit (Phase 3), and
+  shipping an instrument is not running it.
+- **What this entry does not do:** no clip number, no eval-store or export change (clips reaching
+  `vlm_assess` is ISS-037's #6831 and the ISS-003/#6833/#6834 line, not this), no machine
+  pre-screen (OD-15 item 1 — only its row shape is pinned, awaiting the owner's authorization), no
+  render, no GPU, no corpus write (tests write under `tmp_path` only), no real-footage comparison
+  (`/export/foscam` counts 0 files here; owning issue is ISS-094, unchanged), no OD ruled, no new
+  ids, no ledger row.
