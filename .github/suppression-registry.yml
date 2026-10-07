@@ -1700,6 +1700,14 @@ tpa_slow_list:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: ~15.3s
+  - id: test_r8_s2b_nemotron_deletion.*test_no_test_module_imports_a_name_that_no_longer_exists
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason:
+      4.40s PR head (run 37560500061) + 4.116s main junit 37541671553, 5.28s solo — full-tree import sweep,
+      grows with the suite (2026-10-06)
   - id: test_rtsp_test_service.*test_connection_timeout
     kind: todo
     owner: mikesvoboda
