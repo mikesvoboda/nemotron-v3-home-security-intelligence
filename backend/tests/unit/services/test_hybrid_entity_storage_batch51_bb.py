@@ -59,7 +59,10 @@ KILL CONSTRUCTIONS (why each family bites its keys, not just its shipped run):
     primary_detection_id=None rows BOTH survive (kills `if pd or True`, which
     stringifies None to "None" and dedups the pair); two rows sharing one id
     COLLAPSE to one (kills `str(None) if pd else None`, which records the
-    wrong id and keeps both).
+    wrong id and keeps both); and a hit row must be followed by LATER rows
+    that still enter (row-2 repair: the `continue`->`break` fold exits the pg
+    loop AT the hit - every original matrix drive places the hit LAST, where
+    break == continue, so the discriminator needs rows AFTER the hit).
   * Both constructors: full field capture on a fully-populated twin (belt
     leg + `entity is` identity + source + every value) plus the metadata-
     absent, vector-empty and belt-empty legs.
@@ -619,6 +622,53 @@ def test_find_matches_dedups_pg_against_a_redis_detection() -> None:
         "Total matches for %s: %d (Redis + PostgreSQL)",
         ("person", 1),
     )
+
+
+def test_find_matches_dedup_hit_skips_only_its_own_row() -> None:
+    # ROW-2 REPAIR for the continue->break fold in the dedup guard (final-tree
+    # name xǁHybridEntityStorageǁfind_matches__mutmut_57): a hit must skip ONLY
+    # its own row - every LATER row still enters. The matrix drives above place
+    # the hit LAST in the pg loop, where break == continue; here rows follow.
+    # Leg 1: Redis holds 1001; pg rows [dup(1001), fresh(2002)]. Shipped keeps
+    # the fresh row (2 in the total line); the break mutant exits at the hit
+    # and loses it (1).
+    rig = Rig(
+        returns={
+            "find_matching_entities": [match_twin(detection_id="1001", similarity=0.91)],
+            "find_by_embedding": [
+                (pg_twin(primary_detection_id=1001), 0.55),
+                (pg_twin(2002, id=OTHER_ID), 0.45),
+            ],
+        }
+    )
+    with CollectorCtx() as collector:
+        out = run(rig.storage.find_matches(**find_args()))
+    assert [(m.source, m.detection_id, m.similarity) for m in out] == [
+        ("redis", "1001", 0.91),
+        ("postgresql", "2002", 0.45),
+    ]  # the mutant's list ends after the redis row
+    assert census(collector) == [
+        (DEBUG, "Found %d Redis matches for %s (threshold=%.2f)", (1, "person", 0.85)),
+        # len(pg_matches) is 2 for BOTH eras (the log sits after the loop)...
+        (DEBUG, "Found %d PostgreSQL matches for %s (threshold=%.2f)", (2, "person", 0.85)),
+        # ...but the TOTAL counts len(matches): 2 shipped, 1 under break.
+        (DEBUG, "Total matches for %s: %d (Redis + PostgreSQL)", ("person", 2)),
+    ]
+    # Leg 2: the hit happens INSIDE the pg sequence [2002, dup(2002), 2003] -
+    # shipped collapses the pair and STILL keeps the fresh 2003; break loses it.
+    third = pg_twin(2003, id=UUID("44444444-5555-6666-7777-888888888888"))
+    rig2 = Rig(
+        returns={
+            "find_matching_entities": [],
+            "find_by_embedding": [
+                (pg_twin(2002), 0.7),
+                (pg_twin(2002, id=OTHER_ID), 0.6),
+                (third, 0.5),
+            ],
+        }
+    )
+    out2 = run(rig2.storage.find_matches(**find_args()))
+    assert [m.detection_id for m in out2] == ["2002", "2003"]
 
 
 def test_find_matches_fresh_pg_row_survives() -> None:
