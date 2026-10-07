@@ -2527,6 +2527,12 @@ Clips, frame selection, tracking and the detector gate.
 - **Depends on.** OD-5 (does the clips lane get an owner item). Blocks ISS-002 and ISS-038.
 - **Tracked as.** Digest-level only. No decision row in the ledger, no R-row (R1 is stream ingest,
   R7 audio, R10 model choice).
+- **Update 2026-10-07 (`prereg-clip-measurement`; the owner's funded slice).** The measurement's
+  pre-registration is drafted at
+  `docs/research/2026-10-07-clip-measurement-prereg/README.md`: arms, clips, statistics and cost
+  fixed in writing, **unsigned** — the owner's §7 signature is the spend go-ahead, and the
+  decision this block names stays the owner's ruling (C1). 17 Intake log 2026-10-07 carries the
+  supply recount behind its render plan.
 - **Severity note.** Verifiers read P2 for the decision and P3 for the stale ffmpeg comment: nothing
   shipped or scheduled is blocked on it.
 
@@ -8003,3 +8009,44 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   writes (opened read-only); ISS-016's split itself is untouched — the holdout-skew note is the
   caveat its closure named, instantiated; nothing here licenses relabelling any scenario, it
   only shows relabelling could be scenario-selectable if the owner goes that way.
+
+### 2026-10-07 (the funded clip measurement is pre-registered: arms, clips, statistics and cost fixed in writing before any number exists, unsigned and awaiting the owner's §7 signature)
+
+- **What landed.** `docs/research/2026-10-07-clip-measurement-prereg/README.md` (branch
+  `prereg-clip-measurement`, PR pending owner merge) is the pre-registration the 2026-10-05
+  funding ruling left on the owner's call — the drafting task that entry names, zero-GPU, now
+  executed. It fixes, before any number exists: the two arms (arm (a) `export vss --sequences 4`
+  frame-bursts through `VlmClient` at fractions 0.10/0.36/0.62/0.90, burst chosen because the
+  acceptance names "4-frame still bursts"; arm (b) the strongest video-capable engine available
+  at run time, fenced `vss8-*`, digest- and weights-pinned, chosen once before the run); the
+  statistics (S2/S3 with Wilson intervals beside scenario-cluster bootstrap, exact McNemar on
+  paired discordants, the noise-floor spread — the ISS-043 tooling — with per-clip latency
+  median/p95 and peak VRAM against the 20.4 GiB S1 bar); the §4 paired control the 2026-10-05
+  entry requires (same clips at depth 1 stored vs depth 4 burst, engaging doc 22 probe 1's known
+  null — 0/17 either way — so this run never moves input and operating point without a control);
+  and the §7 spend line with the owner's signature block (probes ≤15/≤30 min; render F1's 148
+  attempts ≈ 13.5 h worst case at the measured 328.7 s/clip; measurement ≈ 2×12 min of image
+  calls plus arm (b)'s probe-bounded video cost).
+- **What the recount found, and why the plan is frozen now.** Re-counted from every row of
+  `/synthbench/corpus/tierb-v0/clip-index.jsonl` plus each event's `spec.json`: the 17 READY
+  incident clips are _entirely_ the time-revealed A-group (loitering 5, tailgating 5,
+  trying_car_doors 4, peering 2, casing 1), while the 205-event prompted backlog is
+  weapon/threat-heavy — only 9 of its 205 events are suspicious, and `tailgating` has no
+  backlog at all. Measured incident yield is 17/59 ≈ 29% per render attempt (benign ≈ 36%), so
+  reaching the acceptance's N≥60 projects to ≈148 attempts, which dilutes the A-group to ~24 of
+  the ~60-clip corpus. A draw made after the renders would have found that only after a number
+  existed; instead F1 freezes the allocation (all 9 suspicious, threat proportional to backlog),
+  the A-group comparison is pre-registered as a small-n slice (direction and n, never a bar),
+  and F4 binds that if the audit leaves under 60 the decision doc names the miss rather than
+  padding it.
+- **Register.** ISS-003's block gains a dated Update pointing at the draft; its status stays
+  `open` (the decision is the owner's ruling, and §7 is unsigned). ISS-093's supply-target
+  ruling and OD-5's cell are untouched — F1 is the proposal that ruling rules on, not a
+  substitute for it. ISS-038's audit instrument stays Phase 0d work. No issue or OD ids added;
+  no block closes; Dashboard untouched, no recount.
+- **What this entry does not do.** It spends nothing — signing §7 opens no window by itself and
+  nothing is signed; it renders no clips and touches no GPU or renderer; it claims no clip
+  number (the Phase 3 audit gate holds: no clip S2/S3 is published before the blind audit); it
+  adopts no route (C1 — measuring frame-burst is within ISS-003's acceptance, adopting it is the
+  owner's ruling); and it does not decide OD-2's remedy, OD-8's acceptance scope or ISS-093's
+  supply target, each named in its §6.
