@@ -2625,6 +2625,29 @@ Clips, frame selection, tracking and the detector gate.
 - **Severity note.** Verifiers read P2: a documented design choice and an enhancement, with the harm
   unmeasured. The video-sampling clause is a different problem (the VLM path refuses video batches,
   ISS-002).
+- **Update 2026-10-07 (`iss005-temporal-spread`, PR pending owner merge).** Implemented.
+  `select_key_frames` takes an optional `spread_seconds`: a (camera, class) pair spanning more
+  than that claims SPARE slots — what the other pairs left unused, never one another's — for its
+  temporally farthest DISTINCT stills, round-robin across spanning pairs so breadth (approach +
+  departure) beats depth (three midpoints). Unset is the shipped selector exactly, byte-for-byte —
+  the A/B baseline. The span is measured on ONE clock per pair: `FrameRef.capture_timestamp` (the
+  frame's own filename, strict-parsed by the same `capture_time.parse_capture_time` ISS-033 chose
+  — never the row's arrival) when every member carries one, the uniform arrival clock when none
+  does; a pair mixing the two never spreads, because two clocks cannot bound a span. The
+  acceptance's file-collision clause needs no special path: it falls out of the shipped
+  one-still-one-slot rule — a companion sharing the peak's JPEG never competes, and its slot goes
+  to the next-farthest distinct still. Selection priority stays strength-first (representatives
+  always place before companions; a property test pins the shipped pick set can only GAIN frames),
+  and the acceptance's 'chronological order' is delivered where ISS-033 put it for all frames:
+  `build_assess_request` attaches the picks oldest-first and labels them, so spread companions
+  arrive on the same timeline as any other pick. `key_frame_spread_seconds` (default 10, `gt=0`)
+  is the threshold, backend-only per the `camera_timezone` precedent; the analyzer threads it and
+  the timezone IDENTICALLY into the request builder and `key_frame_ids` — a provenance call
+  without them silently drops the spread frames' evidence rows (`if p in by_path`), which
+  `test_calling_ids_without_the_spread_would_silently_drop_a_frame` characterizes. The specialist
+  stage deliberately stays unthreaded: the measured delta must attribute to the verifier's input
+  alone. The acceptance's determinism and 4-frame-budget property tests run with spread ON.
+  Status stays `open` until the owner merges; the S3 delta stays gated on ISS-037 (PR #6831).
 
 #### ISS-035 — `track_id` is never written and the prompt states 'crossing: False' as fact: build tracking
 
@@ -8115,6 +8138,62 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   deliverable that must name its own frame fractions and token budget; no adoption of any route
   (C1: measuring is in scope, adopting is the owner's); the `vlm_replay` request builder is
   untouched, so replay of existing stores renders exactly as before.
+
+### 2026-10-07 (ISS-005's temporal spread lands on `iss005-temporal-spread`: a dwelling pair shares spare slots with its far stills, and an unset threshold is byte-for-byte the shipped selector)
+
+- **What landed, in the acceptance's own words.** A (camera, class) pair spanning more than
+  `key_frame_spread_seconds` (default 10, `gt=0`, backend-only per the `camera_timezone`
+  precedent) now returns "the strongest plus the temporally farthest frame(s)": spare slots —
+  what the other pairs left unused, never one another's — go to the pair's farthest DISTINCT
+  stills, round-robin across spanning pairs so two dwellings get breadth (approach + departure
+  each) before either gets depth. The span is bound on ONE clock per pair — each frame's own
+  filename through the strict `capture_time.parse_capture_time` when every member has one, the
+  uniform arrival clock when none does; a pair mixing the two never spreads, because comparing a
+  camera's filename to the server's clock is not a span. The file-collision clause ("falls back
+  to its next-best distinct file") needed no new mechanism: it is the shipped one-still-one-slot
+  rule seen from the companion's side — duplicate pixels never take a slot, so the slot goes to
+  the next-farthest distinct still, which `test_a_colliding_companion_file_falls_to_the_next_distinct_still`
+  pins with two detections sharing one JPEG. "In chronological order" is honored where ISS-033 put
+  it for every frame: `build_assess_request` attaches the spread's companions oldest-first and
+  labels them on the same timeline as the representatives; the selector's own order stays budget
+  priority, because the shipped strongest-first contract is pinned independently. The threshold
+  and timezone thread IDENTICALLY through `build_assess_request` and `key_frame_ids` — the
+  provenance derives by re-running the same selection, and a call without the parameters fails
+  SILENTLY (the `if p in by_path` filter drops the spread frames' evidence rows rather than
+  mismatching), so the failure mode is characterized in its own test. The specialist stage stays
+  unthreaded on purpose: a measured S3 delta must attribute to the verifier's input alone, and a
+  companion set that also moved the describers could not say which stage caused it.
+  `spread_seconds=None` — the replay and A/B-baseline call — is byte-for-byte the shipped
+  builder, and `build_frame_refs` stamps `capture_timestamp` only when a timezone is set
+  (capture_time's scope rule), so nothing about an unset deployment moved.
+- **Tests.** `TestTemporalSpread` (`backend/tests/unit/services/test_key_frame_selector.py`)
+  pins sharing, the inside-threshold non-spread, the untouched shipped call, the never-steal rule
+  (companions spend SPARE slots only), the collision clause, the 4-frame budget across two
+  spanning pairs, and never-duplicate-stills — plus two hypothesis properties with spread ON:
+  every shipped property (determinism under either arrival order, ≤4, unique ids, distinct files,
+  subset) and "spread only ever adds" (the shipped pick set is a subset of the spread pick set).
+  `backend/tests/unit/services/test_vlm_spread.py` pins what only the analyzer can answer:
+  filename stamping never launders arrival, a dwelling pair's request attaches all three stills
+  oldest-first with labels, the shipped call yields the single peak, the arrival-clock basis
+  spreads without a timezone, provenance names every attached still, and two end-to-end
+  `analyze_batch` runs show assess and the stored `key_frame_detection_ids` agreeing on the
+  spread frames while the specialist spy confirms its picks stayed the shipped peak. All red
+  before the implementation; two selector-order failures during it were real design bugs found by
+  the tests (pairs iterated alphabetically instead of by representative strength, and an anchor
+  taken from an unplaced row sharing the peak's file), fixed in the code, not the tests. Scoped
+  unit suite 30744 passed; ruff and mypy clean on every changed file; the AI contract is current
+  without regeneration — this slice changed no request-schema field.
+- **Register.** ISS-005's block carries the dated Update; status stays `open` until the owner
+  merges (PR pending). The S3 A/B stays gated on ISS-037 (PR #6831) — this lands the production
+  half; the replay arm runs the selector when that merges. The shipped-docstring claim the
+  evidence quoted ("a second frame of one track tells the verifier nothing") is now a measured
+  question with a knob, not a law. No recount, no new ids, Dashboard untouched.
+- **What this entry does not do:** no GPU, no replay run, no S3 or clip number of any kind (the
+  ISS-038 audit gate stands); the default 10 s is a starting constant, not a tuned value — tuning
+  is the campaign's measured A/B; no motion-energy or detector-novelty term (the world-class gap
+  names them; the acceptance does not require them, and this slice stays honest about the line);
+  no specialist-stage spread (its own probe names its own evidence first); no route adoption of
+  any kind (C1); `vlm_replay` untouched.
 
 ### 2026-10-07 (the blind clip audit instrument is built and tested: census-not-sample draw, a page that never opens a spec, survivor rates over decided clips — the audit itself is the owner's run, and no clip number moves)
 
