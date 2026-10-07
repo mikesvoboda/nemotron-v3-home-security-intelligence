@@ -13,12 +13,15 @@
 # via `sbx secret set github --sandbox agent-<session>` (50-coordination.md).
 
 # The fast model's arguments are the pair the repo already shows (synthbench/host/agent.py,
-# docs/synthbench/operator-runbook.md). The strongest model's arguments go here when the
-# owner posts them on the O0.1 PR (#6855); until then a session that names "strongest"
-# makes the launcher refuse and name that step, and the heavy sandboxes start by hand.
+# docs/synthbench/operator-runbook.md). The strongest model's are the owner's ruling, posted
+# on the O0.1 PR (#6855): no --endpoint, so the session runs on Claude Code's own upstream -
+# the Anthropic API, not a DGX-served model - and no --model, so it runs Claude Code's
+# default (the owner's choice; a default change is then this session's model change). A
+# session naming a model with no entry here still makes the launcher refuse the whole phase
+# before any change and name this file.
 [models]
 fast = "--agent claude --endpoint dgx"
-# strongest = "<the owner's arguments from PR #6855>"
+strongest = "--agent claude"
 
 # Phase 0 (UR-28): the owner started these two by hand; the launcher takes over whenever
 # it is first run. The rows are what it would create.

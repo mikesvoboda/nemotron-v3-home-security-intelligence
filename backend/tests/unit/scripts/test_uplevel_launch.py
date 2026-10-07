@@ -457,14 +457,36 @@ def test_up_refuses_a_host_checkout_on_another_branch(
     assert not fake.changes()
 
 
-def test_up_refuses_until_the_strongest_models_arguments_are_posted(tmp_path: Path) -> None:
-    """Every check runs before any change: a phase whose roster names the strongest model
-    refuses the whole run while no [models] entry exists, naming the owner's next step."""
+def test_up_refuses_the_whole_phase_when_a_model_is_unresolvable(tmp_path: Path) -> None:
+    """Every check runs before any change: a phase with one session whose model has no
+    [models] entry refuses the whole run - the fast sessions in that phase are not created
+    either - naming the owner's next step. Its own manifest, so the rule holds whatever
+    the real roster's [models] holds (since #6855 the owner has posted `strongest`)."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        '[models]\nfast = "--agent claude --endpoint dgx"\n'
+        "[[phase]]\nnumber = 0\n"
+        f'[[phase.session]]\nname = "{CO}"\nmodel = "fast"\nkickoff = "k"\n'
+        f'[[phase.session]]\nname = "{HEAVY}"\nmodel = "strongest"\nkickoff = "k"\n',
+        encoding="utf-8",
+    )
     fake = FakeHost()
     with pytest.raises(launch.Refused, match="owner"):
-        launch.up(host(tmp_path, fake), phase=1)
+        launch.up(host(tmp_path, fake, manifest=manifest), phase=0)
     assert not fake.changes()
     assert not fake.ran("agent-dgx", "run")
+
+
+def test_the_rosters_strongest_row_is_the_owners_ruling() -> None:
+    """The owner's ruling on #6855, pinned: no --endpoint (Claude Code's own upstream -
+    the Anthropic API, not DGX-served), no --model (Claude Code's default model). This
+    assertion is the tripwire if either is ever restated."""
+    phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    heavy = next(s for s in phases[1] if s.name == HEAVY)
+    data = launch._load_toml(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    assert launch.run_args_for(
+        data, REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml", heavy
+    ) == ["--agent", "claude"]
 
 
 def test_up_creates_each_missing_session_from_the_checkout(
