@@ -52,7 +52,7 @@ These words carry exact meanings everywhere in `docs/uplevel/`.
 
 | phase | name                             | outcome                                                                      | exit gate                                                                                                                                                |
 | ----- | -------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0     | **Bootstrap**                    | the launcher exists and the Phase 1 sandboxes run                            | `O0.1` done (`50-coordination.md`, "Phase 0")                                                                                                            |
+| 0     | **Bootstrap**                    | the coordinator and `uplevel-ops-b` run                                      | the labels and the pinned issue exist (`50-coordination.md`, "Phases 0 and 1")                                                                           |
 | 1     | **Stop the bleeding**            | shipped paths do what they claim                                             | D1–D3, D5, D6 and D8–D11 in `00 §3` closed, each by a committed test or check that fails if the defect returns. D4 and D7 are features; they go to `R2`. |
 | 2     | **Feature truth**                | every feature has a verified status and an owner ruling                      | fake stack green in CI; feature inventory complete; reachability check built; owner RULING session held and recorded in the inventory                    |
 | 3     | **The tree matches the rulings** | retired features are gone end to end; only shipping code remains             | retired features absent from UI, API, services, tables, settings and docs; reachability gates green in CI; mutation scored set switched                  |
@@ -168,8 +168,9 @@ Packages cite these as `UR-n`.
 | UR-23 | A PR merges on green CI plus an approving review from another lane's agent, after the author's own fresh-context self-review; owner-tier PRs also need the owner. The coordinator merges.                              |
 | UR-24 | `heavy` packages go only to the strongest available model or to an owner pairing; the fast local model takes the rest.                                                                                                 |
 | UR-25 | The owner works from one daily batch at a fixed time; the urgent path interrupts only for security, the live deployment, or a red `main`.                                                                              |
-| UR-26 | The coordinator runs in its own sandbox; every agent runs in its own clone-mode sandbox, created by an owner-run launcher at phase boundaries; GitHub is the only channel between them.                                |
+| UR-26 | The coordinator runs in its own sandbox; every agent runs in its own clone-mode sandbox, created by an owner-run launcher at phase boundaries; GitHub is the only channel between them. UR-28 says how.                |
 | UR-27 | Every agent keeps acting through the owner's GitHub token. The owner accepts the risk: peer reviews and owner approvals are a policy agents follow, not something GitHub authenticates, and any agent could forge one. |
+| UR-28 | Sandboxes come from `agent-dgx`, which gives each agent its own clone of the host checkout. The owner starts Phases 0 and 1 by hand; `O0.1` builds the launcher around `agent-dgx`, used from the Phase 2 boundary.    |
 
 Already ruled in the register and executed here: OD-12 (loopback unless `EXPOSE_LAN=true`,
 deny-by-default auth when exposed) by `B1.5`, `F1.3` and `O1.6`; OD-20 (retire the enrichment
@@ -214,7 +215,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 
 | package | lane                    | phase      | name                                           | flags         | status      | PR  |
 | ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
-| O0.1    | ops                     | 0          | The sandbox launcher (UR-26)                   | owner         | not started |     |
+| O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | not started |     |
 | B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | not started |     |
 | B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | not started |     |
 | B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | not started |     |

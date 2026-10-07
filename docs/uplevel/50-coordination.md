@@ -27,7 +27,7 @@
 
 | phase | agents                                                                             | what limits it                                             |
 | ----- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| 0     | 2, started by hand: the coordinator and `uplevel-ops-b`, which builds the launcher | the owner's review of the launcher                         |
+| 0     | 2, started by hand: the coordinator and `uplevel-ops-b`, which builds the launcher | nothing: the owner starts Phase 1 by hand (UR-28)          |
 | 1     | 7: on the fast model ops ×2, backend, frontend, docs and the coordinator; 1 heavy  | `B1.5`'s auth design unblocks three packages               |
 | 2     | 4: ops, frontend (inventory), backend (supporting the inventory), docs             | one serial chain, `O2.1` → `O2.2` → `F2.1` → `F2.3` → `R2` |
 | 3     | 6: backend ×2, frontend, ops ×2, docs                                              | the hot files                                              |
@@ -57,12 +57,12 @@ cell each until Phase 3, when the frontend may split into retirement (`F3.1`) an
 - In Phase 2 the backend lane, once `B2.1` is done, supports `F2.2` by tracing each feature's
   backend path; `F2.2` integrates what it writes.
 
-## Where agents run (UR-26)
+## Where agents run (UR-26, UR-28)
 
 ```
-HOST (owner)               sbx · the launcher (O0.1) · the local model server · the strongest model
-├── uplevel-coordinator    clone mode · network: GitHub + model endpoint · no Docker
-├── uplevel-ops-a / -b     clone mode · network: GitHub, PyPI, npm, image registries, model endpoint
+HOST (owner)               agent-dgx · sbx · the launcher (O0.1) · the local model server · the strongest model
+├── uplevel-coordinator    own clone · network: GitHub + model endpoint
+├── uplevel-ops-a / -b     own clone · network: GitHub, PyPI, npm, image registries, model endpoint
 ├── uplevel-backend          · Docker, for the fake stack · backend splits into -a / -b in Phase 3
 ├── uplevel-frontend
 ├── uplevel-docs
@@ -70,14 +70,20 @@ HOST (owner)               sbx · the launcher (O0.1) · the local model server 
 └── GB300 operator         the real tier, outside the sandboxes (operator.md)
 ```
 
-- **One sandbox per agent, always in clone mode.** A direct-mode sandbox mounts the host's working
-  tree, so two of them would edit the same files. A clone keeps its commits inside the sandbox
-  until they are pushed, so an agent pushes its branch after every commit; its draft PR makes the
-  branch visible to everyone.
+- **One sandbox per agent, each with its own clone.** `agent-dgx run <session>` clones the host
+  checkout to `/agents/agent-<session>/workspace` and mounts that clone into the sandbox
+  `agent-<session>`, so no two agents edit the same files. A clone keeps its commits until they are
+  pushed, so an agent pushes its branch after every commit; its draft PR makes the branch visible
+  to everyone. Start every agent from a clean host checkout of `main`: `agent-dgx` copies
+  uncommitted changes into the clone, and `agent-dgx inspect <session> --json` shows the commit it
+  cloned.
+- **On the host, read an agent's workspace; run git in it only through `sbx exec`.** Its
+  `.git/config` is the agent's to write, and settings such as `core.fsmonitor` run commands when
+  the host's git opens the repository (`docs/synthbench/operator-runbook.md`).
 - **Provisioning stays with the owner.** Creating and removing sandboxes, setting their secrets and
-  opening their network policy are privileged, so no agent holds `sbx`. The owner runs the launcher
-  at each phase boundary, four times in all. The coordinator routes inside its sandbox and never
-  provisions.
+  opening their network policy are privileged, so no agent holds `agent-dgx` or `sbx`. The owner
+  starts Phases 0 and 1 by hand and runs the launcher at the later phase boundaries. The
+  coordinator routes inside its sandbox and never provisions.
 - **GitHub is the only channel between sandboxes.** The coordinator assigns a package by opening its
   draft PR — on a branch holding one empty commit, since a PR needs a commit — with labels
   `lane:<lane>`, `cell:<cell>` and, where they apply, `heavy` and `owner`. The
@@ -85,7 +91,7 @@ HOST (owner)               sbx · the launcher (O0.1) · the local model server 
   GitHub's notifications. The urgent path is the `urgent` label with an @-mention of the owner.
   Everything the coordinator knows lives in GitHub, so its sandbox is disposable: restarted, it
   rebuilds its state from PRs, labels and the pinned issue.
-- **Optional hardening.** Tokens are set per sandbox (`sbx secret set github --sandbox <name>`).
+- **Optional hardening.** Tokens are set per sandbox (`sbx secret set github --sandbox agent-<session>`).
   Giving the lane sandboxes a separate machine account's token turns reviews into real GitHub
   approvals, so branch protection can require one — enforcing in GitHub what is policy today.
 
@@ -110,8 +116,8 @@ available, at the cost of more strong-model time; the inventory is not owner-tie
 review load.
 
 **Split lanes.** An agent in a split lane — the ops cells, and the backend cells from Phase 3 — takes
-only packages the coordinator assigns to its cell, never claiming one itself. The launcher appends
-one line to that lane's kickoff prompt: `You are cell <A|B> of the <lane> lane; take only packages
+only packages the coordinator assigns to its cell, never claiming one itself. Its kickoff line
+carries one more sentence: `You are cell <A|B> of the <lane> lane; take only packages
 the coordinator assigns to your cell.`
 
 **The heavy sandbox's kickoff prompt:**
@@ -130,13 +136,17 @@ when, and record what it found. Keep commit subjects at 72 characters or fewer.
 When the plan does not answer a question, stop and report the question.
 ```
 
-**Phase 0, the bootstrap.** The launcher must exist before the lanes start, and a lane agent writes
-it:
+**Phases 0 and 1, started by hand (UR-28).** From a clean host checkout of `main`, the owner
+creates each agent with `agent-dgx run <session> --agent claude --endpoint dgx --split` (for
+`uplevel-heavy`, the arguments that select the strongest model), then pastes its kickoff line:
+"Follow the kickoff prompt in <the roster's file>", plus the cell sentence for a split lane.
 
-1. The owner starts two sandboxes by hand, in clone mode: `uplevel-coordinator` and `uplevel-ops-b`.
-2. The coordinator creates the labels and the pinned "Uplevel daily batch" issue.
-3. `uplevel-ops-b` builds `O0.1`, the launcher; the owner pastes the `sbx` help it asks for.
-4. The owner reviews the launcher, runs `--phase 1 --dry-run`, then `--phase 1`.
+1. Phase 0: the owner starts `uplevel-coordinator` and `uplevel-ops-b`.
+2. The coordinator creates the labels and the pinned "Uplevel daily batch" issue, and assigns
+   `O0.1` to ops cell B.
+3. Phase 1: the owner starts the rest of the roster, without waiting for `O0.1`.
+4. `uplevel-ops-b` builds `O0.1` first in its queue. From the Phase 2 boundary on, the owner runs
+   the launcher instead of starting agents by hand.
 
 ## Claiming a package
 
