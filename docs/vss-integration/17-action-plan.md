@@ -2533,6 +2533,27 @@ Clips, frame selection, tracking and the detector gate.
   fixed in writing, **unsigned** — the owner's §7 signature is the spend go-ahead, and the
   decision this block names stays the owner's ruling (C1). 17 Intake log 2026-10-07 carries the
   supply recount behind its render plan.
+- **Update 2026-10-07 (the acceptance's video clause answered at source, offline; no GPU) [V].**
+  'whether that build accepts video input is untested [?]' — the evidence line stays `[?]` because
+  it remains runtime-true (no probe has run; §7 windows 1–2 are unsigned and none opened), but the
+  question now has a source-level answer at the exact commit the served string names:
+  `/props`'s `b7972-e06088da0` is tag `b7972` = commit `e06088da0`, and there the OpenAI content
+  loader handles only `text`/`image_url`/`input_audio` and throws `unsupported content[].type` on
+  anything else (`tools/server/server-common.cpp`, zero video matches; `mtmd.cpp` carries
+  "we don't support video input"); video input arrived upstream in llama.cpp PR #24269, merged
+  2026-06-08, four months after this pin's commit (2026-02-08) — absent by commit, not by flag.
+  The shipped image could not decode video either way: `ai/vlm/Dockerfile` and every compose file
+  have zero `ffmpeg` matches. The clause's second half — that a b7972 negative makes arm (b) a
+  second-engine question — is corrected at b11376 (`input_video` branch in
+  `server-common.cpp`, `--video-fps`/`--video-timestamp-interval`/`--video-ffmpeg-dir` in its
+  README; ffmpeg-decoded frames, not a native encoder), whose image this project already built
+  from the same Dockerfile with only `LLAMA_CPP_REF` overridden (ledger, 2026-10-03 control-arm
+  row): arm (b) can be a llama.cpp **re-pin**, which co-varies the build with the format — and
+  this block's own neighbor ISS-087 measured those builds disagreeing on 44% of items — so
+  arm (b) needs a same-build control on arm (a) (~12 min of image calls) or its contrast reads
+  only as format+build combined. Full arithmetic and the §5/§7 consequences: prereg addendum 1,
+  `docs/research/2026-10-07-clip-measurement-prereg/addendum-1-b7972-video.md`. Status stays
+  `open` — the clause is answerable, the decision is the owner's.
 - **Severity note.** Verifiers read P2 for the decision and P3 for the stale ffmpeg comment: nothing
   shipped or scheduled is blocked on it.
 
@@ -8050,3 +8071,49 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   adopts no route (C1 — measuring frame-burst is within ISS-003's acceptance, adopting it is the
   owner's ruling); and it does not decide OD-2's remedy, OD-8's acceptance scope or ISS-093's
   supply target, each named in its §6.
+
+### 2026-10-07 (Phase 1e's CPU half, offline: the pinned build's video answer is measured at source, and the answer is a re-pin question, not a second-engine one — unsigned, no window opened)
+
+- **Register.** ISS-003's block gains a second dated Update [V] (its `[?]` evidence line stays,
+  because it remains runtime-true). Prereg addendum 1,
+  `docs/research/2026-10-07-clip-measurement-prereg/addendum-1-b7972-video.md`, amends the README's
+  §5 consequence clause and §7's window-1 purpose — a dated addendum in the prereg folder is what
+  README §1 names as the only amendment channel, so the README's frozen text and signature block
+  are untouched. ISS-093's supply ruling and OD-5's cell are not touched; no issue or OD id added;
+  ISS-003 stays `open` (the clause is now answerable; the decision is the owner's). No block closes.
+- **What was measured, and how far.** `b7972-e06088da0` is tag `b7972` = commit `e06088da0` (GitHub
+  refs API), so reading that commit's source is reading the shipped binary's source. There, the
+  OpenAI content loader handles `text`, `image_url`, `input_audio` and throws
+  `unsupported content[].type` otherwise; `mtmd.cpp` states "we don't support video input"; the
+  whole `tools/server` README carries no video flag. Upstream video input merged 2026-06-08
+  (PR #24269), four months after the pin (2026-02-08) — absent by commit, not by build flag. And
+  the shipped image installs curl and libgomp1 only, so it could not decode video even if the
+  branch existed. All of that is [V] as of this date, read at primary source; the 2026-10-04
+  research note read the same lines as `[A]`, and this pass is the verification it lacked.
+- **The correction, and why it lands before the probe.** README §5 said a b7972 negative "makes
+  arm (b) the vLLM/second-engine question" — that half is wrong at b11376: `server-common.cpp`
+  branches on `input_video` (alias `video_url`), the README documents `--video-fps`/
+  `--video-timestamp-interval`/`--video-ffmpeg-dir`, and this project already built that image from
+  the same `ai/vlm/Dockerfile` with only `LLAMA_CPP_REF` overridden (ledger, 2026-10-03 control-arm
+  row). So arm (b) is a llama.cpp re-pin, which co-varies the build with the input format — and
+  ISS-087, this block's own neighbor, measured those builds disagreeing on 44% of items for
+  identical model, weights and prompt. Arm (b) therefore needs a same-build control on arm (a)
+  (~12 min of image calls at the dogfood median) or its contrast is only a combined format-plus-
+  build reading. Had §7 been signed against the old §5, the owner would have priced a second-engine
+  detour this finding makes unnecessary — which is why the CPU half ran first, as the campaign's
+  stop condition ("a b7972 video-support surprise that changes the pre-registered design forces
+  re-pre-registration before any arm runs") anticipates.
+- **What §7's probe windows would now do, if the owner signs them.** Window 1 becomes confirmatory
+  at its proposed ≤15 min: b7972 refusing a video part, and no ffmpeg in the runtime. If the owner
+  also rules arm (b) to be the llama.cpp re-pin, add a rebuild of `b11376` (the vss8 store holds
+  only `ai-vlm:sm103`; the ledger's build rows say ~7 min) plus one real clip at an explicit
+  `--video-fps` — which may push window 1 past 15 min once, a §7 fact to sign, not a surprise.
+  Window 2 (1f, the burst smoke on 3–5 ready clips) is unchanged by this finding.
+- **What this entry does not do.** It spends nothing — no GPU, no container, no probe run, no corpus
+  file touched, §7 unsigned and no window opened; it records no clip number (the Phase 3 gate holds:
+  no clip S2/S3 is published before the blind audit); it rules nothing — ISS-003's route, OD-5's
+  clips lane, OD-2's remedy, ISS-093's supply and the spend go-ahead all stay the owner's; it
+  decides no arm-(b) engine (re-pin versus vLLM is the owner's choice, and its build-vs-format
+  confound is a design requirement, not a ruling); and it settles no `[C]` — the token-load
+  arithmetic that puts a 4 fps clip over the 16,384 slot stays an estimate until a probe measures
+  it, exactly as §7 row 4 already says.
