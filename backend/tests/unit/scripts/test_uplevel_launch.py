@@ -640,10 +640,14 @@ def test_a_failed_inspection_refuses_and_names_the_open_measurement(tmp_path: Pa
 
 def test_retire_refuses_when_the_sandbox_is_already_gone(tmp_path: Path) -> None:
     """With no sandbox there is nothing to inspect, so there is no way to prove the work is
-    safe. Refuse, and say whose call retirement is now."""
+    safe. Refuse, and say whose call retirement is now. This is the state the owner's
+    `inspect --json` showed after the first real retire's failed `session rm` - manifest
+    present, `"sandbox": null`, a session removed halfway - so the refusal also names the
+    one verb that finishes the job, which is why the failed-step message points here."""
     fake = FakeHost(sessions={SCRATCH: NO_SANDBOX})
-    with pytest.raises(launch.Refused, match="owner's manual call"):
+    with pytest.raises(launch.Refused, match=f"agent-dgx session rm {SCRATCH} --force") as caught:
         launch.retire(host(tmp_path, fake), SCRATCH)
+    assert "owner's manual call" in str(caught.value)
     assert not fake.ran("agent-dgx", "session", "rm")
 
 
@@ -708,16 +712,16 @@ def test_a_failed_removal_does_not_advice_a_rerun(tmp_path: Path) -> None:
     """The owner's first real retire on #6855 reached the last step and failed there: the
     export, copy, verify and stop all ran, then `agent-dgx session rm` returned 1 after
     printing that it removed the sandbox ("cannot unmount '/agents/agent-uplevel-scratch':
-    pool or dataset is busy"). "Fix it and run this again" is the wrong advice for that
-    failure, because this same command re-run cannot finish it: a deleted session inspects
-    as having neither manifest nor sandbox, which answers "nothing to retire". The refusal
-    therefore says what is already safe (the work is exported) and names the check, so the
-    owner learns the state instead of discovering the no-op by running it."""
+    pool or dataset is busy"). `inspect --json` after the failure shows the state that
+    leaves behind - `"sandbox": null` with the manifest still present - so a blanket "fix
+    it and run this again" sends the owner to a command that refuses on exactly that
+    half-done state. The refusal names what is already safe and what the state looks like,
+    and the stop really did run before it."""
     fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=_clean_ws(), fail="session rm")
-    with pytest.raises(launch.Refused, match="nothing to retire") as caught:
+    with pytest.raises(launch.Refused, match="removed halfway") as caught:
         launch.retire(host(tmp_path, fake), SCRATCH)
     assert fake.ran("agent-dgx", "stop")  # everything up to the removal did happen
-    assert "exported" in str(caught.value)
+    assert "verifies the work" in str(caught.value)
 
 
 def test_retire_dry_run_only_reads(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

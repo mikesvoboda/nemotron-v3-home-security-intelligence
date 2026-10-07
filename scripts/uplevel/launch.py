@@ -157,24 +157,23 @@ def _do(
         host.run([str(a) for a in argv], cwd=cwd, check=True, timeout=timeout)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as error:
         # No blanket "fix it and run this again". The owner's first real retire (the PR's
-        # Evidence record) got through every step and failed at the last: the paste shows
-        # `agent-dgx session rm` print "Sandbox 'agent-uplevel-scratch' removed", then
-        # "cannot unmount '/agents/agent-uplevel-scratch': pool or dataset is busy" from
-        # `sudo agent-ws destroy`, exit 1. What agent-dgx does on a repeat of a partly-done
-        # removal is not shown anywhere this repo shows (and agent-dgx reads an unknown
-        # word as a session name, so nothing here probes it). This launcher's own re-run is
-        # safe but uninforming: _session() answers "no session: nothing to retire" for a
-        # name with neither manifest nor sandbox, which is what a deleted session inspects
-        # like - so a repeat cannot finish a half-done removal, it just declines. Say that,
-        # and name the step, instead of sending the owner to a rerun that may be a no-op.
+        # Evidence record) got through every step and failed at the last: `agent-dgx
+        # session rm` printed "Sandbox 'agent-uplevel-scratch' removed", then failed its
+        # workspace cleanup ("cannot unmount '/agents/agent-uplevel-scratch': pool or
+        # dataset is busy", from agent-dgx's own agent-ws destroy, exit 1). The owner's
+        # `inspect --json` after shows what that leaves: "sandbox":null beside a manifest
+        # still there - removed halfway. A re-run of this command cannot finish that (it
+        # refuses on manifest-but-no-sandbox, whose own text names the manual `session rm`
+        # that completes it), so the message says what is already safe and where the half-
+        # done state is visible, instead of sending the owner to a no-op.
         raise Refused(
-            f"{what} failed ({error}) after every step before it succeeded. The work is "
-            "already exported and verified, so nothing here needs redoing: if the failed "
-            "step removed the session, the sandbox may already be gone and only its "
-            "workspace left mounted; run `agent-dgx inspect <name> --json` - with no "
-            "manifest and no sandbox, this command answers 'nothing to retire', and the "
-            "mount is agent-dgx's to clear. For any other failed step, fix the cause and "
-            "run this again."
+            f"{what} failed ({error}). Every step before it succeeded, and this command "
+            "exports and verifies the work before it stops or removes anything, so "
+            "nothing earlier needs redoing: fix the cause and run this again - unless the "
+            "failed step was the session's removal. If `agent-dgx inspect <name> --json` "
+            'then shows `"sandbox": null` beside a manifest that is still there, the '
+            "session is removed halfway (the sandbox is gone; its workspace cleanup is "
+            "not), and running this again refuses with the manual step that finishes it."
         ) from error
 
 
