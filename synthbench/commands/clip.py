@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 
 from synthbench.commands import (
+    clip_audit,
     clip_check,
     clip_render,
     clip_report,
@@ -29,4 +30,5 @@ def add_parser(commands: argparse._SubParsersAction[Parser]) -> None:
     clip_check.add_parser(actions)
     clip_render.add_parser(actions)
     clip_triage.add_parser(actions)
+    clip_audit.add_parser(actions)
     clip_report.add_parser(actions)

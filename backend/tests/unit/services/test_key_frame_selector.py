@@ -16,6 +16,8 @@ spec-named cases (the 1-4 bounds, the tie-break).
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
@@ -300,3 +302,135 @@ class TestSpecNamedCases:
         ]
         picked = select_key_frames(frames)
         assert [f.detection_id for f in picked] == [2]
+
+
+def _file_frame(did: int, cam: str, cls: str, conf: float | None, ts: int, name: str) -> FrameRef:
+    """A frame whose FILE is named explicitly — temporal spread is about
+    distinct stills, so these tests speak in files, not derived paths."""
+    return FrameRef(
+        detection_id=did,
+        camera_id=cam,
+        object_type=cls,
+        confidence=conf,
+        timestamp=ts,
+        file_path=f"/export/foscam/{cam}/{name}.jpg",
+        thumbnail_path=None,
+    )
+
+
+class TestTemporalSpread:
+    """ISS-005: a (camera, class) pair that SPANS time is not one picture.
+
+    The shipped selector hands each pair its single strongest representative,
+    so a 90 s batch of one class — the approach, the grab, the dwell — is
+    judged from one peak-confidence frame. With `spread_seconds` set, spare
+    slots (what the other pairs left unused) go to the pair's temporally
+    farthest DISTINCT STILLS: strongest first, then farthest from it, then
+    farthest from both. Without it the selector is exactly what it was."""
+
+    # ClassVar: a plain list here is ONE shared mutable object across every
+    # test method in the class (RUF012), and a test that sorted or popped it
+    # would reorder its neighbours' fixtures. Same fix as test_vlm_client's
+    # `_TIMES`.
+    _WIDE: ClassVar[list[FrameRef]] = [
+        _file_frame(1, "cam_a", "person", 0.90, 1_000, "t0"),  # the peak
+        _file_frame(2, "cam_a", "person", 0.60, 1_060, "t60"),  # 60 s later
+        _file_frame(3, "cam_a", "person", 0.55, 1_030, "t30"),  # between
+    ]
+
+    def test_a_pair_spanning_the_threshold_shares_its_slots(self) -> None:
+        # One pair, three slots spare: peak, then the far end (60 s away
+        # beats 30 s), then the middle.
+        picked = select_key_frames(self._WIDE, spread_seconds=10)
+        assert [f.detection_id for f in picked] == [1, 2, 3]
+
+    def test_a_pair_inside_the_threshold_still_yields_one_frame(self) -> None:
+        """The shipped docstring case, unchanged: 30 s apart with a 45 s
+        threshold is not a spanning pair."""
+        tight = [
+            _file_frame(1, "cam_a", "person", 0.90, 1_000, "t0"),
+            _file_frame(2, "cam_a", "person", 0.80, 1_030, "t30"),
+        ]
+        assert [f.detection_id for f in select_key_frames(tight, spread_seconds=45)] == [1]
+
+    def test_no_threshold_no_spread_the_shipped_selector_is_untouched(self) -> None:
+        assert [f.detection_id for f in select_key_frames(self._WIDE)] == [1]
+
+    def test_a_spread_companion_never_steals_a_weaker_pair_slot(self) -> None:
+        """Spread only spends SPARE slots: the car pair's still wins its
+        slot; the person pair's 60 s companion takes what the car left."""
+        frames = [
+            _file_frame(1, "cam_a", "person", 0.90, 1_000, "p0"),
+            _file_frame(2, "cam_a", "person", 0.85, 1_060, "p60"),
+            _file_frame(3, "cam_a", "car", 0.80, 1_010, "c0"),
+        ]
+        picked = select_key_frames(frames, spread_seconds=10)
+        assert [f.detection_id for f in picked] == [1, 3, 2]
+
+    def test_a_colliding_companion_file_falls_to_the_next_distinct_still(self) -> None:
+        """A still's file is its identity: two detections sharing one JPEG
+        are ONE picture. The 1_060 peak and the 1_055 companion share a
+        file, so the companion slot goes to the NEXT-farthest DISTINCT
+        still (30 s), not the duplicate pixels. The acceptance's file-
+        collision clause, verbatim."""
+        frames = [
+            _file_frame(1, "cam_a", "person", 0.90, 1_000, "same"),
+            _file_frame(2, "cam_a", "person", 0.70, 1_055, "same"),  # collides with the peak
+            _file_frame(3, "cam_a", "person", 0.60, 1_060, "t60"),  # farthest...
+            _file_frame(4, "cam_a", "person", 0.50, 1_030, "t30"),  # ...but distinct wins next
+        ]
+        picked = select_key_frames(frames, spread_seconds=10)
+        assert [f.detection_id for f in picked] == [1, 3, 4]
+
+    def test_spread_budget_never_exceeds_four_stills(self) -> None:
+        """Two spanning pairs, unlimited appetite, four slots: peak-priority
+        order, cap where the budget says."""
+        frames = [
+            _file_frame(1, "cam_a", "person", 0.90, 1_000, "a0"),
+            _file_frame(2, "cam_a", "person", 0.70, 1_060, "a60"),
+            _file_frame(3, "cam_a", "person", 0.65, 1_030, "a30"),
+            _file_frame(4, "cam_a", "person", 0.55, 1_010, "a10"),
+            _file_frame(5, "cam_a", "car", 0.85, 2_000, "c0"),
+            _file_frame(6, "cam_a", "car", 0.60, 2_060, "c60"),
+        ]
+        picked = select_key_frames(frames, spread_seconds=10)
+        assert [f.detection_id for f in picked] == [1, 5, 2, 6]
+        assert len({f.file_path for f in picked}) == len(picked)
+
+    def test_spread_never_shows_one_still_twice(self) -> None:
+        """The one-still-one-slot rule survives spread: companions compete
+        for DISTINCT files, so 4 picks are always 4 physical stills."""
+        frames = [
+            _file_frame(i, "cam_a", "person", conf, ts, f"t{i}")
+            for i, (conf, ts) in enumerate(
+                [(0.90, 1_000), (0.30, 1_090), (0.80, 1_010), (0.20, 1_080)], start=1
+            )
+        ]
+        picked = select_key_frames(frames, spread_seconds=10)
+        paths = [f.file_path for f in picked]
+        assert len(paths) == len(set(paths))
+
+    @_SETTINGS
+    @given(st.lists(_FRAME, max_size=30))
+    def test_spread_keeps_every_shipped_property(self, frames: list[FrameRef]) -> None:
+        """ISS-005's acceptance names them: determinism (same multiset,
+        either arrival order -> same result) and the 4-frame budget — with
+        spread ON. Plus the properties every pick must still honor: subset,
+        unique ids, distinct files."""
+        forward = select_key_frames(_sorted_unique(frames), spread_seconds=10)
+        backward = select_key_frames(list(reversed(_sorted_unique(frames))), spread_seconds=10)
+        assert [f.detection_id for f in forward] == [f.detection_id for f in backward]
+        assert len(forward) <= 4
+        assert len({f.detection_id for f in forward}) == len(forward)
+        assert len({f.file_path for f in forward}) == len(forward)
+        assert {f.detection_id for f in forward} <= {f.detection_id for f in frames}
+
+    @_SETTINGS
+    @given(st.lists(_FRAME, max_size=30))
+    def test_spread_only_ever_adds(self, frames: list[FrameRef]) -> None:
+        """The strongest representative of every pair is NEVER lost for a
+        spread companion: the shipped pick set is a subset of the spread
+        pick set (the reps can gain companions, never lose their slot)."""
+        plain = select_key_frames(_sorted_unique(frames))
+        spread = select_key_frames(_sorted_unique(frames), spread_seconds=10)
+        assert {f.detection_id for f in plain} <= {f.detection_id for f in spread}

@@ -188,15 +188,29 @@ def detect_zone_crossing(
     return any(len(names) > 1 for names in memberships.values())
 
 
-def build_frame_refs(detections: list[dict[str, Any]], camera_id: str) -> list[FrameRef]:
+def build_frame_refs(
+    detections: list[dict[str, Any]],
+    camera_id: str,
+    *,
+    camera_timezone: str | None = None,
+) -> list[FrameRef]:
     """Detection dicts -> FrameRefs (paths only, never bytes; spec §6).
-    One helper so the request's key-frame pick and the specialist stage run
-    the SAME selector over the SAME picks — the texts describe exactly the
-    frames the VLM sees, never a different frame set."""
+    One helper so every caller runs the SAME selector; each call site picks
+    its own parameters - the request builder and `key_frame_ids` share one
+    selection (the no-disagreement rule), while the specialist stage
+    deliberately selects without them (its call site's comment says why).
+
+    With a camera timezone each ref also carries the capture time parsed
+    from its OWN filename (ISS-005's span basis) — the STRICT parse, never
+    the row's arrival: an unknown capture is None, because an unknown
+    capture is not a span bound. Without the timezone nothing stamps and
+    the selector's arrival clock (uniform `timestamp`) is the only basis."""
+    tz = camera_tz(camera_timezone)
     frames = []
     for row in detections:
         det = row.get("detected_at")
         epoch = int(det.timestamp()) if isinstance(det, datetime) else 0
+        capture = parse_capture_time(row["file_path"], tz) if tz else None
         frames.append(
             FrameRef(
                 detection_id=row["id"],
@@ -206,6 +220,7 @@ def build_frame_refs(detections: list[dict[str, Any]], camera_id: str) -> list[F
                 timestamp=epoch,
                 file_path=row["file_path"],
                 thumbnail_path=row.get("thumbnail_path"),
+                capture_timestamp=int(capture.timestamp()) if capture is not None else None,
             )
         )
     return frames
@@ -216,6 +231,7 @@ def build_assess_request(
     context: VlmAssessContext,
     detections: list[dict[str, Any]],
     camera_timezone: str | None = None,
+    spread_seconds: int | None = None,
 ) -> VlmAssessRequest:
     """The VlmAssessRequest: context plus 1-4 key frames (the selector's
     pick over FrameRefs built from the same dicts - paths only, never
@@ -229,8 +245,17 @@ def build_assess_request(
     selection order they were picked in. Without the timezone the field
     stays absent and the request is what it always was — capture_time's
     scope rule, so replay of an old store and every S5 parity check are
-    unaffected."""
-    picks = select_key_frames(build_frame_refs(detections, context.camera_id))
+    unaffected.
+
+    ISS-005: `spread_seconds` is the selector's temporal-spread threshold —
+    a (camera, class) pair dwelling longer than that claims spare slots for
+    its temporally farthest distinct stills. Unset (None) is the shipped
+    selection exactly, which is the A/B baseline; the spread's companions
+    attach under the same ISS-033 reorder as any other pick."""
+    picks = select_key_frames(
+        build_frame_refs(detections, context.camera_id, camera_timezone=camera_timezone),
+        spread_seconds=spread_seconds,
+    )
     capture_times: list[str | None] | None = None
     if tz := camera_tz(camera_timezone):
         stamped = [(f, parse_capture_time(f.file_path, tz)) for f in picks]
@@ -258,6 +283,8 @@ def key_frame_ids(
     request: VlmAssessRequest,
     *,
     detections: list[dict[str, Any]],
+    camera_timezone: str | None = None,
+    spread_seconds: int | None = None,
 ) -> list[int]:
     """The detection ids whose PIXELS the model was shown, index-aligned with
     `request.image_paths` (spec §4: the UI resolves them to existing
@@ -273,8 +300,22 @@ def key_frame_ids(
     object over a shared frame), the dict's LAST write silently won, and the
     stored provenance then named a detection the model was never shown as the
     evidence for a frame it was. Deriving from the picks makes the two sides
-    of the pair come from one decision, so they cannot disagree."""
-    picks = select_key_frames(build_frame_refs(detections, request.context.camera_id))
+    of the pair come from one decision, so they cannot disagree.
+
+    The selection PARAMETERS (`camera_timezone`, `spread_seconds`) must
+    match the builder's call, because deriving from the picks IS the
+    no-disagreement guarantee: an unthreaded call re-runs the shipped
+    selection, and the `if p in by_path` filter then silently drops every
+    spread-added frame from the stored provenance - the one failure mode
+    this function exists to prevent, arriving as a missing row instead of a
+    mismatched one. `camera_timezone` does not move the pick set (the stamp
+    only feeds the spread's clock; selection is strength-based and the
+    reorder happens after selection), but it threads for symmetry: two
+    calls of one seam take one shape."""
+    picks = select_key_frames(
+        build_frame_refs(detections, request.context.camera_id, camera_timezone=camera_timezone),
+        spread_seconds=spread_seconds,
+    )
     by_path = {f.file_path: f.detection_id for f in picks}
     return [by_path[p] for p in request.image_paths if p in by_path]
 
@@ -525,12 +566,27 @@ class VlmAnalyzer:
             # read budget or fail the batch. Replay NEVER re-runs the
             # specialists (F11 ruling 4): replay feeds the texts loaded from
             # the eval store, so this whole block is prod-only.
+            # Deliberately WITHOUT the timezone/spread (ISS-005): which
+            # frames the describers read is its own measured question, and
+            # the spread's S3 delta must attribute to the VERIFIER's input
+            # alone - if the texts moved with the companions, a measured
+            # change could not say which stage caused it. The texts ride
+            # inside the frozen context (rev 6), so the shipped texts stay
+            # shipped while the verifier's budget grows; a future probe can
+            # widen this call and name its own evidence. The `key_frame_ids`
+            # one-decision rule governs the request/provenance pair, which
+            # DO share their selection; this stage shares nothing with them
+            # by design (replay never re-runs it - F11 ruling 4). Stays
+            # inside session 1 because the face leg's gallery read needs the
+            # DB.
+            specialist_picks = select_key_frames(build_frame_refs(detections, camera_id))
+
             if self._replay:
                 specialist_outputs: dict[str, str] = dict(specialist_inputs or {})
             else:
                 try:
                     specialist_outputs = await collect_specialist_outputs(
-                        key_frame_paths=select_key_frames(build_frame_refs(detections, camera_id)),
+                        key_frame_paths=specialist_picks,
                         settings=self._settings,
                         detections=detections,
                         session=session,
@@ -573,11 +629,20 @@ class VlmAnalyzer:
             context=context,
             detections=detections,
             camera_timezone=self._settings.camera_timezone,
+            spread_seconds=self._settings.key_frame_spread_seconds,
         )
         # The local must not share the function's name: an assignment in a
         # method body makes the name local for the whole scope, so the RHS
         # lookup would raise UnboundLocalError.
-        frame_ids = key_frame_ids(request, detections=detections)
+        # Same selection parameters as the builder (ISS-005): the provenance
+        # must re-run the SAME selection, or its `if p in by_path` filter
+        # silently drops the spread-added frames from the stored evidence.
+        frame_ids = key_frame_ids(
+            request,
+            detections=detections,
+            camera_timezone=self._settings.camera_timezone,
+            spread_seconds=self._settings.key_frame_spread_seconds,
+        )
 
         # ---------------- NO SESSION (external call) ---------------------
         client = self._get_client()

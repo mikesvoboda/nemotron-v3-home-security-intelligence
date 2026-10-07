@@ -214,6 +214,43 @@ def slices(rows: Sequence[Row], items: Mapping[str, Item]) -> dict[str, dict[str
     return out
 
 
+def frames_fed(row: Row) -> int | None:
+    """How many frames this row actually reached the model with, or None if unrecorded.
+
+    Read from the harness audit `vlm_replay` writes into `raw_response` — the row's OWN
+    record of what it was fed, not the run's requested mode: a sequence mode falls back per
+    item, and the honest bucket is what the wire received. Rows written before ISS-037 have
+    no harness block and bucket as `unrecorded`, which is why the report prints that bucket:
+    committed history must not read as if it were a 1-frame measurement."""
+    harness = (row.get("raw_response") or {}).get("harness")
+    if not isinstance(harness, dict) or harness.get("frames_fed") is None:
+        return None
+    return int(harness["frames_fed"])
+
+
+def frames_slice(rows: Sequence[Row], items: Mapping[str, Item]) -> dict[str, dict[str, Any]]:
+    """S2 and S3 per frame-count bucket (ISS-037's single-vs-multi-frame reading).
+
+    Buckets are the frames the wire actually received, `"1"`…`"4"` plus `"unrecorded"` for
+    pre-ISS-037 rows, sorted for a reader. Same cell shape as `slices()` — every bucket gets
+    the MIN_N/insufficient and Wilson treatment for free, which is the point: with the
+    funded clips' n the burst-vs-single comparison will print intervals, and under n it will
+    print `insufficient (n=…)` instead of a rate that would lie. The frame-count bucket, not
+    the requested mode, is the measurement: `frames_mode` is in `result_rows` for the audit."""
+    out: dict[str, dict[str, Any]] = {}
+    groups: dict[str, list[Row]] = defaultdict(list)
+    for row in rows:
+        fed = frames_fed(row)
+        groups["unrecorded" if fed is None else str(fed)].append(row)
+    for value in sorted(groups, key=lambda name: (name == "unrecorded", name)):
+        metrics = headline(groups[value], items)
+        out[value] = {
+            "s2": metrics["s2_cell"] if metrics["s2"]["n"] else None,
+            "s3": metrics["s3_cell"] if metrics["s3"]["all"]["n"] else None,
+        }
+    return out
+
+
 def audit_summary(answers: Mapping[tuple[str, str], str], sampled: Sequence[str]) -> dict[str, Any]:
     """The truth's error rate per question over the sampled stills (`n` of `y` + `n`; `u` is
     counted apart), and the events whose scene the owner answered no: generation errors."""
@@ -387,6 +424,11 @@ def result_rows(
                     "still": str(item.still),
                     "split": arm,
                     "reasoning": raw.get("reasoning") or raw.get("detail"),
+                    # ISS-037's audit pair: what the wire received (None for a pre-audit row)
+                    # and what the run asked for. The bucket is the former; a selector run whose
+                    # item fell back reads `frames_fed: 3` under `frames_mode: "selector"`.
+                    "frames_fed": frames_fed(row),
+                    "frames_mode": (raw.get("harness") or {}).get("frames_mode"),
                 }
             )
     return out
@@ -415,7 +457,11 @@ def score_models(
 ) -> dict[str, Any]:
     """Every model's headline (on every item, and on the audited stills whose scene the owner
     confirmed), slices, and the comparison. `replays` is (model, replay id, rows). An event the
-    owner answered no for is a generation error: it leaves every metric (design §4).
+    owner answered no for is a generation error: it leaves every metric (design §4) — including
+    its sequence rows, whose id it shares: excluding a clip on its still's rejection is the
+    conservative direction (the clip re-renders the same scene, and the read may share the
+    flaw). Confirmation runs the other way (see the `audited` filter): a yes about the still
+    never claims the clip's unaudited frames.
 
     `scenario_arm` is the reconciled roster (ISS-016) that `result_rows` already reads: with one,
     each model gains a `dev` and a `holdout` headline beside `all`, a `scenario_slice_dev` for
@@ -433,7 +479,16 @@ def score_models(
     by_arm: dict[str, list[tuple[str, Sequence[Row]]]] = {arm: [] for arm in ARMS}
     for model, replay_id, rows in replays:
         kept = [row for row in rows if items[row["item_id"]].event_id not in excluded]
-        audited = [row for row in kept if items[row["item_id"]].event_id in confirmed]
+        # The still audit confirms a scene by event_id, and a sequence item shares its event's
+        # id — but its frames come from a separate render, unaudited (ISS-038). The owner's
+        # yes was about the still; sequence rows join `all`, `slices` and `frames`, never the
+        # audited headline, until the clip-audit instrument keys its own answers (ISS-037).
+        audited = [
+            row
+            for row in kept
+            if items[row["item_id"]].event_id in confirmed
+            and items[row["item_id"]].facts.get("kind") != "sequence"
+        ]
         block: dict[str, Any] = {
             "replay_id": replay_id,
             "excluded": len(rows) - len(kept),
@@ -441,6 +496,12 @@ def score_models(
             "audited": headline(audited, items),
             "slices": slices(kept, items),
         }
+        # ISS-037's read: the same rows bucketed by frames the wire received. The key appears
+        # only when some row carries the harness audit — a replay from before the audit would
+        # otherwise gain an all-`unrecorded` block, and the docstring's byte-comparability
+        # promise for frozen pre-ISS-037 records is worth more here than a uniform shape.
+        if any(frames_fed(row) is not None for row in kept):
+            block["frames"] = frames_slice(kept, items)
         if scenario_arm is not None:
             sides = _partition_by_arm(kept, items, scenario_arm)
             for arm, rows_in_arm in sides.items():
