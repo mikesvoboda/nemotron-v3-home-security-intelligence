@@ -341,14 +341,28 @@ Owner only. Writes every ready Tier B event in the layout the VSS eval store imp
 (`docs/superpowers/specs/2026-09-29-synthbench-p5a-vlm-replay-design.md` §2). It reads the corpus
 and never writes it.
 
-| Option        | Default                                  | Meaning          |
-| ------------- | ---------------------------------------- | ---------------- |
-| `--out <dir>` | `$SYNTHBENCH_ROOT/exports/<version>/vss` | export directory |
+| Option            | Default                                  | Meaning                                                              |
+| ----------------- | ---------------------------------------- | -------------------------------------------------------------------- |
+| `--out <dir>`     | `$SYNTHBENCH_ROOT/exports/<version>/vss` | export directory                                                     |
+| `--sequences <n>` | never                                    | also export each READY clip as an n-frame sequence (3 or 4; ISS-037) |
 
 - **Reads:** `corpus.json`, `index.jsonl`, and each ready event's `spec.json`, `provenance.json`
   and still.
 - **Writes:** `<out>/<category>/<id>/` holding `expected_labels.json`, `still.jpg` and
   `still.json` (its attribution). Each set is written once; a re-export skips an identical set.
+  With `--sequences` it also writes `<out>/sequences/<category>/<id>__seq<n>/` (ISS-037):
+  `frame1.jpg`…`frame<n>.jpg` sampled at fixed fractions of the triaged mp4, an attribution
+  sidecar per frame, and its own `expected_labels.json`.
+- **Sequences (ISS-037):** the truth is the clip's declared truth, frame-sampled from rendered
+  clips, not scripted triplets — undistributed and unaudited exactly as the clips are (ISS-038).
+  The fractions are fixed constants, so a set is re-derivable from its mp4. Only a READY clip
+  whose ok-triaged mp4 matches its recorded sha256 is sampled; the stills export independently.
+  The depth-3 layout is invisible to the stills' importer, `splits.json` never sees a sequence,
+  and the owner audit samples stills only.
+- **Sequence refusals (`--sequences`, exit 2):** a ready clip whose last attempt lacks a frozen
+  prompt (`is ready without a frozen prompt`) or an ok-triaged clip; a clip that does not match
+  its recorded sha256; an mp4 that cannot be decoded, or holds fewer frames than the depth asked
+  for; a sequence set on disk that differs from the frames this mp4 yields now (create-once).
 - **`splits.json`** (ISS-016): the dev/holdout split of the version, written once at `<out>` in
   canonical JSON (sorted keys), so its sha256 is the manifest's fingerprint and a hand-edited
   differing copy is detected at the next export or score. Contents: `corpus_version`, `seed` (the
@@ -427,6 +441,8 @@ already be served: `replay` never starts, stops or reconfigures a model server.
 | `--limit <n>`           | every item                               | replay only the first n items                                                      |
 | `--export <dir>`        | `$SYNTHBENCH_ROOT/exports/<version>/vss` | export directory                                                                   |
 | `--server-settings <s>` | nothing recorded                         | how the endpoint was started, declared by the operator (ISS-087)                   |
+| `--frames <mode>`       | `stored`                                 | how frames reach the wire: `stored`, `selector` or `burst` (ISS-037)               |
+| `--with-sequences`      | off                                      | also import the export's sequence sets; required by `--frames` selector or burst   |
 
 - **Endpoints:** the three `ai-vlm` models at `$AI_VLM_URL`, else `http://127.0.0.1:8098`;
   `cosmos-reason2-8b` at `$SYNTHBENCH_COSMOS_URL`, else `http://127.0.0.1:8099`; `flagship` at
@@ -459,6 +475,21 @@ already be served: `replay` never starts, stops or reconfigures a model server.
   (ISS-087). The string is stored verbatim in `run.json` as `server_settings`, empty or omitted
   records `null`, and `report.md` prints the cell as `unrecorded` for every replay that declared
   none. Quote the start command's flags, or say what cannot be known.
+- **Frames (ISS-037):** `--frames` chooses how frames reach the wire. `stored` is the historical
+  single-still feed. `selector` rebuilds production's multi-frame request from the item's
+  per-frame detections; production's selector collapses a same-camera triplet to one frame, which
+  is ISS-005's measurement. `burst` sends every frame with its detection ids — ISS-003 arm (a)'s
+  shape. Only sequence sets carry per-frame detections, so a selector or burst run without
+  `--with-sequences` is refused (an all-fallback run would read as a frames run while being a
+  stored one), as is `--with-sequences` when `<export>/sequences` does not exist. The choice and
+  the flag both go into `run.json` (`frames_mode`, `with_sequences`), and `score` uses them.
+- **Per-item audit:** every result row records in its `raw_response` what the wire actually got:
+  `frames_mode`, `frames_fed`, and `selector_collapsed` for a selector run. A still in a selector
+  or burst run falls back to its stored feed (`frames_fed` 1, `mode_fell_back` set); a sequence
+  sends its whole depth.
+- **Denominator:** `--with-sequences` widens the scored population of every later run against
+  this store — the sequences are imported into it. `score` adds them only for a replay whose
+  `run.json` says they ran.
 - **Writes:** imports the export into `$SYNTHBENCH_ROOT/eval/<version>/eval.sqlite` (a set
   already imported is skipped), creates `$SYNTHBENCH_ROOT/runs/replays/<replay_id>/` before the
   first item, then writes the replay's results to the eval store under a new eval run id, and
@@ -506,6 +537,13 @@ truth error, and, with two or more replays, the comparison between models.
 - **Paths:** `report.md` shows paths under `$SYNTHBENCH_ROOT` relative to it (for example
   `exports/<version>/vss`), never an absolute host path; `metrics.json` keeps them absolute.
 - **Cells:** rate, 95% Wilson interval and n; under n = 10 a cell reads "insufficient".
+- **Frames (ISS-037):** sequence sets join the scored population only for a replay whose
+  `run.json` ran `with_sequences` (scoring them otherwise would silently widen that replay's
+  denominator). A replay that fed frames gains a `frames` slice in `metrics.json` — S2 and S3 per
+  depth the wire received — and `report.md` gains a "## Frames fed" section and a `Frames` column
+  in the conditions table (`burst, +sequences` reads as run). A replay from before the modes
+  existed shows none of it, and its rows — which carry no frames audit — land in an `unrecorded`
+  bucket that sorts last: history, not a gap.
 - **Comparison:** with two or more replays, each pair records `identical` as `{k, n}`: of the n
   items both replayed, the k whose bar-level outcome AND `risk_score` both agree (ISS-087). Two
   hits at 70 and 80 agree without being identical, and a double refusal is identical.
