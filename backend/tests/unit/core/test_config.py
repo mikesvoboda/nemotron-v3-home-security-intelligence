@@ -1087,3 +1087,28 @@ class TestCameraTimezone:
         monkeypatch.setenv("CAMERA_TIMEZONE", "Mars/Olympus_Mons")
         with pytest.raises(ValidationError, match="camera_timezone"):
             Settings()
+
+
+class TestKeyFrameSpreadSeconds:
+    """KEY_FRAME_SPREAD_SECONDS (ISS-005): a (camera, class) pair dwelling
+    longer than this may spend spare key-frame slots on its far stills."""
+
+    def test_declared_default_is_ten_seconds(self) -> None:
+        # The 10 s is the A/B baseline constant the campaign's pre-registered
+        # measurement names; drift here silently changes the shipped
+        # selection, so pin the DECLARED default (camera_timezone precedent).
+        assert Settings.model_fields["key_frame_spread_seconds"].default == 10
+
+    def test_zero_is_rejected(self, clean_env, monkeypatch) -> None:
+        # gt=0: a zero threshold would spread every multi-frame pair on the
+        # arrival clock, which is a silently different selector, not "off".
+        # Off is unset (None), which no env value can express - the field is
+        # int, and the builders read the setting unconditionally.
+        monkeypatch.setenv("KEY_FRAME_SPREAD_SECONDS", "0")
+        with pytest.raises(ValidationError, match="key_frame_spread_seconds"):
+            Settings()
+
+    def test_negative_is_rejected(self, clean_env, monkeypatch) -> None:
+        monkeypatch.setenv("KEY_FRAME_SPREAD_SECONDS", "-5")
+        with pytest.raises(ValidationError, match="key_frame_spread_seconds"):
+            Settings()

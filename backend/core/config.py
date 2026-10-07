@@ -932,6 +932,19 @@ class Settings(BaseSettings):
         description="Idle timeout before processing incomplete batch",
     )
 
+    # ISS-005: temporal spread in the VLM key-frame selection. A
+    # (camera, class) pair whose detections span more than this many
+    # seconds may spend spare frame slots on its temporally farthest
+    # distinct stills (strongest first), so a 90 s batch of one class is
+    # not judged from one peak-confidence frame. Backend-only, the
+    # camera_timezone precedent: not an operator-tunable API surface yet.
+    key_frame_spread_seconds: int = Field(
+        default=10,
+        gt=0,
+        description="A (camera, class) pair spanning more than this many seconds may "
+        "spend spare key-frame slots on its temporally farthest frames (ISS-005).",
+    )
+
     # Camera clock timezone (synthbench P0, spec §5.3). Foscam cameras name
     # uploads by LOCAL capture time; with this set, the VLM's time context
     # comes from the filename instead of processing time. Unset keeps
