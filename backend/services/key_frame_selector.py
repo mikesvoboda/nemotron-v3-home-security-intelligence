@@ -57,6 +57,12 @@ class FrameRef:
     timestamp: int  # epoch seconds; recency is all the selector needs
     file_path: str
     thumbnail_path: str | None = None
+    capture_timestamp: int | None = None
+    """Epoch seconds of the CAPTURE moment parsed from the filename
+    (ISS-005's span basis). None = the name says nothing or no camera
+    timezone is set — never filled from arrival time: an unknown capture is
+    not a bound. `timestamp` stays whatever the caller's clock says (arrival
+    in production); the two answer different questions."""
 
 
 def _conf(frame: FrameRef) -> float:
@@ -70,7 +76,9 @@ def _rank_key(frame: FrameRef) -> tuple[float, int, int]:
     return (_conf(frame), frame.timestamp, -frame.detection_id)
 
 
-def select_key_frames(frames: list[FrameRef]) -> list[FrameRef]:
+def select_key_frames(
+    frames: list[FrameRef], *, spread_seconds: int | None = None
+) -> list[FrameRef]:
     """Return 1-4 DISTINCT STILLS (0 iff the input is empty), strongest first.
 
     Per (camera, class) pair the representative is the max by
@@ -89,7 +97,22 @@ def select_key_frames(frames: list[FrameRef]) -> list[FrameRef]:
     three genuinely different frames starved out. `file_path` is the still's
     identity; when a file loses its slot to a stronger pair, the still is
     still represented, so nothing the model could learn from that FILE is
-    lost - only the duplicate pixels are."""
+    lost - only the duplicate pixels are.
+
+    With `spread_seconds` set (ISS-005), a pair that SPANS more than that
+    many seconds claims SPARE slots - what the other pairs left unused,
+    never one another's - for its temporally farthest DISTINCT stills:
+    round-robin across spanning pairs (every pair's farthest frame before
+    any pair's second-farthest, so a 90 s dwell buys approach + departure,
+    not three midpoints), each round's pick the member farthest - to its
+    nearest ATTACHED time of that pair - from the frames already attached.
+    The basis is `capture_timestamp` when every member of the pair has one,
+    else the uniform `timestamp`; a pair with a MIXED basis does not spread
+    - two clocks cannot bound a span. Selection priority stays
+    strength-first: representatives always place before any companion, so
+    the shipped pick set can only GAIN frames. Chronological ATTACHMENT is
+    not this function's job - `vlm_analyzer.build_assess_request` reorders
+    by capture time (ISS-033); the selector's order is budget priority."""
     # Unique by detection id (first occurrence wins) so a duplicated row
     # cannot double-count against the frame budget.
     unique: dict[int, FrameRef] = {}
@@ -111,5 +134,83 @@ def select_key_frames(frames: list[FrameRef]) -> list[FrameRef]:
         picks.append(frame)
         shown.add(frame.file_path)
         if len(picks) == MAX_KEY_FRAMES:
+            break
+    if spread_seconds is not None and len(picks) < MAX_KEY_FRAMES:
+        picks = _spread_companions(picks, shown, pairs, spread_seconds)[:MAX_KEY_FRAMES]
+    return picks
+
+
+def _span_basis(members: list[FrameRef]) -> dict[FrameRef, int] | None:
+    """Each member's time on ONE clock: capture timestamps when every
+    member has one, arrival timestamps when none does, None when the pair
+    mixes the two - a mixed-basis span would compare cameras' filenames to
+    the server's clock, so such a pair never spreads. Keyed by frame
+    identity (FrameRef is frozen and hashable, so equal refs alias into one
+    key - harmless: equal refs carry equal times)."""
+    if all(f.capture_timestamp is not None for f in members):
+        return {f: int(f.capture_timestamp or 0) for f in members}
+    if all(f.capture_timestamp is None for f in members):
+        return {f: f.timestamp for f in members}
+    return None
+
+
+def _spread_companions(
+    picks: list[FrameRef],
+    shown: set[str],
+    pairs: dict[tuple[str, str], list[FrameRef]],
+    spread_seconds: int,
+) -> list[FrameRef]:
+    """ISS-005 in code. Round-robin one companion per spanning pair per
+    round: every pair's temporally farthest distinct still lands before any
+    pair's second-farthest, so two spanning pairs get breadth (approach +
+    departure each) before either gets depth - and the rounds run in the
+    reps' priority order, strongest pair first, so the module's "strongest
+    first" holds over companions too. 'Farthest' = farthest to its NEAREST
+    time ALREADY ATTACHED of that pair: attached rows, not every row whose
+    file is shown - a row that shares the peak's still but was never placed
+    never moves the window (the pixels attached are the peak's). So a
+    companion extends the observed span instead of clustering next to the
+    peak. A member whose file is already shown never competes - duplicate
+    pixels never take a slot (the acceptance's file-collision clause falls
+    out of the shipped one-still-one-slot rule rather than needing a
+    special path)."""
+    placed = {f.detection_id for f in picks}
+    eligible: list[tuple[list[FrameRef], dict[FrameRef, int]]] = []
+    # Rounds run in the ORDER THE REPS PLACED (priority order), not pair
+    # alphabetical order: the strongest pair's companion lands first.
+    for rep in list(picks):
+        members = pairs[(rep.camera_id, rep.object_type)]
+        basis = _span_basis(members)
+        if basis is None:
+            continue
+        all_times = [basis[f] for f in members]
+        distinct_files = {f.file_path for f in members}
+        if len(distinct_files) < 2 or max(all_times) - min(all_times) <= spread_seconds:
+            continue
+        eligible.append((members, basis))
+
+    while len(picks) < MAX_KEY_FRAMES:
+        added = False
+        for members, basis in eligible:
+            if len(picks) >= MAX_KEY_FRAMES:
+                break
+            attached_times = [basis[f] for f in picks if f in members]
+            candidates = [
+                f for f in members if f.file_path not in shown and f.detection_id not in placed
+            ]
+            if not candidates or not attached_times:
+                continue
+            pick = max(
+                candidates,
+                key=lambda f: (
+                    min(abs(basis[f] - t) for t in attached_times),
+                    _rank_key(f),
+                ),
+            )
+            picks.append(pick)
+            shown.add(pick.file_path)
+            placed.add(pick.detection_id)
+            added = True
+        if not added:
             break
     return picks
