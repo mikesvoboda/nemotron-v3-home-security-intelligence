@@ -106,6 +106,16 @@ campaign - /home/agent/runs/b48-ay-probe{1,2,3,3b,5}.py):
     True`); the onclause is redundant because zone_household_configs.zone_id
     is the FK to camera_zones.id. EQUIV.
 
+ROW-2 BIRTH ADJUDICATION (run 1 measured 874 keys {1: 856, 0: 18}; reconcile
+(33->1)x21, (0->1)x9, (0,0)x13, 14 births = 9 killed + 5 SURVIVED, all five in
+_notify_decision's warning-leg/pure-path — the lines THIS battery newly covers):
+m27 (XX-wrapped warning text), m31/m32 (extra key error->XXerrorXX/ERROR),
+m33 (str(exc)->str(None)), m37 (pure-path decide(None, **kwargs)->(None, )).
+ALL KILLABLE, none EQUIV: the two tests named "Row-2 repair" in their
+docstrings (logs-once: message EQUALITY + .error value; fallback: full-kwargs
+equality on the second decide call) close the under-pinning that let them
+survive. No EQUIV ledger entries added — the ledger stays the 13.
+
 The 21 `_persist_notify_decision` keys are covered by DIRECT call (no analyzer,
 no settings): each arm of the mutation shows up either as a build-time raise
 (deleted/dropped args) or a compiled-string difference (renamed keys), and the
@@ -395,9 +405,11 @@ def test_notify_decision_falls_back_to_the_pure_path_when_the_session_decide_fai
     contract itself."""
     SENT = object()
     seen_sessions: list[Any] = []
+    seen_kwargs: list[dict[str, Any]] = []
 
     async def decide_two_legs(sess: Any, **kwargs: Any) -> Any:
         seen_sessions.append(sess)
+        seen_kwargs.append(kwargs)
         if len(seen_sessions) == 1:
             raise RuntimeError("session dead")
         return False
@@ -424,6 +436,18 @@ def test_notify_decision_falls_back_to_the_pure_path_when_the_session_decide_fai
     assert len(seen_sessions) == 2, (
         f"expected one session attempt + one pure fallback, got {len(seen_sessions)}"
     )
+    # Row-2 repair (birth m37): the fallback call is decide_notification(None,
+    # **kwargs) - dropping **kwargs (mutmut renders it `decide_notification(None, )`)
+    # was invisible while the spy swallowed kwargs. Full-kwargs equality on the
+    # SECOND call pins the whole decision surface (risk_score/camera_id/
+    # timestamp/verification_verdict/detections) rides BOTH legs.
+    assert seen_kwargs[1] == {
+        "risk_score": 50,
+        "camera_id": "camera-kitchen",
+        "timestamp": TS,
+        "verification_verdict": "confirmed",
+        "detections": [{"id": 1}],
+    }, seen_kwargs[1]
     assert result is False, repr(result)
     assert spy.calls == [], spy.calls
 
@@ -431,8 +455,12 @@ def test_notify_decision_falls_back_to_the_pure_path_when_the_session_decide_fai
 def test_notify_decision_logs_the_session_failure_once() -> None:
     """The warning is the operator's only trace that the decision came from
     defaults, not from stored settings. Assert the message + the structured
-    extra surface (camera_id) exactly - a mutant that drops the log, renames
-    the key, or fires twice breaks the count."""
+    extra surface EXACTLY - a mutant that drops the log, renames the key,
+    XX-wraps the text, or feeds the error through str(None) breaks here.
+    (Row-2 repair: the first draft filtered on a "defaults" SUBSTRING and
+    pinned only camera_id, which is exactly the fragment-count shape that
+    passes XX-wrapped text and extra-key renames - birth adjudication run-1
+    survivors m27/m31/m32/m33 proved the leak; equality + .error close it.)"""
     records: list[logging.LogRecord] = []
 
     class Collector(logging.Handler):
@@ -448,9 +476,15 @@ def test_notify_decision_logs_the_session_failure_once() -> None:
     finally:
         va.logger.removeHandler(handler)
     assert result is False
-    warns = [r for r in records if r.levelno == logging.WARNING and "defaults" in r.getMessage()]
+    warns = [
+        r
+        for r in records
+        if r.levelno == logging.WARNING
+        and r.getMessage() == "notify decision session failed - deciding on the shipped defaults"
+    ]
     assert len(warns) == 1, [r.getMessage() for r in records]
     assert getattr(warns[0], "camera_id", None) == "camera-kitchen"
+    assert getattr(warns[0], "error", None) == "nope"
 
 
 def test_notify_decision_returns_none_only_when_the_pure_path_fails() -> None:
