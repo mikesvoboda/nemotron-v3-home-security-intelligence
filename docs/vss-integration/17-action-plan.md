@@ -8153,5 +8153,6 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   path; no clip S2/S3 number (the Phase 3 gate holds — no clip number before the blind audit); no
   corpus claim beyond the smoke's own decode/import facts (the 0/17/144 census is the read index, the
   same one ISS-093 recounted, not a new measurement); and the driver is not committed — 1f's
-  "zero corpus claims" rule argues for a throwaway, so it lives in `/tmp` and this entry is its
-  record.
+  "zero corpus claims" rule argues for a throwaway: it ran from `/tmp`, both legs were re-run from
+  scratch there before this entry was written (every number above reproduced), and it was deleted
+  with the worktree afterward, so this entry is the run's only record.
