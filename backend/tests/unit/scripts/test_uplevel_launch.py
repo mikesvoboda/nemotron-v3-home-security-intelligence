@@ -127,7 +127,9 @@ class FakeHost:
         fail: str | None = None,
         agents_root: Path | None = None,
         origin_url: str = ORIGIN_URL,
+        checkout: Path | None = None,
     ) -> None:
+        self.checkout = checkout
         self.sessions = sessions or {}
         self.checkout_head = checkout_head
         self.checkout_branch = checkout_branch
@@ -168,6 +170,10 @@ class FakeHost:
             answer = self._sandbox(argv)
         elif "status" in argv and "--porcelain" in argv:
             answer = (0, (self.checkout_dirty + "\n") if self.checkout_dirty else "", "")
+        elif "rev-parse" in argv and "--show-toplevel" in argv:
+            # main() asks the checkout where its root is before it builds the real Host;
+            # an empty answer here would become Path("") and point at the test runner's cwd
+            answer = (0, str(self.checkout or (Path.cwd() / "checkout")) + "\n", "")
         elif "rev-parse" in argv and "origin/main" in joined:
             answer = (0, MAIN_SHA + "\n", "")
         elif "rev-parse" in argv and "--abbrev-ref" in argv:
@@ -269,12 +275,16 @@ def host(
     dry_run: bool = False,
     herdr: bool = True,
     manifest: Path | None = None,
+    host_class: Any = launch.Host,
 ) -> launch.Host:
+    # `host_class` defaults to the real dataclass, but a test that patches launch.Host (to
+    # drive main(), which builds its own) passes the class captured *before* the patch -
+    # otherwise this helper calls the patch and the patch calls this helper.
     # the host's view of each session's clone (the real /agents is root-owned and absent
     # in a test run); the fake writes the export there, as the sandbox really would
     if fake.agents_root is None:
         fake.agents_root = tmp_path / "agents"
-    return launch.Host(
+    return host_class(
         checkout=tmp_path / "checkout",
         manifest=manifest or REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml",
         exports=tmp_path / "exports",
@@ -326,9 +336,12 @@ def test_an_unnamed_model_refuses_and_names_the_owners_next_step(tmp_path: Path)
         f'[[phase.session]]\nname = "{HEAVY}"\nmodel = "strongest"\nkickoff = "k"\n',
         encoding="utf-8",
     )
-    phases = launch.load_manifest(manifest)
+    # one read, passed down - the shape up() uses, so [models] and the phase rows the
+    # launcher acts on always come from the same content.
+    data = launch._load_toml(manifest)
+    phases = launch._phases_of(data, manifest)
     with pytest.raises(launch.Refused, match="owner"):
-        launch.run_args_for(manifest, phases[9][0])
+        launch.run_args_for(data, manifest, phases[9][0])
 
 
 def test_manifest_models_override_the_builtin_fast(tmp_path: Path) -> None:
@@ -341,8 +354,9 @@ def test_manifest_models_override_the_builtin_fast(tmp_path: Path) -> None:
         f'[[phase.session]]\nname = "{CO}"\nmodel = "fast"\nkickoff = "k"\n',
         encoding="utf-8",
     )
-    phases = launch.load_manifest(manifest)
-    assert launch.run_args_for(manifest, phases[0][0]) == [
+    data = launch._load_toml(manifest)
+    phases = launch._phases_of(data, manifest)
+    assert launch.run_args_for(data, manifest, phases[0][0]) == [
         "--agent",
         "claude",
         "--endpoint",
@@ -681,6 +695,64 @@ def test_retire_without_a_session_changes_nothing(tmp_path: Path) -> None:
     fake = FakeHost()
     launch.retire(host(tmp_path, fake), SCRATCH)
     assert fake.changes() == []
+
+
+def test_up_reads_the_manifest_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """One run acts on one content: up() used to parse the file for the phase list, again
+    for the phase's rows, and once per session for [models] - a coordinator edit landing
+    mid-run could have the checks read one version and the creates act on another. The
+    parse result now flows down, so exactly one read happens for a whole phase."""
+    reads = 0
+    real = launch._load_toml
+
+    def counting(path: Path) -> dict[str, Any]:
+        nonlocal reads
+        reads += 1
+        return real(path)
+
+    monkeypatch.setattr(launch, "_load_toml", counting)
+    # a manifest of this test's own, so the counts hold whatever the coordinator puts in
+    # the real roster later (a real phase-1 run would refuse anyway: `strongest` is unset)
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        '[models]\nfast = "--agent claude --endpoint dgx"\n'
+        + "[[phase]]\nnumber = 0\n"
+        + "".join(
+            f'[[phase.session]]\nname = "s{n}"\nmodel = "fast"\nkickoff = "k"\n' for n in range(3)
+        ),
+        encoding="utf-8",
+    )
+    fake = FakeHost()
+    launch.up(host(tmp_path, fake, manifest=manifest), phase=0)
+    assert reads == 1
+    assert sum(1 for argv in fake.changes() if argv[:3] == ["agent-dgx", "run", "s2"]) == 1
+
+
+def test_main_turns_a_refusal_into_exit_two(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Everything asserts `Refused` is raised; `main()` is what turns that into exit 2
+    (30-ops.md §O0.1's contract, and the exit code the owner's shell sees). Patching the
+    class `main()` looks up is what keeps this off the machine: `main()` builds its own
+    Host from the cwd, so without this the test would run real git and real agent-dgx,
+    and its result would depend on which of those happen to be installed here. The patch
+    forwards the arguments it is given - a lambda that dropped `dry_run` would answer a
+    different command than the one sent and could pass for the wrong reason."""
+    fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=_clean_ws(dirty=" M backend/main.py"))
+    monkeypatch.setattr(
+        launch,
+        "Host",
+        lambda **kwargs: host(tmp_path, fake, dry_run=bool(kwargs.get("dry_run"))),
+    )
+    assert launch.main(["retire", SCRATCH, "--dry-run"]) == 2
+    assert "changed files" in capsys.readouterr().err  # the refusal the owner reads
+    assert fake.changes() == []
+    # the success path exits 0, so 2 means "refused" and not "ran"
+    idle = FakeHost()
+    monkeypatch.setattr(
+        launch, "Host", lambda **kwargs: host(tmp_path, idle, dry_run=bool(kwargs.get("dry_run")))
+    )
+    assert launch.main(["retire", SCRATCH]) == 0
 
 
 # ------------------------------------------- the command vocabulary

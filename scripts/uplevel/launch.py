@@ -182,10 +182,17 @@ def _inspect_argv(session: Session) -> list[str]:
 
 def load_manifest(path: Path) -> dict[int, list[Session]]:
     """sandboxes.toml -> phase number -> its sessions, in file order."""
+    return _phases_of(_load_toml(path), path)
+
+
+def _phases_of(data: Mapping[str, Any], path: Path) -> dict[int, list[Session]]:
+    """Interpret an already-parsed manifest. `up` parses once and passes the result down:
+    reading a hand-edited file three times means three snapshots of it, and a coordinator
+    edit landing mid-run would have `up` check the phase list against one content and
+    resolve the run arguments from another."""
     # The file is hand-edited by other people ("the coordinator adds rows as the plan
     # changes"), and the launcher's whole contract is a refusal that names the next
     # step. A bare KeyError traceback would be the wrong answer to a missing `model`.
-    data = _load_toml(path)
     phases: dict[int, list[Session]] = {}
     for position, entry in enumerate(data.get("phase", []), start=1):
         number = _phase_number(entry, path, position)
@@ -235,14 +242,16 @@ def _load_toml(path: Path) -> dict[str, Any]:
         raise Refused(f"could not read the manifest {path}: {error}") from error
 
 
-def run_args_for(manifest_path: Path, session: Session) -> list[str]:
+def run_args_for(data: Mapping[str, Any], manifest_path: Path, session: Session) -> list[str]:
     """The `agent-dgx run` arguments that select the session's model.
 
     Only two argument sets are known to exist: the fast model's, which the repo already
     shows, and whatever the owner posts for the strongest one on the O0.1 PR. The launcher
-    never invents a flag (30-ops.md §O0.1).
+    never invents a flag (30-ops.md §O0.1). `data` is the parsed file from the same read
+    `up` used for its phase list, so one run sees one content; `manifest_path` is named
+    only in the refusal, which has to say which file to edit.
     """
-    models = {str(k): str(v) for k, v in _load_toml(manifest_path).get("models", {}).items()}
+    models = {str(k): str(v) for k, v in data.get("models", {}).items()}
     arguments = dict(DEFAULT_MODELS)
     arguments.update(models)
     if session.model not in arguments:
@@ -326,20 +335,23 @@ def _preflight(host: Host) -> str:
 
 def up(host: Host, *, phase: int) -> None:
     """Create the phase's missing sessions from the host checkout; print each kickoff."""
-    # load_manifest reads every row, so a typo refuses before anything else happens and
-    # the "phase is not declared" check below sees a well-formed set.
-    declared = set(load_manifest(host.manifest))
-    if phase not in declared:
+    # One read of the file for the whole command. _phases_of interprets every row, so a
+    # typo refuses before anything else happens and the "phase is not declared" check
+    # below sees a well-formed set - and the [models] table resolved a few lines down is
+    # from this same content, not a second read that a concurrent edit could change.
+    data = _load_toml(host.manifest)
+    phases = _phases_of(data, host.manifest)
+    if phase not in phases:
         raise Refused(
             f"phase {phase} is not in {host.manifest}. The coordinator declares later "
             "phases there; the launcher creates what is declared."
         )
-    sessions = load_manifest(host.manifest)[phase]
+    sessions = phases[phase]
 
     target = _preflight(host)
     # every session's model arguments resolve before anything is created: all checks, then
     # all changes - so a phase naming the strongest model refuses whole.
-    arguments = {s.name: run_args_for(host.manifest, s) for s in sessions}
+    arguments = {s.name: run_args_for(data, host.manifest, s) for s in sessions}
     _say(f"the agents' commit: {target[:8]} (origin/main), from {host.checkout}")
 
     created: list[Session] = []
