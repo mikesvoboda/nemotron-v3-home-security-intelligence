@@ -210,6 +210,32 @@ by work already planned; this package closes the rest and keeps the count from c
 those dismissed on the owner's ruling, and the CI audit fails on a fixture advisory that is not on
 the dismissal list.
 
+### O1.9 Deploy green on `main` (D12)
+
+**Files:** `.github/workflows/deploy.yml`, `.github/workflows/rollback.yml`,
+`scripts/ci-smoke-test.sh`. `O1.2` and `O1.4` also change `deploy.yml`; the coordinator merges the
+three one at a time.
+
+`Deploy` has failed on every push to `main` since 2026-01-05 (`00 §3` D12), so it reports nothing,
+and each failure opens an incident issue for a rollback that never happens.
+
+- [ ] Make the smoke test state the CI stack's contract. Keep `/api/system/health/full` in it, and
+      require every critical service healthy except the AI services `docker-compose.ci.yml` does
+      not start, which must be reported unreachable. Commit that list beside the check with the
+      reason; it goes when `O2.1`'s fake stack runs in the smoke test instead.
+- [ ] Publish `:latest` only after the smoke test passes, testing the per-commit tag instead. If
+      `O1.2` has already removed the publishing, this step is done.
+- [ ] **MEASURE** each of "Deploy to Staging" and "Post-Deployment Validation": a job that deploys
+      or validates nothing and only prints a checklist goes.
+- [ ] **RULING** for the owner's batch: delete `rollback.yml` (a red `Deploy` run is the signal), or
+      keep it as an honest failure report that updates one open issue instead of opening one per
+      run. Recommendation: delete.
+- [ ] Once `Deploy` is green, close each open "Automated Rollback" issue with a comment linking this
+      PR.
+
+**Done when:** `Deploy` passes on this PR's merge commit and on the next push to `main`, and no
+"Automated Rollback" issue is open.
+
 ---
 
 ## Phase 2 — Feature truth

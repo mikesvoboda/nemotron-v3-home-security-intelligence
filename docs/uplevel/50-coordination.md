@@ -1,7 +1,7 @@
 # 50 — Coordination
 
 > How several agents execute the uplevel packages at once: who does what, how work is claimed,
-> reviewed and merged, and how the owner's time is batched. Rulings UR-22 to UR-26
+> reviewed and merged, and how the owner's time is batched. Rulings UR-22 to UR-29
 > ([`README.md`](README.md)). Every agent reads this file; the coordinator works from it.
 
 ## Roles
@@ -21,7 +21,9 @@
 - merge PRs that meet the merge rule, in the order the hot-file rules require;
 - keep the README status table accurate, and watch the CI queue;
 - collect every question, owner-tier PR and operator run into the daily batch (UR-25);
-- raise the urgent path when its criteria hold.
+- raise the urgent path when its criteria hold;
+- state only what it has just read (UR-29): every commit, PR, issue, label, file and check it cites
+  comes from `gh` or `git` output it ran in the same turn.
 
 ## How many agents
 
@@ -44,7 +46,7 @@ every agent adds PRs, conflicts and questions for one owner.
 | backend | the VLM path: `backend/services/vlm_*`, `constrained_decoding.py`, `backend/evaluation/`, the circuit breaker | API and auth: `backend/api/`, middleware, `backend/main.py`      |
 | ops     | runtime: `ai/`, compose, `setup.py`, `setup_lib/`, the fake stack and harness                                 | tooling: `scripts/`, `.github/`, the mutation scorer, `archive/` |
 
-Ops splits from Phase 1: `uplevel-ops-b` already exists from Phase 0, and ops holds eight Phase 1
+Ops splits from Phase 1: `uplevel-ops-b` already exists from Phase 0, and ops holds nine Phase 1
 packages. Backend runs as one agent until Phase 3, because the heavy sandbox takes three of its six
 Phase 1 packages; it splits into cells A and B for Phase 3's deletions. Frontend and docs run as one
 cell each until Phase 3, when the frontend may split into retirement (`F3.1`) and reachability
@@ -100,7 +102,7 @@ HOST (owner)               agent-dgx · sbx · the launcher (O0.1) · the local 
 | sandbox               | model     | Phase 0              | Phase 1 queue                                                           | kickoff prompt       |
 | --------------------- | --------- | -------------------- | ----------------------------------------------------------------------- | -------------------- |
 | `uplevel-coordinator` | fast      | labels, pinned issue | assignments, reviews, merges, the daily batch                           | this file            |
-| `uplevel-ops-b`       | fast      | `O0.1`, the launcher | `O1.1`, `O1.2`, `O1.4`, `O1.5`, `O1.7`, `O1.8`                          | `30-ops.md` + cell B |
+| `uplevel-ops-b`       | fast      | `O0.1`, the launcher | `O1.1`, `O1.9`, `O1.2`, `O1.4`, `O1.5`, `O1.7`, `O1.8`                  | `30-ops.md` + cell B |
 | `uplevel-ops-a`       | fast      | —                    | `O1.3`, `O1.6` (after `B1.5`); then `O2.1` early                        | `30-ops.md` + cell A |
 | `uplevel-backend`     | fast      | —                    | `B1.1`, `B1.3`, `B1.4`; then `B2.1` and the inventory's backend tracing | `10-backend.md`      |
 | `uplevel-frontend`    | fast      | —                    | `F1.1`; `F1.2` after `B1.4`; `F1.3` after `B1.5`                        | `20-frontend.md`     |
@@ -208,6 +210,12 @@ owner tier — the owner has approved. It keeps the repository's existing merge 
 `main` requires branches to be up to date, the coordinator updates one queued PR at a time
 (`gh pr update-branch`) and waits for its CI, rather than rebasing every open PR at once.
 
+Before each merge the coordinator re-reads the PR
+(`gh pr view <n> --json statusCheckRollup,reviews,comments,mergeStateStatus`) and posts a merge
+comment that quotes each check's conclusion and links the approving review and, for the owner
+tier, the owner's approval (UR-29). An approval the owner gives the coordinator outside the batch
+counts once the coordinator has quoted it on the batch issue, with the owner's words and the time.
+
 ## Hot files
 
 Files many packages change. The coordinator sequences their merges; authors follow these rules.
@@ -233,14 +241,17 @@ nor the owner is free, a heavy package waits; it is never handed to a fast model
 
 Once a day, at a fixed time the owner sets, the coordinator delivers one message:
 
-1. **Status:** one screen — packages merged since the last batch, claims in flight, blocked lanes
-   and why.
+1. **Status:** one screen — `main`'s state (the conclusion of the latest `CI` and `Deploy` runs on
+   `main`, from `gh run list`), packages merged since the last batch, claims in flight, blocked
+   lanes and why.
 2. **Rulings needed:** each with its facts, options and a recommendation.
 3. **Owner-tier PRs:** each with its reviewer's comment and its Done-when checklist.
 4. **Operator queue:** each real-tier command, already vetted against `operator.md`.
 
 **The urgent path** interrupts the owner between batches only for a security exposure, anything
-that touches or threatens the live deployment, or `main` red for more than one merge.
+that touches or threatens the live deployment, or `main` red — `CI` or `Deploy` failing on `main` —
+for more than one merge, unless an open package already owns that failure (`Deploy`, until `O1.9`
+lands).
 
 ## Coordinator kickoff prompt
 
@@ -259,6 +270,13 @@ cell labels (heavy ones only to the strongest available model or an owner
 pairing). Assign each PR's reviewing lane by rotation, merge PRs that meet the
 merge rule in the order the hot-file rules require, keep the README status table
 accurate, and watch the CI queue.
+
+State only what you have just read. Every commit, PR, issue, label, file and
+check you cite in a batch, a comment or a message to the owner comes from gh or
+git output you ran in the same turn; when a command fails or its answer is
+unclear, say that instead. Before each merge, re-read the PR and post a merge
+comment quoting its checks, its approving review and, for the owner tier, the
+owner's approval.
 
 Post one daily batch as a comment on the pinned issue, in the format
 50-coordination.md gives. Interrupt the owner between batches only on the
