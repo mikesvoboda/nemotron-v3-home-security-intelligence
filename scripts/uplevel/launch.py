@@ -381,6 +381,22 @@ def up(host: Host, *, phase: int) -> None:
             run += [arg for mount in session.mounts for arg in ("--mount", mount)]
             _do(host, f"create {session.name}", [*run, "--split"], cwd=host.checkout, timeout=900)
             created.append(session)
+        elif found.get("sandbox") is None:
+            # Half-removal is real, not hypothetical: both of the owner's real retires on
+            # #6855 ended with agent-dgx's `session rm` deleting the sandbox and then
+            # failing its own workspace cleanup, which leaves exactly this inspect state -
+            # a manifest with "sandbox": null. Falling through would print "already runs
+            # at <sha>: nothing to do" for a name with nothing running behind it, and the
+            # phase would go out with a member silently missing. Neither guess is the
+            # launcher's to make (re-running agent-dgx's own run line is agent-dgx's
+            # fail-closed territory); refuse, naming the verb that finishes the removal.
+            raise Refused(
+                f"{session.name} has a manifest but no sandbox: its removal finished "
+                "halfway (the sandbox is gone; agent-dgx's workspace cleanup after it "
+                "did not complete). Nothing runs under this name, so this run creates "
+                f"nothing for it: finish the removal with `agent-dgx session rm "
+                f"{session.name} --force`, then run this again."
+            )
         elif _source_head(found) != target:
             _say(
                 f"{session.name} already exists, cloned from {str(_source_head(found))[:8]}, "

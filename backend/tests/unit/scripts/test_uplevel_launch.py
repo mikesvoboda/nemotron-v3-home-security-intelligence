@@ -575,6 +575,24 @@ def test_up_leaves_an_existing_session_at_an_older_commit_alone(tmp_path: Path) 
     assert not fake.ran("agent-dgx", "session", "rm")
 
 
+def test_up_refuses_a_half_removed_session(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A manifest with `"sandbox": null` is what the owner's two real retires left behind
+    on #6855: agent-dgx's `session rm` deleted the sandbox, then its own workspace cleanup
+    failed, every time. Before this check `up` filed that state under "already runs at
+    <sha>: nothing to do" - true of no running thing - and a phase would ship with a
+    member silently missing. Refuse, and name the verb that finishes the removal. NO_SANDBOX
+    carries the target sha, so the old fall-through would have printed the lie's exact
+    words; both assertions below pin the new path."""
+    fake = FakeHost(sessions={CO: NO_SANDBOX})
+    with pytest.raises(launch.Refused, match=f"agent-dgx session rm {CO} --force"):
+        launch.up(host(tmp_path, fake), phase=0)
+    assert "nothing to do" not in capsys.readouterr().out
+    assert not fake.ran("agent-dgx", "run")
+    assert not fake.changes()
+
+
 def test_up_dry_run_only_reads(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     fake = FakeHost()
     launch.up(host(tmp_path, fake, dry_run=True), phase=0)
