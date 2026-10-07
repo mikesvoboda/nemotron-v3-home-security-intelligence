@@ -28,9 +28,11 @@ temperature 0, and charges the circuit breaker twice (`00 §3` D1).
       that skips the identical retry and the breaker. Whatever you choose, a slow reply never
       counts as a broken engine.
 - [ ] Replace the stale comment with the real arithmetic: tokens, throughput, timeout.
-- [ ] **MEASURE** on the real tier: p95 latency and the reply-length tail. The operator runs it on
-      the GB300; until `O2.2` exists, put the exact command in the PR for the operator, written to
-      run against a test deployment (README vocabulary), never the live stack.
+- [ ] **MEASURE** on the real tier: p95 latency and the reply-length tail. The operator agent
+      measures the tail on the GB300 (`operator.md`, "The agent-gpu path"); S4's p95 is defined on
+      24 GB-class hardware, so the owner measures it on the A5500. Until `O2.2` exists, put both
+      commands in the PR, using `$VLM_URL` and written to run against a test deployment (README
+      vocabulary), never the live stack.
 
 **Done when:** the test passes; the comment's numbers match `config.py`; the operator's S4 p95
 measurement is posted on the PR (the row sits at `awaiting real tier` until then, contract rule 5).

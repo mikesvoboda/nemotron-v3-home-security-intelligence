@@ -236,6 +236,24 @@ and each failure opens an incident issue for a rollback that never happens.
 **Done when:** `Deploy` passes on this PR's merge commit and on the next push to `main`, and no
 "Automated Rollback" issue is open.
 
+### O1.10 The operator sandbox (UR-30)
+
+**Files:** `scripts/uplevel/sandboxes.toml`, `scripts/uplevel/launch.py`, their tests.
+
+The owner starts `uplevel-operator` by hand for Phase 1
+(`agent-dgx run uplevel-operator --agent claude --endpoint dgx --gpu --split`). This package puts it
+in the roster, so the launcher creates it from the Phase 2 boundary on.
+
+- [ ] A session may declare `gpu = true`; `up` then adds `--gpu` to its `agent-dgx run`
+      arguments. In the draft PR, ask the owner to confirm the flag's exact form, as `O0.1` did for
+      the strongest model's arguments.
+- [ ] Add `uplevel-operator` to phase 1, model `fast`, kickoff line "Follow the kickoff prompt at
+      the end of docs/uplevel/operator.md."
+- [ ] A test pins that `uplevel-operator` is the only session declaring `gpu`, in every phase.
+
+**Done when:** the tests pass, including one that runs `up --phase 1 --dry-run` against a fake host
+and finds `--gpu` on `uplevel-operator`'s `agent-dgx run` line and on no other.
+
 ---
 
 ## Phase 2 — Feature truth
@@ -305,7 +323,7 @@ commands and output); the conformance suite passes against the container.
     and after `B1.6`: scoping discovery hardens production, but any process holding the socket can
     still drive the raw engine API.
 - [ ] **Preflight.** Render the run's effective configuration
-      (`podman compose -p <run project> ... config`) and refuse to start when any writable bind
+      (`docker compose -p <run project> ... config`) and refuse to start when any writable bind
       mount points outside the run's own directory, or when any service mounts a container-engine
       socket. This is what proves the run cannot write live data: isolation rests on what the run
       can reach, not on watching live files, which change all the time (camera uploads,
@@ -313,12 +331,11 @@ commands and output); the conformance suite passes against the container.
       start times, volumes, published ports, the bind-mount host paths of any running stack — and
       abort if the run's project name, a container name, a host port, a volume, or a writable host
       path overlaps.
-- [ ] On the real tier, also **MEASURE** free memory on the chosen GPU (`GPU_LLM`) and abort if a
-      second engine would leave a running `ai-vlm` short. Sharing a GPU with a live engine is a
-      **RULING**: another GPU, a maintenance window, or calling the live engine read-only.
+- [ ] On the real tier, check headroom with `agent-gpu status` before serving, and refuse when
+      `free_mib` does not cover the declarations plus the floor (`operator.md`, step 1).
 - [ ] **In-run check.** Once the stack is up, assert that no container in it holds an engine socket
       and that its orchestrator reports disabled.
-- [ ] **Teardown and postflight.** Tear down with `podman compose -p <run project> down -v` only,
+- [ ] **Teardown and postflight.** Tear down with `docker compose -p <run project> down -v` only,
       never a bare `down`. Then assert that every container and volume in the preflight snapshot
       still exists, and that every container that was running still is, with the **same start
       time** (a restart that already finished leaves a container running but changes its start
@@ -329,17 +346,22 @@ commands and output); the conformance suite passes against the container.
       writable bind mount outside the run directory, and a mounted engine socket each make the run
       refuse; an in-run container exposing an engine socket fails the run; a postflight that finds
       a live container missing, stopped or restarted (new start time) fails loudly.
-- [ ] `--real` does the same against the prod compose file with real models on the GB300, as a
-      test deployment beside whatever already runs there, and prints a summary (date, commit,
-      per-spec result, the preflight snapshot, the postflight result) for the operator to paste
-      into the PR or the inventory. It never runs from GitHub (UR-15).
+- [ ] `--real` runs in the `uplevel-operator` sandbox (UR-30): the same test deployment in the
+      sandbox's own Docker, with each GPU model served through `agent-gpu` and reached at the port
+      `run` prints (`operator.md`, "The agent-gpu path"). **DECIDE** per real model — the VLM, the
+      detector — its image and VRAM declaration, within the session cap of 40,960 MiB. The
+      preflight also refuses any configured host address but those ports. It prints a summary
+      (date, commit, image tags and `build_info`, VRAM declared and actual, per-spec result, the
+      preflight snapshot, the postflight result) for the operator to paste into the PR or the
+      inventory, and removes its `agent-gpu` containers, also after a failure. It never runs from
+      GitHub (UR-15).
 - [ ] Add the CI job for `--fake`. **MEASURE** its wall-clock and **DECIDE** the trigger from it:
       every PR, a paths filter, or `main` plus a label.
 
 **Done when:** CI runs `--fake` green with the harness smoke check; the preflight and postflight
 tests pass; and the operator has run `--real` once on the GB300, with its summary posted on the PR,
-including a postflight result showing every pre-existing container and volume untouched
-(`awaiting real tier` until then). `F2.1` then adds its golden project to the same job.
+including a postflight result showing every pre-existing container and volume untouched and an
+empty `agent-gpu ps` (`awaiting real tier` until then). `F2.1` then adds its golden project to the same job.
 
 ### O2.3 Reachability check (`01` M1)
 

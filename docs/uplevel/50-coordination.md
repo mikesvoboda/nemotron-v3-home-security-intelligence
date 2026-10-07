@@ -1,17 +1,17 @@
 # 50 — Coordination
 
 > How several agents execute the uplevel packages at once: who does what, how work is claimed,
-> reviewed and merged, and how the owner's time is batched. Rulings UR-22 to UR-29
+> reviewed and merged, and how the owner's time is batched. Rulings UR-22 to UR-30
 > ([`README.md`](README.md)). Every agent reads this file; the coordinator works from it.
 
 ## Roles
 
-| role            | who                                      | does                                                                                                 |
-| --------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| **owner**       | you                                      | rulings, Phase 4 design sessions, owner-tier reviews, final say on merges — once a day, in the batch |
-| **operator**    | the owner, or an agent with GB300 access | real-tier runs ([`operator.md`](operator.md))                                                        |
-| **coordinator** | one agent                                | routes work; writes no product code and makes no decisions (below)                                   |
-| **lane agent**  | one or two per lane, by phase            | claims packages, builds them, self-reviews, and reviews other lanes' PRs                             |
+| role            | who                                                                   | does                                                                                                 |
+| --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **owner**       | you                                                                   | rulings, Phase 4 design sessions, owner-tier reviews, final say on merges — once a day, in the batch |
+| **operator**    | `uplevel-operator` (UR-30), and the owner for the runs it cannot make | real-tier runs ([`operator.md`](operator.md))                                                        |
+| **coordinator** | one agent                                                             | routes work; writes no product code and makes no decisions (below)                                   |
+| **lane agent**  | one or two per lane, by phase                                         | claims packages, builds them, self-reviews, and reviews other lanes' PRs                             |
 
 **The coordinator's remit**, and nothing beyond it:
 
@@ -20,20 +20,20 @@
 - assign each PR's reviewing lane, by rotation, never the author's own;
 - merge PRs that meet the merge rule, in the order the hot-file rules require;
 - keep the README status table accurate, and watch the CI queue;
-- collect every question, owner-tier PR and operator run into the daily batch (UR-25);
+- collect every question, owner-tier PR and owner-kept real-tier run into the daily batch (UR-25);
 - raise the urgent path when its criteria hold;
 - state only what it has just read (UR-29): every commit, PR, issue, label, file and check it cites
   comes from `gh` or `git` output it ran in the same turn.
 
 ## How many agents
 
-| phase | agents                                                                             | what limits it                                             |
-| ----- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| 0     | 2, started by hand: the coordinator and `uplevel-ops-b`, which builds the launcher | nothing: the owner starts Phase 1 by hand (UR-28)          |
-| 1     | 7: on the fast model ops ×2, backend, frontend, docs and the coordinator; 1 heavy  | `B1.5`'s auth design unblocks three packages               |
-| 2     | 4: ops, frontend (inventory), backend (supporting the inventory), docs             | one serial chain, `O2.1` → `O2.2` → `F2.1` → `F2.3` → `R2` |
-| 3     | 6: backend ×2, frontend, ops ×2, docs                                              | the hot files                                              |
-| 4     | 2–3 feature packages at once, plus one background agent                            | the owner's design sessions, and modules that overlap      |
+| phase | agents                                                                                          | what limits it                                             |
+| ----- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 0     | 2, started by hand: the coordinator and `uplevel-ops-b`, which builds the launcher              | nothing: the owner starts Phase 1 by hand (UR-28)          |
+| 1     | 8: on the fast model ops ×2, backend, frontend, docs, the coordinator and the operator; 1 heavy | `B1.5`'s auth design unblocks three packages               |
+| 2     | 4: ops, frontend (inventory), backend (supporting the inventory), docs                          | one serial chain, `O2.1` → `O2.2` → `F2.1` → `F2.3` → `R2` |
+| 3     | 6: backend ×2, frontend, ops ×2, docs                                                           | the hot files                                              |
+| 4     | 2–3 feature packages at once, plus one background agent                                         | the owner's design sessions, and modules that overlap      |
 
 More agents do not go faster: CI jobs already queue about six times their runtime
 (`.github/workflows/ci.yml:2023-2025`), `main` requires branches to be up to date before merge, and
@@ -46,7 +46,7 @@ every agent adds PRs, conflicts and questions for one owner.
 | backend | the VLM path: `backend/services/vlm_*`, `constrained_decoding.py`, `backend/evaluation/`, the circuit breaker | API and auth: `backend/api/`, middleware, `backend/main.py`      |
 | ops     | runtime: `ai/`, compose, `setup.py`, `setup_lib/`, the fake stack and harness                                 | tooling: `scripts/`, `.github/`, the mutation scorer, `archive/` |
 
-Ops splits from Phase 1: `uplevel-ops-b` already exists from Phase 0, and ops holds nine Phase 1
+Ops splits from Phase 1: `uplevel-ops-b` already exists from Phase 0, and ops holds ten Phase 1
 packages. Backend runs as one agent until Phase 3, because the heavy sandbox takes three of its six
 Phase 1 packages; it splits into cells A and B for Phase 3's deletions. Frontend and docs run as one
 cell each until Phase 3, when the frontend may split into retirement (`F3.1`) and reachability
@@ -69,7 +69,8 @@ HOST (owner)               agent-dgx · sbx · the launcher (O0.1) · the local 
 ├── uplevel-frontend
 ├── uplevel-docs
 ├── uplevel-heavy (-2)     the strongest model, for heavy packages; the second one is optional
-└── GB300 operator         the real tier, outside the sandboxes (operator.md)
+├── uplevel-operator       --gpu: the GB300 through agent-gpu, for the real tier (operator.md)
+└── owner on the host      the real-tier runs the operator cannot make (operator.md)
 ```
 
 - **One sandbox per agent, each with its own clone.** `agent-dgx run <session>` clones the host
@@ -82,6 +83,9 @@ HOST (owner)               agent-dgx · sbx · the launcher (O0.1) · the local 
 - **On the host, read an agent's workspace; run git in it only through `sbx exec`.** Its
   `.git/config` is the agent's to write, and settings such as `core.fsmonitor` run commands when
   the host's git opens the repository (`docs/synthbench/operator-runbook.md`).
+- **Only `uplevel-operator` holds the GPU (UR-30).** The owner starts it with `agent-dgx --gpu`,
+  which gives its sandbox the `agent-gpu` broker. Real-tier runs go one at a time through that one
+  session, under the broker's per-session cap (40,960 MiB), and no lane sandbox gets the flag.
 - **Provisioning stays with the owner.** Creating and removing sandboxes, setting their secrets and
   opening their network policy are privileged, so no agent holds `agent-dgx` or `sbx`. The owner
   starts Phases 0 and 1 by hand and runs the launcher at the later phase boundaries. The
@@ -99,16 +103,17 @@ HOST (owner)               agent-dgx · sbx · the launcher (O0.1) · the local 
 
 ### The roster
 
-| sandbox               | model     | Phase 0              | Phase 1 queue                                                           | kickoff prompt       |
-| --------------------- | --------- | -------------------- | ----------------------------------------------------------------------- | -------------------- |
-| `uplevel-coordinator` | fast      | labels, pinned issue | assignments, reviews, merges, the daily batch                           | this file            |
-| `uplevel-ops-b`       | fast      | `O0.1`, the launcher | `O1.1`, `O1.9`, `O1.2`, `O1.4`, `O1.5`, `O1.7`, `O1.8`                  | `30-ops.md` + cell B |
-| `uplevel-ops-a`       | fast      | —                    | `O1.3`, `O1.6` (after `B1.5`); then `O2.1` early                        | `30-ops.md` + cell A |
-| `uplevel-backend`     | fast      | —                    | `B1.1`, `B1.3`, `B1.4`; then `B2.1` and the inventory's backend tracing | `10-backend.md`      |
-| `uplevel-frontend`    | fast      | —                    | `F1.1`; `F1.2` after `B1.4`; `F1.3` after `B1.5`                        | `20-frontend.md`     |
-| `uplevel-docs`        | fast      | —                    | `W1.1`, `W1.3`, `W1.2`                                                  | `40-docs.md`         |
-| `uplevel-heavy`       | strongest | —                    | `B1.5`, `B1.2`, `B1.6`; then `F2.2`                                     | below                |
-| `uplevel-heavy-2`     | strongest | —                    | optional: `F2.2`, the inventory, from mid-Phase 1                       | below                |
+| sandbox               | model     | Phase 0              | Phase 1 queue                                                                                                               | kickoff prompt       |
+| --------------------- | --------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| `uplevel-coordinator` | fast      | labels, pinned issue | assignments, reviews, merges, the daily batch                                                                               | this file            |
+| `uplevel-ops-b`       | fast      | `O0.1`, the launcher | `O1.1`, `O1.9`, `O1.10`, `O1.2`, `O1.4`, `O1.5`, `O1.7`, `O1.8`                                                             | `30-ops.md` + cell B |
+| `uplevel-ops-a`       | fast      | —                    | `O1.3`, `O1.6` (after `B1.5`); then `O2.1` early                                                                            | `30-ops.md` + cell A |
+| `uplevel-backend`     | fast      | —                    | `B1.1`, `B1.3`, `B1.4`; then `B2.1` and the inventory's backend tracing                                                     | `10-backend.md`      |
+| `uplevel-frontend`    | fast      | —                    | `F1.1`; `F1.2` after `B1.4`; `F1.3` after `B1.5`                                                                            | `20-frontend.md`     |
+| `uplevel-docs`        | fast      | —                    | `W1.1`, `W1.3`, `W1.2`                                                                                                      | `40-docs.md`         |
+| `uplevel-heavy`       | strongest | —                    | `B1.5`, `B1.2`, `B1.6`; then `F2.2`                                                                                         | below                |
+| `uplevel-operator`    | fast      | —                    | real-tier runs: `B1.2`, and `B1.1`'s reply-length tail (its S4 p95 stays the owner's, on the A5500); then `O2.2`'s `--real` | `operator.md`        |
+| `uplevel-heavy-2`     | strongest | —                    | optional: `F2.2`, the inventory, from mid-Phase 1                                                                           | below                |
 
 The heavy queue runs in that order for a reason. `B1.5` unblocks `F1.3` and `O1.6` and removes the
 critical `python-jose` alert. `B1.2` lifts the pause on VLM prompt work (UR-8). `B1.6` hardens
@@ -246,7 +251,8 @@ Once a day, at a fixed time the owner sets, the coordinator delivers one message
    lanes and why.
 2. **Rulings needed:** each with its facts, options and a recommendation.
 3. **Owner-tier PRs:** each with its reviewer's comment and its Done-when checklist.
-4. **Operator queue:** each real-tier command, already vetted against `operator.md`.
+4. **Operator queue:** the operator agent's results since the last batch, and each real-tier run
+   the owner keeps, already vetted against `operator.md`.
 
 **The urgent path** interrupts the owner between batches only for a security exposure, anything
 that touches or threatens the live deployment, or `main` red — `CI` or `Deploy` failing on `main` —
