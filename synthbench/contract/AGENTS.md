@@ -15,6 +15,8 @@ and the append-only store.
 | `truth.py`      | `Truth` and its parts, exactly parent spec §2.3's shape                                                                                                 |
 | `provenance.py` | `Provenance` (schema 2), `Attempt` (render failures, overlay time), `Triage`, `attempt_seed`, `render_name`/`still_name`, `MAX_ATTEMPTS = 3`            |
 | `corpus.py`     | `CorpusManifest` (corpus.json), `BatchRecord` (batch.json), `IndexRow` (index.jsonl), `TIER_B_RENDER_SIZE`, `PromptRow`, `TriageRow` (the agent's rows) |
+| `clip.py`       | the clip side of all of it: `ClipSpec`, `ClipProvenance`, `RoundRecord`, `ClipIndexRow`, the agent's motion/triage rows                                 |
+| `clip_audit.py` | the blind clip audit's three row kinds: the draw (`ClipAuditDrawRow`), the answers, the pre-screen flags (ISS-038)                                      |
 | `store.py`      | `CorpusStore`: paths under `$SYNTHBENCH_ROOT/corpus/<version>/`, `write_new` (atomic, never replaces), the index                                        |
 
 ## Rules

@@ -294,6 +294,97 @@ Writes `rounds/<r>/report.md` and `rounds/<r>/sheet.html` (clips design §3.4).
 - **Exit 1:** no round `<r>`.
 - **Exit 2:** a corpus file cannot be read or written.
 
+## `clip audit sample`
+
+Freezes `rounds/<r>/audit-draw.jsonl`: the draw for the owner's blind clip audit (ISS-038,
+method per ISS-044 v2/OD-15). Nothing is measured on a clip before that audit, so this is the
+step that decides what a clip number is allowed to be about.
+
+| Option          | Default  | Meaning                                                     |
+| --------------- | -------- | ----------------------------------------------------------- |
+| `--round <r>`   | required | round name                                                  |
+| `--flagged <f>` | none     | a machine pre-screen's flagged rows to union in (see below) |
+
+- **The draw, in three parts:**
+  - every **ready incident** clip - a census, not a sample: the pre-registered measurement
+    runs on the audited clips alone, so an incident clip that could enter the corpus must be
+    audited;
+  - a **benign mirror** as large as the incident half, drawn over
+    _(group × intended motion)_ strata so both the group axis and the motion axis the bias
+    lives on get spread (seeded from the round name);
+  - any **flagged residue** from `--flagged`, that is not already listed.
+- **Why motion:** H3 fails crossing motion at elevated rates, so a draw stratified only on
+  scenario and lighting would silently over-weight in-place clips. The intended-motion class
+  comes from the clip's frozen motion text.
+- **Write-once:** the manifest is the audit's fixed set. A clip that became ready after the
+  freeze joins the NEXT round's draw, never this one, so an audit interrupted by a render
+  window resumes the same clips.
+- **Reads:** the round's specs, `motions.jsonl`, `clip-index.jsonl`, and with `--flagged`
+  that one file (rows of `event_id`, `flagged_by`, optional `note`).
+- **Writes:** `rounds/<r>/audit-draw.jsonl` only.
+- **Exit 1:** no round `<r>`; the draw already frozen; a flag row that is malformed or names
+  a clip outside the round (checked before anything is written, so a partly-applied
+  pre-screen never lands); a round with no ready clip.
+- **Exit 2:** a corpus file cannot be read or written.
+
+## `clip audit page`
+
+Serves the blind audit page for the drawn set and appends the owner's answers. Loopback only:
+it listens on `127.0.0.1`, and a `POST /answer` from any other origin is refused without being
+written. Answer as you would over SSH: `ssh -L <port>:127.0.0.1:<port> <this host>`. Ctrl-C
+stops it; answers already on disk stay.
+
+| Option        | Default  | Meaning       |
+| ------------- | -------- | ------------- |
+| `--round <r>` | required | round name    |
+| `--port <p>`  | 8766     | loopback port |
+
+- **One clip at a time:** its clip, its declared lighting and weather, and five questions -
+  motion, then the scenario pick from the whole 32-id taxonomy, then the prop question of
+  that pick, then the conditions, then the threat level. A clip is answered when the four
+  always-asked keys are marked, plus a prop verdict whenever the owner's own pick opened one.
+- **Blind:** the page reads the manifest row, the ready attempt's provenance and the mp4's
+  bytes - never a `spec.json`. No scenario, label, subject list or motion text is on screen;
+  the scenario list is the whole taxonomy and identical on every clip, so it carries nothing
+  about the clip in front of you. The prop question is asked _after_ the pick because after
+  the pick that item's truth is what you believe is there (a mislabelled clip is exactly what
+  the audit is for).
+- **Writes:** `$SYNTHBENCH_ROOT/audits/<version>/clip-<r>.jsonl`, one line per answer, latest
+  per (clip, question) winning. A prop answer belongs to the scenario pick standing when it
+  was written: move the pick on and the old mark stops counting; return to it and it counts
+  again.
+- **Exit 1:** no round `<r>`, no frozen draw, a drawn clip with no provenance or no clip
+  file, or the port already taken.
+- **Exit 2:** a corpus file cannot be read.
+
+## `clip audit bias`
+
+Prints the audit report to stdout (statistics in `synthbench/score/`, which is where the
+Wilson intervals live). It is the disclosure that rides beside every clip number this round
+produces, and it reads both audit files back without writing anything.
+
+| Option        | Default  | Meaning    |
+| ------------- | -------- | ---------- |
+| `--round <r>` | required | round name |
+
+- **Survivor rates,** per intended-motion class: ready over _decided_ clips (a clip still
+  mid-flight is neither a survivor nor a casualty and is counted out of the denominator, with
+  its count printed beside the rate). The denominator is the whole round, not the draw,
+  because the rates describe the corpus the measurement runs on.
+- **Declared versus picked:** scene (declared scenario against your pick) and threat
+  (declared band against your level), each with a Wilson interval, plus every off-diagonal
+  pair named - the specific confusions are the point, the agreed count is the headline. A
+  clip you have not picked is absent, never a disagreement.
+- **Progress and the disclosures:** clips complete out of the draw, every prop mark in the
+  log, and the two notes that print over an empty audit too: the triplet corpus is
+  frame-sampled from rendered clips rather than scripted, and the clips are H3 renders
+  rather than footage.
+- **Reads:** the round's specs and `motions.jsonl`, `clip-index.jsonl`,
+  `rounds/<r>/audit-draw.jsonl`, and the answer log.
+- **Writes:** nothing.
+- **Exit 1:** no round `<r>`, or no frozen draw.
+- **Exit 2:** a corpus file cannot be read.
+
 ## `corpus coverage`
 
 Shows how the corpus is spread across the taxonomy, what the next n events will add, and what a
