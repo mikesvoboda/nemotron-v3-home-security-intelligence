@@ -122,3 +122,17 @@ class VlmAssessRequest(BaseModel):
             "per-frame links), and rows then render without a frame."
         ),
     )
+    frame_capture_times: list[str | None] | None = Field(
+        default=None,
+        max_length=4,
+        description=(
+            "ISS-033: per attached frame (index-aligned with image_paths), the "
+            "aware-UTC ISO capture time parsed from the frame's filename, or None "
+            "when the name says nothing. image_paths is ordered oldest-first by "
+            "this column (unknown frames last, in selection order), and the prompt "
+            "says so and labels each frame; None for the WHOLE field = not known "
+            "(camera timezone unset, or a replay of a store predating this), and "
+            "the prompt renders as before. A None element is rendered as unknown, "
+            "never as the row's arrival time."
+        ),
+    )
