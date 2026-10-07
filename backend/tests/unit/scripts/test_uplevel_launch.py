@@ -1,0 +1,592 @@
+"""Uplevel O0.1: scripts/uplevel/launch.py, the sandbox launcher (UR-26, UR-28).
+
+The owner creates agent sandboxes with `agent-dgx` (docs/uplevel/50-coordination.md,
+"Where agents run"), which gives each session its own clone of the host checkout. This
+launcher drives `agent-dgx` from scripts/uplevel/sandboxes.toml so a phase boundary is one
+command, and retires sandboxes without losing work. It follows synthbench/host/agent.py,
+which already drives agent-dgx from the host: every command goes through a Host seam,
+--dry-run prints each step instead of running it, all checks run before any change, and a
+refusal exits 2 naming the next step. The tests run against a fake host, as
+backend/tests/unit/synthbench/test_host_agent.py does.
+
+The command vocabulary is fixed by what the repo already shows (30-ops.md §O0.1:
+synthbench/host/agent.py and docs/synthbench/operator-runbook.md): `agent-dgx run <name>
+[--agent --endpoint --mount] --split`, `agent-dgx inspect <name> --json`, `agent-dgx stop
+<name>`, `agent-dgx session rm <name> --force`, and `sbx exec <sandbox> bash -lc <script>`.
+`agent-dgx` reads an unknown word as a new session's name, so every call names its
+subcommand and nothing runs `agent-dgx help` or `agent-dgx ls` (operator-runbook.md).
+
+The retirement tests pin the safety rules: git runs inside the sandbox through `sbx exec`,
+never on the host against the workspace - its .git/config is the agent's to write, and
+settings such as core.fsmonitor run commands (operator-runbook.md) - and the export (a
+bundle plus a working-tree archive, streamed out through the same seam) is verified on the
+host before anything is stopped or removed.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+import subprocess
+import sys
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+pytestmark = pytest.mark.unit
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+_spec = importlib.util.spec_from_file_location(
+    "uplevel_launch", REPO_ROOT / "scripts" / "uplevel" / "launch.py"
+)
+launch = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+# registered before exec: the module's @dataclass resolves its string annotations through
+# sys.modules[cls.__module__], which is absent for a module loaded by path alone
+sys.modules[_spec.name] = launch
+_spec.loader.exec_module(launch)
+
+MAIN_SHA = "a" * 40
+BASE_SHA = "b" * 40
+WIP_SHA = "c" * 40
+SCRATCH = "uplevel-scratch"
+SCRATCH_SANDBOX = "agent-uplevel-scratch"
+BUNDLE_BYTES = b"fake bundle bytes"
+TREE_BYTES = b"fake tree tar.gz bytes"
+
+CO = "uplevel-coordinator"
+OPS_A = "uplevel-ops-a"
+OPS_B = "uplevel-ops-b"
+BACKEND = "uplevel-backend"
+FRONTEND = "uplevel-frontend"
+DOCS = "uplevel-docs"
+HEAVY = "uplevel-heavy"
+
+RUNNING = {"head": MAIN_SHA, "sandbox": "running"}
+NO_SANDBOX = {"head": MAIN_SHA, "sandbox": None}
+PUSHED = {"main": MAIN_SHA, "agent-branch": MAIN_SHA}
+
+
+def remote_heads(mapping: dict[str, str]) -> str:
+    """What `git ls-remote --heads origin` prints: one line per pushed branch."""
+    return "".join(f"{sha}\trefs/heads/{name}\n" for name, sha in mapping.items())
+
+
+def sections_body(**over: tuple[str, int]) -> str:
+    """A fixture inspection output: the six sections, each overridden with (text, code)."""
+    defaults: dict[str, tuple[str, int]] = {
+        "dirty": ("", 0),
+        "stash": ("", 0),
+        "branch": ("main", 0),
+        "head": (MAIN_SHA, 0),
+        "refs": (f"{MAIN_SHA} refs/heads/main\n", 0),
+        "remote": (remote_heads({"main": MAIN_SHA}), 0),
+    }
+    defaults.update(over)
+    return "".join(
+        f"{defaults[name][0]}\n{launch.MARKER} {name} {defaults[name][1]}\n"
+        for name in launch.SECTION_NAMES
+    )
+
+
+class FakeHost:
+    """Answers the read-only commands; records every call; fails the step named in `fail`.
+
+    `sessions` maps a session name to its state before the run (a dict with `head` =
+    manifest.source_repository.head and `sandbox` = "running" or None; an absent name has
+    neither manifest nor sandbox). Once `agent-dgx run <name>` is seen, inspect reports the
+    session created at `new_head`. The retirement inspection script is answered from the
+    `ws` fixture, so the refusal tests are tests on fixture outputs.
+    """
+
+    def __init__(
+        self,
+        *,
+        sessions: dict[str, dict[str, Any]] | None = None,
+        checkout_head: str = MAIN_SHA,
+        checkout_dirty: str = "",
+        ws: dict[str, Any] | None = None,
+        new_head: str = MAIN_SHA,
+        fail: str | None = None,
+        agents_root: Path | None = None,
+    ) -> None:
+        self.sessions = sessions or {}
+        self.checkout_head = checkout_head
+        self.checkout_dirty = checkout_dirty
+        self.ws = ws if ws is not None else {}
+        self.new_head = new_head
+        self.fail = fail
+        self.agents_root = agents_root
+        self.calls: list[tuple[list[str], Path | None]] = []
+
+    def _stage(self, script: str, filename: str, data: bytes) -> tuple[int, str, str]:
+        """An export step: write what the sandbox would leave in its own clone."""
+        if self.agents_root is not None:
+            sandbox = script.split("cd /agents/", 1)[1].split("/workspace", 1)[0]
+            staged = self.agents_root / sandbox / "workspace" / launch.EXPORT_DIR
+            staged.mkdir(parents=True, exist_ok=True)
+            (staged / filename).write_bytes(data)
+        return 0, "", ""
+
+    def __call__(self, argv: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        argv = [str(a) for a in argv]
+        self.calls.append((argv, kwargs.get("cwd")))
+        joined = " ".join(argv)
+        if self.fail and self.fail in joined:
+            if kwargs.get("check"):
+                raise subprocess.CalledProcessError(1, argv)
+            return subprocess.CompletedProcess(argv, 1, "", "step failed")
+        return subprocess.CompletedProcess(argv, *self._answer(argv, joined))
+
+    def _answer(self, argv: list[str], joined: str) -> tuple[int, str, str]:
+        # One table of commands in the order the launcher issues them, so the fake stays
+        # a lookup; a `sbx exec` script answers through its own branch below.
+        answer: tuple[int, str, str] | None = None
+        if argv[:2] == ["agent-dgx", "inspect"]:
+            answer = (0, json.dumps(self._inspect(argv[2])), "")
+        elif argv[:2] == ["sbx", "exec"]:
+            answer = self._sandbox(argv)
+        elif "status" in argv and "--porcelain" in argv:
+            answer = (0, (self.checkout_dirty + "\n") if self.checkout_dirty else "", "")
+        elif "rev-parse" in argv and "origin/main" in joined:
+            answer = (0, MAIN_SHA + "\n", "")
+        elif "rev-parse" in argv and "HEAD" in joined:
+            answer = (0, self.checkout_head + "\n", "")
+        elif "bundle" in argv and "verify" in argv:
+            answer = (0, "the bundle requires this ref\n", "")
+        elif argv[:2] == ["tar", "-tzf"]:
+            answer = (0, "worktree.tar.gz listing\n", "")
+        return answer or (0, "", "")
+
+    def _sandbox(self, argv: list[str]) -> tuple[int, str, str]:
+        script = argv[-1]
+        if launch.MARKER in script:
+            return self._inspection(script)
+        # The export steps really do write into the session's own clone, because the
+        # launcher reads them back off the host's mount afterwards (synthbench's `down`
+        # copies workspace files the same way).
+        if "bundle create" in script:
+            return self._stage(script, f"{argv[2].removeprefix('agent-')}.bundle", BUNDLE_BYTES)
+        if "tar" in script:
+            return self._stage(script, "worktree.tar.gz", TREE_BYTES)
+        return (0, "", "")
+
+    def _inspect(self, name: str) -> dict[str, Any]:
+        if self.ran("agent-dgx", "run", name):
+            return {
+                "id": name,
+                "manifest": {"source_repository": {"head": self.new_head}, "status": "prepared"},
+                "sandbox": {"status": "running"},
+            }
+        state = self.sessions.get(name)
+        if state is None:
+            return {"id": name, "manifest": None, "sandbox": None}
+        sandbox = None if state.get("sandbox") is None else {"status": state["sandbox"]}
+        return {
+            "id": name,
+            "manifest": {"source_repository": {"head": state["head"]}, "status": "prepared"},
+            "sandbox": sandbox,
+        }
+
+    def _inspection(self, script: str) -> tuple[int, str, str]:
+        """Answer the retirement inspection script from the `ws` fixture."""
+        refs = self.ws.get("refs")
+        texts: dict[str, str] = {
+            "dirty": self.ws.get("dirty", ""),
+            "stash": self.ws.get("stash", ""),
+            "branch": self.ws.get("branch", "main"),
+            "head": self.ws.get("head", MAIN_SHA),
+            "refs": "".join(f"{sha} refs/heads/{name}\n" for name, sha in (refs or {}).items()),
+            "remote": self.ws.get("remote", remote_heads({"main": MAIN_SHA})),
+        }
+        codes: dict[str, int] = self.ws.get("codes", {})
+        body, failed = "", 0
+        for name in launch.SECTION_NAMES:
+            if f"say {name} " not in script:
+                continue
+            code = codes.get(name, 0)
+            failed = failed or code
+            body += f"{texts[name]}\n{launch.MARKER} {name} {code}\n"
+        return failed, body, ""
+
+    def ran(self, *prefix: str) -> bool:
+        return any(argv[: len(prefix)] == list(prefix) for argv, _ in self.calls)
+
+    def changes(self) -> list[list[str]]:
+        """Every call that changes something: not a read, not a check."""
+        return [argv for argv, _ in self.calls if not self._is_read(argv)]
+
+    @staticmethod
+    def _is_read(argv: list[str]) -> bool:
+        # Each test asserts against this list: `changes()` is everything left over. The
+        # retirement inspection script only reads, while the export scripts write, so
+        # only the MARKER-bearing `sbx exec` counts as a read.
+        checks = (
+            argv[:2] == ["agent-dgx", "inspect"],
+            "rev-parse" in argv,
+            # a fetch moves only a remote-tracking ref: never the worktree or a branch
+            argv[:2] == ["git", "-C"] and "fetch" in argv,
+            "status" in argv and "--porcelain" in argv,
+            "bundle" in argv and "verify" in argv,
+            argv[:2] == ["tar", "-tzf"],
+            argv[:2] == ["sbx", "exec"] and launch.MARKER in " ".join(argv),
+        )
+        return any(checks)
+
+
+def host(
+    tmp_path: Path, fake: FakeHost, *, dry_run: bool = False, herdr: bool = True
+) -> launch.Host:
+    # the host's view of each session's clone (the real /agents is root-owned and absent
+    # in a test run); the fake writes the export there, as the sandbox really would
+    if fake.agents_root is None:
+        fake.agents_root = tmp_path / "agents"
+    return launch.Host(
+        checkout=tmp_path / "checkout",
+        manifest=REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml",
+        exports=tmp_path / "exports",
+        agents_root=fake.agents_root,
+        run=fake,
+        env={"HERDR_PANE_ID": "w1:p1"} if herdr else {},
+        which=lambda name: f"/usr/bin/{name}",
+        dry_run=dry_run,
+    )
+
+
+# --------------------------------------------------------------- the manifest
+
+
+def test_manifest_declares_the_roster() -> None:
+    """sandboxes.toml declares each phase's sessions as 50-coordination.md's roster does.
+    Later phases are the coordinator's to add; the launcher reads what is declared."""
+    phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    assert sorted(phases) == [0, 1]
+    assert [s.name for s in phases[0]] == [CO, OPS_B]
+    assert {s.name for s in phases[1]} == {CO, OPS_A, OPS_B, BACKEND, FRONTEND, DOCS, HEAVY}
+
+
+def test_sandbox_and_workspace_names_follow_agent_dgx() -> None:
+    """The sandbox is `agent-<name>`; its clone is /agents/agent-<name>/workspace."""
+    session = launch.Session(name=OPS_B, model="fast", kickoff="k")
+    assert session.sandbox == "agent-uplevel-ops-b"
+    assert session.workspace == "/agents/agent-uplevel-ops-b/workspace"
+
+
+def test_split_lane_kickoff_carries_the_cell_sentence() -> None:
+    """50-coordination.md "Split lanes": a split lane's kickoff line carries one more
+    sentence, so an agent never claims a package outside its cell."""
+    phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    lines = {s.name: s.kickoff for s in phases[1]}
+    for name, cell in ((OPS_A, "A"), (OPS_B, "B")):
+        assert lines[name].startswith("Follow the kickoff prompt in docs/uplevel/30-ops.md.")
+        assert f"You are cell {cell} of the ops lane" in lines[name]
+    assert lines[CO].startswith("Follow the kickoff prompt in docs/uplevel/50-coordination.md.")
+    assert "cell" not in lines[BACKEND]
+
+
+def test_an_unnamed_model_refuses_and_names_the_owners_next_step(tmp_path: Path) -> None:
+    """The strongest model's run arguments are the owner's to post (PR #6855). The launcher
+    refuses naming that, and never invents a flag (30-ops.md §O0.1, first item)."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 9\n"
+        f'[[phase.session]]\nname = "{HEAVY}"\nmodel = "strongest"\nkickoff = "k"\n',
+        encoding="utf-8",
+    )
+    phases = launch.load_manifest(manifest)
+    with pytest.raises(launch.Refused, match="owner"):
+        launch.run_args_for(manifest, phases[9][0])
+
+
+def test_manifest_models_override_the_builtin_fast(tmp_path: Path) -> None:
+    """[models] holds the owner's arguments once posted; the builtin fast is the pair the
+    repo already shows (synthbench/host/agent.py, operator-runbook.md)."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        '[models]\nfast = "--agent claude --endpoint dgx --fast-profile x"\n'
+        "[[phase]]\nnumber = 0\n"
+        f'[[phase.session]]\nname = "{CO}"\nmodel = "fast"\nkickoff = "k"\n',
+        encoding="utf-8",
+    )
+    phases = launch.load_manifest(manifest)
+    assert launch.run_args_for(manifest, phases[0][0]) == [
+        "--agent",
+        "claude",
+        "--endpoint",
+        "dgx",
+        "--fast-profile",
+        "x",
+    ]
+
+
+# ---------------------------------------------------------------------- up
+
+
+def test_up_outside_herdr_refuses_before_anything(tmp_path: Path) -> None:
+    """`agent-dgx run --split` opens the agent in a new herdr pane beside the launcher's,
+    so the launcher has to be running in one (as synthbench's `up` checks)."""
+    fake = FakeHost()
+    with pytest.raises(launch.Refused, match="herdr"):
+        launch.up(host(tmp_path, fake, herdr=False), phase=0)
+    assert fake.calls == []
+
+
+def test_up_refuses_a_dirty_host_checkout(tmp_path: Path) -> None:
+    """agent-dgx copies uncommitted changes into the clone (50-coordination.md)."""
+    fake = FakeHost(checkout_dirty=" M setup.py")
+    with pytest.raises(launch.Refused, match="uncommitted"):
+        launch.up(host(tmp_path, fake), phase=0)
+    assert not fake.changes()
+
+
+def test_up_refuses_a_stale_host_checkout(tmp_path: Path) -> None:
+    """Every agent starts from a clean host checkout of main (50-coordination.md)."""
+    fake = FakeHost(checkout_head=BASE_SHA)
+    with pytest.raises(launch.Refused, match=BASE_SHA[:8]):
+        launch.up(host(tmp_path, fake), phase=0)
+    assert not fake.changes()
+
+
+def test_up_refuses_until_the_strongest_models_arguments_are_posted(tmp_path: Path) -> None:
+    """Every check runs before any change: a phase whose roster names the strongest model
+    refuses the whole run while no [models] entry exists, naming the owner's next step."""
+    fake = FakeHost()
+    with pytest.raises(launch.Refused, match="owner"):
+        launch.up(host(tmp_path, fake), phase=1)
+    assert not fake.changes()
+    assert not fake.ran("agent-dgx", "run")
+
+
+def test_up_creates_each_missing_session_from_the_checkout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fake = FakeHost(sessions={CO: RUNNING})
+    h = host(tmp_path, fake)
+    launch.up(h, phase=0)
+
+    runs = [(argv, cwd) for argv, cwd in fake.calls if argv[:3] == ["agent-dgx", "run", OPS_B]]
+    assert runs == [
+        (
+            ["agent-dgx", "run", OPS_B, "--agent", "claude", "--endpoint", "dgx", "--split"],
+            h.checkout,
+        )
+    ]
+    assert not fake.ran("agent-dgx", "run", CO)  # already there, at the right commit
+    out = capsys.readouterr().out
+    # the kickoff line prints for what it created, not for what was already running
+    assert out.count("Follow the kickoff prompt") == 1
+
+
+def test_up_is_idempotent(tmp_path: Path) -> None:
+    """Re-running creates only what is missing."""
+    fake = FakeHost(sessions={CO: RUNNING, OPS_B: RUNNING})
+    launch.up(host(tmp_path, fake), phase=0)
+    launch.up(host(tmp_path, fake), phase=0)
+    assert not fake.ran("agent-dgx", "run")
+    assert not fake.changes()
+
+
+def test_up_refuses_a_session_cloned_from_the_wrong_commit(tmp_path: Path) -> None:
+    """agent-dgx clones whatever the checkout held, so the new manifest's source commit is
+    checked all the same (as synthbench's `up` does). It refuses naming the owner's next
+    step; it does not remove what it just created - that is `retire`'s job."""
+    fake = FakeHost(sessions={CO: RUNNING}, new_head=BASE_SHA)
+    with pytest.raises(launch.Refused, match=BASE_SHA[:8]):
+        launch.up(host(tmp_path, fake), phase=0)
+    assert not fake.ran("agent-dgx", "stop")
+    assert not fake.ran("agent-dgx", "session", "rm")
+
+
+def test_up_leaves_an_existing_session_at_an_older_commit_alone(tmp_path: Path) -> None:
+    """The commit check is for what `up` creates (30-ops.md §O0.1): an agent keeps its
+    session while main moves on. `up` neither recreates it nor removes it - retirement
+    goes through `retire`, which checks for work first."""
+    fake = FakeHost(sessions={CO: {"head": BASE_SHA, "sandbox": "running"}})
+    launch.up(host(tmp_path, fake), phase=0)
+    assert not fake.ran("agent-dgx", "run", CO)
+    assert not fake.ran("agent-dgx", "stop")
+    assert not fake.ran("agent-dgx", "session", "rm")
+
+
+def test_up_dry_run_only_reads(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    fake = FakeHost()
+    launch.up(host(tmp_path, fake, dry_run=True), phase=0)
+    assert fake.changes() == []
+    out = capsys.readouterr().out
+    assert f"agent-dgx run {CO} --agent claude --endpoint dgx --split" in out
+
+
+# ------------------------------------------------------------------- retire
+
+
+def _clean_ws(**over: Any) -> dict[str, Any]:
+    ws: dict[str, Any] = {"refs": {"main": MAIN_SHA}, "remote": remote_heads(PUSHED)}
+    ws.update(over)
+    return ws
+
+
+@pytest.mark.parametrize(
+    ("ws", "says"),
+    [
+        (_clean_ws(dirty=" M backend/main.py"), "changed"),
+        (_clean_ws(dirty="?? scripts/new-thing.py"), "untracked"),
+        (_clean_ws(stash="stash@{0}: WIP on main"), "stash"),
+        (_clean_ws(refs={"main": MAIN_SHA, "wip": WIP_SHA}), "not pushed"),
+        (_clean_ws(refs={"main": BASE_SHA}), "not pushed"),  # origin moved on without it
+        (_clean_ws(branch="HEAD", head=WIP_SHA), "detached"),
+    ],
+)
+def test_retire_refuses_and_changes_nothing(tmp_path: Path, ws: dict, says: str) -> None:
+    fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=ws)
+    with pytest.raises(launch.Refused, match=says):
+        launch.retire(host(tmp_path, fake), SCRATCH)
+    assert not fake.ran("agent-dgx", "stop")
+    assert not fake.ran("agent-dgx", "session", "rm")
+    assert not (tmp_path / "exports").exists()
+
+
+def test_a_failed_inspection_refuses_and_names_the_open_measurement(tmp_path: Path) -> None:
+    """MEASURE (30-ops.md §O0.1): whether `sbx exec` still reaches the sandbox once the
+    agent's session has ended. The step order never depends on the answer - inspect and
+    export happen while the sandbox is still up - but an inspection that fails is still a
+    refusal, and retirement is then the owner's manual call."""
+    for failed in ("dirty", "remote"):
+        fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=_clean_ws(codes={failed: 128}))
+        with pytest.raises(launch.Refused, match="inspection failed"):
+            launch.retire(host(tmp_path, fake), SCRATCH)
+        assert not fake.ran("agent-dgx", "stop")
+        assert not (tmp_path / "exports").exists()
+
+
+def test_retire_refuses_when_the_sandbox_is_already_gone(tmp_path: Path) -> None:
+    """With no sandbox there is nothing to inspect, so there is no way to prove the work is
+    safe. Refuse, and say whose call retirement is now."""
+    fake = FakeHost(sessions={SCRATCH: NO_SANDBOX})
+    with pytest.raises(launch.Refused, match="owner's manual call"):
+        launch.retire(host(tmp_path, fake), SCRATCH)
+    assert not fake.ran("agent-dgx", "session", "rm")
+
+
+def test_clean_retire_exports_verifies_then_removes(tmp_path: Path) -> None:
+    fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=_clean_ws())
+    h = host(tmp_path, fake)
+    launch.retire(h, SCRATCH)
+
+    execs = [" ".join(argv) for argv, _ in fake.calls if argv[:2] == ["sbx", "exec"]]
+    assert len(execs) == 3
+    inspect_exec, bundle_exec, tree_exec = execs
+    assert inspect_exec.startswith(f"sbx exec {SCRATCH_SANDBOX} bash -lc")
+    assert f"cd /agents/{SCRATCH_SANDBOX}/workspace" in inspect_exec
+    # git runs inside the sandbox with -c core.fsmonitor=false, never on the host against
+    # the workspace (operator-runbook.md: its .git/config is the agent's to write)
+    assert "git -c core.fsmonitor=false status --porcelain --untracked-files=all" in inspect_exec
+    assert "git -c core.fsmonitor=false stash list" in inspect_exec
+    assert "git -c core.fsmonitor=false for-each-ref" in inspect_exec
+    assert "git -c core.fsmonitor=false ls-remote --heads origin" in inspect_exec
+    assert "bundle create" in bundle_exec and "--all" in bundle_exec
+    assert "tar" in tree_exec and "--exclude" in tree_exec  # the working tree, without .git
+
+    # the export lands on the host under the session's own directory, is verified there,
+    # and only then is anything stopped or removed
+    dest = tmp_path / "exports" / SCRATCH
+    assert sorted(p.name for p in dest.iterdir()) == [f"{SCRATCH}.bundle", "worktree.tar.gz"]
+    assert (dest / f"{SCRATCH}.bundle").read_bytes() == BUNDLE_BYTES
+    assert (dest / "worktree.tar.gz").read_bytes() == TREE_BYTES
+
+    order = [" ".join(argv) for argv in fake.changes()]
+    assert order == [
+        bundle_exec,
+        tree_exec,
+        f"agent-dgx stop {SCRATCH}",
+        f"agent-dgx session rm {SCRATCH} --force",
+    ]
+
+
+def test_the_export_is_verified_from_the_owners_checkout(tmp_path: Path) -> None:
+    """`git bundle verify` from the owner's checkout; the archive listed (30-ops.md §O0.1)."""
+    fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=_clean_ws())
+    h = host(tmp_path, fake)
+    launch.retire(h, SCRATCH)
+    verify = [(argv, cwd) for argv, cwd in fake.calls if "bundle" in argv and "verify" in argv]
+    listing = [(argv, cwd) for argv, cwd in fake.calls if argv[:2] == ["tar", "-tzf"]]
+    assert len(verify) == 1 and len(listing) == 1
+    assert verify[0][1] == h.checkout and listing[0][1] == h.checkout
+    bundle_path = verify[0][0][-1]
+    assert bundle_path.endswith(f"{SCRATCH}.bundle")
+    assert Path(bundle_path).is_file()
+
+
+def test_a_bundle_that_does_not_verify_stops_before_removal(tmp_path: Path) -> None:
+    fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=_clean_ws(), fail="bundle verify")
+    with pytest.raises(launch.Refused, match="verify"):
+        launch.retire(host(tmp_path, fake), SCRATCH)
+    assert not fake.ran("agent-dgx", "stop")
+    assert not fake.ran("agent-dgx", "session", "rm")
+
+
+def test_retire_dry_run_only_reads(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    fake = FakeHost(sessions={SCRATCH: RUNNING}, ws=_clean_ws())
+    launch.retire(host(tmp_path, fake, dry_run=True), SCRATCH)
+    assert fake.changes() == []
+    assert not (tmp_path / "exports").exists()
+    out = capsys.readouterr().out
+    assert f"agent-dgx session rm {SCRATCH} --force" in out
+
+
+def test_retire_without_a_session_changes_nothing(tmp_path: Path) -> None:
+    fake = FakeHost()
+    launch.retire(host(tmp_path, fake), SCRATCH)
+    assert fake.changes() == []
+
+
+# ------------------------------------------- the command vocabulary
+
+
+def test_every_agent_dgx_call_names_its_subcommand(tmp_path: Path) -> None:
+    """An unknown word starts a real session (operator-runbook.md), so the launcher always
+    names its subcommand and nothing here is `agent-dgx help` or `agent-dgx ls`."""
+    fake = FakeHost()
+    launch.up(host(tmp_path, fake), phase=0)  # creates both Phase 0 sessions
+    launch.retire(host(tmp_path, fake), SCRATCH)  # no such session: a no-op
+    checked = 0
+    for argv, _ in fake.calls:
+        if argv[:1] != ["agent-dgx"]:
+            continue
+        assert argv[1] in {"run", "inspect", "stop", "session"}, argv
+        if argv[1] == "session":
+            assert argv[2] == "rm", argv
+        checked += 1
+    assert fake.ran("agent-dgx", "run", CO) and fake.ran("agent-dgx", "inspect", CO)
+    assert checked > 0
+
+
+# --------------------------------------- refusal logic on fixture outputs
+
+
+def test_assess_reports_changed_files() -> None:
+    sections = launch.parse_inspection(sections_body(dirty=(" M backend/main.py\n", 0)))
+    assert any("changed" in r for r in launch.assess_inspection(sections, session=SCRATCH))
+
+
+def test_assess_reports_untracked_files() -> None:
+    sections = launch.parse_inspection(sections_body(dirty=("?? scripts/new-thing.py\n", 0)))
+    assert any("untracked" in r for r in launch.assess_inspection(sections, session=SCRATCH))
+
+
+def test_assess_refuses_a_failed_section() -> None:
+    risks = launch.assess_inspection(
+        launch.parse_inspection(sections_body(dirty=("", 128))), session=SCRATCH
+    )
+    assert any("inspection failed" in r for r in risks)
+
+
+def test_assess_passes_a_clean_and_pushed_workspace() -> None:
+    sections = launch.parse_inspection(
+        sections_body(
+            refs=(f"{MAIN_SHA} refs/heads/main\n", 0),
+            remote=(remote_heads({"main": MAIN_SHA, "agent-branch": MAIN_SHA}), 0),
+        )
+    )
+    assert launch.assess_inspection(sections, session=SCRATCH) == []
