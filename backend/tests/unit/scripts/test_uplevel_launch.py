@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Sequence
@@ -36,6 +37,15 @@ from typing import Any
 import pytest
 
 pytestmark = pytest.mark.unit
+
+# the identity these throwaway repos commit under (as test_vss_next_id.py does)
+GIT_ENV = {
+    **os.environ,
+    "GIT_AUTHOR_NAME": "t",
+    "GIT_AUTHOR_EMAIL": "t@t",
+    "GIT_COMMITTER_NAME": "t",
+    "GIT_COMMITTER_EMAIL": "t@t",
+}
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 _spec = importlib.util.spec_from_file_location(
@@ -106,6 +116,7 @@ class FakeHost:
         *,
         sessions: dict[str, dict[str, Any]] | None = None,
         checkout_head: str = MAIN_SHA,
+        checkout_branch: str = "main",
         checkout_dirty: str = "",
         ws: dict[str, Any] | None = None,
         new_head: str = MAIN_SHA,
@@ -114,6 +125,7 @@ class FakeHost:
     ) -> None:
         self.sessions = sessions or {}
         self.checkout_head = checkout_head
+        self.checkout_branch = checkout_branch
         self.checkout_dirty = checkout_dirty
         self.ws = ws if ws is not None else {}
         self.new_head = new_head
@@ -152,6 +164,9 @@ class FakeHost:
             answer = (0, (self.checkout_dirty + "\n") if self.checkout_dirty else "", "")
         elif "rev-parse" in argv and "origin/main" in joined:
             answer = (0, MAIN_SHA + "\n", "")
+        elif "rev-parse" in argv and "--abbrev-ref" in argv:
+            # before the HEAD case below: this read also names HEAD
+            answer = (0, self.checkout_branch + "\n", "")
         elif "rev-parse" in argv and "HEAD" in joined:
             answer = (0, self.checkout_head + "\n", "")
         elif "bundle" in argv and "verify" in argv:
@@ -237,7 +252,12 @@ class FakeHost:
 
 
 def host(
-    tmp_path: Path, fake: FakeHost, *, dry_run: bool = False, herdr: bool = True
+    tmp_path: Path,
+    fake: FakeHost,
+    *,
+    dry_run: bool = False,
+    herdr: bool = True,
+    manifest: Path | None = None,
 ) -> launch.Host:
     # the host's view of each session's clone (the real /agents is root-owned and absent
     # in a test run); the fake writes the export there, as the sandbox really would
@@ -245,7 +265,7 @@ def host(
         fake.agents_root = tmp_path / "agents"
     return launch.Host(
         checkout=tmp_path / "checkout",
-        manifest=REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml",
+        manifest=manifest or REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml",
         exports=tmp_path / "exports",
         agents_root=fake.agents_root,
         run=fake,
@@ -349,6 +369,26 @@ def test_up_refuses_a_stale_host_checkout(tmp_path: Path) -> None:
     assert not fake.changes()
 
 
+@pytest.mark.parametrize(
+    ("branch", "wording"),
+    [
+        # the exact hazard: same commit as origin/main, wrong branch. The sha check alone
+        # would pass; agent-dgx copies the checkout, so the agent would start on the branch.
+        ("uplevel/B1.4-x", r"on branch uplevel/B1\.4-x, not on main"),
+        ("HEAD", r"at a detached HEAD, not on main"),
+    ],
+)
+def test_up_refuses_a_host_checkout_on_another_branch(
+    tmp_path: Path, branch: str, wording: str
+) -> None:
+    """Every agent starts from a clean host checkout of *main* (50-coordination.md) - the
+    branch is part of the rule, not only its commit."""
+    fake = FakeHost(checkout_branch=branch, checkout_head=MAIN_SHA)
+    with pytest.raises(launch.Refused, match=wording):
+        launch.up(host(tmp_path, fake), phase=0)
+    assert not fake.changes()
+
+
 def test_up_refuses_until_the_strongest_models_arguments_are_posted(tmp_path: Path) -> None:
     """Every check runs before any change: a phase whose roster names the strongest model
     refuses the whole run while no [models] entry exists, naming the owner's next step."""
@@ -377,6 +417,40 @@ def test_up_creates_each_missing_session_from_the_checkout(
     out = capsys.readouterr().out
     # the kickoff line prints for what it created, not for what was already running
     assert out.count("Follow the kickoff prompt") == 1
+
+
+def test_up_passes_a_declared_mount_to_agent_dgx(tmp_path: Path) -> None:
+    """50-coordination.md gives the backend sandbox Docker "for the fake stack"; if a
+    session needs a host path agent-dgx mounts it with --mount (shown at
+    synthbench/host/agent.py:248). The launcher passes each declared mount through, in
+    order, before --split. sandboxes.toml declares none today - no shown flag takes a
+    network profile or a secret, so nothing invents one."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 0\n"
+        f'[[phase.session]]\nname = "{BACKEND}"\nmodel = "fast"\nkickoff = "k"\n'
+        'mount = ["/stack/shared:ro", "/stack/secrets:ro"]\n',
+        encoding="utf-8",
+    )
+    fake = FakeHost()
+    h = host(tmp_path, fake, manifest=manifest)
+    launch.up(h, phase=0)
+
+    run = next(argv for argv, _ in fake.calls if argv[:3] == ["agent-dgx", "run", BACKEND])
+    assert run == [
+        "agent-dgx",
+        "run",
+        BACKEND,
+        "--agent",
+        "claude",
+        "--endpoint",
+        "dgx",
+        "--mount",
+        "/stack/shared:ro",
+        "--mount",
+        "/stack/secrets:ro",
+        "--split",
+    ]
 
 
 def test_up_is_idempotent(tmp_path: Path) -> None:
@@ -560,6 +634,117 @@ def test_every_agent_dgx_call_names_its_subcommand(tmp_path: Path) -> None:
         checked += 1
     assert fake.ran("agent-dgx", "run", CO) and fake.ran("agent-dgx", "inspect", CO)
     assert checked > 0
+
+
+# --------------------------- the inspection script, run for real
+
+
+def _git(repo: Path, *args: str) -> str:
+    done = subprocess.run(  # noqa: S603
+        ["git", *args],  # noqa: S607
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+        env=GIT_ENV,
+    )
+    return done.stdout
+
+
+def _scratch_repo(tmp_path: Path) -> Path:
+    """A throwaway workspace with a real `origin`, shaped like an agent's clone: one
+    commit on `main`, pushed. Built with real git, as test_vss_next_id.py does."""
+    origin = tmp_path / "origin.git"
+    _git(tmp_path, "init", "-q", "--bare", str(origin))
+    work = tmp_path / "workspace"
+    work.mkdir()
+    _git(work, "init", "-q", "-b", "main")
+    (work / "main.py").write_text("print('hi')\n", encoding="utf-8")
+    _git(work, "add", "-A")
+    _git(work, "commit", "-q", "-m", "base")
+    _git(work, "remote", "add", "origin", str(origin))
+    _git(work, "push", "-q", "-u", "origin", "main")
+    return work
+
+
+def _run_inspection(workspace: Path) -> dict[str, tuple[str, int]]:
+    """Run the launcher's real inspection script, as `sbx exec` would, and parse it.
+
+    `sbx exec <sandbox> bash -lc <script>` makes the whole inspection one *string*, so
+    every argument's shell quoting is load-bearing: unquoted, the space and parentheses
+    in `--format=%(objectname) %(refname)` split the word and bash stops on `(`. A
+    substring check on the script cannot see that - only running it can. The workspace
+    path is rewritten because the sandbox's fixed path cannot exist inside a test.
+    """
+    session = launch.Session(name=SCRATCH, model="", kickoff="")
+    script = launch._inspect_argv(session)[-1].replace(session.workspace, str(workspace))
+    done = subprocess.run(  # noqa: S603
+        ["bash", "-lc", script],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+        env=GIT_ENV,
+    )
+    assert not done.stderr, f"the script is not valid bash: {done.stderr}"
+    return launch.parse_inspection(done.stdout)
+
+
+def test_the_inspection_script_runs_and_passes_a_pushed_workspace(tmp_path: Path) -> None:
+    workspace = _scratch_repo(tmp_path)
+    sections = _run_inspection(workspace)
+    assert set(sections) == set(launch.SECTION_NAMES), "every section must answer"
+    assert all(code == 0 for _, code in sections.values()), sections
+    assert launch.assess_inspection(sections, session=SCRATCH) == []
+
+
+def test_the_inspection_script_spots_an_unpushed_branch_for_real(tmp_path: Path) -> None:
+    """The Done-when's throwaway case: work on a branch that origin has never seen."""
+    workspace = _scratch_repo(tmp_path)
+    _git(workspace, "checkout", "-q", "-b", "wip")
+    (workspace / "wip.py").write_text("work\n", encoding="utf-8")
+    _git(workspace, "add", "-A")
+    _git(workspace, "commit", "-q", "-m", "unpushed work")
+
+    risks = launch.assess_inspection(_run_inspection(workspace), session=SCRATCH)
+    assert any("wip" in r and "not pushed" in r for r in risks), risks
+
+
+def test_the_inspection_script_spots_changed_and_untracked_files_for_real(
+    tmp_path: Path,
+) -> None:
+    workspace = _scratch_repo(tmp_path)
+    (workspace / "main.py").write_text("print('changed')\n", encoding="utf-8")
+    (workspace / "loose.py").write_text("new\n", encoding="utf-8")
+
+    risks = launch.assess_inspection(_run_inspection(workspace), session=SCRATCH)
+    assert any("changed" in r and "main.py" in r for r in risks), risks
+    assert any("untracked" in r and "loose.py" in r for r in risks), risks
+
+
+def test_a_failed_retire_does_not_poison_its_own_retry(tmp_path: Path) -> None:
+    """`retire` exports into .uplevel-retire/ inside the workspace it inspects, so when
+    anything after the export fails (a copy, a verify) that litter is still there on the
+    retry. It is the launcher's, not the agent's work: excluding it keeps the retry's
+    refusal about the real question instead of a bogus "untracked files" one.
+
+    Excluded by file name, not by directory. `retire` also excludes the whole directory
+    from the worktree archive, so a directory-wide blind spot here would let a file in
+    that directory be neither reported nor exported - lost, which is the one thing retire
+    is not allowed to do. So only the launcher's own two artifacts are ignored."""
+    workspace = _scratch_repo(tmp_path)
+    staged = workspace / launch.EXPORT_DIR
+    staged.mkdir()
+    (staged / f"{SCRATCH}.bundle").write_bytes(BUNDLE_BYTES)
+    (staged / "worktree.tar.gz").write_bytes(TREE_BYTES)
+
+    assert launch.assess_inspection(_run_inspection(workspace), session=SCRATCH) == []
+
+    (staged / "agent-notes.md").write_text("work the agent wrote here\n", encoding="utf-8")
+    (workspace / "real-work.py").write_text("still here\n", encoding="utf-8")
+    risks = launch.assess_inspection(_run_inspection(workspace), session=SCRATCH)
+    assert any("real-work.py" in r for r in risks), "the exclusion must not hide real work"
+    assert any("agent-notes.md" in r for r in risks), "nor a file left inside the export dir"
+    assert not any(f"{SCRATCH}.bundle" in r or "worktree.tar.gz" in r for r in risks), risks
 
 
 # --------------------------------------- refusal logic on fixture outputs

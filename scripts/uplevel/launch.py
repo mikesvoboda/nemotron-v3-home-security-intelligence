@@ -173,7 +173,7 @@ def _in_sandbox(
 
 def _inspect_argv(session: Session) -> list[str]:
     """The inspection, run inside the sandbox in the clone (30-ops.md §O0.1)."""
-    script = f"cd {session.workspace} && " + _inspection_script()
+    script = f"cd {session.workspace} && " + _inspection_script(session.name)
     return ["sbx", "exec", session.sandbox, "bash", "-lc", script]
 
 
@@ -274,6 +274,16 @@ def _preflight(host: Host) -> str:
         )
     # a fetch moves only a remote-tracking ref; nothing here touches the worktree
     _read(host, ["git", "-C", host.checkout, "fetch", "origin", "main"], check=False)
+    # the commit check below is not enough on its own: a feature branch cut from, or merged
+    # with, main can match origin/main's sha, and `agent-dgx run` copies the checkout - so
+    # the agent would start on that branch. "clean checkout of main" names the branch too.
+    branch = _read(host, ["git", "-C", host.checkout, "rev-parse", "--abbrev-ref", "HEAD"])
+    if branch != "main":
+        where = "at a detached HEAD" if branch == "HEAD" else f"on branch {branch}"
+        raise Refused(
+            f"the host checkout is {where}, not on main. Every agent starts from a clean "
+            "checkout of main (50-coordination.md): `git checkout main`, then run this again."
+        )
     origin_main = _read(host, ["git", "-C", host.checkout, "rev-parse", "origin/main"])
     head = _read(host, ["git", "-C", host.checkout, "rev-parse", "HEAD"])
     if head != origin_main:
@@ -342,22 +352,46 @@ def up(host: Host, *, phase: int) -> None:
 # -------------------------------------------------------------------- retire
 
 
-def _inspection_script() -> str:
+def _inspection_script(name: str) -> str:
     """One script, run inside the sandbox, printing six sections. Each `say` line ends with
-    MARKER <name> <exit code>, so a read that failed is a refusal, not an empty answer."""
+    MARKER <name> <exit code>, so a read that failed is a refusal, not an empty answer.
+
+    The script is a string handed to `bash -lc`, so every argument goes through shlex.quote:
+    `--format=%(objectname) %(refname)` carries a space and parentheses, which unquoted would
+    split into two words and stop the shell with a syntax error. test_the_inspection_script_
+    runs_... catches exactly that; a substring check on the script cannot.
+
+    The dirty section ignores the two files `retire` itself writes there - a retire that
+    failed after its export would otherwise refuse its own retry with a bogus "untracked
+    files". Excluded by name, never by directory: anything else found in that directory is
+    reported, because `retire` also excludes the whole directory from the worktree archive,
+    and a file hidden by both would be lost. A refusal loses nothing - it stops before
+    `agent-dgx stop` - so naming the stray file is the safe direction.
+    """
+    own = (f"{EXPORT_DIR}/{name}.bundle", f"{EXPORT_DIR}/worktree.tar.gz")
     lines = [
         f'say() {{ name=$1; shift; out="$("$@" 2>/dev/null)"; code=$?; '
         f'printf \'%s\\n\' "$out"; printf \'{MARKER} %s %s\\n\' "$name" "$code"; }}'
     ]
-    for name, *command in (
-        ("dirty", *GIT, "status", "--porcelain", "--untracked-files=all"),
+    for section, *command in (
+        (
+            "dirty",
+            *GIT,
+            "status",
+            "--porcelain",
+            "--untracked-files=all",
+            "--",
+            ".",
+            *(f":(exclude){path}" for path in own),
+        ),
         ("stash", *GIT, "stash", "list"),
         ("branch", *GIT, "rev-parse", "--abbrev-ref", "HEAD"),
         ("head", *GIT, "rev-parse", "HEAD"),
         ("refs", *GIT, "for-each-ref", "--format=%(objectname) %(refname)", "refs/heads"),
         ("remote", *GIT, "ls-remote", "--heads", "origin"),
     ):
-        lines.append(" ".join(["say", name, *command]))
+        quoted = [shlex.quote(str(part)) for part in command]
+        lines.append(" ".join(["say", section, *quoted]))
     return "\n".join(lines) + "\n"
 
 
