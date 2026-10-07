@@ -28,7 +28,8 @@ $ <command>
 
 <!-- Delete this section if the package needs no real-tier numbers. -->
 
-- [ ] The command below runs against a test deployment (README vocabulary), never the live stack.
+- [ ] The command below runs in the operator's sandbox against a test deployment, with the VLM at
+      `$VLM_URL`, which the operator serves through `agent-gpu` (`docs/uplevel/operator.md`).
 - [ ] The README status row is set to `awaiting real tier` until the operator posts the output.
 
 ```text
