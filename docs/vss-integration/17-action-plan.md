@@ -3788,6 +3788,56 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     prove it: the 64 are 26.6% of the incidents, and S3 caps at 177/241 = 73.4% only if none of
     them is recoverable [C]. The 2 of 64 for the 8B (arm A) is now [V]; the flagship's 7 and the twin-pair
     AUROCs stay [A]. Severity stays P1: the gating question is still open.
+- **Update 2026-10-07 (the ceiling re-derived from exact rows, offline; no GPU) [C unless
+  marked].** The acceptance's ceiling clause ran against committed rows and the surviving store,
+  in `docs/research/2026-10-07-iss086-s3-ceiling/` (`rederive_sweep.py` reads only the sweep's
+  `items.csv` and the taxonomy, so it runs anywhere; `rederive_shipped.py` reads run
+  `663da001ab5840ab85e672dba777d801`, the OD-29 dogfood replay, from
+  `$AGENT_GPU_DIR/out/sbroot/eval/tierb-v0/eval.sqlite`; both outputs captured beside them).
+  What it establishes:
+  - Every figure this entry filed `[A]` reproduces from the committed sweep's pre-rubric control
+    arm: 67.8% of scores in {0, 5, 10}, 24.9% at 75 or above, 7.3% from 20 to 70; AUROC 0.679
+    against the report's recorded 0.677 (the +0.002 is this script folding the two refusals to
+    score 0, which is what makes the denominators the charter's 241/209); 0.423 true positives at
+    5% false alarms; 147 misses, 139 (95%) `confirmed`, 126 (86%) at 10 or below (the exact
+    153-miss denominator is arm A on `b7972`, already [V] 2026-10-04; the control on `b11376`
+    differs by the ISS-087 build effect). The flagship's 7 of 64 converts in kind: the best
+    stranger-or-intent recovery of all fifteen arms is 7/64 (`gemma4-26b-a4b`, which also posts
+    the best S3 at 57.3%).
+  - The ceiling is a band, not a point: with B+C perfect the fifteen arms bound S3 at 177/241 =
+    73.4% (control) to 184/241 = 76.3% (best arm), and the SHIPPED OD-29 path at 180/241 = 74.7%.
+    OD-29 collapsed the polarization symptom (23.3% in {0, 5, 10}, 41.1% in the middle band,
+    AUROC 0.778, 53.5% at 5% — reproducing arm B's [V] readings exactly, which is this script's
+    method control) and left the group the hypothesis is about at 3 of 64: loitering 0/9,
+    peering_into_windows 0/9, trying_car_doors 0/9, package_theft 1/19, casing_with_phone 1/9,
+    tailgating 1/9. Polarization was a symptom; the construct leg stands.
+  - The twin premise splits by which benign the incident is shown against. Of 19 pairs (18
+    zone-sharing, plus the charter's `neighbor_passing` pair) on the shipped arm, 7 are at or
+    above 0.705 — the generic-motion foils (`wildlife`, `pet_activity`, `resident_arrival`,
+    `delivery_driver`) — and 12 at or below 0.584 — the matched-appearance foils
+    (`winter_face_covering`, `hooded_jogger`, `flashlight_neighbor`, `yard_maintenance`,
+    `landscaper_machete`, `neighbor_passing`) — with nothing in between. The rubric moved only
+    the rankable half (the driveway pairs from 0.14-0.16 inverted to 0.82-0.89 harvestable; the
+    charter's `package_theft` versus `delivery_driver` from 0.605 to 0.705) and made the two true
+    twins it named worse (`loitering` versus `neighbor_passing` 0.506 to 0.333, versus
+    `winter_face_covering` 0.577 to 0.264). So the 26.6% is twin-specific blindness, not a
+    uniform wall, and relabelling under OD-2 is scenario-selectable rather than
+    all-or-nothing.
+  - Acceptance status: E1 is shipped (OD-29, development-arm status unchanged as filed); **E3 is
+    redundant without spending the owner's 32B cell** — its shipped-prompt by 32B cell already
+    ran in the sweep (`qwen3vl-32b-q4km`: S3 39.4% against the 8B's 39.0%, A-group 1 of 64), the
+    shipped-arm reading above shows a rubric does not move a construct-bounded group, and size
+    moved nothing across the twelve model arms. E2's logprob arm is the only open premise,
+    itself disfavored by the handoff's off-capture reading. The per-scenario tables the
+    acceptance asks for are in the directory's captured outputs.
+  - The holdout is A-heavy: three of its six scenarios are stranger-or-intent scenes, so 27 of
+    its 64 incidents (42.2%) are A-group against 20.9% on dev and 26.6% corpus-wide — part of
+    the dogfood report's 47.5% dev to 32.8% holdout drop is composition, not sample size, the
+    concrete instance of ISS-016's unstratified-draw caveat.
+    Severity stays P1 (OD-2 is still open), but the Severity note's `[A]` discount no longer
+    reaches the polarization, AUROC, threshold, miss-anatomy, ceiling or twin figures — all
+    re-derived above from committed rows; what stays soft is small-n pair precision and anything
+    build-specific.
 
 #### ISS-087 — Measured numbers are specific to the llama.cpp build: b7972 and b11376 disagree on 44% of items for the same model, weights and prompt
 
@@ -7919,3 +7969,37 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   reported as unattributed drift, which is the point of the issue, not a finding of harm; no
   second replay, no holdout re-run, no shipped-image pin change, and the container was torn down
   after the run.
+
+### 2026-10-07 (ISS-086's ceiling clause re-derived offline: every `[A]` figure reproduces from committed rows, the shipped arm leaves the A-group at 3/64, and E3 is redundant)
+
+- **What ran.** No GPU, no replay: the acceptance's "ceiling re-derived from exact rows" clause
+  ran against committed data and the surviving store, banked in
+  `docs/research/2026-10-07-iss086-s3-ceiling/` (two scripts, two captured outputs, a README).
+  Part 1 reads only the sweep's `items.csv` and the taxonomy — 15 arms, 450 items — so it
+  reproduces from git alone; part 2 reads the OD-29 dogfood run `663da001…` from the eval store
+  and takes the dev/holdout roster from the store's own `splits` table. The control arm
+  reproduces every figure ISS-086 filed `[A]` (67.8% in {0,5,10}, 24.9% ≥75, 7.3% mid-band;
+  AUROC 0.679 against the report's 0.677 — the +0.002 is the refusal fold; 0.423 TPR@5%FPR; 147
+  misses, 95% `confirmed`, 86% ≤10; the flagship's 7/64 reappears as the best A-recovery of all
+  fifteen arms), and the shipped-path half reproduces arm B's [V] readings exactly (43.6%, 0.778,
+  53.5%), which is the method control. Findings, with the full tables in the directory: the
+  ceiling is a 73.4-76.3% band across arms and 74.7% on the shipped path; OD-29 collapsed the
+  polarization symptom but left the stranger-or-intent group at 3/64; the twin premise is
+  bimodal (rankable generic-motion foils ≥0.705, matched-appearance true twins ≤0.584, nothing
+  between), the rubric moved only the rankable half, and the charter's named true twins got
+  worse; the holdout's 42.2% A-group share (against dev's 20.9%) is composition, not just
+  sample size, behind the dogfood's dev-to-holdout drop.
+- **Register.** ISS-086's block carries the dated update, converting the `[A]` evidence bullets
+  to `[C]` with the repro commands and the refusal-fold disclosure, and marking the acceptance
+  state: E1 shipped under OD-29 (development-arm status unchanged), **E3 redundant — the next
+  session should not spend the owner's 32B download on it**, because its fourth cell varies only
+  model size, size moved nothing across twelve arms, and a rubric does not move a
+  construct-bounded group; E2's logprob arm is the only open premise. Status stays `open`: the
+  re-derivation sharpens the question OD-2 answers, it does not answer it. Dashboard untouched,
+  no recount, no new ids.
+- **What this entry does not do:** no ledger row (the register's rows are prose the owner
+  authors; this entry is the pattern); no OD-2 ruling or bar movement — that is the owner's,
+  and the re-derived numbers are presented for it in the README; no E2 replay, no GPU, no store
+  writes (opened read-only); ISS-016's split itself is untouched — the holdout-skew note is the
+  caveat its closure named, instantiated; nothing here licenses relabelling any scenario, it
+  only shows relabelling could be scenario-selectable if the owner goes that way.
