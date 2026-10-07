@@ -191,16 +191,19 @@ def frozen_round(root: Path, n: int = 4, name: str = "clips-pilot-1") -> list[Cl
     return [s.read(s.spec_file(spec.event_id), ClipSpec) for spec in specs]
 
 
-def record_clip(root: Path, spec: ClipSpec) -> None:
+def record_clip(root: Path, spec: ClipSpec, clip: bytes | None = None) -> None:
     """Store and record the current attempt's stand-in clip and strip, as clip render does
-    (clip check verifies sha256s, not video, so stand-in bytes keep tests fast)."""
+    (clip check verifies sha256s, not video, so stand-in bytes keep tests fast). `clip` records
+    real mp4 bytes instead — for the tests that decode what they sample (`test_export_sequences`)."""
     s = store(root)
     path = s.provenance_file(spec.event_id)
     prov = s.read(path, ClipProvenance)
     attempt = prov.attempts[-1]
     event_dir = s.event_dir(spec.event_id)
     tag = f"{spec.event_id} a{attempt.k}".encode()
-    clip, sheet = b"mp4 " + tag, b"jpg " + tag
+    sheet = b"jpg " + tag
+    if clip is None:
+        clip = b"mp4 " + tag
     clip_file, strip_file = clip_name(attempt.k, attempt.seed), strip_name(attempt.k, attempt.seed)
     s.write_new_bytes(event_dir / clip_file, clip)
     s.write_new_bytes(event_dir / strip_file, sheet)

@@ -3434,6 +3434,19 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   intervals and the minimum-n rule.
 - **Depends on.** Precondition for measuring ISS-005, ISS-006, ISS-033, ISS-035 and ISS-036.
 - **Tracked as.** None found.
+- **Update 2026-10-07 (branch `iss037-multiframe-harness`, owner-funded /goal slice; PR pending
+  owner merge) [V].** The harness is in: `export vss --sequences 3|4` exports sequence sets beside
+  the stills; replay runs `--frames stored|selector|burst` (with `--with-sequences`), the selector
+  mode driving the shipped `build_assess_request`/`select_key_frames` unchanged — a same-camera
+  triplet's collapse to one frame is what that mode measures (ISS-005's question); and `score`
+  reports S2/S3 per depth fed, with intervals and the minimum-n rule, plus a per-row harness
+  recording what the wire actually received. The corpus clause is met by owner ruling (in-session,
+  2026-10-07), which replaces this acceptance's scripted wording: the sets are frame-sampled from
+  rendered clips, not scripted triplets (fixed fractions, re-derivable from the sha-verified mp4;
+  scripted renders wait on the owner's renderer window). They carry the clips' declared truth,
+  undistributed and unaudited exactly as the clips are, and no clip S2/S3 number is published
+  before the blind audit (ISS-038, ISS-044). Status stays `open` until merge; on merge, acceptance
+  is met by this update's disclosure.
 
 #### ISS-043 — Add cluster-aware intervals, repeat runs and a noise floor to S2/S3
 
@@ -8093,6 +8106,47 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   writes (opened read-only); ISS-016's split itself is untouched — the holdout-skew note is the
   caveat its closure named, instantiated; nothing here licenses relabelling any scenario, it
   only shows relabelling could be scenario-selectable if the owner goes that way.
+
+### 2026-10-07 (ISS-037 lands the multi-frame harness: export, replay and score all reach frames)
+
+- **What landed** (branch `iss037-multiframe-harness`, owner-funded under the /goal clip-understanding
+  campaign; PR pending owner merge). `synthbench/export/sequence.py` (new): a clip's triaged mp4 is
+  frame-sampled at fixed fractions into a depth-3 or depth-4 set beside the stills, with per-frame
+  detections naming their file — the shape the store and scorer already read. `export vss
+--sequences 3|4` writes them create-once under `<out>/sequences/`, refuses before writing on a
+  clip that fails its recorded sha256 or will not decode, and keeps them out of `splits.json` and
+  the owner audit. `replay --frames` in stored, selector or burst mode (with `--with-sequences`):
+  the selector mode calls the shipped `build_assess_request` unchanged, which calls the shipped
+  `select_key_frames` — the same-camera collapse to one frame is the measurement, not a harness bug
+  — and every result row carries a harness (`frames_mode`, `frames_fed`, `selector_collapsed`, and
+  `mode_fell_back` where a still falls back). `score`: `SCORE_VERSION` 5; a frames run gains a
+  `frames` block (S2/S3 per depth fed, intervals, the minimum-n rule), result rows carry
+  `frames_fed`/`frames_mode`, and `report.md` gains "## Frames fed" and a `Frames` column in the
+  conditions table. Pre-audit runs keep their shape: no block, section or column, and their rows
+  bucket as `unrecorded`. `docs/synthbench/command-reference.md` documents every new option and
+  refusal; `test_command_reference.py` pins the tables against argparse.
+- **The ruling that shapes the corpus** (owner, in-session 2026-10-07): frame-sampled existing
+  clips, not scripted approach/linger/leave triplets — zero GPU, deterministic, and honest only if
+  disclosed, so the register, the command reference and the exporter's docstring all say it. The
+  sets carry the clips' declared truth, undistributed and unaudited exactly as the clips are, and
+  no clip S2/S3 number is published before the blind audit (ISS-038; OD-15's instrument, ISS-044).
+  Scripted triplet renders wait on the owner's renderer window.
+- **Tested.** `backend/tests/unit/synthbench` plus `backend/tests/unit/evaluation` green: 1319
+  passed, 1 skipped under xdist and `-p randomly` (the ISS-087 baseline of 1280 plus this slice).
+  The selector path is pinned against the shipped builders' real output, including the collapse;
+  the scorer is pinned through a real sequence export's import, both gate halves (rows, and
+  `run.json`) independently, and the pre-audit world's honest negative. `check-vss-docs-currency.py`
+  passes. No replay ran: this slice is harness code under unit fixtures, and its first live use is
+  the funded burst-versus-video measurement that needs the owner's GPU window.
+- **Register.** ISS-037 gains an Update, above; status stays `open` until the owner merges the
+  branch, and on merge its acceptance is met by that update's disclosure — including that the
+  corpus clause is met by ruling, not by the scripted-triplet wording it carried. ISS-005, ISS-033,
+  ISS-035 and ISS-036 now have their prerequisite: their dependency lines already named ISS-037, so
+  they are untouched, and the Dashboard is untouched (no status changed, no recount).
+- **What this entry does not do:** no new ids; no bar, D or S line moved; no clip number measured or
+  published (the corpus is declared-truth, unaudited); no GPU touched; the OD-2 and OD-5 rulings and
+  the ISS-003 route decision stay the owner's — this entry builds the machine that measures what
+  those rulings will be made of.
 
 ### 2026-10-07 (ISS-033's chronology lands on `iss033-prompt-chronology`: multi-frame batches attach oldest-first and the prompt says so, and an unknown frame time stays unknown)
 

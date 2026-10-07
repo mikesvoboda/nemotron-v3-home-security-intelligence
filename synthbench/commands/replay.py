@@ -49,6 +49,22 @@ def add_parser(commands: argparse._SubParsersAction[Parser]) -> None:
         help="declare how the endpoint was started (its cache flags change its answers, "
         "ISS-087; replay cannot observe them), recorded in run.json and shown in the report",
     )
+    parser.add_argument(
+        "--frames",
+        choices=("stored", "selector", "burst"),
+        default="stored",
+        help="how frames reach the wire (ISS-037): stored (the default, the historical feed), "
+        "selector (production's build_assess_request over the item's per-frame detections — "
+        "collapses a same-camera triplet to one frame, ISS-005's measurement), burst (every "
+        "frame with frame_detection_ids — ISS-003 arm (a)'s shape)",
+    )
+    parser.add_argument(
+        "--with-sequences",
+        action="store_true",
+        help="also import the export's sequence sets (export vss --sequences) into the store "
+        "for this run; required by --frames selector|burst, and it widens the denominator of "
+        "every later run against this store — run.json records it either way",
+    )
     parser.set_defaults(run=run)
 
 
@@ -73,6 +89,8 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
             args.limit,
             Deps(),
             args.server_settings,
+            frames_mode=args.frames,
+            include_sequences=args.with_sequences,
         )
     except ReplayRefused as error:
         raise AskOwner(f"{error}.") from error
@@ -81,7 +99,8 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     report = result.report
     s2, s3 = report["s2"], report["s3"]["all"]
     sys.stdout.write(
-        f"replay {model.name}: {report['n_items']} items; S2 {s2['fp']}/{s2['n']} false alarms, "
+        f"replay {model.name} ({report['frames_mode']} frames): {report['n_items']} items; "
+        f"S2 {s2['fp']}/{s2['n']} false alarms, "
         f"S3 {s3['hit']}/{s3['n']} incidents at level; {_refused(report['s5'])}\n"
         f"  {result.run_dir / 'run.json'}\n"
     )

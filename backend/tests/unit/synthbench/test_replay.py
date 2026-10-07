@@ -10,12 +10,13 @@ import re
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import httpx
 import pytest
 from synthbench import cli
-from synthbench.export import vss
+from synthbench.export import sequence, vss
 from synthbench.run import replay as replay_module
 from synthbench.run.models import MODELS
 from synthbench.run.replay import (
@@ -146,6 +147,131 @@ def test_the_import_is_idempotent_and_refuses_a_bad_set(tmp_path: Path) -> None:
     bad = _export(tmp_path / "bad", timestamp="noon")
     with EvalStore(tmp_path / "bad.sqlite") as store, pytest.raises(ImportRefused, match="noon"):
         import_export(store, bad)
+
+
+def _write_sequence_sets(export: Path, n: int = 1, frames: int = 3) -> Path:
+    """Sequence sets (ISS-037's layout) beside the export's stills: the real file builder
+    over stub JPEG bytes — the import path reads names and labels, never pixels."""
+    sequences = export / sequence.SEQUENCE_DIR
+    for i in range(n):
+        event = f"C-t-{i:03d}"
+        times = [f"2026-04-15T14:32:0{k}.000000-04:00" for k in range(1, frames + 1)]
+        files = sequence.sequence_files(
+            {
+                "event_id": event,
+                "label": "incident",
+                "risk_band": [70, 95],
+                "corpus_version": "tierb-v0",
+            },
+            category="threats",
+            jpeg_frames=[b"\xff\xd8\xff" + b"\x00" * 32] * frames,
+            offsets_ms=[167, 1000, 1792][:frames],
+            times=times,
+            detections=sequence.frame_detections(
+                [SimpleNamespace(cls="knife")],
+                [f"frame{k + 1}.jpg" for k in range(frames)],
+                times,
+            ),
+            corpus_version="tierb-v0",
+        )
+        assert sequence.write_sequence_set(sequences, "threats", f"{event}__seq3", files)
+    return sequences
+
+
+def test_sequences_import_only_when_asked_and_widen_the_store(tmp_path: Path) -> None:
+    """The store defines what a replay runs: the default import cannot silently widen the
+    denominator of the committed stills-only history; `include_sequences` is the whole
+    difference, and it lands items whose frames are the set's own files."""
+    export = _export(tmp_path, n=1)
+    _write_sequence_sets(export)
+    with EvalStore(tmp_path / "a.sqlite") as store:
+        assert import_export(store, export) == (1, 0)  # the still only
+        assert import_export(store, export, include_sequences=True) == (1, 1)
+        ids = {item.item_id for item in store.iter_items()}
+    assert sum(i.endswith("__seq3") for i in ids) == 1
+
+
+def test_a_held_sequence_item_still_faces_check_current(tmp_path: Path) -> None:
+    """`check_current`'s scratch import must mirror the real one's `include_sequences`: an
+    export rebuilt in place would otherwise replay a stale frame set the comparison never
+    saw. The check is per-scope — a stills-only check does not inspect sequence items."""
+    export = _export(tmp_path, n=1)
+    _write_sequence_sets(export)
+    with EvalStore(tmp_path / "e.sqlite") as store:
+        import_export(store, export, include_sequences=True)
+        labels = next((export / "sequences").rglob(vss.LABELS_FILE))
+        document = json.loads(labels.read_text(encoding="utf-8"))
+        document["risk"]["max_score"] = 90  # the set rebuilt in place, differently
+        labels.write_text(json.dumps(document), encoding="utf-8")
+        with pytest.raises(ReplayRefused, match="__seq3"):
+            import_export(store, export, include_sequences=True)
+        assert import_export(store, export) == (0, 1)  # the still-only check sees no sequence
+
+
+def test_with_sequences_without_the_directory_is_refused(tmp_path: Path) -> None:
+    """An empty sequence import would run silently as a stills run with a lie in run.json."""
+    export = _export(tmp_path, n=1)
+    deps = Deps(get=_get(), run=_run())
+    with pytest.raises(ReplayRefused, match="does not exist"):
+        execute(
+            QWEN,
+            URL,
+            export,
+            tmp_path / "e.sqlite",
+            tmp_path / "runs",
+            None,
+            deps,
+            include_sequences=True,
+        )
+
+
+def test_a_frames_mode_without_the_sequences_is_refused(tmp_path: Path) -> None:
+    """Every item of a stills-only run would fall back to the stored feed; a run that reads
+    as a frames run while being a stored one is the measurement-validity failure this gate
+    exists for, so it is refused before the endpoint is even checked."""
+    export = _export(tmp_path, n=1)
+    deps = Deps(get=_get(), run=_run())
+    with pytest.raises(ReplayRefused, match="without --with-sequences"):
+        execute(
+            QWEN,
+            URL,
+            export,
+            tmp_path / "e.sqlite",
+            tmp_path / "runs",
+            None,
+            deps,
+            frames_mode="burst",
+        )
+    assert not (tmp_path / "runs").exists()
+
+
+def test_the_frame_options_reach_the_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--frames`/`--with-sequences` are only real if the command threads them: a mis-named
+    attribute would replay happily and record a stored run for a burst one."""
+    export = _export(tmp_path, n=1)
+    _write_sequence_sets(export)
+    _fake_deps(monkeypatch, httpx.MockTransport(lambda _: _vllm_reply()))
+    assert (
+        h.run(
+            tmp_path,
+            "replay",
+            "--model",
+            "flagship",
+            "--export",
+            str(export),
+            "--with-sequences",
+            "--frames",
+            "burst",
+        )
+        == cli.EXIT_OK
+    )
+    [run_dir] = (tmp_path / "runs" / "replays").iterdir()
+    record = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    assert record["frames_mode"] == "burst"
+    assert record["with_sequences"] is True
+    assert record["imported_new"] == 2  # one still, one sequence set
 
 
 class _Recording(httpx.AsyncBaseTransport):

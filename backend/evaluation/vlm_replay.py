@@ -6,13 +6,27 @@ offline 30B control replay; rev 6's rule survives and is what the name means:
 replay reads the items' STORED `specialist_outputs` and never re-runs a
 specialist - the GIVENS are the point of a replay.
 
+Frame supply is a MODE (ISS-037), not an assumption. `stored` (the default)
+is the historical behavior - the item's own `media_paths` (≤4, the wire's
+field constraint) fed straight to the wire: the REQUEST a stored-mode replay
+builds is identical to what this harness has always sent, so a re-run of a
+committed corpus reproduces the committed prompt bytes. `selector` and `burst`
+apply only to items whose detections
+name the frame each row was seen on (sequence sets; a still's declared
+detections carry no `file_path`): the selector mode drives the SHIPPED
+`build_assess_request`/`select_key_frames` - that import is lazy and inside
+that branch only, because the analyzer module pulls in `vlm_specialists` at
+top level and the AST doctrine below is about THIS module's own imports -
+which collapses a same-camera same-class triplet to one frame, the collapse
+ISS-005 exists to fix, now measured instead of asserted. The burst mode feeds
+every frame (≤4) with the per-frame `frame_detection_ids` link, the shape
+ISS-003's funded arm (a) will use. Which frames an item actually reached the
+model with is recorded in `raw_response.harness` on EVERY row, refusals
+included: a report that cannot say how many frames a run fed cannot answer
+the question the run was for.
+
 The pieces it deliberately does NOT have:
 
-* **no key-frame selection.** Production selects the ≤4 frames with
-  `build_assess_request`/`select_key_frames` from DETECTION ROWS; a frozen
-  item has none (a stock item's snapshot carries zero detections - the loader
-  refuses to claim them from a still), so replay feeds the item's own
-  `media_paths` (≤4, the wire's field constraint) directly.
 * **no specialist import at all** - not even to prove the negative: the
   module never imports `vlm_specialists`, which `test_vlm_replay.py` asserts
   at the AST level (the `test_no_seam_constructs_nemotron_directly` doctrine).
@@ -67,6 +81,88 @@ _DEGRADABLE_ERRORS: tuple[type[BaseException], ...] = (
 
 MAX_REPLAY_IMAGES = 4  # VlmAssessRequest.image_paths' own field constraint
 
+FRAMES_MODES = ("stored", "selector", "burst")  # how an item's frames reach the wire
+
+
+def _sequence_rows(item: EvalItem) -> list[dict[str, Any]]:
+    """The item's detection rows that NAME a frame, ready for the production builders.
+
+    A sequence set's rows carry `file_path` (the frame's name inside the set) and an ISO
+    `detected_at` string; a still's declared rows carry neither. Two repairs make the rows
+    what the production builders expect: `file_path` resolves to the store's media path
+    (the set's names are relative by construction; the wire is fed paths), and the ISO
+    string rehydrates to a `datetime`, because `build_frame_refs` reads timestamps only
+    from datetime objects and a string would silently rank every frame at epoch 0 — the
+    selector's recency tiebreak blinded by the store's own serialization, not by the
+    selector. A row naming a file the item does not have is DROPPED, loudly counted by the
+    caller's fallback: pointing the wire at a path the store does not hold is worse."""
+    by_name = {Path(path).name: path for path in item.media_paths}
+    rows: list[dict[str, Any]] = []
+    for row in item.snapshot.detections:
+        media = by_name.get(str(row.get("file_path") or ""))
+        if media is None:
+            continue
+        moment = row.get("detected_at")
+        if isinstance(moment, str):
+            try:
+                moment = datetime.fromisoformat(moment)
+            except ValueError:
+                pass  # unparseable stays as-is; build_frame_refs treats it as no time
+        rows.append({**row, "file_path": media, "detected_at": moment})
+    return rows
+
+
+def _build_request(
+    item: EvalItem, context: VlmAssessContext, *, frames_mode: str
+) -> tuple[VlmAssessRequest, dict[str, Any]]:
+    """The request this item becomes under `frames_mode`, plus its frame audit.
+
+    The audit is the slice's evidence chain: `frames_fed` is what the wire was given
+    (the report buckets rows by it), `selector_collapsed` says the selector was given
+    more distinct frames than it attached (ISS-005's measurement, item by item), and
+    `mode_fell_back` records an item that could not be fed the mode it was asked for —
+    counted, never silently stored. Programming errors propagate (the module's standing
+    posture); only the two expected fallbacks are caught."""
+    if frames_mode not in FRAMES_MODES:
+        raise ValueError(f"frames_mode must be one of {FRAMES_MODES}, got {frames_mode!r}")
+    media = list(item.media_paths)[:MAX_REPLAY_IMAGES]
+
+    def stored(fell_back: str | None = None) -> tuple[VlmAssessRequest, dict[str, Any]]:
+        audit: dict[str, Any] = {
+            "frames_mode": frames_mode,
+            "frames_fed": len(media),
+            "selector_collapsed": False,
+        }
+        if fell_back is not None:
+            audit["mode_fell_back"] = fell_back
+        return VlmAssessRequest(image_paths=media, context=context), audit
+
+    if frames_mode == "stored":
+        return stored()
+    rows = _sequence_rows(item)
+    if not rows:
+        return stored(fell_back="no per-frame detection rows")
+    if frames_mode == "burst":
+        on_frame = [[row["id"] for row in rows if row["file_path"] == path] for path in media]
+        request = VlmAssessRequest(image_paths=media, context=context, frame_detection_ids=on_frame)
+        return request, {
+            "frames_mode": frames_mode,
+            "frames_fed": len(request.image_paths),
+            "selector_collapsed": False,
+        }
+    # selector: the SHIPPED builders, lazily — vlm_analyzer imports vlm_specialists at
+    # top level, and the AST doctrine pins THIS module's imports, so the sequence mode
+    # that wants production's selection must import production inside the branch.
+    from backend.services.vlm_analyzer import build_assess_request
+
+    request = build_assess_request(context=context, detections=rows)
+    distinct_frames = len({row["file_path"] for row in rows})
+    return request, {
+        "frames_mode": frames_mode,
+        "frames_fed": len(request.image_paths),
+        "selector_collapsed": len(request.image_paths) < distinct_frames,
+    }
+
 
 def client_factory(base_url: str | None = None) -> Callable[[], VlmClient]:
     """The production client (settings → `ai_vlm_url`, breaker, probe), or an
@@ -115,10 +211,18 @@ def git_commit(short: bool = True) -> str:
         return "unknown"
 
 
-async def replay_item(client: Any, item: EvalItem) -> dict[str, Any]:
+async def replay_item(
+    client: Any, item: EvalItem, *, frames_mode: str = "stored"
+) -> dict[str, Any]:
     """One item -> one `put_result`-ready row. Maps the client's raise set to
     the shipped ladder (`verification_failed` + NULL), exactly like
-    `vlm_analyzer` does for events."""
+    `vlm_analyzer` does for events.
+
+    `frames_mode` decides how the item's frames reach the wire (module
+    docstring); the audit of that decision rides in `raw_response.harness`
+    on the refusal path too — a refusal fed 3 frames is a data point about
+    3-frame input, and dropping it would bias the per-mode counts toward
+    the items that answered."""
     snap = item.snapshot
     context = VlmAssessContext(
         camera_id=snap.camera_id,
@@ -129,18 +233,21 @@ async def replay_item(client: Any, item: EvalItem) -> dict[str, Any]:
         timestamp=snap.timestamp,
         specialist_outputs=dict(snap.specialist_outputs),
     )
+    request, harness = _build_request(item, context, frames_mode=frames_mode)
     started = time.monotonic()
     try:
-        request = VlmAssessRequest(
-            image_paths=list(item.media_paths)[:MAX_REPLAY_IMAGES], context=context
-        )
         verdict: VlmVerdict = await client.assess(request)
         latency_ms = int((time.monotonic() - started) * 1000)
         row = {
             "item_id": item.item_id,
             "verdict": verdict.verdict,
             "risk_score": verdict.risk_score,
-            "raw_response": verdict.model_dump(),
+            # `harness` is a SIBLING of the verdict dump, never inside it:
+            # VlmVerdict is extra="forbid" (the wire carries no bookkeeping)
+            # and every reader of raw_response so far reads through keys it
+            # knows (verdict fields, `error`) — an added top-level key is
+            # invisible to all of them and survives the store's JSON round trip.
+            "raw_response": {**verdict.model_dump(), "harness": harness},
         }
     except _DEGRADABLE_ERRORS as exc:
         latency_ms = int((time.monotonic() - started) * 1000)
@@ -156,7 +263,11 @@ async def replay_item(client: Any, item: EvalItem) -> dict[str, Any]:
             "risk_score": None,
             # the ladder's audit half (prompt-hygiene doctrine): the WHY
             # lives in the row/log, never in a score.
-            "raw_response": {"error": type(exc).__name__, "detail": str(exc)},
+            "raw_response": {
+                "error": type(exc).__name__,
+                "detail": str(exc),
+                "harness": harness,
+            },
         }
     row["latency_ms"] = latency_ms  # not stored in `results`; the report reads it live
     return row
@@ -212,6 +323,7 @@ async def run_replay(
     with_media_only: bool = True,
     make_client: Callable[[], Any] | None = None,
     endpoint: str | None = None,
+    frames_mode: str = "stored",
 ) -> dict[str, Any]:
     """One run of the harness. `candidate` names the exact build (weights +
     quant + image tag); it lands in the run row's `model` next to the commit,
@@ -231,6 +343,11 @@ async def run_replay(
     replay would be 0 items - said loudly, not run silently empty).
     """
     commit = git_commit()
+    if frames_mode not in FRAMES_MODES:
+        # Checked before the run row exists, like `limit`: a typo'd mode that
+        # raised on the first item would leave a started run that never
+        # completes, and the store's run table would carry a half a run.
+        raise ValueError(f"frames_mode must be one of {FRAMES_MODES}, got {frames_mode!r}")
     if not with_media_only:
         # A structural refusal, not a policy one: `VlmAssessRequest.image_paths`
         # is min_length=1 on the SHIPPED wire, so a media-less item has no
@@ -305,7 +422,7 @@ async def run_replay(
     client = make_client()
     try:
         for item in items:
-            row = await replay_item(client, item)
+            row = await replay_item(client, item, frames_mode=frames_mode)
             store.put_result(
                 run_id,
                 row["item_id"],
@@ -340,6 +457,7 @@ async def run_replay(
     report["candidate"] = candidate
     report["engine"] = engine
     report["commit"] = commit
+    report["frames_mode"] = frames_mode  # which supply fed every item in this run
     report["n_items"] = len(items)
     report["vlm_url"] = url
     report["vlm_url_source"] = url_source
@@ -371,6 +489,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument(
+        "--frames",
+        choices=FRAMES_MODES,
+        default="stored",
+        help="how frames reach the wire (ISS-037): stored (default, the historical "
+        "media_paths feed), selector (production's build_assess_request over the "
+        "item's per-frame detections), burst (every frame with frame_detection_ids)",
+    )
+    ap.add_argument(
         "--all-items", action="store_true", help="replay every item, not just media-bearing"
     )
     ap.add_argument("--out", default=None, help="aggregate report path (JSON)")
@@ -386,6 +512,7 @@ def main(argv: list[str] | None = None) -> int:
                 limit=args.limit,
                 with_media_only=not args.all_items,
                 endpoint=args.vlm_url,
+                frames_mode=args.frames,
             )
         )
     finally:
@@ -398,7 +525,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(
         json.dumps(
-            {k: report[k] for k in ("run_id", "candidate", "commit", "n_items", "vlm_url")},
+            {
+                k: report[k]
+                for k in ("run_id", "candidate", "commit", "frames_mode", "n_items", "vlm_url")
+            },
             indent=2,
         )
     )
