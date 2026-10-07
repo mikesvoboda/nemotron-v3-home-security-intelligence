@@ -489,25 +489,44 @@ class _FakeProc:
 
 
 @pytest.fixture()
-def _cleanup_root_coverage_json():
-    """The inline path reads REPO_ROOT/coverage.json (gitignored). Remove it."""
-    target = REPO_ROOT / "coverage.json"
-    preexisting = target.exists()
-    yield target
-    if not preexisting and target.exists():
-        target.unlink()
+def synthetic_coverage_root(tmp_path, monkeypatch):
+    """(root, module) for the INLINE collection path, rooted at `tmp_path`.
+
+    Why this exists instead of a shared-path cleanup (PR #6826's red
+    Collection Sanity, measured): the inline path is a FIXED location the gate
+    derives from its own `__file__` (check-test-coverage-gate.py:475 ->
+    `project_root / "coverage.json"`). When the tests target the real repo
+    root, (a) any leftover gitignored root report reads as genuine coverage
+    data and makes the "absent data" leg VACUOUS — the exact invariant this
+    file guards — and (b) the writer and reader items of this file can land on
+    different workers and race on that one path, because `-n 8 --dist=worksteal`
+    distributes single ITEMS and the worksteal scheduler implements no
+    xdist_group support (measured against xdist 3.8.0: zero `group` references
+    in xdist/scheduler/worksteal.py — pinning is a load-scheduler feature).
+
+    Same mechanism as `synthetic_root` above: relocate the LOADED module's
+    `__file__`, and assert it actually relocated so no arm can silently fall
+    back to the real tree. Yields the PATCHED module for the same reason.
+    """
+    root = tmp_path / "repo"
+    (root / "scripts").mkdir(parents=True)
+    mod = get_gate_module()
+    monkeypatch.setattr(mod, "__file__", str(root / "scripts" / "gate.py"))
+    assert Path(mod.__file__).resolve().parent.parent == root
+    assert not (root / "coverage.json").exists()
+    return root, mod
 
 
 def test_failing_tests_do_not_fail_the_coverage_gate(
-    isolated_cwd, monkeypatch, _cleanup_root_coverage_json
+    isolated_cwd, monkeypatch, synthetic_coverage_root
 ):
     """pytest exiting non-zero must NOT redden this gate when coverage was measured."""
     base = isolated_cwd / "base.json"
     write_coverage_json(base, 70.0)
     monkeypatch.setenv("COVERAGE_BASE_JSON", str(base))
 
-    mod = get_gate_module()
-    target = _cleanup_root_coverage_json
+    root, mod = synthetic_coverage_root
+    target = root / "coverage.json"
 
     def fake_run(*args, **kwargs):
         # pytest-cov writes the report even when tests fail.
@@ -529,14 +548,20 @@ def test_failing_tests_do_not_fail_the_coverage_gate(
 
 
 def test_no_coverage_data_produced_fails_and_is_not_a_skip(
-    isolated_cwd, monkeypatch, _cleanup_root_coverage_json
+    isolated_cwd, monkeypatch, synthetic_coverage_root
 ):
     """No data = this gate could not do its job. That is a failure, not a pass."""
     base = isolated_cwd / "base.json"
     write_coverage_json(base, 70.0)
     monkeypatch.setenv("COVERAGE_BASE_JSON", str(base))
 
-    mod = get_gate_module()
+    root, mod = synthetic_coverage_root
+    # Non-vacuity of the PREMISE, asserted not assumed: the inline path must be
+    # empty at the moment the gate reads it. The old fixture only cleaned at
+    # teardown and treated a leftover as "preexisting" to preserve, so a root
+    # coverage.json left by an earlier step or a sibling worker made this row
+    # assert against real data — #6826's CI failure.
+    assert not (root / "coverage.json").exists()
 
     def fake_run(*args, **kwargs):
         return _FakeProc(2, stderr="collection died")
@@ -546,3 +571,4 @@ def test_no_coverage_data_produced_fails_and_is_not_a_skip(
     ok, msg = mod.check_coverage_diff("origin/main")
     assert not ok, f"absent coverage data must not pass vacuously: {msg}"
     assert "no coverage data produced" in msg, msg
+    assert not (root / "coverage.json").exists()

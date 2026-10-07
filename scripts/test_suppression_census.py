@@ -557,7 +557,11 @@ def test_real_tree_matches_spec_baselines():
         # 7→8 (2026-09-23): license-plate household-matching test admitted with
         # measured corpus breaches (4.18s ×2 #6667 head, 4.297s main junit;
         # 1.20s solo → -n8 contention), registry entry same commit.
-        "tpa_slow_list": 8,
+        # 8→9 (2026-10-06): r8-s2b full-tree import sweep admitted with measured
+        # corpus breaches (4.40s PR #6826 head run 37560500061, 4.116s main
+        # junit 37541671553 = the WP1.3 baseline denial; 5.28s solo — O(all
+        # tracked test files), grows with the suite), registry entry same commit.
+        "tpa_slow_list": 9,
     }
     stale = {k: (got.get(k), v) for k, v in expected.items() if got.get(k) != v}
     assert not stale, "census vs spec baseline drift: " + ", ".join(
