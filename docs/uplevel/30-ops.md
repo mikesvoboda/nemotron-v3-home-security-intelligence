@@ -155,6 +155,38 @@ later packages compare before/after counts against them.
 
 **Done when:** every script's test runs in CI, and `00-audit.md` carries the measured baselines.
 
+### O1.8 Dependabot alerts
+
+**Files:** `uv.lock`, `pyproject.toml`, `.github/dependabot.yml`, the dependency-audit workflow;
+`frontend/package.json` and `frontend/package-lock.json` as cross-lane parts.
+
+21 alerts are open on `main`: 2 critical, 10 high, 9 moderate (`00 §7`). Most close by deletion or
+by work already planned; this package closes the rest and keeps the count from climbing again.
+
+| alerts                                 | where                        | how they close                                                       |
+| -------------------------------------- | ---------------------------- | -------------------------------------------------------------------- |
+| 16, including critical `vitest`        | `archive/package-lock.json`  | `O1.5` deletes the tree; confirm GitHub marks them fixed             |
+| critical `python-jose`, high `ecdsa`   | `uv.lock`                    | `B1.5` replaces the JWT library; `ecdsa` leaves with it              |
+| medium `Mako`                          | `uv.lock`, via `alembic`     | upgrade to 1.4.2 here; `B3.3` decides whether `alembic` stays at all |
+| medium `postcss-selector-parser` 6.1.4 | `frontend/package-lock.json` | upgrade to 7.1.6, or an `overrides` entry if its parent pins 6.x     |
+| high `braces` 3.0.3                    | `frontend/package-lock.json` | no patched release; see below                                        |
+
+- [ ] Upgrade `Mako` and `postcss-selector-parser`. Run the backend unit suite, the frontend suite
+      and the frontend build, and put the results in the PR.
+- [ ] `braces`: **MEASURE** whether it reaches the shipped bundle or only build tooling (trace who
+      requires it, and search the built `dist/`). If it is build-only, propose dismissing the alert
+      as "vulnerable code not used"; the dismissal is a **RULING** for the owner's batch, since it
+      accepts a risk. If it ships, stop and report.
+- [ ] **RULING** (OD-11): which fix the owner picks for the `dependabot.yml` defects found on
+      2026-09-21. Apply it here once ruled.
+- [ ] Make the dependency audit bite: a new critical or high advisory in `uv.lock` or
+      `frontend/package-lock.json` fails CI unless it sits on a committed dismissal list with a
+      reason and an expiry date. `OB.2` keeps this gate when it merges the audit workflows.
+
+**Done when:** after `O1.5` and `B1.5` land, GitHub shows no open critical or high alert except
+those dismissed on the owner's ruling, and the CI audit fails on a fixture advisory that is not on
+the dismissal list.
+
 ---
 
 ## Phase 2 — Feature truth

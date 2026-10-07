@@ -28,7 +28,7 @@
 | phase | agents                                                                             | what limits it                                             |
 | ----- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | 0     | 2, started by hand: the coordinator and `uplevel-ops-b`, which builds the launcher | the owner's review of the launcher                         |
-| 1     | 5: backend ×2 (cells A and B), frontend, ops, docs — plus the coordinator          | `B1.5`'s auth design unblocks three packages               |
+| 1     | 7: on the fast model ops ×2, backend, frontend, docs and the coordinator; 1 heavy  | `B1.5`'s auth design unblocks three packages               |
 | 2     | 4: ops, frontend (inventory), backend (supporting the inventory), docs             | one serial chain, `O2.1` → `O2.2` → `F2.1` → `F2.3` → `R2` |
 | 3     | 6: backend ×2, frontend, ops ×2, docs                                              | the hot files                                              |
 | 4     | 2–3 feature packages at once, plus one background agent                            | the owner's design sessions, and modules that overlap      |
@@ -44,8 +44,11 @@ every agent adds PRs, conflicts and questions for one owner.
 | backend | the VLM path: `backend/services/vlm_*`, `constrained_decoding.py`, `backend/evaluation/`, the circuit breaker | API and auth: `backend/api/`, middleware, `backend/main.py`      |
 | ops     | runtime: `ai/`, compose, `setup.py`, `setup_lib/`, the fake stack and harness                                 | tooling: `scripts/`, `.github/`, the mutation scorer, `archive/` |
 
-Frontend and docs run as one cell each until Phase 3, when the frontend may split into retirement
-(`F3.1`) and reachability (`F3.2`, `F3.3`).
+Ops splits from Phase 1: `uplevel-ops-b` already exists from Phase 0, and ops holds eight Phase 1
+packages. Backend runs as one agent until Phase 3, because the heavy sandbox takes three of its six
+Phase 1 packages; it splits into cells A and B for Phase 3's deletions. Frontend and docs run as one
+cell each until Phase 3, when the frontend may split into retirement (`F3.1`) and reachability
+(`F3.2`, `F3.3`).
 
 **Two schedule rules:**
 
@@ -59,11 +62,11 @@ Frontend and docs run as one cell each until Phase 3, when the frontend may spli
 ```
 HOST (owner)               sbx · the launcher (O0.1) · the local model server · the strongest model
 ├── uplevel-coordinator    clone mode · network: GitHub + model endpoint · no Docker
-├── uplevel-backend-a/-b   clone mode · network: GitHub, PyPI, npm, image registries, model endpoint
-├── uplevel-frontend         · Docker, for the fake stack
-├── uplevel-ops-a/-b
+├── uplevel-ops-a / -b     clone mode · network: GitHub, PyPI, npm, image registries, model endpoint
+├── uplevel-backend          · Docker, for the fake stack · backend splits into -a / -b in Phase 3
+├── uplevel-frontend
 ├── uplevel-docs
-├── uplevel-heavy          the strongest model, for heavy packages
+├── uplevel-heavy (-2)     the strongest model, for heavy packages; the second one is optional
 └── GB300 operator         the real tier, outside the sandboxes (operator.md)
 ```
 
@@ -85,6 +88,47 @@ HOST (owner)               sbx · the launcher (O0.1) · the local model server 
 - **Optional hardening.** Tokens are set per sandbox (`sbx secret set github --sandbox <name>`).
   Giving the lane sandboxes a separate machine account's token turns reviews into real GitHub
   approvals, so branch protection can require one — enforcing in GitHub what is policy today.
+
+### The roster
+
+| sandbox               | model     | Phase 0              | Phase 1 queue                                                           | kickoff prompt       |
+| --------------------- | --------- | -------------------- | ----------------------------------------------------------------------- | -------------------- |
+| `uplevel-coordinator` | fast      | labels, pinned issue | assignments, reviews, merges, the daily batch                           | this file            |
+| `uplevel-ops-b`       | fast      | `O0.1`, the launcher | `O1.1`, `O1.2`, `O1.4`, `O1.5`, `O1.7`, `O1.8`                          | `30-ops.md` + cell B |
+| `uplevel-ops-a`       | fast      | —                    | `O1.3`, `O1.6` (after `B1.5`); then `O2.1` early                        | `30-ops.md` + cell A |
+| `uplevel-backend`     | fast      | —                    | `B1.1`, `B1.3`, `B1.4`; then `B2.1` and the inventory's backend tracing | `10-backend.md`      |
+| `uplevel-frontend`    | fast      | —                    | `F1.1`; `F1.2` after `B1.4`; `F1.3` after `B1.5`                        | `20-frontend.md`     |
+| `uplevel-docs`        | fast      | —                    | `W1.1`, `W1.3`, `W1.2`                                                  | `40-docs.md`         |
+| `uplevel-heavy`       | strongest | —                    | `B1.5`, `B1.2`, `B1.6`; then `F2.2`                                     | below                |
+| `uplevel-heavy-2`     | strongest | —                    | optional: `F2.2`, the inventory, from mid-Phase 1                       | below                |
+
+The heavy queue runs in that order for a reason. `B1.5` unblocks `F1.3` and `O1.6` and removes the
+critical `python-jose` alert. `B1.2` lifts the pause on VLM prompt work (UR-8). `B1.6` hardens
+production, while test deployments are already protected by `O2.2`'s socket rule. The optional
+second heavy sandbox runs the inventory beside the Phase 2 chain, which is the largest schedule win
+available, at the cost of more strong-model time; the inventory is not owner-tier, so it adds no
+review load.
+
+**Split lanes.** An agent in a split lane — the ops cells, and the backend cells from Phase 3 — takes
+only packages the coordinator assigns to its cell, never claiming one itself. The launcher appends
+one line to that lane's kickoff prompt: `You are cell <A|B> of the <lane> lane; take only packages
+the coordinator assigns to your cell.`
+
+**The heavy sandbox's kickoff prompt:**
+
+```text
+You are a heavy-package agent of the uplevel programme, running on the
+strongest available model. Read docs/uplevel/README.md, then
+docs/uplevel/50-coordination.md. Take only packages the coordinator assigns you
+(draft PRs labelled heavy). For each one, read and follow the plan of the lane
+that owns it — its package text, its file ownership and its kickoff rules — and
+the 00-audit.md sections it cites.
+
+One package per PR. Write the failing test first. Before marking the PR ready,
+dispatch a fresh-context subagent to self-review it against the package's Done
+when, and record what it found. Keep commit subjects at 72 characters or fewer.
+When the plan does not answer a question, stop and report the question.
+```
 
 **Phase 0, the bootstrap.** The launcher must exist before the lanes start, and a lane agent writes
 it:
@@ -140,6 +184,7 @@ the daily batch.
 **3. Owner tier.** These PRs also need the owner's approval, given in the daily batch:
 
 - security and auth: `B1.5`, `B1.6`, `F1.3`, `O1.6`;
+- risk acceptance: `O1.8`'s alert dismissals;
 - production safety: `O2.2`;
 - privileged host tooling: `O0.1`, the launcher;
 - destructive work: `B3.1` with `F3.1`, `B3.2`;

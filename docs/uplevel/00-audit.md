@@ -186,6 +186,17 @@ verdict": key frames are selected 3× and the prompt fitted 2× per batch; the a
   has no `ai-vlm` (D5) [V]. The top-level installer's own tests sit in `archive/test_setup.py` and
   `archive/test_setup_core.py`, so `setup.py` runs untested; `setup_lib/` has live tests under
   `backend/tests/unit/setup_lib/` [V].
+- **Dependency alerts.** GitHub reports 21 open Dependabot alerts on `main` (2 critical, 10 high,
+  9 moderate) [V: Dependabot API, 2026-10-07]. **16 sit in `archive/package-lock.json`**, including
+  the critical `vitest`; `O1.5` deletes that tree. The other five are live:
+  - critical `python-jose` (`uv.lock`, runtime; GHSA-3qf3-8w2g-rqmx, **no patched release**) — the
+    backend's JWT library (`backend/services/auth_service.py:21`);
+  - high `ecdsa` (no patched release) — present only because `python-jose` requires it;
+  - medium `Mako` (patched in 1.4.2) — present only because `alembic` requires it;
+  - high `braces` 3.0.3 (no patched release) and medium `postcss-selector-parser` 6.1.4 (patched in
+    7.1.6) — frontend build tooling (`frontend/package-lock.json`).
+    The 2026-09-21 triage ([`docs/plans/2026-09-21-dependabot-triage.md`](../plans/2026-09-21-dependabot-triage.md))
+    found `.github/dependabot.yml` misconfigured; its fix options are owner-held under OD-11 [V].
 - **Schema.** No Alembic: schema comes from `create_all` plus hand-written SQL in
   `docs/api/migrations/`; `alembic>=1.13` is still a dependency.
 

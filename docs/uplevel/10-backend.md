@@ -117,6 +117,11 @@ exposed. None of it is built (`00 §3` D10). ISS-029 in the register carries the
       unauthenticated request; with `EXPOSE_LAN` unset, behaviour matches today.
 - [ ] **DECIDE** the fate of `auth_enabled` (D8): it becomes the switch, or it is deleted with its
       `.env.example` and compose lines.
+- [ ] Replace `python-jose`, the JWT library in `backend/services/auth_service.py:21`. It carries a
+      critical advisory with no patched release, and it is the only reason `ecdsa` (high, also
+      unpatched) is installed (`00 §7`). **DECIDE** the replacement — a maintained JWT library — in
+      the design note. Remove `python-jose` from `pyproject.toml` and `uv.lock` in the same PR; the
+      existing token tests must pass unchanged.
 - [ ] `POST /api/notification/test` records the authenticated user as the audit actor.
 - [ ] Rewrite the "Auth model" bullet in the root `AGENTS.md`.
 
