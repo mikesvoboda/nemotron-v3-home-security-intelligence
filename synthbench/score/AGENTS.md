@@ -9,14 +9,16 @@ Scores replays of the exported items (synthbench P5a,
 
 ## Files
 
-| File         | What                                                                                                        |
-| ------------ | ----------------------------------------------------------------------------------------------------------- |
-| `metrics.py` | pure: `Item`, `cell`, `outcome`, `band_position`, headline, slices, the audit summary, the comparison, rows |
-| `report.py`  | `markdown` (aggregate only, committed by the scored run) and `html` (the failure gallery)                   |
-| `scoring.py` | `execute`: loads the replays, their eval store, the export and the audit; writes the four outputs           |
+| File                   | What                                                                                                        |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `metrics.py`           | pure: `Item`, `cell`, `outcome`, `band_position`, headline, slices, the audit summary, the comparison, rows |
+| `report.py`            | `markdown` (aggregate only, committed by the scored run) and `html` (the failure gallery)                   |
+| `scoring.py`           | `execute`: loads the replays, their eval store, the export and the audit; writes the four outputs           |
+| `clip_audit_report.py` | `report`: the clip audit's survivor rates and declared-versus-picked matrices (ISS-038's disclosure)        |
 
-The command is `synthbench/commands/score.py` (`python -m synthbench score`); it imports this
-package inside `run()`.
+The commands are `synthbench/commands/score.py` (`python -m synthbench score`) and
+`synthbench/commands/clip_audit.py` (`clip audit bias`); the latter imports only this module,
+inside its `bias()` step.
 
 ## Rules
 
