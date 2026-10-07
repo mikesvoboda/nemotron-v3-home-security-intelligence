@@ -31,6 +31,7 @@ import os
 import subprocess
 import sys
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -730,6 +731,28 @@ def test_retire_without_a_session_changes_nothing(tmp_path: Path) -> None:
     fake = FakeHost()
     launch.retire(host(tmp_path, fake), SCRATCH)
     assert fake.changes() == []
+
+
+@pytest.mark.parametrize("command", ["up", "retire"])
+def test_running_from_a_sessions_clone_refuses(tmp_path: Path, command: str) -> None:
+    """The owner's first real retire on #6855 ran with the cwd inside the session's own
+    clone (/agents/agent-uplevel-scratch/workspace) - which turns the run's trusted
+    reference into the suspect's own repo: retire reads the expected `origin` from this
+    checkout (#5), verifies the bundle with host git *in* it (the operator runbook's
+    forbidden access - core.fsmonitor is the agent's to set), and up would copy it into
+    every clone. Refused before anything, naming where to run instead. The launcher
+    can't tell a session's clone from any checkout by content - only by where it lives,
+    under the sessions' root."""
+    fake = FakeHost()
+    in_clone = host(tmp_path, fake)
+    in_clone = replace(in_clone, checkout=in_clone.agents_root / SCRATCH_SANDBOX / "workspace")
+    (in_clone.checkout).mkdir(parents=True)
+    with pytest.raises(launch.Refused, match="session's own clone"):
+        if command == "up":
+            launch.up(in_clone, phase=0)
+        else:
+            launch.retire(in_clone, SCRATCH)
+    assert fake.calls == []  # refused before even the read-only commands
 
 
 def test_up_reads_the_manifest_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

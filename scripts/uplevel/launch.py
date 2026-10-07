@@ -335,6 +335,7 @@ def _preflight(host: Host) -> str:
 
 def up(host: Host, *, phase: int) -> None:
     """Create the phase's missing sessions from the host checkout; print each kickoff."""
+    _check_owner_checkout(host)
     # One read of the file for the whole command. _phases_of interprets every row, so a
     # typo refuses before anything else happens and the "phase is not declared" check
     # below sees a well-formed set - and the [models] table resolved a few lines down is
@@ -566,8 +567,38 @@ def _origin_url(host: Host) -> str:
     return _read(host, ["git", "-C", host.checkout, "remote", "get-url", "origin"])
 
 
+def _check_owner_checkout(host: Host) -> None:
+    """The checkout the run resolves from the shell's cwd must be the owner's, not a
+    session's clone (the owner's own retire on #6855 ran from
+    /agents/agent-uplevel-scratch/workspace and surfaced this).
+
+    Under the trust model this checkout is the reference the command believes it can
+    trust: `retire` compares the session's `origin` against *this* one (finding #5 - the
+    session's own `.git/config` is the thing under suspicion, so comparing it to itself
+    proves nothing), verifies the bundle by running the host's git *in* it, and `up`
+    checks it is clean main before copying it into every clone. Silently run from a
+    session's clone, all three become self-reports of the agent's own repo - and the
+    bundle verify runs host git inside the very workspace the operator runbook forbids
+    (its .git/config, core.fsmonitor included, is the agent's to write). Nothing here can
+    tell a session's clone from any other checkout but by where it lives: agent-dgx's
+    layout puts every session's clone under agents_root, so that is the check.
+    """
+    checkout = host.checkout.resolve()
+    root = host.agents_root.resolve()
+    if checkout == root or root in checkout.parents:
+        raise Refused(
+            f"this run's checkout is {checkout}, inside the sessions' root {root} - a "
+            "session's own clone. Run the launcher from your own checkout of this "
+            "repository instead: retire reads the trusted `origin` URL from here and "
+            "verifies the exported bundle in it, and up copies it into every clone - all "
+            "of which must be a checkout the sessions cannot write. cd there and run "
+            "this again."
+        )
+
+
 def retire(host: Host, name: str) -> None:
     """Retire one session, once its work is exported to the host and verified there."""
+    _check_owner_checkout(host)
     session = Session(name=name, model="", kickoff="")
     found = _session(host, name)
     if found is None:
