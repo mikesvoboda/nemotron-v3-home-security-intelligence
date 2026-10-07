@@ -2224,6 +2224,22 @@ What the model is asked, what it is shown, and how its score maps to the levels 
 - **Depends on.** ISS-037 (replay must run the selector and multi-frame items); precondition for
   ISS-005.
 - **Tracked as.** None found.
+- **Update 2026-10-07 (`iss033-prompt-chronology`, PR pending owner merge).** Implemented.
+  `VlmAssessRequest` carries an optional `frame_capture_times` (index-aligned with `image_paths`;
+  each entry the frame's own filename parsed by `capture_time.parse_capture_time` — strict, so a
+  name that says nothing stays `None` and is never filled from the row's arrival); with a camera
+  timezone `build_assess_request` attaches the selector's picks oldest-first (the selection itself
+  is untouched: same strength-based picks, only reordered; unknowns attach last in the pick order
+  they were selected in) and the prompt states 'Frames are in chronological order' and labels each
+  frame through `render_prompt_time` — local wall time with zone when the timezone is set, the
+  stored UTC ISO string when it is not (a zone-less wall time would be ambiguous; the time itself
+  carries more than an offset would). An absent field (timezone unset, or a store predating this)
+  renders the prompt byte-identically, which is the S5 parity guarantee. Order and text are pinned
+  regardless of detector confidence in `backend/tests/unit/services/test_vlm_chronology.py` and
+  `TestChronologicalFrameLabels` (`backend/tests/unit/services/test_vlm_client.py`); the AI
+  contract regenerated (schema + the two `vlm_assess.request` goldens, the `frame_detection_ids`
+  path of `7865e340`). The acceptance's replay A/B clause stays gated on ISS-037 (PR #6831).
+  Status stays `open` until the owner merges.
 
 #### ISS-095 — Decide whether to fine-tune the VLM: the owner asked about LoRA and the research is written, but no ruling, gate, data-use term or held-out set is recorded
 
@@ -8057,3 +8073,48 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   published (the corpus is declared-truth, unaudited); no GPU touched; the OD-2 and OD-5 rulings and
   the ISS-003 route decision stay the owner's — this entry builds the machine that measures what
   those rulings will be made of.
+
+### 2026-10-07 (ISS-033's chronology lands on `iss033-prompt-chronology`: multi-frame batches attach oldest-first and the prompt says so, and an unknown frame time stays unknown)
+
+- **What landed, in the acceptance's own words.** Frames attach **oldest-first** and selection
+  stays **strength-based**: `build_assess_request` reorders the selector's picks and nothing else
+  — same picks, same 4-frame budget, only the order moves, unknowns last in the pick order they
+  were selected in (a stable sort, so the whole pipeline stays deterministic). Each pick's time is
+  its **own filename** through `capture_time.parse_capture_time` — deliberately strict, where
+  `resolve_capture_time` would fall back to the row's arrival; the acceptance's "unknown renders as
+  unknown, never as arrival" is the sentence that chose the strict parser. `VlmAssessRequest` gains
+  optional `frame_capture_times` (index-aligned with `image_paths`, the third sibling of
+  `frame_detection_ids`, same three-state shape: absent field = not known, `None` element = looked
+  and the name says nothing), and the renderer adds one block — "Frames are in chronological
+  order (oldest first)" plus `Frame 1: …` labels through `render_prompt_time`, the same rendering
+  as the batch `Time:` line, so frame labels and batch time are one shape, and the labels reuse
+  the rows' existing `frame: k` numbering rather than inventing a second referent. A zone-less
+  wall time would be ambiguous, so with `camera_timezone` unset the labels are the stored UTC ISO
+  strings — and because the analyzer only fills the field when the timezone is set (capture_time's
+  scope rule), unset renders byte-identical prompts, which is the acceptance's S5 regression
+  guarantee. The one production call site threads the setting in; `key_frame_ids` needed no
+  change — it resolves by path, so it survives the reorder — and the specialist stage deliberately
+  keeps its strongest-first picks: which frames the describers see is a separate question from the
+  timeline the verifier reads. The AI contract regenerated (schema plus the two
+  `vlm_assess.request` goldens, the `7865e340` path); the drift gate passes.
+- **Tests.** `backend/tests/unit/services/test_vlm_chronology.py` pins order, the pick-set
+  invariant (the reorder may permute, never add or drop), alignment of `frame_capture_times` and
+  `key_frame_ids` with the reordered paths, unknowns-last stable ordering, and field absence
+  without a timezone; `TestChronologicalFrameLabels` pins the prompt text both with and without
+  `camera_timezone`, `unknown` never becoming the arrival hour, and byte-identical rendering when
+  the field is absent. All red before the implementation, and one fixture correction worth
+  recording: three rows sharing `object_type` are ONE (camera, class) pair, so the first drafts
+  tested a reorder of a one-frame pick list — the order tests vary the class, like the selector's
+  own budget test. Scoped unit suite 30722 passed (one `test_retry_handler` failure between two
+  identical full runs, green solo and on re-run: an xdist ordering flake, root-caused, not
+  papered over); contracts + the generator's tests + the drift gate green; ruff and mypy clean on
+  every changed file.
+- **Register.** ISS-033's block carries the dated Update; status stays `open` until the owner
+  merges (PR pending). ISS-005's precondition moved: its temporal-spread selection now has a
+  chronological attachment order to build on, and its replay A/B still waits on ISS-037 (PR
+  #6831). ISS-003's Phase 0c is half landed. No recount, no new ids, Dashboard untouched.
+- **What this entry does not do:** no GPU, no replay run, no clip number (the ISS-038 audit gate
+  stands); no clip-burst adapter built here — the pre-registration names it a Phase 2
+  deliverable that must name its own frame fractions and token budget; no adoption of any route
+  (C1: measuring is in scope, adopting is the owner's); the `vlm_replay` request builder is
+  untouched, so replay of existing stores renders exactly as before.
