@@ -890,8 +890,16 @@ def test_sjwa_filter_families_exclude_one_job_each() -> None:
     assert [j["job_id"] for j in res.jobs] == ["A"]
     res = sjwa(two_jobs(), has_error=False)
     assert [j["job_id"] for j in res.jobs] == ["A"]
+    # A's duration is EXACTLY 30 s; B is uncomputable. The EXCLUDING legs
+    # are the discriminators for the min/max None-drop arms (m20/m21/m31/
+    # m32): a None'd bound re-enables the wildcard so BOTH jobs return,
+    # while shipped excludes both here.
+    res = sjwa(two_jobs(), duration_range=(31.0, None))
+    assert res.total == 0  # 30 < 31 excludes A; B has no duration
+    res = sjwa(two_jobs(), duration_range=(None, 29.0))
+    assert res.total == 0  # 30 > 29 excludes A; B has no duration
     res = sjwa(two_jobs(), duration_range=(30.0, 30.0))
-    assert [j["job_id"] for j in res.jobs] == ["A"]
+    assert [j["job_id"] for j in res.jobs] == ["A"]  # inclusive boundary passes
 
 
 def test_sjwa_sort_order_legs_and_case() -> None:
