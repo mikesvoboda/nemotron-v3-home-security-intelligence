@@ -1,7 +1,9 @@
 """`export vss`: ready Tier B events in the VSS eval store's import layout (P5a design §2).
 
 An owner command, not the generation agent's. It reads the corpus and never writes it; the sets
-go to `$SYNTHBENCH_ROOT/exports/<version>/vss/`.
+go to `$SYNTHBENCH_ROOT/exports/<version>/vss/`. `--sequences` additionally samples each READY
+clip's triaged mp4 into a multi-frame set under `<out>/sequences/` (ISS-037); the stills' layout
+and split are untouched by it.
 """
 
 from __future__ import annotations
@@ -22,13 +24,16 @@ from synthbench.commands.common import (
     check_manifest,
     read,
     read_bytes,
+    read_clip_index,
     read_index,
     taxonomy,
 )
+from synthbench.contract.clip import ClipProvenance, ClipSpec
 from synthbench.contract.provenance import Provenance
 from synthbench.contract.spec import Spec
 from synthbench.contract.store import DEFAULT_SYNTHBENCH_ROOT, CorpusStore
-from synthbench.export import vss
+from synthbench.export import sequence, vss
+from synthbench.taxonomy.model import Taxonomy
 
 
 def add_parser(commands: argparse._SubParsersAction[Parser]) -> None:
@@ -46,6 +51,14 @@ def add_parser(commands: argparse._SubParsersAction[Parser]) -> None:
         type=Path,
         default=None,
         help="export directory (default: $SYNTHBENCH_ROOT/exports/<version>/vss)",
+    )
+    parser.add_argument(
+        "--sequences",
+        type=int,
+        choices=sorted(sequence.FRAME_FRACTIONS),
+        default=None,
+        help="also export each READY clip as a multi-frame sequence of N JPEG frames "
+        "(ISS-037); the stills are still exported, and the split never sees the sequences",
     )
     parser.set_defaults(run=run_vss)
 
@@ -69,6 +82,8 @@ def run_vss(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     if not store.index_file.exists():
         raise RequestError(f"corpus version {tax.version} has no events; nothing to export")
     check_manifest(store)
+    if args.sequences is not None:
+        run_sequences(store, tax, out, frames=args.sequences)
     written = unchanged = 0
     skipped: Counter[str] = Counter()
     # The split's population (ISS-016 design §2): this export's scenarios and their item counts by
@@ -152,3 +167,110 @@ def run_vss(args: argparse.Namespace, env: Mapping[str, str]) -> int:
         f"sha256 {vss.split_sha256(manifest)}{'' if write else ' (unchanged)'}\n"
     )
     return EXIT_OK
+
+
+def run_sequences(store: CorpusStore, tax: Taxonomy, out: Path, *, frames: int) -> None:
+    """`export vss --sequences N`: every READY clip becomes a frame-sampled sequence set.
+
+    ISS-037's corpus, and its honesty is in the details. The set's truth is the clip spec's
+    declared truth (the same cell/label/band/subjects the clip was rendered to), exported
+    undistributed and unaudited exactly as the clips are — the register records that
+    frame-sampled triplets stand in for scripted ones. Only a clip whose TRIAGED mp4 matches
+    its recorded sha256 is sampled; the sampling is the fixed FRAME_FRACTIONS, so a set is
+    re-derivable from the mp4 and these constants, which is what keeps a create-once export
+    checkable by `replay --check-current`.
+    """
+    sequences_dir = out / sequence.SEQUENCE_DIR
+    if sequences_dir.resolve().is_relative_to(store.root.resolve()):
+        raise RequestError(  # run_vss already refused this for --out; this guards --out --sequences
+            f"--out {out} is inside the corpus ({store.root}), which is append-only; export "
+            "under $SYNTHBENCH_ROOT/exports/"
+        )
+    clip_rows = read_clip_index(store)
+    written = unchanged = 0
+    skipped: Counter[str] = Counter()
+    for event_id in sorted(clip_rows):
+        row = clip_rows[event_id]
+        if row.status != "ready":
+            skipped[row.status] += 1
+            continue
+        spec = read(store, store.spec_file(event_id), ClipSpec)
+        category = vss.category_of(spec)
+        if category is None:
+            skipped["ambiguous"] += 1
+            continue
+        if vss.CATEGORY_LABEL[category] != spec.label:
+            raise AskOwner(
+                f"{event_id} is labeled {spec.label} but its group {spec.cell.group} exports as "
+                f"{category}/ ({vss.CATEGORY_LABEL[category]}): the taxonomy disagrees with itself."
+            )
+        if not spec.frozen:
+            raise AskOwner(
+                f"{event_id} is ready without a frozen prompt; a ready clip is one the triage "
+                "verdicts were written against."
+            )
+        prov = read(store, store.provenance_file(event_id), ClipProvenance)
+        attempt = prov.attempts[-1]
+        if attempt.clip is None or attempt.triage is None or attempt.triage.verdict != "ok":
+            raise AskOwner(
+                f"{event_id} is ready in the index but its last attempt lacks an ok-triaged clip."
+            )
+        mp4 = read_bytes(store.event_dir(event_id) / attempt.clip.path)
+        if hashlib.sha256(mp4).hexdigest() != attempt.clip.sha256:
+            raise AskOwner(f"{event_id}'s clip does not match its recorded sha256.")
+        try:
+            count = sequence.clip_frame_count(mp4)
+            indices = sequence.sample_indices(count, frames)
+            jpegs, fps = sequence.sample_frames(mp4, indices)
+        except ValueError as error:
+            raise AskOwner(f"{event_id}: {error}") from error
+        offsets = sequence.offsets_ms(indices, fps)
+        frame_files = [f"{sequence.FRAME_FILE_STEM}{i + 1}.jpg" for i in range(len(jpegs))]
+        times = sequence.sequence_timestamps(spec.scene_time, spec.cell.weather, offsets)
+        subjects = [s.model_dump(mode="json", by_alias=True) for s in spec.subjects]
+        props = [p.model_dump(mode="json", by_alias=True) for p in spec.props]
+        detections = sequence.frame_detections([*spec.subjects, *spec.props], frame_files, times)
+        facts = {
+            "event_id": spec.event_id,
+            "corpus_version": spec.corpus_version,
+            "round": spec.round,
+            "label": spec.label,
+            "risk_band": list(spec.risk_band),
+            "scene_time": spec.scene_time,
+            "cell": spec.cell.model_dump(mode="json"),
+            "subjects": subjects,
+            "props": props,
+            "source_clip": {
+                "path": attempt.clip.path,
+                "sha256": attempt.clip.sha256,
+                "attempt_k": attempt.k,
+                "seed": attempt.seed,
+                "frame_count": count,
+                "fps": fps,
+            },
+        }
+        files = sequence.sequence_files(
+            facts,
+            category=category,
+            jpeg_frames=jpegs,
+            offsets_ms=offsets,
+            times=times,
+            detections=detections,
+            corpus_version=spec.corpus_version,
+        )
+        try:
+            if sequence.write_sequence_set(
+                sequences_dir, category, sequence.sequence_name(event_id, frames), files
+            ):
+                written += 1
+            else:
+                unchanged += 1
+        except vss.ExportConflict as error:  # write_sequence_set delegates to vss.write_set
+            raise AskOwner(f"{error}.") from error
+        except OSError as error:
+            raise CorpusError("write", sequences_dir / category / event_id, error) from error
+    not_exported = ", ".join(f"{why} {n}" for why, n in sorted(skipped.items())) or "none"
+    sys.stdout.write(
+        f"export sequences {tax.version}: {frames}-frame sets; {written} written now, "
+        f"{unchanged} unchanged; not exported: {not_exported}\n  {sequences_dir}\n"
+    )

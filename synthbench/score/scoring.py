@@ -21,6 +21,7 @@ from backend.evaluation.vlm_replay import git_commit
 from synthbench.audit.page import load_answers
 from synthbench.audit.sample import sample as audit_sample
 from synthbench.contract.store import DEFAULT_SYNTHBENCH_ROOT
+from synthbench.export.sequence import read_sequence_sets
 from synthbench.export.vss import (
     SPLIT_FILE,
     ExportedSet,
@@ -31,8 +32,15 @@ from synthbench.export.vss import (
 from synthbench.score import report
 from synthbench.score.metrics import Item, result_rows, score_models
 
-# 4 (2026-10-06, ISS-087): each `identity.replays[]` block gains `server_settings` — the
-# operator's declaration of what the endpoint was started with, which replay cannot observe — and
+# 5 (2026-10-07, ISS-037): each `identity.replays[]` block gains `frames_mode` and
+# `with_sequences` (how frames reached the wire, and whether the export's sequence sets joined
+# the run; `.get()`-based, so a pre-ISS-037 replay records `null`), each `results.jsonl` row
+# gains `frames_fed` (what the harness audited that item received, `null` for a pre-audit row)
+# and `frames_mode`, and a model block gains `frames` — the same rows bucketed by frames fed —
+# only when some row carries the harness audit, so a score over pre-ISS-037 replays keeps the
+# version-4 model-block shape. 4 (2026-10-06, ISS-087): each `identity.replays[]` block gains
+# `server_settings` — the operator's declaration of what the endpoint was started with, which
+# replay cannot observe — and
 # each `comparison[]` pair gains `identical`, the items where the two arms agree in risk_score as
 # well as in outcome (the verdict agreeing at 70 vs 80 is not the same build's reading repeated).
 # Both keys ride unconditionally, so a score over run.json files written before them differs in
@@ -41,7 +49,7 @@ from synthbench.score.metrics import Item, result_rows, score_models
 # siblings of `all`. 2 (2026-10-06, ISS-043): `models.*.all` gains s2_cluster/s3_cluster and
 # `comparison[]` gains the paired test. Metrics from before each differ in keys, and this field
 # is the only signal a reader has for it.
-SCORE_VERSION = 4
+SCORE_VERSION = 5
 _REPLAY_KEYS = (
     "replay_id",
     "model",
@@ -70,6 +78,10 @@ _REPLAY_KEYS = (
     # export, so the read is .get()-based like the conditions keys above.
     "split_sha256",
     "split_holdout",
+    # ISS-037: how frames reached the wire, and whether the sequence sets joined the run.
+    # Absent for a replay run before them, so the read is .get()-based like the keys above.
+    "frames_mode",
+    "with_sequences",
 )
 
 
@@ -319,7 +331,14 @@ def execute(
     export = _one({replay.export for replay in replays}, "export")
     if not store_path.is_file():
         raise ScoreRefused(f"the eval store {store_path} is missing")
-    sets = read_sets(export)
+    stills = read_sets(export)
+    sets = stills
+    # ISS-037: the export's sequence sets join the scored population only when some replay
+    # being scored ran them (its run.json's `with_sequences`): a stored-only score of the same
+    # export keeps exactly the item population it scored before sequences existed, and a
+    # sequence run's rows resolve instead of hitting the missing-item refusal below.
+    if any(replay.record.get("with_sequences") for replay in replays):
+        sets = stills + read_sequence_sets(export)
     with EvalStore(store_path) as store:
         items = load_items(store, sets)
         loaded = [
@@ -356,7 +375,9 @@ def execute(
                 f"hold, first {missing[0]}"
             )
     answers = load_answers(audit_log)
-    sampled = [str(exported.facts["event_id"]) for exported in audit_sample(sets)]
+    # The audit's population is the stills the owner was shown — never the sequence sets, whose
+    # frames come from a separate render (ISS-038): the sampler gets the stills' list.
+    sampled = [str(exported.facts["event_id"]) for exported in audit_sample(stills)]
     metrics = score_models(loaded, items, answers, sampled, scenario_arm=scenario_arm)
     score_id = f"{now:%Y%m%dT%H%M%SZ}"
     identity = {

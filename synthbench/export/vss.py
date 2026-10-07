@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from synthbench.contract.clip import ClipSpec
 from synthbench.contract.spec import Spec
 
 # Scenario group -> the eval store's category directory. Ambiguous events are not exported: S2
@@ -46,8 +47,11 @@ class ExportConflict(Exception):
     """A set already on disk holds different content than the corpus now gives it."""
 
 
-def category_of(spec: Spec) -> str | None:
-    """The event's category directory, or None for an ambiguous event, which is not exported."""
+def category_of(spec: Spec | ClipSpec) -> str | None:
+    """The event's category directory, or None for an ambiguous event, which is not exported.
+
+    `Spec | ClipSpec`: the two specs share the identical `Cell`, and `export vss --sequences`
+    reads a clip's group through this same rule (ISS-037)."""
     return CATEGORY.get(spec.cell.group)
 
 
@@ -164,6 +168,15 @@ class ExportedSet:
 
     @property
     def still(self) -> Path:
+        """The set's representative image: the still, or a sequence's first frame.
+
+        The scorer names one image per item (the gallery shows it, the audit page serves it);
+        a sequence's chronology starts at `frame_1.jpg`, so its first frame IS that image.
+        `frame_files` is declared in the set's own labels — read from the document, never
+        re-derived from a constant, so a future frame count cannot silently repoint old sets."""
+        sequence = self.labels.get("synthbench", {})
+        if sequence.get("kind") == "sequence" and sequence.get("frame_files"):
+            return self.set_dir / str(sequence["frame_files"][0])
         return self.set_dir / STILL_FILE
 
 
