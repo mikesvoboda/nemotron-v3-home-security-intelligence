@@ -70,7 +70,7 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.event_detection import event_detections
 from backend.models.event_verification import EventVerification
-from backend.services.capture_time import camera_tz, resolve_capture_time
+from backend.services.capture_time import camera_tz, parse_capture_time, resolve_capture_time
 from backend.services.constrained_decoding import (  # R8 S2a: hoisted home
     ConstrainedDecodingNotEnforced,
 )
@@ -215,17 +215,42 @@ def build_assess_request(
     *,
     context: VlmAssessContext,
     detections: list[dict[str, Any]],
+    camera_timezone: str | None = None,
 ) -> VlmAssessRequest:
     """The VlmAssessRequest: context plus 1-4 key frames (the selector's
     pick over FrameRefs built from the same dicts - paths only, never
     bytes; spec §6 privacy). The specialist texts already live inside the
-    context — the request adds only the image selection (rev 6)."""
+    context — the request adds only the image selection (rev 6).
+
+    ISS-033: with a camera timezone, each pick's capture time comes from its
+    OWN filename (`parse_capture_time`, strict — never the row's arrival),
+    and the picks are ATTACHED oldest-first. Selection itself is untouched:
+    the same strength-based picks, only reordered, unknowns last in the
+    selection order they were picked in. Without the timezone the field
+    stays absent and the request is what it always was — capture_time's
+    scope rule, so replay of an old store and every S5 parity check are
+    unaffected."""
     picks = select_key_frames(build_frame_refs(detections, context.camera_id))
+    capture_times: list[str | None] | None = None
+    if tz := camera_tz(camera_timezone):
+        stamped = [(f, parse_capture_time(f.file_path, tz)) for f in picks]
+        # Oldest known first; equal times keep the selector's pick order
+        # (sorted() is stable over a selection-order list), and unknown
+        # frames attach last, likewise in pick order.
+        known = [(f, s) for f, s in stamped if s is not None]
+        unknown = [(f, None) for f, s in stamped if s is None]
+        ordered = sorted(known, key=lambda fs: fs[1]) + unknown
+        picks = [f for f, _ in ordered]
+        capture_times = [s.isoformat() if s is not None else None for _, s in ordered]
     # Every row on each attached still (not only the selector's representative),
     # so the prompt can say which frame a detection is on (A5500 M1, 2026-09-28).
+    # Built AFTER the reorder: it is index-aligned with image_paths.
     on_frame = [[row["id"] for row in detections if row["file_path"] == f.file_path] for f in picks]
     return VlmAssessRequest(
-        image_paths=[f.file_path for f in picks], context=context, frame_detection_ids=on_frame
+        image_paths=[f.file_path for f in picks],
+        context=context,
+        frame_detection_ids=on_frame,
+        frame_capture_times=capture_times,
     )
 
 
@@ -544,7 +569,11 @@ class VlmAnalyzer:
             specialist_outputs=specialist_outputs,
             capture_tz=camera_tz(self._settings.camera_timezone),
         )
-        request = build_assess_request(context=context, detections=detections)
+        request = build_assess_request(
+            context=context,
+            detections=detections,
+            camera_timezone=self._settings.camera_timezone,
+        )
         # The local must not share the function's name: an assignment in a
         # method body makes the name local for the whole scope, so the RHS
         # lookup would raise UnboundLocalError.

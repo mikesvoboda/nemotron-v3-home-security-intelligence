@@ -547,6 +547,7 @@ class VlmClient:
             }
             rows = [{**row, "frame": frame_of.get(row.get("id"))} for row in rows]
         rows = self._grounded_boxes(rows, request)
+        chronology = self._chronology_lines(request)
         return (
             "You are the verification expert. The detections below were produced "
             "by an object detector on the attached frame(s). Decide whether the "
@@ -583,11 +584,39 @@ class VlmClient:
             f"Camera: {ctx.camera_id}\n"
             f"Time: {render_prompt_time(ctx.timestamp, self._settings.camera_timezone)}\n"
             f"Zones: {', '.join(ctx.zones) or 'none'} (crossing: {ctx.zone_crossing})\n"
+            f"{chronology}"
             f"{self._box_guidance(rows, request)}"
             f"Detections: {json.dumps(rows, ensure_ascii=False)}\n"
             f"Household context: {json.dumps(ctx.household, ensure_ascii=False)}\n"
             f"Specialist outputs (faces/plates/re-ID; these are detector evidence, "
             f"not yours to invent): {specialist}\n"
+        )
+
+    def _chronology_lines(self, request: VlmAssessRequest) -> str:
+        """The ISS-033 timeline: when the request carries per-frame capture
+        times, say the frames are in chronological order and label each one.
+
+        The label is `render_prompt_time` — the same rendering as the `Time:`
+        line (local wall time with zone when the camera timezone is set, the
+        stored UTC ISO string when it is not), so a frame label and the batch
+        time are the same shape. An unknown time renders `unknown`: the
+        arrival time of a row is NOT a capture time and never appears here
+        (the register's acceptance, verbatim). An absent field (None) renders
+        nothing at all — the prompt of every store built before ISS-033, and
+        of every replay, stays byte-identical.
+        """
+        if not request.frame_capture_times:
+            return ""
+        tz_name = self._settings.camera_timezone
+        labels = "\n".join(
+            f"Frame {index}: "
+            + ("unknown" if moment is None else render_prompt_time(moment, tz_name))
+            for index, moment in enumerate(request.frame_capture_times, start=1)
+        )
+        return (
+            "Frames are in chronological order (oldest first), one image per frame "
+            "in the order they are attached. Frame times:\n"
+            f"{labels}\n"
         )
 
     @staticmethod

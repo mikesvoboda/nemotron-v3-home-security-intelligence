@@ -71,6 +71,9 @@ def run_vss(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     check_manifest(store)
     written = unchanged = 0
     skipped: Counter[str] = Counter()
+    # The split's population (ISS-016 design §2): this export's scenarios and their item counts by
+    # label, which is what the holdout is drawn from and what the manifest's totals read off.
+    items: dict[str, dict[str, int]] = {}
     for event_id, row in sorted(read_index(store).items()):
         if row.status != "ready":
             skipped[row.status] += 1
@@ -88,6 +91,7 @@ def run_vss(args: argparse.Namespace, env: Mapping[str, str]) -> int:
                 f"{event_id} is labeled {spec.label} but its group {spec.cell.group} exports as "
                 f"{category}/ ({vss.CATEGORY_LABEL[category]}): the taxonomy disagrees with itself."
             )
+        items.setdefault(spec.cell.scenario, {"benign": 0, "incident": 0})[spec.label] += 1
         still = read(store, store.provenance_file(event_id), Provenance).attempts[-1].still
         if still is None:
             raise AskOwner(f"{event_id} is ready but its last attempt has no still.")
@@ -107,5 +111,44 @@ def run_vss(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     sys.stdout.write(
         f"export vss {tax.version}: {written} written now, {unchanged} unchanged; not exported: "
         f"{not_exported}\n  {out}\n"
+    )
+    if tax.version not in vss.SPLIT_SEEDS:
+        # No fallback seed (design §2): a new corpus gets its own pre-registered string first.
+        # B6's optionality is this same path — sets exported, split unrecorded, exit 0.
+        sys.stdout.write(f"no split registered for {tax.version}\n")
+        return EXIT_OK
+    for scenario, counts in sorted(items.items()):
+        if counts["benign"] and counts["incident"]:
+            raise AskOwner(
+                f"{scenario} contributes both labels, but the split's unit is the scenario and a "
+                "scenario sits in exactly one arm: the split's premise has broken."
+            )
+    if not items:
+        # A registered seed is not a population: nothing was exported, so there is nothing to
+        # draw, and the degenerate manifest a draw over the empty set implies would burn the
+        # create-once slot against the real export that follows. B6's path instead: sets only,
+        # split unrecorded, exit 0 — and the slot stays fresh for the export that has events.
+        sys.stdout.write(f"no ready tier B events for {tax.version}: no split written\n")
+        return EXIT_OK
+    # Only a scenario with an incident item can be drawn; benign joins the arm table as dev (B1).
+    incident = sorted(name for name, counts in items.items() if counts["incident"])
+    arm = {
+        row["scenario"]: row["arm"] for row in vss.draw_split(tax.version, incident)["scenarios"]
+    }
+    arm |= {name: "dev" for name in items if name not in arm}
+    try:
+        manifest = vss.split_manifest_document(tax.version, arm, items_by_scenario=items)
+        write = vss.write_split(out, manifest)
+    except vss.ExportConflict as error:
+        raise AskOwner(f"{error}.") from error
+    items_by_arm = manifest["items"]
+    sys.stdout.write(
+        f"split {tax.version}: holdout_k {manifest['holdout_k']}; "
+        f"holdout {', '.join(manifest['arms']['holdout']) or 'none'}; "
+        f"dev {', '.join(manifest['arms']['dev']) or 'none'}; "
+        f"items holdout {items_by_arm['holdout']['incident']} incident, "
+        f"{items_by_arm['holdout']['benign']} benign; "
+        f"dev {items_by_arm['dev']['incident']} incident, {items_by_arm['dev']['benign']} benign; "
+        f"sha256 {vss.split_sha256(manifest)}{'' if write else ' (unchanged)'}\n"
     )
     return EXIT_OK

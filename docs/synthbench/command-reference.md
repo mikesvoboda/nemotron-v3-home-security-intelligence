@@ -349,6 +349,25 @@ and never writes it.
   and still.
 - **Writes:** `<out>/<category>/<id>/` holding `expected_labels.json`, `still.jpg` and
   `still.json` (its attribution). Each set is written once; a re-export skips an identical set.
+- **`splits.json`** (ISS-016): the dev/holdout split of the version, written once at `<out>` in
+  canonical JSON (sorted keys), so its sha256 is the manifest's fingerprint and a hand-edited
+  differing copy is detected at the next export or score. Contents: `corpus_version`, `seed` (the
+  version's pre-registered string in `SPLIT_SEEDS`, `synthbench/export/vss.py`), `holdout_k`,
+  `unit` (`scenario` — a scenario sits in exactly one arm, benign always dev), `arms` (the dev and
+  holdout rosters), `draw` (every incident scenario with its `rank_sha256` and arm, in hash order)
+  and `items` (benign and incident counts per arm). The roster is recomputed, never chosen:
+  rank each incident scenario by `sha256("<version>|<seed>|<scenario>")` and take the first
+  `holdout_k`, clamped to `max(0, min(k, n - 1))` of the `n` incident scenarios, so dev always
+  keeps an incident scenario (the `holdout_k` on disk is the clamped value).
+- **No registered seed:** a version absent from `SPLIT_SEEDS` exports its sets and writes no
+  manifest, printing `no split registered for <version>` and exiting 0. Such an export scores as
+  `split: unrecorded`, exactly as a pre-split export does.
+- **No ready events:** a registered version whose export holds no scenario at all (every event
+  ambiguous, or none ready) writes no manifest either, printing
+  `no ready tier B events for <version>: no split written` and exiting 0. A registered seed is not
+  a population: the draw has nothing to draw from, and an empty manifest would spend the
+  create-once slot against the real export that follows. Once events are ready, the next export
+  writes the split into that fresh slot.
 - **Categories:** benign and hard_negative go to `normal/`, suspicious to `suspicious/`, threat to
   `threats/`. Ambiguous events are not exported: S2 and S3 count neither label.
 - **`expected_labels.json`:** `category`, `risk` (the risk band), `timestamp` (the scene time on
@@ -356,12 +375,16 @@ and never writes it.
   subjects and props as an ideal detector reports them: object type and confidence 1.0, no box)
   and a `synthbench` block with the event's facts.
 - **Prints:** how many sets were written and how many were unchanged, and how many events were not
-  exported, by reason.
+  exported, by reason. With a registered seed it then prints the split line: `holdout_k`, the two
+  rosters, the item counts by arm and the manifest's `sha256` (with ` (unchanged)` when the
+  manifest on disk already held these bytes).
 - **Exit 1:** the corpus has no events, or `--out` lies inside the corpus
   (`$SYNTHBENCH_ROOT/corpus`, which is append-only).
 - **Exit 2:** a set on disk differs from the corpus, a still no longer matches its sha256, a ready
-  event has no still, an event's label disagrees with its group, or a corpus file cannot be read
-  or written.
+  event has no still, an event's label disagrees with its group, a scenario contributes both
+  labels (`<scenario> contributes both labels, but the split's unit is the scenario` — the split's
+  premise has broken), a `splits.json` on disk differs from the draw the corpus implies (an
+  export's split is not editable), or a corpus file cannot be read or written.
 
 ## `audit`
 
@@ -397,12 +420,13 @@ Owner only. Replays one served VLM over the exported items through the shipped r
 (`docs/superpowers/specs/2026-09-29-synthbench-p5a-vlm-replay-design.md` §3). The model must
 already be served: `replay` never starts, stops or reconfigures a model server.
 
-| Option           | Default                                  | Meaning                                                                            |
-| ---------------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
-| `--model <name>` | required                                 | `qwen3-vl-8b`, `qwen3-vl-4b`, `nemotron-12b-vl`, `cosmos-reason2-8b` or `flagship` |
-| `--url <url>`    | per model (below)                        | the model's endpoint                                                               |
-| `--limit <n>`    | every item                               | replay only the first n items                                                      |
-| `--export <dir>` | `$SYNTHBENCH_ROOT/exports/<version>/vss` | export directory                                                                   |
+| Option                  | Default                                  | Meaning                                                                            |
+| ----------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| `--model <name>`        | required                                 | `qwen3-vl-8b`, `qwen3-vl-4b`, `nemotron-12b-vl`, `cosmos-reason2-8b` or `flagship` |
+| `--url <url>`           | per model (below)                        | the model's endpoint                                                               |
+| `--limit <n>`           | every item                               | replay only the first n items                                                      |
+| `--export <dir>`        | `$SYNTHBENCH_ROOT/exports/<version>/vss` | export directory                                                                   |
+| `--server-settings <s>` | nothing recorded                         | how the endpoint was started, declared by the operator (ISS-087)                   |
 
 - **Endpoints:** the three `ai-vlm` models at `$AI_VLM_URL`, else `http://127.0.0.1:8098`;
   `cosmos-reason2-8b` at `$SYNTHBENCH_COSMOS_URL`, else `http://127.0.0.1:8099`; `flagship` at
@@ -429,20 +453,28 @@ already be served: `replay` never starts, stops or reconfigures a model server.
   only prompt change, and only Cosmos has it (the owner's decision). Every other model keeps the
   shipped prompt, budget and timeout (`AI_VLM_READ_TIMEOUT`, 25 s by default).
 - **Reads:** the export's sets.
+- **Server settings:** `--server-settings` records what the endpoint was started with. `replay`
+  never starts a server, so it can read the build an `ai-vlm` endpoint reports at `/props` but
+  nothing about the flags behind it — and a llama.cpp build or a cache flag changes the answers
+  (ISS-087). The string is stored verbatim in `run.json` as `server_settings`, empty or omitted
+  records `null`, and `report.md` prints the cell as `unrecorded` for every replay that declared
+  none. Quote the start command's flags, or say what cannot be known.
 - **Writes:** imports the export into `$SYNTHBENCH_ROOT/eval/<version>/eval.sqlite` (a set
   already imported is skipped), creates `$SYNTHBENCH_ROOT/runs/replays/<replay_id>/` before the
   first item, then writes the replay's results to the eval store under a new eval run id, and
   `run.json` in that directory: the model, endpoint, build, the conditions it ran under as its
   requests carried them (enforcement probe, request fields, `max_tokens`, read timeout, system
-  message), eval run id, commit and the replay's report.
+  message, server settings), eval run id, commit and the replay's report.
 - **Prints:** the items replayed, S2 false alarms, S3 incidents at level, refusals with their
   error classes when any (for example `2 refused (VlmTruncatedError 2)`), and the path of
   `run.json`.
 - **Exit 1:** the export has no sets.
 - **Exit 2:** a check failed (including an eval store that predates the export: move it aside),
-  a set did not import for a reason other than "already imported", or the importer refused the
-  export outright (a set's declared category contradicts its directory, or the eval store's
-  residence guard refused its media).
+  a set did not import for a reason other than "already imported", the split import refused the
+  store (it already records a different manifest for the version, or a scenario in the other arm
+  — `split for <version>: scenario <scenario> is already recorded as <arm>`), or the importer
+  refused the export outright (a set's declared category contradicts its directory, or the eval
+  store's residence guard refused its media).
 
 ## `score`
 
@@ -467,16 +499,33 @@ truth error, and, with two or more replays, the comparison between models.
   committing) and `report.html` (the failure gallery: incidents scored below their level and
   benign scenes scored medium or above, with the VLM's reasoning).
 - **Conditions per model:** `report.md` states each model's transport, prompt (`shipped`, or
-  `shipped + system message (A7)` with the message quoted), thinking, max tokens, read timeout
-  and enforcement probe, as its replay recorded them (`unrecorded` for an older replay).
+  `shipped + system message (A7)` with the message quoted), thinking, max tokens, read timeout,
+  enforcement probe, build and server settings, as its replay recorded them (`unrecorded` for an
+  older replay, and for settings no `--server-settings` declared; `—` for a build the endpoint
+  never reported).
 - **Paths:** `report.md` shows paths under `$SYNTHBENCH_ROOT` relative to it (for example
   `exports/<version>/vss`), never an absolute host path; `metrics.json` keeps them absolute.
 - **Cells:** rate, 95% Wilson interval and n; under n = 10 a cell reads "insufficient".
+- **Comparison:** with two or more replays, each pair records `identical` as `{k, n}`: of the n
+  items both replayed, the k whose bar-level outcome AND `risk_score` both agree (ISS-087). Two
+  hits at 70 and 80 agree without being identical, and a double refusal is identical.
+  `report.md` prints the count as its own column, appended after the paired statistics; a pair
+  recorded before the key existed renders without it.
 - **Prints:** the audit's progress, each model's S2, S3 and refusals, and the path of `report.md`.
 - **Exit 1:** a replay id is unknown, two replays are of the same model, or the replays name
   different eval stores or exports.
 - **Exit 2:** a replay's `run.json` does not read, its eval store is missing or holds none of its
   results, or it scored items the export does not hold.
+- **Exit 2, the split:** the export's `splits.json`, the eval store's split rows and each
+  replay's recorded `split_sha256` must agree. Each refusal names the artifacts it compared; none
+  picks a source silently:
+  - the store's roster or digest is not the manifest's — `the split disagrees`, naming both
+    digests and up to three scenarios armed differently;
+  - a replay recorded another digest, `nothing` included, the one case the refusal answers with
+    a rule: score replays of one export together, and replays of different exports apart;
+  - a manifest has no rows behind it in the store — it was imported `before the split existed`,
+    so move the store aside and replay this export;
+  - the store or a replay carries split truth for an export that `carries no splits.json`.
 
 ## `corpus snapshot`
 

@@ -1202,6 +1202,62 @@ class TestPromptTime:
         )
 
 
+class TestChronologicalFrameLabels:
+    """ISS-033: when the request carries per-frame capture times, the prompt
+    says the frames are in chronological order and labels each one — unknown
+    renders as unknown, never as arrival time. When the field is absent
+    (CAMERA_TIMEZONE unset, replay of an old store) the prompt is byte-identical
+    to today's, which is the S5 regression guarantee."""
+
+    _TIMES: ClassVar[list[str]] = ["2026-09-25T10:00:00+00:00", "2026-09-25T11:00:00+00:00"]
+
+    @staticmethod
+    def _chrono_request(paths: list[str], times: list[str | None] | None) -> VlmAssessRequest:
+        request = _request(paths)
+        if times is not None:
+            request = request.model_copy(update={"frame_capture_times": times})
+        return request
+
+    def test_the_prompt_states_the_order_and_labels_each_frame(self) -> None:
+        client = make_client(camera_timezone="America/New_York")
+        prompt = client._render_prompt(
+            [], self._chrono_request(["/x/a.jpg", "/x/b.jpg"], self._TIMES)
+        )
+        assert "Frames are in chronological order" in prompt
+        # Local wall time with zone, the render_prompt_time shape.
+        assert "Frame 1: 2026-09-25 06:00:00 local (America/New_York, UTC-04:00)" in prompt
+        assert "Frame 2: 2026-09-25 07:00:00 local (America/New_York, UTC-04:00)" in prompt
+
+    def test_an_unknown_time_renders_unknown_not_arrival(self) -> None:
+        """The row's arrival would be 15:00 UTC; "unknown" must not become
+        that number by way of a fallback."""
+        client = make_client(camera_timezone="America/New_York")
+        prompt = client._render_prompt(
+            [], self._chrono_request(["/x/a.jpg", "/x/b.jpg"], [self._TIMES[0], None])
+        )
+        assert "Frame 2: unknown" in prompt
+        assert "15:00" not in prompt
+
+    def test_labels_render_without_a_camera_timezone_too(self) -> None:
+        """A hand-built request (replay, or any caller that knows capture
+        times) gets honest UTC labels even when the camera zone is unset —
+        the labels come from the request, not from settings."""
+        client = make_client(camera_timezone=None)
+        prompt = client._render_prompt([], self._chrono_request(["/x/a.jpg"], self._TIMES[:1]))
+        assert "Frames are in chronological order" in prompt
+        assert "Frame 1: 2026-09-25T10:00:00+00:00" in prompt
+
+    def test_an_absent_field_leaves_the_prompt_byte_identical(self) -> None:
+        """The field defaults to None, so every existing prompt (S5 parity,
+        every store built before this change) renders exactly as before."""
+        for tz in (None, "America/New_York"):
+            client = make_client(camera_timezone=tz)
+            without = client._render_prompt([], _request(["/x/a.jpg", "/x/b.jpg"]))
+            nulled = client._render_prompt([], self._chrono_request(["/x/a.jpg", "/x/b.jpg"], None))
+            assert without == nulled
+            assert "chronological" not in without
+
+
 class TestProvenanceIsStampedNotTrusted:
     """A5500 M1 chain, 2026-09-28: the verdict schema asked the MODEL for its
     own provenance ("copy the values from the served model's own reported

@@ -377,20 +377,10 @@ CVE-2026-97689
 # CVE-2026-93687 - braces 3.0.3 stack overflow on deeply nested patterns, via tailwindcss (REVIEW BY: 2027-01-03)
 CVE-2026-93687
 
-# 2026-10-06 advisory-wave addendum (seroval, via the react-query devtools
-# chain). Published in the Oct-5/6 OSV wave; both fixed upstream (1.6.2 /
-# 1.6.3) but UNREACHABLE through this tree's graph: @tanstack/react-query-
-# devtools@5.104.1 -> @tanstack/query-devtools -> solid-js pins seroval
-# ~1.5.4, so taking the fix is the major devtools migration (same blocked-
-# major class as braces), and the same premise is registered on the npm side
-# in frontend/.npm-audit-exemptions.json. No app code imports solid-js or
-# seroval (measured 2026-10-06: zero references under frontend/src); the
-# chain is reached only through devtools' own cache-state serialization.
-# Pinned here, not silently: if a future graph change ever admits seroval
-# >=1.6, delete these two entries at that PR (the sibling npm entries fail
-# CI the moment npm reports an in-range path).
-#
-# CVE-2026-104846 - seroval <1.6.2 fromJSON() promise-thenable assimilation invokes plugin callables (REVIEW BY: 2027-04-06)
-CVE-2026-104846
-# CVE-2026-104845 - seroval <1.6.3 memory-exhaustion DoS via unchecked TypedArray length on deserialize (REVIEW BY: 2027-04-06)
-CVE-2026-104845
+# 2026-10-06 advisory-wave seroval addendum REMOVED 2026-10-06 (the pinned premise
+# lapsed): @tanstack/query-devtools@5.104.1 -> solid-js 1.9.16 admits seroval ~1.6.8,
+# an IN-RANGE fix, so both locks (CVE-2026-104846 <1.6.2, CVE-2026-104845 <1.6.3) are
+# now RESOLVED by the lockfile bump, not exempted. The sibling npm entries were dropped
+# from frontend/.npm-audit-exemptions.json in the same commit, exactly as the retired
+# addendum instructed: "if a future graph change ever admits seroval >=1.6, delete these
+# two entries at that PR".
