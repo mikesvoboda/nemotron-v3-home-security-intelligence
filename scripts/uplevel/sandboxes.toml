@@ -1,0 +1,98 @@
+# The uplevel sandbox roster (O0.1, UR-26 and UR-28). scripts/uplevel/launch.py reads
+# this; the owner runs the launcher. The roster mirrors docs/uplevel/50-coordination.md
+# ("The roster" and "Phases 0 and 1, started by hand") - when the coordinator changes the
+# plan, this file changes with it, in that PR.
+#
+# Each session: its name (agent-dgx's session; the sandbox is `agent-<name>`, its clone
+# /agents/agent-<name>/workspace), its model (a key of [models] below), and its kickoff
+# line, pasted into the agent's pane after the launcher prints it. A split lane's kickoff
+# carries the cell sentence (50-coordination.md, "Split lanes").
+#
+# Network profiles, allow-lists and secrets are deliberately NOT declared here: no shown
+# `agent-dgx` flag takes them (30-ops.md §O0.1). Provisioning stays the owner's: tokens
+# via `sbx secret set github --sandbox agent-<session>` (50-coordination.md).
+
+# The fast model's arguments are the pair the repo already shows (synthbench/host/agent.py,
+# docs/synthbench/operator-runbook.md). The strongest model's are the owner's ruling, posted
+# on the O0.1 PR (#6855): no --endpoint, so the session runs on Claude Code's own upstream -
+# the Anthropic API, not a DGX-served model - and no --model, so it runs Claude Code's
+# default (the owner's choice; a default change is then this session's model change). A
+# session naming a model with no entry here still makes the launcher refuse the whole phase
+# before any change and name this file.
+[models]
+fast = "--agent claude --endpoint dgx"
+strongest = "--agent claude"
+
+# Phase 0 (UR-28): the owner started these two by hand; the launcher takes over whenever
+# it is first run. The rows are what it would create.
+[[phase]]
+number = 0
+
+[[phase.session]]
+name = "uplevel-coordinator"
+model = "fast"
+kickoff = """\
+Follow the kickoff prompt in docs/uplevel/50-coordination.md."""
+
+[[phase.session]]
+name = "uplevel-ops-b"
+model = "fast"
+kickoff = """\
+Follow the kickoff prompt in docs/uplevel/30-ops.md. \
+You are cell B of the ops lane; take only packages the coordinator assigns to your cell."""
+
+# Phase 1: the rest of the roster (50-coordination.md, "The roster"). `uplevel-heavy-2` is
+# optional - the coordinator adds its row when the owner opens it.
+[[phase]]
+number = 1
+
+[[phase.session]]
+name = "uplevel-coordinator"
+model = "fast"
+kickoff = """\
+Follow the kickoff prompt in docs/uplevel/50-coordination.md."""
+
+[[phase.session]]
+name = "uplevel-ops-a"
+model = "fast"
+kickoff = """\
+Follow the kickoff prompt in docs/uplevel/30-ops.md. \
+You are cell A of the ops lane; take only packages the coordinator assigns to your cell."""
+
+[[phase.session]]
+name = "uplevel-ops-b"
+model = "fast"
+kickoff = """\
+Follow the kickoff prompt in docs/uplevel/30-ops.md. \
+You are cell B of the ops lane; take only packages the coordinator assigns to your cell."""
+
+[[phase.session]]
+name = "uplevel-backend"
+model = "fast"
+kickoff = """\
+Follow the kickoff prompt in docs/uplevel/10-backend.md."""
+
+[[phase.session]]
+name = "uplevel-frontend"
+model = "fast"
+kickoff = """\
+Follow the kickoff prompt in docs/uplevel/20-frontend.md."""
+
+[[phase.session]]
+name = "uplevel-docs"
+model = "fast"
+kickoff = """\
+Follow the kickoff prompt in docs/uplevel/40-docs.md."""
+
+[[phase.session]]
+name = "uplevel-heavy"
+model = "strongest"
+kickoff = """\
+Follow the kickoff prompt in docs/uplevel/50-coordination.md. It is the heavy-package \
+prompt at the end of that file, and it assigns you to the strongest model."""
+
+# Later phases (the coordinator adds rows as the plan changes; `up --phase <n>` creates
+# what is declared):
+# [[phase]]
+# number = 2
+# ...
