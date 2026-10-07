@@ -14,36 +14,59 @@ Phase 1.
 
 ## Phase 0 — Bootstrap
 
-### O0.1 The sandbox launcher (UR-26)
+### O0.1 The sandbox launcher (UR-26, UR-28)
 
-**Files:** `scripts/uplevel/launch.sh`, `scripts/uplevel/sandboxes.toml`, and a section in
-`50-coordination.md`. A host-side script: the owner runs it; no agent does.
+**Files:** `scripts/uplevel/launch.py`, `scripts/uplevel/sandboxes.toml`, their tests in
+`backend/tests/unit/scripts/`, and the "Where agents run" section of `50-coordination.md`. A
+host-side tool: the owner runs it; no agent does.
 
-Every agent runs in its own sandbox, created at each phase boundary (`50-coordination.md`, "Where
-agents run"). This lane's sandbox cannot see `sbx`, so the owner supplies its interface.
+The owner creates sandboxes with `agent-dgx`, which gives each session its own clone of the host
+checkout (`50-coordination.md`, "Where agents run"). This launcher drives `agent-dgx` from a
+manifest, so a phase boundary takes one command, and retires sandboxes without losing work. The
+owner started Phases 0 and 1 by hand (UR-28); the launcher takes over from the Phase 2 boundary.
 
-- [ ] Before writing code, ask the owner — in the draft PR — to paste the output of `sbx --help` and
-      of the help for each subcommand the launcher needs. Use only commands and flags that output
-      shows.
-- [ ] `sandboxes.toml` declares, per phase, each sandbox: its name (`uplevel-<lane>[-<cell>]`,
-      `uplevel-coordinator`, `uplevel-heavy`), clone mode, its model endpoint (the local model, or
-      the strongest model for `uplevel-heavy`), its network allow-list profile, its secrets, and the
-      kickoff prompt it starts with (taken from the lane plan).
-- [ ] `launch.sh --phase <n>` creates the phase's sandboxes from the manifest; re-running creates
-      only what is missing; `--dry-run` prints every command without running it.
-- [ ] **Retiring a sandbox never loses work.** First stop the agent in it. Then inspect inside the
-      sandbox, using the `sbx` command the help shows for running a command there: changed or
-      untracked files, stashes, and refs not pushed to `origin`, on every branch. Refuse to remove
-      the sandbox if any of these exist, or if the inspection itself fails or no such command
-      exists — retirement is then the owner's manual call. Otherwise export first: a
-      `git bundle create --all` and an archive of the working tree, written to a host directory and
-      verified (`git bundle verify`, the archive listed), and only then remove the sandbox.
-- [ ] Keep the refusal logic in a function with tests on fixture inspection outputs: changed files,
-      untracked files, a stash, an unpushed ref and a failed inspection each refuse; a clean
-      sandbox with a verified export proceeds.
+Follow `synthbench/host/agent.py`, which already drives `agent-dgx` from the host: every command
+goes through a `Host` seam, `--dry-run` prints each step instead of running it, all checks run
+before any change, and a refusal exits 2 naming the next step. Its tests run against a fake host
+(`backend/tests/unit/synthbench/test_host_agent.py`); test this launcher the same way.
 
-**Done when:** the refusal tests pass; the owner has run `--phase 1 --dry-run`, then `--phase 1`, and
-the PR shows both outputs with every Phase 1 sandbox created; a second run is a no-op.
+- [ ] Use only the `agent-dgx` and `sbx` commands and flags shown in `synthbench/host/agent.py`,
+      `docs/synthbench/operator-runbook.md`, or the stack repository's
+      `docs/operations/agent-dgx-sessions.md`. In the draft PR, ask the owner to paste that file and
+      the `agent-dgx run` arguments that select the strongest model. `agent-dgx` reads an unknown
+      word as a new session's name, so the launcher always names its subcommand, and nobody runs
+      `agent-dgx help` or `agent-dgx ls`.
+- [ ] `sandboxes.toml` declares, per phase, each session: its name (`uplevel-<lane>[-<cell>]`,
+      `uplevel-coordinator`, `uplevel-heavy`; the sandbox is `agent-<name>`), its `agent-dgx run`
+      arguments (`--agent claude --endpoint dgx` for the fast model, the owner's arguments for the
+      strongest), and its kickoff line: "Follow the kickoff prompt in <the roster's file>", plus the
+      cell sentence for a split lane. Network profiles and secrets go in only if the `agent-dgx`
+      docs show a flag for them.
+- [ ] `launch.py up --phase <n>` refuses unless it runs inside herdr and the host checkout is clean
+      and at `origin/main`. It creates each missing session with `agent-dgx run <name> … --split`
+      from the host checkout, checks that `agent-dgx inspect <name> --json` reports that commit as
+      `manifest.source_repository.head`, and prints each kickoff line. Re-running creates only what
+      is missing.
+- [ ] **`launch.py retire <name>` never loses work.** The owner ends the agent's session first.
+      Inspect inside the sandbox, running git with `sbx exec agent-<name>` in
+      `/agents/agent-<name>/workspace`: changed or untracked files, stashes, and refs not pushed to
+      `origin`, on every branch. On the host, read the workspace's files but run git
+      there only through `sbx exec`: its `.git/config` is the agent's to write, and settings such
+      as `core.fsmonitor` run commands (`docs/synthbench/operator-runbook.md`). Refuse if any of
+      these exist or the inspection fails; retirement is then the owner's manual call. Otherwise
+      export first: a `git bundle create --all` and an archive of the working tree, made inside
+      the sandbox, copied to a host directory and verified there (`git bundle verify` from the
+      owner's checkout; the archive listed). Only then run `agent-dgx stop <name>` and
+      `agent-dgx session rm <name> --force`. **MEASURE** whether `sbx exec` still reaches the
+      sandbox once the agent's session has ended, and order the steps to fit.
+- [ ] Keep the refusal logic in functions with tests on fixture outputs: for `retire`, changed
+      files, untracked files, a stash, an unpushed ref and a failed inspection each refuse, and a
+      clean sandbox with a verified export proceeds; for `up`, a dirty or stale host checkout and a
+      session cloned from the wrong commit each refuse.
+
+**Done when:** the tests pass, and the PR shows the owner's output of `up --phase 2 --dry-run` and
+of `retire` on a throwaway session (`agent-dgx run uplevel-scratch --agent claude --endpoint dgx`),
+which refuses while it holds an unpushed commit and succeeds once that commit is pushed.
 
 ---
 
