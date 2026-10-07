@@ -1,5 +1,9 @@
 # Mutation ladder to 85% — plan of record + /goal prompt
 
+> **SUPERSEDED 2026-10-07.** The 85% target is retired and the campaign is held after M54.
+> Mutation testing now follows [`docs/uplevel/01-mutation-policy.md`](../uplevel/01-mutation-policy.md).
+> Do not run the ladder or paste the prompt below.
+
 **2026-09-29, authored after the M6 publish (`1aec4f8c`).** This doc is the
 ORDER + measured sizing for the campaign ladder that carries the mutmut badge
 from M6 to 85%. The standing measurement ledger stays
