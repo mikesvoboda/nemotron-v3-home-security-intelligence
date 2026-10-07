@@ -7,12 +7,13 @@ import json
 import re
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from synthbench import cli
 from synthbench.commands.audit import audit_log
-from synthbench.export import vss
+from synthbench.export import sequence, vss
 from synthbench.score.metrics import (
     MIN_N,
     Item,
@@ -333,6 +334,87 @@ def test_a_pair_without_the_identical_key_renders_the_table_exactly_as_before() 
 
 # The command, end to end, over a real export and eval store.
 
+# ISS-037's fixture additions. A sequence set is written by the real `sequence` module (the same
+# `sequence_files` the export command calls), so the scored population is a real export's shape,
+# not a hand-built dict the scorer could be tested against without ever meeting that shape.
+
+
+def _harness(
+    mode: str, *, frames_fed: int, fell_back: bool = False, collapsed: bool = False
+) -> dict[str, Any]:
+    """The audit `vlm_replay._build_request` leaves in `raw_response.harness` for one row.
+
+    `frames_fed` is what the wire received, which is what `frames_slice` buckets by. The three
+    modes' honest per-item shapes, pinned by the vlm_replay tests and mirrored here: a still's
+    declared rows name no frame, so selector and burst FALL BACK for it (fed 1, `mode_fell_back`
+    set — the bucket records what the wire got); a sequence's three frames reach the model whole
+    under stored and burst, and one same-class triplet collapses to one pick under selector."""
+    audit: dict[str, Any] = {
+        "frames_mode": mode,
+        "frames_fed": frames_fed,
+        "selector_collapsed": collapsed,
+    }
+    if fell_back:
+        audit["mode_fell_back"] = "no per-frame detection rows"
+    return audit
+
+
+def _stills_harness(mode: str) -> dict[str, Any]:
+    """A still row's audit under `mode`: one image, and a non-stored mode says it fell back."""
+    return _harness(mode, frames_fed=1, fell_back=mode != "stored")
+
+
+def _sequence_harness(mode: str) -> dict[str, Any]:
+    """A sequence row's audit under `mode` (the docstring on `_harness` walks the three)."""
+    if mode == "selector":
+        return _harness(mode, frames_fed=1, collapsed=True)
+    return _harness(mode, frames_fed=3)
+
+
+def _write_sequence_set(export: Path, event_id: str, group: str, facts: dict[str, Any]) -> None:
+    """One 3-frame set for `event_id`, beside the stills, bytes and labels from `sequence.py`.
+
+    The JPEGs are stubs — the scorer never decodes a frame; it reads the labels the exporter
+    wrote and the store's item. What has to be real is the layout and the labels document,
+    because that is what `read_sequence_sets` and the importer read."""
+    frame_files = [f"{sequence.FRAME_FILE_STEM}{i + 1}.jpg" for i in range(3)]
+    offsets = [0, 500, 1000]
+    # The exporter's own rule (sequence.sequence_timestamps): frame k's time is the scene time
+    # plus its offset into the clip. Hand-formatted here because the fixture has no mp4 fps.
+    times = [
+        f"2026-04-15T14:32:{offset // 1000:02d}.{offset % 1000:03d}000-04:00" for offset in offsets
+    ]
+    files = sequence.sequence_files(
+        facts,
+        category=vss.CATEGORY[group],
+        jpeg_frames=[b"\xff\xd8\xff" + f"{event_id}-{i}".encode() for i in range(3)],
+        offsets_ms=offsets,
+        times=times,
+        detections=sequence.frame_detections([SimpleNamespace(cls="person")], frame_files, times),
+        corpus_version=h.VERSION,
+    )
+    assert sequence.write_sequence_set(
+        export / sequence.SEQUENCE_DIR,
+        vss.CATEGORY[group],
+        sequence.sequence_name(event_id, 3),
+        files,
+    )
+
+
+def _sequence_item(item: Item) -> Item:
+    """The Item a scored sequence row belongs to: same event, same truth, `kind: sequence`.
+
+    Only `item_id` and `facts` matter here — the CLI path builds its Items from the export and
+    the store through `load_items`, so this is the direct-`score_models` mirror of that."""
+    facts = dict(item.facts, kind="sequence", frames=3)
+    return Item(
+        item_id=f"{item.item_id}__seq3",
+        label=item.label,
+        floor=item.floor,
+        facts=facts,
+        still=Path(f"/x/{item.event_id}__seq3/frame1.jpg"),
+    )
+
 
 def _world(
     root: Path,
@@ -340,9 +422,17 @@ def _world(
     records: dict[str, dict[str, Any]] | None = None,
     scenarios: Mapping[str, str] | None = None,
     split: str | None = None,
+    sequences: bool = False,
 ) -> list[str]:
     """An export of three threats and twelve benign scenes, imported; one replay per model,
     its `run.json` updated with `records[model]`.
+
+    `sequences` (ISS-037) writes one 3-frame sequence set per event beside the stills, imports
+    both populations the way `replay --with-sequences` does, and rows a model whose record
+    declares `frames_mode` with the harness audit that replay would have left — so the scored
+    population is the real export's, and a `records`-declared `with_sequences` alone changes
+    which items `execute` even loads. Omitted, the world is the pre-audit shape the frozen
+    corpora carry: stills only, no harness keys anywhere.
 
     `scenarios` overrides an event's scenario name (the default names one scenario per group).
     `split` records a dev/holdout split on that export, in the store as well as on disk:
@@ -367,27 +457,57 @@ def _world(
             vss.SIDECAR_FILE: json.dumps(vss.attribution(h.VERSION)).encode(),
         }
         vss.write_set(export, vss.CATEGORY[group], event_id, files)
+        if sequences:
+            _write_sequence_set(export, event_id, group, facts)
     store_path = root / "eval" / h.VERSION / "eval.sqlite"
     store_path.parent.mkdir(parents=True)
     carried = _record_split(export, store_path, split, scenarios or {})
     ids = []
     with EvalStore(store_path) as store:
         assert not [r for r in import_generated_items(corpus_dir=export, store=store) if r.skipped]
+        if sequences:  # replay's own import order: stills, then the sets one level deeper
+            imported = import_generated_items(
+                corpus_dir=export / sequence.SEQUENCE_DIR, store=store
+            )
+            assert not [r for r in imported if r.skipped]
         for model, by_event in scores.items():
+            # A model rows its sequence items only the way `replay` does: its record's
+            # `with_sequences` decides whether the sequence items were even in its run, and
+            # its `frames_mode` labels every harness audit the run left (ISS-037). A record
+            # without a mode is a pre-audit replay: plain rows, stills only.
+            own = (records or {}).get(model, {})
+            mode = own.get("frames_mode")
             run_id = store.start_run(engine="llama.cpp", model=model)
             for event_id, group in events:
                 cell: dict[str, Any] = {}
                 if scenario := (scenarios or {}).get(event_id):
                     cell["scenario"] = scenario  # the item's facts must match the export's
                 item = _item(event_id, group, **cell)
-                row = _row(item, by_event.get(event_id, 10 if group == "benign" else 90))
+                score = by_event.get(event_id, 10 if group == "benign" else 90)
+                still = _row(item, score)
+                if mode is not None:
+                    still["raw_response"]["harness"] = _stills_harness(mode)
                 store.put_result(
                     run_id,
-                    item.item_id,
-                    verdict=row["verdict"],
-                    risk_score=row["risk_score"],
-                    raw_response=row["raw_response"],
+                    still["item_id"],
+                    verdict=still["verdict"],
+                    risk_score=still["risk_score"],
+                    raw_response=still["raw_response"],
                 )
+                if sequences and own.get("with_sequences"):
+                    # Same verdict for the sequence as its still — the fixture's
+                    # simplification; the scorer's rows are per item either way. A still is
+                    # one image in every mode, so only the sequence's rows carry a >1 feed.
+                    seq = _row(_sequence_item(item), score)
+                    if mode is not None:
+                        seq["raw_response"]["harness"] = _sequence_harness(mode)
+                    store.put_result(
+                        run_id,
+                        seq["item_id"],
+                        verdict=seq["verdict"],
+                        risk_score=seq["risk_score"],
+                        raw_response=seq["raw_response"],
+                    )
             replay_id = f"20260930T100000Z-{model}"
             record = {
                 "replay_id": replay_id,
@@ -650,7 +770,7 @@ def test_a_pre_split_export_scores_as_unrecorded(tmp_path: Path) -> None:
     out = _scored_dir(tmp_path)
     metrics = json.loads((out / "metrics.json").read_text())
     assert metrics["identity"]["split"] == {"source": "unrecorded"}
-    assert metrics["identity"]["score_version"] == 4
+    assert metrics["identity"]["score_version"] == 5
     rows = _rows(out)
     assert len(rows) == 15
     assert {row["split"] for row in rows} == {"unrecorded"}
@@ -1128,6 +1248,201 @@ def test_a_pipe_in_the_declared_settings_cannot_split_the_row(tmp_path: Path) ->
     assert len(separators.findall(row)) == len(separators.findall(header)) == 11  # ten columns
     identity = json.loads((out / "metrics.json").read_text())["identity"]
     assert identity["replays"][0]["server_settings"] == declared  # markdown only: not the record
+
+
+# ISS-037: how frames reached the wire is a condition like any other — recorded per replay,
+# bucketed per row, and printed only when the data carries it. Two independent gates print on
+# their own evidence: the `frames` bucketing and "## Frames fed" section read the result rows'
+# harness audit (what the wire received); the conditions table's Frames column reads run.json
+# (what the run asked for). A replay whose record is forgotten loses the column, not the section.
+
+
+def test_a_pre_audit_world_gains_no_frames_key_section_or_column(tmp_path: Path) -> None:
+    """The negative half of byte-comparability: a replay recorded before the modes existed (no
+    `frames_mode` in run.json, no harness in any row) leaves the score exactly the shape version
+    4 wrote — no `frames` block, no section, no column — while the identity's new keys ride as
+    nulls, because a forgotten record and an absent one must not be two different shapes."""
+    ids = _world(tmp_path, {"qwen3-vl-8b": {}})
+    assert h.run(tmp_path, "score", "--replay", ids[0]) == cli.EXIT_OK
+    out = _scored_dir(tmp_path)
+    metrics = json.loads((out / "metrics.json").read_text())
+    assert "frames" not in metrics["models"]["qwen3-vl-8b"]
+    replay = metrics["identity"]["replays"][0]
+    assert replay["frames_mode"] is None and replay["with_sequences"] is None
+    text = (out / "report.md").read_text(encoding="utf-8")
+    assert "## Frames fed" not in text
+    assert "| Frames |" not in _conditions_table(text.splitlines())[0]
+    assert {(row["frames_fed"], row["frames_mode"]) for row in _rows(out)} == {(None, None)}
+
+
+def test_the_identity_and_report_record_how_frames_reached_the_wire(tmp_path: Path) -> None:
+    """One burst replay of an export that carries sequence sets: the identity says burst and
+    +sequences, the population widens to the sequences IT ran, each row's bucket is what its
+    harness audited (a still under burst fell back — the wire got one frame, and the bucket
+    says so rather than the mode), and the report prints both the Frames column and the
+    bucketed section."""
+    ids = _world(
+        tmp_path,
+        {"qwen3-vl-8b": {"B-t-000": 20}},
+        records={"qwen3-vl-8b": {"frames_mode": "burst", "with_sequences": True}},
+        sequences=True,
+    )
+    assert h.run(tmp_path, "score", "--replay", ids[0]) == cli.EXIT_OK
+    out = _scored_dir(tmp_path)
+    metrics = json.loads((out / "metrics.json").read_text())
+    replay = metrics["identity"]["replays"][0]
+    assert replay["frames_mode"] == "burst" and replay["with_sequences"] is True
+    assert metrics["identity"]["export"]["items"] == 30  # 15 stills + 15 sequence sets
+    frames = metrics["models"]["qwen3-vl-8b"]["frames"]
+    assert list(frames) == ["1", "3"]  # sorted, and only buckets that exist
+    assert (frames["1"]["s2"]["n"], frames["3"]["s2"]["n"]) == (12, 12)
+    assert frames["3"]["s3"]["n"] == 3 and frames["3"]["s3"]["insufficient"] is True
+    results = _rows(out)
+    assert len(results) == 30
+    seq = next(r for r in results if r["item_id"].endswith("__seq3"))
+    assert (seq["frames_fed"], seq["frames_mode"]) == (3, "burst")
+    still = next(r for r in results if r["item_id"].endswith(":B-t-000"))
+    assert (still["frames_fed"], still["frames_mode"]) == (
+        1,
+        "burst",
+    )  # the fallback, bucketed honestly
+    text = (out / "report.md").read_text(encoding="utf-8")
+    assert "## Frames fed" in text
+    table = _conditions_table(text.splitlines())
+    assert "| Frames |" in table[0]
+    assert table[-1].endswith("| burst, +sequences |")
+
+
+def test_sequences_join_the_scored_population_only_for_a_replay_that_ran_them(
+    tmp_path: Path,
+) -> None:
+    """The same export with sequence sets, scored by a replay whose record says stored and
+    never names `with_sequences`: its population stays the stills — a stored-only score of a
+    sequence-carrying export keeps the 15-item denominator it scored before sequences existed,
+    which is what makes its numbers comparable with the frozen stored history."""
+    ids = _world(tmp_path, {"m": {}}, records={"m": {"frames_mode": "stored"}}, sequences=True)
+    assert h.run(tmp_path, "score", "--replay", ids[0]) == cli.EXIT_OK
+    metrics = json.loads((_scored_dir(tmp_path) / "metrics.json").read_text())
+    assert metrics["identity"]["export"]["items"] == 15
+    assert len(_rows(_scored_dir(tmp_path))) == 15
+    # stored stills are one frame each: the section is real here (the rows carry the audit),
+    # and it holds exactly the one bucket the fallback-free stills could fill.
+    assert list(metrics["models"]["m"]["frames"]) == ["1"]
+
+
+def test_the_frames_slice_buckets_by_what_the_wire_received() -> None:
+    """The scorer's own reading, beside the command's: every bucket gets the slices()' cell
+    treatment — MIN_N, insufficient, Wilson — so the funded clips print intervals and a thin
+    bucket prints `insufficient (n=…)` instead of a rate that would lie."""
+    pairs = [(_item(f"B-b-{i:03d}", "benign"), _item(f"B-t-{i:03d}", "threat")) for i in range(6)]
+    stills = [x for pair in pairs for x in pair]
+    sequences = [_sequence_item(item) for item in stills]
+    items = _items(*stills, *sequences)
+    rows = []
+    for item, harness in [
+        *[(item, _stills_harness("burst")) for item in stills],
+        *[(item, _sequence_harness("burst")) for item in sequences],
+    ]:
+        row = _row(item, 90 if item.label == "incident" else 10)
+        row["raw_response"]["harness"] = harness
+        rows.append(row)
+    frames = score_models([("m", "r", rows)], items, {}, [])["models"]["m"]["frames"]
+    assert list(frames) == ["1", "3"]
+    # S2's n is the bucket's BENIGN rows and S3's its incidents — never the row count — and 6
+    # of each is under MIN_N, so both legs print insufficient rather than a rate that would lie.
+    assert (frames["1"]["s2"]["n"], frames["3"]["s2"]["n"]) == (6, 6)
+    assert (frames["1"]["s3"]["n"], frames["3"]["s3"]["n"]) == (6, 6)
+    assert frames["1"]["s2"]["insufficient"] is True
+    assert frames["1"]["s2"] == frames["3"]["s2"]  # same fixture both sides: the cells must agree
+
+
+def test_a_pre_audit_row_buckets_as_unrecorded_and_sorts_last() -> None:
+    """One run's rows can straddle the audit's birth: committed items re-scored before it, new
+    ones after. The honest bucket is `unrecorded` — committed history must not read as a
+    1-frame measurement — and it sorts last so a reader meets the real buckets first. Under
+    MIN_N even a mixed bucket prints insufficient, not a rate."""
+    benign = [_item(f"B-b-{i:03d}", "benign") for i in range(12)]
+    items = _items(*benign)
+    rows = (
+        [
+            {
+                **_row(item, 10),
+                "raw_response": {
+                    **_row(item, 10)["raw_response"],
+                    "harness": _harness("stored", frames_fed=1),
+                },
+            }
+            for item in benign[:9]  # audited
+        ]
+        + [_row(item, 10) for item in benign[9:]]
+    )  # the pre-audit shape
+    frames = score_models([("m", "r", rows)], items, {}, [])["models"]["m"]["frames"]
+    assert list(frames) == ["1", "unrecorded"]
+    assert (frames["1"]["s2"]["n"], frames["unrecorded"]["s2"]["n"]) == (9, 3)
+    assert frames["1"]["s2"]["insufficient"] is True  # 9 < MIN_N: insufficient, not a rate
+
+
+def test_the_audit_of_a_still_never_confirms_a_sequence_row() -> None:
+    """ISS-038's gate inside the scorer: the owner's yes was about the STILL; a sequence's
+    frames come from a separate render. Its row counts in `all` and the frames buckets, and
+    never in `audited`, even though it shares the confirmed event's id."""
+    still = _item("B-t-000", "threat")
+    seq = _sequence_item(still)
+    rows = [_row(still, 90), _row(seq, 90)]
+    metrics = score_models(
+        [("m", "r", rows)],
+        _items(still, seq),
+        {("B-t-000", "scene"): "y"},
+        ["B-t-000"],
+    )["models"]["m"]
+    assert metrics["all"]["s3"]["all"]["n"] == 2
+    assert metrics["audited"]["s3"]["all"]["n"] == 1  # the still only
+
+
+def test_a_generation_error_excludes_the_event_and_its_frames_too() -> None:
+    """The conservative direction, spelled out: the owner answered no about the still, and the
+    sequence re-renders the same scene, so its rows leave every metric with the still's — the
+    clip may share the flaw, and a number that quietly keeps it is worse than a smaller n."""
+    still = _item("B-t-000", "threat")
+    seq = _sequence_item(still)
+    rows = [_row(still, 90), _row(seq, 90)]
+    metrics = score_models(
+        [("m", "r", rows)],
+        _items(still, seq),
+        {("B-t-000", "scene"): "n"},
+        ["B-t-000"],
+    )["models"]["m"]
+    assert metrics["excluded"] == 2
+    assert metrics["all"]["s3"]["all"]["n"] == 0
+    assert metrics["audited"]["s3"]["all"]["n"] == 0
+
+
+def test_a_forgotten_frames_record_removes_the_column_not_the_section(
+    tmp_path: Path,
+) -> None:
+    """The two gates read different evidence, so forgetting one fact moves one reading. A burst
+    replay's run.json rewritten without `frames_mode`/`with_sequences` (the shape a record from
+    before the modes reads like) drops the conditions column — the run's request is unrecorded —
+    while its rows still carry the harness audit, so the bucketed section stays. Re-rendered
+    from the frozen metrics, not re-scored: re-scoring a sequence world whose record forgot
+    `with_sequences` would refuse, because the sequence rows would name items outside the
+    narrowed population (the same population gate the stored test relies on)."""
+    ids = _world(
+        tmp_path,
+        {"qwen3-vl-8b": {}},
+        records={"qwen3-vl-8b": {"frames_mode": "burst", "with_sequences": True}},
+        sequences=True,
+    )
+    assert h.run(tmp_path, "score", "--replay", ids[0]) == cli.EXIT_OK
+    out = _scored_dir(tmp_path)
+    metrics = json.loads((out / "metrics.json").read_text())
+    identity = metrics["identity"]
+    for replay in identity["replays"]:
+        replay["frames_mode"] = None
+        replay["with_sequences"] = None
+    text = markdown(metrics, identity)  # the record forgotten, the audited rows intact
+    assert "| Frames |" not in _conditions_table(text.splitlines())[0]
+    assert "## Frames fed" in text  # the rows still say what the wire received
 
 
 def test_the_report_shows_no_absolute_host_path(tmp_path: Path) -> None:

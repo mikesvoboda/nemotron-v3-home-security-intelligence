@@ -28,6 +28,7 @@ from backend.evaluation.vlm_replay import git_commit, run_replay
 from backend.services import vlm_client
 from backend.services.vlm_client import VlmClient
 
+from synthbench.export.sequence import SEQUENCE_DIR
 from synthbench.export.vss import read_split, split_sha256
 from synthbench.generate.comfy import serve
 from synthbench.run.models import Model
@@ -233,11 +234,20 @@ def conditions(model: Model, export: Path, server_settings: str | None = None) -
     }
 
 
-def _import(store: EvalStore, export: Path) -> tuple[int, int]:
+def _import(store: EvalStore, export: Path, *, include_sequences: bool = False) -> tuple[int, int]:
     """Import the export into `store`: (new items, already imported). Any other skip is
-    refused, and so is a set the importer refuses outright (`LabelImportError`)."""
+    refused, and so is a set the importer refuses outright (`LabelImportError`).
+
+    `include_sequences` additionally imports `<export>/sequences` — the SAME importer pointed
+    one level deeper, which is the whole point of that layout (the stills' depth-2 glob cannot
+    see a depth-3 set). It is opt-in because the store defines what a replay runs: importing
+    sequence items into the per-version store would silently widen the denominator of every
+    later stored run against the committed stills-only history. With it, one run carries both
+    kinds and `raw_response.harness.frames_fed` says which rows got which feed."""
     try:
         rows = import_generated_items(corpus_dir=export, store=store)
+        if include_sequences:
+            rows = rows + import_generated_items(corpus_dir=export / SEQUENCE_DIR, store=store)
     except LabelImportError as error:
         raise ImportRefused(str(error)) from error
     skipped = [(row, row.reason or "") for row in rows if row.skipped]
@@ -285,15 +295,17 @@ def _differing_fields(held: EvalItem, declared: EvalItem) -> list[str]:
     return fields + [f"snapshot.{key}" for key in snapshot if snapshot[key] != old.get(key)]
 
 
-def check_current(store: EvalStore, export: Path) -> None:
+def check_current(store: EvalStore, export: Path, *, include_sequences: bool = False) -> None:
     """Refuse unless every item the store already holds matches its set in the export.
 
     The importer skips an id the store holds (items are immutable), so an export rebuilt in
     place would replay the old snapshots and be scored against the new facts. The export is
     imported into a scratch store by the same importer, and each held item is compared whole:
-    label, expected risk score, timestamp, detections and stills among the rest."""
+    label, expected risk score, timestamp, detections and stills among the rest. The scratch
+    import must mirror the real one's `include_sequences` — a sequence item the store holds but
+    the scratch never imports would sail past the comparison and replay a stale frame set."""
     with EvalStore(":memory:") as scratch:
-        _import(scratch, export)
+        _import(scratch, export, include_sequences=include_sequences)
         declared = scratch.iter_items()
     stale = [
         (held, item)
@@ -310,11 +322,13 @@ def check_current(store: EvalStore, export: Path) -> None:
         )
 
 
-def import_export(store: EvalStore, export: Path) -> tuple[int, int]:
+def import_export(
+    store: EvalStore, export: Path, *, include_sequences: bool = False
+) -> tuple[int, int]:
     """Import the export: (new items, already imported). Any other skip is refused, and so is
     a store whose items differ from the export's sets (`check_current`)."""
-    check_current(store, export)
-    return _import(store, export)
+    check_current(store, export, include_sequences=include_sequences)
+    return _import(store, export, include_sequences=include_sequences)
 
 
 def check_stills(store: EvalStore, export: Path) -> None:
@@ -355,13 +369,29 @@ def execute(
     limit: int | None,
     deps: Deps,
     server_settings: str | None = None,
+    frames_mode: str = "stored",
+    include_sequences: bool = False,
 ) -> ReplayResult:
     """Check, import, replay, and record the run under `runs_dir/<replay_id>/run.json`.
 
     `server_settings` is the operator's declaration of how the endpoint was started (ISS-087);
-    see `conditions`."""
+    see `conditions`. `frames_mode`/`include_sequences` are ISS-037's: which supply feeds the
+    items, and whether the export's sequence sets join the run. A selector/burst run without
+    the sequences it wants is REFUSED here rather than run as a silent all-fallback stored run."""
     # Resolved before the import: the importer stores media paths as joined from the export.
     export = export.resolve()
+    sequences_dir = export / SEQUENCE_DIR
+    if include_sequences and not sequences_dir.is_dir():
+        raise ReplayRefused(
+            f"--with-sequences but {sequences_dir} does not exist; run "
+            "`export vss --sequences N` first (an empty sequence import would run silently)"
+        )
+    if frames_mode != "stored" and not include_sequences:
+        raise ReplayRefused(
+            f"--frames {frames_mode} without --with-sequences: only sequence sets carry "
+            "per-frame detections, so every item would fall back to the stored feed and the "
+            "run would read as a frames run while being a stored one"
+        )
     build = check(model, url, deps)
     # Before the replay: nothing after it may fail first.
     ran_under = conditions(model, export, server_settings)
@@ -374,7 +404,7 @@ def execute(
         # first), then content as its sets declare it (in the import). New items come from
         # this export's sets, so their stills lie under it.
         check_stills(store, export)
-        new, already = import_export(store, export)
+        new, already = import_export(store, export, include_sequences=include_sequences)
         # After the items: a store whose recorded roster disagrees with this export's manifest is
         # refused before the run directory is made. The export carried no manifest -> unrecorded.
         split = import_split(store, export)
@@ -392,6 +422,7 @@ def execute(
                 engine="llama.cpp" if model.transport == "ai-vlm" else "vllm",
                 limit=limit,
                 make_client=client_factory(model, url, export, deps.inner_transport),
+                frames_mode=frames_mode,
             )
         )
     record = {
@@ -408,6 +439,9 @@ def execute(
         "imported_new": new,
         "already_imported": already,
         "limit": limit,
+        # ISS-037: how frames reached the wire, and whether the sequence sets joined the run.
+        "frames_mode": frames_mode,
+        "with_sequences": include_sequences,
         **split,
         "commit": git_commit(),
         "started_utc": started.isoformat(timespec="seconds"),

@@ -220,7 +220,7 @@ def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
         ]
         for r in replays
     ]
-    header = (
+    header = [
         "Model",
         "Transport",
         "Prompt",
@@ -231,7 +231,16 @@ def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
         "Sampling",
         "Build",
         "Server settings",
-    )
+    ]
+    # ISS-037's feed column, LAST like _comparison's identical column: it appears only when a
+    # replay recorded it, because for a replay from before the modes existed "unrecorded" would
+    # overstate the doubt — that code had no choice to record — and "stored" would be the
+    # renderer inferring a fact the record never carried.
+    modes = [r.get("frames_mode") for r in replays]
+    if any(modes):
+        header += ["Frames"]
+        for row, mode, r in zip(rows, modes, replays, strict=True):
+            row.append(mode + (", +sequences" if r.get("with_sequences") else "") if mode else "—")
     lines = _table(header, rows)
     for r in replays:
         if r.get("system_message"):
@@ -373,6 +382,31 @@ def _slices(models: Mapping[str, Any]) -> list[str]:
         for name, values in m["slices"].items():
             rows = [[value, fmt(c["s2"]), fmt(c["s3"])] for value, c in values.items()]
             lines += ["", f"**{name}**", "", *_table((name, "S2", "S3"), rows)]
+    return lines
+
+
+def _frames(models: Mapping[str, Any]) -> list[str]:
+    """The ISS-037 section: each model's rows bucketed by the frames that actually reached it.
+
+    Whole sections appear or vanish here the way `_comparison`'s identical column does: the
+    section prints only when some model block carries the bucketing, so a report re-rendered
+    from a frozen pre-ISS-037 `metrics.json` keeps the report a claim rests on. An
+    `unrecorded` bucket inside a run that does carry the audit is history, not a gap —
+    `frames_slice` puts pre-audit rows there rather than let them read as a 1-frame arm."""
+    if not any("frames" in m for m in models.values()):
+        return []
+    lines = [
+        "## Frames fed",
+        "",
+        "Each model's rows bucketed by how many frames actually reached it (ISS-037) — what "
+        "the wire sent, not what the run asked for: a selector run that collapsed a triplet "
+        "lands its items in `1`.",
+    ]
+    for model, m in models.items():
+        values = m.get("frames") or {}
+        rows = [[bucket, fmt(c["s2"]), fmt(c["s3"])] for bucket, c in values.items()]
+        lines += ["", f"**{model}**", "", *_table(("Frames fed", "S2", "S3"), rows)]
+    lines.append("")
     return lines
 
 
@@ -526,6 +560,9 @@ def markdown(
         "## Slices",
         *_slices(models),
         "",
+        # ISS-037's read beside the cell slices: an empty return keeps this join byte-stable
+        # for a pre-ISS-037 metrics.json, exactly as the section would have printed before.
+        *_frames(models),
         "## Comparison",
         "",
         *_comparisons(metrics),
