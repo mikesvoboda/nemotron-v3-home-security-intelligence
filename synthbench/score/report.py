@@ -16,8 +16,9 @@ CONDITIONS = (
     "context; a real detector misses some of them, so this is optimistic. Accuracy only: the "
     "GB300 is shared, so no latency or memory figure here stands for a deployment. Ambiguous "
     "events are not scored. Comparison models may run under different conditions from the "
-    "product model (a system message, a token budget, a read timeout, thinking off): the "
-    "Conditions per model table in report.md lists each model's."
+    "product model (a system message, a token budget, a read timeout, thinking off, a build, "
+    "server flags the operator declared): the Conditions per model table in report.md lists "
+    "each model's."
 )
 CELLS = (
     'Each cell reads rate [95% Wilson interval] (n); under n = 10 it reads "insufficient". '
@@ -177,6 +178,13 @@ def _thinking(value: str | None) -> str:
     return "—" if value is None else value
 
 
+def _build(value: str | None) -> str:
+    """The build the endpoint reported to `check` (recorded as `build`). An endpoint that answers
+    `/props` always reports one, and an empty answer reads the same as an older record's missing
+    key: `—`, because nothing was observed (as opposed to server settings: never DECLARED)."""
+    return value if value else "—"
+
+
 def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
     """Each model's conditions as its replay recorded them; older replays did not record
     them all."""
@@ -202,6 +210,13 @@ def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
             shown(r.get("read_timeout"), lambda seconds: f"{seconds:g} s"),
             shown(r.get("enforcement_probe"), lambda on: "on" if on else "off"),
             sampling(r),
+            _build(r.get("build")),
+            # ISS-087: `shown`, not `_build`, because the absence means something different: the
+            # operator never declared what the endpoint was started with. The `|` escape is for
+            # this table only — it is markdown's column separator, and an unescaped one in the
+            # free text of a declaration shifts every later cell's label; `run.json` and
+            # `metrics.json` keep the string exactly as the operator gave it.
+            shown(r.get("server_settings"), lambda text: text.replace("|", "\\|")),
         ]
         for r in replays
     ]
@@ -214,6 +229,8 @@ def _conditions(replays: Sequence[Mapping[str, Any]]) -> list[str]:
         "Read timeout",
         "Enforcement probe",
         "Sampling",
+        "Build",
+        "Server settings",
     )
     lines = _table(header, rows)
     for r in replays:
@@ -359,12 +376,36 @@ def _slices(models: Mapping[str, Any]) -> list[str]:
     return lines
 
 
+def _identical(count: Mapping[str, Any] | None) -> str:
+    """One pair's ISS-087 identical count as a cell: `2 of 6`. An empty cell is a record written
+    before the key existed — see `_comparison` for why that case removes the column instead of
+    printing a dash for a report whose numbers were already committed."""
+    return "" if count is None else f"{count['k']} of {count['n']}"
+
+
 def _comparison(pairs: Sequence[Mapping[str, Any]], note: bool = True) -> list[str]:
     """One comparison table; `note` prints ISS-043's closing reading after it. With a recorded
     split the report prints two tables and one note (`note=False` on the first), because the
     reading below is the same sentence for both sides of the split."""
     if not pairs:
         return ["One model scored: nothing to compare."]
+    # The identical column is LAST, so every column a reader has already compared keeps its
+    # position, and it appears only when the data carries the count: a frozen `metrics.json` from
+    # before ISS-087 keeps the table it was written with, which is the report a claim rests on.
+    header = [
+        "Models",
+        "Common items",
+        "Agreement",
+        "Only the first wrong",
+        "Only the second wrong",
+        "S2 discordants first / second (McNemar p)",
+        "dS2 [cluster CI]",
+        "S3 discordants first / second (McNemar p)",
+        "dS3 [cluster CI]",
+    ]
+    counts = [_identical(p.get("identical")) for p in pairs]
+    if any(counts):
+        header += ["Identical items (same outcome and score)"]
     rows = [
         [
             f"{p['a']} / {p['b']}",
@@ -381,17 +422,9 @@ def _comparison(pairs: Sequence[Mapping[str, Any]], note: bool = True) -> list[s
         ]
         for p in pairs
     ]
-    header = (
-        "Models",
-        "Common items",
-        "Agreement",
-        "Only the first wrong",
-        "Only the second wrong",
-        "S2 discordants first / second (McNemar p)",
-        "dS2 [cluster CI]",
-        "S3 discordants first / second (McNemar p)",
-        "dS3 [cluster CI]",
-    )
+    if any(counts):
+        for row, count in zip(rows, counts, strict=True):
+            row.append(count)
     lines = _table(header, rows)
     if note:
         lines += [

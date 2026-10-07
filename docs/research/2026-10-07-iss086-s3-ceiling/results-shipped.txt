@@ -1,0 +1,38 @@
+# store rows=450 matched=450 unmatched=0 holdout_scenarios=6
+S3(shipped, whole corpus) = 105/241 = 43.6%
+  dev: S3 84/177 = 47.5% (A-group share of incidents: 37/177 = 20.9%)
+  holdout: S3 21/64 = 32.8% (A-group share of incidents: 27/64 = 42.2%)
+C1 pol{0,5,10}=23.3%  >=75=23.6%  20..70=41.1%
+C2 AUROC=0.778 (n+=241 n-=209)
+C3 TPR@FPR<=5% = 0.535
+C4 misses=136 confirmed=131 score<=10: 32
+C5 per-A-scenario (shipped arm, whole corpus):
+    casing_with_phone        1/9
+    loitering                0/9
+    package_theft            1/19
+    peering_into_windows     0/9
+    tailgating               1/9
+    trying_car_doors         0/9
+  A total = 3/64
+C6 ceiling (B+C perfect, A as measured) = 180/241 = 74.7%
+C7 twin pairs (shipped arm), zone-sharing pairs as in part 1 (top 3 per incident):
+    casing_with_phone vs wildlife: AUROC=0.815 (n=9/9) zones=driveway,street_edge
+    casing_with_phone vs hooded_jogger: AUROC=0.343 (n=9/29) zones=driveway,street_edge
+    casing_with_phone vs flashlight_neighbor: AUROC=0.192 (n=9/29) zones=driveway,street_edge
+    loitering vs winter_face_covering: AUROC=0.264 (n=9/29) zones=driveway,front_porch,lobby_door
+    loitering vs resident_arrival: AUROC=0.483 (n=9/10) zones=driveway,front_porch,lobby_door
+    loitering vs wildlife: AUROC=0.574 (n=9/9) zones=driveway,street_edge
+    package_theft vs winter_face_covering: AUROC=0.543 (n=19/29) zones=front_porch,lobby_door
+    package_theft vs resident_arrival: AUROC=0.713 (n=19/10) zones=front_porch,lobby_door
+    package_theft vs delivery_driver: AUROC=0.705 (n=19/10) zones=front_porch,lobby_door
+    peering_into_windows vs pet_activity: AUROC=0.875 (n=9/8) zones=backyard,front_porch,patio
+    peering_into_windows vs yard_maintenance: AUROC=0.506 (n=9/9) zones=backyard,side_gate
+    peering_into_windows vs landscaper_machete: AUROC=0.460 (n=9/29) zones=backyard,side_gate
+    tailgating vs winter_face_covering: AUROC=0.584 (n=9/29) zones=lobby_door
+    tailgating vs resident_arrival: AUROC=0.733 (n=9/10) zones=lobby_door
+    tailgating vs delivery_driver: AUROC=0.728 (n=9/10) zones=lobby_door
+    trying_car_doors vs wildlife: AUROC=0.889 (n=9/9) zones=driveway,street_edge
+    trying_car_doors vs hooded_jogger: AUROC=0.416 (n=9/29) zones=driveway,street_edge
+    trying_car_doors vs flashlight_neighbor: AUROC=0.245 (n=9/29) zones=driveway,street_edge
+  the charter's two named twin pairs (doc 20 section 2):
+    loitering vs neighbor_passing: AUROC=0.333 (n=9/9) (charter-named)

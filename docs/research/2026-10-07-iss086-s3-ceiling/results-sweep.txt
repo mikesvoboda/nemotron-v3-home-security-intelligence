@@ -1,0 +1,173 @@
+# rows=450 arms=15 taxonomy_scenarios=38
+
+== control-defaultcache ==
+  n=450 inc=241 ben=209
+  S3=94/241 = 39.0%
+  C1 pol{0,5,10}=67.8%  >=75=24.9%  20..70=7.3%
+  C2 AUROC=0.679 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.423
+  C4 misses=147 confirmed=139 (95%) score<=10: 126 (86%)
+  C5 A(stranger/intent)=0/64
+  C6 ceiling if B+C perfect = 177/241 = 73.4%
+
+== control-q4km ==
+  n=450 inc=241 ben=209
+  S3=94/241 = 39.0%
+  C1 pol{0,5,10}=67.8%  >=75=24.9%  20..70=7.3%
+  C2 AUROC=0.679 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.423
+  C4 misses=147 confirmed=139 (95%) score<=10: 126 (86%)
+  C5 A(stranger/intent)=0/64
+  C6 ceiling if B+C perfect = 177/241 = 73.4%
+
+== control-rep ==
+  n=450 inc=241 ben=209
+  S3=94/241 = 39.0%
+  C1 pol{0,5,10}=67.8%  >=75=24.9%  20..70=7.3%
+  C2 AUROC=0.679 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.423
+  C4 misses=147 confirmed=139 (95%) score<=10: 126 (86%)
+  C5 A(stranger/intent)=0/64
+  C6 ceiling if B+C perfect = 177/241 = 73.4%
+
+== gemma4-12b ==
+  n=450 inc=241 ben=209
+  S3=101/241 = 41.9%
+  C1 pol{0,5,10}=67.8%  >=75=22.7%  20..70=9.1%
+  C2 AUROC=0.766 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.523
+  C4 misses=140 confirmed=133 (95%) score<=10: 113 (81%)
+  C5 A(stranger/intent)=2/64
+  C6 ceiling if B+C perfect = 179/241 = 74.3%
+
+== gemma4-26b-a4b ==
+  n=450 inc=241 ben=209
+  S3=138/241 = 57.3%
+  C1 pol{0,5,10}=49.8%  >=75=32.0%  20..70=18.0%
+  C2 AUROC=0.795 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.581
+  C4 misses=103 confirmed=96 (93%) score<=10: 69 (67%)
+  C5 A(stranger/intent)=7/64
+  C6 ceiling if B+C perfect = 184/241 = 76.3%
+
+== qwen35-4b-q8 ==
+  n=450 inc=241 ben=209
+  S3=85/241 = 35.3%
+  C1 pol{0,5,10}=68.7%  >=75=21.3%  20..70=9.3%
+  C2 AUROC=0.747 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.465
+  C4 misses=156 confirmed=151 (97%) score<=10: 117 (75%)
+  C5 A(stranger/intent)=1/64
+  C6 ceiling if B+C perfect = 178/241 = 73.9%
+
+== qwen35-9b-q4km ==
+  n=450 inc=241 ben=209
+  S3=84/241 = 34.9%
+  C1 pol{0,5,10}=66.7%  >=75=20.9%  20..70=12.0%
+  C2 AUROC=0.773 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.485
+  C4 misses=157 confirmed=151 (96%) score<=10: 106 (68%)
+  C5 A(stranger/intent)=1/64
+  C6 ceiling if B+C perfect = 178/241 = 73.9%
+
+== qwen35-9b-q6k ==
+  n=450 inc=241 ben=209
+  S3=91/241 = 37.8%
+  C1 pol{0,5,10}=64.2%  >=75=22.9%  20..70=12.0%
+  C2 AUROC=0.797 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.510
+  C4 misses=150 confirmed=143 (95%) score<=10: 96 (64%)
+  C5 A(stranger/intent)=2/64
+  C6 ceiling if B+C perfect = 179/241 = 74.3%
+
+== qwen36-35b-a3b-q6k ==
+  n=450 inc=241 ben=209
+  S3=66/241 = 27.4%
+  C1 pol{0,5,10}=76.7%  >=75=15.6%  20..70=2.2%
+  C2 AUROC=0.635 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.299
+  C4 misses=175 confirmed=45 (26%) score<=10: 159 (91%)
+  C5 A(stranger/intent)=1/64
+  C6 ceiling if B+C perfect = 178/241 = 73.9%
+
+== qwen38-27b-iq2s ==
+  n=450 inc=241 ben=209
+  S3=106/241 = 44.0%
+  C1 pol{0,5,10}=52.2%  >=75=24.9%  20..70=22.9%
+  C2 AUROC=0.788 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.535
+  C4 misses=135 confirmed=133 (99%) score<=10: 78 (58%)
+  C5 A(stranger/intent)=2/64
+  C6 ceiling if B+C perfect = 179/241 = 74.3%
+
+== qwen38-27b-q4km ==
+  n=450 inc=241 ben=209
+  S3=119/241 = 49.4%
+  C1 pol{0,5,10}=44.9%  >=75=27.6%  20..70=18.7%
+  C2 AUROC=0.810 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.618
+  C4 misses=122 confirmed=116 (95%) score<=10: 61 (50%)
+  C5 A(stranger/intent)=1/64
+  C6 ceiling if B+C perfect = 178/241 = 73.9%
+
+== qwen38-27b-q6k ==
+  n=450 inc=241 ben=209
+  S3=132/241 = 54.8%
+  C1 pol{0,5,10}=42.9%  >=75=29.3%  20..70=22.2%
+  C2 AUROC=0.818 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.564
+  C4 misses=109 confirmed=106 (97%) score<=10: 56 (51%)
+  C5 A(stranger/intent)=5/64
+  C6 ceiling if B+C perfect = 182/241 = 75.5%
+
+== qwen3vl-30b-a3b-q8 ==
+  n=450 inc=241 ben=209
+  S3=112/241 = 46.5%
+  C1 pol{0,5,10}=59.6%  >=75=26.9%  20..70=13.6%
+  C2 AUROC=0.755 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.498
+  C4 misses=129 confirmed=114 (88%) score<=10: 94 (73%)
+  C5 A(stranger/intent)=3/64
+  C6 ceiling if B+C perfect = 180/241 = 74.7%
+
+== qwen3vl-32b-q4km ==
+  n=450 inc=241 ben=209
+  S3=95/241 = 39.4%
+  C1 pol{0,5,10}=61.8%  >=75=22.2%  20..70=15.3%
+  C2 AUROC=0.774 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.477
+  C4 misses=146 confirmed=138 (95%) score<=10: 100 (68%)
+  C5 A(stranger/intent)=1/64
+  C6 ceiling if B+C perfect = 178/241 = 73.9%
+
+== qwen3vl-8b-q8 ==
+  n=450 inc=241 ben=209
+  S3=87/241 = 36.1%
+  C1 pol{0,5,10}=68.4%  >=75=25.1%  20..70=6.4%
+  C2 AUROC=0.686 (n+=241 n-=209)
+  C3 TPR@FPR<=5% = 0.332
+  C4 misses=154 confirmed=144 (94%) score<=10: 128 (83%)
+  C5 A(stranger/intent)=0/64
+  C6 ceiling if B+C perfect = 177/241 = 73.4%
+
+=== C7 twin pairs on control-q4km (incident vs zone-sharing benign look-alike) ===
+    casing_with_phone vs wildlife: AUROC=0.154 (n=9/9) zones=driveway,street_edge
+    casing_with_phone vs hooded_jogger: AUROC=0.159 (n=9/29) zones=driveway,street_edge
+    casing_with_phone vs flashlight_neighbor: AUROC=0.153 (n=9/29) zones=driveway,street_edge
+    loitering vs winter_face_covering: AUROC=0.577 (n=9/29) zones=driveway,front_porch,lobby_door
+    loitering vs resident_arrival: AUROC=0.500 (n=9/10) zones=driveway,front_porch,lobby_door
+    loitering vs wildlife: AUROC=0.235 (n=9/9) zones=driveway,street_edge
+    package_theft vs winter_face_covering: AUROC=0.376 (n=19/29) zones=front_porch,lobby_door
+    package_theft vs resident_arrival: AUROC=0.295 (n=19/10) zones=front_porch,lobby_door
+    package_theft vs delivery_driver: AUROC=0.605 (n=19/10) zones=front_porch,lobby_door
+    peering_into_windows vs pet_activity: AUROC=0.569 (n=9/8) zones=backyard,front_porch,patio
+    peering_into_windows vs yard_maintenance: AUROC=0.833 (n=9/9) zones=backyard,side_gate
+    peering_into_windows vs landscaper_machete: AUROC=0.594 (n=9/29) zones=backyard,side_gate
+    tailgating vs winter_face_covering: AUROC=0.536 (n=9/29) zones=lobby_door
+    tailgating vs resident_arrival: AUROC=0.467 (n=9/10) zones=lobby_door
+    tailgating vs delivery_driver: AUROC=0.722 (n=9/10) zones=lobby_door
+    trying_car_doors vs wildlife: AUROC=0.142 (n=9/9) zones=driveway,street_edge
+    trying_car_doors vs hooded_jogger: AUROC=0.136 (n=9/29) zones=driveway,street_edge
+    trying_car_doors vs flashlight_neighbor: AUROC=0.138 (n=9/29) zones=driveway,street_edge
+  the charter's two named twin pairs (doc 20 section 2):
+    loitering vs neighbor_passing: AUROC=0.506 (n=9/9) (charter-named)

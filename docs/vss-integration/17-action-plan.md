@@ -3788,6 +3788,56 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     prove it: the 64 are 26.6% of the incidents, and S3 caps at 177/241 = 73.4% only if none of
     them is recoverable [C]. The 2 of 64 for the 8B (arm A) is now [V]; the flagship's 7 and the twin-pair
     AUROCs stay [A]. Severity stays P1: the gating question is still open.
+- **Update 2026-10-07 (the ceiling re-derived from exact rows, offline; no GPU) [C unless
+  marked].** The acceptance's ceiling clause ran against committed rows and the surviving store,
+  in `docs/research/2026-10-07-iss086-s3-ceiling/` (`rederive_sweep.py` reads only the sweep's
+  `items.csv` and the taxonomy, so it runs anywhere; `rederive_shipped.py` reads run
+  `663da001ab5840ab85e672dba777d801`, the OD-29 dogfood replay, from
+  `$AGENT_GPU_DIR/out/sbroot/eval/tierb-v0/eval.sqlite`; both outputs captured beside them).
+  What it establishes:
+  - Every figure this entry filed `[A]` reproduces from the committed sweep's pre-rubric control
+    arm: 67.8% of scores in {0, 5, 10}, 24.9% at 75 or above, 7.3% from 20 to 70; AUROC 0.679
+    against the report's recorded 0.677 (the +0.002 is this script folding the two refusals to
+    score 0, which is what makes the denominators the charter's 241/209); 0.423 true positives at
+    5% false alarms; 147 misses, 139 (95%) `confirmed`, 126 (86%) at 10 or below (the exact
+    153-miss denominator is arm A on `b7972`, already [V] 2026-10-04; the control on `b11376`
+    differs by the ISS-087 build effect). The flagship's 7 of 64 converts in kind: the best
+    stranger-or-intent recovery of all fifteen arms is 7/64 (`gemma4-26b-a4b`, which also posts
+    the best S3 at 57.3%).
+  - The ceiling is a band, not a point: with B+C perfect the fifteen arms bound S3 at 177/241 =
+    73.4% (control) to 184/241 = 76.3% (best arm), and the SHIPPED OD-29 path at 180/241 = 74.7%.
+    OD-29 collapsed the polarization symptom (23.3% in {0, 5, 10}, 41.1% in the middle band,
+    AUROC 0.778, 53.5% at 5% — reproducing arm B's [V] readings exactly, which is this script's
+    method control) and left the group the hypothesis is about at 3 of 64: loitering 0/9,
+    peering_into_windows 0/9, trying_car_doors 0/9, package_theft 1/19, casing_with_phone 1/9,
+    tailgating 1/9. Polarization was a symptom; the construct leg stands.
+  - The twin premise splits by which benign the incident is shown against. Of 19 pairs (18
+    zone-sharing, plus the charter's `neighbor_passing` pair) on the shipped arm, 7 are at or
+    above 0.705 — the generic-motion foils (`wildlife`, `pet_activity`, `resident_arrival`,
+    `delivery_driver`) — and 12 at or below 0.584 — the matched-appearance foils
+    (`winter_face_covering`, `hooded_jogger`, `flashlight_neighbor`, `yard_maintenance`,
+    `landscaper_machete`, `neighbor_passing`) — with nothing in between. The rubric moved only
+    the rankable half (the driveway pairs from 0.14-0.16 inverted to 0.82-0.89 harvestable; the
+    charter's `package_theft` versus `delivery_driver` from 0.605 to 0.705) and made the two true
+    twins it named worse (`loitering` versus `neighbor_passing` 0.506 to 0.333, versus
+    `winter_face_covering` 0.577 to 0.264). So the 26.6% is twin-specific blindness, not a
+    uniform wall, and relabelling under OD-2 is scenario-selectable rather than
+    all-or-nothing.
+  - Acceptance status: E1 is shipped (OD-29, development-arm status unchanged as filed); **E3 is
+    redundant without spending the owner's 32B cell** — its shipped-prompt by 32B cell already
+    ran in the sweep (`qwen3vl-32b-q4km`: S3 39.4% against the 8B's 39.0%, A-group 1 of 64), the
+    shipped-arm reading above shows a rubric does not move a construct-bounded group, and size
+    moved nothing across the twelve model arms. E2's logprob arm is the only open premise,
+    itself disfavored by the handoff's off-capture reading. The per-scenario tables the
+    acceptance asks for are in the directory's captured outputs.
+  - The holdout is A-heavy: three of its six scenarios are stranger-or-intent scenes, so 27 of
+    its 64 incidents (42.2%) are A-group against 20.9% on dev and 26.6% corpus-wide — part of
+    the dogfood report's 47.5% dev to 32.8% holdout drop is composition, not sample size, the
+    concrete instance of ISS-016's unstratified-draw caveat.
+    Severity stays P1 (OD-2 is still open), but the Severity note's `[A]` discount no longer
+    reaches the polarization, AUROC, threshold, miss-anatomy, ceiling or twin figures — all
+    re-derived above from committed rows; what stays soft is small-n pair precision and anything
+    build-specific.
 
 #### ISS-087 — Measured numbers are specific to the llama.cpp build: b7972 and b11376 disagree on 44% of items for the same model, weights and prompt
 
@@ -3823,6 +3873,39 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     model arms the items matching the shipped model's verdict and score range from 72 to 252 of 450
     **[V: the report's readings table]**; quantization alone moves answers (the 27B at Q4_K_M, Q6_K and
     IQ2_S read S3 49.4%, 54.8% and 44.0%).
+  - Update, appended 2026-10-06 (the reporting half, on `iss087-conditions-line` — `53a524a7`,
+    `42ad6c4f`, `1cd05f99` and the commit carrying this entry, stacked on `vlm-pipeline` at `96669bd2`
+    and merged to neither `vlm-pipeline` nor `main` as of this note): the reporting clause of the
+    acceptance is met for score reports. `synthbench replay` takes
+    `--server-settings`, the operator's verbatim declaration of how the endpoint was started, recorded
+    in `run.json` as `server_settings` (`null` when nothing was declared), and the conditions table in
+    `report.md` gained Build and Server settings as its last two columns, so no existing column moved
+    (Build reads `—` for an endpoint that never reported one, settings read `unrecorded` for a replay
+    that declared none). `comparison()` now carries `identical` — `{k, n}` over the items both arms
+    replayed, where `k` counts the items agreeing in bar-level outcome **and** in `risk_score`, the
+    stricter reading this issue's own measure (two `hit`s at 70 and 80 agree and are not identical) —
+    and `report.md` prints it as a last comparison column. `SCORE_VERSION` is 4 for those keys, and a
+    record written before them renders the table it was written with: the column is appended only when
+    the data carries the count, so a frozen report keeps its shape. Of the three control replays, the
+    sweep's committed report already records the determinism and cause-attribution controls named in
+    the acceptance: `control-rep` and `control-defaultcache` each match `control-q4km` on 450 of 450
+    items **[V: `docs/benchmarks/synthbench/sweep-2026-10-03/report.md`'s readings table and its
+    "The controls" paragraph]**. Still open on this issue: the control-replay-at-bump half — a real
+    control replay of the shipped model at the next llama.cpp bump needs `agent-gpu` and the owner's
+    go-ahead — and the ledger rows, whose conditions text the owner authors. **Status stays `open`.**
+  - Update, appended 2026-10-06 (the reporting half, dogfooded end-to-end): the shipped replay
+    machinery ran the full 450-still `tierb-v0` corpus on the pinned `b7972` from the fenced
+    `agent-gpu` container, in the OD-23 shape (the out-of-repo driver is `execute()` minus exactly
+    the `renderer_stopped` check, labelled in `run.json`; every other shipped guard ran from the
+    library). 450 of 450 items scored, 0 refusals, 0 verification failures; `run.json` carried the
+    `/props` build string and the hand-declared `server_settings`, and the score report rendered
+    the conditions row with both new columns **[V: `docs/benchmarks/synthbench/dogfood-2026-10-06/`
+    — summary.md, report.md, driver/]**. Against the 10-03 control on the same weights, S2 read
+    16.3% where `b11376` read 10.0% and S3 43.6% where it read 39.0%; with no paired control in
+    this run none of that movement is attributed to anything (one build plus two cache flags
+    separate the two readings — precisely the drift this issue is about), and the single-model
+    score correctly rendered no comparison ("One model scored: nothing to compare"), which is the
+    `identical` column's designed degenerate path. **Status stays `open`.**
 - **Why it matters.** Every S2/S3/S5 figure in this directory and the ledger was measured on
   `b7972`. A claim against the bars is a claim about a build; the replay's `run.json` and the score
   report record the build string, but nothing in the acceptance conditions pins one, and a llama.cpp
@@ -7812,3 +7895,111 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   host, so the manifest lands on the next `synthbench export vss`, with no GPU and before any replay.
   If that run's printed roster is not the six above, the export population has changed and the
   design's premise is the owner's call, not a code fix.
+
+### 2026-10-06 (ISS-087's reporting half lands on `iss087-conditions-line`: the conditions line names the build and settings, and comparisons state identical counts)
+
+- **What ran.** The reporting half of ISS-087, test-first, in three commits on
+  `iss087-conditions-line` stacked on `vlm-pipeline` at `96669bd2` (`53a524a7` records the
+  conditions, `42ad6c4f` bumps the score format, `1cd05f99` computes the count, plus the commit
+  landing this entry, which renders it). `synthbench replay` gains `--server-settings`: the
+  operator's verbatim declaration of how the endpoint was started, stored in `run.json` as
+  `server_settings` — `replay` never starts a server, so it can read the build an `ai-vlm`
+  endpoint answers at `/props` and nothing about the flags behind it. The conditions table in
+  `report.md` gained Build and Server settings as its last two columns, so no existing column
+  moved; a build no endpoint reported reads `—` and an undeclared setting reads `unrecorded`.
+  `comparison()` gained the realized measure this issue asked for, **`identical: {k, n}`**: `n` is
+  the items both arms replayed and `k` counts those agreeing in bar-level outcome **and** in
+  `risk_score` — the stricter reading, because two `hit`s at 70 and 80 agree and are not
+  identical, while a double refusal is. `report.md` prints it as `2 of 6` in a comparison column.
+  `SCORE_VERSION` is 4, for those keys. A report over a `metrics.json` written before them renders
+  the nine-column table it was written with: the column is appended only when the data carries the
+  count, so a frozen report keeps its shape and its committed numbers mean what they meant.
+- **Tested.** `backend/tests/unit/synthbench` plus `backend/tests/unit/evaluation` green: 1280
+  passed, 1 skipped. The count is pinned on the 6-item comparison fixture by hand at `{k: 2, n: 6}`
+  (the 90/90 hit and the double refusal count; the 90-vs-70 hit and the refusal-vs-miss item are in
+  `n` only), and again at `{k: 3, n: 3}` for a pair over byte-identical replays. The render has both
+  its pins: the new column's cell, and a hand-built record with the key deleted rendering exactly
+  the header and row it had before. No replay, no GPU, no export: unit fixtures only.
+- **Register.** ISS-087's acceptance first clause is met for score reports (named in its Update);
+  its third clause — the sweep's determinism and cause-attribution controls on `b11376` recorded in
+  the Intake log — is met by pointing here at the committed report, whose readings table and
+  "The controls" paragraph carry all three controls matching on 450 of 450 items
+  **[V: `docs/benchmarks/synthbench/sweep-2026-10-03/report.md`]**, so no new measurement was run.
+  **ISS-087 stays `open`** and the Dashboard does not move: the control replay at the next
+  llama.cpp bump and the ledger rows' conditions text are both still open, so no status flip and no
+  recount. README's Next-five step 3 and its needs-no-ruling line record the half that landed.
+- **What this entry does not do:** no new ids; no bar, D or S line moved; the shipped image's
+  `b7972` pin is untouched; no control replay ran here (it needs `agent-gpu` and the owner's
+  go-ahead, and is event-driven on a build bump); no ledger row is written — the register's rows are
+  prose the owner authors, and this entry is the pattern; no frozen report is re-scored.
+
+### 2026-10-06 (ISS-087's reporting half, dogfooded: the shipped replay path runs the corpus on the pinned build and its report names the conditions)
+
+- **What ran.** The owner said "go ahead with the dogfood" on 2026-10-06; the chosen shape was one
+  replay, not a campaign. The fenced `agent-gpu` container `vss8-dogfood` (image
+  `localhost/agent-vss8/ai-vlm:sm103`, weights sha256-verified against the register pins before
+  serve) answered `/health` and reported `Qwen3VL-8B-Instruct-Q4_K_M` at `/props` with build
+  `b7972-e06088da0`; the out-of-repo driver — shipped `execute()` minus exactly the
+  `renderer_stopped` check, labelled as such in `run.json`, every other shipped guard imported from
+  the library — replayed all 450 `tierb-v0` stills at temperature 0, then `synthbench score`
+  scored them. 450 of 450 items, 0 refusals, 0 verification failures, median 5.76 s per still
+  (indicative, GB300). `run.json` carried the build string and the hand-declared
+  `server_settings`; `report.md`'s conditions row rendered both new columns; scoring version 4;
+  the single-model comparison degraded to "One model scored: nothing to compare" — the `identical`
+  column's designed degenerate path, not a failure. Readings: S2 16.3% [11.9-21.9] (n=209),
+  S3 all 43.6% [37.5-49.9] (n=241), dev S3 47.5%, holdout S3 32.8% (a leak check, suspicious-heavy
+  by draw, expected below dev). Against the 10-03 control's S2 10.0% / S3 39.0% on `b11376` with
+  prompt cache off, nothing is attributed: one build plus two cache flags separate the readings,
+  no paired control ran, and the `2026-10-03` report already declines to say what the pinned build
+  does. A second replay is a new ask, not this one's remainder.
+- **Tested.** This entry measured nothing new about the code — the reporting half is pinned by the
+  unit suite (previous entry). What the run proves is the chain that suite cannot reach: a live
+  endpoint, the identity assert refusing a wrong server, the declared settings surviving into
+  `run.json` and the rendered conditions row, and 450 patient client reads against a server with a
+  300 s sleep timer (one pre-wake request; the shipped 25 s read timeout was overridden to 180 s
+  client-side and recorded — the earlier smoke arm's 3-of-3 transport failures were that timeout
+  losing a 5.7 GB model wake, not the transport). Artifacts and their re-derive line:
+  `docs/benchmarks/synthbench/dogfood-2026-10-06/`.
+- **Register.** ISS-087's status stays `open` — the control-replay-at-bump half is event-driven on
+  a future build bump and the ledger rows' conditions text is the owner's; this run is a dogfood of
+  the machinery, not that control replay. The one-replay authorization is spent; a multi-arm gap-fill
+  campaign remains a fresh owner ask. Dashboard untouched: no status changed, no recount.
+- **What this entry does not do:** no new ids; no bar, D or S line moved; nothing selected and
+  nothing attributed to `b7972` versus `b11376` — the S2/S3 movement against the 10-03 control is
+  reported as unattributed drift, which is the point of the issue, not a finding of harm; no
+  second replay, no holdout re-run, no shipped-image pin change, and the container was torn down
+  after the run.
+
+### 2026-10-07 (ISS-086's ceiling clause re-derived offline: every `[A]` figure reproduces from committed rows, the shipped arm leaves the A-group at 3/64, and E3 is redundant)
+
+- **What ran.** No GPU, no replay: the acceptance's "ceiling re-derived from exact rows" clause
+  ran against committed data and the surviving store, banked in
+  `docs/research/2026-10-07-iss086-s3-ceiling/` (two scripts, two captured outputs, a README).
+  Part 1 reads only the sweep's `items.csv` and the taxonomy — 15 arms, 450 items — so it
+  reproduces from git alone; part 2 reads the OD-29 dogfood run `663da001…` from the eval store
+  and takes the dev/holdout roster from the store's own `splits` table. The control arm
+  reproduces every figure ISS-086 filed `[A]` (67.8% in {0,5,10}, 24.9% ≥75, 7.3% mid-band;
+  AUROC 0.679 against the report's 0.677 — the +0.002 is the refusal fold; 0.423 TPR@5%FPR; 147
+  misses, 95% `confirmed`, 86% ≤10; the flagship's 7/64 reappears as the best A-recovery of all
+  fifteen arms), and the shipped-path half reproduces arm B's [V] readings exactly (43.6%, 0.778,
+  53.5%), which is the method control. Findings, with the full tables in the directory: the
+  ceiling is a 73.4-76.3% band across arms and 74.7% on the shipped path; OD-29 collapsed the
+  polarization symptom but left the stranger-or-intent group at 3/64; the twin premise is
+  bimodal (rankable generic-motion foils ≥0.705, matched-appearance true twins ≤0.584, nothing
+  between), the rubric moved only the rankable half, and the charter's named true twins got
+  worse; the holdout's 42.2% A-group share (against dev's 20.9%) is composition, not just
+  sample size, behind the dogfood's dev-to-holdout drop.
+- **Register.** ISS-086's block carries the dated update, converting the `[A]` evidence bullets
+  to `[C]` with the repro commands and the refusal-fold disclosure, and marking the acceptance
+  state: E1 shipped under OD-29 (development-arm status unchanged), **E3 redundant — the next
+  session should not spend the owner's 32B download on it**, because its fourth cell varies only
+  model size, size moved nothing across twelve arms, and a rubric does not move a
+  construct-bounded group; E2's logprob arm is the only open premise. Status stays `open`: the
+  re-derivation sharpens the question OD-2 answers, it does not answer it. Dashboard untouched,
+  no recount, no new ids.
+- **What this entry does not do:** no ledger row (the register's rows are prose the owner
+  authors; this entry is the pattern); no OD-2 ruling or bar movement — that is the owner's,
+  and the re-derived numbers are presented for it in the README; no E2 replay, no GPU, no store
+  writes (opened read-only); ISS-016's split itself is untouched — the holdout-skew note is the
+  caveat its closure named, instantiated; nothing here licenses relabelling any scenario, it
+  only shows relabelling could be scenario-selectable if the owner goes that way.

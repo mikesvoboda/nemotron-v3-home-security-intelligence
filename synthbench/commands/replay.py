@@ -43,6 +43,12 @@ def add_parser(commands: argparse._SubParsersAction[Parser]) -> None:
         default=None,
         help="export directory (default: $SYNTHBENCH_ROOT/exports/<version>/vss)",
     )
+    parser.add_argument(
+        "--server-settings",
+        default=None,
+        help="declare how the endpoint was started (its cache flags change its answers, "
+        "ISS-087; replay cannot observe them), recorded in run.json and shown in the report",
+    )
     parser.set_defaults(run=run)
 
 
@@ -66,6 +72,7 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
             root / "runs" / "replays",
             args.limit,
             Deps(),
+            args.server_settings,
         )
     except ReplayRefused as error:
         raise AskOwner(f"{error}.") from error

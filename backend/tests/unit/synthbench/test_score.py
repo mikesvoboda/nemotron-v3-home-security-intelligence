@@ -203,15 +203,36 @@ def test_headline_carries_a_scenario_cluster_bootstrap_beside_wilson() -> None:
 
 
 def test_the_comparison_is_paired_with_mcnemar_and_a_cluster_ci() -> None:
-    """The 3-item fixture: one item each arm wins -> discordants 1/1, exact p
-    1.0 by hand (two fair-coin draws each side). Pooled hits are 2 for each arm
-    over the same 3 shared incidents: dS3 = 0.0 points by hand - the paired
+    """The 6-item fixture: one item each arm wins -> discordants 1/1, exact p
+    1.0 by hand (two fair-coin draws each side). Pooled hits are 3 for each arm
+    over the same 6 shared incidents: dS3 = 0.0 points by hand - the paired
     reading says 'this disagreement is within fair-coin noise', which is the
-    whole point of testing the discordants instead of the two rates."""
+    whole point of testing the discordants instead of the two rates. The last
+    three items agree on every leg so those hand readings hold, and they widen
+    what ISS-087's `identical` count sees: a 90-hit against a 70-hit agrees
+    without being identical, a double refusal is identical, and a refusal
+    against a scored miss is neither."""
     a_only, b_only, both = (_item(f"B-t-{i:03d}", "threat") for i in range(3))
-    items = _items(a_only, b_only, both)
-    rows_a = [_row(a_only, 90), _row(b_only, 20), _row(both, 90)]
-    rows_b = [_row(a_only, 20), _row(b_only, 90), _row(both, 90)]
+    re_scored, both_refused, refused_and_missed = (
+        _item(f"B-t-{i:03d}", "threat") for i in range(3, 6)
+    )
+    items = _items(a_only, b_only, both, re_scored, both_refused, refused_and_missed)
+    rows_a = [
+        _row(a_only, 90),
+        _row(b_only, 20),
+        _row(both, 90),
+        _row(re_scored, 90),
+        _row(both_refused, None),
+        _row(refused_and_missed, None),
+    ]
+    rows_b = [
+        _row(a_only, 20),
+        _row(b_only, 90),
+        _row(both, 90),
+        _row(re_scored, 70),  # same leg (hit), a different score: agrees, not identical
+        _row(both_refused, None),  # both refused: identical
+        _row(refused_and_missed, 20),  # refused vs scored miss: neither
+    ]
     pair = score_models([("a", "ra", rows_a), ("b", "rb", rows_b)], items, {}, [])["comparison"][0]
     assert pair["s3_discordants"]["only_a"] == 1
     assert pair["s3_discordants"]["only_b"] == 1
@@ -220,6 +241,21 @@ def test_the_comparison_is_paired_with_mcnemar_and_a_cluster_ci() -> None:
     assert pair["dS3"]["clusters"] == 1  # every fixture item shares one scenario
     assert pair["s2_discordants"]["only_a"] == 0 and pair["s2_discordants"]["p"] == 1.0
     assert pair["dS2"]["point_pts"] is None  # no benign items: no S2 leg
+    # identical == same outcome AND same risk_score: `both` (90/90) and the double refusal
+    # (None/None) count; the 90-vs-70 hit pair and the refusal-vs-miss pair are in n only.
+    assert pair["identical"] == {"k": 2, "n": 6}
+
+
+def test_an_unarmed_score_still_reports_the_identical_count() -> None:
+    """ISS-087's key rides every pair dict, unarmed (manifestless, B6's shape) scores included;
+    a pair over byte-identical replays is identical on every shared item."""
+    shared = [_item(f"B-t-{i:03d}", "threat") for i in range(3)]
+    items = _items(*shared)
+    rows = [_row(item, 90) for item in shared]
+    metrics = score_models([("a", "ra", rows), ("b", "rb", rows)], items, {}, [])
+    assert "split_comparison" not in metrics  # unarmed: no roster, no per-arm pairs
+    assert "identical" in set(metrics["comparison"][0])
+    assert metrics["comparison"][0]["identical"] == {"k": 3, "n": 3}
 
 
 def test_the_report_prints_the_cluster_interval_and_the_paired_test() -> None:
@@ -236,6 +272,63 @@ def test_the_report_prints_the_cluster_interval_and_the_paired_test() -> None:
     assert "McNemar p" in text
     assert "dS3 [cluster CI]" in text
     assert "generated:" not in text  # still aggregate
+
+
+# ISS-087's reporting half: the identical count reaches the reader. The fixture is Task 2's
+# 6-item comparison fixture, whose `identical` is {k: 2, n: 6} — `both` (90/90) and the double
+# refusal agree in outcome AND risk_score; the 90-vs-70 hit and the refusal-vs-miss items are in
+# n only. Every item shares one scenario, so the paired dS3 is exactly 0 points at zero width.
+
+
+def _six_item_comparison() -> tuple[dict[str, Item], list[dict[str, Any]], list[dict[str, Any]]]:
+    a_only, b_only, both = (_item(f"B-t-{i:03d}", "threat") for i in range(3))
+    re_scored, both_refused, refused_and_missed = (
+        _item(f"B-t-{i:03d}", "threat") for i in range(3, 6)
+    )
+    items = _items(a_only, b_only, both, re_scored, both_refused, refused_and_missed)
+    rows_a = [
+        _row(a_only, 90),
+        _row(b_only, 20),
+        _row(both, 90),
+        _row(re_scored, 90),
+        _row(both_refused, None),
+        _row(refused_and_missed, None),
+    ]
+    rows_b = [
+        _row(a_only, 20),
+        _row(b_only, 90),
+        _row(both, 90),
+        _row(re_scored, 70),
+        _row(both_refused, None),
+        _row(refused_and_missed, 20),
+    ]
+    return items, rows_a, rows_b
+
+
+def test_the_report_prints_the_identical_count_for_a_pair() -> None:
+    """The column is last, so every earlier column keeps its position, and the row ends with
+    the count beside the paired dS3 the ISS-043 note already reads."""
+    items, rows_a, rows_b = _six_item_comparison()
+    metrics = score_models([("a", "ra", rows_a), ("b", "rb", rows_b)], items, {}, [])
+    text = markdown(metrics, {"score_id": "S", "replays": [], "export": {}, "audit": {}})
+    assert "| Identical items (same outcome and score) |" in text
+    assert "| +0.0 pts [+0.0 to +0.0] | 2 of 6 |" in text
+
+
+def test_a_pair_without_the_identical_key_renders_the_table_exactly_as_before() -> None:
+    """The old-frozen-report path: a `metrics.json` written before the key existed renders its
+    pair with the nine columns it had — no added empty cell, no `—`, no KeyError."""
+    items, rows_a, rows_b = _six_item_comparison()
+    metrics = score_models([("a", "ra", rows_a), ("b", "rb", rows_b)], items, {}, [])
+    frozen = json.loads(json.dumps(metrics))
+    del frozen["comparison"][0]["identical"]
+    text = markdown(frozen, {"score_id": "S", "replays": [], "export": {}, "audit": {}})
+    block = text.split("\n## Comparison\n")[1]
+    header = next(line for line in block.splitlines() if line.startswith("| Models |"))
+    row = next(line for line in block.splitlines() if line.startswith("| a / b |"))
+    assert "Identical" not in text
+    assert header.count("|") == row.count("|") == 10  # nine columns, as before ISS-087
+    assert row.endswith("+0.0 pts [+0.0 to +0.0] |")  # the row ends where it always ended
 
 
 # The command, end to end, over a real export and eval store.
@@ -557,7 +650,7 @@ def test_a_pre_split_export_scores_as_unrecorded(tmp_path: Path) -> None:
     out = _scored_dir(tmp_path)
     metrics = json.loads((out / "metrics.json").read_text())
     assert metrics["identity"]["split"] == {"source": "unrecorded"}
-    assert metrics["identity"]["score_version"] == 3
+    assert metrics["identity"]["score_version"] == 4
     rows = _rows(out)
     assert len(rows) == 15
     assert {row["split"] for row in rows} == {"unrecorded"}
@@ -919,15 +1012,20 @@ def _scored(tmp_path: Path) -> Path:
 
 def test_the_report_states_each_models_conditions(tmp_path: Path) -> None:
     """Cosmos's system message, budget and timeout and the flagship's thinking-off are the
-    price of their columns (decision A7): the report states them beside the product model's."""
+    price of their columns (decision A7): the report states them beside the product model's.
+    The build and the server settings come last (ISS-087): the fixture's run.json records
+    `b7972` and declares no server settings, which is what an older replay reads like."""
     out = _scored(tmp_path)
     text = (out / "report.md").read_text(encoding="utf-8")
     assert "Comparison models may run under different conditions" in text
     rows = {
-        "| qwen3-vl-8b | ai-vlm | shipped | — | 1024 | 25 s | on | temp 0.0, unseeded |",
+        "| qwen3-vl-8b | ai-vlm | shipped | — | 1024 | 25 s | on | temp 0.0, unseeded | b7972 "
+        "| unrecorded |",
         "| cosmos-reason2-8b | vllm | shipped + system message (A7) | on (asked by its system "
-        "message; parsed by vLLM) | 4096 | 120 s | off | temp 0.0, unseeded |",
-        "| flagship | vllm | shipped | off | 1024 | 25 s | off | temp 0.0, unseeded |",
+        "message; parsed by vLLM) | 4096 | 120 s | off | temp 0.0, unseeded | b7972 | "
+        "unrecorded |",
+        "| flagship | vllm | shipped | off | 1024 | 25 s | off | temp 0.0, unseeded | b7972 | "
+        "unrecorded |",
     }
     assert rows <= set(text.splitlines())
     assert json.dumps(COSMOS_FORMAT) in text  # the system message, verbatim
@@ -937,6 +1035,99 @@ def test_the_report_states_each_models_conditions(tmp_path: Path) -> None:
         assert {key: by_model[model][key] for key in conditions} == conditions
     store = tmp_path / "eval" / h.VERSION / "eval.sqlite"
     assert identity["eval_store"] == {"path": str(store)}
+
+
+# ISS-087: a llama.cpp build and the flags an endpoint was started with change its answers, and
+# `replay` cannot observe either (it never starts a server). The operator declares the second with
+# `--server-settings`; both land in run.json and the conditions row names them per model.
+
+BUILD_NEW = "b11376-a55e952b8"
+SERVER_SETTINGS = "prompt cache off (LLAMA_ARG_CACHE_RAM=0)"
+
+
+def _forget(root: Path, replay_id: str, keys: Sequence[str]) -> None:
+    """Rewrite a replay's `run.json` without `keys`: the shape of a record written before they
+    were recorded, as opposed to one written since with an empty value."""
+    path = root / "runs" / "replays" / replay_id / "run.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    for key in keys:
+        del record[key]
+    path.write_text(json.dumps(record), encoding="utf-8")
+
+
+def test_the_conditions_line_names_the_build_and_the_declared_server_settings(
+    tmp_path: Path,
+) -> None:
+    """Two replays of one export that ran on different builds, one with flags declared and one
+    recorded before either fact existed, are not one comparable row of numbers, so each row
+    carries both facts (ISS-087). The declared string is quoted as the operator gave it; a
+    replay that recorded neither says so per cell — `—` for a build never observed, `unrecorded`
+    for settings never declared — and still scores."""
+    declared, older = "qwen3-vl-8b", "flagship"
+    ids = _world(
+        tmp_path,
+        {declared: {}, older: {}},
+        {
+            declared: {"build": BUILD_NEW, "server_settings": SERVER_SETTINGS}
+            | CONDITIONS[declared],
+            older: CONDITIONS[older],
+        },
+    )
+    _forget(tmp_path, ids[1], ["build"])  # a run.json from before the build was recorded
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
+    [out] = (tmp_path / "runs" / "scores").iterdir()
+    text = (out / "report.md").read_text(encoding="utf-8")
+    rows = {
+        f"| {declared} | ai-vlm | shipped | — | 1024 | 25 s | on | temp 0.0, unseeded | "
+        f"{BUILD_NEW} | {SERVER_SETTINGS} |",
+        f"| {older} | vllm | shipped | off | 1024 | 25 s | off | temp 0.0, unseeded | — | "
+        "unrecorded |",
+    }
+    assert rows <= set(text.splitlines())
+    identity = json.loads((out / "metrics.json").read_text())["identity"]
+    by_model = {replay["model"]: replay for replay in identity["replays"]}
+    assert by_model[declared]["server_settings"] == SERVER_SETTINGS
+    assert by_model[older]["server_settings"] is None  # the key rides with the conditions
+    assert by_model[older]["build"] is None
+
+
+def _conditions_table(lines: Sequence[str]) -> list[str]:
+    """The `## Conditions per model` table's own lines: a test's row match must not land on a
+    headline table, whose rows start with a model name just the same."""
+    start = lines.index("## Conditions per model") + 2
+    table = []
+    for line in lines[start:]:
+        if not line.startswith("|"):
+            break
+        table.append(line)
+    return table
+
+
+def test_a_pipe_in_the_declared_settings_cannot_split_the_row(tmp_path: Path) -> None:
+    """The declaration is free text and `|` is markdown's column separator: an unescaped one
+    silently moves every later cell, so a reader reads an 11-pipe row against a 10-column header
+    and the row's own labels lie about which condition is which. The markdown cell escapes it;
+    the record keeps the string exactly as given (ISS-087)."""
+    declared = "prompt cache off | idle slots 0"
+    model = "qwen3-vl-8b"
+    ids = _world(
+        tmp_path,
+        {model: {}},
+        {model: {"build": BUILD_NEW, "server_settings": declared} | CONDITIONS[model]},
+    )
+    argv = [a for replay_id in ids for a in ("--replay", replay_id)]
+    assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
+    out = _scored_dir(tmp_path)
+    table = _conditions_table((out / "report.md").read_text(encoding="utf-8").splitlines())
+    header, row = table[0], table[-1]
+    assert "prompt cache off \\| idle slots 0 |" in row  # the cell, escaped
+    # The separators a markdown reader sees (an escaped `\|` is text, not a boundary): the row
+    # must still have exactly one per column pair, or a later cell's label is on the wrong value.
+    separators = re.compile(r"(?<!\\)\|")
+    assert len(separators.findall(row)) == len(separators.findall(header)) == 11  # ten columns
+    identity = json.loads((out / "metrics.json").read_text())["identity"]
+    assert identity["replays"][0]["server_settings"] == declared  # markdown only: not the record
 
 
 def test_the_report_shows_no_absolute_host_path(tmp_path: Path) -> None:
