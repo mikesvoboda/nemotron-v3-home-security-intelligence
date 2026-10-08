@@ -1723,7 +1723,7 @@ from backend.services.verdict_engine_status import get_verdict_engine_tracker
 snapshot = get_verdict_engine_tracker().observe(
     ai_status.details, message=ai_status.message
 )  # -> .state / .since / .reason; emits system.verdict_engine_status_changed
-   #    on a state transition
+#    on a state transition
 ```
 
 **Consumers:** `get_readiness` (system.py) publishes the snapshot as
