@@ -81,8 +81,9 @@ pins and `[V]`/`[A]` markers.
 
 - The live hop-by-hop path (FileWatcher → Redis Streams → `/yolo26` → BatchAggregator → VlmAnalyzer
   → the three in-process specialist legs → ai-vlm → Event)
-- Silent-failure surfaces (text-only VLM passing health, profile-less restart dropping `ai-vlm`,
-  specialist legs degraded to "unavailable", alerts that never auto-create)
+- Silent-failure surfaces (text-only VLM passing health, the profile-less restart that dropped
+  `ai-vlm`, since closed by UR-18, specialist legs degraded to "unavailable", alerts that never
+  auto-create)
 - What the verdict fills, and which event fields stay NULL
 - Orphaned Triton specialists, the eval gap, and the gate inventory
 
