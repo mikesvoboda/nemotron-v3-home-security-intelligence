@@ -194,7 +194,7 @@ first place to read when verdicts look like the model never saw the stills.
 | `MODEL_PATH`                 | `/models/vlm/model.gguf` | `/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf`      | `ai/vlm/Dockerfile:103` / `:180`                        |
 | `MMPROJ_PATH`                | empty                    | `/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` | `ai/vlm/Dockerfile:107` / `:181`                        |
 | `MODEL_ALIAS`                | empty                    | `Qwen3VL-8B` (from `VLM_MODEL_ALIAS`)          | `ai/vlm/Dockerfile:111` / `:182`                        |
-| `GPU_LAYERS`                 | 99                       | `auto` (from `VLM_GPU_LAYERS`)                 | `ai/vlm/Dockerfile:124` / `:183`                        |
+| `GPU_LAYERS`                 | 99                       | `auto` (from `VLM_GPU_LAYERS`)                 | `ai/vlm/Dockerfile:124` / `:188`                        |
 | `CTX_SIZE`                   | 8192                     | 32768 (from `VLM_CTX_SIZE`)                    | `ai/vlm/Dockerfile:125` / `:207`                        |
 | `PARALLEL`                   | 1                        | 2 (from `VLM_PARALLEL`)                        | `ai/vlm/Dockerfile:126` / `:208`                        |
 | `THREADS`                    | 8                        | 4 (from `VLM_THREADS`)                         | `ai/vlm/Dockerfile:128` / `:209`                        |
@@ -202,7 +202,7 @@ first place to read when verdicts look like the model never saw the stills.
 | `UBATCH_SIZE`                | 512                      | 512 (from `VLM_UBATCH_SIZE`)                   | `ai/vlm/Dockerfile:130` / `:211`                        |
 | `CACHE_TYPE_K` / `_V`        | empty (f16)              | `q8_0` / `q8_0`                                | `ai/vlm/Dockerfile:119-120` / `:224-225`                |
 | `FLASH_ATTENTION`            | true                     | true (from `VLM_FLASH_ATTENTION`)              | `ai/vlm/Dockerfile:127` / `:226`                        |
-| `SLEEP_IDLE_SECONDS`         | empty (never)            | 300 (from `VLM_SLEEP_IDLE_SECONDS`)            | `ai/vlm/Dockerfile:115` / `:236`                        |
+| `SLEEP_IDLE_SECONDS`         | empty (never)            | 300 (from `VLM_SLEEP_IDLE_SECONDS`)            | `ai/vlm/Dockerfile:115` / `:241`                        |
 | `LLAMA_ARG_IMAGE_MAX_TOKENS` | unset                    | 1280 (literal)                                 | `docker-compose.prod.yml:194`                           |
 | `CUDA_VISIBLE_DEVICES`       | unset                    | `${GPU_LLM:-0}`                                | `docker-compose.prod.yml:180`                           |
 
