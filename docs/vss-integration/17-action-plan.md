@@ -5294,7 +5294,8 @@ The `ai-vlm` image, compose files, provisioning, restart tooling and release art
 - **Update 2026-10-08 (UR-18, PR #6862) [V].** UR-18 took the plain-`up` half of this issue:
   `ai-vlm` has no `profiles:` key and a plain `up -d` starts it, so that branch of the
   Acceptance is delivered by starting it. Three evidence lines above were pinned to the old
-  shape and read as filed: `prod.yml:154` and the `:126` intent comment are gone, the compose
+  shape and read as filed: the compose line-154 `profiles:` cite and the line-126 intent
+  comment are gone, the compose
   test now asserts no `profiles` block
   (`test_ai_vlm_compose_service.py::TestComposeServiceShape::test_starts_by_default`), and
   `_ModePlan` carries no profile. The ghcr gap, the publish gap, and OD-14's remaining ask
@@ -5365,7 +5366,8 @@ The `ai-vlm` image, compose files, provisioning, restart tooling and release art
   `profiles:` key on `ai-vlm`, the service-name start at `scripts/restart-all.sh:39` is the
   whole request — no profile argument to drop and no inactive-profile resolution to lose the
   service (E131). The other bullets stand as filed: the 8091 health targets
-  (`restart-all.sh:184`, `platform-healthcheck.py:178,189`), the `sh -c` `CMD` without `exec`
+  (`scripts/restart-all.sh:184`, `platform-healthcheck.py:178,189`), the `sh -c` `CMD` without
+  `exec`
   (`ai/vlm/Dockerfile:141`), and the `grep ... || true` filter.
 
 #### ISS-057 — VLM weights are neither provisioned nor integrity-verified; verdict provenance is a filename stem
