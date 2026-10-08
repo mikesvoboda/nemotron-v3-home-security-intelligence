@@ -84,10 +84,9 @@ model = "fast"
 kickoff = """\
 Follow the kickoff prompt in docs/uplevel/40-docs.md."""
 
-# The heavy kickoff names its prompt as a section, never by position: the file ends with
-# the coordinator's OWN prompt ("route work, write no product code"), and `up` prints this
-# line verbatim, so "the prompt at the end of that file" started the heavy sandbox as the
-# coordinator. (50-coordination.md, "The roster")
+# Name the prompt as a section, never by position: 50-coordination.md ends with the
+# coordinator's OWN prompt, and `up` prints this line verbatim, so a positional pointer
+# silently starts the heavy sandbox as the coordinator.
 [[phase.session]]
 name = "uplevel-heavy"
 model = "strongest"

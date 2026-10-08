@@ -340,9 +340,11 @@ def test_heavy_kickoff_names_the_heavy_prompt_instead_of_a_position() -> None:
     line = {s.name: s.kickoff for s in phases[1]}[HEAVY]
     assert "The heavy sandbox's kickoff prompt" in line
     assert "end of that file" not in line
-    # the section it names exists, and it is not the only kickoff prompt in that file - which
-    # is exactly why a positional pointer cannot identify it.
+    # the section it names exists, where the line says it lives ("under The roster"), and it is
+    # not the only kickoff prompt in that file - which is exactly why a positional pointer
+    # cannot identify it.
     roster = (REPO_ROOT / "docs" / "uplevel" / "50-coordination.md").read_text(encoding="utf-8")
+    assert "### The roster" in roster
     assert "**The heavy sandbox's kickoff prompt:**" in roster
     assert "## Coordinator kickoff prompt" in roster
 
