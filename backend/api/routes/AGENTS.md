@@ -428,6 +428,12 @@ System monitoring, health checks, GPU stats, configuration, telemetry, worker su
 - `degraded` - Database up but Redis down
 - `not_ready` - Database down
 
+The verdict engine never appears in this logic: `verdict_engine` is reported in
+the payload from the AI-health probe without gating the status (a down engine
+keeps 200 — compose healthcheck and service_healthy dependents read it), and
+state transitions push `system.verdict_engine_status_changed` (B1.4, UR-18;
+tracker in `backend/services/verdict_engine_status.py`).
+
 **Worker Supervisor States:**
 
 - `running` - Worker is actively processing

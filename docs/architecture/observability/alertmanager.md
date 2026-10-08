@@ -15,7 +15,7 @@
 Prometheus evaluates the rule files above and sends firing alerts to Alertmanager, which groups
 them, applies inhibition rules, and forwards them to receivers. Alertmanager itself runs as the
 `alertmanager` compose service and mounts `monitoring/alertmanager.yml`
-(`docker-compose.prod.yml:1060`).
+(`docker-compose.prod.yml:1065`).
 
 In the shipped configuration **every receiver delivers through the same webhook**:
 `http://backend:8000/api/webhooks/alerts`. The receivers exist so that routing, batching, and
