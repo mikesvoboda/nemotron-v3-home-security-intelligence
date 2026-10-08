@@ -60,14 +60,14 @@ All services run in containers, including GPU-accelerated AI servers.
 
 ### Start Everything
 
-Add `--profile vlm` — the reasoning serve sits behind that profile, and a plain `up -d` leaves it out:
+A plain `up -d` starts everything, the reasoning serve `ai-vlm` included — it is in the default compose set, so there is no profile to name:
 
 ```bash
 # Docker
-docker compose -f docker-compose.prod.yml --profile vlm up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # OR Podman
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+podman compose -f docker-compose.prod.yml up -d
 ```
 
 **What starts** ([`docker-compose.prod.yml`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/docker-compose.prod.yml)) — 21 services; the ones you interact with day one:
@@ -77,7 +77,7 @@ podman compose -f docker-compose.prod.yml --profile vlm up -d
 | postgres   | 5432                | Database                                                 |
 | redis      | 6379                | Queues + pub/sub                                         |
 | ai-gateway | 8090 (metrics 8002) | Triton + FastAPI: the `/yolo26` and `/enrich-lt` routers |
-| ai-vlm     | 8098                | llama.cpp reasoning serve (compose profile `vlm`)        |
+| ai-vlm     | 8098                | llama.cpp reasoning serve (the verdict engine)           |
 | go2rtc     | 1984 / 8555         | Camera stream relaying                                   |
 | backend    | 8000                | FastAPI + WebSocket                                      |
 | frontend   | 8080 / 8444         | React dashboard via nginx (HTTP / HTTPS)                 |
@@ -96,10 +96,10 @@ docker compose -f docker-compose.prod.yml ps
 podman compose -f docker-compose.prod.yml ps
 
 # Expected: every service "Up (healthy)" (or the one-shot foscam-init "Completed"),
-# and ai-vlm listed too — `ps` needs the same --profile vlm to show it.
+# ai-vlm listed with them — no flag is needed to start it or to list it.
 # The two AI containers load the slowest: ai-vlm's healthcheck allows a 120 s
 # start period (ai/vlm/Dockerfile:138-139) and ai-gateway's allows 180 s
-# (docker-compose.prod.yml:404). Re-run until everything is healthy.
+# (docker-compose.prod.yml:410). Re-run until everything is healthy.
 ```
 
 ### Register the First Admin
@@ -174,7 +174,8 @@ curl http://localhost:8090/health
 The backend reaches AI services purely through URL variables from `.env` — there is no `AI_HOST` variable. For a host-run detector:
 
 ```bash
-# In .env — leave AI_VLM_URL at http://ai-vlm:8098 and keep using the vlm profile
+# In .env — leave AI_VLM_URL at http://ai-vlm:8098: reasoning still runs in its
+# container on this path, started by the command below.
 YOLO26_URL=http://host.docker.internal:8090   # Docker Desktop, or your host IP
                                               # Podman: http://host.containers.internal:8090
 ```
@@ -183,15 +184,15 @@ With `YOLO26_URL` set this way the detector dials that URL directly; `USE_AI_GAT
 
 > **Podman on Linux:** `host.containers.internal` resolves inside the default Podman network; if it doesn't on your host, use the host's LAN IP (e.g. `http://192.168.1.100:8090`).
 
-Then start the services **without `ai-gateway`**, so it does not fight your host server for port 8090 (`ai-vlm` needs the profile named):
+Then start the services **without `ai-gateway`**, so it does not fight your host server for port 8090. Naming the services is what leaves `ai-gateway` out; `ai-vlm` needs no flag to start:
 
 ```bash
 # Docker
-docker compose -f docker-compose.prod.yml --profile vlm up -d \
+docker compose -f docker-compose.prod.yml up -d \
   postgres redis go2rtc backend frontend ai-vlm
 
 # OR Podman
-podman compose -f docker-compose.prod.yml --profile vlm up -d \
+podman compose -f docker-compose.prod.yml up -d \
   postgres redis go2rtc backend frontend ai-vlm
 ```
 

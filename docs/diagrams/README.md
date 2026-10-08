@@ -66,7 +66,7 @@ Copy this init block to the top of every Mermaid diagram:
 ### AI Services
 
 Two containers serve models. `ai-gateway` is Triton behind FastAPI; `ai-vlm` is
-one `llama-server` holding one GGUF pair, behind the `vlm` compose profile.
+one `llama-server` holding one GGUF pair, in the default compose set.
 
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
@@ -215,7 +215,7 @@ flowchart TB
 
     subgraph AI["AI Services"]
         GW["ai-gateway<br/>:8090 (Triton :8002)"]
-        VLM["ai-vlm<br/>:8098<br/>profile: vlm"]
+        VLM["ai-vlm<br/>:8098"]
     end
 
     subgraph Storage["Data Layer"]
@@ -235,7 +235,7 @@ flowchart TB
     API <--> REDIS
 ```
 
-`ai-vlm` sits on the `vlm` compose profile and is deliberately **not** in the
+`ai-vlm` is in the default compose set but deliberately **not** in the
 backend's `depends_on`, so the backend starts and degrades without it. Draw that
 edge as optional when the distinction matters.
 
@@ -298,7 +298,7 @@ colliding port is fixed in `.env` rather than by editing compose.
 | Backend API          | `${API_PORT:-8000}`                | 8000      |
 | ai-gateway (FastAPI) | `${AI_GATEWAY_PORT:-8090}`         | 8090      |
 | ai-gateway (Triton)  | `${AI_GATEWAY_METRICS_PORT:-8002}` | 8002      |
-| ai-vlm (profile vlm) | `${AI_VLM_PORT:-8098}`             | 8098      |
+| ai-vlm (default set) | `${AI_VLM_PORT:-8098}`             | 8098      |
 | ai-llm-vllm (`vllm`) | `${VLLM_PORT:-8097}`               | 8000      |
 | PostgreSQL           | `${POSTGRES_PORT:-5432}`           | 5432      |
 | Redis                | `${REDIS_PORT:-6379}`              | 6379      |

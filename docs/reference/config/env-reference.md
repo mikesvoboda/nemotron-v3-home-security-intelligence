@@ -102,8 +102,8 @@ Two containers carry the AI work:
   two resident specialists). Triton's model directory holds
   `{yolo26, reid, threat}`; `reid` is always resident, `threat` only when
   `GATEWAY_ENABLE_THREAT=true` (compose default `false`).
-- **`ai-vlm`** (:8098) — llama.cpp `llama-server`. It sits behind the `vlm` compose
-  profile, so a bring-up must name the profile. The event path POSTs
+- **`ai-vlm`** (:8098) — llama.cpp `llama-server`. It ships in the default compose
+  set, so a plain bring-up starts it. The event path POSTs
   `/v1/chat/completions` to it.
 
 Identity questions (faces, license plates, person re-identification) are answered
@@ -122,8 +122,8 @@ by a third service.
 > **Note:** The container-side port of `ai-vlm` is fixed at 8098
 > (`ai/vlm/Dockerfile:123`); the host-side `AI_VLM_PORT` is a separate mapping, so
 > the internal URL never depends on it. The backend's `depends_on` list never names
-> `ai-vlm` — a dependency entry cannot name a profiled service — so the VLM link is
-> this env var and nothing else.
+> `ai-vlm` — deliberately, so a failing VLM never takes the backend down — so the
+> VLM link is this env var and nothing else.
 
 > **Pointer:** `ENRICHMENT_LIGHT_URL` (`http://ai-gateway:8090/enrich-lt`) is read by
 > `backend/api/routes/model_management.py` to report which specialists are resident.

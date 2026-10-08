@@ -862,8 +862,9 @@ for service in $SERVICES; do
 done
 ```
 
-`ai-vlm` only appears when the `vlm` compose profile is enabled
-(`--profile vlm up -d`), so gate that entry on the container running.
+`ai-vlm` ships in the default bring-up (`up -d` starts it; until UR-18 it sat
+behind a profile that had to be named explicitly), so its profiles should show
+up on its own — still gate that entry on the container running.
 
 ---
 

@@ -115,7 +115,7 @@ The system is organized into four layers:
 
 - **Camera Layer:** Foscam IP cameras upload images via FTP
 - **Application Layer:** React frontend + FastAPI backend. The backend also runs the three specialist lookup legs (faces, plates, person re-identification) in-process
-- **AI Services:** 2 containers — `ai-gateway` (Triton serving YOLO26, port 8090) and `ai-vlm` (llama.cpp serving the Qwen3VL vision-language model, port 8098, behind the `vlm` compose profile)
+- **AI Services:** 2 containers — `ai-gateway` (Triton serving YOLO26, port 8090) and `ai-vlm` (llama.cpp serving the Qwen3VL vision-language model, port 8098, in the default compose set)
 - **Data Layer:** PostgreSQL, Redis, and filesystem storage
 
 ### The two AI services
@@ -344,7 +344,7 @@ flowchart TB
 
         subgraph GPUContainers["AI Services (GPU via CDI)"]
             GW["ai-gateway<br/>Triton: yolo26, reid, threat<br/>Port 8090 (metrics 8002)"]
-            VLM["ai-vlm (compose profile: vlm)<br/>llama.cpp + Qwen3VL GGUF pair<br/>Port 8098"]
+            VLM["ai-vlm (default compose set)<br/>llama.cpp + Qwen3VL GGUF pair<br/>Port 8098"]
         end
 
         subgraph Storage["Persistent Storage"]
@@ -370,14 +370,14 @@ flowchart TB
 
 ### What Runs Where
 
-| Component      | Deployment                          | Why                                                    |
-| -------------- | ----------------------------------- | ------------------------------------------------------ |
-| **Frontend**   | Podman (dev: Vite, prod: Nginx)     | No GPU needed, isolated environment                    |
-| **Backend**    | Podman                              | No GPU needed, isolated environment                    |
-| **Redis**      | Podman                              | No GPU needed, ephemeral data acceptable               |
-| **PostgreSQL** | Podman                              | Database isolation, volume persistence                 |
-| **ai-gateway** | Podman (GPU via CDI)                | Triton models; GPU access via NVIDIA Container Toolkit |
-| **ai-vlm**     | Podman (GPU via CDI), profile `vlm` | `up -d` without `--profile vlm` does **not** start it  |
+| Component      | Deployment                      | Why                                                       |
+| -------------- | ------------------------------- | --------------------------------------------------------- |
+| **Frontend**   | Podman (dev: Vite, prod: Nginx) | No GPU needed, isolated environment                       |
+| **Backend**    | Podman                          | No GPU needed, isolated environment                       |
+| **Redis**      | Podman                          | No GPU needed, ephemeral data acceptable                  |
+| **PostgreSQL** | Podman                          | Database isolation, volume persistence                    |
+| **ai-gateway** | Podman (GPU via CDI)            | Triton models; GPU access via NVIDIA Container Toolkit    |
+| **ai-vlm**     | Podman (GPU via CDI)            | The verdict engine; in the default set, `up -d` starts it |
 
 ### Port Summary
 

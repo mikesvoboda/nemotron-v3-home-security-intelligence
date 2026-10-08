@@ -171,4 +171,5 @@ Alert (`docs/architecture/ai-pipeline-current-state.md` §2.4). Diagnose from `e
   the _default_ is a gate edit — set the value in the host `.env` instead.
 - **VLM weights**: place the GGUF + mmproj pair under `${AI_MODELS_PATH}/vlm` matching
   `VLM_MODEL_PATH` + `VLM_MMPROJ_PATH` and restart `ai-vlm` with
-  `--profile vlm` (compose drops it otherwise — `docker-compose.prod.yml:154`).
+  `up -d ai-vlm` — no flag, it is in the default compose set
+  (`docker-compose.prod.yml:141`).

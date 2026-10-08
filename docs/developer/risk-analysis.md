@@ -34,7 +34,7 @@ emits a level.
 ## The Serving Setup
 
 One container answers the question — llama.cpp with a vision GGUF plus its
-mmproj projector, behind compose profile `vlm`:
+mmproj projector, in the default compose set:
 
 | Item           | Value                                                                                                |
 | -------------- | ---------------------------------------------------------------------------------------------------- |

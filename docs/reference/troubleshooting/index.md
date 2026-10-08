@@ -44,7 +44,7 @@ _Decision tree for diagnosing system health issues: Start with the health check 
 | Symptom                     | Likely Cause                                 | Quick Fix                   | Detailed Guide                                     |
 | --------------------------- | -------------------------------------------- | --------------------------- | -------------------------------------------------- |
 | Dashboard shows no events   | File watcher not running or AI services down | Restart backend             | [Events Not Appearing](#dashboard-shows-no-events) |
-| Risk gauge stuck at 0       | VLM serve down or slow                       | Start ai-vlm (profile)      | [AI Issues](ai-issues.md)                          |
+| Risk gauge stuck at 0       | VLM serve down or slow                       | Start ai-vlm                | [AI Issues](ai-issues.md)                          |
 | Camera shows offline        | Camera not uploading or folder path wrong    | Check FTP and folder config | [Camera Offline](#camera-shows-offline)            |
 | AI not responding           | Services not started or port conflicts       | Start AI services           | [AI Not Working](#ai-not-working)                  |
 | WebSocket disconnected      | Backend down or network issues               | Check backend health        | [WebSocket Issues](#websocket-disconnected)        |
@@ -105,7 +105,7 @@ curl http://localhost:8090/health
 curl http://localhost:8090/yolo26/health     # object detection
 curl http://localhost:8090/enrich-lt/health  # readiness lane for the resident specialists
 
-# ai-vlm (:8098) — behind the `vlm` compose profile, so it needs a profile-aware call
+# ai-vlm (:8098) — the reasoning serve, in the default compose set
 curl http://localhost:8098/health
 ```
 
@@ -141,25 +141,29 @@ curl -s http://localhost:8098/health
 
 ### Possible Causes
 
-1. **`ai-vlm` not running** - Most common cause. It sits behind the `vlm` compose
-   profile, so a bring-up that omits the profile starts the detector and never the
-   scorer.
+1. **`ai-vlm` not running** - Most common cause. It starts with the default `up -d`,
+   so when it is down the reason is a missing GPU, missing model files, or the
+   container itself — not a missing flag. Its logs name which.
 2. **A verdict timeout** - the serve is up but slower than `AI_VLM_READ_TIMEOUT`
 3. **The multimodal projector is missing** - the serve answers text-only, so it
    never sees the stills and can never return a usable verdict
 
 ### Solutions
 
-**1. Start the VLM with its profile:**
+**1. Start the VLM:**
 
 ```bash
-docker compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+docker compose -f docker-compose.prod.yml up -d ai-vlm
 ```
+
+A plain `up -d` starts it too — there is no profile to name. If it comes back
+stopped, the logs in step 2 say why: no GPU for its device line to map, or the
+weights in step 4 are not where compose mounts them.
 
 **2. Check its logs:**
 
 ```bash
-docker compose -f docker-compose.prod.yml --profile vlm logs --tail=50 ai-vlm
+docker compose -f docker-compose.prod.yml logs --tail=50 ai-vlm
 ```
 
 **3. Raise the verdict budget if the card is slow:**
@@ -174,8 +178,8 @@ AI_VLM_READ_TIMEOUT=45.0
 healthchecks while answering text-only):
 
 ```bash
-docker compose -f docker-compose.prod.yml --profile vlm exec ai-vlm ls -la /models/
-docker compose -f docker-compose.prod.yml --profile vlm logs ai-vlm 2>&1 | grep -i mmproj
+docker compose -f docker-compose.prod.yml exec ai-vlm ls -la /models/
+docker compose -f docker-compose.prod.yml logs ai-vlm 2>&1 | grep -i mmproj
 ```
 
 An event with `risk_score: null` was still written, with an honest "needs review"
@@ -267,18 +271,19 @@ the member whose failure drives the critical status.
 
 ### Possible Causes (Most Likely First)
 
-1. **`ai-vlm` never started** - `ai-gateway` comes up with the stack; `ai-vlm` sits
-   behind the `vlm` compose profile, so a plain `up -d` never starts it
+1. **`ai-vlm` never started** - Both AI containers are in the default compose set, so
+   a plain `up -d` starts them. When `ai-vlm` alone is down, it failed at start: no
+   GPU for its device line to map, the weights not in place, or the container itself
 2. **Port conflicts** - Something else holding 8090
 3. **GPU not available** - CUDA not initialized (see [Triton Rootless CUDA](triton-rootless-cuda.md) under rootless Podman)
 4. **Model files missing** - Models not downloaded, or the VLM GGUF pair not placed
 
 ### Solutions
 
-**1. Start both AI services, naming the profile:**
+**1. Start both AI services:**
 
 ```bash
-docker compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+docker compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm
 ```
 
 **2. Check for a port conflict on the gateway:**
@@ -319,7 +324,7 @@ into `ai-vlm` at `/models`.
 
 ```bash
 docker compose -f docker-compose.prod.yml logs --tail=100 ai-gateway
-docker compose -f docker-compose.prod.yml --profile vlm logs --tail=100 ai-vlm
+docker compose -f docker-compose.prod.yml logs --tail=100 ai-vlm
 ```
 
 See: [AI Issues](ai-issues.md), [GPU Issues](gpu-issues.md)
@@ -564,7 +569,7 @@ nvidia-smi  # Temperature should be < 85C
 ```bash
 # Restart the AI stack (drops loaded models and re-initialises CUDA)
 docker compose -f docker-compose.prod.yml restart ai-gateway
-docker compose -f docker-compose.prod.yml --profile vlm restart ai-vlm
+docker compose -f docker-compose.prod.yml restart ai-vlm
 ```
 
 See: [GPU Issues](gpu-issues.md)

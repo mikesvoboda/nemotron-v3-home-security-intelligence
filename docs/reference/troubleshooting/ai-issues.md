@@ -13,9 +13,8 @@ AI runs as two containers:
   resident specialists). Triton's model directory holds `{yolo26, reid, threat}`;
   `reid` is always resident, `threat` only when `GATEWAY_ENABLE_THREAT=true`
   (compose default `false`).
-- **`ai-vlm`** (:8098) — llama.cpp `llama-server`. It is behind the `vlm` compose
-  profile, so a bring-up must name the profile. The event path POSTs
-  `/v1/chat/completions` to it.
+- **`ai-vlm`** (:8098) — llama.cpp `llama-server`. It is in the default compose set,
+  so a plain bring-up starts it. The event path POSTs `/v1/chat/completions` to it.
 
 Identity questions (faces, license plates, person re-identification) are answered
 **in-process in the backend** as database lookups against your own registrations,
@@ -39,12 +38,12 @@ For debugging a model outside a container there is one host-run helper:
 ### Diagnosis
 
 ```bash
-# Container status (ai-vlm is profiled — include the profile or it shows as stopped)
-podman compose -f docker-compose.prod.yml --profile vlm ps ai-gateway ai-vlm
+# Container status (both services are in the default set — no flag needed)
+podman compose -f docker-compose.prod.yml ps ai-gateway ai-vlm
 
 # Logs
 podman compose -f docker-compose.prod.yml logs --tail=50 ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm logs --tail=50 ai-vlm
+podman compose -f docker-compose.prod.yml logs --tail=50 ai-vlm
 
 # Host-run detector (only if you run it)
 pgrep -f "ai/yolo26/model.py"
@@ -67,14 +66,17 @@ resident model is not ready — check the `models` object it returns for which o
 
 ### Solutions
 
-**1. Start the AI services with the profile:**
+**1. Start the AI services:**
 
 ```bash
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm
 ```
 
-A `up -d` that omits `--profile vlm` starts `ai-gateway` but never `ai-vlm`, so
-the detector runs and events queue without verdicts.
+Both are in the default set, so a plain `up -d` starts them; there is no flag to
+name. When `ai-gateway` is up and `ai-vlm` is not, the cause is one of three
+things: the machine has no GPU for the container's device line to map, the model
+files are missing (step 3), or the container itself is failing (step 2 and its
+logs). Events queue without verdicts while `ai-vlm` is down.
 
 **2. Check for startup errors:**
 
@@ -269,7 +271,7 @@ redis-cli keys "batch:*"
 ```bash
 # VLM health and logs
 curl http://localhost:8098/health
-podman compose -f docker-compose.prod.yml --profile vlm logs --tail=50 ai-vlm
+podman compose -f docker-compose.prod.yml logs --tail=50 ai-vlm
 
 # One direct request. If this returns text but ignores your image, the
 # multimodal projector is missing — see the mmproj note below.
@@ -286,9 +288,9 @@ projector serves and passes both healthchecks while answering text-only, so a
 healthy check does not prove the model saw the stills. Check the mount:
 
 ```bash
-podman compose -f docker-compose.prod.yml --profile vlm exec ai-vlm \
+podman compose -f docker-compose.prod.yml exec ai-vlm \
   ls -la /models/
-podman compose -f docker-compose.prod.yml --profile vlm logs ai-vlm 2>&1 | grep -i mmproj
+podman compose -f docker-compose.prod.yml logs ai-vlm 2>&1 | grep -i mmproj
 ```
 
 **2. Timeouts**
@@ -308,7 +310,7 @@ settles before treating it as failed.
 **4. Restart**
 
 ```bash
-podman compose -f docker-compose.prod.yml --profile vlm restart ai-vlm
+podman compose -f docker-compose.prod.yml restart ai-vlm
 podman compose -f docker-compose.prod.yml restart ai-gateway
 ```
 

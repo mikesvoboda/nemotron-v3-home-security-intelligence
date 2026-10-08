@@ -52,7 +52,7 @@ flowchart TB
 | **PostgreSQL**   | 5432                        | `postgres`     | `docker-compose.prod.yml:44`   | Primary database for events, detections                            |
 | **Redis**        | 6379                        | `redis`        | `docker-compose.prod.yml:671`  | Queues, pub/sub, batch state                                       |
 | **ai-gateway**   | 8090 (+8002 metrics)        | `ai-gateway`   | `docker-compose.prod.yml:347`  | Triton serving `{yolo26, reid}`; mounts `/yolo26` and `/enrich-lt` |
-| **ai-vlm**       | 8098                        | `ai-vlm`       | `docker-compose.prod.yml:134`  | llama.cpp `llama-server` serving Qwen3VL-8B; compose profile `vlm` |
+| **ai-vlm**       | 8098                        | `ai-vlm`       | `docker-compose.prod.yml:134`  | llama.cpp `llama-server` serving Qwen3VL-8B; default compose set   |
 | **Prometheus**   | 9090                        | `prometheus`   | `docker-compose.prod.yml:1002` | Metrics collection                                                 |
 | **Grafana**      | host 3002 (container 3000)  | `grafana`      | `docker-compose.prod.yml:1049` | Monitoring dashboards at `/grafana/` via proxy                     |
 | **Tempo**        | 3200                        | `tempo`        | `docker-compose.prod.yml:973`  | Distributed trace storage                                          |

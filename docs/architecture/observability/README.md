@@ -127,7 +127,7 @@ graph LR
     subgraph App["Application"]
         BE[backend :8000]
         GW[ai-gateway :8090<br/>Triton: /yolo26, /enrich-lt]
-        VLM[ai-vlm :8098<br/>llama.cpp + Qwen3VL<br/>profile vlm]
+        VLM[ai-vlm :8098<br/>llama.cpp + Qwen3VL<br/>default set]
     end
 
     subgraph Collect["Collection"]

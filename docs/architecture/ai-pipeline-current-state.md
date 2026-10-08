@@ -105,18 +105,22 @@ then answers `200` on `/health`, so both health checks pass:
 `ai/download_models.sh:493-497` says the weights are **not fetched** by the script and that "the
 mmproj projector is required, without it the serve is text-only and every `vlm_assess` call
 degrades silently". Compounding it, `backend`'s `depends_on` names `postgres`, `redis`,
-`ai-gateway` and `go2rtc` — **not** `ai-vlm` (`prod.yml:194-206`), because compose cannot take a
-dependency on a profile-gated service.
+`ai-gateway` and `go2rtc` — **not** `ai-vlm` (`prod.yml:634-646`), on purpose: `ai-vlm` failing
+must never take the rest of the stack down, so degradation is left to the `vlm_analyzer` ladder
+rather than a compose edge (`prod.yml:127-130`).
 
 **Signature to grep for:** a run of events with `risk_score`/`risk_level` NULL and
 `verdict = 'verification_failed'`. That is the VLM unreachable or blind, not an empty camera.
 
-### 2.2 `restart-all.sh` restarts the VLM without its profile
+### 2.2 `restart-all.sh` restarts the VLM without its profile — closed by UR-18
 
-`ai-vlm` is the only shipped AI service behind a compose profile (`prod.yml:154-155`), so
-`up -d` without `--profile vlm` does not start it. The script knows this — `start_services`
-takes an optional profile argument (`scripts/restart-all.sh:83-89`) and the monitoring group
-passes one (`:222`). The AI group does not:
+> **Closed (O1.3, UR-18).** `ai-vlm` now ships in the default compose set, so the profile-less
+> AI-group call below starts it like any other service. What follows is the surface as measured
+> 2026-10-02, when the service did sit behind a compose profile.
+
+`ai-vlm` was the only shipped AI service behind a compose profile, so `up -d` without the profile
+flag did not start it. The script knew this — `start_services` takes an optional profile argument
+(`scripts/restart-all.sh:83-89`) and the monitoring group passes one (`:222`). The AI group did not:
 
 ```sh
 AI_SERVICES="ai-gateway ai-vlm"                      # :39
@@ -124,10 +128,13 @@ start_services "$AI_SERVICES" "AI"                   # :220  <- no profile
 start_services "$MONITORING_SERVICES" "Monitoring" "monitoring"   # :222  <- profile passed
 ```
 
-`setup_lib/deploy_phases.py:70-72` documents the trap in its own words ("podman-compose drops a
-service whose profile is inactive before it resolves command-line") and threads `--profile`
-correctly. **The operator-facing restart script is the one place that can silently drop the VLM
-and report success.** `stop_services` at `:242` has the same shape.
+`setup_lib/deploy_phases.py:69-74` recorded the trap in its own words ("podman-compose drops a
+service whose profile is inactive before it resolves command-line targets") and names services
+with no profile flag now. With `ai-vlm` in the default set, the AI group's profile-less
+`start_services`/`stop_services` pair (`scripts/restart-all.sh:220`, `:242`) starts and stops it
+with the rest — **the place that could silently drop the VLM and report success is gone.** (The
+`monitoring` argument at `:222` names no profile any service declares; compose ignores a flag
+nothing declares rather than rejecting it.)
 
 ### 2.3 The face and re-ID legs are residency-gated, and residency ships off
 

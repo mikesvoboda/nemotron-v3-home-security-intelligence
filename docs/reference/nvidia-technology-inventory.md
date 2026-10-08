@@ -66,15 +66,15 @@ The two hosts the AI images are built for:
 | Service         | Compose profile | Publishes                             | `deploy` limits          | GPU device                                                          |
 | --------------- | --------------- | ------------------------------------- | ------------------------ | ------------------------------------------------------------------- |
 | `ai-gateway`    | none (default)  | `127.0.0.1:8090`, `127.0.0.1:8002`    | 8 CPU / 20G, reserve 10G | `nvidia.com/gpu=all` + `CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}` |
-| `ai-vlm`        | `vlm`           | `127.0.0.1:${AI_VLM_PORT:-8098}:8098` | 4 CPU / 10G, reserve 4G  | `nvidia.com/gpu=${GPU_LLM:-0}`                                      |
+| `ai-vlm`        | none (default)  | `127.0.0.1:${AI_VLM_PORT:-8098}:8098` | 4 CPU / 10G, reserve 4G  | `nvidia.com/gpu=${GPU_LLM:-0}`                                      |
 | `ai-llm-vllm`   | `vllm`          | 8097                                  | --                       | `${GPU_LLM:-0}`                                                     |
 | `dcgm-exporter` | `gpu-rootful`   | 9400                                  | --                       | --                                                                  |
 
-`ai-vlm` is behind the `vlm` profile (`docker-compose.prod.yml:157-158`), so a
-bring-up that names it must pass the profile:
+`ai-vlm` is in the default compose set (UR-18; until then it sat behind a
+profile that had to be named explicitly), so a plain bring-up starts it:
 
 ```bash
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm
 ```
 
 Weights are host-mounted, never baked:

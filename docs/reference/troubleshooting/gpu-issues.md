@@ -6,7 +6,7 @@
 **Prerequisites:** NVIDIA GPU with CUDA support
 
 Two containers hold GPU memory: `ai-gateway` (Triton — the YOLO26 detector and the
-resident specialists) and `ai-vlm` (llama.cpp, behind the `vlm` compose profile).
+resident specialists) and `ai-vlm` (llama.cpp, in the default compose set).
 Which card each one lands on is decided by `GPU_AI_SERVICES` and `GPU_LLM` in `.env`.
 The face, plate, and person-re-ID lookups run in the backend process on CPU.
 
@@ -131,7 +131,7 @@ nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
 ```bash
 # Restart the AI services (drops loaded models and re-initialises CUDA)
 docker compose -f docker-compose.prod.yml restart ai-gateway
-docker compose -f docker-compose.prod.yml --profile vlm restart ai-vlm
+docker compose -f docker-compose.prod.yml restart ai-vlm
 
 # A host-run standalone detector, if you started one
 pkill -f "ai/yolo26/model.py"
@@ -188,7 +188,7 @@ curl http://localhost:8090/yolo26/health | jq .model_loaded
 nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
 
 # The serve's own view of its offload
-docker compose -f docker-compose.prod.yml --profile vlm logs ai-vlm 2>&1 | grep -iE "offload|CUDA|BLAS"
+docker compose -f docker-compose.prod.yml logs ai-vlm 2>&1 | grep -iE "offload|CUDA|BLAS"
 ```
 
 > Neither production service publishes a `"device"` field. `ai-gateway`'s router
@@ -225,8 +225,8 @@ The shipped `ai-vlm` image builds `llama-server` from source with `-DGGML_CUDA=O
 CPU-only serve is a device-passthrough problem, not a build problem:
 
 ```bash
-docker compose -f docker-compose.prod.yml --profile vlm exec -T ai-vlm nvidia-smi
-docker compose -f docker-compose.prod.yml --profile vlm exec -T ai-vlm \
+docker compose -f docker-compose.prod.yml exec -T ai-vlm nvidia-smi
+docker compose -f docker-compose.prod.yml exec -T ai-vlm \
   ls /dev/nvidia0
 ```
 
@@ -241,7 +241,7 @@ The image's own default is `99` (`ai/vlm/Dockerfile:124`). If a fixed count was 
 `.env` it overrides the auto-fit — check the value before blaming the card:
 
 ```bash
-docker compose -f docker-compose.prod.yml --profile vlm exec -T ai-vlm env | grep GPU_LAYERS
+docker compose -f docker-compose.prod.yml exec -T ai-vlm env | grep GPU_LAYERS
 ```
 
 ---

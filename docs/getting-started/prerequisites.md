@@ -56,8 +56,8 @@ Two containers hold GPU memory, and each has its own knob:
 > **Note:** `models.yml` carries ten rows, and the `setup_lib` download rule selects five artifacts from it — `yolo26`, `osnet-ain-x1-0`, `threat-detection-yolov8n`, `yolo11-face` and `yolo11-license-plate`, ~1.5 GB together. The rest of the inventory arrives another way: the face leg's two ONNX files are unpacked from `buffalo_l.zip` by hand, `fast-alpr` and `paddleocr` fetch at runtime, and the VLM weights are host-mounted (see [Models Reference](../reference/models.md#model-download)). Storage for events grows with camera count and retention period — plan for ~1GB/day per active camera.
 
 > **Sizing note:** `docker-compose.prod.yml` declares 21 services and caps 19 of
-> them with `deploy.resources.limits`; the 17 of those that start without a
-> compose profile sum to ~21 CPUs and ~37 GB of _ceilings_ (`ai-gateway` 8 CPU/20G, `ai-vlm`
+> them with `deploy.resources.limits`; the 18 of those that start with a plain
+> `up -d` sum to ~26 CPUs and ~47 GB of _ceilings_ (`ai-gateway` 8 CPU/20G, `ai-vlm`
 > 4 CPU/10G and `backend` 2 CPU/10G dominate). Those are host RAM ceilings, not
 > reservations and not VRAM. The minimums above are the floor for a core-services
 > run; the monitoring stack (`prometheus`, `loki`, `grafana`, `tempo`,
@@ -212,8 +212,8 @@ podman machine start
 Nothing on the host needs llama.cpp: the `ai-vlm` container builds `llama-server` from source with `-DGGML_CUDA=ON` (`ai/vlm/Dockerfile:74-76`) and runs it on the GGUF pair you mount. Bring the library only if you want to run a serve by hand outside compose.
 
 ```bash
-# The shipped serve answers on its own health endpoint (profile-aware ps first)
-docker compose -f docker-compose.prod.yml --profile vlm exec -T ai-vlm \
+# The shipped serve answers on its own health endpoint (no profile flag needed)
+docker compose -f docker-compose.prod.yml exec -T ai-vlm \
   curl -s localhost:8098/health
 ```
 

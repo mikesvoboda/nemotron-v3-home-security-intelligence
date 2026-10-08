@@ -23,8 +23,9 @@ container's own listen port is fixed at 8098 so the internal URL
 `http://ai-vlm:8098` never depends on the host mapping. `ai-vlm` is the system's
 only LLM service.
 
-`ai-vlm` sits behind the `vlm` compose profile — `podman compose -f
-docker-compose.prod.yml --profile vlm up -d ai-vlm` starts it — and the backend
+`ai-vlm` is in the default compose set (since UR-18; until then it sat behind a
+profile that had to be named explicitly) — `podman compose -f
+docker-compose.prod.yml up -d ai-vlm` starts it, no flag — and the backend
 reaches it at `AI_VLM_URL` (compose default `http://ai-vlm:8098`).
 
 ## Architecture Diagram
@@ -49,7 +50,7 @@ flowchart TB
         LR["/enrich-lt<br/>threat-detect, person-reid"]
     end
 
-    subgraph VLM["ai-vlm :8098 (llama.cpp, profile vlm)"]
+    subgraph VLM["ai-vlm :8098 (llama.cpp, default compose set)"]
         QWEN[GGUF + mmproj projector]
     end
 

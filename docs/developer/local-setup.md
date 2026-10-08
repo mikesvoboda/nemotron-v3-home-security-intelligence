@@ -195,7 +195,7 @@ FOSCAM_BASE_PATH=/export/foscam
 
 # AI service endpoints (optional for dev)
 # Detection runs through the AI gateway (port 8090); VLM verification is
-# served by ai-vlm (port 8098, compose profile `vlm`); see .env.example
+# served by ai-vlm (port 8098, in the default compose set); see .env.example
 AI_GATEWAY_URL=http://localhost:8090
 YOLO26_URL=http://localhost:8090/yolo26
 AI_VLM_URL=http://localhost:8098
@@ -223,6 +223,8 @@ Or configure local services manually. See [Database Management](../operator/data
 ## GPU Setup
 
 GPU support is optional (see the [Optional prerequisites](#optional-for-gpu-features) above), but the full AI pipeline assumes an NVIDIA GPU.
+
+On a machine with no GPU, `ai-vlm` is in the default compose set and fails at start — its CDI device line has nothing to map. The rest of the stack still comes up, because `ai-vlm` neither `depends_on` anything nor has anything depend on it, so the interim path is to name the services you want and leave `ai-vlm` off (that is what the `up -d postgres redis` step above already does). Package O2.1 will add an explicit fake-AI overlay; until it lands there is none to point at.
 
 1. Install the NVIDIA driver (535+ is the supported floor — check with `nvidia-smi`). Driver-level configuration is covered in [GPU Setup](../operator/gpu-setup.md).
 2. Install CUDA 12.x (check with `nvcc --version`); CUDA is required for YOLO26 inference.

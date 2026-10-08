@@ -49,7 +49,7 @@ troubleshooting/
 
 **Topics Covered:**
 
-- Service not running (remember the `vlm` compose profile)
+- Service not running (`ai-vlm` starts by default — look for a missing GPU or model files)
 - Degraded mode (one service up, one down)
 - Specialist lookups (faces / plates / person re-ID) returning `unavailable`
 - Batch not processing
@@ -62,8 +62,8 @@ troubleshooting/
 **Diagnostic Commands:**
 
 ```bash
-# Check AI container status (ai-vlm is profiled)
-podman compose -f docker-compose.prod.yml --profile vlm ps ai-gateway ai-vlm
+# Check AI container status (both start with a plain `up`)
+podman compose -f docker-compose.prod.yml ps ai-gateway ai-vlm
 
 # Check individual services
 curl http://localhost:8090/yolo26/health  # YOLO26 (AI gateway router)
@@ -229,7 +229,7 @@ curl http://localhost:8090/enrich-lt/health
 # Host-run standalone detector: ./ai/start_detector.sh also binds :8090
 # (YOLO26_PORT), so run it with ai-gateway down, or on a free port.
 
-# ai-vlm reasoning service (behind the vlm compose profile)
+# ai-vlm reasoning service (in the default compose set)
 curl http://localhost:8098/health
 
 # Pipeline status

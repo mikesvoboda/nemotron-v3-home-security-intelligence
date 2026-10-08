@@ -3,7 +3,7 @@
 This hub documents the AI model infrastructure that powers the home security intelligence system.
 Object detection runs inside the `ai-gateway` container (FastAPI + Triton, port 8090, routers
 `/yolo26` and `/enrich-lt`). Vision-language verification runs in `ai-vlm` (llama.cpp
-`llama-server`, port 8098, behind the compose profile `vlm`). ai-vlm is the only LLM service.
+`llama-server`, port 8098, in the default compose set). ai-vlm is the only LLM service.
 
 The three specialist legs — face recognition, license plates, and person re-identification — are
 not services. They are Python loaded in the backend process and read against the gallery tables
@@ -16,8 +16,9 @@ not services. They are Python loaded in the backend process and read against the
 | ai-gateway | 8090 | `ai-gateway` | Triton models `yolo26`, `reid`, `threat`; routers `/yolo26`, `/enrich-lt` |
 | ai-vlm     | 8098 | `ai-vlm`     | `Qwen3VL-8B-Instruct-Q4_K_M` + its mmproj projector, llama.cpp            |
 
-`ai-vlm` is the only shipped AI service behind a compose profile (`docker-compose.prod.yml:154`),
-so it starts only with `--profile vlm`. Its weights are operator-placed — `ai/download_models.sh`
+`ai-vlm` ships in the default compose set (`docker-compose.prod.yml:141`), so a plain `up -d`
+starts it (until UR-18 it sat behind a `vlm` profile that had to be named explicitly).
+Its weights are operator-placed — `ai/download_models.sh`
 creates `${AI_MODELS_PATH}/vlm` and names the files, and never fetches them
 (`ai/download_models.sh:311-315`, `:493-500`).
 
@@ -77,7 +78,7 @@ flowchart TB
 
     subgraph AI["AI Services"]
         GW["ai-gateway :8090<br/>/yolo26 · /enrich-lt<br/>(Triton: yolo26, reid, threat)"]
-        VLM["ai-vlm :8098<br/>Qwen3VL-8B + mmproj<br/>(llama.cpp, profile vlm)"]
+        VLM["ai-vlm :8098<br/>Qwen3VL-8B + mmproj<br/>(llama.cpp, default set)"]
     end
 
     DC -->|POST /yolo26/detect| GW

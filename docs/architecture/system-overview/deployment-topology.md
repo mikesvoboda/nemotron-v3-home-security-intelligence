@@ -28,7 +28,7 @@ flowchart TB
 
             subgraph AI["AI Services (GPU)"]
                 GW["ai-gateway<br/>Triton: yolo26 / reid<br/>:8090 (+ :8002 metrics)"]
-                VLM["ai-vlm (profile vlm)<br/>Qwen3VL-8B llama-server<br/>:8098"]
+                VLM["ai-vlm<br/>Qwen3VL-8B llama-server<br/>:8098"]
             end
 
             subgraph Mon["Monitoring"]
@@ -294,17 +294,18 @@ depends_on:
     condition: service_healthy
 ```
 
-The backend has no `depends_on` entry for ai-vlm. Compose cannot take a dependency on a
-profile-gated service — a profiled name in `depends_on` breaks the default `up` — so the VLM
-degrades instead of blocking boot, and the analyzer reports `verification_failed` when it cannot
-reach `http://ai-vlm:8098`.
+The backend has no `depends_on` entry for ai-vlm — deliberately, so an engine that fails to
+start never blocks the rest of the boot. The VLM degrades instead of blocking boot, and the
+analyzer reports `verification_failed` when it cannot reach `http://ai-vlm:8098`. (The rule
+that kept it out of `depends_on` while ai-vlm was a profiled service still holds for services
+that are profiled today: a profiled name in `depends_on` breaks the default `up`.)
 
 ```mermaid
 flowchart LR
     PG["postgres"] --> BE["backend"]
     RD["redis"] --> BE
     GW["ai-gateway"] --> BE
-    BE --> VLM["ai-vlm (profile vlm)"]
+    BE --> VLM["ai-vlm"]
     BE --> FE["frontend"]
     PROM["prometheus"] --> GRAF["grafana"]
     LOKI["loki"] --> ALLOY["alloy"]
@@ -313,18 +314,18 @@ flowchart LR
 
 ## Deployment Commands
 
-ai-vlm is the only shipped AI service behind a compose profile (`docker-compose.prod.yml:154-155`),
-so a plain `up -d` does not start it. Name the profile:
+ai-vlm ships in the default compose set (until UR-18 it sat behind a profile that had to be
+named explicitly), so a plain `up -d` starts it with the rest of the stack:
 
 ```bash
 # Start the stack INCLUDING the VLM
-docker compose -f docker-compose.prod.yml --profile vlm up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # Or with Podman
-podman-compose -f docker-compose.prod.yml --profile vlm up -d
+podman-compose -f docker-compose.prod.yml up -d
 
 # Start only the VLM on a stack that is already running
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-vlm
 
 # Check container status
 docker compose -f docker-compose.prod.yml ps
@@ -340,10 +341,11 @@ nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
 docker compose -f docker-compose.prod.yml build --no-cache backend
 ```
 
-`scripts/restart-all.sh` groups `ai-gateway ai-vlm` under its AI group but passes no `--profile`
-there (`scripts/restart-all.sh:39`, `:220`), while its monitoring group does pass one (`:222`). A
-restart through that script can therefore leave ai-vlm down and still report success — check
-`podman ps --filter name=ai-vlm` after using it.
+`scripts/restart-all.sh` groups `ai-gateway ai-vlm` under its AI group but passes no profile
+flag there (`scripts/restart-all.sh:39`, `:220`), while its monitoring group does pass one
+(`:222`). Since UR-18 moved ai-vlm into the default compose set, the AI group's named `up -d`
+starts ai-vlm with no flag, and a restart through that script no longer leaves it down —
+`podman ps --filter name=ai-vlm` still confirms it.
 
 ## Related Documentation
 
