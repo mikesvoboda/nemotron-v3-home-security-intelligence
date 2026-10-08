@@ -258,10 +258,10 @@ uv run pytest backend/tests/integration/services/test_fast_alpr_loader.py -v
 ```
 
 For a real end-to-end check the shipped stack must actually be up, including
-the profile-gated VLM:
+the VLM, which a plain `up -d` starts as part of the default set:
 
 ```bash
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-vlm
 curl -s http://127.0.0.1:8098/health | jq          # up is NOT the same as able to see
 ```
 

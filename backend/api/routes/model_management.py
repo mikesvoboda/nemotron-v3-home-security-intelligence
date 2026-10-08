@@ -250,7 +250,7 @@ def get_service_name_for_model(model_name: str) -> str:
 
 
 # The host GPU the one serving lane sits on. Set by the compose files, not the
-# registry: docker-compose.prod.yml:392 and .ghcr.yml:183 both give ai-gateway
+# registry: docker-compose.prod.yml:397 and .ghcr.yml:183 both give ai-gateway
 # (which hosts the only router) CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}.
 # There is nothing left to branch on -- the heavy lane's device 0 was the other
 # half of the old split.

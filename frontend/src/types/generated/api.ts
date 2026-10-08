@@ -10572,6 +10572,15 @@ export interface paths {
          *     This endpoint provides the same readiness check but with detailed
          *     service and worker status information.
          *
+         *     B1.4 (UR-18): the payload also reports the verdict engine's own state
+         *     (`verdict_engine: {state, since, reason}`, read off the AI-health probe —
+         *     see backend/services/verdict_engine_status.py). It is REPORTED but never
+         *     gates `ready`/HTTP status: an unreachable ai-vlm turns every event into
+         *     verification_failed, yet the container healthcheck and every
+         *     service_healthy dependency read THIS status code — a down engine must not
+         *     take the platform with it. State transitions push
+         *     system.verdict_engine_status_changed over WebSocket.
+         *
          *     Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
          *     If this endpoint returns not_ready, the instance should not receive new requests.
          *
@@ -12461,19 +12470,10 @@ export interface paths {
         put?: never;
         /**
          * Create Alert
-         * @description Create an alert from an external webhook.
+         * @description Not implemented (UR-12): external alert ingestion takes no action.
          *
-         *     This endpoint allows external systems to create alerts in HSI.
-         *
-         *     Args:
-         *         payload: Alert payload with source, message, and severity.
-         *         request: FastAPI request object.
-         *         background_tasks: For async processing.
-         *         db: Database session.
-         *         api_key: Validated API key.
-         *
-         *     Returns:
-         *         InboundWebhookResponse with status.
+         *     Accepts ``InboundAlertPayload`` and answers 501. A malformed payload
+         *     still 422s (the schema is live); auth failures 401 first.
          */
         post: operations["inbound-webhooks_create_alert"];
         delete?: never;
@@ -12493,16 +12493,11 @@ export interface paths {
         put?: never;
         /**
          * Arm Zones
-         * @description Arm zones via webhook.
+         * @description Not implemented (UR-12): arming zones takes no action.
          *
-         *     Args:
-         *         payload: Arm payload with optional zone IDs.
-         *         request: FastAPI request object.
-         *         db: Database session.
-         *         api_key: Validated API key.
-         *
-         *     Returns:
-         *         InboundWebhookResponse with status.
+         *     This is the endpoint D3 names: it used to answer "Arm command for N
+         *     zones queued" having queued nothing, telling an integrator the house
+         *     was armed when it was not.
          */
         post: operations["inbound-webhooks_arm_zones"];
         delete?: never;
@@ -12522,16 +12517,7 @@ export interface paths {
         put?: never;
         /**
          * Disarm Zones
-         * @description Disarm zones via webhook.
-         *
-         *     Args:
-         *         payload: Disarm payload with optional zone IDs.
-         *         request: FastAPI request object.
-         *         db: Database session.
-         *         api_key: Validated API key.
-         *
-         *     Returns:
-         *         InboundWebhookResponse with status.
+         * @description Not implemented (UR-12): disarming zones takes no action.
          */
         post: operations["inbound-webhooks_disarm_zones"];
         delete?: never;
@@ -12551,22 +12537,11 @@ export interface paths {
         put?: never;
         /**
          * Set System Mode
-         * @description Set system mode via webhook.
+         * @description Not implemented (UR-12): system-mode changes take no action.
          *
-         *     Valid modes:
-         *     - home: Family at home, known faces suppressed
-         *     - away: Nobody home, all alerts enabled
-         *     - night: Sleeping, perimeter zones only
-         *     - disarmed: No alerts, logging only
-         *
-         *     Args:
-         *         payload: Mode payload.
-         *         request: FastAPI request object.
-         *         db: Database session.
-         *         api_key: Validated API key.
-         *
-         *     Returns:
-         *         InboundWebhookResponse with status.
+         *     Mode values are no longer validated here: the check lived in the handler
+         *     that acted on them, and ``InboundModePayload`` is kept unchanged for the
+         *     arming feature, whose ruling it is.
          */
         post: operations["inbound-webhooks_set_system_mode"];
         delete?: never;
@@ -23506,7 +23481,7 @@ export interface components {
          *       ],
          *       "deprecated_count": 3,
          *       "event_types": [],
-         *       "total_count": 25
+         *       "total_count": 29
          *     }
          */
         EventRegistryResponse: {
@@ -28649,32 +28624,6 @@ export interface components {
              * @description System mode: home, away, night, disarmed.
              */
             mode: string;
-        };
-        /**
-         * InboundWebhookResponse
-         * @description Standard response for inbound webhooks.
-         */
-        InboundWebhookResponse: {
-            /**
-             * Message
-             * @description Status message.
-             */
-            message: string;
-            /**
-             * Request Id
-             * @description Request tracking ID.
-             */
-            request_id?: string | null;
-            /**
-             * Status
-             * @description Request status.
-             */
-            status: string;
-            /**
-             * Timestamp
-             * @description Processing timestamp.
-             */
-            timestamp: string;
         };
         /**
          * InferenceMetrics
@@ -36554,6 +36503,9 @@ export interface components {
          *     - Redis connectivity
          *     - AI services availability
          *     - Background worker status
+         *
+         *     The verdict engine's state (``verdict_engine``) is REPORTED here but never
+         *     gates the HTTP status — see its field description (B1.4, UR-18).
          * @example {
          *       "ready": true,
          *       "services": {
@@ -36576,6 +36528,10 @@ export interface components {
          *       "status": "ready",
          *       "supervisor_healthy": true,
          *       "timestamp": "2025-12-23T10:30:00",
+         *       "verdict_engine": {
+         *         "since": "2026-10-08T09:15:00Z",
+         *         "state": "available"
+         *       },
          *       "workers": [
          *         {
          *           "name": "gpu_monitor",
@@ -36625,6 +36581,8 @@ export interface components {
              * @description Timestamp of readiness check
              */
             timestamp: string;
+            /** @description Verdict engine (ai-vlm) availability, reported WITHOUT gating readiness: an unavailable engine keeps HTTP 200 — the backend container's healthcheck and every service_healthy dependency read this status, and a down engine must not take the platform with it (B1.4, UR-18) */
+            verdict_engine: components["schemas"]["VerdictEngineReadiness"];
             /**
              * Workers
              * @description Status of background workers
@@ -41748,6 +41706,46 @@ export interface components {
          * @enum {string}
          */
         VehicleType: "car" | "truck" | "motorcycle" | "suv" | "van" | "other";
+        /**
+         * VerdictEngineReadiness
+         * @description Verdict-engine (ai-vlm) availability reported by the readiness probe.
+         *
+         *     B1.4 (UR-18): the engine's state must be visible to callers even though
+         *     it deliberately does NOT gate readiness — a down engine turns every event
+         *     into ``verification_failed`` while the platform itself is healthy, and the
+         *     container healthcheck reads this endpoint's HTTP status.
+         * @example {
+         *       "reason": "ConnectError: connection refused",
+         *       "since": "2026-10-08T12:00:00Z",
+         *       "state": "unavailable"
+         *     }
+         */
+        VerdictEngineReadiness: {
+            /**
+             * Reason
+             * @description Engine's own error string while unavailable, why the probe cannot tell while unknown, null while available
+             */
+            reason?: string | null;
+            /**
+             * Since
+             * Format: date-time
+             * @description When the state last TRANSITIONED (not when it was read) — 'how long has this been down?' survives the readiness cache
+             */
+            since: string;
+            /** @description Engine reachability per the health probe: 'available' (probe reached it), 'unavailable' (probe's own error string), 'unknown' (probe could not tell — honest third state) */
+            state: components["schemas"]["VerdictEngineState"];
+        };
+        /**
+         * VerdictEngineState
+         * @description Verdict-engine (ai-vlm) availability states — B1.4 (UR-18).
+         *
+         *     Answers "is the engine reachable per the health probe", NOT "can it
+         *     produce verdicts" (its /health answers while generation is broken).
+         *     UNKNOWN is honest third-state: the probe could not tell (timeout, missing
+         *     detail) — never folded into the two definite answers.
+         * @enum {string}
+         */
+        VerdictEngineState: "available" | "unavailable" | "unknown";
         /**
          * VerificationCriterion
          * @description One entry of the criteria checklist the VLM must satisfy (spec §3
@@ -60949,15 +60947,6 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Alert created successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundWebhookResponse"];
-                };
-            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -60972,12 +60961,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Rate limit exceeded */
-            429: {
+            /** @description Not implemented — UR-12; this endpoint takes no action */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": unknown;
+                };
             };
         };
     };
@@ -60996,15 +60987,6 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Zones armed successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundWebhookResponse"];
-                };
-            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -61018,6 +61000,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Not implemented — UR-12; this endpoint takes no action */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
         };
     };
@@ -61036,15 +61027,6 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Zones disarmed successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundWebhookResponse"];
-                };
-            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -61058,6 +61040,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Not implemented — UR-12; this endpoint takes no action */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
         };
     };
@@ -61076,15 +61067,6 @@ export interface operations {
             };
         };
         responses: {
-            /** @description System mode changed successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundWebhookResponse"];
-                };
-            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -61092,12 +61074,21 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid payload or mode */
+            /** @description Invalid payload */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Not implemented — UR-12; this endpoint takes no action */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
         };
     };

@@ -3,7 +3,7 @@
 This hub documents the AI model infrastructure that powers the home security intelligence system.
 Object detection runs inside the `ai-gateway` container (FastAPI + Triton, port 8090, routers
 `/yolo26` and `/enrich-lt`). Vision-language verification runs in `ai-vlm` (llama.cpp
-`llama-server`, port 8098, behind the compose profile `vlm`). ai-vlm is the only LLM service.
+`llama-server`, port 8098, in the default compose set). ai-vlm is the only LLM service.
 
 The three specialist legs — face recognition, license plates, and person re-identification — are
 not services. They are Python loaded in the backend process and read against the gallery tables
@@ -16,8 +16,9 @@ not services. They are Python loaded in the backend process and read against the
 | ai-gateway | 8090 | `ai-gateway` | Triton models `yolo26`, `reid`, `threat`; routers `/yolo26`, `/enrich-lt` |
 | ai-vlm     | 8098 | `ai-vlm`     | `Qwen3VL-8B-Instruct-Q4_K_M` + its mmproj projector, llama.cpp            |
 
-`ai-vlm` is the only shipped AI service behind a compose profile (`docker-compose.prod.yml:154`),
-so it starts only with `--profile vlm`. Its weights are operator-placed — `ai/download_models.sh`
+`ai-vlm` ships in the default compose set (`docker-compose.prod.yml:141`), so a plain `up -d`
+starts it (until UR-18 it sat behind a `vlm` profile that had to be named explicitly).
+Its weights are operator-placed — `ai/download_models.sh`
 creates `${AI_MODELS_PATH}/vlm` and names the files, and never fetches them
 (`ai/download_models.sh:311-315`, `:493-500`).
 
@@ -77,7 +78,7 @@ flowchart TB
 
     subgraph AI["AI Services"]
         GW["ai-gateway :8090<br/>/yolo26 · /enrich-lt<br/>(Triton: yolo26, reid, threat)"]
-        VLM["ai-vlm :8098<br/>Qwen3VL-8B + mmproj<br/>(llama.cpp, profile vlm)"]
+        VLM["ai-vlm :8098<br/>Qwen3VL-8B + mmproj<br/>(llama.cpp, default set)"]
     end
 
     DC -->|POST /yolo26/detect| GW
@@ -90,7 +91,7 @@ flowchart TB
 ## VRAM Budget Allocation
 
 GPU placement comes from `GPU_LLM` (the ai-vlm card) and `GPU_AI_SERVICES` (the ai-gateway card),
-both in `.env.example:554` and `:946`. On a single-GPU box both are `0`.
+both in `.env.example:419` and `:806`. On a single-GPU box both are `0`.
 
 | Component                                      | VRAM                                                              |
 | ---------------------------------------------- | ----------------------------------------------------------------- |
@@ -107,7 +108,7 @@ Two shipped facts worth knowing before you budget:
   (`backend/api/routes/model_management.py:172`).
 - **The VLM's KV pool is sized by `VLM_CTX_SIZE` / `VLM_PARALLEL`**, shipped `32768 / 2`, so one
   `vlm_assess` request occupies one 16,384-token slot
-  (`docker-compose.prod.yml:199-200`, `.env.example`).
+  (`docker-compose.prod.yml:204-205`, `.env.example`).
 
 ## Documents
 
@@ -155,7 +156,7 @@ Both AI clients use the same breaker machinery (`backend/services/circuit_breake
 
 The detector's breaker is `detector_yolo26` with `failure_threshold=5, recovery_timeout=60.0`
 (`backend/services/detector_client.py:336`). The VLM client's breaker is named `ai-vlm` with the
-same threshold and timeout (`backend/services/vlm_client.py:82,247`).
+same threshold and timeout (`backend/services/vlm_client.py:93,318`).
 
 See [fallback-strategies.md](./fallback-strategies.md) for what the shipped path does with each
 failure.

@@ -536,6 +536,19 @@ def test_real_tree_matches_spec_baselines():
     mutmut's stats/clean-gate pass skips it. Classified todo by the generator
     (the guard names the tree layout, not host state — environment is earned,
     WP2.4b), registry row + baseline raised the same commit.
+    pytest_skip_imperative 86→87 (2026-10-08, O1.3/UR-18 PR #6862): the Done-when
+    render test test_compose_render_lists_ai_vlm.py:67 — skips when no compose binary
+    (podman/docker) resolves on the machine. Adjudicated environment via HOST_JUSTIFIED
+    (the which-probe lives inside the argv helper, invisible to the site-line probe)
+    + registry row + baseline raised the same commit — the increase path, third
+    precedent. The PR's own verification missed it the same way d8482861 did: it ran
+    backend/tests/unit, not the repo-root scripts/ gate.
+    pytest_skipif 57→58 (2026-10-08): O0.1's follow-up #6864 — the roster
+    cross-check in test_uplevel_launch.py reads docs/uplevel/50-coordination.md,
+    outside mutmut's also_copy, so it skips (never aborts) when the docs tree is
+    absent. Same layout-guard shape as the #46 row above: every CI checkout HAS
+    docs/ and RUNS the test; only the mutant home skips. Classified todo by the
+    generator; registry row + baseline raised the same commit (the same recipe).
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -545,9 +558,9 @@ def test_real_tree_matches_spec_baselines():
         "flake_allowlist": 0,
         "frontend_quarantine": 16,
         "pytest_skip": 32,
-        "pytest_skipif": 57,
+        "pytest_skipif": 58,
         "pytest_xfail": 4,
-        "pytest_skip_imperative": 86,
+        "pytest_skip_imperative": 87,
         "frontend_skip": 54,
         "excluded_test_trees": 4,
         "coverage_omit": 5,

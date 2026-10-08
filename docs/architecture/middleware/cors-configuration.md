@@ -92,7 +92,7 @@ cors_origins: list[str] = Field(
 
 In the production compose stack the frontend nginx serves the app and proxies `/api` on one origin
 (port 8444), so browser requests are same-origin and CORS mostly does not engage; the list matters
-for direct dev-server access. `.env.example:838-846` documents the same override pattern.
+for direct dev-server access. `.env.example:842-850` documents the same override pattern.
 
 ### Environment Variable Override
 

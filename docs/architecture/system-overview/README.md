@@ -50,13 +50,13 @@ flowchart TB
 | **Frontend**     | host 8444 HTTPS / 8080 HTTP | `frontend`     | `frontend/`                    | React dashboard with real-time updates                             |
 | **Backend**      | 8000                        | `backend`      | `backend/main.py:1449`         | FastAPI server with WebSocket support                              |
 | **PostgreSQL**   | 5432                        | `postgres`     | `docker-compose.prod.yml:44`   | Primary database for events, detections                            |
-| **Redis**        | 6379                        | `redis`        | `docker-compose.prod.yml:671`  | Queues, pub/sub, batch state                                       |
-| **ai-gateway**   | 8090 (+8002 metrics)        | `ai-gateway`   | `docker-compose.prod.yml:347`  | Triton serving `{yolo26, reid}`; mounts `/yolo26` and `/enrich-lt` |
-| **ai-vlm**       | 8098                        | `ai-vlm`       | `docker-compose.prod.yml:134`  | llama.cpp `llama-server` serving Qwen3VL-8B; compose profile `vlm` |
-| **Prometheus**   | 9090                        | `prometheus`   | `docker-compose.prod.yml:1002` | Metrics collection                                                 |
-| **Grafana**      | host 3002 (container 3000)  | `grafana`      | `docker-compose.prod.yml:1049` | Monitoring dashboards at `/grafana/` via proxy                     |
-| **Tempo**        | 3200                        | `tempo`        | `docker-compose.prod.yml:973`  | Distributed trace storage                                          |
-| **Alertmanager** | 9093                        | `alertmanager` | `docker-compose.prod.yml:1178` | Alert routing                                                      |
+| **Redis**        | 6379                        | `redis`        | `docker-compose.prod.yml:681`  | Queues, pub/sub, batch state                                       |
+| **ai-gateway**   | 8090 (+8002 metrics)        | `ai-gateway`   | `docker-compose.prod.yml:352`  | Triton serving `{yolo26, reid}`; mounts `/yolo26` and `/enrich-lt` |
+| **ai-vlm**       | 8098                        | `ai-vlm`       | `docker-compose.prod.yml:141`  | llama.cpp `llama-server` serving Qwen3VL-8B; default compose set   |
+| **Prometheus**   | 9090                        | `prometheus`   | `docker-compose.prod.yml:1012` | Metrics collection                                                 |
+| **Grafana**      | host 3002 (container 3000)  | `grafana`      | `docker-compose.prod.yml:1059` | Monitoring dashboards at `/grafana/` via proxy                     |
+| **Tempo**        | 3200                        | `tempo`        | `docker-compose.prod.yml:983`  | Distributed trace storage                                          |
+| **Alertmanager** | 9093                        | `alertmanager` | `docker-compose.prod.yml:1188` | Alert routing                                                      |
 
 There are exactly two AI services: `ai-gateway` and `ai-vlm`. ai-vlm is the only LLM service.
 

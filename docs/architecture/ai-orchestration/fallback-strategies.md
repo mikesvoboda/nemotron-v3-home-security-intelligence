@@ -28,8 +28,8 @@ flowchart TB
     verdict=verification_failed, risk_score NULL, Event row written"]
     L3["VLM answers but verdict=rejected with a high score"] --> R3["clamp to <= severity_low_max;
     clamp left visible in the stored reasoning"]
-    L4["ai-vlm slow past AI_VLM_READ_TIMEOUT"] --> R4["VlmTransportError;
-    same landing as L2"]
+    L4["ai-vlm slow past AI_VLM_READ_TIMEOUT"] --> R4["VlmSlowReplyError (budget,
+    not retried, breaker untouched); same verdict landing as L2"]
 ```
 
 Every rung keeps the event. The pipeline never answers an infrastructure failure with a made-up
@@ -39,28 +39,37 @@ that the VLM is unreachable or blind, not that the camera saw nothing.
 ## VLM Client Fallback
 
 `VlmClient.assess()` classifies every failure it can hit as a distinct exception, because the
-retry calculus differs (`backend/services/vlm_client.py:118-164`):
+retry calculus differs (`backend/services/vlm_client.py:171-232`):
 
-| Class                     | Meaning                                                | §6 retry?            |
-| ------------------------- | ------------------------------------------------------ | -------------------- |
-| `VlmTransportError`       | connection refused, timeout, HTTP 5xx                  | once, temp 0         |
-| `VlmSchemaError`          | response body fails schema validation                  | once, temp 0         |
-| `VlmTruncatedError`       | the model hit its token budget (subclass of the above) | yes                  |
-| `VlmContextOverflowError` | server refuses the prompt length (HTTP 400)            | no — same bytes fail |
-| `VlmUnavailableError`     | breaker OPEN, refusing without I/O                     | no                   |
-| `VlmImageError`           | the stills could not be encoded                        | no                   |
+| Class                     | Meaning                                                       | §6 retry?                    |
+| ------------------------- | ------------------------------------------------------------- | ---------------------------- |
+| `VlmTransportError`       | connection refused, ConnectTimeout, HTTP 5xx                  | once, temp 0                 |
+| `VlmSchemaError`          | reply arrives complete but fails schema validation            | once, temp 0                 |
+| `VlmTruncatedError`       | model hit its token budget mid-object (subclass of the above) | no — re-ask at same budget   |
+| `VlmSlowReplyError`       | read or write outran `AI_VLM_READ_TIMEOUT`                    | no — same bytes, same budget |
+| `VlmContextOverflowError` | server refuses the prompt length (HTTP 400)                   | no — same bytes fail         |
+| `VlmUnavailableError`     | breaker OPEN, refusing without I/O                            | no                           |
+| `VlmImageError`           | the stills could not be encoded                               | no                           |
+
+The two budget rungs (`VlmTruncatedError`, `VlmSlowReplyError`) are the ones a reader is likeliest to
+expect a retry on, so note the ruling: both raise on the first attempt rather than fall through to
+the §6 re-ask. A truncated object never closes on a second send at the same `max_tokens`, and a
+slow reply re-asks the identical question at the identical speed — both burn a second charge against
+`ai_vlm_read_timeout` (and used to charge the breaker) to reach the same outcome. The breaker asks
+"stop calling this engine?"; a budget that we set answers no. See `VlmSlowReplyError`'s own
+docstring and `_note_budget_exhausted` (`backend/services/vlm_client.py:1093-1113`).
 
 The breaker is named `ai-vlm` with `failure_threshold=5, recovery_timeout=60.0`
-(`backend/services/vlm_client.py:82,247`). When it opens, subsequent calls refuse without I/O
+(`backend/services/vlm_client.py:93,318`). When it opens, subsequent calls refuse without I/O
 rather than piling onto the same dead endpoint.
 
 ### Prompt Fitting
 
 A batch that overflows the served slot is a designed-for case, not an error.
 `_fitted_prompt()` drops the weakest detection rows until the prompt fits the slot the request will
-actually land in and records that it did (`backend/services/vlm_client.py:676`). The slot budget is
+actually land in and records that it did (`backend/services/vlm_client.py:938`). The slot budget is
 `VLM_CTX_SIZE // VLM_PARALLEL` (`config.py vlm_context_window`), shipped 32768 / 2 = 16384 tokens.
-Each still is capped at `LLAMA_ARG_IMAGE_MAX_TOKENS=1280` (`docker-compose.prod.yml:207`) so
+Each still is capped at `LLAMA_ARG_IMAGE_MAX_TOKENS=1280` (`docker-compose.prod.yml:212`) so
 uncapped image vision tokens cannot push a fitted batch over.
 
 ## Verdict Invariants
@@ -123,7 +132,7 @@ gauge), and offers a `FallbackQueue` — memory-capped with an on-disk overflow 
 
 `VlmClient` is the shipped consumer on the AI side: when the §6 ladder marks the serve unhealthy,
 `_push_unhealthy()` calls `get_degradation_manager().update_service_health(...)` and
-`set_ai_service_degraded("ai-vlm", True)` (`backend/services/vlm_client.py:919`).
+`set_ai_service_degraded("ai-vlm", True)` (`backend/services/vlm_client.py:1115-1125`).
 
 ## Degradation Status API
 
@@ -171,4 +180,5 @@ Alert (`docs/architecture/ai-pipeline-current-state.md` §2.4). Diagnose from `e
   the _default_ is a gate edit — set the value in the host `.env` instead.
 - **VLM weights**: place the GGUF + mmproj pair under `${AI_MODELS_PATH}/vlm` matching
   `VLM_MODEL_PATH` + `VLM_MMPROJ_PATH` and restart `ai-vlm` with
-  `--profile vlm` (compose drops it otherwise — `docker-compose.prod.yml:154`).
+  `up -d ai-vlm` — no flag, it is in the default compose set
+  (`docker-compose.prod.yml:141`).

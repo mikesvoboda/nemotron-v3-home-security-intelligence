@@ -124,11 +124,12 @@ All four live on the [Analytics API](docs/api/analytics-endpoints.md):
 | **`ai-gateway`** | FastAPI + NVIDIA Triton (TensorRT / ONNX) | 8090 | Routers `/yolo26` (object detection) and `/enrich-lt` (readiness lane) |
 | **`ai-vlm`**     | llama.cpp `llama-server`                  | 8098 | `POST /v1/chat/completions` — the per-event verdict                    |
 
-The VLM runs under the `vlm` compose profile (`--profile vlm up -d`) and the backend
-soft-depends on it (`docker-compose.prod.yml:632-645` lists `postgres`, `redis`,
-`ai-gateway` and `go2rtc`, never the profiled service; the dial is the
-`AI_VLM_URL` env var at `:552` — a profiled service can never sit
-in a `depends_on`, so the backend degrades instead of failing to boot). `ai-gateway`'s
+The VLM runs in the default compose set (`up -d` starts it; until UR-18 it sat
+behind a compose profile that had to be named explicitly) and the backend
+soft-depends on it (`docker-compose.prod.yml:639-651` lists `postgres`, `redis`,
+`ai-gateway` and `go2rtc`, never `ai-vlm`; the dial is the
+`AI_VLM_URL` env var at `:554` — the backend has no `depends_on` entry
+for it, so the backend degrades instead of failing to boot). `ai-gateway`'s
 Triton repository holds exactly `{yolo26, reid, threat}`; `GATEWAY_MODEL_SET` accepts only
 `vlm` and hard-raises on anything else. `ai-vlm` is the only LLM service; there is no
 `ai-llm`.
@@ -255,12 +256,12 @@ The gateway's resident Triton models (`yolo26`, `reid`, plus `threat` when
 > `VLM_GPU_LAYERS`, then measure your own card (`nvidia-smi`, or the gateway's
 > `/metrics`). A number from another card does not transfer here.
 
-| Resource       | Usage                                                                                                                                                |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **GPU Memory** | config-driven — see the note above; no fixed figure is published                                                                                     |
-| **System RAM** | 37 GB of `deploy.resources.limits.memory` across the 18 services that start by default (71 GB if every profile is enabled); host minimum 32 GB       |
-| **Containers** | 21 (18 start by default — `ai-vlm`, `ai-llm-vllm` and `dcgm-exporter` need a profile; of the 18, `foscam-init` exits after its chown, so 17 stay up) |
-| **Open Ports** | 8444/8080 (UI HTTPS/HTTP), 8000 (API), 8090 (AI gateway), 8098 (VLM engine) — all AI ports bound to `127.0.0.1`                                      |
+| Resource       | Usage                                                                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **GPU Memory** | config-driven — see the note above; no fixed figure is published                                                                               |
+| **System RAM** | 47 GB of `deploy.resources.limits.memory` across the 19 services that start by default (71 GB if every profile is enabled); host minimum 32 GB |
+| **Containers** | 21 (19 start by default — `ai-llm-vllm` and `dcgm-exporter` need a profile; of the 19, `foscam-init` exits after its chown, so 18 stay up)     |
+| **Open Ports** | 8444/8080 (UI HTTPS/HTTP), 8000 (API), 8090 (AI gateway), 8098 (VLM engine) — all AI ports bound to `127.0.0.1`                                |
 
 > [!TIP] > **Tight on VRAM?** `VLM_GPU_LAYERS` is the dial: lower it and more of the VLM
 > runs on CPU RAM, slower but functional. The system degrades gracefully.
@@ -315,8 +316,8 @@ Then open the dashboard: first run requires you to register the first admin acco
 (the API returns 503 for everything except setup and health until you do).
 
 > [!TIP]
-> Run **just core services**: `podman compose -f docker-compose.prod.yml --profile vlm up -d postgres redis backend frontend ai-gateway ai-vlm`
-> (`ai-gateway` serves detection on `/yolo26`; the VLM needs `--profile vlm` or `up` skips it silently.)
+> Run **just core services**: `podman compose -f docker-compose.prod.yml up -d postgres redis backend frontend ai-gateway ai-vlm`
+> (`ai-gateway` serves detection on `/yolo26`; `ai-vlm` is in the default set, so a plain `up -d` starts it too — no flag needed.)
 
 ## Operations & Monitoring
 
@@ -357,13 +358,13 @@ Host-run dev-mode logs land in `logs/backend.log` (`./scripts/dev.sh logs` tails
 
 Health endpoints, cheapest first — `health/live` answers without touching dependencies:
 
-| Endpoint                                       | What it tells you                                          |
-| ---------------------------------------------- | ---------------------------------------------------------- |
-| `http://localhost:8000/api/system/health/live` | Backend process is alive                                   |
-| `http://localhost:8000/api/system/health`      | Backend + dependency status                                |
-| `http://localhost:8000/api/system/health/full` | Every dependency, no timeouts                              |
-| `http://localhost:8090/health`                 | AI gateway (Triton, mounted routers)                       |
-| `http://localhost:8098/health`                 | VLM engine (llama.cpp) — only when the `vlm` profile is up |
+| Endpoint                                       | What it tells you                                        |
+| ---------------------------------------------- | -------------------------------------------------------- |
+| `http://localhost:8000/api/system/health/live` | Backend process is alive                                 |
+| `http://localhost:8000/api/system/health`      | Backend + dependency status                              |
+| `http://localhost:8000/api/system/health/full` | Every dependency, no timeouts                            |
+| `http://localhost:8090/health`                 | AI gateway (Triton, mounted routers)                     |
+| `http://localhost:8098/health`                 | VLM engine (llama.cpp) — starts with the default `up -d` |
 
 A `/health` 200 from `ai-vlm` proves the server answers, not that it loaded the
 `mmproj` projector. Check `podman logs ai-vlm 2>&1 | grep -i mmproj` when verdicts
@@ -426,7 +427,7 @@ standalone GPU image build recipe lives at `archive/ai-yolo26-image/Dockerfile`.
 ./ai/start_detector.sh   # YOLO26 — reads PORT/YOLO26_PORT, defaults to 8090
 # The reasoning engine has no host-run script: the shipped llama.cpp serve is the
 # ai-vlm container — start it with
-#   podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+#   podman compose -f docker-compose.prod.yml up -d ai-vlm
 
 # Then point the HOST-RUN backend (dev.sh) at them. The host detector serves its
 # endpoints at the root (/health, /detect), so no router suffix — and these exports

@@ -117,12 +117,17 @@ RETENTION_DAYS=30
 | `AI_CONNECT_TIMEOUT`          | `10.0`  | 1.0-60.0  | Connection timeout (s)                                  |
 | `AI_HEALTH_TIMEOUT`           | `5.0`   | 1.0-30.0  | Health check timeout (s)                                |
 | `YOLO26_READ_TIMEOUT`         | `30.0`  | 5.0-120.0 | Detection timeout (s)                                   |
-| `AI_VLM_READ_TIMEOUT`         | `25.0`  | 5.0-300.0 | One `vlm_assess` attempt (s)                            |
+| `AI_VLM_READ_TIMEOUT`         | `25.0`  | 5.0-300.0 | Per-read idle budget for an attempt (s)                 |
 | `AI_VLM_WAKE_TIMEOUT_SECONDS` | `90.0`  | 5.0-300.0 | Wake-from-sleep ping budget; a failed wake is swallowed |
 
-`AI_VLM_READ_TIMEOUT` is deliberately under 30 s: the retry ladder retries exactly once
-at temperature 0 **inside the same budget**, so a ceiling at or above 30 s leaves the
-retry no room.
+`AI_VLM_READ_TIMEOUT` is deliberately under 30 s (S4's p95): it is a PER-READ IDLE
+budget — httpx resets the read timer on every reply chunk — so it bounds a STALLED
+reply or request write on deadline (a budget outcome, not an outage: **not retried**,
+no breaker charge) while an engine that dribbles the reply within it runs on; no wall
+clock wraps an attempt. Sizing it under 30 s bounds the silent-server case. The one
+retry at temperature 0 re-asks only where that can differ: fast trip faults, any
+other answered status (a 5xx or a plain 4xx, except the 400 overflow refusal), or a
+complete reply that broke the schema.
 
 ### GPU Monitoring
 
@@ -242,14 +247,14 @@ podman compose -f docker-compose.prod.yml restart backend
 
 ### Default Security Posture
 
-| Feature         | Default                                                                                                                                                                                                                                                              | Production Recommendation                                                                         |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Authentication  | Single-user model: `SetupGuardMiddleware` returns 503 until the first admin registers, then API endpoints are open (`verify_api_key` guards the DLQ/inbound-webhook routes, not admin; `/api/admin/*` is guarded by `require_admin_access` on `ADMIN_ENABLED` alone) | Keep network binding to `127.0.0.1` as the primary boundary; enable API keys for anything exposed |
-| HTTPS/TLS       | Disabled                                                                                                                                                                                                                                                             | Enable                                                                                            |
-| Rate Limiting   | Enabled                                                                                                                                                                                                                                                              | Keep enabled                                                                                      |
-| Admin Endpoints | Enabled — `ADMIN_ENABLED=true` by default; `DEBUG` is not consulted, `ADMIN_API_KEY` enforces nothing                                                                                                                                                                | Keep off non-loopback interfaces, or set `ADMIN_ENABLED=false`                                    |
-| Debug Mode      | Disabled                                                                                                                                                                                                                                                             | Keep disabled                                                                                     |
-| CORS            | Localhost origins (incl. `https://localhost:8444`)                                                                                                                                                                                                                   | Restrict to your domains                                                                          |
+| Feature         | Default                                                                                                                                                                                                                                                                                                                               | Production Recommendation                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Authentication  | Single-user model: `SetupGuardMiddleware` returns 503 until the first admin registers, then API endpoints are open. Per-route guards only: `require_api_key` (always on) on the inbound-webhook routes, `verify_api_key` (`API_KEY_ENABLED`) on the DLQ; `/api/admin/*` is guarded by `require_admin_access` on `ADMIN_ENABLED` alone | Keep network binding to `127.0.0.1` as the primary boundary; enable API keys for anything exposed |
+| HTTPS/TLS       | Disabled                                                                                                                                                                                                                                                                                                                              | Enable                                                                                            |
+| Rate Limiting   | Enabled                                                                                                                                                                                                                                                                                                                               | Keep enabled                                                                                      |
+| Admin Endpoints | Enabled — `ADMIN_ENABLED=true` by default; `DEBUG` is not consulted, `ADMIN_API_KEY` enforces nothing                                                                                                                                                                                                                                 | Keep off non-loopback interfaces, or set `ADMIN_ENABLED=false`                                    |
+| Debug Mode      | Disabled                                                                                                                                                                                                                                                                                                                              | Keep disabled                                                                                     |
+| CORS            | Localhost origins (incl. `https://localhost:8444`)                                                                                                                                                                                                                                                                                    | Restrict to your domains                                                                          |
 
 ### API Key Authentication
 
@@ -305,14 +310,14 @@ CORS_ORIGINS=["https://your-domain.com"]
 
 Only expose necessary ports:
 
-| Port        | Service                           | Exposure                                 |
-| ----------- | --------------------------------- | ---------------------------------------- |
-| 8080 / 8444 | Frontend (HTTP/HTTPS)             | User access                              |
-| 8000        | Backend API                       | User access (binds 127.0.0.1 by default) |
-| 5432        | PostgreSQL                        | **Internal only**                        |
-| 6379        | Redis                             | **Internal only**                        |
-| 8090, 8002  | ai-gateway (API, Triton metrics)  | **Internal only**                        |
-| 8098        | ai-vlm (reasoning, profile `vlm`) | **Internal only**                        |
+| Port        | Service                          | Exposure                                 |
+| ----------- | -------------------------------- | ---------------------------------------- |
+| 8080 / 8444 | Frontend (HTTP/HTTPS)            | User access                              |
+| 8000        | Backend API                      | User access (binds 127.0.0.1 by default) |
+| 5432        | PostgreSQL                       | **Internal only**                        |
+| 6379        | Redis                            | **Internal only**                        |
+| 8090, 8002  | ai-gateway (API, Triton metrics) | **Internal only**                        |
+| 8098        | ai-vlm (reasoning)               | **Internal only**                        |
 
 ```bash
 # UFW example (Linux)

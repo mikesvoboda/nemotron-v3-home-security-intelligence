@@ -14,7 +14,7 @@ This guide covers the three core observability pillars:
 
 The GPU monitoring service (`GPUMonitor`) provides real-time metrics for the NVIDIA GPUs
 carrying AI work: `ai-gateway` (Triton, `GPU_AI_SERVICES`) and `ai-vlm` (llama.cpp,
-`GPU_LLM`, compose profile `vlm`).
+`GPU_LLM`, in the default compose set).
 
 ### How It Works
 
@@ -184,8 +184,8 @@ the verdict's output (`_ASSESS_MAX_TOKENS = 1024`) and the attached stills
 
 ### Prometheus Metrics
 
-| Metric                               | Type      | Emitted on the live path |
-| ------------------------------------ | --------- | ------------------------ |
+| Metric                               | Type      | Emitted on the live path |                                                                                               |
+| ------------------------------------ | --------- | ------------------------ | --------------------------------------------------------------------------------------------- |
 | `hsi_prompts_truncated_total`        | Counter   | **yes**                  | `record_prompt_truncated()` fires in `vlm_client.assess` when the fitter dropped rows         |
 | `hsi_llm_context_utilization`        | Histogram | no                       | Observed only inside `TokenCounter.validate_prompt()`, which the shipped client does not call |
 | `hsi_prompts_high_utilization_total` | Counter   | no                       | Same call site                                                                                |
@@ -228,8 +228,9 @@ made from the top N rows".
 1. Confirm the slot, don't guess: `curl -s http://localhost:8098/props | jq '.default_ctx_size, .n_ctx_per_slot?'`
 2. Check the batch size feeding it (`BATCH_MAX_DETECTIONS`) — a wider window means more rows per prompt
 3. Widen the slot with `VLM_CTX_SIZE` (raise `VLM_PARALLEL`'s divisor effect in mind: the
-   per-slot figure is `VLM_CTX_SIZE / VLM_PARALLEL`), then recreate `ai-vlm` **with**
-   `--profile vlm` and restart the backend so both processes agree
+   per-slot figure is `VLM_CTX_SIZE / VLM_PARALLEL`), then recreate `ai-vlm`
+   (`up -d --force-recreate ai-vlm`, no flag) and restart the backend so both processes
+   agree
 
 ```bash
 # Truncation counter
@@ -596,12 +597,13 @@ Prometheus scrapes blackbox exporter with target URLs as parameters. Example scr
 | TCP                      | `postgres:5432`, `redis:6379`                                                                                       |
 
 > [!WARNING]
-> The `ai-vlm` target in that job is the shape of the failure it cannot see. `ai-vlm` sits
-> behind the compose profile `vlm`, so a default `up` never starts it — the probe reports
-> `probe_success 0` for a service that was never asked to run, and `ai-vlm`'s own
-> `/health` passes even when the multimodal projector is absent. A green/black probe here
-> is not a verdict that reasoning works; prove that with `/props` and the multimodal check
-> in [Monitoring Guide](monitoring/README.md) / [AI Troubleshooting](ai-troubleshooting.md).
+> The `ai-vlm` target in that job is the shape of the failure it cannot see. `ai-vlm` is in
+> the default compose set, so a default `up` asks for it — but on a machine with no GPU the
+> service fails at start and the probe reports `probe_success 0` for an engine that cannot
+> run there, and `ai-vlm`'s own `/health` passes even when the multimodal projector is
+> absent. A green/black probe here is not a verdict that reasoning works; prove that with
+> `/props` and the multimodal check in [Monitoring Guide](monitoring/README.md) /
+> [AI Troubleshooting](ai-troubleshooting.md).
 
 **Key Metrics Exported:**
 
@@ -1093,25 +1095,26 @@ curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.
 
 **Expected Healthy Targets:**
 
-| Job Name               | Target                                            | Expected Health                                       |
-| ---------------------- | ------------------------------------------------- | ----------------------------------------------------- |
-| `hsi-backend-metrics`  | `backend:8000` (`/api/metrics`)                   | up                                                    |
-| `ai-vlm-metrics`       | `ai-vlm:8098`                                     | up **only** if the stack came up with `--profile vlm` |
-| `ai-gateway-metrics`   | `ai-gateway:8090` (gateway `nv_*` series dropped) | up                                                    |
-| `triton-metrics`       | `ai-gateway:8002`                                 | up                                                    |
-| `hsi-health`           | Backend health via JSON exporter                  | up                                                    |
-| `hsi-gpu`              | Backend GPU stats via JSON exporter               | up                                                    |
-| `redis`                | `redis-exporter:9121`                             | up                                                    |
-| `json-exporter`        | `json-exporter:7979`                              | up                                                    |
-| `blackbox-exporter`    | `blackbox-exporter:9115`                          | up                                                    |
-| `blackbox-http-health` | Backend health endpoint                           | up                                                    |
-| `blackbox-http-ready`  | Backend readiness endpoint                        | up                                                    |
-| `blackbox-http-live`   | Backend/frontend liveness                         | up                                                    |
-| `blackbox-http-2xx`    | The four AI endpoints above                       | down for `ai-vlm` until the `vlm` profile is enabled  |
-| `blackbox-tcp`         | postgres:5432, redis:6379                         | up                                                    |
+| Job Name               | Target                                            | Expected Health                                          |
+| ---------------------- | ------------------------------------------------- | -------------------------------------------------------- |
+| `hsi-backend-metrics`  | `backend:8000` (`/api/metrics`)                   | up                                                       |
+| `ai-vlm-metrics`       | `ai-vlm:8098`                                     | up when `ai-vlm` is running (fails at start with no GPU) |
+| `ai-gateway-metrics`   | `ai-gateway:8090` (gateway `nv_*` series dropped) | up                                                       |
+| `triton-metrics`       | `ai-gateway:8002`                                 | up                                                       |
+| `hsi-health`           | Backend health via JSON exporter                  | up                                                       |
+| `hsi-gpu`              | Backend GPU stats via JSON exporter               | up                                                       |
+| `redis`                | `redis-exporter:9121`                             | up                                                       |
+| `json-exporter`        | `json-exporter:7979`                              | up                                                       |
+| `blackbox-exporter`    | `blackbox-exporter:9115`                          | up                                                       |
+| `blackbox-http-health` | Backend health endpoint                           | up                                                       |
+| `blackbox-http-ready`  | Backend readiness endpoint                        | up                                                       |
+| `blackbox-http-live`   | Backend/frontend liveness                         | up                                                       |
+| `blackbox-http-2xx`    | The four AI endpoints above                       | down for `ai-vlm` wherever `ai-vlm` is not running       |
+| `blackbox-tcp`         | postgres:5432, redis:6379                         | up                                                       |
 
-`ai-vlm-metrics` and the `ai-vlm` 2xx probe are the two entries that legitimately report
-down on a default deployment — that is the profile, not an outage. Everything else listed
+`ai-vlm` is in the default compose set, so `ai-vlm-metrics` and the `ai-vlm` 2xx probe
+should be `up` on a normal GPU host; both report down on a machine with no GPU, where the
+service fails at start — that is expected there, not an outage. Everything else listed
 here should be `up`; a `dcgm-exporter` target is also behind a profile (`gpu-rootful`).
 
 ---

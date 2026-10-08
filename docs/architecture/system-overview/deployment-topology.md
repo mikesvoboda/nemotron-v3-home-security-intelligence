@@ -28,7 +28,7 @@ flowchart TB
 
             subgraph AI["AI Services (GPU)"]
                 GW["ai-gateway<br/>Triton: yolo26 / reid<br/>:8090 (+ :8002 metrics)"]
-                VLM["ai-vlm (profile vlm)<br/>Qwen3VL-8B llama-server<br/>:8098"]
+                VLM["ai-vlm<br/>Qwen3VL-8B llama-server<br/>:8098"]
             end
 
             subgraph Mon["Monitoring"]
@@ -60,7 +60,7 @@ ai-vlm is the only LLM service.
 
 ## Network Configuration
 
-**Source:** `docker-compose.prod.yml:1522-1524`
+**Source:** `docker-compose.prod.yml:1532-1534`
 
 ```yaml
 networks:
@@ -99,7 +99,7 @@ The container-side ports are fixed (for example ai-vlm always listens on 8098 in
 
 Both AI services use NVIDIA Container Toolkit (CDI) for GPU access, and each reserves one specific card selected by a `.env` variable.
 
-**Source:** `docker-compose.prod.yml:412-422` (ai-gateway `deploy` block)
+**Source:** `docker-compose.prod.yml:417-427` (ai-gateway `deploy` block)
 
 ```yaml
 deploy:
@@ -115,14 +115,14 @@ deploy:
           capabilities: [gpu]
 ```
 
-Alongside the reservation, the gateway declares `devices: [nvidia.com/gpu=all]` so both `/dev/nvidia*` nodes exist in the container; `CUDA_VISIBLE_DEVICES` is what actually narrows Triton to one card (`docker-compose.prod.yml:361-362`, `:392`).
+Alongside the reservation, the gateway declares `devices: [nvidia.com/gpu=all]` so both `/dev/nvidia*` nodes exist in the container; `CUDA_VISIBLE_DEVICES` is what actually narrows Triton to one card (`docker-compose.prod.yml:366-367`, `:392`).
 
 | Variable          | Default | Selects                                           |
 | ----------------- | ------- | ------------------------------------------------- |
-| `GPU_LLM`         | `0`     | the card ai-vlm reserves (`.env.example:554`)     |
-| `GPU_AI_SERVICES` | `1`     | the card ai-gateway reserves (`.env.example:946`) |
+| `GPU_LLM`         | `0`     | the card ai-vlm reserves (`.env.example:419`)     |
+| `GPU_AI_SERVICES` | `1`     | the card ai-gateway reserves (`.env.example:806`) |
 
-The backend reserves one GPU without pinning an id (`docker-compose.prod.yml:658-669`) for its in-process onnxruntime/torch lookup legs.
+The backend reserves one GPU without pinning an id (`docker-compose.prod.yml:668-679`) for its in-process onnxruntime/torch lookup legs.
 
 ### GPU Requirements
 
@@ -183,7 +183,7 @@ cannot load even by accident. Backend-side weights load per use; `BACKEND_MODEL_
 
 ## Volume Mounts
 
-**Source:** `docker-compose.prod.yml:1473-1520` (top-level `volumes:` block)
+**Source:** `docker-compose.prod.yml:1483-1530` (top-level `volumes:` block)
 
 Named volumes include `postgres_data`, `redis_data`, `tempo_data`, `hf_cache`, `prometheus_data`,
 `grafana_data`, `alertmanager_data`, `loki_data`, `pyroscope_data`, `alloy_symb_cache`, and
@@ -277,7 +277,7 @@ for host overhead.
 
 ![Backend Initialization Lifecycle](../../images/architecture/backend-init-lifecycle.png)
 
-**Source:** `docker-compose.prod.yml:632-644` (backend `depends_on`)
+**Source:** `docker-compose.prod.yml:639-651` (backend `depends_on`)
 
 ```yaml
 # Backend startup order
@@ -294,17 +294,18 @@ depends_on:
     condition: service_healthy
 ```
 
-The backend has no `depends_on` entry for ai-vlm. Compose cannot take a dependency on a
-profile-gated service — a profiled name in `depends_on` breaks the default `up` — so the VLM
-degrades instead of blocking boot, and the analyzer reports `verification_failed` when it cannot
-reach `http://ai-vlm:8098`.
+The backend has no `depends_on` entry for ai-vlm — deliberately, so an engine that fails to
+start never blocks the rest of the boot. The VLM degrades instead of blocking boot, and the
+analyzer reports `verification_failed` when it cannot reach `http://ai-vlm:8098`. (The rule
+that kept it out of `depends_on` while ai-vlm was a profiled service still holds for services
+that are profiled today: a profiled name in `depends_on` breaks the default `up`.)
 
 ```mermaid
 flowchart LR
     PG["postgres"] --> BE["backend"]
     RD["redis"] --> BE
     GW["ai-gateway"] --> BE
-    BE --> VLM["ai-vlm (profile vlm)"]
+    BE --> VLM["ai-vlm"]
     BE --> FE["frontend"]
     PROM["prometheus"] --> GRAF["grafana"]
     LOKI["loki"] --> ALLOY["alloy"]
@@ -313,18 +314,18 @@ flowchart LR
 
 ## Deployment Commands
 
-ai-vlm is the only shipped AI service behind a compose profile (`docker-compose.prod.yml:154-155`),
-so a plain `up -d` does not start it. Name the profile:
+ai-vlm ships in the default compose set (until UR-18 it sat behind a profile that had to be
+named explicitly), so a plain `up -d` starts it with the rest of the stack:
 
 ```bash
 # Start the stack INCLUDING the VLM
-docker compose -f docker-compose.prod.yml --profile vlm up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # Or with Podman
-podman-compose -f docker-compose.prod.yml --profile vlm up -d
+podman-compose -f docker-compose.prod.yml up -d
 
 # Start only the VLM on a stack that is already running
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-vlm
 
 # Check container status
 docker compose -f docker-compose.prod.yml ps
@@ -340,10 +341,11 @@ nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
 docker compose -f docker-compose.prod.yml build --no-cache backend
 ```
 
-`scripts/restart-all.sh` groups `ai-gateway ai-vlm` under its AI group but passes no `--profile`
-there (`scripts/restart-all.sh:39`, `:220`), while its monitoring group does pass one (`:222`). A
-restart through that script can therefore leave ai-vlm down and still report success — check
-`podman ps --filter name=ai-vlm` after using it.
+`scripts/restart-all.sh` groups `ai-gateway ai-vlm` under its AI group but passes no profile
+flag there (`scripts/restart-all.sh:39`, `:220`), while its monitoring group does pass one
+(`:222`). Since UR-18 moved ai-vlm into the default compose set, the AI group's named `up -d`
+starts ai-vlm with no flag, and a restart through that script no longer leaves it down —
+`podman ps --filter name=ai-vlm` still confirms it.
 
 ## Related Documentation
 

@@ -38,6 +38,10 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
+          # Without this the default quantifier ('some') OR-s a '!' pattern in, and
+          # '!frontend/**/*.md' matches every file outside frontend/: frontend was
+          # true on every PR, so docs- and backend-only PRs ran all 18 frontend jobs.
+          predicate-quantifier: 'some-with-excludes'
           filters: |
             backend:
               - 'backend/**'
@@ -255,6 +259,14 @@ jobs:
       - name: CI job-graph invariant (WP0.6)
         run: uv run python scripts/test_ci_job_graph.py
 
+      # O1.12 (UR-37): the same script-style shape for the hooks job — the
+      # graph test cannot see a job's CONTENT (which command it runs, whether
+      # the self-test step exists), and a hooks job quietly gutted of its
+      # `pre-commit run` would be exactly the invisibility class WP0.6 exists
+      # to kill. Red on main's ci.yml until the job lands (fixture-first).
+      - name: Pre-commit gate wiring (O1.12)
+        run: uv run python scripts/test_precommit_gate_wiring.py
+
       # WP0.5 follow-through (2026-09-18): pins the slow-runner retry wiring —
       # the cancelled-only gate (never 'failure': retry-masking real failures),
       # the UNRAISED 30-min cap, artifact-suffix uniqueness, and the summary's
@@ -279,6 +291,165 @@ jobs:
       # again. 11 cases, incl. three real `git push` blocks.
       - name: Pre-push hook gate test (WP0.1)
         run: bash scripts/test_pre_push_gate.sh
+
+  # O1.12 (UR-37): the gate runs the hooks agents push through. Before this
+  # job the required gate ran only ruff+radon (lint), so a PR could pass every
+  # required check and still block every later push crossing its files — the
+  # 2026-10-08 record: #6888 (semgrep), #6890 (slow-test guard), #6891, #6892.
+  # This job runs the COMMITTED .pre-commit-config.yaml over the PR's
+  # changed-file range — the same delta a push delta gets. Wiring is a direct
+  # need + check_job line in ci-gate (scripts/test_ci_job_graph.py's WP0.6
+  # doctrine); the job's CONTENT is pinned by scripts/test_precommit_gate_wiring.py,
+  # which is red on main's ci.yml by design (write the failing check first).
+  #
+  # Local-only hooks this job does NOT run (every one listed, per the package's
+  # no-silent-gap clause — a RULING item for the owner's batch). Four hooks
+  # outside the pre-commit stage (the config's only stages: keys — verified
+  # by grep this turn):
+  #   auto-rebase / parallel-tests (pre-push): a detached CI checkout has no
+  #     branch to rebase onto, and CI already runs every test tier the push
+  #     script would run locally;
+  #   check-new-files-have-tests (pre-push): its gate script's own suites run
+  #     in collection-sanity;
+  #   conventional-pre-commit (commit-msg): CI never authors the PR's commits.
+  # check-integration-tests runs HERE — its pre-commit stage is in scope.
+  # Known in-stage gap (same clause, a second RULING item): check-mock-spec's
+  # entry hard-codes --staged, and CI's detached checkout has an empty index,
+  # so its fast path is vacuous in this job (self-review: exit 1 staged,
+  # exit 0 clean-index). Its completeness layer is the census gate —
+  # suppression-census.py --expect runs in collection-sanity and delegates
+  # measurement to this same script (suppression-census.py:530-540).
+  precommit-hooks:
+    name: Pre-commit Hooks (changed files)
+    runs-on: ubuntu-latest
+    # Semgrep env build is the tail (cold ~90s on a python-touching PR); the
+    # remaining hooks are seconds. Wall-clock is MEASURED on real PRs and
+    # reported in the O1.12 PR body, not guessed here.
+    timeout-minutes: 15
+    needs: [detect-changes]
+    env:
+      # Pinned like everything else in this job (the config's rev: pins, the
+      # SHA-pinned actions); 4.6.2 is what the O1.12 sandbox evidence ran.
+      PRE_COMMIT_VERSION: 4.6.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The hooks compare two refs; a depth-1 checkout has neither side.
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python 3.12 + 3.14 (the config needs BOTH interpreters)
+        # 3.14: the config's default_language_version (config lines 31-38 —
+        # hook venvs must track the project runtime or mypy false-reds on
+        # PEP 758 syntax). 3.12: the semgrep hook's language_version pin
+        # (protobuf has no 3.14 wheel yet — the config's own note).
+        # pre-commit discovers interpreters on PATH; uv python install
+        # symlinks them into ~/.local/bin, on PATH on hosted runners.
+        # A missing 3.14 kills every python-language env build (virtualenv
+        # "failed to find interpreter", pre-commit exit 3) — caught by
+        # self-review before CI could; the self-test's exit-code case below
+        # is what makes such a crash loud instead of a false green.
+        run: uv python install 3.12 3.14
+
+      - name: Set up Node.js (prettier / eslint / tsc hooks)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies (eslint/tsc hooks are system language)
+        run: cd frontend && npm ci
+
+      - name: Install hadolint (Dockerfile hook, system language)
+        # language: system — the hook needs hadolint ON PATH. First attempt
+        # (hadolint-action v3.3.0) was an executor misuse caught by CI at run
+        # 37807695759: it docker-runs its OWN lint of one dockerfile input
+        # (failed: "hadolint: Dockerfile: does not exist"), and v3.3.0 has no
+        # hadolint-release input at all. So: fetch the official static binary,
+        # pinned by tag AND verified against the sha256 the GitHub release API
+        # publishes as that asset's digest (verified against downloaded bytes
+        # in the sandbox, 2026-10-08). v2.15.1 is the version the config's own
+        # comment adjudicated: its extra info/warning advisories stay
+        # non-blocking under the hook's --failure-threshold error.
+        run: |
+          mkdir -p "$RUNNER_TEMP/hadolint-bin"
+          curl -fsSL -o "$RUNNER_TEMP/hadolint-bin/hadolint" \
+            https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64
+          echo "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507  $RUNNER_TEMP/hadolint-bin/hadolint" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/hadolint-bin/hadolint"
+          # GITHUB_PATH serves LATER steps (the hook finds hadolint there);
+          # it does NOT update PATH inside this step, so export it here too
+          # — otherwise the --version sanity below is a 127 on a good install.
+          echo "$RUNNER_TEMP/hadolint-bin" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/hadolint-bin:$PATH"
+          hadolint --version
+
+      - name: Install hook runners
+        # pre-commit itself is the runner (not installed anywhere in CI today);
+        # the CLI on PATH also serves the regenerate-secrets-baseline hook.
+        run: uv tool install pre-commit==${{ env.PRE_COMMIT_VERSION }}
+
+      - name: Cache pre-commit environments
+        # Version in the key: bumping PRE_COMMIT_VERSION must not reuse envs
+        # built by the old runner.
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ env.PRE_COMMIT_VERSION }}-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Hooks gate-test self-test (B1.3 class)
+        # The job must prove its own hooks catch the fixture class that
+        # motivated it: `secret = "webhook-secret"` in a test file — exactly
+        # the line #6888 had to nosemgrep (verified exit 1 in-sandbox:
+        # detect-secrets AND semgrep both fail on it). If the hooks PASS it,
+        # this job is hollow (misinstalled runner, config drift) — say so
+        # instead of reporting a silent green.
+        run: |
+          cat > backend/tests/unit/test_o112_hooks_selftest.py <<'PY'
+          """O1.12 gate self-test - written by CI, never committed."""
+
+
+          def test_o112_hooks_selftest():
+              secret = "webhook-secret"
+              assert secret
+          PY
+          rc=0
+          pre-commit run --files backend/tests/unit/test_o112_hooks_selftest.py || rc=$?
+          rm -f backend/tests/unit/test_o112_hooks_selftest.py
+          # Discriminate the exit code — a CRASH is not detection:
+          #   1  hooks FAILED the fixture  -> the invariant this job exists for
+          #   0  hooks PASSED the fixture  -> job is hollow (misinstall/drift)
+          #   >=2 pre-commit itself died   -> e.g. missing interpreter, env
+          #       build failed; claiming "self-test OK" here would be the
+          #       false green WP0.6 doctrine exists to kill
+          case "$rc" in
+            1) echo "self-test OK: the hooks fail on the B1.3/#6888 fixture class" ;;
+            0) echo "::error::O1.12 self-test: the hooks PASSED a #6888-class fixture — this job is hollow"
+               exit 1 ;;
+            *) echo "::error::O1.12 self-test: pre-commit exited $rc — a crash is not proof of detection"
+               exit 1 ;;
+          esac
+
+      - name: Hooks over the PR's changed files
+        # The push-delta form: base..head, exactly what a push's pre-commit
+        # stage would check. (Deliberately NOT gated on detect-changes file
+        # filters — hooks select by their own files:/types:, and this job must
+        # run on EVERY PR per the O1.12 Done-when.)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pre-commit run --from-ref "origin/${{ github.base_ref }}" --to-ref HEAD
+          elif git rev-parse --verify -q 'HEAD^' >/dev/null; then
+            pre-commit run --from-ref 'HEAD^' --to-ref HEAD
+          else
+            echo "no parent commit to compare (first commit) — nothing to run"
+          fi
 
   # Backend Jobs
 
@@ -320,7 +491,7 @@ jobs:
     timeout-minutes: 5
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -361,7 +532,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -403,7 +574,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, lint, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -527,7 +698,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, unit-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
     steps:
@@ -671,7 +842,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, unit-tests, collection-sanity]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check unit test shard results
         run: |
@@ -746,7 +917,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
        needs.build-backend-deps.result != 'failure'
@@ -777,7 +948,7 @@ jobs:
         shard: [1, 2, 3, 4]
     needs: [integration-tests-api]
     if: |
-      always() &&
+      !cancelled() &&
       needs.integration-tests-api.result == 'cancelled'
     with:
       shard: ${{ matrix.shard }}
@@ -796,7 +967,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -910,7 +1081,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -1038,7 +1209,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -1160,7 +1331,7 @@ jobs:
         integration-tests-models,
       ]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
     steps:
@@ -1266,7 +1437,7 @@ jobs:
         integration-tests-services,
         integration-tests-models,
       ]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check integration test results
         run: |
@@ -1330,7 +1501,7 @@ jobs:
     # detect-changes like unit-tests so docs-only PRs don't pay for it.
     needs: [detect-changes, lint, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -1472,7 +1643,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, lint, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -1684,7 +1855,7 @@ jobs:
     # Skip if only backend/docs changed (checked via detect-changes)
     needs: [detect-changes, frontend-lint]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true') &&
       needs.frontend-lint.result != 'failure'
@@ -1845,7 +2016,7 @@ jobs:
     # ai/** is already inside detect-changes' `backend` paths filter - no new
     # output key invented; same if-shape as the other backend jobs.
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -1910,7 +2081,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, frontend-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true')
     steps:
@@ -1987,7 +2158,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, frontend-tests, collection-sanity]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check shard results
         run: |
@@ -2033,7 +2204,7 @@ jobs:
     # Skip if only backend/docs changed (checked via detect-changes)
     needs: [detect-changes, frontend-lint]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true') &&
       needs.frontend-lint.result != 'failure'
@@ -2146,7 +2317,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, frontend-e2e]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check shard results
         run: |
@@ -2356,7 +2527,7 @@ jobs:
     # green on PRs in this repo.
     needs: [detect-changes]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
     steps:
@@ -2468,7 +2639,7 @@ jobs:
     # Path-gated on the frontend surface so backend-only PRs pay nothing.
     needs: [detect-changes]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true')
     steps:
@@ -2598,7 +2769,7 @@ jobs:
     # must SKIP honestly; when the tier ran, its artifacts are here (uploaded
     # if: always()) and zero XML is a pipeline break -> fail.
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -3223,7 +3394,7 @@ jobs:
       # never arrive here — the same conclusion-vs-verdict lie WP0.6 exists to
       # kill, one layer further down.
       #   collection-sanity runs the census, the ratchet, the expiry check and
-      #     the anti-rot gate suites. Its dependents carry `if: always()` and
+      #     the anti-rot gate suites. Its dependents carry `if: !cancelled()` and
       #     read only their own shard results, so a red ratchet left CI Gate
       #     green and Phase 1 was advisory.
       #   build-backend-deps gates every backend job through
@@ -3258,6 +3429,10 @@ jobs:
       - unit-tests-coverage-merge
       - integration-coverage-merge
       - frontend-coverage-merge
+      # O1.12 (UR-37): the hooks run in the gate. Direct need + check_job line
+      # below — the WP0.6 wiring. Runs unconditionally on every PR (hooks
+      # self-select by files:/types:), so it is never `skipped` on PRs.
+      - precommit-hooks
     if: always()
     steps:
       - name: Check required job results
@@ -3279,6 +3454,7 @@ jobs:
             fi
           }
 
+          check_job "Pre-commit Hooks (changed files)" "${{ needs.precommit-hooks.result }}"
           check_job "Backend Lint (Ruff)" "${{ needs.lint.result }}"
           check_job "Backend Type Check (Mypy)" "${{ needs.typecheck.result }}"
           check_job "Backend Unit Tests" "${{ needs.unit-tests-summary.result }}"

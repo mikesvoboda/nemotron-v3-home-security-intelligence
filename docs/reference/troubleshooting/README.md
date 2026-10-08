@@ -44,7 +44,7 @@ _Decision tree for diagnosing system health issues: Start with the health check 
 | Symptom                     | Likely Cause                                 | Quick Fix                   | Detailed Guide                                     |
 | --------------------------- | -------------------------------------------- | --------------------------- | -------------------------------------------------- |
 | Dashboard shows no events   | File watcher not running or AI services down | Restart backend             | [Events Not Appearing](#dashboard-shows-no-events) |
-| Risk gauge stuck at 0       | VLM serve down or slow                       | Start ai-vlm (profile)      | [AI Issues](ai-issues.md)                          |
+| Risk gauge stuck at 0       | VLM serve down or slow                       | Start ai-vlm                | [AI Issues](ai-issues.md)                          |
 | Camera shows offline        | Camera not uploading or folder path wrong    | Check FTP and folder config | [Camera Offline](#camera-shows-offline)            |
 | AI not responding           | Services not started or port conflicts       | Start AI services           | [AI Not Working](#ai-not-working)                  |
 | WebSocket disconnected      | Backend down or network issues               | Check backend health        | [WebSocket Issues](#websocket-disconnected)        |
@@ -70,13 +70,13 @@ _Decision tree for diagnosing system health issues: Start with the health check 
 
 ## Log Locations
 
-| Service     | Docker Command                                                                   | Native Path                                                            |
-| ----------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Backend     | `docker compose -f docker-compose.prod.yml logs backend`                         | `backend/data/logs/security.log`                                       |
-| Frontend    | `docker compose -f docker-compose.prod.yml logs frontend`                        | Browser console (F12)                                                  |
-| PostgreSQL  | `docker compose -f docker-compose.prod.yml logs postgres`                        | Container `/var/lib/postgresql/data/log`                               |
-| Redis       | `docker compose -f docker-compose.prod.yml logs redis`                           | Container logs only                                                    |
-| AI Services | `docker compose -f docker-compose.prod.yml --profile vlm logs ai-gateway ai-vlm` | Container stdout; host-run `ai/start_detector.sh` logs to its terminal |
+| Service     | Docker Command                                                     | Native Path                                                            |
+| ----------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Backend     | `docker compose -f docker-compose.prod.yml logs backend`           | `backend/data/logs/security.log`                                       |
+| Frontend    | `docker compose -f docker-compose.prod.yml logs frontend`          | Browser console (F12)                                                  |
+| PostgreSQL  | `docker compose -f docker-compose.prod.yml logs postgres`          | Container `/var/lib/postgresql/data/log`                               |
+| Redis       | `docker compose -f docker-compose.prod.yml logs redis`             | Container logs only                                                    |
+| AI Services | `docker compose -f docker-compose.prod.yml logs ai-gateway ai-vlm` | Container stdout; host-run `ai/start_detector.sh` logs to its terminal |
 
 ---
 
@@ -127,7 +127,7 @@ curl -s http://localhost:8000/api/system/pipeline | jq .
 
    ```bash
    curl http://localhost:8090/yolo26/health  # detection, via the AI gateway router
-   curl http://localhost:8098/health         # ai-vlm (behind the `vlm` compose profile)
+   curl http://localhost:8098/health         # ai-vlm, the reasoning serve
    ```
 
 4. Check queue depths:
@@ -201,16 +201,17 @@ curl http://localhost:8098/health         # ai-vlm
 
 **Solutions:**
 
-1. Start the AI services, naming the profile the VLM sits behind:
+1. Start the AI services (both are in the default compose set — no flag):
 
    ```bash
-   docker compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+   docker compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm
    ```
 
-   A plain `up -d` starts `ai-gateway` and never `ai-vlm`, so the detector runs and
-   events queue without verdicts. The host-run `./ai/start_detector.sh` runs a
-   standalone YOLO26 server for debugging; it binds :8090 too, so run it with the
-   gateway down.
+   `ai-vlm` starts with a plain `up -d`. If `ai-gateway` is up and `ai-vlm` is not,
+   the cause is a missing GPU, missing model files, or the container itself — not a
+   missing flag. Check the logs in step 4 for which of the three it is. The host-run
+   `./ai/start_detector.sh` runs a standalone YOLO26 server for debugging; it binds
+   :8090 too, so run it with the gateway down.
 
 2. Check for a port conflict:
 
@@ -232,7 +233,7 @@ curl http://localhost:8098/health         # ai-vlm
 4. Check the AI service logs:
    ```bash
    docker compose -f docker-compose.prod.yml logs --tail=100 ai-gateway
-   docker compose -f docker-compose.prod.yml --profile vlm logs --tail=100 ai-vlm
+   docker compose -f docker-compose.prod.yml logs --tail=100 ai-vlm
    ```
 
 See: [AI Issues](ai-issues.md), [GPU Issues](gpu-issues.md)
@@ -397,7 +398,7 @@ curl -s http://localhost:8090/yolo26/health | jq
 3. Restart AI services:
    ```bash
    docker compose -f docker-compose.prod.yml restart ai-gateway
-   docker compose -f docker-compose.prod.yml --profile vlm restart ai-vlm
+   docker compose -f docker-compose.prod.yml restart ai-vlm
    ```
 
 See: [GPU Issues](gpu-issues.md)

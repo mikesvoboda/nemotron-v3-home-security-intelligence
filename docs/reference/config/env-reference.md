@@ -102,8 +102,8 @@ Two containers carry the AI work:
   two resident specialists). Triton's model directory holds
   `{yolo26, reid, threat}`; `reid` is always resident, `threat` only when
   `GATEWAY_ENABLE_THREAT=true` (compose default `false`).
-- **`ai-vlm`** (:8098) — llama.cpp `llama-server`. It sits behind the `vlm` compose
-  profile, so a bring-up must name the profile. The event path POSTs
+- **`ai-vlm`** (:8098) — llama.cpp `llama-server`. It ships in the default compose
+  set, so a plain bring-up starts it. The event path POSTs
   `/v1/chat/completions` to it.
 
 Identity questions (faces, license plates, person re-identification) are answered
@@ -114,16 +114,16 @@ by a third service.
 
 | Variable         | Required | Default                         | Description                                                                                                                                     |
 | ---------------- | -------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `YOLO26_URL`     | No       | `http://ai-gateway:8090/yolo26` | Detector dial. `docker-compose.prod.yml:591` sets the same value                                                                                |
-| `AI_VLM_URL`     | No       | `http://localhost:8098`         | Reasoning serve. Compose sets `http://ai-vlm:8098` (`:548`)                                                                                     |
-| `AI_GATEWAY_URL` | No       | `http://ai-gateway:8090`        | Gateway base URL (`docker-compose.prod.yml:590`)                                                                                                |
+| `YOLO26_URL`     | No       | `http://ai-gateway:8090/yolo26` | Detector dial. `docker-compose.prod.yml:602` sets the same value                                                                                |
+| `AI_VLM_URL`     | No       | `http://localhost:8098`         | Reasoning serve. Compose sets `http://ai-vlm:8098` (`:554`)                                                                                     |
+| `AI_GATEWAY_URL` | No       | `http://ai-gateway:8090`        | Gateway base URL (`docker-compose.prod.yml:600`)                                                                                                |
 | `USE_AI_GATEWAY` | No       | `false`                         | With `AI_GATEWAY_URL` set, the detector dials `{AI_GATEWAY_URL}/yolo26`; otherwise it dials `YOLO26_URL` directly. Compose sets `true` (`:589`) |
 
 > **Note:** The container-side port of `ai-vlm` is fixed at 8098
 > (`ai/vlm/Dockerfile:123`); the host-side `AI_VLM_PORT` is a separate mapping, so
 > the internal URL never depends on it. The backend's `depends_on` list never names
-> `ai-vlm` — a dependency entry cannot name a profiled service — so the VLM link is
-> this env var and nothing else.
+> `ai-vlm` — deliberately, so a failing VLM never takes the backend down — so the
+> VLM link is this env var and nothing else.
 
 > **Pointer:** `ENRICHMENT_LIGHT_URL` (`http://ai-gateway:8090/enrich-lt`) is read by
 > `backend/api/routes/model_management.py` to report which specialists are resident.
@@ -139,19 +139,25 @@ by a third service.
 
 ### Service Timeouts
 
-| Variable                      | Required | Default | Range  | Description                            |
-| ----------------------------- | -------- | ------- | ------ | -------------------------------------- |
-| `AI_CONNECT_TIMEOUT`          | No       | `10.0`  | 1-60s  | Connection timeout to any AI service   |
-| `AI_HEALTH_TIMEOUT`           | No       | `5.0`   | 1-30s  | Health check timeout                   |
-| `YOLO26_READ_TIMEOUT`         | No       | `30.0`  | 5-120s | Detection response timeout             |
-| `AI_VLM_READ_TIMEOUT`         | No       | `25.0`  | 5-300s | One `vlm_assess` attempt               |
-| `AI_VLM_WAKE_TIMEOUT_SECONDS` | No       | `90.0`  | 5-300s | Read timeout for the wake-on-open ping |
+| Variable                      | Required | Default | Range  | Description                                     |
+| ----------------------------- | -------- | ------- | ------ | ----------------------------------------------- |
+| `AI_CONNECT_TIMEOUT`          | No       | `10.0`  | 1-60s  | Connection timeout to any AI service            |
+| `AI_HEALTH_TIMEOUT`           | No       | `5.0`   | 1-30s  | Health check timeout                            |
+| `YOLO26_READ_TIMEOUT`         | No       | `30.0`  | 5-120s | Detection response timeout                      |
+| `AI_VLM_READ_TIMEOUT`         | No       | `25.0`  | 5-300s | Per-read idle budget for a `vlm_assess` attempt |
+| `AI_VLM_WAKE_TIMEOUT_SECONDS` | No       | `90.0`  | 5-300s | Read timeout for the wake-on-open ping          |
 
-> **Note:** `AI_VLM_READ_TIMEOUT` bounds a single verdict attempt, and the one retry
-> at temperature 0 happens **inside** that same budget — a value at or above 30 s
-> leaves the retry no room. `AI_VLM_WAKE_TIMEOUT_SECONDS` is deliberately generous:
-> it pays for a sleeping `ai-vlm` loading its weights, and a failed wake is swallowed
-> rather than retried.
+> **Note:** `AI_VLM_READ_TIMEOUT` is a PER-READ IDLE budget, not an attempt deadline:
+> httpx resets the read timer on every reply chunk, so it bounds a STALLED reply
+> (`ReadTimeout`) or request write (`WriteTimeout`) on deadline — a budget, not an
+> outage: **not** retried (the re-ask would time out identically), no `ai-vlm` breaker
+> charge — while an engine that dribbles the reply within it runs on. Keep it under
+> S4's 30 s p95 (connect, `AI_CONNECT_TIMEOUT`, counted on top): that bounds the
+> silent-server case. The one retry at temperature 0 re-asks only where a re-ask can
+> differ: a trip that never completed, any other answered status (a 5xx or a plain
+> 4xx, except the 400 overflow refusal), or a complete reply that broke the schema.
+> `AI_VLM_WAKE_TIMEOUT_SECONDS` is deliberately generous: it pays for a sleeping
+> `ai-vlm` loading its weights, and a failed wake is swallowed rather than retried.
 
 ### VLM Context and Slots
 
@@ -159,8 +165,8 @@ by a third service.
 | -------------- | -------- | -------- | ------------------------------------------------------------------------------- |
 | `VLM_CTX_SIZE` | No       | `32768`  | llama.cpp's total context pool on `ai-vlm`                                      |
 | `VLM_PARALLEL` | No       | `2`      | llama.cpp `--parallel` slots on `ai-vlm`                                        |
-| `CTX_SIZE`     | No       | `262144` | Pool behind the token counter's separate budget (`docker-compose.prod.yml:586`) |
-| `PARALLEL`     | No       | `8`      | Its slot count (`:587`) — divide to 32 768                                      |
+| `CTX_SIZE`     | No       | `262144` | Pool behind the token counter's separate budget (`docker-compose.prod.yml:597`) |
+| `PARALLEL`     | No       | `8`      | Its slot count (`:598`) — divide to 32 768                                      |
 
 > **Note:** llama.cpp splits one context pool across its slots and a request only
 > ever occupies one slot, so the per-request budget the backend enforces is

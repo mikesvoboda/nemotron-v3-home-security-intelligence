@@ -23,8 +23,8 @@ ss -tlnp | grep 8000   # Backend
 ss -tlnp | grep 8090   # ai-gateway (Triton: YOLO26 + the resident specialists)
 ss -tlnp | grep 8098   # ai-vlm (llama.cpp serve)
 
-# Check container status (--profile vlm so the VLM is not shown as stopped)
-docker compose -f docker-compose.prod.yml --profile vlm ps
+# Check container status (ai-vlm is in the default set — plain ps shows it)
+docker compose -f docker-compose.prod.yml ps
 
 # Check container logs
 docker compose -f docker-compose.prod.yml logs backend
@@ -38,8 +38,8 @@ docker compose -f docker-compose.prod.yml logs backend
 # All services
 docker compose -f docker-compose.prod.yml up -d
 
-# AI services only — the VLM needs its profile named
-docker compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+# AI services only (both are in the default set — no flag)
+docker compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm
 ```
 
 **2. Check port conflicts:**
@@ -60,8 +60,8 @@ For Docker:
 - External access uses `localhost:PORT`
 
 For production compose there are exactly two AI containers: `ai-gateway` (Triton —
-the detector and the resident specialists) and `ai-vlm` (llama.cpp, behind the `vlm`
-profile). The backend reaches them by compose DNS:
+the detector and the resident specialists) and `ai-vlm` (llama.cpp, in the default
+compose set). The backend reaches them by compose DNS:
 
 - `ai-gateway:8090` — two path-prefixed routers, `/yolo26` (object detection) and
   `/enrich-lt` (readiness for the resident specialists). `YOLO26_URL` defaults to
@@ -70,8 +70,9 @@ profile). The backend reaches them by compose DNS:
   port is fixed at 8098 (`ai/vlm/Dockerfile:123`), so the internal URL never depends on
   the host-side `AI_VLM_PORT` mapping.
 
-The `ai-vlm` link is an env var, not a compose dependency: a `depends_on` entry can
-never name a profiled service, so the backend starts whether or not the VLM is up.
+The `ai-vlm` link is an env var, not a compose dependency: nothing in the stack
+`depends_on` it and it depends on nothing, so the backend starts whether or not the
+VLM is up.
 
 For native development:
 
@@ -385,9 +386,16 @@ YOLO26_READ_TIMEOUT=120.0    # Default 30.0 (max 120)
 AI_VLM_READ_TIMEOUT=45.0     # Default 25.0 (max 300)
 ```
 
-`AI_VLM_READ_TIMEOUT` bounds one verdict attempt, and the retry it makes at
-temperature 0 shares that same budget — a value at or above 30 s leaves the retry no
-room. A sleeping `ai-vlm` is woken under a separate ceiling,
+`AI_VLM_READ_TIMEOUT` is a PER-READ IDLE budget for a verdict attempt in either
+phase — waiting for the reply or waiting to finish sending the image-bearing body.
+httpx resets it on every reply chunk, so it catches a STALLED reply or request
+write on deadline (**not retried** — the re-ask would time out identically — and no
+`ai-vlm` breaker charge) while an engine that dribbles the reply within it runs on;
+no wall clock wraps an attempt. Keep it under S4's 30 s p95 (connect counted on
+top) to bound the silent-server case. The one retry at temperature 0 re-asks only
+where that can differ: fast trip faults, any other rejected status (5xx or a
+plain 4xx, not the 400 overflow), a schema-violating complete reply.
+A sleeping `ai-vlm` is woken under a separate ceiling,
 `AI_VLM_WAKE_TIMEOUT_SECONDS` (default 90.0).
 
 **2. Check service load:**

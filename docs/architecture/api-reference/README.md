@@ -82,13 +82,13 @@ This section provides comprehensive documentation for all REST API endpoints in 
 
 | Method | Endpoint                         | Description                  | Source                                   |
 | ------ | -------------------------------- | ---------------------------- | ---------------------------------------- |
-| GET    | `/api/system/health`             | Detailed health check        | `backend/api/routes/system.py:1049-1181` |
-| GET    | `/api/system/health/ready`       | Readiness probe              | `backend/api/routes/system.py:1188-1328` |
-| GET    | `/api/system/health/websocket`   | WebSocket health             | `backend/api/routes/system.py:1331-1394` |
+| GET    | `/api/system/health`             | Detailed health check        | `backend/api/routes/system.py:1250-1420` |
+| GET    | `/api/system/health/ready`       | Readiness probe              | `backend/api/routes/system.py:1455-1605` |
+| GET    | `/api/system/health/websocket`   | WebSocket health             | `backend/api/routes/system.py:1608-1671` |
 | GET    | `/api/system/health/full`        | Full health with AI services | `backend/api/routes/system.py`           |
 | GET    | `/api/system/monitoring/health`  | Prometheus-style health      | `backend/api/routes/system.py`           |
 | GET    | `/api/system/monitoring/targets` | Monitoring targets           | `backend/api/routes/system.py`           |
-| GET    | `/api/system/gpu/stats`          | GPU statistics               | `backend/api/routes/system.py:634-683`   |
+| GET    | `/api/system/gpu/stats`          | GPU statistics               | `backend/api/routes/system.py:636-685`   |
 | GET    | `/api/system/config`             | System configuration         | `backend/api/routes/system.py`           |
 | PATCH  | `/api/system/config`             | Update configuration         | `backend/api/routes/system.py`           |
 
@@ -107,7 +107,7 @@ curl -H "X-API-Key: your-api-key" https://api.example.com/api/events
 # - GET /api/detections/{detection_id}/video
 ```
 
-**Source:** `backend/api/routes/system.py:261-291`
+**Source:** `backend/api/routes/system.py:263-293`
 
 ## Pagination
 

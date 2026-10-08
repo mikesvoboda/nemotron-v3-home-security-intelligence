@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 # Mark as integration tests
 pytestmark = pytest.mark.integration
 
-PASSWORD = "SecurePassword123!"  # pragma: allowlist secret
+PASSWORD = "SecurePassword123!"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
 TEST_API_KEY = "test-api-key-12345"  # pragma: allowlist secret — integration_env API_KEYS entry
 
 
@@ -391,12 +391,12 @@ class TestAPIKeyAuthentication:
     ) -> None:
         """Pins a shipped gap: keys created via /api/auth/api-keys are stored
         in the api_keys table, but NO shipped auth path reads that table —
-        every verify_api_key implementation validates settings.api_keys only
-        (system.py:272, dlq.py:41; the global AuthMiddleware is disabled,
-        NEM-5527; inbound_webhooks.py carries the "TODO: validate against
-        stored API keys in database" admission). A DB-created key therefore
-        authenticates nothing today (owner-ruling candidate, ledger
-        R-T7-APIKEY-DEAD).
+        every key checker validates settings.api_keys only (system.py:269,
+        dlq.py:41, and B1.3's require_api_key at middleware/auth.py:78; the
+        global AuthMiddleware is disabled, NEM-5527). A DB-created key
+        therefore authenticates nothing today, the inbound-webhook routes
+        included: there a settings key is refused with 501 and this key is
+        refused with 401 (owner-ruling candidate, ledger R-T7-APIKEY-DEAD).
         """
         await _register_first_admin(client)
         _, cookie = await _login(client)

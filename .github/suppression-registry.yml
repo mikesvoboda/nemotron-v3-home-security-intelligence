@@ -1103,6 +1103,14 @@ pytest_skip_imperative:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
+  - id: backend/tests/unit/core/test_compose_render_lists_ai_vlm.py:67
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: no compose binary (podman/docker) on this machine
+    host_justification: argv is None when no compose binary (podman/docker)
+      resolves via shutil.which — host-executable guard, not repo content
   - id: backend/tests/unit/core/test_dockerfile_config.py:29
     kind: todo
     owner: mikesvoboda
@@ -1488,6 +1496,12 @@ pytest_skipif:
     tracking: null
     expires: null
     reason: fakeredis not installed
+  - id: backend/tests/unit/scripts/test_uplevel_launch.py::test_the_roster_holds_both_prompts_the_heavy_line_points_between
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: "docs/ tree absent (mutmut's mutant home): nothing to cross-check the line against"
   - id: backend/tests/unit/services/test_notify_reachability_guard.py::TestScanIsSound::test_the_scan_is_fast_enough_to_belong_in_the_unit_tier
     kind: todo
     owner: mikesvoboda

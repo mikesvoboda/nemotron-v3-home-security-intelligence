@@ -40,12 +40,13 @@ API key authentication middleware for securing HTTP endpoints and WebSocket conn
 
 **Functions:**
 
-| Function                                | Purpose                                     |
-| --------------------------------------- | ------------------------------------------- |
-| `validate_websocket_api_key(websocket)` | Validate API key for WebSocket connections  |
-| `authenticate_websocket(websocket)`     | Authenticate WebSocket and close if invalid |
-| `_hash_key(key)`                        | Hash API key using SHA-256                  |
-| `_get_valid_key_hashes()`               | Get valid API key hashes from settings      |
+| Function                                | Purpose                                                                                                      |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `require_api_key(x_api_key)`            | HTTP dependency; validates the key against `settings.api_keys` unconditionally (no `api_key_enabled` branch) |
+| `validate_websocket_api_key(websocket)` | Validate API key for WebSocket connections                                                                   |
+| `authenticate_websocket(websocket)`     | Authenticate WebSocket and close if invalid                                                                  |
+| `_hash_key(key)`                        | Hash API key using SHA-256                                                                                   |
+| `_get_valid_key_hashes()`               | Get valid API key hashes from settings                                                                       |
 
 ### `request_id.py`
 

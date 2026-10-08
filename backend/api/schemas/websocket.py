@@ -1944,6 +1944,7 @@ class WSEventType(StrEnum):
 
     # System events - System health monitoring
     SYSTEM_HEALTH_CHANGED = "system.health_changed"
+    SYSTEM_VERDICT_ENGINE_STATUS_CHANGED = "system.verdict_engine_status_changed"
     SYSTEM_STATUS = "system.status"
 
     # GPU events - GPU monitoring
@@ -2443,6 +2444,44 @@ EVENT_REGISTRY: dict[WSEventType, dict[str, Any]] = {
             "components": {"database": "healthy", "redis": "degraded", "ai_pipeline": "healthy"},
         },
     },
+    WSEventType.SYSTEM_VERDICT_ENGINE_STATUS_CHANGED: {
+        "description": "Verdict engine (ai-vlm) availability changed (B1.4, UR-18)",
+        "channel": "system",
+        "payload_schema": {
+            "state": {
+                "type": "string",
+                "enum": ["available", "unavailable", "unknown"],
+                "description": "New verdict-engine state",
+            },
+            "previous_state": {
+                "type": "string",
+                "enum": ["available", "unavailable", "unknown"],
+                "description": "State before the transition",
+            },
+            "since": {
+                "type": "string",
+                "format": "date-time",
+                "description": "ISO 8601 time the state transitioned",
+            },
+            "reason": {
+                "type": "string",
+                "nullable": True,
+                "description": "Engine's own error string while unavailable; "
+                "why the probe cannot tell while unknown; null while available",
+            },
+            "source": {
+                "type": "string",
+                "description": "What produced the state (health_probe per the B1.4 DECIDE)",
+            },
+        },
+        "example": {
+            "state": "unavailable",
+            "previous_state": "available",
+            "since": "2026-10-08T12:00:00Z",
+            "reason": "ConnectError: connection refused",
+            "source": "health_probe",
+        },
+    },
     WSEventType.SYSTEM_STATUS: {
         "description": "Periodic system status broadcast",
         "channel": "system",
@@ -2678,7 +2717,7 @@ class EventRegistryResponse(BaseModel):
             "example": {
                 "event_types": [],
                 "channels": ["detections", "events", "alerts", "cameras", "jobs", "system"],
-                "total_count": 25,
+                "total_count": 29,
                 "deprecated_count": 3,
             }
         }

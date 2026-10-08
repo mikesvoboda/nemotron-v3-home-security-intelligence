@@ -47,7 +47,7 @@ The `DetectionQueueWorker` consumes `detection_queue`. `USE_REDIS_STREAMS` defau
 
 ### Stage 3: Object Detection (YOLO26)
 
-The `DetectorClient` sends images to the YOLO26 endpoint on the AI gateway (`YOLO26_URL`, `http://ai-gateway:8090/yolo26` under compose — `docker-compose.prod.yml:592`):
+The `DetectorClient` sends images to the YOLO26 endpoint on the AI gateway (`YOLO26_URL`, `http://ai-gateway:8090/yolo26` under compose — `docker-compose.prod.yml:602`):
 
 - **Concurrency control:** Class semaphore limits concurrent detector requests (lines 203-223); the shared inference semaphore is acquired per request (lines 1115-1116)
 - **Circuit breaker:** Prevents retry storms when the detector is down (lines 336-344)

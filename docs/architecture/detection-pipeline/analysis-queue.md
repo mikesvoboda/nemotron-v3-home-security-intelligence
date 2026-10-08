@@ -236,24 +236,29 @@ The level is never emitted by the model: `VlmVerdict` carries no `risk_level` fi
 
 ### Failure Ladder
 
-Transport and schema failures are retried once and then mapped — no event is dropped:
+Transport and schema failures are retried once — a fast fault, or a complete reply that violated the schema — and then mapped; no event is dropped. Budget outcomes raise on the first attempt:
 
-- `VlmClient.assess` makes the first attempt, then retries the same body at temperature 0 inside the same read budget (`backend/services/vlm_client.py:805-807`)
+- `VlmClient.assess` makes the first attempt, then re-sends the same body at temperature 0 — only after a trip that never completed (connection refused, `ConnectTimeout`), any other answered status (5xx or a plain 4xx, except the 400 overflow refusal), or a schema violation; a slow reply raises `VlmSlowReplyError` without a retry (`backend/services/vlm_client.py:962-964`)
 - Every raise the client documents sits in `_DEGRADABLE_ERRORS` (`backend/services/vlm_analyzer.py:89-92`): `VlmClientError` — transport, schema, truncation, context overflow, breaker-open — and `ConstrainedDecodingNotEnforced`
 - The analyzer catches those, records `vlm_verification_failed`, and writes the NULL-score event. It never re-retries: a second retry would double the p95 budget a single call already fits
 - Anything outside that tuple is a bug and propagates loud
 
 ### Timeout and Concurrency Configuration
 
-**Source:** `backend/core/config.py` (lines 1093-1132) and `backend/services/vlm_client.py:265-275`
+**Source:** `backend/core/config.py` (`ai_connect_timeout` :1106-1111, `ai_vlm_read_timeout` :1130-1142, `ai_vlm_wake_timeout_seconds` :1143-1151) and `backend/services/vlm_client.py:334-344`
 
 ```python
 ai_connect_timeout: float = 10.0           # Connection establishment
-ai_vlm_read_timeout: float = 25.0          # One vlm_assess attempt's budget
+ai_vlm_read_timeout: float = 25.0          # Per-read idle budget, per attempt
 ai_vlm_wake_timeout_seconds: float = 90.0  # The wake-on-open ping
 ```
 
-The read budget is sized so the one retry fits inside it (p95 <= 30s including cold starts). Concurrency is bounded by the `ai-vlm` circuit breaker (`backend/services/vlm_client.py:247-250`, `failure_threshold=5`, `recovery_timeout=60.0`): while it is open, `assess` raises `VlmUnavailableError` without doing I/O (`backend/services/vlm_client.py:766-772`). The shared inference semaphore (`backend/services/inference_semaphore.py`) is held by the detector leg (`backend/services/detector_client.py:1115-1116`), not by the VLM call.
+The read budget is a per-read idle budget for one attempt (in either phase —
+waiting for the reply, or waiting to finish sending the image-bearing body):
+httpx resets it on every reply chunk, so a STALLED reply or request write is a
+budget outcome, not retried, sized against p95 <= 30s including cold starts
+(connect counted on top) — that sizing bounds the silent-server case; an engine
+that dribbles the reply within the budget runs on. Concurrency is bounded by the `ai-vlm` circuit breaker (`backend/services/vlm_client.py:316-319`, `failure_threshold=5`, `recovery_timeout=60.0`): while it is open, `assess` raises `VlmUnavailableError` without doing I/O (`backend/services/vlm_client.py:923-929`). The shared inference semaphore (`backend/services/inference_semaphore.py`) is held by the detector leg (`backend/services/detector_client.py:1115-1116`), not by the VLM call.
 
 ## Context Read Before the Prompt
 
@@ -415,7 +420,7 @@ with (
 | `use_redis_streams`              | `true`                  | Streams with consumer groups, or LIST + BRPOP |
 | `worker_supervisor_max_restarts` | from settings           | Supervisor restart budget for this worker     |
 
-Under compose, `AI_VLM_URL` is `http://ai-vlm:8098` (`docker-compose.prod.yml:549`) and the `ai-vlm` service sits behind the `vlm` profile (`docker-compose.prod.yml:134-155`).
+Under compose, `AI_VLM_URL` is `http://ai-vlm:8098` (`docker-compose.prod.yml:554`) and `ai-vlm` is in the default compose set — a plain `up -d` starts it (`docker-compose.prod.yml:141-270`).
 
 ## Related Documentation
 

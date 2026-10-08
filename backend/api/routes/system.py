@@ -113,6 +113,7 @@ from backend.api.schemas.system import (
     SystemStatsResponse,
     TargetHealth,
     TelemetryResponse,
+    VerdictEngineReadiness,
     WebSocketBroadcasterStatus,
     WebSocketHealthResponse,
     WorkerControlResponse,
@@ -145,6 +146,7 @@ from backend.services.model_zoo import (
     get_model_manager,
     get_model_zoo,
 )
+from backend.services.verdict_engine_status import get_verdict_engine_tracker
 
 # Type alias for dependency injection
 BaselineServiceDep = BaselineService
@@ -1469,6 +1471,15 @@ async def get_readiness(
     This endpoint provides the same readiness check but with detailed
     service and worker status information.
 
+    B1.4 (UR-18): the payload also reports the verdict engine's own state
+    (`verdict_engine: {state, since, reason}`, read off the AI-health probe —
+    see backend/services/verdict_engine_status.py). It is REPORTED but never
+    gates `ready`/HTTP status: an unreachable ai-vlm turns every event into
+    verification_failed, yet the container healthcheck and every
+    service_healthy dependency read THIS status code — a down engine must not
+    take the platform with it. State transitions push
+    system.verdict_engine_status_changed over WebSocket.
+
     Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
     If this endpoint returns not_ready, the instance should not receive new requests.
 
@@ -1514,6 +1525,14 @@ async def get_readiness(
         "redis": redis_status,
         "ai": ai_status,
     }
+
+    # B1.4 (UR-18): record the verdict engine's state from the probe that just
+    # ran. observe() re-stamps `since` only on a TRANSITION and fires the
+    # WebSocket event fire-and-forget, so this adds no broadcast latency to
+    # the response (same rationale as the /health emitter task below).
+    verdict_engine = get_verdict_engine_tracker().observe(
+        ai_status.details, message=ai_status.message
+    )
 
     # Get worker statuses
     workers = _get_worker_statuses()
@@ -1565,6 +1584,11 @@ async def get_readiness(
         workers=workers,
         timestamp=datetime.now(UTC),
         supervisor_healthy=supervisor_healthy,
+        verdict_engine=VerdictEngineReadiness(
+            state=verdict_engine.state,
+            since=verdict_engine.since,
+            reason=verdict_engine.reason,
+        ),
     )
 
     # Cache the response for future requests

@@ -123,14 +123,21 @@ services:
   # llama-server + GGUF + mmproj serving the vlm_assess op over
   # /v1/chat/completions with response_format json_schema (constrained
   # decoding; the enforcement probe in scripts/vlm_probes/s2_multimodal_schema.py
-  # proves the pin actually enforces). Behind profile `vlm`: the default
-  # `up` never starts it, and the backend NEVER hard-depends_on it (a
-  # profiled service in depends_on breaks the default `up`) - degradation
-  # is the §6 ladder's job in vlm_analyzer (1.3), not a compose edge.
+  # proves the pin actually enforces). It ships in the default `up` (O1.3,
+  # UR-18): the verdict engine starts with the rest of the stack. The backend
+  # NEVER hard-depends_on it, so this service failing never takes the rest of
+  # the stack down - degradation is the §6 ladder's job in vlm_analyzer (1.3),
+  # not a compose edge.
   # vlm mode REPLACED the legacy LLM on the GPU (spec VRAM table); R8 S2
   # deleted that serving path, so this is the GPU's only LLM.
   #
-  # To enable: docker compose -f docker-compose.prod.yml --profile vlm up -d
+  # NO GPU ON THIS MACHINE: ai-vlm fails at start - the CDI device line below
+  # has nothing to map. Nothing depends_on it and it depends_on nothing (pinned
+  # in backend/tests/unit/core/test_ai_vlm_compose_service.py), so the rest of
+  # the stack comes up without it; name the services you want and leave it out.
+  # That is the interim GPU-less path until O2.1's explicit fake-AI overlay
+  # lands. Expect the risk gauge to stay at 0: the backend reports the engine's
+  # runtime state rather than hiding it (UR-18).
   ai-vlm:
     # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU passthrough
     security_opt:
@@ -151,8 +158,6 @@ services:
         # GB300 dev builds -CUDA_ARCHITECTURES=103 (aarch64), the A5500
         # bring-up (1.7) builds =86 (x86) from this same context.
         CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}
-    profiles:
-      - vlm
     # Podman CDI device passthrough (rootless GPU access)
     devices:
       - nvidia.com/gpu=${GPU_LLM:-0}
@@ -547,7 +552,12 @@ services:
       # lands (compose interpolation reads the project .env — the whole file
       # relies on it) and the shipped default is no longer the loopback trap.
       - AI_VLM_URL=${AI_VLM_URL:-http://ai-vlm:8098}
-      # per-attempt read budget for the §6 ladder, and the wake-on-open ping's
+      # per-read IDLE budget, read OR write phase - NOT an attempt deadline
+      # (httpx resets it on every reply chunk; D1: a stalled reply is a
+      # budget - not retried, never breaker-charged - while an engine that
+      # dribbles within it runs on; keeping it inside S4's 30 s bounds the
+      # silent-server case, a slow connect adds AI_CONNECT_TIMEOUT on top),
+      # and below it the wake-on-open ping's own, deliberately generous, timeout.
       - AI_VLM_READ_TIMEOUT=${AI_VLM_READ_TIMEOUT:-25.0}
       - AI_VLM_WAKE_TIMEOUT_SECONDS=${AI_VLM_WAKE_TIMEOUT_SECONDS:-90.0}
       # S-2 per-build enforcement: the probe runs by default, and the build

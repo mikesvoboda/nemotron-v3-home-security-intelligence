@@ -59,7 +59,7 @@ flowchart TB
         subgraph AILayer["AI Services Layer (GPU Required)"]
             direction LR
             subgraph GPU0["GPU 0 (GPU_LLM)"]
-                VLM["<b>ai-vlm</b><br/>llama.cpp + mmproj<br/>Port: 8098<br/>profile: vlm<br/>Memory limit: 10G"]
+                VLM["<b>ai-vlm</b><br/>llama.cpp + mmproj<br/>Port: 8098<br/>default compose set<br/>Memory limit: 10G"]
             end
             subgraph GPU1["GPU 1 (GPU_AI_SERVICES)"]
                 GW["<b>ai-gateway</b><br/>Triton + FastAPI<br/>Port: 8090 (metrics 8002)<br/>routers: /yolo26 · /enrich-lt<br/>Memory limit: 20G"]
@@ -139,9 +139,10 @@ flowchart TB
 
 ### Architecture Summary
 
-`docker-compose.prod.yml` defines 21 services; three sit behind compose profiles
-(`vlm` → `ai-vlm`, `vllm` → `ai-llm-vllm`, `gpu-rootful` → `dcgm-exporter`), so a plain
-`up -d` starts 18 and runs **without the reasoning engine**.
+`docker-compose.prod.yml` defines 21 services; two sit behind compose profiles
+(`vllm` → `ai-llm-vllm`, `gpu-rootful` → `dcgm-exporter`), so a plain
+`up -d` starts 19 **including the reasoning engine** (`ai-vlm` ships in the default
+set; until UR-18 it sat behind a `vlm` profile that had to be named explicitly).
 
 | Layer           | Services                                                                    | Resource Profile                               |
 | --------------- | --------------------------------------------------------------------------- | ---------------------------------------------- |
@@ -157,7 +158,7 @@ The default assignment puts the reasoning engine on one GPU and detection on ano
 
 | GPU   | Service                                           | Env var               | Notes                                                      |
 | ----- | ------------------------------------------------- | --------------------- | ---------------------------------------------------------- |
-| GPU 0 | `ai-vlm` (llama.cpp + mmproj, profile `vlm`)      | `GPU_LLM` (0)         | Single CDI device                                          |
+| GPU 0 | `ai-vlm` (llama.cpp + mmproj, default set)        | `GPU_LLM` (0)         | Single CDI device                                          |
 | GPU 1 | `ai-gateway` (Triton: `yolo26`, `reid`, `threat`) | `GPU_AI_SERVICES` (1) | All GPUs passed, then restricted by `CUDA_VISIBLE_DEVICES` |
 
 The backend's own lookup weights (osnet, face recognizer, ALPR) load on the GPU the
@@ -189,8 +190,8 @@ python setup.py --guided     # Guided mode with explanations
 #   ${AI_MODELS_PATH}/vlm/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf   (Q8_0, not F16)
 #   chmod 644 both — the service runs as uid 1000
 
-# 4. Start services. --profile vlm is what starts the reasoning engine
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+# 4. Start services (the default up -d starts the reasoning engine too)
+podman compose -f docker-compose.prod.yml up -d
 
 # 5. Verify deployment
 curl http://localhost:8000/api/system/health/ready
@@ -199,8 +200,8 @@ podman logs ai-vlm 2>&1 | grep -i mmproj   # the serve can see images
 ```
 
 Skipping step 3b leaves you with a reasoning engine that answers `/health` and cannot see
-images; skipping `--profile vlm` leaves the container absent altogether. Both failures
-leave Events landing, so nothing looks broken.
+images; leaving `ai-vlm` off the command line when you name services leaves the container
+absent altogether. Both failures leave Events landing, so nothing looks broken.
 
 ---
 
@@ -234,18 +235,18 @@ All ports come from `.env`. Everything except `frontend` binds `127.0.0.1` on th
 host, so the browser only ever needs the frontend ports — nginx proxies `/api`,
 `/ws` and `/grafana/` internally.
 
-| Host port | Env var                   | Service                           | Protocol | Access                       |
-| --------- | ------------------------- | --------------------------------- | -------- | ---------------------------- |
-| 8080      | `FRONTEND_HTTP_PORT`      | Frontend                          | HTTP     | Browser (tunnel / LAN)       |
-| 8444      | `FRONTEND_HTTPS_PORT`     | Frontend (TLS)                    | HTTPS    | Browser                      |
-| 8000      | `API_PORT`                | Backend API                       | HTTP/WS  | localhost / nginx proxy      |
-| 8090      | `AI_GATEWAY_PORT`         | ai-gateway (detection routers)    | HTTP     | localhost / backend          |
-| 8002      | `AI_GATEWAY_METRICS_PORT` | Triton Prometheus metrics         | HTTP     | localhost                    |
-| 8098      | `AI_VLM_PORT`             | ai-vlm (reasoning, profile `vlm`) | HTTP     | localhost / backend          |
-| 5432      | `POSTGRES_PORT`           | PostgreSQL                        | TCP      | localhost                    |
-| 6379      | `REDIS_PORT`              | Redis                             | TCP      | localhost                    |
-| 3002      | `GRAFANA_PORT`            | Grafana                           | HTTP     | localhost (or via /grafana/) |
-| 9090      | `PROMETHEUS_PORT`         | Prometheus                        | HTTP     | localhost                    |
+| Host port | Env var                   | Service                        | Protocol | Access                       |
+| --------- | ------------------------- | ------------------------------ | -------- | ---------------------------- |
+| 8080      | `FRONTEND_HTTP_PORT`      | Frontend                       | HTTP     | Browser (tunnel / LAN)       |
+| 8444      | `FRONTEND_HTTPS_PORT`     | Frontend (TLS)                 | HTTPS    | Browser                      |
+| 8000      | `API_PORT`                | Backend API                    | HTTP/WS  | localhost / nginx proxy      |
+| 8090      | `AI_GATEWAY_PORT`         | ai-gateway (detection routers) | HTTP     | localhost / backend          |
+| 8002      | `AI_GATEWAY_METRICS_PORT` | Triton Prometheus metrics      | HTTP     | localhost                    |
+| 8098      | `AI_VLM_PORT`             | ai-vlm (reasoning engine)      | HTTP     | localhost / backend          |
+| 5432      | `POSTGRES_PORT`           | PostgreSQL                     | TCP      | localhost                    |
+| 6379      | `REDIS_PORT`              | Redis                          | TCP      | localhost                    |
+| 3002      | `GRAFANA_PORT`            | Grafana                        | HTTP     | localhost (or via /grafana/) |
+| 9090      | `PROMETHEUS_PORT`         | Prometheus                     | HTTP     | localhost                    |
 
 ---
 
@@ -300,16 +301,18 @@ podman-compose or the docker-compose plugin). Every command below works with
 | `docker ps`                      | `podman ps -a`                   |
 | `docker inspect <name>`          | `podman inspect <name>`          |
 
-Profiled services keep the profile flag on every verb:
+Profiled services keep the profile flag on every verb (`ai-llm-vllm` behind `vllm`,
+`dcgm-exporter` behind `gpu-rootful`):
 
-| Correct                                          | Silently wrong                     |
-| ------------------------------------------------ | ---------------------------------- |
-| `podman compose -f … --profile vlm up -d ai-vlm` | `podman compose -f … up -d ai-vlm` |
-| `podman compose -f … --profile vlm logs ai-vlm`  | `podman compose -f … logs ai-vlm`  |
-| `podman compose -f … --profile vlm build ai-vlm` | `podman compose -f … build ai-vlm` |
+| Correct                                                | Silently wrong                          |
+| ------------------------------------------------------ | --------------------------------------- |
+| `podman compose -f … --profile vllm up -d ai-llm-vllm` | `podman compose -f … up -d ai-llm-vllm` |
+| `podman compose -f … --profile vllm logs ai-llm-vllm`  | `podman compose -f … logs ai-llm-vllm`  |
+| `podman compose -f … --profile vllm build ai-llm-vllm` | `podman compose -f … build ai-llm-vllm` |
 
 podman-compose drops a service whose profile is inactive **before** it resolves the
 names on your command line, so the right-hand column reports success and does nothing.
+`ai-vlm` needs no flag on any verb — it is in the default set.
 
 ---
 
@@ -398,8 +401,8 @@ Choose your deployment mode based on your needs:
 ### Production Deployment
 
 ```bash
-# Start all services (add --profile vlm for the reasoning engine)
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+# Start all services, the reasoning engine included
+podman compose -f docker-compose.prod.yml up -d
 
 # View logs
 podman compose -f docker-compose.prod.yml logs -f
@@ -551,6 +554,7 @@ AI_VLM_URL=http://host.docker.internal:8098
 ```
 
 > [!IMPORTANT]
+>
 > `AI_VLM_URL` is the value that gets missed. The backend's code default is
 > `http://localhost:8098`, which inside a container is the container itself: every
 > verdict lands `verification_failed` with a NULL `risk_score` while events keep
@@ -565,10 +569,10 @@ AI_VLM_URL=http://host.docker.internal:8098
 
 Production AI is **two containers**:
 
-| Service      | Port          | What it serves                                                                   |
-| ------------ | ------------- | -------------------------------------------------------------------------------- |
-| `ai-gateway` | 8090 (m 8002) | Triton + FastAPI. Routers `/yolo26` (detection) and `/enrich-lt` (readiness)     |
-| `ai-vlm`     | 8098          | llama.cpp + mmproj, OpenAI-compatible `POST /v1/chat/completions`, profile `vlm` |
+| Service      | Port          | What it serves                                                               |
+| ------------ | ------------- | ---------------------------------------------------------------------------- |
+| `ai-gateway` | 8090 (m 8002) | Triton + FastAPI. Routers `/yolo26` (detection) and `/enrich-lt` (readiness) |
+| `ai-vlm`     | 8098          | llama.cpp + mmproj, OpenAI-compatible `POST /v1/chat/completions`            |
 
 Gateway Triton residency is `yolo26` + `reid`, plus `threat` when
 `GATEWAY_ENABLE_THREAT=true` (the shipped default is `false`). Both
@@ -658,7 +662,7 @@ sequenceDiagram
 
     Note over DC,FE: Phase 2: AI Services
     DC->>GW: Start ai-gateway
-    DC->>VLM: Start ai-vlm (only if --profile vlm was passed)
+    DC->>VLM: Start ai-vlm (in the default set — a plain up -d starts it)
     GW-->>DC: Healthy (start_period 180s — Triton loads its resident models)
     VLM-->>DC: Healthy (start_period 120s — GGUF pair to GPU)
 
@@ -684,8 +688,8 @@ sequenceDiagram
 - `ai-gateway` — `start_period: 180s`. Triton initialises the resident model set from
   the repository `GATEWAY_MODEL_SET` keeps.
 - `ai-vlm` — `start_period: 120s`, mirroring the image's own
-  `HEALTHCHECK --start-period=120s`. **`backend` does not depend on it**, which is why a
-  missing profile yields a green stack and a stalling pipeline.
+  `HEALTHCHECK --start-period=120s`. **`backend` does not depend on it**, which is why an
+  `ai-vlm` that fails to come up still yields a green stack and a stalling pipeline.
 
 **Phase 3: Application (30-60s)**
 
@@ -732,7 +736,7 @@ backend:
 | PostgreSQL | None                                               | None                      | N/A            |
 | Redis      | None                                               | None                      | N/A            |
 | ai-gateway | GPU                                                | None                      | No             |
-| ai-vlm     | GPU, compose profile `vlm`                         | None                      | No             |
+| ai-vlm     | GPU                                                | None                      | No             |
 | Backend    | foscam-init, PostgreSQL, Redis, ai-gateway, go2rtc | ai-vlm (via `AI_VLM_URL`) | AI via monitor |
 | Frontend   | Backend (started, not healthy)                     | None                      | No             |
 | Prometheus | Alertmanager (healthy)                             | None                      | No             |
@@ -763,7 +767,7 @@ serves the dashboard whether or not anything can produce a verdict.
 1. **Start services:**
 
    ```bash
-   podman compose -f docker-compose.prod.yml --profile vlm up -d
+   podman compose -f docker-compose.prod.yml up -d
    ```
 
 2. **Monitor startup:**
@@ -775,7 +779,7 @@ serves the dashboard whether or not anything can produce a verdict.
 3. **Verify health:**
 
    ```bash
-   # Gateway needs ~3 min for Triton; check the profile actually took
+   # Gateway needs ~3 min for Triton; check the reasoning engine came up
    curl http://localhost:8000/api/system/health/ready
    podman ps -a --filter name=ai-vlm
    ```
@@ -845,8 +849,7 @@ podman compose -f docker-compose.prod.yml down
 
 # 5. Rebuild and start (always --no-cache: cached layers hold stale code)
 podman compose -f docker-compose.prod.yml build --no-cache
-podman compose -f docker-compose.prod.yml --profile vlm build --no-cache ai-vlm
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+podman compose -f docker-compose.prod.yml up -d
 
 # 6. Verify
 curl http://localhost:8000/api/system/health/ready
@@ -875,7 +878,7 @@ git checkout <previous-commit-sha>
 cp .env.backup-<date> .env
 
 # 4. Restart
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+podman compose -f docker-compose.prod.yml up -d
 
 # 5. Verify
 curl http://localhost:8000/api/system/health/ready
@@ -900,7 +903,7 @@ podman compose -f docker-compose.prod.yml exec -T postgres pg_restore -U securit
 
 # 5. Checkout previous code and restart
 git checkout <previous-commit>
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+podman compose -f docker-compose.prod.yml up -d
 ```
 
 ### Rollback Decision Matrix
@@ -926,7 +929,7 @@ podman compose -f docker-compose.prod.yml ps
 # Check logs for specific service
 podman compose -f docker-compose.prod.yml logs backend
 podman compose -f docker-compose.prod.yml logs ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm logs ai-vlm
+podman compose -f docker-compose.prod.yml logs ai-vlm
 
 # Check health endpoint
 curl -v http://localhost:8000/health
@@ -934,8 +937,10 @@ curl -v http://localhost:8000/health
 
 ### AI Services Unreachable
 
-1. **Check AI container status** — note whether `ai-vlm` is **absent** (profile never
-   applied) or stopped (a crash):
+1. **Check AI container status** — note whether `ai-vlm` is **absent** (you named
+   services explicitly and left it off the command line — a plain `up -d` starts it) or
+   stopped (a crash, including on a host with no GPU, where its CDI device line has
+   nothing to map):
 
    ```bash
    podman ps -a --filter name=ai-gateway --filter name=ai-vlm
@@ -965,9 +970,9 @@ curl -v http://localhost:8000/health
 # Check GPU usage
 nvidia-smi
 
-# Restart AI services (name each one; the profile has to be on the command line)
+# Restart AI services (name each one; no profile flag needed)
 podman compose -f docker-compose.prod.yml restart ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm up -d --force-recreate ai-vlm
+podman compose -f docker-compose.prod.yml up -d --force-recreate ai-vlm
 ```
 
 Prefer letting the VLM release its VRAM between bursts (lower

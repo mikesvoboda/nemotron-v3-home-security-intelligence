@@ -313,15 +313,17 @@ class TestApplicationPhaseServiceRetry:
     # test_vlm_app_services_start_ai_vlm_last above.
 
     @patch("setup_lib.deploy_phases.compose_run", autospec=True)
-    def test_vlm_wait_call_starts_ai_vlm_through_its_profile_and_never_ai_llm(
+    def test_vlm_wait_call_starts_ai_vlm_by_name_and_never_ai_llm(
         self,
         mock_compose_run: Mock,
         mock_config: DeployConfig,
     ) -> None:
-        """The one `up --wait` names ai-vlm under --profile vlm, sized for the VLM.
+        """The one `up --wait` names ai-vlm in a plain call, sized for the VLM.
 
-        180s: ai-vlm's own healthy-or-unhealthy verdict lands by start_period
-        120s + 3 x 10s retries = 150s; the 30B's 300s is legacy's number.
+        O1.3 (UR-18): ai-vlm is in the default compose set now, so the call
+        carries no --profile. 180s: ai-vlm's own healthy-or-unhealthy verdict
+        lands by start_period 120s + 3 x 10s retries = 150s; the 30B's 300s is
+        legacy's number.
         """
         mock_compose_run.return_value = True
 
@@ -329,8 +331,6 @@ class TestApplicationPhaseServiceRetry:
 
         (wait_call,) = [c for c in mock_compose_run.call_args_list if "--wait" in c.args]
         assert wait_call.args[1:] == (
-            "--profile",
-            "vlm",
             "up",
             "-d",
             "--no-build",
@@ -346,20 +346,25 @@ class TestApplicationPhaseServiceRetry:
     # test_legacy_wait_call_keeps_the_30b_budget_under_profile_legacy is gone: it pinned
     # legacy's `up --wait` argv (--profile legacy, 300s for the 30B to load, ai-llm
     # first). R8 S2b deleted the plan that produced it, so no call like that can be
-    # emitted. Its property -- "the one --wait call is named exactly, profile first,
+    # emitted. Its property -- "the one --wait call is named exactly, with its
     # budget and service order verbatim" -- has a vlm twin already
-    # (test_vlm_wait_call_starts_ai_vlm_through_its_profile_and_never_ai_llm above), so
+    # (test_vlm_wait_call_starts_ai_vlm_by_name_and_never_ai_llm above), so
     # nothing is lost but the 300s/ai-llm row.
 
     @patch("setup_lib.deploy_phases._wait_container_running", autospec=True)
     @patch("setup_lib.deploy_phases.compose_run", autospec=True)
-    def test_vlm_retry_path_carries_profile_and_never_names_ai_llm(
+    def test_vlm_retry_path_passes_no_profile_and_never_names_ai_llm(
         self,
         mock_compose_run: Mock,
         mock_wait_running: Mock,
         mock_config: DeployConfig,
     ) -> None:
-        """Per-service retries still reach the profiled ai-vlm, never ai-llm."""
+        """Per-service retries reach ai-vlm in plain calls, never ai-llm.
+
+        A stale `--profile vlm` here would still work (compose ignores a profile
+        no service declares), which is exactly why the argv is pinned: the only
+        thing that catches the leftover flag is this assertion.
+        """
         mock_compose_run.side_effect = lambda _cfg, *args, **_kw: "--wait" not in args
         mock_wait_running.return_value = True
 
@@ -367,9 +372,12 @@ class TestApplicationPhaseServiceRetry:
 
         calls = [c.args[1:] for c in mock_compose_run.call_args_list]
         assert not any("ai-llm" in args for args in calls)
+        assert not any("--profile" in args for args in calls), (
+            "deploy still passes a compose profile; ai-vlm ships in the default set"
+        )
         retries = [args for args in calls if "--wait" not in args]
         assert retries == [
-            ("--profile", "vlm", "up", "-d", "--no-build", svc)
+            ("up", "-d", "--no-build", svc)
             for svc in ("ai-gateway", "backend", "frontend", "ai-vlm")
         ]
 
@@ -964,38 +972,43 @@ def services() -> dict:
 
 class TestModePlansMatchCompose:
     """_MODE_PLANS restates compose facts; pin them so a compose edit cannot
-    silently strand deploy (a renamed profile would make every `--profile`
-    call start nothing; a moved start_period would desync the budgets)."""
+    silently strand deploy (a service that moved out of the default set would
+    make deploy's plain `up` skip it; a moved start_period would desync the
+    budgets)."""
 
     @pytest.mark.parametrize("mode", list(_MODE_PLANS))
-    def test_model_server_sits_behind_the_profile_deploy_passes(
-        self, services: dict, mode: str
-    ) -> None:
-        """Every plan's model server must be profiled exactly as deploy claims.
+    def test_model_server_is_in_the_default_compose_set(self, services: dict, mode: str) -> None:
+        """Every plan's model server is profile-free, and deploy passes no profile.
+
+        O1.3 (UR-18): ai-vlm used to sit behind profile `vlm`, and every compose
+        call deploy made carried that profile because podman-compose drops a
+        service whose profile is inactive before it resolves command-line
+        targets. The shipped verdict engine now starts with the default `up`, so
+        the plan carries no profile at all and no call needs one.
 
         Parametrized off ``_MODE_PLANS`` itself rather than a written-out list:
-        the drift this catches is a plan whose profile the compose file no longer
-        carries (every ``--profile`` call then starts nothing) and a new plan with
-        no compose row at all, and a hard-coded ["vlm", "legacy"] would have kept
-        asserting against R8 S2b's deleted legacy plan instead of pointing at the
-        plan that was missing.
+        the drift this catches is a plan whose model server gained a
+        ``profiles:`` block deploy does not pass (every plain call then starts
+        nothing) and a new plan with no compose row at all.
         """
         plan = _MODE_PLANS[mode]
-        assert services[plan.model_server].get("profiles") == [plan.profile]
+        assert not services[plan.model_server].get("profiles"), (
+            f"{plan.model_server} is profile-gated again: deploy names it in a "
+            "plain call, which silently starts nothing"
+        )
+        assert not hasattr(plan, "profile"), (
+            "the deploy plan still carries a compose profile; with the model "
+            "server in the default set it must pass none"
+        )
 
     @pytest.mark.parametrize("mode", list(_MODE_PLANS))
-    def test_app_services_exist_and_only_the_model_server_is_profiled(
-        self, services: dict, mode: str
-    ) -> None:
+    def test_app_services_exist_and_none_is_profiled(self, services: dict, mode: str) -> None:
         """Same read from the other side: everything deploy names by hand exists,
-        and nothing but the model server is hidden behind a profile (an unprofiled
-        service named alongside a profile is fine; a profiled one it forgot to pass
-        would silently be skipped)."""
+        and none of it is hidden behind a profile deploy does not pass."""
         plan = _MODE_PLANS[mode]
         for svc in plan.app_services:
             assert svc in services, f"{svc} missing from docker-compose.prod.yml"
-            if svc != plan.model_server:
-                assert not services[svc].get("profiles"), f"{svc} is profiled"
+            assert not services[svc].get("profiles"), f"{svc} is profiled"
 
     def test_vlm_budgets_follow_ai_vlm_start_period(self, services: dict) -> None:
         """Health poll = start_period; --wait covers start_period + interval x retries."""

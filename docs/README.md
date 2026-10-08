@@ -38,7 +38,7 @@ flowchart TB
         GW["ai-gateway :8090<br/>Triton"]
         YOLO["YOLO26<br/>router /yolo26"]
         LT["re-ID / threat<br/>router /enrich-lt"]
-        VLM["ai-vlm :8098<br/>llama.cpp VLM<br/>(profile: vlm)"]
+        VLM["ai-vlm :8098<br/>llama.cpp VLM<br/>(default set)"]
     end
 
     subgraph Data["Data Layer"]

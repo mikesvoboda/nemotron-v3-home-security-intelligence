@@ -14,7 +14,7 @@ Every knob below belongs to one of two containers:
 | Service      | Port          | Configured by                                                   |
 | ------------ | ------------- | --------------------------------------------------------------- |
 | `ai-gateway` | 8090 (m 8002) | `GATEWAY_MODEL_SET`, `GATEWAY_ENABLE_THREAT`, `GPU_AI_SERVICES` |
-| `ai-vlm`     | 8098          | the `VLM_*` group, `GPU_LLM`, and the compose profile `vlm`     |
+| `ai-vlm`     | 8098          | the `VLM_*` group and `GPU_LLM`                                 |
 
 The backend's own routing to them is `USE_AI_GATEWAY` / `AI_GATEWAY_URL` /
 `AI_VLM_URL`. The face, plate and person-re-ID lookup legs run in-process in the
@@ -33,7 +33,7 @@ stand-in for the gateway's detection router). It reads:
 
 In compose, read logs with
 `podman compose -f docker-compose.prod.yml logs ai-gateway` and
-`podman compose -f docker-compose.prod.yml --profile vlm logs ai-vlm`.
+`podman compose -f docker-compose.prod.yml logs ai-vlm`.
 
 ### Pipeline and Residency Selectors
 
@@ -57,8 +57,9 @@ has ever run is `curl -s http://localhost:8000/metrics | grep hsi_specialist_una
 ## ai-vlm (the Reasoning Engine)
 
 llama.cpp serving a Qwen3-VL GGUF plus its mmproj projector, OpenAI-compatible on
-`POST /v1/chat/completions`. **It is behind the compose profile `vlm`** — a plain
-`up -d` leaves it down.
+`POST /v1/chat/completions`. **It is in the default compose set** — a plain
+`up -d` starts it (until UR-18 it sat behind a `vlm` profile that had to be named
+explicitly).
 
 ### Served Model (operator-placed weights)
 
@@ -95,15 +96,15 @@ a full batch is fitted, not truncated mid-token.
 
 ### Client Timeouts and Guards
 
-| Variable                        | Default                                                 | Notes                                                                                                        |
-| ------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `AI_VLM_URL`                    | `http://localhost:8098` (compose: `http://ai-vlm:8098`) | The URL the backend dials for `vlm_assess`                                                                   |
-| `AI_VLM_PORT`                   | `8098`                                                  | Host loopback mapping only. The **container** port is fixed at 8098, so the internal URL never depends on it |
-| `AI_VLM_READ_TIMEOUT`           | `25.0`                                                  | Per-attempt ceiling; the retry ladder retries once at temp 0 inside the same budget                          |
-| `AI_VLM_WAKE_TIMEOUT_SECONDS`   | `90.0`                                                  | Budget for a wake-from-sleep ping. A failed wake is swallowed, not retried                                   |
-| `VLM_MAX_IMAGE_BYTES`           | `8388608`                                               | Largest single key frame to embed. An oversized capture is a slot overflow that reads as an outage           |
-| `VLM_ENFORCEMENT_PROBE_ENABLED` | `true`                                                  | One JSON-schema probe per endpoint+build before the first verdict is trusted                                 |
-| `VLM_REQUIRED_BUILD`            | `b7972`                                                 | `build_info` substring the probe asserts against `/props`. Empty skips the assertion                         |
+| Variable                        | Default                                                 | Notes                                                                                                             |
+| ------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `AI_VLM_URL`                    | `http://localhost:8098` (compose: `http://ai-vlm:8098`) | The URL the backend dials for `vlm_assess`                                                                        |
+| `AI_VLM_PORT`                   | `8098`                                                  | Host loopback mapping only. The **container** port is fixed at 8098, so the internal URL never depends on it      |
+| `AI_VLM_READ_TIMEOUT`           | `25.0`                                                  | Per-read idle budget for an attempt (read or write phase); a timeout is a budget — not retried, no breaker charge |
+| `AI_VLM_WAKE_TIMEOUT_SECONDS`   | `90.0`                                                  | Budget for a wake-from-sleep ping. A failed wake is swallowed, not retried                                        |
+| `VLM_MAX_IMAGE_BYTES`           | `8388608`                                               | Largest single key frame to embed. An oversized capture is a slot overflow that reads as an outage                |
+| `VLM_ENFORCEMENT_PROBE_ENABLED` | `true`                                                  | One JSON-schema probe per endpoint+build before the first verdict is trusted                                      |
+| `VLM_REQUIRED_BUILD`            | `b7972`                                                 | `build_info` substring the probe asserts against `/props`. Empty skips the assertion                              |
 
 ---
 
@@ -291,6 +292,7 @@ AI_VLM_URL=http://${AI_HOST}:8098
 | `FAST_PATH_OBJECT_TYPES`         | Types eligible for fast-path | `[]` in code                                     |
 
 > [!WARNING]
+>
 > **The fast path is disabled by design.** `config.py` ships
 > `fast_path_confidence_threshold = 2.0` (an impossible value) and an empty
 > `FAST_PATH_OBJECT_TYPES`, because the fast path bypasses the specialist legs and the
