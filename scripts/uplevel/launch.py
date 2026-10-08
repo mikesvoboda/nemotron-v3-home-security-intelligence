@@ -268,7 +268,10 @@ def _session_row(row: Mapping[str, Any], path: Path, where: str) -> Session:
         # collides with the library dies inside agent-dgx at create time; refusing the row
         # here is the launcher's own check, not a guess about agent-dgx's behaviour.
         for mount in mounts:
-            source = mount.partition(":")[0].rstrip("/")
+            # Normalize, don't just trim: the rule is about the path the mount lands on,
+            # so an equivalent spelling (/srv//agent-models, /srv/agent-models/./) names
+            # the same library and must refuse too (backend review note 7b on #6867).
+            source = os.path.normpath(mount.partition(":")[0])
             if source == "/srv/agent-models" or source.startswith("/srv/agent-models/"):
                 raise Refused(
                     f"{label} has `gpu = true` and mounts {mount}, at or under "

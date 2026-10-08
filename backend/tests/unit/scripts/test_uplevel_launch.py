@@ -399,6 +399,9 @@ def test_operator_md_holds_the_section_the_line_names() -> None:
     assert "## Kickoff prompt" in doc
 
 
+@pytest.mark.timeout(360)  # nested pytest (0.7s warm here; the tier default is 5s) — the
+# inner run's own 300s subprocess timeout stays the binding kill. Precedent: the census
+# suite's @pytest.mark.timeout(180) at scripts/test_suppression_census.py:464.
 def test_the_mutant_home_shape_skips_the_docs_read_and_keeps_the_rest_alive(
     tmp_path: Path,
 ) -> None:
@@ -485,6 +488,25 @@ def test_a_gpu_row_mounting_the_model_library_refuses(tmp_path: Path) -> None:
         "[[phase]]\nnumber = 0\n"
         f'[[phase.session]]\nname = "{OPERATOR}"\nmodel = "fast"\nkickoff = "k"\n'
         'gpu = true\nmount = ["/srv/agent-models:ro"]\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(launch.Refused, match="agent-models"):
+        launch.load_manifest(manifest)
+
+
+def test_a_gpu_row_mounting_the_library_through_a_double_slash_refuses(
+    tmp_path: Path,
+) -> None:
+    """The refusal is about the path the mount lands on, not the bytes typed into the
+    row: a hand-written ``/srv//agent-models`` names the same library ``--gpu`` mounts.
+    A guard that only strips a trailing separator lets it through, and the row then
+    dies inside ``agent-dgx`` at create time - the exact shape refusing here exists to
+    prevent (backend review note 7b on #6867)."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 0\n"
+        f'[[phase.session]]\nname = "{OPERATOR}"\nmodel = "fast"\nkickoff = "k"\n'
+        'gpu = true\nmount = ["/srv//agent-models:ro"]\n',
         encoding="utf-8",
     )
     with pytest.raises(launch.Refused, match="agent-models"):
