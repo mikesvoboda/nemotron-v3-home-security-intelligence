@@ -192,7 +192,7 @@ the gateway-consolidation follow-up:
 `florence2` is the only Triton Python-backend model left; `xclip_action`
 (python, zero-shot video action recognition) was superseded by the
 skeleton-based `stgcn_action` pipeline, whose per-frame pose stage the gateway
-drives itself (`ai/gateway/adapters/enrichment.py` `_infer_action`).
+drives itself.
 
 ## Model Preparation
 

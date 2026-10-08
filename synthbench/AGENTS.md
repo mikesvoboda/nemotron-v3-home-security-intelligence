@@ -8,27 +8,27 @@ Phase plans live in `docs/superpowers/plans/*-synthbench-*.md`.
 
 ## Layout
 
-| Path                                          | What                                                                                                            |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `generate/weights.py` + `generate/manifests/` | pinned, sha256-verified weights; ComfyUI symlink farm (`/export/models/comfyui`)                                |
-| `generate/window.py`                          | GPU window: stops the flagship vLLM, ALWAYS restores it                                                         |
-| `generate/podman.py`                          | the dedicated podman store (`SYNTHBENCH_PODMAN_ROOT`): argv prefix and `TMPDIR`                                 |
-| `generate/comfy/`                             | ComfyUI container (podman), HTTP client, graph validator, per-model graph builders                              |
-| `contract/`                                   | event contract: spec/truth/provenance models, corpus records, append-only `CorpusStore`                         |
-| `taxonomy/`                                   | committed Tier B taxonomy YAML, its coherence rules, the seeded quota sampler, the coverage model               |
-| `cli.py` + `__main__.py`                      | `python -m synthbench <command>`; exit 0 done, 1 error, 2 stop and ask the owner                                |
-| `commands/`                                   | one module per command, all listed in `docs/synthbench/command-reference.md`; `cli.py` dispatches               |
-| `export/`                                     | exports of corpus events for other tools: `vss.py`, the VSS eval store's import layout (P5a)                    |
-| `audit/`                                      | the owner's audits: the 60-still sample and page (P5a); the blind clip draw and page (ISS-038)                  |
-| `run/`                                        | `replay`: served VLMs over the export, through the shipped `VlmClient`; imports `backend` (P5a)                 |
-| `score/`                                      | `score`: metrics and the report over replays, S2 and S3 from `s_metrics`; imports `backend` (P5a)               |
-| `prompt/`                                     | the prompt rules and the content blocklist that `check` enforces                                                |
-| `clips/`                                      | clip rounds: the settings recorded per round, the draw, the motion rules, the H3 fit/check/strip (clips design) |
-| `status.py`                                   | the host status files (`status/flagship.json`, `status/snapshots.json`)                                         |
-| `generate/render.py`                          | ComfyUI discovery, yield to the flagship, the per-attempt FLUX.2 graph                                          |
-| `generate/camera/`                            | the camera stage and its committed default parameters                                                           |
-| `host/`                                       | host-only: the guard, the renderer unit's checks, the unit files, snapshots and pruning, the agent's sandbox    |
-| `spikes/p1_bakeoff/`                          | throwaway P1 bake-off harness (not a pattern to copy)                                                           |
+| Path                                          | What                                                                                                                                      |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `generate/weights.py` + `generate/manifests/` | pinned, sha256-verified weights; ComfyUI symlink farm (`/export/models/comfyui`)                                                          |
+| `generate/window.py`                          | GPU window: stops the flagship vLLM, ALWAYS restores it                                                                                   |
+| `generate/podman.py`                          | the dedicated podman store (`SYNTHBENCH_PODMAN_ROOT`): argv prefix and `TMPDIR`                                                           |
+| `generate/comfy/`                             | ComfyUI container (podman), HTTP client, graph validator, per-model graph builders                                                        |
+| `contract/`                                   | event contract: spec/truth/provenance models, corpus records, append-only `CorpusStore`                                                   |
+| `taxonomy/`                                   | committed Tier B taxonomy YAML, its coherence rules, the seeded quota sampler, the coverage model                                         |
+| `cli.py` + `__main__.py`                      | `python -m synthbench <command>`; exit 0 done, 1 error, 2 stop and ask the owner                                                          |
+| `commands/`                                   | one module per command, all listed in `docs/synthbench/command-reference.md`; `cli.py` dispatches                                         |
+| `export/`                                     | exports of corpus events for other tools: `vss.py`, the VSS eval store's import layout (P5a)                                              |
+| `audit/`                                      | the owner's audits: the 60-still sample and page (P5a); the blind clip draw and page (ISS-038)                                            |
+| `run/`                                        | `replay`: served VLMs over the export, through the shipped `VlmClient`; imports `backend` (P5a)                                           |
+| `score/`                                      | `score`: metrics and the report over replays, S2 and S3 from `s_metrics`; imports `backend` (P5a)                                         |
+| `prompt/`                                     | the prompt rules and the content blocklist that `check` enforces                                                                          |
+| `clips/`                                      | clip rounds: the settings recorded per round, the draw, the motion rules, the H3 fit/check/strip (clips design)                           |
+| `status.py`                                   | the host status files the guard and corpus-snapshot write at runtime (status/flagship.json, status/snapshots.json — generated, untracked) |
+| `generate/render.py`                          | ComfyUI discovery, yield to the flagship, the per-attempt FLUX.2 graph                                                                    |
+| `generate/camera/`                            | the camera stage and its committed default parameters                                                                                     |
+| `host/`                                       | host-only: the guard, the renderer unit's checks, the unit files, snapshots and pruning, the agent's sandbox                              |
+| `spikes/p1_bakeoff/`                          | throwaway P1 bake-off harness (not a pattern to copy)                                                                                     |
 
 ## Rules
 
