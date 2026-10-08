@@ -276,16 +276,15 @@ class TestGateRefusesWithoutCredential:
 
 class TestOpenPaths:
     def test_open_paths_are_the_documented_allowlist(self) -> None:
-        """Health probes, Prometheus targets, and getting or clearing a session."""
+        """Health probes, first-run setup, and getting or clearing a session.
+
+        Monitoring is not on it: the owner ruled it denied by default (UR-33).
+        """
         documented = {
             "/health",
             "/ready",
             "/api/system/health",
             "/api/system/health/ready",
-            "/api/metrics",
-            "/api/system/gpu",
-            "/api/system/stats",
-            "/api/system/telemetry",
             "/api/auth/setup-status",
             "/api/auth/register",
             "/api/auth/login",
@@ -300,7 +299,7 @@ class TestOpenPaths:
 
     @pytest.mark.parametrize(
         "path",
-        ["/api/auth/login/", "/api/auth/login/x", "/api/metricsx", "/api/system/health/full"],
+        ["/api/auth/login/", "/api/auth/login/x", "/api/auth/loginx", "/api/system/health/full"],
     )
     @pytest.mark.usefixtures("exposed")
     def test_open_paths_match_exactly(self, path: str) -> None:

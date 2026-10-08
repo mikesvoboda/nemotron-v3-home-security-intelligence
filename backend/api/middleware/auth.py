@@ -1,9 +1,9 @@
 """Authentication: the EXPOSE_LAN gate and the WebSocket routes' API-key check.
 
 ``AuthMiddleware`` is the gate OD-12 rules (B1.5). With ``EXPOSE_LAN`` unset it
-passes every request, as a loopback-only deployment always has. With
-``EXPOSE_LAN=true`` it refuses every HTTP request and WebSocket handshake that
-presents no valid credential, whatever its path, except ``OPEN_PATHS``.
+passes every request, as before B1.5. With ``EXPOSE_LAN=true`` it refuses every
+HTTP request and WebSocket handshake that presents no valid credential, whatever
+its path, except ``OPEN_PATHS``.
 
 A credential is either
 - the ``session_id`` cookie ``POST /api/auth/login`` sets, looked up in Redis; or
@@ -42,6 +42,8 @@ logger = get_logger(__name__)
 SESSION_COOKIE_NAME = "session_id"
 
 # Reachable without a credential when EXPOSE_LAN=true. Exact paths, no prefixes.
+# Monitoring is not here: it is denied by default like everything else (UR-33);
+# O1.11 gives Prometheus, Alertmanager and Grafana a credential.
 OPEN_PATHS: frozenset[str] = frozenset(
     {
         # container healthchecks and Prometheus probes
@@ -49,13 +51,6 @@ OPEN_PATHS: frozenset[str] = frozenset(
         "/ready",
         "/api/system/health",
         "/api/system/health/ready",
-        # Prometheus scrapes these with no credential. No footage or identity rows, but
-        # /api/metrics counts detections per class and events per risk level, so it
-        # shows when activity happens (an owner question on B1.5, PR #6861)
-        "/api/metrics",
-        "/api/system/gpu",
-        "/api/system/stats",
-        "/api/system/telemetry",
         # first-run setup (register answers 409 once a user exists) and the session
         "/api/auth/setup-status",
         "/api/auth/register",

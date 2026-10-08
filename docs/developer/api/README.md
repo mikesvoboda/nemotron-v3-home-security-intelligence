@@ -18,7 +18,7 @@ For production deployments, replace `localhost:8000` with your server address.
 
 ## Authentication
 
-With `EXPOSE_LAN=true` every request outside health, Prometheus, setup and login needs the login session cookie or a key from `API_KEYS` (`backend/api/middleware/auth.py`); with it unset none is needed. The routes guarded by `verify_api_key` also check the key when `API_KEY_ENABLED=true`. Provide a key via:
+With `EXPOSE_LAN=true` every request outside health, setup and login, monitoring included, needs the login session cookie or a key from `API_KEYS` (`backend/api/middleware/auth.py`); with it unset none is needed. The routes guarded by `verify_api_key` also check the key when `API_KEY_ENABLED=true`. Provide a key via:
 
 **HTTP Header (preferred):**
 

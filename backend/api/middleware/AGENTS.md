@@ -42,7 +42,7 @@ The EXPOSE_LAN auth gate, and the API-key check the WebSocket routes run.
 
 | Name                                    | Purpose                                                                                                      |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `OPEN_PATHS`                            | The exact paths the gate leaves open: health, Prometheus, setup, login                                       |
+| `OPEN_PATHS`                            | The exact paths the gate leaves open: health, setup, login, logout                                           |
 | `authenticated_principal(conn)`         | Username, `api-key`, or None — used for audit actors                                                         |
 | `require_api_key(x_api_key)`            | HTTP dependency; validates the key against `settings.api_keys` unconditionally (no `api_key_enabled` branch) |
 | `validate_websocket_api_key(websocket)` | Validate API key for WebSocket connections (`API_KEY_ENABLED`)                                               |
@@ -566,8 +566,8 @@ Setup guard middleware (`SetupGuardMiddleware`): returns 503 for API endpoints u
 ### Purpose
 
 `AuthMiddleware` is the gate the owner ruled in OD-12 (built by uplevel `B1.5`). With
-`EXPOSE_LAN` unset the backend requires no credential, as a loopback-only deployment always
-has. With `EXPOSE_LAN=true` it refuses every HTTP request and WebSocket handshake that
+`EXPOSE_LAN` unset the backend requires no credential, as before; after `O1.6` the frontend
+then binds to 127.0.0.1 only. With `EXPOSE_LAN=true` it refuses every HTTP request and WebSocket handshake that
 presents no valid credential — whatever the path, including routes added later — except
 `OPEN_PATHS`.
 
@@ -583,8 +583,9 @@ presents no valid credential — whatever the path, including routes added later
 ### Open paths (exact matches)
 
 `/health`, `/ready`, `/api/system/health`, `/api/system/health/ready` (healthchecks and probes);
-`/api/metrics`, `/api/system/gpu`, `/api/system/stats`, `/api/system/telemetry` (Prometheus);
 `/api/auth/setup-status`, `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`.
+Monitoring (`/api/metrics`, `/api/system/{gpu,stats,telemetry}`) needs a credential like every
+other path (owner ruling UR-33); `O1.11` gives Prometheus, Alertmanager and Grafana one.
 CORS preflights that carry `Origin` also pass (CORSMiddleware answers those itself). Everything
 else, `/docs` and media included, needs a credential.
 

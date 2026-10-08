@@ -199,6 +199,16 @@ def test_exposed_iss_029_matrix_is_refused(method: str, path: str) -> None:
     assert _send(client, method, path) == REFUSED
 
 
+@pytest.mark.parametrize(
+    "path", ["/api/metrics", "/api/system/gpu", "/api/system/stats", "/api/system/telemetry"]
+)
+@pytest.mark.usefixtures("exposed")
+def test_exposed_monitoring_needs_a_credential(path: str) -> None:
+    """Monitoring is denied by default like every other path (owner ruling, UR-33)."""
+    client = TestClient(app, raise_server_exceptions=False)
+    assert _send(client, "GET", path) == REFUSED
+
+
 @pytest.mark.usefixtures("exposed")
 def test_exposed_preflight_without_origin_is_refused() -> None:
     """CORSMiddleware hands an Origin-less preflight to the router; the gate must not.

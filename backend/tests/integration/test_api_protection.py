@@ -385,7 +385,7 @@ class TestPostSetupAuthentication:
 
         Shipped auth model (AGENTS.md; with EXPOSE_LAN unset, as here, the
         AuthMiddleware gate passes everything): single-user local deployment,
-        network binding to 127.0.0.1 is the security boundary, API endpoints
+        network binding to 127.0.0.1 (after O1.6) is the boundary, API endpoints
         are open after setup; admin/destructive routes keep per-route dependencies
         (verify_api_key, require_admin_access). Owner ruling F3.
         """

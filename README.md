@@ -545,7 +545,7 @@ This MVP is designed for **single-user, trusted LAN** deployments.
 - On a fresh install the API returns 503 until you register the first admin account through the dashboard
   (SetupGuardMiddleware); after that, with `EXPOSE_LAN` unset, API endpoints need no credential.
 - Set `EXPOSE_LAN=true` when anything beyond this machine reaches the UI: every request then needs the
-  login session or an API key, except health, Prometheus, setup and login. Admin/destructive routes carry their own guards.
+  login session or an API key, except health, setup and login. Admin/destructive routes carry their own guards.
 - Rate limiting is **on by default**
 - Do **not** expose to the public internet without hardening
 

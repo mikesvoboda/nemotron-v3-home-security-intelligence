@@ -143,10 +143,10 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 The global step is `AuthMiddleware`, the EXPOSE_LAN gate (OD-12; AGENTS.md "Auth
 model"). With `EXPOSE_LAN` unset (the default) it passes everything: after
-first-admin registration the API is open, and binding to `127.0.0.1` is the
-security boundary. With `EXPOSE_LAN=true` it refuses any request without the login
-session cookie or an `API_KEYS` key, except health probes, Prometheus targets, setup
-and login (`OPEN_PATHS` in `backend/api/middleware/auth.py`). In both modes, specific
+first-admin registration the API is open, and after `O1.6` binding to `127.0.0.1`
+is the security boundary. With `EXPOSE_LAN=true` it refuses any request without the login
+session cookie or an `API_KEYS` key, except health probes, setup and login
+(`OPEN_PATHS` in `backend/api/middleware/auth.py`); monitoring is gated too (UR-33). In both modes, specific
 sensitive routes also carry per-route FastAPI dependencies:
 
 | Guard                    | Defined in                                                         | Used by                                                                                                                                     | Fails with                                                                                                    |

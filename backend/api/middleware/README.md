@@ -17,7 +17,7 @@ _HTTP request/response flow through the middleware chain showing execution order
 | `EXPOSE_LAN` | `false` | `true`: every request needs the login session cookie or an `API_KEYS` key, except open paths |
 | `API_KEYS`   | `[]`    | Keys the gate accepts (JSON array); `verify_api_key` routes also need `API_KEY_ENABLED=true` |
 
-With `EXPOSE_LAN` unset the gate passes every request; the `127.0.0.1` binding is the boundary.
+With `EXPOSE_LAN` unset the gate passes every request; after `O1.6` the `127.0.0.1` binding is the boundary.
 
 ### Credentials
 
@@ -28,9 +28,8 @@ With `EXPOSE_LAN` unset the gate passes every request; the `127.0.0.1` binding i
 ### Open paths
 
 Exact matches only: `/health`, `/ready`, `/api/system/health`, `/api/system/health/ready`,
-`/api/metrics`, `/api/system/gpu`, `/api/system/stats`, `/api/system/telemetry`,
 `/api/auth/setup-status`, `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, plus CORS
-preflights that carry `Origin`. `/docs`, `/openapi.json` and media need a credential.
+preflights that carry `Origin`. Monitoring, `/docs`, `/openapi.json` and media need a credential.
 
 ### Responses
 

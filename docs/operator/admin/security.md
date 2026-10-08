@@ -11,11 +11,12 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
 - **First-time admin registration required** - `SetupGuardMiddleware` returns 503 on the
   API until the first user is created.
 - **Two exposure modes (OD-12)** - With `EXPOSE_LAN` unset (the default) the API requires no
-  credential after registration, and the `127.0.0.1` service bindings are the security
-  boundary. Set `EXPOSE_LAN=true` whenever anything beyond this machine can reach the UI (the
+  credential after registration; after `O1.6` the UI binds to `127.0.0.1` and the service
+  bindings are the security boundary (until then nginx publishes on `0.0.0.0`). Set `EXPOSE_LAN=true` whenever anything beyond this machine can reach the UI (the
   LAN, a tunnel, a port forward): `AuthMiddleware` then refuses every request without the
-  login session cookie or an `API_KEYS` key, except health probes, Prometheus targets, setup
-  and login. Logging in then needs HTTPS in front, because the session cookie is `Secure`.
+  login session cookie or an `API_KEYS` key, except health probes, setup and login.
+  Monitoring needs a credential too (UR-33), so Prometheus, Alertmanager and Grafana's
+  backend panels go blank until `O1.11` gives them one. Logging in then needs HTTPS in front, because the session cookie is `Secure`.
   Register the admin before exposing: registration stays open until the first user exists.
 - **Per-route guards for sensitive operations** - the `/api/admin/*` seeding, cache-clearing
   and cleanup routes sit behind `require_admin_access`, which gates on `ADMIN_ENABLED` alone
@@ -451,7 +452,7 @@ CORS_ORIGINS=["https://your-domain.com"]
 
 ## Metrics Endpoint Security
 
-The `/api/metrics` endpoint exposes Prometheus-format metrics and is **intentionally unauthenticated** to allow Prometheus scraping. This is a security consideration.
+The `/api/metrics` endpoint exposes Prometheus-format metrics. With `EXPOSE_LAN` unset it is unauthenticated, so Prometheus can scrape it; with `EXPOSE_LAN=true` it needs a credential like every other path (UR-33), and Prometheus gets one in `O1.11`. The metrics include detections per class and events per risk level, which show when activity happens.
 
 ### Information Disclosed
 

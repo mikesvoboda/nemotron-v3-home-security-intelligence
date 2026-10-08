@@ -19,7 +19,7 @@ The system implements defense-in-depth security measures including input validat
 | Assumption               | Implication                                      |
 | ------------------------ | ------------------------------------------------ |
 | Single-user deployment   | No role-based access control                     |
-| Loopback by default      | No credential unless `EXPOSE_LAN=true`           |
+| Loopback after `O1.6`    | No credential unless `EXPOSE_LAN=true`           |
 | No internet exposure     | CORS allows local origins by default             |
 | Camera data is sensitive | Path traversal protection on all media endpoints |
 
@@ -73,7 +73,7 @@ flowchart TB
 
 ### Auth Flow
 
-The following diagram illustrates the first-time setup guard and authentication flow. When no admin user exists, the `SetupGuardMiddleware` returns 503 until registration is completed. After the first admin is created, requests pass through normally unless `EXPOSE_LAN=true`, in which case `AuthMiddleware` requires the login session cookie or an API key (except health, Prometheus, setup and login).
+The following diagram illustrates the first-time setup guard and authentication flow. When no admin user exists, the `SetupGuardMiddleware` returns 503 until registration is completed. After the first admin is created, requests pass through normally unless `EXPOSE_LAN=true`, in which case `AuthMiddleware` requires the login session cookie or an API key (except health, setup and login).
 
 ```mermaid
 sequenceDiagram

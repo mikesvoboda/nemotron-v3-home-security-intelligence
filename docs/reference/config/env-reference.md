@@ -363,11 +363,11 @@ Risk score ranges for severity levels. See [Risk Levels Reference](risk-levels.m
 
 ## Authentication
 
-| Variable          | Required | Default | Description                                                                                                                                                                                    |
-| ----------------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EXPOSE_LAN`      | No       | `false` | Set `true` when anything beyond this machine reaches the UI. The backend then requires the login session or an `API_KEYS` key on every request but health, Prometheus, setup and login (OD-12) |
-| `API_KEY_ENABLED` | No       | `false` | Require `X-API-Key` on the routes guarded by `verify_api_key` (DLQ, some `/api/system` routes)                                                                                                 |
-| `API_KEYS`        | No       | `[]`    | Valid API keys (JSON array), accepted by `verify_api_key` and, when `EXPOSE_LAN=true`, by the auth gate                                                                                        |
+| Variable          | Required | Default | Description                                                                                                                                                                                                    |
+| ----------------- | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EXPOSE_LAN`      | No       | `false` | Set `true` when anything beyond this machine reaches the UI. The backend then requires the login session or an `API_KEYS` key on every request but health, setup and login, monitoring included (OD-12, UR-33) |
+| `API_KEY_ENABLED` | No       | `false` | Require `X-API-Key` on the routes guarded by `verify_api_key` (DLQ, some `/api/system` routes)                                                                                                                 |
+| `API_KEYS`        | No       | `[]`    | Valid API keys (JSON array), accepted by `verify_api_key` and, when `EXPOSE_LAN=true`, by the auth gate                                                                                                        |
 
 **Example:**
 
