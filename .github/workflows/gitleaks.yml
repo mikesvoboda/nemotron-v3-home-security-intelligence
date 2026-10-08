@@ -93,7 +93,7 @@ jobs:
           fi
 
       - name: Create Linear issue on verified credentials found
-        if: vars.LINEAR_ENABLED == 'true' && (steps.check_results.outputs.secrets_found == 'true' # pragma: allowlist secret)
+        if: vars.LINEAR_ENABLED == 'true' && (steps.check_results.outputs.secrets_found == 'true') # pragma: allowlist secret
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
