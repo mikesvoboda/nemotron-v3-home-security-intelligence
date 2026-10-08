@@ -107,7 +107,7 @@ mmproj projector is required, without it the serve is text-only and every `vlm_a
 degrades silently". Compounding it, `backend`'s `depends_on` names `postgres`, `redis`,
 `ai-gateway` and `go2rtc` — **not** `ai-vlm` (`prod.yml:634-646`), on purpose: `ai-vlm` failing
 must never take the rest of the stack down, so degradation is left to the `vlm_analyzer` ladder
-rather than a compose edge (`prod.yml:128-131`, the service's header comment).
+rather than a compose edge (`prod.yml:127-130`, the service's header comment).
 
 **Signature to grep for:** a run of events with `risk_score`/`risk_level` NULL and
 `verdict = 'verification_failed'`. That is the VLM unreachable or blind, not an empty camera.

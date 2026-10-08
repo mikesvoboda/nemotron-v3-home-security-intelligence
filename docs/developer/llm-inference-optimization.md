@@ -19,7 +19,7 @@ service's live configuration.
 | Port          | container-side `PORT=8098` fixed (`ai/vlm/Dockerfile:123`); host mapping via `AI_VLM_PORT` |
 | GPU           | `nvidia.com/gpu=${GPU_LLM:-0}` + `CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}`                      |
 | Weights mount | `${AI_MODELS_PATH}/vlm:/models:ro` — the service never downloads weights                   |
-| Bring-up      | in the default compose set (`docker-compose.prod.yml:148`) — a plain `up -d` starts it     |
+| Bring-up      | in the default compose set (`docker-compose.prod.yml:141`) — a plain `up -d` starts it     |
 
 ## Server Flags
 

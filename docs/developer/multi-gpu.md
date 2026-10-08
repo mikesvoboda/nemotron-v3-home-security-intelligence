@@ -58,7 +58,7 @@ The stack boots two GPU services (`docker-compose.prod.yml`):
 
 Compose threads GPU placement through exactly two variables: `GPU_LLM`
 (`ai-vlm`) and `GPU_AI_SERVICES` (`ai-gateway`), each defaulting to a card index
-(`docker-compose.prod.yml:168`, `docker-compose.prod.yml:403`).
+(`docker-compose.prod.yml:163`, `docker-compose.prod.yml:398`).
 
 > **Limitation.** The GPU Configuration API and its Settings UI present a per-model
 > assignment roster built from the `AI_SERVICE_VRAM_REQUIREMENTS_MB` dict at

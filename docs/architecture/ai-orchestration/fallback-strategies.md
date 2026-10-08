@@ -172,4 +172,4 @@ Alert (`docs/architecture/ai-pipeline-current-state.md` §2.4). Diagnose from `e
 - **VLM weights**: place the GGUF + mmproj pair under `${AI_MODELS_PATH}/vlm` matching
   `VLM_MODEL_PATH` + `VLM_MMPROJ_PATH` and restart `ai-vlm` with
   `up -d ai-vlm` — no flag, it is in the default compose set
-  (`docker-compose.prod.yml:148`).
+  (`docker-compose.prod.yml:141`).

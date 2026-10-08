@@ -99,7 +99,7 @@ podman compose -f docker-compose.prod.yml ps
 # ai-vlm listed with them — no flag is needed to start it or to list it.
 # The two AI containers load the slowest: ai-vlm's healthcheck allows a 120 s
 # start period (ai/vlm/Dockerfile:138-139) and ai-gateway's allows 180 s
-# (docker-compose.prod.yml:415). Re-run until everything is healthy.
+# (docker-compose.prod.yml:410). Re-run until everything is healthy.
 ```
 
 ### Register the First Admin

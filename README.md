@@ -128,7 +128,7 @@ The VLM runs in the default compose set (`up -d` starts it; until UR-18 it sat
 behind a compose profile that had to be named explicitly) and the backend
 soft-depends on it (`docker-compose.prod.yml:634-646` lists `postgres`, `redis`,
 `ai-gateway` and `go2rtc`, never `ai-vlm`; the dial is the
-`AI_VLM_URL` env var at `:552` — the backend has no `depends_on` entry
+`AI_VLM_URL` env var at `:554` — the backend has no `depends_on` entry
 for it, so the backend degrades instead of failing to boot). `ai-gateway`'s
 Triton repository holds exactly `{yolo26, reid, threat}`; `GATEWAY_MODEL_SET` accepts only
 `vlm` and hard-raises on anything else. `ai-vlm` is the only LLM service; there is no

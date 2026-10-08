@@ -277,7 +277,7 @@ for host overhead.
 
 ![Backend Initialization Lifecycle](../../images/architecture/backend-init-lifecycle.png)
 
-**Source:** `docker-compose.prod.yml:637-649` (backend `depends_on`)
+**Source:** `docker-compose.prod.yml:634-646` (backend `depends_on`)
 
 ```yaml
 # Backend startup order

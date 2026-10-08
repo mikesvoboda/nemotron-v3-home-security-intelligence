@@ -415,7 +415,7 @@ with (
 | `use_redis_streams`              | `true`                  | Streams with consumer groups, or LIST + BRPOP |
 | `worker_supervisor_max_restarts` | from settings           | Supervisor restart budget for this worker     |
 
-Under compose, `AI_VLM_URL` is `http://ai-vlm:8098` (`docker-compose.prod.yml:559`) and `ai-vlm` is in the default compose set — a plain `up -d` starts it (`docker-compose.prod.yml:141-270`).
+Under compose, `AI_VLM_URL` is `http://ai-vlm:8098` (`docker-compose.prod.yml:554`) and `ai-vlm` is in the default compose set — a plain `up -d` starts it (`docker-compose.prod.yml:141-270`).
 
 ## Related Documentation
 
