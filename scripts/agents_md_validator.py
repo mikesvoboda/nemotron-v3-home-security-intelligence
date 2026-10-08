@@ -77,9 +77,11 @@ RETIRED_NAMES: tuple[str, ...] = (
     "pose",
     "demographics",
 )
-# Whole-word, case-insensitive (over content.lower()). Substring "pose" is
-# 1457 mentions across the tree (purpose/compose/PoseResult — live English and
-# live code); \b measures the mentions the plan named. \w's underscore also
+# Whole-word, case-insensitive (over content.lower()). Substring "pose"
+# measured 1,464 at the head this shipped and MOVES with every AGENTS.md edit
+# (purpose/compose/PoseResult — live English and live code), which is exactly
+# why it is not the baseline; \b measures the mentions the plan named — 37,
+# and that is the number the ratchet enforces. \w's underscore also
 # excludes pose_estimation.py while including YOLOv8-pose and enrichment-light.
 RETIRED_NAME_PATTERNS = {name: re.compile(rf"\b{name}\b") for name in RETIRED_NAMES}
 

@@ -145,10 +145,11 @@ dead_reference_allowlist:
 # Counting rule: case-insensitive WHOLE WORD (\b<name>\b) over the FULL
 # content of every scanned AGENTS.md — fenced blocks INCLUDED (fences are not
 # a dodge surface) and READMEs EXCLUDED (the scanned set is find_agents_md_files,
-# never every *.md). Whole-word is load-bearing: SUBSTRING pose measures
-# 1457 ("purpose", "compose", PoseResult are live English and live code),
-# which is a different quantity than the plan named and would redden any PR
-# writing the word "purpose" — pinned by test_purpose_is_not_pose.
+# never every *.md). Whole-word is load-bearing: SUBSTRING pose measured 1,464
+# at the head this shipped and moves with every AGENTS.md edit ("purpose",
+# "compose", PoseResult are live English and live code), which is a different
+# quantity than the plan named and would redden any PR writing the word
+# "purpose" — pinned by test_purpose_is_not_pose.
 # Per-name ceilings, not one total: a total launders by substitution
 # (+1 florence bought with -1 pose) — pinned by
 # test_substitution_does_not_green_a_total. ALL SIX KEYS ARE REQUIRED: the

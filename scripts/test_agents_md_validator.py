@@ -338,8 +338,9 @@ def test_retired_name_above_baseline_fails(tmp_path):
 
 
 def test_purpose_is_not_pose(tmp_path):
-    """Whole-word is load-bearing, pinned: SUBSTRING pose measured 1457
-    across the real tree ("purpose", "compose", PoseResult — live English and
+    """Whole-word is load-bearing, pinned: SUBSTRING pose measured 1,464
+    across the real tree at the head this shipped (and it moves with every
+    AGENTS.md edit — "purpose", "compose", PoseResult are live English and
     live code), so substring counts a different quantity than the plan named
     and would redden any PR writing the word 'purpose'. This fixture passes
     whole-word and REDDENS under a substring implementation (pose 2 > 1)."""
