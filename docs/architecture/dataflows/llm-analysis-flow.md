@@ -937,17 +937,17 @@ Nothing in `analyze_batch` calls it: a shipped verdict always rides the one rend
 
 ### Error Categories
 
-| Error                                               | Handling                              | Stored outcome                              |
-| --------------------------------------------------- | ------------------------------------- | ------------------------------------------- |
+| Error                                                                               | Handling                              | Stored outcome                              |
+| ----------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------- |
 | Connection refused, connect-phase timeout, any answered status (5xx or a plain 4xx) | retried once at temperature 0         | `verification_failed`, NULL score and level |
-| Complete reply violating `VlmVerdict`               | retried once at temperature 0         | `verification_failed`, NULL score and level |
-| Reply outrunning the read/write budget              | raised once, breaker untouched        | `verification_failed`, NULL score and level |
-| Reply truncated at `max_tokens`                     | raised once, breaker untouched        | `verification_failed`, NULL score and level |
-| Request larger than the served slot                 | raised once, breaker untouched        | `verification_failed`, NULL score and level |
-| Grammar unenforced, or build mismatch               | raised once                           | `verification_failed`, NULL score and level |
-| Key frame refused by a guard                        | raised before any I/O                 | `verification_failed`, NULL score and level |
-| Breaker OPEN                                        | refused without I/O                   | `verification_failed`, NULL score and level |
-| No camera metadata, or no detection ids             | `ValueError` propagates to the worker | no event is written                         |
+| Complete reply violating `VlmVerdict`                                               | retried once at temperature 0         | `verification_failed`, NULL score and level |
+| Reply outrunning the read/write budget                                              | raised once, breaker untouched        | `verification_failed`, NULL score and level |
+| Reply truncated at `max_tokens`                                                     | raised once, breaker untouched        | `verification_failed`, NULL score and level |
+| Request larger than the served slot                                                 | raised once, breaker untouched        | `verification_failed`, NULL score and level |
+| Grammar unenforced, or build mismatch                                               | raised once                           | `verification_failed`, NULL score and level |
+| Key frame refused by a guard                                                        | raised before any I/O                 | `verification_failed`, NULL score and level |
+| Breaker OPEN                                                                        | refused without I/O                   | `verification_failed`, NULL score and level |
+| No camera metadata, or no detection ids                                             | `ValueError` propagates to the worker | no event is written                         |
 
 The mapping is one tuple in the analyzer, and anything outside it is a bug that propagates loud rather than a degraded row:
 

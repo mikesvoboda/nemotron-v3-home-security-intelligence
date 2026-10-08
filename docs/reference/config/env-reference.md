@@ -139,13 +139,13 @@ by a third service.
 
 ### Service Timeouts
 
-| Variable                      | Required | Default | Range  | Description                            |
-| ----------------------------- | -------- | ------- | ------ | -------------------------------------- |
-| `AI_CONNECT_TIMEOUT`          | No       | `10.0`  | 1-60s  | Connection timeout to any AI service   |
-| `AI_HEALTH_TIMEOUT`           | No       | `5.0`   | 1-30s  | Health check timeout                   |
-| `YOLO26_READ_TIMEOUT`         | No       | `30.0`  | 5-120s | Detection response timeout             |
+| Variable                      | Required | Default | Range  | Description                                     |
+| ----------------------------- | -------- | ------- | ------ | ----------------------------------------------- |
+| `AI_CONNECT_TIMEOUT`          | No       | `10.0`  | 1-60s  | Connection timeout to any AI service            |
+| `AI_HEALTH_TIMEOUT`           | No       | `5.0`   | 1-30s  | Health check timeout                            |
+| `YOLO26_READ_TIMEOUT`         | No       | `30.0`  | 5-120s | Detection response timeout                      |
 | `AI_VLM_READ_TIMEOUT`         | No       | `25.0`  | 5-300s | Per-read idle budget for a `vlm_assess` attempt |
-| `AI_VLM_WAKE_TIMEOUT_SECONDS` | No       | `90.0`  | 5-300s | Read timeout for the wake-on-open ping |
+| `AI_VLM_WAKE_TIMEOUT_SECONDS` | No       | `90.0`  | 5-300s | Read timeout for the wake-on-open ping          |
 
 > **Note:** `AI_VLM_READ_TIMEOUT` is a PER-READ IDLE budget, not an attempt deadline:
 > httpx resets the read timer on every reply chunk, so it bounds a STALLED reply

@@ -96,15 +96,15 @@ a full batch is fitted, not truncated mid-token.
 
 ### Client Timeouts and Guards
 
-| Variable                        | Default                                                 | Notes                                                                                                        |
-| ------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `AI_VLM_URL`                    | `http://localhost:8098` (compose: `http://ai-vlm:8098`) | The URL the backend dials for `vlm_assess`                                                                   |
-| `AI_VLM_PORT`                   | `8098`                                                  | Host loopback mapping only. The **container** port is fixed at 8098, so the internal URL never depends on it |
-| `AI_VLM_READ_TIMEOUT`           | `25.0`                                                  | Per-read idle budget for an attempt (read or write phase); a timeout is a budget — not retried, no breaker charge            |
-| `AI_VLM_WAKE_TIMEOUT_SECONDS`   | `90.0`                                                  | Budget for a wake-from-sleep ping. A failed wake is swallowed, not retried                                   |
-| `VLM_MAX_IMAGE_BYTES`           | `8388608`                                               | Largest single key frame to embed. An oversized capture is a slot overflow that reads as an outage           |
-| `VLM_ENFORCEMENT_PROBE_ENABLED` | `true`                                                  | One JSON-schema probe per endpoint+build before the first verdict is trusted                                 |
-| `VLM_REQUIRED_BUILD`            | `b7972`                                                 | `build_info` substring the probe asserts against `/props`. Empty skips the assertion                         |
+| Variable                        | Default                                                 | Notes                                                                                                             |
+| ------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `AI_VLM_URL`                    | `http://localhost:8098` (compose: `http://ai-vlm:8098`) | The URL the backend dials for `vlm_assess`                                                                        |
+| `AI_VLM_PORT`                   | `8098`                                                  | Host loopback mapping only. The **container** port is fixed at 8098, so the internal URL never depends on it      |
+| `AI_VLM_READ_TIMEOUT`           | `25.0`                                                  | Per-read idle budget for an attempt (read or write phase); a timeout is a budget — not retried, no breaker charge |
+| `AI_VLM_WAKE_TIMEOUT_SECONDS`   | `90.0`                                                  | Budget for a wake-from-sleep ping. A failed wake is swallowed, not retried                                        |
+| `VLM_MAX_IMAGE_BYTES`           | `8388608`                                               | Largest single key frame to embed. An oversized capture is a slot overflow that reads as an outage                |
+| `VLM_ENFORCEMENT_PROBE_ENABLED` | `true`                                                  | One JSON-schema probe per endpoint+build before the first verdict is trusted                                      |
+| `VLM_REQUIRED_BUILD`            | `b7972`                                                 | `build_info` substring the probe asserts against `/props`. Empty skips the assertion                              |
 
 ---
 
