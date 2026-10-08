@@ -725,7 +725,7 @@ circuit breakers surfaced by `GET /api/system/circuit-breakers`).
 | `AI_HEALTH_CHECK_TIMEOUT_SECONDS` | 3.0   | AI service check timeout                                   |
 | `MAX_CONCURRENT_HEALTH_CHECKS`    | 10    | Max concurrent checks                                      |
 
-**Source:** `backend/api/routes/system.py:334, 341, 940, 944`
+**Source:** `backend/api/routes/system.py:331, 340, 945, 949`
 
 ---
 

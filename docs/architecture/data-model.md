@@ -1209,7 +1209,7 @@ After each run, the service logs (`backend/services/cleanup_service.py:20-25`, `
 
 ### Manual Trigger and Dry Run
 
-The cleanup trigger endpoint is `POST /api/system/cleanup?dry_run=true` (protected by `verify_api_key`, `backend/api/routes/system.py:3284`); schedule status is `GET /api/system/cleanup/status` (`:3925`). With `dry_run=True` the response schema (`CleanupResponse`, `backend/api/schemas/system.py:1270`) returns the same count fields as what would be deleted:
+The cleanup trigger endpoint is `POST /api/system/cleanup?dry_run=true` (protected by `verify_api_key`, `backend/api/routes/system.py:3284`); schedule status is `GET /api/system/cleanup/status` (`:3925`). With `dry_run=True` the response schema (`CleanupResponse`, `backend/api/schemas/system.py:1216`) returns the same count fields as what would be deleted:
 
 ```json
 {

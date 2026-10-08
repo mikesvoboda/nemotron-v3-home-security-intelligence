@@ -255,7 +255,7 @@ silently preferring one (`backend/api/pagination.py:391`).
 
 `ConfigResponse.detection_confidence_threshold` and
 `ConfigUpdateRequest.detection_confidence_threshold` are declared with Pydantic's
-`deprecated=True` (`backend/api/schemas/system.py:508`, `backend/api/schemas/system.py:580`), so
+`deprecated=True` (`backend/api/schemas/system.py:507`, `backend/api/schemas/system.py:579`), so
 the field is marked deprecated in the generated JSON Schema as well as in the description text.
 
 ### Routes that carry deprecation signals
