@@ -84,12 +84,16 @@ model = "fast"
 kickoff = """\
 Follow the kickoff prompt in docs/uplevel/40-docs.md."""
 
+# The heavy kickoff names its prompt as a section, never by position: the file ends with
+# the coordinator's OWN prompt ("route work, write no product code"), and `up` prints this
+# line verbatim, so "the prompt at the end of that file" started the heavy sandbox as the
+# coordinator. (50-coordination.md, "The roster")
 [[phase.session]]
 name = "uplevel-heavy"
 model = "strongest"
 kickoff = """\
-Follow the kickoff prompt in docs/uplevel/50-coordination.md. It is the heavy-package \
-prompt at the end of that file, and it assigns you to the strongest model."""
+Follow the kickoff prompt in docs/uplevel/50-coordination.md. \
+It is "The heavy sandbox's kickoff prompt" under "The roster" in that file."""
 
 # Later phases (the coordinator adds rows as the plan changes; `up --phase <n>` creates
 # what is declared):
