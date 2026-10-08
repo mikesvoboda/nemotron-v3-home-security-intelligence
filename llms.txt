@@ -123,7 +123,7 @@ ${AI_MODELS_PATH}/
 
 ## Services & Ports
 
-Host port defaults come from `.env` / `.env.example`; `docs/reference/config/env-reference.md` is the env-variable reference (its port tables cover `API_PORT` and the frontend HTTP/HTTPS/INTERNAL vars — the AI and monitoring host-port vars below come from `.env.example`).
+Host port defaults come from `.env` / `.env.example`; `docs/reference/config/env-reference.md` is the env-variable reference (its six tabled port vars are `API_PORT`, `SMTP_PORT`, the frontend HTTP/HTTPS/INTERNAL set and `SYNTHBENCH_COMFYUI_PORT` — no AI or monitoring service ports; those host-port vars below come from `.env.example`).
 
 ### Core Services
 
