@@ -102,9 +102,12 @@ if (asJson) {
       `\nUNLISTED ${m.kind === 'ws' ? 'WS' : m.method}${m.methodMismatch ? ' (method)' : ''} ${m.path}\n  ${m.file}:${m.line}${where}\n${hint}`
     );
   }
+  // The reason comes from the audit, not from this file: an entry can be stale
+  // because the client stopped calling *or* because the backend started serving,
+  // and a reader told the wrong one goes looking at the wrong code.
   for (const s of stale)
     console.log(
-      `\nSTALE known-missing entry: ${s.method ? `${s.method} ` : ''}${s.path} (no matching client call site remains)`
+      `\nSTALE known-missing entry: ${s.method ? `${s.method} ` : ''}${s.path} (${s.staleReason})`
     );
 
   console.log(

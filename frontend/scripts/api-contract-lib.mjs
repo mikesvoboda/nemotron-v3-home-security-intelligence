@@ -14,8 +14,8 @@
 //    of a known fetch-ish call, followed through local `const` bindings, and one
 //    hop across functions that forward a parameter into that URL — which is how
 //    `fetchWithTimeout(url, …)` and the `fetch(url)` bodies of the per-domain
-//    clients (`fetchAiAuditApi`, `fetchAuditApi`, `fetchBaselineConfigApi`,
-//    `fetchPromptManagementApi`, …) stay covered. Reading *every* string literal
+//    clients (`fetchAiAuditApi`, `fetchAuditApi`, `fetchBaselineConfigApiInner`,
+//    `fetchPromptApi`, …) stay covered. Reading *every* string literal
 //    instead would flag `isValidEndpoint()`'s `startsWith('/api/')` guards and
 //    the `as CameraEndpoint` returns in src/types/api-endpoints.ts: code that
 //    never issues a request.
@@ -1023,6 +1023,33 @@ export function entryIsLive(entry, claims) {
 }
 
 /**
+ * Has the backend closed the gap this allowance describes?
+ *
+ * The other half of retirement. `entryIsLive` watches the client's side (the call
+ * site went away); this watches the backend's side (the route appeared). Both are
+ * needed because most entries' `next` field says "the backend should add this
+ * route" — when that lands, the call site stays put, so call-site liveness alone
+ * keeps the allowance looking live forever, and a list that can never shrink is
+ * the rot the gate exists to prevent.
+ *
+ * Read off the backend's declared surface, deliberately *not* off "did this entry
+ * excuse a mismatch": `allows()` is asymmetric on purpose, so a `{ path, method }`
+ * entry at a path served under other verbs excuses nothing (the finding there is a
+ * path finding) while its gap is still completely open. A shortcut through
+ * `allows()` would report that entry stale the day it was written.
+ *
+ * REST surface only. Entries are all REST today; a future `/ws/...` entry would
+ * never be in `restPaths`, so it could still only retire via its call site —
+ * conservative, never wrongly closed.
+ */
+export function gapIsClosed(entry, { restPaths, restMethods }) {
+  const p = normalisePath(entry.path);
+  if (!restPaths.some((sp) => normalisePath(sp) === p)) return false;
+  if (!entry.method) return true;
+  return restMethods?.get(p)?.has(entry.method.toUpperCase()) ?? false;
+}
+
+/**
  * Partition client claims against the two sources of backend truth.
  *
  * `restMethods` is the `loadSpec().methods` map. When it is supplied, a claim
@@ -1086,11 +1113,17 @@ export function compare({ claims, restPaths, wsRoutes, restMethods }) {
  * mismatch, so a path-only allowance written before the verb was checked cannot
  * silently cover a new wrong-verb bug on the same path.
  *
- * An entry whose client call site has since gone is reported as `stale`: an
- * allowance nobody removes is how this gate quietly rots. For a `method` entry
- * that means the call *with that verb* has gone, not any call at the path —
- * otherwise fixing `GET /api/x` while still posting to `/api/x` would leave the
- * allowance looking live forever.
+ * An entry is reported as `stale` when the gap it describes has gone from either
+ * side, because an allowance nobody removes is how this gate quietly rots:
+ *  - the client call site has gone. For a `method` entry that means the call *with
+ *    that verb* has gone, not any call at the path — otherwise fixing `GET /api/x`
+ *    while still posting to `/api/x` would leave the allowance looking live forever.
+ *  - the backend now serves what the entry says is missing (`gapIsClosed`). This
+ *    is the direction most entries were written expecting: their `next` field says
+ *    "the backend should add this route", and when that ships the call site is
+ *    untouched, so call-site liveness alone would keep the entry immortal.
+ * Each stale entry carries `staleReason` so the CLI and the gate can name the
+ * cause instead of both asserting the call site is what disappeared.
  */
 export function audit({
   root = process.cwd(),
@@ -1115,7 +1148,24 @@ export function audit({
     (knownMissing.some((e) => allows(e, m)) ? listed : unlisted).push(m);
   }
 
-  const stale = knownMissing.filter((e) => !entryIsLive(e, scan.claims));
+  // An allowance is dead if either half of the gap it describes has gone: the
+  // client stopped making the call, or the backend started serving what the entry
+  // says is missing. The reason travels with the entry because the two call for
+  // different fixes — delete the row, versus go make sure the fix was intended.
+  const stale = knownMissing
+    .map((e) => {
+      if (!entryIsLive(e, scan.claims))
+        return { ...e, staleReason: 'no matching client call site remains' };
+      if (gapIsClosed(e, { restPaths: spec.paths, restMethods: spec.methods }))
+        return {
+          ...e,
+          staleReason: e.method
+            ? `the backend now serves ${e.method.toUpperCase()} on this path`
+            : 'the backend now serves this path',
+        };
+      return null;
+    })
+    .filter(Boolean);
 
   // `restMethodPaths` exists so the gate can bound the method check's own reach:
   // a regenerated spec that lost its verbs would turn "0 method mismatches" green

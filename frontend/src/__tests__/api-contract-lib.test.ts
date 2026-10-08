@@ -49,6 +49,8 @@ interface Scan {
 interface KnownMissingEntry {
   path: string;
   method?: string;
+  /** Where the client call lives; real entries carry it, fixtures may omit it. */
+  calledFrom?: string;
 }
 
 interface Mismatch extends Claim {
@@ -65,6 +67,21 @@ interface Lib {
   closestSpecPath: (clientPath: string, specPaths: string[]) => string | null;
   allows: (entry: KnownMissingEntry, mismatch: Mismatch) => boolean;
   entryIsLive: (entry: KnownMissingEntry, claims: Claim[]) => boolean;
+  gapIsClosed: (
+    entry: KnownMissingEntry,
+    surface: { restPaths: string[]; restMethods: Map<string, Set<string>> }
+  ) => boolean;
+  audit: (options: {
+    root: string;
+    srcDir: string;
+    specFile: string;
+    backendDir: string;
+    knownMissing: KnownMissingEntry[];
+  }) => {
+    listed: Mismatch[];
+    unlisted: Mismatch[];
+    stale: (KnownMissingEntry & { staleReason: string })[];
+  };
   scanClient: (options: { root: string; srcDir: string }) => Scan;
   loadSpec: (specFile: string) => { paths: string[]; methods: Map<string, Set<string>> };
   compare: (options: {
@@ -604,5 +621,101 @@ describe('known-missing allowances', () => {
     // A path-only entry stays live while anything is called there: the gap is the
     // missing route, not one request.
     expect(lib.entryIsLive({ path: '/api/debug/recordings' }, stillPosted)).toBe(true);
+  });
+
+  it('reads a closed gap from the backend, not from whether the entry matched', () => {
+    // `audit()` asks "does this allowance still describe a gap?" — and the tempting
+    // shortcut ("the entry excuses no mismatch, so it is dead") is wrong, because
+    // `allows()` is deliberately asymmetric: a `{ path, method: 'PUT' }` entry at a
+    // path served only for GET excuses *nothing* (the finding there is a path
+    // finding, which only a path-only entry may excuse) while still describing a
+    // completely real gap. So closure is read off the backend's surface directly.
+    const served = {
+      restPaths: ['/api/x/{item_id}'],
+      restMethods: new Map([['/api/x/{}', new Set(['GET'])]]),
+    };
+    // Same route, whatever the parameter is spelled: `loadSpec` normalises spec
+    // paths the same way the scan normalises client claims.
+    expect(lib.gapIsClosed({ path: '/api/x/{id}' }, served)).toBe(true);
+    expect(lib.gapIsClosed({ path: '/api/x/{id}', method: 'GET' }, served)).toBe(true);
+    // The trap: still open, because PUT is not declared — even though this entry
+    // cannot excuse a single mismatch while the path is missing entirely.
+    expect(lib.gapIsClosed({ path: '/api/x/{id}', method: 'PUT' }, served)).toBe(false);
+    // Serving a parameterised child is NOT serving its parent. Without the
+    // segment-wise compare a prefix match would retire `/api/x`'s allowance the
+    // day `/api/x/{id}` shipped, and the 404 on `/api/x` would go unreported.
+    expect(lib.gapIsClosed({ path: '/api/x' }, served)).toBe(false);
+    // Path not served at all: the gap is open whatever the entry says.
+    expect(lib.gapIsClosed({ path: '/api/other' }, served)).toBe(false);
+    expect(lib.gapIsClosed({ path: '/api/other', method: 'GET' }, served)).toBe(false);
+  });
+});
+
+describe('audit: allowances retire when the backend closes the gap', () => {
+  /**
+   * One client file, one spec, one scan. `specPaths` is the backend's side of the
+   * story: the same allowance that is correct while a route is missing must retire
+   * when a route appears. backendDir points at a directory that does not exist,
+   * which `scanWebsocketRoutes` treats as "no WS routes" (its readdir is guarded) —
+   * these entries are all REST, so that is the right answer, not an accident.
+   */
+  function auditFixture(name: string, callLines: string[], specPaths: Record<string, string[]>) {
+    const dir = path.join(fixtureRoot, 'audit', name);
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: path under this test's own mkdtemp
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: path under this test's own mkdtemp
+    fs.writeFileSync(path.join(dir, 'src', 'client.ts'), `${callLines.join('\n')}\n`);
+    const specFile = path.join(dir, 'openapi.json');
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: path under this test's own mkdtemp
+    fs.writeFileSync(
+      specFile,
+      JSON.stringify({
+        paths: Object.fromEntries(
+          Object.entries(specPaths).map(([p, verbs]) => [
+            p,
+            Object.fromEntries(verbs.map((v) => [v.toLowerCase(), {}])),
+          ])
+        ),
+      })
+    );
+    return lib.audit({
+      root: dir,
+      srcDir: 'src',
+      specFile,
+      backendDir: path.join(dir, 'no-such-backend'),
+      knownMissing: [{ path: '/api/zones/trust-violations', calledFrom: 'src/client.ts' }],
+    });
+  }
+
+  const CALL = [
+    `export async function fetchViolations() {`,
+    `  return fetch('/api/zones/trust-violations');`,
+    `}`,
+  ];
+
+  it('reports nothing stale while the route is genuinely missing', () => {
+    const { listed, unlisted, stale } = auditFixture('gap-open', CALL, {
+      '/api/zones': ['get'],
+    });
+    expect(unlisted).toEqual([]);
+    expect(listed.length).toBe(1);
+    expect(stale).toEqual([]);
+  });
+
+  it('retires the allowance the moment the route is served', () => {
+    // The direction this whole check was missing: 11 of the 15 live entries say
+    // "next: the backend should add this route". When that lands, the call site is
+    // still there, so `entryIsLive` alone keeps the allowance looking live forever —
+    // and a known-missing list that can never shrink is the rot the gate is meant
+    // to prevent. Without `gapIsClosed` this assertion fails with stale = [].
+    const { listed, unlisted, stale } = auditFixture('gap-closed', CALL, {
+      '/api/zones': ['get'],
+      '/api/zones/trust-violations': ['get'],
+    });
+    expect(unlisted).toEqual([]);
+    expect(listed).toEqual([]);
+    expect(stale.map((e) => `${e.path} — ${e.staleReason}`)).toEqual([
+      '/api/zones/trust-violations — the backend now serves this path',
+    ]);
   });
 });

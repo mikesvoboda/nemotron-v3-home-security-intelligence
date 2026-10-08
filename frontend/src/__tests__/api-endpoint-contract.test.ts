@@ -62,6 +62,11 @@ interface KnownMissing {
   next: string;
 }
 
+/** A known-missing entry the audit found dead, with the half of the gap that went. */
+interface StaleEntry extends KnownMissing {
+  staleReason: string;
+}
+
 interface Audit {
   scan: {
     files: string[];
@@ -79,7 +84,7 @@ interface Audit {
   mismatches: Mismatch[];
   listed: Mismatch[];
   unlisted: Mismatch[];
-  stale: KnownMissing[];
+  stale: StaleEntry[];
 }
 
 let audit: Audit;
@@ -154,16 +159,17 @@ describe('endpoint contract (D2)', () => {
   });
 
   it('keeps the known-missing list honest', () => {
-    // An allowance whose call site has gone is a gap that was quietly fixed and
-    // left open on paper; a list that never shrinks is how this gate rots.
+    // An allowance is dead from either side: its call site has gone, or the
+    // backend now serves what it says is missing (the direction most entries'
+    // `next` fields point). `staleReason` says which, so a reader is sent to the
+    // right code. A list that never shrinks is how this gate rots.
     expect(
       audit.stale
         .map(
-          (e) =>
-            `${e.method ? `${e.method} ` : ''}${e.path}  (${e.calledFrom}) — no matching client call site remains`
+          (e) => `${e.method ? `${e.method} ` : ''}${e.path}  (${e.calledFrom}) — ${e.staleReason}`
         )
         .join('\n'),
-      `${audit.stale.length} known-missing entr(ies) no longer have a call site: delete them`
+      `${audit.stale.length} known-missing entr(ies) no longer describe an open gap: delete them`
     ).toBe('');
   });
 
