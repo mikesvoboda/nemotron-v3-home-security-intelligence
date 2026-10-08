@@ -11,7 +11,7 @@
  *   backend/api/schemas/websocket.py
  *   backend/api/schemas/event_verification.py
  *
- * Generated at: 2026-10-03T19:53:15Z
+ * Generated at: 2026-10-08T11:55:15Z
  *
  * Note: WebSocket messages are not covered by OpenAPI, so we generate these
  * types separately to ensure frontend/backend type synchronization.

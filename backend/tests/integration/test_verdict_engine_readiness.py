@@ -30,7 +30,7 @@ in test_health_checks.py, including its clear_health_cache() autouse fixture.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -40,7 +40,6 @@ from backend.api.schemas.system import HealthCheckServiceStatus
 if TYPE_CHECKING:
     from httpx import AsyncClient
 
-    from backend.core.redis import RedisClient
 
 pytestmark = pytest.mark.integration
 

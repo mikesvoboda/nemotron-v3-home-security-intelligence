@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.api.schemas.pagination import PaginationMeta
+from backend.core.websocket.event_schemas import VerdictEngineState
 
 
 class SeverityEnum(str, Enum):
@@ -638,6 +639,43 @@ class WorkerStatus(BaseModel):
     )
 
 
+class VerdictEngineReadiness(BaseModel):
+    """Verdict-engine (ai-vlm) availability reported by the readiness probe.
+
+    B1.4 (UR-18): the engine's state must be visible to callers even though
+    it deliberately does NOT gate readiness — a down engine turns every event
+    into ``verification_failed`` while the platform itself is healthy, and the
+    container healthcheck reads this endpoint's HTTP status.
+    """
+
+    state: VerdictEngineState = Field(
+        ...,
+        description="Engine reachability per the health probe: 'available' "
+        "(probe reached it), 'unavailable' (probe's own error string), "
+        "'unknown' (probe could not tell — honest third state)",
+    )
+    since: datetime = Field(
+        ...,
+        description="When the state last TRANSITIONED (not when it was read) — "
+        "'how long has this been down?' survives the readiness cache",
+    )
+    reason: str | None = Field(
+        None,
+        description="Engine's own error string while unavailable, why the probe "
+        "cannot tell while unknown, null while available",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "state": "unavailable",
+                "since": "2026-10-08T12:00:00Z",
+                "reason": "ConnectError: connection refused",
+            }
+        }
+    )
+
+
 class ReadinessResponse(BaseModel):
     """Response schema for readiness probe endpoint.
 
@@ -647,6 +685,9 @@ class ReadinessResponse(BaseModel):
     - Redis connectivity
     - AI services availability
     - Background worker status
+
+    The verdict engine's state (``verdict_engine``) is REPORTED here but never
+    gates the HTTP status — see its field description (B1.4, UR-18).
     """
 
     ready: bool = Field(
@@ -679,6 +720,14 @@ class ReadinessResponse(BaseModel):
         description="Whether the worker supervisor is running and healthy (NEM-2462). "
         "True if supervisor is active, False if not initialized or has failed workers.",
     )
+    verdict_engine: VerdictEngineReadiness = Field(
+        ...,
+        description="Verdict engine (ai-vlm) availability, reported WITHOUT "
+        "gating readiness: an unavailable engine keeps HTTP 200 — the backend "
+        "container's healthcheck and every service_healthy dependency read "
+        "this status, and a down engine must not take the platform with it "
+        "(B1.4, UR-18)",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -708,6 +757,11 @@ class ReadinessResponse(BaseModel):
                 ],
                 "timestamp": "2025-12-23T10:30:00",
                 "supervisor_healthy": True,
+                "verdict_engine": {
+                    "state": "available",
+                    "since": "2026-10-08T09:15:00Z",
+                    "reason": None,
+                },
             }
         }
     )
