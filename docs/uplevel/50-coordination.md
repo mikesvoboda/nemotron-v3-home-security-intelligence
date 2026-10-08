@@ -253,7 +253,9 @@ the daily batch.
 - production safety: `O2.2`;
 - privileged host tooling: `O0.1`, the launcher;
 - destructive work: `B3.1` with `F3.1`, `B3.2`;
-- any PR that changes plan text, rulings or the contract in `docs/uplevel/`;
+- any PR that changes plan text, rulings or the contract in `docs/uplevel/` — a PR setting its own
+  package's row in the README status table is contract rule 5 bookkeeping, not plan text (owner,
+  2026-10-08);
 - any PR with an entry under "Questions for the owner".
 
 The status table marks the fixed ones `owner`.

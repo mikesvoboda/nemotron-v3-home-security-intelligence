@@ -228,7 +228,8 @@ and each failure opens an incident issue for a rollback that never happens.
 - [ ] **MEASURE** each of "Deploy to Staging" and "Post-Deployment Validation": a job that deploys
       or validates nothing and only prints a checklist goes.
 - [ ] Delete `rollback.yml` (owner ruling, 2026-10-08): a red `Deploy` run is the signal, and the
-      daily batch reports it.
+      coordinator's daily batch on the pinned issue reports it (its Status line). Build no digest
+      workflow, and leave `linear-ci-status.yml` as it is.
 - [ ] Once `Deploy` is green, close each open "Automated Rollback" issue with a comment linking this
       PR.
 
