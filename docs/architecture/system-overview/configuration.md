@@ -141,7 +141,7 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 | `AI_VLM_READ_TIMEOUT`         | 25.0    | Per-read idle budget for an attempt    |
 | `AI_VLM_WAKE_TIMEOUT_SECONDS` | 90.0    | Read timeout for the wake-on-open ping |
 
-**Source:** `backend/core/config.py:1093-1134`; the VLM pair is threaded in `docker-compose.prod.yml:561-562`.
+**Source:** `backend/core/config.py:1106-1151`; the VLM pair is threaded in `docker-compose.prod.yml:561-562`.
 
 ### Batch Processing
 

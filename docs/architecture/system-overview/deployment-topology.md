@@ -119,8 +119,8 @@ Alongside the reservation, the gateway declares `devices: [nvidia.com/gpu=all]` 
 
 | Variable          | Default | Selects                                           |
 | ----------------- | ------- | ------------------------------------------------- |
-| `GPU_LLM`         | `0`     | the card ai-vlm reserves (`.env.example:558`)     |
-| `GPU_AI_SERVICES` | `1`     | the card ai-gateway reserves (`.env.example:950`) |
+| `GPU_LLM`         | `0`     | the card ai-vlm reserves (`.env.example:419`)     |
+| `GPU_AI_SERVICES` | `1`     | the card ai-gateway reserves (`.env.example:806`) |
 
 The backend reserves one GPU without pinning an id (`docker-compose.prod.yml:668-679`) for its in-process onnxruntime/torch lookup legs.
 

@@ -38,11 +38,11 @@ mmproj projector, in the default compose set:
 
 | Item           | Value                                                                                                |
 | -------------- | ---------------------------------------------------------------------------------------------------- |
-| Model          | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` (`VLM_MODEL_PATH`, `.env.example:425`)                             |
+| Model          | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` (`VLM_MODEL_PATH`, `.env.example:337`)                             |
 | Projector      | `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` (`VLM_MMPROJ_PATH`)                                           |
-| Endpoint       | `AI_VLM_URL` → `http://ai-vlm:8098` in Docker (`backend/core/config.py:1042`)                        |
-| Context budget | `VLM_CTX_SIZE=32768` ÷ `VLM_PARALLEL=2` per slot (`.env.example:445`, `backend/core/config.py:1334`) |
-| Read timeout   | `AI_VLM_READ_TIMEOUT=25.0` (`.env.example:252`)                                                      |
+| Endpoint       | `AI_VLM_URL` → `http://ai-vlm:8098` in Docker (`backend/core/config.py:1055`)                        |
+| Context budget | `VLM_CTX_SIZE=32768` ÷ `VLM_PARALLEL=2` per slot (`.env.example:357`, `backend/core/config.py:1351`) |
+| Read timeout   | `AI_VLM_READ_TIMEOUT=25.0` (`.env.example:245`)                                                      |
 
 The server must have been started with its mmproj — `/health` answers `200`
 even for a text-only start. Check `podman logs ai-vlm | grep -i mmproj`

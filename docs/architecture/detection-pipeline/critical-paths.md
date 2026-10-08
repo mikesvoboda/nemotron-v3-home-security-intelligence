@@ -255,7 +255,7 @@ DETECTOR_HEALTH_TIMEOUT = 5.0     # Health check
 
 ### VLM Timeouts
 
-**Source:** `backend/core/config.py` (lines 1093-1132)
+**Source:** `backend/core/config.py` (lines 1106-1151)
 
 ```python
 ai_connect_timeout: float = 10.0          # Connection establishment

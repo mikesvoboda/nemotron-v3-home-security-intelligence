@@ -114,8 +114,8 @@ by a third service.
 
 | Variable         | Required | Default                         | Description                                                                                                                                     |
 | ---------------- | -------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `YOLO26_URL`     | No       | `http://ai-gateway:8090/yolo26` | Detector dial. `docker-compose.prod.yml:601` sets the same value                                                                                |
-| `AI_VLM_URL`     | No       | `http://localhost:8098`         | Reasoning serve. Compose sets `http://ai-vlm:8098` (`:548`)                                                                                     |
+| `YOLO26_URL`     | No       | `http://ai-gateway:8090/yolo26` | Detector dial. `docker-compose.prod.yml:602` sets the same value                                                                                |
+| `AI_VLM_URL`     | No       | `http://localhost:8098`         | Reasoning serve. Compose sets `http://ai-vlm:8098` (`:554`)                                                                                     |
 | `AI_GATEWAY_URL` | No       | `http://ai-gateway:8090`        | Gateway base URL (`docker-compose.prod.yml:600`)                                                                                                |
 | `USE_AI_GATEWAY` | No       | `false`                         | With `AI_GATEWAY_URL` set, the detector dials `{AI_GATEWAY_URL}/yolo26`; otherwise it dials `YOLO26_URL` directly. Compose sets `true` (`:589`) |
 
@@ -165,8 +165,8 @@ by a third service.
 | -------------- | -------- | -------- | ------------------------------------------------------------------------------- |
 | `VLM_CTX_SIZE` | No       | `32768`  | llama.cpp's total context pool on `ai-vlm`                                      |
 | `VLM_PARALLEL` | No       | `2`      | llama.cpp `--parallel` slots on `ai-vlm`                                        |
-| `CTX_SIZE`     | No       | `262144` | Pool behind the token counter's separate budget (`docker-compose.prod.yml:596`) |
-| `PARALLEL`     | No       | `8`      | Its slot count (`:587`) — divide to 32 768                                      |
+| `CTX_SIZE`     | No       | `262144` | Pool behind the token counter's separate budget (`docker-compose.prod.yml:597`) |
+| `PARALLEL`     | No       | `8`      | Its slot count (`:598`) — divide to 32 768                                      |
 
 > **Note:** llama.cpp splits one context pool across its slots and a request only
 > ever occupies one slot, so the per-request budget the backend enforces is

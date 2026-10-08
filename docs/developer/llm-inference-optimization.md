@@ -14,7 +14,7 @@ service's live configuration.
 | Item          | Value                                                                                      |
 | ------------- | ------------------------------------------------------------------------------------------ |
 | Model         | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` + `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`                 |
-| Server        | llama.cpp `llama-server`, pinned at `b7972` (`VLM_REQUIRED_BUILD`, `.env.example:265`)     |
+| Server        | llama.cpp `llama-server`, pinned at `b7972` (`VLM_REQUIRED_BUILD`, `.env.example:260`)     |
 | Build         | `ai/vlm/Dockerfile` — CUDA 13.3.1, compiled for the host GPU via `CUDA_ARCHITECTURES`      |
 | Port          | container-side `PORT=8098` fixed (`ai/vlm/Dockerfile:123`); host mapping via `AI_VLM_PORT` |
 | GPU           | `nvidia.com/gpu=${GPU_LLM:-0}` + `CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}`                      |
@@ -93,7 +93,7 @@ a budget check.
 
 ## Enforcement Probe and Build Pin
 
-`VLM_ENFORCEMENT_PROBE_ENABLED=true` (`.env.example:260`): before the first
+`VLM_ENFORCEMENT_PROBE_ENABLED=true` (`.env.example:255`): before the first
 real call the client sends one schema-constrained probe and verifies the
 engine actually enforces the JSON schema (grammar-constrained decoding) —
 if it does not, `ConstrainedDecodingNotEnforced` fails closed rather than

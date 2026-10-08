@@ -91,7 +91,7 @@ flowchart TB
 ## VRAM Budget Allocation
 
 GPU placement comes from `GPU_LLM` (the ai-vlm card) and `GPU_AI_SERVICES` (the ai-gateway card),
-both in `.env.example:558` and `:950`. On a single-GPU box both are `0`.
+both in `.env.example:419` and `:806`. On a single-GPU box both are `0`.
 
 | Component                                      | VRAM                                                              |
 | ---------------------------------------------- | ----------------------------------------------------------------- |
