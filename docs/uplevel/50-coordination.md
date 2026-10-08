@@ -17,7 +17,8 @@
 
 - assign packages: `heavy` packages to the strongest available model or to an owner pairing, the rest
   to lane agents (UR-24);
-- assign each PR's reviewing lane, by rotation, never the author's own;
+- assign each PR's reviewing lane, by rotation, never the author's own, and label the PR
+  `review:<lane>` when it goes ready (UR-32);
 - merge PRs that meet the merge rule, in the order the hot-file rules require;
 - keep the README status table accurate, and watch the CI queue;
 - collect every question, owner-tier PR and owner-kept real-tier run into the daily batch (UR-25);
@@ -46,7 +47,7 @@ every agent adds PRs, conflicts and questions for one owner.
 | backend | the VLM path: `backend/services/vlm_*`, `constrained_decoding.py`, `backend/evaluation/`, the circuit breaker | API and auth: `backend/api/`, middleware, `backend/main.py`      |
 | ops     | runtime: `ai/`, compose, `setup.py`, `setup_lib/`, the fake stack and harness                                 | tooling: `scripts/`, `.github/`, the mutation scorer, `archive/` |
 
-Ops splits from Phase 1: `uplevel-ops-b` already exists from Phase 0, and ops holds ten Phase 1
+Ops splits from Phase 1: `uplevel-ops-b` already exists from Phase 0, and ops holds eleven Phase 1
 packages. Backend runs as one agent until Phase 3, because the heavy sandbox takes three of its six
 Phase 1 packages; it splits into cells A and B for Phase 3's deletions. Frontend and docs run as one
 cell each until Phase 3, when the frontend may split into retirement (`F3.1`) and reachability
@@ -107,7 +108,7 @@ HOST (owner)               agent-dgx · sbx · the launcher (O0.1) · the local 
 | --------------------- | --------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------- |
 | `uplevel-coordinator` | fast      | labels, pinned issue | assignments, reviews, merges, the daily batch                                                                               | this file            |
 | `uplevel-ops-b`       | fast      | `O0.1`, the launcher | `O1.1`, `O1.9`, `O1.10`, `O1.2`, `O1.4`, `O1.5`, `O1.7`, `O1.8`                                                             | `30-ops.md` + cell B |
-| `uplevel-ops-a`       | fast      | —                    | `O1.3`, `O1.6` (after `B1.5`); then `O2.1` early                                                                            | `30-ops.md` + cell A |
+| `uplevel-ops-a`       | fast      | —                    | `O1.3`, `O1.6` (after `B1.5`), `O1.11` (after `O1.6`); then `O2.1` early                                                    | `30-ops.md` + cell A |
 | `uplevel-backend`     | fast      | —                    | `B1.1`, `B1.3`, `B1.4`; then `B2.1` and the inventory's backend tracing                                                     | `10-backend.md`      |
 | `uplevel-frontend`    | fast      | —                    | `F1.1`; `F1.2` after `B1.4`; `F1.3` after `B1.5`                                                                            | `20-frontend.md`     |
 | `uplevel-docs`        | fast      | —                    | `W1.1`, `W1.3`, `W1.2`                                                                                                      | `40-docs.md`         |
@@ -140,7 +141,10 @@ the 00-audit.md sections it cites.
 One package per PR. Write the failing test first. Before marking the PR ready,
 dispatch a fresh-context subagent to self-review it against the package's Done
 when, and record what it found. Keep commit subjects at 72 characters or fewer.
-When the plan does not answer a question, stop and report the question.
+State only what you have just read (UR-31): every commit, PR, file, test result
+and question you cite comes from output you ran in the same turn. Before
+resuming work, read the new comments on your own open PRs (UR-35). When the plan
+does not answer a question, stop and report the question.
 ```
 
 **Phases 0 and 1, started by hand (UR-28).** From a clean host checkout of `main`, the owner
@@ -162,7 +166,7 @@ creates each agent with `agent-dgx run <session> --agent claude --endpoint dgx -
 1. **Check** that nobody holds it:
    `gh pr list --state open --search "[<package>] in:title"`.
 2. **Claim** it: open a draft PR titled `[<package>] <name>` from a branch named
-   `uplevel/<package>-<slug>`, with `gh pr create --draft --template uplevel.md`. The open draft PR
+   `uplevel/<package>-<slug>`, with `gh pr create --draft --template uplevel.md --label lane:<lane>`. The open draft PR
    is the claim; the coordinator's status summary reads claims from open PRs. The README status
    table on `main` changes only when the PR merges.
 3. **Depend only on merged work.** A dependency is met when its PR is merged to `main`. Branch from
@@ -179,8 +183,13 @@ given only the package text, the diff and the PR body. It checks each Done-when 
 evidence, the contract, the cross-lane parts and the hot-file rules. The author fixes what it finds,
 or answers it, and records the findings in the PR.
 
-**2. Peer review (UR-23).** The coordinator assigns a reviewing lane, preferring the lane that
-consumes the change. The reviewer works through the same checks independently. Every agent acts
+**2. Peer review (UR-23, UR-32).** The coordinator assigns a reviewing lane, preferring the lane
+that consumes the change, and names it in a comment when it assigns the package. When the author
+marks the PR ready, the coordinator adds the label `review:<lane>` — `review:ops-a` or
+`review:ops-b` for a split lane. Lane agents clear their label's PRs before starting or resuming a
+package. The reviewer works through the same checks independently, posts the review and removes
+the label; after `changes requested`, the coordinator labels the PR again when its author marks
+the new head ready. Every agent acts
 through the owner's GitHub account, which cannot approve its own PRs, so the review is a PR
 comment in this form:
 
@@ -211,7 +220,10 @@ the daily batch.
 The status table marks the fixed ones `owner`.
 
 **4. Merge.** The coordinator merges a PR when CI is green, its review says approve, and — for the
-owner tier — the owner has approved. It keeps the repository's existing merge style. Because
+owner tier — the owner has approved. **Green** means the required check
+`CI Gate (Required Checks)` is present and passed at the PR's head (UR-34). A check list with no
+failures is not enough: when GitHub rejects a workflow file, its run fails with no jobs and leaves no
+check behind, so `gh run list --commit <head>` shows the failure and the PR's checks do not. It keeps the repository's existing merge style. Because
 `main` requires branches to be up to date, the coordinator updates one queued PR at a time
 (`gh pr update-branch`) and waits for its CI, rather than rebasing every open PR at once.
 
@@ -225,14 +237,16 @@ counts once the coordinator has quoted it on the batch issue, with the owner's w
 
 Files many packages change. The coordinator sequences their merges; authors follow these rules.
 
-| file                                                       | rule                                                                                      |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `docs/openapi.json`, `frontend/src/types/generated/api.ts` | regenerate after rebasing, never hand-merge                                               |
-| the README status table                                    | edit only your own package's row                                                          |
-| `backend/core/config.py`, `.env.example`, compose files    | small hunks; rebase immediately before merge; the coordinator merges one at a time        |
-| `.github/workflows/ci.yml` (3,320 lines)                   | add a new check as its own job, or as its own workflow file, never by editing shared jobs |
-| `.pre-commit-config.yaml`, `backend/main.py`               | small hunks; one at a time                                                                |
-| `scripts/retired_paths.txt`                                | append-only                                                                               |
+| file                                                       | rule                                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `docs/openapi.json`, `frontend/src/types/generated/api.ts` | regenerate after rebasing, never hand-merge                                                                                                                                                                                                            |
+| the README status table                                    | edit only your own package's line; prettier skips the table, so leave the other rows' padding alone                                                                                                                                                    |
+| `backend/core/config.py`, `.env.example`, compose files    | small hunks; rebase immediately before merge; the coordinator merges one at a time                                                                                                                                                                     |
+| `.github/workflows/ci.yml` (3,320 lines)                   | add a new check as its own job, or as its own workflow file, never by editing shared jobs                                                                                                                                                              |
+| `.github/workflows/*.yml`                                  | before pushing, run `actionlint` (`docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest -shellcheck= -pyflakes= .github/workflows/*.yml`) and compare its findings with `main`'s (UR-34); a YAML parse does not check GitHub's expressions |
+| `.pre-commit-config.yaml`, `backend/main.py`               | small hunks; one at a time                                                                                                                                                                                                                             |
+| `scripts/retired_paths.txt`                                | append-only                                                                                                                                                                                                                                            |
+| `.github/suppression-baseline.json`, `.secrets.baseline`   | counts and line numbers: regenerate after rebasing, immediately before merge; never hand-merge a count — two PRs that each add one marker both write the same number, and git merges them silently                                                     |
 
 ## Heavy packages (UR-24)
 
@@ -267,13 +281,16 @@ then docs/uplevel/50-coordination.md, which defines your remit. You run in your
 own sandbox; GitHub is your only channel to the other agents and the owner.
 
 On first start (Phase 0), create the labels lane:<lane>, cell:<cell>, heavy,
-owner and urgent, and pin an issue titled "Uplevel daily batch". On every
-restart, rebuild your state from open PRs, labels and that issue.
+owner and urgent, and pin an issue titled "Uplevel daily batch". Create the
+review:<lane> labels (review:ops-a and review:ops-b for the split ops lane)
+whenever one is missing. On every restart, rebuild your state from open PRs,
+labels and that issue.
 
 You route work; you write no product code and make no decisions, and you never
 provision sandboxes. Assign packages by opening their draft PRs with lane and
 cell labels (heavy ones only to the strongest available model or an owner
-pairing). Assign each PR's reviewing lane by rotation, merge PRs that meet the
+pairing). Assign each PR's reviewing lane by rotation, and label the PR
+review:<lane> when its author marks it ready; merge PRs that meet the
 merge rule in the order the hot-file rules require, keep the README status table
 accurate, and watch the CI queue.
 
@@ -282,7 +299,14 @@ check you cite in a batch, a comment or a message to the owner comes from gh or
 git output you ran in the same turn; when a command fails or its answer is
 unclear, say that instead. Before each merge, re-read the PR and post a merge
 comment quoting its checks, its approving review and, for the owner tier, the
-owner's approval.
+owner's approval. CI is green only when the required check CI Gate (Required
+Checks) is present and passed at the head; also read gh run list --commit
+<head>, since a rejected workflow file fails with no jobs and leaves no check
+(UR-34).
+
+Agents read GitHub only when their prompt sends them there. Put what an agent
+must act on where it looks: a review:<lane> label, or a comment on that agent's
+own open PR, which it reads before resuming work (UR-35).
 
 Post one daily batch as a comment on the pinned issue, in the format
 50-coordination.md gives. Interrupt the owner between batches only on the

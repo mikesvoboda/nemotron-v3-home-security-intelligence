@@ -227,9 +227,8 @@ and each failure opens an incident issue for a rollback that never happens.
       `O1.2` has already removed the publishing, this step is done.
 - [ ] **MEASURE** each of "Deploy to Staging" and "Post-Deployment Validation": a job that deploys
       or validates nothing and only prints a checklist goes.
-- [ ] **RULING** for the owner's batch: delete `rollback.yml` (a red `Deploy` run is the signal), or
-      keep it as an honest failure report that updates one open issue instead of opening one per
-      run. Recommendation: delete.
+- [ ] Delete `rollback.yml` (owner ruling, 2026-10-08): a red `Deploy` run is the signal, and the
+      daily batch reports it.
 - [ ] Once `Deploy` is green, close each open "Automated Rollback" issue with a comment linking this
       PR.
 
@@ -256,6 +255,36 @@ in the roster, so the launcher creates it from the Phase 2 boundary on.
 
 **Done when:** the tests pass, including one that runs `up --phase 1 --dry-run` against a fake host
 and finds `--gpu` on `uplevel-operator`'s `agent-dgx run` line and on no other.
+
+### O1.11 Monitoring behind the gate (UR-33)
+
+**Depends on:** `B1.5`, `O1.6`.
+
+**Files:** the `grafana` service's environment in `docker-compose.prod.yml`, `monitoring/prometheus.yml`,
+`monitoring/alertmanager.yml`, the Grafana datasource provisioning under `monitoring/grafana/`;
+`frontend/nginx.conf` as a cross-lane part.
+
+With `EXPOSE_LAN=true`, `B1.5` refuses every unauthenticated request, monitoring included (UR-33).
+The UI's own calls to `/api/metrics` and `/api/system/*` carry its session cookie and keep working;
+the callers without a session go blank: Prometheus (`monitoring/prometheus.yml:62` scrapes
+`/api/metrics`), Alertmanager's webhook, and Grafana's Backend-API datasource. And `/grafana/` is
+published with anonymous **Admin** today (`GF_AUTH_ANONYMOUS_ENABLED=true`,
+`GF_AUTH_ANONYMOUS_ORG_ROLE=Admin`), which exposure would hand to the LAN.
+
+- [ ] Write the failing tests first, on a stack with `EXPOSE_LAN=true`: Prometheus's backend
+      targets are up; Alertmanager's webhook reaches the backend; `/grafana/` without an app
+      session is refused, and with one it is served.
+- [ ] Give each machine caller a credential in the form `B1.5` chose, read from the env file and
+      never committed.
+- [ ] `/grafana/` when exposed: no anonymous access. **DECIDE** between nginx checking the app's
+      session (`auth_request` to the backend) with Grafana's auth proxy — one login, and the UI's
+      three embedded dashboards (Analytics, Video Analytics, Tracing) keep working — and Grafana's
+      own login, which asks again inside each embed. Recommendation: the first.
+- [ ] Leave the default (`EXPOSE_LAN` unset) unchanged.
+
+**Done when:** on a running stack with `EXPOSE_LAN=true`, Prometheus shows the backend targets up,
+the three embedded dashboards render after one login, and `/grafana/` without a session is
+refused.
 
 ---
 
@@ -508,6 +537,18 @@ dispatch a fresh-context subagent to self-review it against the package's Done
 when, and record what it found. Keep commit subjects at 72 characters or fewer.
 The PR sets the package's README status row to done, with its number, when it
 merges.
+
+Reviews come first (UR-32). Before you start or resume a package, run
+gh pr list --state open --label review:ops-<your cell: a or b>; review each PR independently against
+its package's Done when, the contract and the hot-file rules, post the review
+comment in the form 50-coordination.md gives, and remove the label.
+
+Read your own open PRs before resuming a package (UR-35): gh pr view <n>
+--comments for each. An owner ruling or a requested change there comes before
+new work; nobody tells you about a comment except by writing it.
+
+State only what you have just read (UR-31): every commit, PR, file, test result
+and question you cite comes from output you ran in the same turn.
 
 You own ai/, compose, scripts/, .github/, setup.py, setup_lib/, root config
 and archive/. The README's cross-lane rule governs every other file you
