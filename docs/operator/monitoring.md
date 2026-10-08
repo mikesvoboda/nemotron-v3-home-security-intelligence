@@ -184,8 +184,8 @@ the verdict's output (`_ASSESS_MAX_TOKENS = 1024`) and the attached stills
 
 ### Prometheus Metrics
 
-| Metric                               | Type      | Emitted on the live path |
-| ------------------------------------ | --------- | ------------------------ |
+| Metric                               | Type      | Emitted on the live path |                                                                                               |
+| ------------------------------------ | --------- | ------------------------ | --------------------------------------------------------------------------------------------- |
 | `hsi_prompts_truncated_total`        | Counter   | **yes**                  | `record_prompt_truncated()` fires in `vlm_client.assess` when the fitter dropped rows         |
 | `hsi_llm_context_utilization`        | Histogram | no                       | Observed only inside `TokenCounter.validate_prompt()`, which the shipped client does not call |
 | `hsi_prompts_high_utilization_total` | Counter   | no                       | Same call site                                                                                |
