@@ -244,7 +244,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O1.6    | ops                     | 1          | Exposure and auth, compose part (D10)          | owner         | not started |     |
 | O1.7    | ops                     | 1          | Audit measurement scripts                      |               | not started |     |
 | O1.8    | ops                     | 1          | Dependabot alerts                              | owner         | not started |     |
-| O1.9    | ops                     | 1          | Deploy green on `main`                         |               | not started |     |
+| O1.9    | ops                     | 1          | Deploy green on `main`                         |               | done        | #6875 |
 | O1.10   | ops                     | 1          | The operator sandbox (UR-30)                   | owner         | not started |     |
 | O1.11 | ops | 1 | Monitoring behind the gate (UR-33) | owner | not started | |
 | O1.12 | ops | 1 | The hooks run in the gate (UR-37) | | not started | |
