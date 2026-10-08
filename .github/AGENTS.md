@@ -172,18 +172,26 @@ those floors, so review such hunks by hand.
 
 1. Login to GitHub Container Registry (GHCR)
 2. Build images with Buildx (multi-arch: amd64, arm64)
-3. Scan with Trivy — **not in this workflow**: Trivy's single home is
-   `trivy.yml`, called from `ci.yml` (WP1.2; the step here was dropped back at
-   #129 and `grep -c trivy deploy.yml` is 0). SBOM generation and cosign
-   signing by digest do live here, in `sbom-and-sign`
+3. Scan with Trivy — **no Trivy scan step in this workflow**: Trivy's single
+   home is `trivy.yml`, called from `ci.yml` (WP1.2; the step here was dropped
+   back at #129). Test it with `grep -c aquasecurity deploy.yml` → **0**
+   (12 in `trivy.yml`), NOT by grepping the word "trivy" — since O1.9 that
+   word appears once in `deploy.yml`, in the concurrency rationale comment
+   pointing at `trivy.yml`. SBOM generation and cosign signing by digest do
+   live here, in `sbom-and-sign`
 4. Merge the manifest lists and push the per-commit tag only: the 7-char short
    sha (metadata-action `type=sha,prefix=`). `latest` moves in `publish-latest`,
    only after the smoke test passes (O1.9)
 
 **Image Names:**
 
-- `ghcr.io/{owner}/{repo}/backend:latest`
-- `ghcr.io/{owner}/{repo}/frontend:latest`
+- `ghcr.io/{owner}/{repo}/backend:<7-char short sha>` — what `merge-core`
+  publishes per push (metadata-action `type=sha,prefix=`), and the tag the
+  smoke test pulls
+- `ghcr.io/{owner}/{repo}/frontend:<7-char short sha>`
+- `ghcr.io/{owner}/{repo}/backend:latest` / `…frontend:latest` — moved only by
+  `publish-latest`, AFTER the smoke test passes (O1.9), so `:latest` names the
+  last VALIDATED commit and lags the newest build while a run is in flight
 
 ### Preview Deploy Pipeline (preview-deploy.yml)
 

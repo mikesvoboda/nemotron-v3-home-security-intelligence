@@ -70,13 +70,30 @@ exit 0
 """
 
 
+# Fails the way a real gh fails: error text on stderr, non-zero exit, no
+# stdout. Passed to _run(gh_body=…) for the failure world the Blocker-1 fix
+# added a guard for; the default STUB_GH answers every call, which is exactly
+# why the pre-fix suite could not see the dead-query bug.
+DEAD_GH = '#!/usr/bin/env bash\necho "GraphQL: Could not resolve to a Repository." >&2\nexit 1\n'
+
+
 def _run(
-    script_args: list[str], tmp_path: Path, open_titles: list[int]
+    script_args: list[str],
+    tmp_path: Path,
+    open_titles: list[int],
+    *,
+    gh_body: str = STUB_GH,
 ) -> subprocess.CompletedProcess[str]:
-    """Run the committed script with a stubbed gh and a fixture issue list."""
+    """Run the committed script with a stubbed gh and a fixture issue list.
+
+    ``gh_body`` swaps the stub: ``STUB_GH`` (default) replays a healthy GitHub,
+    ``DEAD_GH`` fails the query. Writing the stub to a file rather than
+    inlining a second ``subprocess.run`` keeps one accepted safe-context call
+    site instead of two.
+    """
     stub_dir = tmp_path / "bin"
     stub_dir.mkdir()
-    (stub_dir / "gh").write_text(STUB_GH, encoding="utf-8")
+    (stub_dir / "gh").write_text(gh_body, encoding="utf-8")
     (stub_dir / "gh").chmod(0o755)
     calls_log = tmp_path / "calls.log"
     fixture = tmp_path / "open.json"
@@ -145,6 +162,37 @@ def test_an_empty_list_is_success_not_an_error(tmp_path: Path) -> None:
     assert "0 open" in result.stdout
     calls = result.calls_log.read_text(encoding="utf-8")  # type: ignore[union-attr]
     assert "issue close" not in calls
+
+
+def test_a_dead_query_is_not_read_as_nothing_open(tmp_path: Path) -> None:
+    """Non-vacuity for the Blocker-1 fix: ``gh`` failing must exit 1, not 0.
+
+    Round-1 review (ops cell A) reproduced at ``4cb551fb``: the front query
+    ran inside ``<(...)`` process substitution, whose status ``set -e`` never
+    inspects, so a dead ``gh`` (bad repo / 401 / rate limit) produced an EMPTY
+    array — and empty takes the same branch as "nothing open". The tool then
+    printed ``0 open 'Automated Rollback' issues — Done-when satisfied`` on
+    stdout and exited 0, with the GraphQL error alone on stderr. Byte-identical
+    stdout to the genuinely-empty world, which is exactly the class this
+    package exists to delete: a green verdict printed before its evidence
+    exists. The pre-fix guard suite was blind to it because every stub in
+    ``STUB_GH`` exits 0; this test is the missing failure world.
+    """
+    # The fixture list is deliberately non-empty: the pre-fix bug was a DEAD
+    # query looking identical to a genuinely EMPTY one, so the test has to give
+    # the "would close things" world and still refuse to certify.
+    result = _run(["--plan"], tmp_path, [6882, 6881, 6879], gh_body=DEAD_GH)
+    assert result.returncode == 1, (
+        f"a dead query must NOT certify the Done-when; got exit "
+        f"{result.returncode} with stdout {result.stdout!r}"
+    )
+    assert "satisfied" not in result.stdout, (
+        f"stdout must not claim satisfaction on a failed query: {result.stdout!r}"
+    )
+    assert "not satisfied" in result.stderr.lower(), (
+        "stderr must say the Done-when was NOT established "
+        f"(the script's phrase is 'Done-when NOT satisfied'): {result.stderr!r}"
+    )
 
 
 def test_the_closing_comment_names_the_ruling_and_the_pr(tmp_path: Path) -> None:
