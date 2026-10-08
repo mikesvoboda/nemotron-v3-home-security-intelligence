@@ -428,7 +428,7 @@ class TestPromptBudget:
     prompt + ~1K verdict" per slot (the same arithmetic the compose block
     comments). The ~6K was never enforced anywhere on the vlm path, and a
     legal batch walks straight past it: `batch_max_detections` defaults 500
-    (config.py:948) and `prompt_text` renders EVERY row as JSON - measured
+    (config.py:977-978) and `prompt_text` renders EVERY row as JSON - measured
     with the repo's own counter, 200 detections -> 12,033 text tokens, 500
     -> 29,733, against a 16,384-token slot (VLM_CTX_SIZE 32768 /
     VLM_PARALLEL 2). The legacy path has this arm (nemotron's
@@ -1696,7 +1696,7 @@ class TestSlowReplyIsNotABrokenEngine:
     ) -> None:
         """The probe-leg mirror of test_a_connect_timeout_stays_a_transport_error.
         The reviewer's mutation run showed that widening the probe clause at
-        `vlm_client.py:434` to all of `httpx.TimeoutException` - the maximal
+        `vlm_client.py:437` to all of `httpx.TimeoutException` - the maximal
         "everything is a budget" form the module header rules out - left this
         file's timeout suite green: only `test_vlm_client_batch37_o.py` noticed,
         and only via message prose. Pinned here on the two assertions a
@@ -1740,7 +1740,7 @@ class TestSlowReplyIsNotABrokenEngine:
     async def test_the_timeout_phase_is_pinned_in_message_and_log(
         self, image_dir, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """`timeout_phase` was produced at `vlm_client.py:454`/`:998` and
+        """`timeout_phase` was produced at `vlm_client.py:457`/`:1001` and
         asserted zero times; the raised message interpolates
         `ai_vlm_read_timeout` even when the stalled phase is WRITE (write
         inherits 25.0 only because `_http()` passes the read value as

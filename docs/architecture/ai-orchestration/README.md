@@ -25,7 +25,7 @@ creates `${AI_MODELS_PATH}/vlm` and names the files, and never fetches them
 The Triton repository holds exactly `{yolo26, reid, threat}`
 (`ai/triton/model_repository/`), and `GATEWAY_MODEL_SET` accepts only the value `vlm`
 (`ai/gateway/residency.py:84`). `GATEWAY_ENABLE_THREAT` ships `false`, which leaves the served set
-`{yolo26, reid}` (`ai/gateway/residency.py:57,78-82`).
+`{yolo26, reid}` (`ai/gateway/residency.py:60,80-83`).
 
 ## Specialist Legs (in-process, not services)
 
@@ -43,12 +43,12 @@ call, and each leg answers a short text that goes into the prompt
 re-ID handles are membership reads that never trigger a load
 (`osnet_loader.get_reid_handle():182`, `face_recognizer_loader.get_face_leg_handles():466`), and
 the boot sweep that would have placed them is gated on `BACKEND_MODEL_PRELOAD`, which ships `false`
-(`backend/main.py:1214`, `.env.example:231`). On such a host both legs answer `unavailable` on
+(`backend/main.py:1214`, `.env.example:224`). On such a host both legs answer `unavailable` on
 every event; the plate leg is the one that still runs, because `load_fast_alpr` loads on demand.
 
 A degraded leg is honest, not silent: `_unavailable_line()`
 (`backend/services/vlm_specialists.py:93`) increments `hsi_specialist_unavailable_total` with a
-bounded reason code (`backend/core/metrics.py:2394`) — that counter is the query that answers "has
+bounded reason code (`backend/core/metrics.py:2384-2389`) — that counter is the query that answers "has
 this leg ever run".
 
 ## Architecture Overview
@@ -91,7 +91,7 @@ flowchart TB
 ## VRAM Budget Allocation
 
 GPU placement comes from `GPU_LLM` (the ai-vlm card) and `GPU_AI_SERVICES` (the ai-gateway card),
-both in `.env.example:419` and `:806`. On a single-GPU box both are `0`.
+both in `.env.example:420` and `:807`. On a single-GPU box both are `0`.
 
 | Component                                      | VRAM                                                              |
 | ---------------------------------------------- | ----------------------------------------------------------------- |
@@ -102,7 +102,7 @@ both in `.env.example:419` and `:806`. On a single-GPU box both are `0`.
 
 Two shipped facts worth knowing before you budget:
 
-- **Residency pays for `reid`, and nothing calls it for inference.** `ai/gateway/residency.py:57` keeps `reid`
+- **Residency pays for `reid`, and nothing calls it for inference.** `ai/gateway/residency.py:60` keeps `reid`
   in the `vlm` set, but no backend module uses `/enrich-lt`'s `/person-reid` route — the live re-ID
   leg is the in-process OSNet handle. `/enrich-lt` is read as a readiness probe target only
   (`backend/api/routes/model_management.py:172`).
@@ -136,7 +136,7 @@ Two shipped facts worth knowing before you budget:
 
 1. **Detection phase**: each image is posted to `/yolo26/detect` and stored as `Detection` rows.
 2. **Batching phase**: detections aggregate per camera and the batch closes on a 90 s window, a 30 s
-   idle gap, or 500 detections (`backend/core/config.py:925,930,964`).
+   idle gap, or 500 detections (`backend/core/config.py:925,930,977`).
 3. **Key-frame phase**: `select_key_frames()` picks 1-4 distinct stills
    (`backend/services/key_frame_selector.py:73`).
 4. **Specialist phase**: the three lookup legs produce one short text each.
@@ -156,7 +156,7 @@ Both AI clients use the same breaker machinery (`backend/services/circuit_breake
 
 The detector's breaker is `detector_yolo26` with `failure_threshold=5, recovery_timeout=60.0`
 (`backend/services/detector_client.py:336`). The VLM client's breaker is named `ai-vlm` with the
-same threshold and timeout (`backend/services/vlm_client.py:93,318`).
+same threshold and timeout (`backend/services/vlm_client.py:95,321`).
 
 See [fallback-strategies.md](./fallback-strategies.md) for what the shipped path does with each
 failure.

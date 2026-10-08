@@ -184,7 +184,7 @@ async def _send_detection_request(
 
 | Parameter        | Value                 | Source                                        |
 | ---------------- | --------------------- | --------------------------------------------- |
-| Read timeout     | `yolo26_read_timeout` | `backend/core/config.py:1105-1110`            |
+| Read timeout     | `yolo26_read_timeout` | `backend/core/config.py:1118-1123`            |
 | Explicit timeout | read + connect        | `backend/services/detector_client.py:637`     |
 | Timeout wiring   | connect/read/pool     | `backend/services/detector_client.py:298-303` |
 
@@ -290,7 +290,7 @@ Any time:  -> Close batch, push to analysis queue
 `VlmAnalyzer.analyze_batch()` is the analysis entry point the Analysis Worker
 calls (`backend/services/pipeline_workers.py:1052`). The engine is the
 `ai-vlm` container (llama.cpp, default compose set), and the only thing in
-the backend that dials it is `VlmClient` (`backend/services/vlm_client.py:215`).
+the backend that dials it is `VlmClient` (`backend/services/vlm_client.py:287`).
 
 ### 4.1 Analysis Flow
 
@@ -350,7 +350,7 @@ outruns the read or write budget raises `VlmSlowReplyError` on the spot — untr
 breaker-untouched:
 
 ```python
-# backend/services/vlm_client.py:962-969
+# backend/services/vlm_client.py:965-972
 last_error: VlmClientError | None = None
 for attempt, temperature in enumerate((None, 0.0)):
     if temperature is not None:
@@ -375,7 +375,7 @@ a NULL score.
 | Connect timeout             | 10s              | `backend/core/config.py:1106-1111`       |
 | Read budget (one attempt)   | 25s              | `backend/core/config.py:1130-1142`       |
 | Wake ping (`max_tokens: 1`) | 90s              | `backend/core/config.py:1143-1151`       |
-| Breaker                     | 5 failures / 60s | `backend/services/vlm_client.py:316-319` |
+| Breaker                     | 5 failures / 60s | `backend/services/vlm_client.py:319-322` |
 
 The read budget is a per-read idle budget for one attempt in either phase
 (waiting for the reply, or waiting to finish sending the image-bearing body):
@@ -406,7 +406,7 @@ engine/model provenance the server reported, and the call latency.
 
 A transport or schema failure is not a lost event: `apply_verdict_invariants()`
 returns `verification_failed` with a NULL score and honest summary text
-(`backend/services/vlm_analyzer.py:267-280`), so the row exists and the UI shows
+(`backend/services/vlm_analyzer.py:654-657`), so the row exists and the UI shows
 the event as needing review.
 
 ### 5.2 WebSocket Broadcast
@@ -458,7 +458,7 @@ the event as needing review.
 | Broadcast  | WebSocket closed  | Buffer message       | Client reconnects                       |
 
 No analysis failure drops an event: the ladder bottoms out in a written row
-that reads `verification_failed` (`backend/services/vlm_analyzer.py:267-280`).
+that reads `verification_failed` (`backend/services/vlm_analyzer.py:654-657`).
 
 ## Related Documents
 
