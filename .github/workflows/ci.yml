@@ -361,7 +361,11 @@ jobs:
             https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64
           echo "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507  $RUNNER_TEMP/hadolint-bin/hadolint" | sha256sum -c -
           chmod +x "$RUNNER_TEMP/hadolint-bin/hadolint"
+          # GITHUB_PATH serves LATER steps (the hook finds hadolint there);
+          # it does NOT update PATH inside this step, so export it here too
+          # — otherwise the --version sanity below is a 127 on a good install.
           echo "$RUNNER_TEMP/hadolint-bin" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/hadolint-bin:$PATH"
           hadolint --version
 
       - name: Install hook runners
