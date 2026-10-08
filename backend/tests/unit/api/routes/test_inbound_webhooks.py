@@ -294,7 +294,7 @@ class TestHmacSignature:
 
     def test_valid_signature_accepted(self):
         body = b'{"source":"ifttt"}'
-        secret = "webhook-secret"  # pragma: allowlist secret
+        secret = "webhook-secret"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         signature = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 
         assert verify_hmac_signature(body, signature, secret) is True
