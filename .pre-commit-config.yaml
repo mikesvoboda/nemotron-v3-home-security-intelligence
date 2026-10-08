@@ -97,7 +97,10 @@ repos:
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
-        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|^\.wp25-feed/|^archive/|\.tsbuildinfo$|^synthbench/generate/manifests/.*\.json$)
+        # compose-render.env is test evidence with deliberate fake stubs (its header
+        # testifies); no inline `pragma: allowlist secret` instead, because the file is
+        # fed to compose as a literal --env-file, where `#` is not comment syntax.
+        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|^\.wp25-feed/|^archive/|\.tsbuildinfo$|^synthbench/generate/manifests/.*\.json$|^backend/tests/fixtures/compose-render\.env$)
 
   # Auto-regenerate secrets baseline if it has conflicts or is out of date
   # Runs on every commit but only regenerates when baseline is invalid/conflicted
