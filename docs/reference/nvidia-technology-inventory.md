@@ -476,8 +476,8 @@ a card numbered above 0 fails. The gateway passes `nvidia.com/gpu=all` and lets
 
 | Variable          | Default | Service                                               | Source                                |
 | ----------------- | ------- | ----------------------------------------------------- | ------------------------------------- |
-| `GPU_LLM`         | 0       | `ai-vlm` (also its `deploy` reservation)              | `docker-compose.prod.yml:163,175,264` |
-| `GPU_AI_SERVICES` | 1       | `ai-gateway` / Triton (also its `deploy` reservation) | `docker-compose.prod.yml:397,421`     |
+| `GPU_LLM`         | 0       | `ai-vlm` (also its `deploy` reservation)              | `docker-compose.prod.yml:163,179,269` |
+| `GPU_AI_SERVICES` | 1       | `ai-gateway` / Triton (also its `deploy` reservation) | `docker-compose.prod.yml:398,423`     |
 
 Those are the only two GPU selectors the compose file reads.
 
