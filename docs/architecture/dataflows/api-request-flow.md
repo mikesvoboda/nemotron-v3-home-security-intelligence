@@ -73,6 +73,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 # backend/main.py:29-40
 from backend.api.middleware import (
+    AuthMiddleware,
     BaggageMiddleware,
     BodySizeLimitMiddleware,
     ContentTypeValidationMiddleware,
@@ -86,32 +87,30 @@ from backend.api.middleware import (
 from backend.api.middleware.request_id import RequestIDMiddleware
 ```
 
-No `AuthMiddleware` import and no `Deprecation*` imports: those classes are not registered (NEM-5527 / NEM-5558, see below).
+No `Deprecation*` imports: those classes are not registered (NEM-5558, see below).
 
 ### Middleware Order (outer to inner)
 
 With Starlette, the **last** `add_middleware()` call becomes the **outermost** layer, so requests hit the bottom of the registration block first:
 
-| Order | Middleware                        | Purpose                                              | Gating                                         |
-| ----- | --------------------------------- | ---------------------------------------------------- | ---------------------------------------------- |
-| 1     | `IdempotencyMiddleware`           | Cache responses by `Idempotency-Key` (mutating only) | `idempotency_enabled`, default on              |
-| 2     | `GZipMiddleware`                  | Compress responses > 1 KB                            | always                                         |
-| 3     | `BodySizeLimitMiddleware`         | Limit request body size (10 MB)                      | always                                         |
-| 4     | `SecurityHeadersMiddleware`       | Add security response headers                        | always                                         |
-| 5     | `CORSMiddleware`                  | Cross-origin requests + preflight                    | always                                         |
-| 6     | `RequestRecorderMiddleware`       | Record requests for debug replay                     | `request_recording_enabled`, default off       |
-| 7     | `ObservabilityMiddleware`         | Timing, structured logging, Prometheus metrics       | always (logging via `request_logging_enabled`) |
-| 8     | `ProfilingMiddleware`             | Tag Pyroscope profiles with trace IDs                | always                                         |
-| 9     | `BaggageMiddleware`               | W3C Baggage context propagation                      | always                                         |
-| 10    | `RequestIDMiddleware`             | Assign/propagate `X-Request-ID`                      | always                                         |
-| 11    | `ContentTypeValidationMiddleware` | Validate Content-Type header                         | always                                         |
-| 12    | `SetupGuardMiddleware`            | 503 until the first admin is registered              | always (whitelist excepted)                    |
+| Order | Middleware                        | Purpose                                                        | Gating                                         |
+| ----- | --------------------------------- | -------------------------------------------------------------- | ---------------------------------------------- |
+| 1     | `AuthMiddleware`                  | The EXPOSE_LAN gate: 401 / WebSocket 4001 without a credential | `expose_lan`, default off                      |
+| 2     | `IdempotencyMiddleware`           | Cache responses by `Idempotency-Key` (mutating only)           | `idempotency_enabled`, default on              |
+| 3     | `GZipMiddleware`                  | Compress responses > 1 KB                                      | always                                         |
+| 4     | `BodySizeLimitMiddleware`         | Limit request body size (10 MB)                                | always                                         |
+| 5     | `SecurityHeadersMiddleware`       | Add security response headers                                  | always                                         |
+| 6     | `CORSMiddleware`                  | Cross-origin requests + preflight                              | always                                         |
+| 7     | `RequestRecorderMiddleware`       | Record requests for debug replay                               | `request_recording_enabled`, default off       |
+| 8     | `ObservabilityMiddleware`         | Timing, structured logging, Prometheus metrics                 | always (logging via `request_logging_enabled`) |
+| 9     | `ProfilingMiddleware`             | Tag Pyroscope profiles with trace IDs                          | always                                         |
+| 10    | `BaggageMiddleware`               | W3C Baggage context propagation                                | always                                         |
+| 11    | `RequestIDMiddleware`             | Assign/propagate `X-Request-ID`                                | always                                         |
+| 12    | `ContentTypeValidationMiddleware` | Validate Content-Type header                                   | always                                         |
+| 13    | `SetupGuardMiddleware`            | 503 until the first admin is registered                        | always (whitelist excepted)                    |
 
 **Present-but-unregistered middleware:**
 
-- `AuthMiddleware` (`backend/api/middleware/auth.py`) — **not registered** (NEM-5527). It
-  returned 401 for all non-exempt endpoints and broke Grafana dashboards and GPU settings;
-  auth is handled by per-route dependencies instead (see Authentication Flow).
 - `DeprecationMiddleware` / `DeprecationLoggerMiddleware` (`deprecation.py`, `deprecation_logger.py`) —
   **not registered** (NEM-5558). Zero deprecated endpoints were registered; re-add them when endpoints are deprecated.
 
@@ -142,11 +141,13 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 ## Authentication Flow
 
-There is **no global authentication step on the live request path**. The single-user
-local deployment model (AGENTS.md "Auth model") means that after first-admin
-registration, API endpoints are open by design — network binding to `127.0.0.1` is
-the primary security boundary — and only specific sensitive routes carry auth
-guards, in the form of per-route FastAPI dependencies, not middleware:
+The global step is `AuthMiddleware`, the EXPOSE_LAN gate (OD-12; AGENTS.md "Auth
+model"). With `EXPOSE_LAN` unset (the default) it passes everything: after
+first-admin registration the API is open, and binding to `127.0.0.1` is the
+security boundary. With `EXPOSE_LAN=true` it refuses any request without the login
+session cookie or an `API_KEYS` key, except health probes, Prometheus targets, setup
+and login (`OPEN_PATHS` in `backend/api/middleware/auth.py`). In both modes, specific
+sensitive routes also carry per-route FastAPI dependencies:
 
 | Guard                    | Defined in                                                         | Used by                                                                                                                                     | Fails with                                                                                                    |
 | ------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -155,8 +156,8 @@ guards, in the form of per-route FastAPI dependencies, not middleware:
 | `require_admin_access`   | `backend/api/routes/admin.py:262`                                  | destructive/seeding `/api/admin` routes                                                                                                     | 403 when `admin_enabled=false` (default `true` → passes; the flag is a kill switch, not a credential check)   |
 | `get_current_admin_user` | `backend/api/routes/auth.py:474`                                   | `/api/auth` api-key-management routes and three `/api/admin` routes — 403 unless the user `is_admin`                                        | 401 without a valid `session_id` cookie (checked via Redis session store)                                     |
 
-A general route such as `GET /api/events` has no guard at all: a 401 there is
-impossible on the live path.
+A general route such as `GET /api/events` has no per-route guard: its only 401 is
+the gate's, when `EXPOSE_LAN=true`.
 
 ### API Key Authentication (per-route dependency)
 

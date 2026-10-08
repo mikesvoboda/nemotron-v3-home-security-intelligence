@@ -9,14 +9,20 @@
 Home Security Intelligence is designed as a **single-user, local deployment**:
 
 - **First-time admin registration required** - `SetupGuardMiddleware` returns 503 on the
-  API until the first user is created. After registration the API is open (no per-request
-  login) — the `127.0.0.1` service bindings are the primary security boundary. The global
-  `AuthMiddleware` class exists for future multi-user support but is not active.
+  API until the first user is created.
+- **Two exposure modes (OD-12)** - With `EXPOSE_LAN` unset (the default) the API requires no
+  credential after registration, and the `127.0.0.1` service bindings are the security
+  boundary. Set `EXPOSE_LAN=true` whenever anything beyond this machine can reach the UI (the
+  LAN, a tunnel, a port forward): `AuthMiddleware` then refuses every request without the
+  login session cookie or an `API_KEYS` key, except health probes, Prometheus targets, setup
+  and login. Logging in then needs HTTPS in front, because the session cookie is `Secure`.
+  Register the admin before exposing: registration stays open until the first user exists.
 - **Per-route guards for sensitive operations** - the `/api/admin/*` seeding, cache-clearing
   and cleanup routes sit behind `require_admin_access`, which gates on `ADMIN_ENABLED` alone
   (default `true`). `DEBUG` is not consulted, and `ADMIN_API_KEY` is reserved and not
-  enforced — no code path reads it and no `X-Admin-API-Key` header is validated — so the
-  `127.0.0.1` bind is what actually protects them. The `verify_api_key` guard
+  enforced — no code path reads it and no `X-Admin-API-Key` header is validated — so on a
+  loopback deployment the `127.0.0.1` bind is what protects them, and with `EXPOSE_LAN=true`
+  the auth gate stands in front of them as well. The `verify_api_key` guard
   (`API_KEY_ENABLED`) protects the DLQ routes, not the admin ones; the inbound-webhook
   routes use `require_api_key`, which is always on. The `/api/admin/users` CRUD endpoints
   are a separate case: they require an authenticated admin session (`get_current_admin_user`).
@@ -27,14 +33,14 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
 
 ## Default Security Posture
 
-| Feature         | Default                                                               | Production Recommendation                                  |
-| --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
-| API auth        | Open after first admin registers; `API_KEY_ENABLED=false`             | Enable API keys if exposed                                 |
-| HTTPS/TLS       | Disabled (`TLS_MODE=disabled`)                                        | Enable for production                                      |
-| Rate Limiting   | Enabled                                                               | Keep enabled                                               |
-| Admin Endpoints | `ADMIN_ENABLED=true` alone (default true); DEBUG irrelevant           | Keep off non-loopback interfaces, or `ADMIN_ENABLED=false` |
-| Debug Mode      | Disabled                                                              | Keep disabled                                              |
-| CORS            | `https://{localhost,127.0.0.1,0.0.0.0}:8444` + `http://frontend:8080` | Restrict to your domains                                   |
+| Feature         | Default                                                               | Production Recommendation                                        |
+| --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| API auth        | No credential required (`EXPOSE_LAN` unset)                           | `EXPOSE_LAN=true` if anything beyond this machine reaches the UI |
+| HTTPS/TLS       | Disabled (`TLS_MODE=disabled`)                                        | Enable for production                                            |
+| Rate Limiting   | Enabled                                                               | Keep enabled                                                     |
+| Admin Endpoints | `ADMIN_ENABLED=true` alone (default true); DEBUG irrelevant           | Keep off non-loopback interfaces, or `ADMIN_ENABLED=false`       |
+| Debug Mode      | Disabled                                                              | Keep disabled                                                    |
+| CORS            | `https://{localhost,127.0.0.1,0.0.0.0}:8444` + `http://frontend:8080` | Restrict to your domains                                         |
 
 ---
 

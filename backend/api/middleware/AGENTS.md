@@ -10,7 +10,7 @@ The `backend/api/middleware/` directory contains 23 HTTP middleware components t
 
 Package initialization with public exports:
 
-- `AuthMiddleware` - HTTP API key authentication middleware
+- `AuthMiddleware` - the EXPOSE_LAN auth gate (OD-12): refuses unauthenticated HTTP and WebSocket requests when `EXPOSE_LAN=true`
 - `authenticate_websocket` - WebSocket authentication helper
 - `validate_websocket_api_key` - WebSocket API key validation
 - `IdempotencyMiddleware` - Idempotency-Key header support for mutations (NEM-2018)
@@ -30,20 +30,22 @@ Package initialization with public exports:
 
 ### `auth.py`
 
-API key authentication middleware for securing HTTP endpoints and WebSocket connections.
+The EXPOSE_LAN auth gate, and the API-key check the WebSocket routes run.
 
 **Classes:**
 
-| Class            | Purpose                                            |
-| ---------------- | -------------------------------------------------- |
-| `AuthMiddleware` | BaseHTTPMiddleware for HTTP API key authentication |
+| Class            | Purpose                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| `AuthMiddleware` | Pure ASGI gate, outermost in `backend/main.py`; engaged only when `EXPOSE_LAN=true` (OD-12) |
 
-**Functions:**
+**Functions and constants:**
 
-| Function                                | Purpose                                                                                                      |
+| Name                                    | Purpose                                                                                                      |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `OPEN_PATHS`                            | The exact paths the gate leaves open: health, Prometheus, setup, login                                       |
+| `authenticated_principal(conn)`         | Username, `api-key`, or None — used for audit actors                                                         |
 | `require_api_key(x_api_key)`            | HTTP dependency; validates the key against `settings.api_keys` unconditionally (no `api_key_enabled` branch) |
-| `validate_websocket_api_key(websocket)` | Validate API key for WebSocket connections                                                                   |
+| `validate_websocket_api_key(websocket)` | Validate API key for WebSocket connections (`API_KEY_ENABLED`)                                               |
 | `authenticate_websocket(websocket)`     | Authenticate WebSocket and close if invalid                                                                  |
 | `_hash_key(key)`                        | Hash API key using SHA-256                                                                                   |
 | `_get_valid_key_hashes()`               | Get valid API key hashes from settings                                                                       |
@@ -563,130 +565,38 @@ Setup guard middleware (`SetupGuardMiddleware`): returns 503 for API endpoints u
 
 ### Purpose
 
-Provides optional API key authentication to secure endpoints. Disabled by default for development convenience.
+`AuthMiddleware` is the gate the owner ruled in OD-12 (built by uplevel `B1.5`). With
+`EXPOSE_LAN` unset the backend requires no credential, as a loopback-only deployment always
+has. With `EXPOSE_LAN=true` it refuses every HTTP request and WebSocket handshake that
+presents no valid credential — whatever the path, including routes added later — except
+`OPEN_PATHS`.
 
-### Configuration
+### Credentials
 
-Authentication is controlled via environment variables:
+- the `session_id` cookie `POST /api/auth/login` sets (HttpOnly, SameSite=Lax, Secure), looked
+  up in Redis on each request; browsers send it on every same-origin fetch, media load and
+  WebSocket handshake;
+- an API key from `API_KEYS`: the `X-API-Key` header over HTTP; on a WebSocket, the `api_key`
+  query parameter or an `api-key.<key>` subprotocol. HTTP never takes a key from the URL.
 
-```bash
-# Enable authentication (default: false)
-export API_KEY_ENABLED=true
+### Open paths (exact matches)
 
-# Set valid API keys (JSON array)
-export API_KEYS='["your_secret_key_1", "your_secret_key_2"]'
-```
+`/health`, `/ready`, `/api/system/health`, `/api/system/health/ready` (healthchecks and probes);
+`/api/metrics`, `/api/system/gpu`, `/api/system/stats`, `/api/system/telemetry` (Prometheus);
+`/api/auth/setup-status`, `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`.
+CORS preflights also pass. Everything else, `/docs` and media included, needs a credential.
 
-Or in `.env` file:
+### Refusals
 
-```env
-API_KEY_ENABLED=true
-API_KEYS=["your_secret_key_1", "your_secret_key_2"]
-```
+- HTTP: `401 {"detail": "Authentication required"}`.
+- WebSocket: accepted, then closed with `4001`, so a client can tell refusal from a dropped network.
 
-### HTTP Authentication
+### Placement
 
-**Header Authentication (Recommended):**
-
-```bash
-curl -H "X-API-Key: your_secret_key_1" http://localhost:8000/api/cameras
-```
-
-**Query Parameter Authentication:**
-
-```bash
-curl http://localhost:8000/api/cameras?api_key=your_secret_key_1
-```
-
-**Priority:** Header `X-API-Key` takes precedence over `api_key` query parameter.
-
-### WebSocket Authentication
-
-When API key authentication is enabled, WebSocket connections must authenticate via:
-
-**Query Parameter:**
-
-```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/events?api_key=YOUR_KEY');
-```
-
-**Sec-WebSocket-Protocol Header:**
-
-```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/events', ['api-key.YOUR_KEY']);
-```
-
-Unauthenticated WebSocket connections are closed with code 1008 (Policy Violation).
-
-### Exempt Endpoints
-
-The following paths bypass HTTP authentication:
-
-- `/` - Root endpoint
-- `/health` - Health check endpoint
-- `/api/system/health` - System health check
-- `/docs` - Swagger UI documentation
-- `/redoc` - ReDoc documentation
-- `/openapi.json` - OpenAPI schema
-
-Any path starting with `/docs` or `/redoc` is also exempt.
-
-### Security Features
-
-1. **Key Hashing:** API keys are hashed using SHA-256 before validation
-2. **No Plaintext Storage:** Keys are not stored in plaintext in memory
-3. **Header Priority:** Header authentication preferred over query parameters
-4. **Development Mode:** Authentication disabled by default
-5. **Configurable Keys:** Keys loaded from environment variables
-
-### Error Responses
-
-**Missing API Key:**
-
-```json
-HTTP 401 Unauthorized
-{
-  "detail": "API key required. Provide via X-API-Key header or api_key query parameter."
-}
-```
-
-**Invalid API Key:**
-
-```json
-HTTP 401 Unauthorized
-{
-  "detail": "Invalid API key"
-}
-```
-
-### Implementation Details
-
-**Class:** `AuthMiddleware(BaseHTTPMiddleware)`
-
-**Constructor Parameters:**
-
-- `app: ASGIApp` - FastAPI application
-- `valid_key_hashes: set[str] | None` - Set of SHA-256 hashed API keys (optional, loads from settings if None)
-
-**Methods:**
-
-- `_load_key_hashes() -> set[str]` - Load and hash API keys from settings
-- `_hash_key(key: str) -> str` - Hash API key using SHA-256
-- `_is_exempt_path(path: str) -> bool` - Check if path bypasses authentication
-- `dispatch(request, call_next) -> Response` - Process request and validate API key
-
-**Flow:**
-
-1. Check if authentication is enabled (`API_KEY_ENABLED`)
-2. If disabled, pass through to next handler
-3. Check if path is exempt from authentication
-4. If exempt, pass through to next handler
-5. Extract API key from `X-API-Key` header or `api_key` query parameter
-6. If no API key provided, return 401 error
-7. Hash the provided API key using SHA-256
-8. Compare hash against valid key hashes
-9. If invalid, return 401 error
-10. If valid, pass through to next handler
+Added last in `backend/main.py`, so it runs first: `IdempotencyMiddleware` replays stored
+responses by key alone, and nothing may answer before the gate. The per-route guards
+(`verify_api_key`, `require_admin_access`, `get_current_admin_user`, `WEBSOCKET_TOKEN`) still
+run after it.
 
 ---
 
@@ -880,9 +790,10 @@ app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)  # N
 app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)  # NEM-3741
 if get_settings().idempotency_enabled:
     app.add_middleware(IdempotencyMiddleware)
+app.add_middleware(AuthMiddleware)  # the EXPOSE_LAN gate (OD-12, B1.5): outermost
 ```
 
-**`AuthMiddleware` is intentionally NOT registered** (NEM-5527): it blocked all ~450 non-exempt endpoints with 401. The single-user deployment uses the 127.0.0.1 network binding as its security boundary, with per-route auth dependencies (`verify_api_key`, `require_admin_access`, `get_current_admin_user`) protecting admin endpoints. `DeprecationMiddleware` and `DeprecationLoggerMiddleware` are likewise not registered (NEM-5558: zero deprecated endpoints).
+`AuthMiddleware` passes everything unless `EXPOSE_LAN=true` (see above). `DeprecationMiddleware` and `DeprecationLoggerMiddleware` are not registered (NEM-5558: zero deprecated endpoints).
 
 ---
 
@@ -897,13 +808,9 @@ backend/tests/unit/api/middleware/test_rate_limit.py
 
 **Test Coverage:**
 
-- Authentication enabled/disabled scenarios
-- Valid/invalid API keys
-- Missing API keys
-- Exempt paths
-- Header vs query parameter authentication
-- SHA-256 hash validation
-- WebSocket authentication
+- The EXPOSE_LAN gate: off on loopback; refusals; open paths; API keys; login sessions; CORS preflight
+- Every mounted route refused when exposed: `backend/tests/unit/api/test_expose_lan_routes.py`
+- WebSocket API-key validation logging
 - Request ID generation and propagation
 - Rate limit enforcement
 - Rate limit bypass when disabled

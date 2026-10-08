@@ -334,13 +334,7 @@ Both use broadcaster pattern for efficient multi-client messaging. WebSocket aut
 
 ### Authentication Middleware
 
-`AuthMiddleware` exists in `middleware/auth.py` but is intentionally NOT registered in `backend/main.py` (NEM-5527), so API-key auth is not applied to general routes. The single-user local deployment treats the 127.0.0.1 network binding as the security boundary; admin endpoints are protected by per-route auth dependencies (`verify_api_key`, `require_admin_access`, `get_current_admin_user`). The behavior below describes the middleware itself, should it be re-enabled for multi-user support:
-
-- Configurable via `API_KEY_ENABLED` environment variable
-- SHA-256 hashed API keys for validation
-- Header (`X-API-Key`) or query parameter (`api_key`) authentication
-- Exempt paths: health checks, docs, root
-- WebSocket authentication via query param or protocol header
+`AuthMiddleware` (`middleware/auth.py`) is the EXPOSE_LAN gate (OD-12), registered outermost in `backend/main.py`. With `EXPOSE_LAN` unset it requires no credential and the 127.0.0.1 binding is the boundary. With `EXPOSE_LAN=true` every request and WebSocket handshake needs the login session cookie (`session_id`) or an `API_KEYS` key, except the exact paths in `OPEN_PATHS` (health, Prometheus targets, setup, login, logout); refusals are `401` or a WebSocket close `4001`. The per-route guards (`verify_api_key`, `require_admin_access`, `get_current_admin_user`) still apply after it. Details: `middleware/AGENTS.md`.
 
 ### Media Endpoint Security
 
