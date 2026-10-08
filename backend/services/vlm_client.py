@@ -105,8 +105,10 @@ PROPS_PATH = "/props"
 #     figure is credited to ran at max_tokens 1024 and overrode the read timeout to
 #     180 s (`docs/benchmarks/synthbench/sweep-2026-10-03/driver/replay_arm.py:18`),
 #     so it measured neither this cap nor this timeout. 57 comes from 00-audit D1
-#     and from the commit that raised this cap (26b900bc); B1.1's real-tier commands
-#     are what turns it into a measured number.
+#     and from the commit that raised this cap (26b900bc). The tool that turns it
+#     into a measured number is committed: `scripts/vlm_probes/latency_tail.py`
+#     drives THIS client at $VLM_URL and reports the engine's own tok/s, the
+#     latency p95 and the reply tail (its header carries the operator commands).
 #   * 2048 tok / 57 tok/s ~= 36 s for ONE attempt. The old 70 s is 2 x 36 - the
 #     whole §6 ladder - set against a timeout that applies per attempt.
 #   * the shipped timeout is 25 s (`config.py:1130`, compose `:551`, `.env.example:241`),
