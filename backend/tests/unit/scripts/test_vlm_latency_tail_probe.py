@@ -335,15 +335,20 @@ class TestReaskGuard:
         the B1.1 client itself never re-asks a timeout, so the only binary
         that puts a second call after one is a PRE-B1.1 build running this
         harness - and its wire pattern is exactly these records. The
-        FIRST call decides: a read timeout first (or a success first)
-        makes any later call an illegitimate re-ask; only a fast failure
-        (connection refused) or a 5xx earns the second call."""
+        FIRST call decides: a read OR write timeout first (or a success
+        first) makes any later call an illegitimate re-ask; only a fast
+        failure (connection refused) or a 5xx earns the second call."""
 
         def call(error: str | None = None, status: int | None = 200) -> dict[str, Any]:
             return {"error": error, "status": status, "max_tokens": 0}
 
         # Timeout first: never legitimate (the B1.1 ruling, as a guard).
         assert lt._legitimate_retry([call(error="ReadTimeout"), call()]) is False
+        # The write leg is the same budget (the shipped client now catches
+        # WriteTimeout too), and the guard matches the recorder's stored
+        # class name exactly - TimeoutException in the set does NOT cover
+        # the WriteTimeout subclass string.
+        assert lt._legitimate_retry([call(error="WriteTimeout"), call()]) is False
         # Success first: a second call after a good reply is a re-ask too.
         assert lt._legitimate_retry([call(), call()]) is False
         # Fast fault first: the §6 ladder's sanctioned retry.

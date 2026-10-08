@@ -242,7 +242,9 @@ def _classify(exc: BaseException) -> tuple[str, str]:
     D1's ruling read back: BUDGET answers the breaker's question "stop
     calling this engine?" NO; FAULT answers yes."""
     if isinstance(exc, VlmSlowReplyError):
-        return "BUDGET", "read timeout (no retry, no breaker charge)"
+        # Either phase is the same budget: ReadTimeout waits for the reply,
+        # WriteTimeout waits to finish sending the image-bearing body.
+        return "BUDGET", "read/write budget (no retry, no breaker charge)"
     if isinstance(exc, ConstrainedDecodingNotEnforced):
         # The probe leg's slow answer is the same budget on the other leg
         # (B1.1); its text names the budget. Anything else from this class
@@ -258,11 +260,15 @@ def _classify(exc: BaseException) -> tuple[str, str]:
     return "FAULT", f"{type(exc).__name__}: {exc}"[:200]
 
 
-# httpx raises these when a LIVE request outruns the read budget; anything
-# else the transport raises happened BEFORE any reply was in flight - a
-# connection refused, a connect timeout - which is what the §6 ladder's one
-# sanctioned re-ask is for.
-_SLOW_TRANSPORT_ERRORS = frozenset({"ReadTimeout", "TimeoutException"})
+# httpx raises these when a LIVE request outruns a budget: ReadTimeout
+# waiting for the reply, WriteTimeout waiting to finish SENDING the body
+# (the request carries base64 stills, so the write phase is real). Matching
+# is on the exact class NAME - the recorder stores type(exc).__name__ - so
+# the subclass WriteTimeout must be listed even though its parent
+# TimeoutException is. Anything else the transport raises happened BEFORE
+# any request was live - a connection refused, a connect timeout - which is
+# what the §6 ladder's one sanctioned re-ask is for.
+_SLOW_TRANSPORT_ERRORS = frozenset({"ReadTimeout", "WriteTimeout", "TimeoutException"})
 
 
 def _legitimate_retry(assess_calls: list[dict[str, Any]]) -> bool:
@@ -270,8 +276,8 @@ def _legitimate_retry(assess_calls: list[dict[str, Any]]) -> bool:
     sanctioned re-ask: only a FAST first failure (connection refused, 5xx)
     earns one. The FIRST call decides - a fast error (any transport
     exception but a read timeout) or a non-200 reply - because a client that
-    re-asked a SUCCESS, or the timed-out reply B1.1 forbids re-asking, put
-    no fast failure first."""
+    re-asked a SUCCESS, or a read- or write-stalled reply B1.1 forbids
+    re-asking, put no fast failure first."""
     first = assess_calls[0]
     if first["error"]:
         return first["error"] not in _SLOW_TRANSPORT_ERRORS
