@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 # Mark as integration tests
 pytestmark = pytest.mark.integration
 
-PASSWORD = "SecurePassword123!"  # pragma: allowlist secret
+PASSWORD = "SecurePassword123!"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
 TEST_API_KEY = "test-api-key-12345"  # pragma: allowlist secret — integration_env API_KEYS entry
 
 
