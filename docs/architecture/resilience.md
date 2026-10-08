@@ -1235,7 +1235,7 @@ The breaker tracks metrics via `get_metrics()` (`backend/core/websocket_circuit_
 
 #### Health Check Integration
 
-The readiness endpoint reports broadcaster health (`backend/api/routes/system.py:1453`, `:1627`):
+The readiness endpoint reports broadcaster health (`backend/api/routes/system.py:1455`, `:1651`):
 
 ```python
 # GET /api/system/health/ready includes per-dependency status

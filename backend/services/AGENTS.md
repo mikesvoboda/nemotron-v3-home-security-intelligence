@@ -134,6 +134,7 @@ defined inside `model_zoo.py` itself.
 | `health_monitor.py`              | Monitor service health with auto-recovery     | No (import directly)       |
 | `health_monitor_orchestrator.py` | Container orchestrator health monitoring loop | No (import directly)       |
 | `health_event_emitter.py`        | WebSocket health status event emission        | No (import directly)       |
+| `verdict_engine_status.py`       | Verdict-engine (ai-vlm) availability tracking | No (import directly)       |
 | `health_service_registry.py`     | DI registry for health monitoring (NEM-2611)  | No (import directly)       |
 | `system_broadcaster.py`          | Broadcast system health status                | No (import directly)       |
 | `performance_collector.py`       | Collect system performance metrics            | No (import directly)       |
@@ -1691,6 +1692,43 @@ if not cb.is_open("ai_service"):
     except Exception as e:
         cb.record_failure("ai_service", str(e))
 ```
+
+### verdict_engine_status.py
+
+**Purpose:** Track verdict-engine (ai-vlm) availability and push transitions to
+WebSocket clients (B1.4, UR-18).
+
+**Key Features:**
+
+- **The DECIDE:** the health-probe result (`details["ai-vlm"]` from
+  `_check_shipped_ai_services_health`) is the source of truth — not the circuit
+  breaker (opens only after 3 consecutive failures: blind exactly when events
+  start failing verification) and not the last successful assess (blank after
+  restart, invisible to readiness). The breaker still applies second-hand: an
+  open circuit short-circuits the probe and its cached error arrives as the
+  probe's error string.
+- Honest three states: `available` / `unavailable` / `unknown` — a probe that
+  could not tell (2 s AI timeout → `details=None`) is `unknown`, never folded
+  into a definite answer. Answers "is the engine reachable", NOT "can it
+  produce verdicts" (its `/health` answers while generation is broken).
+- `since` is the TRANSITION time, so it survives the 15 s readiness cache.
+- Events fire only on transitions (the readiness cache refreshes every 15 s;
+  the compose healthcheck probes every 10 s);
+  emission is fire-and-forget so the probe never waits on broadcast.
+
+**Public API:**
+
+```python
+from backend.services.verdict_engine_status import get_verdict_engine_tracker
+
+snapshot = get_verdict_engine_tracker().observe(
+    ai_status.details, message=ai_status.message
+)  # -> .state / .since / .reason; emits system.verdict_engine_status_changed
+#    on a state transition
+```
+
+**Consumers:** `get_readiness` (system.py) publishes the snapshot as
+`verdict_engine`; `/ws/system` subscribers receive the transition event.
 
 ### health_event_emitter.py
 

@@ -197,7 +197,7 @@ Content-Type: application/json
 The header-setting code is `set_deprecation_headers()` (`backend/api/pagination.py:421`) for
 pagination deprecation, and inline `response.headers[...]` assignments in the handlers for
 per-route deprecation — `get_config()` and `patch_config()`
-(`backend/api/routes/system.py:2450`, `backend/api/routes/system.py:2566`) both set the four
+(`backend/api/routes/system.py:2474`, `backend/api/routes/system.py:2590`) both set the four
 headers above on every response.
 
 The middleware counterpart — a `DeprecationLoggerMiddleware` that watches for the `Deprecation`
@@ -255,7 +255,7 @@ silently preferring one (`backend/api/pagination.py:391`).
 
 `ConfigResponse.detection_confidence_threshold` and
 `ConfigUpdateRequest.detection_confidence_threshold` are declared with Pydantic's
-`deprecated=True` (`backend/api/schemas/system.py:506`, `backend/api/schemas/system.py:578`), so
+`deprecated=True` (`backend/api/schemas/system.py:507`, `backend/api/schemas/system.py:579`), so
 the field is marked deprecated in the generated JSON Schema as well as in the description text.
 
 ### Routes that carry deprecation signals
@@ -266,8 +266,8 @@ carries — a `deprecated=True` decorator is not the same thing as a handler tha
 
 | Route                                            | Signal carried today                                                                                                   | Location                                      |
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| `GET /api/system/config`                         | Deprecation/Sunset/Link/`X-Deprecated-Message` headers + deprecated response field; the decorator itself is not marked | `backend/api/routes/system.py:2450`           |
-| `PATCH /api/system/config`                       | Same header set + deprecated request field; decorator not marked                                                       | `backend/api/routes/system.py:2566`           |
+| `GET /api/system/config`                         | Deprecation/Sunset/Link/`X-Deprecated-Message` headers + deprecated response field; the decorator itself is not marked | `backend/api/routes/system.py:2474`           |
+| `PATCH /api/system/config`                       | Same header set + deprecated request field; decorator not marked                                                       | `backend/api/routes/system.py:2590`           |
 | `POST /api/known-persons/{person_id}/embeddings` | `deprecated=True` decorator, returns 410 Gone                                                                          | `backend/api/routes/face_recognition.py:357`  |
 | `POST /api/face-events/match`                    | `deprecated=True` decorator, returns 410 Gone                                                                          | `backend/api/routes/face_recognition.py:1333` |
 | `POST /api/household-matcher/match-person`       | `deprecated=True` decorator, returns 410 Gone                                                                          | `backend/api/routes/household_matcher.py:86`  |

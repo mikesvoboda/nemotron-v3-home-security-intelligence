@@ -502,7 +502,7 @@ The engine/model pair is written by `VlmClient._served_provenance()` from the cl
 
 **Usage:**
 
-- `API_KEY_ENABLED` (default `False`, `backend/core/config.py:1932-1935`) gates key checks; `verify_api_key` protects admin/destructive endpoints (e.g. the cleanup trigger, `backend/api/routes/system.py:3260`)
+- `API_KEY_ENABLED` (default `False`, `backend/core/config.py:1932-1935`) gates key checks; `verify_api_key` protects admin/destructive endpoints (e.g. the cleanup trigger, `backend/api/routes/system.py:3284`)
 - Bootstrap keys from the `API_KEYS` setting are hashed on startup (`backend/core/config.py:1936-1938`)
 
 ---
@@ -1209,7 +1209,7 @@ After each run, the service logs (`backend/services/cleanup_service.py:20-25`, `
 
 ### Manual Trigger and Dry Run
 
-The cleanup trigger endpoint is `POST /api/system/cleanup?dry_run=true` (protected by `verify_api_key`, `backend/api/routes/system.py:3260`); schedule status is `GET /api/system/cleanup/status` (`:3925`). With `dry_run=True` the response schema (`CleanupResponse`, `backend/api/schemas/system.py:1162`) returns the same count fields as what would be deleted:
+The cleanup trigger endpoint is `POST /api/system/cleanup?dry_run=true` (protected by `verify_api_key`, `backend/api/routes/system.py:3284`); schedule status is `GET /api/system/cleanup/status` (`:3949`). With `dry_run=True` the response schema (`CleanupResponse`, `backend/api/schemas/system.py:1216`) returns the same count fields as what would be deleted:
 
 ```json
 {

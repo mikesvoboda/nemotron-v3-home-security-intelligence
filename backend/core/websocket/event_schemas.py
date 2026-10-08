@@ -84,6 +84,20 @@ class ServiceStatus(StrEnum):
     FAILED = "failed"
 
 
+class VerdictEngineState(StrEnum):
+    """Verdict-engine (ai-vlm) availability states — B1.4 (UR-18).
+
+    Answers "is the engine reachable per the health probe", NOT "can it
+    produce verdicts" (its /health answers while generation is broken).
+    UNKNOWN is honest third-state: the probe could not tell (timeout, missing
+    detail) — never folded into the two definite answers.
+    """
+
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"
+    UNKNOWN = "unknown"
+
+
 class RiskLevel(StrEnum):
     """Risk level classification."""
 
@@ -346,6 +360,38 @@ class SystemHealthChangedPayload(BasePayload):
         if isinstance(v, str):
             return SystemHealth(v.lower())
         raise ValueError(f"Invalid system health: {v}")
+
+
+class VerdictEngineStatusChangedPayload(BasePayload):
+    """Payload for system.verdict_engine_status_changed events (B1.4, UR-18).
+
+    Fires when the tracked verdict-engine state TRANSITIONS (probe result as
+    source of truth — see backend/services/verdict_engine_status.py). ``since``
+    is the transition time, not the event time; ``timestamp`` is the event time.
+    """
+
+    state: VerdictEngineState = Field(..., description="New verdict-engine state")
+    previous_state: VerdictEngineState = Field(..., description="State before the transition")
+    since: str = Field(..., description="ISO 8601 time the state TRANSITIONED")
+    reason: str | None = Field(
+        None,
+        description="Engine's own error string while unavailable, why the probe "
+        "cannot tell while unknown, None while available",
+    )
+    source: str = Field(
+        ..., description="What produced the state (e.g. 'health_probe' — the DECIDE)"
+    )
+    timestamp: str = Field(..., description="ISO 8601 event timestamp")
+
+    @field_validator("state", "previous_state", mode="before")
+    @classmethod
+    def validate_verdict_engine_state(cls, v: str | VerdictEngineState) -> VerdictEngineState:
+        """Convert string to VerdictEngineState enum."""
+        if isinstance(v, VerdictEngineState):
+            return v
+        if isinstance(v, str):
+            return VerdictEngineState(v.lower())
+        raise ValueError(f"Invalid verdict-engine state: {v}")
 
 
 class SystemErrorPayload(BasePayload):
@@ -1015,6 +1061,7 @@ EVENT_PAYLOAD_SCHEMAS: dict[WebSocketEventType, type[BasePayload]] = {
     WebSocketEventType.JOB_CANCELLED: JobCancelledPayload,
     # System events
     WebSocketEventType.SYSTEM_HEALTH_CHANGED: SystemHealthChangedPayload,
+    WebSocketEventType.SYSTEM_VERDICT_ENGINE_STATUS_CHANGED: (VerdictEngineStatusChangedPayload),
     WebSocketEventType.SYSTEM_ERROR: SystemErrorPayload,
     WebSocketEventType.SYSTEM_STATUS: SystemStatusPayload,
     WebSocketEventType.SERVICE_STATUS_CHANGED: ServiceStatusChangedPayload,

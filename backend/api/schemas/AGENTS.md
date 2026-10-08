@@ -422,6 +422,9 @@ Pydantic schemas for queue message payload validation with security validation.
 - `status: str` - ready, degraded, or not_ready
 - `services: dict[str, ServiceStatus]` - Infrastructure services
 - `workers: list[WorkerStatus]` - Background workers
+- `verdict_engine: VerdictEngineReadiness` - ai-vlm availability (`state`
+  available/unavailable/unknown, `since` = transition time, `reason`) — reported
+  without gating readiness; a down engine keeps HTTP 200 (B1.4, UR-18)
 - `timestamp: datetime` - Check timestamp
 
 #### `GPUStatsResponse`
