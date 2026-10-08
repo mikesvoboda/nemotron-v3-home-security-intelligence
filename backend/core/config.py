@@ -498,11 +498,14 @@ class Settings(BaseSettings):
         le=168,
         description="Session TTL in hours for Redis-backed sessions. Default: 24 hours.",
     )
-    auth_enabled: bool = Field(
+    # OD-12 (B1.5): the one auth switch. backend/api/middleware/auth.py reads it.
+    expose_lan: bool = Field(
         default=False,
-        description="Enable authentication requirement for API endpoints. "
-        "When False, endpoints are accessible without authentication. "
-        "Set to True for production deployments.",
+        description="Set true when anything beyond this machine can reach the UI: the "
+        "LAN, a tunnel or a port forward. The backend then refuses every request "
+        "without a login session or a configured API key, except health probes, "
+        "Prometheus targets, first-run setup and login. Unset, it requires no "
+        "credential and the frontend is meant to bind loopback only.",
     )
 
     redis_event_channel: str = Field(
@@ -823,10 +826,9 @@ class Settings(BaseSettings):
     # cache-clearing / cleanup endpoints — require_admin_access() raises 403 only
     # when admin_enabled is False. It does NOT consult DEBUG (this flag defaults
     # True, so those endpoints are exposed by default) and it does NOT consult
-    # ADMIN_API_KEY. The declared boundary is therefore network-level: bind to
-    # 127.0.0.1 / keep the port on a trusted network (the single-user design
-    # decision; see backend/main.py near the NEM-5527 note). The global
-    # AuthMiddleware is disabled, so nothing else stands in front of them.
+    # ADMIN_API_KEY. In front of them stands only the EXPOSE_LAN auth gate
+    # (backend/api/middleware/auth.py): with EXPOSE_LAN=true a caller needs a login
+    # session or an API key; unset, the boundary is the 127.0.0.1 binding alone.
     # The /api/admin/users CRUD endpoints are a separate case — they are gated by
     # get_current_admin_user (authenticated admin session), not by this flag.
     admin_enabled: bool = Field(

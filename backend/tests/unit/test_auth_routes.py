@@ -468,28 +468,3 @@ class TestSetupGuardMiddleware:
 
         assert "/api/auth/setup-status" in SETUP_WHITELIST_EXACT
         assert "/api/auth/register" in SETUP_WHITELIST_EXACT
-
-
-# =============================================================================
-# Test: Auth Middleware Exempt Paths
-# =============================================================================
-
-
-class TestAuthMiddlewareExemptPaths:
-    """Tests for auth middleware exempt paths include auth endpoints."""
-
-    def test_auth_endpoints_exempt(self) -> None:
-        """Test auth endpoints are exempt from API key auth."""
-        from backend.api.middleware.auth import AuthMiddleware
-
-        middleware = AuthMiddleware(app=MagicMock())
-
-        # These auth endpoints should be exempt
-        assert middleware._is_exempt_path("/api/auth/setup-status") is True
-        assert middleware._is_exempt_path("/api/auth/register") is True
-        assert middleware._is_exempt_path("/api/auth/login") is True
-
-        # Other auth endpoints should NOT be exempt (require auth)
-        assert middleware._is_exempt_path("/api/auth/me") is False
-        assert middleware._is_exempt_path("/api/auth/logout") is False
-        assert middleware._is_exempt_path("/api/auth/api-keys") is False

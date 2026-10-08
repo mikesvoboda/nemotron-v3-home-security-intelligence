@@ -1,24 +1,37 @@
-"""Unit tests for API key authentication middleware security logging.
+"""Unit tests for backend/api/middleware/auth.py.
 
-Tests verify that authentication failures are properly logged with
-security event metadata for audit and monitoring purposes.
-
-Test coverage:
-- Missing API key logs warning with correct fields (HTTP)
-- Invalid API key logs warning with correct fields (HTTP)
-- Missing API key logs warning for WebSocket
-- Invalid API key logs warning for WebSocket
-- IP addresses are masked for privacy
+- ``AuthMiddleware``, the EXPOSE_LAN gate (B1.5, OD-12): with EXPOSE_LAN unset
+  it passes every request; set, it refuses any HTTP request or WebSocket
+  handshake without a valid credential, except the open paths. Credentials are
+  the login session cookie and the configured API keys.
+- ``authenticated_principal``: who presented the credential, for audit rows.
+- ``validate_websocket_api_key``: the WebSocket routes' API-key check and its
+  security logging.
 """
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from collections.abc import Iterator
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import WebSocket
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
+from starlette.routing import Route, WebSocketRoute
+from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
-from backend.api.middleware.auth import validate_websocket_api_key
+from backend.api.middleware.auth import (
+    OPEN_PATHS,
+    AuthMiddleware,
+    authenticated_principal,
+    validate_websocket_api_key,
+)
 from backend.core.config import get_settings
+from backend.services.session_service import SessionService
+
+VALID_KEY = "test-valid-key-12345"  # pragma: allowlist secret
 
 
 @pytest.fixture(autouse=True)
@@ -27,19 +40,6 @@ def clear_settings_cache():
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
-
-
-@pytest.fixture
-def mock_request():
-    """Create a mock HTTP request."""
-    request = MagicMock()
-    request.url.path = "/api/events"
-    request.method = "GET"
-    request.headers = {}
-    request.query_params = {}
-    request.client = MagicMock()
-    request.client.host = "192.168.1.100"
-    return request
 
 
 @pytest.fixture
@@ -69,138 +69,6 @@ def enable_api_key_auth():
     os.environ.pop("API_KEY_ENABLED", None)
     os.environ.pop("API_KEYS", None)
     get_settings.cache_clear()
-
-
-class TestAuthMiddlewareMissingKeyLogging:
-    """Tests for logging when API key is missing."""
-
-    @pytest.mark.asyncio
-    async def test_missing_api_key_logs_warning(self, mock_request, enable_api_key_auth):
-        """When API key is missing, a warning should be logged with security fields."""
-        from backend.api.middleware.auth import AuthMiddleware
-
-        mock_app = MagicMock()
-        middleware = AuthMiddleware(mock_app)
-
-        call_next = AsyncMock()
-
-        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
-            response = await middleware.dispatch(mock_request, call_next)
-
-            # Verify 401 response
-            assert response.status_code == 401
-
-            # Verify warning was logged
-            mock_logger.warning.assert_called_once()
-            call_args = mock_logger.warning.call_args
-
-            # Verify log message
-            assert "Authentication attempt without API key" in call_args[0][0]
-
-            # Verify extra fields
-            extra = call_args[1]["extra"]
-            assert extra["path"] == "/api/events"
-            assert extra["method"] == "GET"
-            assert extra["security_event"] is True
-            assert extra["event_type"] == "auth_missing_key"
-
-    @pytest.mark.asyncio
-    async def test_missing_api_key_masks_client_ip(self, mock_request, enable_api_key_auth):
-        """Client IP should be masked for privacy in security logs."""
-        from backend.api.middleware.auth import AuthMiddleware
-
-        mock_app = MagicMock()
-        middleware = AuthMiddleware(mock_app)
-
-        call_next = AsyncMock()
-
-        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
-            await middleware.dispatch(mock_request, call_next)
-
-            extra = mock_logger.warning.call_args[1]["extra"]
-            # IP should be masked (192.xxx.xxx.xxx)
-            assert extra["client_ip"] == "192.xxx.xxx.xxx"
-            # Original IP should NOT be in the log
-            assert "192.168.1.100" not in str(extra)
-
-    @pytest.mark.asyncio
-    async def test_missing_api_key_handles_no_client(self, enable_api_key_auth):
-        """When request has no client info, should log 'unknown' instead of crashing."""
-        from backend.api.middleware.auth import AuthMiddleware
-
-        mock_request = MagicMock()
-        mock_request.url.path = "/api/events"
-        mock_request.method = "POST"
-        mock_request.headers = {}
-        mock_request.query_params = {}
-        mock_request.client = None  # No client info
-
-        mock_app = MagicMock()
-        middleware = AuthMiddleware(mock_app)
-
-        call_next = AsyncMock()
-
-        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
-            response = await middleware.dispatch(mock_request, call_next)
-
-            assert response.status_code == 401
-            extra = mock_logger.warning.call_args[1]["extra"]
-            assert extra["client_ip"] == "unknown"
-
-
-class TestAuthMiddlewareInvalidKeyLogging:
-    """Tests for logging when API key is invalid."""
-
-    @pytest.mark.asyncio
-    async def test_invalid_api_key_logs_warning(self, mock_request, enable_api_key_auth):
-        """When API key is invalid, a warning should be logged with security fields."""
-        from backend.api.middleware.auth import AuthMiddleware
-
-        mock_request.headers = {"X-API-Key": "wrong-invalid-key"}
-
-        mock_app = MagicMock()
-        middleware = AuthMiddleware(mock_app)
-
-        call_next = AsyncMock()
-
-        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
-            response = await middleware.dispatch(mock_request, call_next)
-
-            # Verify 401 response
-            assert response.status_code == 401
-
-            # Verify warning was logged
-            mock_logger.warning.assert_called_once()
-            call_args = mock_logger.warning.call_args
-
-            # Verify log message
-            assert "Authentication attempt with invalid API key" in call_args[0][0]
-
-            # Verify extra fields
-            extra = call_args[1]["extra"]
-            assert extra["path"] == "/api/events"
-            assert extra["method"] == "GET"
-            assert extra["security_event"] is True
-            assert extra["event_type"] == "auth_invalid_key"
-
-    @pytest.mark.asyncio
-    async def test_invalid_api_key_via_query_param(self, mock_request, enable_api_key_auth):
-        """Invalid API key via query parameter should also be logged."""
-        from backend.api.middleware.auth import AuthMiddleware
-
-        mock_request.query_params = {"api_key": "bad-key-from-query"}  # pragma: allowlist secret
-
-        mock_app = MagicMock()
-        middleware = AuthMiddleware(mock_app)
-
-        call_next = AsyncMock()
-
-        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
-            response = await middleware.dispatch(mock_request, call_next)
-
-            assert response.status_code == 401
-            extra = mock_logger.warning.call_args[1]["extra"]
-            assert extra["event_type"] == "auth_invalid_key"
 
 
 class TestWebSocketAuthLogging:
@@ -281,115 +149,266 @@ class TestWebSocketAuthLogging:
             assert extra["client_ip"] == "unknown"
 
 
-class TestAuthMiddlewareNoLoggingOnSuccess:
-    """Tests verifying no logging occurs on successful authentication."""
-
-    @pytest.mark.asyncio
-    async def test_valid_api_key_no_warning(self, mock_request, enable_api_key_auth):
-        """When API key is valid, no warning should be logged."""
-        from backend.api.middleware.auth import AuthMiddleware
-
-        mock_request.headers = {"X-API-Key": "test-valid-key-12345"}
-
-        mock_app = MagicMock()
-        middleware = AuthMiddleware(mock_app)
-
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        call_next = AsyncMock(return_value=mock_response)
-
-        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
-            response = await middleware.dispatch(mock_request, call_next)
-
-            assert response.status_code == 200
-            mock_logger.warning.assert_not_called()
+# =============================================================================
+# AuthMiddleware: the EXPOSE_LAN gate
+# =============================================================================
 
 
-class TestAuthMiddlewareDisabled:
-    """Tests when API key authentication is disabled.
+class _SessionStore:
+    """In-memory stand-in for Redis: the two calls SessionService makes."""
 
-    When api_key_enabled=False, the middleware falls back to session
-    cookie authentication. These tests mock session validation.
-    """
+    def __init__(self) -> None:
+        self.values: dict[str, str] = {}
 
-    @pytest.mark.asyncio
-    async def test_disabled_auth_no_logging(self, mock_request):
-        """When auth is disabled and session is valid, no security logging should occur."""
-        from backend.api.middleware.auth import AuthMiddleware
+    async def set(self, key: str, value: str, expire: int | None = None) -> None:
+        self.values[key] = value
 
-        os.environ["API_KEY_ENABLED"] = "false"  # pragma: allowlist secret
+    async def get(self, key: str) -> str | None:
+        return self.values.get(key)
+
+
+class _BrokenStore:
+    async def get(self, key: str) -> str | None:
+        raise ConnectionError("redis down")
+
+
+def _use_store(monkeypatch: pytest.MonkeyPatch, store: object) -> None:
+    async def _redis() -> object:
+        return store
+
+    monkeypatch.setattr("backend.api.middleware.auth.get_redis_optional", _redis)
+
+
+@pytest.fixture
+def session_store(monkeypatch: pytest.MonkeyPatch) -> _SessionStore:
+    store = _SessionStore()
+    _use_store(monkeypatch, store)
+    return store
+
+
+async def _login(store: _SessionStore, username: str = "admin") -> str:
+    """A session exactly as POST /api/auth/login creates it."""
+    return await SessionService(store).create_session(
+        user_id="user-1", session_data={"username": username, "is_admin": True}
+    )
+
+
+@pytest.fixture
+def exposed(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    monkeypatch.setenv("EXPOSE_LAN", "true")
+    monkeypatch.setenv("API_KEYS", f'["{VALID_KEY}"]')
+    get_settings.cache_clear()
+    yield
+
+
+@pytest.fixture
+def loopback(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    monkeypatch.delenv("EXPOSE_LAN", raising=False)
+    get_settings.cache_clear()
+    yield
+
+
+async def _reached(_request: Request) -> PlainTextResponse:
+    return PlainTextResponse("reached")
+
+
+async def _reached_ws(websocket: WebSocket) -> None:
+    await websocket.accept()
+    await websocket.send_text("reached")
+    await websocket.close()
+
+
+def _client() -> TestClient:
+    inner = Starlette(
+        routes=[
+            Route("/{path:path}", _reached, methods=["GET", "POST", "OPTIONS"]),
+            WebSocketRoute("/{path:path}", _reached_ws),
+        ]
+    )
+    return TestClient(AuthMiddleware(inner))
+
+
+def _ws(client: TestClient, path: str, **kwargs: object) -> str | int:
+    """``reached`` when the handshake passed the gate, else the close code."""
+    try:
+        with client.websocket_connect(path, **kwargs) as websocket:
+            return websocket.receive_text()
+    except WebSocketDisconnect as exc:
+        return exc.code
+
+
+class TestGateOffOnLoopback:
+    def test_http_without_credential_passes(self, loopback: None) -> None:
+        response = _client().get("/api/events")
+        assert response.status_code == 200
+        assert response.text == "reached"
+
+    def test_websocket_without_credential_passes(self, loopback: None) -> None:
+        assert _ws(_client(), "/ws/events") == "reached"
+
+
+class TestGateRefusesWithoutCredential:
+    @pytest.mark.parametrize("path", ["/api/events", "/system/detectors", "/no/such/route", "/"])
+    def test_http_is_refused_with_401(self, exposed: None, path: str) -> None:
+        response = _client().get(path)
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Authentication required"}
+
+    def test_post_is_refused(self, exposed: None) -> None:
+        response = _client().post("/api/notification/test", json={"channel": "webhook"})
+        assert response.status_code == 401
+
+    def test_websocket_is_closed_with_4001(self, exposed: None) -> None:
+        assert _ws(_client(), "/ws/events") == 4001
+
+    def test_lifespan_passes_through(self, exposed: None) -> None:
+        with _client() as client:
+            assert client.get("/api/auth/login").status_code == 200
+
+
+class TestOpenPaths:
+    def test_open_paths_are_the_documented_allowlist(self) -> None:
+        """Health probes, Prometheus targets, and getting or clearing a session."""
+        documented = {
+            "/health",
+            "/ready",
+            "/api/system/health",
+            "/api/system/health/ready",
+            "/api/metrics",
+            "/api/system/gpu",
+            "/api/system/stats",
+            "/api/system/telemetry",
+            "/api/auth/setup-status",
+            "/api/auth/register",
+            "/api/auth/login",
+            "/api/auth/logout",
+        }
+        assert documented == OPEN_PATHS
+
+    @pytest.mark.parametrize("path", sorted(OPEN_PATHS))
+    def test_open_path_passes_without_credential(self, exposed: None, path: str) -> None:
+        assert _client().get(path).text == "reached"
+
+    @pytest.mark.parametrize(
+        "path",
+        ["/api/auth/login/", "/api/auth/login/x", "/api/metricsx", "/api/system/health/full"],
+    )
+    def test_open_paths_match_exactly(self, exposed: None, path: str) -> None:
+        assert _client().get(path).status_code == 401
+
+
+class TestApiKey:
+    def test_header_key_passes(self, exposed: None) -> None:
+        assert _client().get("/api/events", headers={"X-API-Key": VALID_KEY}).text == "reached"
+
+    def test_wrong_header_key_is_refused(self, exposed: None) -> None:
+        response = _client().get("/api/events", headers={"X-API-Key": "wrong-key-1234567"})
+        assert response.status_code == 401
+
+    def test_http_query_key_is_refused(self, exposed: None) -> None:
+        """Over HTTP a key travels in a header, never in a URL that logs record."""
+        assert _client().get(f"/api/events?api_key={VALID_KEY}").status_code == 401
+
+    def test_no_configured_keys_accepts_none(
+        self, exposed: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("API_KEYS", "[]")
         get_settings.cache_clear()
+        response = _client().get("/api/events", headers={"X-API-Key": VALID_KEY})
+        assert response.status_code == 401
 
-        # Add session cookie to mock request
-        mock_request.cookies = {"session_id": "test-session"}
+    def test_websocket_query_key_passes(self, exposed: None) -> None:
+        assert _ws(_client(), f"/ws/events?api_key={VALID_KEY}") == "reached"
 
-        mock_app = MagicMock()
-        middleware = AuthMiddleware(mock_app)
+    def test_websocket_subprotocol_key_passes(self, exposed: None) -> None:
+        assert _ws(_client(), "/ws/events", subprotocols=[f"api-key.{VALID_KEY}"]) == "reached"
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        call_next = AsyncMock(return_value=mock_response)
-
-        # Mock session validation to return True
-        with (
-            patch.object(AuthMiddleware, "_validate_session", return_value=True, autospec=True),
-            patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger,
-        ):
-            response = await middleware.dispatch(mock_request, call_next)
-
-            assert response.status_code == 200
-            mock_logger.warning.assert_not_called()
-
-        os.environ.pop("API_KEY_ENABLED", None)
+    def test_websocket_wrong_key_is_closed(self, exposed: None) -> None:
+        assert _ws(_client(), "/ws/events?api_key=wrong-key-1234567") == 4001
 
 
-class TestExemptPathsNoLogging:
-    """Tests that exempt paths don't trigger auth logging."""
+class TestSessionCookie:
+    @pytest.mark.asyncio
+    async def test_login_session_passes_http(
+        self, exposed: None, session_store: _SessionStore
+    ) -> None:
+        session_id = await _login(session_store)
+        response = _client().get("/api/events", headers={"Cookie": f"session_id={session_id}"})
+        assert response.text == "reached"
 
     @pytest.mark.asyncio
-    async def test_health_endpoint_no_logging(self, enable_api_key_auth):
-        """Health check endpoints should not trigger auth logging."""
-        from backend.api.middleware.auth import AuthMiddleware
+    async def test_login_session_passes_websocket(
+        self, exposed: None, session_store: _SessionStore
+    ) -> None:
+        session_id = await _login(session_store)
+        headers = {"Cookie": f"session_id={session_id}"}
+        assert _ws(_client(), "/ws/events", headers=headers) == "reached"
 
-        mock_request = MagicMock()
-        mock_request.url.path = "/health"
-        mock_request.method = "GET"
-        mock_request.headers = {}
-        mock_request.query_params = {}
+    def test_unknown_session_is_refused(self, exposed: None, session_store: _SessionStore) -> None:
+        response = _client().get("/api/events", headers={"Cookie": "session_id=forged"})
+        assert response.status_code == 401
 
-        mock_app = MagicMock()
-        middleware = AuthMiddleware(mock_app)
+    def test_unknown_session_websocket_is_closed(
+        self, exposed: None, session_store: _SessionStore
+    ) -> None:
+        assert _ws(_client(), "/ws/events", headers={"Cookie": "session_id=forged"}) == 4001
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        call_next = AsyncMock(return_value=mock_response)
+    def test_redis_unavailable_refuses(
+        self, exposed: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _use_store(monkeypatch, None)
+        response = _client().get("/api/events", headers={"Cookie": "session_id=any"})
+        assert response.status_code == 401
 
-        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
-            response = await middleware.dispatch(mock_request, call_next)
+    def test_redis_error_refuses(self, exposed: None, monkeypatch: pytest.MonkeyPatch) -> None:
+        _use_store(monkeypatch, _BrokenStore())
+        response = _client().get("/api/events", headers={"Cookie": "session_id=any"})
+        assert response.status_code == 401
 
-            assert response.status_code == 200
-            mock_logger.warning.assert_not_called()
+
+class TestCorsPreflight:
+    def test_preflight_passes(self, exposed: None) -> None:
+        response = _client().options(
+            "/api/events",
+            headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "GET"},
+        )
+        assert response.text == "reached"
+
+    def test_plain_options_is_refused(self, exposed: None) -> None:
+        assert _client().options("/api/events").status_code == 401
+
+
+# =============================================================================
+# authenticated_principal
+# =============================================================================
+
+
+def _request(headers: dict[str, str]) -> Request:
+    raw = [(name.lower().encode(), value.encode()) for name, value in headers.items()]
+    return Request(
+        {"type": "http", "method": "POST", "path": "/", "headers": raw, "query_string": b""}
+    )
+
+
+class TestAuthenticatedPrincipal:
+    @pytest.mark.asyncio
+    async def test_session_names_its_user(self, session_store: _SessionStore) -> None:
+        session_id = await _login(session_store, username="alice")
+        assert (
+            await authenticated_principal(_request({"Cookie": f"session_id={session_id}"}))
+            == "alice"
+        )
 
     @pytest.mark.asyncio
-    async def test_metrics_endpoint_no_logging(self, enable_api_key_auth):
-        """Metrics endpoint should not trigger auth logging."""
-        from backend.api.middleware.auth import AuthMiddleware
+    async def test_api_key_is_named_api_key(
+        self, exposed: None, session_store: _SessionStore
+    ) -> None:
+        assert await authenticated_principal(_request({"X-API-Key": VALID_KEY})) == "api-key"
 
-        mock_request = MagicMock()
-        mock_request.url.path = "/api/metrics"
-        mock_request.method = "GET"
-        mock_request.headers = {}
-        mock_request.query_params = {}
+    @pytest.mark.asyncio
+    async def test_no_credential_is_none(self, session_store: _SessionStore) -> None:
+        assert await authenticated_principal(_request({})) is None
 
-        mock_app = MagicMock()
-        middleware = AuthMiddleware(mock_app)
-
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        call_next = AsyncMock(return_value=mock_response)
-
-        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
-            response = await middleware.dispatch(mock_request, call_next)
-
-            assert response.status_code == 200
-            mock_logger.warning.assert_not_called()
+    @pytest.mark.asyncio
+    async def test_unknown_session_is_none(self, session_store: _SessionStore) -> None:
+        assert await authenticated_principal(_request({"Cookie": "session_id=forged"})) is None

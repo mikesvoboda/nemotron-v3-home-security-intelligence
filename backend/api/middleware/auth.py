@@ -1,34 +1,65 @@
-"""API key and session authentication middleware.
+"""Authentication: the EXPOSE_LAN gate and the WebSocket routes' API-key check.
 
-Supports two authentication modes:
-1. API key authentication (when api_key_enabled=True)
-2. Session cookie authentication (when api_key_enabled=False)
+``AuthMiddleware`` is the gate OD-12 rules (B1.5). With ``EXPOSE_LAN`` unset it
+passes every request, as a loopback-only deployment always has. With
+``EXPOSE_LAN=true`` it refuses every HTTP request and WebSocket handshake that
+presents no valid credential, whatever its path, except ``OPEN_PATHS``.
 
-Session authentication validates cookies against Redis-stored sessions,
-providing browser-based authentication for the web UI.
+A credential is either
+- the ``session_id`` cookie ``POST /api/auth/login`` sets, looked up in Redis; or
+- a key from ``settings.api_keys``: the ``X-API-Key`` header over HTTP, the
+  ``api_key`` query parameter or an ``api-key.<key>`` subprotocol on a WebSocket.
+
+The per-route guards (``verify_api_key``, ``require_admin_access``,
+``get_current_admin_user``, ``WEBSOCKET_TOKEN``) still run after the gate.
 """
 
 import hashlib
 import hmac
-from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import Header, HTTPException, Request, Response, WebSocket, status
+from fastapi import Header, HTTPException, WebSocket, status
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
+from starlette.requests import HTTPConnection
+from starlette.types import ASGIApp, Receive, Scope, Send
 
+from backend.api.dependencies import get_redis_optional
 from backend.api.middleware.websocket_auth import (
     WebSocketAuthMethod,
     verify_websocket_auth,
 )
 from backend.core import get_settings
 from backend.core.logging import get_logger, mask_ip
+from backend.services.session_service import SessionService
 
 logger = get_logger(__name__)
 
 # Session cookie name - must match auth.py
 SESSION_COOKIE_NAME = "session_id"
+
+# Reachable without a credential when EXPOSE_LAN=true. Exact paths, no prefixes.
+OPEN_PATHS: frozenset[str] = frozenset(
+    {
+        # container healthchecks and Prometheus probes
+        "/health",
+        "/ready",
+        "/api/system/health",
+        "/api/system/health/ready",
+        # Prometheus scrape targets: counters, no footage, event or identity data
+        "/api/metrics",
+        "/api/system/gpu",
+        "/api/system/stats",
+        "/api/system/telemetry",
+        # first-run setup (register answers 409 once a user exists) and the session
+        "/api/auth/setup-status",
+        "/api/auth/register",
+        "/api/auth/login",
+        "/api/auth/logout",
+    }
+)
+
+API_KEY_PRINCIPAL = "api-key"  # the audit actor for a key holder  # pragma: allowlist secret
+WS_CLOSE_AUTH_REQUIRED = 4001  # the auth-failure close code websocket_auth.py uses
 
 
 def _hash_key(key: str) -> str:
@@ -255,321 +286,94 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     return True
 
 
-class AuthMiddleware(BaseHTTPMiddleware):
-    """Middleware to enforce API key authentication."""
+def _presented_api_key(conn: HTTPConnection) -> str | None:
+    """The API key a connection carries where its transport allows one."""
+    if conn.scope["type"] == "http":
+        return conn.headers.get("x-api-key")
+    if key := conn.query_params.get("api_key"):
+        return key
+    for protocol in conn.headers.get("sec-websocket-protocol", "").split(","):
+        if (stripped := protocol.strip()).startswith("api-key."):
+            return stripped.removeprefix("api-key.")
+    return None
 
-    def __init__(self, app: ASGIApp, valid_key_hashes: set[str] | None = None):
-        """Initialize authentication middleware.
 
-        Args:
-            app: FastAPI application
-            valid_key_hashes: Set of valid API key hashes (SHA-256). If None, loads from settings.
-        """
-        super().__init__(app)
-        self.valid_key_hashes = valid_key_hashes or self._load_key_hashes()
+async def _session_username(session_id: str) -> str | None:
+    """The user a login session belongs to, or None if Redis does not hold it."""
+    try:
+        redis = await get_redis_optional()
+        if redis is None:
+            logger.warning("Session check failed: Redis unavailable")
+            return None
+        session = await SessionService(redis).get_session(session_id)
+    except Exception as e:
+        logger.debug(f"Session not accepted: {type(e).__name__}")
+        return None
+    user_id = session.get("user_id")
+    return None if user_id is None else str(session.get("username") or user_id)
 
-    def _load_key_hashes(self) -> set[str]:
-        """Load and hash API keys from settings."""
-        settings = get_settings()
-        # Support both SecretStr and str for api_keys
-        hashes = set()
-        for key in settings.api_keys:
-            key_value = key.get_secret_value() if hasattr(key, "get_secret_value") else key
-            hashes.add(self._hash_key(str(key_value)))
-        return hashes
 
-    @staticmethod
-    def _hash_key(key: str) -> str:
-        """Hash API key using SHA-256.
+async def authenticated_principal(conn: HTTPConnection) -> str | None:
+    """Who presented a valid credential: a username, ``api-key``, or None."""
+    key = _presented_api_key(conn)
+    if key and _validate_key_hash_constant_time(_hash_key(key), _get_valid_key_hashes()):
+        return API_KEY_PRINCIPAL
+    if session_id := conn.cookies.get(SESSION_COOKIE_NAME):
+        return await _session_username(session_id)
+    return None
 
-        Args:
-            key: Plain text API key
 
-        Returns:
-            SHA-256 hash of the key
-        """
-        return hashlib.sha256(key.encode()).hexdigest()
+def _is_cors_preflight(scope: Scope) -> bool:
+    """A preflight carries no credential; CORSMiddleware answers it without a route."""
+    headers = dict(scope["headers"])
+    return scope["method"] == "OPTIONS" and b"access-control-request-method" in headers
 
-    def _validate_key_hash(self, key_hash: str) -> bool:
-        """Validate API key hash using constant-time comparison.
 
-        Uses hmac.compare_digest to prevent timing attacks (OWASP A07:2021).
-        Compares the key hash against all valid hashes using constant-time
-        comparison to avoid leaking information about which keys are valid.
+class AuthMiddleware:
+    """Refuse unauthenticated requests when EXPOSE_LAN=true (OD-12).
 
-        Args:
-            key_hash: SHA-256 hash of the API key to validate
+    Mounted outermost in ``backend/main.py``, so nothing answers a request
+    before the gate has checked it; ``IdempotencyMiddleware``, for one, replays
+    stored responses by key alone.
+    """
 
-        Returns:
-            True if the key hash matches any valid hash, False otherwise
-        """
-        return any(
-            hmac.compare_digest(key_hash, valid_hash) for valid_hash in self.valid_key_hashes
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if not await self._admits(scope):
+            await self._refuse(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
+
+    async def _admits(self, scope: Scope) -> bool:
+        if scope["type"] not in ("http", "websocket") or not get_settings().expose_lan:
+            return True
+        if scope["path"] in OPEN_PATHS:
+            return True
+        if scope["type"] == "http" and _is_cors_preflight(scope):
+            return True
+        return await authenticated_principal(HTTPConnection(scope)) is not None
+
+    async def _refuse(self, scope: Scope, receive: Receive, send: Send) -> None:
+        conn = HTTPConnection(scope)
+        logger.warning(
+            "Unauthenticated request refused",
+            extra={
+                "path": scope["path"],
+                "method": scope.get("method", "WEBSOCKET"),
+                "client_ip": mask_ip(conn.client.host if conn.client else "unknown"),
+                "security_event": True,
+                "event_type": "auth_required",
+            },
         )
-
-    def _is_exempt_path(self, path: str) -> bool:
-        """Check if path is exempt from authentication.
-
-        SECURITY RATIONALE FOR EXEMPT PATHS:
-
-        Health Check Endpoints (required for container orchestration):
-        - /               : Basic status check for load balancers
-        - /health         : Canonical liveness probe (Docker/K8s HEALTHCHECK)
-        - /ready          : Canonical readiness probe (K8s readiness)
-        - /api/system/health       : Detailed health check (includes AI service status)
-        - /api/system/health/ready : Detailed readiness probe with service breakdown
-
-        Prometheus Metrics (required for monitoring):
-        - /api/metrics    : Prometheus scraping endpoint
-          NOTE: Consider restricting to internal network only in production
-
-        API Documentation (development convenience):
-        - /docs           : Swagger UI
-        - /redoc          : ReDoc documentation
-        - /openapi.json   : OpenAPI schema
-
-        Media Endpoints (static content accessed by browsers):
-        - /api/media/*    : Camera media and thumbnails
-        - /api/detections/{id}/image : Detection thumbnail images
-        - /api/detections/{id}/video : Detection video streams
-        - /api/detections/{id}/video/thumbnail : Video thumbnail frames
-        - /api/cameras/{id}/snapshot : Latest camera snapshot
-
-        Security controls for media endpoints:
-        1. Path traversal protection (rejects ".." and absolute paths)
-        2. File type allowlist (only images and videos)
-        3. Base directory validation (prevents symlink escapes)
-        4. Rate limiting (MEDIA tier - configurable requests/minute)
-        5. Detection IDs require prior knowledge (not enumerable)
-
-        Args:
-            path: Request path
-
-        Returns:
-            True if path should bypass authentication
-        """
-        # Health check endpoints - required for container orchestration
-        exempt_paths = [
-            "/",
-            "/health",  # Canonical liveness probe
-            "/ready",  # Canonical readiness probe
-            "/api/system/health",  # Detailed health check (includes AI services)
-            "/api/system/health/ready",  # Detailed readiness probe
-            "/api/metrics",  # Prometheus scraping endpoint
-            # Additional Prometheus JSON exporter endpoints
-            # These are scraped by json-exporter and must be unauthenticated
-            "/api/system/gpu",
-            "/api/system/stats",
-            "/api/system/telemetry",
-            "/docs",
-            "/redoc",
-            "/openapi.json",
-            # Auth endpoints (NEM-5312: Phase 2 API Protection)
-            # These are exempt because:
-            # 1. Setup status must be checkable without auth
-            # 2. Registration must work when no users exist
-            # 3. Login endpoint needs to be accessible to authenticate
-            "/api/auth/setup-status",
-            "/api/auth/register",
-            "/api/auth/login",
-        ]
-
-        # Exempt prefix paths (for dynamic routes)
-        exempt_prefixes = [
-            "/docs",
-            "/redoc",
-            # Media endpoints are exempt because they:
-            # 1. Are accessed directly by browsers via <img>/<video> tags
-            # 2. Have their own security (path traversal protection, file type allowlist, rate limiting)
-            # 3. Would require api_key in every image URL otherwise
-            "/api/media/",
-        ]
-
-        if path in exempt_paths:
-            return True
-
-        for prefix in exempt_prefixes:
-            if path.startswith(prefix):
-                return True
-
-        # Exempt detection media endpoints (images, videos, thumbnails)
-        # These have rate limiting and require knowing detection IDs
-        # Pattern: /api/detections/{id}/image, /api/detections/{id}/video, /api/detections/{id}/video/thumbnail
-        if path.startswith("/api/detections/") and ("/image" in path or "/video" in path):
-            return True
-
-        # Exempt camera snapshot endpoints
-        # These have rate limiting and path traversal protection
-        # Pattern: /api/cameras/{id}/snapshot
-        return path.startswith("/api/cameras/") and path.endswith("/snapshot")
-
-    async def _validate_session(self, session_id: str) -> bool:
-        """Validate session cookie against Redis.
-
-        Args:
-            session_id: Session ID from cookie.
-
-        Returns:
-            True if session is valid, False otherwise.
-        """
-        try:
-            from backend.api.dependencies import get_redis_optional
-            from backend.services.session_service import SessionExpiredError, SessionService
-
-            redis_client = await get_redis_optional()
-            if not redis_client:
-                # Redis unavailable - cannot validate session
-                logger.warning("Session validation failed: Redis unavailable")
-                return False
-
-            session_service = SessionService(redis_client)
-            try:
-                session_data = await session_service.get_session(session_id)
-                # Session is valid if we got data and it has a user_id
-                return session_data.get("user_id") is not None
-            except SessionExpiredError:
-                return False
-
-        except Exception as e:
-            logger.warning(
-                f"Session validation error: {e}",
-                extra={"error_type": type(e).__name__},
-            )
-            return False
-
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        """Process request and validate authentication.
-
-        Authentication modes:
-        1. If api_key_enabled=True: Require API key
-        2. If api_key_enabled=False: Require valid session cookie
-
-        Args:
-            request: Incoming HTTP request
-            call_next: Next middleware or endpoint
-
-        Returns:
-            HTTP response
-        """
-        settings = get_settings()
-
-        # Skip authentication for exempt paths
-        if self._is_exempt_path(request.url.path):
-            return await call_next(request)
-
-        # Mode 1: API key authentication
-        if settings.api_key_enabled:
-            return await self._authenticate_with_api_key(request, call_next)
-
-        # Mode 2: Session cookie authentication
-        return await self._authenticate_with_session(request, call_next)
-
-    async def _authenticate_with_session(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        """Authenticate request using session cookie.
-
-        Args:
-            request: Incoming HTTP request
-            call_next: Next middleware or endpoint
-
-        Returns:
-            HTTP response
-        """
-        # Extract session cookie
-        session_id = request.cookies.get(SESSION_COOKIE_NAME)
-
-        if not session_id:
-            logger.warning(
-                "Authentication attempt without session cookie",
-                extra={
-                    "path": request.url.path,
-                    "method": request.method,
-                    "client_ip": mask_ip(request.client.host if request.client else "unknown"),
-                    "security_event": True,
-                    "event_type": "auth_missing_session",
-                },
-            )
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Not authenticated"},
-            )
-
-        # Validate session
-        if not await self._validate_session(session_id):
-            logger.warning(
-                "Authentication attempt with invalid session",
-                extra={
-                    "path": request.url.path,
-                    "method": request.method,
-                    "client_ip": mask_ip(request.client.host if request.client else "unknown"),
-                    "security_event": True,
-                    "event_type": "auth_invalid_session",
-                },
-            )
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Session expired or invalid"},
-            )
-
-        # Session is valid, proceed with request
-        return await call_next(request)
-
-    async def _authenticate_with_api_key(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        """Authenticate request using API key.
-
-        Args:
-            request: Incoming HTTP request
-            call_next: Next middleware or endpoint
-
-        Returns:
-            HTTP response
-        """
-        # Extract API key from header or query parameter
-        api_key = request.headers.get("X-API-Key")
-        if not api_key:
-            api_key = request.query_params.get("api_key")
-
-        # Reject if no API key provided
-        if not api_key:
-            logger.warning(
-                "Authentication attempt without API key",
-                extra={
-                    "path": request.url.path,
-                    "method": request.method,
-                    "client_ip": mask_ip(request.client.host if request.client else "unknown"),
-                    "security_event": True,
-                    "event_type": "auth_missing_key",
-                },
-            )
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={
-                    "detail": "API key required. Provide via X-API-Key header or api_key query parameter."
-                },
-            )
-
-        # Hash and validate API key using constant-time comparison (OWASP A07:2021)
-        key_hash = self._hash_key(api_key)
-        if not self._validate_key_hash(key_hash):
-            logger.warning(
-                "Authentication attempt with invalid API key",
-                extra={
-                    "path": request.url.path,
-                    "method": request.method,
-                    "client_ip": mask_ip(request.client.host if request.client else "unknown"),
-                    "security_event": True,
-                    "event_type": "auth_invalid_key",
-                },
-            )
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Invalid API key"},
-            )
-
-        # API key is valid, proceed with request
-        return await call_next(request)
+        if scope["type"] == "websocket":
+            websocket = WebSocket(scope, receive, send)
+            await websocket.accept()
+            await websocket.close(code=WS_CLOSE_AUTH_REQUIRED, reason="Authentication required")
+            return
+        response = JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"detail": "Authentication required"},
+        )
+        await response(scope, receive, send)

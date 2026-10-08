@@ -383,10 +383,10 @@ class TestPostSetupAuthentication:
     async def test_open_after_setup(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that general endpoints are open after setup.
 
-        Shipped auth model (AGENTS.md; NEM-5527 disabled the global
-        AuthMiddleware): single-user local deployment, network binding to
-        127.0.0.1 is the security boundary, API endpoints are open after
-        setup; admin/destructive routes keep per-route dependencies
+        Shipped auth model (AGENTS.md; with EXPOSE_LAN unset, as here, the
+        AuthMiddleware gate passes everything): single-user local deployment,
+        network binding to 127.0.0.1 is the security boundary, API endpoints
+        are open after setup; admin/destructive routes keep per-route dependencies
         (verify_api_key, require_admin_access). Owner ruling F3.
         """
         # Complete setup
@@ -581,7 +581,7 @@ class TestApiKeyAuthentication:
             # Create API key (session cookie authenticates). Shipped: the
             # minted key is write-only — it is stored hashed (prefix exposed)
             # and NO endpoint validates DB-created keys (verify_api_key checks
-            # settings.api_keys only; AuthMiddleware is disabled, NEM-5527).
+            # settings.api_keys only, and so does the EXPOSE_LAN gate).
             api_key_response = await client.post(
                 "/api/auth/api-keys",
                 json={"name": "test-key"},
@@ -621,8 +621,8 @@ class TestApiKeyAuthentication:
         )
 
         # Try with invalid API key on a route that has per-route auth
-        # protection (verify_api_key/get_current_admin_user) — the global
-        # AuthMiddleware is disabled (NEM-5527), so /api/cameras is open and
+        # protection (verify_api_key/get_current_admin_user) — with EXPOSE_LAN
+        # unset the AuthMiddleware gate is off, so /api/cameras is open and
         # cannot carry this assertion (owner ruling F3).
         response = await client.post(
             "/api/admin/users",
