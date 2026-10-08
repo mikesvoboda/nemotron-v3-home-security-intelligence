@@ -148,19 +148,21 @@ registration, API endpoints are open by design — network binding to `127.0.0.1
 the primary security boundary — and only specific sensitive routes carry auth
 guards, in the form of per-route FastAPI dependencies, not middleware:
 
-| Guard                    | Defined in                                                         | Used by                                                                                                                                     | Fails with                                                                                                  |
-| ------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `verify_api_key`         | `backend/api/routes/system.py:272`, `backend/api/routes/dlq.py:41` | selected `/api/system` routes (config, anomaly-config, severity, cleanup, circuit-breaker reset), destructive `/api/dlq` POST/DELETE routes | 401 only when `api_key_enabled=true` (default `false` → guard is a no-op)                                   |
-| `verify_api_key`         | `backend/api/routes/inbound_webhooks.py:121`                       | inbound webhook POST routes                                                                                                                 | 401 whenever the `X-API-Key` header is missing or shorter than 16 chars (not gated on `api_key_enabled`)    |
-| `require_admin_access`   | `backend/api/routes/admin.py:262`                                  | destructive/seeding `/api/admin` routes                                                                                                     | 403 when `admin_enabled=false` (default `true` → passes; the flag is a kill switch, not a credential check) |
-| `get_current_admin_user` | `backend/api/routes/auth.py:474`                                   | `/api/auth` api-key-management routes and three `/api/admin` routes — 403 unless the user `is_admin`                                        | 401 without a valid `session_id` cookie (checked via Redis session store)                                   |
+| Guard                    | Defined in                                                         | Used by                                                                                                                                     | Fails with                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `verify_api_key`         | `backend/api/routes/system.py:272`, `backend/api/routes/dlq.py:41` | selected `/api/system` routes (config, anomaly-config, severity, cleanup, circuit-breaker reset), destructive `/api/dlq` POST/DELETE routes | 401 only when `api_key_enabled=true` (default `false` → guard is a no-op)                                     |
+| `require_api_key`        | `backend/api/middleware/auth.py:78`                                | inbound webhook POST routes (all four answer 501)                                                                                           | 401 whenever the `X-API-Key` header is missing or not in `settings.api_keys` (not gated on `api_key_enabled`) |
+| `require_admin_access`   | `backend/api/routes/admin.py:262`                                  | destructive/seeding `/api/admin` routes                                                                                                     | 403 when `admin_enabled=false` (default `true` → passes; the flag is a kill switch, not a credential check)   |
+| `get_current_admin_user` | `backend/api/routes/auth.py:474`                                   | `/api/auth` api-key-management routes and three `/api/admin` routes — 403 unless the user `is_admin`                                        | 401 without a valid `session_id` cookie (checked via Redis session store)                                     |
 
 A general route such as `GET /api/events` has no guard at all: a 401 there is
 impossible on the live path.
 
 ### API Key Authentication (per-route dependency)
 
-The 401 flow that remains lives in the `verify_api_key` dependency of the guarded routes:
+The 401 flow that remains lives in the `verify_api_key` dependency of the `/api/system` and
+`/api/dlq` guarded routes. The inbound-webhook routes use `require_api_key` instead, which
+skips the flag check entirely and validates against `settings.api_keys` on every request:
 
 ```mermaid
 sequenceDiagram
@@ -184,11 +186,11 @@ sequenceDiagram
 
 ### Supported Authentication Methods
 
-| Method      | Header/Parameter    | Example                         | Notes                                       |
-| ----------- | ------------------- | ------------------------------- | ------------------------------------------- |
-| API Key     | `X-API-Key` header  | `X-API-Key: your-api-key`       | Guarded routes only, when `api_key_enabled` |
-| Query param | `api_key`           | `/api/dlq/...?api_key=your-key` | Fallback accepted by `dlq.py`'s guard       |
-| Session     | `session_id` cookie | browser login via `/api/auth`   | Routes using `get_current_admin_user`       |
+| Method      | Header/Parameter    | Example                         | Notes                                                                 |
+| ----------- | ------------------- | ------------------------------- | --------------------------------------------------------------------- |
+| API Key     | `X-API-Key` header  | `X-API-Key: your-api-key`       | Guarded routes only (`api_key_enabled`; always for `require_api_key`) |
+| Query param | `api_key`           | `/api/dlq/...?api_key=your-key` | Fallback accepted by `dlq.py`'s guard                                 |
+| Session     | `session_id` cookie | browser login via `/api/auth`   | Routes using `get_current_admin_user`                                 |
 
 ## Route Registration
 

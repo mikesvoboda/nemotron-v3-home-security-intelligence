@@ -761,13 +761,13 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 
 ### Webhooks
 
-| Endpoint                       | Method | Consumer(s) | Purpose                      |
-| ------------------------------ | ------ | ----------- | ---------------------------- |
-| `/api/webhooks/alerts`         | POST   | —           | Receive Alertmanager Webhook |
-| `/api/webhooks/inbound/alert`  | POST   | —           | Create Alert                 |
-| `/api/webhooks/inbound/arm`    | POST   | —           | Arm Zones                    |
-| `/api/webhooks/inbound/disarm` | POST   | —           | Disarm Zones                 |
-| `/api/webhooks/inbound/mode`   | POST   | —           | Set System Mode              |
+| Endpoint                       | Method | Consumer(s) | Purpose                       |
+| ------------------------------ | ------ | ----------- | ----------------------------- |
+| `/api/webhooks/alerts`         | POST   | —           | Receive Alertmanager Webhook  |
+| `/api/webhooks/inbound/alert`  | POST   | —           | Create Alert (501 · UR-12)    |
+| `/api/webhooks/inbound/arm`    | POST   | —           | Arm Zones (501 · UR-12)       |
+| `/api/webhooks/inbound/disarm` | POST   | —           | Disarm Zones (501 · UR-12)    |
+| `/api/webhooks/inbound/mode`   | POST   | —           | Set System Mode (501 · UR-12) |
 
 ### Zones
 
@@ -863,10 +863,10 @@ backend-only surface:
 | `/api/tracks`                                                  | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/v1/alertmanager/webhook`                                 | POST                | Inbound Alertmanager receiver — no UI                                                                                                                                        |
 | `/api/webhooks/alerts`                                         | POST                | Inbound Alertmanager receiver — no UI                                                                                                                                        |
-| `/api/webhooks/inbound/alert`                                  | POST                | Inbound receiver for external alarm systems (arm/disarm/mode/alert) — no UI                                                                                                  |
-| `/api/webhooks/inbound/arm`                                    | POST                | Inbound receiver for external alarm systems (arm/disarm/mode/alert) — no UI                                                                                                  |
-| `/api/webhooks/inbound/disarm`                                 | POST                | Inbound receiver for external alarm systems (arm/disarm/mode/alert) — no UI                                                                                                  |
-| `/api/webhooks/inbound/mode`                                   | POST                | Inbound receiver for external alarm systems (arm/disarm/mode/alert) — no UI                                                                                                  |
+| `/api/webhooks/inbound/alert`                                  | POST                | Inbound receiver for external alarm systems — 501 by design (UR-12); no UI                                                                                                   |
+| `/api/webhooks/inbound/arm`                                    | POST                | Inbound receiver for external alarm systems — 501 by design (UR-12); no UI                                                                                                   |
+| `/api/webhooks/inbound/disarm`                                 | POST                | Inbound receiver for external alarm systems — 501 by design (UR-12); no UI                                                                                                   |
+| `/api/webhooks/inbound/mode`                                   | POST                | Inbound receiver for external alarm systems — 501 by design (UR-12); no UI                                                                                                   |
 | `/api/zones/member/{member_id}/zones`                          | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/zones/vehicle/{vehicle_id}/zones`                        | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/ready`                                                       | GET                 | Container readiness probe (compose healthcheck), not UI                                                                                                                      |
