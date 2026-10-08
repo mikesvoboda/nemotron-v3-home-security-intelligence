@@ -27,6 +27,7 @@ the graph test cannot see.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -36,6 +37,22 @@ ROOT = Path(__file__).resolve().parent.parent
 CI = ROOT / ".github" / "workflows" / "ci.yml"
 
 JOB = "precommit-hooks"
+
+# Line-based, not substring: a self-review mutation at head showed a job
+# gutted to ONE step whose run text is a shell COMMENT `# pre-commit run
+# --from-ref x --to-ref y` plus an echo of the same string passed every
+# substring clause (exit 0). An invocation only counts when it is an actual
+# command line — begins the line (leading indent allowed) and is not a
+# comment.
+INVOCATION = re.compile(r"^\s*pre-commit run\b")
+
+
+def real_invocations(script: str) -> list[str]:
+    return [
+        line.strip()
+        for line in script.splitlines()
+        if INVOCATION.match(line) and not line.lstrip().startswith("#")
+    ]
 
 
 def main() -> int:
@@ -59,13 +76,19 @@ def main() -> int:
         s.get("run", "") for s in job.get("steps", []) if s.get("run")
     )
 
-    # 2. It runs the committed config over the changed-file range.
-    if "pre-commit run" not in script:
-        failures.append(f"job {JOB!r} does not invoke `pre-commit run`")
-    if "--from-ref" not in script or "--to-ref" not in script:
+    # 2. It runs the committed config over the changed-file range — as a real
+    #    command line, with the range flags ON that same line.
+    invocations = real_invocations(script)
+    if not invocations:
         failures.append(
-            f"job {JOB!r} must run the range form (`--from-ref ... --to-ref ...`) "
-            "so it checks the PR's changed files the same way a push does"
+            f"job {JOB!r} has no real `pre-commit run` command line (commented or "
+            "echoed copies do not count — see real_invocations)"
+        )
+    if not any("--from-ref" in ln and "--to-ref" in ln for ln in invocations):
+        failures.append(
+            f"job {JOB!r} needs an invocation carrying BOTH --from-ref and --to-ref "
+            "on the same command line, so it checks the PR's changed files the same "
+            "way a push delta does"
         )
 
     # 3. Wired into ci-gate the WP0.6 way. (test_ci_job_graph.py enforces the
@@ -81,12 +104,20 @@ def main() -> int:
     if f"needs.{JOB}.result" not in gate_script:
         failures.append(f"ci-gate carries no check_job line for needs.{JOB}.result")
 
-    # 4. The B1.3-class self-test is part of the job (a fixture that must trip
-    #    the hooks; the job fails if its own hooks fail to catch it).
-    if "self-test" not in script.lower():
+    # 4. The B1.3-class self-test is part of the job, and it is a REAL check:
+    #    the fixture file is written, the hooks are run over it via a real
+    #    `--files` invocation, and the fixture is the #6888 credential line
+    #    itself. (Substring on the word "self-test" was the decoy hole.)
+    if "webhook-secret" not in script:
         failures.append(
-            f"job {JOB!r} has no B1.3-class self-test step — a job that silently "
-            "skips every hook would report green (O1.12 Done-when: fails on the fixture)"
+            f"job {JOB!r} writes no #6888-class fixture (secret = \"webhook-secret\") "
+            "— the self-test must trip on the class that motivated the package"
+        )
+    if not any("--files" in ln for ln in invocations):
+        failures.append(
+            f"job {JOB!r} has no real `pre-commit run --files <fixture>` invocation "
+            "— a job that silently skips every hook would report green "
+            "(O1.12 Done-when: fails on the fixture)"
         )
 
     if failures:
