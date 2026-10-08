@@ -48,7 +48,7 @@ sequenceDiagram
     Note over VA: Specialist lookups: faces, person re-ID, plates
     VA->>VA: Build AssessInput + fit prompt to the slot
     VA->>VLM: POST /v1/chat/completions (json_schema, temp 0.1)
-    Note over VA,VLM: Read budget 25s, one retry at temp 0
+    Note over VA,VLM: Read budget 25s per attempt; temp-0 retry only where re-asking is not futile
     VLM-->>VA: VlmVerdict (or a VlmClientError)
     VA->>VA: apply_verdict_invariants
     VA-->>AW: Event (+ EventVerification)
@@ -341,11 +341,16 @@ stage lands as three `unavailable` lines on the same keys
 
 ### 4.3 Retry Logic
 
-The client owns exactly one transport retry, inside the same read budget, and
-the second attempt re-sends the same body at temperature 0 (the first attempt is greedy too):
+The client owns exactly one retry, for failures where re-asking is not futile: a
+fast transport fault (refused connection, `ConnectTimeout`), any other answered
+status (a 5xx or a plain 4xx, except the 400 context-overflow refusal), or a
+complete reply that violates the schema re-sends the same body at temperature 0 (the first
+attempt is greedy too), each attempt carrying its own read budget. A reply that
+outruns the read or write budget raises `VlmSlowReplyError` on the spot — untried,
+breaker-untouched:
 
 ```python
-# backend/services/vlm_client.py:810-817
+# backend/services/vlm_client.py:962-969
 last_error: VlmClientError | None = None
 for attempt, temperature in enumerate((None, 0.0)):
     if temperature is not None:
@@ -356,23 +361,29 @@ for attempt, temperature in enumerate((None, 0.0)):
         body["temperature"] = temperature
 ```
 
-There is no third attempt and no backoff ladder: a second retry would double
-the budget a single call already fits. When that retry still fails, the client
-raises and the analyzer maps the failure to `verification_failed` instead of
-propagating it (`backend/services/vlm_analyzer.py:556-560`) — the Event is
-still written, with a NULL score.
+There is no third attempt and no backoff ladder; the second attempt fits the
+S4 target only when the first failed fast. When it still fails, the client raises
+and the analyzer maps the failure to
+`verification_failed` instead of propagating it
+(`backend/services/vlm_analyzer.py:556-560`) — the Event is still written, with
+a NULL score.
 
 **Timing:**
 
 | Parameter                   | Value            | Source                                   |
 | --------------------------- | ---------------- | ---------------------------------------- |
-| Connect timeout             | 10s              | `backend/core/config.py:1093-1098`       |
-| Read budget (one attempt)   | 25s              | `backend/core/config.py:1117-1125`       |
-| Wake ping (`max_tokens: 1`) | 90s              | `backend/core/config.py:1126-1128`       |
-| Breaker                     | 5 failures / 60s | `backend/services/vlm_client.py:247-249` |
+| Connect timeout             | 10s              | `backend/core/config.py:1106-1111`       |
+| Read budget (one attempt)   | 25s              | `backend/core/config.py:1130-1142`       |
+| Wake ping (`max_tokens: 1`) | 90s              | `backend/core/config.py:1143-1151`       |
+| Breaker                     | 5 failures / 60s | `backend/services/vlm_client.py:316-319` |
 
-The read budget is sized so the single retry fits inside it — a per-attempt
-ceiling at or above 30 s would leave no room for the second attempt.
+The read budget is a per-read idle budget for one attempt in either phase
+(waiting for the reply, or waiting to finish sending the image-bearing body):
+httpx resets it on every reply chunk, so it catches a stalled reply or stalled
+request write on deadline — a budget outcome, not an outage, never retried (a
+re-ask sends identical bytes at the identical speed) — while an engine that
+dribbles the reply within it runs on; no wall clock wraps an attempt. Sizing it
+under S4's p95 <= 30 s (connect counted on top) bounds the silent-server case.
 
 ## Stage 5: Event Creation and Broadcast
 

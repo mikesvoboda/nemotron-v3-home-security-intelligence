@@ -336,6 +336,21 @@ KNOWN_ERROR_TYPES = frozenset(
         "vlm_schema_invalid",
         "vlm_circuit_open",
         "vlm_verification_failed",
+        # B1.1 completes this block: the probe leg and the budget causes were
+        # emitted but never listed, so they collapsed to "other" - including
+        # the two budget causes whose whole point is a distinguishable cause
+        # (a truncated reply and an overflowing context "stay loud" only if
+        # the label survives). A test now derives this list from vlm_client's
+        # own call sites instead of trusting it to stay hand-synced.
+        "vlm_probe_props_unreachable",
+        "vlm_probe_build_mismatch",
+        "vlm_probe_transport",
+        "vlm_probe_not_enforced",
+        "vlm_probe_truncated",
+        "vlm_probe_timeout",  # B1.1: slow probe reply, a budget, not a breaker
+        "vlm_assess_timeout",  # B1.1: slow assess reply, a budget, not a breaker
+        "vlm_assess_truncated",
+        "vlm_context_overflow",
         "file_not_found",
         "invalid_image",
         "malformed_response",

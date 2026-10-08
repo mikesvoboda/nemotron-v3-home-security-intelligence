@@ -368,7 +368,7 @@ mounts exactly two routers — `/yolo26` and `/enrich-lt`
 verdict engine runs on its own `ai-vlm` container (port 8098, in the default
 compose set). The `ai_gateway_url` / `use_ai_gateway` settings
 (`backend/core/config.py:1510-1520`) route detection clients through the gateway
-— both are enabled in the deployed stack (`docker-compose.prod.yml:595-596`,
+— both are enabled in the deployed stack (`docker-compose.prod.yml:600-601`,
 `.env.example:196-197`).
 
 ### Optional API Key Authentication for AI Services
@@ -390,7 +390,7 @@ yolo26_api_key: SecretStr | None = Field(
 ### Docker Network Segmentation
 
 The shipped `docker-compose.prod.yml` puts every service on a single bridge
-network, `security-net` (`docker-compose.prod.yml:1524-1526`). Isolation comes
+network, `security-net` (`docker-compose.prod.yml:1529-1531`). Isolation comes
 from host port bindings instead of network splits:
 
 | Exposure                                                      | Services                                                                                                                                                                                                                                              |

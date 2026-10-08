@@ -1059,7 +1059,7 @@ stateDiagram-v2
 4. **Object Detection:**
 
    - `DetectorClient` posts the image to `ai-gateway` at `/yolo26` (`settings.yolo26_url` default `http://ai-gateway:8090/yolo26`, `backend/core/config.py:1036`)
-   - Results filtered by confidence threshold (`DETECTION_CONFIDENCE_THRESHOLD`, `.env.example:631` ships 0.5)
+   - Results filtered by confidence threshold (`DETECTION_CONFIDENCE_THRESHOLD`, `.env.example:635` ships 0.5)
    - Detection record(s) created in PostgreSQL; thumbnail generated and stored
 
 5. **Batch Aggregation:**
