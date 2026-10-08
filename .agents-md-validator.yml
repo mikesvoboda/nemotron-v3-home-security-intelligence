@@ -75,8 +75,9 @@ exclude_reference_patterns:
 # on the tree this PR produces: that is the tree this config ships on, and a
 # baseline measured on a tree that never runs is unverifiable (the design
 # panel's blocker). Honest scope of that claim, measured at this PR's
-# merge-base for the review: the six retired-name counts are IDENTICAL at
-# base and head — the PR's AGENTS.md edits add zero net mentions — so
+# merge-base for the review: the retired-name counts (then six, now five
+# names per the owner's pose ruling) are IDENTICAL at base and head — the
+# PR's AGENTS.md edits add zero net mentions — so
 # "minting at the base would have minted stale numbers" was false for THIS
 # PR; it is a hazard that generalises (any AGENTS.md edit can move a count,
 # which is why re-measure-before-merge is the rule), not a harm this PR
@@ -147,29 +148,29 @@ dead_reference_allowlist:
 
 # Baseline 2/2 — retired-name mentions (docs/uplevel/00-audit.md's retired
 # names), measured at the same commit on this tree and a clean clone
-# (identical: 93/143/159/10/37/2, total 444, over 245 scanned AGENTS.md).
+# (identical: 93/143/159/10/2, total 407, over 245 scanned AGENTS.md;
+# re-measured on the rebased head 2026-10-08). `pose` is OUT of the ratchet
+# per the owner's ruling on #6870 (2026-10-08): the count is dominated by the
+# LIVE Triton model actually named `pose`, so it mixes live and retired usage
+# (it measured 37 whole-word while watched). It comes back if R2 retires the
+# pose features.
 # Counting rule: case-insensitive WHOLE WORD (\b<name>\b) over the FULL
 # content of every scanned AGENTS.md — fenced blocks INCLUDED (fences are not
 # a dodge surface) and READMEs EXCLUDED (the scanned set is find_agents_md_files,
-# never every *.md). Whole-word is load-bearing: SUBSTRING pose measured 1,464
-# at the head this shipped and moves with every AGENTS.md edit ("purpose",
-# "compose", PoseResult are live English and live code), which is a different
-# quantity than the plan named and would redden any PR writing the word
-# "purpose" — pinned by test_purpose_is_not_pose.
+# never every *.md). Whole-word is load-bearing: \w includes the underscore,
+# so shipped identifiers like ENRICHMENT_LIGHT_URL are NOT `enrichment`
+# mentions under \b, but a SUBSTRING implementation would count them and
+# redden any PR that names one — pinned by
+# test_enrichment_light_url_is_not_enrichment.
 # Per-name ceilings, not one total: a total launders by substitution
-# (+1 florence bought with -1 pose) — pinned by
-# test_substitution_does_not_green_a_total. ALL SIX KEYS ARE REQUIRED: the
+# (+1 florence bought with -1 nemotron) — pinned by
+# test_substitution_does_not_green_a_total. ALL FIVE KEYS ARE REQUIRED: the
 # run exits 2 without any one of them (absent is neither 0 nor unchecked).
 retired_name_baseline:
   florence: 93 # retired ai/florence path; citations drain under W1.3
   nemotron: 143 # the retired model family (the repo's own name string)
   enrichment: 159 # retired ai/enrichment component
   xclip: 10 # retired clip pipeline
-  # pose is dominated by the LIVE Triton model actually named `pose` plus
-  # YOLOv8-pose product names, so this ceiling is tight for a name that is
-  # still alive English; a legit new citation may need a reviewed raise
-  # (ratchet-check.py's doctrine), which is why the number is a hand edit.
-  pose: 37
   demographics: 2
 
 # Linear configuration (used by agents_md_linear_sync.py)

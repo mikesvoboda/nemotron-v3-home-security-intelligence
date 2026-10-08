@@ -22,7 +22,8 @@ The laundering sides are pinned too: exclusion-set edits are visible diffs
 PAIR (agents_md, reference) not either half, resolution is ANCHORED (a path
 that exists only inside an excluded directory is dead on every machine), and
 retired-name counting is whole-word over the scanned AGENTS.md set only —
-"purpose" is not "pose", and a README next door is not an AGENTS.md.
+"ENRICHMENT_LIGHT_URL" is not "enrichment", and a README next door is not an
+AGENTS.md.
 
 Infrastructure vs content is a hard line: a run that COULD NOT happen (config
 unreadable, PyYAML missing, baseline incomplete) exits 2 — never 1, which
@@ -47,7 +48,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 VALIDATOR = REPO_ROOT / "scripts" / "agents_md_validator.py"
 COMMITTED_CONFIG = yaml.safe_load((REPO_ROOT / ".agents-md-validator.yml").read_text())
 
-RETIRED_NAMES = ("florence", "nemotron", "enrichment", "xclip", "pose", "demographics")
+RETIRED_NAMES = ("florence", "nemotron", "enrichment", "xclip", "demographics")
 
 # Laundering tripwires. exclude_directories and exclude_reference_patterns
 # sit in the SAME file as the baselines, and widening either laundrows the
@@ -107,7 +108,7 @@ Dead: `ghost/a.py` and `ghost/b/`.
 
 Link: [notes](notes.md)
 
-Names: florence nemotron enrichment xclip pose demographics.
+Names: florence nemotron enrichment xclip demographics.
 """
 
 # What minting WOULD produce for BASE_MD — hand-written here because no
@@ -340,28 +341,33 @@ def test_retired_name_above_baseline_fails(tmp_path):
     assert "measured 2 > baseline 1" in r.stderr
 
 
-def test_purpose_is_not_pose(tmp_path):
-    """Whole-word is load-bearing, pinned: SUBSTRING pose measured 1,464
-    across the real tree at the head this shipped (and it moves with every
-    AGENTS.md edit — "purpose", "compose", PoseResult are live English and
-    live code), so substring counts a different quantity than the plan named
-    and would redden any PR writing the word 'purpose'. This fixture passes
-    whole-word and REDDENS under a substring implementation (pose 2 > 1)."""
+def test_enrichment_light_url_is_not_enrichment(tmp_path):
+    """Whole-word is load-bearing, pinned: \\w includes the underscore, so
+    the shipped identifier ENRICHMENT_LIGHT_URL is NOT an `enrichment`
+    mention under \\b — and it is not hypothetical, docker-compose.prod.yml
+    and setup.py export it today. A substring implementation would count it
+    (and every other *_ENRICHMENT_* form), measuring a different quantity
+    than the plan named and reddening any PR that names the identifier.
+    This fixture passes whole-word and REDDENS under substring (2 > 1).
+    (This pin previously rode on pose, which the owner ruled OUT of the
+    ratchet on #6870 — the name is dominated by the live Triton `pose`
+    model. The boundary lesson is name-independent; the underscore case is
+    the one the shipped identifier set actually exercises.)"""
     root = build(tmp_path)
-    amend(root, "\nThe purpose of this compose file is documented elsewhere.\n")
+    amend(root, "\nCompose exports ENRICHMENT_LIGHT_URL for the gateway.\n")
     r = run_validator(root)
     assert r.returncode == 0, r.stderr
 
 
 def test_substitution_does_not_green_a_total(tmp_path):
-    """Per-name baselines, not one total: +1 florence bought with -1 pose
-    holds the total at baseline (6 == 6) — a totals-only implementation
-    returns green here and launders by substitution."""
+    """Per-name baselines, not one total: +1 florence bought with -1
+    demographics holds the total at baseline (5 == 5) — a totals-only
+    implementation returns green here and launders by substitution."""
     root = build(
         tmp_path,
         md="# Fixture\n\nDead: `ghost/a.py` and `ghost/b/`.\n\n"
         "Link: [notes](notes.md)\n\n"
-        "Names: florence florence nemotron enrichment xclip demographics.\n",
+        "Names: florence florence nemotron enrichment xclip.\n",
     )
     r = run_validator(root)
     assert r.returncode == 1

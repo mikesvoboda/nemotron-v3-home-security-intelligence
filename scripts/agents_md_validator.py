@@ -65,8 +65,12 @@ class ConfigError(RuntimeError):
     """
 
 
-# The package's six retired names, in 40-docs.md's order. The loader requires
-# ALL six keys in retired_name_baseline: a missing key is neither 0 (would
+# The package's retired names, in 40-docs.md's order MINUS pose: the owner
+# ruled pose out of the ratchet on 2026-10-08 (answers on #6870) because the
+# name is dominated by the LIVE Triton model actually named `pose`, so the
+# count mixes live and retired usage. Measured 37 whole-word at the head it
+# shipped; it comes back if R2 retires the pose features. The loader requires
+# ALL FIVE keys in retired_name_baseline: a missing key is neither 0 (would
 # fire on every pre-existing mention) nor unchecked (would make deleting the
 # key the cheapest way to disable the gate).
 RETIRED_NAMES: tuple[str, ...] = (
@@ -74,15 +78,15 @@ RETIRED_NAMES: tuple[str, ...] = (
     "nemotron",
     "enrichment",
     "xclip",
-    "pose",
     "demographics",
 )
-# Whole-word, case-insensitive (over content.lower()). Substring "pose"
-# measured 1,464 at the head this shipped and MOVES with every AGENTS.md edit
-# (purpose/compose/PoseResult — live English and live code), which is exactly
-# why it is not the baseline; \b measures the mentions the plan named — 37,
-# and that is the number the ratchet enforces. \w's underscore also
-# excludes pose_estimation.py while including YOLOv8-pose and enrichment-light.
+# Whole-word, case-insensitive (over content.lower()). The boundary is
+# load-bearing: \w includes the underscore, so shipped identifiers like
+# ENRICHMENT_LIGHT_URL do NOT count as `enrichment` mentions, while \b's
+# non-\w edge means hyphenated product names (enrichment-light) DO count.
+# A substring implementation measures a different quantity than the plan
+# named and reddens any PR that writes one of those identifiers — pinned by
+# test_enrichment_light_url_is_not_enrichment.
 RETIRED_NAME_PATTERNS = {name: re.compile(rf"\b{name}\b") for name in RETIRED_NAMES}
 
 # An allowlist entry is a pair, not a pattern: a glob char or a leading / in a
@@ -243,7 +247,7 @@ def load_config(config_path: Path | None, project_root: Path) -> ValidatorConfig
         if name not in raw_baseline:
             raise ConfigError(
                 f"retired_name_baseline is missing {name!r} — a missing name is not "
-                "0 and not unchecked; all six are required"
+                "0 and not unchecked; all five are required"
             )
         value = raw_baseline[name]
         if not isinstance(value, int) or isinstance(value, bool) or value < 0:
@@ -668,7 +672,7 @@ def check_missing_agents_md(
 
 
 def count_retired_names(agents_md_files: list[Path]) -> dict[str, int]:
-    """Whole-word, case-insensitive mention counts for the six retired names.
+    """Whole-word, case-insensitive mention counts for the five retired names.
 
     Takes the SCANNED FILE LIST — never re-walks a wider tree, so a README
     next door is not an AGENTS.md. Fenced blocks and tables are counted (an
