@@ -67,9 +67,9 @@ podman-compose -f docker-compose.prod.yml up -d
 |------|------------|--------------|
 | **24GB** | Full stack, all models loaded | RTX 3090, 4090, A5000, A5500, A6000 |
 | **16GB** | Reduced GPU layers (`VLM_GPU_LAYERS`) | RTX 4080, A4000 |
-| **12GB** | Minimal mode, some CPU offload | RTX 3080, 4070 Ti |
+| **8GB**  | `ai-vlm` partly in system RAM, slower verdict on the same card | RTX 3070, 4060 Ti |
 
-**VRAM budget:** the shipped `ai-vlm` engine's model identity is operator config (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` in `.env`; `.env.example` defaults to `Qwen3VL-8B-Instruct-Q4_K_M`, see `.env.example` / the bring-up record — no measured 24 GB-class figure exists yet). The retired 30B Nemotron path's ~14.7GB on-disk / ~21GB resident figures are dead with it. Gateway Triton models are resident (`--model-control-mode=none`); backend-zoo models load lazily and nothing evicts (the zoo has no eviction pass — `priority`/`never_evict` rows are parsed but have no consumer). `VLM_GPU_LAYERS` (default `auto`) fits the engine to available VRAM.
+**VRAM budget:** the shipped `ai-vlm` engine's model identity is operator config (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` in `.env`; `.env.example` defaults to `Qwen3VL-8B-Instruct-Q4_K_M`, see `.env.example` / the bring-up record — measured on the 24 GB A5500: 9,606 MiB whole-stack peak, 9,826 MiB at the slot ceiling, ledger items 39-40). The retired 30B Nemotron path's ~14.7GB on-disk / ~21GB resident figures are dead with it. Gateway Triton models are resident (`--model-control-mode=none`); backend-zoo models become resident at boot when `BACKEND_MODEL_PRELOAD=true` — nothing loads them on demand at runtime, and nothing evicts (the zoo has no eviction pass — `priority`/`never_evict` rows are parsed but have no consumer). `VLM_GPU_LAYERS` (default `auto`) fits the engine to available VRAM.
 
 ## AI Models (~763MB downloaded by the setup_lib rule — 5 entries of the 10 live `models.yml` rows)
 
@@ -85,7 +85,7 @@ same filter `setup_lib/models_config.get_downloadable_models` uses):
 | YOLO11 face | ~11MB | Face detection on person crops |
 | YOLO11 license-plate | ~650MB | Plate detection |
 
-R8 (slices S1-S3, 2026-09-29) retired the ~33GB legacy zoo this section used to
+R8 (slices S1-S3, 2026-09-29) retired the ~32GB legacy zoo this section used to
 list — the Nemotron GGUF, Florence x2, SigLIP/CLIP, fashion-clip, vehicle, pet,
 depth, age/gender, weather, violence, smoke-fire, pose, segformer, stgcn,
 yolo-world. The shipped reasoning engine is the `ai-vlm` llama.cpp
@@ -122,7 +122,7 @@ ${AI_MODELS_PATH}/
 
 ## Services & Ports
 
-Host port defaults come from `.env` / `.env.example`; `docs/reference/config/env-reference.md` is the authoritative reference.
+Host port defaults come from `.env` / `.env.example`; `docs/reference/config/env-reference.md` is the env-variable reference (its six tabled port vars are `API_PORT`, `SMTP_PORT`, the frontend HTTP/HTTPS/INTERNAL set and `SYNTHBENCH_COMFYUI_PORT` — no AI or monitoring service ports; those host-port vars below come from `.env.example`).
 
 ### Core Services
 
@@ -130,7 +130,7 @@ Host port defaults come from `.env` / `.env.example`; `docs/reference/config/env
 |---------|-----------|-----------|-----|-------------|
 | Frontend HTTPS | 8444 | frontend | No | React dashboard via nginx (internal 8443) |
 | Frontend HTTP | 8080 | frontend | No | nginx HTTP for Cloudflare tunnel / Brev link (internal 8080) |
-| Backend | 8000 | backend | No | FastAPI REST + WebSocket |
+| Backend | 8000 | backend | Reserved, 0 MiB measured | FastAPI REST + WebSocket (compose reserves 1 nvidia GPU; torch is the CPU build) |
 | PostgreSQL | 5432 | postgres | No | Event/detection storage |
 | Redis | 6379 | redis | No | Queues and pub/sub |
 | go2rtc API | 1984 | go2rtc | No | Stream management API |
@@ -139,7 +139,7 @@ Host port defaults come from `.env` / `.env.example`; `docs/reference/config/env
 | ai-vlm | 8098 | ai-vlm | Yes | llama.cpp reasoning engine, in the default compose set (starts with plain `up -d`) |
 | vLLM (optional) | 8097 | ai-llm-vllm | Yes | Compose profile `vllm`, benchmarking harness, off by default |
 
-> Since commit bc7d6101 the standalone YOLO26/Florence/CLIP/enrichment containers are gone, and R8 S1-S3 (2026-09-29) retired the legacy `ai-llm` service (:8091) plus the `/florence` `/clip` `/enrichment` gateway routers — `GATEWAY_MODEL_SET` only resolves `vlm` (yolo26 + reid, threat opt-in) and hard-raises on anything else. The legacy `YOLO26_PORT=8095`, `FLORENCE_PORT=8092`, `CLIP_PORT=8093`, `ENRICHMENT_PORT=8094`, `ENRICHMENT_LIGHT_PORT=8096` values in `.env.example` are reference/local-dev only. `FRONTEND_PORT=5173` is likewise no longer mapped by prod compose.
+> Since commit bc7d6101 the standalone YOLO26/Florence/CLIP/enrichment containers are gone, and R8 S1-S3 (2026-09-29) retired the legacy `ai-llm` service (:8091) plus the `/florence` `/clip` `/enrichment` gateway routers — `GATEWAY_MODEL_SET` only resolves `vlm` (yolo26 + reid, threat opt-in) and hard-raises on anything else. The legacy `YOLO26_PORT=8095` and `LLM_PORT=8091` values still in `.env.example` are reference/dev stand-ins with no prod-compose consumer (`YOLO26_PORT` is read by `ai/start_detector.sh`; `FLORENCE_PORT`, `CLIP_PORT`, `ENRICHMENT_PORT` and `ENRICHMENT_LIGHT_PORT` have since been removed from `.env.example`). `FRONTEND_PORT=5173` is likewise no longer mapped by prod compose.
 
 ### Monitoring Services
 
@@ -254,7 +254,7 @@ nemotron-v3-home-security-intelligence/
 │       └── services/        # API client
 ├── ai/                       # AI service code
 │   ├── gateway/             # Detection entrypoint :8090 (routers /yolo26 + /enrich-lt only, R8 S3)
-│   ├── yolo26/              # Detection code (runs inside gateway in prod)
+│   ├── yolo26/              # Detection contract leaf + host-run dev server (prod serving is Triton inside gateway; its code lives in ai/gateway/)
 │   ├── vlm/                 # Shipped llama.cpp ai-vlm engine (host port AI_VLM_PORT, default 8098)
 │   └── triton/ common/ shared/  # Triton client + model repository and shared code
 └── docs/                     # Documentation
