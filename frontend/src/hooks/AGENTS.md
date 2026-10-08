@@ -175,6 +175,7 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `useWebSocket.ts`           | Low-level WebSocket connection manager                            | Yes      |
 | `useWebSocketStatus.ts`     | Enhanced WebSocket with channel status tracking                   | Yes      |
 | `useConnectionStatus.ts`    | Unified connection status for all WS channels                     | Yes      |
+| `useVerdictEngineStatus.ts` | Verdict-engine (ai-vlm) availability for the F1.2 banner          | Yes      |
 | `useEventStream.ts`         | Security events via `/ws/events` WebSocket                        | Yes      |
 | `useSystemStatus.ts`        | System health via `/ws/system` WebSocket                          | Yes      |
 | `useGpuHistory.ts`          | GPU metrics polling with history buffer                           | Yes      |
@@ -216,6 +217,7 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `useWebSocket.test.ts`             | Connection lifecycle, message handling, reconnects        |
 | `useWebSocket.timeout.test.ts`     | Connection timeout scenarios                              |
 | `useWebSocketStatus.test.ts`       | Channel status tracking, reconnect state                  |
+| `useVerdictEngineStatus.test.ts`   | Readiness seeding, WS transitions, envelope guards, poll  |
 | `useConnectionStatus.test.ts`      | Multi-channel status aggregation                          |
 | `useEventStream.test.ts`           | Event buffering, envelope parsing, non-event filtering    |
 | `useSystemStatus.test.ts`          | Backend message transformation, type guards               |
