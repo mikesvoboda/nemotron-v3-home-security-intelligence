@@ -158,7 +158,7 @@ def _src(rel: str) -> str:
 
 
 def _git(*args: str) -> str:
-    return subprocess.run(  # noqa: S603 - argv is a literal list, never a shell string
+    return subprocess.run(  # noqa: S603 - argv is a literal list  # real - git builds the fixture repo
         ["git", *args],  # noqa: S607 - git on PATH is the repo's own convention (setup.py:1155)
         capture_output=True,
         text=True,

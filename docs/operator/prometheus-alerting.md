@@ -84,6 +84,7 @@ rules), `alerting-rules.yml`, `gpu-alerts.yml`, `ai-pipeline-alerts.yml`,
 | `AIDLQCritical`         | `hsi_dlq_depth > 50`                                              | 2 min    | critical |
 
 > [!NOTE]
+>
 > **Latency alerting on the shipped path.** The backend exports the
 > `hsi_ai_request_duration_seconds` histogram with `service="yolo26"`
 > (`backend/services/detector_client.py:1139` → `backend/core/metrics.py:323`), scraped at

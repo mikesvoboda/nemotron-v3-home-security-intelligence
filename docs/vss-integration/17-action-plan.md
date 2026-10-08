@@ -6244,6 +6244,21 @@ cryptography` then resolves 49.0.0 to 50.0.2 against that commit's lock files an
   `cryptography` clause of its acceptance (class C) reduces to a re-read of the Dependabot job
   after the next main push and a ledger row. The evidence bullet above ('Dependabot cryptography
   ceiling (C)') describes the ledger text at `5c605e1d`.
+- **Update 2026-10-08 (after O1.9, [#6875]) [V unless marked]: class D (the smoke ruling) and the
+  rollback clause of the acceptance are closed; B (Linear key), E (ZAP) and F are unchanged, so the
+  issue stays `open`.** The smoke now asserts the CI stack's committed contract
+  (`scripts/ci-smoke-contract.json`, validated in the `smoke-test` step and guarded by
+  `backend/tests/unit/scripts/test_smoke_test_ci_stack_contract.py`) instead of a health shape the
+  stack cannot satisfy, and `:latest` moved behind the smoke (`publish-latest`) so a red run cannot
+  repoint it. `rollback.yml` was neither rolled back nor renamed: the owner ruled it deleted
+  (2026-10-08, #6854 comment 6051919463 — 'A red Deploy run is the signal, and the daily batch
+  reports it') and #6875 deletes it, which satisfies the acceptance's intent ('either rolls back or
+  …') in its third form; the incident issues it filed are closed post-merge by
+  `scripts/close-rollback-issues.sh` (the Done-when's executable form, guarded offline by
+  `backend/tests/unit/scripts/test_close_rollback_issues_script.py`). The evidence bullets'
+  `deploy.yml:276`/`:290` and '`.github/workflows/rollback.yml:112` … only echoes' describe those
+  files as they stood at `5c605e1d`; after #6875 the health check is contract-driven
+  (`scripts/ci-smoke-contract.json`) at different lines and `rollback.yml` no longer exists on main.
 
 #### ISS-080 — The ledger has no row for the P5a baseline or the 2026-10-03 re-runs; README and AGENTS still cite 10/20 as S3 evidence
 

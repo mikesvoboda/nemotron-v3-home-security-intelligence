@@ -38,6 +38,10 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
+          # Without this the default quantifier ('some') OR-s a '!' pattern in, and
+          # '!frontend/**/*.md' matches every file outside frontend/: frontend was
+          # true on every PR, so docs- and backend-only PRs ran all 18 frontend jobs.
+          predicate-quantifier: 'some-with-excludes'
           filters: |
             backend:
               - 'backend/**'
@@ -320,7 +324,7 @@ jobs:
     timeout-minutes: 5
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -361,7 +365,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -403,7 +407,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, lint, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -527,7 +531,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, unit-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
     steps:
@@ -671,7 +675,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, unit-tests, collection-sanity]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check unit test shard results
         run: |
@@ -746,7 +750,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
        needs.build-backend-deps.result != 'failure'
@@ -777,7 +781,7 @@ jobs:
         shard: [1, 2, 3, 4]
     needs: [integration-tests-api]
     if: |
-      always() &&
+      !cancelled() &&
       needs.integration-tests-api.result == 'cancelled'
     with:
       shard: ${{ matrix.shard }}
@@ -796,7 +800,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -910,7 +914,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -1038,7 +1042,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -1160,7 +1164,7 @@ jobs:
         integration-tests-models,
       ]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
     steps:
@@ -1266,7 +1270,7 @@ jobs:
         integration-tests-services,
         integration-tests-models,
       ]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check integration test results
         run: |
@@ -1330,7 +1334,7 @@ jobs:
     # detect-changes like unit-tests so docs-only PRs don't pay for it.
     needs: [detect-changes, lint, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -1472,7 +1476,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, lint, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -1684,7 +1688,7 @@ jobs:
     # Skip if only backend/docs changed (checked via detect-changes)
     needs: [detect-changes, frontend-lint]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true') &&
       needs.frontend-lint.result != 'failure'
@@ -1845,7 +1849,7 @@ jobs:
     # ai/** is already inside detect-changes' `backend` paths filter - no new
     # output key invented; same if-shape as the other backend jobs.
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -1910,7 +1914,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, frontend-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true')
     steps:
@@ -1987,7 +1991,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, frontend-tests, collection-sanity]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check shard results
         run: |
@@ -2033,7 +2037,7 @@ jobs:
     # Skip if only backend/docs changed (checked via detect-changes)
     needs: [detect-changes, frontend-lint]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true') &&
       needs.frontend-lint.result != 'failure'
@@ -2146,7 +2150,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, frontend-e2e]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check shard results
         run: |
@@ -2356,7 +2360,7 @@ jobs:
     # green on PRs in this repo.
     needs: [detect-changes]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
     steps:
@@ -2468,7 +2472,7 @@ jobs:
     # Path-gated on the frontend surface so backend-only PRs pay nothing.
     needs: [detect-changes]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true')
     steps:
@@ -2598,7 +2602,7 @@ jobs:
     # must SKIP honestly; when the tier ran, its artifacts are here (uploaded
     # if: always()) and zero XML is a pipeline break -> fail.
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -3223,7 +3227,7 @@ jobs:
       # never arrive here — the same conclusion-vs-verdict lie WP0.6 exists to
       # kill, one layer further down.
       #   collection-sanity runs the census, the ratchet, the expiry check and
-      #     the anti-rot gate suites. Its dependents carry `if: always()` and
+      #     the anti-rot gate suites. Its dependents carry `if: !cancelled()` and
       #     read only their own shard results, so a red ratchet left CI Gate
       #     green and Phase 1 was advisory.
       #   build-backend-deps gates every backend job through

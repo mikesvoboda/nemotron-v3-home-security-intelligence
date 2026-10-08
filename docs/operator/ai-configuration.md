@@ -292,6 +292,7 @@ AI_VLM_URL=http://${AI_HOST}:8098
 | `FAST_PATH_OBJECT_TYPES`         | Types eligible for fast-path | `[]` in code                                     |
 
 > [!WARNING]
+>
 > **The fast path is disabled by design.** `config.py` ships
 > `fast_path_confidence_threshold = 2.0` (an impossible value) and an empty
 > `FAST_PATH_OBJECT_TYPES`, because the fast path bypasses the specialist legs and the

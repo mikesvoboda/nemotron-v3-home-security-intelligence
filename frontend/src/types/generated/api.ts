@@ -12461,19 +12461,10 @@ export interface paths {
         put?: never;
         /**
          * Create Alert
-         * @description Create an alert from an external webhook.
+         * @description Not implemented (UR-12): external alert ingestion takes no action.
          *
-         *     This endpoint allows external systems to create alerts in HSI.
-         *
-         *     Args:
-         *         payload: Alert payload with source, message, and severity.
-         *         request: FastAPI request object.
-         *         background_tasks: For async processing.
-         *         db: Database session.
-         *         api_key: Validated API key.
-         *
-         *     Returns:
-         *         InboundWebhookResponse with status.
+         *     Accepts ``InboundAlertPayload`` and answers 501. A malformed payload
+         *     still 422s (the schema is live); auth failures 401 first.
          */
         post: operations["inbound-webhooks_create_alert"];
         delete?: never;
@@ -12493,16 +12484,11 @@ export interface paths {
         put?: never;
         /**
          * Arm Zones
-         * @description Arm zones via webhook.
+         * @description Not implemented (UR-12): arming zones takes no action.
          *
-         *     Args:
-         *         payload: Arm payload with optional zone IDs.
-         *         request: FastAPI request object.
-         *         db: Database session.
-         *         api_key: Validated API key.
-         *
-         *     Returns:
-         *         InboundWebhookResponse with status.
+         *     This is the endpoint D3 names: it used to answer "Arm command for N
+         *     zones queued" having queued nothing, telling an integrator the house
+         *     was armed when it was not.
          */
         post: operations["inbound-webhooks_arm_zones"];
         delete?: never;
@@ -12522,16 +12508,7 @@ export interface paths {
         put?: never;
         /**
          * Disarm Zones
-         * @description Disarm zones via webhook.
-         *
-         *     Args:
-         *         payload: Disarm payload with optional zone IDs.
-         *         request: FastAPI request object.
-         *         db: Database session.
-         *         api_key: Validated API key.
-         *
-         *     Returns:
-         *         InboundWebhookResponse with status.
+         * @description Not implemented (UR-12): disarming zones takes no action.
          */
         post: operations["inbound-webhooks_disarm_zones"];
         delete?: never;
@@ -12551,22 +12528,11 @@ export interface paths {
         put?: never;
         /**
          * Set System Mode
-         * @description Set system mode via webhook.
+         * @description Not implemented (UR-12): system-mode changes take no action.
          *
-         *     Valid modes:
-         *     - home: Family at home, known faces suppressed
-         *     - away: Nobody home, all alerts enabled
-         *     - night: Sleeping, perimeter zones only
-         *     - disarmed: No alerts, logging only
-         *
-         *     Args:
-         *         payload: Mode payload.
-         *         request: FastAPI request object.
-         *         db: Database session.
-         *         api_key: Validated API key.
-         *
-         *     Returns:
-         *         InboundWebhookResponse with status.
+         *     Mode values are no longer validated here: the check lived in the handler
+         *     that acted on them, and ``InboundModePayload`` is kept unchanged for the
+         *     arming feature, whose ruling it is.
          */
         post: operations["inbound-webhooks_set_system_mode"];
         delete?: never;
@@ -28649,32 +28615,6 @@ export interface components {
              * @description System mode: home, away, night, disarmed.
              */
             mode: string;
-        };
-        /**
-         * InboundWebhookResponse
-         * @description Standard response for inbound webhooks.
-         */
-        InboundWebhookResponse: {
-            /**
-             * Message
-             * @description Status message.
-             */
-            message: string;
-            /**
-             * Request Id
-             * @description Request tracking ID.
-             */
-            request_id?: string | null;
-            /**
-             * Status
-             * @description Request status.
-             */
-            status: string;
-            /**
-             * Timestamp
-             * @description Processing timestamp.
-             */
-            timestamp: string;
         };
         /**
          * InferenceMetrics
@@ -60949,15 +60889,6 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Alert created successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundWebhookResponse"];
-                };
-            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -60972,12 +60903,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Rate limit exceeded */
-            429: {
+            /** @description Not implemented — UR-12; this endpoint takes no action */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": unknown;
+                };
             };
         };
     };
@@ -60996,15 +60929,6 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Zones armed successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundWebhookResponse"];
-                };
-            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -61018,6 +60942,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Not implemented — UR-12; this endpoint takes no action */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
         };
     };
@@ -61036,15 +60969,6 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Zones disarmed successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundWebhookResponse"];
-                };
-            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -61058,6 +60982,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Not implemented — UR-12; this endpoint takes no action */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
         };
     };
@@ -61076,15 +61009,6 @@ export interface operations {
             };
         };
         responses: {
-            /** @description System mode changed successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundWebhookResponse"];
-                };
-            };
             /** @description Authentication failed */
             401: {
                 headers: {
@@ -61092,12 +61016,21 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid payload or mode */
+            /** @description Invalid payload */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Not implemented — UR-12; this endpoint takes no action */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
         };
     };

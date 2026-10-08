@@ -26,6 +26,7 @@ the reasoning engine runs in `ai-vlm`, which is in the default compose set.
 port — they are not separate services on separate ports.
 
 > [!IMPORTANT]
+>
 > `AI_VLM_URL` is the URL that gets missed. The backend reads a code default of
 > `http://localhost:8098`, which inside a container is the container itself: every
 > verdict lands `verification_failed` with a NULL `risk_score`, and the events keep
