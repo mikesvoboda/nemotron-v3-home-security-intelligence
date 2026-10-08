@@ -89,7 +89,7 @@ services:
 
 `ai-vlm` uses the same two mechanisms and a single-card selector —
 `devices: nvidia.com/gpu=${GPU_LLM:-0}` with `device_ids: ['${GPU_LLM:-0}']`
-(`docker-compose.prod.yml:157-158`, `:264`). The gateway passes `all` deliberately:
+(`docker-compose.prod.yml:162-163`, `:264`). The gateway passes `all` deliberately:
 a single `nvidia.com/gpu=N` with N>0 creates only `/dev/nvidiaN`, which the CUDA
 Runtime cannot use, so the gateway takes every card and narrows Triton with
 `CUDA_VISIBLE_DEVICES` instead.
@@ -236,7 +236,7 @@ regenerate, not the image.
 **3. Verify GPU layer offload:**
 
 The compose file passes `GPU_LAYERS=${VLM_GPU_LAYERS:-auto}`
-(`docker-compose.prod.yml:183`), so llama.cpp fits layers to the free VRAM it finds.
+(`docker-compose.prod.yml:188`), so llama.cpp fits layers to the free VRAM it finds.
 The image's own default is `99` (`ai/vlm/Dockerfile:124`). If a fixed count was set in
 `.env` it overrides the auto-fit — check the value before blaming the card:
 

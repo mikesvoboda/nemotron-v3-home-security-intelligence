@@ -116,7 +116,7 @@ The two AI services are `ai-gateway` (Triton) and `ai-vlm` (llama.cpp). `.env.ex
 | `ENRICHMENT_LIGHT_URL` | `http://localhost:8090/enrich-lt` | `/enrich-lt` readiness lane (read by the backend's model management) |
 
 In containers the same routes use `http://ai-gateway:8090/...` and `AI_VLM_URL=http://ai-vlm:8098`
-(`docker-compose.prod.yml:552`). The gateway mounts exactly two routers — `/yolo26` and `/enrich-lt`
+(`docker-compose.prod.yml:557`). The gateway mounts exactly two routers — `/yolo26` and `/enrich-lt`
 (`ai/gateway/main.py:276-277`). ai-vlm is the only LLM service.
 
 ### Pipeline Selection and Residency
@@ -141,7 +141,7 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 | `AI_VLM_READ_TIMEOUT`         | 25.0    | Per-`vlm_assess`-attempt ceiling       |
 | `AI_VLM_WAKE_TIMEOUT_SECONDS` | 90.0    | Read timeout for the wake-on-open ping |
 
-**Source:** `backend/core/config.py:1093-1134`; the VLM pair is threaded in `docker-compose.prod.yml:554-555`.
+**Source:** `backend/core/config.py:1093-1134`; the VLM pair is threaded in `docker-compose.prod.yml:559-560`.
 
 ### Batch Processing
 
@@ -158,7 +158,7 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 
 | Variable                         | Default in `Settings` | Default in compose / `.env.example`                      |
 | -------------------------------- | --------------------- | -------------------------------------------------------- |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0 (above any score) | 0.90 (`docker-compose.prod.yml:620`, `.env.example:650`) |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0 (above any score) | 0.90 (`docker-compose.prod.yml:625`, `.env.example:650`) |
 | `FAST_PATH_OBJECT_TYPES`         | `[]` (empty)          | commented out, so empty                                  |
 
 `BatchAggregator._should_use_fast_path` requires the detected type to appear in
@@ -216,7 +216,7 @@ Declared in `.env.example`:
 | `CTX_SIZE`     | 262144  | `nemotron_context_window` | llama.cpp's total pool; aliased and divided by the slots |
 | `PARALLEL`     | 8       | `llama_slot_count`        | llama.cpp slots sharing that pool                        |
 | `VLM_CTX_SIZE` | 32768   | `vlm_context_window`      | The VLM serve's own pool, mirrored to the backend        |
-| `VLM_PARALLEL` | 2       | —                         | Slots on the VLM serve (`docker-compose.prod.yml:582`)   |
+| `VLM_PARALLEL` | 2       | —                         | Slots on the VLM serve (`docker-compose.prod.yml:587`)   |
 
 These four resolve to their `Settings` defaults in every deployment — none appears in
 `.env.example` or in any compose `environment:` block:

@@ -5,7 +5,7 @@ source_refs:
   - pyproject.toml:5
   - frontend/package.json:6-8
   - ai/start_detector.sh:6-7
-  - docker-compose.prod.yml:154-155
+  - docker-compose.prod.yml:162-163
   - setup_lib/nvidia_detect.py:38
 ---
 
@@ -37,7 +37,7 @@ Two containers hold GPU memory, and each has its own knob:
 | 8 GB  | `ai-vlm` partly in system RAM and a slower verdict on the same card     | RTX 3070, 4060 Ti                   |
 
 - **NVIDIA CUDA capability** 7.0 or newer (Volta and later), on a **driver 580 or newer** — `setup.py` stops below that floor because the `ai-vlm` image is built on CUDA 13.1 (`setup_lib/nvidia_detect.py:38`).
-- The shipped weight pair is `Qwen3VL-8B-Instruct-Q4_K_M.gguf` (5,027,784,800 B) plus its `mmproj-…-Q8_0.gguf` projector (752,289,728 B), and identity is config — swap `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` and the footprint changes with your choice (`docker-compose.prod.yml:227-228`).
+- The shipped weight pair is `Qwen3VL-8B-Instruct-Q4_K_M.gguf` (5,027,784,800 B) plus its `mmproj-…-Q8_0.gguf` projector (752,289,728 B), and identity is config — swap `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` and the footprint changes with your choice (`docker-compose.prod.yml:232-233`).
 - The other thing the serve reserves is the KV cache pool: **4 608 MiB** of f16 cache for the shipped `VLM_CTX_SIZE=32768` × `VLM_PARALLEL=2` geometry, and the default `q8_0` key/value types run that pool at about half. Lower `VLM_CTX_SIZE` or `VLM_PARALLEL` to shrink it (see [VRAM Budget](../reference/nvidia-technology-inventory.md#vram-budget)).
 - `ai-gateway` runs Triton with FP32 ONNX models and declares a 256 MB CUDA memory pool at startup (`ai/gateway/entrypoint.sh:153`).
 - `VLM_GPU_LAYERS` (compose passes it as `GPU_LAYERS`) defaults to `auto`, which fits layers to the free VRAM the serve finds; a fixed count in `.env` overrides that fit.

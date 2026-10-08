@@ -60,7 +60,7 @@ ai-vlm is the only LLM service.
 
 ## Network Configuration
 
-**Source:** `docker-compose.prod.yml:1522-1524`
+**Source:** `docker-compose.prod.yml:1527-1529`
 
 ```yaml
 networks:
@@ -99,7 +99,7 @@ The container-side ports are fixed (for example ai-vlm always listens on 8098 in
 
 Both AI services use NVIDIA Container Toolkit (CDI) for GPU access, and each reserves one specific card selected by a `.env` variable.
 
-**Source:** `docker-compose.prod.yml:412-422` (ai-gateway `deploy` block)
+**Source:** `docker-compose.prod.yml:417-427` (ai-gateway `deploy` block)
 
 ```yaml
 deploy:
@@ -115,14 +115,14 @@ deploy:
           capabilities: [gpu]
 ```
 
-Alongside the reservation, the gateway declares `devices: [nvidia.com/gpu=all]` so both `/dev/nvidia*` nodes exist in the container; `CUDA_VISIBLE_DEVICES` is what actually narrows Triton to one card (`docker-compose.prod.yml:361-362`, `:392`).
+Alongside the reservation, the gateway declares `devices: [nvidia.com/gpu=all]` so both `/dev/nvidia*` nodes exist in the container; `CUDA_VISIBLE_DEVICES` is what actually narrows Triton to one card (`docker-compose.prod.yml:366-367`, `:392`).
 
 | Variable          | Default | Selects                                           |
 | ----------------- | ------- | ------------------------------------------------- |
 | `GPU_LLM`         | `0`     | the card ai-vlm reserves (`.env.example:554`)     |
 | `GPU_AI_SERVICES` | `1`     | the card ai-gateway reserves (`.env.example:946`) |
 
-The backend reserves one GPU without pinning an id (`docker-compose.prod.yml:658-669`) for its in-process onnxruntime/torch lookup legs.
+The backend reserves one GPU without pinning an id (`docker-compose.prod.yml:663-674`) for its in-process onnxruntime/torch lookup legs.
 
 ### GPU Requirements
 
@@ -183,7 +183,7 @@ cannot load even by accident. Backend-side weights load per use; `BACKEND_MODEL_
 
 ## Volume Mounts
 
-**Source:** `docker-compose.prod.yml:1473-1520` (top-level `volumes:` block)
+**Source:** `docker-compose.prod.yml:1478-1525` (top-level `volumes:` block)
 
 Named volumes include `postgres_data`, `redis_data`, `tempo_data`, `hf_cache`, `prometheus_data`,
 `grafana_data`, `alertmanager_data`, `loki_data`, `pyroscope_data`, `alloy_symb_cache`, and
@@ -277,7 +277,7 @@ for host overhead.
 
 ![Backend Initialization Lifecycle](../../images/architecture/backend-init-lifecycle.png)
 
-**Source:** `docker-compose.prod.yml:632-644` (backend `depends_on`)
+**Source:** `docker-compose.prod.yml:637-649` (backend `depends_on`)
 
 ```yaml
 # Backend startup order

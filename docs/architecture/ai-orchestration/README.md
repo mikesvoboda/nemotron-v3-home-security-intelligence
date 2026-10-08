@@ -16,7 +16,7 @@ not services. They are Python loaded in the backend process and read against the
 | ai-gateway | 8090 | `ai-gateway` | Triton models `yolo26`, `reid`, `threat`; routers `/yolo26`, `/enrich-lt` |
 | ai-vlm     | 8098 | `ai-vlm`     | `Qwen3VL-8B-Instruct-Q4_K_M` + its mmproj projector, llama.cpp            |
 
-`ai-vlm` ships in the default compose set (`docker-compose.prod.yml:141`), so a plain `up -d`
+`ai-vlm` ships in the default compose set (`docker-compose.prod.yml:148`), so a plain `up -d`
 starts it (until UR-18 it sat behind a `vlm` profile that had to be named explicitly).
 Its weights are operator-placed — `ai/download_models.sh`
 creates `${AI_MODELS_PATH}/vlm` and names the files, and never fetches them
@@ -108,7 +108,7 @@ Two shipped facts worth knowing before you budget:
   (`backend/api/routes/model_management.py:172`).
 - **The VLM's KV pool is sized by `VLM_CTX_SIZE` / `VLM_PARALLEL`**, shipped `32768 / 2`, so one
   `vlm_assess` request occupies one 16,384-token slot
-  (`docker-compose.prod.yml:199-200`, `.env.example`).
+  (`docker-compose.prod.yml:204-205`, `.env.example`).
 
 ## Documents
 

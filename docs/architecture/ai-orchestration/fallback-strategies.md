@@ -60,7 +60,7 @@ A batch that overflows the served slot is a designed-for case, not an error.
 `_fitted_prompt()` drops the weakest detection rows until the prompt fits the slot the request will
 actually land in and records that it did (`backend/services/vlm_client.py:676`). The slot budget is
 `VLM_CTX_SIZE // VLM_PARALLEL` (`config.py vlm_context_window`), shipped 32768 / 2 = 16384 tokens.
-Each still is capped at `LLAMA_ARG_IMAGE_MAX_TOKENS=1280` (`docker-compose.prod.yml:207`) so
+Each still is capped at `LLAMA_ARG_IMAGE_MAX_TOKENS=1280` (`docker-compose.prod.yml:212`) so
 uncapped image vision tokens cannot push a fitted batch over.
 
 ## Verdict Invariants
@@ -172,4 +172,4 @@ Alert (`docs/architecture/ai-pipeline-current-state.md` §2.4). Diagnose from `e
 - **VLM weights**: place the GGUF + mmproj pair under `${AI_MODELS_PATH}/vlm` matching
   `VLM_MODEL_PATH` + `VLM_MMPROJ_PATH` and restart `ai-vlm` with
   `up -d ai-vlm` — no flag, it is in the default compose set
-  (`docker-compose.prod.yml:141`).
+  (`docker-compose.prod.yml:148`).
