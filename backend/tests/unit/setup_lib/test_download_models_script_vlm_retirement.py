@@ -106,7 +106,7 @@ def map_keys(map_name: str) -> set[str]:
 
 class TestScriptSyntax:
     def test_bash_syntax_check_passes(self) -> None:
-        result = subprocess.run(  # noqa: S603 - fixed argv, our own script, never a shell string
+        result = subprocess.run(  # real: bash -n on our own script, fixed argv  # noqa: S603
             ["bash", "-n", str(SCRIPT)],  # noqa: S607 - bash from PATH, repo convention
             capture_output=True,
             text=True,
