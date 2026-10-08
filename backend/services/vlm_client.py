@@ -118,7 +118,8 @@ PROPS_PATH = "/props"
 #     drives THIS client at $VLM_URL and reports the engine's own tok/s, the
 #     latency p95 and the reply tail (its header carries the operator commands).
 #   * 2048 tok / 57 tok/s ~= 36 s for ONE attempt. The old 70 s is 2 x 36 - the
-#     whole §6 ladder - set against a timeout that applies per attempt.
+#     whole §6 ladder - set against what is actually a PER-READ IDLE budget:
+#     httpx resets it on every reply chunk, so no wall clock wraps an attempt.
 #   * the shipped timeout is 25 s (the `ai_vlm_read_timeout` default, agreed in
 #     `config.py`, compose and `.env.example` — named, not line-numbered, because this
 #     very file's neighbors move those lines and a stale `:551` is a lie that waits),

@@ -205,7 +205,7 @@ threat/smoke-fire bypasses skip the window.
 | `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0     | Generic fast path ships disabled (>1.0)                                     |
 | `USE_REDIS_STREAMS`              | true    | Streams vs list queues                                                      |
 | `DETECTION_CONFIDENCE_THRESHOLD` | 0.40    | Fallback class threshold (per-class overrides in `YOLO26_CLASS_THRESHOLDS`) |
-| `AI_VLM_READ_TIMEOUT`            | 25.0    | Per-attempt VLM ceiling                                                     |
+| `AI_VLM_READ_TIMEOUT`            | 25.0    | Per-read idle budget for an attempt (not an attempt deadline)                                                     |
 
 ---
 

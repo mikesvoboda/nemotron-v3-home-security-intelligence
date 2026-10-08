@@ -107,7 +107,7 @@ With `USE_AI_GATEWAY=true` (what compose sets) the detector dials `{AI_GATEWAY_U
 | `AI_CONNECT_TIMEOUT`  | `10.0`  | 1-60s  | Connection timeout                                                  |
 | `AI_HEALTH_TIMEOUT`   | `5.0`   | 1-30s  | Health check timeout                                                |
 | `YOLO26_READ_TIMEOUT` | `30.0`  | 5-120s | Detection response timeout                                          |
-| `AI_VLM_READ_TIMEOUT` | `25.0`  | 5-300s | One verdict attempt (read or write phase); a timeout is not retried |
+| `AI_VLM_READ_TIMEOUT` | `25.0`  | 5-300s | Per-read idle budget for a verdict attempt (read or write phase); a timeout is not retried |
 
 ### Batch Processing
 

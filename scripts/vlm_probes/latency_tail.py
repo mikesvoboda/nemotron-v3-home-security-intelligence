@@ -6,7 +6,7 @@ rescaled in prose; the sweep's tok/s ran a foreign scratchpad recipe at a
 180 s timeout override), and the only latency ever committed is a sweep
 CONTROL arm - text-only, no images, not an S4 reading (F13). This probe
 measures the real thing instead: it drives the shipped `VlmClient` (same
-prompt render, same `_ASSESS_MAX_TOKENS`, same per-attempt
+prompt render, same `_ASSESS_MAX_TOKENS`, same per-read idle-budget
 `ai_vlm_read_timeout`, same budget-vs-fault classification) against a test
 endpoint and reports:
 

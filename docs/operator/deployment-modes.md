@@ -192,8 +192,8 @@ AI_VLM_URL=http://${GPU_HOST}:8098
   its own reverse proxy or an SSH tunnel — see
   [AI TLS](ai-tls.md) for aligning TLS and hostnames.
 - If you add TLS/reverse proxying for AI, keep the backend URLs aligned (see `docs/operator/ai-tls.md`).
-- `AI_VLM_READ_TIMEOUT` (default 25.0 s) is the per-attempt ceiling for a verdict. A LAN
-  hop is fine; a WAN hop against a sleeping server is not, and a failed wake is
+- `AI_VLM_READ_TIMEOUT` (default 25.0 s) is a per-read idle budget for a verdict
+  attempt (no wall clock wraps it). A LAN hop is fine; a WAN hop against a sleeping server is not, and a failed wake is
   swallowed rather than retried.
 
 ---
