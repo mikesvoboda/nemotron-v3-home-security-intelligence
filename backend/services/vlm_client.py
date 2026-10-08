@@ -111,7 +111,9 @@ PROPS_PATH = "/props"
 #     latency p95 and the reply tail (its header carries the operator commands).
 #   * 2048 tok / 57 tok/s ~= 36 s for ONE attempt. The old 70 s is 2 x 36 - the
 #     whole §6 ladder - set against a timeout that applies per attempt.
-#   * the shipped timeout is 25 s (`config.py:1130`, compose `:551`, `.env.example:241`),
+#   * the shipped timeout is 25 s (the `ai_vlm_read_timeout` default, agreed in
+#     `config.py`, compose and `.env.example` — named, not line-numbered, because this
+#     very file's neighbors move those lines and a stale `:551` is a lie that waits),
 #     so a reply longer than 25 s * 57 tok/s ~= 1,425 tokens does not finish: THAT is
 #     the ~1,400-token wall 00-audit D1 measured, and it is a BUDGET, handled as one
 #     (see `VlmSlowReplyError`), not as a broken engine.
