@@ -46,6 +46,7 @@ Usage:
   uv run python scripts/a5500_precheck.py --env-file f --compose a.yml \\
       --out /tmp/checklist.md                                    # dated handout
 """
+
 from __future__ import annotations
 
 import argparse
@@ -182,17 +183,15 @@ def _check_gpu_assignment(env: dict[str, str]) -> Check:
         return Check(
             "gpu_assignment",
             FAIL,
-            "SINGLE-GPU requires all GPU_*=0; non-zero: " + ", ".join(
-                f"{v}={env[v]}" for v in nonzero
-            )
+            "SINGLE-GPU requires all GPU_*=0; non-zero: "
+            + ", ".join(f"{v}={env[v]}" for v in nonzero)
             + (f"; missing (compose-required): {', '.join(missing)}" if missing else ""),
         )
     if missing:
         return Check(
             "gpu_assignment",
             FAIL,
-            "compose-required GPU vars missing (compose fails to start): "
-            + ", ".join(missing),
+            "compose-required GPU vars missing (compose fails to start): " + ", ".join(missing),
         )
     return Check("gpu_assignment", PASS, "all GPU_* variables are 0")
 
@@ -256,9 +255,7 @@ def _check_cuda_arch(env: dict[str, str]) -> Check:
     )
 
 
-def _per_file_service_lines(
-    compose_paths: list[Path], service: str
-) -> dict[str, list[str]]:
+def _per_file_service_lines(compose_paths: list[Path], service: str) -> dict[str, list[str]]:
     """{compose file: raw lines of ``service``'s block}; absent = not defined."""
     out: dict[str, list[str]] = {}
     for path in compose_paths:
@@ -321,7 +318,11 @@ def _check_vlm_model(env: dict[str, str]) -> Check:
     if not main:
         return Check("vlm_model", FAIL, f"VLM_MODEL_PATH unset - {want}")
     lowered = main.lower()
-    if QWEN3VL_RE not in lowered or VLM_MAIN_QUANT_RE not in lowered or not lowered.endswith(".gguf"):
+    if (
+        QWEN3VL_RE not in lowered
+        or VLM_MAIN_QUANT_RE not in lowered
+        or not lowered.endswith(".gguf")
+    ):
         return Check("vlm_model", FAIL, f"VLM_MODEL_PATH={main!r} - expected: {want}")
     if not mmproj:
         return Check(
@@ -423,8 +424,7 @@ def _check_vlm_env_passthrough(compose_paths: list[Path]) -> Check:
             "vlm_model_env_passthrough",
             WARN,
             "MODEL_PATH/MMPROJ_PATH hardcoded - no .env switch reaches them "
-            "(editing .env alone will NOT change the served model here): "
-            + "; ".join(hardcoded),
+            "(editing .env alone will NOT change the served model here): " + "; ".join(hardcoded),
         )
     return Check(
         "vlm_model_env_passthrough",
@@ -454,7 +454,9 @@ def _check_vlm_ctx_budget(env: dict[str, str]) -> Check:
         slot = int(ctx_raw) // max(int(par_raw), 1)
     except ValueError:
         return Check(
-            "vlm_ctx_budget", WARN, f"VLM_CTX_SIZE={ctx_raw!r}/VLM_PARALLEL={par_raw!r} not integers"
+            "vlm_ctx_budget",
+            WARN,
+            f"VLM_CTX_SIZE={ctx_raw!r}/VLM_PARALLEL={par_raw!r} not integers",
         )
     if layers == FULL_OFFLOAD_LAYERS:
         return Check(
@@ -481,16 +483,22 @@ def _check_vlm_ctx_budget(env: dict[str, str]) -> Check:
 
 
 def _check_legacy_llm(compose_paths: list[Path]) -> Check:
-    """"no legacy LLM deployed" (spec :482-500, rev 5 / F10), machine-checked.
+    """ "no legacy LLM deployed" (spec :482-500, rev 5 / F10), machine-checked.
 
     R8 S2 deleted the ai-llm service from every compose file, so today this
     check passes by absence. The gate stays: a re-added ai-llm WITHOUT a
     profiles: block would start on every up alongside ai-vlm, asking for VRAM
     a single A5500 cannot give twice - that is still fatal, so presence
     without gating still FAILs. (The dated [V] amendment rows below predate
-    the delete and are kept verbatim as the record of why the bring-up had to
-    name its services; the checklist's "keep it out of the up set" instruction
-    became moot when the service left the compose.)
+    the delete and are kept as the record of why the bring-up had to name its
+    services; the checklist's "keep it out of the up set" instruction became
+    moot when the service left the compose. One thing is edited rather than
+    preserved: UR-18 removed ai-vlm's compose-profile gate, and the flag that
+    gate needed still sits inside runnable commands in those rows - and
+    AMENDMENTS renders into TODAY's checklist, where a dead flag reads as a
+    step to run. Retired wording is kept in prose; the commands are made true.
+    backend/tests/unit/scripts/test_vlm_profile_flag_is_retired.py is what
+    keeps them true.)
     """
     unprofiled: list[str] = []
     gated: list[str] = []
@@ -506,10 +514,10 @@ def _check_legacy_llm(compose_paths: list[Path]) -> Check:
             WARN,
             "ai-llm has NO profiles: block in "
             + ", ".join(sorted(set(unprofiled)))
-            + " - a --profile vlm up starts the retired serving path ALONGSIDE "
-            "ai-vlm (one A5500 GPU cannot serve both); profile-gate it or "
-            "keep it out of the up set (F10 keeps the service, not its "
-            "deployment)",
+            + " - a plain up starts the retired serving path ALONGSIDE "
+            "ai-vlm, which since UR-18 starts by default too (one A5500 GPU "
+            "cannot serve both); profile-gate it or keep it out of the up set "
+            "(F10 keeps the service, not its deployment)",
         )
     if gated:
         return Check(
@@ -552,7 +560,8 @@ def _check_vlm_image(compose_paths: list[Path]) -> Check:
             "no ai-vlm service in "
             + ", ".join(sorted(set(absent)))
             + " - the ghcr image path cannot serve the shipped vlm mode; run "
-            "docker-compose.prod.yml with --profile vlm on the A5500 box",
+            "docker-compose.prod.yml on the A5500 box (ai-vlm is in its "
+            "default set since UR-18, no flag needed)",
         )
     if image_only:
         return Check(
@@ -696,7 +705,7 @@ AMENDMENTS: dict[str, list[str]] = {
         "in ai/, so a wrong-arch binary has no JIT fallback and dies on the "
         "first CUDA kernel. Build explicitly: `podman build --build-arg "
         "CUDA_ARCHITECTURES=86 -t ai-vlm:sm86 ai/vlm` (or "
-        "`podman compose -f docker-compose.prod.yml --profile vlm build "
+        "`podman compose -f docker-compose.prod.yml build "
         "ai-vlm` with CUDA_ARCHITECTURES=86 in the env). Leave "
         "LLAMA_CPP_REF at b7972 (ai/vlm/Dockerfile:46) unless "
         "VLM_REQUIRED_BUILD is moved with it, or the client's build check "
@@ -712,10 +721,11 @@ AMENDMENTS: dict[str, list[str]] = {
         "[V 2026-09-27] the shipped mode is the VLM path: PIPELINE_MODE=vlm "
         "and GATEWAY_MODEL_SET=vlm are the .env.example defaults (:211,:221) "
         "and the residency comment records that the mode 'calls nothing "
-        "else' (:218); ai-vlm is profile-gated profiles:[vlm] on the ai-vlm "
-        "service (the anchor here read :221,:227-228 and was already stale - "
-        "cite the service name, not the line) - bring-up runs the VLM, not "
-        "the Nano-4B placeholder plan",
+        "else' (:218); ai-vlm started behind a compose profile gate on the "
+        "ai-vlm service when this was read (UR-18 has since moved it into the "
+        "default set) - the anchor here read :221,:227-228 and was already "
+        "stale, so cite the service name, not the line - bring-up runs the "
+        "VLM, not the Nano-4B placeholder plan",
         "[V 2026-09-28] amend (owner ruling, spec rev 7, ledger item 35): the "
         "shipped pair is now Qwen3VL-8B-Instruct-Q4_K_M + VLM_MMPROJ_PATH at "
         "its Q8_0 mmproj (the .env.example VLM_MODEL_PATH/VLM_MMPROJ_PATH "
@@ -861,38 +871,45 @@ AMENDMENTS: dict[str, list[str]] = {
         "[V 2026-09-27] amend (ghcr-hardcode fact, kept from the P0.2 review "
         "and still true in kind): docker-compose.ghcr.yml has NO ai-vlm "
         "service at all - the ghcr image path cannot serve the shipped mode. "
-        "Run docker-compose.prod.yml with --profile vlm on the A5500 box "
+        "Run docker-compose.prod.yml on the A5500 box "
         "(that compose file also hardcodes its legacy ai-llm's "
         "MODEL_PATH=...Q2_K_L.gguf at :172, unchanged)",
     ],
     "No legacy LLM": [
         "[V 2026-09-27] prod compose's ai-llm has NO profiles: block (cited by "
-        "service name; :120 today) - the file has exactly three profiles: "
-        "blocks, at ai-vlm (:241) and two others - so a `--profile vlm up` "
-        "starts the retired 30B serving path ALONGSIDE ai-vlm; one A5500 "
-        "cannot serve both. F10 keeps the service (its tests keep passing, "
-        "nothing gets deleted) - keep it out of the up set",
+        "service name; :120 today) - the file gated ai-vlm and two other "
+        "services then - so an up started the retired 30B serving path "
+        "ALONGSIDE ai-vlm; one A5500 cannot serve both. (UR-18 has since "
+        "moved ai-vlm into the default set too, so the collision is now "
+        "plain-up default, not flag-gated.) F10 keeps the service (its tests "
+        "keep passing, nothing gets deleted) - keep it out of the up set",
         "[V 2026-09-28] HOW to keep it out, as a command, because until now "
         "this row said 'keep it out of the up set' with no implementation: "
-        "backend has an unconditional `depends_on: ai-llm: condition: "
-        "service_healthy` (docker-compose.prod.yml:708-717), so ANY up that "
-        "includes backend hard-waits for a 30B Nemotron to go healthy on the "
-        "same 24 GB card the VLM needs - it never starts and the bring-up "
-        "stalls. The repo's own proven answer is the GB300 bootstrap's "
-        "two-phase shape (scripts/bootstrap-gb300.sh:270-277, commented 'never "
-        "plain up - GPU deps'): bring the infra and ai services up by NAME, "
-        "then backend/frontend with --no-deps. `podman compose -f "
-        "docker-compose.prod.yml --profile vlm up -d postgres redis "
+        "backend then had an unconditional `depends_on: ai-llm: condition: "
+        "service_healthy`, so ANY up that included backend hard-waited for a "
+        "30B Nemotron to go healthy on the same 24 GB card the VLM needs - it "
+        "never started and the bring-up stalled. (R8 S2 deleted ai-llm and "
+        "that edge: backend now depends on foscam-init, postgres, redis, "
+        "ai-gateway and go2rtc, so the hard-wait is gone and naming services "
+        "is no longer required to dodge it. The shape below is kept because "
+        "it is still the safe order for a GPU bring-up, not because a plain "
+        "up is unsafe.) The repo's own proven answer is the GB300 bootstrap's "
+        "two-phase shape (scripts/bootstrap-gb300.sh, commented 'never plain "
+        "up - GPU deps'): bring the infra and ai services up by NAME, then "
+        "backend/frontend with --no-deps. `podman compose -f "
+        "docker-compose.prod.yml up -d postgres redis "
         "foscam-init ai-vlm ai-gateway` then `podman compose -f "
         "docker-compose.prod.yml up -d --no-deps backend frontend`. ai-vlm is a "
-        "dependency-free leaf (its only such key is profiles:) and ai-gateway "
-        "has none, so name them and nothing drags ai-llm. Verified against "
-        "`compose config --services`: the vlm profile resolves 20 services "
-        "INCLUDING ai-llm - the service list, not the profile, is what "
-        "excludes it. (The alternative - giving ai-llm a profiles: block - was "
-        "NOT taken: compose errors when depends_on names a service in a "
-        "disabled profile, so it would break every plain `up`. That is an owner "
-        "call, not a bring-up side effect.)",
+        "dependency-free leaf (no depends_on, nothing depends on it) and "
+        "ai-gateway "
+        "has none, so name them and nothing drags another engine in. Verified "
+        "against `compose config --services` at the time: the flagged "
+        "invocation resolved 20 services INCLUDING ai-llm - the service list, "
+        "not the gating, is what excluded it. Today the plain render lists 19 "
+        "and names no ai-llm. (The alternative - giving ai-llm a profiles: "
+        "block - was NOT taken: compose errors when depends_on names a service "
+        "in a disabled profile, so it would break every plain `up`. That is an "
+        "owner call, not a bring-up side effect.)",
         "[V 2026-09-28] the Triton/gateway half of this row was dropped "
         "between spec and handout and is restored: the gateway must serve the "
         "STATIC `vlm` model repository (YOLO26, re-ID, and the threat detector "
@@ -995,7 +1012,7 @@ def render_checklist(checks: list[Check], date_str: str) -> str:
         "",
         "## - [ ] GPU assignment",
         "Set every `GPU_*` variable to `0` (.env.example documents "
-        "\"SINGLE-GPU: Set all to 0\"). Remove the A400 from device passthrough.",
+        '"SINGLE-GPU: Set all to 0"). Remove the A400 from device passthrough.',
         f"- repo verdict: {v('gpu_assignment')}",
         f"- repo verdict: {v('device_passthrough')}",
     ]
@@ -1065,8 +1082,7 @@ def render_checklist(checks: list[Check], date_str: str) -> str:
         "## - [ ] Test-environment traps",
         "  - A `TMPDIR` in `.env` that differs from pytest's `tmp_path` "
         "false-reddens four `write_runtime_env` tests; CI sets no `TMPDIR`.",
-        "  - Stale `__pycache__` directories for deleted modules false-redden "
-        "deletion guards.",
+        "  - Stale `__pycache__` directories for deleted modules false-redden deletion guards.",
         f"- repo verdict: {v('tmpdir_trap')}",
         f"- repo verdict: {v('pycache_stale')}",
     ]
@@ -1085,9 +1101,7 @@ def render_checklist(checks: list[Check], date_str: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument(
-        "--env-file", default=str(REPO_ROOT / ".env.example"), help="env file to check"
-    )
+    ap.add_argument("--env-file", default=str(REPO_ROOT / ".env.example"), help="env file to check")
     ap.add_argument(
         "--compose",
         action="append",
@@ -1096,12 +1110,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--repo-root", default=str(REPO_ROOT))
     ap.add_argument("--out", default=None, help="write the dated checklist here")
-    ap.add_argument(
-        "--date", default=None, help="override the checklist date (YYYY-MM-DD)"
-    )
-    ap.add_argument(
-        "--check-only", action="store_true", help="verdicts only, no checklist render"
-    )
+    ap.add_argument("--date", default=None, help="override the checklist date (YYYY-MM-DD)")
+    ap.add_argument("--check-only", action="store_true", help="verdicts only, no checklist render")
     args = ap.parse_args(argv)
 
     compose = (

@@ -980,7 +980,7 @@ FOSCAM_BASE_PATH=/export/foscam
 # AI service endpoints - the ai-gateway container on port 8090 serves ONLY
 # /yolo26 and /enrich-lt (R8 S3 pruned the /florence /clip /enrichment router
 # mounts on 2026-09-29). The shipped LLM engine is the separate `ai-vlm`
-# llama.cpp container, host loopback port 8098 (compose profile `vlm`).
+# llama.cpp container, host loopback port 8098 (default compose set).
 # Values below match .env.example.
 USE_AI_GATEWAY=true
 AI_GATEWAY_URL=http://ai-gateway:8090
