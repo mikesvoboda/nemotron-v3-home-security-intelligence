@@ -120,9 +120,12 @@ RETENTION_DAYS=30
 | `AI_VLM_READ_TIMEOUT`         | `25.0`  | 5.0-300.0 | One `vlm_assess` attempt (s)                            |
 | `AI_VLM_WAKE_TIMEOUT_SECONDS` | `90.0`  | 5.0-300.0 | Wake-from-sleep ping budget; a failed wake is swallowed |
 
-`AI_VLM_READ_TIMEOUT` is deliberately under 30 s: the retry ladder retries exactly once
-at temperature 0 **inside the same budget**, so a ceiling at or above 30 s leaves the
-retry no room.
+`AI_VLM_READ_TIMEOUT` is deliberately under 30 s (S4's p95, connect phase counted on
+top): it bounds ONE `vlm_assess` attempt in either phase — waiting for the reply or
+waiting to finish sending the image-bearing body — and a reply that outruns it is a
+budget outcome, not an outage: **not retried** (a re-ask would time out identically) and
+no charge to the `ai-vlm` breaker, so one attempt is the worst case. The one retry at
+temperature 0 only follows a fast failure (connection refused, `ConnectTimeout`, 5xx).
 
 ### GPU Monitoring
 

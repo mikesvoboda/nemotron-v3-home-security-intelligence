@@ -293,11 +293,15 @@ podman compose -f docker-compose.prod.yml --profile vlm logs ai-vlm 2>&1 | grep 
 
 **2. Timeouts**
 
-One verdict attempt is bounded by `AI_VLM_READ_TIMEOUT` (default 25 s) and
-includes a single retry at temperature 0. A sleeping server (see `SLEEP_IDLE_SECONDS`)
-wakes under `AI_VLM_WAKE_TIMEOUT_SECONDS` (default 90 s). If verdicts are timing
-out on a slow card, raise the read timeout — but the retry already shares that
-budget, so a value at or above 30 s leaves the retry no room.
+One verdict attempt is bounded by `AI_VLM_READ_TIMEOUT` (default 25 s), in either
+phase — waiting for the reply or waiting to finish sending the image-bearing body. A
+reply that outruns it is a budget outcome: **not retried** (the temperature-0 re-ask
+would time out identically) and no charge to the `ai-vlm` breaker, so one attempt is
+the worst case. A sleeping server (see `SLEEP_IDLE_SECONDS`) wakes under
+`AI_VLM_WAKE_TIMEOUT_SECONDS` (default 90 s). If verdicts are timing out on a slow card,
+raise the read timeout — but budget it against S4's 30 s p95 (the connect phase,
+`AI_CONNECT_TIMEOUT`, is counted on top), because a slow reply is not something the
+ladder can retry its way out of.
 
 **3. A cold start still loading**
 

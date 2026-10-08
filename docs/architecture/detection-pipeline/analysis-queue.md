@@ -253,7 +253,10 @@ ai_vlm_read_timeout: float = 25.0          # One vlm_assess attempt's budget
 ai_vlm_wake_timeout_seconds: float = 90.0  # The wake-on-open ping
 ```
 
-The read budget is sized so the one retry fits inside it (p95 <= 30s including cold starts). Concurrency is bounded by the `ai-vlm` circuit breaker (`backend/services/vlm_client.py:247-250`, `failure_threshold=5`, `recovery_timeout=60.0`): while it is open, `assess` raises `VlmUnavailableError` without doing I/O (`backend/services/vlm_client.py:766-772`). The shared inference semaphore (`backend/services/inference_semaphore.py`) is held by the detector leg (`backend/services/detector_client.py:1115-1116`), not by the VLM call.
+The read budget bounds ONE attempt (in either phase — waiting for the reply, or
+waiting to finish sending the image-bearing body) and a reply that outruns it is a
+budget outcome, not retried, so one attempt is the worst case, sized against
+p95 <= 30s including cold starts (connect counted on top). Concurrency is bounded by the `ai-vlm` circuit breaker (`backend/services/vlm_client.py:247-250`, `failure_threshold=5`, `recovery_timeout=60.0`): while it is open, `assess` raises `VlmUnavailableError` without doing I/O (`backend/services/vlm_client.py:766-772`). The shared inference semaphore (`backend/services/inference_semaphore.py`) is held by the detector leg (`backend/services/detector_client.py:1115-1116`), not by the VLM call.
 
 ## Context Read Before the Prompt
 

@@ -147,13 +147,16 @@ by a third service.
 | `AI_VLM_READ_TIMEOUT`         | No       | `25.0`  | 5-300s | One `vlm_assess` attempt               |
 | `AI_VLM_WAKE_TIMEOUT_SECONDS` | No       | `90.0`  | 5-300s | Read timeout for the wake-on-open ping |
 
-> **Note:** `AI_VLM_READ_TIMEOUT` bounds a single verdict attempt, and a reply that
-> outruns it is a budget, not an outage: it is **not** retried (the re-ask would time
-> out identically) and does not charge the `ai-vlm` breaker, so one attempt is the
-> worst case — keep it under S4's 30 s p95. The one retry at temperature 0 only ever
-> follows a fast failure (a connection refused, a 5xx). `AI_VLM_WAKE_TIMEOUT_SECONDS`
-> is deliberately generous: it pays for a sleeping `ai-vlm` loading its weights, and a
-> failed wake is swallowed rather than retried.
+> **Note:** `AI_VLM_READ_TIMEOUT` bounds a single verdict attempt, and an attempt that
+> outruns it — waiting for the reply (`ReadTimeout`) or waiting to finish sending the
+> image-bearing body (`WriteTimeout`) — is a budget, not an outage: it is **not** retried
+> (the re-ask would time out identically) and does not charge the `ai-vlm` breaker, so
+> one attempt is the worst case — keep it under S4's 30 s p95 (the connect phase is
+> `AI_CONNECT_TIMEOUT`, counted on top of it). The one retry at temperature 0 only
+> follows failures where re-asking is not futile: the request never completed its trip
+> (a connection refused, a `ConnectTimeout`) or the engine answered without processing
+> (a 5xx). `AI_VLM_WAKE_TIMEOUT_SECONDS` is deliberately generous: it pays for a sleeping
+> `ai-vlm` loading its weights, and a failed wake is swallowed rather than retried.
 
 ### VLM Context and Slots
 

@@ -385,9 +385,13 @@ YOLO26_READ_TIMEOUT=120.0    # Default 30.0 (max 120)
 AI_VLM_READ_TIMEOUT=45.0     # Default 25.0 (max 300)
 ```
 
-`AI_VLM_READ_TIMEOUT` bounds one verdict attempt, and the retry it makes at
-temperature 0 shares that same budget — a value at or above 30 s leaves the retry no
-room. A sleeping `ai-vlm` is woken under a separate ceiling,
+`AI_VLM_READ_TIMEOUT` bounds one verdict attempt in either phase — waiting for the
+reply or waiting to finish sending the image-bearing body — and one attempt is the worst
+case: a reply that outruns it is a budget outcome, **not retried** (the re-ask would
+time out identically) and it does not charge the `ai-vlm` breaker, so keep it under
+S4's 30 s p95 (the connect phase, `AI_CONNECT_TIMEOUT`, is counted on top). The one
+retry at temperature 0 only follows a fast failure (connection refused,
+`ConnectTimeout`, 5xx). A sleeping `ai-vlm` is woken under a separate ceiling,
 `AI_VLM_WAKE_TIMEOUT_SECONDS` (default 90.0).
 
 **2. Check service load:**

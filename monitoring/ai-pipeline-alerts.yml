@@ -17,12 +17,14 @@
 #
 # hsi_pipeline_errors_total error_type values pass through the allowlist in
 # backend/core/sanitization.py (KNOWN_ERROR_TYPES): a value outside it collapses
-# to "other". The VLM-path values that survive are vlm_transport_error,
-# vlm_http_error, vlm_schema_invalid, vlm_circuit_open and
-# vlm_verification_failed. The reason codes vlm_client.py also passes
-# (vlm_probe_props_unreachable, vlm_probe_build_mismatch, vlm_probe_transport,
-# vlm_probe_not_enforced, vlm_probe_truncated, vlm_context_overflow,
-# vlm_assess_truncated) land in "other", so these alerts match on the five.
+# to "other". The VLM-path values that survive are the five this file alerts on
+# (vlm_transport_error, vlm_http_error, vlm_schema_invalid, vlm_circuit_open,
+# vlm_verification_failed) PLUS the reason codes B1.1 added to the allowlist:
+# the probe codes, vlm_context_overflow, vlm_assess_truncated, and the two
+# budget causes (vlm_assess_timeout, vlm_probe_timeout — a read- or write-stalled
+# reply, which is a budget, not an outage). Those extras survive as queryable
+# causes but are deliberately not alerted on here; whether a budget should page
+# anyone is an open owner ruling, not this file's call.
 #
 # Alert Severity Levels:
 # - critical: Immediate action required. System is down or data loss is imminent.

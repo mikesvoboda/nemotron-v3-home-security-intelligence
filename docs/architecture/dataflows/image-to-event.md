@@ -371,8 +371,11 @@ still written, with a NULL score.
 | Wake ping (`max_tokens: 1`) | 90s              | `backend/core/config.py:1126-1128`       |
 | Breaker                     | 5 failures / 60s | `backend/services/vlm_client.py:247-249` |
 
-The read budget is sized so the single retry fits inside it — a per-attempt
-ceiling at or above 30 s would leave no room for the second attempt.
+The read budget bounds ONE attempt in either phase (waiting for the reply, or waiting
+to finish sending the image-bearing body) and is sized against S4's p95 <= 30 s with
+the connect phase counted on top. A reply that outruns it is a budget outcome, not an
+outage: it is not retried — a re-ask sends the identical bytes at the identical speed —
+so the budget is not a slot to be split between two attempts.
 
 ## Stage 5: Event Creation and Broadcast
 
