@@ -1,7 +1,7 @@
 """API routes for receiving inbound webhooks from external systems.
 
-This module provides endpoints for receiving webhook notifications from
-external systems like IFTTT, Zapier, n8n, and custom integrations.
+This module provides endpoints for webhook notifications from external
+systems like IFTTT, Zapier, n8n, and custom integrations.
 
 Endpoints:
     POST /api/webhooks/inbound/alert - Create external alert
@@ -9,8 +9,32 @@ Endpoints:
     POST /api/webhooks/inbound/disarm - Disarm zones
     POST /api/webhooks/inbound/mode - Set system mode
 
+Honesty contract (B1.3, D3, UR-12)
+----------------------------------
+**All four endpoints answer 501 Not Implemented.** None of the actions
+they accept is implemented: the arming module with webhook and MQTT
+adapters is ruled for after Phase 3 (UR-12), so a handler that replied
+"Arm command for N zones queued" described work nothing queued (audit
+finding D3 — `arm_zones` said a house was armed when it was not). Each
+handler now validates the key, logs the rejected attempt for the
+integrator's sake, and raises 501 with a body naming UR-12.
+
+Authentication is unconditional and fail-closed: the shared
+:func:`~backend.api.middleware.auth.require_api_key` validates the
+``X-API-Key`` header against ``settings.api_keys``. Before B1.3 this module
+accepted *any* key of 16 or more characters. It deliberately does not
+honour ``settings.api_key_enabled`` (whose shipped default is off) — with
+that branch these routes would answer unauthenticated callers again.
+
+The request schemas below are kept byte-compatible on purpose: the Phase 4
+arming feature reuses them (package B1.3, "Keep the request schemas").
+That includes ``InboundModePayload.mode``, which stays a plain ``str``: the
+mode-value check that used to run in the handler went with the handler, and
+validating the vocabulary belongs to the feature that acts on it.
+
 Related Issues:
-    - NEM-5170: [Implement] Phase 8: Inbound Webhook API
+    - NEM-5170: [Implement] Phase 8: Inbound Webhook API — still open: the
+      handlers remain unimplemented; only their honesty changed.
     - NEM-5032: Epic 3: Ecosystem Integration
 """
 
@@ -18,25 +42,37 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import secrets
-from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.database import get_db
-from backend.core.logging import get_logger
-from backend.services.mqtt_command_handler import SystemMode
+from backend.api.middleware.auth import require_api_key
+from backend.core.logging import get_logger, mask_ip
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/webhooks/inbound", tags=["inbound-webhooks"])
 
+#: The body every handler raises with. Naming the ruling is the point: an
+#: integrator reading a 501 learns which decision governs the feature, not
+#: just that it is missing.
+NOT_IMPLEMENTED_DETAIL = (
+    "Inbound webhooks are not implemented (UR-12): the arming module that would act on this "
+    "request is designed after Phase 3. This endpoint takes no action."
+)
+
+#: Annotated explicitly: a bare module-level dict infers ``dict[int, dict[str, str]]``,
+#: which mypy rejects against ``router.post(responses=…)``'s ``dict[int | str, …]``.
+_UNIMPLEMENTED_RESPONSES: dict[int | str, dict[str, Any]] = {
+    501: {"description": "Not implemented — UR-12; this endpoint takes no action"},
+    401: {"description": "Authentication failed"},
+    422: {"description": "Invalid payload"},
+}
+
 
 # =============================================================================
-# Schemas
+# Schemas (kept byte-compatible for the Phase 4 arming feature — B1.3)
 # =============================================================================
 
 
@@ -98,55 +134,9 @@ class InboundModePayload(BaseModel):
     )
 
 
-class InboundWebhookResponse(BaseModel):
-    """Standard response for inbound webhooks."""
-
-    status: str = Field(description="Request status.")
-    message: str = Field(description="Status message.")
-    request_id: str | None = Field(default=None, description="Request tracking ID.")
-    timestamp: str = Field(description="Processing timestamp.")
-
-
 # =============================================================================
 # Authentication
 # =============================================================================
-
-
-class WebhookAuthError(Exception):
-    """Raised when webhook authentication fails."""
-
-    pass
-
-
-def verify_api_key(
-    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
-) -> str:
-    """Verify API key from header.
-
-    Args:
-        x_api_key: API key from X-API-Key header.
-
-    Returns:
-        Validated API key.
-
-    Raises:
-        HTTPException: If API key is missing or invalid.
-    """
-    if not x_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing X-API-Key header",
-        )
-
-    # TODO: Validate against stored API keys in database
-    # For now, accept any non-empty key for development
-    if len(x_api_key) < 16:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
-        )
-
-    return x_api_key
 
 
 def verify_hmac_signature(
@@ -177,222 +167,101 @@ def verify_hmac_signature(
     return hmac.compare_digest(expected_sig, computed_sig)
 
 
+def _log_rejected_attempt(endpoint: str, request: Request) -> None:
+    """Record that a correctly authenticated call reached an unimplemented route.
+
+    The old handlers logged a fake success ("... queued"); this records the
+    honest fact so an integrator's reports can be traced to the endpoint that
+    refuses them. No request body, key, or other secret is logged, and the
+    address is masked — the same shape ``auth.py`` uses for its own rejection
+    records (``mask_ip``, ``client_ip``), because which house an integrator
+    called from is itself not something to write to a log in the clear.
+    """
+    logger.info(
+        "Inbound webhook rejected as unimplemented (UR-12)",
+        extra={
+            "endpoint": endpoint,
+            "client_ip": mask_ip(request.client.host if request.client else "unknown"),
+        },
+    )
+
+
+def _reject_unimplemented(endpoint: str, request: Request) -> None:
+    """Log and raise the 501 every handler answers with (UR-12)."""
+    _log_rejected_attempt(endpoint, request)
+    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=NOT_IMPLEMENTED_DETAIL)
+
+
 # =============================================================================
-# Endpoints
+# Endpoints — all four answer 501 (UR-12); see the module docstring
 # =============================================================================
 
 
 @router.post(
     "/alert",
-    response_model=InboundWebhookResponse,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: {"description": "Alert created successfully"},
-        401: {"description": "Authentication failed"},
-        422: {"description": "Invalid payload"},
-        429: {"description": "Rate limit exceeded"},
-    },
+    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+    responses=_UNIMPLEMENTED_RESPONSES,
 )
 async def create_alert(
-    payload: InboundAlertPayload,
+    payload: InboundAlertPayload,  # noqa: ARG001 - schema kept for the arming feature
     request: Request,
-    _background_tasks: BackgroundTasks,
-    _db: AsyncSession = Depends(get_db),
-    _api_key: str = Depends(verify_api_key),
-) -> InboundWebhookResponse:
-    """Create an alert from an external webhook.
+    _api_key: str = Depends(require_api_key),
+) -> None:
+    """Not implemented (UR-12): external alert ingestion takes no action.
 
-    This endpoint allows external systems to create alerts in HSI.
-
-    Args:
-        payload: Alert payload with source, message, and severity.
-        request: FastAPI request object.
-        background_tasks: For async processing.
-        db: Database session.
-        api_key: Validated API key.
-
-    Returns:
-        InboundWebhookResponse with status.
+    Accepts ``InboundAlertPayload`` and answers 501. A malformed payload
+    still 422s (the schema is live); auth failures 401 first.
     """
-    request_id = secrets.token_hex(8)
-
-    logger.info(
-        "Inbound alert webhook received",
-        extra={
-            "request_id": request_id,
-            "source": payload.source,
-            "severity": payload.severity,
-            "client_ip": request.client.host if request.client else "unknown",
-        },
-    )
-
-    # TODO: NEM-5170 - Integrate with AlertService
-
-    return InboundWebhookResponse(
-        status="received",
-        message=f"Alert from {payload.source} queued for processing",
-        request_id=request_id,
-        timestamp=datetime.now(UTC).isoformat(),
-    )
+    _reject_unimplemented("alert", request)
 
 
 @router.post(
     "/arm",
-    response_model=InboundWebhookResponse,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: {"description": "Zones armed successfully"},
-        401: {"description": "Authentication failed"},
-        422: {"description": "Invalid payload"},
-    },
+    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+    responses=_UNIMPLEMENTED_RESPONSES,
 )
 async def arm_zones(
-    payload: InboundArmPayload,
+    payload: InboundArmPayload,  # noqa: ARG001 - schema kept for the arming feature
     request: Request,
-    _db: AsyncSession = Depends(get_db),
-    _api_key: str = Depends(verify_api_key),
-) -> InboundWebhookResponse:
-    """Arm zones via webhook.
+    _api_key: str = Depends(require_api_key),
+) -> None:
+    """Not implemented (UR-12): arming zones takes no action.
 
-    Args:
-        payload: Arm payload with optional zone IDs.
-        request: FastAPI request object.
-        db: Database session.
-        api_key: Validated API key.
-
-    Returns:
-        InboundWebhookResponse with status.
+    This is the endpoint D3 names: it used to answer "Arm command for N
+    zones queued" having queued nothing, telling an integrator the house
+    was armed when it was not.
     """
-    request_id = secrets.token_hex(8)
-    zone_count = len(payload.zone_ids) if payload.zone_ids else "all"
-
-    logger.info(
-        "Inbound arm webhook received",
-        extra={
-            "request_id": request_id,
-            "zone_ids": payload.zone_ids,
-            "mode": payload.mode,
-            "client_ip": request.client.host if request.client else "unknown",
-        },
-    )
-
-    # TODO: NEM-5170 - Integrate with ZoneService
-
-    return InboundWebhookResponse(
-        status="received",
-        message=f"Arm command for {zone_count} zones queued",
-        request_id=request_id,
-        timestamp=datetime.now(UTC).isoformat(),
-    )
+    _reject_unimplemented("arm", request)
 
 
 @router.post(
     "/disarm",
-    response_model=InboundWebhookResponse,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: {"description": "Zones disarmed successfully"},
-        401: {"description": "Authentication failed"},
-        422: {"description": "Invalid payload"},
-    },
+    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+    responses=_UNIMPLEMENTED_RESPONSES,
 )
 async def disarm_zones(
-    payload: InboundDisarmPayload,
+    payload: InboundDisarmPayload,  # noqa: ARG001 - schema kept for the arming feature
     request: Request,
-    _db: AsyncSession = Depends(get_db),
-    _api_key: str = Depends(verify_api_key),
-) -> InboundWebhookResponse:
-    """Disarm zones via webhook.
-
-    Args:
-        payload: Disarm payload with optional zone IDs.
-        request: FastAPI request object.
-        db: Database session.
-        api_key: Validated API key.
-
-    Returns:
-        InboundWebhookResponse with status.
-    """
-    request_id = secrets.token_hex(8)
-    zone_count = len(payload.zone_ids) if payload.zone_ids else "all"
-
-    logger.info(
-        "Inbound disarm webhook received",
-        extra={
-            "request_id": request_id,
-            "zone_ids": payload.zone_ids,
-            "reason": payload.reason,
-            "client_ip": request.client.host if request.client else "unknown",
-        },
-    )
-
-    # TODO: NEM-5170 - Integrate with ZoneService
-
-    return InboundWebhookResponse(
-        status="received",
-        message=f"Disarm command for {zone_count} zones queued",
-        request_id=request_id,
-        timestamp=datetime.now(UTC).isoformat(),
-    )
+    _api_key: str = Depends(require_api_key),
+) -> None:
+    """Not implemented (UR-12): disarming zones takes no action."""
+    _reject_unimplemented("disarm", request)
 
 
 @router.post(
     "/mode",
-    response_model=InboundWebhookResponse,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: {"description": "System mode changed successfully"},
-        401: {"description": "Authentication failed"},
-        422: {"description": "Invalid payload or mode"},
-    },
+    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+    responses=_UNIMPLEMENTED_RESPONSES,
 )
 async def set_system_mode(
-    payload: InboundModePayload,
+    payload: InboundModePayload,  # noqa: ARG001 - schema kept for the arming feature
     request: Request,
-    _db: AsyncSession = Depends(get_db),
-    _api_key: str = Depends(verify_api_key),
-) -> InboundWebhookResponse:
-    """Set system mode via webhook.
+    _api_key: str = Depends(require_api_key),
+) -> None:
+    """Not implemented (UR-12): system-mode changes take no action.
 
-    Valid modes:
-    - home: Family at home, known faces suppressed
-    - away: Nobody home, all alerts enabled
-    - night: Sleeping, perimeter zones only
-    - disarmed: No alerts, logging only
-
-    Args:
-        payload: Mode payload.
-        request: FastAPI request object.
-        db: Database session.
-        api_key: Validated API key.
-
-    Returns:
-        InboundWebhookResponse with status.
+    Mode values are no longer validated here: the check lived in the handler
+    that acted on them, and ``InboundModePayload`` is kept unchanged for the
+    arming feature, whose ruling it is.
     """
-    request_id = secrets.token_hex(8)
-
-    # Validate mode
-    valid_modes = {m.value for m in SystemMode}
-    if payload.mode not in valid_modes:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid mode: {payload.mode}. Must be one of: {valid_modes}",
-        )
-
-    logger.info(
-        "Inbound mode webhook received",
-        extra={
-            "request_id": request_id,
-            "mode": payload.mode,
-            "client_ip": request.client.host if request.client else "unknown",
-        },
-    )
-
-    # TODO: NEM-5170 - Integrate with CommandHandler
-
-    return InboundWebhookResponse(
-        status="received",
-        message=f"System mode change to '{payload.mode}' queued",
-        request_id=request_id,
-        timestamp=datetime.now(UTC).isoformat(),
-    )
+    _reject_unimplemented("mode", request)
