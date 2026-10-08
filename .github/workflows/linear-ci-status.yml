@@ -125,7 +125,7 @@ jobs:
           echo "ids=$UNIQUE_IDS" >> "$GITHUB_OUTPUT"
 
       - name: Update Linear issues on CI success
-        if: steps.extract-issues.outputs.found == 'true' && github.event.workflow_run.conclusion == 'success'
+        if: vars.LINEAR_ENABLED == 'true' && (steps.extract-issues.outputs.found == 'true' && github.event.workflow_run.conclusion == 'success')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -192,7 +192,7 @@ jobs:
           done
 
       - name: Comment on Linear issues on CI failure
-        if: steps.extract-issues.outputs.found == 'true' && github.event.workflow_run.conclusion == 'failure'
+        if: vars.LINEAR_ENABLED == 'true' && (steps.extract-issues.outputs.found == 'true' && github.event.workflow_run.conclusion == 'failure')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -328,7 +328,7 @@ jobs:
           echo "ids=$UNIQUE_IDS" >> "$GITHUB_OUTPUT"
 
       - name: Move Linear issues to Done
-        if: steps.extract-issues.outputs.found == 'true'
+        if: vars.LINEAR_ENABLED == 'true' && (steps.extract-issues.outputs.found == 'true')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -432,7 +432,7 @@ jobs:
 
       - name: Check for existing open CI failure issue
         id: check-existing
-        if: steps.failed-jobs.outputs.has_failures == 'true'
+        if: vars.LINEAR_ENABLED == 'true' && (steps.failed-jobs.outputs.has_failures == 'true')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -465,7 +465,7 @@ jobs:
           fi
 
       - name: Update existing issue with new failure
-        if: steps.failed-jobs.outputs.has_failures == 'true' && steps.check-existing.outputs.exists == 'true'
+        if: vars.LINEAR_ENABLED == 'true' && (steps.failed-jobs.outputs.has_failures == 'true' && steps.check-existing.outputs.exists == 'true')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -496,7 +496,7 @@ jobs:
           echo "Added failure comment to $ISSUE_ID"
 
       - name: Create new Linear issue for CI failure
-        if: steps.failed-jobs.outputs.has_failures == 'true' && steps.check-existing.outputs.exists == 'false'
+        if: vars.LINEAR_ENABLED == 'true' && (steps.failed-jobs.outputs.has_failures == 'true' && steps.check-existing.outputs.exists == 'false')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -563,6 +563,7 @@ jobs:
 
     steps:
       - name: Find and close open CI failure issues
+        if: vars.LINEAR_ENABLED == 'true'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -728,7 +729,7 @@ jobs:
           echo "ids=$UNIQUE_IDS" >> "$GITHUB_OUTPUT"
 
       - name: Check current status
-        if: github.event.inputs.action == 'check' && steps.extract-issues.outputs.found == 'true'
+        if: vars.LINEAR_ENABLED == 'true' && (github.event.inputs.action == 'check' && steps.extract-issues.outputs.found == 'true')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -759,7 +760,7 @@ jobs:
           done
 
       - name: Move to In Review
-        if: github.event.inputs.action == 'move-to-review' && steps.extract-issues.outputs.found == 'true'
+        if: vars.LINEAR_ENABLED == 'true' && (github.event.inputs.action == 'move-to-review' && steps.extract-issues.outputs.found == 'true')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -798,7 +799,7 @@ jobs:
           done
 
       - name: Move to Done
-        if: github.event.inputs.action == 'move-to-done' && steps.extract-issues.outputs.found == 'true'
+        if: vars.LINEAR_ENABLED == 'true' && (github.event.inputs.action == 'move-to-done' && steps.extract-issues.outputs.found == 'true')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
