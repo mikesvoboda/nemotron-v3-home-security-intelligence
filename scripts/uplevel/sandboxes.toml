@@ -96,10 +96,11 @@ prompt at the end of that file, and it assigns you to the strongest model."""
 # the model arguments (the order in 30-ops.md's hand-start line) and requires
 # AGENT_GPU_RUNNER_URL in the launching shell. No mount for /srv/agent-models: agent-dgx
 # --gpu mounts that library itself and refuses any mount at or under it.
-# Name the prompt as a section, never by position: `up` prints this line verbatim, and
-# #6864 fixed the heavy row for exactly this. 30-ops.md §O1.10 still writes the operator's
-# line positionally ("at the end of ..."); plan text is the owner's to correct (asked on
-# this PR) - the manifest already carries the section-named form.
+# Name the prompt as a section, never by position: `up` prints this line verbatim, and a
+# position rots when the file grows (#6864 found the heavy row doing exactly this and
+# fixes it there; the heavy row on main is still positional until that PR merges).
+# 30-ops.md §O1.10 writes the operator's line positionally ("at the end of ..."); plan
+# text is the owner's to correct (asked on this PR) - this row carries the section form.
 [[phase.session]]
 name = "uplevel-operator"
 model = "fast"

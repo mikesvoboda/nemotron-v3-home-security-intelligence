@@ -46,10 +46,14 @@ never invent a flag; the strongest model's run arguments come from the owner int
 ### sandboxes.toml
 
 The roster: per phase, each session's name, model (a `[models]` key) and kickoff line,
-plus optional `mount` and `gpu` (a plain TOML boolean; only `uplevel-operator` sets it -
-`up` refuses a non-boolean value). It mirrors `docs/uplevel/50-coordination.md`'s roster -
-when the coordinator changes the plan, that PR updates this file too. A kickoff line names
-the prompt's **section**, never a position: `up` prints the line verbatim, and
-`50-coordination.md` ends with the coordinator's own prompt (#6864). Network profiles and
-secrets are deliberately absent (no shown `agent-dgx` flag takes them); provisioning stays
-the owner's.
+plus optional `mount` and `gpu` (a plain TOML boolean; only `uplevel-operator` sets it).
+The loader refuses the hand-edit shapes a growing roster can produce: a non-boolean
+`gpu`, a `gpu` row mounting at or under `/srv/agent-models` (which `agent-dgx --gpu`
+owns), and a name repeated within one phase. It mirrors the roster in
+`docs/uplevel/50-coordination.md` - when the coordinator changes the plan, that PR
+updates this file too. A kickoff line names
+the prompt's **section**, never a position (`up` prints it verbatim, and a position rots
+when the file grows); #6864 established that rule, and the operator row here already
+follows it - the heavy row keeps its old wording on main until #6864 merges. Network
+profiles and secrets are deliberately absent (no shown `agent-dgx` flag takes them);
+provisioning stays the owner's.

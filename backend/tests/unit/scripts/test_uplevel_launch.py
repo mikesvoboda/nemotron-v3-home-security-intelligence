@@ -294,9 +294,10 @@ def host(
     if herdr:
         env["HERDR_PANE_ID"] = "w1:p1"
     if gpu_runner:
-        # what `agent-gpu`'s runner publishes in the owner's launching shell
-        # (50-coordination.md, "Where agents run"); O1.10 makes the launcher require
-        # it before it hands any sandbox `--gpu`
+        # the shell's handle on `agent-gpu`'s runner (30-ops.md §O1.10 names the
+        # variable; 50-coordination.md, "Where agents run", is where the runner
+        # itself is described); O1.10 makes the launcher require it before it hands
+        # any sandbox `--gpu`
         env["AGENT_GPU_RUNNER_URL"] = "http://127.0.0.1:8100"
     return host_class(
         checkout=tmp_path / "checkout",
@@ -386,7 +387,8 @@ def test_operator_kickoff_names_the_prompt_section_not_a_position() -> None:
 @pytest.mark.skipif(
     # operator.md is a docs/ path, outside mutmut's also_copy: in the mutant home the
     # read would raise and abort the -x stats gather (the also_copy abort family).
-    # Skip, never abort - test_check_vss_docs_currency.py, test_mutation_hold_banner.py.
+    # Skip, never abort - the doctrine test_check_vss_docs_currency.py:508 states and
+    # test_notify_reachability_guard.py's mutant-home skipif argues at length.
     not (REPO_ROOT / "docs" / "uplevel" / "operator.md").exists(),
     reason="docs/ tree absent (mutmut's mutant home): nothing to cross-check the line against",
 )
@@ -395,6 +397,64 @@ def test_operator_md_holds_the_section_the_line_names() -> None:
     for the heavy sandbox (#6864): rename it, and the printed line points at nothing."""
     doc = (REPO_ROOT / "docs" / "uplevel" / "operator.md").read_text(encoding="utf-8")
     assert "## Kickoff prompt" in doc
+
+
+def test_the_mutant_home_shape_skips_the_docs_read_and_keeps_the_rest_alive(
+    tmp_path: Path,
+) -> None:
+    """The guarded skip above is only honest if the mutant home really still runs the
+    rest. mutmut copies backend/ and scripts/ but never docs/, so in that home the
+    cross-check must SKIP (aborting the -x stats gather is the registered abort family)
+    while every string/flag assert stays live and killable. This builds that shape - this
+    very file, the launcher, the manifest, and no docs/ - and runs the file's operator
+    and gpu tests inside it. Contract rule 3: the harness lives here, in the repo, not
+    in someone's /tmp. No recursion: the inner -k names no part of this test's name, so
+    the copy never re-runs it - and the test carries no suppression marker, so the
+    census has nothing to count."""
+    sim = tmp_path / "home"
+    scripts = sim / "scripts" / "uplevel"
+    tests = sim / "backend" / "tests" / "unit" / "scripts"
+    scripts.mkdir(parents=True)
+    tests.mkdir(parents=True)
+    (scripts / "launch.py").write_text(
+        (REPO_ROOT / "scripts" / "uplevel" / "launch.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (scripts / "sandboxes.toml").write_text(
+        (REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    copied = tests / "test_uplevel_launch.py"
+    # nosemgrep: path-traversal-open - this test file's own path, not user input
+    copied.write_text(Path(__file__).read_text(encoding="utf-8"), encoding="utf-8")
+
+    done = subprocess.run(  # real: runs this file's copy inside a docs-less tree  # noqa: S603
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            str(copied),
+            "-q",
+            "-o",
+            "addopts=",
+            "-p",
+            "no:randomly",
+            "-k",
+            "operator or gpu",
+        ],
+        cwd=sim,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,  # a nonzero inner run IS the evidence: the assert prints its output
+    )
+    out = done.stdout + done.stderr
+    assert done.returncode == 0, out
+    assert "1 skipped" in out, out  # the guarded cross-check, skipping not aborting
+    assert "failed" not in out and " error" not in out, out
+    summary = next(line for line in out.splitlines() if " passed" in line)
+    passed = int(summary.partition(" passed")[0].rsplit(maxsplit=1)[-1])
+    assert passed >= 8, f"the string/flag asserts must stay live in the mutant home: {out}"
 
 
 def test_a_non_boolean_gpu_flag_refuses_naming_the_row(tmp_path: Path) -> None:
@@ -407,8 +467,108 @@ def test_a_non_boolean_gpu_flag_refuses_naming_the_row(tmp_path: Path) -> None:
         f'[[phase.session]]\nname = "{OPERATOR}"\nmodel = "fast"\nkickoff = "k"\ngpu = 1\n',
         encoding="utf-8",
     )
-    with pytest.raises(launch.Refused, match="gpu"):
+    # pinned to the naming, not the word `gpu`: the refusal's promise is that it names
+    # which row is wrong, and `match="gpu"` passes on a message that names nothing (the
+    # literal `gpu = 1` is in it either way).
+    with pytest.raises(launch.Refused, match=f"session {OPERATOR}") as caught:
         launch.load_manifest(manifest)
+    assert str(manifest) in str(caught.value)
+
+
+def test_a_gpu_row_mounting_the_model_library_refuses(tmp_path: Path) -> None:
+    """30-ops.md §O1.10 states agent-dgx's rule: --gpu mounts /srv/agent-models itself
+    and refuses any mount at or under it. A hand-written row that collides with the
+    library fails at create time inside agent-dgx; the launcher's doctrine is to refuse
+    first, naming the row."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 0\n"
+        f'[[phase.session]]\nname = "{OPERATOR}"\nmodel = "fast"\nkickoff = "k"\n'
+        'gpu = true\nmount = ["/srv/agent-models:ro"]\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(launch.Refused, match="agent-models"):
+        launch.load_manifest(manifest)
+
+
+def test_a_gpu_row_may_mount_elsewhere(tmp_path: Path) -> None:
+    """The rule is about the library path, not mounts in general: a mount outside
+    /srv/agent-models is unaffected by what --gpu brings, and refusing it would be the
+    launcher inventing a rule the plan does not state."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 0\n"
+        f'[[phase.session]]\nname = "{OPERATOR}"\nmodel = "fast"\nkickoff = "k"\n'
+        'gpu = true\nmount = ["/stack/shared:ro"]\n',
+        encoding="utf-8",
+    )
+    fake = FakeHost()
+    launch.up(host(tmp_path, fake, manifest=manifest), phase=0)
+    run = next(argv for argv, _ in fake.calls if argv[:3] == ["agent-dgx", "run", OPERATOR])
+    assert run == [
+        "agent-dgx",
+        "run",
+        OPERATOR,
+        "--agent",
+        "claude",
+        "--endpoint",
+        "dgx",
+        "--mount",
+        "/stack/shared:ro",
+        "--gpu",
+        "--split",
+    ]
+
+
+def test_a_phase_repeating_a_session_name_refuses(tmp_path: Path) -> None:
+    """Two rows for one name is a hand-edit the launcher cannot honour. `up` gathers each
+    name's state once before any change (the gpu grant must be knowable up front), so two
+    same-name rows would both read "missing" and both create - two sandboxes, and two
+    `--gpu` grants where UR-30 allows one. `main` re-inspected per row and so printed
+    "already exists" for the second only by accident - it was never the rule. The answer
+    is this launcher's own idiom for a hand-edit typo: refuse, naming the phase and the
+    repeated name, before any change."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 1\n"
+        '[[phase.session]]\nname = "dup"\nmodel = "fast"\nkickoff = "k"\n'
+        "[[phase]]\nnumber = 1\n"
+        '[[phase.session]]\nname = "dup"\nmodel = "fast"\nkickoff = "k"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(launch.Refused, match="phase 1"):
+        launch.load_manifest(manifest)
+
+
+def test_the_repeated_name_is_the_one_named(tmp_path: Path) -> None:
+    """The refusal names which session is duplicated, not just the phase - a coordinator
+    editing a long roster needs the row, not a line to go look for."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 2\n"
+        '[[phase.session]]\nname = "uplevel-backend"\nmodel = "fast"\nkickoff = "k"\n'
+        '[[phase.session]]\nname = "uplevel-backend"\nmodel = "fast"\nkickoff = "k"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(launch.Refused, match="uplevel-backend"):
+        launch.load_manifest(manifest)
+
+
+def test_the_same_name_may_reappear_in_different_phases(tmp_path: Path) -> None:
+    """A name is only unique within a phase: the roster reuses uplevel-coordinator and
+    uplevel-ops-b across phases 0 and 1 (the launcher creates each phase's members at its
+    own boundary). A uniqueness check that spanned phases would refuse the real roster."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 0\n"
+        '[[phase.session]]\nname = "shared"\nmodel = "fast"\nkickoff = "k"\n'
+        "[[phase]]\nnumber = 1\n"
+        '[[phase.session]]\nname = "shared"\nmodel = "fast"\nkickoff = "k"\n',
+        encoding="utf-8",
+    )
+    phases = launch.load_manifest(manifest)
+    assert [s.name for s in phases[0]] == ["shared"]
+    assert [s.name for s in phases[1]] == ["shared"]
 
 
 def test_an_unnamed_model_refuses_and_names_the_owners_next_step(tmp_path: Path) -> None:
@@ -640,7 +800,11 @@ def test_up_adds_gpu_to_the_operator_and_no_other_session(
     out = capsys.readouterr().out
 
     lines = [line for line in out.splitlines() if "agent-dgx run" in line]
-    assert len(lines) == 8, out  # the full phase-1 roster, nothing filtered out
+    # derive the expected count from the manifest, not a literal: the roster grows when
+    # the coordinator opens uplevel-heavy-2 (sandboxes.toml announces it), and a hardcoded
+    # 8 would then fail here *and* in test_manifest_declares_the_roster for one edit.
+    expected = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")[1]
+    assert len(lines) == len(expected), out  # every session's line present, nothing filtered
     operator = next(line for line in lines if OPERATOR in line)
     assert operator.split().index("--gpu") == operator.split().index("--split") - 1
     assert operator.endswith(f"--split   (in {tmp_path / 'checkout'})")

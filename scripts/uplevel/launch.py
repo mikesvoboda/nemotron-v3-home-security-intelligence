@@ -221,6 +221,23 @@ def _phases_of(data: Mapping[str, Any], path: Path) -> dict[int, list[Session]]:
         if not sessions:
             raise Refused(f"phase {number} in {path} declares no session")
         phases.setdefault(number, []).extend(sessions)
+    # A hand-edited roster can name one session twice, and the merge above folds both
+    # shapes into one list: two rows in one [[phase]] block, or two blocks with the same
+    # number. `up` cannot honour that - it reads every name's state before any change (the
+    # gpu grant check can only know a create is coming once it knows who is missing), so
+    # both rows read missing and both create: two sandboxes, and for a gpu row two grants
+    # where UR-30 allows one. Refuse as the required-key refusals do. A name may reappear
+    # in a *later* phase - each boundary creates its own members - so this is per phase.
+    for number, rows in phases.items():
+        seen: set[str] = set()
+        for session in rows:
+            if session.name in seen:
+                raise Refused(
+                    f"phase {number} in {path} lists {session.name} twice. A name appears "
+                    f"once per phase. Remove the repeat from {path}; the same name may "
+                    "reappear in a later phase."
+                )
+            seen.add(session.name)
     return phases
 
 
@@ -244,11 +261,26 @@ def _session_row(row: Mapping[str, Any], path: Path, where: str) -> Session:
             f"{label} has `gpu = {gpu!r}`. In {path} the flag is a plain TOML boolean: "
             "`gpu = true` grants the GPU, and saying nothing withholds it."
         )
+    mounts = tuple(str(m) for m in row.get("mount", ()))
+    if gpu:
+        # 30-ops.md §O1.10, as the operator row's comment says: agent-dgx --gpu mounts
+        # /srv/agent-models itself and refuses any mount at or under it. A row that
+        # collides with the library dies inside agent-dgx at create time; refusing the row
+        # here is the launcher's own check, not a guess about agent-dgx's behaviour.
+        for mount in mounts:
+            source = mount.partition(":")[0].rstrip("/")
+            if source == "/srv/agent-models" or source.startswith("/srv/agent-models/"):
+                raise Refused(
+                    f"{label} has `gpu = true` and mounts {mount}, at or under "
+                    "/srv/agent-models, which `agent-dgx --gpu` mounts itself and "
+                    f"refuses any mount at or under (30-ops.md §O1.10). Remove that mount "
+                    f"from {path}."
+                )
     return Session(
         name=str(_required(row, "name", path, label)),
         model=str(_required(row, "model", path, label)),
         kickoff=" ".join(str(_required(row, "kickoff", path, label)).split()),
-        mounts=tuple(str(m) for m in row.get("mount", ())),
+        mounts=mounts,
         gpu=gpu,
     )
 
@@ -407,9 +439,9 @@ def up(host: Host, *, phase: int) -> None:
             f"{', '.join(grant)} would be created with `--gpu`, but this shell has no "
             "AGENT_GPU_RUNNER_URL: that is how agent-gpu's runner - the only thing "
             "`--gpu`'s model library mounts from - reaches the launching shell "
-            "(50-coordination.md). Run this from the shell that has it, or start "
-            f"{grant[0]} by hand, as Phase 1 started it (UR-30). No session in this "
-            "phase was created."
+            "(30-ops.md §O1.10). Run this from the shell that has it, or start "
+            f"{grant[0]} by hand (UR-30: one GPU holder). No session in this phase was "
+            "created."
         )
     _say(f"the agents' commit: {target[:8]} (origin/main), from {host.checkout}")
 
