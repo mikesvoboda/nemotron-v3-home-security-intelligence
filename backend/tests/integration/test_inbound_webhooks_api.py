@@ -514,8 +514,8 @@ async def test_set_mode_any_value_answers_501(client, valid_api_key):
     outside SystemMode). B1.3 keeps InboundModePayload byte-identical and
     mode is a plain str there, so an out-of-vocabulary mode now answers 501
     like everything else — the handler that 422'd it is gone, and the
-    validation belongs to the Phase 4 arming feature (recorded in the PR,
-    not silently dropped)."""
+    validation belongs to the Phase 4 arming feature (recorded in the
+    module docstring, not silently dropped)."""
     for mode in ("home", "away", "night", "disarmed", "invalid_mode", ""):
         response = await client.post(
             "/api/webhooks/inbound/mode",
