@@ -4,7 +4,7 @@ Why a check and not just a sweep: `ai-vlm`'s `profiles: [vlm]` gate meant a plai
 `up` started the whole product except the service that produces a verdict
 (`docs/uplevel/00-audit.md` §3 D5). UR-18 moves it into the default set. When
 this check was written the census it ran against found 261 lines naming the
-retired profile in 73 living files (measured at the RED commit 52fcdd59) — one
+retired profile in 73 living files (measured at the RED commit c8f54179) — one
 PR cannot promise it got them all, so the check keeps the promise instead.
 
 The failure mode this pins is subtler than a stale sentence. Compose does not

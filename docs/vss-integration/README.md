@@ -1,4 +1,4 @@
-<!-- state-of-the-stack as-of=2026-10-08 verified-at=8705fecd -->
+<!-- state-of-the-stack as-of=2026-10-08 verified-at=33bb5dd9 -->
 
 # VSS Integration: State of the Stack
 

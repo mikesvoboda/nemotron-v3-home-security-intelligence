@@ -8464,6 +8464,6 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   profile, and the compose test pins the new shape. ISS-028's plain-`up` half and OD-14's
   plain-`up` branch are delivered (dated notes on both); ISS-056's first bullet and ISS-071's
   profile parenthetical are dated; E131 in doc 16 carries the correction for the frozen docs
-  (15, 18, 21) and the README rows. Verified at `ea866314` + the PR branch: the render of
+  (15, 18, 21) and the README rows. Verified at `066be346` + the PR branch: the render of
   `docker compose -f docker-compose.prod.yml config --services` with no profile flag lists
   `ai-vlm`. The ghcr/publish half of OD-14 and ISS-028 stays open.
