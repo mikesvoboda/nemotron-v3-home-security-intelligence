@@ -122,34 +122,8 @@ CVE-2023-2953
 # Python Package Vulnerabilities - No Fix Available
 # =============================================================================
 
-# CVE-2024-23342 - python-ecdsa Minerva timing attack (REVIEW BY: 2027-05-03)
-# HIGH severity, no fix planned by upstream maintainer (OSV: unfixed at the
-# locked ecdsa 0.19.2, re-verified 2026-09-16)
-# python-ecdsa project considers side-channel attacks out of scope
-# ecdsa is a transitive dependency via python-jose (JWT library)
-# Not exploitable in our context:
-#   1. JWT signing uses HMAC (HS256), not ECDSA in our implementation
-#   2. Timing attack requires local timing measurement capability
-#   3. No ECDH operations or ECDSA signing in production code paths
-CVE-2024-23342
-
-# CVE-2026-85394 - python-jose 3.5.0 algorithm-confusion guard bypassed by DER-encoded public keys (REVIEW BY: 2027-01-06)
-# CRITICAL severity per the advisory; status "affected" with NO fix versions
-# published (re-verified 2026-10-06: OSV lists no fixed release and 3.5.0 is
-# the newest python-jose ever released — the project is dormant upstream).
-# Not exploitable in our context — the forge needs a caller-SUPPLIED key and
-# a permissive algorithms= so an HS256 token can be signed with a public key:
-#   1. all three JWT call sites pin the algorithm explicitly (auth_service.py
-#      :162 and :197 jwt.encode(algorithm=_JWT_ALGORITHM); :217
-#      jwt.decode(..., algorithms=[_JWT_ALGORITHM])) — the exact mitigation
-#      the advisory text names ("when algorithms are not explicitly
-#      restricted")
-#   2. verification uses the symmetric config secret, never a key material an
-#      attacker can hand in, so the DER-public-key-as-HMAC-secret path cannot
-#      be reached
-# Re-check at the review date; if upstream never ships, replacing python-jose
-# (e.g. pyjwt) is an owner-sized call, not a lockfile bump.
-CVE-2026-85394
+# (no entries: the ecdsa and python-jose advisories that lived here left with
+# python-jose, replaced by PyJWT on 2026-10-08; see the log below)
 
 # =============================================================================
 # Python Package Vulnerabilities - Accepted Risk (fix exists but is
@@ -159,7 +133,10 @@ CVE-2026-85394
 # (no entries: the one cryptography advisory that lived here was fixed by the 2026-10-03 upgrade; see the log below)
 
 # =============================================================================
-# REMOVED 2026-09-16 / 2026-10-03 / 2026-10-04 reviews.
+# REMOVED 2026-09-16 / 2026-10-03 / 2026-10-04 reviews, and 2026-10-08.
+# 2026-10-08 (B1.5: python-jose replaced by PyJWT; neither it nor ecdsa is installed):
+#   CVE-2024-23342                                    (ecdsa, transitive via python-jose)
+#   CVE-2026-85394                                    (python-jose 3.5.0, no patched release)
 # 2026-09-16 + 2026-10-03 (fixes present in the LOCKED versions — OSV-clean):
 #   CVE-2024-56326 / CVE-2024-22195 / CVE-2025-27516  (jinja2 fixed in shipped 3.1.6)
 #   GHSA-58pv-8j8x-9vj2 / CVE-2026-23949              (setuptools 84.0.0 vendors jaraco.context 6.1.0)

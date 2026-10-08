@@ -16,9 +16,9 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
-from jose import JWTError, jwt
 
 # Module-level password hasher with secure defaults
 # Uses Argon2id variant (hybrid of Argon2i and Argon2d)
@@ -218,7 +218,7 @@ def decode_token(token: str) -> dict[str, Any]:
         return payload
     except jwt.ExpiredSignatureError as e:
         raise TokenExpiredError("Token has expired") from e
-    except JWTError as e:
+    except jwt.PyJWTError as e:
         raise InvalidTokenError(f"Invalid token: {e}") from e
 
 
