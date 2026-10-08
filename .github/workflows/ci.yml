@@ -38,6 +38,10 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
+          # Without this the default quantifier ('some') OR-s a '!' pattern in, and
+          # '!frontend/**/*.md' matches every file outside frontend/: frontend was
+          # true on every PR, so docs- and backend-only PRs ran all 18 frontend jobs.
+          predicate-quantifier: 'some-with-excludes'
           filters: |
             backend:
               - 'backend/**'
