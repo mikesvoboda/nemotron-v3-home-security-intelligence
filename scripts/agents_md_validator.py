@@ -70,7 +70,12 @@ class ConfigError(RuntimeError):
 # fire on every pre-existing mention) nor unchecked (would make deleting the
 # key the cheapest way to disable the gate).
 RETIRED_NAMES: tuple[str, ...] = (
-    "florence", "nemotron", "enrichment", "xclip", "pose", "demographics",
+    "florence",
+    "nemotron",
+    "enrichment",
+    "xclip",
+    "pose",
+    "demographics",
 )
 # Whole-word, case-insensitive (over content.lower()). Substring "pose" is
 # 1457 mentions across the tree (purpose/compose/PoseResult — live English and
@@ -175,9 +180,7 @@ def load_config(config_path: Path | None, project_root: Path) -> ValidatorConfig
     if data is None:
         data = {}
     if not isinstance(data, dict):
-        raise ConfigError(
-            f"{config_path} loaded as {type(data).__name__}, not a mapping"
-        )
+        raise ConfigError(f"{config_path} loaded as {type(data).__name__}, not a mapping")
 
     config = ValidatorConfig()
     config.exclude_directories = list(data.get("exclude_directories", []))
@@ -441,9 +444,7 @@ def extract_file_references(
     return references
 
 
-def extract_markdown_links(
-    content: str, mask: list[bool]
-) -> list[tuple[int, str, str]]:
+def extract_markdown_links(content: str, mask: list[bool]) -> list[tuple[int, str, str]]:
     """Extract internal markdown links from AGENTS.md content.
 
     Looks for:
@@ -715,14 +716,10 @@ def validate_all(project_root: Path, config: ValidatorConfig) -> Scan:
         bare_ignore_comments.extend((relative, ref) for ref in bare)
 
         issues.extend(
-            validate_file_references(
-                agents_md_path, content, project_root, config, mask, tracked
-            )
+            validate_file_references(agents_md_path, content, project_root, config, mask, tracked)
         )
         issues.extend(
-            validate_markdown_links(
-                agents_md_path, content, project_root, config, mask, tracked
-            )
+            validate_markdown_links(agents_md_path, content, project_root, config, mask, tracked)
         )
 
     retired_counts = count_retired_names(agents_md_files)

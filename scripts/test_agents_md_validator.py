@@ -58,19 +58,39 @@ RETIRED_NAMES = ("florence", "nemotron", "enrichment", "xclip", "pose", "demogra
 # committed sets here: any change must edit this constant in the same,
 # reviewed PR.
 EXPECTED_EXCLUDE_DIRECTORIES = {
-    "__pycache__", "node_modules", ".git", ".venv", ".pytest_cache", "coverage",
-    "dist", "build", ".mypy_cache", ".ruff_cache", "mutants", "*.egg-info",
-    ".tox", ".nox",
+    "__pycache__",
+    "node_modules",
+    ".git",
+    ".venv",
+    ".pytest_cache",
+    "coverage",
+    "dist",
+    "build",
+    ".mypy_cache",
+    ".ruff_cache",
+    "mutants",
+    "*.egg-info",
+    ".tox",
+    ".nox",
     # W1.1: mkdocs output is gitignored but not rglob-exempt — one local
     # `mkdocs build` otherwise reddens the gate for reasons no PR caused.
     # Measured effect on the committed baselines: exactly zero.
     "site",
 }
 EXPECTED_EXCLUDE_REFERENCE_PATTERNS = {
-    "example\\.py", "your_file\\.py", "\\{.*\\}", "<.*>", "\\$\\{.*\\}",
-    "\\$[A-Z_]+", "report\\.json$", "-report\\.json$",
-    "yolo26-vs-yolo26\\.md$", "_test\\.(py|tsx?)$", "test_.*\\.py$",
-    "\\.test\\.tsx$", "\\.msw\\.test\\.tsx$",
+    "example\\.py",
+    "your_file\\.py",
+    "\\{.*\\}",
+    "<.*>",
+    "\\$\\{.*\\}",
+    "\\$[A-Z_]+",
+    "report\\.json$",
+    "-report\\.json$",
+    "yolo26-vs-yolo26\\.md$",
+    "_test\\.(py|tsx?)$",
+    "test_.*\\.py$",
+    "\\.test\\.tsx$",
+    "\\.msw\\.test\\.tsx$",
 }
 
 # The pair the package's own first CI run would otherwise lose. Under ANCHORED
@@ -132,7 +152,7 @@ def write_config(
     baseline=_SENTINEL,
 ) -> Path:
     config = {
-        "exclude_directories": list(COMMITTED_CONFIG["exclude_directories"]) + ["site"],
+        "exclude_directories": [*COMMITTED_CONFIG["exclude_directories"], "site"],
         "no_agents_md_required": [],
         "code_extensions": list(COMMITTED_CONFIG["code_extensions"]),
         "min_code_files": COMMITTED_CONFIG["min_code_files"],
@@ -179,9 +199,7 @@ def report_of(root: Path) -> dict:
 
 def dead_pairs(report: dict) -> set[tuple[str, str]]:
     return {
-        (i["agents_md"], i["reference"])
-        for i in report["issues"]
-        if i["type"] == "stale_reference"
+        (i["agents_md"], i["reference"]) for i in report["issues"] if i["type"] == "stale_reference"
     }
 
 
@@ -196,9 +214,7 @@ def test_green_fixture_is_green(tmp_path):
     root = build(tmp_path)
     r = run_validator(root)
     assert r.returncode == 0, r.stderr
-    assert dead_pairs(report_of(root)) == {
-        (a["agents_md"], a["reference"]) for a in BASE_ALLOWLIST
-    }
+    assert dead_pairs(report_of(root)) == {(a["agents_md"], a["reference"]) for a in BASE_ALLOWLIST}
 
 
 def test_new_dead_reference_fails(tmp_path):
@@ -469,7 +485,9 @@ def test_report_shape_is_pinned(tmp_path):
     report = report_of(root)
     assert set(report["summary"]) == {"stale_references", "missing_agents_md", "dead_links"}
     assert {i["type"] for i in report["issues"]} <= {
-        "stale_reference", "missing_agents_md", "dead_link",
+        "stale_reference",
+        "missing_agents_md",
+        "dead_link",
     }
     ratchet = report["ratchet"]
     assert set(ratchet["counts"]) == set(RETIRED_NAMES)
