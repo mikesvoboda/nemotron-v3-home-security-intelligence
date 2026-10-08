@@ -136,14 +136,14 @@ def _get_compose_image(config: DeployConfig, service: str) -> str | None:
         return derived
     # Fallback: find by service name pattern (handles docker.io/library/ prefix)
     result = subprocess.run(
-        [
+        [  # noqa: S607
             "podman",
             "images",
             "--format",
             "{{.Repository}}:{{.Tag}}",
             "--filter",
             f"reference=*{service}*",
-        ],  # noqa: S607
+        ],
         capture_output=True,
         text=True,
         check=False,
