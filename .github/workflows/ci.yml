@@ -345,11 +345,24 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Install hadolint (Dockerfile hook, system language)
-        # Same binary pin the config's comment names (2.12.0 era advisory
-        # threshold; --failure-threshold error is in the hook's entry).
-        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
-        with:
-          hadolint-release: v2.12.0
+        # language: system — the hook needs hadolint ON PATH. First attempt
+        # (hadolint-action v3.3.0) was an executor misuse caught by CI at run
+        # 37807695759: it docker-runs its OWN lint of one dockerfile input
+        # (failed: "hadolint: Dockerfile: does not exist"), and v3.3.0 has no
+        # hadolint-release input at all. So: fetch the official static binary,
+        # pinned by tag AND verified against the sha256 the GitHub release API
+        # publishes as that asset's digest (verified against downloaded bytes
+        # in the sandbox, 2026-10-08). v2.15.1 is the version the config's own
+        # comment adjudicated: its extra info/warning advisories stay
+        # non-blocking under the hook's --failure-threshold error.
+        run: |
+          mkdir -p "$RUNNER_TEMP/hadolint-bin"
+          curl -fsSL -o "$RUNNER_TEMP/hadolint-bin/hadolint" \
+            https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64
+          echo "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507  $RUNNER_TEMP/hadolint-bin/hadolint" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/hadolint-bin/hadolint"
+          echo "$RUNNER_TEMP/hadolint-bin" >> "$GITHUB_PATH"
+          hadolint --version
 
       - name: Install hook runners
         # pre-commit itself is the runner (not installed anywhere in CI today);
