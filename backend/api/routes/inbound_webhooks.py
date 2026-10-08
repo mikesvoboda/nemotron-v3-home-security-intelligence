@@ -62,7 +62,9 @@ NOT_IMPLEMENTED_DETAIL = (
     "request is designed after Phase 3. This endpoint takes no action."
 )
 
-_UNIMPLEMENTED_RESPONSES = {
+#: Annotated explicitly: a bare module-level dict infers ``dict[int, dict[str, str]]``,
+#: which mypy rejects against ``router.post(responses=…)``'s ``dict[int | str, …]``.
+_UNIMPLEMENTED_RESPONSES: dict[int | str, dict[str, Any]] = {
     501: {"description": "Not implemented — UR-12; this endpoint takes no action"},
     401: {"description": "Authentication failed"},
     422: {"description": "Invalid payload"},
