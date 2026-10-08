@@ -1901,7 +1901,7 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
     explicit at 0 and is now a plain re-send, and the comments that said 'only the temperature
     changes' on retry were corrected.
   - Test [V: I ran `uv run pytest backend/tests/unit/services/test_vlm_client.py -k
-"greedily or retries_once_at_temperature_zero"`: 2 passed]: `test_assess_samples_greedily` (new)
+    "greedily or retries_once_at_temperature_zero"`: 2 passed]: `test_assess_samples_greedily` (new)
     pins the constant, the wire value and the absence of `top_p`, `top_k`, `min_p` and `seed`;
     `test_transport_error_retries_once_at_temperature_zero` now asserts the first attempt is also 0
     (it asserted the opposite). The commit message records red-first (both fail with the constant at
@@ -2271,7 +2271,7 @@ What the model is asked, what it is shown, and how its score maps to the levels 
     TAR-Bench after SFT) are other tasks. Its section 5 critic adds that the plan never says the
     corpus itself may cap S3 [V: read; the external figures are [A], not fetched here]
   - Nothing in the repo trains or serves a fine-tuned VLM [V: `git grep -n -i -E
-'fine-?tun|\blora\b|qlora|distill'` over `*.py`, `*.toml`, `*.yml`, `*.yaml`, `*.sh`,
+    'fine-?tun|\blora\b|qlora|distill'` over `*.py`, `*.toml`, `*.yml`, `*.yaml`, `*.sh`,
     Dockerfiles, `models.yml` and Makefiles, excluding `archive/` and `data/`, at `2a3f0883`: the
     hits are ComfyUI generator LoRAs and distilled generators (`synthbench/generate/comfy/graphs.py`,
     `synthbench/spikes/p1_bakeoff/`, tests under `backend/tests/unit/synthbench/`), 'fine-tuned' in
@@ -4695,7 +4695,7 @@ p3-acceptance.md` still has two owner-fill blanks (headings 'Stop-and-ask questi
     reads 158 ready and 71 failed **[V: read]**, so it is already behind the index; a row has to
     print the command and the time its counts were taken
   - Not covered elsewhere in this register **[V: grep of `17-action-plan.md` for `E36`, `corpus
-build`, `clip round`, `owner audit`, `ledger row`]**: only the Step 3 update under the critical
+    build`, `clip round`, `owner audit`, `ledger row`]**: only the Step 3 update under the critical
     path (it says the corpus build and the H3 clip rounds still have no ledger row) names the gap,
     as prose. ISS-080 asks for the P5a row; ISS-038 and ISS-044 design the clip evaluation and a
     blind audit and do not ask for ledger rows; ISS-063 asks the owner to record the clip-use ruling
@@ -6571,7 +6571,7 @@ cryptography` then resolves 49.0.0 to 50.0.2 against that commit's lock files an
 - **Evidence** (as filed at `d8482861`; the closure follows the 'Tracked as' line)
   - `tools/nemo_data_designer/` holds 10 Python files and 5,842 lines (14 tracked files with its
     `AGENTS.md`, `README.md`, `multimodal/AGENTS.md` and a `notebooks/.gitkeep`) [V: `git ls-tree -r
---name-only d8482861 tools/nemo_data_designer | wc -l` prints 14, and `wc -l` over its `.py`
+    --name-only d8482861 tools/nemo_data_designer | wc -l` prints 14, and `wc -l` over its `.py`
     files in `git show d8482861:<path>` sums to 5,842; the index no longer lists them since
     `efa1b586`]. It generated the data the deleted Nemotron harness consumed; `d8482861` left it
     alone on purpose ('Left alone on purpose: ... tools/nemo_data_designer and the nemo extra', its
@@ -6586,7 +6586,7 @@ cryptography` then resolves 49.0.0 to 50.0.2 against that commit's lock files an
     `pytest.importorskip("pandas", ...)` and call pandas an 'optional nemo-group dep' [V]
   - No non-test module under `backend/`, `synthbench/`, `scripts/`, `ai/` or `frontend/` imports
     `pandas`, `pyarrow` or `data_designer`, so the VLM path does not use the tool [V: `git grep -n
--E '^\s*(import|from) (pandas|pyarrow|data_designer)'` over those trees, excluding
+    -E '^\s*(import|from) (pandas|pyarrow|data_designer)'` over those trees, excluding
     `backend/tests` and `tools`, prints nothing at `d8482861`]
   - The `nemo` extra (`data-designer>=0.9.2`, `pandas`, `pyarrow`, `numpy`) exists for it
     (`pyproject.toml:153`, and again as a dependency group at `:296`). At `5c605e1d` its one CI
@@ -6607,8 +6607,8 @@ cryptography` then resolves 49.0.0 to 50.0.2 against that commit's lock files an
     `generate_scenarios.py`), `docs/developer/nemo-data-designer.md`; `data/synthetic` holds 1,283
     tracked files of `expected_labels.json` sets and is read in that shape by `load_synthetic_items`
     (`backend/evaluation/eval_store.py:265`), which is independent of the tool [V: `git ls-tree -r
---name-only d8482861 data/synthetic | wc -l` prints 1,283, and so does `git ls-files
-data/synthetic` after `efa1b586`]
+    --name-only d8482861 data/synthetic | wc -l` prints 1,283, and so does `git ls-files
+    data/synthetic` after `efa1b586`]
 - **Why it matters.** A 5,842-line generator, two integration tests and a dependency extra remain
   for a harness that no longer exists, and the extra is what the ledger records as blocking the
   security-update path for `cryptography`. So the decision is also dependency maintenance: it is
@@ -7260,7 +7260,7 @@ Three more commits landed after `d8482861`, the same day, on `docs/synthbench-h3
   `decide_notification` and broadcast the answer as `WebSocketEventData.notify` (9 new analyzer
   tests and a schema test file). The P0 stays `open`: nothing consumes `notify`, and `evaluate_event`,
   `create_alerts_for_event` and `deliver_alert` still have no production caller [V: grep; `git show
---stat ab3bd002`]. The commit message records an owner decision, 'analyzer-only first' [A]. Notes
+  --stat ab3bd002`]. The commit message records an owner decision, 'analyzer-only first' [A]. Notes
   added under ISS-001, OD-1 and Step 7, and the anchor shifts are in the header. The other M1 issues
   (ISS-018, ISS-019, ISS-020, ISS-041, ISS-047, ISS-048, ISS-049) are not re-read against the commit
   in this pass [?]; ISS-019's 'NULL-score notify path ... has no input producer' and ISS-018's
