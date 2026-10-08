@@ -83,7 +83,7 @@ never take — `arm_zones` replies "Arm command for N zones queued" with nothing
 
 ### B1.4 Verdict-engine status (UR-18, backend part)
 
-**Files:** the readiness route (`backend/api/routes/system.py:1453`), the VLM client or breaker
+**Files:** the readiness route (`backend/api/routes/system.py:1455`), the VLM client or breaker
 that owns engine state, the WebSocket system-event schema, tests. Unblocks `F1.2`.
 
 Today an unreachable `ai-vlm` turns every event into `verification_failed` while the platform
