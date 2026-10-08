@@ -328,11 +328,18 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
-      - name: Set up Python 3.12 (semgrep hook's language_version)
-        # The semgrep hook pins language_version: python3.12 (protobuf has no
-        # 3.14 wheel yet — the config's own note). pre-commit discovers
-        # uv-managed pythons on PATH; uv python install symlinks them there.
-        run: uv python install 3.12
+      - name: Set up Python 3.12 + 3.14 (the config needs BOTH interpreters)
+        # 3.14: the config's default_language_version (config lines 31-38 —
+        # hook venvs must track the project runtime or mypy false-reds on
+        # PEP 758 syntax). 3.12: the semgrep hook's language_version pin
+        # (protobuf has no 3.14 wheel yet — the config's own note).
+        # pre-commit discovers interpreters on PATH; uv python install
+        # symlinks them into ~/.local/bin, on PATH on hosted runners.
+        # A missing 3.14 kills every python-language env build (virtualenv
+        # "failed to find interpreter", pre-commit exit 3) — caught by
+        # self-review before CI could; the self-test's exit-code case below
+        # is what makes such a crash loud instead of a false green.
+        run: uv python install 3.12 3.14
 
       - name: Set up Node.js (prettier / eslint / tsc hooks)
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -395,16 +402,22 @@ jobs:
               secret = "webhook-secret"
               assert secret
           PY
-          STATUS=pass
-          if pre-commit run --files backend/tests/unit/test_o112_hooks_selftest.py; then
-            STATUS=fail
-          fi
+          rc=0
+          pre-commit run --files backend/tests/unit/test_o112_hooks_selftest.py || rc=$?
           rm -f backend/tests/unit/test_o112_hooks_selftest.py
-          if [ "$STATUS" = "fail" ]; then
-            echo "::error::O1.12 self-test: the hooks PASSED a #6888-class fixture — this job is hollow"
-            exit 1
-          fi
-          echo "self-test OK: the hooks fail on the B1.3/#6888 fixture class"
+          # Discriminate the exit code — a CRASH is not detection:
+          #   1  hooks FAILED the fixture  -> the invariant this job exists for
+          #   0  hooks PASSED the fixture  -> job is hollow (misinstall/drift)
+          #   >=2 pre-commit itself died   -> e.g. missing interpreter, env
+          #       build failed; claiming "self-test OK" here would be the
+          #       false green WP0.6 doctrine exists to kill
+          case "$rc" in
+            1) echo "self-test OK: the hooks fail on the B1.3/#6888 fixture class" ;;
+            0) echo "::error::O1.12 self-test: the hooks PASSED a #6888-class fixture — this job is hollow"
+               exit 1 ;;
+            *) echo "::error::O1.12 self-test: pre-commit exited $rc — a crash is not proof of detection"
+               exit 1 ;;
+          esac
 
       - name: Hooks over the PR's changed files
         # The push-delta form: base..head, exactly what a push's pre-commit
