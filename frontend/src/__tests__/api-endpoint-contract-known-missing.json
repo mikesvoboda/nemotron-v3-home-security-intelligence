@@ -1,0 +1,129 @@
+{
+  "$comment": [
+    "Requests the client makes that the backend does not serve — the D2 defect class",
+    "(docs/uplevel/00-audit.md §3). Each entry is an accepted gap, not a fix: the gate",
+    "in api-endpoint-contract.test.ts fails on any mismatch that is NOT listed here,",
+    "and also fails when an entry below no longer has a client call site, so this list",
+    "cannot quietly grow or go stale. Every path was checked against backend route",
+    "source, not only against docs/openapi.json. Each `next` names where the gap is",
+    "ruled on or repaired: the F2.2 feature inventory row (docs/reference/feature-",
+    "inventory.md) or the owning lane's package.",
+    "",
+    "Two entry shapes, matching the two ways D2 shows up. An entry with only `path`",
+    "says the route is absent and excuses no verb question; an entry with `method`",
+    "says the path IS served but not with that verb, so the client would get 405",
+    "where it expects data. The two never cross-match: a path entry cannot shelter a",
+    "new wrong-verb call at the same path, and a method entry cannot shelter a missing",
+    "path. A `method` entry goes stale when the call with that verb is fixed, even if",
+    "the path is still called other ways."
+  ],
+  "entries": [
+    {
+      "path": "/api/jobs/{id}/retry",
+      "calledFrom": "src/services/api.ts:4141",
+      "cited": "00-audit.md §3 D2",
+      "backend": "jobs router serves /api/jobs/{job_id}/abort; there is no retry route",
+      "next": "F2.2 inventory row for job retry"
+    },
+    {
+      "path": "/api/events/{id}/entity-matches",
+      "calledFrom": "src/services/api.ts:5895",
+      "cited": "00-audit.md §3 D2",
+      "backend": "no entity-matches route under /api/events",
+      "next": "F2.2 inventory row for event entity matches"
+    },
+    {
+      "path": "/api/debug/profile/download",
+      "calledFrom": "src/services/api.ts:7669",
+      "cited": "00-audit.md §3 D2",
+      "backend": "debug router serves /api/debug/profile/start|stop|stats only",
+      "next": "F2.2 inventory row for profiler controls"
+    },
+    {
+      "path": "/api/debug/profile",
+      "calledFrom": "src/services/api.ts:7605",
+      "cited": "found by F1.1's scan; D2 listed only the /download sibling",
+      "backend": "debug router serves /api/debug/profile/stats, not the bare path",
+      "next": "F2.2 inventory row for profiler controls"
+    },
+    {
+      "path": "/api/household/members/{id}/detections",
+      "calledFrom": "src/hooks/useHouseholdApi.ts:723",
+      "cited": "00-audit.md §3 D2",
+      "backend": "household member router serves /embeddings, /link-person; no detections",
+      "next": "F2.2 inventory row for household member detections"
+    },
+    {
+      "path": "/api/household/members/{id}/detections/{detectionId}",
+      "calledFrom": "src/hooks/useHouseholdApi.ts:653",
+      "cited": "found by F1.1's scan; same call family as the D2 entry above",
+      "backend": "no detections routes under /api/household/members",
+      "next": "F2.2 inventory row for household member detections"
+    },
+    {
+      "path": "/api/zones/trust-violations",
+      "calledFrom": "src/hooks/useZoneAlerts.ts:150",
+      "cited": "found by F1.1's scan; not in D2's list",
+      "backend": "no trust-violations route anywhere in backend/ (grep, not just the spec)",
+      "next": "F2.2 inventory row for the zone trust-violations panel"
+    },
+    {
+      "path": "/api/zones/trust-violations/{id}/acknowledge",
+      "calledFrom": "src/hooks/useZoneAlerts.ts:183",
+      "cited": "found by F1.1's scan; not in D2's list",
+      "backend": "the analogous route is /api/zones/anomalies/{anomaly_id}/acknowledge",
+      "next": "F2.2 inventory row for the zone trust-violations panel"
+    },
+    {
+      "path": "/api/system/detectors/active",
+      "calledFrom": "src/services/detectorApi.ts:163",
+      "cited": "found by F1.1's scan; not in D2's list",
+      "backend": "detector.router is mounted with no prefix (backend/main.py:1601), so the route is /system/detectors/active — the client's /api prefix is not served",
+      "next": "owner: mount detector.router under /api or drop the prefix client-side (F2.2 inventory row for detector switching)"
+    },
+    {
+      "path": "/api/system/detectors/{detector_type}",
+      "calledFrom": "src/services/detectorApi.ts:196",
+      "cited": "found by F1.1's scan; not in D2's list",
+      "backend": "same missing /api mount as /api/system/detectors/active",
+      "next": "owner: same ruling as /api/system/detectors/active"
+    },
+    {
+      "path": "/api/system/detectors/{detector_type}/health",
+      "calledFrom": "src/services/detectorApi.ts:214",
+      "cited": "found by F1.1's scan; not in D2's list",
+      "backend": "same missing /api mount as /api/system/detectors/active",
+      "next": "owner: same ruling as /api/system/detectors/active"
+    },
+    {
+      "path": "/api/plate-reads/stats",
+      "calledFrom": "src/services/plateReadsApi.ts:151",
+      "cited": "found by F1.1's scan; not in D2's list",
+      "backend": "plate_reads.py:89 serves /api/plate-reads/statistics",
+      "next": "one-word client fix; F2.2 inventory row decides whether F1.1's successor applies it"
+    },
+    {
+      "path": "/api/scheduled-reports/{id}/trigger",
+      "calledFrom": "src/services/scheduledReportsApi.ts:262",
+      "cited": "found by F1.1's scan; not in D2's list",
+      "backend": "scheduled_reports.py:378 serves /{report_id}/run (summary: \"Manually trigger a report\")",
+      "next": "one-word client fix; F2.2 inventory row decides whether F1.1's successor applies it"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prompts/history/{model}",
+      "calledFrom": "src/services/api.ts:5633 (fetchModelHistory)",
+      "cited": "found by F1.1's scan once it read verbs as well as paths; not in D2's list",
+      "backend": "prompt_management.py (prefix /api/prompts) declares POST /history/{version_id} and GET+PUT /{model}; there is no GET on a two-segment /history/… path, so the request lands on the POST route's path and answers 405. The bare GET /api/prompts/history exists and takes no model.",
+      "next": "owner: prompt lane. src/services/promptManagementApi.ts calls /api/prompt-management/history/{model} for the same panel, so the two spellings need one ruling — decide which router owns per-model history, then fix the other caller. F2.2 inventory row for prompt version history."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/debug/recordings",
+      "calledFrom": "src/services/api.ts:7420 (clearAllRecordings)",
+      "cited": "found by F1.1's scan once it read verbs as well as paths; not in D2's list",
+      "backend": "debug.py:1405 serves GET /api/debug/recordings; the only DELETE is debug.py:1651 /api/debug/recordings/{recording_id}, which removes one recording. There is no bulk-delete route, so \"clear all\" answers 405.",
+      "next": "owner: debug/recordings lane. Either add the bulk DELETE or make clearAllRecordings delete per recording (it returns deleted_count, which suggests the bulk route was intended). F2.2 inventory row for recording cleanup."
+    }
+  ]
+}
