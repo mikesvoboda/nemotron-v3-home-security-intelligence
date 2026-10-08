@@ -152,12 +152,51 @@ creates each agent with `agent-dgx run <session> --agent claude --endpoint dgx -
 `uplevel-heavy`, the arguments that select the strongest model), then pastes its kickoff line:
 "Follow the kickoff prompt in <the roster's file>", plus the cell sentence for a split lane.
 
+Then the owner arms the agent's tick (below, "The tick").
+
 1. Phase 0: the owner starts `uplevel-coordinator` and `uplevel-ops-b`.
 2. The coordinator creates the labels and the pinned "Uplevel daily batch" issue, and assigns
    `O0.1` to ops cell B.
 3. Phase 1: the owner starts the rest of the roster, without waiting for `O0.1`.
 4. `uplevel-ops-b` builds `O0.1` first in its queue. From the Phase 2 boundary on, the owner runs
    the launcher instead of starting agents by hand.
+
+## The tick (UR-36)
+
+Agents act only when prompted, so each one runs on a cadence. After pasting an agent's kickoff line,
+the owner arms its tick with Claude Code's `/loop`. The tick's prompt re-runs verbatim on every
+tick, fires only between turns (a busy agent gets it once, when its turn ends, and missed ticks do
+not pile up), and points here, so an edit to this section reaches every agent at its next tick.
+
+| agent                 | arm with                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------- |
+| coordinator           | `/loop 5m Run the coordinator tick in docs/uplevel/50-coordination.md, "The tick".` |
+| lane agents and heavy | `/loop 15m Run the agent tick in docs/uplevel/50-coordination.md, "The tick".`      |
+| operator              | `/loop 30m Run the operator tick in docs/uplevel/50-coordination.md, "The tick".`   |
+
+Every tick starts with `git fetch origin` and reads this section from `origin/main`
+(`git show origin/main:docs/uplevel/50-coordination.md`), so a change here needs no rebase.
+
+**The agent tick,** in order:
+
+1. Reviews first: clear the PRs labelled with your review label (UR-32). Heavy has none.
+2. Your own open PRs: read the new comments and reviews (UR-35), confirm CI is green at the head
+   (UR-34), fix what is red, answer what is requested, and rebase what conflicts with `main`.
+3. Continue your package, or take the next one as your kickoff prompt says.
+4. If none of these has work, say so in one line and end the turn.
+
+**The coordinator tick:** rebuild state from open PRs, labels and the batch issue; read the new
+comments on every open programme PR and on the batch issue; route what needs routing; label ready
+PRs for review; merge what meets the merge rule, one at a time; post the daily batch when its time
+comes; otherwise say so in one line and end the turn.
+
+**The operator tick:** take the oldest README row on `main` that says `awaiting real tier` and run it
+(`operator.md`); otherwise say so in one line and end the turn.
+
+**Keeping ticks alive.** A recurring `/loop` expires seven days after it is armed, and a restarted or
+resumed session drops it. The owner re-arms each tick weekly, and after a restart or a `/clear`:
+first ask the agent to list its scheduled tasks, and arm a new tick only if none is listed, so ticks
+never run twice.
 
 ## Claiming a package
 
