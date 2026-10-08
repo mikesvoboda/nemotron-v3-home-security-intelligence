@@ -257,6 +257,36 @@ in the roster, so the launcher creates it from the Phase 2 boundary on.
 **Done when:** the tests pass, including one that runs `up --phase 1 --dry-run` against a fake host
 and finds `--gpu` on `uplevel-operator`'s `agent-dgx run` line and on no other.
 
+### O1.11 Monitoring behind the gate (UR-33)
+
+**Depends on:** `B1.5`, `O1.6`.
+
+**Files:** the `grafana` service's environment in `docker-compose.prod.yml`, `monitoring/prometheus.yml`,
+`monitoring/alertmanager.yml`, the Grafana datasource provisioning under `monitoring/grafana/`;
+`frontend/nginx.conf` as a cross-lane part.
+
+With `EXPOSE_LAN=true`, `B1.5` refuses every unauthenticated request, monitoring included (UR-33).
+The UI's own calls to `/api/metrics` and `/api/system/*` carry its session cookie and keep working;
+the callers without a session go blank: Prometheus (`monitoring/prometheus.yml:62` scrapes
+`/api/metrics`), Alertmanager's webhook, and Grafana's Backend-API datasource. And `/grafana/` is
+published with anonymous **Admin** today (`GF_AUTH_ANONYMOUS_ENABLED=true`,
+`GF_AUTH_ANONYMOUS_ORG_ROLE=Admin`), which exposure would hand to the LAN.
+
+- [ ] Write the failing tests first, on a stack with `EXPOSE_LAN=true`: Prometheus's backend
+      targets are up; Alertmanager's webhook reaches the backend; `/grafana/` without an app
+      session is refused, and with one it is served.
+- [ ] Give each machine caller a credential in the form `B1.5` chose, read from the env file and
+      never committed.
+- [ ] `/grafana/` when exposed: no anonymous access. **DECIDE** between nginx checking the app's
+      session (`auth_request` to the backend) with Grafana's auth proxy — one login, and the UI's
+      three embedded dashboards (Analytics, Video Analytics, Tracing) keep working — and Grafana's
+      own login, which asks again inside each embed. Recommendation: the first.
+- [ ] Leave the default (`EXPOSE_LAN` unset) unchanged.
+
+**Done when:** on a running stack with `EXPOSE_LAN=true`, Prometheus shows the backend targets up,
+the three embedded dashboards render after one login, and `/grafana/` without a session is
+refused.
+
 ---
 
 ## Phase 2 — Feature truth
