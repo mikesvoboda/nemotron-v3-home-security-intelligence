@@ -11,8 +11,9 @@ providing browser-based authentication for the web UI.
 import hashlib
 import hmac
 from collections.abc import Awaitable, Callable
+from typing import Annotated
 
-from fastapi import Request, Response, WebSocket, status
+from fastapi import Header, HTTPException, Request, Response, WebSocket, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
@@ -72,6 +73,49 @@ def _validate_key_hash_constant_time(key_hash: str, valid_hashes: set[str]) -> b
         True if the key hash matches any valid hash, False otherwise
     """
     return any(hmac.compare_digest(key_hash, valid_hash) for valid_hash in valid_hashes)
+
+
+def require_api_key(
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+) -> str:
+    """Validate an API key against ``settings.api_keys``, unconditionally.
+
+    The shared dependency the inbound-webhook routes use (B1.3, D3, UR-12).
+    Unlike the two older copies in ``routes/dlq.py`` and ``routes/system.py``
+    this one does **not** honour ``settings.api_key_enabled``: those two
+    return early when the flag is off, and the shipped default is off
+    (``config.py`` ``api_key_enabled=False``). A webhook dependency with the
+    same branch would let every caller through unauthenticated — the exact
+    hole D3 records — so this validates fail-closed: with no keys
+    configured, every request is refused.
+
+    Comparison is by SHA-256 digest with ``hmac.compare_digest``, reusing the
+    module's helpers; the two older copies compare digests with ``in``, which
+    leaks timing (OWASP A07:2021).
+
+    Args:
+        x_api_key: API key from the ``X-API-Key`` header.
+
+    Returns:
+        The validated key.
+
+    Raises:
+        HTTPException: 401 if the header is absent, or if the key is not in
+            ``settings.api_keys``.
+    """
+    if not x_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing X-API-Key header",
+        )
+
+    if not _validate_key_hash_constant_time(_hash_key(x_api_key), _get_valid_key_hashes()):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
+
+    return x_api_key
 
 
 async def validate_websocket_api_key(websocket: WebSocket) -> bool:

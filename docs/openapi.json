@@ -22187,45 +22187,6 @@
         "title": "InboundModePayload",
         "type": "object"
       },
-      "InboundWebhookResponse": {
-        "description": "Standard response for inbound webhooks.",
-        "properties": {
-          "message": {
-            "description": "Status message.",
-            "title": "Message",
-            "type": "string"
-          },
-          "request_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Request tracking ID.",
-            "title": "Request Id"
-          },
-          "status": {
-            "description": "Request status.",
-            "title": "Status",
-            "type": "string"
-          },
-          "timestamp": {
-            "description": "Processing timestamp.",
-            "title": "Timestamp",
-            "type": "string"
-          }
-        },
-        "required": [
-          "status",
-          "message",
-          "timestamp"
-        ],
-        "title": "InboundWebhookResponse",
-        "type": "object"
-      },
       "InferenceMetrics": {
         "description": "AI inference latency and throughput metrics.",
         "example": {
@@ -66623,7 +66584,7 @@
     },
     "/api/webhooks/inbound/alert": {
       "post": {
-        "description": "Create an alert from an external webhook.\n\nThis endpoint allows external systems to create alerts in HSI.\n\nArgs:\n    payload: Alert payload with source, message, and severity.\n    request: FastAPI request object.\n    background_tasks: For async processing.\n    db: Database session.\n    api_key: Validated API key.\n\nReturns:\n    InboundWebhookResponse with status.",
+        "description": "Not implemented (UR-12): external alert ingestion takes no action.\n\nAccepts ``InboundAlertPayload`` and answers 501. A malformed payload\nstill 422s (the schema is live); auth failures 401 first.",
         "operationId": "inbound-webhooks_create_alert",
         "parameters": [
           {
@@ -66654,24 +66615,19 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InboundWebhookResponse"
-                }
-              }
-            },
-            "description": "Alert created successfully"
-          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
             "description": "Invalid payload"
           },
-          "429": {
-            "description": "Rate limit exceeded"
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Create Alert",
@@ -66682,7 +66638,7 @@
     },
     "/api/webhooks/inbound/arm": {
       "post": {
-        "description": "Arm zones via webhook.\n\nArgs:\n    payload: Arm payload with optional zone IDs.\n    request: FastAPI request object.\n    db: Database session.\n    api_key: Validated API key.\n\nReturns:\n    InboundWebhookResponse with status.",
+        "description": "Not implemented (UR-12): arming zones takes no action.\n\nThis is the endpoint D3 names: it used to answer \"Arm command for N\nzones queued\" having queued nothing, telling an integrator the house\nwas armed when it was not.",
         "operationId": "inbound-webhooks_arm_zones",
         "parameters": [
           {
@@ -66713,21 +66669,19 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InboundWebhookResponse"
-                }
-              }
-            },
-            "description": "Zones armed successfully"
-          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
             "description": "Invalid payload"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Arm Zones",
@@ -66738,7 +66692,7 @@
     },
     "/api/webhooks/inbound/disarm": {
       "post": {
-        "description": "Disarm zones via webhook.\n\nArgs:\n    payload: Disarm payload with optional zone IDs.\n    request: FastAPI request object.\n    db: Database session.\n    api_key: Validated API key.\n\nReturns:\n    InboundWebhookResponse with status.",
+        "description": "Not implemented (UR-12): disarming zones takes no action.",
         "operationId": "inbound-webhooks_disarm_zones",
         "parameters": [
           {
@@ -66769,21 +66723,19 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InboundWebhookResponse"
-                }
-              }
-            },
-            "description": "Zones disarmed successfully"
-          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
             "description": "Invalid payload"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Disarm Zones",
@@ -66794,7 +66746,7 @@
     },
     "/api/webhooks/inbound/mode": {
       "post": {
-        "description": "Set system mode via webhook.\n\nValid modes:\n- home: Family at home, known faces suppressed\n- away: Nobody home, all alerts enabled\n- night: Sleeping, perimeter zones only\n- disarmed: No alerts, logging only\n\nArgs:\n    payload: Mode payload.\n    request: FastAPI request object.\n    db: Database session.\n    api_key: Validated API key.\n\nReturns:\n    InboundWebhookResponse with status.",
+        "description": "Not implemented (UR-12): system-mode changes take no action.\n\nMode values are no longer validated here: the check lived in the handler\nthat acted on them, and ``InboundModePayload`` is kept unchanged for the\narming feature, whose ruling it is.",
         "operationId": "inbound-webhooks_set_system_mode",
         "parameters": [
           {
@@ -66825,21 +66777,19 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InboundWebhookResponse"
-                }
-              }
-            },
-            "description": "System mode changed successfully"
-          },
           "401": {
             "description": "Authentication failed"
           },
           "422": {
-            "description": "Invalid payload or mode"
+            "description": "Invalid payload"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Not implemented \u2014 UR-12; this endpoint takes no action"
           }
         },
         "summary": "Set System Mode",

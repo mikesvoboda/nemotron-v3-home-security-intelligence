@@ -2,18 +2,29 @@
 
 ## Purpose
 
-The `backend/tests/fixtures/` directory contains test fixture files used by automated tests. These include sample images for pipeline testing.
+The `backend/tests/fixtures/` directory contains test fixture files used by automated tests. These include sample images for pipeline testing and the env file that renders the prod compose file for the services-render test.
 
 ## Directory Structure
 
 ```
 backend/tests/fixtures/
 ├── AGENTS.md                 # This file
+├── compose-render.env        # Minimal env that renders the prod compose file
 └── images/                   # Test images
     └── pipeline_test/        # Pipeline integration test images (14 files)
 ```
 
 ## Fixture Files
+
+### `compose-render.env` (env file)
+
+The minimum env that renders `docker-compose.prod.yml`: the file interpolates
+exactly two variables with no fallback (`PODMAN_SOCKET`, `POSTGRES_PASSWORD`),
+so two stubs make `config --services` work on any box. **Test evidence only —
+not a deployment env**; the values are fake. It exists so the O1.3 Done-when
+render (a plain `config --services`, no profile flag, lists `ai-vlm`) is
+reproducible from the repo; see
+`backend/tests/unit/core/test_compose_render_lists_ai_vlm.py`.
 
 ### `images/pipeline_test/` (14 JPEG images)
 

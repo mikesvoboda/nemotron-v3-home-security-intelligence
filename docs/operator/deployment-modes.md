@@ -12,7 +12,7 @@ networking mode mismatch**: the backend is trying to reach the AI services using
 wrong hostname.
 
 There are two AI hostnames to get right. Detection runs in the `ai-gateway` container;
-the reasoning engine runs in `ai-vlm`, which sits behind the compose profile `vlm`.
+the reasoning engine runs in `ai-vlm`, which is in the default compose set.
 
 | Setting                | Default in `docker-compose.prod.yml`                         |
 | ---------------------- | ------------------------------------------------------------ |
@@ -49,12 +49,12 @@ _Visual overview of deployment topologies and AI service connectivity options._
 
 _Decision flowchart for choosing between Production (recommended), Development, and Hybrid deployment modes._
 
-| Mode                            | When to choose                                                          | Backend runs                              | AI runs                                                       | What URLs should look like                                                             |
-| ------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| **Production (recommended)**    | You want the simplest "it just runs" setup                              | **Container** (`docker-compose.prod.yml`) | **Containers** (`ai-gateway`, `ai-vlm` under profile `vlm`)   | `http://ai-gateway:8090`, `http://ai-vlm:8098`                                         |
-| **All-host development**        | You're developing locally and want zero container networking complexity | **Host** (uvicorn)                        | **Host** (`./ai/start_detector.sh`, your own llama.cpp serve) | `http://localhost:8090`, `http://localhost:8098`                                       |
-| **Backend container + host AI** | You want hot-reload containers, but AI runs on the host (GPU reasons)   | **Container**                             | **Host**                                                      | `http://host.docker.internal:8090` (Docker Desktop) or `http://<host-ip>:8090` (Linux) |
-| **Remote AI host**              | AI runs on a separate GPU box                                           | Host or container                         | **Remote host**                                               | `http://<gpu-host>:8090`, `http://<gpu-host>:8098`                                     |
+| Mode                            | When to choose                                                          | Backend runs                              | AI runs                                                          | What URLs should look like                                                             |
+| ------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Production (recommended)**    | You want the simplest "it just runs" setup                              | **Container** (`docker-compose.prod.yml`) | **Containers** (`ai-gateway`, `ai-vlm`, both in the default set) | `http://ai-gateway:8090`, `http://ai-vlm:8098`                                         |
+| **All-host development**        | You're developing locally and want zero container networking complexity | **Host** (uvicorn)                        | **Host** (`./ai/start_detector.sh`, your own llama.cpp serve)    | `http://localhost:8090`, `http://localhost:8098`                                       |
+| **Backend container + host AI** | You want hot-reload containers, but AI runs on the host (GPU reasons)   | **Container**                             | **Host**                                                         | `http://host.docker.internal:8090` (Docker Desktop) or `http://<host-ip>:8090` (Linux) |
+| **Remote AI host**              | AI runs on a separate GPU box                                           | Host or container                         | **Remote host**                                                  | `http://<gpu-host>:8090`, `http://<gpu-host>:8098`                                     |
 
 > For authoritative ports/env defaults, see `docs/reference/config/env-reference.md`.
 
@@ -65,8 +65,8 @@ _Decision flowchart for choosing between Production (recommended), Development, 
 ### Start
 
 ```bash
-# ai-vlm needs its profile on the command line or it is silently skipped
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+# the plain up starts everything, ai-vlm included
+podman compose -f docker-compose.prod.yml up -d
 ```
 
 ### `.env` (backend → AI via compose DNS)
@@ -89,8 +89,9 @@ podman compose -f docker-compose.prod.yml exec -T backend curl -fsS http://ai-ga
 podman compose -f docker-compose.prod.yml exec -T backend curl -fsS http://ai-vlm:8098/health
 ```
 
-A 404/connection-refused on the last line while everything else is green means the
-profile was not active at `up` time — see
+A 404/connection-refused on the last line while everything else is green means `ai-vlm`
+is not running — the default `up -d` asks for it, so it started and failed (a machine with
+no GPU is the common case) rather than being skipped — see
 [Troubleshooting a missing ai-vlm](ai-troubleshooting.md#ai-vlm-is-not-running).
 
 ---
@@ -206,8 +207,8 @@ AI_VLM_URL=http://${GPU_HOST}:8098
 - **Gateway not ready yet**: `ai-gateway` has a `start_period` of 180s while Triton
   loads its models. "Unreachable" in the first three minutes is usually just slow,
   not misconfigured.
-- **`ai-vlm` up but blind**: `--profile vlm` starts it; the `--mmproj` file makes it see.
-  A green `/health` proves only the first of those two.
+- **`ai-vlm` up but blind**: the default `up -d` starts it; the `--mmproj` file makes it
+  see. A green `/health` proves only the first of those two.
 - **Triaging from the alerts table**: no event auto-creates an Alert on this path. A
   stalled pipeline and a healthy-but-unnotified one both show zero rows there. Diagnose
   from `events` and `event_verifications`.

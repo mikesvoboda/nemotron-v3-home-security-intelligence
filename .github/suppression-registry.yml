@@ -1103,6 +1103,14 @@ pytest_skip_imperative:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
+  - id: backend/tests/unit/core/test_compose_render_lists_ai_vlm.py:67
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: no compose binary (podman/docker) on this machine
+    host_justification: argv is None when no compose binary (podman/docker)
+      resolves via shutil.which — host-executable guard, not repo content
   - id: backend/tests/unit/core/test_dockerfile_config.py:29
     kind: todo
     owner: mikesvoboda

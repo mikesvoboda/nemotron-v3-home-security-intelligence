@@ -3,7 +3,7 @@ title: SSL/HTTPS Configuration
 source_refs:
   - frontend/nginx.conf:1
   - frontend/docker-entrypoint.sh:1
-  - docker-compose.prod.yml:350
+  - docker-compose.prod.yml:355
   - scripts/generate-certs.sh:1
 ---
 

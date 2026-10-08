@@ -118,8 +118,8 @@ podman compose -f docker-compose.prod.yml pull
 ### Step 5: Start Services
 
 ```bash
-# Full containerized stack — name the profile so ai-vlm comes up too
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+# Full containerized stack — ai-vlm is in the default set, so a plain up starts it
+podman compose -f docker-compose.prod.yml up -d
 
 # (Development mode only: start ./ai/start_detector.sh on the host BEFORE the
 #  stack, leave ai-gateway down, and point YOLO26_URL at it — see First Run)
@@ -128,8 +128,8 @@ podman compose -f docker-compose.prod.yml --profile vlm up -d
 ### Step 6: Verify
 
 ```bash
-# Wait for health, then check (--profile vlm so ai-vlm is listed)
-podman compose -f docker-compose.prod.yml --profile vlm ps   # all Up (healthy)
+# Wait for health, then check (ai-vlm is listed with the rest — no flag needed)
+podman compose -f docker-compose.prod.yml ps   # all Up (healthy)
 curl http://localhost:8000/api/system/health
 
 # Version is whatever git says — there is no /api/system/version endpoint
@@ -175,7 +175,7 @@ curl http://localhost:8098/health
 
 ```bash
 # Stop the AI containers first
-podman compose -f docker-compose.prod.yml --profile vlm stop ai-gateway ai-vlm
+podman compose -f docker-compose.prod.yml stop ai-gateway ai-vlm
 
 # Download new model-zoo artifacts (writes to $AI_MODELS_PATH)
 ./ai/download_models.sh
@@ -185,7 +185,7 @@ podman compose -f docker-compose.prod.yml --profile vlm stop ai-gateway ai-vlm
 # VLM_MODEL_ID / VLM_MODEL_ALIAS matched to what you put there.
 
 # Restart
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm
 ```
 
 ---

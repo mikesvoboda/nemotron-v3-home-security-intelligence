@@ -5,10 +5,10 @@
 Contains AI inference services for home security monitoring. What actually
 runs in production (`docker-compose.prod.yml` builds exactly two AI images):
 
-| Compose service | Port                 | What it is                                                                                                                                                                                   |
-| --------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ai-vlm`        | 8098 (container)     | The `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29). Behind `--profile vlm`; build context `vlm/` |
-| `ai-gateway`    | 8090 (+8002 metrics) | FastAPI facade over Triton in one container; after the R8 S3 prune (2026-09-29) it serves ONLY `/yolo26` + `/enrich-lt` through Triton (`ai/gateway/AGENTS.md`)                              |
+| Compose service | Port                 | What it is                                                                                                                                                                                                     |
+| --------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai-vlm`        | 8098 (container)     | The `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29). In the default compose set (since UR-18); build context `vlm/` |
+| `ai-gateway`    | 8090 (+8002 metrics) | FastAPI facade over Triton in one container; after the R8 S3 prune (2026-09-29) it serves ONLY `/yolo26` + `/enrich-lt` through Triton (`ai/gateway/AGENTS.md`)                                                |
 
 A third AI service, `ai-llm-vllm` (vLLM, host port 8097, `--profile vllm`),
 is NEM-5441's benchmarking harness — not shipped serving, and the orchestrator
@@ -143,12 +143,9 @@ For backend-side documentation, see
 ### Production (Docker/Podman Containers)
 
 ```bash
-# Start everything (AI in production = ai-gateway; the VLM is a profile)
+# Start everything, including the shipped verdict engine ai-vlm:8098 (UR-18:
+# ai-vlm is in the default compose set, so a plain up starts it)
 podman compose -f docker-compose.prod.yml up -d
-
-# The shipped verdict engine is behind a profile - the default `up` does NOT
-# start it (docker-compose.prod.yml `profiles: - vlm`):
-podman compose -f docker-compose.prod.yml --profile vlm up -d   # adds ai-vlm:8098
 
 # Verify AI containers are running
 podman ps --filter name=ai-
@@ -235,7 +232,7 @@ talked to (R8 S2/S3, 2026-09-29).
 | `HOST`              | `0.0.0.0`                                    | Bind address             |
 | `PORT`              | `8095`                                       | Server port              |
 
-### ai-vlm (compose profile `vlm`)
+### ai-vlm (in the default compose set)
 
 The `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is
 config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29). The compose

@@ -123,7 +123,7 @@ else
         if [ -z "$FOUND_CONTAINER" ]; then
             echo -e "${RED}Error: Container '${CONTAINER_NAME}' is not running.${NC}" >&2
             echo -e "${YELLOW}Hint: Start the ai-vlm container first:${NC}" >&2
-            echo -e "${YELLOW}  podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm${NC}" >&2
+            echo -e "${YELLOW}  podman compose -f docker-compose.prod.yml up -d ai-vlm${NC}" >&2
             echo -e ""
             echo -e "${YELLOW}Or use --local to run with a local llama-server binary.${NC}" >&2
             exit 1

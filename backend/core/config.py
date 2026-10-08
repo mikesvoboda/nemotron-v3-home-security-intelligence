@@ -1051,7 +1051,7 @@ class Settings(BaseSettings):
         description="URL of the YOLO26 detection service",
     )
     # Development: http://localhost:8098 (local dev)
-    # Docker: http://ai-vlm:8098 (compose profile `vlm`, container PORT fixed at 8098)
+    # Docker: http://ai-vlm:8098 (the ai-vlm service, container PORT fixed at 8098)
     ai_vlm_url: str = Field(
         default="http://localhost:8098",
         description="VLM verification service URL (llama.cpp + mmproj, the vlm_assess engine). Development: http://localhost:8098, Docker: http://ai-vlm:8098",
@@ -2650,7 +2650,7 @@ class Settings(BaseSettings):
     ai_restart_enabled: bool = Field(
         default=True,
         description="Enable automatic restart of the monitored AI service (yolo26) on health check failure. "
-        "ai-vlm is not in the monitored set - compose starts it under the vlm profile and its "
+        "ai-vlm is not in the monitored set - it starts with the default `up` and its "
         "health arrives by breaker push. Set to False in containerized deployments where the "
         "restart scripts are not available; health monitoring and status broadcasts still occur.",
     )

@@ -2,10 +2,10 @@
 title: GPU Memory Limits Configuration
 description: How GPU assignment and memory limits are configured per container
 source_refs:
-  - docker-compose.prod.yml:134-264
-  - docker-compose.prod.yml:278-345
-  - docker-compose.prod.yml:348-418
-  - docker-compose.prod.yml:435-666
+  - docker-compose.prod.yml:141-270
+  - docker-compose.prod.yml:283-350
+  - docker-compose.prod.yml:353-423
+  - docker-compose.prod.yml:440-671
   - docs/developer/multi-gpu.md:40-58
   - setup_lib/linux_optimizer.py:185
 ---
@@ -39,7 +39,7 @@ This deployment does **not** set hard per-container GPU memory caps — the comp
 ```yaml
 # docker-compose.prod.yml (measured)
 services:
-  ai-vlm: # profile: vlm
+  ai-vlm: # default compose set
     devices:
       - nvidia.com/gpu=${GPU_LLM:-0} # Podman CDI device passthrough
     environment:
@@ -84,7 +84,7 @@ Set `GPU_LLM` and `GPU_AI_SERVICES` in `.env`. On a single-GPU box, set both to 
 
 ### 2. VLM VRAM Sizing (VLM_GPU_LAYERS)
 
-The shipped reasoning engine is `ai-vlm` (llama.cpp, compose profile `vlm`, container port 8098). Which GGUF pair it loads is operator config — `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`, mapped into the container as `MODEL_PATH` / `MMPROJ_PATH`; this page names no model identity. The knobs, all from `.env`:
+The shipped reasoning engine is `ai-vlm` (llama.cpp, in the default compose set, container port 8098). Which GGUF pair it loads is operator config — `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`, mapped into the container as `MODEL_PATH` / `MMPROJ_PATH`; this page names no model identity. The knobs, all from `.env`:
 
 | Setting              | Compose var      | Default | Effect                                                                                                                |
 | -------------------- | ---------------- | ------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -112,7 +112,7 @@ From `docker-compose.prod.yml` (host RAM/CPU caps + GPU assignment):
 
 | Service                        | CPU limit | RAM limit / reservation           | GPU assignment                                                  |
 | ------------------------------ | --------- | --------------------------------- | --------------------------------------------------------------- |
-| `ai-vlm` (profile `vlm`)       | 4         | 10G / 4G                          | `device_ids: GPU_LLM` (default 0)                               |
+| `ai-vlm` (default compose set) | 4         | 10G / 4G                          | `device_ids: GPU_LLM` (default 0)                               |
 | `ai-gateway`                   | 8         | 20G / 10G                         | `device_ids: GPU_AI_SERVICES` (default 1)                       |
 | `backend`                      | 2         | 10G (raised from 6G for NEM-3890) | GPU reservation `count: 1`, no `device_ids` (any GPU)           |
 | `ai-llm-vllm` (profile `vllm`) | 4         | 24G / 16G                         | all GPUs visible; selection via your own `CUDA_VISIBLE_DEVICES` |

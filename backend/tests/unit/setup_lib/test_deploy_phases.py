@@ -173,19 +173,19 @@ class TestPhaseStop:
             assert result.success is False
             assert "ports" in result.message.lower()
 
-    def test_down_and_rm_reach_every_deploy_profile(self, tmp_path: Path) -> None:
-        """Stop tears down the model server behind EVERY profile deploy knows.
+    def test_down_and_rm_are_plain_calls(self, tmp_path: Path) -> None:
+        """Stop tears the stack down with plain `down`/`rm` and no profile.
 
-        compose down/rm only act on services whose profile is active, so a
-        plain `down` would leave the GPU model server started by a pre-profile
-        deploy holding the GPU. The profile list is walked off _MODE_PLANS (not
-        hard-coded) so a future second plan is torn down too without anyone
-        re-deriving the argument.
+        Deploy used to walk a profile off every _MODE_PLANS entry, because
+        compose down/rm skip services whose profile is inactive and a leftover
+        GPU model server must not keep holding the GPU. O1.3 (UR-18) moved
+        ai-vlm into the default set, so there is no profile to activate: a plain
+        `down` reaches it.
 
-        R8 S2b retired the second member of that list: legacy's ai-llm (which
-        shared GPU_LLM with ai-vlm) is gone, so today the walk yields exactly
-        one profile -- pinned here, and it fails the moment a plan is added
-        without its profile reaching down/rm.
+        The leftover-ai-llm worry that made the walk load-bearing stays
+        handled: R8 S2b deleted that service from the compose file, and
+        backend/services/container_orchestrator.py's RETIRED_LLM_SERVICES
+        refuses to manage a leftover container of it.
         """
         from setup_lib.deploy import DeployConfig
         from setup_lib.deploy_phases import phase_stop
@@ -210,13 +210,14 @@ class TestPhaseStop:
 
             phase_stop(config)
 
-        from setup_lib.deploy_phases import _MODE_PLANS
-
-        profiles = tuple(
-            arg for plan in _MODE_PLANS.values() for arg in ("--profile", plan.profile)
+        calls = _compose_args(mock_compose)
+        assert calls == [("down",), ("rm", "-f")], (
+            "deploy's teardown changed shape; it must reach the whole stack with "
+            "no profile to activate"
         )
-        assert profiles == ("--profile", "vlm"), "the deploy profiles are one-per-plan"
-        assert _compose_args(mock_compose) == [(*profiles, "down"), (*profiles, "rm", "-f")]
+        assert not any("--profile" in args for args in calls), (
+            "deploy still passes a compose profile; ai-vlm ships in the default set"
+        )
 
 
 class TestPhaseBuild:
@@ -301,11 +302,13 @@ class TestPhaseBuild:
             assert call_order == ["base", "app", "vlm"]
 
     def test_vlm_mode_builds_ai_vlm_and_never_ai_llm(self, tmp_path: Path) -> None:
-        """vlm (the default): ai-vlm is built from its profile, cached, for the GPU's arch.
+        """vlm (the default): ai-vlm is built by name in a plain call, cached, for
+        the GPU's arch.
 
-        --profile vlm rides on the call because podman-compose drops a service
-        whose profile is inactive BEFORE it resolves command-line targets, so
-        naming ai-vlm alone is not enough there.
+        O1.3 (UR-18): ai-vlm is in the default compose set, so the call needs no
+        --profile. The argv is pinned because a stale flag would keep working
+        (compose ignores a profile no service declares) — the assertion is the
+        only thing that notices.
         """
         from setup_lib.deploy import DeployConfig
         from setup_lib.deploy_phases import phase_build
@@ -331,9 +334,7 @@ class TestPhaseBuild:
         calls = _compose_args(mock_compose)
         assert not any("ai-llm" in args for args in calls), "vlm mode must never build ai-llm"
         vlm_calls = [args for args in calls if "ai-vlm" in args]
-        assert vlm_calls == [
-            ("--profile", "vlm", "build", "--build-arg", "CUDA_ARCHITECTURES=86", "ai-vlm")
-        ]
+        assert vlm_calls == [("build", "--build-arg", "CUDA_ARCHITECTURES=86", "ai-vlm")]
 
     def test_vlm_mode_builds_ai_vlm_for_detected_arch(self, tmp_path: Path) -> None:
         """No CUDA_ARCHITECTURES in .env: ai-vlm gets the nvidia-smi-detected one."""
@@ -1020,11 +1021,11 @@ class TestRecoverCreatedContainers:
             _recover_created_containers(config)
         return cr
 
-    def test_restarts_created_ai_vlm_through_its_profile(self, tmp_path: Path) -> None:
-        """A created ai-vlm is restarted with --profile vlm (it is profiled)."""
+    def test_restarts_created_ai_vlm_in_a_plain_call(self, tmp_path: Path) -> None:
+        """A created ai-vlm is restarted by name, with no profile to pass."""
         cr = self._recover(tmp_path, {}, [f"{tmp_path.name}-ai-vlm-1"])
 
-        assert _compose_args(cr) == [("--profile", "vlm", "up", "-d", "--no-build", "ai-vlm")]
+        assert _compose_args(cr) == [("up", "-d", "--no-build", "ai-vlm")]
 
     def test_never_starts_a_model_server_that_is_not_the_plans(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1040,10 +1041,10 @@ class TestRecoverCreatedContainers:
         old test's assertion was no longer testing the guard at all.
 
         So the guard is exercised the way the S2b author meant it to be read: a
-        second plan is installed (ai-llm under --profile legacy, i.e. exactly the
-        plan R8 deleted, used here as the stand-in the guard exists for) and the
-        pass must skip it while everything else still recovers. When a real second
-        mode lands, this is the row that proves it inherits the protection.
+        second plan is installed (ai-llm, the plan R8 deleted, used here as the
+        stand-in the guard exists for) and the pass must skip it while everything
+        else still recovers. When a real second mode lands, this is the row that
+        proves it inherits the protection.
 
         What actually keeps the retired ai-llm from coming back today is compose
         itself (no such service survives in docker-compose.prod.yml) plus
@@ -1057,7 +1058,7 @@ class TestRecoverCreatedContainers:
         monkeypatch.setitem(
             _MODE_PLANS,
             "hypothetical",
-            replace(_MODE_PLANS["vlm"], model_server="ai-llm", profile="legacy"),
+            replace(_MODE_PLANS["vlm"], model_server="ai-llm"),
         )
 
         cr = self._recover(
@@ -1066,32 +1067,29 @@ class TestRecoverCreatedContainers:
 
         calls = _compose_args(cr)
         assert not any("ai-llm" in args for args in calls), "another plan's server must stay down"
-        assert ("--profile", "vlm", "up", "-d", "--no-build", "backend") in calls
+        assert ("up", "-d", "--no-build", "backend") in calls
 
     def test_never_names_a_model_server_other_than_the_plan(self, tmp_path: Path) -> None:
-        """No `--profile legacy` argv can come out of this pass any more.
+        """No profile argv of any kind comes out of this pass any more.
 
-        The literal R8 S2b reality the deleted legacy row used to pin: with one
-        plan there is one profile to pass, so the pass reaches every stuck
-        container -- including a pre-R8 ai-llm, named like any other service --
-        and compose (which has no ai-llm service left) is what keeps the retired
-        engine down, not this loop. Stable if a second plan ever lands: then
-        ai-llm is skipped by the guard above and every call still carries the
-        plan's own profile, so nothing here can emit --profile legacy.
+        O1.3 (UR-18) took the plan's profile away, so every recovery call is
+        plain: the pass reaches every stuck container -- including a pre-R8
+        ai-llm, named like any other service -- and compose (which has no
+        ai-llm service left) is what keeps the retired engine down, not this
+        loop. Stable if a second plan ever lands: then ai-llm is skipped by the
+        guard above and nothing here can emit a profile.
         """
         cr = self._recover(tmp_path, {}, [f"{tmp_path.name}-ai-llm-1", f"{tmp_path.name}-ai-vlm-1"])
 
         calls = _compose_args(cr)
-        assert all(
-            "--profile" in args and args[args.index("--profile") + 1] == "vlm" for args in calls
-        )
+        assert all("--profile" not in args for args in calls)
         assert not any("legacy" in args for args in calls)
 
     # test_legacy_mode_still_recovers_ai_llm is gone: its subject was the legacy plan
     # (a created ai-llm restarted through --profile legacy), and R8 S2b deleted that
     # plan -- DeployConfig.pipeline_mode now raises on "legacy", so the mode the test
     # constructed cannot be expressed. The recovery shape it exercised for a plan's own
-    # model server stays pinned by test_restarts_created_ai_vlm_through_its_profile,
+    # model server stays pinned by test_restarts_created_ai_vlm_in_a_plain_call,
     # and "the plan I did not choose stays down" by the test above.
 
 

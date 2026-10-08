@@ -74,7 +74,7 @@ curl http://localhost:8000/api/health/ai-services
 # Individual service health
 curl http://localhost:8090/health        # ai-gateway (aggregated Triton readiness)
 curl http://localhost:8090/yolo26/health # ai-gateway YOLO26 router
-curl http://localhost:8098/health        # ai-vlm (llama.cpp; profile `vlm`)
+curl http://localhost:8098/health        # ai-vlm (llama.cpp; default compose set)
 ```
 
 ### Service Management

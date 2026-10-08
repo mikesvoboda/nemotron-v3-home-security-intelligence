@@ -19,7 +19,7 @@ service's live configuration.
 | Port          | container-side `PORT=8098` fixed (`ai/vlm/Dockerfile:123`); host mapping via `AI_VLM_PORT` |
 | GPU           | `nvidia.com/gpu=${GPU_LLM:-0}` + `CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}`                      |
 | Weights mount | `${AI_MODELS_PATH}/vlm:/models:ro` — the service never downloads weights                   |
-| Profile       | compose profile `vlm` (`docker-compose.prod.yml:154`) — off unless enabled                 |
+| Bring-up      | in the default compose set (`docker-compose.prod.yml:141`) — a plain `up -d` starts it     |
 
 ## Server Flags
 
@@ -42,7 +42,7 @@ llama-server \
     [--flash-attn on]
 ```
 
-Compose threads the real values (`docker-compose.prod.yml:175-236`; vars
+Compose threads the real values (`docker-compose.prod.yml:180-241`; vars
 declared in `.env.example:421-442`):
 
 | Env var                  | Compose default   | Flag                   | Notes                                                                                  |

@@ -51,14 +51,14 @@ The system is optimized for configurations like:
 
 The stack boots two GPU services (`docker-compose.prod.yml`):
 
-| Service (compose)      | Model                                                                      | VRAM                                                                               | Default GPU           |
-| ---------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------- |
-| ai-vlm (profile `vlm`) | GGUF pair — identity is config (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`)        | config-driven; `VLM_GPU_LAYERS=auto` fits the card                                 | 0 (`GPU_LLM`)         |
-| ai-gateway             | YOLO26 + re-ID/threat specialists (Triton routers `/yolo26`, `/enrich-lt`) | per-model `vram_mb` in `models.yml`; no measured gateway-total figure is published | 1 (`GPU_AI_SERVICES`) |
+| Service (compose) | Model                                                                      | VRAM                                                                               | Default GPU           |
+| ----------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------- |
+| ai-vlm            | GGUF pair — identity is config (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`)        | config-driven; `VLM_GPU_LAYERS=auto` fits the card                                 | 0 (`GPU_LLM`)         |
+| ai-gateway        | YOLO26 + re-ID/threat specialists (Triton routers `/yolo26`, `/enrich-lt`) | per-model `vram_mb` in `models.yml`; no measured gateway-total figure is published | 1 (`GPU_AI_SERVICES`) |
 
 Compose threads GPU placement through exactly two variables: `GPU_LLM`
 (`ai-vlm`) and `GPU_AI_SERVICES` (`ai-gateway`), each defaulting to a card index
-(`docker-compose.prod.yml:158`, `docker-compose.prod.yml:393`).
+(`docker-compose.prod.yml:163`, `docker-compose.prod.yml:398`).
 
 > **Limitation.** The GPU Configuration API and its Settings UI present a per-model
 > assignment roster built from the `AI_SERVICE_VRAM_REQUIREMENTS_MB` dict at

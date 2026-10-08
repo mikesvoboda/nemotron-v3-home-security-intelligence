@@ -90,7 +90,7 @@ if settings.backend_model_preload:
 `preload: true`, which selects exactly `osnet-ain-x1-0`, `face-detector-scrfd`, and
 `face-recognizer`.
 
-`BACKEND_MODEL_PRELOAD` ships **false** (`.env.example:231`, `docker-compose.prod.yml:489`) and
+`BACKEND_MODEL_PRELOAD` ships **false** (`.env.example:231`, `docker-compose.prod.yml:494`) and
 `setup.py:461-464` auto-sets it true only when detected VRAM is >= 24 GB. So on a smaller host, or
 where the operator answered no, both legs answer `unavailable` on every event and nothing fails. The
 plate leg is the exception — `load_fast_alpr`
@@ -126,7 +126,7 @@ async with manager.load("fast-alpr") as alpr:
 `local_path` values are relative to `AI_MODELS_PATH` and start with `model-zoo/`; the base path
 comes from `MODEL_ZOO_PATH`, default `/models/model-zoo` (`backend/services/model_zoo.py:313`). In
 compose, `${AI_MODELS_PATH:-/export/ai_models}/model-zoo` mounts read-only at that path
-(`docker-compose.prod.yml:462`).
+(`docker-compose.prod.yml:467`).
 
 ## Provisioning
 
