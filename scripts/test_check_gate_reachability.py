@@ -157,5 +157,9 @@ class TestRunStepCommentSwallow(_CiYml):
             "scripts/test_check_mock_spec.py",
             "scripts/test_mutation_score.py",
             "scripts/test_check_ai_provider_parity.py",
+            # W1.1: the AGENTS.md ratchet's real-tree green assertion lives
+            # in this suite — dropping it from the step silently un-teeths
+            # the gate (agents-md.yml itself gates nothing).
+            "scripts/test_agents_md_validator.py",
         ):
             assert suite in joined, f"{suite} dropped from the anti-rot CI step"
