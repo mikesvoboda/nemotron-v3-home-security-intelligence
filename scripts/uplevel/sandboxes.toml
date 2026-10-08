@@ -100,10 +100,10 @@ It is "The heavy sandbox's kickoff prompt" under "The roster" in that file."""
 # AGENT_GPU_RUNNER_URL in the launching shell. No mount for /srv/agent-models: agent-dgx
 # --gpu mounts that library itself and refuses any mount at or under it.
 # Name the prompt as a section, never by position: `up` prints this line verbatim, and a
-# position rots when the file grows (#6864 found the heavy row doing exactly this and
-# fixes it there; the heavy row on main is still positional until that PR merges).
-# 30-ops.md §O1.10 writes the operator's line positionally ("at the end of ..."); plan
-# text is the owner's to correct (asked on this PR) - this row carries the section form.
+# position rots when the file grows (#6864 found the heavy row doing exactly this, and
+# main's heavy row now carries the section form).
+# 30-ops.md §O1.10 wrote the operator's line positionally ("at the end of ..."); ruling
+# 13 routed that correction into this PR, so the plan text names the section too.
 [[phase.session]]
 name = "uplevel-operator"
 model = "fast"

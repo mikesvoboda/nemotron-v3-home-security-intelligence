@@ -53,7 +53,7 @@ owns), and a name repeated within one phase. It mirrors the roster in
 `docs/uplevel/50-coordination.md` - when the coordinator changes the plan, that PR
 updates this file too. A kickoff line names
 the prompt's **section**, never a position (`up` prints it verbatim, and a position rots
-when the file grows); #6864 established that rule, and the operator row here already
-follows it - the heavy row keeps its old wording on main until #6864 merges. Network
+when the file grows); #6864 established that rule, and both the heavy row and the
+operator row on main now carry the section form. Network
 profiles and secrets are deliberately absent (no shown `agent-dgx` flag takes them);
 provisioning stays the owner's.
