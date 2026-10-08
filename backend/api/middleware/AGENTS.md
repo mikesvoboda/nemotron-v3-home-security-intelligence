@@ -576,20 +576,26 @@ presents no valid credential — whatever the path, including routes added later
 - the `session_id` cookie `POST /api/auth/login` sets (HttpOnly, SameSite=Lax, Secure), looked
   up in Redis on each request; browsers send it on every same-origin fetch, media load and
   WebSocket handshake;
-- an API key from `API_KEYS`: the `X-API-Key` header over HTTP; on a WebSocket, the `api_key`
-  query parameter or an `api-key.<key>` subprotocol. HTTP never takes a key from the URL.
+- an API key from `API_KEYS`: the `X-API-Key` header over HTTP; on a WebSocket, an
+  `api-key.<key>` subprotocol (preferred) or the `api_key` query parameter, which reaches access
+  logs. HTTP never takes a key from the URL.
 
 ### Open paths (exact matches)
 
 `/health`, `/ready`, `/api/system/health`, `/api/system/health/ready` (healthchecks and probes);
 `/api/metrics`, `/api/system/gpu`, `/api/system/stats`, `/api/system/telemetry` (Prometheus);
 `/api/auth/setup-status`, `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`.
-CORS preflights also pass. Everything else, `/docs` and media included, needs a credential.
+CORS preflights that carry `Origin` also pass (CORSMiddleware answers those itself). Everything
+else, `/docs` and media included, needs a credential.
 
 ### Refusals
 
 - HTTP: `401 {"detail": "Authentication required"}`.
 - WebSocket: accepted, then closed with `4001`, so a client can tell refusal from a dropped network.
+- Log: every refusal is a `WARNING` security event — `event_type="auth_required"`, `security_event=True`,
+  `path`, `method`, and `client_ip` masked by `mask_ip`.
+- An admitted, authenticated HTTP response is marked `Cache-Control: private` (replacing `public`),
+  so a caching tunnel or CDN never stores footage the gate protected.
 
 ### Placement
 

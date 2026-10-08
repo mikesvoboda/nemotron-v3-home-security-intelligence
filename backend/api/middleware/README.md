@@ -8,86 +8,42 @@ _HTTP request/response flow through the middleware chain showing execution order
 
 ## Authentication Middleware
 
-Basic API key authentication middleware for securing API endpoints.
+`AuthMiddleware` (`auth.py`) is the EXPOSE_LAN gate (OD-12), the outermost middleware.
 
 ### Configuration
 
-Authentication is **disabled by default** for development convenience. Enable it using environment variables:
+| Variable     | Default | Effect                                                                                       |
+| ------------ | ------- | -------------------------------------------------------------------------------------------- |
+| `EXPOSE_LAN` | `false` | `true`: every request needs the login session cookie or an `API_KEYS` key, except open paths |
+| `API_KEYS`   | `[]`    | Keys the gate accepts (JSON array); `verify_api_key` routes also need `API_KEY_ENABLED=true` |
 
-```bash
-# Enable authentication
-export API_KEY_ENABLED=true
+With `EXPOSE_LAN` unset the gate passes every request; the `127.0.0.1` binding is the boundary.
 
-# Set valid API keys (JSON array)
-export API_KEYS='["your_secret_key_1", "your_secret_key_2"]'
-```
+### Credentials
 
-Or in `.env`:
+- Browsers: the `session_id` cookie set by `POST /api/auth/login`, checked against Redis.
+- Scripts over HTTP: `curl -H "X-API-Key: <key>" ...`. A key in the URL (`?api_key=`) is refused.
+- WebSockets: the `api-key.<key>` subprotocol (preferred: URLs reach access logs) or `?api_key=<key>`.
 
-```env
-API_KEY_ENABLED=true
-API_KEYS=["your_secret_key_1", "your_secret_key_2"]
-```
+### Open paths
 
-### Usage
+Exact matches only: `/health`, `/ready`, `/api/system/health`, `/api/system/health/ready`,
+`/api/metrics`, `/api/system/gpu`, `/api/system/stats`, `/api/system/telemetry`,
+`/api/auth/setup-status`, `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, plus CORS
+preflights that carry `Origin`. `/docs`, `/openapi.json` and media need a credential.
 
-#### With Header (Recommended)
+### Responses
 
-```bash
-curl -H "X-API-Key: your_secret_key_1" http://localhost:8000/api/cameras
-```
-
-#### With Query Parameter
-
-```bash
-curl http://localhost:8000/api/cameras?api_key=your_secret_key_1
-```
-
-### Exempt Endpoints
-
-The following endpoints bypass authentication:
-
-- `/` - Root endpoint
-- `/health` - Health check
-- `/api/system/health` - System health check
-- `/docs` - API documentation (Swagger UI)
-- `/redoc` - API documentation (ReDoc)
-- `/openapi.json` - OpenAPI schema
-
-### Security Notes
-
-1. **Keys are hashed**: API keys are hashed using SHA-256 before validation
-2. **Header priority**: `X-API-Key` header takes precedence over `api_key` query parameter
-3. **No database storage**: Keys are configured via environment variables (stored hashes can be added to database in future)
-4. **Development mode**: Authentication is disabled by default (`API_KEY_ENABLED=false`)
-
-### Error Responses
-
-#### Missing API Key
-
-```json
-HTTP 401 Unauthorized
-{
-  "detail": "API key required. Provide via X-API-Key header or api_key query parameter."
-}
-```
-
-#### Invalid API Key
-
-```json
-HTTP 401 Unauthorized
-{
-  "detail": "Invalid API key"
-}
-```
+- Refused HTTP request: `401 {"detail": "Authentication required"}`.
+- Refused WebSocket: accepted, then closed with `4001`.
+- An authenticated response is marked `Cache-Control: private`, so no shared cache keeps it.
+- Every refusal is logged as a security event (`event_type="auth_required"`, client IP masked).
 
 ### Testing
 
-Run unit tests:
-
 ```bash
-pytest backend/tests/unit/core/test_auth_middleware.py -v
-pytest backend/tests/unit/core/test_middleware.py -v
+uv run pytest backend/tests/unit/api/middleware/test_auth.py backend/tests/unit/api/test_expose_lan_routes.py -v
+uv run pytest backend/tests/integration/test_expose_lan_auth.py -v
 ```
 
 ## Additional Middleware Modules
