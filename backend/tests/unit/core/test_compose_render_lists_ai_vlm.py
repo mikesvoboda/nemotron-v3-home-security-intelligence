@@ -71,7 +71,7 @@ def test_default_services_render_lists_ai_vlm() -> None:
     # and no interpolated value adds or removes a service — the set of service
     # KEYS in the file is what `--services` prints, so the result cannot
     # depend on the machine's env.
-    result = subprocess.run(  # noqa: S603 - argv is a literal list, never a shell string
+    result = subprocess.run(  # noqa: S603 - argv is a literal list, never a shell string  # real
         [
             *argv,
             "--env-file",

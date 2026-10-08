@@ -30,7 +30,7 @@ ERR16 = "docs/vss-integration/16-errata-2026-10-03.md"
 
 
 def git(repo: Path, *args: str) -> str:
-    done = subprocess.run(  # noqa: S603
+    done = subprocess.run(  # noqa: S603  # real - git builds the fixture repo
         ["git", "-C", str(repo), *args],  # noqa: S607
         capture_output=True,
         text=True,
@@ -64,7 +64,7 @@ def repo(tmp_path: Path) -> Path:
 
 def run(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     assert SCRIPT.is_file(), f"{SCRIPT} is missing"
-    return subprocess.run(  # noqa: S603
+    return subprocess.run(  # noqa: S603  # intentional - tests our own script
         [sys.executable, str(SCRIPT), "--repo", str(repo), *args],
         capture_output=True,
         text=True,
