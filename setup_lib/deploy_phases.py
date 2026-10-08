@@ -38,6 +38,8 @@ def _run_with_timeout(
             stdout="",
             stderr=f"timed out after {timeout}s",
         )
+
+
 from setup_lib.deploy import DeployConfig, DeployPhase, DeployResult, compose_run
 from setup_lib.healthcheck import check_service_health, file_watcher_warning, poll_endpoint
 from setup_lib.rootful_services import (
@@ -67,10 +69,11 @@ class _ModePlan:
     """The per-PIPELINE_MODE facts deploy needs (the mode itself is decided
     once, by ``DeployConfig.pipeline_mode``).
 
-    The GPU model server lives behind a compose profile (ai-vlm: `vlm`), so
-    every compose call that names it carries ``--profile``: podman-compose
-    drops a service whose profile is inactive before it resolves command-line
-    targets, so naming the service alone is not enough there.
+    The GPU model server ships in the default compose set (O1.3, UR-18): it
+    used to sit behind a compose profile, which forced every compose call that
+    named it to carry ``--profile``, because podman-compose drops a service
+    whose profile is inactive before it resolves command-line targets. There is
+    no profile to pass now, so the plan names services and nothing else.
 
     R8 S2 retired the legacy pipeline: this dict has ONE plan now. The shape
     (a dict keyed by mode) survives because DeployConfig.pipeline_mode can
@@ -79,7 +82,6 @@ class _ModePlan:
     """
 
     model_server: str
-    profile: str
     # Started by phase_application, in dependency order (the retry loop walks it).
     app_services: tuple[str, ...]
     # phase_application's `up --wait` budget, seconds.
@@ -91,10 +93,6 @@ class _ModePlan:
     default_port: str
     health_timeout: int
 
-    @property
-    def profile_args(self) -> tuple[str, str]:
-        return ("--profile", self.profile)
-
 
 # vlm is the ONLY mode (spec rev 5 / F10; R8 S2 deleted the legacy plan with
 # the ai-llm services it named — DeployConfig.pipeline_mode raises on "legacy").
@@ -105,7 +103,6 @@ _MODE_PLANS: dict[str, _ModePlan] = {
     # Health poll 120s = that start_period (= ai/vlm/Dockerfile HEALTHCHECK).
     "vlm": _ModePlan(
         model_server="ai-vlm",
-        profile="vlm",
         app_services=("ai-gateway", "backend", "frontend", "ai-vlm"),
         wait_timeout=180,
         health_label="VLM",
@@ -139,7 +136,14 @@ def _get_compose_image(config: DeployConfig, service: str) -> str | None:
         return derived
     # Fallback: find by service name pattern (handles docker.io/library/ prefix)
     result = subprocess.run(
-        ["podman", "images", "--format", "{{.Repository}}:{{.Tag}}", "--filter", f"reference=*{service}*"],  # noqa: S607
+        [
+            "podman",
+            "images",
+            "--format",
+            "{{.Repository}}:{{.Tag}}",
+            "--filter",
+            f"reference=*{service}*",
+        ],  # noqa: S607
         capture_output=True,
         text=True,
         check=False,
@@ -161,14 +165,13 @@ def phase_stop(config: DeployConfig) -> DeployResult:
 
     project_name = config.project_root.name
 
-    # Compose down + rm (short timeout — can hang if storage locked). Every
-    # plan's profile is active here: down/rm skip services whose profile is
-    # not, and a leftover model server from before a profiling change (e.g. an
-    # ai-vlm or an ai-llm from before R8's deletion) must not keep holding the
-    # GPU.
-    all_profiles = [arg for plan in _MODE_PLANS.values() for arg in plan.profile_args]
-    compose_run(config, *all_profiles, "down", capture=True, timeout=60)
-    compose_run(config, *all_profiles, "rm", "-f", capture=True, timeout=60)
+    # Compose down + rm (short timeout — can hang if storage locked). Plain
+    # calls: the model server is in the default set (O1.3, UR-18), so down/rm
+    # see it and a leftover ai-vlm must not keep holding the GPU. No profile
+    # flags remain to activate — passing one would be decoration, since compose
+    # ignores a --profile no service declares rather than rejecting it.
+    compose_run(config, "down", capture=True, timeout=60)
+    compose_run(config, "rm", "-f", capture=True, timeout=60)
 
     # Stop legacy systemd user services (container-postgres, container-redis)
     subprocess.run(
@@ -301,8 +304,9 @@ def _get_free_disk_gb() -> float | None:
     """Return free disk space in GB for the root filesystem, or None on error."""
     try:
         import shutil as _shutil
+
         usage = _shutil.disk_usage("/")
-        return usage.free / (1024 ** 3)
+        return usage.free / (1024**3)
     except OSError:
         return None
 
@@ -332,8 +336,7 @@ def phase_prune_images(config: DeployConfig) -> DeployResult:
 
     # Step 2: Remove unused images (not used by any container)
     unused_result = _run_with_timeout(
-        ["podman", "image", "prune", "-a", "-f",
-         "--filter", "until=1h"],
+        ["podman", "image", "prune", "-a", "-f", "--filter", "until=1h"],
         timeout=180,
     )
     if "timed out" in (unused_result.stderr or ""):
@@ -346,7 +349,9 @@ def phase_prune_images(config: DeployConfig) -> DeployResult:
         freed_str = f"{freed:.1f} GB freed" if freed > 0.05 else "no significant space freed"
         print(f"  Disk: {free_after:.1f} GB free ({freed_str})")
         if free_after < 2.0:
-            print(f"  WARNING: only {free_after:.1f} GB free — build may fail. Consider removing unused models.")
+            print(
+                f"  WARNING: only {free_after:.1f} GB free — build may fail. Consider removing unused models."
+            )
         return DeployResult(True, f"Image prune complete ({freed_str}, {free_after:.1f} GB free)")
 
     return DeployResult(True, "Image prune complete")
@@ -387,7 +392,7 @@ def _ensure_rootless_storage(config: DeployConfig) -> None:
         import pwd
 
         owner_home = Path(pwd.getpwuid(owner_uid).pw_dir)
-    except (KeyError, ImportError):
+    except KeyError, ImportError:
         owner_home = Path.home()
 
     config_dir = owner_home / ".config" / "containers"
@@ -481,7 +486,7 @@ def phase_build(config: DeployConfig) -> DeployResult:
                 cap = result.stdout.strip().splitlines()[0].replace(".", "")
                 cuda_args = ["--build-arg", f"CUDA_ARCHITECTURES={cap}"]
                 print(f"  GPU architecture: {cap[0]}.{cap[1:]} (detected)")
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        except subprocess.TimeoutExpired, FileNotFoundError:
             pass
 
     if not cuda_args:
@@ -554,7 +559,6 @@ def phase_build(config: DeployConfig) -> DeployResult:
     print(f"  Building {plan.model_server} (cached)...")
     ok = compose_run(
         config,
-        *plan.profile_args,
         "build",
         *cuda_args,
         plan.model_server,
@@ -662,7 +666,7 @@ def phase_export(config: DeployConfig) -> DeployResult:
 
 
 # ---------------------------------------------------------------------------
-    # Phase 5: Start infrastructure + observability
+# Phase 5: Start infrastructure + observability
 # ---------------------------------------------------------------------------
 
 _MONITORING_SERVICES = [
@@ -733,11 +737,15 @@ def phase_infrastructure(config: DeployConfig) -> DeployResult:
         if mkdir_result.returncode != 0:
             print(f"  foscam: failed to create {foscam_path} (run: sudo mkdir -p {foscam_path})")
     if foscam_path.exists():
-        chown_result = _run_sudo(["chown", "-R", f"{host_uid}:{host_gid}", str(foscam_path)], check=False)
+        chown_result = _run_sudo(
+            ["chown", "-R", f"{host_uid}:{host_gid}", str(foscam_path)], check=False
+        )
         if chown_result.returncode == 0:
             print(f"  foscam: {foscam_path} owned by {host_uid}:{host_gid}")
         else:
-            print(f"  foscam: {foscam_path} (chown skipped - run: sudo chown -R {host_uid}:{host_gid} {foscam_path})")
+            print(
+                f"  foscam: {foscam_path} (chown skipped - run: sudo chown -R {host_uid}:{host_gid} {foscam_path})"
+            )
 
     # Pre-flight (warn-only): read the camera root's label now that it exists,
     # before any container mounts it.
@@ -858,9 +866,10 @@ def _wait_container_running(service: str, timeout: int = 30) -> bool:
 def phase_application(config: DeployConfig) -> DeployResult:
     """Start all remaining services (backend, frontend, AI).
 
-    Starts the pipeline mode's app services (see _MODE_PLANS) through the
-    model server's compose profile, with --wait sized for that server's load
-    (ai-vlm; R8 S2 deleted the legacy plan that started ai-llm first).
+    Starts the pipeline mode's app services (see _MODE_PLANS) with --wait
+    sized for the model server's load (ai-vlm; R8 S2 deleted the legacy plan
+    that started ai-llm first). The model server is in the default compose set
+    (O1.3, UR-18), so the names are the whole request.
     Only targets the app services to avoid re-triggering alloy (handled in phase 4).
     """
     plan = _mode_plan(config)
@@ -876,7 +885,6 @@ def phase_application(config: DeployConfig) -> DeployResult:
     )
     ok = compose_run(
         config,
-        *plan.profile_args,
         "up",
         "-d",
         "--no-build",
@@ -894,7 +902,7 @@ def phase_application(config: DeployConfig) -> DeployResult:
     print("  Retrying services in dependency order...")
     stuck: list[str] = []
     for svc in services:
-        compose_run(config, *plan.profile_args, "up", "-d", "--no-build", svc)
+        compose_run(config, "up", "-d", "--no-build", svc)
         if _wait_container_running(svc, timeout=60):
             print(f"    {svc}: running")
         else:
@@ -903,7 +911,9 @@ def phase_application(config: DeployConfig) -> DeployResult:
 
     if stuck:
         print(f"  WARNING: {', '.join(stuck)} did not reach running state")
-        return DeployResult(True, f"Application services started ({', '.join(stuck)} may still be initializing)")
+        return DeployResult(
+            True, f"Application services started ({', '.join(stuck)} may still be initializing)"
+        )
 
     print("  All services running after retry.")
     return DeployResult(True, "Application services started")
@@ -922,7 +932,7 @@ def _auto_register_admin(config: DeployConfig) -> None:
     try:
         resp = urllib.request.urlopen(setup_url, timeout=5)  # noqa: S310  # nosemgrep: ssrf-requests
         data = json.loads(resp.read().decode())
-    except (urllib.error.URLError, OSError, json.JSONDecodeError):
+    except urllib.error.URLError, OSError, json.JSONDecodeError:
         return
 
     if not data.get("setup_required"):
@@ -948,7 +958,7 @@ def _auto_register_admin(config: DeployConfig) -> None:
 
     try:
         urllib.request.urlopen(req, timeout=10)  # noqa: S310  # nosemgrep: ssrf-requests
-    except (urllib.error.URLError, OSError):
+    except urllib.error.URLError, OSError:
         print("    Admin registration failed (may already exist)")
         return
 
@@ -974,10 +984,13 @@ def _recover_created_containers(config: DeployConfig) -> None:
         return
 
     plan = _mode_plan(config)
-    # A model server that is NOT this plan's must never be started here:
-    # compose starts a profiled service it is asked by name. With one plan
-    # the set is empty by construction; it stays as the guard so any future
-    # second plan inherits the protection instead of re-discovering it.
+    # A model server that is NOT this plan's must never be started here: compose
+    # starts any service it is asked for by name. With one plan the set is empty
+    # by construction; it stays as the guard so a future second plan inherits
+    # the protection instead of re-discovering it. O1.3 makes this guard the
+    # ONLY protection: model servers no longer hide behind a compose profile, so
+    # nothing but this check stops a wrong-mode server from being woken up and
+    # taking the GPU.
     other_servers = {p.model_server for p in _MODE_PLANS.values()} - {plan.model_server}
 
     stuck = result.stdout.strip().splitlines()
@@ -1001,7 +1014,7 @@ def _recover_created_containers(config: DeployConfig) -> None:
         if svc in other_servers:
             print(f"    {svc}: skipped (not used in {config.pipeline_mode} mode)")
             continue
-        compose_run(config, *plan.profile_args, "up", "-d", "--no-build", svc)
+        compose_run(config, "up", "-d", "--no-build", svc)
         time.sleep(2)
         if _wait_container_running(svc, timeout=30):
             print(f"    {svc}: recovered -> running")
@@ -1098,7 +1111,7 @@ def phase_health_check(config: DeployConfig) -> DeployResult:
                 print(f"    {line.strip()}")
         else:
             print("    nvidia-smi not available")
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except FileNotFoundError, subprocess.TimeoutExpired:
         print("    nvidia-smi not available")
 
     status = "healthy" if all_healthy else "degraded (some services not ready)"
