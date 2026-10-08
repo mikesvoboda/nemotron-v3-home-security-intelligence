@@ -891,7 +891,8 @@ class VlmClient:
 
     async def assess(self, request: VlmAssessRequest) -> VlmVerdict:
         """One VLM assessment of one batch. Raises VlmTransportError /
-        VlmSchemaError / VlmUnavailableError / VlmImageError /
+        VlmSchemaError / VlmSlowReplyError / VlmContextOverflowError /
+        VlmUnavailableError / VlmImageError /
         ConstrainedDecodingNotEnforced; the analyzer owns the mapping to
         `verification_failed` (NULL score) - the client NEVER fabricates a
         verdict (S5: nothing is silently scored)."""
