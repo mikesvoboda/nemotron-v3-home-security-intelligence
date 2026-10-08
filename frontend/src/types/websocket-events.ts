@@ -102,6 +102,7 @@ export interface PongPayload {
  * - 'job.completed' -> JobCompletedPayload
  * - 'job.failed' -> JobFailedPayload
  * - 'system.health_changed' -> SystemHealthChangedPayload
+ * - 'system.verdict_engine_status_changed' -> VerdictEngineStatusChangedPayload
  * - 'system.error' -> SystemErrorPayload
  */
 
@@ -213,6 +214,8 @@ export interface WebSocketEventMap {
 
   /** System health changed event */
   'system.health_changed': SystemHealthChangedPayload;
+  /** Verdict engine (ai-vlm) availability changed (B1.4 UR-18; consumed by F1.2 banner) */
+  'system.verdict_engine_status_changed': VerdictEngineStatusChangedPayload;
   /** System error event */
   'system.error': SystemErrorPayload;
 
@@ -370,6 +373,7 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'job.completed',
   'job.failed',
   'system.health_changed',
+  'system.verdict_engine_status_changed',
   'system.error',
   // Worker events (NEM-3127)
   'worker.started',
@@ -586,6 +590,7 @@ export enum WSEventType {
 
   // System events - System health monitoring
   SYSTEM_HEALTH_CHANGED = 'system.health_changed',
+  SYSTEM_VERDICT_ENGINE_STATUS_CHANGED = 'system.verdict_engine_status_changed',
   SYSTEM_STATUS = 'system.status',
 
   // GPU events - GPU monitoring
@@ -996,6 +1001,31 @@ export interface SystemHealthChangedPayload {
   health: 'healthy' | 'degraded' | 'unhealthy';
   previous_health: 'healthy' | 'degraded' | 'unhealthy';
   components: Record<string, 'healthy' | 'degraded' | 'unhealthy'>;
+}
+
+/**
+ * Verdict-engine (ai-vlm) reachability, mirroring the backend's
+ * VerdictEngineState enum (backend/api/schemas/websocket.py).
+ */
+export type VerdictEngineState = 'available' | 'unavailable' | 'unknown';
+
+/**
+ * Payload for system.verdict_engine_status_changed events (B1.4, UR-18).
+ * Fires only on TRANSITIONS (backend/services/verdict_engine_status.py);
+ * `since` is when the state transitioned, not when the event was sent —
+ * 'how long has this been down?' survives the readiness cache.
+ */
+export interface VerdictEngineStatusChangedPayload {
+  state: VerdictEngineState;
+  previous_state: VerdictEngineState;
+  /** ISO 8601 time the state TRANSITIONED */
+  since: string;
+  /** Engine's own error string while unavailable; null while available */
+  reason: string | null;
+  /** What produced the state (e.g. 'health_probe') */
+  source: string;
+  /** ISO 8601 event timestamp */
+  timestamp: string;
 }
 
 /**
@@ -1537,6 +1567,7 @@ export interface WSEventPayloadMap {
   [WSEventType.JOB_COMPLETED]: JobCompletedPayload;
   [WSEventType.JOB_FAILED]: JobFailedPayload;
   [WSEventType.SYSTEM_HEALTH_CHANGED]: SystemHealthChangedPayload;
+  [WSEventType.SYSTEM_VERDICT_ENGINE_STATUS_CHANGED]: VerdictEngineStatusChangedPayload;
   [WSEventType.SYSTEM_STATUS]: SystemStatusPayload;
   [WSEventType.GPU_STATS_UPDATED]: GpuStatsUpdatedPayload;
   [WSEventType.SERVICE_STATUS_CHANGED]: ServiceStatusChangedPayload;

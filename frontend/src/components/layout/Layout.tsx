@@ -12,11 +12,13 @@ import { useViewport } from '../../hooks/useIsMobile';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useServiceStatus } from '../../hooks/useServiceStatus';
 import { SidebarContext, SidebarContextType } from '../../hooks/useSidebarContext';
+import { useVerdictEngineStatus } from '../../hooks/useVerdictEngineStatus';
 import { ConnectionStatusBanner } from '../common';
 import CommandPalette from '../common/CommandPalette';
 import { ServiceStatusAlert } from '../common/ServiceStatusAlert';
 import ShortcutsHelpModal from '../common/ShortcutsHelpModal';
 import { SkipLinkGroup, type SkipTarget } from '../common/SkipLink';
+import VerdictEngineStatusBanner from '../common/VerdictEngineStatusBanner';
 
 /**
  * Skip link targets for keyboard navigation accessibility
@@ -34,6 +36,8 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const { services } = useServiceStatus();
   const { summary, isPollingFallback, retryConnection } = useConnectionStatus();
+  // F1.2 (UR-18): verdict-engine (ai-vlm) availability for the persistent banner
+  const verdictEngine = useVerdictEngineStatus();
   const [isDismissed, setIsDismissed] = useState(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -118,6 +122,11 @@ export default function Layout({ children }: LayoutProps) {
                 />
               </div>
               {!isDismissed && <ServiceStatusAlert services={services} onDismiss={handleDismiss} />}
+              <VerdictEngineStatusBanner
+                state={verdictEngine.state}
+                since={verdictEngine.since}
+                reason={verdictEngine.reason}
+              />
               {children}
             </main>
           </div>

@@ -6,6 +6,7 @@ import Layout from './Layout';
 import { AnnouncementProvider } from '../../contexts/AnnouncementContext';
 import { useServiceStatus } from '../../hooks/useServiceStatus';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
+import { useVerdictEngineStatus } from '../../hooks/useVerdictEngineStatus';
 import { ServiceName, ServiceStatus } from '../common/ServiceStatusAlert';
 
 // Mock the child components
@@ -32,6 +33,11 @@ vi.mock('../common/ShortcutsHelpModal', () => ({
 // Mock the useServiceStatus hook
 vi.mock('../../hooks/useServiceStatus', () => ({
   useServiceStatus: vi.fn(),
+}));
+
+// Mock the verdict-engine hook (F1.2) — Layout reads it for the banner
+vi.mock('../../hooks/useVerdictEngineStatus', () => ({
+  useVerdictEngineStatus: vi.fn(),
 }));
 
 // Mock the useKeyboardShortcuts hook (which uses useNavigate internally)
@@ -122,6 +128,15 @@ describe('Layout', () => {
       hasUnhealthy: false,
       isAnyRestarting: false,
       getServiceStatus: () => null,
+    });
+    // Verdict engine healthy by default (F1.2)
+    (useVerdictEngineStatus as Mock).mockReturnValue({
+      state: 'available',
+      since: null,
+      reason: null,
+      loaded: true,
+      isDown: false,
+      isConnected: true,
     });
   });
 
@@ -518,6 +533,37 @@ describe('Layout', () => {
       expect(() => render(<TestOutsideLayout />)).toThrow(
         'useSidebarContext must be used within Layout'
       );
+    });
+  });
+
+  describe('verdict-engine banner (F1.2)', () => {
+    it('renders the banner across every route when the engine is unavailable', () => {
+      (useVerdictEngineStatus as Mock).mockReturnValue({
+        state: 'unavailable',
+        since: '2026-10-08T10:00:00Z',
+        reason: 'ConnectError: connection refused',
+        loaded: true,
+        isDown: true,
+        isConnected: true,
+      });
+
+      renderWithProvider(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+
+      expect(screen.getByTestId('verdict-engine-banner')).toBeInTheDocument();
+    });
+
+    it('renders no banner when the engine is available', () => {
+      renderWithProvider(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+
+      expect(screen.queryByTestId('verdict-engine-banner')).not.toBeInTheDocument();
     });
   });
 });

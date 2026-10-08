@@ -243,3 +243,7 @@ export type {
   ApproachUrgency as ApproachVectorUrgency,
   ApproachVectorSize,
 } from './ApproachVectorIndicator';
+
+// Verdict-engine status banner (F1.2, UR-18)
+export { default as VerdictEngineStatusBanner } from './VerdictEngineStatusBanner';
+export type { VerdictEngineStatusBannerProps } from './VerdictEngineStatusBanner';
