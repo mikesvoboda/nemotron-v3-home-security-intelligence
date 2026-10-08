@@ -98,6 +98,8 @@ Contains reusable UI components shared across multiple features. These are low-l
 | `Tooltip.test.tsx`                | Test suite for Tooltip                                               | Active     |
 | `TruncatedText.tsx`               | Text truncation with expand/collapse functionality                   | Active     |
 | `TruncatedText.test.tsx`          | Test suite for TruncatedText                                         | Active     |
+| `VerdictEngineStatusBanner.tsx`   | Persistent banner for verdict-engine (ai-vlm) downtime (F1.2)     | Active     |
+| `VerdictEngineStatusBanner.test.tsx` | Test suite for VerdictEngineStatusBanner                        | Active     |
 | `WebSocketStatus.tsx`             | WebSocket connection status indicator                                | Active     |
 | `WebSocketStatus.test.tsx`        | Test suite for WebSocketStatus                                       | Active     |
 | `WorkerStatusIndicator.tsx`       | Background worker status indicator                                   | Active     |

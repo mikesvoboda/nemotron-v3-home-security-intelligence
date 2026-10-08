@@ -11,7 +11,7 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | Category       | Hook Count | Description                               |
 | -------------- | ---------- | ----------------------------------------- |
 | AI Services    | 6          | AI degradation, metrics, model status     |
-| Monitoring     | 8          | Circuit breakers, health, performance     |
+| Monitoring     | 9          | Circuit breakers, health, performance     |
 | WebSocket      | 12         | Real-time data connections                |
 | Data Queries   | 25         | TanStack Query hooks for fetching         |
 | Data Mutations | 10         | TanStack Query mutations for writes       |
@@ -45,6 +45,7 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `usePerformanceMetrics`   | Real-time performance via WebSocket        | None                                               | `{ current, history, alerts, isConnected, timeRange, setTimeRange }`                                        | `/ws/system`              |
 | `useGpuStatsQuery`        | TanStack Query GPU stats                   | `{ enabled?, refetchInterval? }`                   | `{ data, utilization, memoryUsed, temperature, isLoading, error, refetch }`                                 | `/api/system/gpu`         |
 | `useGpuHistory`           | GPU polling with history buffer (legacy)   | `{ pollingInterval?, maxDataPoints?, autoStart? }` | `{ current, history, isLoading, error, start, stop, clearHistory }`                                         | `/api/system/gpu`         |
+| `useVerdictEngineStatus`  | Verdict-engine (ai-vlm) availability       | `{ enabled?, pollIntervalMs? }`                    | `{ state, since, reason, loaded, isDown, isConnected }`                                                     | `/api/system/health/ready` + `/ws/system` |
 
 ### WebSocket Hooks
 
