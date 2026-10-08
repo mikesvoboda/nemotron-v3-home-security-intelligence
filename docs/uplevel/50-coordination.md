@@ -17,7 +17,8 @@
 
 - assign packages: `heavy` packages to the strongest available model or to an owner pairing, the rest
   to lane agents (UR-24);
-- assign each PR's reviewing lane, by rotation, never the author's own;
+- assign each PR's reviewing lane, by rotation, never the author's own, and label the PR
+  `review:<lane>` when it goes ready (UR-32);
 - merge PRs that meet the merge rule, in the order the hot-file rules require;
 - keep the README status table accurate, and watch the CI queue;
 - collect every question, owner-tier PR and owner-kept real-tier run into the daily batch (UR-25);
@@ -140,7 +141,9 @@ the 00-audit.md sections it cites.
 One package per PR. Write the failing test first. Before marking the PR ready,
 dispatch a fresh-context subagent to self-review it against the package's Done
 when, and record what it found. Keep commit subjects at 72 characters or fewer.
-When the plan does not answer a question, stop and report the question.
+State only what you have just read (UR-31): every commit, PR, file, test result
+and question you cite comes from output you ran in the same turn. When the plan
+does not answer a question, stop and report the question.
 ```
 
 **Phases 0 and 1, started by hand (UR-28).** From a clean host checkout of `main`, the owner
@@ -162,7 +165,7 @@ creates each agent with `agent-dgx run <session> --agent claude --endpoint dgx -
 1. **Check** that nobody holds it:
    `gh pr list --state open --search "[<package>] in:title"`.
 2. **Claim** it: open a draft PR titled `[<package>] <name>` from a branch named
-   `uplevel/<package>-<slug>`, with `gh pr create --draft --template uplevel.md`. The open draft PR
+   `uplevel/<package>-<slug>`, with `gh pr create --draft --template uplevel.md --label lane:<lane>`. The open draft PR
    is the claim; the coordinator's status summary reads claims from open PRs. The README status
    table on `main` changes only when the PR merges.
 3. **Depend only on merged work.** A dependency is met when its PR is merged to `main`. Branch from
@@ -179,8 +182,13 @@ given only the package text, the diff and the PR body. It checks each Done-when 
 evidence, the contract, the cross-lane parts and the hot-file rules. The author fixes what it finds,
 or answers it, and records the findings in the PR.
 
-**2. Peer review (UR-23).** The coordinator assigns a reviewing lane, preferring the lane that
-consumes the change. The reviewer works through the same checks independently. Every agent acts
+**2. Peer review (UR-23, UR-32).** The coordinator assigns a reviewing lane, preferring the lane
+that consumes the change, and names it in a comment when it assigns the package. When the author
+marks the PR ready, the coordinator adds the label `review:<lane>` — `review:ops-a` or
+`review:ops-b` for a split lane. Lane agents clear their label's PRs before starting or resuming a
+package. The reviewer works through the same checks independently, posts the review and removes
+the label; after `changes requested`, the coordinator labels the PR again when its author marks
+the new head ready. Every agent acts
 through the owner's GitHub account, which cannot approve its own PRs, so the review is a PR
 comment in this form:
 
@@ -225,14 +233,15 @@ counts once the coordinator has quoted it on the batch issue, with the owner's w
 
 Files many packages change. The coordinator sequences their merges; authors follow these rules.
 
-| file                                                       | rule                                                                                      |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `docs/openapi.json`, `frontend/src/types/generated/api.ts` | regenerate after rebasing, never hand-merge                                               |
-| the README status table                                    | edit only your own package's row                                                          |
-| `backend/core/config.py`, `.env.example`, compose files    | small hunks; rebase immediately before merge; the coordinator merges one at a time        |
-| `.github/workflows/ci.yml` (3,320 lines)                   | add a new check as its own job, or as its own workflow file, never by editing shared jobs |
-| `.pre-commit-config.yaml`, `backend/main.py`               | small hunks; one at a time                                                                |
-| `scripts/retired_paths.txt`                                | append-only                                                                               |
+| file                                                       | rule                                                                                                                                                                                               |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/openapi.json`, `frontend/src/types/generated/api.ts` | regenerate after rebasing, never hand-merge                                                                                                                                                        |
+| the README status table                                    | edit only your own package's line; prettier skips the table, so leave the other rows' padding alone                                                                                                |
+| `backend/core/config.py`, `.env.example`, compose files    | small hunks; rebase immediately before merge; the coordinator merges one at a time                                                                                                                 |
+| `.github/workflows/ci.yml` (3,320 lines)                   | add a new check as its own job, or as its own workflow file, never by editing shared jobs                                                                                                          |
+| `.pre-commit-config.yaml`, `backend/main.py`               | small hunks; one at a time                                                                                                                                                                         |
+| `scripts/retired_paths.txt`                                | append-only                                                                                                                                                                                        |
+| `.github/suppression-baseline.json`, `.secrets.baseline`   | counts and line numbers: regenerate after rebasing, immediately before merge; never hand-merge a count — two PRs that each add one marker both write the same number, and git merges them silently |
 
 ## Heavy packages (UR-24)
 
@@ -267,13 +276,16 @@ then docs/uplevel/50-coordination.md, which defines your remit. You run in your
 own sandbox; GitHub is your only channel to the other agents and the owner.
 
 On first start (Phase 0), create the labels lane:<lane>, cell:<cell>, heavy,
-owner and urgent, and pin an issue titled "Uplevel daily batch". On every
-restart, rebuild your state from open PRs, labels and that issue.
+owner and urgent, and pin an issue titled "Uplevel daily batch". Create the
+review:<lane> labels (review:ops-a and review:ops-b for the split ops lane)
+whenever one is missing. On every restart, rebuild your state from open PRs,
+labels and that issue.
 
 You route work; you write no product code and make no decisions, and you never
 provision sandboxes. Assign packages by opening their draft PRs with lane and
 cell labels (heavy ones only to the strongest available model or an owner
-pairing). Assign each PR's reviewing lane by rotation, merge PRs that meet the
+pairing). Assign each PR's reviewing lane by rotation, and label the PR
+review:<lane> when its author marks it ready; merge PRs that meet the
 merge rule in the order the hot-file rules require, keep the README status table
 accurate, and watch the CI queue.
 
