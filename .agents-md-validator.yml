@@ -72,9 +72,15 @@ exclude_reference_patterns:
 
 # ---------------------------------------------------------------------------
 # W1.1 ratchet baselines — measured by scripts/agents_md_validator.py itself
-# on the tree this PR produces (the PR edits scripts/AGENTS.md, a scanned
-# file, so minting at the pre-PR HEAD would have minted a stale baseline —
-# the design panel's blocker finding). Ratchet doctrine (scripts/ratchet-check.py):
+# on the tree this PR produces: that is the tree this config ships on, and a
+# baseline measured on a tree that never runs is unverifiable (the design
+# panel's blocker). Honest scope of that claim, measured at this PR's
+# merge-base for the review: the six retired-name counts are IDENTICAL at
+# base and head — the PR's AGENTS.md edits add zero net mentions — so
+# "minting at the base would have minted stale numbers" was false for THIS
+# PR; it is a hazard that generalises (any AGENTS.md edit can move a count,
+# which is why re-measure-before-merge is the rule), not a harm this PR
+# demonstrably dodged. Ratchet doctrine (scripts/ratchet-check.py):
 # these sets may only FALL. A rise is a hand edit a human reviews in the diff;
 # there is deliberately no --update, because a flag that rewrites the baseline
 # is an opt-out with no diff. See docs/uplevel/40-docs.md (W1.1).

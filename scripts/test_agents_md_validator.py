@@ -334,7 +334,10 @@ def test_retired_name_above_baseline_fails(tmp_path):
     r = run_validator(root)
     assert r.returncode == 1
     assert "florence" in r.stderr
-    assert "2" in r.stderr and "1" in r.stderr  # measured vs baseline
+    # Anchored on the message, not bare digits: an earlier version asserted
+    # "2" and "1" in stderr, and a mutant that hardcoded a different baseline
+    # STILL PASSED because the "1 violation(s)" summary line supplies the "1".
+    assert "measured 2 > baseline 1" in r.stderr
 
 
 def test_purpose_is_not_pose(tmp_path):
