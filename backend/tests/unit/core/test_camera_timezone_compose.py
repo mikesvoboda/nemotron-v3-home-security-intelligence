@@ -20,7 +20,7 @@ import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-COMPOSE_FILES = ("docker-compose.prod.yml", "docker-compose.ghcr.yml")
+COMPOSE_FILES = ("docker-compose.prod.yml",)  # the one supported stack (O1.2, UR-17)
 
 
 def _backend_env(compose_file: str) -> dict[str, str]:

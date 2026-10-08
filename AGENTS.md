@@ -166,7 +166,6 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 | `pyproject.toml`          | Python project config with Ruff, mypy, pytest, and coverage settings   |
 | `.pre-commit-config.yaml` | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)      |
 | `docker-compose.prod.yml` | Production Docker services with multi-stage builds and resource limits |
-| `docker-compose.ghcr.yml` | Pre-built GHCR images for user deployment                              |
 | `docker-compose.ci.yml`   | CI-specific Docker configuration for GitHub Actions                    |
 | `docker-compose.test.yml` | Test containers (postgres-test, redis-test) for CI                     |
 | `.env.example`            | Environment variable template                                          |

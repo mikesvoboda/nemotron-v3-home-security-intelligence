@@ -160,8 +160,8 @@ path only emits `process_cpu` (it POSTs speedscope CPU recordings), and the
 Alloy eBPF path emits native CPU profiles for `ai-vlm`. So a memory flame graph
 is only interesting for `service_name="nemotron-backend"`.
 
-The compose files pass `PYROSCOPE_MEMORY_ENABLED` to the backend container
-(`docker-compose.prod.yml:541`, `docker-compose.ghcr.yml:234`); no Python code
+The compose file passes `PYROSCOPE_MEMORY_ENABLED` to the backend container
+(`docker-compose.prod.yml:542`); no Python code
 in this repo reads that variable, and `init_profiling()` never passes
 `mem_enabled` to `pyroscope.configure` (the installed agent, pyroscope-io 1.2.4,
 defaults it to `false`). If allocation profiles are missing, check the Pyroscope

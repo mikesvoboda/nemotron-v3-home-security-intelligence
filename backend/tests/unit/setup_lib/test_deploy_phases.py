@@ -1158,11 +1158,12 @@ class TestSelinuxCameraRootPreflight:
     def test_reads_the_compose_file_deploy_uses(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        # prod relabels; a bare ghcr file next to it is not what deploy runs.
+        # prod relabels; a bare decoy file beside it is not what deploy runs.
         from setup_lib.deploy_phases import _preflight_selinux_camera_root
 
         config = self._config(
-            tmp_path, compose={"docker-compose.prod.yml": ":z", "docker-compose.ghcr.yml": ":ro"}
+            tmp_path,
+            compose={"docker-compose.prod.yml": ":z", "docker-compose.decoy.yml": ":ro"},
         )
         verdict = _preflight_selinux_camera_root(
             config, selinux_enforcing=lambda: True, selinux_label=lambda _path: USR_T
@@ -1171,7 +1172,7 @@ class TestSelinuxCameraRootPreflight:
         out = capsys.readouterr().out
         assert verdict.verdict == "PASS"
         assert "WARNING" not in out
-        assert "ghcr" not in out
+        assert "decoy" not in out
 
     @pytest.mark.parametrize(
         ("env", "root"),

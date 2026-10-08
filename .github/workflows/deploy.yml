@@ -50,9 +50,12 @@ jobs:
           # every main push red on buildx "lstat ai/florence: no such file"
           # until the R8 follow-up slice removed the dead jobs. The shipped
           # GPU services ai-gateway and ai-vlm are built by compose and were
-          # never matrix images here; the ghcr compose pulling ai-gateway
-          # (and having no ai-vlm service) is a reported publish gap, owner-
-          # adjudicated — do not "fix" it here without a ruling.
+          # never matrix images here. A prebuilt-image compose file that used
+          # to pull ai-gateway (with no ai-vlm service) was the reported
+          # publish gap behind that ruling; O1.2 (UR-17) deleted that file, so
+          # the gap closed by removal — the publish surface here stayed
+          # backend + frontend, owner-adjudicated, still do not "expand" it
+          # without a ruling.
           - name: backend
             context: .
             dockerfile: ./backend/Dockerfile
@@ -360,9 +363,9 @@ jobs:
 
   # O1.9 (D12) box 2: move the :latest pointer only for a commit whose smoke test
   # passed. merge-core tags the immutable short sha; this job is the sole writer
-  # of :latest, so the tag the operator's runbook and docker-compose.ghcr.yml
-  # pull by default names the most recent deploy-validated build rather than
-  # whatever was pushed last. On a red deploy the pointer simply does not move —
+  # of :latest, so the tag an operator's runbook or manual pull follows by
+  # default names the most recent deploy-validated build rather than whatever
+  # was pushed last. On a red deploy the pointer simply does not move —
   # which, together with the red run, IS the signal the owner ruled on
   # (2026-10-08) instead of rollback.yml filing an issue that rolls back nothing.
   publish-latest:

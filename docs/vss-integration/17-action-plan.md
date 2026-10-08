@@ -223,7 +223,7 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-06 (OD-14 partially resolved 2026-10-08 by UR-18 — the plain-`up` branch shipped, the publish branch open — no issue opened or closed; ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`; ISS-016 `done` 2026-10-06 on `vlm-pipeline`, commits `54d036d5`..`8cdbb412`). The Filed columns count every issue by its filed
+Counts as of 2026-10-06 (OD-14 partially resolved 2026-10-08 by UR-18 — the plain-`up` branch shipped, the publish branch open — then the ghcr branch retired 2026-10-08 by O1.2 (PR #6907): the ghcr install path is deleted rather than declared unsupported, so ISS-028's remaining ask is the publish-with-provenance branch alone; no issue opened or closed; ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`; ISS-016 `done` 2026-10-06 on `vlm-pipeline`, commits `54d036d5`..`8cdbb412`). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
 ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
@@ -5300,6 +5300,14 @@ The `ai-vlm` image, compose files, provisioning, restart tooling and release art
   (`test_ai_vlm_compose_service.py::TestComposeServiceShape::test_starts_by_default`), and
   `_ModePlan` carries no profile. The ghcr gap, the publish gap, and OD-14's remaining ask
   stand (E131).
+- **Update 2026-10-08 (O1.2, PR #6907) [V].** The ghcr half of this issue is delivered by
+  deletion, which outranks the declared-unsupported branch of the Acceptance:
+  `docker-compose.ghcr.yml` and `docs/operator/ai-ghcr-deployment.md` are gone, every living
+  reference is rewritten to the one supported install path (`setup.py` + `docker-compose.prod.yml`),
+  and `scripts/test_retired_paths.py` (wired into ci.yml) fails if any living text names either
+  path again. The evidence lines above naming `docker-compose.ghcr.yml` are read as filed — the
+  file's history lives here now, not in the tree. What stays open is OD-14's other branch only:
+  publishing the GPU services with provenance (option (a) of the world-class ask).
 
 #### ISS-051 — Derive the deploy export phase from the residency set: `CORE_MODELS` and `export_all.sh` name deleted models
 
@@ -8482,3 +8490,12 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   (15, 18, 21) and the README rows. Verified at `066be346` + the PR branch: the render of
   `docker compose -f docker-compose.prod.yml config --services` with no profile flag lists
   `ai-vlm`. The ghcr/publish half of OD-14 and ISS-028 stays open.
+- O1.2 closes the ghcr half (no new id; no status or bar moved; ops lane PR #6907).
+  `docker-compose.ghcr.yml` and `docs/operator/ai-ghcr-deployment.md` are deleted, every living
+  reference rewritten to the one supported install path (`setup.py` + the prod compose file), and
+  `scripts/retired_paths.txt` + `scripts/test_retired_paths.py` (wired into ci.yml's
+  collection-sanity list) keep both paths gone and living text off them. ISS-028 carries a dated
+  note; its Acceptance (b) is delivered in the stronger form — the unsupported path is deleted,
+  not just declared. OD-14's publish-with-provenance branch (option (a)) is the only remaining
+  ask. Verified on this branch: the gate reports `OK: 2 retired path(s) stay gone; no living text
+names one`.

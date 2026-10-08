@@ -61,29 +61,22 @@ class TestSeedEventsInstances:
 
 
 class TestImagePullSizeEstimates:
-    """setup_lib/image_pull.py:220-222 carried size keys for retired images."""
+    """setup_lib/image_pull.py:220-222 carried size keys for retired images.
 
-    def test_size_estimates_drop_retired_images(self) -> None:
-        from setup_lib.image_pull import estimate_pull_size
+    O1.2 (UR-17) retired the GHCR pre-built compose surface, and the pull
+    machinery that carried those keys with it: a local-build install path has
+    no private-registry download to size. The class keeps its name and its
+    purpose — the retired image names must not come back with sizes attached —
+    but the pin is now the stronger one: the estimator is gone, so no key,
+    retired or live, can reappear there.
+    """
 
-        total = estimate_pull_size(
-            [
-                "ghcr.io/example/ai-florence:latest",
-                "ghcr.io/example/ai-clip:latest",
-                "ghcr.io/example/ai-enrichment:latest",
-            ]
-        )
-        # Retired keys are gone, so all three fall to the 200 MB unknown-image
-        # default (600 MB = "~600 MB"); when the retired keys are present the
-        # estimate reads "~18 GB".
-        assert total == "~600 MB", f"retired images still size above unknown-image default: {total}"
+    def test_the_pull_estimator_is_gone(self) -> None:
+        from setup_lib import image_pull
 
-    def test_yolo26_size_key_survives(self) -> None:
-        from setup_lib.image_pull import estimate_pull_size
-
-        total = estimate_pull_size(["ghcr.io/example/ai-yolo26:latest"])
-        assert total == "~7.8 GB", (
-            f"ai-yolo26 (still kept per owner ruling) must size at 8000 MB: {total}"
+        assert not hasattr(image_pull, "estimate_pull_size"), (
+            "estimate_pull_size came back — with one compose stack that builds "
+            "its own images there is nothing to size a private-registry pull of"
         )
 
 

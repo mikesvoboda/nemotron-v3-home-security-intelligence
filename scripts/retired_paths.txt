@@ -1,0 +1,18 @@
+# Retired paths — files deleted on purpose, which must stay gone.
+#
+# One repo-relative path per line; `#` starts a comment. scripts/test_retired_paths.py
+# fails (a) when a listed path exists again, and (b) when a LIVING doc, workflow,
+# hook or script names a listed path. Dated records keep their references: plan and
+# spec dirs, decision logs, goal prompts, archive/, docs/uplevel/, and any line
+# carrying a dated decision-log tag like [V 2026-09-28]. See the checker's docstring
+# for the full rule set.
+#
+# O1.2 (UR-17): the ghcr compose install path had no ai-vlm service, yet
+# docs/operator/ai-ghcr-deployment.md advertised it as an install path (00-audit D5).
+# One install path remains: setup.py plus docker-compose.prod.yml. Registry publishing
+# of backend/frontend stays (deploy.yml's smoke job pulls them by tag); it is this
+# compose file and its runbook that go.
+docker-compose.ghcr.yml
+docs/operator/ai-ghcr-deployment.md
+
+# O1.4 and O1.5 will add their own entries here (docs/uplevel/30-ops.md).

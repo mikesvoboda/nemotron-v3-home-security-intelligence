@@ -816,10 +816,9 @@ also_copy = [
     ".nvmrc",
     ".python-version",
     "docker-compose.prod.yml",
-    # #6678-era additions (2026-09-25): the a5500 precheck real-tree tests
-    # read .env.example + docker-compose.ghcr.yml from the mutant home;
-    # missing -> fixture setup errors -> stats/coverage abort under -x.
-    "docker-compose.ghcr.yml",
+    # #6678-era addition (2026-09-25): the a5500 precheck real-tree tests read
+    # .env.example from the mutant home; missing -> fixture setup errors ->
+    # stats/coverage abort under -x.
     ".env.example",
     "data/",
     "frontend/nginx.conf",

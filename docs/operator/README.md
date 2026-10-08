@@ -319,7 +319,7 @@ fuser -k /dev/nvidia*
 
 ### Deployment
 
-- [Complete Deployment Guide](deployment/README.md) - Docker/Podman setup, compose files, GHCR images
+- [Complete Deployment Guide](deployment/README.md) - Docker/Podman setup with the prod compose stack
 - [GPU Setup Guide](gpu-setup.md) - NVIDIA drivers, container toolkit, CDI
 - [AI Services Guide](ai-overview.md) - ai-gateway + ai-vlm: what each serves
 - [AI Services Management](ai-services.md) - Starting, verifying and restarting AI

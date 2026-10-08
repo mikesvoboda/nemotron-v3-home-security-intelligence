@@ -264,7 +264,6 @@ class TestComposeConfigValidation:
 TRACKED_COMPOSE_FILES: tuple[str, ...] = (
     "config/docker-compose.gb300.yml",
     "docker-compose.ci.yml",
-    "docker-compose.ghcr.yml",
     "docker-compose.prod.yml",
     "docker-compose.test.yml",
 )
@@ -358,14 +357,15 @@ class TestRetiredLlmServiceIsGone:
         """Exact-key absence: `ai-llm` as a service key appears nowhere.
 
         Asserted on parsed service keys, not by grepping the raw text, and that
-        choice is measured rather than stylistic: `grep -c ai-llm` over this file
-        set (2026-09-29) returns three hits -- two sentences of retirement prose
-        (config/docker-compose.gb300.yml:43, docker-compose.ghcr.yml:241) and
-        the live prefixed key `ai-llm-vllm:` (docker-compose.prod.yml:278). A
-        text grep would call all three ghosts. The parsed keys say what a file
-        actually defines, and
+        choice is measured rather than stylistic: `grep -c ai-llm` over this
+        file set returns two hits -- one sentence of retirement prose
+        (config/docker-compose.gb300.yml:43) and the live prefixed key
+        `ai-llm-vllm:` (docker-compose.prod.yml:283). A text grep would call
+        both ghosts. (The count was three until O1.2 deleted the third: the
+        same kind of retirement prose in the ghcr compose file.) The parsed
+        keys say what a file actually defines, and
         `test_the_retired_name_survives_only_as_prose_or_the_prefixed_key`
-        pins the three hits so the prose allowance cannot widen silently.
+        pins the surviving hits so the prose allowance cannot widen silently.
         """
         services = _services(fname)
         assert services, f"{fname} parsed to zero services -- the loader moved"
@@ -469,14 +469,14 @@ class TestRetiredLlmServiceIsGone:
 
     def test_the_retired_name_survives_only_as_prose_or_the_prefixed_key(self) -> None:
         """The complement of the parsed-key pin, and the reason it is allowed to
-        parse instead of grep: `ai-llm` is still WRITTEN in this file set, three
-        times, and each time for a reason someone chose.
+        parse instead of grep: `ai-llm` is still WRITTEN in this file set,
+        twice, and each time for a reason someone chose.
 
-        gb300:43 and ghcr:241 are comments explaining that a deleted
-        depends_on entry and a CTX_SIZE note pointed at the service R8 S2
-        retired (prose about a retirement has to be able to name what retired --
+        gb300:43 is a comment explaining that a deleted depends_on entry
+        pointed at the service R8 S2 retired (prose about a retirement has to
+        be able to name what retired --
         same rule `TestDeadModulesAreGone.test_no_survivor_imports_the_dead`
-        states for docstrings), and prod:278 is the live `ai-llm-vllm:` key that
+        states for docstrings), and prod:283 is the live `ai-llm-vllm:` key that
         shares the prefix. Anything else is a new tenant in the retired slot:
         uncommenting a deleted service, or a rename landing the dead name on a
         live container.
@@ -526,8 +526,8 @@ class TestCameraMountIsWatchableUnderSELinux:
     # The backend is not the only container that touches the camera root:
     # foscam-init chowns it BEFORE the backend starts (so on a fresh host it
     # is the first to touch the dir - the A5500 audit log also showed its
-    # `avc: denied { setattr } for comm="chown" ... tcontext=...usr_t`), and
-    # the ghcr compose mounts it for its own backend. Each such mount relabels.
+    # `avc: denied { setattr } for comm="chown" ... tcontext=...usr_t`). Each
+    # such mount relabels.
 
     def test_the_tracked_compose_list_is_what_git_tracks(self) -> None:
         # The list below is explicit, not a working-tree glob: a stale local
@@ -572,7 +572,6 @@ class TestCameraMountIsWatchableUnderSELinux:
         assert found >= {
             ("docker-compose.prod.yml", "backend"),
             ("docker-compose.prod.yml", "foscam-init"),
-            ("docker-compose.ghcr.yml", "backend"),
         }
 
     @pytest.mark.parametrize(
