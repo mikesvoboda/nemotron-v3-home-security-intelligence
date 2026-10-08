@@ -25,8 +25,7 @@ TLS is **optional** for this system's MVP deployment:
 default, which is the primary boundary. For any network exposure, terminate TLS at a
 reverse proxy.
 
-> [!IMPORTANT]
-> **Backend trust:** the AI clients (`backend/services/detector_client.py`,
+> [!IMPORTANT] > **Backend trust:** the AI clients (`backend/services/detector_client.py`,
 > `backend/services/vlm_client.py`, …) use default-verification `httpx.AsyncClient`
 > instances, and there is **no** `AI_VERIFY_SSL` / `AI_CA_CERT_PATH` setting in
 > `backend/core/config.py` or `.env.example`. Pointing `*_URL` variables at an

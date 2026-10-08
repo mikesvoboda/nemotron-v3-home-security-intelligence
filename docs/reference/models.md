@@ -94,7 +94,7 @@ SECURITY_CLASSES = {
 
 ### Serving VLM: the `ai-vlm` llama.cpp engine
 
-Risk reasoning in the shipped pipeline is the `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is config, ledger D5). Because identity is config, this entry documents the **serve**; the weight names below are the compose/`.env.example` defaults, not a claim that this model is required.
+Risk reasoning in the shipped pipeline is the `ai-vlm` llama.cpp engine (VlmAnalyzer; risk reasoning — model identity is config, ledger D5). Because identity is config, this entry documents the **serve**; the weight names below are the compose/`.env.example` defaults, not a claim that this model is required.
 
 | Specification     | Value                                                                                                                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -476,7 +476,7 @@ flowchart TD
     end
 
     subgraph Reasoning["Reasoning"]
-        VLM["ai-vlm :8098<br/>llama.cpp engine<br/>(VLMAnalyzer; identity is config)"]
+        VLM["ai-vlm :8098<br/>llama.cpp engine<br/>(VlmAnalyzer; identity is config)"]
     end
 
     BE -->|images| YOLO

@@ -358,8 +358,8 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 ## Data Flow
 
 1. Cameras FTP upload images/videos to `/export/foscam/{camera_name}/`
-2. File watcher detects new files and enqueues jobs (file paths) to the Redis `detection_queue`
-3. A detection worker runs YOLO26 (ai-gateway `/yolo26`); detection IDs accumulate in Redis batch lists (`batch:{batch_id}:detections`) and closed batches are pushed to `analysis_queue`
+2. File watcher detects new files and enqueues jobs (file paths) to the Redis detection queue — shipped streams mode writes `detections:stream` (`backend/services/redis_streams.py:73`); `detection_queue` is the legacy list name and the admin UI label (`backend/api/routes/admin.py:1264`)
+3. A detection worker runs YOLO26 (ai-gateway `/yolo26`); detection IDs accumulate in Redis batch lists (`batch:{batch_id}:detections`) and closed batches are pushed to the analysis queue (`analysis:stream` in streams mode, `backend/services/redis_streams.py:873`)
 4. Every 90 seconds (or 30s idle), batch sent to the `ai-vlm` VlmAnalyzer for risk assessment
 5. Results stored in PostgreSQL, pushed to dashboard via WebSocket
 

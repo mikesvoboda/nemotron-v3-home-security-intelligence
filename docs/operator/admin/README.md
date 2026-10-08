@@ -456,8 +456,7 @@ AI_VLM_URL=http://host.docker.internal:8098
 `api/routes/model_management.py` probes it to report gateway health, and the live person
 re-ID lookup runs in-process in the backend.
 
-> [!IMPORTANT]
-> `AI_VLM_URL` is the value that gets missed. The backend's code default is
+> [!IMPORTANT] > `AI_VLM_URL` is the value that gets missed. The backend's code default is
 > `http://localhost:8098`, which inside a container is the container itself: every verdict
 > lands `verification_failed` with a NULL `risk_score` while events keep arriving. Compose
 > closes the hole; a host-run or remote AI setup must set it explicitly.
