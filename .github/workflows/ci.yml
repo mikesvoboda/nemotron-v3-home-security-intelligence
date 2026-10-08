@@ -38,6 +38,10 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
+          # Without this the default quantifier ('some') OR-s a '!' pattern in, and
+          # '!frontend/**/*.md' matches every file outside frontend/: frontend was
+          # true on every PR, so docs- and backend-only PRs ran all 18 frontend jobs.
+          predicate-quantifier: 'some-with-excludes'
           filters: |
             backend:
               - 'backend/**'
@@ -320,7 +324,7 @@ jobs:
     timeout-minutes: 5
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -361,7 +365,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -403,7 +407,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, lint, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -496,7 +500,7 @@ jobs:
 
       - name: Upload unit test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results-unit-shard-${{ matrix.shard }}-py${{ matrix.python-version }}
           path: |
@@ -506,7 +510,7 @@ jobs:
 
       - name: Upload unit test coverage
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # WP5.1: carries the pytest-cov DATA file (via COVERAGE_FILE, named
           # non-hidden .dat) alongside the per-shard XML. The merge job combines
@@ -527,7 +531,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, unit-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
     steps:
@@ -652,7 +656,7 @@ jobs:
       # main's real merged number without re-running the suite on base.
       - name: Publish coverage baseline (main)
         if: steps.combine.outputs.merged == 'true' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-baseline
           path: coverage-baseline.json
@@ -671,7 +675,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, unit-tests, collection-sanity]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check unit test shard results
         run: |
@@ -746,7 +750,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
        needs.build-backend-deps.result != 'failure'
@@ -777,7 +781,7 @@ jobs:
         shard: [1, 2, 3, 4]
     needs: [integration-tests-api]
     if: |
-      always() &&
+      !cancelled() &&
       needs.integration-tests-api.result == 'cancelled'
     with:
       shard: ${{ matrix.shard }}
@@ -796,7 +800,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -879,7 +883,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results-integration-websocket-py${{ matrix.python-version }}
           path: |
@@ -889,7 +893,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-websocket-py${{ matrix.python-version }}
@@ -910,7 +914,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -1007,7 +1011,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results-integration-services-py${{ matrix.python-version }}
           path: |
@@ -1017,7 +1021,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-services-py${{ matrix.python-version }}
@@ -1038,7 +1042,7 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -1128,7 +1132,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results-integration-models-py${{ matrix.python-version }}
           path: test-results-integration-models.xml
@@ -1136,7 +1140,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-models-py${{ matrix.python-version }}
@@ -1160,7 +1164,7 @@ jobs:
         integration-tests-models,
       ]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
     steps:
@@ -1266,7 +1270,7 @@ jobs:
         integration-tests-services,
         integration-tests-models,
       ]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check integration test results
         run: |
@@ -1330,7 +1334,7 @@ jobs:
     # detect-changes like unit-tests so docs-only PRs don't pay for it.
     needs: [detect-changes, lint, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -1392,7 +1396,7 @@ jobs:
 
       - name: Upload contract test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results-contracts
           path: test-results-contracts.xml
@@ -1402,7 +1406,7 @@ jobs:
         # WP1.1: main-only, as the title says. A PR red is the whole point of
         # running this job on PRs now — the author sees it on the PR; an
         # issue filed per red PR would be noise, and the title lies anyway.
-        if: failure() && github.ref == 'refs/heads/main'
+        if: vars.LINEAR_ENABLED == 'true' && (failure() && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -1472,7 +1476,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, lint, build-backend-deps]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -1498,7 +1502,7 @@ jobs:
 
       - name: Create Linear issue on failure
         # WP1.1: title says "on main"; a PR red belongs on the PR, not Linear.
-        if: failure() && github.ref == 'refs/heads/main'
+        if: vars.LINEAR_ENABLED == 'true' && (failure() && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -1587,7 +1591,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020    # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -1629,7 +1633,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020    # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -1661,7 +1665,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020    # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -1684,7 +1688,7 @@ jobs:
     # Skip if only backend/docs changed (checked via detect-changes)
     needs: [detect-changes, frontend-lint]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true') &&
       needs.frontend-lint.result != 'failure'
@@ -1715,7 +1719,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020    # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -1821,7 +1825,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: frontend-coverage-shard-${{ matrix.shard }}-of-8-node-${{ env.NODE_VERSION }}
           path: frontend/coverage/
@@ -1845,7 +1849,7 @@ jobs:
     # ai/** is already inside detect-changes' `backend` paths filter - no new
     # output key invented; same if-shape as the other backend jobs.
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
@@ -1910,7 +1914,7 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, frontend-tests]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true')
     steps:
@@ -1918,7 +1922,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020    # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
 
@@ -1987,7 +1991,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, frontend-tests, collection-sanity]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check shard results
         run: |
@@ -2033,7 +2037,7 @@ jobs:
     # Skip if only backend/docs changed (checked via detect-changes)
     needs: [detect-changes, frontend-lint]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true') &&
       needs.frontend-lint.result != 'failure'
@@ -2048,7 +2052,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020    # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -2058,7 +2062,7 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Cache Playwright browsers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9    # v6.1.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -2126,7 +2130,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-report-chromium-${{ strategy.job-index }}-node-${{ env.NODE_VERSION }}
           path: frontend/playwright-report/
@@ -2134,7 +2138,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-test-results-chromium-${{ strategy.job-index }}-node-${{ env.NODE_VERSION }}
           path: frontend/test-results/
@@ -2146,7 +2150,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, frontend-e2e]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - name: Check shard results
         run: |
@@ -2186,7 +2190,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020    # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -2196,7 +2200,7 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Cache Playwright browsers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9    # v6.1.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -2265,7 +2269,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-report-${{ matrix.browser }}
           path: frontend/playwright-report/
@@ -2273,14 +2277,14 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-test-results-${{ matrix.browser }}
           path: frontend/test-results/
           retention-days: 7
 
       - name: Create Linear issue on failure
-        if: failure()
+        if: vars.LINEAR_ENABLED == 'true' && (failure())
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -2356,7 +2360,7 @@ jobs:
     # green on PRs in this repo.
     needs: [detect-changes]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
     steps:
@@ -2373,10 +2377,10 @@ jobs:
           df -h
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069    # v4.4.1
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log in to Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f    # v4.6.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -2401,7 +2405,7 @@ jobs:
               .
 
       - name: Create Linear issue on failure
-        if: failure()
+        if: vars.LINEAR_ENABLED == 'true' && (failure())
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -2468,7 +2472,7 @@ jobs:
     # Path-gated on the frontend surface so backend-only PRs pay nothing.
     needs: [detect-changes]
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true')
     steps:
@@ -2476,10 +2480,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069    # v4.4.1
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log in to Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f    # v4.6.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -2504,7 +2508,7 @@ jobs:
               ./frontend
 
       - name: Create Linear issue on failure
-        if: failure()
+        if: vars.LINEAR_ENABLED == 'true' && (failure())
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -2598,7 +2602,7 @@ jobs:
     # must SKIP honestly; when the tier ran, its artifacts are here (uploaded
     # if: always()) and zero XML is a pipeline break -> fail.
     if: |
-      always() &&
+      !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
@@ -2687,7 +2691,7 @@ jobs:
       - name: Create Linear issue on failure
         # WP0.5: the job now gates PRs too — a PR failure is a red check the
         # author sees inline; only post-merge main failures file the follow-up.
-        if: failure() && github.ref == 'refs/heads/main'
+        if: vars.LINEAR_ENABLED == 'true' && (failure() && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -2808,14 +2812,14 @@ jobs:
 
       - name: Upload flaky test report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: flaky-test-report-${{ github.run_id }}
           path: flaky-test-report.json
           retention-days: 30
 
       - name: Create Linear issue on failure
-        if: failure()
+        if: vars.LINEAR_ENABLED == 'true' && (failure())
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -2884,7 +2888,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020    # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -2950,7 +2954,7 @@ jobs:
           echo "Frontend test count verification passed!"
 
       - name: Create Linear issue on failure
-        if: failure()
+        if: vars.LINEAR_ENABLED == 'true' && (failure())
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -3026,7 +3030,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020    # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -3223,7 +3227,7 @@ jobs:
       # never arrive here — the same conclusion-vs-verdict lie WP0.6 exists to
       # kill, one layer further down.
       #   collection-sanity runs the census, the ratchet, the expiry check and
-      #     the anti-rot gate suites. Its dependents carry `if: always()` and
+      #     the anti-rot gate suites. Its dependents carry `if: !cancelled()` and
       #     read only their own shard results, so a red ratchet left CI Gate
       #     green and Phase 1 was advisory.
       #   build-backend-deps gates every backend job through

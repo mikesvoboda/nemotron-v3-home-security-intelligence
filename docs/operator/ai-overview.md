@@ -17,8 +17,9 @@ all of the GPU inference in production:
 | `ai-gateway` | 8090 (metrics 8002) | Triton + FastAPI | `/yolo26` detection, `/enrich-lt` resident specialists  |
 | `ai-vlm`     | 8098                | llama.cpp        | Qwen3VL-8B multimodal verdicts (`/v1/chat/completions`) |
 
-`ai-vlm` is behind the compose profile `vlm` and is off until you start it with
-`--profile vlm`. It is the reasoning engine the pipeline calls. The optional `vllm`
+`ai-vlm` is in the default compose set — a plain `up -d` starts it, with no flag (until
+UR-18 it sat behind a profile that had to be named explicitly). It is the reasoning engine
+the pipeline calls. The optional `vllm`
 profile's `ai-llm-vllm` (host `VLLM_PORT`, default 8097) is a benchmarking target:
 nothing in the backend sends it traffic, and it appears in no `depends_on`.
 
@@ -120,7 +121,7 @@ flowchart LR
 ```
 +---------------------------------------------+  +--------------------------------+
 |        ai-gateway  :8090 (Triton)           |  |     ai-vlm :8098 (llama.cpp)   |
-|                                             |  |   behind profile `vlm`         |
+|                                             |  |  default compose set (no flag) |
 |  /yolo26      detect · batch · segment      |  |                                |
 |  /enrich-lt   person-reid · threat-detect   |  |  Qwen3VL-8B + mmproj           |
 |             (readiness lane)                |  |  POST /v1/chat/completions     |
@@ -155,8 +156,8 @@ Triton on GPU 1. See [GPU Setup](gpu-setup.md) for the full breakdown.
 
 AI services run:
 
-- **Fully containerized** (the supported path): `docker-compose.prod.yml`, with
-  `ai-vlm` started by `--profile vlm`
+- **Fully containerized** (the supported path): `docker-compose.prod.yml`, whose default
+  `up -d` starts `ai-vlm` along with the rest of the stack
 - **Host-run detection** (development only): `./ai/start_detector.sh`, which collides
   with the gateway's host port unless you move `YOLO26_PORT`
 

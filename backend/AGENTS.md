@@ -122,7 +122,7 @@ backend/
   - `hierarchy` - Hierarchical organization
   - `household` - Household management
   - `household_matcher` - Household matching operations
-  - `inbound_webhooks` - Inbound webhook handlers
+  - `inbound_webhooks` - Inbound webhook receivers (all four answer 501 per UR-12)
   - `jobs` - Background job management
   - `llm_reasoning` - LLM reasoning inspection
   - `logs` - Log querying and frontend log ingestion
@@ -478,7 +478,7 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 | Route                  | Prefix                           | Description                    |
 | ---------------------- | -------------------------------- | ------------------------------ |
 | `backup.py`            | `/api/backup`                    | Backup management              |
-| `inbound_webhooks.py`  | `/api/webhooks/inbound`          | Inbound webhook handlers       |
+| `inbound_webhooks.py`  | `/api/webhooks/inbound`          | Inbound webhook receivers, 501 |
 | `mqtt_config.py`       | `/api/mqtt-config`               | MQTT configuration             |
 | `onvif.py`             | `/api/cameras/{camera_id}/onvif` | ONVIF camera discovery/control |
 | `outbound_webhooks.py` | `/api/outbound-webhooks`         | Outbound webhook configuration |
@@ -980,7 +980,7 @@ FOSCAM_BASE_PATH=/export/foscam
 # AI service endpoints - the ai-gateway container on port 8090 serves ONLY
 # /yolo26 and /enrich-lt (R8 S3 pruned the /florence /clip /enrichment router
 # mounts on 2026-09-29). The shipped LLM engine is the separate `ai-vlm`
-# llama.cpp container, host loopback port 8098 (compose profile `vlm`).
+# llama.cpp container, host loopback port 8098 (default compose set).
 # Values below match .env.example.
 USE_AI_GATEWAY=true
 AI_GATEWAY_URL=http://ai-gateway:8090

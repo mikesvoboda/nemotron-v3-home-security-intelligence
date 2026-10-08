@@ -452,12 +452,12 @@ Host ports come from `.env` (defaults shown below are from `.env.example`); `doc
 
 ### AI Services
 
-| Service              | Host Port | Description                                                                                         |
-| -------------------- | --------- | --------------------------------------------------------------------------------------------------- |
-| AI Gateway           | 8090      | Single AI entrypoint (Triton); routers `/yolo26` + `/enrich-lt` only (the rest were deleted, R8 S3) |
-| AI Gateway metrics   | 8002      | Gateway Prometheus metrics (`AI_GATEWAY_METRICS_PORT`)                                              |
-| vLLM (optional)      | 8097      | LLM benchmark harness (NEM-5441) — compose profile `vllm`, off by default                           |
-| VLM llama.cpp engine | 8098      | `ai-vlm` llama.cpp engine (VLMAnalyzer; model identity is config, ledger D5) — profile `vlm`        |
+| Service              | Host Port | Description                                                                                              |
+| -------------------- | --------- | -------------------------------------------------------------------------------------------------------- |
+| AI Gateway           | 8090      | Single AI entrypoint (Triton); routers `/yolo26` + `/enrich-lt` only (the rest were deleted, R8 S3)      |
+| AI Gateway metrics   | 8002      | Gateway Prometheus metrics (`AI_GATEWAY_METRICS_PORT`)                                                   |
+| vLLM (optional)      | 8097      | LLM benchmark harness (NEM-5441) — compose profile `vllm`, off by default                                |
+| VLM llama.cpp engine | 8098      | `ai-vlm` llama.cpp engine (VLMAnalyzer; model identity is config, ledger D5), in the default compose set |
 
 Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `YOLO26_PORT=8095`, `FLORENCE_PORT=8092`, `CLIP_PORT=8093`, `ENRICHMENT_PORT=8094` and `ENRICHMENT_LIGHT_PORT=8096` in `.env.example` are legacy values kept for reference and local dev scripts only. The `JAEGER_*` and `ELASTICSEARCH_*` port vars were removed — tracing is Grafana Tempo (NEM-5545) on `TEMPO_PORT=3200`, and Tempo is self-contained (no Jaeger/Elasticsearch storage backend).
 

@@ -4,10 +4,10 @@
 
 This guide covers the alerting rules and Alertmanager configuration for Home Security
 Intelligence. Prometheus, Alertmanager and Grafana are **default compose services** — they
-start with a plain `up -d` (no `--profile` needed). The profiled services are
-`ai-vlm` (profile `vlm`), `ai-llm-vllm` (profile `vllm`) and `dcgm-exporter` (profile
-`gpu-rootful`); none of them carries any of the monitoring containers, so the alerting
-stack is up whether or not the reasoning engine is.
+start with a plain `up -d` (no `--profile` needed), and so does the reasoning engine
+`ai-vlm`. The profiled services are `ai-llm-vllm` (profile `vllm`) and `dcgm-exporter`
+(profile `gpu-rootful`); neither carries any of the monitoring containers, so the alerting
+stack is up whether or not they are.
 
 ---
 
@@ -84,6 +84,7 @@ rules), `alerting-rules.yml`, `gpu-alerts.yml`, `ai-pipeline-alerts.yml`,
 | `AIDLQCritical`         | `hsi_dlq_depth > 50`                                              | 2 min    | critical |
 
 > [!NOTE]
+>
 > **Latency alerting on the shipped path.** The backend exports the
 > `hsi_ai_request_duration_seconds` histogram with `service="yolo26"`
 > (`backend/services/detector_client.py:1139` → `backend/core/metrics.py:323`), scraped at
@@ -421,7 +422,7 @@ podman compose -f docker-compose.prod.yml restart alertmanager
 ```
 
 All seven files in the `rule_files:` list are bind-mounted into the Prometheus container by
-`docker-compose.prod.yml:1012-1018`, so a host edit lands inside the container on the next
+`docker-compose.prod.yml:1017-1023`, so a host edit lands inside the container on the next
 bind read — but Prometheus only re-reads rules on the `/-/reload` above, on a config
 reload, or on container recreation. A rule file that is _not_ in both that mount list and
 the `rule_files:` list is never loaded: `promtool` will pass it and Prometheus will ignore

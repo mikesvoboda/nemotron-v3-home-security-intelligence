@@ -9,7 +9,7 @@ launched by `backend/entrypoint.sh:51`, log at
 `/app/data/logs/profiler.log`) — two views of the **same** backend process —
 plus `ai-vlm`, profiled from outside by Alloy's eBPF component because
 `llama-server` is native code (label `pyroscope.profile: 'true'`,
-`docker-compose.prod.yml:144-145`). `ai-gateway` runs Triton and pushes nothing.
+`docker-compose.prod.yml:151-152`). `ai-gateway` runs Triton and pushes nothing.
 Mechanism details: [Continuous Profiling Guide](../guides/profiling.md).
 
 ## Quick Reference
@@ -27,7 +27,7 @@ Mechanism details: [Continuous Profiling Guide](../guides/profiling.md).
 
 Grafana serves from the `/grafana/` sub-path
 (`GF_SERVER_ROOT_URL=/grafana/`, `GF_SERVER_SERVE_FROM_SUB_PATH=true`,
-`docker-compose.prod.yml:1085-1086`) on host port `${GRAFANA_PORT:-3002}`, bound
+`docker-compose.prod.yml:1090-1091`) on host port `${GRAFANA_PORT:-3002}`, bound
 to `127.0.0.1`.
 
 ---
@@ -806,7 +806,7 @@ Grafana serves from `/grafana/`, so its API lives at
 (`GF_AUTH_ANONYMOUS_ENABLED=true`), and the admin pair is
 `GF_ADMIN_USER`/`GF_ADMIN_PASSWORD` (both default `admin`). The provisioning
 directory is bind-mounted read-only
-(`docker-compose.prod.yml:1064`).
+(`docker-compose.prod.yml:1069`).
 
 **Procedure:**
 
@@ -862,8 +862,9 @@ for service in $SERVICES; do
 done
 ```
 
-`ai-vlm` only appears when the `vlm` compose profile is enabled
-(`--profile vlm up -d`), so gate that entry on the container running.
+`ai-vlm` ships in the default bring-up (`up -d` starts it; until UR-18 it sat
+behind a profile that had to be named explicitly), so its profiles should show
+up on its own — still gate that entry on the container running.
 
 ---
 

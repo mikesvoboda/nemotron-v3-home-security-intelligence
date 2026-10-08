@@ -181,7 +181,7 @@ flowchart TB
     end
     subgraph AI["AI Services"]
         GW["ai-gateway :8090<br/>Triton<br/>routers /yolo26 /enrich-lt"]
-        VLM["ai-vlm :8098<br/>llama.cpp<br/>(profile: vlm)"]
+        VLM["ai-vlm :8098<br/>llama.cpp<br/>default compose set"]
     end
     subgraph Data["Data Layer"]
         DB[(PostgreSQL)]
@@ -208,7 +208,7 @@ Two AI services and three in-process lookup legs carry the shipped event path. S
 | ---------------------------------------- | --------------------------------- | :----------------------------------------------------------------: |
 | YOLO26 (TensorRT)                        | `ai-gateway` Triton, `/yolo26`    |                          resident at boot                          |
 | re-ID / threat (Triton)                  | `ai-gateway` Triton, `/enrich-lt` | resident at boot (`threat` only with `GATEWAY_ENABLE_THREAT=true`) |
-| VLM (Qwen3VL-8B GGUF pair)               | `ai-vlm` llama.cpp, 8098          |                       `vlm` compose profile                        |
+| VLM (Qwen3VL-8B GGUF pair)               | `ai-vlm` llama.cpp, 8098          |               default compose set, `up -d` starts it               |
 | Face detection + recognition (ONNX, CPU) | backend in-process                |            boot only with `BACKEND_MODEL_PRELOAD=true`             |
 | Person re-ID (OSNet)                     | backend in-process                |            boot only with `BACKEND_MODEL_PRELOAD=true`             |
 | License plates (FastALPR)                | backend in-process                |                            on first use                            |

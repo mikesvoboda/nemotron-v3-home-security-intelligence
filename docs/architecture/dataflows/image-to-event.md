@@ -289,7 +289,7 @@ Any time:  -> Close batch, push to analysis queue
 
 `VlmAnalyzer.analyze_batch()` is the analysis entry point the Analysis Worker
 calls (`backend/services/pipeline_workers.py:1052`). The engine is the
-`ai-vlm` container (llama.cpp, compose profile `vlm`), and the only thing in
+`ai-vlm` container (llama.cpp, default compose set), and the only thing in
 the backend that dials it is `VlmClient` (`backend/services/vlm_client.py:215`).
 
 ### 4.1 Analysis Flow

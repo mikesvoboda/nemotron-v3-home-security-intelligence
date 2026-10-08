@@ -33,8 +33,8 @@ python setup.py         # Generates .env with secure passwords
 #    BOTH files, or the serve is text-only and silently degraded:
 #    ${AI_MODELS_PATH}/vlm/{Qwen3VL-8B-Instruct-Q4_K_M,mmproj-Qwen3VL-8B-Instruct-Q8_0}.gguf
 
-# 4. Start services (--profile vlm starts the reasoning engine)
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+# 4. Start services (the plain up starts everything, incl. the ai-vlm reasoning engine)
+podman compose -f docker-compose.prod.yml up -d
 
 # 5. Verify
 curl http://localhost:8000/api/system/health/ready
@@ -110,7 +110,7 @@ flowchart TB
 
     subgraph AI["AI Services (GPU)"]
         GW["ai-gateway :8090<br/>Triton routers:<br/>/yolo26 · /enrich-lt"]
-        VLM["ai-vlm :8098<br/>llama.cpp + mmproj<br/>profile vlm"]
+        VLM["ai-vlm :8098<br/>llama.cpp + mmproj<br/>default set"]
     end
 
     subgraph Data["Data Layer"]
@@ -225,35 +225,35 @@ flowchart TB
 Host ports come from `.env`; every service except `frontend` binds `127.0.0.1` only.
 Access Grafana and the API through the frontend nginx proxy for anything off-host.
 
-| Service            | Env var                   | Host port | Container port | Purpose                                        |
-| ------------------ | ------------------------- | --------- | -------------- | ---------------------------------------------- |
-| Frontend (HTTP)    | `FRONTEND_HTTP_PORT`      | 8080      | 8080           | Web dashboard via tunnel / plain HTTP          |
-| Frontend (HTTPS)   | `FRONTEND_HTTPS_PORT`     | 8444      | 8443           | Web dashboard (TLS, opt-in via `SSL_ENABLED`)  |
-| Backend            | `API_PORT`                | 8000      | 8000           | REST API + WebSocket                           |
-| AI gateway         | `AI_GATEWAY_PORT`         | 8090      | 8090           | Triton routers: `/yolo26`, `/enrich-lt`        |
-| AI gateway metrics | `AI_GATEWAY_METRICS_PORT` | 8002      | 8002           | Triton Prometheus metrics                      |
-| VLM                | `AI_VLM_PORT`             | 8098      | 8098           | Multimodal verdicts (llama.cpp, profile `vlm`) |
-| vLLM (profile)     | `VLLM_PORT`               | 8097      | 8000           | Optional `vllm` profile engine                 |
-| PostgreSQL         | `POSTGRES_PORT`           | 5432      | 5432           | Database                                       |
-| Redis              | `REDIS_PORT`              | 6379      | 6379           | Cache + message broker                         |
-| go2rtc             | `GO2RTC_API_PORT`         | 1984      | 1984           | Stream REST API                                |
-| go2rtc             | `GO2RTC_WEBRTC_PORT`      | 8555      | 8555           | WebRTC streaming                               |
-| Prometheus         | `PROMETHEUS_PORT`         | 9090      | 9090           | Metrics                                        |
-| Grafana            | `GRAFANA_PORT`            | 3002      | 3000           | Dashboards (served at `/grafana/`)             |
-| Alertmanager       | `ALERTMANAGER_PORT`       | 9093      | 9093           | Alert routing                                  |
-| Loki               | `LOKI_PORT`               | 3100      | 3100           | Logs                                           |
-| Tempo              | `TEMPO_PORT`              | 3200      | 3200           | Traces (HTTP API/UI)                           |
-| Pyroscope          | `PYROSCOPE_PORT`          | 4040      | 4040           | Continuous profiling                           |
-| Alloy              | `ALLOY_UI_PORT`           | 12345     | 12345          | Collection pipeline UI                         |
-| node-exporter      | `NODE_EXPORTER_PORT`      | 9100      | 9100           | Host metrics                                   |
-| redis-exporter     | `REDIS_EXPORTER_PORT`     | 9121      | 9121           | Redis metrics                                  |
-| json-exporter      | `JSON_EXPORTER_PORT`      | 7979      | 7979           | JSON API metrics                               |
-| blackbox-exporter  | `BLACKBOX_EXPORTER_PORT`  | 9115      | 9115           | HTTP/TCP probes                                |
-| dcgm-exporter      | `DCGM_EXPORTER_PORT`      | 9400      | 9400           | GPU metrics (`gpu-rootful` profile)            |
+| Service            | Env var                   | Host port | Container port | Purpose                                       |
+| ------------------ | ------------------------- | --------- | -------------- | --------------------------------------------- |
+| Frontend (HTTP)    | `FRONTEND_HTTP_PORT`      | 8080      | 8080           | Web dashboard via tunnel / plain HTTP         |
+| Frontend (HTTPS)   | `FRONTEND_HTTPS_PORT`     | 8444      | 8443           | Web dashboard (TLS, opt-in via `SSL_ENABLED`) |
+| Backend            | `API_PORT`                | 8000      | 8000           | REST API + WebSocket                          |
+| AI gateway         | `AI_GATEWAY_PORT`         | 8090      | 8090           | Triton routers: `/yolo26`, `/enrich-lt`       |
+| AI gateway metrics | `AI_GATEWAY_METRICS_PORT` | 8002      | 8002           | Triton Prometheus metrics                     |
+| VLM                | `AI_VLM_PORT`             | 8098      | 8098           | Multimodal verdicts (llama.cpp)               |
+| vLLM (profile)     | `VLLM_PORT`               | 8097      | 8000           | Optional `vllm` profile engine                |
+| PostgreSQL         | `POSTGRES_PORT`           | 5432      | 5432           | Database                                      |
+| Redis              | `REDIS_PORT`              | 6379      | 6379           | Cache + message broker                        |
+| go2rtc             | `GO2RTC_API_PORT`         | 1984      | 1984           | Stream REST API                               |
+| go2rtc             | `GO2RTC_WEBRTC_PORT`      | 8555      | 8555           | WebRTC streaming                              |
+| Prometheus         | `PROMETHEUS_PORT`         | 9090      | 9090           | Metrics                                       |
+| Grafana            | `GRAFANA_PORT`            | 3002      | 3000           | Dashboards (served at `/grafana/`)            |
+| Alertmanager       | `ALERTMANAGER_PORT`       | 9093      | 9093           | Alert routing                                 |
+| Loki               | `LOKI_PORT`               | 3100      | 3100           | Logs                                          |
+| Tempo              | `TEMPO_PORT`              | 3200      | 3200           | Traces (HTTP API/UI)                          |
+| Pyroscope          | `PYROSCOPE_PORT`          | 4040      | 4040           | Continuous profiling                          |
+| Alloy              | `ALLOY_UI_PORT`           | 12345     | 12345          | Collection pipeline UI                        |
+| node-exporter      | `NODE_EXPORTER_PORT`      | 9100      | 9100           | Host metrics                                  |
+| redis-exporter     | `REDIS_EXPORTER_PORT`     | 9121      | 9121           | Redis metrics                                 |
+| json-exporter      | `JSON_EXPORTER_PORT`      | 7979      | 7979           | JSON API metrics                              |
+| blackbox-exporter  | `BLACKBOX_EXPORTER_PORT`  | 9115      | 9115           | HTTP/TCP probes                               |
+| dcgm-exporter      | `DCGM_EXPORTER_PORT`      | 9400      | 9400           | GPU metrics (`gpu-rootful` profile)           |
 
-`docker-compose.prod.yml` defines 21 services; three are behind profiles (`vlm` →
-`ai-vlm`, `vllm` → `ai-llm-vllm`, `gpu-rootful` → `dcgm-exporter`), so a default
-`up -d` starts 18 and **runs without the reasoning engine**. The `5173` Vite port in
+`docker-compose.prod.yml` defines 21 services; two are behind profiles (`vllm` →
+`ai-llm-vllm`, `gpu-rootful` → `dcgm-exporter`), so a default `up -d` starts the other
+19 **including `ai-vlm`, the reasoning engine**. The `5173` Vite port in
 `.env.example` (`FRONTEND_PORT`) is unused by the compose file — the Vite dev
 server listens on HTTPS `8444` (see `frontend/vite.config.ts`).
 

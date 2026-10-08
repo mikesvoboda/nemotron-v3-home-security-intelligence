@@ -84,12 +84,15 @@ model = "fast"
 kickoff = """\
 Follow the kickoff prompt in docs/uplevel/40-docs.md."""
 
+# Name the prompt as a section, never by position: 50-coordination.md ends with the
+# coordinator's OWN prompt, and `up` prints this line verbatim, so a positional pointer
+# silently starts the heavy sandbox as the coordinator.
 [[phase.session]]
 name = "uplevel-heavy"
 model = "strongest"
 kickoff = """\
-Follow the kickoff prompt in docs/uplevel/50-coordination.md. It is the heavy-package \
-prompt at the end of that file, and it assigns you to the strongest model."""
+Follow the kickoff prompt in docs/uplevel/50-coordination.md. \
+It is "The heavy sandbox's kickoff prompt" under "The roster" in that file."""
 
 # UR-30: the only GPU holder. The owner hand-started it for Phase 1; this row lets the
 # launcher create it from the next phase boundary. gpu = true makes `up` add --gpu after

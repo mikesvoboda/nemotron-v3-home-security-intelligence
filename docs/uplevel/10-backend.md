@@ -312,6 +312,10 @@ gh pr list --state open --label review:backend; review each PR independently aga
 its package's Done when, the contract and the hot-file rules, post the review
 comment in the form 50-coordination.md gives, and remove the label.
 
+Read your own open PRs before resuming a package (UR-35): gh pr view <n>
+--comments for each. An owner ruling or a requested change there comes before
+new work; nobody tells you about a comment except by writing it.
+
 State only what you have just read (UR-31): every commit, PR, file, test result
 and question you cite comes from output you ran in the same turn.
 

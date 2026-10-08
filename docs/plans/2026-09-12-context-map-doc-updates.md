@@ -1,5 +1,10 @@
 # Documentation Updates Ledger — 2026-09-12
 
+> **Mutation rows closed 2026-10-07 (UR-2, UR-7).** The mutation campaign is held after M54 and
+> superseded: this ledger takes **no new mutation rows** — mutation method and evidence live in
+> [`docs/uplevel/01-mutation-policy.md`](../uplevel/01-mutation-policy.md), per one home per kind
+> of evidence. The ledger's existing mutation rows stay as history, unedited.
+
 Captures doc/code drift found by the codebase context survey + arm64 port probes.
 Captured, not fixed (spec §5 M1). Promotion to Linear deferred to owner.
 

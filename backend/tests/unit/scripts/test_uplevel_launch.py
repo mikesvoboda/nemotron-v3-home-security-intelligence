@@ -372,11 +372,11 @@ def test_the_operator_row_declares_no_mount() -> None:
 
 
 def test_operator_kickoff_names_the_prompt_section_not_a_position() -> None:
-    """30-ops.md §O1.10 writes this line positionally ("at the end of the file"). #6864's
+    """30-ops.md §O1.10 wrote this line positionally ("at the end of the file"). #6864's
     ruling applies unchanged - `up` prints the line verbatim, so it names its section,
     never a position - and operator.md has one kickoff prompt in its own file, which the
-    cross-check below pins. The plan-text wording is the owner's to correct (README:
-    plan text changes by the owner), asked on this PR."""
+    cross-check below pins. Ruling 13 (2026-10-08) routes the plan-text correction into
+    this PR: the 30-ops.md line now names the section too, same wording as this row."""
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     line = {s.name: s.kickoff for s in phases[1]}[OPERATOR]
     assert line.startswith("Follow the kickoff prompt in docs/uplevel/operator.md.")
@@ -569,6 +569,34 @@ def test_the_same_name_may_reappear_in_different_phases(tmp_path: Path) -> None:
     phases = launch.load_manifest(manifest)
     assert [s.name for s in phases[0]] == ["shared"]
     assert [s.name for s in phases[1]] == ["shared"]
+
+
+def test_heavy_kickoff_names_the_heavy_prompt_instead_of_a_position() -> None:
+    """50-coordination.md holds TWO prompts and ends with the coordinator's, so a heavy line
+    pointing at "the prompt at the end of that file" hands uplevel-heavy the coordinator's job
+    - route work, write no product code - the opposite of the UR-24 package it is started for.
+    `up` prints the line verbatim, so it has to name the section it means."""
+    phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    line = {s.name: s.kickoff for s in phases[1]}[HEAVY]
+    assert "The heavy sandbox's kickoff prompt" in line
+    assert "end of that file" not in line
+
+
+@pytest.mark.skipif(
+    # the roster is a docs/ path and docs/uplevel/ sits outside mutmut's also_copy (its
+    # comment: docs/ as a whole is never copied): in the mutant home this read would raise
+    # and abort the -x stats gather - the also_copy abort family, pyproject.toml. Skip,
+    # never abort, as test_check_vss_docs_currency.py and test_mutation_hold_banner.py do.
+    not (REPO_ROOT / "docs" / "uplevel" / "50-coordination.md").exists(),
+    reason="docs/ tree absent (mutmut's mutant home): nothing to cross-check the line against",
+)
+def test_the_roster_holds_both_prompts_the_heavy_line_points_between() -> None:
+    """the sections the heavy line names all exist, and there are TWO kickoff prompts in the
+    file - which is exactly why the line has to name its section instead of a position."""
+    roster = (REPO_ROOT / "docs" / "uplevel" / "50-coordination.md").read_text(encoding="utf-8")
+    assert "### The roster" in roster
+    assert "**The heavy sandbox's kickoff prompt:**" in roster
+    assert "## Coordinator kickoff prompt" in roster
 
 
 def test_an_unnamed_model_refuses_and_names_the_owners_next_step(tmp_path: Path) -> None:

@@ -4,13 +4,13 @@
 
 **Target Audiences:** Developers, Operators, ML Engineers
 
-> **Deployment topology:** In production (`docker-compose.prod.yml`) the AI surface is two services: **ai-gateway** — Triton + FastAPI on port **8090**, mounting exactly two routers, `/yolo26` and `/enrich-lt` (`ai/gateway/main.py`) — and **ai-vlm** (llama.cpp) on container port **8098**, behind the `vlm` compose profile. Triton's model repository (`ai/triton/model_repository/`) holds `yolo26`, `reid` and `threat`, and `GATEWAY_MODEL_SET` decides which of them load. Everything else the backend uses is loaded in-process from `models.yml` via `backend/services/model_zoo.py`. `ai/yolo26/model.py` is a host-side debug server for the detector (`ai/start_detector.sh`) whose GPU image lives at `archive/ai-yolo26-image/`; production detection is Triton inside ai-gateway.
+> **Deployment topology:** In production (`docker-compose.prod.yml`) the AI surface is two services: **ai-gateway** — Triton + FastAPI on port **8090**, mounting exactly two routers, `/yolo26` and `/enrich-lt` (`ai/gateway/main.py`) — and **ai-vlm** (llama.cpp) on container port **8098**, in the default compose set. Triton's model repository (`ai/triton/model_repository/`) holds `yolo26`, `reid` and `threat`, and `GATEWAY_MODEL_SET` decides which of them load. Everything else the backend uses is loaded in-process from `models.yml` via `backend/services/model_zoo.py`. `ai/yolo26/model.py` is a host-side debug server for the detector (`ai/start_detector.sh`) whose GPU image lives at `archive/ai-yolo26-image/`; production detection is Triton inside ai-gateway.
 
 ---
 
 ## Quick Reference
 
-Service column: **ai-vlm** = llama.cpp container :8098 (compose profile `vlm`) · **gateway** = Triton via ai-gateway (:8090) · **backend** = loaded in-process by `backend/services/model_zoo.py` from `models.yml`.
+Service column: **ai-vlm** = llama.cpp container :8098 (default compose set) · **gateway** = Triton via ai-gateway (:8090) · **backend** = loaded in-process by `backend/services/model_zoo.py` from `models.yml`.
 
 | Model                    | Purpose                                   | VRAM      | Service           | Framework    | Context/Embedding     |
 | ------------------------ | ----------------------------------------- | --------- | ----------------- | ------------ | --------------------- |
@@ -98,7 +98,7 @@ Risk reasoning in the shipped pipeline is the `ai-vlm` llama.cpp engine (VLMAnal
 
 | Specification     | Value                                                                                                                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Service**       | `ai-vlm` :8098 (llama.cpp, `--jinja`, `--sleep-idle-seconds`), behind compose profile `vlm`                                                                                                |
+| **Service**       | `ai-vlm` :8098 (llama.cpp, `--jinja`, `--sleep-idle-seconds`), in the default compose set                                                                                                  |
 | **Port mapping**  | `127.0.0.1:${AI_VLM_PORT:-8098}:8098` — host var configurable, container `PORT` fixed at 8098                                                                                              |
 | **Backend URL**   | `AI_VLM_URL` — `http://localhost:8098` (dev default) / `http://ai-vlm:8098` (compose)                                                                                                      |
 | **Files**         | `VLM_MODEL_PATH` + `VLM_MMPROJ_PATH`, default `Qwen3VL-8B-Instruct-Q4_K_M.gguf` + `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`, host-mounted read-only from `${AI_MODELS_PATH}/vlm` at `/models` |
@@ -320,7 +320,7 @@ not a deployment option.
 
 | Component                                    | Models                                                                                                                                                          | VRAM (approx)                                                                           |
 | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `ai-vlm` (GPU 0, profile `vlm`)              | The configured GGUF + `mmproj` + KV cache                                                                                                                       | see `.env.example` / the bring-up record — no measured 24 GB-class figure exists yet    |
+| `ai-vlm` (GPU 0, default compose set)        | The configured GGUF + `mmproj` + KV cache                                                                                                                       | see `.env.example` / the bring-up record — no measured 24 GB-class figure exists yet    |
 | `ai-gateway` Triton (GPU 1, A400)            | 3 model repos on disk (`yolo26`, `reid`, `threat`), all `KIND_GPU`; the default `vlm` set serves `yolo26` + `reid`, `threat` joins with `GATEWAY_ENABLE_THREAT` | per-model estimates in [NVIDIA Technology Inventory](nvidia-technology-inventory.md)    |
 | backend model_zoo (1 GPU reserved, unpinned) | `osnet-ain-x1-0`, `face-detector-scrfd`, `face-recognizer` preload at boot; lookup models load per use                                                          | ~100 MB resident at boot (OSNet); the face leg is CPU ONNX (0 GB VRAM); see table below |
 

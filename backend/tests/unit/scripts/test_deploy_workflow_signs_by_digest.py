@@ -26,9 +26,10 @@ future release". A cosign signature attaches to a manifest digest either
 way — signing a tag only records which digest the resolver happened to
 pick — so one digest sign covers every tag (``latest``, the short sha, any
 future tag). Resolving the digest with ``docker buildx imagetools inspect
---format '{{json .Manifest}}' | jq -r '.digest'`` is this repo's own
-shipped pattern (``.github/workflows/rollback.yml:97``) and was verified
-working from a sandbox against the live registry.
+--format '{{json .Manifest}}' | jq -r '.digest'`` was this repo's own
+shipped pattern (``.github/workflows/rollback.yml:97``, the file the owner
+ruled deleted in O1.9/#6875) and was verified working from a sandbox
+against the live registry.
 
 These guards parse the workflow rather than grep it and were SEEN RED at
 main tip (3 failed) before the deploy.yml edits. needs-target regression
@@ -91,7 +92,7 @@ def test_signing_job_resolves_the_pushed_digest(workflow: dict) -> None:
     """A cosign-bearing job must RESOLVE the digest it signs, in-job.
 
     ``docker buildx imagetools inspect … --format '{{json .Manifest}}'`` is
-    the shipped pattern (.github/workflows/rollback.yml:97). Without a
+    the previously shipped pattern (rollback.yml:97, deleted by O1.9/#6875). Without a
     resolution step the refs can only be tags — which is exactly how every
     deploy has been red since before R8.
     """

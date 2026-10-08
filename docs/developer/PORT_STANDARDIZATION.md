@@ -6,7 +6,7 @@ Port configuration is standardized across all environments (development and Dock
 
 > **Scope:** AI traffic has two endpoints: the Triton `ai-gateway` on 8090
 > (routers `/yolo26` and `/enrich-lt`; Prometheus metrics on 8002) and the
-> llama.cpp `ai-vlm` verification server on 8098 (compose profile `vlm`,
+> llama.cpp `ai-vlm` verification server on 8098 (in the default compose set,
 > container-side port fixed). `.env.example` and `docker-compose.prod.yml`
 > remain the source of truth.
 
@@ -36,7 +36,7 @@ These ports are used for service-to-service communication and remain the same in
 
 Detection traffic reaches Triton only through the gateway. The VLM server's
 container-side port is fixed at 8098 (`AI_VLM_PORT` only rebinds the loopback
-host mapping, and the service sits behind compose profile `vlm`):
+host mapping, and the service is in the default compose set):
 
 ```env
 # .env.example (current)
@@ -110,7 +110,7 @@ yolo26_url: str = Field(
 )
 ai_vlm_url: str = Field(
     default="http://localhost:8098",
-    # Docker: http://ai-vlm:8098 (compose profile `vlm`)
+    # Docker: http://ai-vlm:8098 (the ai-vlm service, container PORT fixed at 8098)
 )
 ```
 

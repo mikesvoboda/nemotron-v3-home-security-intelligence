@@ -42,7 +42,7 @@ The two hosts the AI images are built for:
 
 - **Driver floor:** 580, for CUDA 13.x (`setup_lib/nvidia_detect.py:38`, with the
   `nvidia-driver-565` purge guard at `:48-58`).
-- **One Dockerfile, two hosts:** `docker-compose.prod.yml:146-153` passes
+- **One Dockerfile, two hosts:** `docker-compose.prod.yml:153-160` passes
   `CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}` into the `ai/vlm` build context;
   `ai/vlm/Dockerfile:59-60` states the same contract — GB300 dev passes `103`,
   the A5500 bring-up passes `86`, unchanged.
@@ -60,26 +60,26 @@ The two hosts the AI images are built for:
 | `ai-vlm` (builder) | `docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04`           | `ai/vlm/Dockerfile:19`         |
 | `ai-vlm` (runtime) | `docker.io/nvidia/cuda:13.3.1-runtime-ubuntu22.04`         | `ai/vlm/Dockerfile:86`         |
 | `ai-gateway`       | `nvcr.io/nvidia/tritonserver:26.01-py3`                    | `ai/gateway/Dockerfile:1`      |
-| `ai-llm-vllm`      | `docker.io/vllm/vllm-openai:cu130-nightly`                 | `docker-compose.prod.yml:286`  |
-| `dcgm-exporter`    | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04` | `docker-compose.prod.yml:1370` |
+| `ai-llm-vllm`      | `docker.io/vllm/vllm-openai:cu130-nightly`                 | `docker-compose.prod.yml:291`  |
+| `dcgm-exporter`    | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04` | `docker-compose.prod.yml:1375` |
 
 | Service         | Compose profile | Publishes                             | `deploy` limits          | GPU device                                                          |
 | --------------- | --------------- | ------------------------------------- | ------------------------ | ------------------------------------------------------------------- |
 | `ai-gateway`    | none (default)  | `127.0.0.1:8090`, `127.0.0.1:8002`    | 8 CPU / 20G, reserve 10G | `nvidia.com/gpu=all` + `CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}` |
-| `ai-vlm`        | `vlm`           | `127.0.0.1:${AI_VLM_PORT:-8098}:8098` | 4 CPU / 10G, reserve 4G  | `nvidia.com/gpu=${GPU_LLM:-0}`                                      |
+| `ai-vlm`        | none (default)  | `127.0.0.1:${AI_VLM_PORT:-8098}:8098` | 4 CPU / 10G, reserve 4G  | `nvidia.com/gpu=${GPU_LLM:-0}`                                      |
 | `ai-llm-vllm`   | `vllm`          | 8097                                  | --                       | `${GPU_LLM:-0}`                                                     |
 | `dcgm-exporter` | `gpu-rootful`   | 9400                                  | --                       | --                                                                  |
 
-`ai-vlm` is behind the `vlm` profile (`docker-compose.prod.yml:157-158`), so a
-bring-up that names it must pass the profile:
+`ai-vlm` is in the default compose set (UR-18; until then it sat behind a
+profile that had to be named explicitly), so a plain bring-up starts it:
 
 ```bash
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm
 ```
 
 Weights are host-mounted, never baked:
 `${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro`
-(`docker-compose.prod.yml:165`).
+(`docker-compose.prod.yml:170`).
 
 ---
 
@@ -91,7 +91,7 @@ Weights are host-mounted, never baked:
 | NVIDIA TensorRT                    | bundled in the `nvcr.io/nvidia/*:26.0x` images | `ai/common/tensorrt_utils.py` (runtime version check) |
 | NVIDIA CUDA Toolkit (`ai-vlm`)     | **13.3.1**                                     | `ai/vlm/Dockerfile:19,86`                             |
 | NVIDIA CUDA Toolkit (`ai-gateway`) | bundled in `tritonserver:26.01-py3`            | `ai/gateway/Dockerfile:1`                             |
-| NVIDIA DCGM                        | **3.3.5** (exporter **3.4.0**)                 | `docker-compose.prod.yml:1370`                        |
+| NVIDIA DCGM                        | **3.3.5** (exporter **3.4.0**)                 | `docker-compose.prod.yml:1375`                        |
 | NVIDIA Container Toolkit           | detected via `nvidia-ctk`                      | `setup_lib/nvidia_toolkit.py`                         |
 | NVIDIA driver (host floor)         | **580** minimum for CUDA 13.x                  | `setup_lib/nvidia_detect.py:38`                       |
 | nvidia-ml-py (NVML bindings)       | `>=12.560.30,<14.0.0`                          | `pyproject.toml:24`                                   |
@@ -134,7 +134,7 @@ detection services (see GPU Monitoring).
 shipped pair is `Qwen3VL-8B-Instruct-Q4_K_M.gguf` plus
 `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`. Both names come from compose defaults,
 not from the image: `MODEL_PATH` and `MMPROJ_PATH` at
-`docker-compose.prod.yml:179-180`. The event path POSTs
+`docker-compose.prod.yml:184-185`. The event path POSTs
 `/v1/chat/completions` to `http://ai-vlm:8098`
 (`backend/core/config.py:1042` `ai_vlm_url`).
 
@@ -190,11 +190,11 @@ first place to read when verdicts look like the model never saw the stills.
 
 | Variable                     | Image default (`ENV`)    | Compose default (`${VAR:-…}`)                  | Source                                                  |
 | ---------------------------- | ------------------------ | ---------------------------------------------- | ------------------------------------------------------- |
-| `PORT`                       | 8098                     | `PORT=8098` (container side, fixed)            | `ai/vlm/Dockerfile:123` / `docker-compose.prod.yml:176` |
+| `PORT`                       | 8098                     | `PORT=8098` (container side, fixed)            | `ai/vlm/Dockerfile:123` / `docker-compose.prod.yml:181` |
 | `MODEL_PATH`                 | `/models/vlm/model.gguf` | `/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf`      | `ai/vlm/Dockerfile:103` / `:180`                        |
 | `MMPROJ_PATH`                | empty                    | `/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` | `ai/vlm/Dockerfile:107` / `:181`                        |
 | `MODEL_ALIAS`                | empty                    | `Qwen3VL-8B` (from `VLM_MODEL_ALIAS`)          | `ai/vlm/Dockerfile:111` / `:182`                        |
-| `GPU_LAYERS`                 | 99                       | `auto` (from `VLM_GPU_LAYERS`)                 | `ai/vlm/Dockerfile:124` / `:183`                        |
+| `GPU_LAYERS`                 | 99                       | `auto` (from `VLM_GPU_LAYERS`)                 | `ai/vlm/Dockerfile:124` / `:188`                        |
 | `CTX_SIZE`                   | 8192                     | 32768 (from `VLM_CTX_SIZE`)                    | `ai/vlm/Dockerfile:125` / `:207`                        |
 | `PARALLEL`                   | 1                        | 2 (from `VLM_PARALLEL`)                        | `ai/vlm/Dockerfile:126` / `:208`                        |
 | `THREADS`                    | 8                        | 4 (from `VLM_THREADS`)                         | `ai/vlm/Dockerfile:128` / `:209`                        |
@@ -202,15 +202,15 @@ first place to read when verdicts look like the model never saw the stills.
 | `UBATCH_SIZE`                | 512                      | 512 (from `VLM_UBATCH_SIZE`)                   | `ai/vlm/Dockerfile:130` / `:211`                        |
 | `CACHE_TYPE_K` / `_V`        | empty (f16)              | `q8_0` / `q8_0`                                | `ai/vlm/Dockerfile:119-120` / `:224-225`                |
 | `FLASH_ATTENTION`            | true                     | true (from `VLM_FLASH_ATTENTION`)              | `ai/vlm/Dockerfile:127` / `:226`                        |
-| `SLEEP_IDLE_SECONDS`         | empty (never)            | 300 (from `VLM_SLEEP_IDLE_SECONDS`)            | `ai/vlm/Dockerfile:115` / `:236`                        |
-| `LLAMA_ARG_IMAGE_MAX_TOKENS` | unset                    | 1280 (literal)                                 | `docker-compose.prod.yml:189`                           |
-| `CUDA_VISIBLE_DEVICES`       | unset                    | `${GPU_LLM:-0}`                                | `docker-compose.prod.yml:175`                           |
+| `SLEEP_IDLE_SECONDS`         | empty (never)            | 300 (from `VLM_SLEEP_IDLE_SECONDS`)            | `ai/vlm/Dockerfile:115` / `:241`                        |
+| `LLAMA_ARG_IMAGE_MAX_TOKENS` | unset                    | 1280 (literal)                                 | `docker-compose.prod.yml:194`                           |
+| `CUDA_VISIBLE_DEVICES`       | unset                    | `${GPU_LLM:-0}`                                | `docker-compose.prod.yml:180`                           |
 
 Per-slot context is `CTX_SIZE / PARALLEL` = 32768 / 2 = 16 384 tokens, and each
 still is capped at 1 280 vision tokens (`LLAMA_ARG_IMAGE_MAX_TOKENS`,
-`docker-compose.prod.yml:184-189`). The client fits the prompt to the slot
+`docker-compose.prod.yml:189-194`). The client fits the prompt to the slot
 rather than trusting that arithmetic — see the erratum block at
-`docker-compose.prod.yml:196-204`.
+`docker-compose.prod.yml:201-209`.
 
 `SLEEP_IDLE_SECONDS=300` is the residency mechanism: llama.cpp releases the
 weights to CPU RAM after 300 idle seconds, so an idle night yields the VRAM to
@@ -219,7 +219,7 @@ wake budget is `AI_VLM_WAKE_TIMEOUT_SECONDS`.
 
 **Healthcheck.** Both the image and compose probe the same URL with the same
 grace: `curl -f http://localhost:8098/health`, `--start-period=120s`
-(`ai/vlm/Dockerfile:138-139`, `docker-compose.prod.yml:237-250`).
+(`ai/vlm/Dockerfile:138-139`, `docker-compose.prod.yml:242-255`).
 
 ---
 
@@ -245,7 +245,7 @@ grace: `curl -f http://localhost:8098/health`, `--start-period=120s`
 | Model repository   | `${TRITON_MODEL_REPOSITORY:-/models/repository}` | `ai/gateway/entrypoint.sh:10`  |
 
 The gateway publishes 8090 and 8002 to `127.0.0.1`; Triton's own 8000/8001 are
-never published (`docker-compose.prod.yml:363-365`).
+never published (`docker-compose.prod.yml:368-370`).
 
 ### Startup sequence
 
@@ -268,10 +268,10 @@ Four steps run before Triton starts, each in `ai/gateway/entrypoint.sh`:
 ### Residency
 
 `GATEWAY_MODEL_SET` selects the model directories that stay in the repository
-(`docker-compose.prod.yml:387`, shipped default `vlm`). `ai/gateway/residency.py`
+(`docker-compose.prod.yml:392`, shipped default `vlm`). `ai/gateway/residency.py`
 is the whole control surface: `VLM_MODEL_BASE = ("yolo26", "reid")` at `:60`,
 plus `threat` when `GATEWAY_ENABLE_THREAT=true` (compose default `false`,
-`docker-compose.prod.yml:388`). `get_model_set()` accepts the name `vlm` and
+`docker-compose.prod.yml:393`). `get_model_set()` accepts the name `vlm` and
 raises otherwise (`ai/gateway/residency.py:60-90`), so the entrypoint's own
 `<unset: residency will refuse>` echo at `:130` is a stop, not a warning.
 
@@ -304,7 +304,7 @@ opted in.
 | `triton-tmp-cache:/tmp`                                               | compilation temp artifacts                            |
 | `${HF_CACHE_PATH}:/root/.cache/huggingface`                           | HF cache with `HF_HUB_OFFLINE=1`                      |
 
-(`docker-compose.prod.yml:366-375`.)
+(`docker-compose.prod.yml:371-380`.)
 
 ### Triton Client
 
@@ -464,20 +464,20 @@ environment:
   - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
 ```
 
-(`docker-compose.prod.yml:157-158,175` and `:361-362,392`.)
+(`docker-compose.prod.yml:162-163,175` and `:361-362,392`.)
 
 **The CDI constraint the gateway works around:** `nvidia.com/gpu=N` creates only
 `/dev/nvidiaN`, and CUDA expects `/dev/nvidia0` for its first visible device, so
 a card numbered above 0 fails. The gateway passes `nvidia.com/gpu=all` and lets
 `CUDA_VISIBLE_DEVICES` pick the card — the reason is written out at
-`docker-compose.prod.yml:357-360`.
+`docker-compose.prod.yml:362-365`.
 
 ### GPU assignment variables
 
 | Variable          | Default | Service                                               | Source                                |
 | ----------------- | ------- | ----------------------------------------------------- | ------------------------------------- |
-| `GPU_LLM`         | 0       | `ai-vlm` (also its `deploy` reservation)              | `docker-compose.prod.yml:158,175,264` |
-| `GPU_AI_SERVICES` | 1       | `ai-gateway` / Triton (also its `deploy` reservation) | `docker-compose.prod.yml:392,421`     |
+| `GPU_LLM`         | 0       | `ai-vlm` (also its `deploy` reservation)              | `docker-compose.prod.yml:163,179,269` |
+| `GPU_AI_SERVICES` | 1       | `ai-gateway` / Triton (also its `deploy` reservation) | `docker-compose.prod.yml:398,423`     |
 
 Those are the only two GPU selectors the compose file reads.
 
@@ -497,13 +497,13 @@ Those are the only two GPU selectors the compose file reads.
 
 | Volume                | Mount                      | Consumed by                       | Source                                |
 | --------------------- | -------------------------- | --------------------------------- | ------------------------------------- |
-| `llama-cache`         | `/home/llama/.cache`       | `ai-vlm`                          | `docker-compose.prod.yml:170`         |
-| `llama-nv-cache`      | `/home/llama/.nv`          | `ai-vlm`                          | `docker-compose.prod.yml:171`         |
-| `triton-kernel-cache` | `/root/.nv`                | `ai-gateway`                      | `docker-compose.prod.yml:371`         |
-| `triton-tmp-cache`    | `/tmp`                     | `ai-gateway`                      | `docker-compose.prod.yml:373`         |
-| `hf_cache`            | `/root/.cache/huggingface` | `ai-gateway` (`HF_HUB_OFFLINE=1`) | `docker-compose.prod.yml:375,399-400` |
+| `llama-cache`         | `/home/llama/.cache`       | `ai-vlm`                          | `docker-compose.prod.yml:175`         |
+| `llama-nv-cache`      | `/home/llama/.nv`          | `ai-vlm`                          | `docker-compose.prod.yml:176`         |
+| `triton-kernel-cache` | `/root/.nv`                | `ai-gateway`                      | `docker-compose.prod.yml:376`         |
+| `triton-tmp-cache`    | `/tmp`                     | `ai-gateway`                      | `docker-compose.prod.yml:378`         |
+| `hf_cache`            | `/root/.cache/huggingface` | `ai-gateway` (`HF_HUB_OFFLINE=1`) | `docker-compose.prod.yml:380,399-400` |
 
-`ai-vlm` also gets `tmpfs: /tmp` (`docker-compose.prod.yml:141-142`) rather than a
+`ai-vlm` also gets `tmpfs: /tmp` (`docker-compose.prod.yml:148-149`) rather than a
 named volume.
 
 ---
@@ -706,20 +706,20 @@ the GPU-resident pair, so the rows below are what the code actually sizes.
 
 | Component                                                       | Footprint                                   | Source                            |
 | --------------------------------------------------------------- | ------------------------------------------- | --------------------------------- |
-| `Qwen3VL-8B-Instruct-Q4_K_M.gguf` weights                       | 5,027,784,800 B                             | `docker-compose.prod.yml:227-228` |
-| `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` weights                  | 752,289,728 B                               | `docker-compose.prod.yml:227-228` |
-| KV pool, 32 768 ctx × 2 slots, f16                              | 4 608 MiB (measured, llama.cpp's own line)  | `docker-compose.prod.yml:210-221` |
-| KV pool, same geometry, `CACHE_TYPE_K/V=q8_0` (shipped default) | half the f16 pool                           | `docker-compose.prod.yml:222-223` |
+| `Qwen3VL-8B-Instruct-Q4_K_M.gguf` weights                       | 5,027,784,800 B                             | `docker-compose.prod.yml:232-233` |
+| `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` weights                  | 752,289,728 B                               | `docker-compose.prod.yml:232-233` |
+| KV pool, 32 768 ctx × 2 slots, f16                              | 4 608 MiB (measured, llama.cpp's own line)  | `docker-compose.prod.yml:215-226` |
+| KV pool, same geometry, `CACHE_TYPE_K/V=q8_0` (shipped default) | half the f16 pool                           | `docker-compose.prod.yml:227-228` |
 | Triton CUDA context + three ONNX models                         | 256 MB CUDA memory pool declared at startup | `ai/gateway/entrypoint.sh:153`    |
 | Face detection + recognition, person re-ID, plate OCR           | CPU (ONNX `CPUExecutionProvider` only)      | `pyproject.toml:196-200`          |
 
 The `q8_0` KV default is the shipped relief for this pool: the pool is a
 function of the architecture and the ctx/slot numbers, not of the weights' size
-(`docker-compose.prod.yml:210-221`).
+(`docker-compose.prod.yml:215-226`).
 
 `models.yml` at the repo root carries the per-model `vram_mb` field the backend
 model zoo reads; `GPU_LAYERS=auto` lets llama.cpp fit the VLM to whatever VRAM
-is free (`docker-compose.prod.yml:183`).
+is free (`docker-compose.prod.yml:188`).
 
 ---
 

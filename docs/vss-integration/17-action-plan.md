@@ -223,7 +223,7 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-06 (ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`; ISS-016 `done` 2026-10-06 on `vlm-pipeline`, commits `54d036d5`..`8cdbb412`). The Filed columns count every issue by its filed
+Counts as of 2026-10-06 (OD-14 partially resolved 2026-10-08 by UR-18 — the plain-`up` branch shipped, the publish branch open — no issue opened or closed; ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`; ISS-016 `done` 2026-10-06 on `vlm-pipeline`, commits `54d036d5`..`8cdbb412`). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
 ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
@@ -2044,7 +2044,8 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
   - The per-call proof is image-bearing: `backend/services/vlm_client.py:773` runs
     `_probe_enforcement(parts)` inside `assess` until the client has proved enforcement, so the
     startup check is visibility, not the gate [V]
-  - A startup probe against a not-yet-started `ai-vlm` (profile `vlm`) feeds the shared breaker a
+  - A startup probe against a not-yet-started `ai-vlm` (retired profile `vlm` — UR-18, see the
+    block's update) feeds the shared breaker a
     failure (`backend/services/vlm_client.py:318` `_note_failure("vlm_probe_props_unreachable")`)
     [V]
   - `docker-compose.prod.yml:562` defaults `VLM_REQUIRED_BUILD` to empty, deliberately and
@@ -2068,6 +2069,9 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
 - **Tracked as.** Spec section 3 (S-2); ledger finding G partially (digest [A]).
 - **Severity note.** Verifier read P3: asks to reverse a ruled compose default, and the per-call
   proof softens the impact.
+- **Update 2026-10-08 (UR-18, PR #6862) [V].** The second evidence bullet's parenthetical is
+  dated: `ai-vlm` is in the default set, so a plain `up` starts it; the breaker-on-unreachable
+  mechanism itself is unchanged and the issue stands (E131).
 
 ### Prompt, verdict quality and calibration (5)
 
@@ -5287,6 +5291,15 @@ The `ai-vlm` image, compose files, provisioning, restart tooling and release art
   R-row (R14 is adjacent).
 - **Severity note.** Verifiers read P1 (as a decision item) and P2 (the owner has already
   adjudicated it report-only).
+- **Update 2026-10-08 (UR-18, PR #6862) [V].** UR-18 took the plain-`up` half of this issue:
+  `ai-vlm` has no `profiles:` key and a plain `up -d` starts it, so that branch of the
+  Acceptance is delivered by starting it. Three evidence lines above were pinned to the old
+  shape and read as filed: the compose line-154 `profiles:` cite and the line-126 intent
+  comment are gone, the compose
+  test now asserts no `profiles` block
+  (`test_ai_vlm_compose_service.py::TestComposeServiceShape::test_starts_by_default`), and
+  `_ModePlan` carries no profile. The ghcr gap, the publish gap, and OD-14's remaining ask
+  stand (E131).
 
 #### ISS-051 — Derive the deploy export phase from the residency set: `CORE_MODELS` and `export_all.sh` name deleted models
 
@@ -5349,6 +5362,13 @@ The `ai-vlm` image, compose files, provisioning, restart tooling and release art
   URLs; each fix has a script or Dockerfile pin test.
 - **Depends on.** None.
 - **Tracked as.** None found; the ledger mentions the SIGTERM delay only in passing.
+- **Update 2026-10-08 (UR-18, PR #6862) [V].** The first bullet's mechanism is retired: with no
+  `profiles:` key on `ai-vlm`, the service-name start at `scripts/restart-all.sh:39` is the
+  whole request — no profile argument to drop and no inactive-profile resolution to lose the
+  service (E131). The other bullets stand as filed: the 8091 health targets
+  (`scripts/restart-all.sh:184`, `platform-healthcheck.py:178,189`), the `sh -c` `CMD` without
+  `exec`
+  (`ai/vlm/Dockerfile:141`), and the `grep ... || true` filter.
 
 #### ISS-057 — VLM weights are neither provisioned nor integrity-verified; verdict provenance is a filename stem
 
@@ -6223,6 +6243,21 @@ cryptography` then resolves 49.0.0 to 50.0.2 against that commit's lock files an
   `cryptography` clause of its acceptance (class C) reduces to a re-read of the Dependabot job
   after the next main push and a ledger row. The evidence bullet above ('Dependabot cryptography
   ceiling (C)') describes the ledger text at `5c605e1d`.
+- **Update 2026-10-08 (after O1.9, [#6875]) [V unless marked]: class D (the smoke ruling) and the
+  rollback clause of the acceptance are closed; B (Linear key), E (ZAP) and F are unchanged, so the
+  issue stays `open`.** The smoke now asserts the CI stack's committed contract
+  (`scripts/ci-smoke-contract.json`, validated in the `smoke-test` step and guarded by
+  `backend/tests/unit/scripts/test_smoke_test_ci_stack_contract.py`) instead of a health shape the
+  stack cannot satisfy, and `:latest` moved behind the smoke (`publish-latest`) so a red run cannot
+  repoint it. `rollback.yml` was neither rolled back nor renamed: the owner ruled it deleted
+  (2026-10-08, #6854 comment 6051919463 — 'A red Deploy run is the signal, and the daily batch
+  reports it') and #6875 deletes it, which satisfies the acceptance's intent ('either rolls back or
+  …') in its third form; the incident issues it filed are closed post-merge by
+  `scripts/close-rollback-issues.sh` (the Done-when's executable form, guarded offline by
+  `backend/tests/unit/scripts/test_close_rollback_issues_script.py`). The evidence bullets'
+  `deploy.yml:276`/`:290` and '`.github/workflows/rollback.yml:112` … only echoes' describe those
+  files as they stood at `5c605e1d`; after #6875 the health check is contract-driven
+  (`scripts/ci-smoke-contract.json`) at different lines and `rollback.yml` no longer exists on main.
 
 #### ISS-080 — The ledger has no row for the P5a baseline or the 2026-10-03 re-runs; README and AGENTS still cite 10/20 as S3 evidence
 
@@ -8436,3 +8471,14 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   "zero corpus claims" rule argues for a throwaway: it ran from `/tmp`, both legs were re-run from
   scratch there before this entry was written (every number above reproduced), and it was deleted
   with the worktree afterward, so this entry is the run's only record.
+
+### 2026-10-08
+
+- UR-18 correction (no new id, no status or bar moved; ops lane PR #6862). `ai-vlm` is in the
+  default compose set: the `profiles: [vlm]` gate is off the service, `_ModePlan` carries no
+  profile, and the compose test pins the new shape. ISS-028's plain-`up` half and OD-14's
+  plain-`up` branch are delivered (dated notes on both); ISS-056's first bullet and ISS-071's
+  profile parenthetical are dated; E131 in doc 16 carries the correction for the frozen docs
+  (15, 18, 21) and the README rows. Verified at `066be346` + the PR branch: the render of
+  `docker compose -f docker-compose.prod.yml config --services` with no profile flag lists
+  `ai-vlm`. The ghcr/publish half of OD-14 and ISS-028 stays open.

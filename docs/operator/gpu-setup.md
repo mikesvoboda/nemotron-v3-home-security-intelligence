@@ -19,7 +19,7 @@ Home Security Intelligence uses GPU acceleration for AI inference. Production AI
 | Container    | GPU env var           | What it holds                                                                       | Inference time |
 | ------------ | --------------------- | ----------------------------------------------------------------------------------- | -------------- |
 | `ai-gateway` | `GPU_AI_SERVICES` (1) | Triton: `yolo26` detection, `reid`, plus `threat` when `GATEWAY_ENABLE_THREAT=true` | 30-50ms        |
-| `ai-vlm`     | `GPU_LLM` (0)         | llama.cpp + mmproj serving the Qwen3-VL GGUF pair (compose profile `vlm`)           | seconds        |
+| `ai-vlm`     | `GPU_LLM` (0)         | llama.cpp + mmproj serving the Qwen3-VL GGUF pair (default compose set)             | seconds        |
 
 A third consumer lives **inside the backend process**: the face, plate and person-re-ID
 lookups (`face_recognizer_loader`, `fast_alpr_loader`, `osnet_loader`). They load only
@@ -305,7 +305,6 @@ services:
               capabilities: [gpu]
 
   ai-vlm:
-    profiles: ['vlm'] # off unless --profile vlm is named
     devices:
       - nvidia.com/gpu=${GPU_LLM:-0}
     environment:
@@ -346,10 +345,15 @@ services:
       - nvidia.com/gpu=${GPU_LLM:-0}
 ```
 
-`ai-vlm` sits behind the compose profile `vlm`, so it is absent from a plain `up -d` —
-and podman-compose drops a profile-inactive service _before_ resolving the names on your
-command line, so `up -d ai-vlm` without `--profile vlm` reports success and starts
-nothing.
+`ai-vlm` is in the default compose set, so a plain `up -d` asks for it with everything
+else. Until UR-18 it sat behind a profile, and podman-compose dropped a profile-inactive
+service _before_ resolving the names on your command line, so `up -d ai-vlm` without the
+flag reported success and started nothing. That gate is gone.
+
+**A machine with no GPU:** the `nvidia.com/gpu=` line above has nothing to map there, so
+`ai-vlm` fails at start while the rest of the stack comes up — it neither `depends_on`
+anything nor has anything depend on it. Name the services you want and leave `ai-vlm` off;
+that is the interim path until package O2.1's explicit fake-AI overlay lands.
 
 ### Environment Variables
 
@@ -442,12 +446,11 @@ nvidia-smi dmon -s m -d 1
    sudo fuser -k /dev/nvidia*
    ```
 
-3. **Restart AI services** — each service by name, and the VLM needs its profile on the
-   command line:
+3. **Restart AI services** — each service by name, with no profile flag on either:
 
    ```bash
    podman compose -f docker-compose.prod.yml restart ai-gateway
-   podman compose -f docker-compose.prod.yml --profile vlm up -d --force-recreate ai-vlm
+   podman compose -f docker-compose.prod.yml up -d --force-recreate ai-vlm
    ```
 
 4. **Let the VLM release its VRAM between bursts:** lower `VLM_SLEEP_IDLE_SECONDS`
@@ -504,7 +507,7 @@ recreating the containers is the whole procedure:
 
 ```bash
 podman compose -f docker-compose.prod.yml up -d --force-recreate ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm up -d --force-recreate ai-vlm
+podman compose -f docker-compose.prod.yml up -d --force-recreate ai-vlm
 ```
 
 To run both on one GPU, set `GPU_LLM` and `GPU_AI_SERVICES` to the same index and leave

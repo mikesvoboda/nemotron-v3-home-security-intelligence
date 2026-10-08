@@ -30,7 +30,7 @@ reverse proxy (`frontend/nginx.conf:117`).
 | **Refresh**         | Reloads the embedded dashboard                                            |
 
 Grafana's own host port is `127.0.0.1:${GRAFANA_PORT:-3002}:3000`
-(`docker-compose.prod.yml:1061`); set `GRAFANA_PORT` in `.env` if that collides.
+(`docker-compose.prod.yml:1066`); set `GRAFANA_PORT` in `.env` if that collides.
 
 ### Direct Access
 
@@ -47,7 +47,7 @@ Three mechanisms feed Pyroscope, and each one has a specific set of subjects:
 | ------------------ | ------------------------------------------------ | ---------------------------------------------- | ------------------------------------------------------------------------- |
 | `nemotron-backend` | Backend process, in-process CPU                  | pyroscope-io SDK (`backend/core/telemetry.py`) | `PYROSCOPE_ENABLED` in the backend container                              |
 | `backend`          | Same backend process, sampled from outside       | py-spy + `scripts/pyroscope-profiler.sh`       | `PYROSCOPE_ENABLED` in the backend container (`backend/entrypoint.sh:51`) |
-| `ai-vlm`           | `llama-server` (native C/C++), whole-process CPU | Alloy eBPF profiler                            | label `pyroscope.profile: 'true'` (`docker-compose.prod.yml:144`)         |
+| `ai-vlm`           | `llama-server` (native C/C++), whole-process CPU | Alloy eBPF profiler                            | label `pyroscope.profile: 'true'` (`docker-compose.prod.yml:151`)         |
 
 The two backend names are **the same process profiled twice**, not two
 services. The SDK tags profiles with `service="backend"` and
@@ -92,7 +92,7 @@ keeps only those labelled `pyroscope.profile=true`, and takes the profile
 application name from the `pyroscope.service` label (falling back to the
 container name). `pyroscope.ebpf` samples at 97 Hz every 15s with C++ symbol
 demangling, which is what makes `llama-server` stacks readable. Only `ai-vlm`
-carries the label today (`docker-compose.prod.yml:144-145`).
+carries the label today (`docker-compose.prod.yml:151-152`).
 
 ### Naming Note
 
@@ -161,7 +161,7 @@ Alloy eBPF path emits native CPU profiles for `ai-vlm`. So a memory flame graph
 is only interesting for `service_name="nemotron-backend"`.
 
 The compose files pass `PYROSCOPE_MEMORY_ENABLED` to the backend container
-(`docker-compose.prod.yml:536`, `docker-compose.ghcr.yml:234`); no Python code
+(`docker-compose.prod.yml:541`, `docker-compose.ghcr.yml:234`); no Python code
 in this repo reads that variable, and `init_profiling()` never passes
 `mem_enabled` to `pyroscope.configure` (the installed agent, pyroscope-io 1.2.4,
 defaults it to `false`). If allocation profiles are missing, check the Pyroscope
@@ -181,7 +181,7 @@ application list for the `memory:alloc_space…` type before tuning anything.
 ### Environment Variables
 
 Every value below is the one the backend container gets
-(`docker-compose.prod.yml:531-536` and `backend/entrypoint.sh:51`):
+(`docker-compose.prod.yml:536-541` and `backend/entrypoint.sh:51`):
 
 | Variable                   | Default                 | Read by                                                                     |
 | -------------------------- | ----------------------- | --------------------------------------------------------------------------- |
@@ -259,7 +259,7 @@ podman-compose -f docker-compose.prod.yml restart pyroscope
 ```
 
 The `pyroscope_data` volume holds the profile blocks
-(`docker-compose.prod.yml:1293`, `:1495`).
+(`docker-compose.prod.yml:1298`, `:1495`).
 
 ## Common Use Cases
 
@@ -328,7 +328,7 @@ below.
 ```bash
 # 1. Find slow traces (e.g., requests > 5 seconds)
 # In Tempo: service=nemotron-backend, minDuration=5s
-# (that is OTEL_SERVICE_NAME, docker-compose.prod.yml:620)
+# (that is OTEL_SERVICE_NAME, docker-compose.prod.yml:625)
 
 # 2. Get trace_id from the slow trace
 # Example: 0123456789abcdef0123456789abcdef
@@ -377,7 +377,7 @@ Two facts about that query decide whether the **Profiles** tab ever shows data:
 
 1. The trace service name must exist as a Pyroscope `service_name`. Backend
    traces carry `service.name=nemotron-backend` (`OTEL_SERVICE_NAME`,
-   `docker-compose.prod.yml:620`), which is a real profile name — but a trace
+   `docker-compose.prod.yml:625`), which is a real profile name — but a trace
    from `ai-gateway` or `ai-vlm` carries `ai-gateway` / `ai-vlm`, and only
    `ai-vlm` has profiles.
 2. The profile must carry a `trace_id` tag, which requires tracing enabled at
@@ -652,7 +652,7 @@ compute-bound or memory-bound.
 ### Accessing GPU Metrics
 
 `dcgm-exporter` listens on `:9400` (`DCGM_EXPORTER_LISTEN=:9400`, published as
-`127.0.0.1:${DCGM_EXPORTER_PORT:-9400}`, `docker-compose.prod.yml:1386-1390`).
+`127.0.0.1:${DCGM_EXPORTER_PORT:-9400}`, `docker-compose.prod.yml:1391-1395`).
 It sits on the `gpu-rootful` compose profile, and the `dcgm-exporter` job
 scrapes it at 15s through a host-network target (`monitoring/prometheus.yml`,
 job `dcgm-exporter`) because DCGM's `nv-hostengine` needs host-level root and
@@ -686,7 +686,7 @@ DCGM_FI_DEV_POWER_USAGE
 
 The exported set is exactly what
 `monitoring/dcgm/custom-counters.csv` lists (mounted over the exporter default
-counters at `docker-compose.prod.yml:1384`):
+counters at `docker-compose.prod.yml:1389`):
 
 | Metric                                       | Description                   | Unit    |
 | -------------------------------------------- | ----------------------------- | ------- |

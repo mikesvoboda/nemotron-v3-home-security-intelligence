@@ -228,7 +228,8 @@ and each failure opens an incident issue for a rollback that never happens.
 - [ ] **MEASURE** each of "Deploy to Staging" and "Post-Deployment Validation": a job that deploys
       or validates nothing and only prints a checklist goes.
 - [ ] Delete `rollback.yml` (owner ruling, 2026-10-08): a red `Deploy` run is the signal, and the
-      daily batch reports it.
+      coordinator's daily batch on the pinned issue reports it (its Status line). Build no digest
+      workflow, and leave `linear-ci-status.yml` as it is.
 - [ ] Once `Deploy` is green, close each open "Automated Rollback" issue with a comment linking this
       PR.
 
@@ -246,8 +247,8 @@ in the roster, so the launcher creates it from the Phase 2 boundary on.
 - [ ] A session may declare `gpu = true`; `up` then adds `--gpu` to its `agent-dgx run`
       arguments. In the draft PR, ask the owner to confirm the flag's exact form, as `O0.1` did for
       the strongest model's arguments.
-- [ ] Add `uplevel-operator` to phase 1, model `fast`, kickoff line "Follow the kickoff prompt at
-      the end of docs/uplevel/operator.md."
+- [ ] Add `uplevel-operator` to phase 1, model `fast`, kickoff line "Follow the kickoff prompt in
+      docs/uplevel/operator.md. It is the section named "Kickoff prompt" in that file."
 - [ ] `up` refuses to create a `gpu` session when the launching shell lacks
       `AGENT_GPU_RUNNER_URL`, and adds no `--mount` for the model library: `agent-dgx --gpu` mounts
       `/srv/agent-models` itself and refuses any mount at or under it.
@@ -285,6 +286,31 @@ published with anonymous **Admin** today (`GF_AUTH_ANONYMOUS_ENABLED=true`,
 **Done when:** on a running stack with `EXPOSE_LAN=true`, Prometheus shows the backend targets up,
 the three embedded dashboards render after one login, and `/grafana/` without a session is
 refused.
+
+### O1.12 The hooks run in the gate (UR-37)
+
+**Files:** a new job in `.github/workflows/ci.yml` and its place in `CI Gate (Required Checks)`;
+`.pre-commit-config.yaml` only where a hook needs a CI mode.
+
+Agents commit and push through `.pre-commit-config.yaml`'s hooks (semgrep, detect-secrets,
+prettier, the slow-test guard and more), but the required gate runs only part of them: the `lint`
+job runs ruff and radon. A PR can pass every required check and still block every later push that
+touches its files. On 2026-10-08 that took four fix PRs: B1.3's webhook fixture tripped semgrep
+(#6888), the slow-test hook (#6890), and #6891 and #6892.
+
+- [ ] Write the failing check first: a fixture change that trips a hook but passes today's CI (the
+      B1.3 fixture class) fails the new job.
+- [ ] Add a job, as its own job (the hot-file rule for `ci.yml`), that runs the repository's pinned
+      hooks on the PR's changed files (`pre-commit run --from-ref <base> --to-ref HEAD`), and add it
+      to the `CI Gate (Required Checks)` closure. `scripts/test_ci_job_graph.py` enforces the
+      wiring.
+- [ ] **MEASURE** the job's wall-clock on a typical PR and on a large one.
+- [ ] A hook the CI runner cannot run (missing tooling): give the job the tooling, or list the hook
+      in the PR with the reason it stays local-only. That list is a **RULING** for the owner's
+      batch: a hook left out of the gate is a known gap, never a silent one.
+
+**Done when:** the job runs in the required gate on every PR, fails on the fixture and passes on the
+current tree, and the PR reports its wall-clock and any local-only hooks with the owner's ruling.
 
 ---
 
@@ -542,6 +568,10 @@ Reviews come first (UR-32). Before you start or resume a package, run
 gh pr list --state open --label review:ops-<your cell: a or b>; review each PR independently against
 its package's Done when, the contract and the hot-file rules, post the review
 comment in the form 50-coordination.md gives, and remove the label.
+
+Read your own open PRs before resuming a package (UR-35): gh pr view <n>
+--comments for each. An owner ruling or a requested change there comes before
+new work; nobody tells you about a comment except by writing it.
 
 State only what you have just read (UR-31): every commit, PR, file, test result
 and question you cite comes from output you ran in the same turn.

@@ -17,9 +17,9 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   (default `true`). `DEBUG` is not consulted, and `ADMIN_API_KEY` is reserved and not
   enforced — no code path reads it and no `X-Admin-API-Key` header is validated — so the
   `127.0.0.1` bind is what actually protects them. The `verify_api_key` guard
-  (`API_KEY_ENABLED`) protects the DLQ and inbound-webhook routes, not the admin ones. The
-  `/api/admin/users` CRUD endpoints are a separate case: they require an authenticated admin
-  session (`get_current_admin_user`).
+  (`API_KEY_ENABLED`) protects the DLQ routes, not the admin ones; the inbound-webhook
+  routes use `require_api_key`, which is always on. The `/api/admin/users` CRUD endpoints
+  are a separate case: they require an authenticated admin session (`get_current_admin_user`).
 - **No cloud connectivity** - All processing is local
 - **No internet exposure** - Designed for LAN access only
 
@@ -357,7 +357,7 @@ Only expose necessary ports:
 | 6379        | Redis                                | Bound `127.0.0.1` — **internal only**                |
 | 8090        | ai-gateway (`/yolo26`, `/enrich-lt`) | Bound `127.0.0.1` — **internal only**                |
 | 8002        | ai-gateway Triton native metrics     | Bound `127.0.0.1` — **internal only**                |
-| 8098        | ai-vlm (reasoning; profile `vlm`)    | Bound `127.0.0.1:${AI_VLM_PORT}` — **internal only** |
+| 8098        | ai-vlm (reasoning)                   | Bound `127.0.0.1:${AI_VLM_PORT}` — **internal only** |
 
 Most host bindings are already `127.0.0.1` (the compose files bind them that way), so the
 firewall mainly needs to allow the frontend ports for LAN users:
