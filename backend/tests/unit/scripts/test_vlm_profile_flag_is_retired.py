@@ -3,9 +3,9 @@
 Why a check and not just a sweep: `ai-vlm`'s `profiles: [vlm]` gate meant a plain
 `up` started the whole product except the service that produces a verdict
 (`docs/uplevel/00-audit.md` §3 D5). UR-18 moves it into the default set. When
-this check was written the census it ran against found 229 lines naming the
-retired profile in 68 living files — one PR cannot promise it got them all, so
-the check keeps the promise instead.
+this check was written the census it ran against found 261 lines naming the
+retired profile in 73 living files (measured at the RED commit 52fcdd59) — one
+PR cannot promise it got them all, so the check keeps the promise instead.
 
 The failure mode this pins is subtler than a stale sentence. Compose does not
 reject a `--profile` flag no service declares — it ignores it and starts
@@ -24,7 +24,6 @@ prose is the point of a regression pin.
 from __future__ import annotations
 
 import re
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -181,8 +180,10 @@ def _living_surfaces() -> list[Path]:
         rel = path.relative_to(REPO_ROOT)
         if _is_history(rel):
             continue
-        # A dot-directory at any depth (.github, .claude) is tooling config
-        # except .github, which carries workflows this package may edit.
+        # Every dot-directory that survives the exclusion above stays in
+        # scope: .github carries workflows this package may edit, and
+        # nothing in .claude currently matches, so the wider net costs no
+        # false failures today.
         if path.suffix in SCANNED_SUFFIXES or path.name == ".env.example":
             candidates.append(path)
     return sorted(candidates)
@@ -344,7 +345,3 @@ def test_history_is_out_of_scope(surfaces: list[Path]) -> None:
     assert not any(r.startswith("docs/plans/") for r in rels)
     assert not any(r.startswith("docs/uplevel/") for r in rels)
     assert not any(r.startswith("docs/superpowers/") for r in rels)
-
-
-# tempfile import kept for the module-level REPO_ROOT resolution helper below.
-_ = tempfile
