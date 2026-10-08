@@ -164,7 +164,7 @@ jobs:
 
       # Daily scheduled run - audit only
       - name: Daily Audit (scheduled)
-        if: github.event_name == 'schedule'
+        if: vars.LINEAR_ENABLED == 'true' && (github.event_name == 'schedule')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -174,7 +174,7 @@ jobs:
 
       # Manual audit mode
       - name: Manual Audit
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'audit'
+        if: vars.LINEAR_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'audit')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -194,7 +194,7 @@ jobs:
 
       # Manual close mode
       - name: Manual Close
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'close'
+        if: vars.LINEAR_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'close')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -318,7 +318,7 @@ jobs:
 
       # Handle Linear webhook events
       - name: Handle Linear Webhook
-        if: github.event_name == 'repository_dispatch' && steps.validate_webhook.outputs.valid == 'true'
+        if: vars.LINEAR_ENABLED == 'true' && (github.event_name == 'repository_dispatch' && steps.validate_webhook.outputs.valid == 'true')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
