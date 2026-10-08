@@ -20,11 +20,19 @@ completions` is the fake's mount point - real engines speak
     VlmVerdict post-validation owns bounds, the spec's own 0.25 lesson);
   * timeouts: read budget `settings.ai_vlm_read_timeout` (default 25 s,
     applied PER ATTEMPT against S4's p95 <= 30 s including cold starts). Two
-    full attempts would blow the spec, so a read timeout is NOT retried - see
-    `VlmSlowReplyError` - and the §6 retry at temp 0 only ever follows a FAST
-    failure (a connection refused, a 5xx). Worst case on the timeout path is
-    therefore ONE 25 s wait and no retry, inside the 30 s; the budget is
-    counted as a cause and never charged to the breaker).
+    full attempts would blow the spec, so neither a stalled reply
+    (`httpx.ReadTimeout`) nor a stalled request write (`httpx.WriteTimeout` -
+    the assess/probe bodies carry base64 images, so the write phase is real
+    and httpx does NOT make the two classes interchangeable) is retried -
+    both raise `VlmSlowReplyError` as a budget. The §6 retry at temp 0
+    therefore only follows failures where a re-ask is not futile: the
+    request never completed its trip (refused connection, `ConnectTimeout`)
+    or the engine answered without processing (a 5xx). One honest wall-clock
+    caveat the first version of this comment missed: a single attempt is
+    connect + read, and the measured defaults are 10.0 + 25.0 = 35 s - the
+    read budget alone sits inside S4's 30 s; the slow-connect edge does not,
+    because the connect phase is `ai_connect_timeout`, a separate knob. The
+    budget causes are counted and never charged to the breaker.
 
 Breaker semantics (spec §6 step 4): transport failures feed
 `get_circuit_breaker("ai-vlm")`; when it OPENS, DegradationManager is
@@ -196,14 +204,17 @@ class VlmContextOverflowError(VlmClientError):
 
 
 class VlmSlowReplyError(VlmClientError):
-    """D1: the engine took longer than `ai_vlm_read_timeout` to answer
-    (httpx.ReadTimeout - the connection was accepted, the request written;
-    a refusal would have been ConnectTimeout and stays a transport error).
-    OUR read budget cut a live request, so this is a budget outcome like
-    VlmContextOverflowError: named apart from VlmTransportError because the
-    retry calculus differs (the request leaves unchanged, so the §6 retry
-    re-asks the identical question at the identical speed and times out
-    identically, charging the breaker a second time for nothing) and because
+    """D1: the request outran `ai_vlm_read_timeout` in either phase -
+    `httpx.ReadTimeout` waiting for the reply, or `httpx.WriteTimeout`
+    waiting to finish sending the body (both legs carry base64 images, so
+    the write phase is real). Either way the connection was accepted and our
+    bytes were at least partway to the engine; a socket that never connects
+    raises ConnectTimeout and stays a transport error. OUR budget cut a live
+    request, so this is a budget outcome like VlmContextOverflowError: named
+    apart from VlmTransportError because the retry calculus differs (the
+    request leaves unchanged, so the §6 retry re-asks the identical question
+    at the identical speed and times out identically, charging the breaker a
+    second time for nothing) and because
     a budget must not feed the service breaker. Still a VlmClientError, so
     the analyzer still answers verification_failed with a NULL score."""
 
@@ -356,7 +367,11 @@ class VlmClient:
 
         Raises ConstrainedDecodingNotEnforced (verdict "ignored"/
         "inconclusive") - the analyzer maps it to step 2 (verification_
-        failed + NULL), the breaker records it as a failure.
+        failed + NULL). A genuine probe fault (props unreachable, build
+        mismatch, transport, not-enforced) also records a breaker failure;
+        the two budget legs do NOT - a read/write stall or a truncated probe
+        reply is our chosen timeout/max_tokens, not "stop calling this
+        engine" (see each arm's D1 clause).
         """
         if self._enforced is True or not self._settings.vlm_enforcement_probe_enabled:
             return
@@ -416,28 +431,33 @@ class VlmClient:
             http = await self._http()
             try:
                 resp = await http.post(CHAT_PATH, json=body)
-            except httpx.ReadTimeout as exc:
+            except (httpx.ReadTimeout, httpx.WriteTimeout) as exc:
                 # D1 on the probe leg, which is the leg that actually bites in
                 # production: the probe is enabled by default and its result
                 # is cached once per endpoint+build, so a slow engine that has
                 # already proven ENFORCED never reaches this branch - but an
                 # engine that has NOT yet proven it does, once per item, and
                 # the branch below charged the breaker for each. A timeout here
-                # is the same budget outcome as the assess leg's: raise
-                # INCONCLUSIVE (fail closed, nothing cached, no verdict
-                # trusted), count it under its own cause, and do NOT feed the
-                # service breaker for a number we chose.
+                # is the same budget outcome as the assess leg's, in either
+                # phase (the probe ships the same image-bearing body, so
+                # WriteTimeout is as reachable as ReadTimeout; ConnectTimeout
+                # stays transport below): raise INCONCLUSIVE (fail closed,
+                # nothing cached, no verdict trusted), count it under its own
+                # cause, and do NOT feed the service breaker for a number we
+                # chose.
+                phase = "write" if isinstance(exc, httpx.WriteTimeout) else "read"
                 await self._note_budget_exhausted("vlm_probe_timeout")
                 logger.warning(
-                    "vlm probe reply exceeded the read budget",
+                    f"vlm probe {phase} exceeded the budget",
                     extra={
                         "ai_vlm_read_timeout": self._settings.ai_vlm_read_timeout,
+                        "timeout_phase": phase,
                         "max_tokens": _PROBE_MAX_TOKENS,
                     },
                 )
                 raise ConstrainedDecodingNotEnforced(
-                    f"vlm probe reply exceeded the "
-                    f"{self._settings.ai_vlm_read_timeout:.0f}s read budget at "
+                    f"vlm probe {phase} exceeded the "
+                    f"{self._settings.ai_vlm_read_timeout:.0f}s budget at "
                     f"max_tokens={_PROBE_MAX_TOKENS} - enforcement is UNMEASURED "
                     "at this timeout, not absent. Fail closed.",
                     verdict="inconclusive",
@@ -950,12 +970,15 @@ class VlmClient:
             try:
                 http = await self._http()
                 resp = await http.post(CHAT_PATH, json=body)
-            except httpx.ReadTimeout as exc:
+            except (httpx.ReadTimeout, httpx.WriteTimeout) as exc:
                 # D1. A reply that outruns `ai_vlm_read_timeout` is a BUDGET,
                 # not an outage, and it is OUR budget: the connection was
-                # accepted (httpx raises a plain ReadTimeout, never
-                # ConnectTimeout, only once the socket is open and the request
-                # is written), the grammar applied, the engine is working. The
+                # accepted and our bytes got at least partway to the engine
+                # (httpx raises ReadTimeout on the wait for the reply and
+                # WriteTimeout on the wait to finish sending the request -
+                # this body carries base64 images, so the write phase is
+                # real - while a socket that never connects raises
+                # ConnectTimeout, which stays a transport error below). The
                 # request leaves unchanged, so the §6 retry re-asks the
                 # identical question at the identical speed and times out
                 # identically - and used to charge the breaker a second time
@@ -966,17 +989,19 @@ class VlmClient:
                 # `_context_overflow_of` and the truncation leg above: the
                 # breaker asks "stop calling this engine?" and a slow reply
                 # answers NO. The item still refuses to score.
+                phase = "write" if isinstance(exc, httpx.WriteTimeout) else "read"
                 await self._note_budget_exhausted("vlm_assess_timeout")
                 logger.warning(
-                    "vlm reply exceeded the read budget",
+                    f"vlm request exceeded the {phase} budget",
                     extra={
                         "ai_vlm_read_timeout": self._settings.ai_vlm_read_timeout,
+                        "timeout_phase": phase,
                         "max_tokens": _ASSESS_MAX_TOKENS,
                     },
                 )
                 raise VlmSlowReplyError(
-                    f"vlm reply exceeded the {self._settings.ai_vlm_read_timeout:.0f}s "
-                    f"read budget at max_tokens={_ASSESS_MAX_TOKENS}; verdict UNMEASURED "
+                    f"vlm request exceeded the {self._settings.ai_vlm_read_timeout:.0f}s "
+                    f"{phase} budget at max_tokens={_ASSESS_MAX_TOKENS}; verdict UNMEASURED "
                     "at this budget, the engine is fine"
                 ) from exc
             except Exception as exc:

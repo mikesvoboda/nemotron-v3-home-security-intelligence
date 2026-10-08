@@ -1623,6 +1623,74 @@ class TestSlowReplyIsNotABrokenEngine:
         assert get_circuit_breaker("ai-vlm").failure_count >= 1
         await client.close()
 
+    async def test_a_stalled_write_is_a_budget_too(self, image_dir) -> None:
+        """The assess body carries base64 images (up to `vlm_max_image_bytes`
+        per item), so the WRITE phase can stall and httpx raises
+        `httpx.WriteTimeout` - which is NOT a subclass of `ReadTimeout`
+        (measured at head: `issubclass(httpx.WriteTimeout, httpx.ReadTimeout)
+        is False`). Before the classification widened, that landed in the
+        `except Exception` transport arm: breaker charged, then the §6 retry
+        re-sent the BYTE-IDENTICAL multi-megabyte body (`_ASSESS_TEMPERATURE`
+        is already 0.0) and charged a second time - two charges and a second
+        full write for a stall under a budget we chose. The same socket, the
+        same our-side budget, the same identical-retry futility as the read
+        leg: a budget, not an outage. One ask, no charge."""
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        transport = _StalledWriteTransport()
+        client = self._client(transport)
+        with pytest.raises(vc.VlmSlowReplyError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert transport.chat_calls == 1, "the identical body must not be re-sent"
+        assert get_circuit_breaker("ai-vlm").failure_count == 0, (
+            "a stalled write is OUR budget; it must not charge the breaker"
+        )
+        await client.close()
+
+    async def test_a_connect_timeout_stays_a_transport_error(self, image_dir) -> None:
+        """The triage must not widen the budget past its own definition: a
+        server that never completes the TCP connect never had our bytes at
+        all - no request was sent, so there is no identical-retry futility
+        and no budget that was spent. `httpx.ConnectTimeout` stays a
+        transport error, keeps its §6 retry, and stays breaker-fed. This is
+        the guard against widening the timeout clause to all of
+        `httpx.TimeoutException`, which would silently de-breaker real
+        outages."""
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        class RefusingTransport(httpx.AsyncBaseTransport):
+            async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+                raise httpx.ConnectTimeout("connection timed out", request=request)
+
+        client = self._client(RefusingTransport())
+        with pytest.raises(vc.VlmTransportError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert get_circuit_breaker("ai-vlm").failure_count >= 1, (
+            "a connect timeout is the engine being down, not our budget"
+        )
+        await client.close()
+
+    async def test_a_stalled_write_on_the_probe_leg_is_a_budget_too(self, image_dir) -> None:
+        """The enforcement probe ships the same image-bearing body shape, so
+        it can stall in the write phase too. It must fail closed the same
+        way its read-timeout arm does (inconclusive, nothing cached) WITHOUT
+        feeding the breaker - the probe leg's own D1 ruling, extended to the
+        phase its clause forgot."""
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        settings = vc.get_settings().model_copy(update={"vlm_enforcement_probe_enabled": True})
+        client = vc.VlmClient(
+            base_url="http://fake-vlm:8098",
+            transport=_StalledWriteTransport(),
+            settings=settings,
+        )
+        with pytest.raises(vc.ConstrainedDecodingNotEnforced):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert get_circuit_breaker("ai-vlm").failure_count == 0, (
+            "the probe's write stall is the same budget the read stall is"
+        )
+        await client.close()
+
     def _client(self, transport: httpx.AsyncBaseTransport) -> vc.VlmClient:
         settings = vc.get_settings().model_copy(update={"vlm_enforcement_probe_enabled": False})
         return vc.VlmClient(base_url="http://fake-vlm:8098", transport=transport, settings=settings)
@@ -1644,6 +1712,24 @@ class _TimingOutTransport(httpx.AsyncBaseTransport):
         if request.url.path == vc.CHAT_PATH:
             self.chat_calls += 1
             raise httpx.ReadTimeout("read timeout", request=request)
+        return httpx.Response(200, json={"build_info": "b7972-e06088da0"}, request=request)
+
+
+class _StalledWriteTransport(httpx.AsyncBaseTransport):
+    """Raises `httpx.WriteTimeout` on the chat leg exactly as a server that
+    stops reading the request body would (the assess/probe bodies carry
+    base64 images, so the write phase is real and can stall). Same
+    transport-layer pinning rationale as `_TimingOutTransport`: a custom
+    transport never enforces timeouts, so the exception is raised, not
+    aged into. Counts chat requests for the identical-retry assertion."""
+
+    def __init__(self) -> None:
+        self.chat_calls = 0
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path == vc.CHAT_PATH:
+            self.chat_calls += 1
+            raise httpx.WriteTimeout("write timeout", request=request)
         return httpx.Response(200, json={"build_info": "b7972-e06088da0"}, request=request)
 
 
