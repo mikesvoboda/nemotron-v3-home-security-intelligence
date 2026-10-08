@@ -117,6 +117,43 @@ describe('useVerdictEngineStatus', () => {
       expect(result.current.state).toBe('unknown');
       expect(result.current.isDown).toBe(false);
     });
+
+    it('drops the stale transition time when a later readiness read fails', async () => {
+      // Regression guard: `since` is the last TRANSITION time, normally hours
+      // old. If a failed read left it in place, the banner would print
+      // "unavailable for <hours>" for an engine the probe only failed to
+      // reach. A probe that cannot answer cannot say since-when, so the catch
+      // path must null it alongside the honest unknown.
+      //
+      // Same hook instance across both reads (a fresh mount starts with
+      // since=null, which would pass without the fix). Real timers + a short
+      // interval, per the polling case below: MSW delivery rides setImmediate,
+      // which fake timers freeze.
+      let failTheRead = false;
+      server.use(
+        http.get('/api/system/health/ready', () =>
+          failTheRead
+            ? HttpResponse.json({ detail: 'nope' }, { status: 404 })
+            : HttpResponse.json(
+                readinessWith({
+                  verdict_engine: {
+                    state: 'available',
+                    since: '2026-10-08T02:00:00Z',
+                    reason: null,
+                  },
+                })
+              )
+        )
+      );
+
+      const { result } = renderHook(() => useVerdictEngineStatus({ pollIntervalMs: 100 }));
+      await waitFor(() => expect(result.current.since).toBe('2026-10-08T02:00:00Z'));
+
+      failTheRead = true;
+
+      await waitFor(() => expect(result.current.state).toBe('unknown'), { timeout: 3000 });
+      expect(result.current.since).toBeNull();
+    });
   });
 
   describe('transitions over /ws/system', () => {

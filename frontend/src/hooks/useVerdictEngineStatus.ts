@@ -188,6 +188,9 @@ export function useVerdictEngineStatus(
           error: String(error),
         });
         setState('unknown');
+        // Drop the last known transition time too: under unknown we cannot say
+        // SINCE WHEN, so a stale `since` must not be shown as a downtime figure.
+        setSince(null);
         setReason('readiness probe unavailable');
         setLoaded(true);
       }

@@ -121,6 +121,10 @@ export function VerdictEngineStatusBanner({
   const styling = STYLING[state];
   const Icon = state === 'unavailable' ? AlertOctagon : AlertTriangle;
   const elapsed = since ? formatSince(since) : '';
+  // The elapsed figure only reads honestly with the state that carries it:
+  // 'unavailable' is a real outage we can time; 'unknown' is the probe not
+  // telling, so label it 'unknown for' rather than claiming downtime.
+  const sinceLabel = state === 'unavailable' ? 'unavailable for' : 'unknown for';
 
   return (
     <div
@@ -137,7 +141,10 @@ export function VerdictEngineStatusBanner({
               ? 'Verdict engine unavailable'
               : 'Verdict engine state unknown'}
             {elapsed ? (
-              <span data-testid="verdict-engine-since"> — unavailable for {elapsed}</span>
+              <span data-testid="verdict-engine-since">
+                {' '}
+                — {sinceLabel} {elapsed}
+              </span>
             ) : null}
           </span>
           <span className="text-sm text-gray-300">

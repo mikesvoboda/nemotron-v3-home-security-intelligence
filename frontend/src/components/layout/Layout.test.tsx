@@ -565,5 +565,30 @@ describe('Layout', () => {
 
       expect(screen.queryByTestId('verdict-engine-banner')).not.toBeInTheDocument();
     });
+
+    it('renders no banner before the first readiness read settles', () => {
+      // First-paint regression guard: the hook seeds state 'unknown' and only
+      // flips loaded=true once the readiness read settles. If Layout stops
+      // gating on loaded, every healthy page load first paints the yellow
+      // "state unknown" warning and then announces a recovery that never
+      // happened. This is the seam the bug lived at (the real hook is
+      // exercised through its own .test file; Layout only reads the gate).
+      (useVerdictEngineStatus as Mock).mockReturnValue({
+        state: 'unknown',
+        since: null,
+        reason: null,
+        loaded: false,
+        isDown: false,
+        isConnected: false,
+      });
+
+      renderWithProvider(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+
+      expect(screen.queryByTestId('verdict-engine-banner')).not.toBeInTheDocument();
+    });
   });
 });

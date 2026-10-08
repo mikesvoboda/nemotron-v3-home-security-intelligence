@@ -1005,7 +1005,7 @@ export interface SystemHealthChangedPayload {
 
 /**
  * Verdict-engine (ai-vlm) reachability, mirroring the backend's
- * VerdictEngineState enum (backend/api/schemas/websocket.py).
+ * VerdictEngineState enum (backend/core/websocket/event_schemas.py).
  */
 export type VerdictEngineState = 'available' | 'unavailable' | 'unknown';
 

@@ -118,6 +118,22 @@ describe('VerdictEngineStatusBanner', () => {
       expect(status).toHaveTextContent(/unknown/i);
       expect(screen.getByTestId('verdict-engine-reason')).toHaveTextContent('probe timeout');
     });
+
+    it('labels elapsed as unknown time, never a fabricated downtime', () => {
+      // 'unknown' means the probe could not tell, so an elapsed figure on this
+      // state must not read as "unavailable for" — that accuses a possibly
+      // healthy engine of an outage it was never shown to have.
+      render(
+        <VerdictEngineStatusBanner
+          state="unknown"
+          since="2026-10-08T10:00:00Z"
+          reason="probe timeout: no response in 5s"
+        />
+      );
+      const sinceEl = screen.getByTestId('verdict-engine-since');
+      expect(sinceEl).toHaveTextContent(/unknown for 2h/);
+      expect(sinceEl).not.toHaveTextContent(/unavailable for/i);
+    });
   });
 
   describe('screen-reader announcements', () => {

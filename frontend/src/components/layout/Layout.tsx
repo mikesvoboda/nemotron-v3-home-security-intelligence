@@ -122,11 +122,17 @@ export default function Layout({ children }: LayoutProps) {
                 />
               </div>
               {!isDismissed && <ServiceStatusAlert services={services} onDismiss={handleDismiss} />}
-              <VerdictEngineStatusBanner
-                state={verdictEngine.state}
-                since={verdictEngine.since}
-                reason={verdictEngine.reason}
-              />
+              {/* Gate on loaded: the hook seeds 'unknown' before the first
+                  readiness read settles, so an ungated render paints a false
+                  engine warning on every healthy page load. */}
+              {verdictEngine.loaded && (
+                <VerdictEngineStatusBanner
+                  className="mx-4 mb-4 mt-2"
+                  state={verdictEngine.state}
+                  since={verdictEngine.since}
+                  reason={verdictEngine.reason}
+                />
+              )}
               {children}
             </main>
           </div>
