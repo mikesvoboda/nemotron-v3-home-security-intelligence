@@ -229,7 +229,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | not started |     |
 | B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | not started |     |
 | B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | done        | #6880 |
-| B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | not started |     |
+| B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | awaiting real tier | #6886 |
 | B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | not started |     |
 | B1.6    | backend                 | 1          | Scope the orchestrator and its recovery (D11)  | heavy · owner | not started |     |
 | F1.1    | frontend                | 1          | Endpoint truth (D2)                            |               | not started |     |
