@@ -66,7 +66,7 @@ def run_gate(tree: Path) -> subprocess.CompletedProcess[str]:
     # Assert existence HERE, not per-test: a missing script exits nonzero, which would make
     # every TestFails case pass for the wrong reason.
     assert SCRIPT.is_file(), f"{SCRIPT} is missing — the gate itself must exist"
-    return subprocess.run(  # noqa: S603
+    return subprocess.run(  # noqa: S603  # intentional - tests our own script
         [sys.executable, str(SCRIPT), str(tree)],
         capture_output=True,
         text=True,
