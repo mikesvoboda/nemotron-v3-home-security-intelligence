@@ -55,14 +55,14 @@ Event types follow the pattern: `{domain}.{action}`
 
 Standard envelope structure for all WebSocket events:
 
-| Field | Type | Description |
-| ---------------- | ------------------ | --------------------------- | --------------------------------- |
-| `type` | WebSocketEventType | Event type from enum |
-| `payload` | dict[str, Any] | Event-specific payload data |
-| `timestamp` | str | ISO 8601 timestamp |
-| `correlation_id` | str | None | Optional ID for event correlation |
-| `sequence` | int | None | Optional sequence number |
-| `channel` | str | None | Optional channel identifier |
+| Field            | Type               | Description                       |
+| ---------------- | ------------------ | --------------------------------- |
+| `type`           | WebSocketEventType | Event type from enum              |
+| `payload`        | dict[str, Any]     | Event-specific payload data       |
+| `timestamp`      | str                | ISO 8601 timestamp                |
+| `correlation_id` | str \| None        | Optional ID for event correlation |
+| `sequence`       | int \| None        | Optional sequence number          |
+| `channel`        | str \| None        | Optional channel identifier       |
 
 ### Helper Functions
 
