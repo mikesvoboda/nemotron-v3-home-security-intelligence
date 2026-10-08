@@ -809,6 +809,16 @@ def test_up_adds_gpu_to_the_operator_and_no_other_session(
     assert operator.split().index("--gpu") == operator.split().index("--split") - 1
     assert operator.endswith(f"--split   (in {tmp_path / 'checkout'})")
     assert "--mount" not in operator
+    # The owner's ruled form, whole, not just the flag's position: "the flag is exactly
+    # `--gpu`, and the operator's line keeps `--split`" (#6854, 2026-10-08, from the
+    # stack repo's docs/operations/agent-gpu-runner.md, checked live). Position asserts
+    # alone would pass on a line that had grown an extra flag, so pin the whole prefix.
+    # the dry-run line prints "would create <name>: <command>  (in <cwd>)"
+    command = operator.split(": ", 1)[1]
+    tokens = command.split()
+    assert " ".join(tokens[: tokens.index("--split") + 1]) == (
+        "agent-dgx run uplevel-operator --agent claude --endpoint dgx --gpu --split"
+    ), operator
     assert sum("--gpu" in line for line in lines) == 1, lines
 
 
