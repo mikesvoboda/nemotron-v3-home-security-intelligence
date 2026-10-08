@@ -554,6 +554,7 @@ AI_VLM_URL=http://host.docker.internal:8098
 ```
 
 > [!IMPORTANT]
+>
 > `AI_VLM_URL` is the value that gets missed. The backend's code default is
 > `http://localhost:8098`, which inside a container is the container itself: every
 > verdict lands `verification_failed` with a NULL `risk_score` while events keep
