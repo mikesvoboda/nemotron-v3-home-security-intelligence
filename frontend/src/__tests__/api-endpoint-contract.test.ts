@@ -12,7 +12,7 @@
  * reasoning): a static scan of request-URL positions, not a compile-time
  * `keyof paths` on `fetchApi`. A typed client would catch less than this does —
  * roughly 155 paths go through `fetchApi`, while the audit's "~24 hooks calling
- * fetch directly" is really ~162 raw `fetch(` sites across ~74 files, and F1.1
+ * fetch directly" is really ~162 raw `fetch(` sites across ~61 files, and F1.1
  * names those as in scope. Folding them in is FB.1's consolidation package, not
  * F1.1's check.
  *
@@ -215,9 +215,57 @@ describe('endpoint contract (D2)', () => {
       /api/events/deleted  src/services/api.ts:2554  options passed by name: options
       /api/events/search  src/services/api.ts:3819  options passed by name: options
       /api/audit  src/services/api.ts:4552  options passed by name: options
+      /api/entities  src/services/api.ts:5773  options passed by name: options
       /api/entities/matches/{}  src/services/api.ts:5869  options passed by name: options
       /api/logs  src/services/api.ts:9013  options passed by name: options
       /api/reid/similar/{}  src/services/api.ts:9126  options passed by name: options"
     `);
+  });
+
+  it('reports the URLs it never claimed, and the paths outside the contract', () => {
+    // The last two blind-spot buckets, pinned for the same reason as the two
+    // above: the CLI prints them, but a printed list rots silently — a new
+    // `fetch(url.toString())` site, or a same-origin call to a non-`/api` path,
+    // is a claim this scan never made, and "0 unlisted" cannot be read without
+    // these lists staying small and recognizable. `dynamic` counts constructs,
+    // not lines: useWebSocketStatus.ts:138 is one line holding two `new
+    // WebSocket(url, …)` constructs (the protocols ternary), so 25 entries over
+    // 24 positions is the honest shape, recorded here rather than tidied away.
+    // `nonApi` is the empty list with teeth: it fails the moment anything calls
+    // a same-origin path this contract does not check.
+    expect(
+      audit.scan.dynamic.map((d) => `${d.file}:${d.line}  ${d.reason}`).join('\n'),
+      `${audit.scan.dynamic.length} URL position(s) with no statically knowable path`
+    ).toMatchInlineSnapshot(`
+      "src/hooks/useWebSocketStatus.ts:138  "url" is not a file-local constant
+      src/hooks/useWebSocketStatus.ts:138  "url" is not a file-local constant
+      src/hooks/useZoneHouseholdConfig.ts:236  built at runtime: url.toString()
+      src/hooks/webSocketManager.ts:477  "url" is not a file-local constant
+      src/services/aiAuditApi.ts:391  suffix for fetchPromptsApi() at src/services/aiAuditApi.ts:155: not a literal path
+      src/services/api.ts:1552  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:1624  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:3336  built at runtime: isVideo
+      src/services/backupApi.ts:150  suffix for fetchBackupApi() at src/services/backupApi.ts:120: not a literal path
+      src/services/backupApi.ts:172  suffix for fetchBackupApi() at src/services/backupApi.ts:120: not a literal path
+      src/services/detectorApi.ts:149  built at runtime: url.toString()
+      src/services/errorReporting.ts:113  built at runtime: config.endpoint
+      src/services/interceptors.ts:325  "url" is not a file-local constant
+      src/services/llmReasoningApi.ts:233  built at runtime: url.toString()
+      src/services/logger.ts:180  built at runtime: this.config.batchEndpoint
+      src/services/logger.ts:198  built at runtime: this.config.endpoint
+      src/services/logger.ts:263  built at runtime: this.config.batchEndpoint || this.config.endpoint
+      src/services/plateReadsApi.ts:175  suffix for fetchPlateReadsApi() at src/services/plateReadsApi.ts:107: not a literal path
+      src/services/promptManagementApi.ts:143  suffix for fetchPromptApi() at src/services/promptManagementApi.ts:115: not a literal path
+      src/services/rum.ts:210  built at runtime: this.config.endpoint
+      src/services/rum.ts:262  built at runtime: this.config.endpoint
+      src/services/scheduledReportsApi.ts:154  suffix for fetchScheduledReportsApi() at src/services/scheduledReportsApi.ts:124: not a literal path
+      src/services/scheduledReportsApi.ts:195  suffix for fetchScheduledReportsApi() at src/services/scheduledReportsApi.ts:124: not a literal path
+      src/services/webhookApi.ts:166  suffix for fetchWebhookApi() at src/services/webhookApi.ts:134: not a literal path
+      src/services/webhookApi.ts:185  suffix for fetchWebhookApi() at src/services/webhookApi.ts:134: not a literal path"
+    `);
+    expect(
+      audit.scan.nonApi.map((n) => `${n.file}:${n.line}  ${n.path}`).join('\n'),
+      `${audit.scan.nonApi.length} same-origin path(s) outside /api this contract does not check`
+    ).toMatchInlineSnapshot(`""`);
   });
 });

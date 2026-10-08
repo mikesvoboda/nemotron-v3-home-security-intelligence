@@ -637,9 +637,11 @@ function declaredFunction(node) {
  *  - `dynamic`: URL positions with no statically knowable path — reported, never
  *    dropped, because a silent skip is how D2 hid.
  *  - `unresolved`: uses of a base prefix this scanner cannot pin down.
- *  - `opaqueMethod`: claims whose path was resolved but whose verb was not. Kept
- *    separate from `dynamic`, because a claim is already recorded at these sites
- *    and `dynamic` is the list of positions that produced no claim at all.
+ *  - `opaqueMethod`: claims whose path was resolved but whose verb was not,
+ *    plus pass-through sites merged into a literal sibling's claim (their
+ *    obligation is held to the literal verb, their own verb is still unreadable).
+ *    Kept separate from `dynamic`, because a claim is already recorded at these
+ *    sites and `dynamic` is the list of positions that produced no claim at all.
  *  - `nonApi`: same-origin paths outside `/api`, which this contract does not
  *    cover. Listed so the blind spot stays visible.
  */
@@ -714,6 +716,11 @@ export function scanClient({ root = process.cwd(), srcDir = 'src' } = {}) {
   const dynamic = [];
   const unresolved = [];
   const nonApi = [];
+  // Pass-through-verb sites that a same-(path,verb) literal call site merged
+  // away. They are not separate obligations (the literal claim holds that), but
+  // their own verbs are still unreadable, so they belong on the blind-spot report
+  // rather than vanishing when the merge runs. See `addClaim` and `opaqueMethod`.
+  const subsumed = [];
   // key -> claim, so a later call site can *upgrade* a claim it disagrees with
   // about the verb rather than being silently dropped (see `addClaim`).
   const byKey = new Map();
@@ -734,6 +741,15 @@ export function scanClient({ root = process.cwd(), srcDir = 'src' } = {}) {
       // check. Upgrade to the site that spells the verb out, and report *it*,
       // because a reader fixing a mismatch has to open that file.
       if (!prior.methodKnown && method.known) {
+        // The upgrade overwrites the pass-through site's own record, but its
+        // verb is still unreadable — a blind spot the merge must not swallow.
+        subsumed.push({
+          kind,
+          path,
+          file: prior.file,
+          line: prior.line,
+          reason: prior.methodReason,
+        });
         Object.assign(prior, {
           raw,
           method: method.method,
@@ -743,6 +759,11 @@ export function scanClient({ root = process.cwd(), srcDir = 'src' } = {}) {
           file: where.file,
           line: where.line,
         });
+      } else if (prior.methodKnown && !method.known) {
+        // Same loss in the other parse order: the literal claim won earlier and
+        // this pass-through site contributes no obligation — but it is one more
+        // place whose verb the scan cannot read.
+        subsumed.push({ kind, path, file: where.file, line: where.line, reason: method.reason });
       }
       return;
     }
@@ -876,16 +897,24 @@ export function scanClient({ root = process.cwd(), srcDir = 'src' } = {}) {
 
   // Derived from the claims rather than collected during the walk, so it cannot
   // drift from them: this *is* the set of claims the method check skipped, one
-  // per obligation rather than one per syntactic variant of it.
-  const opaqueMethod = claims
-    .filter((c) => !c.methodKnown)
-    .map(({ kind, path, methodReason: reason, file, line }) => ({
-      kind,
-      path,
-      file,
-      line,
-      reason,
-    }));
+  // per obligation rather than one per syntactic variant of it — plus the
+  // pass-through sites a merge folded into a literal sibling's claim, whose
+  // obligation is held (the literal verb won) but whose own verb stays unreadable
+  // at their file:line. Sorted so the report is stable however the walk orders
+  // files; a blind spot must not flicker in and out of the snapshot.
+  const opaqueMethod = [
+    ...claims
+      .filter((c) => !c.methodKnown)
+      .map(({ kind, path, methodReason: reason, file, line }) => ({
+        kind,
+        path,
+        file,
+        line,
+        reason,
+      })),
+    // `subsumed` sites are pushed already in report shape (see `addClaim`).
+    ...subsumed,
+  ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
 
   return { claims, dynamic, unresolved, opaqueMethod, nonApi, files: parsed.map((p) => p.file) };
 }

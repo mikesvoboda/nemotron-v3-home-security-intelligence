@@ -424,28 +424,47 @@ describe('method rules', () => {
     ]);
   });
 
-  it('lets the call site that spells a verb out win over one that hides it', () => {
-    // Parse order puts the opaque site first; if it won, this path would silently
-    // leave the method check. The upgrade also moves the report to the literal
-    // site, because that is the file a reader has to open.
-    const scan = scanSource('upgrade.ts', [
+  it('keeps an opaque verb visible when a literal sibling spells the same verb', () => {
+    // The same path reached twice — once with the verb behind a pass-through
+    // bag, once spelled out — is ONE checked obligation (the literal GET), but
+    // reporting must not eat the pass-through site with it. The old key put the
+    // guessed GET in the method slot, so the two collided, the upgrade branch
+    // swallowed the opaque claim, and `opaqueMethod` lost a real blind spot in
+    // silence: measured on the real tree, `fetchEntities` (api.ts:5773) was
+    // hidden exactly this way by `fetchTrackedEntities` (:6407). Unknown verbs
+    // key on their own slot now, so the obligation is held to the literal verb
+    // AND the blind spot stays on the report.
+    const scan = scanSource('collision.ts', [
       'export function viaOptions(options?: RequestInit) {',
       "  return fetchApi('/api/cameras', options);",
       '}',
       "export const viaLiteral = () => fetchApi('/api/cameras', { method: 'GET' });",
       '',
     ]);
+    // One obligation, still held to the verb the code actually spells out…
     expect(scan.claims).toEqual([
       expect.objectContaining({
         path: '/api/cameras',
         method: 'GET',
         methodKnown: true,
-        // The literal call site (line 4), not the pass-through one that parsed
-        // first (line 2).
         line: 4,
       }),
     ]);
-    expect(scan.opaqueMethod).toEqual([]);
+    // …and the blind spot survives the merge, pointing at the site whose verb
+    // cannot be read (line 2), not at the literal one that won the claim.
+    expect(scan.opaqueMethod).toEqual([expect.objectContaining({ path: '/api/cameras', line: 2 })]);
+  });
+
+  it('dedupes two pass-through sites at one path into one blind spot', () => {
+    // Both opaque, same path: one obligation, reported once — the sentinel key
+    // separates opaque from known verbs, not each opaque site from the next.
+    const scan = scanSource('twopass.ts', [
+      'export function a(options?: RequestInit) { return fetchApi("/api/entities", options); }',
+      'export function b(options?: RequestInit) { return fetchApi("/api/entities?", options); }',
+      '',
+    ]);
+    expect(scan.claims).toHaveLength(1);
+    expect(scan.opaqueMethod).toHaveLength(1);
   });
 
   it('gives a WebSocket no method and an EventSource GET', () => {
