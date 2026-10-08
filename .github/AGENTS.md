@@ -332,6 +332,9 @@ runs-on: [self-hosted, gpu, rtx-a5500]
 | CODECOV_TOKEN  | (Optional) Coverage upload       | ci.yml                   |
 | LINEAR_API_KEY | Linear API access                | linear-\*.yml, trivy.yml |
 
+Every step that calls Linear also requires the repository variable `LINEAR_ENABLED` to be `true`;
+it is unset while the secret is broken (`docs/developer/linear-integration.md`).
+
 ## Troubleshooting
 
 ### Workflow Not Running

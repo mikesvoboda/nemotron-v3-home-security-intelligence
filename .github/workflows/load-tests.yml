@@ -463,7 +463,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Create Linear issue on failure
-        if: (needs.load-tests.result == 'failure' || needs.memory-stress-test.result == 'failure') && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: vars.LINEAR_ENABLED == 'true' && ((needs.load-tests.result == 'failure' || needs.memory-stress-test.result == 'failure') && github.event_name == 'push' && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
