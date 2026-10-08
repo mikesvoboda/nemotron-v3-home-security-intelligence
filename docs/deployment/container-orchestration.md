@@ -120,7 +120,7 @@ flowchart TB
 
 ### Phase Overview
 
-Compose orders the stack with health-check conditions. `ai-vlm` sits behind the `vlm` profile and `ai-llm-vllm` behind the `vllm` profile, so neither is in the default `up` path and neither appears in any `depends_on`; they are started with `--profile vlm` (etc.) and managed on their own schedule.
+Compose orders the stack with health-check conditions. Two services are gated behind compose profiles and so are absent from the default `up` path: `ai-llm-vllm` under `vllm`, and `dcgm-exporter` under `gpu-rootful`. `ai-vlm` is **not** gated — since UR-18 it ships in the default bring-up, so a plain `up -d` starts it with the rest of the stack (until then it sat behind a profile that had to be named explicitly). None of the three appears in any `depends_on`; the gated ones are managed on their own schedule, and `ai-vlm` is reached over HTTP at runtime rather than through a compose edge.
 
 ```mermaid
 sequenceDiagram
@@ -181,13 +181,13 @@ Triton starts with `--model-control-mode=none`, so the repository selected by
 `GATEWAY_ENABLE_THREAT=true`) is resident from container start. The health check
 passes once Triton reports ready and every active model reports ready.
 
-The optional GPU services live behind compose profiles and are not part of the
-default `up`:
+`ai-vlm` is in the default `up` (UR-18); `ai-llm-vllm` is the optional
+benchmarking engine and lives behind the `vllm` profile:
 
-| Service       | Profile | Host port             | Health Check                                | Grace Period |
-| ------------- | ------- | --------------------- | ------------------------------------------- | ------------ |
-| `ai-vlm`      | `vlm`   | 8098                  | GET `http://localhost:8098/health`          | 120s         |
-| `ai-llm-vllm` | `vllm`  | 8097 → container 8000 | GET `http://localhost:8000/health` (inside) | 300s         |
+| Service       | Profile         | Host port             | Health Check                                | Grace Period |
+| ------------- | --------------- | --------------------- | ------------------------------------------- | ------------ |
+| `ai-vlm`      | — (default set) | 8098                  | GET `http://localhost:8098/health`          | 120s         |
+| `ai-llm-vllm` | `vllm`          | 8097 → container 8000 | GET `http://localhost:8000/health` (inside) | 300s         |
 
 ### Phase 3: Application (30-60 seconds)
 
@@ -198,9 +198,10 @@ foscam-init has completed):
 | ------- | -------------------------------------------------- | ------------------------------ | ------------ |
 | Backend | PostgreSQL, Redis, ai-gateway, go2rtc, foscam-init | GET `/api/system/health/ready` | 30s          |
 
-`ai-vlm` is deliberately **not** in the backend's `depends_on`: with the `vlm`
-profile disabled the backend must still boot, and the VLM stage degrades to its
-own unavailable path rather than blocking startup.
+`ai-vlm` is deliberately **not** in the backend's `depends_on`: when the engine
+is down the backend must still boot, and the VLM stage degrades to its own
+unavailable path rather than blocking startup. Nothing depends on `ai-vlm`
+either, so its failure never takes the rest of the stack down.
 
 ### Phase 4: Frontend (10-20 seconds)
 
@@ -246,7 +247,7 @@ is what the orchestrator uses as the startup grace period when the service has n
 | postgres                              | 10s      | 5s      | 5       | 10s          | `pg_isready`                                            |
 | redis                                 | 10s      | 5s      | 3       | (none)       | auth-aware `redis-cli ping`                             |
 | ai-gateway                            | 15s      | 10s     | 5       | 180s         | `curl -f http://localhost:8090/health`                  |
-| ai-vlm (profile `vlm`)                | 10s      | 5s      | 3       | 120s         | `curl -f http://localhost:8098/health`                  |
+| ai-vlm (default compose set)          | 10s      | 5s      | 3       | 120s         | `curl -f http://localhost:8098/health`                  |
 | ai-llm-vllm (profile `vllm`)          | 10s      | 5s      | 3       | 300s         | `curl -f http://localhost:8000/health` (container port) |
 | backend                               | 10s      | 5s      | 3       | 30s          | `httpx` GET `/api/system/health/ready`                  |
 | go2rtc                                | 30s      | 10s     | 3       | 10s          | `wget http://localhost:1984/api/streams`                |
@@ -293,7 +294,7 @@ whatever the mounted repository holds, not a fixed 13.
 ```bash
 curl -s http://localhost:8090/health | jq '{status, triton_server_ready, models, models_loaded, models_total}'
 curl -s http://localhost:8000/api/system/health/ready | jq .
-# ai-vlm, only when the vlm profile is up:
+# ai-vlm starts with the default up, so this answers once it is healthy:
 curl -s http://localhost:8098/health | jq .
 ```
 
@@ -332,13 +333,14 @@ flowchart TD
     AL --> LK
     AL --> PY
 
-    VLM[ai-vlm port:8098<br/>profile vlm]
+    VLM[ai-vlm port:8098<br/>default compose set]
     VLLM[ai-llm-vllm host:8097<br/>profile vllm]
 ```
 
 `ai-vlm` and `ai-llm-vllm` have no `depends_on` edges in either direction: the
-profiles gate their existence, and the backend reaches `ai-vlm` over HTTP at
-runtime rather than through a compose ordering.
+backend reaches `ai-vlm` over HTTP at runtime rather than through a compose
+ordering, which is why `ai-vlm`'s start failure never cascades into the rest of
+the stack.
 
 ### Dependency Matrix
 
@@ -349,7 +351,7 @@ runtime rather than through a compose ordering.
 | go2rtc               | —                                                                      | —                          |
 | foscam-init          | —                                                                      | —                          |
 | ai-gateway           | —                                                                      | Triton: `yolo26` (+`reid`) |
-| ai-vlm               | — (profile `vlm`)                                                      | the VLM stage itself       |
+| ai-vlm               | — (default set)                                                        | the VLM stage itself       |
 | ai-llm-vllm          | — (profile `vllm`)                                                     | optional benchmark engine  |
 | backend              | postgres, redis, ai-gateway, go2rtc (healthy); foscam-init (completed) | yes — calls the gateway    |
 | frontend             | backend (started)                                                      | —                          |
@@ -461,7 +463,7 @@ GPU-accelerated AI inference services (any `ai-*` service name is categorized AI
 | Service     | Display Name | Port                        | Grace Period | Profile   | What it holds                                                  |
 | ----------- | ------------ | --------------------------- | ------------ | --------- | -------------------------------------------------------------- |
 | ai-gateway  | Gateway      | 8090 (+8002 Triton metrics) | 180s         | (default) | Triton + FastAPI; the `GATEWAY_MODEL_SET` repository, resident |
-| ai-vlm      | Vlm          | 8098                        | 120s         | `vlm`     | one llama.cpp server, one GGUF pair                            |
+| ai-vlm      | Vlm          | 8098                        | 120s         | (default) | one llama.cpp server, one GGUF pair                            |
 | ai-llm-vllm | Llm Vllm     | 8097 → container 8000       | 300s         | `vllm`    | optional vLLM benchmarking engine                              |
 
 Detection and re-ID models all run inside `ai-gateway`'s Triton process, and the
@@ -785,7 +787,7 @@ podman compose -f docker-compose.prod.yml logs backend | grep -E "orchestrator|h
 # Test individual health endpoint
 curl http://localhost:8090/health                       # ai-gateway
 curl http://localhost:8000/api/system/health/ready      # backend
-curl http://localhost:8098/health                       # ai-vlm (profile vlm only)
+curl http://localhost:8098/health                       # ai-vlm (default set)
 
 # Check GPU status
 nvidia-smi
@@ -796,15 +798,15 @@ podman info --format '{{.Host.RemoteSocket.Path}}' 2>/dev/null || podman ps
 
 ### Common Issues
 
-| Issue                                  | Possible Cause                     | Solution                                        |
-| -------------------------------------- | ---------------------------------- | ----------------------------------------------- |
-| Service stuck in UNHEALTHY             | Backoff period active              | Wait for backoff or manually restart            |
-| All AI services failing                | GPU driver issue                   | Run `nvidia-smi`, restart GPU services          |
-| Health checks timing out               | Service overloaded                 | Increase timeout, check resource limits         |
-| Container not discovered               | Name pattern mismatch              | Check container name contains service key       |
-| State not persisting                   | Redis connection issue             | Check Redis health, verify connection           |
-| WebSocket not receiving updates        | Broadcast disabled                 | Check `broadcast_fn` configuration              |
-| Profiled service missing from the list | `vlm` / `vllm` profile not enabled | Start with `podman compose --profile vlm up -d` |
+| Issue                                  | Possible Cause                     | Solution                                  |
+| -------------------------------------- | ---------------------------------- | ----------------------------------------- |
+| Service stuck in UNHEALTHY             | Backoff period active              | Wait for backoff or manually restart      |
+| All AI services failing                | GPU driver issue                   | Run `nvidia-smi`, restart GPU services    |
+| Health checks timing out               | Service overloaded                 | Increase timeout, check resource limits   |
+| Container not discovered               | Name pattern mismatch              | Check container name contains service key |
+| State not persisting                   | Redis connection issue             | Check Redis health, verify connection     |
+| WebSocket not receiving updates        | Broadcast disabled                 | Check `broadcast_fn` configuration        |
+| Profiled service missing from the list | `vllm` / `gpu-rootful` not enabled | `podman compose --profile vllm up -d`     |
 
 ### Log Messages Reference
 
@@ -870,9 +872,8 @@ ai-gateway:
     retries: 5
     start_period: 180s
 
-# VLM engine health check (profile: vlm; GGUF pair takes minutes to load)
+# VLM engine health check (default compose set; GGUF pair takes minutes to load)
 ai-vlm:
-  profiles: ['vlm']
   healthcheck:
     test: ['CMD', 'curl', '-f', 'http://localhost:8098/health']
     interval: 10s

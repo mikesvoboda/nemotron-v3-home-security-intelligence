@@ -23,8 +23,8 @@ ss -tlnp | grep 8000   # Backend
 ss -tlnp | grep 8090   # ai-gateway (Triton: YOLO26 + the resident specialists)
 ss -tlnp | grep 8098   # ai-vlm (llama.cpp serve)
 
-# Check container status (--profile vlm so the VLM is not shown as stopped)
-docker compose -f docker-compose.prod.yml --profile vlm ps
+# Check container status (ai-vlm is in the default set — plain ps shows it)
+docker compose -f docker-compose.prod.yml ps
 
 # Check container logs
 docker compose -f docker-compose.prod.yml logs backend
@@ -38,8 +38,8 @@ docker compose -f docker-compose.prod.yml logs backend
 # All services
 docker compose -f docker-compose.prod.yml up -d
 
-# AI services only — the VLM needs its profile named
-docker compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+# AI services only (both are in the default set — no flag)
+docker compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm
 ```
 
 **2. Check port conflicts:**
@@ -60,8 +60,8 @@ For Docker:
 - External access uses `localhost:PORT`
 
 For production compose there are exactly two AI containers: `ai-gateway` (Triton —
-the detector and the resident specialists) and `ai-vlm` (llama.cpp, behind the `vlm`
-profile). The backend reaches them by compose DNS:
+the detector and the resident specialists) and `ai-vlm` (llama.cpp, in the default
+compose set). The backend reaches them by compose DNS:
 
 - `ai-gateway:8090` — two path-prefixed routers, `/yolo26` (object detection) and
   `/enrich-lt` (readiness for the resident specialists). `YOLO26_URL` defaults to
@@ -70,8 +70,9 @@ profile). The backend reaches them by compose DNS:
   port is fixed at 8098 (`ai/vlm/Dockerfile:123`), so the internal URL never depends on
   the host-side `AI_VLM_PORT` mapping.
 
-The `ai-vlm` link is an env var, not a compose dependency: a `depends_on` entry can
-never name a profiled service, so the backend starts whether or not the VLM is up.
+The `ai-vlm` link is an env var, not a compose dependency: nothing in the stack
+`depends_on` it and it depends on nothing, so the backend starts whether or not the
+VLM is up.
 
 For native development:
 

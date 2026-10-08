@@ -19,7 +19,7 @@ Trace export path: backend → **Alloy** (OTLP collector, default endpoint `http
 `tempo:4317`). Grafana reads traces from the Tempo datasource for exploration and correlates traces
 with metrics and logs through derived fields and trace-to-metrics queries. Tempo is the trace store
 the deployment ships (NEM-5545): `docker-compose.prod.yml` runs the `tempo` service
-(`docker-compose.prod.yml:970`) and the `alloy` service (`docker-compose.prod.yml:1405`), and no
+(`docker-compose.prod.yml:975`) and the `alloy` service (`docker-compose.prod.yml:1410`), and no
 other trace store.
 
 The tracing implementation supports both synchronous and asynchronous code paths, with context propagation ensuring spans maintain parent-child relationships across async boundaries.
@@ -118,7 +118,7 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
 ### Configuration Options
 
 Defaults are from `backend/core/config.py:1949-2056` (the effective production values are set by
-`docker-compose.prod.yml:620-623`, which mirrors these defaults; the development template
+`docker-compose.prod.yml:625-628`, which mirrors these defaults; the development template
 `.env.example:935-1011` disables tracing and points the endpoint at `http://localhost:4317`).
 
 | Setting                            | Type    | Default               | Description                          |
@@ -149,7 +149,7 @@ Root-sampling priorities are tuned through the `OTEL_SAMPLING_*` variables
 ### Tempo Local Storage
 
 Tempo (NEM-5545) is the trace store of record; the trace backend in `docker-compose.prod.yml` is
-`tempo` (`docker-compose.prod.yml:970-997`). Tempo stores traces on its own local disk
+`tempo` (`docker-compose.prod.yml:975-1002`). Tempo stores traces on its own local disk
 (`monitoring/tempo/tempo-config.yml`):
 
 | Setting                     | Value               | Purpose                          |
@@ -161,8 +161,8 @@ Tempo (NEM-5545) is the trace store of record; the trace backend in `docker-comp
 | `server.http_listen_port`   | `3200`              | Query API (Grafana reads this)   |
 | OTLP receiver               | `0.0.0.0:4317/4318` | gRPC / HTTP ingest (from Alloy)  |
 
-Data persists in the `tempo_data` compose volume (`docker-compose.prod.yml:980`, declared at
-`docker-compose.prod.yml:1475`). The compactor applies retention automatically — no separate
+Data persists in the `tempo_data` compose volume (`docker-compose.prod.yml:985`, declared at
+`docker-compose.prod.yml:1480`). The compactor applies retention automatically — no separate
 lifecycle tooling or init script is required.
 
 ### Resource Requirements
@@ -172,7 +172,7 @@ lifecycle tooling or init script is required.
 | Tempo             | 1   | 1GB    | `tempo_data` volume |
 | Alloy (collector) | 0.5 | 768MB  | -                   |
 
-(Tempo limits `docker-compose.prod.yml:993-997`, Alloy limits `docker-compose.prod.yml:1464-1468`.)
+(Tempo limits `docker-compose.prod.yml:998-1002`, Alloy limits `docker-compose.prod.yml:1469-1473`.)
 
 ### Auto-Instrumentation
 
@@ -387,7 +387,7 @@ async def detect(image_data: bytes) -> dict:
 The VLM leg works the same way: `VlmClient` builds one `httpx.AsyncClient` per endpoint
 (`backend/services/vlm_client.py:272-274`) against `settings.ai_vlm_url`
 (`backend/services/vlm_client.py:235`, `http://ai-vlm:8098` in
-`docker-compose.prod.yml:549`) and posts to `CHAT_PATH = "/v1/chat/completions"`
+`docker-compose.prod.yml:554`) and posts to `CHAT_PATH = "/v1/chat/completions"`
 (`backend/services/vlm_client.py:85`), so the same injected `traceparent` header links the VLM call
 into the `analysis_processing` trace.
 
@@ -551,7 +551,7 @@ a sampled (or unsampled) parent forces the same decision on children
 
 ### No Traces Appearing
 
-1. Check `OTEL_ENABLED` — `true` in production (`docker-compose.prod.yml:620`), but `.env.example`
+1. Check `OTEL_ENABLED` — `true` in production (`docker-compose.prod.yml:625`), but `.env.example`
    ships it as `false` for development (`.env.example:939`)
 2. Verify the Alloy collector is reachable at `OTEL_EXPORTER_OTLP_ENDPOINT`
    (default `http://alloy:4317`) and that Alloy forwards to Tempo

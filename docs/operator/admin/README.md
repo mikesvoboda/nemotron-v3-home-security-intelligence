@@ -308,14 +308,14 @@ CORS_ORIGINS=["https://your-domain.com"]
 
 Only expose necessary ports:
 
-| Port        | Service                           | Exposure                                 |
-| ----------- | --------------------------------- | ---------------------------------------- |
-| 8080 / 8444 | Frontend (HTTP/HTTPS)             | User access                              |
-| 8000        | Backend API                       | User access (binds 127.0.0.1 by default) |
-| 5432        | PostgreSQL                        | **Internal only**                        |
-| 6379        | Redis                             | **Internal only**                        |
-| 8090, 8002  | ai-gateway (API, Triton metrics)  | **Internal only**                        |
-| 8098        | ai-vlm (reasoning, profile `vlm`) | **Internal only**                        |
+| Port        | Service                          | Exposure                                 |
+| ----------- | -------------------------------- | ---------------------------------------- |
+| 8080 / 8444 | Frontend (HTTP/HTTPS)            | User access                              |
+| 8000        | Backend API                      | User access (binds 127.0.0.1 by default) |
+| 5432        | PostgreSQL                       | **Internal only**                        |
+| 6379        | Redis                            | **Internal only**                        |
+| 8090, 8002  | ai-gateway (API, Triton metrics) | **Internal only**                        |
+| 8098        | ai-vlm (reasoning)               | **Internal only**                        |
 
 ```bash
 # UFW example (Linux)

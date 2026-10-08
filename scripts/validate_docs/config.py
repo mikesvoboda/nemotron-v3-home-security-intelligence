@@ -194,7 +194,7 @@ def looks_like_host_address(text: str) -> bool:
     """Return True if text names a network host instead of a file in the repo.
 
     Three conditions hold together, which is what keeps the rule narrow enough to
-    leave `.env.example:231`, `docker-compose.prod.yml:154` and
+    leave `.env.example:231`, `docker-compose.prod.yml:284` and
     `frontend/vite.config.ts:182` as citations:
 
     1. No directory component — a host is a bare name, a citation is a path.

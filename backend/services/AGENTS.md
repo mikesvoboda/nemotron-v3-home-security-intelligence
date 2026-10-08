@@ -3093,7 +3093,7 @@ assert clamped == (10, 10, 100, 100)
 ### External Services
 
 - **ai-gateway** (host port `AI_GATEWAY_PORT` 8090, metrics 8002) - Triton-based gateway serving the `yolo26` router (`/yolo26`: detect, detect/batch, segment) and the resident threat + re-ID specialists (`/enrich-lt`: threat-detect, person-reid) behind one container
-- **ai-vlm** (host port `AI_VLM_PORT` 8098, container port 8098) - the verdict engine the backend dials at `AI_VLM_URL` (compose default `http://ai-vlm:8098`, compose profile `vlm`); llama.cpp + mmproj serving `vlm_assess`, which owns the analysis stage
+- **ai-vlm** (host port `AI_VLM_PORT` 8098, container port 8098) - the verdict engine the backend dials at `AI_VLM_URL` (compose default `http://ai-vlm:8098`, default compose set); llama.cpp + mmproj serving `vlm_assess`, which owns the analysis stage
 - **Redis** (`REDIS_PORT` 6379) - Queue and cache storage
 - **PostgreSQL** (`POSTGRES_PORT` 5432) - Persistent storage
 - **ffmpeg/ffprobe** - Video processing

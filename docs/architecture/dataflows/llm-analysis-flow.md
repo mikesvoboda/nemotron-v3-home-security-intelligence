@@ -189,7 +189,7 @@ Its two `ValueError` branches enforce the rule that the VLM never originates an 
 | Wake ping read budget          | 90 s                                                    | `ai_vlm_wake_timeout_seconds` (`backend/core/config.py:1126-1133`)                                |
 | Engine URL                     | `http://localhost:8098`; `http://ai-vlm:8098` in Docker | `ai_vlm_url` (`backend/core/config.py:1042-1045`)                                                 |
 | Verdict output budget          | 2048 tokens (raised from 1024 on 2026-10-04)            | `_ASSESS_MAX_TOKENS` (`backend/services/vlm_client.py:98`)                                        |
-| Context pool and slots         | 32768 across 2 slots = 16384 each                       | `docker-compose.prod.yml:205-206`, divided by the validator at `backend/core/config.py:1351-1365` |
+| Context pool and slots         | 32768 across 2 slots = 16384 each                       | `docker-compose.prod.yml:210-211`, divided by the validator at `backend/core/config.py:1351-1365` |
 | Largest embedded key frame     | 8 MiB                                                   | `vlm_max_image_bytes` (`backend/core/config.py:1367-1374`)                                        |
 | Breaker threshold and recovery | 5 failures, 60 s                                        | `backend/services/vlm_client.py:247-250`                                                          |
 | LOW-band clamp ceiling         | 29                                                      | `severity_low_max` (`backend/core/config.py:2423-2428`)                                           |
@@ -267,7 +267,7 @@ A budget problem is deliberately kept out of the breaker. `_note_budget_exhauste
         record_pipeline_error(reason)
 ```
 
-Engine-side concurrency is the served slot count: the container runs llama.cpp with `--parallel 2`, so two `vlm_assess` calls share the pool and each request occupies one slot (`docker-compose.prod.yml:205-206`). Analysis throughput is the worker pool's business: `analysis_worker_count` defaults to 2 (`backend/core/config.py:1022-1026`), and each worker holds at most one engine call in flight.
+Engine-side concurrency is the served slot count: the container runs llama.cpp with `--parallel 2`, so two `vlm_assess` calls share the pool and each request occupies one slot (`docker-compose.prod.yml:210-211`). Analysis throughput is the worker pool's business: `analysis_worker_count` defaults to 2 (`backend/core/config.py:1022-1026`), and each worker holds at most one engine call in flight.
 
 ## Retry Logic
 

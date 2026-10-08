@@ -136,7 +136,7 @@ the floor either way.
 VLM_GPU_LAYERS=40
 
 # Override for a single up — process env wins over .env
-VLM_GPU_LAYERS=40 podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+VLM_GPU_LAYERS=40 podman compose -f docker-compose.prod.yml up -d ai-vlm
 ```
 
 > [!NOTE]

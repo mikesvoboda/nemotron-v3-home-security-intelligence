@@ -445,7 +445,7 @@ def generate_env_content(config: dict) -> str:
         "SSL_ENABLED=true",
         "",
         "# -- GPU Assignment " + "-" * 41,
-        "# GPU 0: AI VLM serve (llama.cpp + Qwen3VL, compose profile vlm)",
+        "# GPU 0: AI VLM serve (llama.cpp + Qwen3VL, in the default up)",
         "# GPU 1: AI Gateway (YOLO26 detection + the light lane)",
         f"GPU_LLM={config.get('gpu_llm', 0)}",
         f"GPU_AI_SERVICES={config.get('gpu_ai_services', 1)}",

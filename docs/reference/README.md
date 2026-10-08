@@ -27,7 +27,7 @@
 | Frontend HTTPS | 8444 | HTTPS    | nginx in the `frontend` container, host port `FRONTEND_HTTPS_PORT` |
 | Backend API    | 8000 | HTTP/WS  | FastAPI REST + WebSocket (`API_PORT`)                              |
 | `ai-gateway`   | 8090 | HTTP     | Triton gateway: `/yolo26` detection + `/enrich-lt` readiness       |
-| `ai-vlm`       | 8098 | HTTP     | llama.cpp reasoning serve, behind the `vlm` compose profile        |
+| `ai-vlm`       | 8098 | HTTP     | llama.cpp reasoning serve, in the default compose set              |
 | PostgreSQL     | 5432 | TCP      | Database (`POSTGRES_PORT`)                                         |
 | Redis          | 6379 | TCP      | Cache, queues, pub/sub (`REDIS_PORT`)                              |
 | Grafana        | 3002 | HTTP     | Dashboards at the `/grafana/` sub-path (`GRAFANA_PORT`)            |
@@ -170,7 +170,7 @@ it with the gateway down or set `YOLO26_PORT`.
 ### Production Mode (Fully Containerized)
 
 Both AI services run in containers — the Triton gateway (`ai-gateway`) and the
-reasoning serve (`ai-vlm`, which needs the `vlm` profile named at bring-up):
+reasoning serve (`ai-vlm`, in the default compose set — a plain `up -d` starts it):
 
 ```bash
 # Set by docker-compose.prod.yml for the backend
@@ -249,15 +249,15 @@ docker compose -f docker-compose.prod.yml logs --tail=50 backend
 
 ### Common Issues Quick Reference
 
-| Symptom                     | Likely Cause             | Quick Fix                                                                         |
-| --------------------------- | ------------------------ | --------------------------------------------------------------------------------- |
-| Dashboard shows no events   | File watcher or AI down  | Restart backend                                                                   |
-| Risk gauge stuck at 0       | `ai-vlm` not running     | `--profile vlm up -d ai-vlm`                                                      |
-| Camera shows offline        | FTP or folder path issue | Check FTP and folder config                                                       |
-| AI not responding           | Services not started     | `docker compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm` |
-| WebSocket disconnected      | Backend down             | Restart backend                                                                   |
-| "Connection refused" errors | Service not running      | Start the service                                                                 |
-| CORS errors in browser      | URL mismatch             | Update `CORS_ORIGINS`                                                             |
+| Symptom                     | Likely Cause             | Quick Fix                                                           |
+| --------------------------- | ------------------------ | ------------------------------------------------------------------- |
+| Dashboard shows no events   | File watcher or AI down  | Restart backend                                                     |
+| Risk gauge stuck at 0       | `ai-vlm` not running     | `docker compose -f docker-compose.prod.yml up -d ai-vlm`            |
+| Camera shows offline        | FTP or folder path issue | Check FTP and folder config                                         |
+| AI not responding           | Services not started     | `docker compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm` |
+| WebSocket disconnected      | Backend down             | Restart backend                                                     |
+| "Connection refused" errors | Service not running      | Start the service                                                   |
+| CORS errors in browser      | URL mismatch             | Update `CORS_ORIGINS`                                               |
 
 ### Detailed Troubleshooting Guides
 
@@ -301,7 +301,7 @@ uv run python -c "from backend.core.config import get_settings; s = get_settings
 # Test service connectivity
 curl http://localhost:8000/api/system/health     # Backend
 curl http://localhost:8090/yolo26/health         # YOLO26 (AI gateway router)
-curl http://localhost:8098/health                # ai-vlm (profile-aware `ps` first)
+curl http://localhost:8098/health                # ai-vlm (check `podman ps` first)
 redis-cli ping                                   # Redis
 ```
 

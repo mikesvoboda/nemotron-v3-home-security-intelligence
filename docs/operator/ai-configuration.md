@@ -14,7 +14,7 @@ Every knob below belongs to one of two containers:
 | Service      | Port          | Configured by                                                   |
 | ------------ | ------------- | --------------------------------------------------------------- |
 | `ai-gateway` | 8090 (m 8002) | `GATEWAY_MODEL_SET`, `GATEWAY_ENABLE_THREAT`, `GPU_AI_SERVICES` |
-| `ai-vlm`     | 8098          | the `VLM_*` group, `GPU_LLM`, and the compose profile `vlm`     |
+| `ai-vlm`     | 8098          | the `VLM_*` group and `GPU_LLM`                                 |
 
 The backend's own routing to them is `USE_AI_GATEWAY` / `AI_GATEWAY_URL` /
 `AI_VLM_URL`. The face, plate and person-re-ID lookup legs run in-process in the
@@ -33,7 +33,7 @@ stand-in for the gateway's detection router). It reads:
 
 In compose, read logs with
 `podman compose -f docker-compose.prod.yml logs ai-gateway` and
-`podman compose -f docker-compose.prod.yml --profile vlm logs ai-vlm`.
+`podman compose -f docker-compose.prod.yml logs ai-vlm`.
 
 ### Pipeline and Residency Selectors
 
@@ -57,8 +57,9 @@ has ever run is `curl -s http://localhost:8000/metrics | grep hsi_specialist_una
 ## ai-vlm (the Reasoning Engine)
 
 llama.cpp serving a Qwen3-VL GGUF plus its mmproj projector, OpenAI-compatible on
-`POST /v1/chat/completions`. **It is behind the compose profile `vlm`** — a plain
-`up -d` leaves it down.
+`POST /v1/chat/completions`. **It is in the default compose set** — a plain
+`up -d` starts it (until UR-18 it sat behind a `vlm` profile that had to be named
+explicitly).
 
 ### Served Model (operator-placed weights)
 
