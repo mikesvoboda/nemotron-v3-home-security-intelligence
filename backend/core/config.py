@@ -1131,12 +1131,14 @@ class Settings(BaseSettings):
         default=25.0,
         ge=5.0,
         le=300.0,
-        description="Maximum time (seconds) to wait for ONE vlm_assess attempt, applied "
-        "per attempt against S4 (p95 <= 30 s INCLUDING cold starts). A reply that "
-        "outruns it is a budget outcome, not an outage: it is NOT retried (the §6 "
-        "temp-0 retry would re-ask the identical bytes at the identical speed) and does "
-        "NOT charge the ai-vlm breaker, so one attempt is the worst case and it must fit "
-        "inside 30 s. The ladder's retry only follows a fast failure.",
+        description="Maximum time (seconds) to wait for ONE vlm_assess attempt (read or "
+        "write phase), applied per attempt against S4 (p95 <= 30 s INCLUDING cold starts). "
+        "A reply that outruns it is a budget outcome, not an outage: it is NOT retried "
+        "(the §6 temp-0 retry would re-ask the identical bytes at the identical speed) and "
+        "does NOT charge the ai-vlm breaker, so one attempt is the worst case. That worst "
+        "case is connect + read = 10.0 + this value, so THIS value is what must sit inside "
+        "30 s; a slow connect adds ai_connect_timeout on top and the slow-connect edge "
+        "sits outside. The ladder's retry only follows a fast failure.",
     )
     ai_vlm_wake_timeout_seconds: float = Field(
         default=90.0,

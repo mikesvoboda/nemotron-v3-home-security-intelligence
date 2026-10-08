@@ -552,9 +552,12 @@ services:
       # lands (compose interpolation reads the project .env — the whole file
       # relies on it) and the shipped default is no longer the loopback trap.
       - AI_VLM_URL=${AI_VLM_URL:-http://ai-vlm:8098}
-      # per-attempt read budget (D1: a slow reply is a budget - not retried,
-      # never charged to the breaker - so one attempt is the worst case), and
-      # below it the wake-on-open ping's own, deliberately generous, timeout.
+      # per-attempt read budget, read OR write phase (D1: a slow reply is a
+      # budget - not retried, never charged to the breaker - so one attempt is
+      # the worst case; that attempt is connect + read, so this value sits
+      # inside S4's 30 s and a slow connect adds AI_CONNECT_TIMEOUT on top),
+      # and below it the wake-on-open ping's own, deliberately generous,
+      # timeout.
       - AI_VLM_READ_TIMEOUT=${AI_VLM_READ_TIMEOUT:-25.0}
       - AI_VLM_WAKE_TIMEOUT_SECONDS=${AI_VLM_WAKE_TIMEOUT_SECONDS:-90.0}
       # S-2 per-build enforcement: the probe runs by default, and the build
