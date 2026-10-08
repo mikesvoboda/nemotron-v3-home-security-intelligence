@@ -227,9 +227,8 @@ and each failure opens an incident issue for a rollback that never happens.
       `O1.2` has already removed the publishing, this step is done.
 - [ ] **MEASURE** each of "Deploy to Staging" and "Post-Deployment Validation": a job that deploys
       or validates nothing and only prints a checklist goes.
-- [ ] **RULING** for the owner's batch: delete `rollback.yml` (a red `Deploy` run is the signal), or
-      keep it as an honest failure report that updates one open issue instead of opening one per
-      run. Recommendation: delete.
+- [ ] Delete `rollback.yml` (owner ruling, 2026-10-08): a red `Deploy` run is the signal, and the
+      daily batch reports it.
 - [ ] Once `Deploy` is green, close each open "Automated Rollback" issue with a comment linking this
       PR.
 
