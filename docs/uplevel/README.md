@@ -179,6 +179,7 @@ Packages cite these as `UR-n`.
 | UR-34 | CI is green only when the required check `CI Gate (Required Checks)` is present and passed at the PR's head; a workflow change runs `actionlint` against `main`'s findings before it is pushed.                                                                                                  |
 | UR-35 | Agents read the new comments on their own open PRs before resuming a package; an owner ruling or a requested change there comes before new work.                                                                                                                                                 |
 | UR-36 | Every agent runs on a `/loop` tick that checks GitHub — coordinator 5 minutes, lanes and heavy 15, operator 30 (`50-coordination.md`, "The tick"). GitHub stays the only channel between agents; the owner re-arms ticks weekly and after a restart.                                             |
+| UR-37 | The gate checks what the hooks check: the repository's pre-commit hooks run on each PR's changed files inside `CI Gate (Required Checks)` (`O1.12`). A hook left out of CI is listed with its reason and ruled by the owner.                                                                     |
 
 Already ruled in the register and executed here: OD-12 (loopback unless `EXPOSE_LAN=true`,
 deny-by-default auth when exposed) by `B1.5`, `F1.3` and `O1.6`; OD-20 (retire the enrichment
@@ -225,11 +226,11 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 <!-- prettier-ignore -->
 | package | lane                    | phase      | name                                           | flags         | status      | PR  |
 | ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
-| O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | not started |     |
-| B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | not started |     |
+| O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | done        | #6855 |
+| B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | awaiting real tier | #6868 |
 | B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | not started |     |
 | B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | done        | #6880 |
-| B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | not started |     |
+| B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | awaiting real tier | #6886 |
 | B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | not started |     |
 | B1.6    | backend                 | 1          | Scope the orchestrator and its recovery (D11)  | heavy · owner | not started |     |
 | F1.1    | frontend                | 1          | Endpoint truth (D2)                            |               | not started |     |
@@ -246,6 +247,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O1.9    | ops                     | 1          | Deploy green on `main`                         |               | not started |     |
 | O1.10   | ops                     | 1          | The operator sandbox (UR-30)                   | owner         | not started |     |
 | O1.11 | ops | 1 | Monitoring behind the gate (UR-33) | owner | not started | |
+| O1.12 | ops | 1 | The hooks run in the gate (UR-37) | | not started | |
 | B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | not started |     |
 | F2.1    | frontend                | 2          | Golden-path harness                            |               | not started |     |
 | F2.2    | frontend                | 2          | Feature inventory                              | heavy         | not started |     |
@@ -275,7 +277,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | OB.3    | ops                     | after 1    | Image weight                                   |               | not started |     |
 | OB.4    | ops                     | on trigger | Lane map and cross-lane check                  |               | not started |     |
 | W1.1    | docs                    | 1          | The validator with teeth                       |               | done        | #6870 |
-| W1.2    | docs                    | 1          | Root truth                                     |               | not started |     |
+| W1.2    | docs                    | 1          | Root truth                                     |               | done        | #6884 |
 | W1.3    | docs                    | 1          | Remove dead references now                     |               | not started |     |
 | W2.1    | docs                    | 2          | The boundary list and the line caps            |               | not started |     |
 | W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | not started |     |

@@ -1015,7 +1015,7 @@ GET /api/system/circuit-breakers
 
 Breakers registered at startup: `yolo26`, `postgresql`, `redis`
 (`backend/main.py:302-329`), plus `ai-vlm`, created lazily by `VlmClient`
-(`backend/services/vlm_client.py:82`). A freshly started backend shows the
+(`backend/services/vlm_client.py:93`). A freshly started backend shows the
 first three; `ai-vlm` appears once the VLM path has been used.
 
 **Response:**

@@ -331,6 +331,34 @@ def test_split_lane_kickoff_carries_the_cell_sentence() -> None:
     assert "cell" not in lines[BACKEND]
 
 
+def test_heavy_kickoff_names_the_heavy_prompt_instead_of_a_position() -> None:
+    """50-coordination.md holds TWO prompts and ends with the coordinator's, so a heavy line
+    pointing at "the prompt at the end of that file" hands uplevel-heavy the coordinator's job
+    - route work, write no product code - the opposite of the UR-24 package it is started for.
+    `up` prints the line verbatim, so it has to name the section it means."""
+    phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    line = {s.name: s.kickoff for s in phases[1]}[HEAVY]
+    assert "The heavy sandbox's kickoff prompt" in line
+    assert "end of that file" not in line
+
+
+@pytest.mark.skipif(
+    # the roster is a docs/ path and docs/uplevel/ sits outside mutmut's also_copy (its
+    # comment: docs/ as a whole is never copied): in the mutant home this read would raise
+    # and abort the -x stats gather - the also_copy abort family, pyproject.toml. Skip,
+    # never abort, as test_check_vss_docs_currency.py and test_mutation_hold_banner.py do.
+    not (REPO_ROOT / "docs" / "uplevel" / "50-coordination.md").exists(),
+    reason="docs/ tree absent (mutmut's mutant home): nothing to cross-check the line against",
+)
+def test_the_roster_holds_both_prompts_the_heavy_line_points_between() -> None:
+    """the sections the heavy line names all exist, and there are TWO kickoff prompts in the
+    file - which is exactly why the line has to name its section instead of a position."""
+    roster = (REPO_ROOT / "docs" / "uplevel" / "50-coordination.md").read_text(encoding="utf-8")
+    assert "### The roster" in roster
+    assert "**The heavy sandbox's kickoff prompt:**" in roster
+    assert "## Coordinator kickoff prompt" in roster
+
+
 def test_an_unnamed_model_refuses_and_names_the_owners_next_step(tmp_path: Path) -> None:
     """The strongest model's run arguments are the owner's to post (PR #6855). The launcher
     refuses naming that, and never invents a flag (30-ops.md §O0.1, first item)."""
@@ -896,7 +924,7 @@ def test_every_agent_dgx_call_names_its_subcommand(tmp_path: Path) -> None:
 
 
 def _git(repo: Path, *args: str) -> str:
-    done = subprocess.run(  # noqa: S603
+    done = subprocess.run(  # real: drives a throwaway git repo  # noqa: S603
         ["git", *args],  # noqa: S607
         cwd=repo,
         capture_output=True,
@@ -951,7 +979,7 @@ def _run_inspection(workspace: Path) -> dict[str, tuple[str, int]]:
     """
     session = launch.Session(name=SCRATCH, model="", kickoff="")
     script = launch._inspect_argv(session)[-1].replace(session.workspace, str(workspace))
-    done = subprocess.run(  # noqa: S603
+    done = subprocess.run(  # real: runs the inspection script itself  # noqa: S603
         ["bash", "-lc", script],  # noqa: S607
         capture_output=True,
         text=True,
@@ -1088,7 +1116,7 @@ def test_a_failed_section_carries_its_stderr_for_real(tmp_path: Path) -> None:
         "git -c core.fsmonitor=false stash --no-such-flag list",
     )
     assert broken != script, "the fixture must really alter the script"
-    done = subprocess.run(  # noqa: S603
+    done = subprocess.run(  # real: the altered script, run on purpose  # noqa: S603
         ["bash", "-lc", broken],  # noqa: S607
         capture_output=True,
         text=True,

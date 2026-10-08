@@ -71,7 +71,7 @@ flowchart TB
 | Service    | Failure Threshold | Recovery Timeout | Source                                    |
 | ---------- | ----------------- | ---------------- | ----------------------------------------- |
 | YOLO26     | 5                 | 60s              | `backend/services/detector_client.py:336` |
-| AI VLM     | 5                 | 60s              | `backend/services/vlm_client.py:247-249`  |
+| AI VLM     | 5                 | 60s              | `backend/services/vlm_client.py:316-319`  |
 | PostgreSQL | 10                | 60s              | `backend/main.py:310-328`                 |
 | Redis      | 10                | 60s              | `backend/main.py:310-328`                 |
 
@@ -95,8 +95,9 @@ whatever survives the retry ladder into the event:
 
 | Category            | Description                                                      | Retry?                                                                                           |
 | ------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `VlmTransportError` | Connection refused, timeout, HTTP 5xx                            | Once at temperature 0, then the event records `verification_failed`                              |
-| `VlmSchemaError`    | Reply violates `VlmVerdict` after validation                     | No — the event records `verification_failed`                                                     |
+| `VlmTransportError` | Connection refused, connect-phase timeout, HTTP 5xx              | Once at temperature 0, then the event records `verification_failed`                              |
+| `VlmSchemaError`    | Complete reply violates `VlmVerdict`                             | Once at temperature 0, then the event records `verification_failed`                              |
+| `VlmSlowReplyError` | Reply outran the read or write budget                            | No — a budget, not a fault; breaker untouched, same `verification_failed` mapping                |
 | `VlmTruncatedError` | Reply cut off by its token budget (subclass of `VlmSchemaError`) | No — same `verification_failed` mapping; named apart because the cause and retry calculus differ |
 
 A failed analysis still produces an event; it answers with

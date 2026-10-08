@@ -236,6 +236,7 @@ skip `setup.py`, set it yourself or the compose mount silently targets the
 `/export/ai_models` default.
 
 > [!WARNING]
+>
 > **Fetch the Q8_0 projector, not the F16.** The same repo also ships
 > `mmproj-Qwen3VL-8B-Instruct-F16.gguf`; taking it yields a serve that starts and a file
 > that matches no pin anyone has. **And the mmproj file is not optional** — llama.cpp

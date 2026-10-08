@@ -88,6 +88,7 @@ scripts/
   audit-linear-github-sync.py        # Audit Linear-GitHub synchronization
   ci-metrics-collector.py            # Collect and report CI metrics
   ci-smoke-test.sh                   # Quick CI smoke test
+  close-rollback-issues.sh           # Close the open "Automated Rollback" incidents (O1.9)
   coverage-analysis.py               # Advanced coverage analysis
   linear-label-issues.sh             # Bulk label Linear issues
   check-docs-drift.py                # Detect documentation drift from code
@@ -753,15 +754,44 @@ python scripts/ci-metrics-collector.py --workflow ci.yml --days 7
 **Usage:**
 
 ```bash
-./scripts/ci-smoke-test.sh
+./scripts/ci-smoke-test.sh --backend-url http://localhost:8000 --frontend-url http://localhost:3000
+./scripts/ci-smoke-test.sh --check-contract payload.json   # offline contract check, no server
 ```
 
 **Tests:**
 
-- Environment variables set
-- Dependencies installed
-- Services healthy
-- Basic API connectivity
+- Backend `/api/system/health/ready` answers 200 (`ready=false` warns but passes)
+- Backend `/api/system/health` reports `healthy` or `degraded`
+- Frontend serves HTML
+- `/api/system/stats` and `/api/cameras` respond (warnings, non-blocking)
+- WebSocket connectivity (skipped when `websocat` is absent)
+
+`--check-contract FILE` runs only the O1.9 health check against one recorded
+`/api/system/health/full` body, so the contract's behaviour is unit-testable
+outside a deploy (`backend/tests/unit/scripts/data/` holds the bodies captured
+from the incident's own job log). The expected set lives in
+`scripts/ci-smoke-contract.json`, not in shell: the CI stack starts no AI
+service, so a 503 naming only `yolo26` is the PASSING answer there, and the file
+says why. Delete it when O2.1's fake AI stack runs here instead.
+
+#### close-rollback-issues.sh
+
+**Purpose:** O1.9 box 5 as a tool: comment-and-close every open
+"Automated Rollback" incident (owner ruling 2026-10-08 — a red `Deploy` run is
+the signal; the daily batch reports it), then re-run the query to VERIFY the
+Done-when instead of trusting the loop.
+
+**Usage:**
+
+```bash
+./scripts/close-rollback-issues.sh --plan          # list only; touches nothing
+./scripts/close-rollback-issues.sh --link '#6875'  # comment + close each (post-merge)
+```
+
+Run it ONCE, after #6875 merges and Deploy reads green on the merge commit —
+closing earlier closes issues whose mechanism is still filing them. The unit
+guard stubs `gh` offline; the recorded open-issue numbers live in
+`backend/tests/unit/scripts/data/rollback-issues-open.json`.
 
 #### coverage-analysis.py
 
