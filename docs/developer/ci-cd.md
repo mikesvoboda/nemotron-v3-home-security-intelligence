@@ -196,20 +196,31 @@ Builds images for multiple architectures:
 
 ### Multi-Arch Manifest Merge
 
-After architecture-specific builds complete, creates multi-arch manifests for:
+After architecture-specific builds complete, creates a multi-arch manifest for
+each image tagged with the 7-char short commit SHA only:
 
-- `ghcr.io/{repo}/backend:latest`
-- `ghcr.io/{repo}/frontend:latest`
+- `ghcr.io/{repo}/backend:<short-sha>`
+- `ghcr.io/{repo}/frontend:<short-sha>`
+
+`:latest` is **not** tagged here. Since O1.9 it is moved by a `publish-latest`
+job that runs `needs: smoke-test`, so the pointer everyone pulls by default is a
+promise that a smoke test passed on exactly that commit — before, `merge-core`
+tagged `:latest` and the smoke test ran afterwards, so a red deploy meant the
+published images were broken and the tag said otherwise.
 
 ### Smoke Tests
 
-Validates deployed images:
+Validate the images this commit built:
 
-1. Pulls latest images from GHCR
+1. Pulls this commit's `<short-sha>` images from GHCR (not `:latest` — a moving
+   tag makes a red run ambiguous)
 2. Starts services with `docker-compose.ci.yml`
 3. Waits for health checks (backend: 120s, frontend: 60s)
 4. Runs smoke test script
-5. Validates health endpoints
+5. Validates `/api/system/health/ready` (200) and `/api/system/health/full`
+   against the CI stack's committed contract, `scripts/ci-smoke-contract.json` —
+   compose.ci starts no AI service, so a 503 naming only `yolo26` is the healthy
+   answer for this stack (see the file's `purpose` for the measurement)
 
 ### Supply Chain Security
 
@@ -223,7 +234,9 @@ Validates deployed images:
 
 - **Tool:** Sigstore Cosign
 - **Method:** OIDC keyless signing
-- **Signs:** Both `latest` and `sha` tags
+- **Signs:** The manifest **by digest**, resolved from this commit's `<short-sha>`
+  tag — never via `:latest`, which since O1.9 can legitimately name an older
+  commit while this job runs
 
 #### SLSA Provenance
 
@@ -231,17 +244,23 @@ Validates deployed images:
 - **Tool:** GitHub attestation API
 - **Purpose:** Cryptographic build provenance
 
-### Deployment Stages
+### Job Graph
 
 ```
-build -> merge -> smoke-test -> sbom-and-sign -> staging-deployment
-                      |
-                      v
-            post-deployment-validation
-                      |
-                      v
-              slsa-provenance
+build-core -> merge-core -> smoke-test -> publish-latest
+                |
+                +-> sbom-and-sign
+                +-> slsa-provenance
 ```
+
+`Deploy` builds, tests and publishes; it deploys nothing. Two jobs that used to
+hang off the end of this graph — `staging-deployment` and
+`post-deployment-validation` — were deleted by O1.9: neither deployed or
+validated anything, they printed a checklist, and one of them uploaded an
+artifact path (`docs/DEPLOYMENT_VERIFICATION_CHECKLIST.md`) that does not exist
+in this repository, which `upload-artifact` reports as a warning and scores
+green. Failure reporting is a red `Deploy` run, per the owner's 2026-10-08
+ruling that also deleted `.github/workflows/rollback.yml`.
 
 ---
 

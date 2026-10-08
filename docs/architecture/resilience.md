@@ -275,7 +275,7 @@ Startup pre-registration (`backend/main.py:321-329`) creates three named breaker
 - **AI profile** (`failure_threshold=5`, `recovery_timeout=30.0`, `half_open_max_calls=3`, `success_threshold=2`): used for `yolo26`.
 - **Infrastructure profile** (`failure_threshold=10`, `recovery_timeout=60.0`, `half_open_max_calls=5`, `success_threshold=3`): used for `postgresql` and `redis`.
 
-The `ai-vlm` breaker is not in the startup list - `VlmClient` creates it on first use with `get_circuit_breaker("ai-vlm", CircuitBreakerConfig(failure_threshold=5, recovery_timeout=60.0))` (breaker name at `backend/services/vlm_client.py:82`, construction at `:247-249`). While it is OPEN, the client refuses the request without any I/O instead of piling onto a downed service, and the open/close transitions are pushed to the DegradationManager (see [Graceful Degradation](#graceful-degradation)).
+The `ai-vlm` breaker is not in the startup list - `VlmClient` creates it on first use with `get_circuit_breaker("ai-vlm", CircuitBreakerConfig(failure_threshold=5, recovery_timeout=60.0))` (breaker name at `backend/services/vlm_client.py:93`, construction at `:316-319`). While it is OPEN, the client refuses the request without any I/O instead of piling onto a downed service, and the open/close transitions are pushed to the DegradationManager (see [Graceful Degradation](#graceful-degradation)).
 
 ---
 
@@ -1235,7 +1235,7 @@ The breaker tracks metrics via `get_metrics()` (`backend/core/websocket_circuit_
 
 #### Health Check Integration
 
-The readiness endpoint reports broadcaster health (`backend/api/routes/system.py:1453`, `:1627`):
+The readiness endpoint reports broadcaster health (`backend/api/routes/system.py:1455`, `:1651`):
 
 ```python
 # GET /api/system/health/ready includes per-dependency status

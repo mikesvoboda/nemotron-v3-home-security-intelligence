@@ -2010,12 +2010,18 @@ def test_assess_transport_error_twice_is_a_transport_error():
 
 def test_assess_transport_then_success_reports_both_attempt_numbers():
     # the other continue->break twin on the transport arm
+    #
+    # B1.1 re-pins the fault: this used to raise httpx.ReadTimeout, which was
+    # the defect (a slow reply is a budget, is NOT retried, and does not reach
+    # this arm any more - see test_vlm_client.TestSlowReplyIsNotABrokenEngine).
+    # A refused connection is the fast fault the §6 retry exists for, so the
+    # continue->break accounting this test pins is unchanged.
     calls = {"n": 0}
 
     def flaky(body):
         calls["n"] += 1
         if calls["n"] == 1:
-            raise httpx.ReadTimeout("read timed out")
+            raise httpx.ConnectError("connection refused")
         return 200, {
             "choices": [
                 {
@@ -2035,7 +2041,7 @@ def test_assess_transport_then_success_reports_both_attempt_numbers():
         assert verdict is not None
         assert env["spy"].calls == [("allow",), ("failure",), ("success",)]
         assert _log_sig(env["records"], ("error",)) == [
-            ("WARNING", "vlm transport error (attempt %d)", (1,), ("read timed out",), None)
+            ("WARNING", "vlm transport error (attempt %d)", (1,), ("connection refused",), None)
         ]
     finally:
         _close_all(env)

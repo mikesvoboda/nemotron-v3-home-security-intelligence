@@ -117,12 +117,17 @@ RETENTION_DAYS=30
 | `AI_CONNECT_TIMEOUT`          | `10.0`  | 1.0-60.0  | Connection timeout (s)                                  |
 | `AI_HEALTH_TIMEOUT`           | `5.0`   | 1.0-30.0  | Health check timeout (s)                                |
 | `YOLO26_READ_TIMEOUT`         | `30.0`  | 5.0-120.0 | Detection timeout (s)                                   |
-| `AI_VLM_READ_TIMEOUT`         | `25.0`  | 5.0-300.0 | One `vlm_assess` attempt (s)                            |
+| `AI_VLM_READ_TIMEOUT`         | `25.0`  | 5.0-300.0 | Per-read idle budget for an attempt (s)                 |
 | `AI_VLM_WAKE_TIMEOUT_SECONDS` | `90.0`  | 5.0-300.0 | Wake-from-sleep ping budget; a failed wake is swallowed |
 
-`AI_VLM_READ_TIMEOUT` is deliberately under 30 s: the retry ladder retries exactly once
-at temperature 0 **inside the same budget**, so a ceiling at or above 30 s leaves the
-retry no room.
+`AI_VLM_READ_TIMEOUT` is deliberately under 30 s (S4's p95): it is a PER-READ IDLE
+budget — httpx resets the read timer on every reply chunk — so it bounds a STALLED
+reply or request write on deadline (a budget outcome, not an outage: **not retried**,
+no breaker charge) while an engine that dribbles the reply within it runs on; no wall
+clock wraps an attempt. Sizing it under 30 s bounds the silent-server case. The one
+retry at temperature 0 re-asks only where that can differ: fast trip faults, any
+other answered status (a 5xx or a plain 4xx, except the 400 overflow refusal), or a
+complete reply that broke the schema.
 
 ### GPU Monitoring
 

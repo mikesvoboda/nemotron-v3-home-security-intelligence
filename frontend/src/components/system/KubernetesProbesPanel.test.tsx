@@ -38,6 +38,8 @@ describe('KubernetesProbesPanel', () => {
     ],
     timestamp: '2026-01-30T10:00:00Z',
     supervisor_healthy: true,
+    // B1.4: required on ReadinessResponse; healthy scenario, engine probed reachable.
+    verdict_engine: { state: 'available', since: '2026-01-30T09:45:00Z', reason: null },
   };
 
   const mockReadinessUnhealthy: ReadinessResponse = {
@@ -55,6 +57,13 @@ describe('KubernetesProbesPanel', () => {
     ],
     timestamp: '2026-01-30T10:00:00Z',
     supervisor_healthy: false,
+    // B1.4: required on ReadinessResponse. Redis is what makes this not_ready;
+    // the engine field just reports what the probe saw (ai degraded here).
+    verdict_engine: {
+      state: 'unavailable',
+      since: '2026-01-30T09:58:00Z',
+      reason: 'ConnectError: connection refused',
+    },
   };
 
   beforeEach(() => {

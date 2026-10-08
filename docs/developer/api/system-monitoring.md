@@ -708,7 +708,7 @@ GET /api/system/health/full
 **AI Services Tracked:**
 
 The two rows are the full table at
-`backend/api/routes/system.py:5105`.
+`backend/api/routes/system.py:5129`.
 
 | Service  | Display Name            | Critical |
 | -------- | ----------------------- | -------- |
@@ -732,7 +732,7 @@ The two rows are the full table at
 
 (The `ai-vlm` verdict service is tracked as a non-critical AI service, so it
 degrades rather than fails the check — see `AI_SERVICES_CONFIG` at
-`backend/api/routes/system.py:5105`.)
+`backend/api/routes/system.py:5129`.)
 
 ---
 

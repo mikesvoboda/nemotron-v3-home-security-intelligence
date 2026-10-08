@@ -334,6 +334,13 @@ class TestSystemAPIWarmingState:
                 # service label (same rename as the ai-vlm health row above).
                 "ai-vlm": "warm",
             },
+            # B1.4 made verdict_engine required (the route always populates it);
+            # this test is about warmth, so it carries the honest empty state.
+            verdict_engine={
+                "state": "unknown",
+                "since": datetime.now(UTC),
+                "reason": "not probed yet",
+            },
         )
 
         assert response.ready is True
