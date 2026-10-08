@@ -201,7 +201,9 @@ class TestSurface:
             "folder) and fault all reps before the engine is asked"
         )
 
-    def test_the_client_root_follows_capture_root_not_the_default(self, monkeypatch, tmp_path) -> None:
+    def test_the_client_root_follows_capture_root_not_the_default(
+        self, monkeypatch, tmp_path
+    ) -> None:
         """The seam the RED test above drives: pass capture_root explicitly
         and the shipped VlmClient's `_image_parts` must accept a still under
         it WITHOUT the test-only settings-root monkeypatch — proving the root
