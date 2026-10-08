@@ -154,10 +154,10 @@ dead_reference_allowlist:
 # test_substitution_does_not_green_a_total. ALL SIX KEYS ARE REQUIRED: the
 # run exits 2 without any one of them (absent is neither 0 nor unchecked).
 retired_name_baseline:
-  florence: 93       # retired ai/florence path; citations drain under W1.3
-  nemotron: 143      # the retired model family (the repo's own name string)
-  enrichment: 159    # retired ai/enrichment component
-  xclip: 10          # retired clip pipeline
+  florence: 93 # retired ai/florence path; citations drain under W1.3
+  nemotron: 143 # the retired model family (the repo's own name string)
+  enrichment: 159 # retired ai/enrichment component
+  xclip: 10 # retired clip pipeline
   # pose is dominated by the LIVE Triton model actually named `pose` plus
   # YOLOv8-pose product names, so this ceiling is tight for a name that is
   # still alive English; a legit new citation may need a reviewed raise
