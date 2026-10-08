@@ -41,6 +41,7 @@ from backend.api.routes.inbound_webhooks import (
     router,
     verify_hmac_signature,
 )
+from backend.core.logging import mask_ip
 
 LOGGER_NAME = "backend.api.routes.inbound_webhooks"
 ROUTES = (
@@ -169,7 +170,9 @@ class TestRejectUnimplemented:
         assert "UR-12" in excinfo.value.detail
         assert "takes no action" in excinfo.value.detail
 
-    def test_logs_the_rejection_with_endpoint_and_client(self, caplog: pytest.LogCaptureFixture):
+    def test_logs_the_rejection_with_endpoint_and_masked_client(
+        self, caplog: pytest.LogCaptureFixture
+    ):
         caplog.set_level("INFO", logger=LOGGER_NAME)
 
         # The helper writes the record and then raises; the raise is the 501.
@@ -179,7 +182,11 @@ class TestRejectUnimplemented:
         records = [r for r in caplog.records if r.name == LOGGER_NAME]
         assert len(records) == 1, "one record per rejected call"
         assert records[0].endpoint == "disarm"
-        assert records[0].client_ip == "198.51.100.9"
+        # mask_ip keeps the first octet for debugging and masks the rest —
+        # the same shape auth.py's own rejection records use.
+        assert records[0].client_ip == mask_ip("198.51.100.9")
+        assert records[0].client_ip == "198.xxx.xxx.xxx"
+        assert "198.51.100.9" not in records[0].client_ip
 
     def test_logs_unknown_when_the_client_is_unavailable(self, caplog: pytest.LogCaptureFixture):
         """A request with no peer info is still recorded, not skipped."""
@@ -203,6 +210,7 @@ class TestRejectUnimplemented:
         ]
         assert all("SECRET-NEVER-LOGGED" not in text for text in rendered)
         assert all("User-Agent" not in text for text in rendered)
+        assert all("203.0.113.7" not in text for text in rendered), "IP reaches logs masked only"
 
 
 # =============================================================================

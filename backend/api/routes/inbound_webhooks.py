@@ -48,7 +48,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from backend.api.middleware.auth import require_api_key
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, mask_ip
 
 logger = get_logger(__name__)
 
@@ -139,12 +139,6 @@ class InboundModePayload(BaseModel):
 # =============================================================================
 
 
-class WebhookAuthError(Exception):
-    """Raised when webhook authentication fails."""
-
-    pass
-
-
 def verify_hmac_signature(
     request_body: bytes,
     signature: str,
@@ -178,13 +172,16 @@ def _log_rejected_attempt(endpoint: str, request: Request) -> None:
 
     The old handlers logged a fake success ("... queued"); this records the
     honest fact so an integrator's reports can be traced to the endpoint that
-    refuses them. No request body, key, or other secret is logged.
+    refuses them. No request body, key, or other secret is logged, and the
+    address is masked — the same shape ``auth.py`` uses for its own rejection
+    records (``mask_ip``, ``client_ip``), because which house an integrator
+    called from is itself not something to write to a log in the clear.
     """
     logger.info(
         "Inbound webhook rejected as unimplemented (UR-12)",
         extra={
             "endpoint": endpoint,
-            "client_ip": request.client.host if request.client else "unknown",
+            "client_ip": mask_ip(request.client.host if request.client else "unknown"),
         },
     )
 
