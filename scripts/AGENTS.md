@@ -1209,21 +1209,25 @@ SKIP=check-integration-tests git commit
 
 **Integration:** Runs weekly via `.github/workflows/weekly-test-report.yml` (Mondays 9 AM UTC)
 
-#### agents_md_validator.py - the AGENTS.md ratchet (W1.1)
+#### agents_md_validator.py - the AGENTS.md ratchet (W1.1, zero tolerance since W1.3)
 
 **Purpose:** the anti-rot gate over every `AGENTS.md`: dead file references, dead
-markdown links, and retired-product-name mentions. Ratchet, not report: the
-committed baselines in `.agents-md-validator.yml` (a `dead_reference_allowlist` of
-`agents_md`/`reference` pairs, each with a `tracking` ref, and a per-name
-`retired_name_baseline`) admit nothing new - the set may only drain. `missing_agents_md`
-stays reporting-only until W3.1 wires the boundary rule.
+markdown links, and retired-product-name mentions. Ratchet, not report: dead
+references carry ZERO tolerance - W1.1 shipped a `dead_reference_allowlist` as a
+starting set, W1.3 drained it to zero and REMOVED the mechanism, so any dead
+reference fails directly. The only committed baseline left is the per-name
+`retired_name_baseline` in `.agents-md-validator.yml`, and it admits no new
+mentions. The loader REJECTS the presence of a `dead_reference_allowlist` key
+(exit 2): re-adding an excuse list is treated as a gate-disable attempt, not a
+config edit. `missing_agents_md` stays reporting-only until W3.1 wires the
+boundary rule.
 
-**Exit codes:** `0` clean under the baselines; `1` a content violation (a dead
-reference outside the allowlist, any dead link, a retired-name count above its
-ceiling, an unbalanced code fence, or an inline suppression comment without a
-tracking ref); `2` the gate could not run (config absent, unparseable, or missing
-any baseline key - the report is then NOT written, so a broken gate can never
-feed `scripts/agents_md_linear_sync.py` a DEFAULTS table).
+**Exit codes:** `0` clean under the baselines; `1` a content violation (any dead
+reference, any dead link, a retired-name count above its ceiling, an unbalanced
+code fence, or an inline suppression comment without a tracking ref); `2` the
+gate could not run (config absent, unparseable, missing any baseline key, or
+carrying the removed allowlist key - the report is then NOT written, so a broken
+gate can never feed `scripts/agents_md_linear_sync.py` a DEFAULTS table).
 
 **Usage:**
 
@@ -1234,19 +1238,21 @@ uv run python scripts/agents_md_validator.py --root tmp/fixture     # a fixture 
 
 **Resolution is anchored:** an existing path proves a reference only when it
 resolves inside the scan root with no excluded component - that is what makes the
-committed pair set identical on CI and dev machines (the codeql custom-queries
-entry for a gitignored virtualenv dir is dead on every tree, absent in CI or
-excluded-but-present at home; do not "fix" a local count of twelve by deleting
-it - note that this very sentence dodges backticks around that path because this
-file is scanned by the gate it describes). **Drain:** the PR
-that fixes a dead reference deletes its allowlist entry in the same diff, and
-counts hand-fall in the PR that removes the mentions - there is deliberately no
-`--update`; a flag that rewrites the baseline is an opt-out with no diff.
+dead-reference count identical on CI and dev machines. (History: the codeql
+custom-queries citation to a gitignored virtualenv dir was dead on EVERY tree -
+absent in CI, excluded-but-present at home - so a local "fix" could never green
+CI; W1.1 admitted it as the thirteenth pair, W1.3 drained it by re-pointing the
+citation at the real mechanism, the codeql config's paths-ignore list. That
+sentence still dodges backticks around the path because this file is scanned by
+the gate it describes.) **No minting:** counts hand-fall in the PR that removes
+the mentions - there is deliberately no `--update`; a flag that rewrites the
+baseline is an opt-out with no diff.
 
 **CI:** `.github/workflows/agents-md.yml` runs the validator and uploads the
 report; the teeth are in `collection-sanity`'s anti-rot pytest list, which CI Gate
 requires - `scripts/test_agents_md_validator.py` asserts the real tree is green
-there. Baselines measured 2026-10-08 at the W1.1 PR head; the pattern to follow
+there, and since W1.3 that it reports ZERO dead references. Baselines and the
+zero census re-measured 2026-10-08 at the W1.3 PR head; the pattern to follow
 for any future ratchet is `scripts/ratchet-check.py`.
 
 ## Usage Patterns

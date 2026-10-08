@@ -6,10 +6,12 @@ Validates AGENTS.md files across the codebase for:
 2. Missing AGENTS.md (directories with code files but no AGENTS.md)
 3. Dead internal markdown links
 
-The ratchet (W1.1): nothing new gets in; what is here can only drain. Two
-committed baselines live in .agents-md-validator.yml — dead_reference_allowlist
-(the dead pairs measured at baseline time, each with a tracking ref) and
-retired_name_baseline (a per-name ceiling). Reference resolution is ANCHORED:
+The ratchet: W1.1 made dead references a draining baseline
+(dead_reference_allowlist, the dead pairs measured at baseline time); W1.3
+drained that list to zero and REMOVED the mechanism — any dead reference now
+fails directly, and the config key itself is rejected so it cannot creep back.
+The committed retired_name_baseline (a per-name ceiling) remains in
+.agents-md-validator.yml. Reference resolution is ANCHORED:
 an existence hit proves a reference only when it resolves inside the scan root
 and no path component is excluded — that is what makes the committed pair set
 the same on CI and on every dev machine.
@@ -21,10 +23,11 @@ Usage:
     uv run python scripts/agents_md_validator.py --format json --config FILE
 
 Exit codes:
-    0 - the tree is clean under the baselines (allowlisted dead references are
-        fine; retired-name counts are at or below baseline; missing_agents_md
+    0 - the tree is clean under the baselines (zero dead references — zero
+        tolerance since W1.3 removed the allowlist; retired-name counts are at
+        or below baseline; missing_agents_md
         is reporting-only until W3.1 wires the boundary rule)
-    1 - a CONTENT violation: a dead reference outside the allowlist, a dead
+    1 - a CONTENT violation: any dead reference (zero tolerance since W1.3), a dead
         link (zero tolerance), a retired-name count above its baseline, an
         unbalanced code fence (it would mask the rest of the file from the
         gate), or an inline ignore-reference comment without a tracking ref
@@ -38,8 +41,7 @@ Output:
     - Total AGENTS.md files found
     - Issues by type (stale_reference, missing_agents_md, dead_link)
     - Summary counts
-    - "ratchet": the additive gate block (counts, baseline, allowlist size,
-      violations). issues[]/summary{} stay byte-identical for
+    - "ratchet": the additive gate block (counts, baseline, violations). issues[]/summary{} stay byte-identical for
       agents_md_linear_sync.py; the gate state never enters issues[].
 """
 
@@ -91,7 +93,6 @@ RETIRED_NAME_PATTERNS = {name: re.compile(rf"\b{name}\b") for name in RETIRED_NA
 
 # An allowlist entry is a pair, not a pattern: a glob char or a leading / in a
 # committed entry would widen the baseline invisibly at match time.
-ALLOWLIST_FORBIDDEN_CHARS = frozenset("*?[(\\")
 
 
 @dataclass
@@ -111,7 +112,6 @@ class ValidatorConfig:
     # W1.1 baselines — required keys; load_config raises ConfigError without
     # them. Pairs are (agents_md, reference), the exact fields report.json
     # emits, so the gate matches the emitted tuple with no translation layer.
-    dead_reference_allowlist: list[tuple[str, str]] = field(default_factory=list)
     retired_name_baseline: dict[str, int] = field(default_factory=dict)
     config_loaded: bool = False
 
@@ -208,32 +208,13 @@ def load_config(config_path: Path | None, project_root: Path) -> ValidatorConfig
                 f"silently, so it is compiled here, not swallowed at the scan site"
             ) from exc
 
-    raw_allow = data.get("dead_reference_allowlist")
-    if raw_allow is None:
+    if "dead_reference_allowlist" in data:
         raise ConfigError(
-            f"{config_path} has no dead_reference_allowlist key — absent is not "
-            "'allow nothing new' and not 'check nothing'; the baseline must be explicit"
+            "dead_reference_allowlist was REMOVED by W1.3 — dead references now "
+            "fail directly (zero tolerance), so the key's presence is a gate-disable "
+            "attempt: fix the citation (create the path, or delete/repair the "
+            "line) instead of re-adding an excuse"
         )
-    if not isinstance(raw_allow, list):
-        raise ConfigError("dead_reference_allowlist must be a list of pair entries")
-    for entry in raw_allow:
-        if not isinstance(entry, dict):
-            raise ConfigError(f"allowlist entry is not a mapping: {entry!r}")
-        agents_md, reference = entry.get("agents_md"), entry.get("reference")
-        if not agents_md or not reference:
-            raise ConfigError(f"allowlist entry needs non-empty agents_md+reference: {entry!r}")
-        if reference.startswith("/") or set(reference) & ALLOWLIST_FORBIDDEN_CHARS:
-            raise ConfigError(
-                f"allowlist reference {reference!r} is not a literal path (leading / or "
-                "one of * ? [ ( \\) — an entry may not be silently widened into a pattern"
-            )
-        if not entry.get("tracking"):
-            raise ConfigError(
-                f"allowlist entry {agents_md} -> {reference} has no tracking ref — "
-                "every admitted dead pair carries one (W1.3 drains this list; an "
-                "admission without a reason to revisit is a permanent excuse)"
-            )
-        config.dead_reference_allowlist.append((agents_md, reference))
 
     raw_baseline = data.get("retired_name_baseline")
     if raw_baseline is None:
@@ -631,7 +612,10 @@ def check_missing_agents_md(
 
     code_dirs = find_directories_with_code(project_root, config)
 
-    for dir_path, code_files in code_dirs.items():
+    # sorted(): rglob yields filesystem-walk order, which varies between
+    # machines — the missing_agents_md block's order must be deterministic
+    # or "report identical on two trees" claims rest on a lucky walk.
+    for dir_path, code_files in sorted(code_dirs.items(), key=lambda kv: str(kv[0])):
         if dir_path in existing_agents_md:
             continue
 
@@ -748,19 +732,17 @@ def evaluate_ratchet(scan: Scan, config: ValidatorConfig) -> list[str]:
     Empty list == green. The report is written either way; main() maps a
     non-empty list to exit 1.
     """
-    allow = set(config.dead_reference_allowlist)
     violations: list[str] = []
 
     for issue in scan.issues:
         if issue.type == "stale_reference":
-            if (issue.agents_md, issue.reference) not in allow:
-                violations.append(
-                    f"dead reference: {issue.agents_md}:{issue.line} -> "
-                    f"`{issue.reference}` is not in dead_reference_allowlist. "
-                    "Fix: create the path, delete the citation, or drain/replace "
-                    "the pair in .agents-md-validator.yml only as a reviewed "
-                    "adjudication with a tracking ref."
-                )
+            violations.append(
+                f"dead reference: {issue.agents_md}:{issue.line} -> "
+                f"`{issue.reference}` does not exist (anchored resolution). Zero "
+                "tolerance since W1.3 removed the allowlist — fix: create the "
+                "path, or delete/repair the citation (keep the line's "
+                "non-discoverable knowledge)."
+            )
         elif issue.type == "dead_link":
             violations.append(
                 f"dead link: {issue.agents_md}:{issue.line}]({issue.reference}) "
@@ -859,7 +841,6 @@ def generate_report(
         "ratchet": {
             "counts": scan.retired_counts,
             "baseline": config.retired_name_baseline,
-            "allowlist_size": len(config.dead_reference_allowlist),
             "unbalanced_fences": scan.unbalanced_fences,
             "violations": violations,
         },
