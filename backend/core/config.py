@@ -1131,10 +1131,12 @@ class Settings(BaseSettings):
         default=25.0,
         ge=5.0,
         le=300.0,
-        description="Maximum time (seconds) to wait for one vlm_assess attempt. Sized "
-        "against S4 (p95 <= 30 s INCLUDING cold starts): the §6 ladder retries exactly "
-        "once at temperature 0 inside the same budget, so a per-attempt ceiling at or "
-        "above 30 s would leave no room for the retry.",
+        description="Maximum time (seconds) to wait for ONE vlm_assess attempt, applied "
+        "per attempt against S4 (p95 <= 30 s INCLUDING cold starts). A reply that "
+        "outruns it is a budget outcome, not an outage: it is NOT retried (the §6 "
+        "temp-0 retry would re-ask the identical bytes at the identical speed) and does "
+        "NOT charge the ai-vlm breaker, so one attempt is the worst case and it must fit "
+        "inside 30 s. The ladder's retry only follows a fast failure.",
     )
     ai_vlm_wake_timeout_seconds: float = Field(
         default=90.0,

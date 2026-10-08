@@ -387,15 +387,20 @@ The httpx client is built per call with one read budget and one connect budget:
         return self._client
 ```
 
-| Phase                  | Budget          | Set by                        |
-| ---------------------- | --------------- | ----------------------------- |
-| TCP connect            | 10 s            | `ai_connect_timeout`          |
-| One engine attempt     | 25 s read       | `ai_vlm_read_timeout`         |
-| Both attempts together | 50 s worst case | the same per-attempt ceiling  |
-| Wake ping              | 90 s read       | `ai_vlm_wake_timeout_seconds` |
-| Breaker recovery       | 60 s            | `CircuitBreakerConfig`        |
+| Phase              | Budget        | Set by                        |
+| ------------------ | ------------- | ----------------------------- |
+| TCP connect        | 10 s          | `ai_connect_timeout`          |
+| One engine attempt | 25 s read     | `ai_vlm_read_timeout`         |
+| Fast-fault retry   | ~2 fast fails | the same ceiling, not a sleep |
+| Wake ping          | 90 s read     | `ai_vlm_wake_timeout_seconds` |
+| Breaker recovery   | 60 s          | `CircuitBreakerConfig`        |
 
-The read budget is the load-bearing number: the S4 target of p95 at or under 30 s including cold starts is why a per-attempt ceiling at or above 30 s would leave no room for the retry (`backend/core/config.py:1117-1124`).
+The read budget is the load-bearing number: the S4 target of p95 at or under 30 s
+including cold starts is why the ceiling must sit under 30 s (`backend/core/config.py:1130-1140`).
+A reply that outruns it is a budget, not an outage — it is NOT retried (the request
+leaves unchanged, so a re-send times out identically) and does NOT charge the breaker
+(`backend/services/vlm_client.py` `VlmSlowReplyError`). The §6 temp-0 retry therefore
+only follows a FAST failure (a refused connection, a 5xx), never a slow reply.
 
 ## Prompt Construction
 
@@ -1012,20 +1017,22 @@ from backend.core.metrics import (
 
 ### `error_type` Values on This Path
 
-| Value                         | Where                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------- |
-| `vlm_transport_error`         | transport raised, `backend/services/vlm_client.py:813`                    |
-| `vlm_http_error`              | status other than 200, `backend/services/vlm_client.py:830`               |
-| `vlm_schema_invalid`          | validation failed, `backend/services/vlm_client.py:871`                   |
-| `vlm_assess_truncated`        | verdict cut at its budget, `backend/services/vlm_client.py:856`           |
-| `vlm_context_overflow`        | the served slot refused the request, `backend/services/vlm_client.py:821` |
-| `vlm_probe_props_unreachable` | `backend/services/vlm_client.py:318`                                      |
-| `vlm_probe_build_mismatch`    | `backend/services/vlm_client.py:326`                                      |
-| `vlm_probe_transport`         | `backend/services/vlm_client.py:362`                                      |
-| `vlm_probe_truncated`         | probe reply hit its budget, `backend/services/vlm_client.py:396`          |
-| `vlm_probe_not_enforced`      | `backend/services/vlm_client.py:404`                                      |
-| `vlm_circuit_open`            | refused without I/O, `backend/services/vlm_client.py:766`                 |
-| `vlm_verification_failed`     | the analyzer's terminal mapping, `backend/services/vlm_analyzer.py:561`   |
+| Value                         | Where                                                                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `vlm_transport_error`         | transport raised, `backend/services/vlm_client.py:813`                                                |
+| `vlm_http_error`              | status other than 200, `backend/services/vlm_client.py:830`                                           |
+| `vlm_schema_invalid`          | validation failed, `backend/services/vlm_client.py:871`                                               |
+| `vlm_assess_truncated`        | verdict cut at its budget, `backend/services/vlm_client.py:856`                                       |
+| `vlm_context_overflow`        | the served slot refused the request, `backend/services/vlm_client.py:821`                             |
+| `vlm_assess_timeout`          | reply outran the read budget; a budget, not retried, not charged to the breaker (`VlmSlowReplyError`) |
+| `vlm_probe_timeout`           | probe reply outran the read budget; fails closed INCONCLUSIVE, breaker untouched                      |
+| `vlm_probe_props_unreachable` | `backend/services/vlm_client.py:318`                                                                  |
+| `vlm_probe_build_mismatch`    | `backend/services/vlm_client.py:326`                                                                  |
+| `vlm_probe_transport`         | `backend/services/vlm_client.py:362`                                                                  |
+| `vlm_probe_truncated`         | probe reply hit its budget, `backend/services/vlm_client.py:396`                                      |
+| `vlm_probe_not_enforced`      | `backend/services/vlm_client.py:404`                                                                  |
+| `vlm_circuit_open`            | refused without I/O, `backend/services/vlm_client.py:766`                                             |
+| `vlm_verification_failed`     | the analyzer's terminal mapping, `backend/services/vlm_analyzer.py:561`                               |
 
 ## Timing Summary
 

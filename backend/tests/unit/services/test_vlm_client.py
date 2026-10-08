@@ -23,7 +23,9 @@ reader for /etc.
 
 from __future__ import annotations
 
+import ast
 import importlib.util
+import inspect
 import json
 import math
 import re
@@ -730,6 +732,37 @@ class TestEnforcementProbe:
             "a probe budget must not open a service breaker"
         )
 
+    async def test_a_slow_probe_reply_fails_closed_without_the_breaker(
+        self, image_dir, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """B1.1 on the probe leg, the leg that actually bites: the probe is on
+        by default and cached only once an endpoint has PROVEN enforcement, so
+        an engine that has not yet proven it re-probes per item — and a slow
+        re-probe used to charge the breaker each time (via `vlm_probe_transport`
+        below the branch). Same budget ruling as the truncated-probe test right
+        above: fail closed with INCONCLUSIVE, nothing cached, counted under its
+        own cause, and never fed to the service breaker."""
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        recorded: list[str] = []
+        monkeypatch.setattr(vc, "record_pipeline_error", lambda reason: recorded.append(reason))
+        transport = _TimingOutTransport()
+        settings = vc.get_settings().model_copy(update={"vlm_enforcement_probe_enabled": True})
+        client = vc.VlmClient(
+            base_url="http://fake-vlm:8098", transport=transport, settings=settings
+        )
+        for _ in range(10):  # well past the breaker's 5-failure threshold
+            with pytest.raises(ConstrainedDecodingNotEnforced) as caught:
+                await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+            assert caught.value.verdict == "inconclusive", "fail closed, no verdict trusted"
+        await client.close()
+        assert client._enforced is None, "an unmeasured probe must never cache a verdict"
+        assert transport.chat_calls == 10, "each item re-probes (nothing cached)"
+        assert recorded == ["vlm_probe_timeout"] * 10, recorded
+        assert not get_circuit_breaker("ai-vlm").is_open, (
+            "a slow probe is OUR read budget, not a broken engine"
+        )
+
     async def test_a_truncated_reply_that_carried_the_const_is_enforced(self, image_dir) -> None:
         """The mirror pin, guarding the other direction. If the const arrived,
         the grammar produced a value the prompt never mentioned - which is the
@@ -782,10 +815,16 @@ class TestFailureLadder:
         assert calls[0]["temperature"] == 0.0, "the first attempt is greedy too"
         await client.close()
 
-    async def test_read_timeout_raises_transport_error(self, image_dir) -> None:
+    async def test_read_timeout_raises_slow_reply_error_not_transport(self, image_dir) -> None:
         """ASGITransport NEVER enforces client timeouts (the 1.1 lesson), so
         the timeout is pinned at the transport layer itself: a transport
-        that raises httpx.ReadTimeout exactly as a socket timeout would."""
+        that raises httpx.ReadTimeout exactly as a socket timeout would.
+
+        B1.1 re-pins this. It used to assert VlmTransportError, which is the
+        defect: a transport error is what charges the ai-vlm breaker, and a
+        reply that simply took longer than OUR read budget is not a broken
+        engine (D1). Same transport, same exception from httpx, now a budget
+        outcome. TestSlowReplyIsNotABrokenEngine pins the breaker half."""
 
         class TimingOutTransport(httpx.AsyncBaseTransport):
             async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
@@ -797,8 +836,11 @@ class TestFailureLadder:
             transport=TimingOutTransport(),
             settings=settings,
         )
-        with pytest.raises(vc.VlmTransportError):
+        with pytest.raises(vc.VlmSlowReplyError) as raised:
             await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        # still a client error, so the analyzer's mapping is unchanged
+        assert isinstance(raised.value, vc.VlmClientError)
+        assert not isinstance(raised.value, vc.VlmTransportError)
         await client.close()
 
     async def test_schema_invalid_completion_raises_schema_error(self, image_dir) -> None:
@@ -1526,7 +1568,7 @@ class TestSlowReplyIsNotABrokenEngine:
     """
 
     @staticmethod
-    def _timing_out_transport() -> "_TimingOutTransport":
+    def _timing_out_transport() -> _TimingOutTransport:
         return _TimingOutTransport()
 
     async def test_a_slow_reply_is_asked_once(self, image_dir) -> None:
@@ -1603,3 +1645,53 @@ class _TimingOutTransport(httpx.AsyncBaseTransport):
             self.chat_calls += 1
             raise httpx.ReadTimeout("read timeout", request=request)
         return httpx.Response(200, json={"build_info": "b7972-e06088da0"}, request=request)
+
+
+class TestEveryCauseIsListed:
+    """B1.1 found the allowlist drifting: `KNOWN_ERROR_TYPES` guards the
+    `error_type` Prometheus label against cardinality explosion by collapsing
+    anything unlisted to "other", and the block that claims to cover "the VLM
+    path's ladder labels" was missing five of them - so five causes, including
+    both budget causes whose entire value is a DISTINGUISHABLE cause, recorded
+    as "other" and the S4/S5 dashboards read a blank where the diagnosis is.
+    A comment cannot keep a list and a call site in sync; this parses the call
+    site."""
+
+    _CAUSE_CALLERS: ClassVar = ("_note_failure", "_note_budget_exhausted", "record_pipeline_error")
+
+    @staticmethod
+    def _emitted_causes() -> set[str]:
+        """Every string literal this module passes to a cause-recording call."""
+        tree = ast.parse(inspect.getsource(vc))
+        causes: set[str] = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not node.args:
+                continue
+            func = node.func
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+            first = node.args[0]
+            if name in TestEveryCauseIsListed._CAUSE_CALLERS and isinstance(first, ast.Constant):
+                if isinstance(first.value, str):
+                    causes.add(first.value)
+        return causes
+
+    def test_every_emitted_cause_survives_sanitization(self) -> None:
+        from backend.core.sanitization import KNOWN_ERROR_TYPES, sanitize_error_type
+
+        emitted = self._emitted_causes()
+        assert emitted, "the AST walk found no causes - did the recording helpers get renamed?"
+        collapsed = sorted(c for c in emitted if sanitize_error_type(c) != c)
+        assert not collapsed, (
+            f"{collapsed} are recorded by vlm_client but absent from KNOWN_ERROR_TYPES, "
+            "so the metric labels them 'other' (the drift B1.1 found)"
+        )
+        assert emitted <= KNOWN_ERROR_TYPES
+
+    def test_the_two_new_budget_causes_are_listed(self) -> None:
+        """The specific regression B1.1 ships: named causes, not "other"."""
+        from backend.core.sanitization import KNOWN_ERROR_TYPES, sanitize_error_type
+
+        for cause in ("vlm_assess_timeout", "vlm_probe_timeout"):
+            assert cause in KNOWN_ERROR_TYPES, cause
+            assert cause in self._emitted_causes(), cause
+            assert sanitize_error_type(cause) == cause

@@ -204,10 +204,14 @@ The default is three attempts total (`detector_max_retries`), so the worst case
 is base latency + 1s + 2s = base + 3s. The circuit breaker below trips after
 five consecutive failures, bounding how long the ladder can repeat.
 
-The analysis leg does not use a backoff ladder. `VlmClient.assess` makes one
-attempt, retries exactly once at temperature 0 inside the same read budget, and
-raises — the analyzer then records `verification_failed` on the event rather
-than spending a second budget on it (`backend/services/vlm_client.py:805-807`).
+The analysis leg does not use a backoff ladder. `VlmClient.assess` retries a
+FAST failure (refused connection, 5xx) exactly once at temperature 0 inside the
+same read budget, and raises — the analyzer then records `verification_failed`
+on the event rather than spending a second budget on it. A read timeout is not
+retried: the request leaves unchanged, so a re-send would time out identically,
+and a slow reply counts as a budget (`VlmSlowReplyError`), never as a breaker
+failure. Budget refusals — a slow reply, a truncated verdict, an overflowing
+prompt — raise on the first attempt, by the same rule.
 
 ## Circuit Breaker (NEM-1724)
 
@@ -254,10 +258,11 @@ ai_vlm_read_timeout: float = 25.0         # One vlm_assess attempt
 ai_vlm_wake_timeout_seconds: float = 90.0 # The wake-on-open ping
 ```
 
-The read budget is sized against p95 <= 30 s including cold starts, and it covers
-both attempts: the client retries once inside the same budget (`vlm_client.py`
-`VlmClient.assess`), so a per-attempt ceiling at or above 30 s would leave no
-room for the second try.
+The read budget is sized against p95 <= 30 s including cold starts, per attempt:
+two full 25 s attempts cannot fit inside 30 s, so the client never re-asks a
+reply that timed out (`vlm_client.py` `VlmSlowReplyError`) — the only retry is
+the §6 temp-0 re-send after a fast failure, which costs almost nothing. A
+per-attempt ceiling at or above 30 s would put one slow answer past the spec.
 
 ### Defense-in-Depth (NEM-1465)
 

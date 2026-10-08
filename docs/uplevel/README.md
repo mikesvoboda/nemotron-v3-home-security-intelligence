@@ -215,65 +215,65 @@ strongest available model or an owner pairing (UR-24); `owner` — needs the own
 merge (UR-23). Phase 4 packages get their own row when they open: the
 PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 
-| package | lane                    | phase      | name                                           | flags         | status      | PR  |
-| ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
-| O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | not started |     |
-| B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | not started |     |
-| B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | not started |     |
-| B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | not started |     |
-| B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | not started |     |
-| B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | not started |     |
-| B1.6    | backend                 | 1          | Scope the orchestrator and its recovery (D11)  | heavy · owner | not started |     |
-| F1.1    | frontend                | 1          | Endpoint truth (D2)                            |               | not started |     |
-| F1.2    | frontend                | 1          | Verdict-engine banner (UR-18)                  |               | not started |     |
-| F1.3    | frontend                | 1          | Exposure and auth, frontend part (D10)         | owner         | not started |     |
-| O1.1    | ops                     | 1          | Mutation hold and supersede (UR-2, UR-7)       |               | not started |     |
-| O1.2    | ops                     | 1          | Retire ghcr (UR-17)                            |               | not started |     |
-| O1.3    | ops                     | 1          | `ai-vlm` on by default (UR-18)                 |               | not started |     |
-| O1.4    | ops                     | 1          | Broken workflows (D9)                          |               | not started |     |
-| O1.5    | ops                     | 1          | Delete the archives (UR-19)                    |               | not started |     |
-| O1.6    | ops                     | 1          | Exposure and auth, compose part (D10)          | owner         | not started |     |
-| O1.7    | ops                     | 1          | Audit measurement scripts                      |               | not started |     |
-| O1.8    | ops                     | 1          | Dependabot alerts                              | owner         | not started |     |
-| O1.9    | ops                     | 1          | Deploy green on `main`                         |               | not started |     |
-| O1.10   | ops                     | 1          | The operator sandbox (UR-30)                   | owner         | not started |     |
-| B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | not started |     |
-| F2.1    | frontend                | 2          | Golden-path harness                            |               | not started |     |
-| F2.2    | frontend                | 2          | Feature inventory                              | heavy         | not started |     |
-| F2.3    | frontend                | 2          | Golden paths for every working feature         |               | not started |     |
-| O2.1    | ops                     | 2          | Fake AI stack                                  |               | not started |     |
-| O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | not started |     |
-| O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | not started |     |
-| R2      | owner; frontend records | 2          | Phase 2 RULING session (after `F2.3`)          | owner         | not started |     |
-| B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy · owner | not started |     |
-| B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started |     |
-| B3.3    | backend                 | 3          | Settings and residue truth                     |               | not started |     |
-| F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy · owner | not started |     |
-| F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | not started |     |
-| F3.3    | frontend                | 3          | Quarantined tests                              |               | not started |     |
-| O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | not started |     |
-| O3.2    | ops                     | 3          | Compose base and overlays                      |               | not started |     |
-| O3.3    | ops                     | 3          | `models.yml` and env truth                     |               | not started |     |
-| O3.4    | ops                     | 3          | Reachability gates in CI                       |               | not started |     |
-| O3.5    | ops                     | 3          | Weekly mutation scorer and history (`01` M2)   |               | not started |     |
-| O3.6    | ops                     | 3          | PR mutation evidence tool (`01` M4)            | heavy         | not started |     |
-| O3.7    | ops                     | 3          | `scripts/` truth                               |               | not started |     |
-| B4.\*   | backend                 | 4          | Feature track (arming among them, UR-12)       | design: heavy | not started |     |
-| BB.\*   | backend                 | 4          | Background track                               |               | not started |     |
-| F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started |     |
-| FB.\*   | frontend                | 4          | Background track                               |               | not started |     |
-| OB.2    | ops                     | after 1    | CI dedupe                                      |               | not started |     |
-| OB.3    | ops                     | after 1    | Image weight                                   |               | not started |     |
-| OB.4    | ops                     | on trigger | Lane map and cross-lane check                  |               | not started |     |
-| W1.1    | docs                    | 1          | The validator with teeth                       |               | not started |     |
-| W1.2    | docs                    | 1          | Root truth                                     |               | not started |     |
-| W1.3    | docs                    | 1          | Remove dead references now                     |               | not started |     |
-| W2.1    | docs                    | 2          | The boundary list and the line caps            |               | not started |     |
-| W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | not started |     |
-| W3.1    | docs                    | 3          | Boundaries only                                |               | not started |     |
-| W3.2    | docs                    | 3          | Rewrite the boundary files to the standard     |               | not started |     |
-| W3.3    | docs                    | 3          | Living docs truth                              |               | not started |     |
-| W3.4    | docs                    | 3          | Carry out the docs rulings                     |               | not started |     |
+| package | lane                    | phase      | name                                           | flags         | status             | PR    |
+| ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ------------------ | ----- |
+| O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | not started        |       |
+| B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | awaiting real tier | #6868 |
+| B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | not started        |       |
+| B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | not started        |       |
+| B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | not started        |       |
+| B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | not started        |       |
+| B1.6    | backend                 | 1          | Scope the orchestrator and its recovery (D11)  | heavy · owner | not started        |       |
+| F1.1    | frontend                | 1          | Endpoint truth (D2)                            |               | not started        |       |
+| F1.2    | frontend                | 1          | Verdict-engine banner (UR-18)                  |               | not started        |       |
+| F1.3    | frontend                | 1          | Exposure and auth, frontend part (D10)         | owner         | not started        |       |
+| O1.1    | ops                     | 1          | Mutation hold and supersede (UR-2, UR-7)       |               | not started        |       |
+| O1.2    | ops                     | 1          | Retire ghcr (UR-17)                            |               | not started        |       |
+| O1.3    | ops                     | 1          | `ai-vlm` on by default (UR-18)                 |               | not started        |       |
+| O1.4    | ops                     | 1          | Broken workflows (D9)                          |               | not started        |       |
+| O1.5    | ops                     | 1          | Delete the archives (UR-19)                    |               | not started        |       |
+| O1.6    | ops                     | 1          | Exposure and auth, compose part (D10)          | owner         | not started        |       |
+| O1.7    | ops                     | 1          | Audit measurement scripts                      |               | not started        |       |
+| O1.8    | ops                     | 1          | Dependabot alerts                              | owner         | not started        |       |
+| O1.9    | ops                     | 1          | Deploy green on `main`                         |               | not started        |       |
+| O1.10   | ops                     | 1          | The operator sandbox (UR-30)                   | owner         | not started        |       |
+| B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | not started        |       |
+| F2.1    | frontend                | 2          | Golden-path harness                            |               | not started        |       |
+| F2.2    | frontend                | 2          | Feature inventory                              | heavy         | not started        |       |
+| F2.3    | frontend                | 2          | Golden paths for every working feature         |               | not started        |       |
+| O2.1    | ops                     | 2          | Fake AI stack                                  |               | not started        |       |
+| O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | not started        |       |
+| O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | not started        |       |
+| R2      | owner; frontend records | 2          | Phase 2 RULING session (after `F2.3`)          | owner         | not started        |       |
+| B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy · owner | not started        |       |
+| B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started        |       |
+| B3.3    | backend                 | 3          | Settings and residue truth                     |               | not started        |       |
+| F3.1    | frontend                | 3          | Retire ruled-out features, frontend part       | heavy · owner | not started        |       |
+| F3.2    | frontend                | 3          | Unreachable files and the knip gate            |               | not started        |       |
+| F3.3    | frontend                | 3          | Quarantined tests                              |               | not started        |       |
+| O3.1    | ops                     | 3          | Prune `ai/` to what ships                      |               | not started        |       |
+| O3.2    | ops                     | 3          | Compose base and overlays                      |               | not started        |       |
+| O3.3    | ops                     | 3          | `models.yml` and env truth                     |               | not started        |       |
+| O3.4    | ops                     | 3          | Reachability gates in CI                       |               | not started        |       |
+| O3.5    | ops                     | 3          | Weekly mutation scorer and history (`01` M2)   |               | not started        |       |
+| O3.6    | ops                     | 3          | PR mutation evidence tool (`01` M4)            | heavy         | not started        |       |
+| O3.7    | ops                     | 3          | `scripts/` truth                               |               | not started        |       |
+| B4.\*   | backend                 | 4          | Feature track (arming among them, UR-12)       | design: heavy | not started        |       |
+| BB.\*   | backend                 | 4          | Background track                               |               | not started        |       |
+| F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started        |       |
+| FB.\*   | frontend                | 4          | Background track                               |               | not started        |       |
+| OB.2    | ops                     | after 1    | CI dedupe                                      |               | not started        |       |
+| OB.3    | ops                     | after 1    | Image weight                                   |               | not started        |       |
+| OB.4    | ops                     | on trigger | Lane map and cross-lane check                  |               | not started        |       |
+| W1.1    | docs                    | 1          | The validator with teeth                       |               | not started        |       |
+| W1.2    | docs                    | 1          | Root truth                                     |               | not started        |       |
+| W1.3    | docs                    | 1          | Remove dead references now                     |               | not started        |       |
+| W2.1    | docs                    | 2          | The boundary list and the line caps            |               | not started        |       |
+| W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | not started        |       |
+| W3.1    | docs                    | 3          | Boundaries only                                |               | not started        |       |
+| W3.2    | docs                    | 3          | Rewrite the boundary files to the standard     |               | not started        |       |
+| W3.3    | docs                    | 3          | Living docs truth                              |               | not started        |       |
+| W3.4    | docs                    | 3          | Carry out the docs rulings                     |               | not started        |       |
 
 ## Files
 
