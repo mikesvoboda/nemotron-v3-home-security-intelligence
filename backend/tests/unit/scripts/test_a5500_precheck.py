@@ -20,6 +20,13 @@ AMENDED 2026-09-29 (R8 S2b): the ai-llm service was deleted from every compose
 file, so the legacy_llm row now PASSes when read against the REAL tree (the
 gate stays for a re-added, ungated ai-llm - pinned on synthetic compose text in
 TestLegacyLlmNotDeployed). The LEGACY_COMPOSE fixture is synthetic from here on.
+
+AMENDED 2026-10-08 (O1.2, UR-17): the prebuilt-image compose file that paragraph
+1's "ghcr image path" named is deleted, so the vlm_image row now answers for the
+composes that ship: a compose without an ai-vlm service cannot serve the shipped
+vlm mode (message re-tensed; the fixtures that used that file's name as a fake
+second compose are renamed, and the scripts/test_retired_paths.py gate keeps the
+name out of living text).
 """
 
 from __future__ import annotations
@@ -558,6 +565,10 @@ services:
         c = _by_id(checks)["vlm_image"]
         assert c.verdict == WARN
         assert "legacy.yml" in c.detail
+        # O1.2 (UR-17) retired the GHCR stack: the WARN names the scanned
+        # stack it found wanting, never the retired install path (ops-A review
+        # on #6907, blocking item 4 — the message had outrun its subject).
+        assert "ghcr" not in c.detail
 
 
 # ---------------------------------------------------------------------------
@@ -696,19 +707,21 @@ class TestSelinuxCameraRoot:
         assert ":z" in c.detail
 
     def test_a_compose_file_without_the_relabel_is_named(self, tmp_path: Path) -> None:
-        # prod.yml relabels, ghcr.yml mounts :ro bare: the ghcr path is the
-        # one that goes blind, and the WARN must say which file.
+        # prod.yml relabels, legacy.yml mounts :ro bare: the bare file is the
+        # one that goes blind, and the WARN must say which file. (Fixture names
+        # are arbitrary; O1.2 / UR-17 retired the compose these used to be named
+        # after, and scripts/test_retired_paths.py keeps living text off it.)
         c = self._check(
             tmp_path,
             enforcing=True,
             label=USR_T,
             compose={
                 "prod.yml": _camera_compose_with(":z"),
-                "ghcr.yml": _camera_compose_with(":ro"),
+                "legacy.yml": _camera_compose_with(":ro"),
             },
         )
         assert c.verdict == WARN
-        assert "ghcr.yml" in c.detail
+        assert "legacy.yml" in c.detail
         assert "prod.yml: " not in c.detail
 
     def test_the_camera_root_comes_from_the_env_file(self, tmp_path: Path) -> None:

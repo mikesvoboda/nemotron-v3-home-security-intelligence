@@ -26,8 +26,10 @@ guard pins the two edits actually made — the handler ``def``s and the dispatch
 branches deleted, functions kept if a ruling names them — checked by string
 presence, not behaviour, so a comment that merely names a retired path cannot
 redden it while a resurrected branch does; models.yml stays the behavioural
-authority. The two greens are forward guards (yolo26's size key and the live
-handlers must survive any future sweep of the same shape).
+authority. The greens are forward guards: O1.2 (UR-17) deleted the whole
+``estimate_pull_size`` estimator, so yolo26's size-key guard went with it and
+this file's green pair is now the estimator-gone pin plus the live model
+handlers, which must survive any future sweep of the same shape.
 """
 
 from __future__ import annotations

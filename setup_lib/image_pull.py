@@ -84,7 +84,7 @@ def prompt_and_pull_images(config: dict) -> None:
     print(f"Container runtime: {runtime_name} ({compose_cmd})")
     print()
 
-    print("docker-compose.prod.yml is the only compose stack:")
+    print("docker-compose.prod.yml is the only application compose file:")
     print("  - backend, frontend and the AI services build from source")
     print("  - postgres, redis and monitoring images pull from public registries")
     print()

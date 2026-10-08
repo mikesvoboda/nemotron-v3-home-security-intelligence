@@ -174,7 +174,7 @@ class TestPromptAndPullImages:
         out = capsys.readouterr().out
         assert "docker-compose.prod.yml" in out
         assert "podman-compose -f docker-compose.prod.yml build" in out
-        assert "only compose stack" in out
+        assert "only application compose file" in out
 
     def test_docker_runtime_shows_docker_commands(self, capsys) -> None:
         from setup_lib.image_pull import prompt_and_pull_images

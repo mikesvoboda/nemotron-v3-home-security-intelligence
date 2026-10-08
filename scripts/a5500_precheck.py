@@ -559,7 +559,7 @@ def _check_vlm_image(compose_paths: list[Path]) -> Check:
             WARN,
             "no ai-vlm service in "
             + ", ".join(sorted(set(absent)))
-            + " - the ghcr image path cannot serve the shipped vlm mode; run "
+            + " - those composes cannot serve the shipped vlm mode; run "
             "docker-compose.prod.yml on the A5500 box (ai-vlm is in its "
             "default set since UR-18, no flag needed)",
         )
@@ -716,6 +716,13 @@ AMENDMENTS: dict[str, list[str]] = {
         "wrong-arch image with the right build-id passes every check in this "
         "repo and then fails at runtime, so nothing here can certify the "
         "image for you except compute_cap beside build_info.",
+        "[V 2026-10-08] amend (O1.2, PR #6907): two clauses above have aged - "
+        "the prebuilt-image compose file this record checked for an ai-vlm "
+        "service is DELETED (the retired-paths gate keeps it gone), and "
+        "deploy.yml's matrix is now [backend, frontend] (R8 retired the "
+        "ai-llm/florence/clip/enrichment images it built). The verdict "
+        "stands, simplified: nothing to pull, one compose file, BUILD "
+        "ai-vlm locally.",
     ],
     "Serving VLM": [
         "[V 2026-09-27] the shipped mode is the VLM path: PIPELINE_MODE=vlm "

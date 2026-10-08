@@ -1,10 +1,20 @@
 # Retired paths — files deleted on purpose, which must stay gone.
 #
-# One repo-relative path per line; `#` starts a comment. scripts/test_retired_paths.py
-# fails (a) when a listed path exists again, and (b) when a LIVING doc, workflow,
-# hook or script names a listed path. Dated records keep their references: plan and
-# spec dirs, decision logs, goal prompts, archive/, docs/uplevel/, and any line
-# carrying a dated decision-log tag like [V 2026-09-28]. See the checker's docstring
+# One repo-relative path per line; `#` starts a comment. A path may declare
+# shorthand terms after `;` (comma-separated) — prose names a compose by
+# shorthand (`ghcr.yml` for `docker-compose.ghcr.yml`) and the gate cannot
+# see a shorthand the list does not declare. Declared, never derived: a
+# derived stem would give `docker-compose.ci.yml` the alias `ci.yml`, which
+# is a real file (.github/workflows/ci.yml). A line ending in `/` is a
+# directory entry: text naming anything under it flags.
+# scripts/test_retired_paths.py fails (a) when a listed path exists again, and
+# (b) when a LIVING doc, workflow, hook, script or test names a listed path
+# (by path, by basename, or by a declared term). Records keep their
+# references: the plan/spec/program-record/archive trees (docs/plans/,
+# docs/superpowers/, docs/vss-integration/, docs/uplevel/, docs/archive/,
+# archive/), goal prompts, and — in .py files only — a line carrying a dated
+# decision-log tag like [V 2026-09-28]. Markdown gets no tag exemption: a
+# prose record is a tree above, not a dated line. See the checker's docstring
 # for the full rule set.
 #
 # O1.2 (UR-17): the ghcr compose install path had no ai-vlm service, yet
@@ -12,7 +22,7 @@
 # One install path remains: setup.py plus docker-compose.prod.yml. Registry publishing
 # of backend/frontend stays (deploy.yml's smoke job pulls them by tag); it is this
 # compose file and its runbook that go.
-docker-compose.ghcr.yml
+docker-compose.ghcr.yml ; ghcr.yml
 docs/operator/ai-ghcr-deployment.md
 
 # O1.4 and O1.5 will add their own entries here (docs/uplevel/30-ops.md).
