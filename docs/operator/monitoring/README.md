@@ -108,6 +108,9 @@ curl http://localhost:8000/health
 
 Checks if the system is ready to accept traffic: database, Redis, AI services, and
 background workers (`ReadinessResponse` in `backend/api/schemas/system.py`).
+The verdict engine's own state is reported in `verdict_engine` but does not
+change the status: an unreachable `ai-vlm` keeps HTTP 200 while every event
+honestly reports the verification gap (B1.4, UR-18).
 
 ```bash
 curl http://localhost:8000/api/system/health/ready
@@ -129,16 +132,24 @@ curl http://localhost:8000/api/system/health/ready
       "details": { "redis_version": "7.4.0" }
     },
     "ai": {
-      "status": "healthy",
-      "message": "AI services reachable",
-      "details": {}
+      "status": "degraded",
+      "message": "ai-vlm service unavailable, YOLO26 operational",
+      "details": { "yolo26": "healthy", "ai-vlm": "ConnectError: connection refused" }
     }
+  },
+  "verdict_engine": {
+    "state": "unavailable",
+    "since": "2026-10-08T09:15:00Z",
+    "reason": "ConnectError: connection refused"
   },
   "workers": []
 }
 ```
 
-`status` is one of `ready`, `degraded`, `not_ready`.
+`status` is one of `ready`, `degraded`, `not_ready`. `verdict_engine.state` is
+one of `available`, `unavailable`, `unknown` (`unknown` = the probe could not
+tell — timeout, not an engine verdict); `since` is when the state TRANSITIONED,
+so "how long has the engine been down?" survives the 10 s result cache.
 
 **HTTP Status:**
 

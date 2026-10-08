@@ -24,14 +24,14 @@ GET /api/system/health
 
 Get detailed system health check including database, Redis, and AI services.
 
-**Source:** `backend/api/routes/system.py:1248-1418`
+**Source:** `backend/api/routes/system.py:1250-1420`
 
 #### Response Caching
 
 Results are cached for `HEALTH_CACHE_TTL_SECONDS` = 15 seconds, matching the
 Prometheus scrape interval to avoid redundant checks.
 
-**Source:** `backend/api/routes/system.py:338`
+**Source:** `backend/api/routes/system.py:340`
 
 #### Response
 
@@ -105,7 +105,7 @@ GET /api/system/health/ready
 
 Kubernetes-style readiness probe with detailed information.
 
-**Source:** `backend/api/routes/system.py:1453-1581`
+**Source:** `backend/api/routes/system.py:1455-1605`
 
 #### Checks Performed
 
@@ -114,11 +114,15 @@ Kubernetes-style readiness probe with detailed information.
 3. Critical pipeline workers (detection, analysis) — required when
    `READINESS_REQUIRE_PIPELINE_WORKERS=true` (default)
 4. Worker supervisor health (`supervisor_healthy`)
+5. Verdict engine (ai-vlm) availability — REPORTED (`verdict_engine`), never
+   gates the status: a down engine keeps HTTP 200 so the container healthcheck
+   and its `service_healthy` dependents don't restart a healthy backend
+   (B1.4, UR-18)
 
 Database, Redis, and AI checks run in parallel (NEM-3892); responses are
 cached for `HEALTH_CACHE_TTL_SECONDS`.
 
-**Source:** `backend/api/routes/system.py:505, 671, 719`
+**Source:** `backend/api/routes/system.py:507, 673, 721`
 
 #### Response
 
@@ -149,6 +153,11 @@ cached for `HEALTH_CACHE_TTL_SECONDS`.
     }
   ],
   "supervisor_healthy": true,
+  "verdict_engine": {
+    "state": "available",
+    "since": "2026-01-23T11:45:00Z",
+    "reason": null
+  },
   "timestamp": "2026-01-23T12:00:00Z"
 }
 ```
@@ -160,6 +169,11 @@ cached for `HEALTH_CACHE_TTL_SECONDS`.
 | 200  | Ready to receive traffic |
 | 503  | Not ready or degraded    |
 
+A down verdict engine is none of the above reasons: `verdict_engine.state`
+goes `unavailable` (with the engine's own error in `reason` and the transition
+time in `since`) while the status stays 200 — transitions also push a
+`system.verdict_engine_status_changed` event on `/ws/system` (B1.4, UR-18).
+
 ---
 
 ### WebSocket Health
@@ -170,7 +184,7 @@ GET /api/system/health/websocket
 
 Check WebSocket broadcaster health.
 
-**Source:** `backend/api/routes/system.py:1584-1662`
+**Source:** `backend/api/routes/system.py:1608-1671`
 
 #### Response
 
@@ -194,12 +208,12 @@ GET /api/system/health/full
 Comprehensive health check including all AI services and circuit breakers.
 
 **Source:** `backend/api/schemas/health.py:316-385` (schema),
-`backend/api/routes/system.py:5425-5515` (handler)
+`backend/api/routes/system.py:5449-5539` (handler)
 
 #### Response
 
 The AI service entries are the two rows of `AI_SERVICES_CONFIG`
-(`backend/api/routes/system.py:5105-5126`): `yolo26` (critical) resolves through
+(`backend/api/routes/system.py:5129-5150`): `yolo26` (critical) resolves through
 the gateway at `http://ai-gateway:8090/yolo26`, and `ai-vlm` (non-critical) is
 the verdict engine at `http://ai-vlm:8098`. Each entry's `url` is the value of
 the setting named by its `url_attr` — `yolo26_url` and `ai_vlm_url`
@@ -285,11 +299,11 @@ GET /api/system/monitoring/health
 Health of the monitoring infrastructure itself: Prometheus reachability,
 per-job scrape target summary, exporter status
 (`redis-exporter:9121`, `json-exporter:7979`, `blackbox-exporter:9115` —
-`KNOWN_EXPORTERS`, `backend/api/routes/system.py:1658-1663`), metrics
+`KNOWN_EXPORTERS`, `backend/api/routes/system.py:1682-1687`), metrics
 collection state, and an `issues` list.
 
-**Source:** `backend/api/routes/system.py:1918-2016`, schema
-`backend/api/schemas/system.py:2804` (`MonitoringHealthResponse`)
+**Source:** `backend/api/routes/system.py:1942-2040`, schema
+`backend/api/schemas/system.py:2858` (`MonitoringHealthResponse`)
 
 ---
 
@@ -304,8 +318,8 @@ Proxies Prometheus' `/api/v1/targets` and returns every scrape target with
 and `scrape_duration_seconds`, plus `total`/`up`/`down` counts and the sorted
 `jobs` list. Returns 503 if Prometheus is unreachable.
 
-**Source:** `backend/api/routes/system.py:2018-2106`, schema
-`backend/api/schemas/system.py:2890` (`MonitoringTargetsResponse`)
+**Source:** `backend/api/routes/system.py:2042-2130`, schema
+`backend/api/schemas/system.py:2944` (`MonitoringTargetsResponse`)
 
 ---
 
@@ -319,11 +333,11 @@ GET /api/system/gpu
 
 Get current GPU utilization and memory statistics.
 
-**Source:** `backend/api/routes/system.py:2253-2376`
+**Source:** `backend/api/routes/system.py:2277-2400`
 
 #### Response
 
-`GPUStatsResponse` (`backend/api/schemas/system.py:203-374`) — all fields are
+`GPUStatsResponse` (`backend/api/schemas/system.py:204-375`) — all fields are
 nullable (null when telemetry is unavailable). `pstate` and `throttle_reasons`
 are raw NVML integers, not strings or lists.
 
@@ -364,7 +378,7 @@ Results are cached in two tiers: an in-memory L1 keyed on
 `HEALTH_CACHE_TTL_SECONDS` (15s) and a Redis L2 (`CacheService` SHORT_TTL,
 60s) that also feeds Prometheus cache hit/miss metrics.
 
-**Source:** `backend/api/routes/system.py:381-431` (`GPUStatsCacheEntry`),
+**Source:** `backend/api/routes/system.py:383-433` (`GPUStatsCacheEntry`),
 `2276-2291`
 
 ---
@@ -379,7 +393,7 @@ Get recent GPU stats samples as a time-series, in the standard pagination
 envelope (NEM-2178): `items` (chronological `GPUStatsSample` records) plus
 `pagination`.
 
-**Source:** `backend/api/routes/system.py:2378-2459`
+**Source:** `backend/api/routes/system.py:2402-2483`
 
 #### Query Parameters
 
@@ -402,8 +416,8 @@ Get public (non-secret) configuration. Deprecated: the response carries
 `Deprecation`, `Sunset: 2026-07-01`, and a `Link` header pointing at
 `/api/v1/settings` as the successor.
 
-**Source:** `backend/api/routes/system.py:2461-2566`, schema
-`ConfigResponse` (`backend/api/schemas/system.py:461-539`)
+**Source:** `backend/api/routes/system.py:2485-2590`, schema
+`ConfigResponse` (`backend/api/schemas/system.py:462-540`)
 
 #### Response
 
@@ -432,11 +446,11 @@ PATCH /api/system/config
 
 Update system configuration (requires `verify_api_key`). Accepts a subset of
 processing-related settings (see `ConfigUpdateRequest`,
-`backend/api/schemas/system.py:541`); only the fields you send are changed.
+`backend/api/schemas/system.py:542`); only the fields you send are changed.
 
-**Source:** `backend/api/routes/system.py:2568-2706`. Updated values are
+**Source:** `backend/api/routes/system.py:2592-2730`. Updated values are
 merged into `data/runtime.env` (`_write_runtime_env`,
-`backend/api/routes/system.py:2534`) so they survive restarts.
+`backend/api/routes/system.py:2558`) so they survive restarts.
 
 #### Request Body
 
@@ -448,7 +462,7 @@ merged into `data/runtime.env` (`_write_runtime_env`,
 ```
 
 A separate `PATCH /api/system/anomaly-config` handler
-(`backend/api/routes/system.py:2740-2835`) updates anomaly detection
+(`backend/api/routes/system.py:2764-2859`) updates anomaly detection
 thresholds (`threshold_stdev`, `min_samples`).
 
 ---
@@ -463,8 +477,8 @@ GET /api/system/circuit-breakers
 
 Get status of all circuit breakers.
 
-**Source:** `backend/api/routes/system.py:3783-3837`, schema
-`CircuitBreakersResponse` (`backend/api/schemas/system.py:1786-1810`)
+**Source:** `backend/api/routes/system.py:3807-3861`, schema
+`CircuitBreakersResponse` (`backend/api/schemas/system.py:1840-1864`)
 
 #### Response
 
@@ -526,7 +540,7 @@ POST /api/system/circuit-breakers/{name}/reset
 
 Manually reset a circuit breaker to closed state (requires `verify_api_key`).
 
-**Source:** `backend/api/routes/system.py:3840-3923`
+**Source:** `backend/api/routes/system.py:3864-3947`
 
 #### Path Parameters
 
@@ -550,7 +564,7 @@ backoff. `GET /api/system/supervisor/status` returns the same shape, and
 `GET /api/system/supervisor/restart-history` lists past restarts
 (`RestartHistoryResponse`).
 
-**Source:** `backend/api/routes/system.py:4225-4275` (supervisor),
+**Source:** `backend/api/routes/system.py:4249-4299` (supervisor),
 `4337-4381` (status), `4538-4620` (restart-history)
 
 #### Response
@@ -576,7 +590,7 @@ backoff. `GET /api/system/supervisor/status` returns the same shape, and
 
 Worker `status` values: `running`, `stopped`, `crashed`, `restarting`,
 `failed` (exceeded restart limit). Use `POST /api/system/supervisor/reset/{worker_name}`
-(`backend/api/routes/system.py:4277-4334`) to clear a failed worker's backoff state.
+(`backend/api/routes/system.py:4301-4358`) to clear a failed worker's backoff state.
 
 ---
 
@@ -584,7 +598,7 @@ Worker `status` values: `running`, `stopped`, `crashed`, `restarting`,
 
 ### HealthResponse
 
-**Source:** `backend/api/schemas/system.py:130`
+**Source:** `backend/api/schemas/system.py:131`
 
 | Field           | Type     | Description                                   |
 | --------------- | -------- | --------------------------------------------- |
@@ -595,17 +609,19 @@ Worker `status` values: `running`, `stopped`, `crashed`, `restarting`,
 
 ### ReadinessResponse
 
-**Source:** `backend/api/schemas/system.py:641-700` (the response model used
-by `/api/system/health/ready`)
+**Source:** `backend/api/schemas/system.py:679-774` (the response model used
+by `/api/system/health/ready`; `verdict_engine`'s model is
+`VerdictEngineReadiness` at `backend/api/schemas/system.py:642-678`)
 
-| Field                | Type     | Description                          |
-| -------------------- | -------- | ------------------------------------ |
-| `ready`              | boolean  | Overall readiness                    |
-| `status`             | string   | ready / degraded / not_ready         |
-| `services`           | object   | database, redis and ai check results |
-| `workers`            | array    | Worker statuses                      |
-| `supervisor_healthy` | boolean  | Worker supervisor health             |
-| `timestamp`          | datetime | Response timestamp                   |
+| Field                | Type     | Description                                                                                                                          |
+| -------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `ready`              | boolean  | Overall readiness                                                                                                                    |
+| `status`             | string   | ready / degraded / not_ready                                                                                                         |
+| `services`           | object   | database, redis and ai check results                                                                                                 |
+| `workers`            | array    | Worker statuses                                                                                                                      |
+| `supervisor_healthy` | boolean  | Worker supervisor health                                                                                                             |
+| `verdict_engine`     | object   | ai-vlm availability (`state` available/unavailable/unknown, `since` = transition time, `reason`) — reported without gating readiness |
+| `timestamp`          | datetime | Response timestamp                                                                                                                   |
 
 A second, simpler `ReadinessResponse` (`ready` + `checks` map of
 `CheckResult`) lives at `backend/api/schemas/health.py:86-134` and backs the
@@ -682,7 +698,7 @@ The health check system uses its own lightweight circuit breaker to stop
 probing services that are repeatedly failing (distinct from the AI-call
 circuit breakers surfaced by `GET /api/system/circuit-breakers`).
 
-**Source:** `backend/api/routes/system.py:169-265`
+**Source:** `backend/api/routes/system.py:171-267`
 
 ### Configuration
 
@@ -709,7 +725,7 @@ circuit breakers surfaced by `GET /api/system/circuit-breakers`).
 | `AI_HEALTH_CHECK_TIMEOUT_SECONDS` | 3.0   | AI service check timeout                                   |
 | `MAX_CONCURRENT_HEALTH_CHECKS`    | 10    | Max concurrent checks                                      |
 
-**Source:** `backend/api/routes/system.py:332, 341, 940, 944`
+**Source:** `backend/api/routes/system.py:334, 341, 940, 944`
 
 ---
 
