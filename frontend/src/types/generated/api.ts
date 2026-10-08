@@ -10572,6 +10572,15 @@ export interface paths {
          *     This endpoint provides the same readiness check but with detailed
          *     service and worker status information.
          *
+         *     B1.4 (UR-18): the payload also reports the verdict engine's own state
+         *     (`verdict_engine: {state, since, reason}`, read off the AI-health probe —
+         *     see backend/services/verdict_engine_status.py). It is REPORTED but never
+         *     gates `ready`/HTTP status: an unreachable ai-vlm turns every event into
+         *     verification_failed, yet the container healthcheck and every
+         *     service_healthy dependency read THIS status code — a down engine must not
+         *     take the platform with it. State transitions push
+         *     system.verdict_engine_status_changed over WebSocket.
+         *
          *     Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
          *     If this endpoint returns not_ready, the instance should not receive new requests.
          *
@@ -23472,7 +23481,7 @@ export interface components {
          *       ],
          *       "deprecated_count": 3,
          *       "event_types": [],
-         *       "total_count": 25
+         *       "total_count": 29
          *     }
          */
         EventRegistryResponse: {
@@ -36494,6 +36503,9 @@ export interface components {
          *     - Redis connectivity
          *     - AI services availability
          *     - Background worker status
+         *
+         *     The verdict engine's state (``verdict_engine``) is REPORTED here but never
+         *     gates the HTTP status — see its field description (B1.4, UR-18).
          * @example {
          *       "ready": true,
          *       "services": {
@@ -36516,6 +36528,10 @@ export interface components {
          *       "status": "ready",
          *       "supervisor_healthy": true,
          *       "timestamp": "2025-12-23T10:30:00",
+         *       "verdict_engine": {
+         *         "since": "2026-10-08T09:15:00Z",
+         *         "state": "available"
+         *       },
          *       "workers": [
          *         {
          *           "name": "gpu_monitor",
@@ -36565,6 +36581,8 @@ export interface components {
              * @description Timestamp of readiness check
              */
             timestamp: string;
+            /** @description Verdict engine (ai-vlm) availability, reported WITHOUT gating readiness: an unavailable engine keeps HTTP 200 — the backend container's healthcheck and every service_healthy dependency read this status, and a down engine must not take the platform with it (B1.4, UR-18) */
+            verdict_engine: components["schemas"]["VerdictEngineReadiness"];
             /**
              * Workers
              * @description Status of background workers
@@ -41688,6 +41706,46 @@ export interface components {
          * @enum {string}
          */
         VehicleType: "car" | "truck" | "motorcycle" | "suv" | "van" | "other";
+        /**
+         * VerdictEngineReadiness
+         * @description Verdict-engine (ai-vlm) availability reported by the readiness probe.
+         *
+         *     B1.4 (UR-18): the engine's state must be visible to callers even though
+         *     it deliberately does NOT gate readiness — a down engine turns every event
+         *     into ``verification_failed`` while the platform itself is healthy, and the
+         *     container healthcheck reads this endpoint's HTTP status.
+         * @example {
+         *       "reason": "ConnectError: connection refused",
+         *       "since": "2026-10-08T12:00:00Z",
+         *       "state": "unavailable"
+         *     }
+         */
+        VerdictEngineReadiness: {
+            /**
+             * Reason
+             * @description Engine's own error string while unavailable, why the probe cannot tell while unknown, null while available
+             */
+            reason?: string | null;
+            /**
+             * Since
+             * Format: date-time
+             * @description When the state last TRANSITIONED (not when it was read) — 'how long has this been down?' survives the readiness cache
+             */
+            since: string;
+            /** @description Engine reachability per the health probe: 'available' (probe reached it), 'unavailable' (probe's own error string), 'unknown' (probe could not tell — honest third state) */
+            state: components["schemas"]["VerdictEngineState"];
+        };
+        /**
+         * VerdictEngineState
+         * @description Verdict-engine (ai-vlm) availability states — B1.4 (UR-18).
+         *
+         *     Answers "is the engine reachable per the health probe", NOT "can it
+         *     produce verdicts" (its /health answers while generation is broken).
+         *     UNKNOWN is honest third-state: the probe could not tell (timeout, missing
+         *     detail) — never folded into the two definite answers.
+         * @enum {string}
+         */
+        VerdictEngineState: "available" | "unavailable" | "unknown";
         /**
          * VerificationCriterion
          * @description One entry of the criteria checklist the VLM must satisfy (spec §3

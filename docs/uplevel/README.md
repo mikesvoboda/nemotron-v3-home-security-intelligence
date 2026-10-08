@@ -227,10 +227,10 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | package | lane                    | phase      | name                                           | flags         | status      | PR  |
 | ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
 | O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | done        | #6855 |
-| B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | not started |     |
+| B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | awaiting real tier | #6868 |
 | B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | not started |     |
 | B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | done        | #6880 |
-| B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | not started |     |
+| B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | awaiting real tier | #6886 |
 | B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | not started |     |
 | B1.6    | backend                 | 1          | Scope the orchestrator and its recovery (D11)  | heavy · owner | not started |     |
 | F1.1    | frontend                | 1          | Endpoint truth (D2)                            |               | not started |     |
@@ -277,7 +277,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | OB.3    | ops                     | after 1    | Image weight                                   |               | not started |     |
 | OB.4    | ops                     | on trigger | Lane map and cross-lane check                  |               | not started |     |
 | W1.1    | docs                    | 1          | The validator with teeth                       |               | not started |     |
-| W1.2    | docs                    | 1          | Root truth                                     |               | not started |     |
+| W1.2    | docs                    | 1          | Root truth                                     |               | done        | #6884 |
 | W1.3    | docs                    | 1          | Remove dead references now                     |               | not started |     |
 | W2.1    | docs                    | 2          | The boundary list and the line caps            |               | not started |     |
 | W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | not started |     |

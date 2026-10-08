@@ -122,6 +122,9 @@ class WebSocketEventType(StrEnum):
     SYSTEM_HEALTH_CHANGED = "system.health_changed"
     """Overall system health status changed."""
 
+    SYSTEM_VERDICT_ENGINE_STATUS_CHANGED = "system.verdict_engine_status_changed"
+    """Verdict engine (ai-vlm) availability transitioned (B1.4, UR-18)."""
+
     SYSTEM_ERROR = "system.error"
     """System-level error occurred."""
 
@@ -470,6 +473,12 @@ EVENT_TYPE_METADATA: dict[WebSocketEventType, dict[str, Any]] = {
         "channel": "system",
         "requires_payload": True,
         "payload_fields": ["health", "previous_health", "components"],
+    },
+    WebSocketEventType.SYSTEM_VERDICT_ENGINE_STATUS_CHANGED: {
+        "description": "Verdict engine (ai-vlm) availability changed (B1.4, UR-18)",
+        "channel": "system",
+        "requires_payload": True,
+        "payload_fields": ["state", "previous_state", "since", "reason", "source"],
     },
     WebSocketEventType.SYSTEM_ERROR: {
         "description": "System-level error occurred",

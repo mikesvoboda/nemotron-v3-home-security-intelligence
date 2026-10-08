@@ -6,13 +6,13 @@ This file is the project's **single root instruction file** (owner ruling 2026-0
 
 ## Purpose
 
-This is the root directory of the **Home Security Intelligence** project - an AI-powered home security monitoring dashboard that processes Foscam camera uploads through YOLO26 for object detection and the local `ai-vlm` llama.cpp engine (VLMAnalyzer) for contextual risk assessment. (R8 S2, 2026-09-29: this line named Nemotron until the legacy LLM path was deleted - see ledger row 44 and commit `602379e2`.)
+This is the root directory of the **Home Security Intelligence** project - an AI-powered home security monitoring dashboard that processes Foscam camera uploads through YOLO26 for object detection and the local `ai-vlm` llama.cpp engine (VlmAnalyzer) for contextual risk assessment. (R8 S2, 2026-09-29: this line named Nemotron until the legacy LLM path was deleted - see ledger row 44 and commit `602379e2`.)
 
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Tailwind + Tremor
 - **Backend:** Python FastAPI + PostgreSQL + Redis
-- **AI:** YOLO26 (object detection) + the `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29)
+- **AI:** YOLO26 (object detection) + the `ai-vlm` llama.cpp engine (VlmAnalyzer; risk reasoning — model identity is config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29)
 - **GPU:** NVIDIA RTX A5500 (24GB)
 - **Cameras:** Foscam FTP uploads to `/export/foscam/{camera_name}/`
 
@@ -24,7 +24,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | Linear operations     | **`/linear-python` skill only** — never call Linear MCP tools directly                                                       |
 | Testing guide         | `docs/developer/testing.md`                                                                                                  |
 | Git workflow guide    | `docs/developer/git-workflow.md`                                                                                             |
-| Ports / env reference | `.env.example` + `docs/reference/config/env-reference.md` (authoritative runtime reference)                                  |
+| Ports / env reference | `.env.example` + `docs/reference/config/env-reference.md` (authoritative runtime settings reference)                         |
 | Health verification   | `/platform-healthcheck` skill                                                                                                |
 | Post-MVP roadmap      | `docs/ROADMAP.md` (pursue **after Phases 1-8 are operational**)                                                              |
 
@@ -149,7 +149,7 @@ ports:
   - '127.0.0.1:8097:8000'
 ```
 
-Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` — it is the tunnel/Brev entry point); loopback binding is the primary security boundary. **When adding new services:** add the port variable to `.env.example` first, then reference it in docker-compose. The port tables live in **Service Ports** below; `docs/reference/config/env-reference.md` is the authoritative runtime reference.
+Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` — it is the tunnel/Brev entry point); loopback binding is the primary security boundary. **When adding new services:** add the port variable to `.env.example` first, then reference it in docker-compose. The port tables live in **Service Ports** below; `docs/reference/config/env-reference.md` is the authoritative runtime settings reference.
 
 ## Key Files in Root
 
@@ -238,7 +238,7 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 │   └── tests/            # Unit and integration tests
 ├── certs/                # SSL certificates directory (placeholder)
 ├── config/               # Runtime YAML configs (tracker configs, quality baselines)
-├── data/                 # Runtime data directory (logs, thumbnails, gitignored)
+├── data/                 # Runtime data home (runtime subdirs gitignored — logs/, certs/, calibration/, profiles/; eval/benchmark/synthetic content tracked)
 ├── docker/               # Shared container base images (base.Dockerfile)
 ├── docs/                 # Documentation (full index: docs/AGENTS.md)
 │   ├── ai/               # AI model-zoo and pipeline documentation
@@ -250,7 +250,7 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 │   ├── decisions/        # Architecture Decision Records (ADRs)
 │   ├── deployment/       # Container-orchestration docs (startup, health checks)
 │   ├── developer/        # Developer-focused documentation (testing, git, quality)
-│   ├── discoveries/      # NEM-tagged discovery notes
+│   ├── discoveries/      # Incident post-mortem notes (the NEM-tagged set moved to docs/archive/ in 7fba36a6)
 │   ├── getting-started/  # Installation and first-run guides
 │   ├── guides/           # Feature guides (video analytics, zones, faces)
 │   ├── images/           # Visual assets (mockups, diagrams)
@@ -258,7 +258,7 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 │   ├── operator/         # Operator-focused documentation (admin, deployment, monitoring)
 │   ├── performance/      # Performance analyses
 │   ├── plans/            # Design and implementation plans
-│   ├── reference/        # Reference docs (api, config, troubleshooting)
+│   ├── reference/        # Reference docs (config, troubleshooting, benchmarks)
 │   ├── research/         # Numbered research studies
 │   ├── testing/          # Pointer stub — living testing docs are in developer/
 │   ├── ui/               # Page-by-page UI documentation
@@ -273,7 +273,7 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 │   │   ├── pages/        # Route-level page components
 │   │   ├── mocks/        # MSW mock handlers for testing
 │   │   ├── services/     # API client
-│   │   ├── stores/       # Zustand stores (dashboard, settings, queues)
+│   │   ├── stores/       # Zustand stores (dashboard, settings, metrics, workers, alerts, rate-limits, storage)
 │   │   ├── styles/       # CSS/Tailwind
 │   │   ├── test/         # Test setup and configuration
 │   │   ├── __tests__/    # Global test files (API contracts, matchers)
@@ -348,7 +348,7 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 ## Key Design Decisions
 
 - **Database:** PostgreSQL (migrated from SQLite for concurrent write support)
-- **Risk scoring:** LLM-determined (the `ai-vlm` llama.cpp engine — VLMAnalyzer — analyzes detections and assigns 0-100 score; the Nemotron path retired in R8 S2, 2026-09-29)
+- **Risk scoring:** LLM-determined (the `ai-vlm` llama.cpp engine — VlmAnalyzer — analyzes detections and assigns 0-100 score; the Nemotron path retired in R8 S2, 2026-09-29)
 - **Batch processing:** 90-second time windows with 30-second idle timeout (`batch_window_seconds` / `batch_idle_timeout_seconds` defaults in `backend/core/config.py`)
 - **Auth model:** Single-user local deployment. First-time admin registration required — `SetupGuardMiddleware` returns 503 for all non-whitelisted requests until the first user exists (`backend/api/middleware/setup_guard.py`). After registration, API endpoints are open — no per-request login required. Network binding to `127.0.0.1` is the primary security boundary. Admin/destructive operations are guarded by per-route dependencies (`verify_api_key`, `require_admin_access`). The global `AuthMiddleware` class exists for future multi-user support but is **not active** (disabled per NEM-5527).
 - **Retention:** 30 days (`retention_days` default)
@@ -357,9 +357,9 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 ## Data Flow
 
 1. Cameras FTP upload images/videos to `/export/foscam/{camera_name}/`
-2. File watcher detects new files, sends to YOLO26
-3. Detections accumulate in Redis queue
-4. Every 90 seconds (or 30s idle), batch sent to the `ai-vlm` VLMAnalyzer for risk assessment
+2. File watcher detects new files and enqueues jobs (file paths) to the Redis `detection_queue`
+3. A detection worker runs YOLO26 (ai-gateway `/yolo26`); detection IDs accumulate in Redis batch lists (`batch:{batch_id}:detections`) and closed batches are pushed to `analysis_queue`
+4. Every 90 seconds (or 30s idle), batch sent to the `ai-vlm` VlmAnalyzer for risk assessment
 5. Results stored in PostgreSQL, pushed to dashboard via WebSocket
 
 ## Entry Points for Agents
@@ -435,7 +435,7 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 
 ## Service Ports
 
-Host ports come from `.env` (defaults shown below are from `.env.example`); `docs/reference/config/env-reference.md` is the authoritative reference. `docker-compose.prod.yml` defines 21 services; 19 start by default — vLLM (profile `vllm`) and dcgm-exporter (profile `gpu-rootful`) are opt-in.
+Host ports come from `.env` (defaults shown below are from `.env.example`); `docs/reference/config/env-reference.md` is the authoritative reference for the backend settings vars (it does not document the monitoring-stack port vars below — those live in `.env.example` and `docs/developer/PORT_STANDARDIZATION.md`). `docker-compose.prod.yml` defines 21 services; 19 start by default — vLLM (profile `vllm`) and dcgm-exporter (profile `gpu-rootful`) are opt-in.
 
 ### Core Services
 
@@ -456,9 +456,9 @@ Host ports come from `.env` (defaults shown below are from `.env.example`); `doc
 | AI Gateway           | 8090      | Single AI entrypoint (Triton); routers `/yolo26` + `/enrich-lt` only (the rest were deleted, R8 S3)      |
 | AI Gateway metrics   | 8002      | Gateway Prometheus metrics (`AI_GATEWAY_METRICS_PORT`)                                                   |
 | vLLM (optional)      | 8097      | LLM benchmark harness (NEM-5441) — compose profile `vllm`, off by default                                |
-| VLM llama.cpp engine | 8098      | `ai-vlm` llama.cpp engine (VLMAnalyzer; model identity is config, ledger D5), in the default compose set |
+| VLM llama.cpp engine | 8098      | `ai-vlm` llama.cpp engine (VlmAnalyzer; model identity is config, ledger D5), in the default compose set |
 
-Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `YOLO26_PORT=8095`, `FLORENCE_PORT=8092`, `CLIP_PORT=8093`, `ENRICHMENT_PORT=8094` and `ENRICHMENT_LIGHT_PORT=8096` in `.env.example` are legacy values kept for reference and local dev scripts only. The `JAEGER_*` and `ELASTICSEARCH_*` port vars were removed — tracing is Grafana Tempo (NEM-5545) on `TEMPO_PORT=3200`, and Tempo is self-contained (no Jaeger/Elasticsearch storage backend).
+Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `YOLO26_PORT=8095` and `LLM_PORT=8091` (the retired `ai-llm` service's port) are the only ones of these values still in `.env.example` (dev stand-ins with no prod-compose consumer — `YOLO26_PORT` is read by `ai/start_detector.sh`); `FLORENCE_PORT`, `CLIP_PORT`, `ENRICHMENT_PORT` and `ENRICHMENT_LIGHT_PORT` were removed from `.env.example` in the R8 residue sweep (`e40d69f5`). The `JAEGER_*` and `ELASTICSEARCH_*` port vars were removed — tracing is Grafana Tempo (NEM-5545) on `TEMPO_PORT=3200`, and Tempo is self-contained (no Jaeger/Elasticsearch storage backend).
 
 ### Monitoring Stack
 
@@ -477,7 +477,7 @@ Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrich
 | Blackbox exporter | 9115  | Endpoint probes                             |
 | DCGM exporter     | 9400  | NVIDIA GPU metrics                          |
 
-> **Frontend Port Note:** In production (`docker-compose.prod.yml`) the nginx container publishes host 8444 → internal 8443 (HTTPS) and host 8080 → internal 8080 (plain HTTP for Cloudflare tunnel / Brev secure link), both bound to 0.0.0.0. SSL is `false` in the compose default but `setup.py` writes `SSL_ENABLED=true` into the `.env` it generates. In local development (`npm run dev`) Vite serves HTTPS on port **8444** (strictPort). `FRONTEND_PORT=5173` in `.env.example` is no longer referenced by any prod compose port mapping; only the legacy `dev` target of `frontend/Dockerfile` still runs Vite on 5173.
+> **Frontend Port Note:** In production (`docker-compose.prod.yml`) the nginx container publishes host 8444 → internal 8443 (HTTPS) and host 8080 → internal 8080 (plain HTTP for Cloudflare tunnel / Brev secure link), both bound to 0.0.0.0. SSL is `false` in the compose default but `setup.py` writes `SSL_ENABLED=true` into the `.env` it generates. In local development (`npm run dev`) Vite binds port **8444** (strictPort) with `https: true` (`frontend/vite.config.ts`) — but Vite 7 no longer generates a cert itself, so the handshake fails until you add a cert provider (e.g. `@vitejs/plugin-basic-ssl`) or supply `server.https` key/cert paths. `FRONTEND_PORT=5173` in `.env.example` is no longer referenced by any prod compose port mapping; only the legacy `dev` target of `frontend/Dockerfile` still runs Vite on 5173.
 
 ## Session Workflow
 
@@ -499,6 +499,6 @@ Infrastructure work additionally requires the **Infrastructure Verification** ch
 
 - **Issue Tracker:** [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) (Team: NEM)
 - **Documentation:** `docs/` directory (index: `docs/AGENTS.md`)
-- **Runtime Config:** `docs/reference/config/env-reference.md` (authoritative port/env reference)
+- **Runtime Config:** `docs/reference/config/env-reference.md` (authoritative reference for backend settings vars)
 - **Coverage Reports:** `coverage/backend/index.html` and `frontend/coverage/index.html`
 - **Feature Guides:** [Multi-GPU](docs/developer/multi-gpu.md) · [Video Analytics](docs/guides/video-analytics.md) · [Zone Configuration](docs/guides/zone-configuration.md) · [Face Recognition](docs/guides/face-recognition.md)

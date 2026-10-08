@@ -27,7 +27,7 @@ Mechanism details: [Continuous Profiling Guide](../guides/profiling.md).
 
 Grafana serves from the `/grafana/` sub-path
 (`GF_SERVER_ROOT_URL=/grafana/`, `GF_SERVER_SERVE_FROM_SUB_PATH=true`,
-`docker-compose.prod.yml:1090-1091`) on host port `${GRAFANA_PORT:-3002}`, bound
+`docker-compose.prod.yml:1095-1096`) on host port `${GRAFANA_PORT:-3002}`, bound
 to `127.0.0.1`.
 
 ---
@@ -806,7 +806,7 @@ Grafana serves from `/grafana/`, so its API lives at
 (`GF_AUTH_ANONYMOUS_ENABLED=true`), and the admin pair is
 `GF_ADMIN_USER`/`GF_ADMIN_PASSWORD` (both default `admin`). The provisioning
 directory is bind-mounted read-only
-(`docker-compose.prod.yml:1069`).
+(`docker-compose.prod.yml:1074`).
 
 **Procedure:**
 

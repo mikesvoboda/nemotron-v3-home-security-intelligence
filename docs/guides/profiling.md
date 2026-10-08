@@ -30,7 +30,7 @@ reverse proxy (`frontend/nginx.conf:117`).
 | **Refresh**         | Reloads the embedded dashboard                                            |
 
 Grafana's own host port is `127.0.0.1:${GRAFANA_PORT:-3002}:3000`
-(`docker-compose.prod.yml:1066`); set `GRAFANA_PORT` in `.env` if that collides.
+(`docker-compose.prod.yml:1071`); set `GRAFANA_PORT` in `.env` if that collides.
 
 ### Direct Access
 
@@ -259,7 +259,7 @@ podman-compose -f docker-compose.prod.yml restart pyroscope
 ```
 
 The `pyroscope_data` volume holds the profile blocks
-(`docker-compose.prod.yml:1298`, `:1495`).
+(`docker-compose.prod.yml:1303`, `:1500`).
 
 ## Common Use Cases
 
@@ -328,7 +328,7 @@ below.
 ```bash
 # 1. Find slow traces (e.g., requests > 5 seconds)
 # In Tempo: service=nemotron-backend, minDuration=5s
-# (that is OTEL_SERVICE_NAME, docker-compose.prod.yml:625)
+# (that is OTEL_SERVICE_NAME, docker-compose.prod.yml:630)
 
 # 2. Get trace_id from the slow trace
 # Example: 0123456789abcdef0123456789abcdef
@@ -377,7 +377,7 @@ Two facts about that query decide whether the **Profiles** tab ever shows data:
 
 1. The trace service name must exist as a Pyroscope `service_name`. Backend
    traces carry `service.name=nemotron-backend` (`OTEL_SERVICE_NAME`,
-   `docker-compose.prod.yml:625`), which is a real profile name — but a trace
+   `docker-compose.prod.yml:630`), which is a real profile name — but a trace
    from `ai-gateway` or `ai-vlm` carries `ai-gateway` / `ai-vlm`, and only
    `ai-vlm` has profiles.
 2. The profile must carry a `trace_id` tag, which requires tracing enabled at
@@ -652,7 +652,7 @@ compute-bound or memory-bound.
 ### Accessing GPU Metrics
 
 `dcgm-exporter` listens on `:9400` (`DCGM_EXPORTER_LISTEN=:9400`, published as
-`127.0.0.1:${DCGM_EXPORTER_PORT:-9400}`, `docker-compose.prod.yml:1391-1395`).
+`127.0.0.1:${DCGM_EXPORTER_PORT:-9400}`, `docker-compose.prod.yml:1396-1400`).
 It sits on the `gpu-rootful` compose profile, and the `dcgm-exporter` job
 scrapes it at 15s through a host-network target (`monitoring/prometheus.yml`,
 job `dcgm-exporter`) because DCGM's `nv-hostengine` needs host-level root and
@@ -686,7 +686,7 @@ DCGM_FI_DEV_POWER_USAGE
 
 The exported set is exactly what
 `monitoring/dcgm/custom-counters.csv` lists (mounted over the exporter default
-counters at `docker-compose.prod.yml:1389`):
+counters at `docker-compose.prod.yml:1394`):
 
 | Metric                                       | Description                   | Unit    |
 | -------------------------------------------- | ----------------------------- | ------- |

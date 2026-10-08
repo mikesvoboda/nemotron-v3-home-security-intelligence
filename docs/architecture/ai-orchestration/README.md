@@ -91,7 +91,7 @@ flowchart TB
 ## VRAM Budget Allocation
 
 GPU placement comes from `GPU_LLM` (the ai-vlm card) and `GPU_AI_SERVICES` (the ai-gateway card),
-both in `.env.example:554` and `:946`. On a single-GPU box both are `0`.
+both in `.env.example:419` and `:806`. On a single-GPU box both are `0`.
 
 | Component                                      | VRAM                                                              |
 | ---------------------------------------------- | ----------------------------------------------------------------- |
@@ -156,7 +156,7 @@ Both AI clients use the same breaker machinery (`backend/services/circuit_breake
 
 The detector's breaker is `detector_yolo26` with `failure_threshold=5, recovery_timeout=60.0`
 (`backend/services/detector_client.py:336`). The VLM client's breaker is named `ai-vlm` with the
-same threshold and timeout (`backend/services/vlm_client.py:82,247`).
+same threshold and timeout (`backend/services/vlm_client.py:93,318`).
 
 See [fallback-strategies.md](./fallback-strategies.md) for what the shipped path does with each
 failure.

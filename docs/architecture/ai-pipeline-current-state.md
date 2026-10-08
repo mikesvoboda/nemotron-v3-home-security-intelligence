@@ -105,7 +105,7 @@ then answers `200` on `/health`, so both health checks pass:
 `ai/download_models.sh:493-497` says the weights are **not fetched** by the script and that "the
 mmproj projector is required, without it the serve is text-only and every `vlm_assess` call
 degrades silently". Compounding it, `backend`'s `depends_on` names `postgres`, `redis`,
-`ai-gateway` and `go2rtc` — **not** `ai-vlm` (`prod.yml:634-646`), on purpose: `ai-vlm` failing
+`ai-gateway` and `go2rtc` — **not** `ai-vlm` (`prod.yml:639-651`), on purpose: `ai-vlm` failing
 must never take the rest of the stack down, so degradation is left to the `vlm_analyzer` ladder
 rather than a compose edge (`prod.yml:127-130`, the service's header comment).
 
@@ -203,7 +203,7 @@ empty/None) and search/export still read `object_types`/`search_vector`. Permane
 NULL-shaped residue.
 
 Severity bands ship as 0-29 / 30-59 / 60-84 / 85-100 (`config.py:2423-2436`; not set in
-`.env.example` or compose) and are **runtime-mutable** via `api/routes/system.py:3459` and the
+`.env.example` or compose) and are **runtime-mutable** via `api/routes/system.py:3483` and the
 update route near `:3548`. `api/schemas/events.py:21-23` keeps a **second, hardcoded copy**
 (`_DEFAULT_LOW_MAX=29`/`_MEDIUM_MAX=59`/`_HIGH_MAX=84`) for the REST-computed `risk_level`, which
 silently disagrees with the DB-stored `risk_level` after any runtime threshold update.
