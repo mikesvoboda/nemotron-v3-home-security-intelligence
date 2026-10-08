@@ -142,7 +142,8 @@ One package per PR. Write the failing test first. Before marking the PR ready,
 dispatch a fresh-context subagent to self-review it against the package's Done
 when, and record what it found. Keep commit subjects at 72 characters or fewer.
 State only what you have just read (UR-31): every commit, PR, file, test result
-and question you cite comes from output you ran in the same turn. When the plan
+and question you cite comes from output you ran in the same turn. Before
+resuming work, read the new comments on your own open PRs (UR-35). When the plan
 does not answer a question, stop and report the question.
 ```
 
@@ -151,12 +152,51 @@ creates each agent with `agent-dgx run <session> --agent claude --endpoint dgx -
 `uplevel-heavy`, the arguments that select the strongest model), then pastes its kickoff line:
 "Follow the kickoff prompt in <the roster's file>", plus the cell sentence for a split lane.
 
+Then the owner arms the agent's tick (below, "The tick").
+
 1. Phase 0: the owner starts `uplevel-coordinator` and `uplevel-ops-b`.
 2. The coordinator creates the labels and the pinned "Uplevel daily batch" issue, and assigns
    `O0.1` to ops cell B.
 3. Phase 1: the owner starts the rest of the roster, without waiting for `O0.1`.
 4. `uplevel-ops-b` builds `O0.1` first in its queue. From the Phase 2 boundary on, the owner runs
    the launcher instead of starting agents by hand.
+
+## The tick (UR-36)
+
+Agents act only when prompted, so each one runs on a cadence. After pasting an agent's kickoff line,
+the owner arms its tick with Claude Code's `/loop`. The tick's prompt re-runs verbatim on every
+tick, fires only between turns (a busy agent gets it once, when its turn ends, and missed ticks do
+not pile up), and points here, so an edit to this section reaches every agent at its next tick.
+
+| agent                 | arm with                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------- |
+| coordinator           | `/loop 5m Run the coordinator tick in docs/uplevel/50-coordination.md, "The tick".` |
+| lane agents and heavy | `/loop 15m Run the agent tick in docs/uplevel/50-coordination.md, "The tick".`      |
+| operator              | `/loop 30m Run the operator tick in docs/uplevel/50-coordination.md, "The tick".`   |
+
+Every tick starts with `git fetch origin` and reads this section from `origin/main`
+(`git show origin/main:docs/uplevel/50-coordination.md`), so a change here needs no rebase.
+
+**The agent tick,** in order:
+
+1. Reviews first: clear the PRs labelled with your review label (UR-32). Heavy has none.
+2. Your own open PRs: read the new comments and reviews (UR-35), confirm CI is green at the head
+   (UR-34), fix what is red, answer what is requested, and rebase what conflicts with `main`.
+3. Continue your package, or take the next one as your kickoff prompt says.
+4. If none of these has work, say so in one line and end the turn.
+
+**The coordinator tick:** rebuild state from open PRs, labels and the batch issue; read the new
+comments on every open programme PR and on the batch issue; route what needs routing; label ready
+PRs for review; merge what meets the merge rule, one at a time; post the daily batch when its time
+comes; otherwise say so in one line and end the turn.
+
+**The operator tick:** take the oldest README row on `main` that says `awaiting real tier` and run it
+(`operator.md`); otherwise say so in one line and end the turn.
+
+**Keeping ticks alive.** A recurring `/loop` expires seven days after it is armed, and a restarted or
+resumed session drops it. The owner re-arms each tick weekly, and after a restart or a `/clear`:
+first ask the agent to list its scheduled tasks, and arm a new tick only if none is listed, so ticks
+never run twice.
 
 ## Claiming a package
 
@@ -219,7 +259,10 @@ the daily batch.
 The status table marks the fixed ones `owner`.
 
 **4. Merge.** The coordinator merges a PR when CI is green, its review says approve, and — for the
-owner tier — the owner has approved. It keeps the repository's existing merge style. Because
+owner tier — the owner has approved. **Green** means the required check
+`CI Gate (Required Checks)` is present and passed at the PR's head (UR-34). A check list with no
+failures is not enough: when GitHub rejects a workflow file, its run fails with no jobs and leaves no
+check behind, so `gh run list --commit <head>` shows the failure and the PR's checks do not. It keeps the repository's existing merge style. Because
 `main` requires branches to be up to date, the coordinator updates one queued PR at a time
 (`gh pr update-branch`) and waits for its CI, rather than rebasing every open PR at once.
 
@@ -233,15 +276,16 @@ counts once the coordinator has quoted it on the batch issue, with the owner's w
 
 Files many packages change. The coordinator sequences their merges; authors follow these rules.
 
-| file                                                       | rule                                                                                                                                                                                               |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/openapi.json`, `frontend/src/types/generated/api.ts` | regenerate after rebasing, never hand-merge                                                                                                                                                        |
-| the README status table                                    | edit only your own package's line; prettier skips the table, so leave the other rows' padding alone                                                                                                |
-| `backend/core/config.py`, `.env.example`, compose files    | small hunks; rebase immediately before merge; the coordinator merges one at a time                                                                                                                 |
-| `.github/workflows/ci.yml` (3,320 lines)                   | add a new check as its own job, or as its own workflow file, never by editing shared jobs                                                                                                          |
-| `.pre-commit-config.yaml`, `backend/main.py`               | small hunks; one at a time                                                                                                                                                                         |
-| `scripts/retired_paths.txt`                                | append-only                                                                                                                                                                                        |
-| `.github/suppression-baseline.json`, `.secrets.baseline`   | counts and line numbers: regenerate after rebasing, immediately before merge; never hand-merge a count — two PRs that each add one marker both write the same number, and git merges them silently |
+| file                                                       | rule                                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `docs/openapi.json`, `frontend/src/types/generated/api.ts` | regenerate after rebasing, never hand-merge                                                                                                                                                                                                            |
+| the README status table                                    | edit only your own package's line; prettier skips the table, so leave the other rows' padding alone                                                                                                                                                    |
+| `backend/core/config.py`, `.env.example`, compose files    | small hunks; rebase immediately before merge; the coordinator merges one at a time                                                                                                                                                                     |
+| `.github/workflows/ci.yml` (3,320 lines)                   | add a new check as its own job, or as its own workflow file, never by editing shared jobs                                                                                                                                                              |
+| `.github/workflows/*.yml`                                  | before pushing, run `actionlint` (`docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest -shellcheck= -pyflakes= .github/workflows/*.yml`) and compare its findings with `main`'s (UR-34); a YAML parse does not check GitHub's expressions |
+| `.pre-commit-config.yaml`, `backend/main.py`               | small hunks; one at a time                                                                                                                                                                                                                             |
+| `scripts/retired_paths.txt`                                | append-only                                                                                                                                                                                                                                            |
+| `.github/suppression-baseline.json`, `.secrets.baseline`   | counts and line numbers: regenerate after rebasing, immediately before merge; never hand-merge a count — two PRs that each add one marker both write the same number, and git merges them silently                                                     |
 
 ## Heavy packages (UR-24)
 
@@ -294,7 +338,14 @@ check you cite in a batch, a comment or a message to the owner comes from gh or
 git output you ran in the same turn; when a command fails or its answer is
 unclear, say that instead. Before each merge, re-read the PR and post a merge
 comment quoting its checks, its approving review and, for the owner tier, the
-owner's approval.
+owner's approval. CI is green only when the required check CI Gate (Required
+Checks) is present and passed at the head; also read gh run list --commit
+<head>, since a rejected workflow file fails with no jobs and leaves no check
+(UR-34).
+
+Agents read GitHub only when their prompt sends them there. Put what an agent
+must act on where it looks: a review:<lane> label, or a comment on that agent's
+own open PR, which it reads before resuming work (UR-35).
 
 Post one daily batch as a comment on the pinned issue, in the format
 50-coordination.md gives. Interrupt the owner between batches only on the

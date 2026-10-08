@@ -84,7 +84,7 @@ jobs:
         # workflow at parse time (failing run, 0 jobs, no log) on every push
         # since it was added. The key arrives via env below; the script fails
         # with a clear message if the secret is unset.
-        if: steps.check-drift.outputs.drift_detected == 'true'
+        if: vars.LINEAR_ENABLED == 'true' && (steps.check-drift.outputs.drift_detected == 'true')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -97,7 +97,7 @@ jobs:
 
       - name: Comment on PR with drift summary
         if: github.event_name == 'pull_request' && steps.check-drift.outputs.drift_detected == 'true'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3    # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: ${{ github.token }}
           script: |
@@ -147,7 +147,7 @@ jobs:
 
       - name: Upload drift report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: drift-report
           path: drift-report.json
