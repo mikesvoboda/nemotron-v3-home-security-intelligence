@@ -217,7 +217,7 @@ jobs:
 
       - name: Save baseline for future comparisons
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9    # v6.1.0
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .benchmarks
           key: benchmark-baseline-${{ runner.os }}-${{ hashFiles('backend/tests/benchmarks/**/*.py') }}-${{ github.sha }}
@@ -257,7 +257,7 @@ jobs:
 
       - name: Create Linear issue on failure
         # Create Linear issue for any failure (PRs and main pushes)
-        if: needs.benchmarks.result == 'failure'
+        if: vars.LINEAR_ENABLED == 'true' && (needs.benchmarks.result == 'failure')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -178,6 +178,7 @@ Packages cite these as `UR-n`.
 | UR-33 | With `EXPOSE_LAN=true`, monitoring is denied by default like every other path: `B1.5` closes `/api/metrics` and `/api/system/{gpu,stats,telemetry}`, and `O1.11` gives the monitoring callers credentials and puts `/grafana/` behind the app's login. The default, unexposed mode is unchanged. |
 | UR-34 | CI is green only when the required check `CI Gate (Required Checks)` is present and passed at the PR's head; a workflow change runs `actionlint` against `main`'s findings before it is pushed.                                                                                                  |
 | UR-35 | Agents read the new comments on their own open PRs before resuming a package; an owner ruling or a requested change there comes before new work.                                                                                                                                                 |
+| UR-36 | Every agent runs on a `/loop` tick that checks GitHub — coordinator 5 minutes, lanes and heavy 15, operator 30 (`50-coordination.md`, "The tick"). GitHub stays the only channel between agents; the owner re-arms ticks weekly and after a restart.                                             |
 
 Already ruled in the register and executed here: OD-12 (loopback unless `EXPOSE_LAN=true`,
 deny-by-default auth when exposed) by `B1.5`, `F1.3` and `O1.6`; OD-20 (retire the enrichment

@@ -2,6 +2,13 @@
 
 This document covers Linear MCP tools, workflow state UUIDs, and usage examples for issue management.
 
+## CI integration is off
+
+Every workflow step that calls Linear runs only when the repository variable `LINEAR_ENABLED` is
+`true`. It is unset since 2026-10-08, because the `LINEAR_API_KEY` secret returns `401` and the
+failing sync step turned `AGENTS.md Validation` red on `main`. To reconnect, rotate the secret,
+then run `gh variable set LINEAR_ENABLED --body true`. The Linear MCP tools below are unaffected.
+
 ## Overview
 
 This project uses **Linear** for issue tracking:
