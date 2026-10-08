@@ -74,9 +74,9 @@ request:
 
 | Reservation         | Amount                        | Source                                                                                                                          |
 | ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Verdict output      | 2,048 tokens                  | `_ASSESS_MAX_TOKENS`, `backend/services/vlm_client.py:126`                                                                      |
-| Images              | 1,280 × (frames, ≤4)          | `_IMAGE_TOKENS_PER_FRAME`, `backend/services/vlm_client.py:148` (Qwen3-VL encodes one still at ≤~1280 vision tokens)            |
-| Counting correction | ×1.5 served-vs-counted tokens | `_SERVED_TOKENS_PER_COUNTED`, `backend/services/vlm_client.py:156` (the Qwen3-VL vocab serves more tokens than tiktoken counts) |
+| Verdict output      | 2,048 tokens                  | `_ASSESS_MAX_TOKENS` in `backend/services/vlm_client.py`                                                                      |
+| Images              | 1,280 × (frames, ≤4)          | `_IMAGE_TOKENS_PER_FRAME` in `backend/services/vlm_client.py` (Qwen3-VL encodes one still at ≤~1280 vision tokens)            |
+| Counting correction | ×1.5 served-vs-counted tokens | `_SERVED_TOKENS_PER_COUNTED` in `backend/services/vlm_client.py` (the Qwen3-VL vocab serves more tokens than tiktoken counts) |
 
 With the shipped defaults (32,768 ÷ 2 = 16,384 per slot) a worst-case
 4-image request reserves 2,048 + 5,120 tokens of output+image space before
@@ -107,7 +107,7 @@ trusting unconstrained output. `VLM_REQUIRED_BUILD=b7972` pins the
   Triton gateway alongside; the `--sleep-idle-seconds 300` residency means an
   idle VLM hands its VRAM back and a wake ping (`backend/services/vlm_client.py:947`,
   one `max_tokens: 1` request) rouses it before the real call.
-- **Read timeout**: `AI_VLM_READ_TIMEOUT=25.0` (`.env.example:248`) is the
+- **Read timeout**: `AI_VLM_READ_TIMEOUT=25.0` (`.env.example`, the `AI_VLM_READ_TIMEOUT` block) is the
   per-attempt ceiling. A reply that outruns it is a budget (`VlmSlowReplyError`),
   not a fault: it is NOT retried and does NOT charge the breaker, so one slow
   attempt is the worst case and it must fit under S4's p95 of 30 s. The §6 temp-0
