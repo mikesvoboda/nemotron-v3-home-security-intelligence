@@ -34,7 +34,9 @@
 //    `const url = `${BASE_URL}/api/household/members/${id}/detections`` is
 //    checkable through `fetch(url)`. `BASE_URL` resolves to the `|| ''` fallback
 //    of its own `import.meta.env` definition, i.e. same-origin. A prefix that
-//    cannot be pinned down makes the claim *reported*, never silently skipped.
+//    cannot be pinned down makes the claim *reported*, never silently skipped —
+//    and so does an absolute URL, whose host may be a CDN but may equally be
+//    `http://localhost:8000`, which is this backend wearing a URL.
 // 5. Matching is literal-exact after parameter normalisation (see
 //    `explainMatch`): a spec route with a concrete segment where the client has a
 //    hole is a mismatch even when both sides have the same number of segments.
@@ -764,12 +766,34 @@ export function scanClient({ root = process.cwd(), srcDir = 'src' } = {}) {
       // buildWebSocketOptions() returns an absolute `ws://host/endpoint`, and its
       // host is window.location by default — our own origin. Only the path is the
       // contract, so the scheme and host come off rather than tripping the
-      // "another host" rule below and dropping every WebSocket claim.
+      // "another host" rule below, which would report every WebSocket in the
+      // app as unchecked.
       const stripped = text.replace(/^wss?:\/\/[^/]*?(?=\/|$)/i, '');
-      if (!stripped.startsWith('/')) return;
+      if (!stripped.startsWith('/')) {
+        unresolved.push({
+          file: p.file,
+          line: lineAt(p, node),
+          reason: `WebSocket URL carries no path: ${firstLine(text)}`,
+        });
+        return;
+      }
       text = stripped;
     }
-    if (/^(https?|wss?):\/\//i.test(text)) return; // another host: not this contract
+    if (/^(https?|wss?):\/\//i.test(text)) {
+      // Header rule 4: what the scanner cannot pin to this contract is *reported*,
+      // never dropped. An absolute URL may name a foreign host (a CDN, a partner
+      // service), so its path is deliberately not checked against our spec — but a
+      // request that leaves the contract silently is exactly the hole this file
+      // promises to list. The dangerous case is a same-origin absolute —
+      // `fetch('http://localhost:8000/api/typo')` looks served, reads as fine to a
+      // human, and vanished here while the gate stayed green.
+      unresolved.push({
+        file: p.file,
+        line: lineAt(p, node),
+        reason: `absolute URL leaves this contract: ${firstLine(text)}`,
+      });
+      return;
+    }
     if (!text.startsWith('/')) {
       dynamic.push({
         file: p.file,

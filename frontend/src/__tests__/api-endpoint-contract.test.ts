@@ -169,11 +169,13 @@ describe('endpoint contract (D2)', () => {
 
   it('reports the URLs it could not check instead of skipping them', () => {
     // Not an assertion about the codebase — a bound on the scan's own blind
-    // spots. A prefix the scan cannot resolve is a claim it did not make, so
-    // "0 unlisted" means something only while this number stays small.
+    // spots. An unresolved URL is a claim the scan did not make, so "0 unlisted"
+    // means something only while this list stays small. Two shapes land here: a
+    // `${baseUrl}` prefix with no file-local value, and an absolute URL pointing
+    // at some host other than this backend (see lib's record()).
     expect(
       audit.scan.unresolved.map((u) => `${u.file}:${u.line}  ${u.reason}`).join('\n'),
-      `${audit.scan.unresolved.length} request URL(s) sit behind a prefix the scan cannot resolve`
+      `${audit.scan.unresolved.length} request URL(s) the scan cannot pin to this backend`
     ).toMatchInlineSnapshot(`
       "src/hooks/useAudioNotifications.ts:220  prefix \${soundsPath} is not statically resolvable
       src/services/alertsApi.ts:120  prefix \${baseUrl} is not statically resolvable

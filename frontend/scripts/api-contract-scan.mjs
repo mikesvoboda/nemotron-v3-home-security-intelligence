@@ -108,7 +108,7 @@ if (asJson) {
     );
 
   console.log(
-    `\nreported, not checked: ${scan.dynamic.length} URLs built at runtime, ${scan.unresolved.length} unresolvable prefixes, ${scan.opaqueMethod.length} verbs behind a pass-through options bag, ${scan.nonApi.length} same-origin paths outside /api`
+    `\nreported, not checked: ${scan.dynamic.length} URLs built at runtime, ${scan.unresolved.length} URLs the scan cannot pin to this backend, ${scan.opaqueMethod.length} verbs behind a pass-through options bag, ${scan.nonApi.length} same-origin paths outside /api`
   );
   if (scan.opaqueMethod.length) {
     console.log('\nopaque verbs (path checked, method not; see --json for all):');
@@ -117,7 +117,9 @@ if (asJson) {
     if (scan.opaqueMethod.length > 12) console.log(`  ... ${scan.opaqueMethod.length - 12} more`);
   }
   if (scan.unresolved.length) {
-    console.log('\nunresolved prefixes (each is a coverage hole, listed so it stays visible):');
+    // Two shapes share this bucket: a `${baseUrl}`-style prefix that cannot be
+    // resolved, and an absolute URL that names some host other than this backend.
+    console.log('\nunresolved URLs (each is a coverage hole, listed so it stays visible):');
     for (const u of scan.unresolved) console.log(`  ${u.file}:${u.line}  ${u.reason}`);
   }
   if (scan.dynamic.length) {

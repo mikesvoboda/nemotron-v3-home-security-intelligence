@@ -353,6 +353,41 @@ describe('scanClient', () => {
     expect(scan.claims).toEqual([]);
     expect(scan.nonApi).toEqual([expect.objectContaining({ path: '/health' })]);
   });
+
+  it('reports an absolute URL instead of dropping it', () => {
+    // An absolute URL leaves this contract: it may name a CDN, and its path is
+    // deliberately not checked against our spec. But dropping it silently is the
+    // bug class the gate exists to catch — `fetch('http://localhost:8000/api/x')`
+    // points at a real backend, reads as fine to a reviewer, and would have
+    // disappeared from every bucket while the gate stayed green.
+    const scan = scanSource('absolute.ts', [
+      'export function probe() {',
+      "  return fetch('http://localhost:8000/api/system/health');",
+      '}',
+      "export const cdn = () => fetch('https://cdn.example.com/api/logo.png');",
+      '',
+    ]);
+    expect(scan.claims).toEqual([]);
+    expect(scan.unresolved.map((u) => u.reason)).toEqual([
+      'absolute URL leaves this contract: http://localhost:8000/api/system/health',
+      'absolute URL leaves this contract: https://cdn.example.com/api/logo.png',
+    ]);
+  });
+
+  it('reports a WebSocket URL that carries no path', () => {
+    // Sibling branch of the rule above: the ws strip exists because
+    // buildWebSocketOptions() returns an absolute URL for our own origin, so a
+    // ws:// that has no path after the host is not a claim either — and it is
+    // not a code shape worth losing.
+    const scan = scanSource('ws-no-path.ts', [
+      "export const socket = () => new WebSocket('ws://localhost:8000');",
+      '',
+    ]);
+    expect(scan.claims).toEqual([]);
+    expect(scan.unresolved.map((u) => u.reason)).toEqual([
+      'WebSocket URL carries no path: ws://localhost:8000',
+    ]);
+  });
 });
 
 describe('method rules', () => {
