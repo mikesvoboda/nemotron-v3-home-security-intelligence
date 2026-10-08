@@ -35,16 +35,16 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 
 ### Monitoring Hooks
 
-| Hook                      | Purpose                                    | Parameters                                         | Return Value                                                                                                | Endpoint/Source           |
-| ------------------------- | ------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------- |
-| `useCircuitBreakerStatus` | Track circuit breaker states via WebSocket | None                                               | `{ breakers, summary, hasOpenBreaker, hasHalfOpenBreaker, allClosed, lastUpdate, getBreaker, isConnected }` | `/ws/system`              |
-| `useSystemStatus`         | System health via WebSocket                | None                                               | `{ status, isConnected }`                                                                                   | `/ws/system`              |
-| `useHealthStatus`         | REST-based health polling (legacy)         | `{ pollingInterval?, enabled? }`                   | `{ health, isLoading, error, overallStatus, services, refresh }`                                            | `/api/system/health`      |
-| `useHealthStatusQuery`    | TanStack Query health status               | `{ enabled?, refetchInterval? }`                   | `{ data, isLoading, error, isStale, refetch }`                                                              | `/api/system/health`      |
-| `useFullHealthQuery`      | Comprehensive health with circuit breakers | `{ enabled?, refetchInterval? }`                   | `{ data, overallStatus, postgres, redis, aiServices, circuitBreakers, workers, criticalUnhealthyCount }`    | `/api/system/health/full` |
-| `usePerformanceMetrics`   | Real-time performance via WebSocket        | None                                               | `{ current, history, alerts, isConnected, timeRange, setTimeRange }`                                        | `/ws/system`              |
-| `useGpuStatsQuery`        | TanStack Query GPU stats                   | `{ enabled?, refetchInterval? }`                   | `{ data, utilization, memoryUsed, temperature, isLoading, error, refetch }`                                 | `/api/system/gpu`         |
-| `useGpuHistory`           | GPU polling with history buffer (legacy)   | `{ pollingInterval?, maxDataPoints?, autoStart? }` | `{ current, history, isLoading, error, start, stop, clearHistory }`                                         | `/api/system/gpu`         |
+| Hook                      | Purpose                                    | Parameters                                         | Return Value                                                                                                | Endpoint/Source                           |
+| ------------------------- | ------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `useCircuitBreakerStatus` | Track circuit breaker states via WebSocket | None                                               | `{ breakers, summary, hasOpenBreaker, hasHalfOpenBreaker, allClosed, lastUpdate, getBreaker, isConnected }` | `/ws/system`                              |
+| `useSystemStatus`         | System health via WebSocket                | None                                               | `{ status, isConnected }`                                                                                   | `/ws/system`                              |
+| `useHealthStatus`         | REST-based health polling (legacy)         | `{ pollingInterval?, enabled? }`                   | `{ health, isLoading, error, overallStatus, services, refresh }`                                            | `/api/system/health`                      |
+| `useHealthStatusQuery`    | TanStack Query health status               | `{ enabled?, refetchInterval? }`                   | `{ data, isLoading, error, isStale, refetch }`                                                              | `/api/system/health`                      |
+| `useFullHealthQuery`      | Comprehensive health with circuit breakers | `{ enabled?, refetchInterval? }`                   | `{ data, overallStatus, postgres, redis, aiServices, circuitBreakers, workers, criticalUnhealthyCount }`    | `/api/system/health/full`                 |
+| `usePerformanceMetrics`   | Real-time performance via WebSocket        | None                                               | `{ current, history, alerts, isConnected, timeRange, setTimeRange }`                                        | `/ws/system`                              |
+| `useGpuStatsQuery`        | TanStack Query GPU stats                   | `{ enabled?, refetchInterval? }`                   | `{ data, utilization, memoryUsed, temperature, isLoading, error, refetch }`                                 | `/api/system/gpu`                         |
+| `useGpuHistory`           | GPU polling with history buffer (legacy)   | `{ pollingInterval?, maxDataPoints?, autoStart? }` | `{ current, history, isLoading, error, start, stop, clearHistory }`                                         | `/api/system/gpu`                         |
 | `useVerdictEngineStatus`  | Verdict-engine (ai-vlm) availability       | `{ enabled?, pollIntervalMs? }`                    | `{ state, since, reason, loaded, isDown, isConnected }`                                                     | `/api/system/health/ready` + `/ws/system` |
 
 ### WebSocket Hooks
@@ -212,6 +212,7 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 
 | File                               | Coverage                                                  |
 | ---------------------------------- | --------------------------------------------------------- |
+| `index.test.ts`                    | Barrel exports: F1.2 hook named/default identity          |
 | `typedEventEmitter.test.ts`        | Event subscription, emission, once, message handling      |
 | `usePolling.test.ts`               | Generic polling, callbacks, error handling, interval      |
 | `useWebSocket.test.ts`             | Connection lifecycle, message handling, reconnects        |

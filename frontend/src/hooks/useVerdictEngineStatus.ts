@@ -82,9 +82,10 @@ const VERDICT_ENGINE_STATES = ['available', 'unavailable', 'unknown'] as const;
 /**
  * Type guard for system.verdict_engine_status_changed messages ({type, data}).
  */
-export function isVerdictEngineStatusChangedMessage(
-  value: unknown
-): value is { type: 'system.verdict_engine_status_changed'; data: VerdictEngineStatusChangedPayload } {
+export function isVerdictEngineStatusChangedMessage(value: unknown): value is {
+  type: 'system.verdict_engine_status_changed';
+  data: VerdictEngineStatusChangedPayload;
+} {
   if (!value || typeof value !== 'object') {
     return false;
   }
@@ -138,18 +139,25 @@ export function useVerdictEngineStatus(
     };
   }, []);
 
-  const applyVerdict = useCallback((next: VerdictEngineStatusChangedPayload | {
-    state: VerdictEngineState;
-    since: string | null;
-    reason: string | null;
-  }) => {
-    if (!isMountedRef.current) {
-      return;
-    }
-    setState(next.state);
-    setSince(next.since ?? null);
-    setReason(next.reason ?? null);
-  }, []);
+  const applyVerdict = useCallback(
+    (
+      next:
+        | VerdictEngineStatusChangedPayload
+        | {
+            state: VerdictEngineState;
+            since: string | null;
+            reason: string | null;
+          }
+    ) => {
+      if (!isMountedRef.current) {
+        return;
+      }
+      setState(next.state);
+      setSince(next.since ?? null);
+      setReason(next.reason ?? null);
+    },
+    []
+  );
 
   // Initial state (and convergence): B1.4's readiness field.
   useEffect(() => {

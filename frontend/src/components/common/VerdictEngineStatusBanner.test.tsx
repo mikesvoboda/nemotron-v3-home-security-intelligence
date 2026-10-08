@@ -47,9 +47,7 @@ describe('VerdictEngineStatusBanner', () => {
     });
 
     it('clears when the state returns to available', () => {
-      const { rerender, container } = render(
-        <VerdictEngineStatusBanner {...UNAVAILABLE} />
-      );
+      const { rerender, container } = render(<VerdictEngineStatusBanner {...UNAVAILABLE} />);
       expect(screen.getByRole('alert')).toBeInTheDocument();
       rerender(<VerdictEngineStatusBanner state="available" since={null} reason={null} />);
       expect(container).toBeEmptyDOMElement();
@@ -82,7 +80,9 @@ describe('VerdictEngineStatusBanner', () => {
     });
 
     it('omits the reason line when the payload carries none', () => {
-      render(<VerdictEngineStatusBanner state="unavailable" since={UNAVAILABLE.since} reason={null} />);
+      render(
+        <VerdictEngineStatusBanner state="unavailable" since={UNAVAILABLE.since} reason={null} />
+      );
       expect(screen.queryByTestId('verdict-engine-reason')).not.toBeInTheDocument();
     });
 
