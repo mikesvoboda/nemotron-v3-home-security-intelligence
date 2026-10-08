@@ -1661,7 +1661,13 @@ class TestEveryCauseIsListed:
 
     @staticmethod
     def _emitted_causes() -> set[str]:
-        """Every string literal this module passes to a cause-recording call."""
+        """Every string literal this module passes to a cause-recording call.
+
+        Scope note: constant first args of the CAUSE-RECORDING calls only.
+        Raised MESSAGES are not in its domain - some are assembled at runtime
+        (the `VlmSlowReplyError(f"...")` at the read-budget raise is invisible
+        to this walk, by design): a raise message never becomes an
+        `error_type` label; only the `cause` argument of a recording call does."""
         tree = ast.parse(inspect.getsource(vc))
         causes: set[str] = set()
         for node in ast.walk(tree):

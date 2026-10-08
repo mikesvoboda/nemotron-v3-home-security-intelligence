@@ -250,6 +250,50 @@ class TestBudgetVsFault:
         assert out["outcomes"] == {"OK": 0, "BUDGET": 0, "FAULT": 3}
         assert out["measured"] is False, "a fault endpoint proves nothing about the engine"
 
+    def test_every_classifiable_outcome_lands_in_its_bucket(self) -> None:
+        """`_classify`'s ConstrainedDecodingNotEnforced arm decides BUDGET vs
+        FAULT on message TEXT, and an end-to-end run only reaches that arm
+        through the assess leg - so the arm itself is pinned here, table-style,
+        against the four probe-leg messages the shipped client actually raises
+        (vlm_client.py's ReadTimeout / truncation / const-not-echoed / generic
+        transport raises) plus the assess-leg types. The text heuristic is
+        sound only because the client's ReadTimeout branch precedes its
+        generic `except Exception` - pin the table so a reorder or a reworded
+        message that flips a bucket fails HERE, not on an operator's GPU run."""
+        from backend.services.constrained_decoding import ConstrainedDecodingNotEnforced
+        from backend.services.vlm_client import (
+            VlmImageError,
+            VlmSlowReplyError,
+            VlmTransportError,
+            VlmUnavailableError,
+        )
+
+        budget_probes = [
+            # the client's probe-leg read-timeout raise (its own words):
+            "vlm probe reply exceeded the 25s read budget at max_tokens=400 - "
+            "enforcement is UNMEASURED at this timeout, not absent. Fail closed.",
+            # the truncation raise - a budget for the same D1 reason:
+            "vlm probe reply hit its token budget (stop='length', max_tokens=400) "
+            "before the const could be read - enforcement is UNMEASURED at this "
+            "budget, not absent. Fail closed.",
+        ]
+        for msg in budget_probes:
+            exc = ConstrainedDecodingNotEnforced(msg, verdict="inconclusive")
+            assert lt._classify(exc)[0] == "BUDGET", msg
+        for msg in (
+            # the E5-class lie: complete reply, no const - a real fault:
+            "vlm endpoint accepted response_format.json_schema but the reply did "
+            "not echo the probe const (build 'b', stop='eos') - constrained "
+            "decoding is not enforced here. Fail closed.",
+            "vlm probe transport failure (connection refused)",
+        ):
+            exc = ConstrainedDecodingNotEnforced(msg, verdict="ignored")
+            assert lt._classify(exc)[0] == "FAULT", msg
+        assert lt._classify(VlmSlowReplyError("exceeded the 25s read budget"))[0] == "BUDGET"
+        assert lt._classify(VlmUnavailableError("breaker OPEN"))[0] == "FAULT"
+        assert lt._classify(VlmTransportError("vlm HTTP 500"))[0] == "FAULT"
+        assert lt._classify(VlmImageError("image file not found"))[0] == "FAULT"
+
     def test_faults_open_the_breaker_and_the_run_refuses_to_conclude(
         self, monkeypatch, tmp_path
     ) -> None:
