@@ -154,7 +154,8 @@ by a third service.
 > charge — while an engine that dribbles the reply within it runs on. Keep it under
 > S4's 30 s p95 (connect, `AI_CONNECT_TIMEOUT`, counted on top): that bounds the
 > silent-server case. The one retry at temperature 0 re-asks only where a re-ask can
-> differ: a trip that never completed, a 5xx, or a complete reply that broke the schema.
+> differ: a trip that never completed, any other answered status (a 5xx or a plain
+> 4xx, except the 400 overflow refusal), or a complete reply that broke the schema.
 > `AI_VLM_WAKE_TIMEOUT_SECONDS` is deliberately generous: it pays for a sleeping
 > `ai-vlm` loading its weights, and a failed wake is swallowed rather than retried.
 

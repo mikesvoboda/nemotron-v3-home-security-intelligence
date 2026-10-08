@@ -238,7 +238,7 @@ The level is never emitted by the model: `VlmVerdict` carries no `risk_level` fi
 
 Transport and schema failures are retried once — a fast fault, or a complete reply that violated the schema — and then mapped; no event is dropped. Budget outcomes raise on the first attempt:
 
-- `VlmClient.assess` makes the first attempt, then re-sends the same body at temperature 0 — only after a fast failure (connection refused, `ConnectTimeout`, 5xx) or a schema violation; a slow reply raises `VlmSlowReplyError` without a retry (`backend/services/vlm_client.py:962-964`)
+- `VlmClient.assess` makes the first attempt, then re-sends the same body at temperature 0 — only after a trip that never completed (connection refused, `ConnectTimeout`), any other answered status (5xx or a plain 4xx, except the 400 overflow refusal), or a schema violation; a slow reply raises `VlmSlowReplyError` without a retry (`backend/services/vlm_client.py:962-964`)
 - Every raise the client documents sits in `_DEGRADABLE_ERRORS` (`backend/services/vlm_analyzer.py:89-92`): `VlmClientError` — transport, schema, truncation, context overflow, breaker-open — and `ConstrainedDecodingNotEnforced`
 - The analyzer catches those, records `vlm_verification_failed`, and writes the NULL-score event. It never re-retries: a second retry would double the p95 budget a single call already fits
 - Anything outside that tuple is a bug and propagates loud

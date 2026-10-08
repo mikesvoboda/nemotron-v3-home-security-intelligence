@@ -336,7 +336,7 @@ and it leaves by returning a verdict or raising the last error:
 | 1       | 0.0         | none                    | 25 s        |
 | 2       | 0.0         | none                    | 25 s        |
 
-There is no sleep between attempts and no third attempt. The second one is for failures where re-asking is not futile: a transport fault whose request never completed its trip (connection refused, `ConnectTimeout`, a 5xx) or a complete reply that violated the verdict schema — re-sent immediately at temperature 0, each attempt carrying its own read budget (`backend/core/config.py:1130-1142`), so the second attempt fits the S4 target only when the first failed fast. A slow reply never reaches the retry: a reply that outruns the read or write budget raises `VlmSlowReplyError` on the spot (`backend/services/vlm_client.py:973-1006`), breaker untouched.
+There is no sleep between attempts and no third attempt. The second one is for failures where re-asking is not futile: a transport fault whose request never completed its trip (connection refused, `ConnectTimeout`), any other answered status (a 5xx or a plain 4xx, except the 400 context-overflow refusal), or a complete reply that violated the verdict schema — re-sent immediately at temperature 0, each attempt carrying its own read budget (`backend/core/config.py:1130-1142`), so the second attempt fits the S4 target only when the first failed fast. A slow reply never reaches the retry: a reply that outruns the read or write budget raises `VlmSlowReplyError` on the spot (`backend/services/vlm_client.py:973-1006`), breaker untouched.
 
 ### Retriable and Non-Retriable Failures
 
@@ -400,7 +400,8 @@ including cold starts is why the ceiling must sit under 30 s (`backend/core/conf
 A reply that outruns it is a budget, not an outage — it is NOT retried (the request
 leaves unchanged, so a re-send times out identically) and does NOT charge the breaker
 (`backend/services/vlm_client.py` `VlmSlowReplyError`). The §6 temp-0 retry therefore
-only follows a FAST failure (a refused connection, a 5xx), never a slow reply.
+only follows a failure a re-ask can change (a trip that never completed, any
+other answered status, or a schema violation), never a slow reply.
 
 ## Prompt Construction
 
@@ -938,7 +939,7 @@ Nothing in `analyze_batch` calls it: a shipped verdict always rides the one rend
 
 | Error                                               | Handling                              | Stored outcome                              |
 | --------------------------------------------------- | ------------------------------------- | ------------------------------------------- |
-| Connection refused, connect-phase timeout, HTTP 5xx | retried once at temperature 0         | `verification_failed`, NULL score and level |
+| Connection refused, connect-phase timeout, any answered status (5xx or a plain 4xx) | retried once at temperature 0         | `verification_failed`, NULL score and level |
 | Complete reply violating `VlmVerdict`               | retried once at temperature 0         | `verification_failed`, NULL score and level |
 | Reply outrunning the read/write budget              | raised once, breaker untouched        | `verification_failed`, NULL score and level |
 | Reply truncated at `max_tokens`                     | raised once, breaker untouched        | `verification_failed`, NULL score and level |
@@ -1049,7 +1050,7 @@ from backend.core.metrics import (
 | Invariants and the session 2 write                                    | single-digit ms              | none coded                             |
 | WS broadcast                                                          | under a ms                   | best-effort                            |
 
-**Target:** p95 of 30 s or less from batch close to stored event, cold starts included. The 25 s budget is a per-read idle budget (httpx resets it on every reply chunk), sized against that number for the silent-server case — a stalled reply is a budget, not retried, so a silent item costs one ceiling (plus connect), never a ladder, while an engine that dribbles within the budget runs on (`backend/core/config.py:1130-1142`). The temperature-0 retry is reachable only where a re-ask can differ: a trip that never completed (refused, `ConnectTimeout`), a 5xx, or a complete reply that broke the schema.
+**Target:** p95 of 30 s or less from batch close to stored event, cold starts included. The 25 s budget is a per-read idle budget (httpx resets it on every reply chunk), sized against that number for the silent-server case — a stalled reply is a budget, not retried, so a silent item costs one ceiling (plus connect), never a ladder, while an engine that dribbles within the budget runs on (`backend/core/config.py:1130-1142`). The temperature-0 retry is reachable only where a re-ask can differ: a trip that never completed (refused, `ConnectTimeout`), any other answered status (a 5xx or a plain 4xx, except the 400 context-overflow refusal), or a complete reply that broke the schema.
 
 ## Related Documents
 

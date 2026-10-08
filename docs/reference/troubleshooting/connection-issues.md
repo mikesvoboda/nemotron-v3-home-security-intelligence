@@ -393,7 +393,8 @@ write on deadline (**not retried** — the re-ask would time out identically —
 `ai-vlm` breaker charge) while an engine that dribbles the reply within it runs on;
 no wall clock wraps an attempt. Keep it under S4's 30 s p95 (connect counted on
 top) to bound the silent-server case. The one retry at temperature 0 re-asks only
-where that can differ: fast trip faults, 5xx, a schema-violating complete reply.
+where that can differ: fast trip faults, any other rejected status (5xx or a
+plain 4xx, not the 400 overflow), a schema-violating complete reply.
 A sleeping `ai-vlm` is woken under a separate ceiling,
 `AI_VLM_WAKE_TIMEOUT_SECONDS` (default 90.0).
 

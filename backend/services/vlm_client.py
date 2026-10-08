@@ -29,7 +29,9 @@ completions` is the fake's mount point - real engines speak
     Either timeout raises `VlmSlowReplyError` as a budget, never retried (a
     re-ask re-sends identical bytes at identical speed). The §6 retry at temp
     0 follows only re-asks that can differ: a trip that never completed
-    (refused, `ConnectTimeout`), a 5xx, or a complete 200 that violated the
+    (refused, `ConnectTimeout`), any other answered status (a 5xx or a plain
+    4xx such as 404/429 - the `!= 200` arm re-asks every status except its
+    400 context-overflow refusal), or a complete 200 that violated the
     verdict schema. Sizing under S4's p95 <= 30 s bounds the SILENT-server
     case (connect + read = 10.0 + 25.0 measured defaults); the dribble case
     outruns any sum stated here. Budget causes are never breaker-charged.

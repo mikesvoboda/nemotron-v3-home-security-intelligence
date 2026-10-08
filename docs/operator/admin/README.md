@@ -125,8 +125,9 @@ budget — httpx resets the read timer on every reply chunk — so it bounds a S
 reply or request write on deadline (a budget outcome, not an outage: **not retried**,
 no breaker charge) while an engine that dribbles the reply within it runs on; no wall
 clock wraps an attempt. Sizing it under 30 s bounds the silent-server case. The one
-retry at temperature 0 re-asks only where that can differ: fast trip faults, 5xx,
-or a complete reply that broke the schema.
+retry at temperature 0 re-asks only where that can differ: fast trip faults, any
+other answered status (a 5xx or a plain 4xx, except the 400 overflow refusal), or a
+complete reply that broke the schema.
 
 ### GPU Monitoring
 

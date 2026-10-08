@@ -275,8 +275,9 @@ _SLOW_TRANSPORT_ERRORS = frozenset({"ReadTimeout", "WriteTimeout", "TimeoutExcep
 def _legitimate_retry(assess_calls: list[dict[str, Any]]) -> bool:
     """True when a second chat call in the window is the §6 ladder's
     sanctioned re-ask. The ladder re-asks only where a re-ask can differ: a
-    trip that never completed (connection refused, `ConnectTimeout`), a 5xx,
-    or a COMPLETE reply that broke the verdict schema. This probe sees only
+    trip that never completed (connection refused, `ConnectTimeout`), any
+    other answered status (a 5xx or a plain 4xx), or a COMPLETE reply that
+    broke the verdict schema. This probe sees only
     transport and status, so it recognizes the first two families (a fast
     error or a non-200 first call); a re-ask whose first call was a 200
     stays flagged here on purpose - the schema re-ask is the one sanctioned

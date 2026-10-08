@@ -342,8 +342,9 @@ stage lands as three `unavailable` lines on the same keys
 ### 4.3 Retry Logic
 
 The client owns exactly one retry, for failures where re-asking is not futile: a
-fast transport fault (refused connection, `ConnectTimeout`, a 5xx) or a complete
-reply that violates the schema re-sends the same body at temperature 0 (the first
+fast transport fault (refused connection, `ConnectTimeout`), any other answered
+status (a 5xx or a plain 4xx, except the 400 context-overflow refusal), or a
+complete reply that violates the schema re-sends the same body at temperature 0 (the first
 attempt is greedy too), each attempt carrying its own read budget. A reply that
 outruns the read or write budget raises `VlmSlowReplyError` on the spot — untried,
 breaker-untouched:

@@ -112,7 +112,8 @@ trusting unconstrained output. `VLM_REQUIRED_BUILD=b7972` pins the
   (`VlmSlowReplyError`), NOT retried and NOT breaker-charged, while an engine that
   dribbles the reply within it runs on. Keep it under S4's p95 of 30 s to bound
   the silent-server case. The §6 temp-0 retry re-asks only where that can differ:
-  fast trip faults, 5xx, a schema-violating complete reply.
+  fast trip faults, any other rejected status (5xx or a plain 4xx, not the 400
+  overflow), a schema-violating complete reply.
 - **Batch pacing**: analysis runs after the 90s/30s/500 batch window
   closes, so back-to-back calls, not streaming, are the throughput unit.
 - **Concurrency**: more than `VLM_PARALLEL` concurrent analyses queue behind

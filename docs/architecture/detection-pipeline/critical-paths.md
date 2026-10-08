@@ -206,7 +206,9 @@ five consecutive failures, bounding how long the ladder can repeat.
 
 The analysis leg does not use a backoff ladder. `VlmClient.assess` retries a
 failure where re-asking is not futile — a fast transport fault (refused
-connection, `ConnectTimeout`, 5xx) or a schema violation on a complete reply —
+connection, `ConnectTimeout`), any other answered status (a 5xx or a plain 4xx,
+except the 400 context-overflow refusal), or a schema violation on a complete
+reply —
 exactly once at temperature 0, the second attempt carrying its own read budget,
 and raises —
 the analyzer then records `verification_failed` on the event rather than
@@ -266,8 +268,9 @@ resets it on every reply chunk), so each attempt carries a fresh idle window —
 and a silent 25 s timeout already sits at S4's p95 <= 30 s edge (cold starts
 in, connect counted on top). The client therefore never re-asks a reply that
 timed out (`vlm_client.py` `VlmSlowReplyError`); the §6 temp-0 re-send follows
-only re-asks that can differ (fast trip faults, 5xx, schema violations), which
-cost almost nothing when the first failure was fast. An idle budget at or above
+only re-asks that can differ (fast trip faults, any other rejected status —
+5xx or a plain 4xx, not the 400 overflow —, schema violations), which cost
+almost nothing when the first failure was fast. An idle budget at or above
 30 s would put one silent answer past the spec.
 
 ### Defense-in-Depth (NEM-1465)
