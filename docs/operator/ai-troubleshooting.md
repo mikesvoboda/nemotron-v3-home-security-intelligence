@@ -10,10 +10,11 @@
 ## Quick Diagnostics
 
 Production AI is two containers: `ai-gateway` (:8090, Triton + routers) and `ai-vlm`
-(:8098, llama.cpp behind the compose profile `vlm`). There is no `scripts/start-ai.sh`.
+(:8098, llama.cpp, in the default compose set). There is no `scripts/start-ai.sh`.
 
 ```bash
-# Container status — note whether ai-vlm is ABSENT (profile never applied) or STOPPED
+# Container status — note whether ai-vlm is ABSENT (never created) or STOPPED (created,
+# then failed or was stopped)
 podman ps -a --filter name=ai-gateway --filter name=ai-vlm
 
 # Aggregate gateway health (healthy only when Triton + all models are ready)
@@ -64,30 +65,35 @@ curl -s http://localhost:8000/metrics | grep hsi_specialist_unavailable_total
 
 ## ai-vlm Is Not Running
 
-`ai-vlm` is the only shipped AI service behind a compose profile, so **`up -d` without
-`--profile vlm` does not start it** — and podman-compose drops a service whose profile is
-inactive _before_ it resolves the names on your command line. The failure is quiet:
+`ai-vlm` is in the default compose set, so a plain `up -d` starts it — no flag to
+remember, and no flag whose omission can quietly drop it (until UR-18 the service sat
+behind a profile, and a bare `up -d ai-vlm` reported success while starting nothing). What
+is left is an ordinary start failure:
 
 ```bash
-# Wrong: reports success, starts nothing
+# Starts it, flagless
 podman compose -f docker-compose.prod.yml up -d ai-vlm
 
-# Right
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+# Why it failed, if it did
+podman compose -f docker-compose.prod.yml logs ai-vlm 2>&1 | tail -50
 ```
 
-### restart-all.sh will re-create this for you
+**A machine with no GPU is the common case.** `ai-vlm`'s CDI device line has nothing to
+map there, so it fails at start while the rest of the stack comes up — nothing `depends_on`
+it and it `depends_on` nothing. Bring up the services you want by name and leave `ai-vlm`
+off; package O2.1's fake-AI overlay will make that explicit, and until then no such
+overlay exists.
 
-`scripts/restart-all.sh` names both AI services (`AI_SERVICES="ai-gateway ai-vlm"`) but
-passes a profile only for the monitoring group. Restarting "AI" through it therefore
-restarts the gateway, cannot start the VLM, and **reports success**:
+### restart-all.sh starts both AI services
+
+`scripts/restart-all.sh` names both AI services (`AI_SERVICES="ai-gateway ai-vlm"`) and
+needs no profile for either now — a profile was exactly what it used to be unable to pass,
+since it supplies one only for the monitoring group. Verify rather than trusting its
+summary, as after any bring-up:
 
 ```bash
-# Verify after any restart-all run, do not trust its summary:
 podman ps -a --filter name=ai-vlm
 ```
-
-Use the explicit command instead of the script for the AI group.
 
 ### Confirm the compose-level hole is closed
 
@@ -232,7 +238,7 @@ The plate leg is the exception — `fast_alpr_loader` loads on demand.
 ### Service Won't Start
 
 ```bash
-podman compose -f docker-compose.prod.yml --profile vlm logs ai-vlm 2>&1 | tail -50
+podman compose -f docker-compose.prod.yml logs ai-vlm 2>&1 | tail -50
 ```
 
 **`failed to load model`** — the GGUF pair is missing, misnamed, unreadable (mode 640), or
@@ -251,7 +257,7 @@ sudo systemctl restart nvidia-persistenced
 
 ```bash
 lsof -ti:8098 | xargs kill -9
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-vlm
 ```
 
 ### Slow to Answer / Waking From Sleep
@@ -304,7 +310,7 @@ nvidia-smi -l 1
 
 1. Restart containers:
    `podman compose -f docker-compose.prod.yml restart ai-gateway` then
-   `podman compose -f docker-compose.prod.yml --profile vlm up -d --force-recreate ai-vlm`
+   `podman compose -f docker-compose.prod.yml up -d --force-recreate ai-vlm`
 2. Check logs for errors: `podman compose -f docker-compose.prod.yml logs --tail=100 ai-gateway`
 3. Verify CUDA (host-run only): `python3 -c "import torch; print(torch.cuda.is_available())"`
 
@@ -366,7 +372,7 @@ Services crash with OOM errors (`CUDA out of memory` in gateway/vlm logs).
 ```bash
 # Restart AI containers (fuser -k kills *all* GPU processes — avoid on shared hosts)
 podman compose -f docker-compose.prod.yml restart ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm up -d --force-recreate ai-vlm
+podman compose -f docker-compose.prod.yml up -d --force-recreate ai-vlm
 ```
 
 **2. Let the VLM release its VRAM when idle:** lower `VLM_SLEEP_IDLE_SECONDS` so the
@@ -395,7 +401,8 @@ httpx.ConnectError: [Errno 111] Connection refused
 **Check:**
 
 1. Are the AI containers up and healthy? `podman ps -a` (the gateway needs ~3 min for
-   Triton to load its models; `ai-vlm` needs its profile to exist at all)
+   Triton to load its models; `ai-vlm` is in the default set, so if it is missing from the
+   list it failed to start rather than never having been asked for)
 2. Is the URL correct in `.env` / compose env (`AI_GATEWAY_URL`, `YOLO26_URL`,
    `AI_VLM_URL`)? In the compose stack these are `http://ai-gateway:8090/...` and
    `http://ai-vlm:8098`.

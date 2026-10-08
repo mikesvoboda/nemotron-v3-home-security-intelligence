@@ -15,8 +15,8 @@
 | **Host-run**                                | `./ai/start_detector.sh` (standalone YOLO26 server)                                  | Debugging a model outside a container |
 
 The containerized stack is what `docker-compose.prod.yml` starts; there is no
-`scripts/start-ai.sh` in this repository. `ai-vlm` sits behind the compose profile
-`vlm`, so every compose call that names it must carry `--profile vlm` (see
+`scripts/start-ai.sh` in this repository. `ai-vlm` is in the default compose set, so no
+compose call that names it needs a profile flag (see
 [Starting ai-vlm](#starting-ai-vlm)).
 
 For "which URL should I use?" (container DNS vs host vs remote), start with:
@@ -39,38 +39,45 @@ It binds `0.0.0.0` so a containerised backend can reach it. Stop it with
 
 ### Starting ai-vlm
 
-`ai-vlm` is the only shipped AI service behind a compose profile. A plain `up -d`
-starts `ai-gateway` and leaves the reasoning engine down:
+`ai-vlm` ships in the default compose set, so a plain `up -d` starts the reasoning
+engine along with everything else:
 
 ```bash
-# Correct: the profile must be on the command line.
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+# No flag needed — ai-vlm is in the default set.
+podman compose -f docker-compose.prod.yml up -d ai-vlm
 ```
 
-This is not a style preference. podman-compose drops a service whose profile is
-inactive **before** it resolves the service names on the command line, so
-`up -d ai-vlm` without `--profile vlm` reports success and starts nothing.
-`setup_lib/deploy_phases.py` threads `--profile vlm` through every compose call
-that names `ai-vlm`; `scripts/restart-all.sh` does not (see
-[Troubleshooting a missing ai-vlm](ai-troubleshooting.md#ai-vlm-is-not-running)).
+Until UR-18 it sat behind a compose profile, and a bare `up -d ai-vlm` reported success
+while starting nothing, because podman-compose drops a service whose profile is inactive
+**before** it resolves the service names on the command line. That is gone: neither
+`setup_lib/deploy_phases.py` nor `scripts/restart-all.sh` passes a profile for `ai-vlm`
+now. The rule still bites the services that stay gated — `ai-llm-vllm` (`vllm`) and
+`dcgm-exporter` (`gpu-rootful`) resolve only when you name their profile.
+
+**No GPU on this machine:** `ai-vlm` fails at start, because its CDI device line has
+nothing to map. Nothing else in the stack depends on it and it depends on nothing, so the
+rest comes up regardless — bring up the services you want by name and leave `ai-vlm` off.
+(Package O2.1 will add an explicit fake-AI overlay; until it lands, naming the services is
+the interim path.)
 
 ### Start commands
 
 ```bash
-# Full stack, VLM included
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+# Full stack — the plain up includes ai-vlm
+podman compose -f docker-compose.prod.yml up -d
 
-# Core services only
+# Core services only — the way to leave ai-vlm out on a machine with no GPU,
+# where its start fails on the CDI device line while everything else comes up
 podman compose -f docker-compose.prod.yml up -d postgres redis backend frontend ai-gateway
 
 # Only the AI services
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm
 ```
 
 Stop:
 
 ```bash
-podman compose -f docker-compose.prod.yml --profile vlm down
+podman compose -f docker-compose.prod.yml down
 ```
 
 ---
@@ -80,7 +87,7 @@ podman compose -f docker-compose.prod.yml --profile vlm down
 ### Check Status
 
 ```bash
-podman compose -f docker-compose.prod.yml --profile vlm ps ai-gateway ai-vlm
+podman compose -f docker-compose.prod.yml ps ai-gateway ai-vlm
 podman inspect --format '{{.State.Health.Status}}' ai-gateway ai-vlm
 ```
 
@@ -88,7 +95,7 @@ podman inspect --format '{{.State.Health.Status}}' ai-gateway ai-vlm
 
 ```bash
 podman compose -f docker-compose.prod.yml restart ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm up -d --force-recreate ai-vlm
+podman compose -f docker-compose.prod.yml up -d --force-recreate ai-vlm
 ```
 
 Useful after model updates, configuration changes, or a crash loop. Rebuilding after a
@@ -188,7 +195,7 @@ uv run pytest backend/tests/integration/ -v -k "ai"
 
 ```bash
 podman compose -f docker-compose.prod.yml logs -f ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm logs -f ai-vlm
+podman compose -f docker-compose.prod.yml logs -f ai-vlm
 
 # Triton's own startup log (model load failures show here first)
 podman logs ai-gateway 2>&1 | grep -iE "error|failed|model"
@@ -219,16 +226,18 @@ inference latencies.
 ## Production Deployment
 
 Production runs AI inside the compose stack with `restart: unless-stopped`; no systemd
-unit is needed, and a systemd unit competing with compose for a profile-gated,
-loopback-published service is the wrong shape here.
+unit is needed, and a systemd unit competing with compose for a loopback-published
+service is the wrong shape here.
 
 The backend's auto-recovery allowlist (`backend/services/service_managers.py`,
 `ALLOWED_RESTART_SCRIPTS`) contains exactly one host script, `ai/start_detector.sh`;
 anything else it accepts is a `docker restart <container>` against a name that passes
 `CONTAINER_NAME_PATTERN`. Container recovery goes through the Podman socket and
-`health_monitor_orchestrator.py`. Because `ai-vlm` needs `--profile vlm` to exist at
-all, a recovery path that only knows how to restart a running container cannot bring it
-back — start it yourself with the profile.
+`health_monitor_orchestrator.py`. `ai-vlm` no longer needs a profile to exist at all, so a
+recovery path that can name a service can start it — but one that only knows how to
+restart an already-running container still cannot recreate a container that was never
+created or was removed; start it yourself with
+`podman compose -f docker-compose.prod.yml up -d ai-vlm`.
 
 ---
 
@@ -238,9 +247,9 @@ back — start it yourself with the profile.
 
 ```bash
 # Containerized AI
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm
 podman compose -f docker-compose.prod.yml restart ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm logs -f ai-vlm
+podman compose -f docker-compose.prod.yml logs -f ai-vlm
 
 # Host-run detection
 ./ai/start_detector.sh

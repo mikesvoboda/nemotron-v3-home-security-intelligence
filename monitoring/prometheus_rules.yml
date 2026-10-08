@@ -1,7 +1,7 @@
 # Prometheus Alerting Rules for Home Security Intelligence AI Pipeline
 #
 # LIVE FILE: docker-compose bind-mounts this file into the Prometheus container
-# as /etc/prometheus/prometheus_rules.yml (docker-compose.prod.yml:1012) and it
+# as /etc/prometheus/prometheus_rules.yml (docker-compose.prod.yml:1017) and it
 # is listed in rule_files in monitoring/prometheus.yml. There are no ${...}
 # placeholders here; edit this file directly.
 #

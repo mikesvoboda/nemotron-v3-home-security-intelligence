@@ -88,7 +88,7 @@ flowchart TD
 
     subgraph "Service Layer"
         Gateway[ai-gateway:8090<br/>yolo26 · enrich-lt]
-        Vlm[ai-vlm:8098<br/>profile vlm]
+        Vlm[ai-vlm:8098<br/>default compose set]
     end
 
     GPU --> Driver
@@ -285,8 +285,8 @@ ls "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/" "${AI_MODELS_PATH:-/export/
 # Gateway: starts with a plain up
 podman compose -f docker-compose.prod.yml up -d ai-gateway
 
-# VLM: needs its profile on the command line
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+# VLM: starts with the same default set, no flag needed
+podman compose -f docker-compose.prod.yml up -d ai-vlm
 
 # Verify each gateway router and the VLM
 curl -s http://localhost:8090/yolo26/health | jq
@@ -298,9 +298,11 @@ podman logs ai-vlm 2>&1 | grep -i mmproj
 curl -s http://localhost:8098/props | jq
 ```
 
-`podman compose ... up -d ai-vlm` **without** `--profile vlm` starts nothing and reports
-success: podman-compose drops a service whose profile is inactive before it resolves the
-service names you typed.
+`ai-vlm` is in the default compose set, so the command above resolves with no flag. Until
+UR-18 it sat behind a gate that had to be named explicitly, and a plain
+`podman compose ... up -d ai-vlm` started nothing while reporting success; that behaviour
+is gone. The drop-before-resolve rule still applies to the services that remain gated —
+`ai-llm-vllm` resolves only with `--profile vllm` on the command line.
 
 ---
 

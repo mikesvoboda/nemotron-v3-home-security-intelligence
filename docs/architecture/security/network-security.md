@@ -354,7 +354,7 @@ yolo26_url: str = Field(
     description="URL of the YOLO26 detection service",
 )
 # Development: http://localhost:8098 (local dev)
-# Docker: http://ai-vlm:8098 (compose profile `vlm`, container PORT fixed at 8098)
+# Docker: http://ai-vlm:8098 (default compose set, container PORT fixed at 8098)
 ai_vlm_url: str = Field(
     default="http://localhost:8098",
     description="VLM verification service URL (llama.cpp + mmproj, the vlm_assess engine). Development: http://localhost:8098, Docker: http://ai-vlm:8098",
@@ -365,10 +365,10 @@ Detection runs inside the single `ai-gateway` service on port 8090, which
 mounts exactly two routers — `/yolo26` and `/enrich-lt`
 (`ai/gateway/main.py:276-277`); `enrichment_light_url`
 (`backend/core/config.py:1501-1504`) carries the readiness-lane address. The
-verdict engine runs on its own `ai-vlm` container (port 8098, behind the `vlm`
-compose profile). The `ai_gateway_url` / `use_ai_gateway` settings
+verdict engine runs on its own `ai-vlm` container (port 8098, in the default
+compose set). The `ai_gateway_url` / `use_ai_gateway` settings
 (`backend/core/config.py:1510-1520`) route detection clients through the gateway
-— both are enabled in the deployed stack (`docker-compose.prod.yml:590-591`,
+— both are enabled in the deployed stack (`docker-compose.prod.yml:595-596`,
 `.env.example:196-197`).
 
 ### Optional API Key Authentication for AI Services
@@ -390,14 +390,14 @@ yolo26_api_key: SecretStr | None = Field(
 ### Docker Network Segmentation
 
 The shipped `docker-compose.prod.yml` puts every service on a single bridge
-network, `security-net` (`docker-compose.prod.yml:1519-1521`). Isolation comes
+network, `security-net` (`docker-compose.prod.yml:1524-1526`). Isolation comes
 from host port bindings instead of network splits:
 
-| Exposure                                                      | Services                                                                                                                                                                                                                                                             |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Published to the LAN (`0.0.0.0:${FRONTEND_HTTPS_PORT:-8444}`) | Frontend nginx (app, `/api` proxy, `/grafana` proxy)                                                                                                                                                                                                                 |
-| Published on loopback only (`127.0.0.1:...`)                  | Backend 8000 (`API_PORT`), ai-gateway 8090 (`AI_GATEWAY_PORT`), ai-vlm 8098 (`AI_VLM_PORT`, `vlm` profile), ai-llm-vllm 8097 (`VLLM_PORT`, `vllm` profile), PostgreSQL 5432, Redis 6379, go2rtc 1984, Prometheus 9090, Alertmanager 9093, Grafana 3002, and the rest |
-| Not published at all                                          | Containers reachable only over `security-net` service names (e.g. `http://backend:8000`, `http://ai-gateway:8090`)                                                                                                                                                   |
+| Exposure                                                      | Services                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Published to the LAN (`0.0.0.0:${FRONTEND_HTTPS_PORT:-8444}`) | Frontend nginx (app, `/api` proxy, `/grafana` proxy)                                                                                                                                                                                                  |
+| Published on loopback only (`127.0.0.1:...`)                  | Backend 8000 (`API_PORT`), ai-gateway 8090 (`AI_GATEWAY_PORT`), ai-vlm 8098 (`AI_VLM_PORT`), ai-llm-vllm 8097 (`VLLM_PORT`, `vllm` profile), PostgreSQL 5432, Redis 6379, go2rtc 1984, Prometheus 9090, Alertmanager 9093, Grafana 3002, and the rest |
+| Not published at all                                          | Containers reachable only over `security-net` service names (e.g. `http://backend:8000`, `http://ai-gateway:8090`)                                                                                                                                    |
 
 ### Firewall Recommendations
 

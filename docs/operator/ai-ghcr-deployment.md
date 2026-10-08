@@ -70,14 +70,14 @@ podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:
 
 # 2. Build the AI containers locally (first time only)
 podman compose -f docker-compose.prod.yml build ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm build ai-vlm
+podman compose -f docker-compose.prod.yml build ai-vlm
 
 # 3. Download models (manifest: models.yml), then place the VLM GGUF pair yourself
 ./ai/download_models.sh
 #   ${AI_MODELS_PATH}/vlm/{Qwen3VL-8B-Instruct-Q4_K_M,mmproj-Qwen3VL-8B-Instruct-Q8_0}.gguf
 
-# 4. Start the full stack — the profile is what starts the reasoning engine
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+# 4. Start the full stack — the plain up starts the reasoning engine too
+podman compose -f docker-compose.prod.yml up -d
 
 # 5. Verify
 curl -s http://localhost:8000/api/system/health/ready | jq
@@ -85,9 +85,11 @@ curl -s http://localhost:8090/health | jq       # ai-gateway
 curl -s http://localhost:8098/props  | jq        # ai-vlm served model + build
 ```
 
-`podman compose ... build ai-vlm` **without** `--profile vlm` resolves to nothing:
-podman-compose drops a service whose profile is inactive before it resolves names on the
-command line. The same rule applies to `up`, `logs`, `ps`, and `stop`.
+`ai-vlm` needs no flag on any of these — it sits in the default set, so `build`, `up`,
+`logs`, `ps` and `stop` all resolve it by name. The flag rule still applies to the two
+services that remain profile-gated: `podman compose ... up -d ai-llm-vllm` **without**
+`--profile vllm` resolves to nothing, because podman-compose drops a service whose
+profile is inactive before it resolves names on the command line.
 
 ### Deploy Core AI Only (detection, no verdicts)
 
@@ -145,12 +147,12 @@ value), `CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}` (all GPUs are passed via CD
 selects the card — see [GPU Setup](gpu-setup.md)), and
 `HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}`.
 
-### ai-vlm (llama.cpp + mmproj, profile `vlm`)
+### ai-vlm (llama.cpp + mmproj, default compose set)
 
 | Property         | Value                                                                        |
 | ---------------- | ---------------------------------------------------------------------------- |
 | **Port**         | `127.0.0.1:${AI_VLM_PORT:-8098}:8098` (container port fixed at 8098)         |
-| **Profile**      | `vlm` — **off unless you name it**                                           |
+| **Compose set**  | default — a plain `up -d` starts it (no flag)                                |
 | **Base Image**   | llama.cpp built in-image (`ai/vlm/Dockerfile`)                               |
 | **Model**        | Operator-placed GGUF pair; **no script fetches it**                          |
 | **Health check** | `GET /health`, `start_period` 120s — does **not** prove the projector loaded |
@@ -159,8 +161,8 @@ selects the card — see [GPU Setup](gpu-setup.md)), and
 **Build and start:**
 
 ```bash
-podman compose -f docker-compose.prod.yml --profile vlm build ai-vlm
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+podman compose -f docker-compose.prod.yml build ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-vlm
 ```
 
 **Environment Variables** (compose reads these from `.env`; container-side names in
@@ -259,11 +261,11 @@ podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:l
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
 
 podman compose -f docker-compose.prod.yml build ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm build ai-vlm
+podman compose -f docker-compose.prod.yml build ai-vlm
 
 ./ai/download_models.sh               # then place the VLM GGUF pair by hand
 
-podman compose -f docker-compose.prod.yml --profile vlm up -d
+podman compose -f docker-compose.prod.yml up -d
 ```
 
 ### Pattern 2: Backend/Frontend from GHCR, AI From Local Build
@@ -281,8 +283,8 @@ product decision, not a deployment shape.
 git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
 cd nemotron-v3-home-security-intelligence
 podman compose -f docker-compose.prod.yml build ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm build ai-vlm
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-gateway ai-vlm
+podman compose -f docker-compose.prod.yml build ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-gateway ai-vlm
 ```
 
 **On the application host:** point `.env` at the GPU host. Both services publish
@@ -313,10 +315,10 @@ git pull origin main
 
 # --no-cache: cached layers hold stale code
 podman compose -f docker-compose.prod.yml build --no-cache ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm build --no-cache ai-vlm
+podman compose -f docker-compose.prod.yml build --no-cache ai-vlm
 
 podman compose -f docker-compose.prod.yml up -d ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm
+podman compose -f docker-compose.prod.yml up -d ai-vlm
 ```
 
 ### Use a Specific Version (SHA Tag)
@@ -387,7 +389,7 @@ nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
 
 ```bash
 podman compose -f docker-compose.prod.yml logs ai-gateway
-podman compose -f docker-compose.prod.yml --profile vlm logs ai-vlm
+podman compose -f docker-compose.prod.yml logs ai-vlm
 
 # Triton model-load failures show up first in the gateway log
 podman logs ai-gateway 2>&1 | grep -iE "error|failed|model"
@@ -397,8 +399,11 @@ ls -la "${AI_MODELS_PATH:-/export/ai_models}/vlm/"
 ls -la "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/"
 ```
 
-An `ai-vlm` that is **absent** from `podman ps -a` rather than stopped is a profile
-problem, not a crash — see [AI Troubleshooting](ai-troubleshooting.md#ai-vlm-is-not-running).
+There is no profile to name any more, so an `ai-vlm` that fails to come up is a start
+failure, not a gate: on a machine with no GPU its CDI device line has nothing to map, and
+`up -d` reports the failure for that one service while the rest of the stack comes up. For
+a serve that starts and then dies, see
+[AI Troubleshooting](ai-troubleshooting.md#ai-vlm-is-not-running).
 
 ### GPU Not Available in Container
 
@@ -433,7 +438,7 @@ is **unmeasured** — if it does not, move both numbers together rather than tea
 server down for being early.
 
 ```bash
-podman compose -f docker-compose.prod.yml --profile vlm logs -f ai-vlm
+podman compose -f docker-compose.prod.yml logs -f ai-vlm
 ```
 
 ---

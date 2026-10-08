@@ -32,8 +32,8 @@ Home Security Intelligence is an AI-powered home security monitoring dashboard t
 ### Architecture Components
 
 Production AI is two containers: **`ai-gateway`** (Triton + FastAPI on :8090, routers
-`/yolo26` and `/enrich-lt`) and **`ai-vlm`** (llama.cpp on :8098, behind the `vlm` compose
-profile). The face, plate and person-re-ID lookups run in the backend process.
+`/yolo26` and `/enrich-lt`) and **`ai-vlm`** (llama.cpp on :8098, in the default compose
+set). The face, plate and person-re-ID lookups run in the backend process.
 
 ```
 Camera Images
@@ -48,7 +48,7 @@ Camera Images
       v                                             v
 +-------------------------------------+   +--------------------------+
 |  ai-gateway (:8090, Triton)         |   |  ai-vlm (:8098, llama.cpp)|
-|  /yolo26   detection                |   |  compose profile `vlm`    |
+|  /yolo26   detection                |   |  default compose set      |
 |  /enrich-lt  re-ID + threat (opt-in)|   |  risk verdict per batch   |
 +-------------------------------------+   +--------------------------+
                                                    |
@@ -199,12 +199,12 @@ See [Keyboard Shortcuts](keyboard-shortcuts.md) for complete reference.
 
 ## Troubleshooting
 
-| Issue                   | Solution                                                      |
-| ----------------------- | ------------------------------------------------------------- |
-| No detections appearing | Check the AI gateway: `curl localhost:8090/yolo26/health`     |
-| Risk gauge stuck at 0   | The VLM serve needs its profile: `--profile vlm up -d ai-vlm` |
-| GPU out of memory       | Lower `VLM_CTX_SIZE` / `VLM_PARALLEL`, or `VLM_GPU_LAYERS`    |
-| WebSocket disconnects   | Check Redis connection and backend logs                       |
+| Issue                   | Solution                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| No detections appearing | Check the AI gateway: `curl localhost:8090/yolo26/health`                       |
+| Risk gauge stuck at 0   | The VLM serve is down: `podman compose -f docker-compose.prod.yml up -d ai-vlm` |
+| GPU out of memory       | Lower `VLM_CTX_SIZE` / `VLM_PARALLEL`, or `VLM_GPU_LAYERS`                      |
+| WebSocket disconnects   | Check Redis connection and backend logs                                         |
 
 See [Troubleshooting Guide](troubleshooting/index.md) for detailed solutions.
 

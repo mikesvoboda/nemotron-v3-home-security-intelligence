@@ -109,10 +109,10 @@ flowchart LR
 
 Two GPU services (see `docker-compose.prod.yml`):
 
-| Service                                                       | What runs                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ai-gateway` (port 8090)                                      | FastAPI front for a Triton Inference Server in the same container. Two routers: `/yolo26` (`/detect`, `/detect/batch`, `/segment`, `/health`) and `/enrich-lt` (`/threat-detect`, `/person-reid`, `/health`). `GATEWAY_MODEL_SET` resolves only `vlm` — any other value hard-raises. Triton loads its models at container start with `--model-control-mode=none` (resident, never unloaded at runtime); the compose healthcheck allows three minutes. |
-| `ai-vlm` (`AI_VLM_PORT`, default 8098; compose profile `vlm`) | llama.cpp serving the configured GGUF pair (`VLM_MODEL_PATH` + `VLM_MMPROJ_PATH`) at `/v1/chat/completions`. The backend soft-depends only: with the profile off the stack boots and events degrade (no verdicts) instead of failing.                                                                                                                                                                                                                 |
+| Service                                                     | What runs                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai-gateway` (port 8090)                                    | FastAPI front for a Triton Inference Server in the same container. Two routers: `/yolo26` (`/detect`, `/detect/batch`, `/segment`, `/health`) and `/enrich-lt` (`/threat-detect`, `/person-reid`, `/health`). `GATEWAY_MODEL_SET` resolves only `vlm` — any other value hard-raises. Triton loads its models at container start with `--model-control-mode=none` (resident, never unloaded at runtime); the compose healthcheck allows three minutes. |
+| `ai-vlm` (`AI_VLM_PORT`, default 8098; default compose set) | llama.cpp serving the configured GGUF pair (`VLM_MODEL_PATH` + `VLM_MMPROJ_PATH`) at `/v1/chat/completions`. The backend soft-depends only: it has no `depends_on` entry for ai-vlm, so if the engine never comes up the stack boots anyway and events degrade (no verdicts) instead of failing.                                                                                                                                                      |
 
 `ai-gateway` is the only vision service, and `ai-vlm` is the only LLM service.
 
@@ -430,8 +430,8 @@ bladed weapons HIGH, and so on; the category enum lives in
 
 ### VLM Analysis
 
-Risk reasoning runs on the `ai-vlm` llama.cpp engine — compose profile `vlm`,
-host port `AI_VLM_PORT` (default 8098); model identity is config
+Risk reasoning runs on the `ai-vlm` llama.cpp engine — in the default compose
+set, started by a plain `up -d`; host port `AI_VLM_PORT` (default 8098); model identity is config
 (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`, D5). Inspect a finished event's prompt and
 response through the backend at `/api/llm-reasoning/events/{event_id}`.
 

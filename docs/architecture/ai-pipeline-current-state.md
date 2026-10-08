@@ -20,15 +20,15 @@ pass, file:line cited; **[A]** asserted from a source I did not re-measure.
 
 ## 0. Correct the framing before anything else
 
-The retired engine **is** Nemotron. Nothing was migrated *to* it. **[V]**
+The retired engine **is** Nemotron. Nothing was migrated _to_ it. **[V]**
 
-| | Retired by R8 (2026-09-29) | Shipping today |
-| --- | --- | --- |
-| Serving container | `ai-llm` (absent from `docker-compose.prod.yml` outright) | `ai-vlm` (`prod.yml:134`) |
-| Engine | llama.cpp + Nemotron-3-Nano-30B-A3B Q4_K_M | llama.cpp `llama-server` + **Qwen3VL-8B**-Instruct-Q4_K_M + mmproj Q8_0 |
-| Analyzer | `nemotron_analyzer.py` (deleted) | `backend/services/vlm_analyzer.py` |
-| Selection | `PIPELINE_MODE=legacy` | `PIPELINE_MODE=vlm` — **the only accepted value**; legacy hard-raises at boot (`config.py:1079-1083`) |
-| Per-model zoo | `ai/{florence,clip,enrichment,enrichment-light,nemotron}` (deleted trees) | gateway serves **only** `/yolo26` + `/enrich-lt` |
+|                   | Retired by R8 (2026-09-29)                                                | Shipping today                                                                                        |
+| ----------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Serving container | `ai-llm` (absent from `docker-compose.prod.yml` outright)                 | `ai-vlm` (`prod.yml:141`)                                                                             |
+| Engine            | llama.cpp + Nemotron-3-Nano-30B-A3B Q4_K_M                                | llama.cpp `llama-server` + **Qwen3VL-8B**-Instruct-Q4_K_M + mmproj Q8_0                               |
+| Analyzer          | `nemotron_analyzer.py` (deleted)                                          | `backend/services/vlm_analyzer.py`                                                                    |
+| Selection         | `PIPELINE_MODE=legacy`                                                    | `PIPELINE_MODE=vlm` — **the only accepted value**; legacy hard-raises at boot (`config.py:1079-1083`) |
+| Per-model zoo     | `ai/{florence,clip,enrichment,enrichment-light,nemotron}` (deleted trees) | gateway serves **only** `/yolo26` + `/enrich-lt`                                                      |
 
 So "we should still have a specialist pipeline with a VLM" is satisfied by design: the VLM path is
 not a survivor of the refactor, it is the **only** path. What was removed is the thing you are
@@ -38,7 +38,7 @@ worried about being left without.
 
 ```
 camera / FTP / seed-events.py  ->  file drop under FOSCAM_BASE_PATH (host /export/foscam,
-                                   mounted /cameras; prod.yml:461)
+                                   mounted /cameras; prod.yml:466)
   -> FileWatcher (watchdog inotify, recursive)          file_watcher.py:379
      debounce 0.5s -> 2.0s size-stability wait -> media validation -> content-hash dedupe
   -> XADD detections:stream                            redis_streams.py:389
@@ -75,7 +75,7 @@ camera / FTP / seed-events.py  ->  file drop under FOSCAM_BASE_PATH (host /expor
 Shipped defaults all agree, which is the point of `test_gateway_model_set_compose.py`:
 `PIPELINE_MODE=vlm`, `GATEWAY_MODEL_SET=vlm`, `GATEWAY_ENABLE_THREAT=false`,
 `USE_AI_GATEWAY=true`, `BACKEND_MODEL_PRELOAD=false` (`.env.example:203-231`,
-`prod.yml:387,388,484,489`).
+`prod.yml:392,388,484,489`).
 
 Baseline for the guard tests covering this path, measured before any change:
 **206 passed in 4.55s** (`.venv/bin/python -m pytest` over `test_vlm_specialists.py`,
@@ -99,24 +99,28 @@ if [ -n "${MMPROJ_PATH}" ]; then MM_ARGS="--mmproj ${MMPROJ_PATH}"; fi
 An empty or absent `MMPROJ_PATH` starts `llama-server` **without** the projector. The container
 then answers `200` on `/health`, so both health checks pass:
 
-- compose healthcheck `prod.yml:238` — `curl -f http://localhost:8098/health`
+- compose healthcheck `prod.yml:243` — `curl -f http://localhost:8098/health`
 - the Dockerfile's own `HEALTHCHECK` at `:139`
 
 `ai/download_models.sh:493-497` says the weights are **not fetched** by the script and that "the
 mmproj projector is required, without it the serve is text-only and every `vlm_assess` call
 degrades silently". Compounding it, `backend`'s `depends_on` names `postgres`, `redis`,
-`ai-gateway` and `go2rtc` — **not** `ai-vlm` (`prod.yml:194-206`), because compose cannot take a
-dependency on a profile-gated service.
+`ai-gateway` and `go2rtc` — **not** `ai-vlm` (`prod.yml:634-646`), on purpose: `ai-vlm` failing
+must never take the rest of the stack down, so degradation is left to the `vlm_analyzer` ladder
+rather than a compose edge (`prod.yml:127-130`, the service's header comment).
 
 **Signature to grep for:** a run of events with `risk_score`/`risk_level` NULL and
 `verdict = 'verification_failed'`. That is the VLM unreachable or blind, not an empty camera.
 
-### 2.2 `restart-all.sh` restarts the VLM without its profile
+### 2.2 `restart-all.sh` restarts the VLM without its profile — closed by UR-18
 
-`ai-vlm` is the only shipped AI service behind a compose profile (`prod.yml:154-155`), so
-`up -d` without `--profile vlm` does not start it. The script knows this — `start_services`
-takes an optional profile argument (`scripts/restart-all.sh:83-89`) and the monitoring group
-passes one (`:222`). The AI group does not:
+> **Closed (O1.3, UR-18).** `ai-vlm` now ships in the default compose set, so the profile-less
+> AI-group call below starts it like any other service. What follows is the surface as measured
+> 2026-10-02, when the service did sit behind a compose profile.
+
+`ai-vlm` was the only shipped AI service behind a compose profile, so `up -d` without the profile
+flag did not start it. The script knew this — `start_services` takes an optional profile argument
+(`scripts/restart-all.sh:83-89`) and the monitoring group passes one (`:222`). The AI group did not:
 
 ```sh
 AI_SERVICES="ai-gateway ai-vlm"                      # :39
@@ -124,10 +128,13 @@ start_services "$AI_SERVICES" "AI"                   # :220  <- no profile
 start_services "$MONITORING_SERVICES" "Monitoring" "monitoring"   # :222  <- profile passed
 ```
 
-`setup_lib/deploy_phases.py:70-72` documents the trap in its own words ("podman-compose drops a
-service whose profile is inactive before it resolves command-line") and threads `--profile`
-correctly. **The operator-facing restart script is the one place that can silently drop the VLM
-and report success.** `stop_services` at `:242` has the same shape.
+`setup_lib/deploy_phases.py:72-76` records the retired trap in its own words ("podman-compose drops a
+service whose profile is inactive before it resolves command-line targets") and names services
+with no profile flag now. With `ai-vlm` in the default set, the AI group's profile-less
+`start_services`/`stop_services` pair (`scripts/restart-all.sh:220`, `:242`) starts and stops it
+with the rest — **the place that could silently drop the VLM and report success is gone.** (The
+`monitoring` argument at `:222` names no profile any service declares; compose ignores a flag
+nothing declares rather than rejecting it.)
 
 ### 2.3 The face and re-ID legs are residency-gated, and residency ships off
 
@@ -135,7 +142,7 @@ and report success.** `stop_services` at `:242` has the same shape.
 (`:466-490`) are **membership reads that never trigger a load** — by design, mirroring each other.
 The handle exists only if the boot preload sweep put it there, and that sweep is gated on
 `settings.backend_model_preload` (`backend/main.py:1214`). Shipped default: **false**
-(`.env.example:231`, `prod.yml:489`). `setup.py:461-464` auto-sets it **only** when detected VRAM
+(`.env.example:231`, `prod.yml:494`). `setup.py:461-464` auto-sets it **only** when detected VRAM
 is >= 24 GB (inclusive).
 
 So on a sub-24 GB host, or a host where the operator answered no, the `faces` and `person_reid`
@@ -326,12 +333,12 @@ citations in `ai-pipeline.md`.
 The live blackbox job (`monitoring/prometheus.yml`) probes exactly the four
 endpoints the shipped stack answers:
 
-| target | line | note |
-| --- | --- | --- |
-| `http://ai-vlm:8098/health` | :412 | cannot distinguish multimodal — §2.1 |
-| `http://ai-gateway:8090/health` | :418 | |
-| `http://ai-gateway:8090/yolo26/health` | :424 | |
-| `http://ai-gateway:8090/enrich-lt/health` | :430 | readiness only — §4 |
+| target                                    | line | note                                 |
+| ----------------------------------------- | ---- | ------------------------------------ |
+| `http://ai-vlm:8098/health`               | :412 | cannot distinguish multimodal — §2.1 |
+| `http://ai-gateway:8090/health`           | :418 |                                      |
+| `http://ai-gateway:8090/yolo26/health`    | :424 |                                      |
+| `http://ai-gateway:8090/enrich-lt/health` | :430 | readiness only — §4                  |
 
 The owner-visible degradation signal today is therefore weak on purpose: the
 only strong one is `verification_failed` with NULL score, and **specialist
@@ -343,11 +350,11 @@ degradation never triggers it** — that leg degrades into prompt text by design
 
 - **`docker-compose.ghcr.yml` has `ai-gateway` and no `ai-vlm` service at all** [V] — the two
   `ai-vlm` occurrences (`:26`, `:241`) are comments. If GHCR is a deploy surface, the VLM pipeline
-  is not shipped *there*.
+  is not shipped _there_.
 - **Runtime state is unmeasured from here.** This sandbox has no GPU (`nvidia-smi` absent) and no
-  `/export/ai_models`, so I can read what *ships*, not what is *loaded*. §2.1-2.3 are one
+  `/export/ai_models`, so I can read what _ships_, not what is _loaded_. §2.1-2.3 are one
   container-status call and one event query away from being settled on the real box.
-- **`deploy_phases.py:648` runs `cd /app/gateway/export && bash export_all.sh` during deploy**, and
+- **`deploy_phases.py:649` runs `cd /app/gateway/export && bash export_all.sh` during deploy**, and
   `export_all.sh:113-135` still exports clip/clip_text/fashion_clip/pose engines for Triton models
   pruned in S3, into a cache dir the repository (`{yolo26,reid,threat}`) never loads. Whether that
   currently fails, warns, or wastes GPU-minutes at deploy is **not** established — it gates the

@@ -122,10 +122,10 @@ AI service URLs are already set correctly for the containerized deployment in bo
 ```bash
 AI_GATEWAY_URL=http://ai-gateway:8090         # gateway base, used with USE_AI_GATEWAY=true
 YOLO26_URL=http://ai-gateway:8090/yolo26      # detection; the gateway's other router is /enrich-lt
-AI_VLM_URL=http://ai-vlm:8098                 # reasoning serve (compose profile `vlm`)
+AI_VLM_URL=http://ai-vlm:8098                 # reasoning serve (in the default compose set)
 ```
 
-`ai-vlm` sits behind the `vlm` compose profile, so a plain `up -d` starts the gateway and not the serve — see [First Run](first-run.md).
+`ai-vlm` is in the default compose set, so a plain `up -d` starts the reasoning serve alongside the gateway — no profile flag to remember. Nothing depends on `ai-vlm`, so if it fails to start (no GPU here, or the GGUF pair is not where compose mounts it) the rest of the stack still comes up and the risk gauge simply stays at 0; see [First Run](first-run.md).
 
 Inside the backend container the camera directory is always mounted at `/cameras`, regardless of your host path (the compose file sets `FOSCAM_BASE_PATH=/cameras` for the backend service).
 

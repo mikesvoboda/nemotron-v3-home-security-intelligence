@@ -169,7 +169,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    # read_only NOT used — same NOTE as docker-compose.prod.yml:897: the
+    # read_only NOT used — same NOTE as docker-compose.prod.yml:902: the
     # image's entrypoint sed -i's /etc/nginx/conf.d/default.conf at startup
     # and dies on a read-only rootfs (`sed: can't create temp file ...
     # Read-only file system`, measured against frontend:latest from GHCR).
