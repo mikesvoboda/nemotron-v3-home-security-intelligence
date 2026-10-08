@@ -51,12 +51,14 @@ RETIRED_NAMES = ("florence", "nemotron", "enrichment", "xclip", "pose", "demogra
 
 # Laundering tripwires. exclude_directories and exclude_reference_patterns
 # sit in the SAME file as the baselines, and widening either laundrows the
-# gate with no pair-census side effect — the design panel measured +exclude
-# `backend` keeping the SAME dead pairs while nemotron 143 -> 83 (the retired
-# arm silently halved), and one added exclude_reference_patterns line
-# silently excusing a dead pair from report, gate and census alike. Pin the
-# committed sets here: any change must edit this constant in the same,
-# reviewed PR.
+# gate. The design panel's "+exclude backend keeps the SAME dead pairs while
+# nemotron 143 -> 83" belongs to the pre-anchor draft: under the shipped
+# anchored resolution the pair census DOES react (the same edit reports 138
+# stale references, 129 violations). What launders silently is the retired-
+# name arm (nemotron 143 -> 83, florence 93 -> 70, no complaint at all), and
+# one added exclude_reference_patterns line silently excuses a dead pair from
+# report, gate and census alike. Pin the committed sets here: any change must
+# edit this constant in the same, reviewed PR.
 EXPECTED_EXCLUDE_DIRECTORIES = {
     "__pycache__",
     "node_modules",
@@ -582,12 +584,14 @@ def test_real_tree_allowlist_is_exact(real_run):
 
 @pytest.mark.timeout(180)
 def test_real_tree_scanned_count_floor(real_run):
-    """The denominator is pinned because exclude_directories widening
-    laundrows the retired-name arm with NO pair-side effect (measured:
-    +exclude backend keeps the same dead pairs while nemotron 143 -> 83).
-    A FLOOR, not equality: W3.1 may legitimately add AGENTS.md files; if the
-    set SHRINKS, someone widened an exclusion — update the floor and say why
-    in the same PR."""
+    """The denominator is pinned because exclude_directories widening launders
+    the retired-name arm silently (measured: +exclude backend drops nemotron
+    143 -> 83 and florence 93 -> 70 with no baseline edit). The dead-reference
+    arm at least reacts under anchored resolution — the same edit reports 138
+    stale references — but a shrunk denominator is invisible without this
+    floor. A FLOOR, not equality: W3.1 may legitimately add AGENTS.md files;
+    if the set SHRINKS, someone widened an exclusion — update the floor and
+    say why in the same PR."""
     rc, report, _stderr = real_run
     assert rc == 0
     assert report["total_agents_md_files"] >= 245
