@@ -62,7 +62,7 @@ def result_checked_needs(job: dict) -> set[str]:
     A `needs:` edge is ordering, not failure propagation. Two independent
     mechanisms sever it, and this graph uses both:
 
-      * `if: always()` — the job runs even when its need failed, so its own
+      * `if: !cancelled()` (or `always()`) — the job runs even when its need failed, so its own
         conclusion is decided solely by its steps. A summary job that inspects
         only its shards reports success while a sibling need burns.
       * ci-gate's `check_job` forgives `skipped` (deliberately — main-only jobs

@@ -60,7 +60,7 @@ ai-vlm is the only LLM service.
 
 ## Network Configuration
 
-**Source:** `docker-compose.prod.yml:1527-1529`
+**Source:** `docker-compose.prod.yml:1532-1534`
 
 ```yaml
 networks:
@@ -119,10 +119,10 @@ Alongside the reservation, the gateway declares `devices: [nvidia.com/gpu=all]` 
 
 | Variable          | Default | Selects                                           |
 | ----------------- | ------- | ------------------------------------------------- |
-| `GPU_LLM`         | `0`     | the card ai-vlm reserves (`.env.example:554`)     |
-| `GPU_AI_SERVICES` | `1`     | the card ai-gateway reserves (`.env.example:946`) |
+| `GPU_LLM`         | `0`     | the card ai-vlm reserves (`.env.example:419`)     |
+| `GPU_AI_SERVICES` | `1`     | the card ai-gateway reserves (`.env.example:806`) |
 
-The backend reserves one GPU without pinning an id (`docker-compose.prod.yml:663-674`) for its in-process onnxruntime/torch lookup legs.
+The backend reserves one GPU without pinning an id (`docker-compose.prod.yml:668-679`) for its in-process onnxruntime/torch lookup legs.
 
 ### GPU Requirements
 
@@ -183,7 +183,7 @@ cannot load even by accident. Backend-side weights load per use; `BACKEND_MODEL_
 
 ## Volume Mounts
 
-**Source:** `docker-compose.prod.yml:1478-1525` (top-level `volumes:` block)
+**Source:** `docker-compose.prod.yml:1483-1530` (top-level `volumes:` block)
 
 Named volumes include `postgres_data`, `redis_data`, `tempo_data`, `hf_cache`, `prometheus_data`,
 `grafana_data`, `alertmanager_data`, `loki_data`, `pyroscope_data`, `alloy_symb_cache`, and
@@ -277,7 +277,7 @@ for host overhead.
 
 ![Backend Initialization Lifecycle](../../images/architecture/backend-init-lifecycle.png)
 
-**Source:** `docker-compose.prod.yml:634-646` (backend `depends_on`)
+**Source:** `docker-compose.prod.yml:639-651` (backend `depends_on`)
 
 ```yaml
 # Backend startup order

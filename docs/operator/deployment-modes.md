@@ -26,6 +26,7 @@ the reasoning engine runs in `ai-vlm`, which is in the default compose set.
 port — they are not separate services on separate ports.
 
 > [!IMPORTANT]
+>
 > `AI_VLM_URL` is the URL that gets missed. The backend reads a code default of
 > `http://localhost:8098`, which inside a container is the container itself: every
 > verdict lands `verification_failed` with a NULL `risk_score`, and the events keep
@@ -192,8 +193,8 @@ AI_VLM_URL=http://${GPU_HOST}:8098
   its own reverse proxy or an SSH tunnel — see
   [AI TLS](ai-tls.md) for aligning TLS and hostnames.
 - If you add TLS/reverse proxying for AI, keep the backend URLs aligned (see `docs/operator/ai-tls.md`).
-- `AI_VLM_READ_TIMEOUT` (default 25.0 s) is the per-attempt ceiling for a verdict. A LAN
-  hop is fine; a WAN hop against a sleeping server is not, and a failed wake is
+- `AI_VLM_READ_TIMEOUT` (default 25.0 s) is a per-read idle budget for a verdict
+  attempt (no wall clock wraps it). A LAN hop is fine; a WAN hop against a sleeping server is not, and a failed wake is
   swallowed rather than retried.
 
 ---

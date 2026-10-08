@@ -230,6 +230,8 @@ export const mockReadinessResponse: ReadinessResponse = {
   ],
   timestamp: '2024-01-01T12:00:00Z',
   supervisor_healthy: true,
+  // B1.4: required on ReadinessResponse; the mock tells an all-healthy story.
+  verdict_engine: { state: 'available', since: '2024-01-01T11:45:00Z', reason: null },
 };
 
 // ============================================================================

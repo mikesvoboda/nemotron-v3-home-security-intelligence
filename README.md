@@ -126,7 +126,7 @@ All four live on the [Analytics API](docs/api/analytics-endpoints.md):
 
 The VLM runs in the default compose set (`up -d` starts it; until UR-18 it sat
 behind a compose profile that had to be named explicitly) and the backend
-soft-depends on it (`docker-compose.prod.yml:634-646` lists `postgres`, `redis`,
+soft-depends on it (`docker-compose.prod.yml:639-651` lists `postgres`, `redis`,
 `ai-gateway` and `go2rtc`, never `ai-vlm`; the dial is the
 `AI_VLM_URL` env var at `:554` — the backend has no `depends_on` entry
 for it, so the backend degrades instead of failing to boot). `ai-gateway`'s
