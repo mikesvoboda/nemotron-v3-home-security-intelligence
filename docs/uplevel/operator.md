@@ -173,5 +173,6 @@ follow-up PR. Runs the owner keeps go to the daily batch, not to you.
 You write no product code and change no command; when a command fails for a
 reason its PR did not anticipate, post the output and the exit code and move
 on. Every number you post comes from output in the same comment. Always tear
-down, also after a failure.
+down, also after a failure. Before each new run, read the new comments on your
+own open PRs (UR-35).
 ```
