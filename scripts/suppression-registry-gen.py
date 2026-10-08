@@ -87,6 +87,8 @@ HOST_JUSTIFIED: dict[str, str] = {
     "backend/tests/gpu/test_detector_integration.py:450": "nvidia-smi TimeoutExpired — GPU host state",
     # Environment variable itself, read via a local alias the probe can't see.
     "backend/tests/test_db_isolation.py:66": 'url is os.environ.get("TEST_DATABASE_URL") — env-var guard',
+    # Compose binary availability, resolved inside a helper the probe can't see.
+    "backend/tests/unit/core/test_compose_render_lists_ai_vlm.py:67": "argv is None when no compose binary (podman/docker) resolves via shutil.which — host-executable guard, not repo content",
     # Campaign red-check kill-evidence logs: written to /tmp by the campaign
     # runners (red_dead102b.sh / red_dead102c.sh) at red-check time. The guard
     # is FileNotFoundError on an off-repo artifact — a data-chain skip, not a

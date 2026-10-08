@@ -693,7 +693,7 @@ AMENDMENTS: dict[str, list[str]] = {
     "CUDA architecture": [
         "[V 2026-09-27] .env.example ships CUDA_ARCHITECTURES=89 (cited by "
         "variable name - the line anchor here was stale within one slice); "
-        "docker-compose.prod.yml:245 threads ${CUDA_ARCHITECTURES:-} into the "
+        "docker-compose.prod.yml:160 threads ${CUDA_ARCHITECTURES:-} into the "
         "ai-vlm build (the :136 ai-llm line serves the retired mode); "
         "ai/vlm/Dockerfile:64 treats it as a build-arg - check-before-build "
         "stands",
@@ -805,7 +805,7 @@ AMENDMENTS: dict[str, list[str]] = {
         "and copy the engine's own `projected to use N MiB` and "
         "`llama_kv_cache: size =` startup lines. Record CTX_SIZE/PARALLEL and "
         "the resident set beside every number or it is meaningless. THE TRAP: "
-        "VLM_GPU_LAYERS defaults to `auto` (docker-compose.prod.yml:274), "
+        "VLM_GPU_LAYERS defaults to `auto` (docker-compose.prod.yml:188), "
         "which means an over-budget serve silently spills layers to CPU RAM, "
         "looks healthy, and can post a 'passing' peak that is NOT an S1 pass - "
         "serve with GPU_LAYERS=auto and NO --n-gpu-layers reduction, and "
