@@ -49,7 +49,7 @@ def exposed(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 @pytest.fixture
 def loopback(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.delenv("EXPOSE_LAN", raising=False)
+    monkeypatch.setenv("EXPOSE_LAN", "false")  # outranks any .env a developer keeps
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -114,31 +114,35 @@ async def _send_test_notification(client: AsyncClient, **kwargs: object) -> None
 
 
 class TestExposedGate:
+    @pytest.mark.usefixtures("exposed")
     async def test_login_session_opens_a_gated_route(
-        self, anonymous: AsyncClient, clean_tables: None, real_session_store: None, exposed: None
+        self, anonymous: AsyncClient, clean_tables: None, real_session_store: None
     ) -> None:
         cookie = await _register_and_login(anonymous)
 
         assert (await anonymous.get(GATED_ROUTE)).status_code == 401
         assert (await anonymous.get(GATED_ROUTE, cookies=cookie)).status_code == 200
 
+    @pytest.mark.usefixtures("exposed")
     async def test_logout_closes_the_session(
-        self, anonymous: AsyncClient, clean_tables: None, real_session_store: None, exposed: None
+        self, anonymous: AsyncClient, clean_tables: None, real_session_store: None
     ) -> None:
         cookie = await _register_and_login(anonymous)
 
         assert (await anonymous.post("/api/auth/logout", cookies=cookie)).status_code == 200
         assert (await anonymous.get(GATED_ROUTE, cookies=cookie)).status_code == 401
 
+    @pytest.mark.usefixtures("exposed")
     async def test_configured_api_key_opens_a_gated_route(
-        self, anonymous: AsyncClient, clean_tables: None, exposed: None
+        self, anonymous: AsyncClient, clean_tables: None
     ) -> None:
         assert (await anonymous.get(GATED_ROUTE)).status_code == 401
         response = await anonymous.get(GATED_ROUTE, headers={"X-API-Key": TEST_API_KEY})
         assert response.status_code == 200
 
+    @pytest.mark.usefixtures("exposed")
     async def test_setup_status_reports_auth_required(
-        self, anonymous: AsyncClient, clean_tables: None, exposed: None
+        self, anonymous: AsyncClient, clean_tables: None
     ) -> None:
         response = await anonymous.get("/api/auth/setup-status")
         assert response.status_code == 200
@@ -146,8 +150,9 @@ class TestExposedGate:
 
 
 class TestNotificationTestAuditActor:
+    @pytest.mark.usefixtures("exposed")
     async def test_records_the_logged_in_user(
-        self, anonymous: AsyncClient, clean_tables: None, real_session_store: None, exposed: None
+        self, anonymous: AsyncClient, clean_tables: None, real_session_store: None
     ) -> None:
         cookie = await _register_and_login(anonymous)
 
@@ -162,8 +167,9 @@ class TestNotificationTestAuditActor:
 
         assert await _audit_actors() == ["api-key"]
 
+    @pytest.mark.usefixtures("loopback")
     async def test_records_anonymous_without_a_credential_on_loopback(
-        self, anonymous: AsyncClient, clean_tables: None, real_session_store: None, loopback: None
+        self, anonymous: AsyncClient, clean_tables: None, real_session_store: None
     ) -> None:
         await _send_test_notification(anonymous)
 

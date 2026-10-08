@@ -9,7 +9,8 @@ covered without editing this file.
   handler runs.
 - ``EXPOSE_LAN`` unset: every route's request reaches its endpoint, as before
   B1.5. The application's own middleware stack wraps a stub endpoint, so no
-  handler touches a database.
+  handler touches a database; this half guards against a regression, and it
+  passes before the gate exists too.
 """
 
 from __future__ import annotations
@@ -48,8 +49,8 @@ def _mounted_routes() -> list[tuple[str, str]]:
         path = _PATH_PARAM.sub("1", context.path_format or route.path_format)
         if isinstance(route, WebSocketRoute):
             routes.append(("WS", path))
-        else:
-            routes.extend((method, path) for method in sorted(context.methods or ()))
+        else:  # a mount or host declares no methods; a GET still reaches it
+            routes.extend((method, path) for method in sorted(context.methods or {"GET"}))
     return routes
 
 
@@ -123,7 +124,7 @@ def exposed(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 @pytest.fixture
 def loopback(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.delenv("EXPOSE_LAN", raising=False)
+    monkeypatch.setenv("EXPOSE_LAN", "false")  # outranks any .env a developer keeps
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -138,7 +139,8 @@ def test_the_route_table_is_enumerated() -> None:
 
 
 @pytest.mark.timeout(30)  # ~480 requests; the default 5 s is tight on a busy CI worker
-def test_exposed_every_route_refuses_an_unauthenticated_request(exposed: None) -> None:
+@pytest.mark.usefixtures("exposed")
+def test_exposed_every_route_refuses_an_unauthenticated_request() -> None:
     client = TestClient(app, raise_server_exceptions=False)
     not_refused = [
         (method, path, outcome)
@@ -149,7 +151,8 @@ def test_exposed_every_route_refuses_an_unauthenticated_request(exposed: None) -
 
 
 @pytest.mark.timeout(30)  # ~480 requests; the default 5 s is tight on a busy CI worker
-def test_exposed_open_paths_reach_their_endpoint(exposed: None, setup_complete: None) -> None:
+@pytest.mark.usefixtures("exposed", "setup_complete")
+def test_exposed_open_paths_reach_their_endpoint() -> None:
     client = TestClient(_app_middleware_around_stub())
     blocked = [
         (method, path, outcome)
@@ -160,7 +163,8 @@ def test_exposed_open_paths_reach_their_endpoint(exposed: None, setup_complete: 
 
 
 @pytest.mark.timeout(30)  # ~480 requests; the default 5 s is tight on a busy CI worker
-def test_loopback_every_route_reaches_its_endpoint(loopback: None, setup_complete: None) -> None:
+@pytest.mark.usefixtures("loopback", "setup_complete")
+def test_loopback_every_route_reaches_its_endpoint() -> None:
     """With EXPOSE_LAN unset nothing is refused for want of a credential."""
     client = TestClient(_app_middleware_around_stub())
     blocked = [
@@ -188,10 +192,22 @@ def test_every_open_path_is_a_mounted_route() -> None:
         ("WS", "/ws/events"),
     ],
 )
-def test_exposed_iss_029_matrix_is_refused(exposed: None, method: str, path: str) -> None:
+@pytest.mark.usefixtures("exposed")
+def test_exposed_iss_029_matrix_is_refused(method: str, path: str) -> None:
     """The unauthenticated-request matrix ISS-029's acceptance names."""
     client = TestClient(app, raise_server_exceptions=False)
     assert _send(client, method, path) == REFUSED
+
+
+@pytest.mark.usefixtures("exposed")
+def test_exposed_preflight_without_origin_is_refused() -> None:
+    """CORSMiddleware hands an Origin-less preflight to the router; the gate must not.
+
+    ``/api/zones/{path}`` is a mounted route that accepts OPTIONS.
+    """
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.options("/api/zones/1", headers={"Access-Control-Request-Method": "GET"})
+    assert response.status_code == 401
 
 
 def test_the_gate_is_the_outermost_middleware() -> None:

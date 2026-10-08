@@ -10,6 +10,9 @@ A credential is either
 - a key from ``settings.api_keys``: the ``X-API-Key`` header over HTTP, the
   ``api_key`` query parameter or an ``api-key.<key>`` subprotocol on a WebSocket.
 
+When exposed, a response to an authenticated HTTP request is marked
+``Cache-Control: private`` so no shared cache (a tunnel, a CDN) can store it.
+
 The per-route guards (``verify_api_key``, ``require_admin_access``,
 ``get_current_admin_user``, ``WEBSOCKET_TOKEN``) still run after the gate.
 """
@@ -20,8 +23,9 @@ from typing import Annotated
 
 from fastapi import Header, HTTPException, WebSocket, status
 from fastapi.responses import JSONResponse
+from starlette.datastructures import Headers, MutableHeaders
 from starlette.requests import HTTPConnection
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from backend.api.dependencies import get_redis_optional
 from backend.api.middleware.websocket_auth import (
@@ -45,7 +49,9 @@ OPEN_PATHS: frozenset[str] = frozenset(
         "/ready",
         "/api/system/health",
         "/api/system/health/ready",
-        # Prometheus scrape targets: counters, no footage, event or identity data
+        # Prometheus scrapes these with no credential. No footage or identity rows, but
+        # /api/metrics counts detections per class and events per risk level, so it
+        # shows when activity happens (an owner question on B1.5, PR #6861)
         "/api/metrics",
         "/api/system/gpu",
         "/api/system/stats",
@@ -324,9 +330,37 @@ async def authenticated_principal(conn: HTTPConnection) -> str | None:
 
 
 def _is_cors_preflight(scope: Scope) -> bool:
-    """A preflight carries no credential; CORSMiddleware answers it without a route."""
-    headers = dict(scope["headers"])
-    return scope["method"] == "OPTIONS" and b"access-control-request-method" in headers
+    """A preflight carries no credential, and CORSMiddleware answers it without a route.
+
+    CORSMiddleware answers only when ``Origin`` is present; without it the request
+    would reach the router, so the gate requires ``Origin`` too.
+    """
+    headers = Headers(scope=scope)
+    return (
+        scope["method"] == "OPTIONS"
+        and "origin" in headers
+        and "access-control-request-method" in headers
+    )
+
+
+def _never_shared(send: Send) -> Send:
+    """Mark a response the gate authenticated as unfit for shared caches.
+
+    Detection media answers ``Cache-Control: public``; behind a caching tunnel or
+    CDN that would hand authenticated footage to whoever asks next.
+    """
+
+    async def send_private(message: Message) -> None:
+        if message["type"] == "http.response.start":
+            headers = MutableHeaders(scope=message)
+            directives = [d.strip() for d in headers.get("cache-control", "").split(",")]
+            lowered = {d.lower() for d in directives}
+            if not lowered & {"private", "no-store"}:
+                kept = [d for d in directives if d and d.lower() != "public"]
+                headers["cache-control"] = ", ".join(["private", *kept])
+        await send(message)
+
+    return send_private
 
 
 class AuthMiddleware:
@@ -334,26 +368,24 @@ class AuthMiddleware:
 
     Mounted outermost in ``backend/main.py``, so nothing answers a request
     before the gate has checked it; ``IdempotencyMiddleware``, for one, replays
-    stored responses by key alone.
+    stored responses by key alone. A refusal is logged as a security event
+    (``event_type="auth_required"``, client IP masked).
     """
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if not await self._admits(scope):
+        if scope["type"] not in ("http", "websocket") or not get_settings().expose_lan:
+            await self.app(scope, receive, send)
+            return
+        if scope["path"] in OPEN_PATHS or (scope["type"] == "http" and _is_cors_preflight(scope)):
+            await self.app(scope, receive, send)
+            return
+        if await authenticated_principal(HTTPConnection(scope)) is None:
             await self._refuse(scope, receive, send)
             return
-        await self.app(scope, receive, send)
-
-    async def _admits(self, scope: Scope) -> bool:
-        if scope["type"] not in ("http", "websocket") or not get_settings().expose_lan:
-            return True
-        if scope["path"] in OPEN_PATHS:
-            return True
-        if scope["type"] == "http" and _is_cors_preflight(scope):
-            return True
-        return await authenticated_principal(HTTPConnection(scope)) is not None
+        await self.app(scope, receive, _never_shared(send) if scope["type"] == "http" else send)
 
     async def _refuse(self, scope: Scope, receive: Receive, send: Send) -> None:
         conn = HTTPConnection(scope)

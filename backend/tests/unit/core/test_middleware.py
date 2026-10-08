@@ -583,9 +583,9 @@ class TestMiddlewareChain:
         get_settings.cache_clear()
 
         app = FastAPI()
-        # Add both middlewares (order matters: last added runs first)
-        app.add_middleware(AuthMiddleware)
+        # The real app's order: the auth gate is added last, so it runs first
         app.add_middleware(RequestIDMiddleware)
+        app.add_middleware(AuthMiddleware)
 
         @app.get("/api/test")
         async def test_endpoint():
@@ -598,15 +598,15 @@ class TestMiddlewareChain:
         assert "X-Request-ID" in response.headers
         assert response.json() == {"message": "success"}
 
-    def test_request_id_present_on_auth_failure(self):
-        """Test that request ID is still added even when auth fails."""
+    def test_refusal_is_answered_before_request_id_middleware(self):
+        """The gate runs first, as in backend/main.py: a refusal never reaches inner layers."""
         os.environ["EXPOSE_LAN"] = "true"
         os.environ["API_KEYS"] = '["valid_key"]'
         get_settings.cache_clear()
 
         app = FastAPI()
-        app.add_middleware(AuthMiddleware)
         app.add_middleware(RequestIDMiddleware)
+        app.add_middleware(AuthMiddleware)
 
         @app.get("/api/test")
         async def test_endpoint():
@@ -616,8 +616,7 @@ class TestMiddlewareChain:
         response = client.get("/api/test")  # No API key
 
         assert response.status_code == 401
-        # Request ID should still be present from RequestIDMiddleware
-        assert "X-Request-ID" in response.headers
+        assert "X-Request-ID" not in response.headers
 
     def test_exempt_path_with_both_middlewares(self):
         """Test that exempt paths work with both middlewares."""
@@ -626,8 +625,8 @@ class TestMiddlewareChain:
         get_settings.cache_clear()
 
         app = FastAPI()
-        app.add_middleware(AuthMiddleware)
         app.add_middleware(RequestIDMiddleware)
+        app.add_middleware(AuthMiddleware)
 
         @app.get("/health")
         async def health():
@@ -648,8 +647,8 @@ class TestMiddlewareChain:
         get_settings.cache_clear()
 
         app = FastAPI()
-        app.add_middleware(AuthMiddleware)
         app.add_middleware(RequestIDMiddleware)
+        app.add_middleware(AuthMiddleware)
 
         @app.get("/api/test")
         async def test_endpoint():

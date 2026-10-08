@@ -203,13 +203,15 @@ def exposed(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 @pytest.fixture
 def loopback(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    monkeypatch.delenv("EXPOSE_LAN", raising=False)
+    monkeypatch.setenv("EXPOSE_LAN", "false")  # outranks any .env a developer keeps
     get_settings.cache_clear()
     yield
 
 
-async def _reached(_request: Request) -> PlainTextResponse:
-    return PlainTextResponse("reached")
+async def _reached(request: Request) -> PlainTextResponse:
+    """Answer ``reached``, with the Cache-Control a ``cache`` query parameter asks for."""
+    cache = request.query_params.get("cache")
+    return PlainTextResponse("reached", headers={"Cache-Control": cache} if cache else None)
 
 
 async def _reached_ws(websocket: WebSocket) -> None:
@@ -218,14 +220,14 @@ async def _reached_ws(websocket: WebSocket) -> None:
     await websocket.close()
 
 
-def _client() -> TestClient:
+def _client(client: tuple[str, int] = ("testclient", 50000)) -> TestClient:
     inner = Starlette(
         routes=[
             Route("/{path:path}", _reached, methods=["GET", "POST", "OPTIONS"]),
             WebSocketRoute("/{path:path}", _reached_ws),
         ]
     )
-    return TestClient(AuthMiddleware(inner))
+    return TestClient(AuthMiddleware(inner), client=client)
 
 
 def _ws(client: TestClient, path: str, **kwargs: object) -> str | int:
@@ -238,30 +240,36 @@ def _ws(client: TestClient, path: str, **kwargs: object) -> str | int:
 
 
 class TestGateOffOnLoopback:
-    def test_http_without_credential_passes(self, loopback: None) -> None:
+    @pytest.mark.usefixtures("loopback")
+    def test_http_without_credential_passes(self) -> None:
         response = _client().get("/api/events")
         assert response.status_code == 200
         assert response.text == "reached"
 
-    def test_websocket_without_credential_passes(self, loopback: None) -> None:
+    @pytest.mark.usefixtures("loopback")
+    def test_websocket_without_credential_passes(self) -> None:
         assert _ws(_client(), "/ws/events") == "reached"
 
 
 class TestGateRefusesWithoutCredential:
     @pytest.mark.parametrize("path", ["/api/events", "/system/detectors", "/no/such/route", "/"])
-    def test_http_is_refused_with_401(self, exposed: None, path: str) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_http_is_refused_with_401(self, path: str) -> None:
         response = _client().get(path)
         assert response.status_code == 401
         assert response.json() == {"detail": "Authentication required"}
 
-    def test_post_is_refused(self, exposed: None) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_post_is_refused(self) -> None:
         response = _client().post("/api/notification/test", json={"channel": "webhook"})
         assert response.status_code == 401
 
-    def test_websocket_is_closed_with_4001(self, exposed: None) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_websocket_is_closed_with_4001(self) -> None:
         assert _ws(_client(), "/ws/events") == 4001
 
-    def test_lifespan_passes_through(self, exposed: None) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_lifespan_passes_through(self) -> None:
         with _client() as client:
             assert client.get("/api/auth/login").status_code == 200
 
@@ -286,96 +294,151 @@ class TestOpenPaths:
         assert documented == OPEN_PATHS
 
     @pytest.mark.parametrize("path", sorted(OPEN_PATHS))
-    def test_open_path_passes_without_credential(self, exposed: None, path: str) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_open_path_passes_without_credential(self, path: str) -> None:
         assert _client().get(path).text == "reached"
 
     @pytest.mark.parametrize(
         "path",
         ["/api/auth/login/", "/api/auth/login/x", "/api/metricsx", "/api/system/health/full"],
     )
-    def test_open_paths_match_exactly(self, exposed: None, path: str) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_open_paths_match_exactly(self, path: str) -> None:
         assert _client().get(path).status_code == 401
 
 
 class TestApiKey:
-    def test_header_key_passes(self, exposed: None) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_header_key_passes(self) -> None:
         assert _client().get("/api/events", headers={"X-API-Key": VALID_KEY}).text == "reached"
 
-    def test_wrong_header_key_is_refused(self, exposed: None) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_wrong_header_key_is_refused(self) -> None:
         response = _client().get("/api/events", headers={"X-API-Key": "wrong-key-1234567"})
         assert response.status_code == 401
 
-    def test_http_query_key_is_refused(self, exposed: None) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_http_query_key_is_refused(self) -> None:
         """Over HTTP a key travels in a header, never in a URL that logs record."""
         assert _client().get(f"/api/events?api_key={VALID_KEY}").status_code == 401
 
-    def test_no_configured_keys_accepts_none(
-        self, exposed: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_no_configured_keys_accepts_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("API_KEYS", "[]")
         get_settings.cache_clear()
         response = _client().get("/api/events", headers={"X-API-Key": VALID_KEY})
         assert response.status_code == 401
 
-    def test_websocket_query_key_passes(self, exposed: None) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_websocket_query_key_passes(self) -> None:
         assert _ws(_client(), f"/ws/events?api_key={VALID_KEY}") == "reached"
 
-    def test_websocket_subprotocol_key_passes(self, exposed: None) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_websocket_subprotocol_key_passes(self) -> None:
         assert _ws(_client(), "/ws/events", subprotocols=[f"api-key.{VALID_KEY}"]) == "reached"
 
-    def test_websocket_wrong_key_is_closed(self, exposed: None) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_websocket_wrong_key_is_closed(self) -> None:
         assert _ws(_client(), "/ws/events?api_key=wrong-key-1234567") == 4001
 
 
 class TestSessionCookie:
     @pytest.mark.asyncio
-    async def test_login_session_passes_http(
-        self, exposed: None, session_store: _SessionStore
-    ) -> None:
+    @pytest.mark.usefixtures("exposed")
+    async def test_login_session_passes_http(self, session_store: _SessionStore) -> None:
         session_id = await _login(session_store)
         response = _client().get("/api/events", headers={"Cookie": f"session_id={session_id}"})
         assert response.text == "reached"
 
     @pytest.mark.asyncio
-    async def test_login_session_passes_websocket(
-        self, exposed: None, session_store: _SessionStore
-    ) -> None:
+    @pytest.mark.usefixtures("exposed")
+    async def test_login_session_passes_websocket(self, session_store: _SessionStore) -> None:
         session_id = await _login(session_store)
         headers = {"Cookie": f"session_id={session_id}"}
         assert _ws(_client(), "/ws/events", headers=headers) == "reached"
 
-    def test_unknown_session_is_refused(self, exposed: None, session_store: _SessionStore) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_unknown_session_is_refused(self, session_store: _SessionStore) -> None:
         response = _client().get("/api/events", headers={"Cookie": "session_id=forged"})
         assert response.status_code == 401
 
-    def test_unknown_session_websocket_is_closed(
-        self, exposed: None, session_store: _SessionStore
-    ) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_unknown_session_websocket_is_closed(self, session_store: _SessionStore) -> None:
         assert _ws(_client(), "/ws/events", headers={"Cookie": "session_id=forged"}) == 4001
 
-    def test_redis_unavailable_refuses(
-        self, exposed: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_redis_unavailable_refuses(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _use_store(monkeypatch, None)
         response = _client().get("/api/events", headers={"Cookie": "session_id=any"})
         assert response.status_code == 401
 
-    def test_redis_error_refuses(self, exposed: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_redis_error_refuses(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _use_store(monkeypatch, _BrokenStore())
         response = _client().get("/api/events", headers={"Cookie": "session_id=any"})
         assert response.status_code == 401
 
 
 class TestCorsPreflight:
-    def test_preflight_passes(self, exposed: None) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_preflight_passes(self) -> None:
         response = _client().options(
             "/api/events",
             headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "GET"},
         )
         assert response.text == "reached"
 
-    def test_plain_options_is_refused(self, exposed: None) -> None:
+    @pytest.mark.usefixtures("exposed")
+    def test_preflight_without_origin_is_refused(self) -> None:
+        """CORSMiddleware hands an Origin-less preflight to the router, so the gate must not."""
+        response = _client().options(
+            "/api/events", headers={"Access-Control-Request-Method": "GET"}
+        )
+        assert response.status_code == 401
+
+    @pytest.mark.usefixtures("exposed")
+    def test_plain_options_is_refused(self) -> None:
         assert _client().options("/api/events").status_code == 401
+
+
+class TestSharedCaches:
+    """No shared cache (a tunnel, a CDN) may keep a response the gate authenticated."""
+
+    @pytest.mark.parametrize(
+        ("sent", "received"),
+        [
+            ("public, max-age=3600", "private, max-age=3600"),
+            (None, "private"),
+            ("no-store", "no-store"),
+            ("private, max-age=60", "private, max-age=60"),
+        ],
+    )
+    @pytest.mark.usefixtures("exposed")
+    def test_authenticated_response_is_private(self, sent: str | None, received: str) -> None:
+        query = f"?cache={sent}" if sent else ""
+        response = _client().get(f"/api/media/x.jpg{query}", headers={"X-API-Key": VALID_KEY})
+        assert response.headers["cache-control"] == received
+
+    @pytest.mark.usefixtures("loopback")
+    def test_loopback_leaves_cache_control_alone(self) -> None:
+        response = _client().get("/api/media/x.jpg?cache=public, max-age=3600")
+        assert response.headers["cache-control"] == "public, max-age=3600"
+
+
+class TestRefusalLog:
+    @pytest.mark.usefixtures("exposed")
+    def test_refusal_is_a_security_event_with_the_client_ip_masked(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level("WARNING", logger="backend.api.middleware.auth"):
+            _client(client=("192.168.1.100", 50000)).get("/api/events")
+        (record,) = [
+            r for r in caplog.records if r.getMessage() == "Unauthenticated request refused"
+        ]
+        assert record.event_type == "auth_required"
+        assert record.security_event is True
+        assert record.path == "/api/events"
+        assert record.client_ip == "192.xxx.xxx.xxx"
 
 
 # =============================================================================
@@ -400,9 +463,8 @@ class TestAuthenticatedPrincipal:
         )
 
     @pytest.mark.asyncio
-    async def test_api_key_is_named_api_key(
-        self, exposed: None, session_store: _SessionStore
-    ) -> None:
+    @pytest.mark.usefixtures("exposed")
+    async def test_api_key_is_named_api_key(self, session_store: _SessionStore) -> None:
         assert await authenticated_principal(_request({"X-API-Key": VALID_KEY})) == "api-key"
 
     @pytest.mark.asyncio
