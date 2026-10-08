@@ -14966,7 +14966,7 @@
           ],
           "deprecated_count": 3,
           "event_types": [],
-          "total_count": 25
+          "total_count": 29
         },
         "properties": {
           "channels": {
@@ -33333,7 +33333,7 @@
         "type": "object"
       },
       "ReadinessResponse": {
-        "description": "Response schema for readiness probe endpoint.\n\nReadiness probes indicate whether the application is ready to receive\ntraffic and process requests. This checks all dependencies:\n- Database connectivity\n- Redis connectivity\n- AI services availability\n- Background worker status",
+        "description": "Response schema for readiness probe endpoint.\n\nReadiness probes indicate whether the application is ready to receive\ntraffic and process requests. This checks all dependencies:\n- Database connectivity\n- Redis connectivity\n- AI services availability\n- Background worker status\n\nThe verdict engine's state (``verdict_engine``) is REPORTED here but never\ngates the HTTP status \u2014 see its field description (B1.4, UR-18).",
         "example": {
           "ready": true,
           "services": {
@@ -33356,6 +33356,10 @@
           "status": "ready",
           "supervisor_healthy": true,
           "timestamp": "2025-12-23T10:30:00",
+          "verdict_engine": {
+            "since": "2026-10-08T09:15:00Z",
+            "state": "available"
+          },
           "workers": [
             {
               "name": "gpu_monitor",
@@ -33413,6 +33417,10 @@
             "title": "Timestamp",
             "type": "string"
           },
+          "verdict_engine": {
+            "$ref": "#/components/schemas/VerdictEngineReadiness",
+            "description": "Verdict engine (ai-vlm) availability, reported WITHOUT gating readiness: an unavailable engine keeps HTTP 200 \u2014 the backend container's healthcheck and every service_healthy dependency read this status, and a down engine must not take the platform with it (B1.4, UR-18)"
+          },
           "workers": {
             "description": "Status of background workers",
             "items": {
@@ -33426,7 +33434,8 @@
           "ready",
           "status",
           "services",
-          "timestamp"
+          "timestamp",
+          "verdict_engine"
         ],
         "title": "ReadinessResponse",
         "type": "object"
@@ -40514,6 +40523,54 @@
           "other"
         ],
         "title": "VehicleType",
+        "type": "string"
+      },
+      "VerdictEngineReadiness": {
+        "description": "Verdict-engine (ai-vlm) availability reported by the readiness probe.\n\nB1.4 (UR-18): the engine's state must be visible to callers even though\nit deliberately does NOT gate readiness \u2014 a down engine turns every event\ninto ``verification_failed`` while the platform itself is healthy, and the\ncontainer healthcheck reads this endpoint's HTTP status.",
+        "example": {
+          "reason": "ConnectError: connection refused",
+          "since": "2026-10-08T12:00:00Z",
+          "state": "unavailable"
+        },
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Engine's own error string while unavailable, why the probe cannot tell while unknown, null while available",
+            "title": "Reason"
+          },
+          "since": {
+            "description": "When the state last TRANSITIONED (not when it was read) \u2014 'how long has this been down?' survives the readiness cache",
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/VerdictEngineState",
+            "description": "Engine reachability per the health probe: 'available' (probe reached it), 'unavailable' (probe's own error string), 'unknown' (probe could not tell \u2014 honest third state)"
+          }
+        },
+        "required": [
+          "state",
+          "since"
+        ],
+        "title": "VerdictEngineReadiness",
+        "type": "object"
+      },
+      "VerdictEngineState": {
+        "description": "Verdict-engine (ai-vlm) availability states \u2014 B1.4 (UR-18).\n\nAnswers \"is the engine reachable per the health probe\", NOT \"can it\nproduce verdicts\" (its /health answers while generation is broken).\nUNKNOWN is honest third-state: the probe could not tell (timeout, missing\ndetail) \u2014 never folded into the two definite answers.",
+        "enum": [
+          "available",
+          "unavailable",
+          "unknown"
+        ],
+        "title": "VerdictEngineState",
         "type": "string"
       },
       "VerificationCriterion": {
@@ -63915,7 +63972,7 @@
     },
     "/api/system/health/ready": {
       "get": {
-        "description": "Kubernetes-style readiness probe endpoint with detailed information.\n\nThis endpoint indicates whether the application is ready to receive\ntraffic and process uploads. It checks all critical dependencies:\n- Database connectivity (critical)\n- Redis connectivity (required for queue processing)\n- AI services availability\n- Background worker status\n\nNote: The canonical readiness probe is GET /ready at the root level.\nThis endpoint provides the same readiness check but with detailed\nservice and worker status information.\n\nUsed by Kubernetes/Docker to determine if traffic should be routed to this instance.\nIf this endpoint returns not_ready, the instance should not receive new requests.\n\nNEM-3892: Health checks run in PARALLEL with short individual timeouts\nto ensure the endpoint responds under 500ms SLO.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 10 seconds) to reduce\nload from frequent readiness probes.\n\nReturns:\n    ReadinessResponse with overall readiness status and detailed checks.\n    HTTP 200 if ready, 503 if degraded or not ready.",
+        "description": "Kubernetes-style readiness probe endpoint with detailed information.\n\nThis endpoint indicates whether the application is ready to receive\ntraffic and process uploads. It checks all critical dependencies:\n- Database connectivity (critical)\n- Redis connectivity (required for queue processing)\n- AI services availability\n- Background worker status\n\nNote: The canonical readiness probe is GET /ready at the root level.\nThis endpoint provides the same readiness check but with detailed\nservice and worker status information.\n\nB1.4 (UR-18): the payload also reports the verdict engine's own state\n(`verdict_engine: {state, since, reason}`, read off the AI-health probe \u2014\nsee backend/services/verdict_engine_status.py). It is REPORTED but never\ngates `ready`/HTTP status: an unreachable ai-vlm turns every event into\nverification_failed, yet the container healthcheck and every\nservice_healthy dependency read THIS status code \u2014 a down engine must not\ntake the platform with it. State transitions push\nsystem.verdict_engine_status_changed over WebSocket.\n\nUsed by Kubernetes/Docker to determine if traffic should be routed to this instance.\nIf this endpoint returns not_ready, the instance should not receive new requests.\n\nNEM-3892: Health checks run in PARALLEL with short individual timeouts\nto ensure the endpoint responds under 500ms SLO.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 10 seconds) to reduce\nload from frequent readiness probes.\n\nReturns:\n    ReadinessResponse with overall readiness status and detailed checks.\n    HTTP 200 if ready, 503 if degraded or not ready.",
         "operationId": "system_get_readiness",
         "responses": {
           "200": {

@@ -251,7 +251,7 @@ nothing reads them:
 **Sources:** the fields at `backend/core/config.py:1674`, `backend/core/config.py:1699`, and
 `backend/core/config.py:1704`; the response assembles them at
 `backend/api/routes/settings_api.py:126-133`; the shipped-stack note on BRISQUE is at
-`backend/api/routes/system.py:4821`.
+`backend/api/routes/system.py:4845`.
 
 Two neighbouring toggles in the same block do gate live code: `CLIP_GENERATION_ENABLED`
 (`backend/services/clip_generator.py:176`) and `BACKGROUND_EVALUATION_ENABLED`

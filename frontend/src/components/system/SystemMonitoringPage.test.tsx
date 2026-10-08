@@ -388,6 +388,8 @@ const mockReadinessResponse: api.ReadinessResponse = {
     { name: 'analysis_worker', running: true },
     { name: 'cleanup_service', running: true },
   ],
+  // B1.4: required on ReadinessResponse; ready-scenario mock, engine reachable.
+  verdict_engine: { state: 'available', since: '2025-01-01T11:45:00Z', reason: null },
 };
 
 describe('SystemMonitoringPage (Operations)', () => {
