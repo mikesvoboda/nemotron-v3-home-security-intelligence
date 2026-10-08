@@ -20,14 +20,14 @@ The package names three candidates; the probe result wins:
   ``details["ai-vlm"]``. Immediate, engine-specific, and it answers in the
   same request the field is published on.
 - The circuit breaker (rejected as the *state*): it opens only after
-  ``failure_threshold`` (5) consecutive failures, so during the failure ramp
+  ``failure_threshold`` (3) consecutive failures, so during the failure ramp
   it still reports closed exactly when events start failing verification —
   the UR-18 blind spot again. It is still consulted second-hand: an open
   circuit short-circuits the probe, and the cached error arrives here as the
   probe's own error string.
 - The last successful assess (rejected): invisible to the readiness route and
   blank after every restart — it cannot answer "is it up *now*" from behind a
-  10-second readiness cache.
+  15-second readiness cache.
 
 Honest-state rule
 -----------------
@@ -128,7 +128,7 @@ class VerdictEngineStatusTracker:
     """Tracks verdict-engine availability and emits events on transitions.
 
     Like :class:`backend.services.health_event_emitter.HealthEventEmitter`,
-    events fire only on an actual state change, so a 10 s readiness cache and
+    events fire only on an actual state change, so a 15 s readiness cache and
     the probe storm behind it cannot flood WebSocket clients.
 
     ``observe`` is deliberately synchronous with no await inside: one event

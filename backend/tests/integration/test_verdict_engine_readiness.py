@@ -18,7 +18,7 @@ The `verdict_engine` field itself does not exist yet — every access below is r
 KeyError until implemented. `since` is pinned as the TRANSITION time (unchanged
 while the state is unchanged), not a per-request timestamp, because "since" only
 answers an operator's question ("how long has this been down?") if it survives the
-10 s readiness cache and the probe storm behind it.
+15 s readiness cache and the probe storm behind it.
 
 Patched seam: `check_ai_services_health` returns the exact
 HealthCheckServiceStatus shape `_check_shipped_ai_services_health` produces when the

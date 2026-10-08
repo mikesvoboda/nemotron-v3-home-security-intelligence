@@ -12,7 +12,7 @@ three promises directly, without the readiness route:
    while the state repeats (the reason may change without becoming an event);
 3. exactly one system.verdict_engine_status_changed event per transition,
    fire-and-forget, carrying {state, previous_state, since, reason, source}
-   — and NO event on repeats (the readiness cache refreshes every 10 s; a
+   — and NO event on repeats (the readiness cache refreshes every 15 s; a
    per-probe event would flood /ws/system subscribers).
 """
 

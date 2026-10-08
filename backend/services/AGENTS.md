@@ -1702,7 +1702,7 @@ WebSocket clients (B1.4, UR-18).
 
 - **The DECIDE:** the health-probe result (`details["ai-vlm"]` from
   `_check_shipped_ai_services_health`) is the source of truth — not the circuit
-  breaker (opens only after 5 consecutive failures: blind exactly when events
+  breaker (opens only after 3 consecutive failures: blind exactly when events
   start failing verification) and not the last successful assess (blank after
   restart, invisible to readiness). The breaker still applies second-hand: an
   open circuit short-circuits the probe and its cached error arrives as the
@@ -1711,8 +1711,9 @@ WebSocket clients (B1.4, UR-18).
   could not tell (2 s AI timeout → `details=None`) is `unknown`, never folded
   into a definite answer. Answers "is the engine reachable", NOT "can it
   produce verdicts" (its `/health` answers while generation is broken).
-- `since` is the TRANSITION time, so it survives the 10 s readiness cache.
-- Events fire only on transitions (readiness probes refresh every 10 s);
+- `since` is the TRANSITION time, so it survives the 15 s readiness cache.
+- Events fire only on transitions (the readiness cache refreshes every 15 s;
+  the compose healthcheck probes every 10 s);
   emission is fire-and-forget so the probe never waits on broadcast.
 
 **Public API:**

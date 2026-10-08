@@ -149,7 +149,7 @@ curl http://localhost:8000/api/system/health/ready
 `status` is one of `ready`, `degraded`, `not_ready`. `verdict_engine.state` is
 one of `available`, `unavailable`, `unknown` (`unknown` = the probe could not
 tell — timeout, not an engine verdict); `since` is when the state TRANSITIONED,
-so "how long has the engine been down?" survives the 10 s result cache.
+so "how long has the engine been down?" survives the 15 s result cache.
 
 **HTTP Status:**
 
