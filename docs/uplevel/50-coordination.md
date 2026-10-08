@@ -254,7 +254,8 @@ the daily batch.
 - privileged host tooling: `O0.1`, the launcher;
 - destructive work: `B3.1` with `F3.1`, `B3.2`;
 - any PR that changes plan text, rulings or the contract in `docs/uplevel/` — a PR setting its own
-  package's row in the README status table is contract rule 5 bookkeeping, not plan text (owner,
+  package's row in the README status table, or re-aiming the `file:line` cites in its own
+  package's text at the same code, is contract rule 5 bookkeeping, not plan text (owner,
   2026-10-08);
 - any PR with an entry under "Questions for the owner".
 
@@ -266,7 +267,15 @@ owner tier — the owner has approved. **Green** means the required check
 failures is not enough: when GitHub rejects a workflow file, its run fails with no jobs and leaves no
 check behind, so `gh run list --commit <head>` shows the failure and the PR's checks do not. It keeps the repository's existing merge style. Because
 `main` requires branches to be up to date, the coordinator updates one queued PR at a time
-(`gh pr update-branch`) and waits for its CI, rather than rebasing every open PR at once.
+(`gh pr update-branch`) and waits for its CI, rather than rebasing every open PR at once. Only the
+coordinator brings a queued PR up to date with `main`, so one CI run is in flight per merge: a run
+racing it decides only which PR lands first, and the merge discards the others. Authors still
+rebase their own PRs to resolve conflicts. The requirement stays (owner,
+2026-10-08); the owner revisits it if the open-PR count in the daily batch keeps growing.
+
+**The owner's PRs** carry auto-merge and join the same queue (owner, 2026-10-08). The coordinator
+updates one when its turn comes, and GitHub merges it once the gate passes. The coordinator posts
+no merge comment on it; the daily batch lists it.
 
 Before each merge the coordinator re-reads the PR
 (`gh pr view <n> --json statusCheckRollup,reviews,comments,mergeStateStatus`) and posts a merge
@@ -302,8 +311,9 @@ nor the owner is free, a heavy package waits; it is never handed to a fast model
 Once a day, at a fixed time the owner sets, the coordinator delivers one message:
 
 1. **Status:** one screen — `main`'s state (the conclusion of the latest `CI` and `Deploy` runs on
-   `main`, from `gh run list`), packages merged since the last batch, claims in flight, blocked
-   lanes and why.
+   `main`, from `gh run list`), every PR merged since the last batch (the owner's auto-merged ones
+   included), claims in flight, blocked lanes and why. It ends with one line: open programme PRs,
+   and PRs merged since the last batch.
 2. **Rulings needed:** each with its facts, options and a recommendation.
 3. **Owner-tier PRs:** each with its reviewer's comment and its Done-when checklist.
 4. **Operator queue:** the operator agent's results since the last batch, and each real-tier run
