@@ -653,7 +653,7 @@ def test_dependency_is_fail_closed_with_no_keys_configured():
         "backend.api.middleware.auth.get_settings", autospec=True, return_value=empty_settings
     ):
         try:
-            require_api_key(x_api_key="a-perfectly-well-formed-key")
+            require_api_key(x_api_key="a-perfectly-well-formed-key")  # pragma: allowlist secret
         except HTTPException as exc:
             assert exc.status_code == 401
             assert "Invalid API key" in exc.detail
