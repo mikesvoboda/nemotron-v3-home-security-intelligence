@@ -23,7 +23,7 @@ Turn "dumb" security cameras into an intelligent threat detection system — **1
 
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![Node 24 LTS](https://img.shields.io/badge/node-24+-green.svg)](https://nodejs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 
 [![CI](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/actions/workflows/ci.yml)
@@ -32,13 +32,13 @@ Turn "dumb" security cameras into an intelligent threat detection system — **1
 [![Backend Coverage](https://img.shields.io/codecov/c/github/mikesvoboda/nemotron-v3-home-security-intelligence?flag=backend-unit&label=backend%20coverage)](https://codecov.io/gh/mikesvoboda/nemotron-v3-home-security-intelligence)
 [![Frontend Coverage](https://img.shields.io/codecov/c/github/mikesvoboda/nemotron-v3-home-security-intelligence?flag=frontend&label=frontend%20coverage)](https://codecov.io/gh/mikesvoboda/nemotron-v3-home-security-intelligence)
 
-| I want to…                   | Start here                                                                                                                                                                |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Browse the full docs         | [**Documentation Site**](https://mikesvoboda.github.io/nemotron-v3-home-security-intelligence/)                                                                           |
-| Run this at home             | [User Hub](docs/user/README.md)                                                                                                                                           |
-| Deploy and maintain it       | [Operator Hub](docs/operator/README.md)                                                                                                                                   |
-| Contribute / extend the code | [Developer Hub](docs/developer/README.md)                                                                                                                                 |
-| Work on it as an AI agent    | [`AGENTS.md`](AGENTS.md) — the root instruction file (read it); every directory has its own `AGENTS.md`, and [`llms.txt`](llms.txt) is the condensed machine-readable map |
+| I want to…                   | Start here                                                                                                                                                                          |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browse the full docs         | [**Documentation Site**](https://mikesvoboda.github.io/nemotron-v3-home-security-intelligence/)                                                                                     |
+| Run this at home             | [User Hub](docs/user/README.md)                                                                                                                                                     |
+| Deploy and maintain it       | [Operator Hub](docs/operator/README.md)                                                                                                                                             |
+| Contribute / extend the code | [Developer Hub](docs/developer/README.md)                                                                                                                                           |
+| Work on it as an AI agent    | [`AGENTS.md`](AGENTS.md) — the root instruction file (read it); most code directories carry their own `AGENTS.md`, and [`llms.txt`](llms.txt) is the condensed machine-readable map |
 
 ---
 
@@ -115,7 +115,7 @@ All four live on the [Analytics API](docs/api/analytics-endpoints.md):
 
 ## AI Model Zoo
 
-`models.yml` is the single source of truth for every model the system downloads and loads — name, download size, VRAM footprint, and which service runs it. The tables below are drawn from it, except where a model runs inside the gateway's Triton process instead of the backend model zoo (those carry `vram_mb: 0` there, so their VRAM comes from [VRAM Requirements](docs/_includes/vram-requirements.md)).
+`models.yml` is the single source of truth for every model the system downloads and loads — name, download size, VRAM footprint, and which service runs it. The tables below are drawn from it, except where a model runs inside the gateway's Triton process instead of the backend model zoo (that process is budgeted in [VRAM Requirements](docs/_includes/vram-requirements.md); the Triton-served rows' `vram_mb` — e.g. osnet 100, threat 300 — cover only the backend-side load).
 
 ### Two AI Services
 
@@ -204,8 +204,10 @@ process, and ~1.0GB of lookup-model headroom — the full table lives in
 [VRAM Requirements](docs/_includes/vram-requirements.md).
 
 The backend `ModelManager` (`backend/services/model_zoo.py`) loads zoo models
-lazily on first use and at boot per the preload rule. It has no unload path and
-no eviction pass — loaded models stay resident; the HTTP load/unload endpoints
+lazily on first use and at boot per the preload rule. It has no eviction pass —
+context-manager loads release their VRAM on exit (the `@asynccontextmanager`
+load path), preloaded models stay resident until shutdown (`unload_all()` runs
+in `backend/main.py`'s lifespan); the HTTP load/unload endpoints
 return 501 because Triton models are resident by design
 (`--model-control-mode=none`).
 
@@ -348,7 +350,9 @@ podman compose -f docker-compose.prod.yml ps
 
 # Logs — a whole service, or one container
 podman compose -f docker-compose.prod.yml logs --tail=50 backend
-podman logs --tail=50 backend
+# backend has no container_name: the real name is <project>-backend-1 (compose v2)
+# or <project>_backend_1 (podman-compose v1) — discover it:
+podman logs --tail=50 "$(podman ps --format '{{.Names}}' | grep -E -- '[-_]backend[-_]?[0-9]?$')"
 
 # Restart one service without touching the rest
 podman compose -f docker-compose.prod.yml restart backend
@@ -384,7 +388,7 @@ PostgreSQL come from containers, AI containers stay as they are. Needs `uv`
 # 1. One-time setup
 python setup.py
 uv sync --extra dev            # Python deps (repo-root .venv — dev.sh sources this one)
-cd frontend && npm ci          # Frontend deps (CI uses npm; bun.lock exists but no bun config)
+cd frontend && npm ci          # Frontend deps (CI uses npm; bun.lock + bunfig.toml exist — if you use bun, `bun run test`, never `bun test`; see frontend/bunfig.toml)
 
 # 2. PostgreSQL — dev.sh does NOT start it, and the backend dies on boot without it
 #    (init_db in the FastAPI lifespan). .env's DATABASE_URL/REDIS_URL point at the
@@ -408,9 +412,10 @@ or run a system Redis (`sudo systemctl start redis`) — otherwise `start` abort
 (`set -e`) before backend/frontend launch. `./scripts/dev.sh redis` manages just
 Redis.
 
-Open https://localhost:8444 — Vite serves HTTPS with a self-signed cert
-(strictPort; accept the browser warning). It proxies `/api` and `/ws` to the
-backend on port 8000. (`frontend/vite.config.ts` pins 8444 with `strictPort`.)
+Open https://localhost:8444 — Vite pins 8444 with `strictPort`; HTTPS needs a
+cert provider (`@vitejs/plugin-basic-ssl` — `https: true` alone no longer
+auto-generates a cert, the TLS handshake just fails). It proxies `/api` and
+`/ws` to the backend on port 8000. (`frontend/vite.config.ts`.)
 
 </details>
 
@@ -431,7 +436,8 @@ standalone GPU image build recipe lives at `archive/ai-yolo26-image/Dockerfile`.
 
 # Then point the HOST-RUN backend (dev.sh) at them. The host detector serves its
 # endpoints at the root (/health, /detect), so no router suffix — and these exports
-# never reach a containerized backend (compose hardcodes the AI URLs; no env_file).
+# never reach a containerized backend (compose hardcodes the AI gateway URLs —
+# AI_VLM_URL is the interpolated exception; no env_file).
 export YOLO26_URL=http://localhost:8090
 # The /enrich-lt lane (threat + re-ID Triton models, published on 127.0.0.1:8090 by
 # the ai-gateway container) is read as a readiness target by
@@ -443,7 +449,8 @@ export ENRICHMENT_LIGHT_URL=http://localhost:8090/enrich-lt
 
 If instead the backend itself runs in a container, `host.docker.internal` resolves
 only on macOS/Docker Desktop; on Linux Podman use `host.containers.internal` or the
-host IP, and note the compose file hardcodes the AI URLs, so override them with a
+host IP, and note the compose file hardcodes the AI gateway URLs (`AI_VLM_URL` is
+interpolated — it is the one that reaches the container from `.env`), so override them with a
 compose `environment:` entry or an override file — a shell `export` is not enough.
 See [AI Configuration](docs/operator/ai-configuration.md) for the per-platform hostnames.
 
@@ -509,15 +516,15 @@ You can:
 
 Common settings:
 
-| Variable                             | Purpose                                 | Containerized deploy                                                                                                          |
-| ------------------------------------ | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `FOSCAM_BASE_PATH`                   | Camera upload directory (host path)     | Read from `.env` by compose (bind-mount source); inside the container it's forced to `/cameras`                               |
-| `YOLO26_URL`, `ENRICHMENT_LIGHT_URL` | AI gateway router endpoints (port 8090) | Compose hardcodes these to `http://ai-gateway:8090/<route>`; your `.env` values are ignored (host runs only)                  |
-| `AI_VLM_URL`                         | VLM engine endpoint (port 8098)         | Compose hardcodes `http://ai-vlm:8098` (host runs only)                                                                       |
-| `RETENTION_DAYS`                     | Event retention (days; default 30)      | **Not passed to the backend container** — add an `environment:` entry or an override file, or edits silently keep the default |
-| `BATCH_WINDOW_SECONDS`               | Detection batching window               | **Not passed to the backend container** — same caveat                                                                         |
-| `API_KEY_ENABLED`                    | Enable API key auth (off by default)    | **Not passed to the backend container** — same caveat                                                                         |
-| `FILE_WATCHER_POLLING`               | Use polling (Docker mounts)             | Passed through by compose — the only knob here that works out of the box                                                      |
+| Variable                             | Purpose                                 | Containerized deploy                                                                                                                |
+| ------------------------------------ | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `FOSCAM_BASE_PATH`                   | Camera upload directory (host path)     | Read from `.env` by compose (bind-mount source); inside the container it's forced to `/cameras`                                     |
+| `YOLO26_URL`, `ENRICHMENT_LIGHT_URL` | AI gateway router endpoints (port 8090) | Compose hardcodes these to `http://ai-gateway:8090/<route>`; your `.env` values are ignored (host runs only)                        |
+| `AI_VLM_URL`                         | VLM engine endpoint (port 8098)         | Interpolated (`${AI_VLM_URL:-http://ai-vlm:8098}`) — your `.env` value lands; default is the container DNS name (host runs: set it) |
+| `RETENTION_DAYS`                     | Event retention (days; default 30)      | **Not passed to the backend container** — add an `environment:` entry or an override file, or edits silently keep the default       |
+| `BATCH_WINDOW_SECONDS`               | Detection batching window               | **Not passed to the backend container** — same caveat                                                                               |
+| `API_KEY_ENABLED`                    | Enable API key auth (off by default)    | **Not passed to the backend container** — same caveat                                                                               |
+| `FILE_WATCHER_POLLING`               | Use polling (Docker mounts)             | Passed through by compose — the only knob here that works out of the box                                                            |
 
 > [!NOTE]
 > The prod compose file has **no** `env_file:` and mounts no `.env`, and `.dockerignore` excludes it —
