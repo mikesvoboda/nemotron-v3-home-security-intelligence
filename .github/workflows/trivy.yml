@@ -187,7 +187,7 @@ jobs:
         continue-on-error: true
 
       - name: Create Linear issue on expired CVEs
-        if: steps.expiry-check.outcome == 'failure'
+        if: vars.LINEAR_ENABLED == 'true' && (steps.expiry-check.outcome == 'failure')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -295,7 +295,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Create Linear issue on vulnerability found
-        if: failure() && steps.trivy-scan.outcome == 'failure'
+        if: vars.LINEAR_ENABLED == 'true' && (failure() && steps.trivy-scan.outcome == 'failure')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -363,7 +363,7 @@ jobs:
           sarif_file: 'trivy-frontend.sarif'
 
       - name: Create Linear issue on vulnerability found
-        if: failure() && steps.trivy-scan.outcome == 'failure'
+        if: vars.LINEAR_ENABLED == 'true' && (failure() && steps.trivy-scan.outcome == 'failure')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
