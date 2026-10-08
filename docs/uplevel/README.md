@@ -173,6 +173,8 @@ Packages cite these as `UR-n`.
 | UR-28 | Sandboxes come from `agent-dgx`, which gives each agent its own clone of the host checkout. The owner starts Phases 0 and 1 by hand; `O0.1` builds the launcher around `agent-dgx`, used from the Phase 2 boundary.                                                     |
 | UR-29 | The coordinator states only what a `gh` or `git` command it ran in the same turn shows. Before each merge it posts a comment quoting the merge rule's evidence, and an owner approval given outside the batch counts once the coordinator quotes it on the batch issue. |
 | UR-30 | The operator role goes to an agent: `uplevel-operator`, the only sandbox started with `agent-dgx --gpu`, runs every real-tier command through the `agent-gpu` broker (`operator.md`). The owner keeps the runs that path cannot make.                                   |
+| UR-31 | Every agent, not only the coordinator, states only what it has just read: each commit, PR, file, test result and question it cites comes from output it ran in the same turn.                                                                                           |
+| UR-32 | Reviews come first. When a PR goes ready, the coordinator labels it `review:<lane>`; a lane agent clears its label's PRs before starting or resuming a package.                                                                                                         |
 
 Already ruled in the register and executed here: OD-12 (loopback unless `EXPOSE_LAN=true`,
 deny-by-default auth when exposed) by `B1.5`, `F1.3` and `O1.6`; OD-20 (retire the enrichment
@@ -208,13 +210,15 @@ new evidence that would change the reason.
 
 ## Status
 
-The single status table. Update your row in the PR that finishes the package. Statuses: `not started`,
+The single status table. Update your row in the PR that finishes the package, and change only that
+line: prettier skips this table, so a longer cell never re-pads the other rows. Statuses: `not started`,
 `awaiting real tier`, `done`. Work in progress shows as an open draft PR titled `[<package>] …`
 (`50-coordination.md`), not as a row status. Flags: `heavy` — assigned by the coordinator to the
 strongest available model or an owner pairing (UR-24); `owner` — needs the owner's approval before
 merge (UR-23). Phase 4 packages get their own row when they open: the
 PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 
+<!-- prettier-ignore -->
 | package | lane                    | phase      | name                                           | flags         | status      | PR  |
 | ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
 | O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | not started |     |

@@ -211,6 +211,14 @@ when, and record what it found. Keep commit subjects at 72 characters or fewer.
 The PR sets the package's README status row to done, with its number, when it
 merges.
 
+Reviews come first (UR-32). Before you start or resume a package, run
+gh pr list --state open --label review:docs; review each PR independently against
+its package's Done when, the contract and the hot-file rules, post the review
+comment in the form 50-coordination.md gives, and remove the label.
+
+State only what you have just read (UR-31): every commit, PR, file, test result
+and question you cite comes from output you ran in the same turn.
+
 You own docs/, every AGENTS.md, llms.txt, mkdocs.yml, the root markdown files
 and the AGENTS.md validator. Write what an agent cannot find by looking; leave
 inventories to the code. When the plan does not answer a question, stop and
