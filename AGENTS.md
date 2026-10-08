@@ -251,7 +251,7 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 │   ├── decisions/        # Architecture Decision Records (ADRs)
 │   ├── deployment/       # Container-orchestration docs (startup, health checks)
 │   ├── developer/        # Developer-focused documentation (testing, git, quality)
-│   ├── discoveries/      # Incident post-mortem notes (the NEM-tagged set moved to archive/ in 7fba36a6)
+│   ├── discoveries/      # Incident post-mortem notes (the NEM-tagged set moved to docs/archive/ in 7fba36a6)
 │   ├── getting-started/  # Installation and first-run guides
 │   ├── guides/           # Feature guides (video analytics, zones, faces)
 │   ├── images/           # Visual assets (mockups, diagrams)
@@ -436,7 +436,7 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 
 ## Service Ports
 
-Host ports come from `.env` (defaults shown below are from `.env.example`); `docs/reference/config/env-reference.md` is the authoritative reference for the backend settings vars (it does not document the monitoring-stack port vars below — those live in `.env.example` and `docs/operator/monitoring/`). `docker-compose.prod.yml` defines 21 services; 19 start by default — vLLM (profile `vllm`) and dcgm-exporter (profile `gpu-rootful`) are opt-in.
+Host ports come from `.env` (defaults shown below are from `.env.example`); `docs/reference/config/env-reference.md` is the authoritative reference for the backend settings vars (it does not document the monitoring-stack port vars below — those live in `.env.example` and `docs/developer/PORT_STANDARDIZATION.md`). `docker-compose.prod.yml` defines 21 services; 19 start by default — vLLM (profile `vllm`) and dcgm-exporter (profile `gpu-rootful`) are opt-in.
 
 ### Core Services
 
@@ -459,7 +459,7 @@ Host ports come from `.env` (defaults shown below are from `.env.example`); `doc
 | vLLM (optional)      | 8097      | LLM benchmark harness (NEM-5441) — compose profile `vllm`, off by default                                |
 | VLM llama.cpp engine | 8098      | `ai-vlm` llama.cpp engine (VlmAnalyzer; model identity is config, ledger D5), in the default compose set |
 
-Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `YOLO26_PORT=8095` is the only one of these values still in `.env.example` (a reference/local-dev value read by `ai/start_detector.sh`); `FLORENCE_PORT`, `CLIP_PORT`, `ENRICHMENT_PORT` and `ENRICHMENT_LIGHT_PORT` were removed from `.env.example` in the R8 residue sweep (`e40d69f5`). The `JAEGER_*` and `ELASTICSEARCH_*` port vars were removed — tracing is Grafana Tempo (NEM-5545) on `TEMPO_PORT=3200`, and Tempo is self-contained (no Jaeger/Elasticsearch storage backend).
+Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `YOLO26_PORT=8095` and `LLM_PORT=8091` (the retired `ai-llm` service's port) are the only ones of these values still in `.env.example` (dev stand-ins with no prod-compose consumer — `YOLO26_PORT` is read by `ai/start_detector.sh`); `FLORENCE_PORT`, `CLIP_PORT`, `ENRICHMENT_PORT` and `ENRICHMENT_LIGHT_PORT` were removed from `.env.example` in the R8 residue sweep (`e40d69f5`). The `JAEGER_*` and `ELASTICSEARCH_*` port vars were removed — tracing is Grafana Tempo (NEM-5545) on `TEMPO_PORT=3200`, and Tempo is self-contained (no Jaeger/Elasticsearch storage backend).
 
 ### Monitoring Stack
 

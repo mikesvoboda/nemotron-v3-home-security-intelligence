@@ -149,10 +149,11 @@ Three YOLO26 variants ship (`n`/`s`/`m`; `m` is the default). Measured end-to-en
 Three in-process lookup legs run alongside every VLM verdict and answer _identity_
 questions (whose face, which plate, which person) against your own registrations.
 The rest of the catalogue backs those legs and the Triton models the gateway serves.
-Backend-zoo models load lazily on first use, and the `enabled: true` + `preload: true`
-rows load at boot when `BACKEND_MODEL_PRELOAD=true`. Nothing evicts: the zoo has no
-eviction pass, so `never_evict`/`priority` rows are parsed but have no consumer (see
-`backend/main.py`'s preload note). Complete `models.yml` inventory:
+Backend-zoo models become resident at boot when `BACKEND_MODEL_PRELOAD=true` loads
+their `enabled: true` + `preload: true` rows; nothing loads them on demand at runtime,
+and a leg whose model is absent answers unavailable instead. Nothing evicts: the zoo
+has no eviction pass, so `never_evict`/`priority` rows are parsed but have no consumer
+(see `backend/main.py`'s preload note). Complete `models.yml` inventory:
 
 | Model                    | Purpose                               | VRAM              | Notes                                                     |
 | ------------------------ | ------------------------------------- | ----------------- | --------------------------------------------------------- |
@@ -203,12 +204,13 @@ there is no fixed tier table. Budget the GGUF pair's layers, the gateway's Trito
 process, and ~1.0GB of lookup-model headroom — the full table lives in
 [VRAM Requirements](docs/_includes/vram-requirements.md).
 
-The backend `ModelManager` (`backend/services/model_zoo.py`) loads zoo models
-lazily on first use and at boot per the preload rule. It has no eviction pass —
-context-manager loads release their VRAM on exit (the `@asynccontextmanager`
-load path), preloaded models stay resident until shutdown (`unload_all()` runs
-in `backend/main.py`'s lifespan); the HTTP load/unload endpoints
-return 501 because Triton models are resident by design
+The backend `ModelManager` (`backend/services/model_zoo.py`) exposes an
+`@asynccontextmanager` `load()` that releases VRAM on exit, but in production the only
+load trigger is the boot preload sweep (`BACKEND_MODEL_PRELOAD=true` in
+`backend/main.py`'s lifespan) — no runtime path calls `load()`; a leg whose model is
+absent answers unavailable. Preloaded models stay resident until shutdown
+(`unload_all()` runs in the same lifespan), and the zoo has no eviction pass; the HTTP
+load/unload endpoints return 501 because Triton models are resident by design
 (`--model-control-mode=none`).
 
 ### Model Status API
@@ -327,16 +329,16 @@ The monitoring ships in the same compose file — no separate stack to start. Mo
 `127.0.0.1`, so open them on the host itself (or forward an SSH tunnel); the dashboard is the
 exception, bound `0.0.0.0` for tunnel access — use your firewall to fence it.
 
-| Where        | URL                                                       | Notes                                                        |
-| ------------ | --------------------------------------------------------- | ------------------------------------------------------------ |
-| Dashboard    | `http://localhost:8080` / `https://localhost:8444`        | HTTPS needs `SSL_ENABLED=true`                               |
-| API docs     | `http://localhost:8000/docs`                              | FastAPI Swagger UI                                           |
-| Grafana      | `http://localhost:3002` or `https://<host>:8444/grafana/` | Anonymous access on by default (`GF_AUTH_ANONYMOUS_ENABLED`) |
-| Prometheus   | `http://localhost:9090`                                   | Metrics and alerting rules                                   |
-| Alertmanager | `http://localhost:9093`                                   | Delivered alerts                                             |
-| Loki         | `http://localhost:3100`                                   | Log aggregation (queried through Grafana)                    |
-| Tempo        | `http://localhost:3200`                                   | Distributed traces                                           |
-| Pyroscope    | `http://localhost:4040`                                   | Continuous profiling                                         |
+| Where        | URL                                                       | Notes                                                                                                                                                                  |
+| ------------ | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard    | `http://localhost:8080` / `https://localhost:8444`        | HTTPS needs `SSL_ENABLED=true`                                                                                                                                         |
+| API docs     | `http://localhost:8000/docs`                              | FastAPI Swagger UI                                                                                                                                                     |
+| Grafana      | `http://localhost:3002` or `https://<host>:8444/grafana/` | Anonymous access: on for a `setup.py`-written `.env` (compose fallback — setup.py emits no `GF_AUTH_*`), off if you `cp .env.example .env` (the example ships `false`) |
+| Prometheus   | `http://localhost:9090`                                   | Metrics and alerting rules                                                                                                                                             |
+| Alertmanager | `http://localhost:9093`                                   | Delivered alerts                                                                                                                                                       |
+| Loki         | `http://localhost:3100`                                   | Log aggregation (queried through Grafana)                                                                                                                              |
+| Tempo        | `http://localhost:3200`                                   | Distributed traces                                                                                                                                                     |
+| Pyroscope    | `http://localhost:4040`                                   | Continuous profiling                                                                                                                                                   |
 
 Port numbers come from `.env` (`GRAFANA_PORT`, `PROMETHEUS_PORT`, …). Full guide:
 [Monitoring & Observability](docs/operator/monitoring.md).
