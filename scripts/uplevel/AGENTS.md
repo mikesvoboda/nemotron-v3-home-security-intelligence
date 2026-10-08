@@ -18,7 +18,10 @@ commands (`--dry-run` on both prints every step and changes nothing):
 - `launch.py up --phase <n>` - from a clean host checkout of `main` inside a herdr pane,
   creates each missing session with `agent-dgx run <name> … --split` (one sandbox and one
   clone per agent), checks `agent-dgx inspect --json` reports the cloned commit, and
-  prints each agent's kickoff line. Re-running creates only what is missing.
+  prints each agent's kickoff line. Re-running creates only what is missing. A session
+  declaring `gpu = true` gets `--gpu` after its model arguments, and the whole phase
+  refuses first when the launching shell has no `AGENT_GPU_RUNNER_URL` (UR-30: one GPU
+  holder, reached through agent-gpu's runner).
 - `launch.py retire <name>` - the owner ends the agent's session first. Git runs inside
   the sandbox via `sbx exec` and **never** on the host against `/agents/agent-<name>/workspace`:
   that workspace's `.git/config` is the agent's to write, and settings such as
@@ -43,6 +46,10 @@ never invent a flag; the strongest model's run arguments come from the owner int
 ### sandboxes.toml
 
 The roster: per phase, each session's name, model (a `[models]` key) and kickoff line,
-mirroring `docs/uplevel/50-coordination.md`'s roster - when the coordinator changes the
-plan, that PR updates this file too. Network profiles and secrets are deliberately absent
-(no shown `agent-dgx` flag takes them); provisioning stays the owner's.
+plus optional `mount` and `gpu` (a plain TOML boolean; only `uplevel-operator` sets it -
+`up` refuses a non-boolean value). It mirrors `docs/uplevel/50-coordination.md`'s roster -
+when the coordinator changes the plan, that PR updates this file too. A kickoff line names
+the prompt's **section**, never a position: `up` prints the line verbatim, and
+`50-coordination.md` ends with the coordinator's own prompt (#6864). Network profiles and
+secrets are deliberately absent (no shown `agent-dgx` flag takes them); provisioning stays
+the owner's.

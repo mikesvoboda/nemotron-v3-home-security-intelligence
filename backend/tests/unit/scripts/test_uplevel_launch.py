@@ -74,6 +74,7 @@ BACKEND = "uplevel-backend"
 FRONTEND = "uplevel-frontend"
 DOCS = "uplevel-docs"
 HEAVY = "uplevel-heavy"
+OPERATOR = "uplevel-operator"
 
 RUNNING = {"head": MAIN_SHA, "sandbox": "running"}
 # the state the owner's inspect showed for a session whose agent's pane was closed: the
@@ -278,6 +279,7 @@ def host(
     *,
     dry_run: bool = False,
     herdr: bool = True,
+    gpu_runner: bool = True,
     manifest: Path | None = None,
     host_class: Any = launch.Host,
 ) -> launch.Host:
@@ -288,13 +290,21 @@ def host(
     # in a test run); the fake writes the export there, as the sandbox really would
     if fake.agents_root is None:
         fake.agents_root = tmp_path / "agents"
+    env: dict[str, str] = {}
+    if herdr:
+        env["HERDR_PANE_ID"] = "w1:p1"
+    if gpu_runner:
+        # what `agent-gpu`'s runner publishes in the owner's launching shell
+        # (50-coordination.md, "Where agents run"); O1.10 makes the launcher require
+        # it before it hands any sandbox `--gpu`
+        env["AGENT_GPU_RUNNER_URL"] = "http://127.0.0.1:8100"
     return host_class(
         checkout=tmp_path / "checkout",
         manifest=manifest or REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml",
         exports=tmp_path / "exports",
         agents_root=fake.agents_root,
         run=fake,
-        env={"HERDR_PANE_ID": "w1:p1"} if herdr else {},
+        env=env,
         which=lambda name: f"/usr/bin/{name}",
         dry_run=dry_run,
     )
@@ -309,7 +319,16 @@ def test_manifest_declares_the_roster() -> None:
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     assert sorted(phases) == [0, 1]
     assert [s.name for s in phases[0]] == [CO, OPS_B]
-    assert {s.name for s in phases[1]} == {CO, OPS_A, OPS_B, BACKEND, FRONTEND, DOCS, HEAVY}
+    assert {s.name for s in phases[1]} == {
+        CO,
+        OPS_A,
+        OPS_B,
+        BACKEND,
+        FRONTEND,
+        DOCS,
+        HEAVY,
+        OPERATOR,
+    }
 
 
 def test_sandbox_and_workspace_names_follow_agent_dgx() -> None:
@@ -329,6 +348,67 @@ def test_split_lane_kickoff_carries_the_cell_sentence() -> None:
         assert f"You are cell {cell} of the ops lane" in lines[name]
     assert lines[CO].startswith("Follow the kickoff prompt in docs/uplevel/50-coordination.md.")
     assert "cell" not in lines[BACKEND]
+
+
+def test_operator_is_the_only_gpu_session_in_every_phase() -> None:
+    """UR-30: exactly one GPU holder. agent-gpu's runner admits the GPU sandbox and
+    `agent-dgx --gpu` owns /srv/agent-models; a second gpu row somewhere later is the
+    bug this pins, so the rule runs over every declared phase, not just the one that
+    has the operator today."""
+    phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    for number, sessions in phases.items():
+        gpu = {s.name for s in sessions if s.gpu}
+        assert gpu == (set() if number == 0 else {OPERATOR}), f"phase {number}"
+
+
+def test_the_operator_row_declares_no_mount() -> None:
+    """The launcher adds no --mount for the model library: agent-dgx --gpu mounts
+    /srv/agent-models itself and refuses any mount at or under it, so a mount on this
+    row would hand the owner an agent-dgx-level failure at create time."""
+    phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    operator = next(s for s in phases[1] if s.name == OPERATOR)
+    assert operator.mounts == ()
+
+
+def test_operator_kickoff_names_the_prompt_section_not_a_position() -> None:
+    """30-ops.md §O1.10 writes this line positionally ("at the end of the file"). #6864's
+    ruling applies unchanged - `up` prints the line verbatim, so it names its section,
+    never a position - and operator.md has one kickoff prompt in its own file, which the
+    cross-check below pins. The plan-text wording is the owner's to correct (README:
+    plan text changes by the owner), asked on this PR."""
+    phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    line = {s.name: s.kickoff for s in phases[1]}[OPERATOR]
+    assert line.startswith("Follow the kickoff prompt in docs/uplevel/operator.md.")
+    assert "Kickoff prompt" in line
+    assert "end of" not in line
+
+
+@pytest.mark.skipif(
+    # operator.md is a docs/ path, outside mutmut's also_copy: in the mutant home the
+    # read would raise and abort the -x stats gather (the also_copy abort family).
+    # Skip, never abort - test_check_vss_docs_currency.py, test_mutation_hold_banner.py.
+    not (REPO_ROOT / "docs" / "uplevel" / "operator.md").exists(),
+    reason="docs/ tree absent (mutmut's mutant home): nothing to cross-check the line against",
+)
+def test_operator_md_holds_the_section_the_line_names() -> None:
+    """the section the operator line names exists - the drift a positional pointer hid
+    for the heavy sandbox (#6864): rename it, and the printed line points at nothing."""
+    doc = (REPO_ROOT / "docs" / "uplevel" / "operator.md").read_text(encoding="utf-8")
+    assert "## Kickoff prompt" in doc
+
+
+def test_a_non_boolean_gpu_flag_refuses_naming_the_row(tmp_path: Path) -> None:
+    """`gpu` is optional, so a typo on it is not caught by the required-key refusals -
+    and silently truthy ("gpu = 1") would hand a sandbox the GPU by accident, the one
+    resource UR-30 rationed to one holder."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 0\n"
+        f'[[phase.session]]\nname = "{OPERATOR}"\nmodel = "fast"\nkickoff = "k"\ngpu = 1\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(launch.Refused, match="gpu"):
+        launch.load_manifest(manifest)
 
 
 def test_an_unnamed_model_refuses_and_names_the_owners_next_step(tmp_path: Path) -> None:
@@ -545,6 +625,101 @@ def test_up_passes_a_declared_mount_to_agent_dgx(tmp_path: Path) -> None:
         "/stack/secrets:ro",
         "--split",
     ]
+
+
+def test_up_adds_gpu_to_the_operator_and_no_other_session(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The Done-when, run the way the owner runs it: `up --phase 1 --dry-run` against the
+    real roster. `--gpu` goes after the model arguments and before --split - the order
+    30-ops.md's hand-start line shows the owner use - and it appears on exactly one line.
+    --dry-run because the flag must be visible in what the command would run, and a dry
+    run changes nothing on a machine that may have real sessions up."""
+    fake = FakeHost()
+    launch.up(host(tmp_path, fake, dry_run=True), phase=1)
+    out = capsys.readouterr().out
+
+    lines = [line for line in out.splitlines() if "agent-dgx run" in line]
+    assert len(lines) == 8, out  # the full phase-1 roster, nothing filtered out
+    operator = next(line for line in lines if OPERATOR in line)
+    assert operator.split().index("--gpu") == operator.split().index("--split") - 1
+    assert operator.endswith(f"--split   (in {tmp_path / 'checkout'})")
+    assert "--mount" not in operator
+    assert sum("--gpu" in line for line in lines) == 1, lines
+
+
+def test_up_refuses_a_gpu_phase_without_the_gpu_runner(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--gpu` reaches a sandbox through agent-gpu's runner; without AGENT_GPU_RUNNER_URL
+    in the launching shell there is no runner to reach, so the flag would be a promise
+    nothing honours. The check joins the others ahead of every change: the seven fast
+    sessions in the phase are not created either. The refusal names the variable, which
+    is the next thing the owner types."""
+    fake = FakeHost()
+    with pytest.raises(launch.Refused, match="AGENT_GPU_RUNNER_URL") as caught:
+        launch.up(host(tmp_path, fake, gpu_runner=False), phase=1)
+    assert not fake.changes()
+    assert not fake.ran("agent-dgx", "run")
+    assert "uplevel-operator" in str(caught.value)
+    assert "created" not in capsys.readouterr().out
+
+
+def test_a_gpu_session_already_up_needs_no_runner(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The check belongs to a create, not to the command: the owner hand-started
+    uplevel-operator for Phase 1 (UR-30), so from Phase 1's boundary on `up` normally
+    finds it already there - nothing to grant - and a shell without the runner still
+    reports the roster instead of refusing. Distinguishing the two is the same rule as
+    the commit check's "for what this run creates"."""
+    started = dict.fromkeys((CO, OPS_A, OPS_B, BACKEND, FRONTEND, DOCS, HEAVY, OPERATOR), RUNNING)
+    fake = FakeHost(sessions=started)
+    launch.up(host(tmp_path, fake, gpu_runner=False), phase=1)  # no refusal
+    assert not fake.changes()
+    assert "AGENT_GPU_RUNNER_URL" not in capsys.readouterr().out
+
+
+def test_up_passes_gpu_for_a_declared_session(tmp_path: Path) -> None:
+    """The rule as a rule, not as this roster's shape: a session declaring gpu = true
+    gets --gpu; the clause is about what a declaration does, and a future phase's row is
+    exactly as much its subject as the operator's."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 0\n"
+        f'[[phase.session]]\nname = "{OPERATOR}"\nmodel = "fast"\nkickoff = "k"\ngpu = true\n',
+        encoding="utf-8",
+    )
+    fake = FakeHost()
+    launch.up(host(tmp_path, fake, manifest=manifest), phase=0)
+    run = next(argv for argv, _ in fake.calls if argv[:3] == ["agent-dgx", "run", OPERATOR])
+    assert run == [
+        "agent-dgx",
+        "run",
+        OPERATOR,
+        "--agent",
+        "claude",
+        "--endpoint",
+        "dgx",
+        "--gpu",
+        "--split",
+    ]
+
+
+def test_a_missing_runner_still_refuses_a_dry_run(tmp_path: Path) -> None:
+    """--dry-run prints the plan; a plan ending in a flag nothing honours is not a plan.
+    The same reason retire's dry run really runs its inspection: the checks are not
+    skipped for the preview, so the preview cannot promise what the run refuses."""
+    manifest = tmp_path / "m.toml"
+    manifest.write_text(
+        "[[phase]]\nnumber = 0\n"
+        f'[[phase.session]]\nname = "{OPERATOR}"\nmodel = "fast"\nkickoff = "k"\ngpu = true\n',
+        encoding="utf-8",
+    )
+    fake = FakeHost()
+    with pytest.raises(launch.Refused, match="AGENT_GPU_RUNNER_URL"):
+        launch.up(host(tmp_path, fake, manifest=manifest, gpu_runner=False, dry_run=True), phase=0)
+    assert fake.changes() == []
 
 
 def test_up_is_idempotent(tmp_path: Path) -> None:
@@ -896,7 +1071,7 @@ def test_every_agent_dgx_call_names_its_subcommand(tmp_path: Path) -> None:
 
 
 def _git(repo: Path, *args: str) -> str:
-    done = subprocess.run(  # noqa: S603
+    done = subprocess.run(  # real: drives a throwaway git repo  # noqa: S603
         ["git", *args],  # noqa: S607
         cwd=repo,
         capture_output=True,
@@ -951,7 +1126,7 @@ def _run_inspection(workspace: Path) -> dict[str, tuple[str, int]]:
     """
     session = launch.Session(name=SCRATCH, model="", kickoff="")
     script = launch._inspect_argv(session)[-1].replace(session.workspace, str(workspace))
-    done = subprocess.run(  # noqa: S603
+    done = subprocess.run(  # real: runs the inspection script itself  # noqa: S603
         ["bash", "-lc", script],  # noqa: S607
         capture_output=True,
         text=True,
@@ -1088,7 +1263,7 @@ def test_a_failed_section_carries_its_stderr_for_real(tmp_path: Path) -> None:
         "git -c core.fsmonitor=false stash --no-such-flag list",
     )
     assert broken != script, "the fixture must really alter the script"
-    done = subprocess.run(  # noqa: S603
+    done = subprocess.run(  # real: the altered script, run on purpose  # noqa: S603
         ["bash", "-lc", broken],  # noqa: S607
         capture_output=True,
         text=True,
