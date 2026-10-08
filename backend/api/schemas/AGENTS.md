@@ -1,5 +1,7 @@
 # API Schemas
 
+> **Inventory banner (W1.3):** the file-by-file inventory below is **unmaintained until W3.2** — it drifts as code moves. The code is the source of truth; verify any line against the tree before acting on it.
+
 ## Purpose
 
 The `backend/api/schemas/` directory contains Pydantic models for request/response validation. These schemas ensure type safety, automatic validation, and OpenAPI documentation generation for all API endpoints.
