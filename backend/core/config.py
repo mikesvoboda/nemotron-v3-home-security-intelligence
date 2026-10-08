@@ -1131,14 +1131,14 @@ class Settings(BaseSettings):
         default=25.0,
         ge=5.0,
         le=300.0,
-        description="Maximum time (seconds) to wait for ONE vlm_assess attempt (read or "
-        "write phase), applied per attempt against S4 (p95 <= 30 s INCLUDING cold starts). "
-        "A reply that outruns it is a budget outcome, not an outage: it is NOT retried "
-        "(the §6 temp-0 retry would re-ask the identical bytes at the identical speed) and "
-        "does NOT charge the ai-vlm breaker, so one attempt is the worst case. That worst "
-        "case is connect + read = 10.0 + this value, so THIS value is what must sit inside "
-        "30 s; a slow connect adds ai_connect_timeout on top and the slow-connect edge "
-        "sits outside. The ladder's retry only follows a fast failure.",
+        description="PER-READ IDLE budget (seconds) for a vlm_assess attempt's read or "
+        "write phase - NOT an attempt deadline: httpx resets the read timer on every "
+        "chunk, so it catches a stalled reply or stalled request write on deadline while "
+        "an engine that dribbles the reply within it runs on - no wall clock wraps an "
+        "attempt. A timeout is a budget, not an outage: NOT retried (a re-ask re-sends "
+        "identical bytes at identical speed), NOT breaker-charged. Sizing it under S4's "
+        "p95 (30 s, cold starts in) bounds the SILENT-server case (connect + read = "
+        "ai_connect_timeout + this value); the retry re-asks only where that can differ.",
     )
     ai_vlm_wake_timeout_seconds: float = Field(
         default=90.0,

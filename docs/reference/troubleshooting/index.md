@@ -169,9 +169,9 @@ docker compose -f docker-compose.prod.yml logs --tail=50 ai-vlm
 **3. Raise the verdict budget if the card is slow:**
 
 ```bash
-# In .env, then restart the backend. Default 25 s. The timeout bounds ONE
-# attempt (read or write phase) and a timeout is not retried, so one attempt
-# is the worst case — keep it inside S4's 30 s p95 where you can.
+# In .env, then restart the backend. Default 25 s. The timeout is a PER-READ
+# IDLE budget (read or write phase), not an attempt deadline: a stalled reply is
+# not retried, but a dribbling engine runs on — keep it inside S4's 30 s p95.
 AI_VLM_READ_TIMEOUT=45.0
 ```
 

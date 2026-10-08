@@ -417,8 +417,8 @@ batch:{batch_id}:last_activity    -> Unix timestamp
 
 - Chat request with up to 4 base64 image parts + structured context; `response_format` carries the NESTED `json_schema` wrapper the enforcement probe proved ENFORCED at the pin
 - The wire schema is the GENERATED contract schema with grammar-unsafe constraints stripped (`minLength`/`minimum`/`maximum` — the grammar guarantees shape, `VlmVerdict` post-validation owns bounds)
-- Read budget `settings.ai_vlm_read_timeout` (default 25 s, per attempt): a reply that outruns it raises `VlmSlowReplyError` ONCE — NOT retried (the temp-0 re-ask would re-send identical bytes at the identical speed) and NOT charged to the breaker, so one attempt is the worst case (D1: a slow reply is a budget, not a broken engine)
-- The §6 retry (ONE attempt at temperature 0) only ever follows a FAST failure (connection refused, 5xx); FAST faults feed `get_circuit_breaker("ai-vlm")`, budget outcomes never do; when it OPENS, DegradationManager is told ai-vlm is unhealthy
+- Read budget `settings.ai_vlm_read_timeout` (default 25 s): a PER-READ IDLE budget, not an attempt deadline (httpx resets it on every reply chunk) — a stalled reply or request write raises `VlmSlowReplyError` ONCE, NOT retried (the temp-0 re-ask would re-send identical bytes at the identical speed) and NOT charged to the breaker (D1: a slow reply is a budget, not a broken engine); an engine that dribbles within the budget runs on — no wall clock wraps an attempt
+- The §6 retry (ONE attempt at temperature 0) follows only re-asks that can differ — a trip that never completed (connection refused, `ConnectTimeout`), a 5xx, or a complete reply that broke the schema; FAST faults feed `get_circuit_breaker("ai-vlm")`, budget outcomes never do; when it OPENS, DegradationManager is told ai-vlm is unhealthy
 - Error types: `VlmClientError` and the subclasses `VlmTransportError`, `VlmSchemaError` (+ `VlmTruncatedError`), `VlmContextOverflowError`, `VlmSlowReplyError`, `VlmUnavailableError`, `VlmImageError`
 - `async wake_ai_vlm()` - bring a scale-to-zero engine back
 

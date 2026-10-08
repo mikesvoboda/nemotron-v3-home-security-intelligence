@@ -128,13 +128,13 @@ startup so they appear in monitoring before first use
 (`backend/services/circuit_breaker.py:1104-1117`), so a service can also
 register its own breaker on first use — `ai-vlm` does exactly that, with
 `failure_threshold=5` and `recovery_timeout=60.0`
-(`backend/services/vlm_client.py:247-249`).
+(`backend/services/vlm_client.py:316-319`).
 
 | Service         | Failure Threshold | Recovery Timeout | Source                                                           |
 | --------------- | ----------------- | ---------------- | ---------------------------------------------------------------- |
 | yolo26          | 5                 | 30s              | AI config (`backend/main.py:321`)                                |
 | detector_yolo26 | 5                 | 60s              | `DetectorClient` (`backend/services/detector_client.py:336-345`) |
-| ai-vlm          | 5                 | 60s              | `VlmClient` (`backend/services/vlm_client.py:247-249`)           |
+| ai-vlm          | 5                 | 60s              | `VlmClient` (`backend/services/vlm_client.py:316-319`)           |
 | postgresql      | 10                | 60s              | Infrastructure config (`backend/main.py:325`)                    |
 | redis           | 10                | 60s              | Infrastructure config (`backend/main.py:328`)                    |
 
@@ -145,7 +145,7 @@ the guard on live detection traffic is the 5/60s breaker, while the
 
 When the `ai-vlm` breaker opens, the client pushes the service UNHEALTHY to
 `DegradationManager` on the way out and clears the flag on the next success
-(`backend/services/vlm_client.py:919-940`).
+(`backend/services/vlm_client.py:1115-1136`).
 
 ## Circuit Breaker Sequence Diagram
 

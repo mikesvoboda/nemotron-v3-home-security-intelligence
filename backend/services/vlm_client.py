@@ -18,21 +18,21 @@ completions` is the fake's mount point - real engines speak
     constraints stripped (`minLength`/`minimum`/`maximum` support at the
     pin is unverified - S-2's decision: grammar guarantees shape,
     VlmVerdict post-validation owns bounds, the spec's own 0.25 lesson);
-  * timeouts: read budget `settings.ai_vlm_read_timeout` (default 25 s,
-    applied PER ATTEMPT against S4's p95 <= 30 s including cold starts). Two
-    full attempts would blow the spec, so neither a stalled reply
-    (`httpx.ReadTimeout`) nor a stalled request write (`httpx.WriteTimeout` -
-    the assess/probe bodies carry base64 images, so the write phase is real
-    and httpx does NOT make the two classes interchangeable) is retried -
-    both raise `VlmSlowReplyError` as a budget. The §6 retry at temp 0
-    therefore only follows failures where a re-ask is not futile: the
-    request never completed its trip (refused connection, `ConnectTimeout`)
-    or the engine answered without processing (a 5xx). One honest wall-clock
-    caveat the first version of this comment missed: a single attempt is
-    connect + read, and the measured defaults are 10.0 + 25.0 = 35 s - the
-    read budget alone sits inside S4's 30 s; the slow-connect edge does not,
-    because the connect phase is `ai_connect_timeout`, a separate knob. The
-    budget causes are counted and never charged to the breaker.
+  * timeouts: read budget `settings.ai_vlm_read_timeout` (default 25 s) is a
+    PER-READ IDLE budget, not an attempt deadline - httpx resets the read
+    timer on every chunk. A stalled reply (`httpx.ReadTimeout`) or a stalled
+    request write (`httpx.WriteTimeout` - the assess/probe bodies carry base64
+    images, so the write phase is real and httpx does NOT make the two classes
+    interchangeable) is caught on deadline; an engine that dribbles the reply
+    within it runs on, because nothing here or in the analyzer wraps an attempt
+    in a wall clock - the engine's own behavior is the only attempt ceiling.
+    Either timeout raises `VlmSlowReplyError` as a budget, never retried (a
+    re-ask re-sends identical bytes at identical speed). The §6 retry at temp
+    0 follows only re-asks that can differ: a trip that never completed
+    (refused, `ConnectTimeout`), a 5xx, or a complete 200 that violated the
+    verdict schema. Sizing under S4's p95 <= 30 s bounds the SILENT-server
+    case (connect + read = 10.0 + 25.0 measured defaults); the dribble case
+    outruns any sum stated here. Budget causes are never breaker-charged.
 
 Breaker semantics (spec §6 step 4): transport failures feed
 `get_circuit_breaker("ai-vlm")`; when it OPENS, DegradationManager is
@@ -173,8 +173,8 @@ class VlmClientError(RuntimeError):
 
 
 class VlmTransportError(VlmClientError):
-    """§6 step 1 territory: connection refused / timeout / 5xx. Retried
-    once at temperature 0, then raised."""
+    """§6 step 1 territory: connection refused, ConnectTimeout, 5xx. Retried
+    once at temp 0, then raised. A slow REPLY is `VlmSlowReplyError`."""
 
 
 class VlmSchemaError(VlmClientError):

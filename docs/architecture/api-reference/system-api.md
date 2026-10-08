@@ -472,7 +472,7 @@ Get status of all circuit breakers.
 the boot-time pre-registration in `init_circuit_breakers()`
 (`backend/main.py:286-331` — `yolo26`, `postgresql`, `redis`) plus the `ai-vlm`
 breaker the VLM client takes from the same registry
-(`backend/services/vlm_client.py:247-250`):
+(`backend/services/vlm_client.py:316-319`):
 
 ```json
 {

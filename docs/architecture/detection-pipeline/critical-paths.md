@@ -205,9 +205,12 @@ is base latency + 1s + 2s = base + 3s. The circuit breaker below trips after
 five consecutive failures, bounding how long the ladder can repeat.
 
 The analysis leg does not use a backoff ladder. `VlmClient.assess` retries a
-FAST failure (refused connection, 5xx) exactly once at temperature 0 inside the
-same read budget, and raises — the analyzer then records `verification_failed`
-on the event rather than spending a second budget on it. A read timeout is not
+failure where re-asking is not futile — a fast transport fault (refused
+connection, `ConnectTimeout`, 5xx) or a schema violation on a complete reply —
+exactly once at temperature 0, the second attempt carrying its own read budget,
+and raises —
+the analyzer then records `verification_failed` on the event rather than
+spending a second budget on it. A read or write timeout is not
 retried: the request leaves unchanged, so a re-send would time out identically,
 and a slow reply counts as a budget (`VlmSlowReplyError`), never as a breaker
 failure. Budget refusals — a slow reply, a truncated verdict, an overflowing
@@ -254,15 +257,18 @@ DETECTOR_HEALTH_TIMEOUT = 5.0     # Health check
 
 ```python
 ai_connect_timeout: float = 10.0          # Connection establishment
-ai_vlm_read_timeout: float = 25.0         # One vlm_assess attempt
+ai_vlm_read_timeout: float = 25.0         # Per-read idle budget, per attempt
 ai_vlm_wake_timeout_seconds: float = 90.0 # The wake-on-open ping
 ```
 
-The read budget is sized against p95 <= 30 s including cold starts, per attempt:
-two full 25 s attempts cannot fit inside 30 s, so the client never re-asks a
-reply that timed out (`vlm_client.py` `VlmSlowReplyError`) — the only retry is
-the §6 temp-0 re-send after a fast failure, which costs almost nothing. A
-per-attempt ceiling at or above 30 s would put one slow answer past the spec.
+The read budget is a per-read idle budget, not an attempt deadline (httpx
+resets it on every reply chunk), so each attempt carries a fresh idle window —
+and a silent 25 s timeout already sits at S4's p95 <= 30 s edge (cold starts
+in, connect counted on top). The client therefore never re-asks a reply that
+timed out (`vlm_client.py` `VlmSlowReplyError`); the §6 temp-0 re-send follows
+only re-asks that can differ (fast trip faults, 5xx, schema violations), which
+cost almost nothing when the first failure was fast. An idle budget at or above
+30 s would put one silent answer past the spec.
 
 ### Defense-in-Depth (NEM-1465)
 

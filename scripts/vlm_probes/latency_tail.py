@@ -267,17 +267,21 @@ def _classify(exc: BaseException) -> tuple[str, str]:
 # the subclass WriteTimeout must be listed even though its parent
 # TimeoutException is. Anything else the transport raises happened BEFORE
 # any request was live - a connection refused, a connect timeout - which is
-# what the §6 ladder's one sanctioned re-ask is for.
+# what most sanctioned re-asks are for; a complete-but-schema-invalid 200
+# also earns one, which a transport-level recorder cannot see (below).
 _SLOW_TRANSPORT_ERRORS = frozenset({"ReadTimeout", "WriteTimeout", "TimeoutException"})
 
 
 def _legitimate_retry(assess_calls: list[dict[str, Any]]) -> bool:
     """True when a second chat call in the window is the §6 ladder's
-    sanctioned re-ask: only a FAST first failure (connection refused, 5xx)
-    earns one. The FIRST call decides - a fast error (any transport
-    exception but a read timeout) or a non-200 reply - because a client that
-    re-asked a SUCCESS, or a read- or write-stalled reply B1.1 forbids
-    re-asking, put no fast failure first."""
+    sanctioned re-ask. The ladder re-asks only where a re-ask can differ: a
+    trip that never completed (connection refused, `ConnectTimeout`), a 5xx,
+    or a COMPLETE reply that broke the verdict schema. This probe sees only
+    transport and status, so it recognizes the first two families (a fast
+    error or a non-200 first call); a re-ask whose first call was a 200
+    stays flagged here on purpose - the schema re-ask is the one sanctioned
+    case this heuristic cannot see, and a client that re-asked a plain
+    SUCCESS is exactly the regression worth a false positive over."""
     first = assess_calls[0]
     if first["error"]:
         return first["error"] not in _SLOW_TRANSPORT_ERRORS

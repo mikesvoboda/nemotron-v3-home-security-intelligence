@@ -60,14 +60,14 @@ slow reply re-asks the identical question at the identical speed — both burn a
 docstring and `_note_budget_exhausted` (`backend/services/vlm_client.py:1093-1113`).
 
 The breaker is named `ai-vlm` with `failure_threshold=5, recovery_timeout=60.0`
-(`backend/services/vlm_client.py:82,247`). When it opens, subsequent calls refuse without I/O
+(`backend/services/vlm_client.py:93,318`). When it opens, subsequent calls refuse without I/O
 rather than piling onto the same dead endpoint.
 
 ### Prompt Fitting
 
 A batch that overflows the served slot is a designed-for case, not an error.
 `_fitted_prompt()` drops the weakest detection rows until the prompt fits the slot the request will
-actually land in and records that it did (`backend/services/vlm_client.py:676`). The slot budget is
+actually land in and records that it did (`backend/services/vlm_client.py:938`). The slot budget is
 `VLM_CTX_SIZE // VLM_PARALLEL` (`config.py vlm_context_window`), shipped 32768 / 2 = 16384 tokens.
 Each still is capped at `LLAMA_ARG_IMAGE_MAX_TOKENS=1280` (`docker-compose.prod.yml:212`) so
 uncapped image vision tokens cannot push a fitted batch over.
@@ -132,7 +132,7 @@ gauge), and offers a `FallbackQueue` — memory-capped with an on-disk overflow 
 
 `VlmClient` is the shipped consumer on the AI side: when the §6 ladder marks the serve unhealthy,
 `_push_unhealthy()` calls `get_degradation_manager().update_service_health(...)` and
-`set_ai_service_degraded("ai-vlm", True)` (`backend/services/vlm_client.py:919`).
+`set_ai_service_degraded("ai-vlm", True)` (`backend/services/vlm_client.py:1115-1125`).
 
 ## Degradation Status API
 

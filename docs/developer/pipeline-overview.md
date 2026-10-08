@@ -179,16 +179,16 @@ flowchart LR
 
 ## Timing Characteristics
 
-| Stage                 | Duration | Notes                                                             |
-| --------------------- | -------- | ----------------------------------------------------------------- |
-| File upload detection | ~10ms    | OS filesystem notifications                                       |
-| Debounce delay        | 500ms    | Configurable                                                      |
-| Image validation      | ~5-10ms  | PIL verify()                                                      |
-| YOLO26 inference      | 30-50ms  | GPU accelerated (Triton)                                          |
-| Database write        | ~5-10ms  | PostgreSQL async                                                  |
-| Batch window          | 30-90s   | Collects related detections                                       |
-| VLM assessment        | 2-25s    | One call, retried once; `AI_VLM_READ_TIMEOUT=25` caps the attempt |
-| Event creation        | ~10ms    | Database + WebSocket                                              |
+| Stage                 | Duration | Notes                                                                                                 |
+| --------------------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| File upload detection | ~10ms    | OS filesystem notifications                                                                           |
+| Debounce delay        | 500ms    | Configurable                                                                                          |
+| Image validation      | ~5-10ms  | PIL verify()                                                                                          |
+| YOLO26 inference      | 30-50ms  | GPU accelerated (Triton)                                                                              |
+| Database write        | ~5-10ms  | PostgreSQL async                                                                                      |
+| Batch window          | 30-90s   | Collects related detections                                                                           |
+| VLM assessment        | 2-25s    | One call; retried once only where re-asking is not futile; `AI_VLM_READ_TIMEOUT=25` caps each attempt |
+| Event creation        | ~10ms    | Database + WebSocket                                                                                  |
 
 **Total latency:** dominated by the batch window — 30-95 seconds normally;
 threat/smoke-fire bypasses skip the window.

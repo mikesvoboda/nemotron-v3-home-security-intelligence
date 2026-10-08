@@ -1691,6 +1691,97 @@ class TestSlowReplyIsNotABrokenEngine:
         )
         await client.close()
 
+    async def test_a_connect_timeout_on_the_probe_leg_is_a_fault_not_a_budget(
+        self, image_dir, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The probe-leg mirror of test_a_connect_timeout_stays_a_transport_error.
+        The reviewer's mutation run showed that widening the probe clause at
+        `vlm_client.py:434` to all of `httpx.TimeoutException` - the maximal
+        "everything is a budget" form the module header rules out - left this
+        file's timeout suite green: only `test_vlm_client_batch37_o.py` noticed,
+        and only via message prose. Pinned here on the two assertions a
+        widening genuinely breaks: the CAUSE is `vlm_probe_transport` (not the
+        budget's own cause) and the fault FEEDS the breaker. A socket that
+        never connected spent none of our budget - the engine is unreachable,
+        which is exactly the outage the breaker exists to report."""
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        recorded: list[str] = []
+        monkeypatch.setattr(vc, "record_pipeline_error", lambda reason: recorded.append(reason))
+
+        class ConnectTimeoutTransport(httpx.AsyncBaseTransport):
+            """/props answers (the build pin passes) so the CHAT leg is what
+            refuses to connect - the props leg's own refusal is pinned in
+            TestEnforcementProbe."""
+
+            async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+                if request.url.path == vc.CHAT_PATH:
+                    raise httpx.ConnectTimeout("connection timed out", request=request)
+                return httpx.Response(200, json={"build_info": "b7972-e06088da0"}, request=request)
+
+        settings = vc.get_settings().model_copy(update={"vlm_enforcement_probe_enabled": True})
+        client = vc.VlmClient(
+            base_url="http://fake-vlm:8098",
+            transport=ConnectTimeoutTransport(),
+            settings=settings,
+        )
+        with pytest.raises(vc.ConstrainedDecodingNotEnforced) as caught:
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()
+        assert caught.value.verdict == "inconclusive", "fail closed, nothing cached"
+        assert recorded == ["vlm_probe_transport"], (
+            "a connect timeout is the engine being unreachable, not our read budget"
+        )
+        assert get_circuit_breaker("ai-vlm").failure_count >= 1, (
+            "the probe leg feeds the breaker for a connect fault - the symmetric "
+            "budget arm must not swallow it"
+        )
+
+    async def test_the_timeout_phase_is_pinned_in_message_and_log(
+        self, image_dir, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`timeout_phase` was produced at `vlm_client.py:454`/`:998` and
+        asserted zero times; the raised message interpolates
+        `ai_vlm_read_timeout` even when the stalled phase is WRITE (write
+        inherits 25.0 only because `_http()` passes the read value as
+        `Timeout()`'s positional default). A write-stall log that names the
+        read knob sends an operator to the wrong setting, so the phase is
+        pinned here in BOTH the raised message and the log extra, both
+        phases. Transport-layer pinning as everywhere in this class: ASGI
+        and custom transports never enforce timeouts, so the exception is
+        raised, not aged into."""
+        logged: list[dict] = []
+
+        class _RecordingLogger:
+            def warning(self, msg: str, **kw: Any) -> None:
+                logged.append({"msg": msg, **kw})
+
+            def __getattr__(self, _name: str):
+                return lambda *_a, **_k: None
+
+        monkeypatch.setattr(vc, "logger", _RecordingLogger())
+
+        for transport, phase in (
+            (_TimingOutTransport(), "read"),
+            (_StalledWriteTransport(), "write"),
+        ):
+            logged.clear()
+            client = self._client(transport)
+            with pytest.raises(vc.VlmSlowReplyError) as raised:
+                await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+            await client.close()
+            assert f"{phase} budget" in str(raised.value), (
+                f"a {phase} stall must name the {phase} phase, not inherit the other's wording"
+            )
+            phases = [
+                r.get("extra", {}).get("timeout_phase")
+                for r in logged
+                if "extra" in r and "timeout_phase" in r["extra"]
+            ]
+            assert phases == [phase], (
+                f"exactly one timeout_phase={phase!r} log record expected, got {phases!r}"
+            )
+
     def _client(self, transport: httpx.AsyncBaseTransport) -> vc.VlmClient:
         settings = vc.get_settings().model_copy(update={"vlm_enforcement_probe_enabled": False})
         return vc.VlmClient(base_url="http://fake-vlm:8098", transport=transport, settings=settings)
