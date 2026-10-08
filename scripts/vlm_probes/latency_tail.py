@@ -290,6 +290,7 @@ async def run(
     timeout: float | None = None,
     min_completed: int = 5,
     warm_reps: int = 1,
+    capture_root: str | None = None,
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> dict[str, Any]:
     """`reps` sequential `assess()` calls after `warm_reps` unmeasured ones;
@@ -309,6 +310,14 @@ async def run(
     reset_circuit_breaker_registry()
     _TailRecorder.calls.clear()
     updates: dict[str, Any] = {"vlm_enforcement_probe_enabled": probe}
+    if capture_root:
+        # _stills pre-filters against --dir, but the client re-checks every
+        # path against settings.foscam_base_path (default /export/foscam - the
+        # LIVE folder, which a test deployment's --dir is not under). Without
+        # this, `--dir /data/foscam` passes _stills and then faults all reps:
+        # VlmImageError -> FAULT -> exit 2, a wasted GPU run that names no
+        # file. Point the client's root at the root the operator named.
+        updates["foscam_base_path"] = capture_root
     if expect_build:
         updates["vlm_required_build"] = expect_build
     if timeout is not None:  # an override changes what THIS harness budgets only
@@ -398,6 +407,7 @@ async def run(
             "probe": probe,
             "expect_build": expect_build,
             "read_timeout_s": settings.ai_vlm_read_timeout,
+            "capture_root": str(Path(settings.foscam_base_path).resolve()),
             "max_tokens": _ASSESS_MAX_TOKENS,
             "served_build_info": client._build_info or None,
         },
@@ -510,6 +520,7 @@ def main(argv: list[str] | None = None) -> int:
             timeout=args.timeout,
             min_completed=args.min_completed,
             warm_reps=args.warm_reps,
+            capture_root=args.dir,
         )
     )
     print(json.dumps(summary, indent=2))

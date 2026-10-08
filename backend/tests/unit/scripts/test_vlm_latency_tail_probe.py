@@ -167,6 +167,64 @@ class TestSurface:
         for attr in ("run", "main"):
             assert hasattr(lt, attr), f"scripts/vlm_probes/latency_tail.py lacks {attr}()"
 
+    def test_main_points_the_clients_root_at_dir(self, monkeypatch, tmp_path) -> None:
+        """--dir IS the deployment's capture root (the operator's test stack
+        points FOSCAM_BASE_PATH at a fresh dir, operator.md; the default is
+        /export/foscam, the LIVE folder). _stills filters against --dir, but
+        the client re-checks every path against settings.foscam_base_path —
+        if run() does not point that root at --dir, a mismatch faults ALL
+        reps (VlmImageError -> FAULT -> exit 2 'nothing was measured') before
+        the engine is ever asked, and the operator's run proves nothing. The
+        other exit-ladder tests only pass because they monkeypatch the root
+        to tmp_path; this is the un-patched real-CLI path. A red test here is
+        a red measurement tool — fix the tool, never the test."""
+        captured: dict[str, Any] = {}
+        real_run = lt.run
+
+        async def _capture(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            captured.update(kwargs)
+            # Run the REAL measurement through an injected transport, so the
+            # exit code main returns is the real ladder over a real summary.
+            return await real_run(*args, transport=_ScriptedTransport(["ok"]), **kwargs)
+
+        still = tmp_path / "s.jpg"
+        still.write_bytes(b"\xff\xd8\xff\x00")
+        monkeypatch.setattr(lt, "run", _capture)
+        # The real CLI path: NO foscam_base_path monkeypatch anywhere.
+        code = lt.main(
+            ["--url", "http://x:1", "--camera", "c", "--dir", str(tmp_path), "--frames", "1"]
+        )
+        assert code == 0, f"main exited {code} instead of running the capture"
+        assert captured.get("capture_root") == str(tmp_path.resolve()), (
+            "run() was not told --dir is the capture root; the client would check "
+            "every path against the settings root (default /export/foscam, the live "
+            "folder) and fault all reps before the engine is asked"
+        )
+
+    def test_the_client_root_follows_capture_root_not_the_default(self, monkeypatch, tmp_path) -> None:
+        """The seam the RED test above drives: pass capture_root explicitly
+        and the shipped VlmClient's `_image_parts` must accept a still under
+        it WITHOUT the test-only settings-root monkeypatch — proving the root
+        the client enforces is the root the operator passed as --dir."""
+        other = tmp_path / "capture"
+        other.mkdir()
+        still = other / "s.jpg"
+        still.write_bytes(b"\xff\xd8\xff" + b"\x00" * 64)
+        # Deliberately do NOT monkeypatch foscam_base_path: it stays at the
+        # default /export/foscam, which 'other' is NOT under.
+        out = _run(
+            monkeypatch,
+            tmp_path,
+            stills=[str(still)],
+            capture_root=str(other.resolve()),
+            transport=_ScriptedTransport(["ok", "ok", "ok"]),
+        )
+        assert out["outcomes"]["FAULT"] == 0, (
+            f"the client faulted every rep: {out['outcome_details']} — its root "
+            "check did not follow capture_root"
+        )
+        assert out["outcomes"]["OK"] == 3
+
 
 class TestBudgetVsFault:
     def test_a_read_timeout_is_budget_not_fault(self, monkeypatch, tmp_path) -> None:
