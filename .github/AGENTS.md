@@ -20,14 +20,13 @@ This directory contains GitHub-specific configuration files for the Home Securit
   prompts/                    # AI prompt templates
     AGENTS.md                 # Prompts directory guide
     code-review.prompt.md     # System prompt for AI code review
-  workflows/                  # GitHub Actions workflow definitions (36 workflows)
+  workflows/                  # GitHub Actions workflow definitions (39 workflows)
     AGENTS.md                 # Workflows directory guide
     # Core CI/CD
     ci.yml                    # Main CI pipeline
     deploy.yml                # Docker image build and push
     preview-deploy.yml        # PR preview container builds
     release.yml               # Release workflow
-    rollback.yml              # Deployment rollback
     semantic-release.yml      # Semantic versioning releases
     release-drafter.yml       # Draft release notes (workflow trigger)
     # API
@@ -173,8 +172,13 @@ those floors, so review such hunks by hand.
 
 1. Login to GitHub Container Registry (GHCR)
 2. Build images with Buildx (multi-arch: amd64, arm64)
-3. Scan with Trivy for vulnerabilities (fail on CRITICAL/HIGH)
-4. Push with tags: `sha-{commit}`, `latest`
+3. Scan with Trivy — **not in this workflow**: Trivy's single home is
+   `trivy.yml`, called from `ci.yml` (WP1.2; the step here was dropped back at
+   #129 and `grep -c trivy deploy.yml` is 0). SBOM generation and cosign
+   signing by digest do live here, in `sbom-and-sign`
+4. Merge the manifest lists and push the per-commit tag only: the 7-char short
+   sha (metadata-action `type=sha,prefix=`). `latest` moves in `publish-latest`,
+   only after the smoke test passes (O1.9)
 
 **Image Names:**
 
@@ -246,7 +250,6 @@ those floors, so review such hunks by hand.
 | load-tests.yml        | Weekly/Manual | Load and stress testing                 |
 | mutation-testing.yml  | Weekly/Manual | Mutation testing to verify test quality |
 | release.yml           | Tag push      | Create releases with artifacts          |
-| rollback.yml          | Manual        | Rollback to previous deployment         |
 | semantic-release.yml  | Push to main  | Semantic versioning and changelog       |
 | release-drafter.yml   | PR merged     | Draft release notes from PR labels      |
 
