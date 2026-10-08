@@ -14,7 +14,6 @@ workflows/
   deploy.yml                  # Docker image build and push to GHCR
   preview-deploy.yml          # PR preview container builds
   release.yml                 # Release workflow
-  rollback.yml                # Deployment rollback
   semantic-release.yml        # Semantic versioning releases
   release-drafter.yml         # Draft release notes
   # API
@@ -192,8 +191,11 @@ npm run docs:watch  # Watch mode
 
 1. Authenticate to GHCR
 2. Build images with Buildx (multi-arch: amd64, arm64)
-3. Scan with Trivy (fail on CRITICAL/HIGH)
-4. Push with tags: `sha-{commit}`, `latest`
+3. Scan with Trivy — **not here**: Trivy's home is `trivy.yml` called from
+   `ci.yml` (WP1.2); `sbom-and-sign` in this file does SBOM + cosign by digest
+4. Merge the manifest lists and push the per-commit tag only: the 7-char short
+   sha (metadata-action `type=sha,prefix=`). `latest` moves in `publish-latest`,
+   only after the smoke test passes (O1.9)
 
 **Matrix Build:**
 

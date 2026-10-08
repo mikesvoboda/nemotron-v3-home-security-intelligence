@@ -108,8 +108,9 @@ def main() -> int:
         "is the retry-mask class (WP0.5 doctrine)",
     )
     check(
-        "always()" in retry_if,
-        "retry if: needs always() or the skipped-parent case kills it",
+        "!cancelled()" in retry_if,
+        "retry if: needs !cancelled() or the skipped-parent case kills it "
+        "(not always(): that would start a retry inside a cancelled run)",
     )
     retry_with = retry.get("with") or {}
     check(
