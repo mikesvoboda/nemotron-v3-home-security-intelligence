@@ -340,9 +340,19 @@ def test_heavy_kickoff_names_the_heavy_prompt_instead_of_a_position() -> None:
     line = {s.name: s.kickoff for s in phases[1]}[HEAVY]
     assert "The heavy sandbox's kickoff prompt" in line
     assert "end of that file" not in line
-    # the section it names exists, where the line says it lives ("under The roster"), and it is
-    # not the only kickoff prompt in that file - which is exactly why a positional pointer
-    # cannot identify it.
+
+
+@pytest.mark.skipif(
+    # the roster is a docs/ path and docs/uplevel/ sits outside mutmut's also_copy (its
+    # comment: docs/ as a whole is never copied): in the mutant home this read would raise
+    # and abort the -x stats gather - the also_copy abort family, pyproject.toml. Skip,
+    # never abort, as test_check_vss_docs_currency.py and test_mutation_hold_banner.py do.
+    not (REPO_ROOT / "docs" / "uplevel" / "50-coordination.md").exists(),
+    reason="docs/ tree absent (mutmut's mutant home): nothing to cross-check the line against",
+)
+def test_the_roster_holds_both_prompts_the_heavy_line_points_between() -> None:
+    """the sections the heavy line names all exist, and there are TWO kickoff prompts in the
+    file - which is exactly why the line has to name its section instead of a position."""
     roster = (REPO_ROOT / "docs" / "uplevel" / "50-coordination.md").read_text(encoding="utf-8")
     assert "### The roster" in roster
     assert "**The heavy sandbox's kickoff prompt:**" in roster
