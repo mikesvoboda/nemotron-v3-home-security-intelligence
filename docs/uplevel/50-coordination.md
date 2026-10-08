@@ -47,7 +47,7 @@ every agent adds PRs, conflicts and questions for one owner.
 | backend | the VLM path: `backend/services/vlm_*`, `constrained_decoding.py`, `backend/evaluation/`, the circuit breaker | API and auth: `backend/api/`, middleware, `backend/main.py`      |
 | ops     | runtime: `ai/`, compose, `setup.py`, `setup_lib/`, the fake stack and harness                                 | tooling: `scripts/`, `.github/`, the mutation scorer, `archive/` |
 
-Ops splits from Phase 1: `uplevel-ops-b` already exists from Phase 0, and ops holds eleven Phase 1
+Ops splits from Phase 1: `uplevel-ops-b` already exists from Phase 0, and ops holds twelve Phase 1
 packages. Backend runs as one agent until Phase 3, because the heavy sandbox takes three of its six
 Phase 1 packages; it splits into cells A and B for Phase 3's deletions. Frontend and docs run as one
 cell each until Phase 3, when the frontend may split into retirement (`F3.1`) and reachability
@@ -107,7 +107,7 @@ HOST (owner)               agent-dgx · sbx · the launcher (O0.1) · the local 
 | sandbox               | model     | Phase 0              | Phase 1 queue                                                                                                               | kickoff prompt       |
 | --------------------- | --------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------- |
 | `uplevel-coordinator` | fast      | labels, pinned issue | assignments, reviews, merges, the daily batch                                                                               | this file            |
-| `uplevel-ops-b`       | fast      | `O0.1`, the launcher | `O1.1`, `O1.9`, `O1.10`, `O1.2`, `O1.4`, `O1.5`, `O1.7`, `O1.8`                                                             | `30-ops.md` + cell B |
+| `uplevel-ops-b`       | fast      | `O0.1`, the launcher | `O1.1`, `O1.9`, `O1.12`, `O1.10`, `O1.2`, `O1.4`, `O1.5`, `O1.7`, `O1.8`                                                    | `30-ops.md` + cell B |
 | `uplevel-ops-a`       | fast      | —                    | `O1.3`, `O1.6` (after `B1.5`), `O1.11` (after `O1.6`); then `O2.1` early                                                    | `30-ops.md` + cell A |
 | `uplevel-backend`     | fast      | —                    | `B1.1`, `B1.3`, `B1.4`; then `B2.1` and the inventory's backend tracing                                                     | `10-backend.md`      |
 | `uplevel-frontend`    | fast      | —                    | `F1.1`; `F1.2` after `B1.4`; `F1.3` after `B1.5`                                                                            | `20-frontend.md`     |

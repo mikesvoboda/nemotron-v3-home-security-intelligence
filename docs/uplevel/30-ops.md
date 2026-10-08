@@ -287,6 +287,31 @@ published with anonymous **Admin** today (`GF_AUTH_ANONYMOUS_ENABLED=true`,
 the three embedded dashboards render after one login, and `/grafana/` without a session is
 refused.
 
+### O1.12 The hooks run in the gate (UR-37)
+
+**Files:** a new job in `.github/workflows/ci.yml` and its place in `CI Gate (Required Checks)`;
+`.pre-commit-config.yaml` only where a hook needs a CI mode.
+
+Agents commit and push through `.pre-commit-config.yaml`'s hooks (semgrep, detect-secrets,
+prettier, the slow-test guard and more), but the required gate runs only part of them: the `lint`
+job runs ruff and radon. A PR can pass every required check and still block every later push that
+touches its files. On 2026-10-08 that took four fix PRs: B1.3's webhook fixture tripped semgrep
+(#6888), the slow-test hook (#6890), and #6891 and #6892.
+
+- [ ] Write the failing check first: a fixture change that trips a hook but passes today's CI (the
+      B1.3 fixture class) fails the new job.
+- [ ] Add a job, as its own job (the hot-file rule for `ci.yml`), that runs the repository's pinned
+      hooks on the PR's changed files (`pre-commit run --from-ref <base> --to-ref HEAD`), and add it
+      to the `CI Gate (Required Checks)` closure. `scripts/test_ci_job_graph.py` enforces the
+      wiring.
+- [ ] **MEASURE** the job's wall-clock on a typical PR and on a large one.
+- [ ] A hook the CI runner cannot run (missing tooling): give the job the tooling, or list the hook
+      in the PR with the reason it stays local-only. That list is a **RULING** for the owner's
+      batch: a hook left out of the gate is a known gap, never a silent one.
+
+**Done when:** the job runs in the required gate on every PR, fails on the fixture and passes on the
+current tree, and the PR reports its wall-clock and any local-only hooks with the owner's ruling.
+
 ---
 
 ## Phase 2 — Feature truth
