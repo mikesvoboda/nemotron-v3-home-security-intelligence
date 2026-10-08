@@ -188,8 +188,8 @@ Its two `ValueError` branches enforce the rule that the VLM never originates an 
 | Connect timeout                | 10 s                                                    | `ai_connect_timeout` (`backend/core/config.py:1093-1097`)                                         |
 | Wake ping read budget          | 90 s                                                    | `ai_vlm_wake_timeout_seconds` (`backend/core/config.py:1126-1133`)                                |
 | Engine URL                     | `http://localhost:8098`; `http://ai-vlm:8098` in Docker | `ai_vlm_url` (`backend/core/config.py:1042-1045`)                                                 |
-| Verdict output budget          | 2048 tokens (raised from 1024 on 2026-10-04)             | `_ASSESS_MAX_TOKENS` (`backend/services/vlm_client.py:98`)                                        |
-| Context pool and slots         | 32768 across 2 slots = 16384 each                       | `docker-compose.prod.yml:205-206`, divided by the validator at `backend/core/config.py:1351-1365` |
+| Verdict output budget          | 2048 tokens (raised from 1024 on 2026-10-04)            | `_ASSESS_MAX_TOKENS` (`backend/services/vlm_client.py:98`)                                        |
+| Context pool and slots         | 32768 across 2 slots = 16384 each                       | `docker-compose.prod.yml:210-211`, divided by the validator at `backend/core/config.py:1351-1365` |
 | Largest embedded key frame     | 8 MiB                                                   | `vlm_max_image_bytes` (`backend/core/config.py:1367-1374`)                                        |
 | Breaker threshold and recovery | 5 failures, 60 s                                        | `backend/services/vlm_client.py:247-250`                                                          |
 | LOW-band clamp ceiling         | 29                                                      | `severity_low_max` (`backend/core/config.py:2423-2428`)                                           |
@@ -267,7 +267,7 @@ A budget problem is deliberately kept out of the breaker. `_note_budget_exhauste
         record_pipeline_error(reason)
 ```
 
-Engine-side concurrency is the served slot count: the container runs llama.cpp with `--parallel 2`, so two `vlm_assess` calls share the pool and each request occupies one slot (`docker-compose.prod.yml:205-206`). Analysis throughput is the worker pool's business: `analysis_worker_count` defaults to 2 (`backend/core/config.py:1022-1026`), and each worker holds at most one engine call in flight.
+Engine-side concurrency is the served slot count: the container runs llama.cpp with `--parallel 2`, so two `vlm_assess` calls share the pool and each request occupies one slot (`docker-compose.prod.yml:210-211`). Analysis throughput is the worker pool's business: `analysis_worker_count` defaults to 2 (`backend/core/config.py:1022-1026`), and each worker holds at most one engine call in flight.
 
 ## Retry Logic
 
@@ -477,17 +477,17 @@ The text it builds:
 
 ### Prompt Components
 
-| Component             | Source                                                             | Content                                                                                       |
-| --------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| Task sentence         | `_render_prompt`                                                   | verify the detector's candidates; answer only with the verdict JSON                           |
+| Component             | Source                                                             | Content                                                                                                    |
+| --------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Task sentence         | `_render_prompt`                                                   | verify the detector's candidates; answer only with the verdict JSON                                        |
 | Scoring rubric        | `_render_prompt` (OD-29, 2026-10-05)                               | the `risk_score` bands 0-29/30-59/60-84/85-100 with examples; ships paired with the numeric alert floor 60 |
-| `Camera:`             | `VlmAssessContext.camera_id`                                       | the camera id; no camera name is read                                                         |
-| `Time:`               | `render_prompt_time` (`backend/services/capture_time.py:87`)       | the capture moment, as local wall time with zone and UTC offset when `CAMERA_TIMEZONE` is set |
-| `Zones:`              | `get_zones_for_detection` (`backend/services/zone_service.py:169`) | the zone names the batch sits in, plus the `zone_crossing` signal                             |
-| Box guidance          | `_box_guidance` (`backend/services/vlm_client.py:627`)             | how to read `bbox_2d` and pixel boxes, and the 1-based frame index of each row                |
-| `Detections:`         | `Detection` rows through `build_assess_context`                    | id, object_type, confidence, bbox, detected_at as JSON                                        |
-| `Household context:`  | `load_household_context` (`backend/services/vlm_analyzer.py:309`)  | the zone allow-lists, honest-empty on any read failure                                        |
-| `Specialist outputs:` | `collect_specialist_outputs`                                       | one short text per lookup leg                                                                 |
+| `Camera:`             | `VlmAssessContext.camera_id`                                       | the camera id; no camera name is read                                                                      |
+| `Time:`               | `render_prompt_time` (`backend/services/capture_time.py:87`)       | the capture moment, as local wall time with zone and UTC offset when `CAMERA_TIMEZONE` is set              |
+| `Zones:`              | `get_zones_for_detection` (`backend/services/zone_service.py:169`) | the zone names the batch sits in, plus the `zone_crossing` signal                                          |
+| Box guidance          | `_box_guidance` (`backend/services/vlm_client.py:627`)             | how to read `bbox_2d` and pixel boxes, and the 1-based frame index of each row                             |
+| `Detections:`         | `Detection` rows through `build_assess_context`                    | id, object_type, confidence, bbox, detected_at as JSON                                                     |
+| `Household context:`  | `load_household_context` (`backend/services/vlm_analyzer.py:309`)  | the zone allow-lists, honest-empty on any read failure                                                     |
+| `Specialist outputs:` | `collect_specialist_outputs`                                       | one short text per lookup leg                                                                              |
 
 ### Lookup Legs
 

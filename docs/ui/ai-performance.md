@@ -60,9 +60,9 @@ The Grafana dashboard displays metrics from the AI pipeline. Here's what each me
 - Shipped weights are `VLM_MODEL_PATH` (`Qwen3VL-8B-Instruct-Q4_K_M.gguf`) plus the multimodal
   projector `VLM_MMPROJ_PATH` (`mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`); model identity is config,
   not a product requirement
-- `ai-vlm` sits behind the compose profile `vlm`, so `up -d` without `--profile vlm` does not
-  start it. Start it explicitly with
-  `podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm`
+- `ai-vlm` is in the default compose set — a plain `up -d` starts it. On a stack that is
+  already running, start just it with
+  `podman compose -f docker-compose.prod.yml up -d ai-vlm`
 - Typical inference time: seconds per batch, dominated by prompt fitting and prefill
 - Health status: `http://localhost:8098/health`
 
@@ -362,9 +362,9 @@ The AI Performance page relies on Grafana's built-in refresh mechanism. The dash
 **VLM (`ai-vlm`, llama.cpp):**
 
 1. Check if llama.cpp server is running: `curl http://localhost:8098/health`
-2. Confirm the container is actually up — `ai-vlm` sits behind the compose profile `vlm`, so a
-   plain `up -d` never starts it:
-   `podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm`
+2. Confirm the container is actually up — `ai-vlm` is in the default compose set, so a plain
+   `up -d` starts it; if it is not running, start it with
+   `podman compose -f docker-compose.prod.yml up -d ai-vlm`
 3. Confirm the serve is multimodal, not text-only: a projector-less `llama-server` answers 200 on
    `/health`. `podman exec ai-vlm sh -c 'echo "MMPROJ_PATH=$MMPROJ_PATH"'` must be non-empty, and
    both GGUFs must exist under `$AI_MODELS_PATH/vlm/`.
@@ -604,10 +604,10 @@ Event + EventVerification written, then WebSocket broadcast (best-effort)
 
 ### GPU Requirements
 
-| Service             | Model                                               | VRAM             | Container / Port                                         | Serve shape                                                                  |
-| ------------------- | --------------------------------------------------- | ---------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| YOLO26 (via Triton) | Ultralytics YOLO26 (ONNX FP32 CUDA)                 | model-dependent  | `ai-gateway` :8090 (`/yolo26`)                           | Triton instance group; `/enrich-lt` adds `/threat-detect` + `/person-reid`   |
-| VLM (llama.cpp)     | GGUF weight + mmproj projector (identity is config) | weight-dependent | `ai-vlm` :8098 (compose profile `vlm`, `127.0.0.1` only) | `VLM_CTX_SIZE=32768` split across `VLM_PARALLEL=2` slots → 16384 tokens/slot |
+| Service             | Model                                               | VRAM             | Container / Port                                       | Serve shape                                                                  |
+| ------------------- | --------------------------------------------------- | ---------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| YOLO26 (via Triton) | Ultralytics YOLO26 (ONNX FP32 CUDA)                 | model-dependent  | `ai-gateway` :8090 (`/yolo26`)                         | Triton instance group; `/enrich-lt` adds `/threat-detect` + `/person-reid`   |
+| VLM (llama.cpp)     | GGUF weight + mmproj projector (identity is config) | weight-dependent | `ai-vlm` :8098 (default compose set, `127.0.0.1` only) | `VLM_CTX_SIZE=32768` split across `VLM_PARALLEL=2` slots → 16384 tokens/slot |
 
 The VLM weights and projector are host-mounted from `$AI_MODELS_PATH/vlm/` and are **not**
 fetched by `ai/download_models.sh` — an operator places both files. Without the projector the

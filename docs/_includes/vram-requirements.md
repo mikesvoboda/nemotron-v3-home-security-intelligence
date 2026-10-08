@@ -5,8 +5,11 @@
 | VLM engine | ai-vlm     | GGUF pair — operator config (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH`) | config-driven; `VLM_GPU_LAYERS=auto` fits the card | Scene description + risk reasoning  |
 | Detection  | ai-gateway | YOLO26 (Triton) + re-ID/threat specialists                       | Triton set `yolo26`/`reid`/`threat` (opt-in)       | Object detection + identity lookups |
 
-The `ai-vlm` container sits behind the `vlm` compose profile — the stack runs
-without it and events degrade (no verdicts) rather than fail to boot. No
+The `ai-vlm` container is in the default compose set, so a plain `up -d` starts
+it. Where it cannot start — a machine with no GPU, where its CDI device line has
+nothing to map — the rest of the stack still comes up and events degrade (no
+verdicts) rather than fail to boot, because nothing `depends_on` it and it
+`depends_on` nothing. No
 measured residency figure exists yet for the shipped identity; the bring-up
 record owns the per-card numbers. The gateway serves exactly two routers
 (`/yolo26`, `/enrich-lt`); `GATEWAY_MODEL_SET` resolves only `vlm`, and

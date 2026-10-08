@@ -957,7 +957,7 @@ groups:
   # Profiling sources: the backend (Python SDK — init_profiling() runs at
   # backend/main.py:821 via backend/core/telemetry.py) and the ai-vlm/Llama.cpp
   # container (pyroscope.profile=true label -> Alloy eBPF profiling,
-  # monitoring/alloy/config.alloy; docker-compose.prod.yml:144-145).
+  # monitoring/alloy/config.alloy; docker-compose.prod.yml:151-152).
   # ai-gateway/Triton is not a profiling target (no pyroscope label, no
   # PYROSCOPE_* env in compose). These alerts watch the Pyroscope SERVER
   # (up{job="pyroscope"}, pyroscope_* self-metrics); the NoProfilesReceived

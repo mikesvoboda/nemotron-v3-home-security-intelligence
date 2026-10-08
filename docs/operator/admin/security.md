@@ -357,7 +357,7 @@ Only expose necessary ports:
 | 6379        | Redis                                | Bound `127.0.0.1` — **internal only**                |
 | 8090        | ai-gateway (`/yolo26`, `/enrich-lt`) | Bound `127.0.0.1` — **internal only**                |
 | 8002        | ai-gateway Triton native metrics     | Bound `127.0.0.1` — **internal only**                |
-| 8098        | ai-vlm (reasoning; profile `vlm`)    | Bound `127.0.0.1:${AI_VLM_PORT}` — **internal only** |
+| 8098        | ai-vlm (reasoning)                   | Bound `127.0.0.1:${AI_VLM_PORT}` — **internal only** |
 
 Most host bindings are already `127.0.0.1` (the compose files bind them that way), so the
 firewall mainly needs to allow the frontend ports for LAN users:

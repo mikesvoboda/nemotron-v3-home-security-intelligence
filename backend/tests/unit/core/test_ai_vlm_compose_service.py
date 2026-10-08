@@ -1,11 +1,14 @@
 """Compose/env/Dockerfile shape tests for the `ai-vlm` service (Phase 1.2).
 
 Spec §2 row 1 (`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md`):
-the ai-vlm compose service behind profile `vlm`, llama-server + GGUF + mmproj,
+the ai-vlm compose service — llama-server + GGUF + mmproj,
 --jinja/--sleep-idle-seconds/--alias, 2 slots, context sized for 4 images +
 ~6K text + output, host port `AI_VLM_PORT` (8098) added to .env.example FIRST
-(root AGENTS.md env-first rule), no hard backend depends_on (a profiled
-service would break the default `up` - ledger the degradation instead).
+(root AGENTS.md env-first rule), no hard backend depends_on.
+
+O1.3 (UR-18) took the `profiles: [vlm]` gate off it: the verdict engine ships
+in the default `up`, and the backend reports its runtime state instead of a
+compose edge hiding it.
 
 These are STRUCTURE tests on the three artifacts (compose YAML, .env.example,
 ai/vlm/Dockerfile text): the live-behavior half of 1.2's evidence is the
@@ -71,14 +74,25 @@ class TestEnvFirst:
 
 
 class TestComposeServiceShape:
-    def test_profiled_vlm(self, vlm_service: dict) -> None:
-        assert vlm_service.get("profiles") == ["vlm"], (
-            "ai-vlm must hide behind profile vlm so the default `up` never starts it"
+    def test_starts_by_default(self, vlm_service: dict) -> None:
+        """O1.3 / UR-18: the shipped verdict engine ships.
+
+        `profiles: [vlm]` meant a plain `up` started the whole product except
+        the one service that produces a verdict, so every install came up
+        looking healthy while the risk gauge sat at 0 (00 §3 D5). ai-vlm is now
+        in the default set; the explicit GPU-less path is O2.1's fake-AI
+        overlay, not an omitted profile.
+        """
+        assert not vlm_service.get("profiles"), (
+            "ai-vlm must start with the default `up` (UR-18); a profiles: block "
+            "here puts the verdict engine back behind a flag nobody passes by "
+            "default, which is the defect O1.3 closes"
         )
 
     def test_no_depends_on(self, vlm_service: dict) -> None:
-        # a profiled service named in backend's depends_on breaks the default
-        # `up` (plan 1.2); degradation is 1.3's wiring, not a compose edge.
+        # unchanged by O1.3: ai-vlm is a leaf (the backend reaches it by URL),
+        # and UR-18 keeps it that way - backend readiness reports the engine's
+        # runtime state rather than a compose edge failing the whole `up`.
         assert "depends_on" not in vlm_service
 
     def test_backend_does_not_depend_on_it(self, compose: dict) -> None:
@@ -340,8 +354,9 @@ class TestRetiredLlmIsOptIn:
     def test_the_surviving_engine_stays_opt_in(self, compose: dict) -> None:
         """The other half of the guarantee, still live: ai-llm-vllm is the only
         engine left in the file beside ai-vlm, and it hides behind profile
-        `vllm` — so neither a plain `up` nor a `--profile vlm` up (which is how
-        ai-vlm is actually started) can land a second model on the GPU."""
+        `vllm` — so a plain `up` cannot land a second model on the GPU the
+        verdict engine serves on. O1.3 leaves this gate alone: OD-17 decides
+        ai-llm-vllm at R2."""
         assert compose["services"]["ai-llm-vllm"].get("profiles") == ["vllm"]
 
     def test_backend_depends_on_no_llm_engine(self, compose: dict) -> None:

@@ -183,8 +183,8 @@ def _register_all() -> None:
     # the registry's own client_methods), so the registry path and the
     # analyzer path converge on one implementation. deployed=False stays:
     # OPENAI_VLM/RTVI_VLM name ENGINE choices, and neither engine is
-    # deployed as "the VLM" yet (the ai-vlm compose service exists under
-    # profile `vlm` since 1.2; the M2 pick is an owner decision). The
+    # deployed as "the VLM" yet (the ai-vlm compose service has existed since
+    # 1.2; the M2 pick is an owner decision). The
     # honest deployed flip rides M2, not this wiring.
     for vlm_pid in (ProviderId.OPENAI_VLM, ProviderId.RTVI_VLM):
         register_provider(
