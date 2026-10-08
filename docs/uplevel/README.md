@@ -226,7 +226,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 <!-- prettier-ignore -->
 | package | lane                    | phase      | name                                           | flags         | status      | PR  |
 | ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
-| O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | not started |     |
+| O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | done        | #6855 |
 | B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | not started |     |
 | B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | not started |     |
 | B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | done        | #6880 |
