@@ -213,6 +213,7 @@ jobs:
           scripts/test_check_gate_reachability.py
           scripts/test_ai_surface_census.py
           scripts/test_check_npm_audit_exemptions.py
+          scripts/test_agents_md_validator.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref

@@ -298,6 +298,10 @@ dev = [
     {include-group = "security"},
     {include-group = "mutation"},
     {include-group = "quality"},
+    # W1.1 owner ruling on #6870: the validator's `import yaml` is a CI tool
+    # need, not app runtime — declared HERE, not in [project].dependencies.
+    # (Its type stub, types-pyyaml, has never had a package to stand for.)
+    "pyyaml>=6.0.3",
     "types-pyyaml>=6.0.12.20250915",
     {include-group = "docs"},
 ]

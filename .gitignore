@@ -171,3 +171,9 @@ frontend/reports/mutation/
 
 # Local dev PID files (dev.sh recreates the dir; untracked since 2026-09-21 cleanup)
 .pids/
+
+# W1.1: the AGENTS.md validator's report (--output report.json is what
+# .github/workflows/agents-md.yml and the docs write at the repo root). The
+# path is not gitignored today, so a local run leaves a tracked-looking stray
+# next to the tree it describes. Root-anchored: reports elsewhere stay visible.
+/report.json
