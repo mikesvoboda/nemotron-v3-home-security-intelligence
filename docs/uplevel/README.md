@@ -176,6 +176,8 @@ Packages cite these as `UR-n`.
 | UR-31 | Every agent, not only the coordinator, states only what it has just read: each commit, PR, file, test result and question it cites comes from output it ran in the same turn.                                                                                                                    |
 | UR-32 | Reviews come first. When a PR goes ready, the coordinator labels it `review:<lane>`; a lane agent clears its label's PRs before starting or resuming a package.                                                                                                                                  |
 | UR-33 | With `EXPOSE_LAN=true`, monitoring is denied by default like every other path: `B1.5` closes `/api/metrics` and `/api/system/{gpu,stats,telemetry}`, and `O1.11` gives the monitoring callers credentials and puts `/grafana/` behind the app's login. The default, unexposed mode is unchanged. |
+| UR-34 | CI is green only when the required check `CI Gate (Required Checks)` is present and passed at the PR's head; a workflow change runs `actionlint` against `main`'s findings before it is pushed.                                                                                                  |
+| UR-35 | Agents read the new comments on their own open PRs before resuming a package; an owner ruling or a requested change there comes before new work.                                                                                                                                                 |
 
 Already ruled in the register and executed here: OD-12 (loopback unless `EXPOSE_LAN=true`,
 deny-by-default auth when exposed) by `B1.5`, `F1.3` and `O1.6`; OD-20 (retire the enrichment
