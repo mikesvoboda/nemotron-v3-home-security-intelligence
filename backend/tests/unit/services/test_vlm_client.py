@@ -1510,3 +1510,96 @@ class TestContextOverflowIsABudget:
         with pytest.raises(vc.VlmTransportError):
             await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
         await client.close()
+
+
+class TestSlowReplyIsNotABrokenEngine:
+    """`00 §3` D1. A reply that outruns `ai_vlm_read_timeout` (25 s) came back
+    as a TRANSPORT error: one breaker failure, then the §6 retry re-sent the
+    SAME bytes for a second timeout and a second failure - five slow items
+    open `ai-vlm` for every camera over a budget WE chose. This is
+    `TestContextOverflowIsABudget` on the timeout leg: the request leaves
+    unchanged, so a retry re-asks the identical question and, at the same
+    speed, times out identically. The breaker's question is "stop calling
+    this engine?" and a slow reply answers NO - the connection held, the
+    grammar applied, the engine was doing real work. One charge, no identical
+    retry, and the item still answers verification_failed with a NULL score.
+    """
+
+    @staticmethod
+    def _timing_out_transport() -> "_TimingOutTransport":
+        return _TimingOutTransport()
+
+    async def test_a_slow_reply_is_asked_once(self, image_dir) -> None:
+        """No identical retry: the bytes that timed out are the bytes that
+        would time out again."""
+        transport = self._timing_out_transport()
+        client = self._client(transport)
+        with pytest.raises(vc.VlmClientError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert transport.chat_calls == 1, (
+            f"a slow reply was re-asked {transport.chat_calls} times; the request is "
+            "unchanged, so a second attempt times out identically"
+        )
+        await client.close()
+
+    async def test_a_slow_reply_charges_the_breaker_at_most_once(self, image_dir) -> None:
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        transport = self._timing_out_transport()
+        client = self._client(transport)
+        with pytest.raises(vc.VlmClientError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()
+        assert get_circuit_breaker("ai-vlm").failure_count <= 1, (
+            f"one slow reply charged the breaker "
+            f"{get_circuit_breaker('ai-vlm').failure_count} times"
+        )
+
+    async def test_slow_replies_never_open_the_breaker(self, image_dir) -> None:
+        """Ten slow items is ten UNMEASURED verdicts, not a service outage: an
+        opened breaker answers every later camera WITHOUT I/O, so the report
+        describes a breaker instead of a model."""
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        client = self._client(self._timing_out_transport())
+        for _ in range(10):  # well past the breaker's 5-failure threshold
+            with pytest.raises(vc.VlmClientError):
+                await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()
+        assert not get_circuit_breaker("ai-vlm").is_open, "a budget must not open a service breaker"
+
+    async def test_a_refused_connection_still_charges_the_breaker(self, image_dir) -> None:
+        """The triage must not forgive a broken engine: a server that refuses
+        the connection is still a transport failure, still retried, and still
+        fed to the breaker - the one signal that the engine is down."""
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        client = make_client("down", vlm_enforcement_probe_enabled=False)
+        with pytest.raises(vc.VlmTransportError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert len(client._app_calls()) == 2, "a real fault keeps its §6 retry"
+        assert get_circuit_breaker("ai-vlm").failure_count >= 1
+        await client.close()
+
+    def _client(self, transport: httpx.AsyncBaseTransport) -> vc.VlmClient:
+        settings = vc.get_settings().model_copy(update={"vlm_enforcement_probe_enabled": False})
+        return vc.VlmClient(base_url="http://fake-vlm:8098", transport=transport, settings=settings)
+
+
+class _TimingOutTransport(httpx.AsyncBaseTransport):
+    """Raises `httpx.ReadTimeout` on the chat leg exactly as a socket timeout
+    would, and counts the chat requests so a test can see an identical retry.
+    ASGITransport never enforces timeouts (the 1.1 lesson), so "slower than
+    the read timeout" can only be pinned at the transport layer - and httpx
+    does not apply a read timeout to a custom transport either (measured: a 3
+    s handler under a 0.2 s timeout returns 200), which is why this raises the
+    exception rather than being slow."""
+
+    def __init__(self) -> None:
+        self.chat_calls = 0
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path == vc.CHAT_PATH:
+            self.chat_calls += 1
+            raise httpx.ReadTimeout("read timeout", request=request)
+        return httpx.Response(200, json={"build_info": "b7972-e06088da0"}, request=request)
