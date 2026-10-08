@@ -1,4 +1,7 @@
-"""Authentication: the EXPOSE_LAN gate and the WebSocket routes' API-key check.
+"""Authentication: the EXPOSE_LAN gate, and the routes' API-key checks.
+
+The routes' checks are ``require_api_key`` (B1.3, the inbound webhooks: always
+on) and ``validate_websocket_api_key`` (the WebSocket routes, ``API_KEY_ENABLED``).
 
 ``AuthMiddleware`` is the gate OD-12 rules (B1.5). With ``EXPOSE_LAN`` unset it
 passes every request, as before B1.5. With ``EXPOSE_LAN=true`` it refuses every

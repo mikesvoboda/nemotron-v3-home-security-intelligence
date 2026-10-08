@@ -17,8 +17,9 @@ truth as test_api_protection.py):
 - /api/auth/me and the API-key CRUD require the session cookie via
   get_current_user / get_current_admin_user; with EXPOSE_LAN unset the
   AuthMiddleware gate is off, so business routes like /api/cameras are open and
-  cannot carry auth assertions (test_expose_lan_auth.py covers the gate). The only X-API-Key surface is per-route
-  verify_api_key against settings.api_keys (integration_env sets
+  cannot carry auth assertions (test_expose_lan_auth.py covers the gate). Every
+  X-API-Key check (per-route verify_api_key, B1.3's require_api_key and the
+  gate) validates against settings.api_keys (integration_env sets
   API_KEYS=["test-api-key-12345"]); POST /api/system/cleanup?dry_run=true is
   the side-effect-free protected route used to prove it.
 
