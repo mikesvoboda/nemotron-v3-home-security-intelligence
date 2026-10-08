@@ -8,7 +8,8 @@
 
 The AGENTS.md files are the map agents trust most, and today it is the least accurate one: 77 of
 244 files cite 213 files that exist nowhere in the repo, 57 describe retired components, and the
-validator that detects dead references always exits 0 (`scripts/agents_md_validator.py:798-799`).
+validator that detected dead references always exited 0 — `W1.1` gave it ratchet baselines and
+real exit codes.
 This lane makes the map true and keeps it true.
 
 Its heavy work waits for the other lanes' Phase 3: rewriting docs before the code they describe is
