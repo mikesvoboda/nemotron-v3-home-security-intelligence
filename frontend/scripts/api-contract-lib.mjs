@@ -547,7 +547,7 @@ function readTemplate(node, { resolve, isParam, depth = 0 }) {
     const text = expr.getText().trim();
     const bare = text.replace(/^this\./, '');
     const queryish =
-      QUERY_EXPR.test(bare) ||
+      (QUERY_EXPR.test(bare) && span.literal.text === '') ||
       (expr.kind === ts.SyntaxKind.ConditionalExpression &&
         /\?\s*['"`]\?|query|params|qs|search/i.test(expr.getText()));
     if (queryish) break;

@@ -305,6 +305,20 @@ describe('scanClient', () => {
     expect(scan.claims.map((c) => c.path)).toEqual(['/api/system/services']);
   });
 
+  it('keeps the path after a query-named hole when text follows it', () => {
+    // A hole named `params` is a query string only when the template ENDS
+    // there. `/api/events/${params}/bogus-tail` uses it as a path segment,
+    // and folding the tail away would hide a fabricated endpoint behind
+    // the served prefix — the shape this guard exists to catch.
+    const scan = scanSource('query-named-segment.ts', [
+      'export function events(params: string) {',
+      '  return fetch(`/api/events/${params}/bogus-tail`);',
+      '}',
+      '',
+    ]);
+    expect(scan.claims.map((c) => c.path)).toEqual(['/api/events/{}/bogus-tail']);
+  });
+
   it('reads a WebSocket path out of new WebSocket(url)', () => {
     const scan = scanSource('socket.ts', [
       'export function open() {',
