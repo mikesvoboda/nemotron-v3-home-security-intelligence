@@ -89,7 +89,7 @@ WID = "wid-fixed-1"
 URL = "https://x.test/hook"
 FIXED = datetime(2026, 3, 4, 5, 6, 7, 891011, tzinfo=UTC)
 FIXED_ISO = "2026-03-04T05:06:07.891011+00:00"
-SECRET = "ab" * 32
+SECRET = "ab" * 32  # nosemgrep: hardcoded-password
 SECRET_A = "a" * 64
 # probe7: HMAC over json.dumps(payload, sort_keys=True, separators=(",",":"))
 SIG_P1 = "4012d12033f6bfe41db94b44a97ac0b5434779648ccd370c53ff31d117a6aa4f"

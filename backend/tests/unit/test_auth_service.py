@@ -46,7 +46,7 @@ class TestPasswordHashing:
 
     def test_hash_password_returns_argon2_hash(self) -> None:
         """Test that hash_password returns an argon2 hash string."""
-        password = "SecurePassword123!"  # pragma: allowlist secret
+        password = "SecurePassword123!"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_password(password)
 
         # Argon2 hashes start with $argon2
@@ -55,7 +55,7 @@ class TestPasswordHashing:
 
     def test_hash_password_produces_unique_hashes(self) -> None:
         """Test that same password produces different hashes (due to salt)."""
-        password = "SamePassword123"  # pragma: allowlist secret
+        password = "SamePassword123"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hash1 = hash_password(password)
         hash2 = hash_password(password)
 
@@ -71,14 +71,14 @@ class TestPasswordHashing:
 
     def test_hash_password_handles_unicode(self) -> None:
         """Test that unicode characters in password are handled."""
-        password = "Pässwörd123™"  # pragma: allowlist secret
+        password = "Pässwörd123™"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_password(password)
 
         assert hashed.startswith("$argon2")
 
     def test_hash_password_handles_very_long_password(self) -> None:
         """Test that very long passwords are handled."""
-        password = "a" * 1000  # pragma: allowlist secret
+        password = "a" * 1000  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_password(password)
 
         assert hashed.startswith("$argon2")
@@ -89,28 +89,28 @@ class TestPasswordVerification:
 
     def test_verify_password_correct(self) -> None:
         """Test that verify_password returns True for correct password."""
-        password = "CorrectPassword123"  # pragma: allowlist secret
+        password = "CorrectPassword123"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_password(password)
 
         assert verify_password(password, hashed) is True
 
     def test_verify_password_incorrect(self) -> None:
         """Test that verify_password returns False for incorrect password."""
-        password = "CorrectPassword123"  # pragma: allowlist secret
+        password = "CorrectPassword123"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_password(password)
 
         assert verify_password("WrongPassword", hashed) is False
 
     def test_verify_password_case_sensitive(self) -> None:
         """Test that password verification is case-sensitive."""
-        password = "Password123"  # pragma: allowlist secret
+        password = "Password123"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_password(password)
 
         assert verify_password("password123", hashed) is False
 
     def test_verify_password_empty_password(self) -> None:
         """Test verification with empty password."""
-        password = "SomePassword"  # pragma: allowlist secret
+        password = "SomePassword"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_password(password)
 
         assert verify_password("", hashed) is False
@@ -131,7 +131,7 @@ class TestPasswordVerification:
         This test verifies that verification time doesn't leak information
         about password correctness through timing attacks.
         """
-        password = "TestPassword123"  # pragma: allowlist secret
+        password = "TestPassword123"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_password(password)
 
         # Measure time for correct password
@@ -316,7 +316,7 @@ class TestAPIKeyHashing:
 
     def test_hash_api_key(self) -> None:
         """Test that API key hashing produces consistent hash."""
-        api_key = "nemo_k1_test123abc"  # pragma: allowlist secret
+        api_key = "nemo_k1_test123abc"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_api_key(api_key)
 
         # Hash should be a hex string
@@ -325,7 +325,7 @@ class TestAPIKeyHashing:
 
     def test_hash_api_key_consistent(self) -> None:
         """Test that same key always produces same hash."""
-        api_key = "nemo_k1_test456def"  # pragma: allowlist secret
+        api_key = "nemo_k1_test456def"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hash1 = hash_api_key(api_key)
         hash2 = hash_api_key(api_key)
 
@@ -355,14 +355,14 @@ class TestAPIKeyValidation:
 
     def test_validate_api_key_correct(self) -> None:
         """Test that validate_api_key returns True for correct key."""
-        api_key = "nemo_k1_correct123"  # pragma: allowlist secret
+        api_key = "nemo_k1_correct123"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_api_key(api_key)
 
         assert validate_api_key(api_key, hashed) is True
 
     def test_validate_api_key_incorrect(self) -> None:
         """Test that validate_api_key returns False for incorrect key."""
-        api_key = "nemo_k1_correct123"  # pragma: allowlist secret
+        api_key = "nemo_k1_correct123"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_api_key(api_key)
 
         assert validate_api_key("nemo_k1_wrong456", hashed) is False
@@ -379,14 +379,14 @@ class TestAPIKeyValidation:
 
     def test_validate_api_key_case_sensitive(self) -> None:
         """Test that API key validation is case-sensitive."""
-        api_key = "nemo_k1_Test123"  # pragma: allowlist secret
+        api_key = "nemo_k1_Test123"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_api_key(api_key)
 
         assert validate_api_key("nemo_k1_test123", hashed) is False
 
     def test_validate_api_key_timing_safe(self) -> None:
         """Test that API key validation is timing-safe."""
-        api_key = "nemo_k1_timing_test"  # pragma: allowlist secret
+        api_key = "nemo_k1_timing_test"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
         hashed = hash_api_key(api_key)
 
         # Measure time for correct key
