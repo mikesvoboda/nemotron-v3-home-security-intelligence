@@ -1,0 +1,8 @@
+{
+  "purpose": "The CI stack's health contract for scripts/ci-smoke-test.sh, package O1.9 (D12). docker-compose.ci.yml starts no AI service (its header line 4: 'No GPU requirements (AI services are mocked/optional)'), so /api/system/health/full on the CI stack answers 503 'Critical services unhealthy: yolo26' — measured at run 37726762316, head acfe5b56 — because system.py's AI_SERVICES_CONFIG carries yolo26 with critical: True. The old check required 200 and so was red on every push since 2026-01-05. This file states WHICH services must be healthy and WHICH must be reported unreachable, so the check fails when the stack really breaks (postgres down, a service vanishes from the report) instead of always. Delete this file when O2.1's fake AI stack runs in the smoke test instead.",
+  "started": ["postgres", "redis"],
+  "expected_unreachable": {
+    "yolo26": "compose.ci starts no GPU service; /health/full's only critical AI row (system.py AI_SERVICES_CONFIG, critical: True) — a CI-stack boot legitimately reports it unhealthy and answers 503.",
+    "ai-vlm": "compose.ci starts no VLM service; the non-critical AI row (critical: False), so it rides the 503 as 'Connection refused' without naming itself in the message."
+  }
+}

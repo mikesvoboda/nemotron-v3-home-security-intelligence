@@ -20,14 +20,13 @@ This directory contains GitHub-specific configuration files for the Home Securit
   prompts/                    # AI prompt templates
     AGENTS.md                 # Prompts directory guide
     code-review.prompt.md     # System prompt for AI code review
-  workflows/                  # GitHub Actions workflow definitions (36 workflows)
+  workflows/                  # GitHub Actions workflow definitions (39 workflows)
     AGENTS.md                 # Workflows directory guide
     # Core CI/CD
     ci.yml                    # Main CI pipeline
     deploy.yml                # Docker image build and push
     preview-deploy.yml        # PR preview container builds
     release.yml               # Release workflow
-    rollback.yml              # Deployment rollback
     semantic-release.yml      # Semantic versioning releases
     release-drafter.yml       # Draft release notes (workflow trigger)
     # API
@@ -173,13 +172,26 @@ those floors, so review such hunks by hand.
 
 1. Login to GitHub Container Registry (GHCR)
 2. Build images with Buildx (multi-arch: amd64, arm64)
-3. Scan with Trivy for vulnerabilities (fail on CRITICAL/HIGH)
-4. Push with tags: `sha-{commit}`, `latest`
+3. Scan with Trivy — **no Trivy scan step in this workflow**: Trivy's single
+   home is `trivy.yml`, called from `ci.yml` (WP1.2; the step here was dropped
+   back at #129). Test it with `grep -c aquasecurity deploy.yml` → **0**
+   (12 in `trivy.yml`), NOT by grepping the word "trivy" — since O1.9 that
+   word appears once in `deploy.yml`, in the concurrency rationale comment
+   pointing at `trivy.yml`. SBOM generation and cosign signing by digest do
+   live here, in `sbom-and-sign`
+4. Merge the manifest lists and push the per-commit tag only: the 7-char short
+   sha (metadata-action `type=sha,prefix=`). `latest` moves in `publish-latest`,
+   only after the smoke test passes (O1.9)
 
 **Image Names:**
 
-- `ghcr.io/{owner}/{repo}/backend:latest`
-- `ghcr.io/{owner}/{repo}/frontend:latest`
+- `ghcr.io/{owner}/{repo}/backend:<7-char short sha>` — what `merge-core`
+  publishes per push (metadata-action `type=sha,prefix=`), and the tag the
+  smoke test pulls
+- `ghcr.io/{owner}/{repo}/frontend:<7-char short sha>`
+- `ghcr.io/{owner}/{repo}/backend:latest` / `…frontend:latest` — moved only by
+  `publish-latest`, AFTER the smoke test passes (O1.9), so `:latest` names the
+  last VALIDATED commit and lags the newest build while a run is in flight
 
 ### Preview Deploy Pipeline (preview-deploy.yml)
 
@@ -246,7 +258,6 @@ those floors, so review such hunks by hand.
 | load-tests.yml        | Weekly/Manual | Load and stress testing                 |
 | mutation-testing.yml  | Weekly/Manual | Mutation testing to verify test quality |
 | release.yml           | Tag push      | Create releases with artifacts          |
-| rollback.yml          | Manual        | Rollback to previous deployment         |
 | semantic-release.yml  | Push to main  | Semantic versioning and changelog       |
 | release-drafter.yml   | PR merged     | Draft release notes from PR labels      |
 
