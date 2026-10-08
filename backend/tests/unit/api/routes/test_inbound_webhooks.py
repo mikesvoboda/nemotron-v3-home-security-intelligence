@@ -205,8 +205,12 @@ class TestRejectUnimplemented:
             _reject_unimplemented("alert", _request())
 
         rendered = [repr(r.getMessage()) for r in caplog.records if r.name == LOGGER_NAME]
+        # Key NAMES alone would pass a record carrying the secret in a value
+        # (self-review NIT-1, proven: headers={"X-API-Key": secret} as `extra`
+        # sailed through the keys-only scan). Values are scanned too — the
+        # whole record, repr'd, is the surface a secret can ride.
         rendered += [
-            repr(sorted(r.__dict__.keys())) for r in caplog.records if r.name == LOGGER_NAME
+            repr(v) for r in caplog.records if r.name == LOGGER_NAME for v in r.__dict__.values()
         ]
         assert all("SECRET-NEVER-LOGGED" not in text for text in rendered)
         assert all("User-Agent" not in text for text in rendered)
