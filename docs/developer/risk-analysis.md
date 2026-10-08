@@ -38,11 +38,11 @@ mmproj projector, in the default compose set:
 
 | Item           | Value                                                                                                |
 | -------------- | ---------------------------------------------------------------------------------------------------- |
-| Model          | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` (`VLM_MODEL_PATH`, `.env.example:421`)                             |
+| Model          | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` (`VLM_MODEL_PATH`, `.env.example:337`)                             |
 | Projector      | `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` (`VLM_MMPROJ_PATH`)                                           |
-| Endpoint       | `AI_VLM_URL` → `http://ai-vlm:8098` in Docker (`backend/core/config.py:1042`)                        |
-| Context budget | `VLM_CTX_SIZE=32768` ÷ `VLM_PARALLEL=2` per slot (`.env.example:441`, `backend/core/config.py:1334`) |
-| Read timeout   | `AI_VLM_READ_TIMEOUT=25.0` (`.env.example:248`)                                                      |
+| Endpoint       | `AI_VLM_URL` → `http://ai-vlm:8098` in Docker (`backend/core/config.py:1055`)                        |
+| Context budget | `VLM_CTX_SIZE=32768` ÷ `VLM_PARALLEL=2` per slot (`.env.example:357`, `backend/core/config.py:1351`) |
+| Read timeout   | `AI_VLM_READ_TIMEOUT=25.0` (`.env.example:245`)                                                      |
 
 The server must have been started with its mmproj — `/health` answers `200`
 even for a text-only start. Check `podman logs ai-vlm | grep -i mmproj`
@@ -135,12 +135,13 @@ is the question that was actually asked, truncation marker included.
 }
 ```
 
-`max_tokens: 1024` is pinned at `backend/services/vlm_client.py:91`. On a
-transport or schema failure the client retries **once** at `temperature: 0.0`
-and nothing else (`backend/services/vlm_client.py:805`) — the retry never
-re-asks with a different budget. A separate `max_tokens: 1` wake ping
-(`backend/services/vlm_client.py:947`) rouses a sleeping server before the
-real call.
+`max_tokens: 2048` is pinned at `backend/services/vlm_client.py:138`. On a fast
+transport fault (connection refused, `ConnectTimeout`, 5xx) or a complete reply
+that violates the schema, the client retries **once** at `temperature: 0.0` and
+nothing else (`backend/services/vlm_client.py:962-964`) — the retry never
+re-asks with a different budget, and a slow reply is not retried at all. A
+separate `max_tokens: 1` wake ping (`backend/services/vlm_client.py:1154`)
+rouses a sleeping server before the real call.
 
 **Response:** the content is validated strictly against `VlmVerdict`
 (`backend/services/vlm_verdict.py:55`) — no extra keys, no defaults, every
@@ -206,13 +207,14 @@ unavailable, image) and `ConstrainedDecodingNotEnforced`
 (`backend/services/vlm_analyzer.py:561`), and writes the
 `verification_failed` row. Anything else propagates loud.
 
-| Failure                       | Behavior                                                     |
-| ----------------------------- | ------------------------------------------------------------ |
-| Transport/HTTP failure        | One retry at temp 0, then `verification_failed` (NULL score) |
-| Schema-invalid JSON           | Same ladder; truncated replies raise without burning retries |
-| Context overflow (HTTP 400)   | Raised immediately as unmeasured — the engine is fine        |
-| Circuit breaker `ai-vlm` OPEN | Refused without I/O, `VlmUnavailableError` → degraded row    |
-| Broadcast failure             | Logged; the committed Event stands                           |
+| Failure                        | Behavior                                                     |
+| ------------------------------ | ------------------------------------------------------------ |
+| Fast transport/HTTP failure    | One retry at temp 0, then `verification_failed` (NULL score) |
+| Slow reply (read/write budget) | Raised once, breaker untouched — never retried               |
+| Schema-invalid JSON            | Same ladder; truncated replies raise without burning retries |
+| Context overflow (HTTP 400)    | Raised immediately as unmeasured — the engine is fine        |
+| Circuit breaker `ai-vlm` OPEN  | Refused without I/O, `VlmUnavailableError` → degraded row    |
+| Broadcast failure              | Logged; the committed Event stands                           |
 
 ---
 

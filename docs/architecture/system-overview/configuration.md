@@ -116,7 +116,7 @@ The two AI services are `ai-gateway` (Triton) and `ai-vlm` (llama.cpp). `.env.ex
 | `ENRICHMENT_LIGHT_URL` | `http://localhost:8090/enrich-lt` | `/enrich-lt` readiness lane (read by the backend's model management) |
 
 In containers the same routes use `http://ai-gateway:8090/...` and `AI_VLM_URL=http://ai-vlm:8098`
-(`docker-compose.prod.yml:557`). The gateway mounts exactly two routers — `/yolo26` and `/enrich-lt`
+(`docker-compose.prod.yml:554`). The gateway mounts exactly two routers — `/yolo26` and `/enrich-lt`
 (`ai/gateway/main.py:276-277`). ai-vlm is the only LLM service.
 
 ### Pipeline Selection and Residency
@@ -138,10 +138,10 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 | `AI_CONNECT_TIMEOUT`          | 10.0    | Connection timeout (seconds)           |
 | `AI_HEALTH_TIMEOUT`           | 5.0     | Health check timeout                   |
 | `YOLO26_READ_TIMEOUT`         | 30.0    | Detection response timeout             |
-| `AI_VLM_READ_TIMEOUT`         | 25.0    | Per-`vlm_assess`-attempt ceiling       |
+| `AI_VLM_READ_TIMEOUT`         | 25.0    | Per-read idle budget for an attempt    |
 | `AI_VLM_WAKE_TIMEOUT_SECONDS` | 90.0    | Read timeout for the wake-on-open ping |
 
-**Source:** `backend/core/config.py:1093-1134`; the VLM pair is threaded in `docker-compose.prod.yml:559-560`.
+**Source:** `backend/core/config.py:1106-1151`; the VLM pair is threaded in `docker-compose.prod.yml:561-562`.
 
 ### Batch Processing
 
@@ -158,7 +158,7 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 
 | Variable                         | Default in `Settings` | Default in compose / `.env.example`                      |
 | -------------------------------- | --------------------- | -------------------------------------------------------- |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0 (above any score) | 0.90 (`docker-compose.prod.yml:625`, `.env.example:650`) |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0 (above any score) | 0.90 (`docker-compose.prod.yml:630`, `.env.example:654`) |
 | `FAST_PATH_OBJECT_TYPES`         | `[]` (empty)          | commented out, so empty                                  |
 
 `BatchAggregator._should_use_fast_path` requires the detected type to appear in
@@ -216,7 +216,7 @@ Declared in `.env.example`:
 | `CTX_SIZE`     | 262144  | `nemotron_context_window` | llama.cpp's total pool; aliased and divided by the slots |
 | `PARALLEL`     | 8       | `llama_slot_count`        | llama.cpp slots sharing that pool                        |
 | `VLM_CTX_SIZE` | 32768   | `vlm_context_window`      | The VLM serve's own pool, mirrored to the backend        |
-| `VLM_PARALLEL` | 2       | —                         | Slots on the VLM serve (`docker-compose.prod.yml:587`)   |
+| `VLM_PARALLEL` | 2       | —                         | Slots on the VLM serve (`docker-compose.prod.yml:592`)   |
 
 These four resolve to their `Settings` defaults in every deployment — none appears in
 `.env.example` or in any compose `environment:` block:
@@ -232,7 +232,7 @@ With the shipped values the per-request budget resolves to `262144 // 8 = 32768`
 `CTX_SIZE` is read through a `validation_alias` and divided by the slot count before it becomes what
 the token counter uses (`backend/core/config.py:1268-1287`), so the number in `.env` is not the number applied.
 
-**Source:** `backend/core/config.py:1213-1300`, `.env.example:407-411`
+**Source:** `backend/core/config.py:1213-1300`, `.env.example:411-415`
 
 ### Feature Toggles
 
