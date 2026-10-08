@@ -61,7 +61,7 @@ The two hosts the AI images are built for:
 | `ai-vlm` (runtime) | `docker.io/nvidia/cuda:13.3.1-runtime-ubuntu22.04`         | `ai/vlm/Dockerfile:86`         |
 | `ai-gateway`       | `nvcr.io/nvidia/tritonserver:26.01-py3`                    | `ai/gateway/Dockerfile:1`      |
 | `ai-llm-vllm`      | `docker.io/vllm/vllm-openai:cu130-nightly`                 | `docker-compose.prod.yml:291`  |
-| `dcgm-exporter`    | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04` | `docker-compose.prod.yml:1375` |
+| `dcgm-exporter`    | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04` | `docker-compose.prod.yml:1380` |
 
 | Service         | Compose profile | Publishes                             | `deploy` limits          | GPU device                                                          |
 | --------------- | --------------- | ------------------------------------- | ------------------------ | ------------------------------------------------------------------- |
@@ -91,7 +91,7 @@ Weights are host-mounted, never baked:
 | NVIDIA TensorRT                    | bundled in the `nvcr.io/nvidia/*:26.0x` images | `ai/common/tensorrt_utils.py` (runtime version check) |
 | NVIDIA CUDA Toolkit (`ai-vlm`)     | **13.3.1**                                     | `ai/vlm/Dockerfile:19,86`                             |
 | NVIDIA CUDA Toolkit (`ai-gateway`) | bundled in `tritonserver:26.01-py3`            | `ai/gateway/Dockerfile:1`                             |
-| NVIDIA DCGM                        | **3.3.5** (exporter **3.4.0**)                 | `docker-compose.prod.yml:1375`                        |
+| NVIDIA DCGM                        | **3.3.5** (exporter **3.4.0**)                 | `docker-compose.prod.yml:1380`                        |
 | NVIDIA Container Toolkit           | detected via `nvidia-ctk`                      | `setup_lib/nvidia_toolkit.py`                         |
 | NVIDIA driver (host floor)         | **580** minimum for CUDA 13.x                  | `setup_lib/nvidia_detect.py:38`                       |
 | nvidia-ml-py (NVML bindings)       | `>=12.560.30,<14.0.0`                          | `pyproject.toml:24`                                   |

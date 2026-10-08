@@ -105,7 +105,7 @@ then answers `200` on `/health`, so both health checks pass:
 `ai/download_models.sh:493-497` says the weights are **not fetched** by the script and that "the
 mmproj projector is required, without it the serve is text-only and every `vlm_assess` call
 degrades silently". Compounding it, `backend`'s `depends_on` names `postgres`, `redis`,
-`ai-gateway` and `go2rtc` — **not** `ai-vlm` (`prod.yml:634-646`), on purpose: `ai-vlm` failing
+`ai-gateway` and `go2rtc` — **not** `ai-vlm` (`prod.yml:639-651`), on purpose: `ai-vlm` failing
 must never take the rest of the stack down, so degradation is left to the `vlm_analyzer` ladder
 rather than a compose edge (`prod.yml:127-130`, the service's header comment).
 
