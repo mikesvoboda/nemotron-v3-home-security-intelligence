@@ -4,19 +4,19 @@
 
 **Architecture:** three moves — (1) finish the test substrate the repo already designed (per-worker database isolation, machine-aware frontend parallelism), (2) tier the gates (new change-scoped `--fast` mode; full gate unchanged in semantics, repositioned to CI), (3) make CI truthful so the full run can be delegated with confidence.
 
-**Owner decision context (2026-09-12):** brainstormed after the M1 validation marathon; owner chose the test-confidence loop over config-only speedups and over a microservices split. The split was explicitly rejected: this repo already deploys ~16 services plus separate `ai/` services; test wall-time is set by *shared mutable state* (one Postgres, one Redis), not by process boundaries, and a solo-developer single-user system earns none of the coordination benefits of further splitting. Revisit only if a non-productity requirement appears (independent scaling, fault isolation, team growth) — see §8.
+**Owner decision context (2026-09-12):** brainstormed after the M1 validation marathon; owner chose the test-confidence loop over config-only speedups and over a microservices split. The split was explicitly rejected: this repo already deploys ~16 services plus separate `ai/` services; test wall-time is set by _shared mutable state_ (one Postgres, one Redis), not by process boundaries, and a solo-developer single-user system earns none of the coordination benefits of further splitting. Revisit only if a non-productity requirement appears (independent scaling, fault isolation, team growth) — see §8.
 
 ## 1. Measured baselines (this design's problem statement, all measured 2026-09-12 on the GB300 dev box: 72 cores, 494 GB RAM)
 
-| Measurement | Value | Evidence |
-| --- | --- | --- |
-| Backend combined pytest lane (validate.sh tier) | ~2.5–3 h; first lane hung ~2 h before diagnosis | `/tmp/t7-backend*.log`, lane 1 killed at 75% |
-| Host load while lane ran | **load avg 8.1 on 72 cores**; one worker at 96% CPU, seven waiting | `uptime` + `ps` census during lane |
-| Frontend full vitest suite | 24.5 min, run **serially** | `/tmp/t7-full-vitest.log` `Duration 1472s`; `frontend/vite.config.ts:375` `fileParallelism: false` |
-| Frontend heap cap | `--max-old-space-size=8192` (package.json:19–21) — inherited from an 8 GB CI runner; box has 494 GB | `frontend/package.json` |
-| Tests failed in CI-green state, discovered this milestone | ~67 frontend + ~145 backend + 3 zero-byte test files, all masked | SDD ledger `2026-09-12-arm64-gb300-milestone1/progress.md` (R-T7-VITEST, DBRACE, CONTAM sections) |
+| Measurement                                               | Value                                                                                               | Evidence                                                                                           |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Backend combined pytest lane (validate.sh tier)           | ~2.5–3 h; first lane hung ~2 h before diagnosis                                                     | `/tmp/t7-backend*.log`, lane 1 killed at 75%                                                       |
+| Host load while lane ran                                  | **load avg 8.1 on 72 cores**; one worker at 96% CPU, seven waiting                                  | `uptime` + `ps` census during lane                                                                 |
+| Frontend full vitest suite                                | 24.5 min, run **serially**                                                                          | `/tmp/t7-full-vitest.log` `Duration 1472s`; `frontend/vite.config.ts:375` `fileParallelism: false` |
+| Frontend heap cap                                         | `--max-old-space-size=8192` (package.json:19–21) — inherited from an 8 GB CI runner; box has 494 GB | `frontend/package.json`                                                                            |
+| Tests failed in CI-green state, discovered this milestone | ~67 frontend + ~145 backend + 3 zero-byte test files, all masked                                    | SDD ledger `2026-09-12-arm64-gb300-milestone1/progress.md` (R-T7-VITEST, DBRACE, CONTAM sections)  |
 
-**The serialization, root-caised (R-T7-DBRACE-FINAL in the ledger):** `backend/tests/conftest.py:1642` fixture `test_db` → `get_test_db_url()` (`:557`) returns the raw exported `TEST_DATABASE_URL` (`scripts/validate.sh:148`), so every xdist worker shares one live-stack Postgres, and each fixture invocation runs `_reset_db_schema()` behind a pg advisory lock — a queue, not compute. Compounding: the authors' own protection is inert in the combined gate because pyproject addopts (`pyproject.toml:465`, `--dist=worksteal`) **ignores `xdist_group`** (only `loadgroup` honors it) and the `serial` marker has no consumer. The integration tier's `worker_db_url` machinery (`backend/tests/integration/conftest.py`, per-worker DBs) already exists — the legacy chain *bypasses* it. Redis is the A2 suspect for the queues/admin/dlq failure clusters: validate.sh exports one `REDIS_URL` at db 0 (`scripts/validate.sh:165`).
+**The serialization, root-caised (R-T7-DBRACE-FINAL in the ledger):** `backend/tests/conftest.py:1642` fixture `test_db` → `get_test_db_url()` (`:557`) returns the raw exported `TEST_DATABASE_URL` (`scripts/validate.sh:148`), so every xdist worker shares one live-stack Postgres, and each fixture invocation runs `_reset_db_schema()` behind a pg advisory lock — a queue, not compute. Compounding: the authors' own protection is inert in the combined gate because pyproject addopts (`pyproject.toml:465`, `--dist=worksteal`) **ignores `xdist_group`** (only `loadgroup` honors it) and the `serial` marker has no consumer. The integration tier's `worker_db_url` machinery (`backend/tests/integration/conftest.py`, per-worker DBs) already exists — the legacy chain _bypasses_ it. Redis is the A2 suspect for the queues/admin/dlq failure clusters: validate.sh exports one `REDIS_URL` at db 0 (`scripts/validate.sh:165`).
 
 ## 2. Principles (non-negotiable framing)
 
@@ -30,7 +30,7 @@
 ### 3.1 Per-worker Postgres isolation
 
 - Retire the raw-env bypass: `get_test_db_url()` (`backend/tests/conftest.py:557`) must route through per-worker database creation (name suffixed by `PYTEST_XDIST_WORKER`; `-n0`/absent → deterministic single name) instead of returning `TEST_DATABASE_URL` verbatim. Reuse the proven machinery in `backend/tests/integration/conftest.py` (`worker_db_url`), which already creates per-worker DBs even under override mode — the goal is one path, not two.
-- `scripts/validate.sh` keeps exporting `TEST_DATABASE_URL` (connection *parameters*: host/port/user/password/db prefix) but the suffix logic moves into conftest so workers never share the DB itself.
+- `scripts/validate.sh` keeps exporting `TEST_DATABASE_URL` (connection _parameters_: host/port/user/password/db prefix) but the suffix logic moves into conftest so workers never share the DB itself.
 - Acceptance: the M1 `R-T7-DBRACE` cluster (alert_repository 41, zone/queues/admin/dlq, api_protection) passes under `-n auto` with **zero** xdist node-downs; the M1 `--dist=loadgroup` flag ships as the interim belt and is REMOVED only after this lands green in two consecutive full runs (supersession recorded in validate.sh's comment + a ledger/notes line).
 - Template-per-worker (`createdb -T template1`) is the implementation unless the M2 measurements show template cost dominates; teardown drops the worker DB (atexit + defensive pre-clean of stale `*_gw*` names, mirroring the integration conftest's existing hygiene).
 
@@ -60,7 +60,7 @@ Tier 0 (seconds; already exists, unchanged): ruff / eslint / tsc / mypy on the t
 
 ### 4.2 Tier 2 — full gate, unchanged semantics
 
-`./scripts/validate.sh` stays exactly as M1 leaves it (combined-cov 80, single pytest invocation, strict frontend step, `--dist=loadgroup` per M1 until §3.1 supersedes it). Its *position* moves: run on PR + nightly by CI (§5), not on every keystroke by the developer.
+`./scripts/validate.sh` stays exactly as M1 leaves it (combined-cov 80, single pytest invocation, strict frontend step, `--dist=loadgroup` per M1 until §3.1 supersedes it). Its _position_ moves: run on PR + nightly by CI (§5), not on every keystroke by the developer.
 
 ## 5. Honest CI (the enabling condition)
 
@@ -76,25 +76,25 @@ Findings from this milestone's forensics, each a concrete fix (all in `.github/w
 
 Each row measured before/after on the GB300 dev box, numbers recorded in a notes doc under `docs/development/` (the CI-blind-spots findings from M1 ride along):
 
-| # | Criterion | Target |
-| --- | --- | --- |
-| 1 | Backend combined tier wall-time at `-n auto` | < 30 min, **zero** node-downs |
-| 2 | Frontend full suite with §3.3 envs | < 10 min, zero saturation-shaped failures (18-file §6 re-prove) |
-| 3 | `validate.sh --fast` on the scripted 5-change playbook (one route, one service, one component, one hook, one config) | ≤ 10 min each; selection table printed; playbook file committed under `scripts/` |
-| 4 | Injected failing test / injected zero-byte test file | CI frontend job red; collection-sanity step red |
-| 5 | Full gate strictness | byte-identical pytest/vitest invocations + coverage bar vs M1-final `scripts/validate.sh`, diff quoted in PR |
-| 6 | Flake allowlist | every entry carries a tracking ref; zero blanket retries remain |
+| #   | Criterion                                                                                                            | Target                                                                                                       |
+| --- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 1   | Backend combined tier wall-time at `-n auto`                                                                         | < 30 min, **zero** node-downs                                                                                |
+| 2   | Frontend full suite with §3.3 envs                                                                                   | < 10 min, zero saturation-shaped failures (18-file §6 re-prove)                                              |
+| 3   | `validate.sh --fast` on the scripted 5-change playbook (one route, one service, one component, one hook, one config) | ≤ 10 min each; selection table printed; playbook file committed under `scripts/`                             |
+| 4   | Injected failing test / injected zero-byte test file                                                                 | CI frontend job red; collection-sanity step red                                                              |
+| 5   | Full gate strictness                                                                                                 | byte-identical pytest/vitest invocations + coverage bar vs M1-final `scripts/validate.sh`, diff quoted in PR |
+| 6   | Flake allowlist                                                                                                      | every entry carries a tracking ref; zero blanket retries remain                                              |
 
 ## 7. Explicit non-goals
 
 - No service splitting (§8 documents the settled reasoning and the trigger to revisit).
-- No change to production runtime code except where a *test-infrastructure* change forces a hook (none expected; anything larger is a new spec).
+- No change to production runtime code except where a _test-infrastructure_ change forces a hook (none expected; anything larger is a new spec).
 - No coverage-bar movement, no test deletion, no `.skip`, no assertion contortion — the M1 escalation rules transplant verbatim.
 - No CI runner/hardware changes; no `docker-compose.prod.yml` edits (M1's hard stop remains repo policy).
 
 ## 8. The settled split decision, and the trigger to reopen it
 
-Rejected 2026-09-12 (owner-approved framing): the repo already deploys ~16 services plus separate `ai/` services; the remaining "monolith" (one FastAPI process ≈1,513 modules, one React app) gains no test-speed benefit from splitting while shared state is the serialization — services sharing one Postgres schema-reset lock are a monolith with extra HTTP. For a solo developer on a single-user box, team-coordination benefits are ≈0 and operational costs (contract ceremony, deployment graph, observability surface) are all real. **Reopen iff** any of: a second developer with divergent deploy cadence; a component needing independent scaling or fault isolation (the enrichment pipeline is the named candidate — GPU-bound, different failure domain); or tests *still* serialize after §3 lands (which would mean coupling lives in code, not config — then slice along the seams the tests reveal).
+Rejected 2026-09-12 (owner-approved framing): the repo already deploys ~16 services plus separate `ai/` services; the remaining "monolith" (one FastAPI process ≈1,513 modules, one React app) gains no test-speed benefit from splitting while shared state is the serialization — services sharing one Postgres schema-reset lock are a monolith with extra HTTP. For a solo developer on a single-user box, team-coordination benefits are ≈0 and operational costs (contract ceremony, deployment graph, observability surface) are all real. **Reopen iff** any of: a second developer with divergent deploy cadence; a component needing independent scaling or fault isolation (the enrichment pipeline is the named candidate — GPU-bound, different failure domain); or tests _still_ serialize after §3 lands (which would mean coupling lives in code, not config — then slice along the seams the tests reveal).
 
 ## 9. Sequencing and dependencies
 
@@ -104,4 +104,4 @@ Rejected 2026-09-12 (owner-approved framing): the repo already deploys ~16 servi
 4. §4.1 `--fast` — after §3.1 (selection over a contended suite is unreliable — the M1 contamination lesson); its playbook doubles as §6.3 verification.
 5. §2's `--dist=loadgroup` removal — strictly after §3.1 green ×2, supersession recorded.
 
-M1 constraint: nothing in this spec may touch `scripts/validate.sh`, `pyproject.toml` addopts, or `frontend/vite.config.ts` behavior while M1's final no-flag `validate.sh` run is still outstanding. This spec's plan must sequence its first commits *after* M1 close-out (or land purely-inert additive files — `--fast` behind a new flag in a branch, merged post-M1).
+M1 constraint: nothing in this spec may touch `scripts/validate.sh`, `pyproject.toml` addopts, or `frontend/vite.config.ts` behavior while M1's final no-flag `validate.sh` run is still outstanding. This spec's plan must sequence its first commits _after_ M1 close-out (or land purely-inert additive files — `--fast` behind a new flag in a branch, merged post-M1).

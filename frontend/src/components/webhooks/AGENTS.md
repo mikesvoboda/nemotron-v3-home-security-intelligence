@@ -8,14 +8,14 @@ Complete webhook management UI for the NVIDIA Security Intelligence dashboard. E
 
 ## Key Components
 
-| File                          | Purpose                                              |
-| ----------------------------- | ---------------------------------------------------- |
-| `WebhookHealthCard.tsx`       | Dashboard card showing overall webhook health metrics |
-| `WebhookList.tsx`             | Table of webhooks with management actions            |
-| `WebhookForm.tsx`             | Form for creating and editing webhooks               |
-| `WebhookDeliveryHistory.tsx`  | Delivery log table for a specific webhook            |
-| `WebhookTestModal.tsx`        | Modal for testing webhook delivery                   |
-| `index.ts`                    | Barrel exports for all webhook components            |
+| File                         | Purpose                                               |
+| ---------------------------- | ----------------------------------------------------- |
+| `WebhookHealthCard.tsx`      | Dashboard card showing overall webhook health metrics |
+| `WebhookList.tsx`            | Table of webhooks with management actions             |
+| `WebhookForm.tsx`            | Form for creating and editing webhooks                |
+| `WebhookDeliveryHistory.tsx` | Delivery log table for a specific webhook             |
+| `WebhookTestModal.tsx`       | Modal for testing webhook delivery                    |
+| `index.ts`                   | Barrel exports for all webhook components             |
 
 ## Component Details
 
@@ -25,14 +25,15 @@ Dashboard card displaying overall webhook health metrics.
 
 **Props:**
 
-| Prop           | Type                      | Default | Description                    |
-| -------------- | ------------------------- | ------- | ------------------------------ |
-| `health`       | `WebhookHealthSummary?`   | -       | Health summary data            |
-| `isLoading`    | `boolean?`                | `false` | Whether data is loading        |
-| `isRefetching` | `boolean?`                | `false` | Whether data is refetching     |
-| `className`    | `string?`                 | `''`    | Additional CSS classes         |
+| Prop           | Type                    | Default | Description                |
+| -------------- | ----------------------- | ------- | -------------------------- |
+| `health`       | `WebhookHealthSummary?` | -       | Health summary data        |
+| `isLoading`    | `boolean?`              | `false` | Whether data is loading    |
+| `isRefetching` | `boolean?`              | `false` | Whether data is refetching |
+| `className`    | `string?`               | `''`    | Additional CSS classes     |
 
 **Metrics Displayed:**
+
 - Total webhooks (with enabled count)
 - Healthy webhooks (>90% success rate)
 - Unhealthy webhooks (<50% success rate)
@@ -48,20 +49,21 @@ Table component displaying webhooks with inline management actions.
 
 **Props:**
 
-| Prop            | Type                          | Default | Description                              |
-| --------------- | ----------------------------- | ------- | ---------------------------------------- |
-| `webhooks`      | `Webhook[]`                   | -       | List of webhooks to display              |
-| `isLoading`     | `boolean?`                    | `false` | Whether data is loading                  |
-| `onToggle`      | `(id, enabled) => void`       | -       | Handler for toggling enabled state       |
-| `onEdit`        | `(webhook) => void`           | -       | Handler for editing a webhook            |
-| `onDelete`      | `(webhook) => void`           | -       | Handler for deleting a webhook           |
-| `onTest`        | `(webhook) => void`           | -       | Handler for testing a webhook            |
-| `onViewHistory` | `(webhook) => void`           | -       | Handler for viewing delivery history     |
-| `isToggling`    | `boolean?`                    | `false` | Whether any toggle is in progress        |
-| `togglingId`    | `string?`                     | -       | ID of webhook currently being toggled    |
-| `className`     | `string?`                     | `''`    | Additional CSS classes                   |
+| Prop            | Type                    | Default | Description                           |
+| --------------- | ----------------------- | ------- | ------------------------------------- |
+| `webhooks`      | `Webhook[]`             | -       | List of webhooks to display           |
+| `isLoading`     | `boolean?`              | `false` | Whether data is loading               |
+| `onToggle`      | `(id, enabled) => void` | -       | Handler for toggling enabled state    |
+| `onEdit`        | `(webhook) => void`     | -       | Handler for editing a webhook         |
+| `onDelete`      | `(webhook) => void`     | -       | Handler for deleting a webhook        |
+| `onTest`        | `(webhook) => void`     | -       | Handler for testing a webhook         |
+| `onViewHistory` | `(webhook) => void`     | -       | Handler for viewing delivery history  |
+| `isToggling`    | `boolean?`              | `false` | Whether any toggle is in progress     |
+| `togglingId`    | `string?`               | -       | ID of webhook currently being toggled |
+| `className`     | `string?`               | `''`    | Additional CSS classes                |
 
 **Table Columns:**
+
 - Webhook (name + integration icon)
 - URL (truncated)
 - Events (badges, max 2 visible)
@@ -79,14 +81,14 @@ Comprehensive form for creating and editing webhook configurations.
 
 **Props:**
 
-| Prop              | Type                                                  | Default | Description              |
-| ----------------- | ----------------------------------------------------- | ------- | ------------------------ |
-| `webhook`         | `Webhook?`                                            | -       | Existing webhook for edit |
-| `onSubmit`        | `(data: WebhookCreate \| WebhookUpdate) => Promise<void>` | -   | Submit handler           |
-| `onCancel`        | `() => void`                                          | -       | Cancel handler           |
-| `isSubmitting`    | `boolean?`                                            | `false` | Whether submitting       |
-| `apiError`        | `string?`                                             | -       | API error message        |
-| `onClearApiError` | `() => void?`                                         | -       | Clear error callback     |
+| Prop              | Type                                                      | Default | Description               |
+| ----------------- | --------------------------------------------------------- | ------- | ------------------------- |
+| `webhook`         | `Webhook?`                                                | -       | Existing webhook for edit |
+| `onSubmit`        | `(data: WebhookCreate \| WebhookUpdate) => Promise<void>` | -       | Submit handler            |
+| `onCancel`        | `() => void`                                              | -       | Cancel handler            |
+| `isSubmitting`    | `boolean?`                                                | `false` | Whether submitting        |
+| `apiError`        | `string?`                                                 | -       | API error message         |
+| `onClearApiError` | `() => void?`                                             | -       | Clear error callback      |
 
 **Form Sections:**
 
@@ -118,24 +120,25 @@ Paginated table showing delivery attempts for a specific webhook.
 
 **Props:**
 
-| Prop           | Type                          | Default | Description                    |
-| -------------- | ----------------------------- | ------- | ------------------------------ |
-| `webhookName`  | `string`                      | -       | Webhook name for display       |
-| `deliveries`   | `WebhookDelivery[]`           | -       | Deliveries to display          |
-| `total`        | `number`                      | -       | Total count for pagination     |
-| `hasMore`      | `boolean`                     | -       | Whether there are more pages   |
-| `page`         | `number`                      | -       | Current page (0-indexed)       |
-| `pageSize`     | `number`                      | -       | Items per page                 |
-| `isLoading`    | `boolean?`                    | `false` | Loading state                  |
-| `isRefetching` | `boolean?`                    | `false` | Refetching state               |
-| `onPageChange` | `(page) => void`              | -       | Handler for page change        |
-| `onRetry`      | `(deliveryId) => void`        | -       | Handler for retry              |
-| `onRefresh`    | `() => void`                  | -       | Handler for refresh            |
-| `retryingId`   | `string?`                     | -       | ID of delivery being retried   |
-| `onClose`      | `() => void?`                 | -       | Close handler                  |
-| `className`    | `string?`                     | `''`    | Additional CSS classes         |
+| Prop           | Type                   | Default | Description                  |
+| -------------- | ---------------------- | ------- | ---------------------------- |
+| `webhookName`  | `string`               | -       | Webhook name for display     |
+| `deliveries`   | `WebhookDelivery[]`    | -       | Deliveries to display        |
+| `total`        | `number`               | -       | Total count for pagination   |
+| `hasMore`      | `boolean`              | -       | Whether there are more pages |
+| `page`         | `number`               | -       | Current page (0-indexed)     |
+| `pageSize`     | `number`               | -       | Items per page               |
+| `isLoading`    | `boolean?`             | `false` | Loading state                |
+| `isRefetching` | `boolean?`             | `false` | Refetching state             |
+| `onPageChange` | `(page) => void`       | -       | Handler for page change      |
+| `onRetry`      | `(deliveryId) => void` | -       | Handler for retry            |
+| `onRefresh`    | `() => void`           | -       | Handler for refresh          |
+| `retryingId`   | `string?`              | -       | ID of delivery being retried |
+| `onClose`      | `() => void?`          | -       | Close handler                |
+| `className`    | `string?`              | `''`    | Additional CSS classes       |
 
 **Table Columns:**
+
 - Time (date/time split)
 - Event (event type badge)
 - Status (success/failed/retrying/pending)
@@ -152,14 +155,15 @@ Modal for sending test payloads to a webhook.
 
 **Props:**
 
-| Prop      | Type                                                          | Description           |
-| --------- | ------------------------------------------------------------- | --------------------- |
-| `webhook` | `Webhook \| null`                                             | Webhook to test       |
-| `isOpen`  | `boolean`                                                     | Whether modal is open |
-| `onClose` | `() => void`                                                  | Close handler         |
-| `onTest`  | `(webhookId, eventType) => Promise<WebhookTestResponse>`      | Test handler          |
+| Prop      | Type                                                     | Description           |
+| --------- | -------------------------------------------------------- | --------------------- |
+| `webhook` | `Webhook \| null`                                        | Webhook to test       |
+| `isOpen`  | `boolean`                                                | Whether modal is open |
+| `onClose` | `() => void`                                             | Close handler         |
+| `onTest`  | `(webhookId, eventType) => Promise<WebhookTestResponse>` | Test handler          |
 
 **Features:**
+
 - Event type selector dropdown
 - Send Test button with loading state
 - Result display (pass/fail, response code, time)

@@ -45,12 +45,24 @@ import { expect } from 'vitest';
 import '../__tests__/matchers'; // Register custom matchers
 
 test('validates camera', () => {
-  const camera = { id: 'cam1', name: 'Front', folder_path: '/path', status: 'active', created_at: '2024-01-01T00:00:00Z' };
+  const camera = {
+    id: 'cam1',
+    name: 'Front',
+    folder_path: '/path',
+    status: 'active',
+    created_at: '2024-01-01T00:00:00Z',
+  };
   expect(camera).toBeValidCamera();
 });
 
 test('validates event risk', () => {
-  const event = { id: 1, camera_id: 'cam1', started_at: '2024-01-01T00:00:00Z', risk_score: 85, risk_level: 'critical' };
+  const event = {
+    id: 1,
+    camera_id: 'cam1',
+    started_at: '2024-01-01T00:00:00Z',
+    risk_score: 85,
+    risk_level: 'critical',
+  };
   expect(event).toBeValidEvent();
   expect(event).toHaveRiskLevel('critical');
   expect(event).toHaveRiskScoreInRange(80, 100);

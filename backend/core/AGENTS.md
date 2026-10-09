@@ -751,9 +751,9 @@ Defines Protocol classes for structural subtyping, enabling type-safe interface 
 
 ### Type Aliases
 
-| Alias                    | Combination          |
+| Alias | Combination |
 | ------------------------ | -------------------- | ------------------------ |
-| `AIServiceWithLifecycle` | `AIServiceProtocol   | LifecycleProtocol`       |
+| `AIServiceWithLifecycle` | `AIServiceProtocol   | LifecycleProtocol` |
 | `BroadcasterWithMetrics` | `BroadcasterProtocol | MetricsProviderProtocol` |
 
 ### Usage

@@ -28,11 +28,12 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
     const timeout = browserName === 'chromium' ? 10000 : 20000;
     await page.waitForSelector('h1:has-text("Settings")', {
       state: 'visible',
-      timeout
+      timeout,
     });
 
     // Navigate to Rules tab
-    const rulesTab = page.getByRole('tab', { name: /RULES/i })
+    const rulesTab = page
+      .getByRole('tab', { name: /RULES/i })
       .or(page.locator('button').filter({ hasText: 'RULES' }));
 
     await rulesTab.click();
@@ -53,14 +54,14 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
       await page.waitForTimeout(1000);
 
       // When: Look for schedule configuration
-      const scheduleSection = page.locator('[data-testid*="schedule"]')
+      const scheduleSection = page
+        .locator('[data-testid*="schedule"]')
         .or(page.getByText(/Schedule/i))
         .or(page.getByText(/Active hours/i));
 
-      if (await scheduleSection.count() > 0) {
+      if ((await scheduleSection.count()) > 0) {
         // Fill in rule basics
-        const nameInput = page.locator('input[name="name"]')
-          .or(page.getByLabel(/Name/i));
+        const nameInput = page.locator('input[name="name"]').or(page.getByLabel(/Name/i));
 
         if (await nameInput.isVisible()) {
           await nameInput.fill('Night Watch Rule');
@@ -68,16 +69,17 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
 
           // Look for schedule time inputs
           const timeInput = page.locator('input[type="time"]');
-          if (await timeInput.count() > 0) {
+          if ((await timeInput.count()) > 0) {
             // Configure schedule (example: 10 PM to 6 AM)
             await timeInput.first().fill('22:00');
-            if (await timeInput.count() > 1) {
+            if ((await timeInput.count()) > 1) {
               await timeInput.last().fill('06:00');
             }
           }
 
           // Then: Submit rule
-          const submitButton = page.getByRole('button', { name: /Save/i })
+          const submitButton = page
+            .getByRole('button', { name: /Save/i })
             .or(page.getByRole('button', { name: /Create/i }));
 
           if (await submitButton.isVisible()) {
@@ -111,8 +113,7 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
       await page.waitForTimeout(1000);
 
       // When: Fill rule name
-      const nameInput = page.locator('input[name="name"]')
-        .or(page.getByLabel(/Name/i));
+      const nameInput = page.locator('input[name="name"]').or(page.getByLabel(/Name/i));
 
       if (await nameInput.isVisible()) {
         await nameInput.fill('Multi-Object Detection');
@@ -133,7 +134,8 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
         }
 
         // Set severity
-        const severitySelect = page.locator('select[name="severity"]')
+        const severitySelect = page
+          .locator('select[name="severity"]')
           .or(page.getByLabel(/Severity/i));
 
         if (await severitySelect.isVisible()) {
@@ -141,7 +143,8 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
         }
 
         // Then: Submit rule
-        const submitButton = page.getByRole('button', { name: /Save/i })
+        const submitButton = page
+          .getByRole('button', { name: /Save/i })
           .or(page.getByRole('button', { name: /Create/i }));
 
         if (await submitButton.isVisible()) {
@@ -169,8 +172,7 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
       await page.waitForTimeout(1000);
 
       // When: Fill rule details
-      const nameInput = page.locator('input[name="name"]')
-        .or(page.getByLabel(/Name/i));
+      const nameInput = page.locator('input[name="name"]').or(page.getByLabel(/Name/i));
 
       if (await nameInput.isVisible()) {
         await nameInput.fill('Multi-Channel Alert');
@@ -191,7 +193,8 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
         }
 
         // Set severity
-        const severitySelect = page.locator('select[name="severity"]')
+        const severitySelect = page
+          .locator('select[name="severity"]')
           .or(page.getByLabel(/Severity/i));
 
         if (await severitySelect.isVisible()) {
@@ -199,7 +202,8 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
         }
 
         // Then: Submit rule
-        const submitButton = page.getByRole('button', { name: /Save/i })
+        const submitButton = page
+          .getByRole('button', { name: /Save/i })
           .or(page.getByRole('button', { name: /Create/i }));
 
         if (await submitButton.isVisible()) {
@@ -221,10 +225,11 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
      */
 
     // Given: Rules tab with existing rules
-    const testButtons = page.locator('button[aria-label*="Test"]')
+    const testButtons = page
+      .locator('button[aria-label*="Test"]')
       .or(page.getByRole('button', { name: /Test/i }));
 
-    if (await testButtons.count() > 0) {
+    if ((await testButtons.count()) > 0) {
       // When: Click first test button
       await testButtons.first().click();
       await page.waitForTimeout(1500);
@@ -252,10 +257,11 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
      */
 
     // Given: Test a rule
-    const testButtons = page.locator('button[aria-label*="Test"]')
+    const testButtons = page
+      .locator('button[aria-label*="Test"]')
       .or(page.getByRole('button', { name: /Test/i }));
 
-    if (await testButtons.count() > 0) {
+    if ((await testButtons.count()) > 0) {
       await testButtons.first().click();
       await page.waitForTimeout(1500);
 
@@ -288,9 +294,11 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
      */
 
     // Given: Verify we're on Rules tab - wait for Alert Rules heading
-    await page.waitForSelector('h2:has-text("Alert Rules")', { state: 'visible', timeout: 5000 }).catch(() => {
-      // If heading not found, Rules tab might not have switched - skip test
-    });
+    await page
+      .waitForSelector('h2:has-text("Alert Rules")', { state: 'visible', timeout: 5000 })
+      .catch(() => {
+        // If heading not found, Rules tab might not have switched - skip test
+      });
 
     // Look for edit buttons within the Alert Rules section (not Camera edit buttons)
     // The Alert Rules edit buttons have specific aria-labels with rule names
@@ -298,20 +306,24 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
       hasNot: page.locator(':has-text("Camera")'),
     });
 
-    if (await editButtons.count() > 0) {
+    if ((await editButtons.count()) > 0) {
       // When: Click first edit button
       await editButtons.first().click();
 
       // Wait for modal content to be visible (input field inside modal)
       // HeadlessUI Dialog uses CSS transitions that can make the dialog container
       // "hidden" during animation, so wait for visible content inside
-      const nameInput = page.locator('[role="dialog"] input[name="name"]')
+      const nameInput = page
+        .locator('[role="dialog"] input[name="name"]')
         .or(page.locator('[role="dialog"]').getByLabel(/Rule Name/i));
       await nameInput.waitFor({ state: 'visible', timeout: 5000 });
 
       if (await nameInput.isVisible()) {
         const originalName = await nameInput.inputValue();
-        const originalSeverity = await page.locator('[role="dialog"] select#severity').inputValue().catch(() => 'unknown');
+        const originalSeverity = await page
+          .locator('[role="dialog"] select#severity')
+          .inputValue()
+          .catch(() => 'unknown');
 
         // Modify only the name
         await nameInput.clear();
@@ -319,11 +331,16 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
         await page.waitForTimeout(500);
 
         // Then: Verify severity unchanged
-        const currentSeverity = await page.locator('[role="dialog"] select#severity').inputValue().catch(() => 'unknown');
+        const currentSeverity = await page
+          .locator('[role="dialog"] select#severity')
+          .inputValue()
+          .catch(() => 'unknown');
         expect(currentSeverity).toBe(originalSeverity);
 
         // Cancel to avoid saving
-        const cancelButton = page.locator('[role="dialog"]').getByRole('button', { name: /Cancel/i });
+        const cancelButton = page
+          .locator('[role="dialog"]')
+          .getByRole('button', { name: /Cancel/i });
         if (await cancelButton.isVisible()) {
           await cancelButton.click();
         } else {
@@ -341,9 +358,11 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
      */
 
     // Given: Verify we're on Rules tab - wait for Alert Rules heading
-    await page.waitForSelector('h2:has-text("Alert Rules")', { state: 'visible', timeout: 5000 }).catch(() => {
-      // If heading not found, Rules tab might not have switched - skip test
-    });
+    await page
+      .waitForSelector('h2:has-text("Alert Rules")', { state: 'visible', timeout: 5000 })
+      .catch(() => {
+        // If heading not found, Rules tab might not have switched - skip test
+      });
 
     // Helper to get fresh toggle locators (DOM refreshes after each toggle)
     const getRuleToggles = () => page.locator('button[role="switch"][aria-label*="rule"]');
@@ -355,7 +374,8 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
     if (toggleCount >= 2) {
       // Get initial states for the first two toggles before clicking
       // Note: HeadlessUI Switch components use aria-checked attribute, not native checked
-      const initialState1 = (await getRuleToggles().first().getAttribute('aria-checked')) === 'true';
+      const initialState1 =
+        (await getRuleToggles().first().getAttribute('aria-checked')) === 'true';
       const initialState2 = (await getRuleToggles().nth(1).getAttribute('aria-checked')) === 'true';
 
       // When: Toggle first rule
@@ -405,9 +425,14 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
      */
 
     // Given: Rules tab loaded
-    const severityBadges = page.locator('[data-testid*="severity"]')
+    const severityBadges = page
+      .locator('[data-testid*="severity"]')
       .or(page.locator('.severity-badge'))
-      .or(page.locator('span:has-text("Critical"), span:has-text("High"), span:has-text("Medium"), span:has-text("Low")'));
+      .or(
+        page.locator(
+          'span:has-text("Critical"), span:has-text("High"), span:has-text("Medium"), span:has-text("Low")'
+        )
+      );
 
     const badgeCount = await severityBadges.count();
 
@@ -471,7 +496,7 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
       if (hasScheduleColumn) {
         // Then: Verify schedule data is present in rows
         const scheduleCell = page.locator('td').filter({ hasText: /Always|24\/7|\d{1,2}:\d{2}/ });
-        const hasScheduleData = await scheduleCell.count() > 0;
+        const hasScheduleData = (await scheduleCell.count()) > 0;
 
         expect(hasScheduleData).toBeTruthy();
       }
@@ -496,7 +521,7 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
       if (hasChannelsColumn) {
         // Then: Verify channel badges/icons are present
         const channelBadges = page.locator('td').filter({ hasText: /email|webhook|pushover/i });
-        const hasChannelData = await channelBadges.count() > 0;
+        const hasChannelData = (await channelBadges.count()) > 0;
 
         expect(hasChannelData).toBeTruthy();
       }
@@ -511,8 +536,7 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
      */
 
     // Given: Rules tab loaded
-    const ruleToggles = page.locator('[role="switch"]')
-      .or(page.locator('button[role="switch"]'));
+    const ruleToggles = page.locator('[role="switch"]').or(page.locator('button[role="switch"]'));
 
     const toggleCount = await ruleToggles.count();
 
@@ -553,7 +577,12 @@ test.describe('Advanced Alert Rule Workflows (NEM-2049)', () => {
       expect(classes).toBeTruthy();
 
       // High priority badges typically have red/orange colors
-      expect(classes?.includes('red') || classes?.includes('orange') || classes?.includes('critical') || classes?.includes('high')).toBeTruthy();
+      expect(
+        classes?.includes('red') ||
+          classes?.includes('orange') ||
+          classes?.includes('critical') ||
+          classes?.includes('high')
+      ).toBeTruthy();
     }
   });
 });

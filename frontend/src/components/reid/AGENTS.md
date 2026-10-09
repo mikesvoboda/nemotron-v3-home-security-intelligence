@@ -6,11 +6,11 @@ Components for visualizing cross-camera entity re-identification matches. Displa
 
 ## Files
 
-| File                      | Purpose                                      |
-| ------------------------- | -------------------------------------------- |
-| `ReIDDashboard.tsx`       | Main dashboard for cross-camera matching     |
-| `ReIDDashboard.test.tsx`  | Test suite for ReIDDashboard                 |
-| `index.ts`                | Barrel exports                               |
+| File                     | Purpose                                  |
+| ------------------------ | ---------------------------------------- |
+| `ReIDDashboard.tsx`      | Main dashboard for cross-camera matching |
+| `ReIDDashboard.test.tsx` | Test suite for ReIDDashboard             |
+| `index.ts`               | Barrel exports                           |
 
 ## Architecture
 
@@ -39,6 +39,7 @@ ReIDDashboard
 **Purpose:** Main page component for Re-ID cross-camera matching visualization
 
 **Features:**
+
 - Filter entities by type (person/vehicle)
 - Filter by minimum cameras seen (2+, 3+, 4+, 5+)
 - Display entities with cross-camera appearances
@@ -47,6 +48,7 @@ ReIDDashboard
 - Auto-refresh every 60 seconds
 
 **State Management:**
+
 ```typescript
 const [entityTypeFilter, setEntityTypeFilter] = useState<EntityTypeFilter>('all');
 const [minCamerasFilter, setMinCamerasFilter] = useState<MinCamerasFilter>(2);
@@ -58,6 +60,7 @@ const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 **Purpose:** Card component showing entity's cross-camera journey
 
 **Features:**
+
 - Entity thumbnail with type badge
 - Household member link badge (if matched)
 - Camera journey visualization with arrows
@@ -69,6 +72,7 @@ const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 **Purpose:** Chronological timeline of entity appearances
 
 **Features:**
+
 - Sorted appearances (oldest to newest)
 - Time differences between stops
 - Similarity scores for each detection
@@ -79,6 +83,7 @@ const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 **Purpose:** Visual representation of entity path through property
 
 **Features:**
+
 - Numbered camera stops
 - Directional arrows showing flow
 - Total journey duration
@@ -88,6 +93,7 @@ const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 **Purpose:** Detailed view of selected entity
 
 **Features:**
+
 - Entity summary with stats
 - Link to household page (if matched)
 - Journey diagram and timeline
@@ -97,23 +103,23 @@ const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
 Backend endpoints used:
 
-| Endpoint                       | Method | Purpose                              |
-| ------------------------------ | ------ | ------------------------------------ |
-| `/api/entities`                | GET    | List entities with filtering         |
-| `/api/entities/{id}`           | GET    | Get entity with appearances          |
-| `/api/reid/similar/{id}`       | GET    | Find similar entities for detection  |
+| Endpoint                 | Method | Purpose                             |
+| ------------------------ | ------ | ----------------------------------- |
+| `/api/entities`          | GET    | List entities with filtering        |
+| `/api/entities/{id}`     | GET    | Get entity with appearances         |
+| `/api/reid/similar/{id}` | GET    | Find similar entities for detection |
 
 Frontend API functions:
 
 ```typescript
 // Fetch paginated entity list (via hooks)
-useEntitiesInfiniteQuery(filters)
+useEntitiesInfiniteQuery(filters);
 
 // Fetch single entity with appearances
-useEntityDetailQuery(entityId)
+useEntityDetailQuery(entityId);
 
 // Find similar entities by detection
-fetchReidSimilar(detectionId, params)
+fetchReidSimilar(detectionId, params);
 ```
 
 ## Data Flow
@@ -127,12 +133,14 @@ fetchReidSimilar(detectionId, params)
 ## Styling Conventions
 
 NVIDIA Dark Theme:
+
 - Background: `#1F1F1F`
 - Accent: `#76B900` (NVIDIA green)
 - Text: white, gray-300, gray-400, gray-500
 - Borders: gray-800
 
 Component-specific:
+
 - Entity card: `border-gray-800` -> `border-[#76B900]` on select
 - Journey badges: `bg-gray-800 text-gray-300`
 - Journey arrows: `text-gray-600`
@@ -148,6 +156,7 @@ cd frontend && npm test -- --run src/components/reid/
 ```
 
 **Test Coverage:**
+
 - Rendering states (loading, error, empty, data)
 - Entity filtering by type
 - Minimum cameras filter
@@ -169,7 +178,7 @@ cd frontend && npm test -- --run src/components/reid/
 import { ReIDDashboard } from './components/reid';
 
 // In router
-<Route path="/reid" element={<ReIDDashboard />} />
+<Route path="/reid" element={<ReIDDashboard />} />;
 ```
 
 ## Entry Points

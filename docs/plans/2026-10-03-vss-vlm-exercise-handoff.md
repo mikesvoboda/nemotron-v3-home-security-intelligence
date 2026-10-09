@@ -99,7 +99,7 @@ Derived from `synthbench/contract/store.py:94-98` (`$SYNTHBENCH_ROOT/corpus`),
    audit to be scored: `import_generated_items` (`backend/evaluation/label_import.py:449`,
    docstring) says "Labels are BORN: category comes from the set's placement … expected score
    from the set's declared risk band", and P5a design A2 (`docs/superpowers/specs/
-   2026-09-29-synthbench-p5a-vlm-replay-design.md:27`) scores "the sampler's declared facts,
+2026-09-29-synthbench-p5a-vlm-replay-design.md:27`) scores "the sampler's declared facts,
    labelled unverified, with an audit of 60 stills that measures the truth's error rate". So
    `export vss → replay → score` yields S2/S3 on declared truth; `synthbench audit` only adds
    the error bar. The feedback-label rule I had read (`label_import.py:195-265`, "no label …
@@ -169,9 +169,9 @@ them from the host eval store.
   sha256-matched to vss1's by the owner; sizes equal the compose pin (5,027,784,800 /
   752,289,728). Base images pulled (`docker.io/nvidia/cuda:13.3.1-{devel,runtime}-ubuntu22.04`),
   then `agent-gpu build --context workspace:ai/vlm --tag ai-vlm:sm103 --build-arg
-  CUDA_ARCHITECTURES=103` -> `localhost/agent-vss5/ai-vlm:sm103` (3.59 GB), llama.cpp b7972.
+CUDA_ARCHITECTURES=103` -> `localhost/agent-vss5/ai-vlm:sm103` (3.59 GB), llama.cpp b7972.
 - **Serving recipe that worked:** `agent-gpu run --name vlm --image ai-vlm:sm103 --vram 14
-  --port 8098 --mount models:/models --user 0` + the compose `ai-vlm` env verbatim, with
+--port 8098 --mount models:/models --user 0` + the compose `ai-vlm` env verbatim, with
   `MODEL_PATH=/models/vlm/<gguf>` (the mount is the `models` ROOT, so keep the `vlm/` segment).
   **`--user 0` was required:** as the image's `llama` user (uid 1000) llama-server got
   `Permission denied` on the 0640+ACL GGUFs (rootless uid mapping). Endpoint is
@@ -190,7 +190,7 @@ them from the host eval store.
   firearm_visible / incident / band [85,100] / detections person+handgun.
 - **`replay` STOPPED at exit 2 (stop-and-ask), not worked around.** Command:
   `uv run python -m synthbench replay --model qwen3-vl-8b --url http://host.docker.internal:18100
-  --export $AGENT_GPU_DIR/out/exports/tierb-v0/vss --limit 1`. Message, verbatim: "the renderer is
+--export $AGENT_GPU_DIR/out/exports/tierb-v0/vss --limit 1`. Message, verbatim: "the renderer is
   running, or its state cannot be read: stop synthbench-renderer first (replay needs its GPU
   memory). Stop and ask the owner." Cause, both true: ComfyUI answers on 8188 (renderer running),
   and `synthbench/run/replay.py:111-125` reads `systemctl --user is-active synthbench-renderer`,
@@ -301,6 +301,7 @@ untouched; each `run.json` carries `sampling_override: EXPERIMENT: temperature f
 ## Addendum 5 — decisions, and where the research now lives (2026-10-03) [O/V]
 
 **Owner decisions [O] (answered in-session):**
+
 1. Run the free S3 experiments on the GB300 now: a severity-rubric prompt arm and a logprob-score
    arm, both at temperature 0 (scratch-driver shims only; no repo change for the experiments).
 2. Decide whether S3 >= 90% is attainable from a single still AFTER those experiments (keep the
@@ -313,6 +314,7 @@ untouched; each `run.json` carries `sampling_override: EXPERIMENT: temperature f
    committed to the current branch; no push unless asked.
 
 **Where the 2026-10-03 research is written down (all uncommitted until the audit finishes):**
+
 - `docs/vss-integration/15` to `18` - progress since the design, errata (E29 onward), the issue
   register, the world-class target (written by the drafting workflow; audited before commit).
 - `docs/vss-integration/19-nvidia-accuracy-benchmarking.md` - how NVIDIA's VSS team measures accuracy
@@ -356,6 +358,7 @@ describe the harness as present in places; they predate this commit and need a p
 finishes (register entries about harness CI and the 0.1 site in `harness.py` are now resolved by deletion).
 
 **Neighbors measured but NOT touched (owner decision):**
+
 - `tools/nemo_data_designer/`: 10 files, 5,842 lines. Importers outside `tools/`: two integration tests
   (`test_multimodal_pipeline.py`, `test_enrichment_edge_cases.py`) and the `synthetic_scenarios` /
   `scenario_by_type` fixtures in `backend/tests/conftest.py`. The `nemo` extra (`data-designer`, `pandas`,
@@ -364,8 +367,8 @@ finishes (register entries about harness CI and the 0.1 site in `harness.py` are
   ledger (main-green evidence row on Dependabot), `data-designer-engine` caps `cryptography` and is why the
   Dependabot uv job fails - removing the extra may clear that (needs `uv lock`; not verified here).
 - Prompt-management feature (Nemotron prompt templates, versions, A/B config): `backend/services/
-  prompt_service.py` 1,115 lines, `backend/config/prompt_ab_config.py` 182, `backend/api/routes/
-  prompt_management.py` 629, `backend/models/prompt_version.py` 97 (+ DB migration), and frontend
+prompt_service.py` 1,115 lines, `backend/config/prompt_ab_config.py` 182, `backend/api/routes/
+prompt_management.py` 629, `backend/models/prompt_version.py` 97 (+ DB migration), and frontend
   components (`PromptPlayground`, `PromptABTest`, `PromptVersionHistory`). Whether the VLM prompt is
   managed through it is not established; it has a DB and UI surface, so verify before deleting.
 - Four backend sites still POST to a text-LLM `/completion` (`summary_generator.py`,
@@ -390,10 +393,10 @@ gives the product's own bands (0-29 low, 30-59 medium, 60-84 high with observabl
 critical), says a calm person can still be high risk, and says not to raise it for ordinary visitors,
 residents, workers or animals. The full text is stored in each arm-B `run.json` under `experiment.rubric_text`.
 
-| | S2 (benign >= medium) | S3 (incidents at floor) | AUROC incident vs benign | recall at 5% false alarms | refusals |
-|---|---|---|---|---|---|
-| A shipped prompt | 18/209 = 8.6% | 88/241 = 36.5% | 0.703 | 42.3% | 0 |
-| B rubric | 34/209 = 16.3% | 105/241 = 43.6% | 0.778 | 53.5% | 0 |
+|                  | S2 (benign >= medium) | S3 (incidents at floor) | AUROC incident vs benign | recall at 5% false alarms | refusals |
+| ---------------- | --------------------- | ----------------------- | ------------------------ | ------------------------- | -------- |
+| A shipped prompt | 18/209 = 8.6%         | 88/241 = 36.5%          | 0.703                    | 42.3%                     | 0        |
+| B rubric         | 34/209 = 16.3%        | 105/241 = 43.6%         | 0.778                    | 53.5%                     | 0        |
 
 - **Arm A reproduces the earlier temperature-0 runs exactly (88/241, 18/209)**, so requesting logprobs does
   not change the result. It also independently reproduces the research agent's figures: AUROC 0.703 and

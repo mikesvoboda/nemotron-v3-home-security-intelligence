@@ -69,7 +69,9 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
 
     const tabExists = (await calibrationTab.count()) > 0;
     if (!tabExists) {
-      console.log('Calibration settings tab not found - feature may not be implemented yet (NEM-2320)');
+      console.log(
+        'Calibration settings tab not found - feature may not be implemented yet (NEM-2320)'
+      );
       return;
     }
 
@@ -86,9 +88,7 @@ test.describe('Risk Calibration - Settings Page @critical', () => {
     await calibrationTab.click();
 
     // Wait for calibration settings panel to appear (with longer timeout for CI)
-    const calibrationSection = page.locator(
-      '[data-testid="risk-sensitivity-settings"]'
-    );
+    const calibrationSection = page.locator('[data-testid="risk-sensitivity-settings"]');
 
     try {
       await expect(calibrationSection).toBeVisible({ timeout: 10000 });

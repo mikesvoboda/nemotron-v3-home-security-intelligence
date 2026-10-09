@@ -71,10 +71,22 @@ export class AuditPage extends BasePage {
 
     // Filters - use select locators that match actual form structure
     this.filtersSection = page.locator('[class*="AuditFilters"]');
-    this.actionFilter = page.locator('select').filter({ has: page.locator('option:text-is("All Actions")') }).first();
-    this.resourceTypeFilter = page.locator('select').filter({ has: page.locator('option:text-is("All Resources")') }).first();
-    this.actorFilter = page.locator('select').filter({ has: page.locator('option:text-is("All Actors")') }).first();
-    this.statusFilter = page.locator('select').filter({ has: page.locator('option:text-is("All Statuses")') }).first();
+    this.actionFilter = page
+      .locator('select')
+      .filter({ has: page.locator('option:text-is("All Actions")') })
+      .first();
+    this.resourceTypeFilter = page
+      .locator('select')
+      .filter({ has: page.locator('option:text-is("All Resources")') })
+      .first();
+    this.actorFilter = page
+      .locator('select')
+      .filter({ has: page.locator('option:text-is("All Actors")') })
+      .first();
+    this.statusFilter = page
+      .locator('select')
+      .filter({ has: page.locator('option:text-is("All Statuses")') })
+      .first();
     this.startDateFilter = page.locator('input[type="date"]').first();
     this.endDateFilter = page.locator('input[type="date"]').last();
     this.clearFiltersButton = page.getByRole('button', { name: /Clear/i });

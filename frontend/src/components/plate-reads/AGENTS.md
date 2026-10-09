@@ -8,29 +8,31 @@ This directory contains React components for viewing, searching, and analyzing l
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `index.ts` | Barrel exports for the module |
+| File                 | Purpose                                       |
+| -------------------- | --------------------------------------------- |
+| `index.ts`           | Barrel exports for the module                 |
 | `PlateReadsPage.tsx` | Main page component with statistics and table |
 
 ## Related Files
 
-| File | Purpose |
-|------|---------|
-| `frontend/src/types/plateRead.ts` | TypeScript type definitions |
+| File                                     | Purpose                             |
+| ---------------------------------------- | ----------------------------------- |
+| `frontend/src/types/plateRead.ts`        | TypeScript type definitions         |
 | `frontend/src/services/plateReadsApi.ts` | API client for plate read endpoints |
-| `backend/api/routes/plate_reads.py` | Backend API endpoints |
-| `backend/api/schemas/plate_read.py` | Backend Pydantic schemas |
-| `backend/services/plate_detector.py` | Plate detection service |
+| `backend/api/routes/plate_reads.py`      | Backend API endpoints               |
+| `backend/api/schemas/plate_read.py`      | Backend Pydantic schemas            |
+| `backend/services/plate_detector.py`     | Plate detection service             |
 
 ## Features
 
 ### Implemented
+
 - Basic page structure with navigation
 - Type definitions matching backend schemas
 - API client with full CRUD operations
 
 ### Planned
+
 - Statistics cards (total reads, unique plates, confidence metrics)
 - Search by plate text (partial and exact match)
 - Filterable/sortable data table
@@ -41,12 +43,12 @@ This directory contains React components for viewing, searching, and analyzing l
 
 ## API Endpoints
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/plate-reads` | List plate reads with filters |
-| GET | `/api/plate-reads/stats` | Aggregate statistics |
-| GET | `/api/plate-reads/search` | Search by plate text |
-| GET | `/api/plate-reads/{id}` | Get single plate read |
+| Method | Endpoint                  | Purpose                       |
+| ------ | ------------------------- | ----------------------------- |
+| GET    | `/api/plate-reads`        | List plate reads with filters |
+| GET    | `/api/plate-reads/stats`  | Aggregate statistics          |
+| GET    | `/api/plate-reads/search` | Search by plate text          |
+| GET    | `/api/plate-reads/{id}`   | Get single plate read         |
 
 ## Type Definitions
 
@@ -83,11 +85,13 @@ interface PlateStatisticsResponse {
 ## Testing
 
 Run component tests:
+
 ```bash
 cd frontend && npm test -- --testPathPattern=plate-reads
 ```
 
 Run type checking:
+
 ```bash
 cd frontend && npm run typecheck
 ```

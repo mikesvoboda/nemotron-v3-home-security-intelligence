@@ -6,11 +6,11 @@ Contains the system logs page component that embeds a Grafana dashboard for view
 
 ## Files
 
-| File               | Purpose                                            |
-| ------------------ | -------------------------------------------------- |
-| `LogsPage.tsx`     | Main logs page embedding Grafana Loki dashboard    |
-| `LogsPage.test.tsx`| Test suite for LogsPage                            |
-| `AGENTS.md`        | This documentation file                            |
+| File                | Purpose                                         |
+| ------------------- | ----------------------------------------------- |
+| `LogsPage.tsx`      | Main logs page embedding Grafana Loki dashboard |
+| `LogsPage.test.tsx` | Test suite for LogsPage                         |
+| `AGENTS.md`         | This documentation file                         |
 
 **Note:** No `index.ts` barrel export - import components directly.
 

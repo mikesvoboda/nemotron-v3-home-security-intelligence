@@ -94,7 +94,6 @@ stage 4 ~3.0), each measured as run-name timestamp → capture last-write and lo
 pre-registered estimate at close-out; stage 3.5, A0, all analyses and the two-turn collapse probe
 were CPU-only. No arm was collected twice at temp 0.
 
-
 ## 5. Follow-up (appended 2026-10-05, after the owner's answers; no text above changed)
 
 All four queued items got answers on 2026-10-05 [O: asked and answered in the session; durable

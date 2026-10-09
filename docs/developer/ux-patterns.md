@@ -295,31 +295,17 @@ const pageTransitionVariants = {
 
 // Modal transitions
 const modalTransitionVariants = {
-  scale: {
-    /* ... */
-  },
-  slideUp: {
-    /* ... */
-  },
-  slideDown: {
-    /* ... */
-  },
-  fade: {
-    /* ... */
-  },
+  scale: {/* ... */},
+  slideUp: {/* ... */},
+  slideDown: {/* ... */},
+  fade: {/* ... */},
 };
 
 // List item transitions (staggered)
 const listItemVariants = {
-  fadeIn: {
-    /* ... */
-  },
-  slideIn: {
-    /* ... */
-  },
-  scaleIn: {
-    /* ... */
-  },
+  fadeIn: {/* ... */},
+  slideIn: {/* ... */},
+  scaleIn: {/* ... */},
 };
 ```
 

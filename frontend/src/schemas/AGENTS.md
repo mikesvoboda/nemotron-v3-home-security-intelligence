@@ -10,18 +10,18 @@ This directory contains Zod validation schemas that mirror backend Pydantic mode
 
 ## Key Files
 
-| File                  | Purpose                                           | Lines |
-| --------------------- | ------------------------------------------------- | ----- |
-| `index.ts`            | Re-exports all schemas for convenient imports     | ~250  |
-| `primitives.ts`       | Reusable schema primitives (IDs, scores, etc.)    | ~350  |
-| `primitives.test.ts`  | Tests for schema primitives                       | ~500  |
-| `camera.ts`           | Camera CRUD validation schemas                    | ~178  |
-| `camera.test.ts`      | Tests for camera validation                       | ~250  |
-| `alertRule.ts`        | Alert rule validation schemas                     | ~331  |
-| `alertRule.test.ts`   | Tests for alert rule validation                   | ~690  |
-| `api.ts`              | API response validation schemas                   | ~500  |
-| `api.test.ts`         | Tests for API response validation                 | ~600  |
-| `alert.ts`            | Alert-related schemas (placeholder)               | ~1    |
+| File                 | Purpose                                        | Lines |
+| -------------------- | ---------------------------------------------- | ----- |
+| `index.ts`           | Re-exports all schemas for convenient imports  | ~250  |
+| `primitives.ts`      | Reusable schema primitives (IDs, scores, etc.) | ~350  |
+| `primitives.test.ts` | Tests for schema primitives                    | ~500  |
+| `camera.ts`          | Camera CRUD validation schemas                 | ~178  |
+| `camera.test.ts`     | Tests for camera validation                    | ~250  |
+| `alertRule.ts`       | Alert rule validation schemas                  | ~331  |
+| `alertRule.test.ts`  | Tests for alert rule validation                | ~690  |
+| `api.ts`             | API response validation schemas                | ~500  |
+| `api.test.ts`        | Tests for API response validation              | ~600  |
+| `alert.ts`           | Alert-related schemas (placeholder)            | ~1    |
 
 ## Architecture
 
@@ -42,56 +42,56 @@ Reusable schema primitives for consistency across all schemas.
 
 #### ID Primitives
 
-| Export          | Description                              |
-| --------------- | ---------------------------------------- |
-| `uuid`          | Generic UUID validator                   |
-| `cameraId`      | Camera ID (UUID)                         |
-| `eventId`       | Event ID (UUID)                          |
-| `detectionId`   | Detection ID (UUID)                      |
-| `zoneId`        | Zone ID (UUID)                           |
-| `alertRuleId`   | Alert Rule ID (UUID)                     |
-| `entityId`      | Entity ID (UUID)                         |
-| `batchId`       | Batch ID (UUID)                          |
+| Export        | Description            |
+| ------------- | ---------------------- |
+| `uuid`        | Generic UUID validator |
+| `cameraId`    | Camera ID (UUID)       |
+| `eventId`     | Event ID (UUID)        |
+| `detectionId` | Detection ID (UUID)    |
+| `zoneId`      | Zone ID (UUID)         |
+| `alertRuleId` | Alert Rule ID (UUID)   |
+| `entityId`    | Entity ID (UUID)       |
+| `batchId`     | Batch ID (UUID)        |
 
 #### Risk Assessment Primitives
 
-| Export              | Description                              |
-| ------------------- | ---------------------------------------- |
-| `riskScore`         | Integer 0-100                            |
-| `optionalRiskScore` | Nullable risk score                      |
-| `riskLevel`         | Enum: low, medium, high, critical        |
-| `optionalRiskLevel` | Nullable risk level                      |
-| `confidence`        | Float 0-1                                |
-| `optionalConfidence`| Nullable confidence                      |
+| Export               | Description                       |
+| -------------------- | --------------------------------- |
+| `riskScore`          | Integer 0-100                     |
+| `optionalRiskScore`  | Nullable risk score               |
+| `riskLevel`          | Enum: low, medium, high, critical |
+| `optionalRiskLevel`  | Nullable risk level               |
+| `confidence`         | Float 0-1                         |
+| `optionalConfidence` | Nullable confidence               |
 
 #### Timestamp Primitives
 
-| Export              | Description                              |
-| ------------------- | ---------------------------------------- |
-| `timestamp`         | Coerces to Date (accepts ISO, Date, ms)  |
-| `optionalTimestamp` | Nullable timestamp                       |
-| `isoDateString`     | Validates ISO 8601 format                |
-| `timeString`        | Validates HH:MM format                   |
+| Export              | Description                             |
+| ------------------- | --------------------------------------- |
+| `timestamp`         | Coerces to Date (accepts ISO, Date, ms) |
+| `optionalTimestamp` | Nullable timestamp                      |
+| `isoDateString`     | Validates ISO 8601 format               |
+| `timeString`        | Validates HH:MM format                  |
 
 #### Enum Primitives
 
-| Export              | Values                                   |
-| ------------------- | ---------------------------------------- |
-| `objectType`        | person, vehicle, animal, package         |
-| `cameraStatus`      | online, offline, error, unknown          |
-| `alertSeverity`     | low, medium, high, critical              |
-| `dayOfWeek`         | monday...sunday                          |
+| Export          | Values                           |
+| --------------- | -------------------------------- |
+| `objectType`    | person, vehicle, animal, package |
+| `cameraStatus`  | online, offline, error, unknown  |
+| `alertSeverity` | low, medium, high, critical      |
+| `dayOfWeek`     | monday...sunday                  |
 
 #### Utility Primitives
 
-| Export                  | Description                          |
-| ----------------------- | ------------------------------------ |
-| `boundingBox`           | Tuple [x1, y1, x2, y2] (0-1)         |
-| `pageNumber`            | Integer >= 1                         |
-| `pageSize`              | Integer 1-100                        |
-| `totalCount`            | Non-negative integer                 |
-| `nonEmptyString`        | String with min length 1             |
-| `stringWithLength()`    | Factory for constrained strings      |
+| Export               | Description                     |
+| -------------------- | ------------------------------- |
+| `boundingBox`        | Tuple [x1, y1, x2, y2] (0-1)    |
+| `pageNumber`         | Integer >= 1                    |
+| `pageSize`           | Integer 1-100                   |
+| `totalCount`         | Non-negative integer            |
+| `nonEmptyString`     | String with min length 1        |
+| `stringWithLength()` | Factory for constrained strings |
 
 ### api.ts (NEM-3824)
 
@@ -99,56 +99,56 @@ API response validation schemas for runtime type checking.
 
 #### Response Schemas
 
-| Export                    | Backend Model                        |
-| ------------------------- | ------------------------------------ |
-| `cameraResponseSchema`    | CameraResponse                       |
-| `cameraListResponseSchema`| CameraListResponse                   |
-| `detectionResponseSchema` | DetectionResponse                    |
-| `eventResponseSchema`     | EventResponse                        |
-| `eventListResponseSchema` | EventListResponse                    |
-| `alertRuleResponseSchema` | AlertRuleResponse                    |
-| `alertResponseSchema`     | AlertResponse                        |
-| `zoneResponseSchema`      | ZoneResponse                         |
-| `entityResponseSchema`    | EntityResponse                       |
-| `healthResponseSchema`    | HealthResponse                       |
-| `gpuStatsResponseSchema`  | GPUStatsResponse                     |
+| Export                     | Backend Model      |
+| -------------------------- | ------------------ |
+| `cameraResponseSchema`     | CameraResponse     |
+| `cameraListResponseSchema` | CameraListResponse |
+| `detectionResponseSchema`  | DetectionResponse  |
+| `eventResponseSchema`      | EventResponse      |
+| `eventListResponseSchema`  | EventListResponse  |
+| `alertRuleResponseSchema`  | AlertRuleResponse  |
+| `alertResponseSchema`      | AlertResponse      |
+| `zoneResponseSchema`       | ZoneResponse       |
+| `entityResponseSchema`     | EntityResponse     |
+| `healthResponseSchema`     | HealthResponse     |
+| `gpuStatsResponseSchema`   | GPUStatsResponse   |
 
 #### Helper Functions
 
-| Export                    | Purpose                              |
-| ------------------------- | ------------------------------------ |
-| `paginatedResponse()`     | Creates paginated response schema    |
-| `cursorPaginatedResponse()`| Creates cursor-paginated schema     |
-| `parseApiResponse()`      | Parse and validate, throws on error  |
-| `safeParseApiResponse()`  | Parse and validate, returns null     |
+| Export                      | Purpose                             |
+| --------------------------- | ----------------------------------- |
+| `paginatedResponse()`       | Creates paginated response schema   |
+| `cursorPaginatedResponse()` | Creates cursor-paginated schema     |
+| `parseApiResponse()`        | Parse and validate, throws on error |
+| `safeParseApiResponse()`    | Parse and validate, returns null    |
 
 ### camera.ts
 
 Camera form validation schemas.
 
-| Export               | Purpose                                    |
-| -------------------- | ------------------------------------------ |
-| `cameraStatusSchema` | Validates camera status enum               |
-| `cameraNameSchema`   | Validates camera name (length, trim)       |
-| `cameraFolderPathSchema` | Validates folder path (security checks)|
-| `cameraCreateSchema` | Full schema for camera creation            |
-| `cameraUpdateSchema` | Partial schema for camera updates          |
-| `cameraFormSchema`   | Form-specific schema with required fields  |
+| Export                   | Purpose                                   |
+| ------------------------ | ----------------------------------------- |
+| `cameraStatusSchema`     | Validates camera status enum              |
+| `cameraNameSchema`       | Validates camera name (length, trim)      |
+| `cameraFolderPathSchema` | Validates folder path (security checks)   |
+| `cameraCreateSchema`     | Full schema for camera creation           |
+| `cameraUpdateSchema`     | Partial schema for camera updates         |
+| `cameraFormSchema`       | Form-specific schema with required fields |
 
 ### alertRule.ts
 
 Alert rule form validation schemas.
 
-| Export                    | Purpose                                |
-| ------------------------- | -------------------------------------- |
-| `alertSeveritySchema`     | Validates severity enum                |
-| `riskThresholdSchema`     | Validates risk threshold (0-100)       |
-| `minConfidenceSchema`     | Validates confidence (0.0-1.0)         |
-| `cooldownSecondsSchema`   | Validates cooldown (non-negative)      |
-| `timeStringSchema`        | Validates HH:MM time format            |
-| `alertRuleCreateSchema`   | Full schema for rule creation          |
-| `alertRuleUpdateSchema`   | Partial schema for rule updates        |
-| `alertRuleFormSchema`     | Form-specific schema with defaults     |
+| Export                  | Purpose                            |
+| ----------------------- | ---------------------------------- |
+| `alertSeveritySchema`   | Validates severity enum            |
+| `riskThresholdSchema`   | Validates risk threshold (0-100)   |
+| `minConfidenceSchema`   | Validates confidence (0.0-1.0)     |
+| `cooldownSecondsSchema` | Validates cooldown (non-negative)  |
+| `timeStringSchema`      | Validates HH:MM time format        |
+| `alertRuleCreateSchema` | Full schema for rule creation      |
+| `alertRuleUpdateSchema` | Partial schema for rule updates    |
+| `alertRuleFormSchema`   | Form-specific schema with defaults |
 
 ## Usage Patterns
 
@@ -162,7 +162,7 @@ const eventSchema = z.object({
   camera_id: cameraId,
   risk_score: riskScore,
   risk_level: riskLevel,
-  started_at: timestamp
+  started_at: timestamp,
 });
 ```
 
@@ -230,11 +230,11 @@ This codebase uses Zod 4's `{error:}` parameter for custom error messages:
 
 ```typescript
 // Zod 4 syntax (what we use)
-z.string().min(1, { error: 'Required' })
-z.number().int({ error: 'Must be a whole number' })
+z.string().min(1, { error: 'Required' });
+z.number().int({ error: 'Must be a whole number' });
 
 // Dynamic error messages with function
-z.string().min(5, { error: (issue) => `Min length is ${issue.minimum}` })
+z.string().min(5, { error: (issue) => `Min length is ${issue.minimum}` });
 ```
 
 **DO NOT** use the old `{message:}` syntax.
@@ -245,26 +245,26 @@ z.string().min(5, { error: (issue) => `Min length is ${issue.minimum}` })
 
 ### Backend Schema Locations
 
-| Frontend Schema            | Backend Schema Location            |
-| -------------------------- | ---------------------------------- |
-| `cameraCreateSchema`       | `backend/api/schemas/camera.py`    |
-| `cameraResponseSchema`     | `backend/api/schemas/camera.py`    |
-| `alertRuleCreateSchema`    | `backend/api/schemas/alerts.py`    |
-| `alertRuleResponseSchema`  | `backend/api/schemas/alerts.py`    |
-| `eventResponseSchema`      | `backend/api/schemas/events.py`    |
-| `detectionResponseSchema`  | `backend/api/schemas/detections.py`|
-| `zoneResponseSchema`       | `backend/api/schemas/zone.py`      |
+| Frontend Schema           | Backend Schema Location             |
+| ------------------------- | ----------------------------------- |
+| `cameraCreateSchema`      | `backend/api/schemas/camera.py`     |
+| `cameraResponseSchema`    | `backend/api/schemas/camera.py`     |
+| `alertRuleCreateSchema`   | `backend/api/schemas/alerts.py`     |
+| `alertRuleResponseSchema` | `backend/api/schemas/alerts.py`     |
+| `eventResponseSchema`     | `backend/api/schemas/events.py`     |
+| `detectionResponseSchema` | `backend/api/schemas/detections.py` |
+| `zoneResponseSchema`      | `backend/api/schemas/zone.py`       |
 
 ### Validation Rules Mapping
 
-| Frontend Zod             | Backend Pydantic           | Example            |
-| ------------------------ | -------------------------- | ------------------ |
-| `.min(n)`                | `min_length=n`             | Name min length    |
-| `.max(n)`                | `max_length=n`             | Name max length    |
-| `.int().min(0).max(100)` | `ge=0, le=100`             | Risk threshold     |
-| `.superRefine()`         | `@field_validator`         | Custom validation  |
-| `.default()`             | `Field(default=...)`       | Default values     |
-| `z.coerce.date()`        | `datetime`                 | Timestamp fields   |
+| Frontend Zod             | Backend Pydantic     | Example           |
+| ------------------------ | -------------------- | ----------------- |
+| `.min(n)`                | `min_length=n`       | Name min length   |
+| `.max(n)`                | `max_length=n`       | Name max length   |
+| `.int().min(0).max(100)` | `ge=0, le=100`       | Risk threshold    |
+| `.superRefine()`         | `@field_validator`   | Custom validation |
+| `.default()`             | `Field(default=...)` | Default values    |
+| `z.coerce.date()`        | `datetime`           | Timestamp fields  |
 
 ### When to Update
 

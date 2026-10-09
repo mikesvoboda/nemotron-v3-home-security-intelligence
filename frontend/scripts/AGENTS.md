@@ -20,6 +20,7 @@ frontend/scripts/
 **Purpose:** Generates TypeScript types from backend Pydantic WebSocket schemas. This ensures the frontend stays in sync with the backend WebSocket message contracts, which are not covered by OpenAPI.
 
 **What It Generates:**
+
 - Enum types (RiskLevel, WebSocketMessageType, WebSocketServiceStatus, etc.)
 - Data payload interfaces (WebSocketEventData, WebSocketAlertData, etc.)
 - Message envelope interfaces (WebSocketEventMessage, WebSocketPingMessage, etc.)
@@ -30,6 +31,7 @@ frontend/scripts/
 **Output File:** `frontend/src/types/generated/websocket.ts`
 
 **Usage:**
+
 ```bash
 # Generate types
 ./scripts/generate-ws-types.py
@@ -44,19 +46,21 @@ python frontend/scripts/generate-ws-types.py
 **Source Schemas:** `backend/api/schemas/websocket.py`
 
 **Type Mapping:**
-| Python Type | TypeScript Type |
-|-------------|-----------------|
-| `str` | `string` |
-| `int`, `float` | `number` |
-| `bool` | `boolean` |
-| `list[T]` | `T[]` |
-| `dict[K, V]` | `Record<K, V>` |
-| `Optional[T]` | `T \| null` |
-| `Literal[...]` | Union of string literals |
-| `Enum` | Union of enum values |
-| Pydantic BaseModel | TypeScript interface |
+
+| Python Type        | TypeScript Type          |
+| ------------------ | ------------------------ |
+| `str`              | `string`                 |
+| `int`, `float`     | `number`                 |
+| `bool`             | `boolean`                |
+| `list[T]`          | `T[]`                    |
+| `dict[K, V]`       | `Record<K, V>`           |
+| `Optional[T]`      | `T \| null`              |
+| `Literal[...]`     | Union of string literals |
+| `Enum`             | Union of enum values     |
+| Pydantic BaseModel | TypeScript interface     |
 
 **Generated Type Guards:**
+
 ```typescript
 // Example usage of generated type guards
 if (isEventMessage(message)) {
@@ -75,12 +79,14 @@ if (isAlertCreatedMessage(message)) {
 **Purpose:** Analyzes production build chunks for circular dependency patterns that could cause TDZ (Temporal Dead Zone) errors at runtime. This script was created after NEM-3494 where circular import deadlocks between vendor chunks caused production errors.
 
 **What It Detects:**
+
 1. **Self-referencing variable initialization**: `var x = _interopDefault(x)` (TDZ risk)
 2. **Circular module initialization patterns**: Functions returning and assigning to the same module
 3. **Excessive imports from same module**: >10 imports from one module (possible chunk duplication)
 4. **Large chunks**: Files >500KB that may need splitting
 
 **Usage:**
+
 ```bash
 # Build first, then validate
 npm run build
@@ -91,13 +97,15 @@ npx tsx scripts/validate-build-chunks.ts
 ```
 
 **Exit Codes:**
-| Code | Meaning |
-|------|---------|
-| 0 | No issues detected - safe for deployment |
-| 1 | Circular dependency patterns detected |
-| 2 | Build directory not found |
+
+| Code | Meaning                                  |
+| ---- | ---------------------------------------- |
+| 0    | No issues detected - safe for deployment |
+| 1    | Circular dependency patterns detected    |
+| 2    | Build directory not found                |
 
 **Output:**
+
 ```
 === Chunk Analysis Summary ===
 Total chunks: 15
@@ -114,6 +122,7 @@ OK: No circular dependency patterns detected
 ```
 
 **Analyzed Patterns:**
+
 - Rollup interop helpers (`_interopNamespaceDefault`, `_interopRequireDefault`)
 - Self-referencing patterns in variable declarations
 - Circular function initialization
@@ -148,21 +157,23 @@ From `frontend/package.json`:
 
 ## Related Files
 
-| File | Purpose |
-|------|---------|
-| `backend/api/schemas/websocket.py` | Source Pydantic schemas for WebSocket types |
-| `frontend/src/types/generated/websocket.ts` | Generated TypeScript types output |
-| `frontend/vite.config.ts` | Vite build configuration with chunk splitting |
-| `scripts/generate-ws-types.py` | Root-level symlink (optional) |
+| File                                        | Purpose                                       |
+| ------------------------------------------- | --------------------------------------------- |
+| `backend/api/schemas/websocket.py`          | Source Pydantic schemas for WebSocket types   |
+| `frontend/src/types/generated/websocket.ts` | Generated TypeScript types output             |
+| `frontend/vite.config.ts`                   | Vite build configuration with chunk splitting |
+| `scripts/generate-ws-types.py`              | Root-level symlink (optional)                 |
 
 ## Dependencies
 
 ### generate-ws-types.py
+
 - Python 3.14+
 - Backend dependencies available (for importing Pydantic schemas)
 - Environment variables: `DATABASE_URL`, `REDIS_URL` (can be dummy values)
 
 ### validate-build-chunks.ts
+
 - Node.js 24+
 - TypeScript (tsx for execution)
 - Production build output (run `npm run build` first to generate the dist folder)

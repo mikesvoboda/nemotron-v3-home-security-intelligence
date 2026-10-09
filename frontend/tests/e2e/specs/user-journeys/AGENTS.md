@@ -14,24 +14,25 @@ test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally'
 
 ## Test Files
 
-| File                             | Linear Issue | Journey Focus                                        |
-| -------------------------------- | ------------ | ---------------------------------------------------- |
-| `alert-lifecycle.spec.ts`        | NEM-1664     | Alert navigation, filtering, acknowledgment          |
-| `alert-rule-workflows.spec.ts`   | NEM-2049     | Advanced rule creation with schedules and channels   |
-| `camera-configuration.spec.ts`   | NEM-2049     | Camera setup, settings modification, persistence     |
-| `camera-management.spec.ts`      | NEM-1664     | Dashboard camera grid, status, detail navigation     |
-| `detection-workflow.spec.ts`     | NEM-1664     | Detection to AI analysis review workflow             |
-| `event-filtering-search.spec.ts` | NEM-2049     | Event discovery with multi-filter combinations       |
-| `feedback-calibration-loop.spec.ts` | NEM-2322  | Complete feedback to threshold calibration loop      |
-| `investigation-workflow.spec.ts` | NEM-1664     | Event investigation and review marking               |
-| `settings-configuration.spec.ts` | NEM-1664     | System and camera configuration persistence          |
-| `settings-navigation.spec.ts`    | NEM-2049     | Settings tabs navigation and form interactions       |
+| File                                | Linear Issue | Journey Focus                                      |
+| ----------------------------------- | ------------ | -------------------------------------------------- |
+| `alert-lifecycle.spec.ts`           | NEM-1664     | Alert navigation, filtering, acknowledgment        |
+| `alert-rule-workflows.spec.ts`      | NEM-2049     | Advanced rule creation with schedules and channels |
+| `camera-configuration.spec.ts`      | NEM-2049     | Camera setup, settings modification, persistence   |
+| `camera-management.spec.ts`         | NEM-1664     | Dashboard camera grid, status, detail navigation   |
+| `detection-workflow.spec.ts`        | NEM-1664     | Detection to AI analysis review workflow           |
+| `event-filtering-search.spec.ts`    | NEM-2049     | Event discovery with multi-filter combinations     |
+| `feedback-calibration-loop.spec.ts` | NEM-2322     | Complete feedback to threshold calibration loop    |
+| `investigation-workflow.spec.ts`    | NEM-1664     | Event investigation and review marking             |
+| `settings-configuration.spec.ts`    | NEM-1664     | System and camera configuration persistence        |
+| `settings-navigation.spec.ts`       | NEM-2049     | Settings tabs navigation and form interactions     |
 
 ## User Journeys Covered
 
 ### Alert Management
 
 **Alert Lifecycle Journey** (`alert-lifecycle.spec.ts`)
+
 - Navigate from dashboard to alerts page
 - Filter alerts by severity level
 - Acknowledge individual alerts
@@ -40,6 +41,7 @@ test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally'
 - Visual severity distinction
 
 **Alert Rule Workflows** (`alert-rule-workflows.spec.ts`)
+
 - Create rules with time-based schedule constraints
 - Create rules targeting multiple object types (person, vehicle)
 - Configure multiple notification channels (email, webhook)
@@ -51,6 +53,7 @@ test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally'
 ### Camera Operations
 
 **Camera Management Journey** (`camera-management.spec.ts`)
+
 - View all cameras in dashboard grid
 - Verify status indicators (online/offline/recording)
 - Open camera detail view via card click
@@ -59,6 +62,7 @@ test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally'
 - Responsive grid layout across viewports
 
 **Camera Configuration Journey** (`camera-configuration.spec.ts`)
+
 - Navigate to cameras settings tab
 - View all configured cameras in table
 - Modify camera name and settings
@@ -71,6 +75,7 @@ test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally'
 ### Event Investigation
 
 **Detection Workflow** (`detection-workflow.spec.ts`)
+
 - View recent detections on dashboard
 - Click detection to open detail modal
 - Navigate through multiple detections sequentially
@@ -78,6 +83,7 @@ test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally'
 - Detection cards show preview information
 
 **Investigation Workflow** (`investigation-workflow.spec.ts`)
+
 - Navigate to timeline from dashboard
 - Search events by date range
 - Search events by keyword
@@ -88,6 +94,7 @@ test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally'
 - Chronological event ordering
 
 **Event Filtering and Search** (`event-filtering-search.spec.ts`)
+
 - Apply single filter (risk level)
 - Combine multiple filters (camera + risk + object type)
 - Full-text search with results
@@ -101,6 +108,7 @@ test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally'
 ### Feedback and Calibration
 
 **Feedback-Calibration Loop** (`feedback-calibration-loop.spec.ts`)
+
 - Submit false positive feedback on high-risk event
 - Verify threshold adjustment from feedback
 - Observe event reclassification after calibration
@@ -111,6 +119,7 @@ test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally'
 ### Settings and Configuration
 
 **Settings Configuration** (`settings-configuration.spec.ts`)
+
 - Navigate to settings from dashboard
 - View all configuration sections
 - Modify camera settings with immediate UI feedback
@@ -122,6 +131,7 @@ test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally'
 - View current system information
 
 **Settings Navigation** (`settings-navigation.spec.ts`)
+
 - Navigate between all settings tabs (Cameras, Rules, Processing, Notifications, Prompts)
 - Configure processing settings (batch window, retention)
 - Configure notification channels and webhook URL
@@ -153,7 +163,7 @@ test('user can filter alerts by severity level', async ({ page }) => {
 Tests handle missing UI elements gracefully since some features may not be implemented:
 
 ```typescript
-if (await filterButton.count() > 0) {
+if ((await filterButton.count()) > 0) {
   await filterButton.click();
   // Continue test...
 }
@@ -180,7 +190,7 @@ Longer timeouts for Firefox and WebKit:
 const timeout = browserName === 'chromium' ? 10000 : 20000;
 await page.waitForSelector('[data-testid="dashboard-container"]', {
   state: 'visible',
-  timeout
+  timeout,
 });
 ```
 
@@ -222,12 +232,12 @@ CI=true npx playwright test specs/user-journeys/
 
 Several tests are marked as `test.skip` due to specific issues:
 
-| Test | Reason | Tracking |
-| ---- | ------ | -------- |
-| Modal loading timeout | HeadlessUI transition timing | NEM-2748 |
-| Feedback calibration loop | CI timeout in parallel execution | - |
-| Multiple feedback submissions | DOM detachment during re-renders | - |
-| Filter persistence | Modal navigation causing state issues | - |
+| Test                          | Reason                                | Tracking |
+| ----------------------------- | ------------------------------------- | -------- |
+| Modal loading timeout         | HeadlessUI transition timing          | NEM-2748 |
+| Feedback calibration loop     | CI timeout in parallel execution      | -        |
+| Multiple feedback submissions | DOM detachment during re-renders      | -        |
+| Filter persistence            | Modal navigation causing state issues | -        |
 
 ### API Mocking
 

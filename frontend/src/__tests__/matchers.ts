@@ -138,7 +138,7 @@ declare module 'vitest' {
   /* eslint-disable @typescript-eslint/no-empty-object-type, @typescript-eslint/no-unused-vars */
   interface Matchers<
     R extends void | Promise<void> = void | Promise<void>,
-    T = unknown
+    T = unknown,
   > extends CustomMatchers<R> {}
 
   interface AsymmetricMatchersContaining extends CustomMatchers<unknown> {}

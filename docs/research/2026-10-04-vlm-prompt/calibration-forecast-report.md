@@ -2,7 +2,7 @@
 
 All arXiv IDs below were verified against the arXiv API and/or OpenAlex by DOI->title lookup; a few items are marked
 "**ID/title verified, body not read**" — treat those as pointers, not as sourced numbers. Anything labelled
-*[LLM-text-only]* may not transfer to an 8B VLM.
+_[LLM-text-only]_ may not transfer to an 8B VLM.
 
 Verified local context (for fit-checking): the shipped prompt lives in
 `/agents/agent-vss5/workspace/backend/services/vlm_client.py` (`_render_prompt`, ~line 531-567): the risk instruction is the
@@ -17,42 +17,42 @@ description, criteria, provenance. Response schema: `/agents/agent-vss5/workspac
   multimodal foundation models: GPT-4o / Gemini 1.5 Pro improve log-linearly up to ~2,000 exemplars across 14 datasets, but
   "open-weights multimodal foundation models like Llama 3.2-Vision **do not benefit from the demonstrating examples**."
   Most important caveat for an 8B open VLM: do not assume the GPT-4o "show worked examples" playbook transfers.
-  — *Many-Shot In-Context Learning in Multimodal Foundation Models*, https://arxiv.org/abs/2405.09798 — paper with 14-dataset ablations.
+  — _Many-Shot In-Context Learning in Multimodal Foundation Models_, https://arxiv.org/abs/2405.09798 — paper with 14-dataset ablations.
 - **Mechanism: current MLLMs cannot "in-context tune" from raw exemplars**; Multimodal Task Vectors (compressing a large exemplar
   set into an activation-space vector) recover many-shot gains that raw exemplar prompting fails to produce. The published
   workaround needs white-box activation access a chat-completion deployment does not have.
-  — *Multimodal Task Vectors Enable Many-Shot Multimodal In-Context Learning*, https://arxiv.org/abs/2406.15334 — paper with ablations.
+  — _Multimodal Task Vectors Enable Many-Shot Multimodal In-Context Learning_, https://arxiv.org/abs/2406.15334 — paper with ablations.
 - **Multimodal ICL is a documented weak spot of current MLLMs generally.** MIBench (13 tasks / 13K samples, includes a multi-image
   in-context-learning section): "current models excel in single-image tasks, but exhibit significant shortcomings when faced with
   multi-image inputs." — https://arxiv.org/abs/2407.15272 (EMNLP 2024) — paper with ablations, multimodal.
 - **Worked examples that display JSON teach format, not judgment — and format surface is the part measurably associated with
-  degradation in open-weight models** (see Q4: the format tax is mostly in the *prompt*, before any decoder constraint).
+  degradation in open-weight models** (see Q4: the format tax is mostly in the _prompt_, before any decoder constraint).
   Adding 4-8 full input->JSON exemplars buys you format conditioning you already get free from the grammar.
-  — *The Format Tax*, https://arxiv.org/abs/2604.03616 — paper, 6 open-weight + 4 API models x 4 formats. *[LLM-text-only]*
+  — _The Format Tax_, https://arxiv.org/abs/2604.03616 — paper, 6 open-weight + 4 API models x 4 formats. _[LLM-text-only]_
 - **Where few exemplars demonstrably act is the score distribution, via anchoring** (see Q2). Exemplar scores should be expected
   to behave as anchors, not as demonstrations of reasoning; and the anchoring effect is threshold-like (presence matters more than
   exact values), so 3-5 band-defining lines are enough — the exemplar COUNT trade is mostly token cost, not quality.
-  — *inference*, grounded in https://arxiv.org/abs/2608.25869 (see Q2).
-- **Explicit gap:** no paper found that studies image+input+desired-JSON exemplars specifically for risk/severity *score
-  calibration* (nothing like "lingering at windows with no purpose -> 40" as a published visual exemplar condition). Closest
+  — _inference_, grounded in https://arxiv.org/abs/2608.25869 (see Q2).
+- **Explicit gap:** no paper found that studies image+input+desired-JSON exemplars specifically for risk/severity _score
+  calibration_ (nothing like "lingering at windows with no purpose -> 40" as a published visual exemplar condition). Closest
   evidence: text-judge anchoring (Q2) and class/definition-conditional prompting in surveillance VLMs (Q2 headline + Q5).
-  — *inference from absence across arXiv + OpenAlex searches (title/abstract level)*.
+  — _inference from absence across arXiv + OpenAlex searches (title/abstract level)_.
 - Text-side classics (apply only if you do add exemplars — order must be chosen, not incidental): few-shot prompt-order
   sensitivity causes very large accuracy swings and is partly fixable by permutation-calibration; demonstration order permutes
-  accuracy in the few-shot regime. — *Fantastically Ordered Prompts*, https://arxiv.org/abs/2104.08786;
-  *Calibrate Before Use*, https://arxiv.org/abs/2102.09690 — papers with ablations. *[LLM-text-only]*
+  accuracy in the few-shot regime. — _Fantastically Ordered Prompts_, https://arxiv.org/abs/2104.08786;
+  _Calibrate Before Use_, https://arxiv.org/abs/2102.09690 — papers with ablations. _[LLM-text-only]_
 - **Multimodal analogue of order sensitivity:** reordering multimodal context swings MLLM accuracy "between advanced performance
   and random guessing"; attention concentrates at the **beginning and end** of the multimodal sequence; deliberately placing key
   content in those slots gave **+14.7%** (video-caption matching) and **+17.8%** (VQA) with no extra compute; they propose
   Position-Invariant Accuracy (PIA). Evaluated model list is not in the abstract (small models unconfirmed).
-  — *Order Matters: Exploring Order Sensitivity in Multimodal Large Language Models*, https://arxiv.org/abs/2410.16983 — paper.
+  — _Order Matters: Exploring Order Sensitivity in Multimodal Large Language Models_, https://arxiv.org/abs/2410.16983 — paper.
 - **Exemplar-count economics at a 16K slot:** distilling many-shot exemplars into a compact rule artifact retains most gains in
   text settings — supports "compact band sheet, not 8 full exemplar transcripts."
-  — *Distilling Many-Shot In-Context Learning into a Cheat Sheet*, https://arxiv.org/abs/2509.20820 — **ID/title verified, body
-  not read**. *[LLM-text-only]*
+  — _Distilling Many-Shot In-Context Learning into a Cheat Sheet_, https://arxiv.org/abs/2509.20820 — **ID/title verified, body
+  not read**. _[LLM-text-only]_
 
 **Q1 net:** few full image+JSON exemplars are a weak/uncertain lever for an 8B open VLM (possibly negative given the format tax);
-a compact textual band/rubric sheet is cheaper and better evidenced; exemplar *scores* will anchor the distribution (that is the
+a compact textual band/rubric sheet is cheaper and better evidenced; exemplar _scores_ will anchor the distribution (that is the
 mechanism, and it is the thing to validate on synthbench).
 
 ---
@@ -67,12 +67,12 @@ mechanism, and it is the thing to validate on synthbench).
   the final answer + confidence "taking into account your confidence score of the description." Measured: overall ECE
   0.467 -> 0.424 (7B) and 0.431 -> 0.365 (72B); VCAP beat Top-K and self-reflection. Read carefully for your case: the published
   VLM-calibration win is **description-before-judgment**, not rubric wording; and it is a two-turn structure, which your
-  single-call contract cannot do verbatim (only a description *field* before the score approximates it).
-  — *Seeing is Believing, but How Much? A Comprehensive Analysis of Verbalized Calibration in Vision-Language Models*,
+  single-call contract cannot do verbatim (only a description _field_ before the score approximates it).
+  — _Seeing is Believing, but How Much? A Comprehensive Analysis of Verbalized Calibration in Vision-Language Models_,
   https://arxiv.org/abs/2505.20236 (also ACL/EMNLP version: https://doi.org/10.18653/v1/2025.emnlp-main.74)
   — paper with ablations, multimodal, includes 7B-class models.
-- **Best single source for your exact failure mode:** *Are Multimodal LLMs Ready for Surveillance? A Reality Check on Zero-Shot
-  Anomaly Detection in the Wild*, https://arxiv.org/abs/2603.04727. SOTA MLLMs on ShanghaiTech + CHAD, VAD reformulated as
+- **Best single source for your exact failure mode:** _Are Multimodal LLMs Ready for Surveillance? A Reality Check on Zero-Shot
+  Anomaly Detection in the Wild_, https://arxiv.org/abs/2603.04727. SOTA MLLMs on ShanghaiTech + CHAD, VAD reformulated as
   binary classification, with **prompt-specificity and temporal-window (1-3 s) ablations**: "we find a pronounced **conservative
   bias** in zero-shot settings; while models exhibit **high confidence, they disproportionately favor the 'normal' class,
   resulting in high precision but a recall collapse that limits practical utility"; "**class-specific instructions can
@@ -80,8 +80,8 @@ mechanism, and it is the thing to validate on synthbench).
   a critical bottleneck"; the authors call for "**recall-oriented prompting and model calibration**". This is your bug
   ("nothing visibly harmful right now" -> normal / low score) reproduced and measured on VLMs, with the fix direction confirmed.
   — paper with ablations, multimodal.
-- **Anchoring in LLM judges is large, threshold-like, and not fixable by CoT or warnings.** *Anchoring Bias in LLM-as-a-Judge
-  Systems: Prior Scores Compromise Evaluation Independence*, https://arxiv.org/abs/2608.25869: 185,271 evaluations of 20 fixed
+- **Anchoring in LLM judges is large, threshold-like, and not fixable by CoT or warnings.** _Anchoring Bias in LLM-as-a-Judge
+  Systems: Prior Scores Compromise Evaluation Independence_, https://arxiv.org/abs/2608.25869: 185,271 evaluations of 20 fixed
   texts; 7 of 8 models showed a significant anchored-metadata effect; Cohen's d up to 0.71; token-level probes showed
   "**introducing anchored metadata produces a marked redistribution of output-score probabilities, while changing the anchor
   value within the tested below-threshold range produces comparatively little additional variation**"; anchored metadata blocked
@@ -89,23 +89,23 @@ mechanism, and it is the thing to validate on synthbench).
   reduce the total anchoring effect** (the warning did improve paired accuracy in the industry experiment). Design consequence:
   naming bands + worked scores WILL shift your distribution (that is the intended mechanism), the shift is coarse rather than
   fine-tuned, and you cannot prompt the model into "ignoring" the anchors.
-  — paper, 185K-eval bootstrap CIs. *[LLM-judge-text-only; multimodal analogue unverified]*
+  — paper, 185K-eval bootstrap CIs. _[LLM-judge-text-only; multimodal analogue unverified]_
 - **Raw verbalized numbers are model-shaped, not truth-shaped; post-hoc recalibration beats prompt-only elicitation.**
-  *Can LLMs Express Their Uncertainty?*, https://arxiv.org/abs/2306.13063: verbalized scores systematically overconfident;
+  _Can LLMs Express Their Uncertainty?_, https://arxiv.org/abs/2306.13063: verbalized scores systematically overconfident;
   calibration improves with capability; white-box only narrowly beats black-box (AUROC 0.522 -> 0.605); **no method consistently
-  outperforms the others**; all struggle on specialist-knowledge tasks. *Just Ask for Calibration*,
+  outperforms the others**; all struggle on specialist-knowledge tasks. _Just Ask for Calibration_,
   https://arxiv.org/abs/2305.14975: RLHF models need calibration tuning on their own generations (Brier/ECE) — prompting alone
-  leaves them miscalibrated. *On Verbalized Confidence Scores for LLMs*, https://arxiv.org/abs/2412.14737, and *Calibrating
-  Verbalized Probabilities*, https://arxiv.org/abs/2410.06707, push the same conclusion (fit a mapping on the emitted scale).
-  *[LLM-text-only; the last two are ID/title verified, bodies not read]*
+  leaves them miscalibrated. _On Verbalized Confidence Scores for LLMs_, https://arxiv.org/abs/2412.14737, and _Calibrating
+  Verbalized Probabilities_, https://arxiv.org/abs/2410.06707, push the same conclusion (fit a mapping on the emitted scale).
+  _[LLM-text-only; the last two are ID/title verified, bodies not read]_
 - **Absolute numeric scores from open evaluators diverge from human scores even with custom rubrics; the field's answer is a
   probability-weighted readout rather than the greedy digit.** Prometheus 2 notes existing open evaluator LMs "issue scores that
   significantly diverge from those assigned by humans" — https://arxiv.org/abs/2405.15801; G-Eval computes its score as a
   **token-probability-weighted expected value over the candidate score tokens** precisely because greedy discrete scores cluster —
-  https://arxiv.org/abs/2303.16634. — papers. *[LLM-text-only, but directly actionable with llama.cpp logprobs]*
+  https://arxiv.org/abs/2303.16634. — papers. _[LLM-text-only, but directly actionable with llama.cpp logprobs]_
 - **Central-tendency bias in multimodal ordinal scoring** is documented (clinical ordinal scoring audit) — adjacent, opposite
   polarity to your failure (yours is low-polarization, not mid-latching); pointer only.
-  — *Auditing Multimodal LLM Raters: Central Tendency Bias in Clinical Ordinal Scoring*, https://arxiv.org/abs/2605.16386 —
+  — _Auditing Multimodal LLM Raters: Central Tendency Bias in Clinical Ordinal Scoring_, https://arxiv.org/abs/2605.16386 —
   **ID/title verified, body not read**.
 - **Band-endpoint naming specifically ("0-29 routine, 30-59 medium, ..."): no direct study found.** What supports it: (a) the
   threshold-like anchoring result above (presence of anchor values redistributes the score mass; exact endpoints matter less);
@@ -155,7 +155,7 @@ mechanism, and it is the thing to validate on synthbench).
   recommendation, no per-image token cap, and no image-count limit (those live in the technical report/processor docs), and no
   documented weaknesses. — https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct — docs. Flag: temp-0 argmax is off the vendor's
   recommended operating point; the card does not say whether that matters for constrained structured output.
-- MM1.5 (training-side, 1B-30B incl. small models) is the closest evidence that multi-image competence is a *data mixture*
+- MM1.5 (training-side, 1B-30B incl. small models) is the closest evidence that multi-image competence is a _data mixture_
   property you cannot prompt in — it deliberately optimized the visual instruction-tuning mixture for "multi-image reasoning".
   — https://arxiv.org/abs/2409.20566 — paper with ablations, multimodal.
 
@@ -163,31 +163,31 @@ mechanism, and it is the thing to validate on synthbench).
 
 ## Q4. Committing a scalar before justification; grammar-constrained decoding
 
-- **The field order you shipped is a documented pathology.** *Let Me Speak Freely? A Study on the Impact of Format Restrictions
-  on Performance of Large Language Models*, https://arxiv.org/abs/2408.02442: under constrained JSON, "**100% of GPT-3.5 Turbo
+- **The field order you shipped is a documented pathology.** _Let Me Speak Freely? A Study on the Impact of Format Restrictions
+  on Performance of Large Language Models_, https://arxiv.org/abs/2408.02442: under constrained JSON, "**100% of GPT-3.5 Turbo
   JSON-mode responses placed the 'answer' key before the 'reason' key**" (models self-sabotage CoT under JSON mode); GSM8K:
   LLaMA-3-8B 75.13 (free text) -> 48.90 (JSON+schema) -> 65.38 (JSON-mode constrained decoding); Claude-3-Haiku 86.51 -> 23.44;
   GPT-3.5 75.99 -> 49.25; Last-Letter 70.1 -> 28.0 (LLaMA-3-8B); "stricter format constraints generally lead to greater
   performance degradation"; the mitigation that worked is **decouple**: free-form first, then a second pass to reformat
   ("NL-to-Format", nearly identical to unrestricted NL). No escape-token experiment; no controlled size-scaling study (they only
   had LLaMA-3-8B and Gemma-2-9B open-weight, and note GPT-4o-mini degrades far less).
-  — paper with ablations. *[LLM-text-only, but the answer-before-reason-key finding is exactly your situation and the 8B row is
-  your model class]*
-- **The tax is mostly in the prompt, not the sampler.** *The Format Tax*, https://arxiv.org/abs/2604.03616: "structured output
+  — paper with ablations. _[LLM-text-only, but the answer-before-reason-key finding is exactly your situation and the 8B row is
+  your model class]_
+- **The tax is mostly in the prompt, not the sampler.** _The Format Tax_, https://arxiv.org/abs/2604.03616: "structured output
   requirements — JSON, XML, LaTeX, Markdown — substantially degrade reasoning and writing performance across open-weight models
   ... constrained decoding ... sampling bias accounts for only a fraction of the degradation. **The dominant cost enters at the
   prompt: format-requesting instructions alone cause most of the accuracy loss, before any decoder constraint is applied**";
   decoupling reasoning from formatting recovers most of the accuracy; "most recent closed-weight models show little to no format
   tax, suggesting the problem is not inherent ... but a gap that current open-weight models have yet to close."
   Consequence for you: the grammar is not the main suspect — the instruction block is — so piling JSON-exemplar surface into the
-  prompt is on the wrong side of this finding. — paper (open-weight focused). *[LLM-text-only]*
-- **Hard-constraint decoding distorts small-model semantics.** *The Hidden Cost of Structured Generation in LLMs:
-  Draft-Conditioned Constrained Decoding*, https://arxiv.org/abs/2603.03305: masking + renormalization "can distort generation
+  prompt is on the wrong side of this finding. — paper (open-weight focused). _[LLM-text-only]_
+- **Hard-constraint decoding distorts small-model semantics.** _The Hidden Cost of Structured Generation in LLMs:
+  Draft-Conditioned Constrained Decoding_, https://arxiv.org/abs/2603.03305: masking + renormalization "can distort generation
   when the model assigns low probability mass to valid continuations, pushing decoding toward locally valid yet semantically
   incorrect trajectories"; unconstrained-draft-then-constrain improves strict structured accuracy by up to **+24 pp
-  (15.2% -> 39.0% on GSM8K with a 1B model)**. — paper + KL-projection analysis. *[LLM-text-only]*
+  (15.2% -> 39.0% on GSM8K with a 1B model)**. — paper + KL-projection analysis. _[LLM-text-only]_
 - **Order-of-generation evidence in VLMs specifically (rationale-first needs scale; answer-first is more format-robust).**
-  *Evaluating Explanation-Driven Vision-Language Reasoning via Generation Order Interventions*,
+  _Evaluating Explanation-Driven Vision-Language Reasoning via Generation Order Interventions_,
   https://arxiv.org/abs/2609.29496: controlled single-step generation (no CoT) across knowledge-intensive QA, visual entailment,
   compositional grounding; "**larger models emerge as a prerequisite for reliably supporting rationale-first reasoning at
   scale**", however "**answer-first generation is less prone to format-related errors in structured output**"; accuracy and
@@ -195,10 +195,10 @@ mechanism, and it is the thing to validate on synthbench).
   task structure". This is the most on-point source for the trade you are making: a short description-before-score field helps
   causality but costs format reliability on an 8B model. — paper with controlled interventions, multimodal.
 - **Text-side CoT-order/faithfulness background (why "reasoning after the committed number" is decoration).**
-  *Language Models Don't Always Say What They Think: Unfaithful Explanations in Chain-of-Thought Prompting*,
+  _Language Models Don't Always Say What They Think: Unfaithful Explanations in Chain-of-Thought Prompting_,
   https://arxiv.org/abs/2305.04388 — paper with designed biases; the stated rationale does not reflect the actual computation.
-  *Chains That See, Answers That Don't* (above, Q3) adds the VLM result that forced CoT does not buy accuracy at 7B.
-  *[2305.04388 is LLM-text-only]*
+  _Chains That See, Answers That Don't_ (above, Q3) adds the VLM result that forced CoT does not buy accuracy at 7B.
+  _[2305.04388 is LLM-text-only]_
 - **Community-verified workaround in your exact stack (llama.cpp), and it is a server-side fix, not a prompt fix.**
   Issue ggml-org/llama.cpp#12276 "Feature Request: grammar / json schema with reasoning format. Allow model free to think but
   strict to answer" (closed): "**The model should be free to reason, but strict with an answer format** ... If the model is free
@@ -214,14 +214,14 @@ mechanism, and it is the thing to validate on synthbench).
   — https://github.com/ggml-org/llama.cpp/issues/12276 , https://github.com/ggml-org/llama.cpp/pull/20970 ,
   https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md — GitHub issue/PR + docs (deployment-grade, no
   accuracy ablation). Caveat: Qwen3-VL **Instruct** has no thinking channel, so for your model this principle has to be
-  implemented in the *schema* (an early free-text-ish field before the score), not via reasoning tags — which is exactly what
+  implemented in the _schema_ (an early free-text-ish field before the score), not via reasoning tags — which is exactly what
   the generation-order paper says is scale-limited and format-risky.
 - **Score-readout alternative that the grammar does not fight:** instead of trusting the greedy digit at `risk_score`, read an
   **expected value over the enumerated digit tokens** from the constrained step's logprobs (G-Eval-style token-weighted scoring,
   https://arxiv.org/abs/2303.16634), or average that across 2-3 non-greedy samples if the contract tolerates it (your setup is
-  temperature 0 with no seed, i.e. a single argmax of a *renormalized, grammar-masked* distribution — the DCCD/Format-Tax
+  temperature 0 with no seed, i.e. a single argmax of a _renormalized, grammar-masked_ distribution — the DCCD/Format-Tax
   results say that argmax is a distorted estimator). llama-server exposes logprobs on the OpenAI-compatible endpoints.
-  — *inference from the G-Eval + constrained-decoding sources*; llama.cpp logprobs availability: docs, only partially verified.
+  — _inference from the G-Eval + constrained-decoding sources_; llama.cpp logprobs availability: docs, only partially verified.
 
 ---
 
@@ -234,7 +234,7 @@ Primary sources: the NVIDIA VSS blueprint repo (Apache-2.0) — https://github.c
   to verify alert authenticity" and persists verdicts labelled **confirmed / rejected / unverified** plus reasoning traces;
   severity/escalation comes from Behavior Analytics — deterministic spatial rules (tripwire crossings, ROI entry/exit,
   proximity, restricted zones, confined areas, stop duration). Read as a design verdict on your pipeline: an 8B VLM supplies
-  *verification + evidence*; the 0-100 comes from detector/track facts (loiter duration, zone, time-of-day, repeat visits).
+  _verification + evidence_; the 0-100 comes from detector/track facts (loiter duration, zone, time-of-day, repeat visits).
   — https://docs.nvidia.com/vss/latest/alert-verification-service.html , https://docs.nvidia.com/vss/latest/behavior-analytics.html — docs.
 - **Every shipped event-verification prompt puts reasoning BEFORE the answer.** `services/alert/alert_type_config.json` and the
   per-industry `deploy/docker/industry-profiles/*/vlm-as-verifier/configs/alert_type_config.json` files all use the pattern:
@@ -244,7 +244,7 @@ Primary sources: the NVIDIA VSS blueprint repo (Apache-2.0) — https://github.c
   Counter-example in the same product: RT-VLM anomaly captioning prompts ask for **"Anomaly Detected: Yes/No / Reason: [Brief
   explanation]"** (verdict first, reason after), with system prompt "Answer the user's question correctly in yes or no", and the
   docs advise "Use a prompt that expects a structured Yes/No response for anomaly detection". So NVIDIA ships both orders;
-  the *binary* verifier tolerates verdict-first, the *definitional* prompts insist on reasoning-first.
+  the _binary_ verifier tolerates verdict-first, the _definitional_ prompts insist on reasoning-first.
   — https://docs.nvidia.com/vss/latest/real-time-vlm.html — docs + shipped configs.
 - **The most directly transferable artifact in the whole corpus: the warehouse "proximity violation" verifier prompt**
   (`deploy/docker/industry-profiles/warehouse-operations/vlm-as-verifier/configs/alert_type_config.json`, ~1,900 words system +
@@ -270,12 +270,12 @@ Primary sources: the NVIDIA VSS blueprint repo (Apache-2.0) — https://github.c
   7. **Schema fields that force agreement** — `prediction_class_id`, `prediction_label`, `prediction_answer`, plus
      `video_description` whose required content is enumerated (identification, path, freeze test, forced-vs-voluntary) — with
      "These three fields must ALWAYS agree. Double-check before outputting." Note their output order is
-     class_id/label/answer then description — verdict-first like yours — so they buy causal ordering by making the *description
-     requirements* part of the instructions and the *self-audit* explicit, not by reordering fields. That is a viable pattern for
+     class_id/label/answer then description — verdict-first like yours — so they buy causal ordering by making the _description
+     requirements_ part of the instructions and the _self-audit_ explicit, not by reordering fields. That is a viable pattern for
      you if the field order is truly frozen.
-  Confidence: shipped production config (docs/artifact), **no published ablation** — it is evidence of what a vendor converged
-  on for this failure mode, not of measured effect size. Their budget is ~1,900 words; yours is ~hundreds of tokens, so port the
-  *mechanisms* (2)+(3)+(5)+(6) compressed, not the length.
+     Confidence: shipped production config (docs/artifact), **no published ablation** — it is evidence of what a vendor converged
+     on for this failure mode, not of measured effect size. Their budget is ~1,900 words; yours is ~hundreds of tokens, so port the
+     _mechanisms_ (2)+(3)+(5)+(6) compressed, not the length.
 - **Also shipped: a "conservative-verification" style prompt with 6 gating preconditions** (smart-city `Stop Anomaly` /
   `Movement Anomaly` configs) that name both classes with definitions before asking a Yes/No, and a "tailgating" prompt with
   "**Category Definitions**" for Normal Access vs Tailgating. Pattern: define the positive class AND the negative class, then ask.
@@ -286,8 +286,8 @@ Primary sources: the NVIDIA VSS blueprint repo (Apache-2.0) — https://github.c
   length-capped, so vendor guidance is "a few hundred to a few thousand characters", i.e. in the same order as your budget);
   for Cosmos Reason, timestamps are burned into frames and the default system prompt requests `<start> <end> caption` event lists
   at fps=4. — docs + `services/rtvi/rt-vlm/src/models/vllm_compatible/vllm_compatible_model.py`.
-- **Adjacent deployment literature:** *Large Language Models for Video Surveillance Applications* (https://arxiv.org/abs/2501.02850,
-  application/survey level) and the CHAD/ShanghaiTech benchmark above. No published *risk-score* prompt for security cameras was
+- **Adjacent deployment literature:** _Large Language Models for Video Surveillance Applications_ (https://arxiv.org/abs/2501.02850,
+  application/survey level) and the CHAD/ShanghaiTech benchmark above. No published _risk-score_ prompt for security cameras was
   found anywhere — VSS itself keeps the VLM binary/ternary-verdict and derives severity from analytics (first bullet).
   — survey/docs; and absence-of-evidence from title/abstract searches.
 
@@ -300,7 +300,7 @@ Primary sources: the NVIDIA VSS blueprint repo (Apache-2.0) — https://github.c
    demonstrated fix ("class-specific instructions ... F1 on ShanghaiTech from 0.09 to 0.64", https://arxiv.org/abs/2603.04727);
    NVIDIA's production near-miss prompt (freeze test / "near misses can look calm" / two-sided scenario lists,
    https://github.com/NVIDIA-AI-Blueprints/video-search-and-summarization). Concretely for ~200-300 tokens: define bands by
-   *observable behaviour + exposure* rather than by harm ("precursor behaviour at a dwelling/car: attempting entry, peering in,
+   _observable behaviour + exposure_ rather than by harm ("precursor behaviour at a dwelling/car: attempting entry, peering in,
    repeated approach without a service purpose -> mid band"), add one "routine" list (delivery at a door, resident with keys,
    worker in a lit work zone), and one line stating that absence of visible harm does not imply a low score — score the
    counterfactual exposure. Expect the named numbers to anchor the distribution (https://arxiv.org/abs/2608.25869); that is the
@@ -319,7 +319,7 @@ Primary sources: the NVIDIA VSS blueprint repo (Apache-2.0) — https://github.c
    ships exactly this by default (`RTVI_ADD_TIMESTAMP_TO_VLM_PROMPT`, "Frame 1 corresponds to timestamp ...") and Cosmos Reason is
    trained on in-frame timestamps. (b) Respect the primacy/recency finding: the middle stills are underweighted and hallucination
    grows with image count (https://arxiv.org/abs/2410.16983, https://arxiv.org/abs/2508.00726) — so prefer 2 well-chosen stills
-   over 4, and put the most diagnostic one last. (c) For ordering, add a *short* structured observation field before
+   over 4, and put the most diagnostic one last. (c) For ordering, add a _short_ structured observation field before
    `risk_score` (enum/short-string, grammar-safe) rather than a long rationale: describe-then-judge is the published VLM
    calibration win (VCAP, ECE 0.467 -> 0.424 at 7B) and NVIDIA's verifier prompts all reason-before-answer, but the
    generation-order study warns "larger models emerge as a prerequisite for reliably supporting rationale-first reasoning" and
