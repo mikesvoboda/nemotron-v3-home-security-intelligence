@@ -145,9 +145,11 @@ verdict": key frames are selected 3× and the prompt fitted 2× per batch; the a
 
 ## 6. Tests and the mutation campaign [A]
 
-- **Batteries.** 123 files named `test_<module>_batchNN[_x].py` (119,949 lines, 3,279 tests [C,
-  `scripts/audit/battery_census.py`: AST count; `@pytest.mark.parametrize` over a literal list
-  multiplies the count, non-literal args count as 1 and flag the file — 8 flagged]) were
+- **Batteries.** 131 files named `test_<module>_batchNN<suffix>.py` (121,707 lines, 3,357 tests
+  [C, `scripts/audit/battery_census.py`: AST count; `@pytest.mark.parametrize` over a literal list
+  multiplies the count, non-literal args count as 1 and flag the file — 8 flagged; the suffix set
+  includes the bare letters — `test_logs_batch13b.py` — which an earlier pass of this same script
+  silently skipped]) were
   written 09-22 → 10-07 to kill named mutants. Against other unit tests they carry 2.9× the
   private-attribute references and 8.8× the log-string assertions per 1K lines; some assert that
   production _comments_ are present verbatim (`test_gpu_monitor_batch28_22.py`). 79 cite harness
@@ -191,12 +193,18 @@ verdict": key frames are selected 3× and the prompt fitted 2× per batch; the a
   depends on it.
 - **Config.** `.env.example` 154 variables [C, 2026-10-09; `scripts/audit/env_dead_vars.py`:
   uncommented assignments, searched case-insensitively — pydantic-settings binds env case-folded —
-  in `backend/core/config.py`, `docker-compose*.yml` incl. `config/`, and `setup.py`]; 22 are read
+  in `backend/core/config.py`, `docker-compose*.yml` incl. `config/`, and `setup.py`; 155 assignment
+  lines but 154 unique names — `API_PORT` is declared twice, a duplicate the scanner dedupes and
+  O3.3 should treat as drift]; 22 are read
   by none of them (the [A] 182/34 was taken at `d6ba78d5` — variables and readers have both moved
   since, and the [A] scan did not case-fold: 41 of its 63 uncase-folded "dead" hits have a
   lowercase live twin in config.py); 7 name retired components (`GPU_FLORENCE`, `GPU_CLIP`,
   `LLM_PORT`, `GPU_ENRICHMENT`, `GPU_ENRICHMENT_LIGHT`, `CLIP_TENSORRT_PRECISION`,
-  `CLIP_CALIBRATION_DIR`).
+  `CLIP_CALIBRATION_DIR`). **The 22 are dead to the three readers the contract names, which is not
+  the same claim as deletable**: at least 6 have live readers elsewhere (`VITE_*` in `frontend/src/`,
+  `SYNTHBENCH_*` in `synthbench/`, `TMPDIR` in `scripts/fast-validation-playbook.sh`,
+  `ALERTMANAGER_SMTP_*` in `docs/operator/smtp-configuration.md`) — O3.3 re-checks each against the
+  whole tree before deleting any.
   `models.yml` has no row for the shipped Qwen3-VL GGUF; 4 rows are dead.
 - **CI.** pip-audit and npm audit each run in 4 workflows; three release mechanisms; 40
   `continue-on-error: true`. `scripts/` (231 files) is never linted; ~14 scripts are referenced by
@@ -233,9 +241,16 @@ verdict": key frames are selected 3× and the prompt fitted 2× per batch; the a
   `scripts/audit/retired_names.py`: whole-word mentions of the five §O1.7 names (florence,
   nemotron, enrichment, pose, demographic — the validator's gated five differ by xclip/
   demographics vs pose/demographic), plus 1,376 code files; "living" excludes the dated record
-  trees the retired-paths gate exempts (docs/plans, docs/superpowers, docs/vss-integration,
-  docs/uplevel, goal prompts), so this exceeds the [A] 70, which counted "non-archive" a
-  different way]. `AGENTS.md:240`
+  markdown trees the retired-paths gate exempts (docs/plans, docs/superpowers, docs/vss-integration,
+  docs/uplevel, goal prompts — but not an `AGENTS.md` inside them: the basename check runs first
+  and the validator's own walk has the same shape, so `docs/plans/AGENTS.md` counts; the [A] 70
+  counted "non-archive" a different way]. **Read the code bucket before planning against it:**
+  483 of its 1,376 match _only_ `pose` — 443 under `data/` are COCO body-pose fixtures of the LIVE
+  detector (the owner ruled `pose` out of the validator's gate on 2026-10-08 for the same
+  live/retired mixing, on #6870) — the census additionally counts its own 3 files (their docstrings
+  enumerate the names), and §O1.7's name `demographic` sees only 5 files while the shipped plural
+  spelling `demographics` appears in 57 files of the same corpus — whole-word `\bdemographic\b`
+  cannot match a \w-joined plural. `AGENTS.md:240`
   calls `data/` gitignored; it holds 1,409 tracked fixture files.
 
 ## 9. Already registered — cite, do not re-file

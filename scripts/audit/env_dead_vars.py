@@ -15,12 +15,17 @@ word-boundary in any of the three readers the package names:
      (env interpolation, ${VAR} and $VAR),
   3. setup.py at the repo root (the installer writes/reads the env file).
 
-Variable detection: the KEY= lines of .env.example — top-level keys only
-(nested YAML-like indentation is not an env assignment), comments (#) and
-blank lines ignored, `export KEY=` accepted.
+Variable detection: the KEY= lines of .env.example — leading whitespace
+accepted (measured 2026-10-09: the real .env.example has zero indented key
+lines, so tolerance is measurement-neutral and future-proof), comments (#)
+and blank lines ignored, `export KEY=` accepted. Duplicate names count once
+(vars_total is unique names; a duplicate IS drift — it is visible in the
+raw file and in the duplicate-API_PORT note in 00-audit.md §7).
 
-Output: JSON on stdout (vars_total / live / dead + dead names), summary line
-on stderr. Exit 0.
+Output: JSON on stdout (vars_total / live / dead + dead names + a caveat that
+names the live readers OUTSIDE the three contract readers — "dead to
+config.py/compose/setup.py" is not the same claim as "deletable"), summary
+line on stderr. Exit 0.
 
 Run:    uv run python scripts/audit/env_dead_vars.py [--root REPO]
 Test:   uv run python -m pytest scripts/audit/test_env_dead_vars.py -q
@@ -38,6 +43,18 @@ ENV_EXAMPLE_REL = ".env.example"
 READERS_FIXED = ("backend/core/config.py", "setup.py")
 READER_GLOBS = ("docker-compose*.yml", "config/docker-compose*.yml")
 KEY_RE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=")
+
+# Measured 2026-10-09 while answering the fresh-context review: the three
+# readers are what §O1.7 names, but the tree holds more consumers. Travels
+# with the JSON so a delete-list read downstream cannot mistake contract-
+# dead for deletable (the doctrine's false-DEAD direction, stated by name).
+DEAD_NOT_DELETABLE_NOTE = (
+    "dead to the three contract readers (config.py/compose/setup.py) is not "
+    "the same claim as deletable — known live readers elsewhere: VITE_* in "
+    "frontend/src/config/env.ts, SYNTHBENCH_* in synthbench/, TMPDIR in "
+    "scripts/fast-validation-playbook.sh, ALERTMANAGER_SMTP_* in "
+    "docs/operator/smtp-configuration.md; re-check each against the whole tree"
+)
 
 
 def env_vars(env_text: str) -> list[str]:
@@ -83,6 +100,7 @@ def scan(root: Path) -> dict:
         "vars_live": len(names) - len(dead),
         "vars_dead": len(dead),
         "dead_vars": dead,
+        "caveat": DEAD_NOT_DELETABLE_NOTE,
     }
 
 

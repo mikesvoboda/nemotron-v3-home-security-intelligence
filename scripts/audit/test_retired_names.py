@@ -90,7 +90,8 @@ def run_script(tree: Path) -> tuple[int, str, str]:
 def test_fixture_tree_buckets(tmp_path: Path):
     build_tree(tmp_path)
     result = scan(tmp_path)
-    # living docs: only docs/architecture.md (Florence2 is a substring hit)
+    # living docs: only docs/architecture.md (counts via standalone "Florence";
+    # its florence2 mention is substring-only and does NOT count — the whole-word rule)
     assert result["buckets"]["docs"] == 1
     # agents: root AGENTS.md (enrichment hit); backend/AGENTS.md has no name
     assert result["buckets"]["agents"] == 1

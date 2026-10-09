@@ -8,7 +8,11 @@ per-file: lines, collected test count, and the target module the battery is
 named after.
 
 Battery detection: file basename matches test_<module>_batch<NN>[suffix]*.py
-(the audit's own pattern; `_batch28_22.py` style sequence suffixes included).
+(the audit's own pattern; `_batch28_22.py` style sequence suffixes AND the
+bare letter suffixes — `test_logs_batch13b.py` — included; the contract's
+glob is `test_*_batchNN*.py` and a first version of this regex required a
+separator before the suffix, silently dropping the 8 letter-suffixed
+batteries, 1,758 lines, which is exactly the silent skip AGENTS.md forbids).
 The target module is the <module> segment — the module whose mutants the
 battery was written to kill (documented convention: the batteries cite
 mutmut run ids naming that module).
@@ -35,7 +39,7 @@ import re
 import sys
 from pathlib import Path
 
-BATTERY_RE = re.compile(r"^test_(?P<module>.+?)_batch\d+(?:[_+.]\w+)*\.py$")
+BATTERY_RE = re.compile(r"^test_(?P<module>.+?)_batch\d+[a-z]*(?:[_+.]\w+)*\.py$")
 SKIP_DIRNAMES = {".git", "__pycache__", "node_modules", ".venv", ".pytest_cache", ".mypy_cache"}
 
 

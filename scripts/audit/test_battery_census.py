@@ -84,6 +84,46 @@ def test_fixture_census(tmp_path: Path):
     assert result["flagged_files"] == 1
 
 
+def test_letter_suffix_without_separator_is_a_battery(tmp_path: Path):
+    """`test_logs_batch13b.py` is a battery (review finding, 2026-10-09).
+
+    The contract glob is test_*_batchNN*.py — `*` matches the bare letter.
+    The first regex required [_+.] before any suffix and silently dropped 8
+    such files (1,758 lines; 123+8=131 ~= the audit's [A] 130, evidence the
+    [A] corpus included them). This pins the widened regex; the "batched"
+    sibling pins that widening did not over-match a plain English word.
+    """
+    tests = tmp_path / "backend" / "tests" / "unit" / "api" / "routes"
+    tests.mkdir(parents=True)
+    (tests / "test_logs_batch13b.py").write_text(BATTERY, encoding="utf-8")
+    (tests / "test_logs_batched.py").write_text(BATTERY, encoding="utf-8")  # no digits: not a battery
+    rc, result, _ = run_script(tmp_path)
+    assert rc == 0
+    assert result["file_count"] == 1
+    row = result["files"][0]
+    assert row["path"].endswith("test_logs_batch13b.py")
+    assert row["module"] == "logs"  # not "logs_batch13b"
+
+
+def test_real_tree_has_no_unmatched_battery_names():
+    """Tree guard: every test_*_batchNN*.py file (the contract glob) is counted.
+
+    A fixture cannot catch a future name shape the regex misses — this walks
+    the real tree and fails loudly on any contract-glob file the script's own
+    regex skips, which is the silent-skip class this census exists to avoid.
+    """
+    from battery_census import BATTERY_RE  # noqa: PLC0415 — pin lives with the script
+
+    skip = {".git", "__pycache__", "node_modules", ".venv", ".pytest_cache", ".mypy_cache"}
+    missed = [
+        p.relative_to(REPO_ROOT).as_posix()
+        for p in REPO_ROOT.rglob("test_*_batch[0-9]*.py")
+        if not any(part in skip for part in p.relative_to(REPO_ROOT).parts[:-1])
+        and not BATTERY_RE.match(p.name)
+    ]
+    assert not missed, f"contract-glob battery files the regex silently skips: {missed}"
+
+
 def test_summary_line(tmp_path: Path):
     build_tree(tmp_path)
     rc, _, err = run_script(tmp_path)

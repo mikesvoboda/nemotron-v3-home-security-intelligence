@@ -28,7 +28,7 @@ that already polices the same residue.
 Buckets (exactly one per file, precedence first match):
   agents    — basename is AGENTS.md anywhere in the tree.
   docs      — a LIVING doc: under ``docs/``, markdown (.md), outside the dated
-              record trees the retired-paths gate also exempts (docs/plans/,
+              record trees the retired-paths gate exempts (docs/plans/,
               docs/superpowers/, docs/vss-integration/, docs/uplevel/) plus
               the dated goal prompts (docs/goal-prompt-*.txt). Records are
               history and B3.3/W1.1/W3.3 do not edit them; counting them
@@ -43,7 +43,7 @@ Output: JSON on stdout (per-bucket file counts + per-name totals + the file
 list), one summary line on stderr. Exit 0; a read failure is loud (exit 1),
 never a silent skip.
 
-Run:    uv run python scripts/audit/retired_names.py [--root REPO] [--json]
+Run:    uv run python scripts/audit/retired_names.py [--root REPO]
 Test:   uv run python -m pytest scripts/audit/test_retired_names.py -q
 """
 
@@ -158,7 +158,6 @@ def scan(root: Path) -> dict:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
-    ap.add_argument("--json", action="store_true", help="alias for the default stdout JSON")
     args = ap.parse_args(argv)
     if not args.root.is_dir():
         print(f"[ERROR] --root {args.root} is not a directory", file=sys.stderr)

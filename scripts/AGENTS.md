@@ -1268,8 +1268,11 @@ for any future ratchet is `scripts/ratchet-check.py`.
 
 Five scanners print the **[C]** baselines `docs/uplevel/00-audit.md` carries,
 one per count a later package measures against; tests and CI conventions live
-in `scripts/audit/AGENTS.md`. This file deliberately does not list the retired
-component names the first census counts - it is itself a scanned AGENTS.md.
+in `scripts/audit/AGENTS.md`, which is written to avoid the retired component
+names the first census counts. This file is not: the model-download section
+below already names one live pipeline feature with a retired name, so
+`retired_names.py` counts this file in its agents bucket - W1.1's cleanup
+includes it.
 
 ## Usage Patterns
 

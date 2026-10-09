@@ -67,6 +67,9 @@ def test_fixture_dead_vars(tmp_path: Path):
     assert result["vars_total"] == 7
     assert result["vars_live"] == 4
     assert set(result["dead_vars"]) == {"GHOST_ONLY", "EXPORTED_GHOST", "lowercase_ghost"}
+    # travels with the JSON: contract-dead != deletable (review finding —
+    # the three contract readers miss live readers elsewhere in the tree)
+    assert "deletable" in result["caveat"]
 
 
 def test_case_fold_rescues_lower_twin(tmp_path: Path):
