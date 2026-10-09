@@ -13,10 +13,10 @@
 > Every one of those revisions differs from the last only in this file, so a number printed here is
 > checkable at any of them — including the ERR count's two legs, which are the one pair measured in two
 > different trees (the `1d847a6a` leg, 216 ERR / 169 OK, re-run in a detached worktree at that commit;
-> this branch's leg, 222 / 163, at head — not remembered). Sixteen claims did not survive that
+> this branch's leg, 222 / 163, at head — not remembered). Seventeen claims did not survive that
 > re-measurement or a fresh-context review of the sheet, and the bullets say where each came from:
 > twelve were wrong in the draft as first committed, two were true at the measured commit and went
-> stale when `origin/main` merged (first bullet), and two were introduced _by the corrections_ (last
+> stale when `origin/main` merged (first bullet), and three were introduced _by the corrections_ (last
 > bullet). Every one is corrected in place
 > and the row names the draft's wording at the correction, so an owner reading one row sees what changed
 > rather than a silently tidied fact — the corrections sit inside the Facts prose, not at the row end:
@@ -39,7 +39,7 @@
 > - **a command that ran but measured nothing** (1): OD-35's transcribed `git ls-files` passed both stems
 >   inside one quoted argument, which matches no path and returns **0** — the printed 26 came from a
 >   different invocation than the one the row showed a reviewer. Fixed to two pathspecs.
-> - **first corrections that were themselves wrong** (2): (a) OD-33's — the first re-measurement
+> - **first corrections that were themselves wrong** (3): (a) OD-33's — the first re-measurement
 >   replaced "~91 citing files" with "97 distinct across 135 mentions", and re-running its own printed
 >   commands shows its columns (45/35/31) reproduce under no instrument (the nearest prints 44/36/31,
 >   ±1 twice in opposite directions inside the 111 the sum carried), and its 97 silently mixed two
@@ -48,8 +48,12 @@
 >   **136** mentions across **104** distinct citers; the re-aim cost the recommendation quotes moves
 >   97 → 104. (b) OD-35's — the same pass printed "median 315" for the family's sizes, which is no
 >   median under any convention: the probe averaged the two middle files (313, 318 → 315.5) and `int()`
->   truncated it. OD-35's row now prints the straddle. The shared lesson: a printed statistic inherits
->   its instrument's arithmetic, including its rounding.
+>   truncated it. OD-35's row now prints the straddle. (c) OD-33's nav note — the same pass printed
+>   "296 nav links on a page", a single-page string count that is neither rerunnable nor stable across
+>   pages (`md-nav__link` rides `<label>`s as well as anchors; real anchor counts run 148–316 of 600
+>   built pages). The row now prints the invariant the argument needs: none of the 600 built pages
+>   carries a nav link into the three trees. The shared lesson: a printed statistic inherits its
+>   instrument's arithmetic, including its rounding and its page.
 >
 > Everything else measured identically at the first commit and at every revision of this branch since.
 
