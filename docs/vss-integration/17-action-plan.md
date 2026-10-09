@@ -1747,8 +1747,9 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
     against a threshold of 5 (`backend/services/vlm_client.py:249`), so the breaker opens after
     about three batches; the module docstring concedes a second attempt fits only if the first
     failed fast (`backend/services/vlm_client.py:21`) [V]
-  - No overall deadline: `backend/core/config.py:1117` `ai_vlm_read_timeout` is 25 s per attempt,
-    worst case about 50 s plus connect, against S4's 30 s [V]
+  - No overall deadline: `backend/core/config.py:1130-1134` `ai_vlm_read_timeout` is a 25 s
+    per-read idle budget for an attempt (httpx resets it per chunk) - no wall ceiling on
+    two attempts exists; a stalled attempt costs 25 s + connect against S4's 30 s [V]
   - The only semaphore, `backend/services/inference_semaphore.py`, is used by
     `backend/services/detector_client.py:99` only; `vlm_client.py`, `vlm_analyzer.py` and
     `pipeline_workers.py` have none. `backend/core/config.py:1022` `analysis_worker_count` (2) and

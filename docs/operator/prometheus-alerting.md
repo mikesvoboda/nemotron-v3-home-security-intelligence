@@ -422,7 +422,7 @@ podman compose -f docker-compose.prod.yml restart alertmanager
 ```
 
 All seven files in the `rule_files:` list are bind-mounted into the Prometheus container by
-`docker-compose.prod.yml:1017-1023`, so a host edit lands inside the container on the next
+`docker-compose.prod.yml:1022-1028`, so a host edit lands inside the container on the next
 bind read — but Prometheus only re-reads rules on the `/-/reload` above, on a config
 reload, or on container recreation. A rule file that is _not_ in both that mount list and
 the `rule_files:` list is never loaded: `promtool` will pass it and Prometheus will ignore

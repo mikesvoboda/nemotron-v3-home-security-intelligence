@@ -386,9 +386,16 @@ YOLO26_READ_TIMEOUT=120.0    # Default 30.0 (max 120)
 AI_VLM_READ_TIMEOUT=45.0     # Default 25.0 (max 300)
 ```
 
-`AI_VLM_READ_TIMEOUT` bounds one verdict attempt, and the retry it makes at
-temperature 0 shares that same budget — a value at or above 30 s leaves the retry no
-room. A sleeping `ai-vlm` is woken under a separate ceiling,
+`AI_VLM_READ_TIMEOUT` is a PER-READ IDLE budget for a verdict attempt in either
+phase — waiting for the reply or waiting to finish sending the image-bearing body.
+httpx resets it on every reply chunk, so it catches a STALLED reply or request
+write on deadline (**not retried** — the re-ask would time out identically — and no
+`ai-vlm` breaker charge) while an engine that dribbles the reply within it runs on;
+no wall clock wraps an attempt. Keep it under S4's 30 s p95 (connect counted on
+top) to bound the silent-server case. The one retry at temperature 0 re-asks only
+where that can differ: fast trip faults, any other rejected status (5xx or a
+plain 4xx, not the 400 overflow), a schema-violating complete reply.
+A sleeping `ai-vlm` is woken under a separate ceiling,
 `AI_VLM_WAKE_TIMEOUT_SECONDS` (default 90.0).
 
 **2. Check service load:**

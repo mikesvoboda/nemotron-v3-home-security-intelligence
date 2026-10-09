@@ -36,13 +36,13 @@ emits a level.
 One container answers the question — llama.cpp with a vision GGUF plus its
 mmproj projector, in the default compose set:
 
-| Item           | Value                                                                                                |
-| -------------- | ---------------------------------------------------------------------------------------------------- |
-| Model          | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` (`VLM_MODEL_PATH`, `.env.example:421`)                             |
-| Projector      | `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` (`VLM_MMPROJ_PATH`)                                           |
-| Endpoint       | `AI_VLM_URL` → `http://ai-vlm:8098` in Docker (`backend/core/config.py:1042`)                        |
-| Context budget | `VLM_CTX_SIZE=32768` ÷ `VLM_PARALLEL=2` per slot (`.env.example:441`, `backend/core/config.py:1334`) |
-| Read timeout   | `AI_VLM_READ_TIMEOUT=25.0` (`.env.example:248`)                                                      |
+| Item           | Value                                                                                                    |
+| -------------- | -------------------------------------------------------------------------------------------------------- |
+| Model          | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` (`VLM_MODEL_PATH`, `.env.example:338`)                                 |
+| Projector      | `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` (`VLM_MMPROJ_PATH`)                                               |
+| Endpoint       | `AI_VLM_URL` → `http://ai-vlm:8098` in Docker (`backend/core/config.py:1055`)                            |
+| Context budget | `VLM_CTX_SIZE=32768` ÷ `VLM_PARALLEL=2` per slot (`.env.example:358-359`, `backend/core/config.py:1351`) |
+| Read timeout   | `AI_VLM_READ_TIMEOUT=25.0` (`.env.example:246`)                                                          |
 
 The server must have been started with its mmproj — `/health` answers `200`
 even for a text-only start. Check `podman logs ai-vlm | grep -i mmproj`
@@ -67,7 +67,7 @@ Collect specialist lookup lines: faces / plates / person_reid
       |
       v
 Render + fit the prompt (VlmClient._render_prompt,
-backend/services/vlm_client.py:518)
+backend/services/vlm_client.py:625)
       |
       v
 POST /v1/chat/completions on ai-vlm (json_schema constrained)
@@ -79,7 +79,7 @@ apply_verdict_invariants (backend/services/vlm_analyzer.py:255)
 Event + EventVerification + event_detections (one transaction)
       |
       v
-WebSocket broadcast — LAST, best-effort (backend/services/vlm_analyzer.py:643)
+WebSocket broadcast — LAST, best-effort (backend/services/vlm_analyzer.py:754)
 ```
 
 ---
@@ -87,7 +87,7 @@ WebSocket broadcast — LAST, best-effort (backend/services/vlm_analyzer.py:643)
 ## The Prompt
 
 Built in code by `VlmClient._render_prompt`
-(`backend/services/vlm_client.py:518`) — one template, one code path for
+(`backend/services/vlm_client.py:625`) — one template, one code path for
 production and replay. It carries:
 
 - **Camera / Time / Zones**: capture moment in the camera timezone, zone names
@@ -102,7 +102,7 @@ production and replay. It carries:
 
 If the rendered text would exceed the served slot, the client keeps the
 highest-confidence detections and appends an explicit omission marker
-(`backend/services/vlm_client.py:676`). The analyzer stores the exact sent
+(`backend/services/vlm_client.py:880-892`). The analyzer stores the exact sent
 text verbatim as `Event.llm_prompt` — what you read on the event detail page
 is the question that was actually asked, truncation marker included.
 
@@ -111,9 +111,9 @@ is the question that was actually asked, truncation marker included.
 ## The Wire Call
 
 **Endpoint:** `POST {AI_VLM_URL}/v1/chat/completions`
-(`backend/services/vlm_client.py:85`)
+(`backend/services/vlm_client.py:98`)
 
-**Request body** (`backend/services/vlm_client.py:796`):
+**Request body** (`backend/services/vlm_client.py:950-963`):
 
 ```json
 {
@@ -135,12 +135,13 @@ is the question that was actually asked, truncation marker included.
 }
 ```
 
-`max_tokens: 1024` is pinned at `backend/services/vlm_client.py:91`. On a
-transport or schema failure the client retries **once** at `temperature: 0.0`
-and nothing else (`backend/services/vlm_client.py:805`) — the retry never
-re-asks with a different budget. A separate `max_tokens: 1` wake ping
-(`backend/services/vlm_client.py:947`) rouses a sleeping server before the
-real call.
+`max_tokens: 2048` is pinned at `backend/services/vlm_client.py:141`. On a fast
+transport fault (connection refused, `ConnectTimeout`, 5xx) or a complete reply
+that violates the schema, the client retries **once** at `temperature: 0.0` and
+nothing else (`backend/services/vlm_client.py:965-972`) — the retry never
+re-asks with a different budget, and a slow reply is not retried at all. A
+separate `max_tokens: 1` wake ping (`backend/services/vlm_client.py:1154`)
+rouses a sleeping server before the real call.
 
 **Response:** the content is validated strictly against `VlmVerdict`
 (`backend/services/vlm_verdict.py:55`) — no extra keys, no defaults, every
@@ -203,16 +204,17 @@ degradable classes — `VlmClientError` (transport, schema, truncation,
 unavailable, image) and `ConstrainedDecodingNotEnforced`
 (`backend/services/vlm_analyzer.py:89`) — bumps
 `record_pipeline_error("vlm_verification_failed")`
-(`backend/services/vlm_analyzer.py:561`), and writes the
+(`backend/services/vlm_analyzer.py:657`), and writes the
 `verification_failed` row. Anything else propagates loud.
 
-| Failure                       | Behavior                                                     |
-| ----------------------------- | ------------------------------------------------------------ |
-| Transport/HTTP failure        | One retry at temp 0, then `verification_failed` (NULL score) |
-| Schema-invalid JSON           | Same ladder; truncated replies raise without burning retries |
-| Context overflow (HTTP 400)   | Raised immediately as unmeasured — the engine is fine        |
-| Circuit breaker `ai-vlm` OPEN | Refused without I/O, `VlmUnavailableError` → degraded row    |
-| Broadcast failure             | Logged; the committed Event stands                           |
+| Failure                        | Behavior                                                     |
+| ------------------------------ | ------------------------------------------------------------ |
+| Fast transport/HTTP failure    | One retry at temp 0, then `verification_failed` (NULL score) |
+| Slow reply (read/write budget) | Raised once, breaker untouched — never retried               |
+| Schema-invalid JSON            | Same ladder; truncated replies raise without burning retries |
+| Context overflow (HTTP 400)    | Raised immediately as unmeasured — the engine is fine        |
+| Circuit breaker `ai-vlm` OPEN  | Refused without I/O, `VlmUnavailableError` → degraded row    |
+| Broadcast failure              | Logged; the committed Event stands                           |
 
 ---
 
@@ -238,7 +240,7 @@ Idempotency is checked before analysis and set after the write; the unique
 
 ## WebSocket Broadcast
 
-Broadcast happens after commit, best-effort (`backend/services/vlm_analyzer.py:643`):
+Broadcast happens after commit, best-effort (`backend/services/vlm_analyzer.py:754`):
 
 ```json
 {
