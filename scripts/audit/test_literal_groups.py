@@ -134,6 +134,30 @@ def test_min_raises_the_bar(tmp_path: Path):
     assert result["groups"] == 0
 
 
+def test_installed_packages_are_not_scanned(tmp_path: Path):
+    """A census of whatever pip resolved is not a baseline anyone can re-run.
+
+    Measured on the first real run: without the .venv entry in SKIP_DIRNAMES
+    this census counted 103 of its 605 groups inside INSTALLED packages' own
+    test files (this environment has 1,831 test_*.py under .venv), so the
+    figure moved with the lockfile and one vendor file written in newer syntax
+    would have tripped the loud SyntaxError exit on every run. Same set the
+    sibling censuses already use.
+    """
+    build_tree(tmp_path)
+    vendored = tmp_path / ".venv" / "lib" / "site-packages" / "vendor" / "tests"
+    vendored.mkdir(parents=True)
+    vendored.joinpath("test_vendor.py").write_text(FIXTURE, encoding="utf-8")
+    (tmp_path / "node_modules" / "pkg").mkdir(parents=True)
+    (tmp_path / "node_modules" / "pkg" / "test_js.py").write_text(
+        FIXTURE, encoding="utf-8"
+    )
+    result = run_script(tmp_path)
+    assert result["groups"] == 3  # the fixture tree's trio count, unchanged
+    assert result["files"] == 1
+    assert not any(".venv" in g["file"] or "node_modules" in g["file"] for g in result["groups_detail"])
+
+
 def test_parse_failure_is_loud(tmp_path: Path):
     (tmp_path / "test_broken.py").write_text("def broken(:\n", encoding="utf-8")
     proc = subprocess.run(

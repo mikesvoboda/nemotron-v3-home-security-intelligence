@@ -156,11 +156,13 @@ verdict": key frames are selected 3× and the prompt fitted 2× per batch; the a
 - **Fragmentation.** `pipeline_workers` has 21 test files (25,852 lines) for 2,271 production
   lines; `detector_client` 17; `gpu_monitor` 23. Route tests live in two trees (`unit/routes/` and
   `unit/api/routes/`).
-- **Parametrize candidates.** 605 groups of 3+ tests differing only in literals: 2,665 functions in
-  320 files [C, 2026-10-09; `scripts/audit/literal_groups.py` reuses `parametrize-guard`'s masked-
+- **Parametrize candidates.** 502 groups of 3+ tests differing only in literals: 1,999 functions in
+  253 files [C, 2026-10-09; `scripts/audit/literal_groups.py` reuses `parametrize-guard`'s masked-
   body grouping (literals → `__LIT__`) plus its raises bucket, over every `test_*.py` function,
-  class methods and module-level, whole tree]. The [A] 488/2,010/247 was the same guard's earlier
-  view; `scripts/parametrize-guard.py` already proves merges safe.
+  class methods and module-level, repo tree only — installed packages under `.venv` are skipped,
+  and counting them inflated an earlier pass of this same script to 605]. The [A] 488/2,010/247 is
+  close; the residual is drift since `d6ba78d5` plus this census's module-level functions.
+  `scripts/parametrize-guard.py` already proves merges safe.
 - **Fixture shadowing.** ~215 local redefinitions of conftest fixtures (`mock_redis` ×58).
 - **Dead tests.** 3 permanently skipped `stream_config` files test modules that do not exist; 12
   "moved" skips in `test_system_models.py`; `tests/benchmark` is never run by CI.

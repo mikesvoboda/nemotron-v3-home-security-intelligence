@@ -40,6 +40,15 @@ AUDIT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = AUDIT_DIR.parents[1]
 GUARD_PATH = REPO_ROOT / "scripts" / "parametrize-guard.py"
 
+# Same set as the sibling censuses (battery_census/settings_orphans/retired_names).
+# Measured the first run WITHOUT the .venv entry: 103 of 605 groups lived in
+# installed packages' own test files (1,831 test_*.py under .venv here) — a
+# census that counts whatever pip resolved is not reproducible across machines
+# or CI runs, and one vendor file using newer syntax would trip the loud
+# SyntaxError exit below on every run. The audit's 488 was a repo-tree figure;
+# the venv inflation accounted for most of the gap.
+SKIP_DIRNAMES = {".git", "__pycache__", "node_modules", ".venv", ".pytest_cache", ".mypy_cache"}
+
 
 def _load_guard():
     spec = importlib.util.spec_from_file_location("parametrize_guard", GUARD_PATH)
@@ -89,7 +98,7 @@ def census(root: Path, min_size: int) -> dict:
     rows = []
     try:
         for path in sorted(root.rglob("test_*.py")):
-            if "__pycache__" in path.parts or "node_modules" in path.parts:
+            if any(part in SKIP_DIRNAMES for part in path.relative_to(root).parts[:-1]):
                 continue
             rows.extend(groups_in_file(path, guard, min_size))
     except SyntaxError as e:  # loud per the guard's own hard rule
