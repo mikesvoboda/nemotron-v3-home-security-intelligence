@@ -51,15 +51,39 @@ backend/core/
 ├── tls.py                        # TLS/SSL certificate management
 ├── url_validation.py             # SSRF-safe URL validation for webhooks
 ├── websocket_circuit_breaker.py  # Circuit breaker for WebSocket connections
-├── websocket/                    # WebSocket event types and subscription management
-│   ├── __init__.py               # Package exports
-│   ├── event_schemas.py          # WebSocket event payload schemas
-│   ├── event_types.py            # WebSocket event type enums
-│   └── subscription_manager.py   # Channel subscription management
-├── middleware/                   # Reserved for core middleware (currently empty)
+├── websocket/                    # Event registry, payload schemas, subscription + delivery
+│   │                             #   infrastructure — 9 modules; see the section below
 ├── README.md                     # General documentation
 └── README_REDIS.md               # Detailed Redis documentation
 ```
+
+**There is no `middleware` package here (W3.1 batch 7).** The pruned guide documented a
+directory whose ONLY contents were the guide itself — deleting it deleted the "empty reserved"
+directory, because Git never tracked an empty one. The durable routing fact: HTTP
+request/response middleware lives in `backend/api/middleware/` (23 modules, live, its own
+guide); do not file an HTTP middleware anywhere else, and do not resurrect a core
+`middleware` package on the strength of the deleted guide.
+
+## The `websocket/` package — contracts (W3.1 batch 7 pruned its guide)
+
+Nine live modules, three more than the deleted guide enumerated: `event_types.py` (the
+`WebSocketEventType` StrEnum), `event_schemas.py` (per-type Pydantic payload schemas,
+`get_payload_schema` / `validate_payload`), `subscription_manager.py`, plus the delivery layer
+`compression.py`, `connection_health.py`, `message_batcher.py`, `message_buffer.py` (replay),
+`msgpack_serialization.py`, `sequence_tracker.py`.
+
+- **Envelope:** every event is a `WebSocketEvent` TypedDict — `type`, `payload`, ISO-8601
+  `timestamp`, optional `correlation_id` / `sequence` / `channel`; build it with
+  `create_event(...)` so the timestamp is uniform.
+- **Event naming is `{domain}.{action}`** across 11 domains (alert, camera, job, system,
+  service, gpu, worker, event, detection, scene_change, connection); `PING` / `PONG` / `ERROR`
+  are control messages, and the job domain ALSO keeps legacy underscore-format members
+  (NEM-2505) — emit the dotted form, match both.
+- **Subscription semantics:** a registered connection receives ALL events until it sends an
+  explicit `subscribe` (deliberate back-compat); patterns are wildcards (`alert.*`, `*`), and
+  an explicit `subscribe` with an EMPTY pattern list means NO events. The manager is
+  `threading.RLock`-guarded; the module singleton is `get_subscription_manager()` with
+  `reset_subscription_manager_state()` for tests.
 
 ## `__init__.py` - Public Exports
 
@@ -1293,7 +1317,9 @@ await client.connect()
 
 **Standard operations:**
 
-- `get_from_queue(queue_name, timeout=0)` - BLPOP (blocking pop)
+- `get_from_queue(queue_name, timeout=0)` - BLPOP (blocking pop). Any timeout is raised to a
+  5-second floor (`_MIN_BLPOP_TIMEOUT`): even `timeout=0` never blocks indefinitely, so waiting
+  workers keep polling their shutdown flags.
 - `get_queue_length(queue_name)` - LLEN
 - `peek_queue(queue_name, start=0, end=100, max_items=1000)` - LRANGE
 - `clear_queue(queue_name)` - DELETE
@@ -1314,7 +1340,9 @@ await client.connect()
 
 ### Health Check
 
-**`health_check()`** - Returns status dict with connected state and Redis version.
+**`health_check()`** - Returns status dict with connected state and Redis version. It NEVER
+raises: a failed check returns `{"status": "unhealthy", "connected": False, "error": ...}` —
+branch on the dict, never on an exception.
 
 ### Global Singleton Pattern
 

@@ -88,6 +88,30 @@ Request validation helpers:
 - Common validation patterns
 - Request data sanitization
 
+### `utils/` — sparse fieldsets (W3.1 batch 7 pruned the per-directory guide)
+
+`backend/api/utils/field_filter.py` serves the `?fields=` query parameter. The contracts that
+are not visible from a read of the file:
+
+- `parse_fields_param` tolerates a FastAPI `Query` **object**, not just a string — it unwraps
+  `.default` when present, because tests call route handlers directly and hand it the raw Query
+  sentinel. Deleting that branch makes direct-call tests fail with a type error, not a clean 400.
+- A bad field raises `FieldFilterError` whose message carries BOTH lists (requested-invalid and
+  valid); routes must catch it and pass `str(e)` into the 400, not swallow it.
+- The allow-list is a per-endpoint **route-owned** module-level frozenset — the util knows no
+  fields at all. The shipped three: `VALID_EVENT_LIST_FIELDS`
+  (`backend/api/routes/events.py`), `VALID_DETECTION_LIST_FIELDS`
+  (`backend/api/routes/detections.py`), `VALID_CAMERA_LIST_FIELDS`
+  (`backend/api/routes/cameras.py`). A new list endpoint that forgets its own set gets NO
+  filtering, silently. (The util's own docstring example names the constant
+  `VALID_EVENT_FIELDS` — that name exists nowhere in production code; do not copy it.)
+- The filter is SHALLOW: nested dicts/lists pass through as-is, so requesting a parent returns
+  the whole subtree. There is no dot-path projection.
+- Passing `None` means "no filtering" and deliberately returns a COPY (`dict(data)`), so a
+  caller mutating the result cannot corrupt the source; `validate_fields` is likewise
+  pass-through on `None` (None in, None out) so the "asked for nothing" and "asked for a subset"
+  route paths never diverge.
+
 ### `exception_handlers.py`
 
 Global exception handlers for standardized error responses across the API. Converts all

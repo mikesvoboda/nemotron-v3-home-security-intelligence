@@ -145,25 +145,26 @@ defined inside `model_zoo.py` itself.
 
 ### Container Orchestrator Services
 
-| Service                     | Purpose                                             | Exported via `__init__.py` |
-| --------------------------- | --------------------------------------------------- | -------------------------- |
-| `container_discovery.py`    | Discover Docker containers by name pattern          | No (import directly)       |
-| `lifecycle_manager.py`      | Self-healing restart logic with exponential backoff | No (import directly)       |
-| `container_orchestrator.py` | Coordinate discovery, health, lifecycle, broadcast  | No (import directly)       |
+| Service                     | Purpose                                                            | Exported via `__init__.py` |
+| --------------------------- | ------------------------------------------------------------------ | -------------------------- |
+| `orchestrator/`             | CANONICAL ManagedService/ServiceConfig/ServiceRegistry + singleton | No (import the package)    |
+| `container_discovery.py`    | Discover Docker containers by name pattern                         | No (import directly)       |
+| `lifecycle_manager.py`      | Self-healing restart logic with exponential backoff                | No (import directly)       |
+| `container_orchestrator.py` | Coordinate discovery, health, lifecycle, broadcast                 | No (import directly)       |
 
 ### Infrastructure Services
 
-| Service                  | Purpose                                            | Exported via `__init__.py` |
-| ------------------------ | -------------------------------------------------- | -------------------------- |
-| `retry_handler.py`       | Exponential backoff and DLQ support                | Yes                        |
-| `service_managers.py`    | Strategy pattern for service management            | No (import directly)       |
-| `circuit_breaker.py`     | Circuit breaker for service resilience             | Yes                        |
-| `degradation_manager.py` | Graceful degradation management                    | Yes                        |
-| `cache_service.py`       | Redis caching utilities                            | Yes                        |
-| `service_registry.py`    | Service registry with Redis persistence            | No (import directly)       |
-| `inference_semaphore.py` | Shared semaphore for AI inference                  | No (import directly)       |
-| `managed_service.py`     | Canonical ManagedService and ServiceRegistry types | Yes                        |
-| `ai_fallback.py`         | AI service fallback strategies for degradation     | No (import directly)       |
+| Service                  | Purpose                                         | Exported via `__init__.py` |
+| ------------------------ | ----------------------------------------------- | -------------------------- |
+| `retry_handler.py`       | Exponential backoff and DLQ support             | Yes                        |
+| `service_managers.py`    | Strategy pattern for service management         | No (import directly)       |
+| `circuit_breaker.py`     | Circuit breaker for service resilience          | Yes                        |
+| `degradation_manager.py` | Graceful degradation management                 | Yes                        |
+| `cache_service.py`       | Redis caching utilities                         | Yes                        |
+| `service_registry.py`    | Service registry with Redis persistence         | No (import directly)       |
+| `inference_semaphore.py` | Shared semaphore for AI inference               | No (import directly)       |
+| `managed_service.py`     | LEGACY near-duplicate of the orchestrator types | Yes                        |
+| `ai_fallback.py`         | AI service fallback strategies for degradation  | No (import directly)       |
 
 ### Alerting Services
 
@@ -2215,70 +2216,56 @@ if service.should_skip_detection():
 await service.stop()
 ```
 
-### managed_service.py
+### Container orchestration types — import from `backend/services/orchestrator/`, never from `managed_service.py` (W3.1 batch 7)
 
-**Purpose:** Canonical ManagedService and ServiceRegistry definitions for the Container Orchestrator system.
+`ManagedService`, `ServiceConfig` and `ServiceRegistry` are defined ONCE, in the
+`backend/services/orchestrator/` package (`models.py` / `registry.py`); all five
+orchestration modules import them from there (`container_discovery.py`,
+`lifecycle_manager.py`, `health_monitor_orchestrator.py`, `container_orchestrator.py`,
+`service_registry.py`). A second copy anywhere is drift to delete, not a convenience.
 
-**Key Features:**
-
-- Single authoritative definitions used throughout container orchestration
-- Redis persistence for state recovery across backend restarts
-- Thread-safe concurrent access via RLock
-- Factory methods for creating services from configs
-- Serialization/deserialization for JSON and Redis storage
-
-**Key Classes:**
-
-- `ServiceConfig` - Configuration for service patterns used in discovery
-- `ManagedService` - Container service managed by the orchestrator
-- `ServiceRegistry` - Registry with optional Redis persistence
-
-**ManagedService Fields:**
-
-- Identity: name, display_name, container_id, image, port
-- Health: health_endpoint, health_cmd
-- Classification: category (infrastructure, ai, monitoring)
-- Runtime: status, enabled
-- Tracking: failure_count, last_failure_at, restart_count, last_restart_at
-- Limits: max_failures, restart_backoff_base, restart_backoff_max, startup_grace_period
-
-**Public API:**
+**The trap:** `backend/services/managed_service.py` re-declares all three classes and its
+docstring claims they are "the single, authoritative definitions." They are not — that module
+is a legacy near-duplicate kept alive only by the `backend/services/__init__.py` re-export and
+its own test files; every real consumer imports the package. It predates the warmth feature, so
+its classes LACK the canonical `warmth_state` field and its registry lacks
+`update_warmth_state` / `get_ai_warmth_states`, and its failure bookkeeping inlines
+`failure_count += 1` where the canonical registry calls `service.record_failure()`. Importing
+from it type-checks and then fails on any warmth path. New code:
 
 ```python
-from backend.services.managed_service import (
+from backend.services.orchestrator import (
     ManagedService,
     ServiceConfig,
     ServiceRegistry,
     get_service_registry,
     reset_service_registry,
 )
-from backend.api.schemas.services import ServiceCategory, ContainerServiceStatus
-
-# Create a managed service
-service = ManagedService(
-    name="ai-gateway",
-    display_name="AI Gateway (Triton)",
-    container_id="abc123",
-    image="ghcr.io/.../ai-gateway:latest",
-    port=8090,
-    health_endpoint="/health",
-    category=ServiceCategory.AI,
-    status=ContainerServiceStatus.RUNNING,
-)
-
-# Get global registry
-registry = await get_service_registry()
-
-# Register and manage services
-registry.register(service)
-registry.update_status("ai-yolo26", ContainerServiceStatus.UNHEALTHY)
-registry.increment_failure("ai-yolo26")
-registry.record_restart("ai-yolo26")
-
-# Persist to Redis
-await registry.persist_state("ai-yolo26")
-await registry.load_state("ai-yolo26")
 ```
+
+Related contracts:
+
+- The enums are DEFINED in `backend/api/schemas/services.py` and only re-exported by the
+  orchestrator package — the dependency direction is schemas → orchestrator; moving the enum
+  definitions into the package would strand the API schema layer.
+- `get_service_registry()` is async only because first construction awaits Redis init; the
+  singleton is process-global, so the sync `reset_service_registry()` must run between tests or
+  Redis-backed state leaks between them.
+- Redis is OPTIONAL: a registry constructed with no client makes `persist_state` / `load_state`
+  / `clear_state` silent debug-logged no-ops. A no-Redis deployment therefore loses self-healing
+  state across restarts WITHOUT any error — running-but-amnesiac, not crashing.
+- `persist_state` writes ONLY `enabled`, `failure_count`, `last_failure_at`,
+  `last_restart_at`, `restart_count`, `status`. The configuration half (port, `health_cmd`,
+  `max_failures`, the backoff limits, `startup_grace_period`) is never persisted and is
+  re-derived from the compose-built `ServiceConfig` on every boot — so a hand-edited limit
+  survives a restart and a hand-edited failure count does not.
+- `ManagedService` stores `datetime` objects in `last_failure_at` / `last_restart_at`;
+  `last_failure_timestamp` is the Unix-time compatibility shim, not the storage form.
+- Name collision, not drift: `service_managers.py` `ServiceConfig` (name / `health_url` /
+  `restart_cmd` — shell and external services) and `service_provider_matcher.py`
+  `ServiceCategory` (DELIVERY / UTILITY / TELECOM) are DIFFERENT live types. Both colliding
+  names are `str` enums, so importing the wrong one type-checks and silently never matches —
+  never merge them or "share" a definition.
 
 ### model_loader_base.py
 
@@ -3040,7 +3027,7 @@ from backend.services.pipeline_quality_audit_service import (
 from backend.services.container_orchestrator import ContainerOrchestrator
 from backend.services.container_discovery import ContainerDiscoveryService
 from backend.services.lifecycle_manager import LifecycleManager
-from backend.services.managed_service import get_service_registry
+from backend.services.orchestrator import get_service_registry
 
 # For service management (import directly)
 from backend.services.service_managers import (

@@ -63,8 +63,7 @@ backend/
 │   └── utils/              # API utility modules
 ├── config/                 # Prompt A/B rollout, experiments, shadow deployment
 ├── core/                   # Infrastructure (54 modules)
-│   ├── websocket/          # WebSocket event infrastructure
-│   └── middleware/         # Core middleware components
+│   └── websocket/          # WebSocket event infrastructure (9 modules)
 ├── evaluation/             # VLM verdict-path evaluation (eval store, importers, S2/S3/S5 metrics, replay)
 ├── models/                 # SQLAlchemy ORM models (54 model modules)
 ├── repositories/           # Data access layer (base + 7 repositories)
@@ -1031,26 +1030,19 @@ The backend provides three health endpoints for different use cases:
 
 ### Backend Subdirectories
 
-| Path                                | Purpose                                                    |
-| ----------------------------------- | ---------------------------------------------------------- |
-| `/backend/ai_contract/AGENTS.md`    | AI-tier operation registry (generated)                     |
-| `/backend/api/AGENTS.md`            | API layer overview                                         |
-| `/backend/api/routes/AGENTS.md`     | API endpoints (60 routes)                                  |
-| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (86 modules)                              |
-| `/backend/api/middleware/AGENTS.md` | Middleware components (23 modules)                         |
-| `/backend/api/utils/AGENTS.md`      | API utility modules                                        |
-| `/backend/core/AGENTS.md`           | Core infrastructure (54 modules)                           |
-| `/backend/config/AGENTS.md`         | Prompt A/B rollout and experiments                         |
-| `/backend/core/websocket/AGENTS.md` | WebSocket event infrastructure                             |
-| `/backend/evaluation/AGENTS.md`     | VLM verdict-path evaluation and replay                     |
-| `/backend/jobs/AGENTS.md`           | Background job modules                                     |
-| `/backend/models/AGENTS.md`         | Database models (54 models)                                |
-| `/backend/repositories/AGENTS.md`   | Repository pattern (base + 7 repos)                        |
-| `/backend/services/AGENTS.md`       | Service layer (177 modules)                                |
-| this file, "The test tree" appendix | Test infrastructure (W3.1 pruned the per-directory guides) |
-| `/backend/examples/AGENTS.md`       | Example scripts (Redis usage)                              |
-| `/backend/scripts/AGENTS.md`        | Utility scripts (VRAM benchmarking)                        |
-| `/backend/data/`                    | Runtime data directory (no AGENTS.md - data dir)           |
+| Path                                | Purpose                                                                      |
+| ----------------------------------- | ---------------------------------------------------------------------------- |
+| `/backend/ai_contract/AGENTS.md`    | AI-tier operation registry (generated)                                       |
+| `/backend/api/AGENTS.md`            | API layer overview                                                           |
+| `/backend/api/routes/AGENTS.md`     | API endpoints (60 routes)                                                    |
+| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (86 modules)                                                |
+| `/backend/api/middleware/AGENTS.md` | Middleware components (23 modules)                                           |
+| `/backend/core/AGENTS.md`           | Core infrastructure (54 modules)                                             |
+| `/backend/models/AGENTS.md`         | Database models (54 models)                                                  |
+| `/backend/services/AGENTS.md`       | Service layer (177 modules)                                                  |
+| this file, "The test tree" appendix | Test infrastructure (W3.1 pruned the per-directory guides)                   |
+| this file, "Batch 7" appendix below | Repositories · jobs · config · examples · scripts (W3.1 pruned their guides) |
+| `/backend/data/`                    | Runtime data directory (no AGENTS.md - data dir)                             |
 
 ### Project-Level Documentation
 
@@ -1226,3 +1218,103 @@ and it said nothing — the shared machinery is stated here directly instead.
   `docker-compose.prod.yml` render on any box (exactly two hard-required `${VAR:?}` vars) so
   the O1.3 evidence test `backend/tests/unit/core/test_compose_render_lists_ai_vlm.py` is
   reproducible — it is test evidence, never a deployment env.
+
+## The backend satellites (W3.1 appendix, batch 7)
+
+The remaining per-directory guides under `backend/` are deleted (11 files). This section carries
+the non-discoverable rules for the six whose nearest boundary is this file; the other five live
+where their code does — `services/orchestrator/` → "Container orchestration types" in
+`backend/services/AGENTS.md`, `api/utils/` → the sparse-fieldsets section in
+`backend/api/AGENTS.md`, `core/websocket/` → its section in `backend/core/AGENTS.md` (the
+`core/middleware` guide documented a directory containing only the guide — nothing to route),
+`ai_contract/fake/` → the FakeProvider section in `backend/ai_contract/AGENTS.md`. Every line
+below was re-verified against the code at this commit.
+
+### `backend/repositories/` — the data-access layer
+
+- Nine files: `__init__.py`, `base.py`, seven repository modules — the old "base + 7 repos" was
+  accurate; the wrinkle is `alert_repository.py`, which defines BOTH `AlertRepository` and
+  `AlertRuleRepository` (eight repository classes).
+- `Repository[T: Base]` needs the `model_class` class attribute. Fourteen base methods — the
+  old guide's table missed `list_paginated`, `create_many`, `delete_by_id`, `merge`, `save`.
+- `save()` is a PostgreSQL `INSERT ... ON CONFLICT DO UPDATE` upsert inside a savepoint, and
+  `merge()` re-attaches DETACHED entities, also savepoint-wrapped (NEM-2566). The race-safe
+  upsert is `save()` — never an exists-check plus create.
+- Repositories flush, never commit: `get_session()` in `backend/core/database.py` commits on a
+  clean block exit and rolls back on exception, so two repositories sharing one
+  `async with get_session()` ARE one transaction.
+- `EntityRepository.find_by_embedding` is application-layer cosine similarity over JSONB-stored
+  vectors — there is no pgvector; the deleted guide's suggestion to add it is aspirational. Its
+  F11 provenance guard (`_provenance_matches`) SKIPS rather than scores: a stored embedding is
+  comparable only when its `model` names the probe's weights, and a row that never named its
+  producer — or a probe with no `model_id` — compares against nothing. The retired behavior
+  ran foreign rows through `_cosine_similarity`'s silent dimension pass and reported "no
+  match" for what was really "no comparison possible".
+- Tests use the root `conftest.py`'s `isolated_db` fixture; see the test-tree appendix above.
+
+### `backend/jobs/` — three singleton jobs
+
+- Every module pairs a `get_*()` with a `reset_*()` singleton; the reset exists for tests.
+- `OrphanCleanupJob` is safe by DEFAULT: `dry_run=True`, 24 h minimum age, a 10 GB per-run
+  deletion cap, known image/video patterns only. The settings trio: `orphan_cleanup_enabled`,
+  `orphan_cleanup_scan_interval_hours`, `orphan_cleanup_age_threshold_hours`.
+- `SummaryJob` runs EVERY 60 MINUTES — `backend/main.py:1082` constructs the scheduler with
+  `interval_minutes=60` (the deleted guide's "every 5 minutes" matches no code), with a
+  180-second per-run timeout (`DEFAULT_TIMEOUT_SECONDS` = 180, not the guide's 60). It
+  invalidates `summaries:latest`, `summaries:hourly`, `summaries:daily`.
+- `TimeoutCheckerJob` polls every 30 s: marks timed-out jobs failed, reschedules with the
+  remaining retries, and rides FastAPI startup/shutdown via `get_timeout_checker_job(redis)`.
+
+### `backend/config/` — the prompt-A/B stack is UNWIRED
+
+- Measured at this commit: nothing outside `backend/config/` imports it — no route, no service,
+  no `backend/main.py`. The rollout/shadow/experiment classes are complete, tested, and
+  DORMANT. Do not assume a prompt experiment is running because this package exists.
+- Camera→group assignment uses the builtin `hash()` (`backend/config/prompt_experiment.py:125`),
+  which Python randomizes per process via PYTHONHASHSEED — and the repo pins PYTHONHASHSEED
+  nowhere. The code comment claiming the assignment is "deterministic" is FALSE across
+  restarts: group membership is stable within one process only.
+- `get_rollout_manager()` is NOT a lazy singleton — it returns `None` until
+  `configure_rollout_manager()` has run. The deleted guide's usage snippet AttributeErrors.
+- Auto-rollback defaults: latency +50 %, FP rate +5 %, error rate +5 %, at 100 samples minimum
+  (`backend/config/prompt_experiment.py:90`, `backend/config/ab_rollout_production.py:73-83`);
+  the production profile is a 50/50 split for 48 hours (`backend/config/ab_rollout_production.py:62-66`).
+  `PromptExperiment.traffic_split` defaults to 0.1.
+
+### `backend/examples/` — one runnable file
+
+- `redis_example.py` is the entire directory (plus an empty `__init__.py`). It is a live smoke
+  demo against a real Redis (`python -m backend.examples.redis_example`), not doc snippets. The
+  client contracts it exercises — `health_check()` never raising, the BLPOP 5-second floor —
+  are pinned in `backend/core/AGENTS.md`.
+
+### `backend/scripts/` — three assets, one of them runtime code
+
+- `sliding_window_rate_limit.lua` is the app's only Lua asset and it is LOAD-BEARING RUNTIME
+  CODE: `backend/api/middleware/rate_limit.py` reads it at import time via `_LUA_SCRIPT_PATH`.
+  Never prune it with the "examples-ish" sweep.
+- `init_schema.py` creates tables straight from the SQLAlchemy models, BYPASSING Alembic; the
+  NEM-4482 guard refuses to run against production without `--force`.
+- `benchmark_vram.py` measures SERIAL deltas from one baseline — load one model, then unload it
+  (`del`, `gc.collect()`, `torch.cuda.empty_cache()`). Its report's "Total VRAM (all models)"
+  is a sum of independent measurements, NOT a simultaneous footprint. The deleted guide's
+  sample-output model names were synthetic and name no registry entry.
+
+### `backend/evaluation/` — the VLM verdict-path evaluation
+
+- The band table's DEFINITION OF RECORD is the frontend's `RISK_THRESHOLDS`
+  (`frontend/src/utils/risk.ts:80`): low 0-29, medium 30-59, high 60-84, critical 85-100.
+  `levels.py`'s own docstring: the moment it re-spells the table it has created a second
+  definition — three places, one truth, with `test_levels.py` AST-pinning `levels.py` to the
+  TS source.
+- Out-of-range scores are NOT clamped, on purpose: an out-of-range score is a bug and must stay
+  visible.
+- The Wilson interval hand-codes z = 1.959963984540054 and deliberately does not import scipy
+  (`backend/evaluation/s_metrics.py`); intervals are checked against HAND-COMPUTED values.
+- Corpus items share scenarios, so per-item Wilson assumes an independence they do not have:
+  use the scenario-cluster bootstrap (`DEFAULT_RESAMPLES` = 10 000, fixed `DEFAULT_SEED` =
+  20261006); the paired comparison is `cluster_bootstrap_diff`, never `mcnemar_exact` alone;
+  an empty population is never 0 % — it is the full-width `[0.0, 100.0]` band; and
+  `noise_floor` refuses to quote a noise figure from a single run.
+- A gen-2 eval-store build INSIDE the repo checkout is refused outright
+  (`backend/evaluation/eval_store.py:742-748`) — the store is off-repo by ruling D10/F6.

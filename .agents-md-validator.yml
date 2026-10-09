@@ -118,7 +118,12 @@ exclude_reference_patterns:
 # re-measured by the validator at this commit (33 enrichment mentions counting
 # case variants; the appendix in backend/AGENTS.md states everything DB- and
 # module-neutral, verified zero net new mentions by the pre-deletion run);
-# xclip/demographics unmoved throughout). `pose` is OUT of the ratchet
+# at batch 7 the eleven remaining backend non-test satellites carried three
+# nemotron mentions (one in the jobs guide's summary-generation prose, two in
+# the examples guide's pipeline prose) — nemotron 115 -> 112; the batch-7
+# appendix names the retired family zero times (pre-deletion run: counts
+# unchanged at the shipped baselines; florence/enrichment/xclip/demographics
+# unmoved throughout). `pose` is OUT of the ratchet
 # per the owner's ruling on #6870 (2026-10-08): the count is dominated by the
 # LIVE Triton model actually named `pose`, so it mixes live and retired usage
 # (it measured 37 whole-word while watched). It comes back if R2 retires the
@@ -143,12 +148,13 @@ retired_name_baseline:
   # monitoring dashboards guide — 93 -> 84 -> 82 -> 50, hand-fell each PR;
   # batch 5's six guides named no florence at all; batch 6's backend/tests guides
   # carried eight (the unit/services and unit/models prose) — 50 -> 42, hand-fell)
-  nemotron: 115 # the retired model family (the repo's own name string; W3.1
+  nemotron: 112 # the retired model family (the repo's own name string; W3.1
   # batch 3 removed one mention and batch 4 one more; batch 5's data guide
   # carried two (141 -> 139, the schema prose the appendix now states DB-neutral);
   # batch 6's test-tree guides carried 24 (the gpu/e2e/fixtures prose — including
-  # one guide printing a URL port the code contradicts) — 139 -> 115, hand-fall
-  # every PR)
+  # one guide printing a URL port the code contradicts) — 139 -> 115; batch 7's
+  # eleven backend satellites carried three (jobs + examples prose the appendix
+  # now states model-neutral) — 115 -> 112, hand-fall every PR)
   enrichment: 101 # retired ai/enrichment component (W1.3 drained six dead-citing
   # mentions; W3.1 batch 2 removed eight (153 -> 145) and batch 4 eleven
   # more with the monitoring dashboards guide — 145 -> 134; batch 6's unit-tier
