@@ -169,22 +169,22 @@ If a critical smoke test fails:
 1. **Backend unreachable**: Check backend service is running and healthy
 
    ```bash
-   docker compose -f docker-compose.staging.yml ps
-   docker compose -f docker-compose.staging.yml logs backend
+   docker compose -f docker-compose.prod.yml ps
+   docker compose -f docker-compose.prod.yml logs backend
    ```
 
 2. **Health endpoint returns unhealthy**: Check dependencies
 
    ```bash
    # Check database
-   docker compose -f docker-compose.staging.yml exec backend python -c \
+   docker compose -f docker-compose.prod.yml exec backend python -c \
      "import httpx; print(httpx.get('http://localhost:8000/api/system/health').json())"
    ```
 
 3. **API endpoint errors**: Check application logs
 
    ```bash
-   docker compose -f docker-compose.staging.yml logs backend --tail=100
+   docker compose -f docker-compose.prod.yml logs backend --tail=100
    ```
 
 4. **WebSocket tests fail**: WebSocket failures are non-critical - fallback polling works
@@ -194,7 +194,8 @@ If a critical smoke test fails:
 
 5. **Monitoring tests fail**: Monitoring is optional
    - These tests are skipped if monitoring is not enabled
-   - Check `docker compose ps` to see which services are running
+   - Check `docker compose -f docker-compose.prod.yml ps` to see which services
+     are running
 
 ## Integration with CI/CD
 
@@ -293,7 +294,7 @@ If tests can't connect to backend:
 
 ```bash
 # Verify services are running
-docker compose -f docker-compose.staging.yml ps
+docker compose -f docker-compose.prod.yml ps
 
 # Check backend is listening
 netstat -tlnp | grep 8000
@@ -301,7 +302,7 @@ netstat -tlnp | grep 8000
 ss -tlnp | grep 8000
 
 # Start services if needed
-docker compose -f docker-compose.staging.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### Invalid response format
@@ -313,7 +314,7 @@ If tests fail with "not valid JSON":
 curl -v http://localhost:8000/api/system/health
 
 # Check application logs
-docker compose -f docker-compose.staging.yml logs backend --tail=50
+docker compose -f docker-compose.prod.yml logs backend --tail=50
 ```
 
 ## Performance
@@ -339,6 +340,10 @@ pytest tests/smoke/ -n auto
 
 ## References
 
-- [Deployment Verification Checklist](../../docs/DEPLOYMENT_VERIFICATION_CHECKLIST.md)
-- [Health Check Strategy](../../docs/HEALTH_CHECK_STRATEGY.md)
-- [Staging Environment](../../docker-compose.staging.yml)
+- [Deployment Guide](../../docs/operator/deployment/README.md) — verification
+  steps and the compose-file table (the old standalone checklist and
+  `docker-compose.staging.yml` were retired: 29d900b46 moved the checklist here
+  per docs/decisions/2026-01-12-docs-reorganization-design.md; 42acc0482
+  deleted the staging compose, which lived only in workflow docstrings)
+- [Health & Monitoring](../../docs/operator/monitoring/README.md) — health
+  checks, SLOs, metrics (moved from docs/HEALTH_CHECK_STRATEGY.md by 29d900b46)

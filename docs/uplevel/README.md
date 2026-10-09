@@ -80,9 +80,12 @@ consolidates tests of modules no feature touches (test-only PRs, same protocol) 
 no feature has triggered (resilience primitives, the broadcaster, the config split). Every seam is
 designed when it is reached, against the code that remains — never in advance.
 
-**Paused while Phase 1 runs:** VLM prompt and threshold selection (the prompt programme, OD-26,
-OD-29) waits for replay parity, `B1.2`. Synthbench corpus generation continues; it ships no
-production code.
+**The Phase 1 pause has lifted (`B1.2`):** replay now scores verdicts the way production does,
+and feeds production's key-frame selection wherever the corpus names each detection's frame. So
+VLM prompt and threshold selection (the prompt programme, OD-26, OD-29) can resume on replay
+numbers. The register's OD-29 entry says which earlier results the change affects (OD-29's own
+operating point is not one of them) and where frame parity stops. Synthbench corpus generation
+continued throughout; it ships no production code.
 
 ## Lanes
 
@@ -228,7 +231,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
 | O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | done        | #6855 |
 | B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | awaiting real tier | #6868 |
-| B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | not started |     |
+| B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | awaiting real tier | #6924 |
 | B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | done        | #6880 |
 | B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | done        | #6886 |
 | B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | done        | #6861 |
@@ -237,9 +240,9 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | F1.2    | frontend                | 1          | Verdict-engine banner (UR-18)                  |               | not started |     |
 | F1.3    | frontend                | 1          | Exposure and auth, frontend part (D10)         | owner         | not started |     |
 | O1.1    | ops                     | 1          | Mutation hold and supersede (UR-2, UR-7)       |               | done        | #6863 |
-| O1.2    | ops                     | 1          | Retire ghcr (UR-17)                            |               | not started |     |
+| O1.2    | ops                     | 1          | Retire ghcr (UR-17)                            |               | done        | #6907 |
 | O1.3    | ops                     | 1          | `ai-vlm` on by default (UR-18)                 |               | done        | #6862 |
-| O1.4    | ops                     | 1          | Broken workflows (D9)                          |               | not started |     |
+| O1.4    | ops                     | 1          | Broken workflows (D9)                          |               | done        | #6926 |
 | O1.5    | ops                     | 1          | Delete the archives (UR-19)                    |               | not started |     |
 | O1.6    | ops                     | 1          | Exposure and auth, compose part (D10)          | owner         | not started |     |
 | O1.7    | ops                     | 1          | Audit measurement scripts                      |               | not started |     |

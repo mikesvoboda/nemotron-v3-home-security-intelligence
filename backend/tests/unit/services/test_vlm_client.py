@@ -428,7 +428,7 @@ class TestPromptBudget:
     prompt + ~1K verdict" per slot (the same arithmetic the compose block
     comments). The ~6K was never enforced anywhere on the vlm path, and a
     legal batch walks straight past it: `batch_max_detections` defaults 500
-    (config.py:977-978) and `prompt_text` renders EVERY row as JSON - measured
+    (config.py:979-980) and `prompt_text` renders EVERY row as JSON - measured
     with the repo's own counter, 200 detections -> 12,033 text tokens, 500
     -> 29,733, against a 16,384-token slot (VLM_CTX_SIZE 32768 /
     VLM_PARALLEL 2). The legacy path has this arm (nemotron's

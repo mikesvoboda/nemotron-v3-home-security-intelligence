@@ -156,14 +156,23 @@ class TestReplayItem:
         row = await replay_item(fake, item)
         assert row["verdict"] == "verification_failed"
         assert row["risk_score"] is None
+        assert row["risk_level"] is None  # the analyzer's NULL level, never a band
         assert row["raw_response"]["error"] == "VlmTransportError"
         # The analyzer's old lie was a refusal arriving WITH a score; "50 not
         # in the dump" pinned nothing (it fails on any message containing
         # "50", passes any real default-score regression in another field).
         # The risk of it re-appearing is the row SHAPE: no key other than
         # verdict/item_id/raw_response/latency carries a number, and no
-        # scored key exists to drift into.
-        assert set(row) == {"item_id", "verdict", "risk_score", "raw_response", "latency_ms"}
+        # scored key exists to drift into. `risk_level` is the analyzer's
+        # level slot (B1.2), NULL on this path as it is on the event row.
+        assert set(row) == {
+            "item_id",
+            "verdict",
+            "risk_score",
+            "risk_level",
+            "raw_response",
+            "latency_ms",
+        }
 
     async def test_a_bug_propagates_loud_not_degraded(self, tmp_path) -> None:
         """The ladder covers engine failures, not programming errors - the
@@ -595,12 +604,18 @@ class TestFramesModes:
         sent = fake.requests[item.media_paths[0]]
         assert sent.image_paths == item.media_paths
         assert sent.frame_detection_ids is None  # the historical shape: no link at all
-        # mode defaults to stored: a mode-blind caller sends the same request
+        # The default is production's selector (B1.2). A still names no frame per
+        # detection row, so the selector has nothing to select from and falls back
+        # to this same stored request - recorded in the audit, never silently.
         fake2 = FakeClient({item.media_paths[0]: _verdict()})
-        await replay_item(fake2, item)
+        row = await replay_item(fake2, item)
         assert fake2.requests[item.media_paths[0]] == sent
-        # the lazy-import doctrine in source form: the selector's import lives in the
-        # branch, so stored-mode replay never pulls vlm_analyzer (and thus vlm_specialists)
+        assert row["raw_response"]["harness"]["frames_mode"] == "selector"
+        assert row["raw_response"]["harness"]["mode_fell_back"] == "no per-frame detection rows"
+        # the lazy-import doctrine in source form: the analyzer's builders are imported
+        # inside the functions that use them, never at this module's top level (the AST
+        # doctrine pins this module's own imports; every replay now runs the analyzer's
+        # invariant table, so vlm_analyzer is loaded at run time in every mode)
         src = inspect.getsource(vlm_replay._build_request)
         assert "from backend.services.vlm_analyzer import build_assess_request" in src
 

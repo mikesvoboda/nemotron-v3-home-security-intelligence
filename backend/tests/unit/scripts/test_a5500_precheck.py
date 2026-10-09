@@ -20,6 +20,13 @@ AMENDED 2026-09-29 (R8 S2b): the ai-llm service was deleted from every compose
 file, so the legacy_llm row now PASSes when read against the REAL tree (the
 gate stays for a re-added, ungated ai-llm - pinned on synthetic compose text in
 TestLegacyLlmNotDeployed). The LEGACY_COMPOSE fixture is synthetic from here on.
+
+AMENDED 2026-10-08 (O1.2, UR-17): the prebuilt-image compose file that paragraph
+1's "ghcr image path" named is deleted, so the vlm_image row now answers for the
+composes that ship: a compose without an ai-vlm service cannot serve the shipped
+vlm mode (message re-tensed; the fixtures that used that file's name as a fake
+second compose are renamed, and the scripts/test_retired_paths.py gate keeps the
+name out of living text).
 """
 
 from __future__ import annotations
@@ -351,8 +358,8 @@ class TestVlmMount:
         assert _by_id(checks)["ai_vlm_mount"].verdict == PASS
 
     def test_no_ai_vlm_service_is_a_warn_naming_the_file(self, tmp_path: Path) -> None:
-        # ghcr.yml's shape: no ai-vlm service at all. Not a FAIL (prod compose
-        # is the vlm path), but it must be said, not silently PASSed.
+        # A legacy-only stack: no ai-vlm service at all. Not a FAIL (prod
+        # compose is the vlm path), but it must be said, not silently PASSed.
         legacy_only = """\
 services:
   ai-llm:
@@ -361,12 +368,12 @@ services:
 """
         checks = run_precheck(
             env_path=_write(tmp_path, "green.env", GREEN_ENV),
-            compose_paths=[_write(tmp_path, "ghcr.yml", legacy_only)],
+            compose_paths=[_write(tmp_path, "legacy.yml", legacy_only)],
             repo_root=tmp_path,
         )
         c = _by_id(checks)["ai_vlm_mount"]
         assert c.verdict == WARN
-        assert "ghcr.yml" in c.detail
+        assert "legacy.yml" in c.detail
 
     def test_zoo_and_cache_mounts_are_not_read_as_the_model_mount(self, tmp_path: Path) -> None:
         # gateway/backend mount ai_models at /models/zoo, /models/cache etc.
@@ -544,7 +551,7 @@ class TestVlmImageAvailable:
         assert c.verdict == WARN
         assert "86" in c.detail
 
-    def test_no_ai_vlm_anywhere_warns_the_ghcr_path_cannot_serve(self, tmp_path: Path) -> None:
+    def test_no_ai_vlm_anywhere_warns_a_prebuilt_stack_cannot_serve(self, tmp_path: Path) -> None:
         legacy_only = """\
 services:
   ai-llm:
@@ -552,12 +559,16 @@ services:
 """
         checks = run_precheck(
             env_path=_write(tmp_path, "green.env", GREEN_ENV),
-            compose_paths=[_write(tmp_path, "ghcr.yml", legacy_only)],
+            compose_paths=[_write(tmp_path, "legacy.yml", legacy_only)],
             repo_root=tmp_path,
         )
         c = _by_id(checks)["vlm_image"]
         assert c.verdict == WARN
-        assert "ghcr.yml" in c.detail
+        assert "legacy.yml" in c.detail
+        # O1.2 (UR-17) retired the GHCR stack: the WARN names the scanned
+        # stack it found wanting, never the retired install path (ops-A review
+        # on #6907, blocking item 4 — the message had outrun its subject).
+        assert "ghcr" not in c.detail
 
 
 # ---------------------------------------------------------------------------
@@ -696,19 +707,21 @@ class TestSelinuxCameraRoot:
         assert ":z" in c.detail
 
     def test_a_compose_file_without_the_relabel_is_named(self, tmp_path: Path) -> None:
-        # prod.yml relabels, ghcr.yml mounts :ro bare: the ghcr path is the
-        # one that goes blind, and the WARN must say which file.
+        # prod.yml relabels, legacy.yml mounts :ro bare: the bare file is the
+        # one that goes blind, and the WARN must say which file. (Fixture names
+        # are arbitrary; O1.2 / UR-17 retired the compose these used to be named
+        # after, and scripts/test_retired_paths.py keeps living text off it.)
         c = self._check(
             tmp_path,
             enforcing=True,
             label=USR_T,
             compose={
                 "prod.yml": _camera_compose_with(":z"),
-                "ghcr.yml": _camera_compose_with(":ro"),
+                "legacy.yml": _camera_compose_with(":ro"),
             },
         )
         assert c.verdict == WARN
-        assert "ghcr.yml" in c.detail
+        assert "legacy.yml" in c.detail
         assert "prod.yml: " not in c.detail
 
     def test_the_camera_root_comes_from_the_env_file(self, tmp_path: Path) -> None:
@@ -1067,10 +1080,7 @@ class TestHandoutIsExecutableOnAColdBox:
 def real_checks() -> list[Check]:
     return run_precheck(
         env_path=PROJECT_ROOT / ".env.example",
-        compose_paths=[
-            PROJECT_ROOT / "docker-compose.prod.yml",
-            PROJECT_ROOT / "docker-compose.ghcr.yml",
-        ],
+        compose_paths=[PROJECT_ROOT / "docker-compose.prod.yml"],
         repo_root=PROJECT_ROOT,
     )
 
@@ -1095,12 +1105,15 @@ class TestRealTreePrepReview:
         assert by_id["ai_vlm_mount"].verdict == PASS
         assert by_id["vlm_model_env_passthrough"].verdict == PASS
 
-    def test_ghcr_image_path_cannot_serve_the_vlm_mode(self, real_checks) -> None:
+    def test_the_shipped_stack_builds_the_vlm_from_source(self, real_checks) -> None:
         by_id = _by_id(real_checks)
-        # 1.7's finding, pinned: docker-compose.ghcr.yml has NO ai-vlm service
-        # (it never gained one), so the ghcr image path cannot serve vlm mode.
-        assert by_id["vlm_image"].verdict == WARN
-        assert "ghcr" in by_id["vlm_image"].detail
+        # 1.7 pinned the mirror fact: the retired ghcr compose had NO ai-vlm
+        # service, so its prebuilt-image path could not serve vlm mode. O1.2
+        # (UR-17) deleted that file, and the surviving fact is the PASS half:
+        # the one supported stack builds ai-vlm from source, so the A5500's
+        # CUDA_ARCHITECTURES=86 arg bites at build time.
+        assert by_id["vlm_image"].verdict == PASS
+        assert "docker-compose.prod.yml" in by_id["vlm_image"].detail
 
     def test_legacy_ai_llm_is_gone_from_the_shipped_compose(self, real_checks) -> None:
         # [V 2026-09-27] row's successor: the spec :482-500 item was "no legacy
@@ -1126,15 +1139,13 @@ class TestRealTreePrepReview:
         assert _by_id(real_checks)["health"].verdict == MANUAL
 
     def test_on_an_enforcing_usr_t_host_every_backend_camera_mount_relabels(self) -> None:
-        # prod.yml's backend mount carries :z (f88797b4c) and ghcr.yml's now
-        # carries :ro,z (owner ruling 2026-09-28: all compose) - before that
-        # the ghcr path was the one that went blind. Host state injected, tree real.
+        # prod.yml's backend mount carries :z (f88797b4c); the ghcr compose
+        # carry of this same ruling (:ro,z, owner ruling 2026-09-28: all
+        # compose) retired with the file itself in O1.2. Host state injected,
+        # tree real.
         checks = run_precheck(
             env_path=PROJECT_ROOT / ".env.example",
-            compose_paths=[
-                PROJECT_ROOT / "docker-compose.prod.yml",
-                PROJECT_ROOT / "docker-compose.ghcr.yml",
-            ],
+            compose_paths=[PROJECT_ROOT / "docker-compose.prod.yml"],
             repo_root=PROJECT_ROOT,
             selinux_enforcing=lambda: True,
             selinux_label=lambda _path: "system_u:object_r:usr_t:s0",
@@ -1142,4 +1153,3 @@ class TestRealTreePrepReview:
         c = _by_id(checks)["selinux_camera_root"]
         assert c.verdict == PASS
         assert "docker-compose.prod.yml: " in c.detail
-        assert "docker-compose.ghcr.yml: " in c.detail
