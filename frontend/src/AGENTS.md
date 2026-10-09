@@ -872,7 +872,7 @@ hardcodes — resolves differently per file, so "the risk color" is not a
 thing. Every ratio named below was computed at this head; ratios are
 background-dependent, so each names its background.)
 
-- **Same risk level, five sources, three different hexes per level at most.**
+- **Same risk level, six sources, three different hexes per level at most.**
   Tailwind `risk.*`
   tokens (config): low `#76B900`, medium `#FFB800`, high `#FFCDD2` (moved
   for contrast on `bg-risk-high/10`). The JS status map
@@ -905,8 +905,10 @@ background-dependent, so each names its background.)
 - **Tremor takes color NAMES, not hexes** — mixing the two families in one
   chart is the usual mismatched-legend source; and Tremor has no `red`
   entry in `TREMOR_PALETTE` (emerald/blue/amber/violet/rose/cyan/orange/
-  indigo/lime/pink), while `RISK_TREMOR_COLORS` uses green/yellow/orange —
-  neither list is a subset of the other.
+  indigo/lime/pink), while `RISK_TREMOR_COLORS` maps low/medium/high to
+  green/yellow/orange and **`critical` to `red`** — the name the palette
+  lacks is the one its critical tier asks for. Neither list is a subset of
+  the other.
 
 ### `/hooks/` - Custom React Hooks
 
