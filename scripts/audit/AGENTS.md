@@ -36,6 +36,12 @@ scripts/audit/
                           imports parametrize-guard.py's masked-body identity
                           and raises-match bucket — do not fork that logic.
                                                               → BB.1
+  nav_coverage.py         docs pages in the mkdocs nav and which are not;
+                          authority is a `mkdocs build` log passed via
+                          --build-log (the YAML nav alone misreads titles and
+                          cannot see awesome-pages injection). Classifies
+                          disabled/record instead of dropping them.
+                                                              → W3.3
 ```
 
 ## Conventions (every script here)
