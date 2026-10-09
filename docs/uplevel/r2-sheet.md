@@ -8,17 +8,19 @@
 > `OD-32` today, so continue from `OD-36` if new decisions surface.
 >
 > Every row is written so it can be ruled from the row alone, without opening code. Facts were first
-> measured at `1d847a6a` (2026-10-09) and are **re-measured at `10ab08e8`** (same day, after
-> `origin/main` merged into this branch) by the commands named in each row. Thirteen draft claims did not
-> survive that re-measurement or a fresh-context review of the sheet. Every one is corrected in place
+> measured at `1d847a6a` (2026-10-09) and are **re-measured at `10ab08e8` and `2a3a46d0`** (same day, the
+> second pass a second re-measurement plus a fresh-context review of the sheet) by the commands named in
+> each row. Fourteen draft claims did not survive that re-measurement or a fresh-context review of the
+> sheet. Every one is corrected in place
 > and the row names the draft's wording at the correction, so an owner reading one row sees what changed
 > rather than a silently tidied fact — the corrections sit inside the Facts prose, not at the row end:
 >
 > - **moved with the merge** (2): `docs/plans`' level-1 ERR 216 → **222** (OD-33) — which arrived as
 >   evidence, not just a number, because the tree itself had zero changed paths; the register 8,485 →
 >   **8,518** lines (OD-34).
-> - **wrong at both commits** (9): OD-33's "~91 citing files" (an arithmetic slip; now a stated union
->   with its command) and its "0 nav entries" (true of the nav, false of publication); OD-34's "7 bolded
+> - **wrong at every commit** (9): OD-33's "~91 citing files" (an arithmetic slip — and its first
+>   replacement was wrong too, last bullet) and its "0 nav entries" (true of the nav, false of
+>   publication); OD-34's "7 bolded
 >   rulings" and "5 more only in the intake log" (both miscounts of the same 12 decisions — and the
 >   miscount mechanism is now the row's argument for the column it asks for); OD-35's quoted provenance
 >   header, "~200–250 lines each", "one per architecture doc", "they cross-cite each other" (one-way),
@@ -30,8 +32,16 @@
 > - **a command that ran but measured nothing** (1): OD-35's transcribed `git ls-files` passed both stems
 >   inside one quoted argument, which matches no path and returns **0** — the printed 26 came from a
 >   different invocation than the one the row showed a reviewer. Fixed to two pathspecs.
+> - **a first correction that was itself wrong** (1): the first re-measurement replaced OD-33's "~91
+>   citing files" with "97 distinct across 135 mentions" — re-running its own printed command at the
+>   second commit shows its per-tree columns (45/35/31) reproduce under no instrument at either commit
+>   (the nearest prints 44/36/31: ±1 twice, in opposite directions, inside a sum that was right), and its
+>   97 silently mixed two scopes — AGENTS citers counted repo-wide, docs citers counted only inside the
+>   grep's search directories. One whole-repo rule now, transcribed as one command per column: 11/12/1 +
+>   44/36/32 = 136 mentions across **104** distinct citers. The re-aim cost the recommendation quotes
+>   moves 97 → 104.
 >
-> Everything else measured identically at both commits.
+> Everything else measured identically at all three commits.
 
 ## 2b. Docs-lane rulings (`W2.2`)
 
@@ -54,22 +64,31 @@ URL-reachable**, `site/plans/` 91 + `site/superpowers/` 37 + `site/vss-integrati
 files repo-wide to exclude anything. So "not in the nav" is not "not published" — it is published
 unlinked — which is what `W3.3` (rebuild the nav to cover every living doc) actually has to fix, and it
 constrains any freeze rule phrased in terms of the nav. A move is citation-cheap in one direction and
-expensive in the other. Files _outside_ the cited tree that cite it (`grep -rl --include=AGENTS.md
-'<tree>/' .`, and the same over `docs scripts .github README.md` for docs): **11 / 12 / 1** `AGENTS.md`
-files and **45 / 35 / 31** other docs — unchanged between the two commits. Those are per-tree counts, so
-they overstate: the columns sum to **135** mentions across **97 distinct files**. Two mechanisms, both
-measured: `--include='*.md'` matches `AGENTS.md` basenames, so five files
-(`docs/architecture/AGENTS.md`, `docs/benchmarks/AGENTS.md`, `docs/decisions/AGENTS.md`,
-`docs/synthbench/AGENTS.md`, `docs/vss-integration/AGENTS.md`) sit in _both_ columns, and a doc citing
-two of the trees is counted in both trees. The re-aim cost is therefore the union, **97** — and that
-union inherits the command's search scope; widening to every tracked `.md` adds 6 more citers
-(`archive/wp25-feed/`, `.claude/skills/synthbench-generation/`, `ai/gateway/export/README.md`,
-`backend/tests/plugins/README.md`), so say **97–103**. And **no CI gate would catch a mis-move**: the
+expensive in the other. Files _outside_ the cited tree that name it, one rule stated as a command:
+`git grep -l -- '<tree>/' -- '**/AGENTS.md' 'AGENTS.md'` for the AGENTS column, and `git grep -l --
+'<tree>/' -- '*.md' ':(exclude)<tree>/' ':(exclude)docs/uplevel/r2-sheet.md'
+':(exclude,glob)**/AGENTS.md'` for the docs column (this sheet excludes itself — its mentions are this
+ruling's subject text, not a path to re-aim; the template's one mention of `docs/vss-integration/` at
+line 51 is an instruction that a move would have to re-aim, so it counts). Result at both the first
+measured commit and this one: **11 / 12 / 1** `AGENTS.md` and **44 / 36 / 32** other docs. Per-tree
+counts overstate: **136** mentions across **104 distinct files** — the double-count is 32 entries from
+**29 multi-tree citers** (28 docs + 1 `AGENTS.md` name two or three trees; 26 name two, 3 name all
+three). The draft printed **45 / 35 / 31** — which reproduces under no instrument at either commit. The
+nearest one prints 44 / 36 / 31, so the draft's columns sit ±1 in two places _in opposite directions_:
+the slip hid inside a sum that was right (both ways they total 111, both ways 135 mentions). The draft's
+other two claims were sound, just scoped differently from each other, and the row now says so plainly: its
+**97** = 23 `AGENTS.md` citers counted repo-wide + 74 docs citers counted only inside `docs scripts
+.github README.md`, and its "five files sit in both columns" mechanism was real for that grep —
+`--include='*.md'` matches `AGENTS.md` basenames — an artifact of the instrument, not the repo; the
+rule above splits columns by basename, so the overlap is 0 by construction. Counting every tracked `.md`
+whole-repo, the citers outside the draft's docs-scope are **24** — 18 `AGENTS.md` files (root, `ai/`,
+`backend/`, `frontend/`, `synthbench/`) the draft's repo-wide AGENTS grep already caught, + the 6 doc
+files under the 4 paths it listed). And **no CI gate would catch a mis-move**: the
 level-1 citation job (`ci.yml:229`, "Docs citation existence") validates citations _authored inside_
 exactly `docs/decisions deployment getting-started operations ui` — 43 citations across all five, every
 one ERR-free today — and of the citers **exactly 2 sit inside those five directories**
-(`docs/decisions/2026-01-12-docs-reorganization-design.md`, `docs/decisions/AGENTS.md`); the other 95 of
-97 (101 of 103 repo-wide) are outside its reach. `docs/plans` itself carries **222 level-1 ERR
+(`docs/decisions/2026-01-12-docs-reorganization-design.md`, `docs/decisions/AGENTS.md`); the other 102 of
+104 are outside its reach. `docs/plans` itself carries **222 level-1 ERR
 citations** (`python -m
 scripts.validate_docs docs/plans --no-ast --no-code-match --no-cross-ref --no-staleness`; 385 checked,
 163 OK), up from 216/169 at `1d847a6a` with **zero changed paths under `docs/plans/`** — the +6 came in
@@ -85,7 +104,7 @@ record each tree's role.
 **Recommendation: (b)**, home = `docs/superpowers/<date>-<slug>/` — the discipline is already proven
 there (37/37 dated names, current spans), it moves zero files, and it makes the freeze testable by eye:
 a dated file outside `docs/superpowers/` after this ruling is the violation. (a) is the worst option on
-the evidence: **97 citing files** to re-aim, of which a gate re-checks 2. One caveat so (b) is not
+the evidence: **104 citing files** to re-aim, of which a gate re-checks 2. One caveat so (b) is not
 chosen for the wrong reason: moving nothing removes the _re-aim_ risk, not the _decay_ — the 222 rose
 from 216 without an edit to `docs/plans`, when `O1.2` retired a file seven of them cite. (b) leaves
 that ungated either way; closing it is a separate decision (extend the level-1 job's dir list, or gate
