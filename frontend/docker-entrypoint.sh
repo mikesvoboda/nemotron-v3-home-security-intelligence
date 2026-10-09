@@ -51,6 +51,12 @@ HTTP_LOCATIONS='
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # F1.3: forward the browser credential (session_id cookie / B1.5 gate).
+        # Explicit rather than inherited: a block that sets any proxy_set_header stops
+        # inheriting the parent-level ones. An empty value here would silently turn
+        # the API into a 401 loop.
+        # See backend/tests/unit/core/test_nginx_credential_forwarding.py
+        proxy_set_header Cookie $http_cookie;
 
         # Extended timeout for LLM evaluation calls (up to 10 minutes)
         proxy_connect_timeout 60s;
@@ -74,6 +80,12 @@ HTTP_LOCATIONS='
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # F1.3: forward the browser credential (session_id cookie / B1.5 gate).
+        # Explicit rather than inherited: a block that sets any proxy_set_header stops
+        # inheriting the parent-level ones. An empty value here would silently turn
+        # the API into a 401 loop.
+        # See backend/tests/unit/core/test_nginx_credential_forwarding.py
+        proxy_set_header Cookie $http_cookie;
 
         # Timeouts for long-running requests
         proxy_connect_timeout 60s;
@@ -105,6 +117,12 @@ HTTP_LOCATIONS='
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # F1.3: forward the browser credential (session_id cookie / B1.5 gate).
+        # Explicit rather than inherited: a block that sets any proxy_set_header stops
+        # inheriting the parent-level ones. An empty value here would silently turn
+        # the API into a 401 loop.
+        # See backend/tests/unit/core/test_nginx_credential_forwarding.py
+        proxy_set_header Cookie $http_cookie;
 
         # WebSocket-specific timeouts (longer for persistent connections)
         proxy_connect_timeout 60s;
@@ -198,6 +216,12 @@ HTTPS_REDIRECT='
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # F1.3: forward the browser credential (session_id cookie / B1.5 gate).
+        # Explicit rather than inherited: a block that sets any proxy_set_header stops
+        # inheriting the parent-level ones. An empty value here would silently turn
+        # the API into a 401 loop.
+        # See backend/tests/unit/core/test_nginx_credential_forwarding.py
+        proxy_set_header Cookie $http_cookie;
 
         # Extended timeout for LLM evaluation calls (up to 10 minutes)
         proxy_connect_timeout 60s;
@@ -220,6 +244,12 @@ HTTPS_REDIRECT='
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # F1.3: forward the browser credential (session_id cookie / B1.5 gate).
+        # Explicit rather than inherited: a block that sets any proxy_set_header stops
+        # inheriting the parent-level ones. An empty value here would silently turn
+        # the API into a 401 loop.
+        # See backend/tests/unit/core/test_nginx_credential_forwarding.py
+        proxy_set_header Cookie $http_cookie;
 
         # Timeouts for long-running requests
         proxy_connect_timeout 60s;
@@ -249,6 +279,12 @@ HTTPS_REDIRECT='
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # F1.3: forward the browser credential (session_id cookie / B1.5 gate).
+        # Explicit rather than inherited: a block that sets any proxy_set_header stops
+        # inheriting the parent-level ones. An empty value here would silently turn
+        # the API into a 401 loop.
+        # See backend/tests/unit/core/test_nginx_credential_forwarding.py
+        proxy_set_header Cookie $http_cookie;
 
         # WebSocket-specific timeouts (longer for persistent connections)
         proxy_connect_timeout 60s;
@@ -508,6 +544,10 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        # F1.3: forward the browser credential (session_id cookie / B1.5 gate).
+        # Explicit: a block that sets any proxy_set_header stops inheriting the
+        # parent-level ones. See test_nginx_credential_forwarding.py.
+        proxy_set_header Cookie \$http_cookie;
         proxy_connect_timeout 60s;
         proxy_send_timeout 600s;
         proxy_read_timeout 600s;
@@ -525,6 +565,10 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        # F1.3: forward the browser credential (session_id cookie / B1.5 gate).
+        # Explicit: a block that sets any proxy_set_header stops inheriting the
+        # parent-level ones. See test_nginx_credential_forwarding.py.
+        proxy_set_header Cookie \$http_cookie;
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
@@ -545,6 +589,10 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        # F1.3: forward the browser credential (session_id cookie / B1.5 gate).
+        # Explicit: a block that sets any proxy_set_header stops inheriting the
+        # parent-level ones. See test_nginx_credential_forwarding.py.
+        proxy_set_header Cookie \$http_cookie;
         proxy_connect_timeout 60s;
         proxy_send_timeout 86400s;
         proxy_read_timeout 86400s;

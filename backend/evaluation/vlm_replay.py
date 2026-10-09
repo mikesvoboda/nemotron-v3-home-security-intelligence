@@ -6,19 +6,31 @@ offline 30B control replay; rev 6's rule survives and is what the name means:
 replay reads the items' STORED `specialist_outputs` and never re-runs a
 specialist - the GIVENS are the point of a replay.
 
-Frame supply is a MODE (ISS-037), not an assumption. `stored` (the default)
-is the historical behavior - the item's own `media_paths` (≤4, the wire's
-field constraint) fed straight to the wire: the REQUEST a stored-mode replay
-builds is identical to what this harness has always sent, so a re-run of a
-committed corpus reproduces the committed prompt bytes. `selector` and `burst`
-apply only to items whose detections
+Replay measures the judge production runs (B1.2, D6). Every verdict passes
+through the analyzer's own `apply_verdict_invariants` with production's
+`SeverityService`, so a row's score and level are the ones the analyzer would
+store (a `rejected` verdict clamps to the LOW band); the model's raw score stays
+in the row's verdict dump, and `invariants.clamped` says when the table moved it.
+
+Frame supply is a MODE (ISS-037), not an assumption. `selector` (the default)
+is production's key-frame selection: the SHIPPED `build_assess_request` with
+production's `key_frame_spread_seconds`. `stored` is the historical behavior -
+the item's own `media_paths` (≤4, the wire's field constraint) fed straight to
+the wire: the REQUEST a stored-mode replay builds is identical to what this
+harness sent before B1.2, so a re-run of a committed corpus reproduces the
+committed prompt bytes, but it is not what production sends. `selector` and
+`burst` apply only to items whose detections
 name the frame each row was seen on (sequence sets; a still's declared
-detections carry no `file_path`): the selector mode drives the SHIPPED
-`build_assess_request`/`select_key_frames` - that import is lazy and inside
-that branch only, because the analyzer module pulls in `vlm_specialists` at
-top level and the AST doctrine below is about THIS module's own imports -
-which collapses a same-camera same-class triplet to one frame, the collapse
-ISS-005 exists to fix, now measured instead of asserted. The burst mode feeds
+detections carry no `file_path`, and neither do frozen production events,
+whose media are each detection's frame and thumbnail): any other item falls
+back to its stored frames, recorded per row and counted in the report. The
+selector mode drives the SHIPPED `build_assess_request`/`select_key_frames`,
+which within `key_frame_spread_seconds` collapses a same-camera same-class
+triplet to one frame (the collapse ISS-005 measures) and past it spends spare
+slots on the pair's far frames. The analyzer imports (`build_assess_request`
+here, `apply_verdict_invariants` in `replay_item`) are lazy, inside the
+functions: the analyzer module pulls in `vlm_specialists` at top level, and
+the AST doctrine below is about THIS module's own imports. The burst mode feeds
 every frame (≤4) with the per-frame `frame_detection_ids` link, the shape
 ISS-003's funded arm (a) will use. Which frames an item actually reached the
 model with is recorded in `raw_response.harness` on EVERY row, refusals
@@ -67,6 +79,7 @@ from backend.evaluation.s_metrics import (
 from backend.services.constrained_decoding import (  # R8 S2a: hoisted home
     ConstrainedDecodingNotEnforced,
 )
+from backend.services.severity import SeverityService, get_severity_service
 from backend.services.vlm_client import VlmClient, VlmClientError
 from backend.services.vlm_verdict import VlmAssessContext, VlmAssessRequest, VlmVerdict
 
@@ -82,6 +95,10 @@ _DEGRADABLE_ERRORS: tuple[type[BaseException], ...] = (
 MAX_REPLAY_IMAGES = 4  # VlmAssessRequest.image_paths' own field constraint
 
 FRAMES_MODES = ("stored", "selector", "burst")  # how an item's frames reach the wire
+# Production's selection is the default (B1.2): a replay that fed other frames
+# would measure a request production never sends. `stored` stays for re-running
+# a committed corpus byte for byte; `burst` is ISS-003's funded arm.
+DEFAULT_FRAMES_MODE = "selector"
 
 
 def _sequence_rows(item: EvalItem) -> list[dict[str, Any]]:
@@ -155,12 +172,20 @@ def _build_request(
     # that wants production's selection must import production inside the branch.
     from backend.services.vlm_analyzer import build_assess_request
 
-    request = build_assess_request(context=context, detections=rows)
+    # Production's selection parameters, read the way the analyzer reads them
+    # (`analyze_batch` passes settings.key_frame_spread_seconds); a selector
+    # without the spread collapses a long-spanning class to one frame that
+    # production would have widened. `camera_timezone` stays None: the client
+    # pins it for the prompt (stored timestamps are not capture moments), which
+    # is also production's default (CAMERA_TIMEZONE unset).
+    spread_seconds = get_settings().key_frame_spread_seconds
+    request = build_assess_request(context=context, detections=rows, spread_seconds=spread_seconds)
     distinct_frames = len({row["file_path"] for row in rows})
     return request, {
         "frames_mode": frames_mode,
         "frames_fed": len(request.image_paths),
         "selector_collapsed": len(request.image_paths) < distinct_frames,
+        "spread_seconds": spread_seconds,
     }
 
 
@@ -212,11 +237,18 @@ def git_commit(short: bool = True) -> str:
 
 
 async def replay_item(
-    client: Any, item: EvalItem, *, frames_mode: str = "stored"
+    client: Any,
+    item: EvalItem,
+    *,
+    frames_mode: str = DEFAULT_FRAMES_MODE,
+    severity: SeverityService | None = None,
 ) -> dict[str, Any]:
     """One item -> one `put_result`-ready row. Maps the client's raise set to
     the shipped ladder (`verification_failed` + NULL), exactly like
-    `vlm_analyzer` does for events.
+    `vlm_analyzer` does for events, and scores the verdict through the
+    analyzer's own `apply_verdict_invariants` (B1.2): the row's verdict, score
+    and level are what the analyzer stores for the same verdict. `severity`
+    defaults to production's service; `run_replay` passes one per run.
 
     `frames_mode` decides how the item's frames reach the wire (module
     docstring); the audit of that decision rides in `raw_response.harness`
@@ -233,21 +265,39 @@ async def replay_item(
         timestamp=snap.timestamp,
         specialist_outputs=dict(snap.specialist_outputs),
     )
+    # The analyzer's invariant table, lazily for the same reason as the
+    # selector branch: vlm_analyzer imports vlm_specialists at top level, and
+    # the AST doctrine pins THIS module's imports. One implementation of the
+    # table, shared, never a copy that could drift from production's.
+    from backend.services.vlm_analyzer import apply_verdict_invariants
+
+    severity = severity or get_severity_service()
     request, harness = _build_request(item, context, frames_mode=frames_mode)
     started = time.monotonic()
     try:
         verdict: VlmVerdict = await client.assess(request)
         latency_ms = int((time.monotonic() - started) * 1000)
+        outcome = apply_verdict_invariants(verdict, severity)
         row = {
             "item_id": item.item_id,
-            "verdict": verdict.verdict,
-            "risk_score": verdict.risk_score,
+            "verdict": outcome["verdict"],
+            "risk_score": outcome["risk_score"],
+            "risk_level": outcome["risk_level"],
             # `harness` is a SIBLING of the verdict dump, never inside it:
             # VlmVerdict is extra="forbid" (the wire carries no bookkeeping)
             # and every reader of raw_response so far reads through keys it
             # knows (verdict fields, `error`) — an added top-level key is
             # invisible to all of them and survives the store's JSON round trip.
-            "raw_response": {**verdict.model_dump(), "harness": harness},
+            # The dump keeps the MODEL's score; `invariants` records what the
+            # table made of it, so a stored row says its level and its clamp.
+            "raw_response": {
+                **verdict.model_dump(),
+                "harness": harness,
+                "invariants": {
+                    "risk_level": outcome["risk_level"],
+                    "clamped": outcome["risk_score"] != verdict.risk_score,
+                },
+            },
         }
     except _DEGRADABLE_ERRORS as exc:
         latency_ms = int((time.monotonic() - started) * 1000)
@@ -261,6 +311,7 @@ async def replay_item(
             "item_id": item.item_id,
             "verdict": "verification_failed",
             "risk_score": None,
+            "risk_level": None,  # the analyzer's NULL level for a bottomed-out ladder
             # the ladder's audit half (prompt-hygiene doctrine): the WHY
             # lives in the row/log, never in a score.
             "raw_response": {
@@ -304,6 +355,22 @@ def compute_report(rows: list[dict[str, Any]], store: EvalStore) -> dict[str, An
         "s3": s3_recall(rows, items),
         "verdict_mix": uncertain_rate(rows),
         "s5": s5_refusals(rows),
+        # B1.2: how far this run sits from production's own path, as counts. A
+        # clamp is a score the invariant table moved (the raw one is in the row);
+        # a fallback is an item the requested frames mode could not feed, so it
+        # was fed its stored frames instead.
+        "parity": {
+            "clamped": sum(
+                1
+                for r in rows
+                if (r.get("raw_response") or {}).get("invariants", {}).get("clamped")
+            ),
+            "fell_back": sum(
+                1
+                for r in rows
+                if (r.get("raw_response") or {}).get("harness", {}).get("mode_fell_back")
+            ),
+        },
         "latency_ms_indicative_only": {
             "n": len(latencies),
             "median": statistics.median(latencies) if latencies else None,
@@ -323,7 +390,7 @@ async def run_replay(
     with_media_only: bool = True,
     make_client: Callable[[], Any] | None = None,
     endpoint: str | None = None,
-    frames_mode: str = "stored",
+    frames_mode: str = DEFAULT_FRAMES_MODE,
 ) -> dict[str, Any]:
     """One run of the harness. `candidate` names the exact build (weights +
     quant + image tag); it lands in the run row's `model` next to the commit,
@@ -420,9 +487,10 @@ async def run_replay(
     # the httpx lifecycle. (Measured on the 2.1.6 smoke's repro - ledger
     # finding B.)
     client = make_client()
+    severity = get_severity_service()  # production's thresholds, once per run
     try:
         for item in items:
-            row = await replay_item(client, item, frames_mode=frames_mode)
+            row = await replay_item(client, item, frames_mode=frames_mode, severity=severity)
             store.put_result(
                 run_id,
                 row["item_id"],
@@ -458,6 +526,19 @@ async def run_replay(
     report["engine"] = engine
     report["commit"] = commit
     report["frames_mode"] = frames_mode  # which supply fed every item in this run
+    # The selector's one production parameter this run used (None when the mode
+    # never selects), so two runs on hosts with different settings stay comparable.
+    report["selector_spread_seconds"] = (
+        get_settings().key_frame_spread_seconds if frames_mode == "selector" else None
+    )
+    # The bands every row's level and clamp came from (ISS-014: replay "records
+    # the thresholds it used") - env-configurable in production, so a report
+    # that cannot say them cannot be compared with another host's.
+    report["severity_thresholds"] = {
+        "low_max": severity.low_max,
+        "medium_max": severity.medium_max,
+        "high_max": severity.high_max,
+    }
     report["n_items"] = len(items)
     report["vlm_url"] = url
     report["vlm_url_source"] = url_source
@@ -491,10 +572,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--frames",
         choices=FRAMES_MODES,
-        default="stored",
-        help="how frames reach the wire (ISS-037): stored (default, the historical "
-        "media_paths feed), selector (production's build_assess_request over the "
-        "item's per-frame detections), burst (every frame with frame_detection_ids)",
+        default=DEFAULT_FRAMES_MODE,
+        help="how frames reach the wire (ISS-037): selector (default, production's "
+        "build_assess_request with its key_frame_spread_seconds over the item's "
+        "per-frame detections), stored (the historical media_paths feed, for "
+        "re-running a committed corpus byte for byte), burst (every frame with "
+        "frame_detection_ids)",
     )
     ap.add_argument(
         "--all-items", action="store_true", help="replay every item, not just media-bearing"

@@ -1220,7 +1220,16 @@ reference fails directly. The only committed baseline left is the per-name
 mentions. The loader REJECTS the presence of a `dead_reference_allowlist` key
 (exit 2): re-adding an excuse list is treated as a gate-disable attempt, not a
 config edit. `missing_agents_md` stays reporting-only until W3.1 wires the
-boundary rule.
+boundary rule. W2.1 added the other two required keys: `boundary_list` (the
+directories that keep an `AGENTS.md` when W3.1 prunes the rest, one `reason`
+per entry - 42 today) and `line_caps` (per-tier ceilings - `root`,
+`lane_root`, `package`). Both are loader-mandatory on the baseline doctrine:
+deleting either key exits 2 rather than meaning "none". Line caps are
+**reporting-only until W3.2** - an over-cap boundary file lands in
+`ratchet.line_caps.over` and the console summary and does not fail the run,
+because most boundary files are over cap today and that set is W3.2's rewrite
+work list. The standard itself has its single home at
+`docs/developer/agents-md-standard.md`.
 
 **Exit codes:** `0` clean under the baselines; `1` a content violation (any dead
 reference, any dead link, a retired-name count above its ceiling, an unbalanced

@@ -1193,6 +1193,56 @@ function parseErrorBody(
   };
 }
 
+// ============================================================================
+// 401 Notification Seam (F1.3)
+// ============================================================================
+
+/**
+ * Called when a `fetchApi` call comes back `401`.
+ *
+ * The seam is deliberately policy-free: this module knew nothing about auth
+ * before F1.3 and still doesn't — it only reports that a call was refused for
+ * lack of a valid credential. `AuthContext` registers the handler that turns
+ * the report into a login screen.
+ *
+ * `services/authApi.ts` calls the auth endpoints with its own `fetch`, so the
+ * 401s auth deliberately returns (a failed login, a logout that clears state
+ * by failing `/api/auth/me`) never reach this seam.
+ */
+export type UnauthorizedHandler = (error: ApiError) => void;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/**
+ * Register (or clear) the handler notified of a `401` from `fetchApi`.
+ *
+ * @param handler - The handler, or `null` to clear the current one.
+ * @returns A function that detaches *this* handler, and no other, if the
+ *          current handler has since been replaced.
+ */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): () => void {
+  unauthorizedHandler = handler;
+  return () => {
+    if (unauthorizedHandler === handler) {
+      unauthorizedHandler = null;
+    }
+  };
+}
+
+/** Fire the seam without ever letting a handler mask the caller's error. */
+function notifyUnauthorized(error: ApiError): void {
+  const handler = unauthorizedHandler;
+  if (!handler) {
+    return;
+  }
+  try {
+    handler(error);
+  } catch {
+    // The ApiError still reaches the caller; a broken handler is not the
+    // caller's problem and must not replace the real failure.
+  }
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   // Extract rate limit info from headers and update global store
   const rateLimitInfo = extractRateLimitInfo(response);
@@ -1231,7 +1281,11 @@ async function handleResponse<T>(response: Response): Promise<T> {
       }
     }
 
-    throw new ApiError(response.status, errorMessage, errorData, problemDetails);
+    const apiError = new ApiError(response.status, errorMessage, errorData, problemDetails);
+    if (response.status === 401) {
+      notifyUnauthorized(apiError);
+    }
+    throw apiError;
   }
 
   // Handle 204 No Content

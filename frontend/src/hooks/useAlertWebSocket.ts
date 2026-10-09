@@ -20,6 +20,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { alertsQueryKeys } from './useAlertsQuery';
 import { useToast } from './useToast';
 import { useWebSocket, type WebSocketOptions } from './useWebSocket';
+import { buildWebSocketOptions } from '../services/api';
 import { logger } from '../services/logger';
 import {
   type WebSocketAlertData,
@@ -51,10 +52,18 @@ export type AlertDeletedEventHandler = (data: WebSocketAlertDeletedData) => void
  */
 export interface UseAlertWebSocketOptions {
   /**
-   * WebSocket URL to connect to
-   * @default process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws/events'
+   * WebSocket URL to connect to. Defaults to `buildWebSocketOptions('/ws/events')`,
+   * which resolves `VITE_WS_BASE_URL` or the page origin. When you pass a URL
+   * explicitly, no api-key subprotocol is attached — pass `protocols` too if
+   * you need one.
    */
   url?: string;
+
+  /**
+   * Sec-WebSocket-Protocol values (e.g. `['api-key.{key}']`). Defaults to what
+   * `buildWebSocketOptions` mints from `VITE_API_KEY` when `url` is omitted.
+   */
+  protocols?: string[];
 
   /**
    * Whether to automatically invalidate React Query cache on alert events
@@ -135,9 +144,6 @@ export interface UseAlertWebSocketReturn {
 // Hook Implementation
 // ============================================================================
 
-const DEFAULT_WS_URL =
-  (import.meta.env.VITE_WS_URL as string | undefined) ?? 'ws://localhost:8000/ws/events';
-
 /**
  * Hook to subscribe to real-time alert WebSocket events.
  *
@@ -166,7 +172,8 @@ const DEFAULT_WS_URL =
  */
 export function useAlertWebSocket(options: UseAlertWebSocketOptions = {}): UseAlertWebSocketReturn {
   const {
-    url: urlOption = DEFAULT_WS_URL,
+    url: urlOption,
+    protocols: protocolsOption,
     autoInvalidateCache = true,
     showToasts = true,
     onAlertCreated,
@@ -177,7 +184,17 @@ export function useAlertWebSocket(options: UseAlertWebSocketOptions = {}): UseAl
     onAnyAlertEvent,
     enabled = true,
   } = options;
-  const url: string = urlOption;
+  // F1.3: with no explicit url, resolve through buildWebSocketOptions — the
+  // same origin rules the REST client uses (VITE_WS_BASE_URL, else the page
+  // origin) — and pick up its api-key subprotocol. The removed DEFAULT_WS_URL
+  // read VITE_WS_URL (never defined by the deploy docs) and hardcoded
+  // localhost:8000, bypassing the nginx front door in a deployed stack.
+  const resolved =
+    urlOption !== undefined
+      ? { url: urlOption, protocols: undefined as string[] | undefined }
+      : buildWebSocketOptions('/ws/events');
+  const { url } = resolved;
+  const protocols: string[] | undefined = protocolsOption ?? resolved.protocols;
 
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -294,6 +311,7 @@ export function useAlertWebSocket(options: UseAlertWebSocketOptions = {}): UseAl
   // Configure WebSocket options
   const wsOptions: WebSocketOptions = {
     url,
+    protocols,
     onMessage: handleMessage,
     reconnect: true,
     reconnectInterval: 1000,
