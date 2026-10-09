@@ -707,8 +707,8 @@ def test_missing_config_exits_2(tmp_path):
 def test_unbalanced_fence_is_content_not_infrastructure(tmp_path):
     """An open fence would mask the rest of the file from BOTH arms — an
     editor could park anything under an unclosed fence. Measured: 0 of the
-    149 scanned files are unbalanced today (245 before W3.1 batch 1's
-    deletions, 149 after batch 7; re-measured at each: still zero), so failing on imbalance costs
+    139 scanned files are unbalanced today (245 before W3.1 batch 1's
+    deletions, 139 after batch 8; re-measured at each: still zero), so failing on imbalance costs
     nothing now and removes the dodge forever. It is a CONTENT violation
     (exit 1, names the file), not a gate failure — the gate ran fine; the
     file is wrong."""
@@ -1175,7 +1175,7 @@ def real_run(tmp_path_factory):
         return proc.returncode, json.load(f), proc.stderr
 
 
-@pytest.mark.timeout(180)  # the walk over 149 files; pyproject global timeout=5
+@pytest.mark.timeout(180)  # the walk over 139 files; pyproject global timeout=5
 def test_real_tree_is_green(real_run):
     """DONE-WHEN "the run passes on the current tree", executed here — and
     this file runs inside collection-sanity's anti-rot step, which CI Gate
@@ -1225,13 +1225,19 @@ def test_real_tree_scanned_count_floor(real_run):
     repositories, examples, jobs, core/websocket, config, scripts,
     services/orchestrator, evaluation, api/utils, core/middleware,
     ai_contract/fake — the core/middleware guide documented a directory whose
-    only file was that guide). Each
+    only file was that guide), then to 139 = 149 - 10 at batch 8 (the ten
+    frontend/src test-tree and mock-cluster guides: mocks, __mocks__,
+    hooks/__mocks__, test, test/factories, __tests__, test-utils,
+    hooks/__tests__, hooks/__tests__/integration, types/__tests__ — none of
+    them a boundary; an eleventh deletion, the integration README twin,
+    republished the same fiction and is not an AGENTS.md, so the floor moves by
+    ten, not eleven). Each
     later batch drops
     the floor by its batch size; a shrink that matches no deletion census in a
     PR body is still the exclusion-widening tell."""
     rc, report, _stderr = real_run
     assert rc == 0
-    assert report["total_agents_md_files"] >= 149
+    assert report["total_agents_md_files"] >= 139
 
 
 @pytest.mark.timeout(180)

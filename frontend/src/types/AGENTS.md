@@ -47,30 +47,32 @@ frontend/src/types/
 
 ## Key Files
 
-| File                         | Purpose                                                                      |
-| ---------------------------- | ---------------------------------------------------------------------------- |
-| `index.ts`                   | Centralized exports for all types                                            |
-| `aiAudit.ts`                 | AI audit trail, decision logging types                                       |
-| `analytics.ts`               | Analytics data types                                                         |
-| `api-endpoints.ts`           | API endpoint definitions and request/response types                          |
-| `async.ts`                   | AsyncState types for loading/error/success state management                  |
-| `branded.ts`                 | Branded types for CameraId, EventId, DetectionId, etc.                       |
-| `constants.ts`               | Type-safe constants (risk levels, health status, etc.)                       |
-| `enrichment.ts`              | Detection enrichment types (vehicle, pet, person, weather)                   |
-| `export.ts`                  | Event export types (CSV, JSON formats)                                       |
-| `guards.ts`                  | Type guards for runtime type validation                                      |
-| `notificationPreferences.ts` | Notification channel and preference types                                    |
-| `performance.ts`             | Performance alert and AI model metrics types                                 |
-| `promptManagement.ts`        | Prompt template and version types                                            |
-| `rate-limit.ts`              | Rate limiting state and response types                                       |
-| `result.ts`                  | Result/Either monad for error handling                                       |
-| `summary.ts`                 | AI summary data types                                                        |
-| `websocket.ts`               | Discriminated unions for WebSocket message handling                          |
-| `websocket-events.ts`        | WebSocket event payloads and handlers                                        |
-| `rtsp.ts`                    | RTSP testing types (RTSPTestRequest, RTSPTestResult, RTSPCapabilities)       |
-| `onvif.ts`                   | ONVIF types (OnvifDevice, OnvifDiscoveryRequest/Response, OnvifCapabilities) |
-| `preview.ts`                 | Preview types (PreviewState, PreviewConfig)                                  |
-| `generated/`                 | Auto-generated types from backend OpenAPI spec                               |
+| File                         | Purpose                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------ |
+| `index.ts`                   | Centralized exports for all types                                                          |
+| `aiAudit.ts`                 | AI audit trail, decision logging types                                                     |
+| `analytics.ts`               | Analytics data types                                                                       |
+| `api-endpoints.ts`           | API endpoint definitions and request/response types                                        |
+| `async.ts`                   | AsyncState types for loading/error/success state management                                |
+| `branded.ts`                 | Branded types for CameraId, EventId, DetectionId, etc.                                     |
+| `constants.ts`               | Type-safe constants (risk levels, health status, etc.)                                     |
+| `enrichment.ts`              | Detection enrichment types (vehicle, pet, person, weather)                                 |
+| `export.ts`                  | Event export types (CSV, JSON formats)                                                     |
+| `guards.ts`                  | Type guards for runtime type validation                                                    |
+| `notificationPreferences.ts` | Notification channel and preference types                                                  |
+| `performance.ts`             | Performance alert and AI model metrics types                                               |
+| `promptManagement.ts`        | Prompt template and version types                                                          |
+| `rate-limit.ts`              | Rate limiting state and response types                                                     |
+| `result.ts`                  | Result/Either monad for error handling                                                     |
+| `summary.ts`                 | AI summary data types                                                                      |
+| `websocket.ts`               | Discriminated unions for WebSocket message handling                                        |
+| `websocket-events.ts`        | WebSocket event payloads and handlers                                                      |
+| `rtsp.ts`                    | RTSP testing types (RTSPTestRequest, RTSPTestResult, RTSPCapabilities)                     |
+| `onvif.ts`                   | ONVIF types (OnvifDevice, OnvifDiscoveryRequest/Response, OnvifCapabilities)               |
+| `preview.ts`                 | Preview types (PreviewState, PreviewConfig)                                                |
+| `zoneAlert.ts`               | Unified zone-alert types: AlertPriority, trust violations, discriminated union on `source` |
+| `zoneAnomaly.ts`             | Zone anomaly types (AnomalyType, AnomalySeverity, ZoneAnomaly)                             |
+| `generated/`                 | Auto-generated types from backend OpenAPI spec                                             |
 
 ## Type System Patterns
 
@@ -344,6 +346,24 @@ interface PreviewState {
 }
 ```
 
+## Zone Alert Types (`zoneAlert.ts`)
+
+(W3.1 batch 8 lifted this from the deleted `__tests__/` guide, which had no
+coverage here at all.)
+
+- **`AlertPriority`'s numeric values ARE the sorting contract**: `CRITICAL =
+0, WARNING = 1, INFO = 2` (:32-35) so the unified feed's `a - b` numeric sort
+  puts the urgent alert first. Re-numbering the enum — or reordering it — keeps
+  every type-check green and silently reverses feed order. `severityToPriority`
+  (:306-314) maps severity/`'critical'`/`'warning'`/else-`INFO` onto it.
+- `TRUST_VIOLATION_TYPE_CONFIG: Record<TrustViolationType, ...>` (:275-284)
+  must cover EVERY violation type — that `Record` makes a new enum member a
+  compile error until its UI config lands, and the shipped test asserts the
+  config's completeness directly.
+- `UnifiedZoneAlert` is a discriminated union on `source` (`'anomaly'` vs
+  `'trust_violation'`, guards `isAnomalyAlert`/`isTrustViolationAlert` at
+  :371-386 compare the `source` field, nothing else).
+
 ## Generated Types
 
 All API types are auto-generated from the backend FastAPI OpenAPI specification using `openapi-typescript`. Do NOT manually edit files in `generated/`.
@@ -398,6 +418,21 @@ coverage: {
 - Use `index.ts` re-exports for cleaner imports
 - Types are excluded from test coverage
 - CI runs `--check` mode to ensure types are current
+
+House style for testing the runtime guards in this directory (W3.1 batch 8
+lifted this from the deleted `__tests__/` guide; the guards here are `in`-
+operator checks, so these are not generic advice):
+
+- Always test `null` and `undefined` inputs — a guard that only checks field
+  presence still accepts `null`.
+- Test each REQUIRED field's absence as its own case; one "missing everything"
+  case proves nothing about per-field branches.
+- Assert config-object completeness against the enum (a `Record<Enum, ...>`
+  plus a test that enumerates the members — see the zone-alert section).
+- For discriminated unions, assert the `source`/`type` tag decides the subtype
+  — not just that the guard returns true.
+- For numeric-valued enums used for ordering, test the ORDER, not just the
+  membership (`AlertPriority` above is the live example).
 
 ## Entry Points
 

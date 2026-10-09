@@ -598,10 +598,60 @@ Each context has a co-located test file (named `*.test.tsx`).
 
 Mock Service Worker handlers for testing:
 
-| File          | Purpose              |
-| ------------- | -------------------- |
-| `handlers.ts` | MSW request handlers |
-| `server.ts`   | MSW server setup     |
+| File               | Purpose                          |
+| ------------------ | -------------------------------- |
+| `handlers.ts`      | MSW request handlers             |
+| `server.ts`        | MSW server setup                 |
+| `handlers.test.ts` | Tests for the handler set itself |
+
+Contracts this package carries (W3.1 batch 8 pruned its guide):
+
+- **The server is already running in your test file.** `test/setup.ts:105`
+  calls `server.listen()` (registered via `setupFiles`), `:131` calls
+  `server.resetHandlers()` in the file-wide `afterEach`, and `:178` calls
+  `server.close()`. A test that calls `server.listen()` itself double-starts
+  it. Use `server.use(...)` for per-test overrides only.
+- **Unhandled requests silently pass through.** The setup starts MSW with
+  `onUnhandledRequest: 'bypass'` (gradual-migration choice, `test/setup.ts:106`),
+  so a missing handler means the request leaves the test process — it does NOT
+  fail. Tests that want loudness re-arm it per-file (`onUnhandledRequest:
+'error'`). A fetch returning fixtures you never wrote is this default.
+- **The API client keeps an in-flight dedup Map that nothing clears globally.**
+  `services/api.ts:918` holds a module-level `inFlightRequests` Map; the global
+  test cleanup never touches it. Each MSW test file must call
+  `clearInFlightRequests()` (exported at `api.ts:946`) in its own `beforeEach`
+  or a previous test's identical URL resolves from cache and your handler never
+  runs. All five `.msw.test.*` files do exactly this.
+- **Prefer 400 over 500 in error-path handlers.** `shouldRetry` (`api.ts:893`)
+  retries status 0 and 5xx with exponential backoff (MAX_RETRIES 3, base 1000
+  ms: a 500 handler costs ~7 extra seconds of real time); 4xx returns
+  immediately. That is why the shipped handlers answer client-error cases with
+  400 — a test-runtime choice, not a semantic claim.
+- **The handler set is read-heavy and narrower than it looks**: 24 handlers,
+  verbs GET/POST/PATCH only — there are NO DELETE handlers; `/api/cameras` is
+  read-only; the DLQ surface is exactly one handler (`GET /api/dlq/stats`,
+  `handlers.ts:487`). List responses use the `{items, pagination:{total,limit,
+offset,has_more}}` envelope — there is no `{cameras, count}` or
+  `{events, count}` shape to read.
+- **The `.msw.test.tsx` suffix is not required.** 49 test files use MSW; only
+  5 carry the suffix (they document a vi.mock→MSW conversion pair). Vitest
+  discovery does not depend on it — name new MSW tests however the directory
+  convention reads.
+
+**Mock layers, live vs dead (W3.1 batch 8 census).** Two of the tree's mock
+directories are DEAD CODE: `__mocks__/index.ts` (the "central hub" its
+deleted guide advertised) has ZERO importers repo-wide, and
+`hooks/__mocks__` is imported ONLY by that hub — no test touches
+either. New tests mock hooks with inline `vi.fn()` / `vi.importActual`
+factories, which is what every real hook-mocking test does. Two other mock
+layers ARE live and must not be confused with them: `mocks/` (MSW, above)
+and `services/__mocks__/api.ts`, which is bound by Vitest's
+`__mocks__/<name>.ts` ADJACENCY auto-resolution — a dozen test files call
+`vi.mock('../services/api')` with NO factory argument and silently get that
+file (the mechanism is stated in its own header comment). If the dead hub is
+ever deleted, delete its four `hooks/__mocks__` re-export targets in the same
+commit — tsconfig includes src, so a hub importing deleted files reddens
+typecheck.
 
 ### `/pages/` - Additional Page Components
 
@@ -742,7 +792,50 @@ The `api.ts` file re-exports all types from `types/generated/` for convenience.
 | `utils.test.tsx`   | Tests for test utilities          |
 | `README.md`        | Test infrastructure documentation |
 
-Contains subdirectories for test factories, fixtures, and mocks
+Contents beyond that table: `test/fixtures/`, `test/factories/`,
+`test/mocks/` subdirectories,
+and the six helpers `setup.ts:16-23` re-exports (`createRouterMock`,
+`createApiMock`, `createWebSocketMock`, `testQueryClientOptions`,
+`FAST_TIMEOUT`, `STANDARD_TIMEOUT`) so tests can pull them from
+`@/test/setup`. (W3.1 batch 8 pruned this directory's guide.)
+
+**The file-wide cleanup is the contract — read it before adding per-test
+reset ritual.** `setup.ts:119-154` runs, every test: `cleanup()`,
+`localStorage.clear()`, `server.resetHandlers()` (MSW), `vi.clearAllMocks()`,
+`vi.clearAllTimers()`, `vi.useRealTimers()`, `vi.unstubAllGlobals()`, and
+`resetCounter()`. A per-file `beforeEach(resetCounter)` is unnecessary — the
+deleted factories guide taught it as mandatory; the harness already does it.
+
+**The 350 ms `afterAll` sleep is load-bearing; do not trim it.**
+`@tremor/react`'s Button/Badge/ProgressBar call `useTooltip(300)`, which
+schedules a REAL `setTimeout` on pointer-enter (every `userEvent.click` fires
+one) and cancels it only through state. `vi.clearAllTimers()` clears only
+vitest-managed FAKE timers — a real timer needs wall time. A timer left alive
+fires after jsdom teardown and its `setState` dereferences `window` ->
+"ReferenceError: window is not defined", attributed to whichever file the
+reused fork runs NEXT, not to the file that leaked (the in-code comment at
+setup.ts:160-175 records an innocent-neighbor incident). 350 ms > the 300 ms
+tooltip delay.
+
+**Custom matchers live at `__tests__/matchers.ts` and work by import
+side-effect** (`expect.extend` runs at module scope) — a test file that never
+imports the module gets "matcher is not a function" with no pointer here.
+The registered nine: `toBeValidCamera`, `toBeValidEvent`,
+`toBeValidDetection`, `toHaveRiskLevel`, `toBeValidRiskScore`,
+`toBeAccessible`, `toBeValidISODate`, `toBeValidPaginatedResponse`,
+`toHaveNoViolations`. `toBeValidCamera` accepts status only from
+online/offline/error/unknown — `status: 'active'` FAILS it (older guide prose
+used exactly that and its own example could never pass).
+
+**`test/factories/` is near-orphaned and its counter is shared.** One real
+consumer exists (`matchers.test.ts:7`) plus `setup.ts` importing
+`resetCounter`; every other `@/test/factories` mention in the tree is prose in
+a doc. Its single module-level counter feeds `uniqueId` AND entity ids, so
+interleaving is real: after a reset `eventFactory().id` runs 0,1,2 (not
+1,2,3), and a `detectionFactory()` with default `camera_id` consumes two
+counter values (ids step by 2). Confidence units are 0-1 and risk score 0-100
+per API convention — the generated types carry no unit; `services/api.ts:2772`
+is the only surviving statement of the 0-1 bound.
 
 ### `/types/` - TypeScript Types
 
@@ -807,15 +900,63 @@ Each utility has a co-located test file.
 | `factories.ts`            | Test data factories for events, detections, cameras       |
 | `test-utils.test.tsx`     | Tests for test utilities                                  |
 
-Import test utilities from `../test-utils` in test files.
+Contracts this package carries (W3.1 batch 8 pruned its guide):
+
+- **`renderWithProviders` stacks FOUR switchable providers, not three.**
+  `withSidebarContext` / `withRouter` (MemoryRouter by default, BrowserRouter
+  via `useMemoryRouter: false`) / `withQueryClient` all default true, plus the
+  per-call `user` from `userEvent.setup()`. The QueryClientProvider layer is
+  the one older prose omitted — do not wrap the component in a second
+  QueryClientProvider; pass `queryClient` instead. The client comes from the
+  PRODUCTION `createQueryClient()` factory (so tests track production cache
+  config, including the rate-limit QueryCache/MutationCache hooks), and it is
+  created once per `renderWithProviders` call, not once per test.
+- **The package's factory types are a SHADOW system, not the schema.** Its
+  Event/Detection/Camera interfaces are self-declared and incompatible with
+  the generated API types: `Event.id` is a string where `EventResponse.id` is
+  a number; there is no `camera_id` (required in the schema); `risk_label`,
+  `timestamp`, `camera_name`, `detections` exist in NO generated schema, and
+  four required fields (`detection_count`, `flagged`, `reviewed`, `version`)
+  are absent. The UI papers over it — EventTimeline/AlertsPage write
+  `risk_label: event.risk_level ?? undefined` onto components fed by these
+  factories. A component written against canonical types will NOT accept
+  `createEvent()` output; "matches backend API responses" is the deleted
+  guide's false claim. Adoption follows: 7 files use `renderWithProviders`,
+  4 use `createQueryWrapper`, ZERO use the factories — the tests that need
+  bespoke data (`TimeGroupedEvents.test.tsx:27`, `Layout.test.tsx:76`) define
+  LOCAL factories instead.
+- **Consumers import from the package's files, not the barrel's TL re-exports.**
+  Real import lines pull `renderWithProviders`/`createQueryWrapper` from
+  `test-utils` and `screen`/`waitFor`/`userEvent`/`fireEvent` directly from
+  `@testing-library/*`. The barrel's re-exports of testing-library names have
+  zero consumers; the deleted guide's "import everything from `../test-utils`"
+  is not the house style.
 
 ### `/__tests__/` - Additional Tests
 
-- `api-contracts.test.ts` - API contract validation tests
-- `lighthouserc.test.ts` - Lighthouse CI configuration tests
-- `matchers.ts` - Custom test matchers
-- `matchers.test.ts` - Tests for custom matchers
-- `AGENTS.md` - Test directory documentation
+- `api-contracts.test.ts` - literal shape expectations for API responses +
+  WebSocket message formats (type-only imports; it validates NOTHING against
+  the OpenAPI spec — `import type` is erased at runtime)
+- `api-endpoint-contract.test.ts` - THE real endpoint gate (F1.1/D2): every
+  path the typed client can put on the wire must exist on the backend. It
+  shares `scripts/api-contract-lib.mjs` with `scripts/api-contract-scan.mjs`
+  so a shell run and this gate cannot disagree, loads it via DYNAMIC import
+  (tsconfig `include: ["src"]` without `allowJs` rejects static .mjs imports)
+  and uses `process.cwd()` because jsdom makes `import.meta.url` an `http:`
+  URL. Its allowlist `api-endpoint-contract-known-missing.json` is
+  self-policing: a stale entry fails the gate, so it cannot quietly grow.
+- `api-contract-lib.test.ts`, `auth-flow.test.tsx`, `vite-config.test.ts`,
+  `matchers.ts` + `matchers.test.ts` (see the `/test/` section)
+- `lighthouserc.test.ts` - **a known tautology, flagged for repair, not a
+  guard.** It asserts a config literal the test file defines against a copy of
+  itself; the Lighthouse CI config file its comments reference is not tracked
+  in the repo, so all of its tests can never fail. Treat Lighthouse thresholds
+  as living only in the CI workflow until that file (or the test) is fixed.
+
+Placement convention (survives the guide deletions): put tests HERE only for
+project configuration files, build-tool settings, CI/CD configs, and
+performance budgets. Components, hooks, services, and utilities co-locate with
+their source files.
 
 ## Application Routes
 
@@ -871,17 +1012,26 @@ All test files use naming convention: `*.test.ts` or `*.test.tsx`
 
 ### Test Coverage Thresholds
 
-- Statements: 83%
-- Branches: 77%
-- Functions: 81%
-- Lines: 84%
+The enforced floors are `vite.config.ts:429-432`: statements 80, branches 74.6,
+functions 78.4, lines 80.9. They sit AT the measured merged values by decision
+(WP2.3 R-1): the older wish-values 83/77/81/84 exceeded every observed run, so
+they were unenforceable by construction and were reverted — "a floor that has
+never held is not a floor." The config's numbers are mirrored by
+`scripts/merge-shard-coverage.mjs` FLOORS and a node test pins the two, so
+moving one alone reddens the pin. Older prose naming 83/77/81/84 (including
+some surviving docs) is superseded, not authoritative.
 
 ### Test Setup
 
 - Environment: jsdom
-- Setup file: `test/setup.ts`
+- Setup file: `test/setup.ts` (registers a file-wide `afterEach` cleanup and an
+  `afterAll` that sleeps 350 ms — see the `/test/` section)
 - Provider: v8 coverage
-- Pool: forks (single fork for memory optimization)
+- Pool: forks, `isolate: true`; `fileParallelism` and `maxWorkers` are
+  env-gated. There is no `singleFork` option in the config and modern vitest
+  would ignore it — memory control comes from the pool/isolation settings and
+  `teardownTimeout: 3000` (the knob that aborts a stuck cleanup). `testTimeout`
+  and `hookTimeout` are 30000 ms, not the 10000 older prose claimed.
 
 ## Type Safety
 
