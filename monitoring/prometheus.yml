@@ -1,8 +1,12 @@
 # Prometheus configuration for Home Security Intelligence
 #
-# LIVE CONFIG - docker-compose.prod.yml bind-mounts this file directly into the
-# prometheus container read-only; nothing templates or substitutes into it at
-# startup. (The former monitoring/prometheus.yml.template had zero consumers —
+# LIVE CONFIG - docker-compose.prod.yml bind-mounts this file read-only into
+# the prometheus container, and the service's boot command renders ONE token
+# into a tmpfs copy it boots from: __HSI_MONITORING_API_KEY__ becomes the
+# MONITORING_API_KEY value (O1.11/UR-33 — Prometheus expands no env vars of
+# its own, so the scrape header has to be substituted before the binary
+# reads it). Everything else is literal, consumed as committed.
+# (The former monitoring/prometheus.yml.template had zero consumers —
 # no launcher ran envsubst over it — and its port placeholders disagreed with
 # the fixed ports below; it is archived, see archive/README.md.)
 #
@@ -61,6 +65,19 @@ scrape_configs:
   - job_name: 'hsi-backend-metrics'
     metrics_path: /api/metrics
     scrape_interval: 15s
+    # O1.11 (UR-33): /api/metrics is not in the B1.5 gate's OPEN_PATHS, so
+    # with EXPOSE_LAN=true the scrape is a plain gated HTTP call and needs a
+    # key from settings.api_keys. This is the only header schema Prometheus
+    # v3.1 accepts (probe: Header is {values: [...]}; map/seq/value forms all
+    # fail to unmarshal) and Prometheus expands no env vars in this file
+    # (probe: a literal "$VAR" went over the wire), so the committed config
+    # carries the placeholder and docker-compose.prod.yml renders it from
+    # MONITORING_API_KEY at boot. Unexposed, the gate passes everything and
+    # the header rides along ignored — today's behavior, plus one header.
+    http_headers:
+      X-API-Key:
+        values:
+          - '__HSI_MONITORING_API_KEY__'
     static_configs:
       - targets:
           - 'backend:8000'

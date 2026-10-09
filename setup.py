@@ -15,6 +15,7 @@ Security features:
 """
 
 import argparse
+import json
 import os
 import platform
 import secrets
@@ -30,11 +31,15 @@ from typing import Any, TypedDict
 from setup_lib.core import (
     WEAK_PASSWORDS,
     check_port_available,
+    derive_alert_sink_url,
     derive_frontend_bind_address,
+    derive_grafana_anonymous_enabled,
+    derive_grafana_auth_proxy_enabled,
     find_available_port,
     generate_password,
     is_weak_password,
 )
+from setup_lib.credentials import generate_api_key
 from setup_lib.firewall_config import prompt_and_configure_firewall
 from setup_lib.image_pull import prompt_and_pull_images
 from setup_lib.linux_optimizer import prompt_and_run_optimizations
@@ -441,6 +446,34 @@ def generate_env_content(config: dict) -> str:
         f"EXPOSE_LAN={'true' if config.get('expose_lan', False) else 'false'}",
         "FRONTEND_BIND_ADDRESS="
         + derive_frontend_bind_address("true" if config.get("expose_lan", False) else "false"),
+        # O1.11 (UR-33): the monitoring credential + the mode derivations
+        # that compose cannot compute itself. One key for every machine
+        # caller (Prometheus scrape, Alertmanager webhook, Grafana
+        # datasource, json-exporter probes); API_KEYS mirrors it as the JSON
+        # list pydantic parses, so the gate the key satisfies is configured
+        # from the same value. MONITORING_API_KEY lives HERE only (.env is
+        # gitignored) — never in a committed monitoring config, which is why
+        # those files carry a placeholder the containers render at boot.
+        # The three derives are the O1.6 pattern: compose has no
+        # conditionals, so the mode decision is made once here and compose
+        # just reads the values (each with its own fail-safe default for a
+        # hand-edited .env that sets EXPOSE_LAN without re-running setup.py).
+        f"MONITORING_API_KEY={config.get('monitoring_api_key', '')}",
+        "API_KEYS="
+        + (
+            json.dumps([config["monitoring_api_key"]]) if config.get("monitoring_api_key") else "[]"
+        ),
+        "GRAFANA_ANONYMOUS_ENABLED="
+        + derive_grafana_anonymous_enabled("true" if config.get("expose_lan", False) else "false"),
+        "GRAFANA_AUTH_PROXY_ENABLED="
+        + derive_grafana_auth_proxy_enabled("true" if config.get("expose_lan", False) else "false"),
+        # auth.proxy without auto-sign-up 401s even a VALID identity header
+        # (probe, Grafana 12.3.2) — so it arms and disarms with the proxy
+        # itself, never independently.
+        "GRAFANA_AUTH_PROXY_AUTO_SIGN_UP="
+        + derive_grafana_auth_proxy_enabled("true" if config.get("expose_lan", False) else "false"),
+        "ALERT_SINK_URL="
+        + derive_alert_sink_url("true" if config.get("expose_lan", False) else "false"),
         "",
         "# -- Foscam Init (chown on FOSCAM_BASE_PATH) " + "-" * 22,
         f"HOST_UID={config.get('host_uid', 1000)}",
@@ -576,6 +609,10 @@ def run_quick_mode() -> dict:
     default_grafana_pw = existing_env.get("GF_SECURITY_ADMIN_PASSWORD", "")
     # JWT secret for authentication (NEM-3471)
     jwt_secret = existing_env.get("JWT_SECRET") or generate_jwt_secret()
+    # O1.11 (UR-33): the monitoring machine key. Reuse-first like every other
+    # secret here — a rotated key would break every monitoring caller until
+    # the containers re-render at boot, and reusing costs nothing.
+    monitoring_api_key = existing_env.get("MONITORING_API_KEY") or generate_api_key()
     jwt_expiry_hours = int(existing_env.get("JWT_EXPIRY_HOURS", "24"))
     refresh_token_days = int(existing_env.get("REFRESH_TOKEN_DAYS", "30"))
 
@@ -659,6 +696,7 @@ def run_quick_mode() -> dict:
         "grafana_password": grafana_password,
         "ftp_password": ftp_password,
         "jwt_secret": jwt_secret,
+        "monitoring_api_key": monitoring_api_key,
         "jwt_expiry_hours": jwt_expiry_hours,
         "refresh_token_days": refresh_token_days,
         "ports": ports,
@@ -755,6 +793,10 @@ def run_guided_mode() -> dict:
     default_grafana_pw = existing_env.get("GF_SECURITY_ADMIN_PASSWORD", "")
     # JWT secret for authentication (NEM-3471)
     jwt_secret = existing_env.get("JWT_SECRET") or generate_jwt_secret()
+    # O1.11 (UR-33): the monitoring machine key. Reuse-first like every other
+    # secret here — a rotated key would break every monitoring caller until
+    # the containers re-render at boot, and reusing costs nothing.
+    monitoring_api_key = existing_env.get("MONITORING_API_KEY") or generate_api_key()
     jwt_expiry_hours = int(existing_env.get("JWT_EXPIRY_HOURS", "24"))
     refresh_token_days = int(existing_env.get("REFRESH_TOKEN_DAYS", "30"))
 
@@ -890,6 +932,7 @@ def run_guided_mode() -> dict:
         "grafana_password": grafana_password,
         "ftp_password": ftp_password,
         "jwt_secret": jwt_secret,
+        "monitoring_api_key": monitoring_api_key,
         "jwt_expiry_hours": jwt_expiry_hours,
         "refresh_token_days": refresh_token_days,
         "ports": ports,
@@ -1026,6 +1069,8 @@ def run_defaults_mode() -> dict:
     ftp_password = generate_password(16)
     # JWT secret for authentication (NEM-3471)
     jwt_secret = generate_jwt_secret()
+    # O1.11 (UR-33): monitoring machine key (non-interactive path).
+    monitoring_api_key = generate_api_key()
 
     # Detect GPU compute capability for optimized CUDA builds
     from setup_lib.nvidia_detect import get_gpu_info, should_preload_models
@@ -1052,6 +1097,7 @@ def run_defaults_mode() -> dict:
         "grafana_password": "",
         "ftp_password": ftp_password,
         "jwt_secret": jwt_secret,
+        "monitoring_api_key": monitoring_api_key,
         "jwt_expiry_hours": 24,
         "refresh_token_days": 30,
         "ports": ports,

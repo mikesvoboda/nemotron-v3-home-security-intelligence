@@ -156,7 +156,7 @@ def test_generated_env_carries_key_and_derived_mode_lines() -> None:
     is hsi_+token_urlsafe, whose alphabet is JSON- and shell-safe."""
     import setup
 
-    base = {"monitoring_api_key": "hsi_TESTKEY123"}
+    base = {"monitoring_api_key": "hsi_TESTKEY123"}  # pragma: allowlist secret
     exposed = setup.generate_env_content({**base, "expose_lan": True})
     unexposed = setup.generate_env_content({**base, "expose_lan": False})
     for content in (exposed, unexposed):
@@ -262,8 +262,15 @@ def test_grafana_gets_the_key_and_the_mode_flips(compose_services: dict) -> None
     graf = compose_services["grafana"]
     lines = _env_lines(graf)
     assert "MONITORING_API_KEY=${MONITORING_API_KEY:-}" in lines
-    assert "GF_AUTH_ANONYMOUS_ENABLED=${GRAFANA_ANONYMOUS_ENABLED:-true}" in lines, (
-        "anonymous Admin becomes derivable; the :-true default keeps today's behavior"
+    # Nested default (the precedence test below pins why): the OUTER key keeps
+    # its own name so a legacy hand-set false is never resurrected, while
+    # setup.py's derived GRAFANA_ANONYMOUS_ENABLED channel still wins when set.
+    assert (
+        "GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-${GRAFANA_ANONYMOUS_ENABLED:-true}}"
+        in lines
+    ), (
+        "anonymous Admin becomes derivable; the :-true default keeps today's "
+        "behavior and the self-referencing outer key keeps the LEGACY false"
     )
     assert "GF_AUTH_PROXY_ENABLED=${GRAFANA_AUTH_PROXY_ENABLED:-false}" in lines
     assert "GF_AUTH_PROXY_HEADER_NAME=X-Auth-User" in lines
@@ -308,7 +315,9 @@ def test_alertmanager_config_sinks_to_the_placeholder() -> None:
 
 def test_backend_api_datasource_carries_the_key_via_grafana_core() -> None:
     text = _text(DATASOURCES)
-    ds = text[text.index("Backend-API") :]
+    # Anchor on the datasource ENTRY (not the bare name — the file header
+    # note added by O1.11 mentions it too).
+    ds = text[text.index("- name: Backend-API") :]
     ds = ds[: ds.index("\n  #") :] if "\n  #" in ds[10:] else ds
     assert "httpHeaderName1" in ds and "X-API-Key" in ds
     assert "secureJsonData" in ds
@@ -379,12 +388,20 @@ def test_nested_interpolator_agrees_with_compose() -> None:
     assert _interpolate(line, {}) == "true"
     assert _interpolate(line, {"GF_AUTH_ANONYMOUS_ENABLED": "false"}) == "false"
     assert _interpolate(line, {"GRAFANA_ANONYMOUS_ENABLED": "false"}) == "false"
-    # derived channel wins over the legacy one when both are set
+    # NOTE (pre-implementation test correction, measured against the real
+    # compose v5.5.1 binary, this repo): ${A:-${B:-c}} consults the INNER
+    # default only when A is unset/empty — an explicitly hand-set legacy
+    # value WINS over the derived channel. An earlier revision of this line
+    # asserted the derived channel wins, which the binary contradicts. The
+    # security-relevant direction is the one that holds: a legacy "false"
+    # can never be flipped back ON by an upgrade (see the line above this
+    # block); the conflict case is an explicit opt-out, and the mode-gated
+    # nginx auth_request fronts /grafana/ independently of this flag.
     assert (
         _interpolate(
             line, {"GF_AUTH_ANONYMOUS_ENABLED": "true", "GRAFANA_ANONYMOUS_ENABLED": "false"}
         )
-        == "false"
+        == "true"
     )
     # EMPTY counts as unset (compose's :- grammar), including for the inner default
     assert (

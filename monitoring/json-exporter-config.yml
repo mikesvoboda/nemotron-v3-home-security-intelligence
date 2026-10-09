@@ -43,6 +43,17 @@ modules:
 
   # Pipeline telemetry metrics
   telemetry:
+    # O1.11 (UR-33): /api/system/telemetry is NOT one of the B1.5 gate's
+    # OPEN_PATHS, so with EXPOSE_LAN=true this probe needs a key from
+    # settings.api_keys. Schema note (probe, json-exporter v0.6.0): module
+    # headers take a SCALAR value (a seq value fails to unmarshal; a global/
+    # top-level headers key is silently ignored), and the binary expands no
+    # env vars — the placeholder renders at boot, mode-gated, in
+    # docker-compose.prod.yml (json-exporter service). The health module
+    # deliberately has NO header: /api/system/health is an OPEN path and its
+    # probe stays exactly as today (see the O1.11 test file).
+    headers:
+      X-API-Key: __HSI_MONITORING_API_KEY__
     metrics:
       # Queue depths
       - name: hsi_detection_queue_depth
@@ -113,6 +124,9 @@ modules:
 
   # System statistics
   stats:
+    # O1.11 (UR-33): gated target — same header/render as telemetry above.
+    headers:
+      X-API-Key: __HSI_MONITORING_API_KEY__
     metrics:
       - name: hsi_total_cameras
         path: '{ .total_cameras }'
@@ -136,6 +150,9 @@ modules:
 
   # GPU statistics
   gpu:
+    # O1.11 (UR-33): gated target — same header/render as telemetry above.
+    headers:
+      X-API-Key: __HSI_MONITORING_API_KEY__
     metrics:
       - name: hsi_gpu_utilization
         path: '{ .utilization }'

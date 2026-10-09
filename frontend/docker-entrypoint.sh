@@ -25,6 +25,94 @@ fi
 sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" "$NGINX_CONF"
 
 # =============================================================================
+# O1.11 (UR-33): mode-gated monitoring/auth renders
+# =============================================================================
+# EXPOSE_LAN is the ONE flag (O1.6 doctrine): the same case-insensitive
+# truthy vocabulary pydantic parses for Settings.expose_lan and
+# setup_lib/core.py uses for the bind address, so the gate, the renders and
+# the bind can never disagree. Unexposed (unset/"false"/a typo) every render
+# below degenerates to a no-op: both seam lines are deleted and no machine
+# listener is appended, so the config comes out byte-identical to the
+# pre-O1.11 render (diffed in-container against origin/main's entrypoint
+# under nginx -t; the seam markers are what make the deletion exact).
+HSI_EXPOSED=false
+case "$(printf '%s' "${EXPOSE_LAN:-false}" | tr '[:upper:]' '[:lower:]')" in
+    true|t|yes|y|on|1) HSI_EXPOSED=true ;;
+esac
+
+# Render seam inside every /grafana/ location. The auth_request line must
+# NOT be textually inside those blocks (the O1.11 guard test pins that the
+# DEFAULT render keeps today's block verbatim), so the gated directives
+# arrive through this include, which lives on tmpfs /tmp and is rewritten
+# every boot. auth.proxy in Grafana trusts X-Auth-User only when its own
+# GF_AUTH_PROXY_ENABLED renders true from the same flag — render and trust
+# arm and disarm together (backend/tests/unit/core/test_monitoring_expose_
+# lan_credentials.py pins both sides).
+# The seams in the injected bundles below are BARE marker lines, handled per
+# bundle by hsi_finalize_seams (same placeholder family as __DNS_RESOLVER__):
+#   * __HSI_GRAFANA_INCLUDE__ — becomes the one include line when exposed;
+#     the LINE IS DELETED for the default render, so the default config is
+#     byte-identical to the pre-O1.11 render (spec checklist 4), not merely
+#     behavior-identical.
+#   * __HSI_AUTH_ANCHOR__ — server-level splice point (a location cannot
+#     nest); the internal session-check endpoint is spliced at its position
+#     when exposed, line deleted otherwise.
+# Neither marker renders in default mode, so /grafana/ keeps its exact
+# shipped text and gains no backend round-trips it never had.
+hsi_finalize_seams() {
+    if [ "$HSI_EXPOSED" = "true" ]; then
+        sed -i "/__HSI_AUTH_ANCHOR__/r /tmp/hsi-auth-endpoint.conf" "$1"
+        sed -i "/__HSI_AUTH_ANCHOR__/d" "$1"
+        sed -i 's|__HSI_GRAFANA_INCLUDE__|include /tmp/hsi-grafana-auth.conf;|g' "$1"
+    else
+        sed -i "/__HSI_AUTH_ANCHOR__/d" "$1"
+        sed -i "/__HSI_GRAFANA_INCLUDE__/d" "$1"
+    fi
+}
+
+if [ "$HSI_EXPOSED" = "true" ]; then
+    # One login serves /grafana/ and the three embedded dashboards (the DECIDE
+    # recorded in the O1.11 claim ack): every /grafana/ request makes nginx
+    # ask the backend's cheap gated session check /api/auth/me — a valid
+    # session cookie answers 200 and the request proceeds; no session answers
+    # 401 and auth_request fails the main request with that same 401 (the
+    # spec's "refused without a session" clause; auth_request always issues
+    # GET, so POST dashboard saves ride the same check). Grafana then sees a
+    # provisioned Viewer identity via auth.proxy — Viewer, never Admin, and
+    # auto_sign_up=true is load-bearing (probe on 12.3.2: without it even a
+    # valid X-Auth-User request 401s).
+    cat > /tmp/hsi-grafana-auth.conf << 'HSI_GRAFANA_AUTH_EOF'
+# O1.11 exposed render (rewritten at boot): /grafana/ behind the app session.
+auth_request /_hsi_auth;
+proxy_set_header X-Auth-User hsi-viewer;
+HSI_GRAFANA_AUTH_EOF
+
+    # The auth subrequest target: internal (direct hits 404), and
+    # deliberately NOT rate-limited — a dashboard page fans out many asset
+    # requests, each authenticating, and a 429 from an auth subrequest would
+    # surface as a 500 on the page.
+    cat > /tmp/hsi-auth-endpoint.conf << 'HSI_AUTH_ENDPOINT_EOF'
+    location = /_hsi_auth {
+        internal;
+        access_log off;
+        proxy_pass $backend_upstream/api/auth/me;
+        proxy_http_version 1.1;
+        # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
+        proxy_set_header Host $server_name;
+        # The session_id cookie IS the credential (B1.5); an empty value
+        # here would make every /grafana/ request a silent 401 (F1.3 lesson).
+        proxy_set_header Cookie $http_cookie;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 10s;
+        proxy_read_timeout 10s;
+        proxy_buffering off;
+    }
+HSI_AUTH_ENDPOINT_EOF
+fi
+
+# =============================================================================
 # HTTP Location Blocks (for non-SSL mode)
 # =============================================================================
 # These location blocks serve the application when SSL is disabled.
@@ -138,6 +226,7 @@ HTTP_LOCATIONS='
         # Rate limiting: uses general zone for dashboard access
         limit_req zone=general burst=50 nodelay;
         limit_req_status 429;
+        __HSI_GRAFANA_INCLUDE__
 
         # Dynamic DNS resolution - re-resolves hostname on each request
         # This prevents 502 errors when Grafana container is recreated with new IP
@@ -188,6 +277,7 @@ HTTP_LOCATIONS='
 
         try_files $uri $uri/ /index.html;
     }
+    __HSI_AUTH_ANCHOR__
 '
 
 # =============================================================================
@@ -298,6 +388,7 @@ HTTPS_REDIRECT='
         # Rate limiting: uses general zone for dashboard access
         limit_req zone=general burst=50 nodelay;
         limit_req_status 429;
+        __HSI_GRAFANA_INCLUDE__
 
         resolver __DNS_RESOLVER__ valid=10s ipv6=off;
         set $grafana_upstream '"${GRAFANA_UPSTREAM}"';
@@ -328,6 +419,7 @@ HTTPS_REDIRECT='
     location / {
         return 301 https://$host:'"${HTTPS_REDIRECT_PORT}"'$request_uri;
     }
+    __HSI_AUTH_ANCHOR__
 '
 
 # =============================================================================
@@ -432,6 +524,7 @@ if [ "${SSL_ENABLED:-false}" = "true" ]; then
         printf '%s' "$HTTPS_REDIRECT" > /tmp/https_redirect.conf
         # Replace DNS resolver placeholder in the injected content
         sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" /tmp/https_redirect.conf
+        hsi_finalize_seams /tmp/https_redirect.conf
         sed -i "/__HTTP_LOCATIONS__/r /tmp/https_redirect.conf" "$NGINX_CONF"
         sed -i "/__HTTP_LOCATIONS__/d" "$NGINX_CONF"
         rm -f /tmp/https_redirect.conf
@@ -605,6 +698,7 @@ server {
         # Rate limiting: uses general zone for dashboard access
         limit_req zone=general burst=50 nodelay;
         limit_req_status 429;
+        __HSI_GRAFANA_INCLUDE__
 
         set \$grafana_upstream ${GRAFANA_UPSTREAM};
         proxy_pass \$grafana_upstream;
@@ -652,11 +746,13 @@ server {
         add_header Content-Type text/plain always;
         return 200 \"healthy\n\";
     }
+    __HSI_AUTH_ANCHOR__
 }
 "
         # Replace the placeholder with the SSL server block
         # Using printf to handle the multiline string and escape characters properly
         printf '%s' "$SSL_SERVER_BLOCK" > /tmp/ssl_server_block.conf
+        hsi_finalize_seams /tmp/ssl_server_block.conf
         sed -i "/__SSL_SERVER_BLOCK__/r /tmp/ssl_server_block.conf" "$NGINX_CONF"
         sed -i "/__SSL_SERVER_BLOCK__/d" "$NGINX_CONF"
         rm -f /tmp/ssl_server_block.conf
@@ -672,6 +768,7 @@ server {
         printf '%s' "$HTTP_LOCATIONS" > /tmp/http_locations.conf
         # Replace DNS resolver placeholder in the injected content
         sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" /tmp/http_locations.conf
+        hsi_finalize_seams /tmp/http_locations.conf
         sed -i "/__HTTP_LOCATIONS__/r /tmp/http_locations.conf" "$NGINX_CONF"
         sed -i "/__HTTP_LOCATIONS__/d" "$NGINX_CONF"
         rm -f /tmp/http_locations.conf
@@ -685,12 +782,94 @@ else
     printf '%s' "$HTTP_LOCATIONS" > /tmp/http_locations.conf
     # Replace DNS resolver placeholder in the injected content
     sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" /tmp/http_locations.conf
+    hsi_finalize_seams /tmp/http_locations.conf
     sed -i "/__HTTP_LOCATIONS__/r /tmp/http_locations.conf" "$NGINX_CONF"
     sed -i "/__HTTP_LOCATIONS__/d" "$NGINX_CONF"
     rm -f /tmp/http_locations.conf
 
     # Remove SSL placeholder
     sed -i 's|__SSL_SERVER_BLOCK__||g' "$NGINX_CONF"
+fi
+
+# =============================================================================
+# O1.11: machine listener (exposed mode only) — http context, appended last
+# =============================================================================
+# Alertmanager cannot send an X-API-Key in ANY release (probed v0.27.0→
+# v0.34.1: http_headers and http_config.headers both rejected; only
+# basic_auth/bearer exist and the B1.5 gate reads neither). Its webhook
+# therefore transits this listener, which injects the rendered key on
+# exactly one path. Design points, each load-bearing:
+#   * listen 8081 with NO published compose port — reachable only from the
+#     container network. A host-published injector would hand the LAN a
+#     credential-bearing fake-alert sink (spec's refusal clause inverted).
+#   * Everything but the alert route 404s: json-exporter carries its own
+#     key natively (probe v0.6.0), so the listener stays minimal-scope —
+#     the blast radius of the compose network reaching it is one route.
+#   * No limit_req: a 429 here makes Alertmanager retry with backoff,
+#     silently delaying real alerts; the caller set is fixed (amtool-
+#     verified pinned images on security-net), not the open internet.
+# The key arrives from this container's env (compose wires it). setup.py's
+# charset (hsi_ + URL-safe base64) contains neither the | sed delimiter nor
+# sed's & replacement metacharacter, so it cannot break out of the
+# substitution; a hand-edited key that did would fail nginx -t loudly at
+# boot or render a wrong header that the gate 401s — never inject silently.
+if [ "$HSI_EXPOSED" = "true" ]; then
+    if [ -z "${MONITORING_API_KEY:-}" ]; then
+        # Fail closed loudly: an empty header is dropped by nginx entirely,
+        # so the backend gate will 401 Alertmanager's webhooks until the
+        # .env carries the key. Surfacing it here beats reading 401s later.
+        echo "WARNING: EXPOSE_LAN=true but MONITORING_API_KEY is empty -" \
+             "Alertmanager webhooks will be refused by the backend gate." \
+             "Re-run setup.py (or add MONITORING_API_KEY= to .env)."
+    fi
+    cat > /tmp/hsi-machine-listener.conf << 'HSI_MACHINE_EOF'
+
+# O1.11 exposed render (appended at boot): compose-network machine listener.
+server {
+    listen 8081;
+    server_name localhost;
+
+    resolver __MACHINE_RESOLVER__ valid=10s ipv6=off;
+    set $backend_upstream http://backend:8000;
+
+    # Alertmanager's sink, credential injected at the proxy (see header).
+    location = /api/webhooks/alerts {
+        proxy_pass $backend_upstream;
+        proxy_http_version 1.1;
+        # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
+        proxy_set_header Host $server_name;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Rendered from the container env by the entrypoint (never
+        # committed). B1.5's gate reads x-api-key for HTTP callers.
+        proxy_set_header X-API-Key "__HSI_MONITORING_API_KEY__";
+        # F1.3 invariant holds everywhere: Cookie is forwarded BY DIRECTIVE,
+        # never by nginx default. Inert on this leg — Alertmanager sends no
+        # Cookie header and nginx drops an empty proxy_set_header — but the
+        # machine leg shares the gate's route table with browser legs, and
+        # test_nginx_credential_forwarding.py rightly refuses per-block
+        # exemptions from the rule.
+        proxy_set_header Cookie $http_cookie;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+    }
+
+    # Nothing else transits the injector.
+    location / {
+        return 404;
+    }
+}
+HSI_MACHINE_EOF
+    sed -i "s/__MACHINE_RESOLVER__/${RESOLVER:-127.0.0.11}/g" /tmp/hsi-machine-listener.conf
+    sed -i "s|__HSI_MONITORING_API_KEY__|${MONITORING_API_KEY:-}|g" /tmp/hsi-machine-listener.conf
+    # Append after the last line: the file ends in http context once the SSL
+    # placeholder above was consumed/blanked, so this top-level server lands
+    # beside the 8080 server (and beside 8443 when SSL is on).
+    cat /tmp/hsi-machine-listener.conf >> "$NGINX_CONF"
+    rm -f /tmp/hsi-machine-listener.conf
+    echo "O1.11: /grafana/ behind the app session; machine listener on :8081"
 fi
 
 # Execute the original command (nginx)

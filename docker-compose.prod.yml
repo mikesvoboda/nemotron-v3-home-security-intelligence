@@ -625,6 +625,15 @@ services:
       - ADMIN_ENABLED=${ADMIN_ENABLED:-false}
       # OD-12: true makes the backend refuse requests without a login session or API key
       - EXPOSE_LAN=${EXPOSE_LAN:-false}
+      # O1.11 (UR-33): the keys the gate accepts as an X-API-Key credential.
+      # Settings.api_keys is read from the PROCESS env, and the backend
+      # service has no env_file:/.env mount, so until this line existed the
+      # key form B1.5 built was unreachable in-container — .env carried keys
+      # the backend never saw. setup.py writes both vars into .env (the key
+      # exists in BOTH modes: exposure only starts checking it). A JSON list,
+      # which is what pydantic parses; :-[] default fails closed (no keys ->
+      # only session cookies pass, exactly as before this line).
+      - API_KEYS=${API_KEYS:-[]}
       - FAST_PATH_ENABLED=${FAST_PATH_ENABLED:-false}
       - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
       # OpenTelemetry distributed tracing (NEM-1629)
@@ -942,6 +951,17 @@ services:
       - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}
       # HTTPS port for redirect (must match external port mapping)
       - FRONTEND_HTTPS_PORT=${FRONTEND_HTTPS_PORT:-8444}
+      # O1.11 (UR-33): the entrypoint renders two mode-gated pieces of nginx
+      # config — the /grafana/ auth_request include and the unpublished
+      # listen-8081 machine listener that injects X-API-Key for the
+      # Alertmanager webhook leg. Both arms render ONLY when EXPOSE_LAN is
+      # truthy (same vocabulary as setup_lib/core.py; the entrypoint re-
+      # derives from the raw flag so a hand-edited .env can't split the two
+      # sides), and the key reaches the render through this env — never a
+      # committed file. 8081 is deliberately NOT in ports: (compose-network
+      # only), so the listener adds no new externally reachable surface.
+      - EXPOSE_LAN=${EXPOSE_LAN:-false}
+      - MONITORING_API_KEY=${MONITORING_API_KEY:-}
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
@@ -1023,6 +1043,18 @@ services:
     cap_drop:
       - ALL
     image: docker.io/prom/prometheus:v3.1.0
+    # O1.11 (UR-33): with EXPOSE_LAN=true the gate refuses the /api/metrics
+    # scrape without an X-API-Key, and Prometheus v3.1 expands NO env var in
+    # its config (probe: sent "$MON_KEY" verbatim over the wire — even in
+    # basic_auth passwords). So the committed config carries the
+    # __HSI_MONITORING_API_KEY__ placeholder and the service renders it at
+    # boot into tmpfs /tmp (the rootfs is read_only; tmpfs mounts 1777, and
+    # prometheus runs nobody). Unexposed, the gate is off, the header (empty
+    # or not) is ignored, and the scrape behaves exactly as today.
+    environment:
+      - MONITORING_API_KEY=${MONITORING_API_KEY:-}
+    tmpfs:
+      - /tmp
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${PROMETHEUS_PORT:-9090}:9090'
@@ -1036,12 +1068,19 @@ services:
       - ./monitoring/gpu-alerts.yml:/etc/prometheus/gpu-alerts.yml:ro,z
       - ./monitoring/ai-pipeline-alerts.yml:/etc/prometheus/ai-pipeline-alerts.yml:ro,z
       - prometheus_data:/prometheus
+    # The key reaches the shell via this service's environment, so it is a
+    # $$-escaped shell expansion (compose leaves $$ alone); retention keeps
+    # compose-side interpolation exactly as before this block changed.
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}'
-      - '--web.enable-lifecycle'
-      - '--web.enable-remote-write-receiver'
+      - /bin/sh
+      - -ec
+      - >-
+        sed "s|__HSI_MONITORING_API_KEY__|$${MONITORING_API_KEY:-}|g"
+        /etc/prometheus/prometheus.yml > /tmp/prometheus.yml && exec
+        /bin/prometheus --config.file=/tmp/prometheus.yml
+        --storage.tsdb.path=/prometheus
+        --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}
+        --web.enable-lifecycle --web.enable-remote-write-receiver
     # NEM-3898: Prometheus must wait for Alertmanager to be healthy before starting
     # This ensures Prometheus can connect to Alertmanager for alert delivery
     depends_on:
@@ -1087,9 +1126,38 @@ services:
       # Anonymous access enabled for local development (no login required)
       # Set GF_AUTH_ANONYMOUS_ENABLED=false in .env to require login
       # When disabling anonymous, also set GF_AUTH_DISABLE_LOGIN_FORM=false to enable login form
-      - GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-true}
+      # O1.11 (UR-33): the nested default is load-bearing, not decoration.
+      # The OUTER key self-references, so the precedence is: hand-set
+      # GF_AUTH_ANONYMOUS_ENABLED (any value) > setup.py's derived
+      # GRAFANA_ANONYMOUS_ENABLED ("false" iff EXPOSE_LAN truthy) > "true"
+      # (today's behavior). A legacy .env that already said "false" can
+      # never have anonymous Admin flipped back ON by an upgrade; the
+      # derived channel can only ever turn it OFF. The renamed-only form
+      # would have silently resurrected anonymous Admin for exactly those
+      # users the moment they re-ran setup.py — see the render tests.
+      - GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-${GRAFANA_ANONYMOUS_ENABLED:-true}}
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_DISABLE_LOGIN_FORM=${GF_AUTH_DISABLE_LOGIN_FORM:-true}
+      # O1.11 DECIDE (recorded in the claim ack): nginx auth_request against
+      # the backend session + Grafana auth.proxy = one login for /grafana/
+      # and the three embedded dashboards. The frontend renders
+      # X-Auth-User ONLY behind a validated session, and Grafana trusts the
+      # header ONLY when this flag is on — setup.py derives both sides from
+      # EXPOSE_LAN so render and trust arm and disarm together.
+      # auto_sign_up=false is NOT an option here: probe (12.3.2) showed
+      # valid X-Auth-User requests 401 without it, and with it enabled +
+      # auto-assign-Viewer the header lands as role Viewer, never Admin.
+      - GF_AUTH_PROXY_ENABLED=${GRAFANA_AUTH_PROXY_ENABLED:-false}
+      - GF_AUTH_PROXY_HEADER_NAME=X-Auth-User
+      - GF_AUTH_PROXY_AUTO_SIGN_UP=${GRAFANA_AUTH_PROXY_AUTO_SIGN_UP:-false}
+      - GF_AUTH_PROXY_AUTO_SIGN_UP_ORG_ROLE=Viewer
+      - GF_USERS_AUTO_ASSIGN_ORG=true
+      - GF_USERS_AUTO_ASSIGN_ORG_ROLE=Viewer
+      # O1.11: the Backend-API datasource sends this key to the gated
+      # /api/system/* endpoints via httpHeaderName1 (Grafana core expands
+      # $VAR in provisioning AND forwards the header through the datasource
+      # proxy — probe, incl. through the frontend-only json datasource).
+      - MONITORING_API_KEY=${MONITORING_API_KEY:-}
       # Admin credentials (anonymous access is enabled by default, so password is optional)
       # For production with login enabled: generate with openssl rand -base64 32
       - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}
@@ -1174,13 +1242,39 @@ services:
     cap_drop:
       - ALL
     image: docker.io/prometheuscommunity/json-exporter:v0.6.0
+    # O1.11 (UR-33): the fourth machine caller — hsi-telemetry/hsi-stats/
+    # hsi-gpu probe /api/system/{telemetry,stats,gpu}, none of which is in
+    # the gate's OPEN_PATHS. json_exporter supports module headers (probe:
+    # modules.<name>.headers with a SCALAR value arrives on the wire) but
+    # expands no env vars, so the committed config carries the same
+    # placeholder and it renders here at boot — mode-gated on EXPOSE_LAN
+    # (same fail-safe vocabulary as setup_lib/core.py). Unexposed the header
+    # LINES are stripped, not blanked: the probes then go out with no header
+    # at all, byte-identical to today (a rendered-empty header would still
+    # ship a stray X-API-Key line; nginx and some proxies drop empty
+    # headers, but "today" had no line to drop).
+    environment:
+      - MONITORING_API_KEY=${MONITORING_API_KEY:-}
+      - EXPOSE_LAN=${EXPOSE_LAN:-false}
+    tmpfs:
+      - /tmp
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${JSON_EXPORTER_PORT:-7979}:7979'
     volumes:
       - ./monitoring/json-exporter-config.yml:/etc/json-exporter/config.yml:ro,z
     command:
-      - '--config.file=/etc/json-exporter/config.yml'
+      - /bin/sh
+      - -ec
+      - >-
+        case "$(printf %s "$${EXPOSE_LAN:-false}" | tr "[:upper:]"
+        "[:lower:]")" in true|t|yes|y|on|1) sed
+        "s|__HSI_MONITORING_API_KEY__|$${MONITORING_API_KEY:-}|g"
+        /etc/json-exporter/config.yml > /tmp/json-exporter-config.yml ;; *)
+        sed "/^    headers:\$/{N;d;}" /etc/json-exporter/config.yml >
+        /tmp/json-exporter-config.yml ;; esac; exec /bin/json_exporter
+        --config.file=/tmp/json-exporter-config.yml
+        --web.listen-address=:7979
     restart: unless-stopped
     networks:
       - security-net
@@ -1198,17 +1292,40 @@ services:
     cap_drop:
       - ALL
     image: docker.io/prom/alertmanager:v0.27.0
+    # O1.11 (UR-33): Alertmanager cannot attach an X-API-Key to a webhook in
+    # ANY release (probe: http_headers rejected by amtool v0.27.0 through
+    # v0.34.1, and the B1.5 gate reads neither basic_auth nor bearer), so the
+    # credential joins DOWNSTREAM at the frontend's unpublished machine
+    # listener and the sink URL moves there when EXPOSE_LAN is on. setup.py
+    # derives ALERT_SINK_URL from the mode; the ${...:-backend-url} default
+    # keeps a hand-edited .env on today's direct leg (gate off on the compose
+    # network anyway). The committed config carries __HSI_ALERT_SINK__ and
+    # Alertmanager expands no env vars of its own (same probe family as
+    # prometheus), so the config renders at boot into tmpfs /tmp.
+    environment:
+      - ALERT_SINK_URL=${ALERT_SINK_URL:-http://backend:8000/api/webhooks/alerts}
+    tmpfs:
+      - /tmp
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093'
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro,z
       - alertmanager_data:/alertmanager
+    # $$-escape: the sink arrives via this service's environment (where the
+    # line above guarantees the backend-URL default even for a .env that
+    # never sets ALERT_SINK_URL at all). The unescaped form would be
+    # compose-interpolated instead and bake an EMPTY url into the rendered
+    # config for such an env — alertmanager then fails validation on boot.
     command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
-      - '--web.listen-address=:9093'
-      - '--cluster.listen-address='
+      - /bin/sh
+      - -ec
+      - >-
+        sed "s|__HSI_ALERT_SINK__|$${ALERT_SINK_URL}|g"
+        /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml && exec
+        /bin/alertmanager --config.file=/tmp/alertmanager.yml
+        --storage.path=/alertmanager --web.listen-address=:9093
+        --cluster.listen-address=
     # NEM-3898: Alertmanager starts independently without waiting for backend
     # Prometheus depends on Alertmanager being healthy, so we cannot wait for backend here.
     # Alertmanager has built-in retry logic for webhook delivery - it will retry failed
