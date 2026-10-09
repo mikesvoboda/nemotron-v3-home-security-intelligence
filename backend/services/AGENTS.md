@@ -2231,7 +2231,19 @@ its own test files; every real consumer imports the package. It predates the war
 its classes LACK the canonical `warmth_state` field and its registry lacks
 `update_warmth_state` / `get_ai_warmth_states`, and its failure bookkeeping inlines
 `failure_count += 1` where the canonical registry calls `service.record_failure()`. Importing
-from it type-checks and then fails on any warmth path. New code:
+from it type-checks and then fails on any warmth path.
+
+**Worse than redundant — the two registries share ONE Redis keyspace.** `managed_service.py:68`
+re-declares `REDIS_KEY_PREFIX = "orchestrator:service"`, identical to
+`orchestrator/registry.py:33`, and each writes its state to the same
+`f"{REDIS_KEY_PREFIX}:{name}:state"` key with a byte-for-byte identical 6-field payload — so
+whichever singleton wrote last wins, and a `persist_state` from the duplicate silently
+clobbers the row the orchestrator monitors. Each module also keeps its OWN process-global
+singleton (`get_service_registry` / `reset_service_registry` exist in BOTH files), so
+resetting through one import path leaves the other's cached instance in place, and the two
+names are not the same object. Nothing flags this at import: the method sets overlap 20-for-20
+with matching signatures, so duck-typing accepts either, and `ServiceConfig` is field-for-field
+identical — a pure silent fork. New code:
 
 ```python
 from backend.services.orchestrator import (
@@ -2985,10 +2997,17 @@ from backend.services import (
     BackgroundEvaluator,
     EvaluationQueue,
     PartitionManager,
+    CostTracker,
+)
+
+# NOT via __init__.py: the orchestration trio resolves to the legacy duplicate there
+# (see "Container orchestration types" above), so import it from the package.
+from backend.services.orchestrator import (
     ManagedService,
     ServiceConfig,
     ServiceRegistry,
-    CostTracker,
+    get_service_registry,
+    reset_service_registry,
 )
 
 # For context enrichment (import directly)

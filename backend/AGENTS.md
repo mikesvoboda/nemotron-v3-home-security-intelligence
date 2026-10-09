@@ -1262,8 +1262,11 @@ below was re-verified against the code at this commit.
   `interval_minutes=60` (the deleted guide's "every 5 minutes" matches no code), with a
   180-second per-run timeout (`DEFAULT_TIMEOUT_SECONDS` = 180, not the guide's 60). It
   invalidates `summaries:latest`, `summaries:hourly`, `summaries:daily`.
-- `TimeoutCheckerJob` polls every 30 s: marks timed-out jobs failed, reschedules with the
-  remaining retries, and rides FastAPI startup/shutdown via `get_timeout_checker_job(redis)`.
+- `TimeoutCheckerJob` polls every 30 s and is **NOT WIRED**: zero non-test references to it
+  exist outside `backend/jobs/` and `backend/main.py` never imports it, so no job timeout is
+  ever checked in the running app. Its singleton pair exists for tests; wiring it is a code
+  change. (The deleted guide's startup/shutdown example was fiction. This row repeated it until
+  the batch-7 reader audit caught the omission.)
 
 ### `backend/config/` — the prompt-A/B stack is UNWIRED
 
@@ -1276,7 +1279,10 @@ below was re-verified against the code at this commit.
   restarts: group membership is stable within one process only.
 - `get_rollout_manager()` is NOT a lazy singleton — it returns `None` until
   `configure_rollout_manager()` has run. The deleted guide's usage snippet AttributeErrors.
-- Auto-rollback defaults: latency +50 %, FP rate +5 %, error rate +5 %, at 100 samples minimum
+- Auto-rollback defaults: latency +50 %, FP rate +5 %, error rate +5 %, at 100 FEEDBACK
+  submissions per arm (`prompt_ab_rollout.py:571-572` gates on `total_feedback_count` only —
+  recording analyses never satisfies the gate, so an analysis-only experiment reports
+  "Insufficient samples" forever and cannot roll back), plus +50 % latency
   (`backend/config/prompt_experiment.py:90`, `backend/config/ab_rollout_production.py:73-83`);
   the production profile is a 50/50 split for 48 hours (`backend/config/ab_rollout_production.py:62-66`).
   `PromptExperiment.traffic_split` defaults to 0.1.

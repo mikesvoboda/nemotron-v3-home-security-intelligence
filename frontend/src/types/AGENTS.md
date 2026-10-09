@@ -423,8 +423,11 @@ House style for testing the runtime guards in this directory (W3.1 batch 8
 lifted this from the deleted `__tests__/` guide; the guards here are `in`-
 operator checks, so these are not generic advice):
 
-- Always test `null` and `undefined` inputs — a guard that only checks field
-  presence still accepts `null`.
+- Always test `null` and `undefined` inputs — `typeof null === 'object'`, so a
+  guard that only checks field presence does not ACCEPT null, it THROWS on it
+  (`'id' in null` raises TypeError). Every `typeof x === 'object'` guard in this
+  directory pairs an explicit `!== null` check; the null case is what pins that
+  pairing, which is also why the two checks must stay together.
 - Test each REQUIRED field's absence as its own case; one "missing everything"
   case proves nothing about per-field branches.
 - Assert config-object completeness against the enum (a `Record<Enum, ...>`

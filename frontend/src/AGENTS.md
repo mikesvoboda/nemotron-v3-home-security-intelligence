@@ -930,10 +930,12 @@ Contracts this package carries (W3.1 batch 8 pruned its guide):
   `risk_label: event.risk_level ?? undefined` onto components fed by these
   factories. A component written against canonical types will NOT accept
   `createEvent()` output; "matches backend API responses" is the deleted
-  guide's false claim. Adoption follows: 109 files import
-  `renderWithProviders` (102 via the deep `test-utils/renderWithProviders`
-  path, only 7 through the barrel's index), 74 import `createQueryWrapper`
-  (70 deep / 4 barrel), and ZERO import the package's factories — the tests
+  guide's false claim. Adoption, counted by imported NAME (a path-level count
+  overstates it — 102 files import _something_ from
+  `test-utils/renderWithProviders`, only 32 of them import this): 39 files
+  import `renderWithProviders` (32 via the deep path, 7 through the barrel's
+  index), 74 import `createQueryWrapper` (70 deep / 4 barrel), and ZERO import
+  the package's factories — the tests
   that need bespoke data (`TimeGroupedEvents.test.tsx:27`,
   `Layout.test.tsx:76`) define LOCAL factories instead.
 - **Consumers import from the package's files, not the barrel's TL re-exports.**
@@ -1065,8 +1067,8 @@ TypeScript strict mode with:
 | `bg-primary-500`          | Primary action (`#76B900`)   |
 | `bg-risk-low/medium/high` | Risk level indicators        |
 | `text-text-primary`       | Main text (`#FFFFFF`)        |
-| `text-text-secondary`     | Secondary text (`#A0A0A0`)   |
-| `text-text-muted`         | Muted text (`#707070`)       |
+| `text-text-secondary`     | Secondary text (`#B0B0B0`)   |
+| `text-text-muted`         | Muted text (`#919191`)       |
 
 ### Custom CSS Classes
 

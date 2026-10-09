@@ -74,11 +74,18 @@ Nine live modules, three more than the deleted guide enumerated: `event_types.py
 
 - **Envelope:** every event is a `WebSocketEvent` TypedDict — `type`, `payload`, ISO-8601
   `timestamp`, optional `correlation_id` / `sequence` / `channel`; build it with
-  `create_event(...)` so the timestamp is uniform.
-- **Event naming is `{domain}.{action}`** across 11 domains (alert, camera, job, system,
-  service, gpu, worker, event, detection, scene_change, connection); `PING` / `PONG` / `ERROR`
-  are control messages, and the job domain ALSO keeps legacy underscore-format members
-  (NEM-2505) — emit the dotted form, match both.
+  `create_event(...)` so the timestamp is uniform. `create_event` does NOT populate `sequence`
+  — it never passes it — and the wire key the client actually reads is spelled `seq`, stamped
+  in-place per connection (counter starts at 1) by the route's send helper, not by the producer.
+  So a producer that sets `sequence` itself is writing a field the sender overwrites, and code
+  that reads `event["sequence"]` off a received frame reads nothing.
+- **Event naming is `{domain}.{action}`**. Count it fresh from the enum rather than trusting any
+  list — the deleted guide said 11 domains and the true count at this commit is 17 live dotted
+  domains (alert, camera, job, system, service, gpu, worker, event, detection, scene_change,
+  connection, plus zone, entity, ai, queue, pipeline, prometheus) plus a retired family whose
+  members are still enum entries; enumerate the LIVE domains, never the raw enum. `PING` /
+  `PONG` / `ERROR` are control messages, and the job domain ALSO keeps legacy underscore-format
+  members (NEM-2505) — emit the dotted form, match both.
 - **Subscription semantics:** a registered connection receives ALL events until it sends an
   explicit `subscribe` (deliberate back-compat); patterns are wildcards (`alert.*`, `*`), and
   an explicit `subscribe` with an EMPTY pattern list means NO events. The manager is
@@ -931,6 +938,19 @@ Provides centralized constants for Redis queue names and DLQ (dead-letter queue)
 
 - `DETECTION_QUEUE = "detection_queue"` - Queue for incoming detection jobs
 - `ANALYSIS_QUEUE = "analysis_queue"` - Queue for batched detections ready for LLM analysis
+
+**Pass the RAW constant, not the prefixed form — and nothing enforces which one you pass.**
+Every producer and consumer hands the raw constant straight through (`file_watcher.py:405`,
+`pipeline_workers.py:242`), so the real Redis key IS `detection_queue`.
+`get_prefixed_queue_name()` builds `hsi:queue:detection_queue` (prefix from
+`redis_key_prefix`), and the two forms are NOT interchangeable: a wrong key reads as an empty
+queue, never an error. The repo already paid for this — `queue_status_service.py:159-161`
+records the prefixed call being backed out of monitoring for exactly that reason. Two live
+traps: this module's own `Usage:` docstring demonstrates `add_to_queue_safe(prefixed_queue,
+...)`, which would write a key no worker reads; and `backend/api/routes/admin.py:1264-1281`
+(flush-queues) reads AND clears prefixed keys, so it measures and reports a queue depth of 0
+while the real queue stays full — flagged, not repaired (deleting/redirecting that call is
+code-lane scope).
 
 **DLQ Names:**
 
