@@ -223,7 +223,8 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-06 (OD-14 partially resolved 2026-10-08 by UR-18 — the plain-`up` branch shipped, the publish branch open — then the ghcr branch retired 2026-10-08 by O1.2 (PR #6907): the ghcr install path is deleted rather than declared unsupported, so ISS-028's remaining ask is the publish-with-provenance branch alone, and ISS-022 closes the same day — mooted by that deletion, its closure note says how; no issue opened; ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`; ISS-016 `done` 2026-10-06 on `vlm-pipeline`, commits `54d036d5`..`8cdbb412`). The Filed columns count every issue by its filed
+Counts as of 2026-10-06, recounted 2026-10-09 when ISS-029 closed on the B-1 follow-up #6927 per
+owner ruling 35 (OD-14 partially resolved 2026-10-08 by UR-18 — the plain-`up` branch shipped, the publish branch open — then the ghcr branch retired 2026-10-08 by O1.2 (PR #6907): the ghcr install path is deleted rather than declared unsupported, so ISS-028's remaining ask is the publish-with-provenance branch alone, and ISS-022 closes the same day — mooted by that deletion, its closure note says how; no issue opened; ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`; ISS-016 `done` 2026-10-06 on `vlm-pipeline`, commits `54d036d5`..`8cdbb412`). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
 ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
@@ -231,9 +232,9 @@ when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 94    |
+| open        | 93    |
 | in-progress | 0     |
-| done        | 9     |
+| done        | 10    |
 | wont-fix    | 0     |
 | superseded  | 0     |
 | total       | 103   |
@@ -241,21 +242,21 @@ when you add or close an issue (there is no script; the register is prose).
 | Severity | Filed | Open |
 | -------- | ----- | ---- |
 | P0       | 1     | 0    |
-| P1       | 36    | 31   |
+| P1       | 36    | 30   |
 | P2       | 51    | 48   |
 | P3       | 15    | 15   |
-| total    | 103   | 94   |
+| total    | 103   | 93   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
 | agent-now      | 68    | 62   |
-| owner-decision | 29    | 26   |
+| owner-decision | 29    | 25   |
 | owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
 
 | Kind     | Filed | Open |
 | -------- | ----- | ---- |
-| bug      | 19    | 17   |
+| bug      | 19    | 16   |
 | gap      | 37    | 34   |
 | debt     | 18    | 18   |
 | decision | 17    | 15   |
@@ -270,7 +271,7 @@ when you add or close an issue (there is no script; the register is prose).
 | Evaluation and S-bar measurement          | 0   | 9   | 12  | 2   | 23    | 20   |
 | Specialists                               | 0   | 2   | 4   | 0   | 6     | 6    |
 | Serving, deploy and supply chain          | 0   | 3   | 5   | 0   | 8     | 7    |
-| Security, privacy and licensing           | 0   | 3   | 3   | 1   | 7     | 7    |
+| Security, privacy and licensing           | 0   | 3   | 3   | 1   | 7     | 6    |
 | Operator UI and explainability            | 0   | 1   | 3   | 0   | 4     | 4    |
 | Retired-architecture residue, docs and CI | 0   | 1   | 8   | 9   | 18    | 17   |
 
@@ -546,8 +547,9 @@ this order.
   runnable tools), ISS-044 (blind audit, OD-15).
 - **Video path and key frames.** ISS-004 (mixed batch), ISS-070, ISS-033, ISS-035, ISS-005, then
   ISS-002 once ISS-003 (OD-5) is ruled; ISS-068 and ISS-039 follow the decision.
-- **Security and privacy.** ISS-029 (posture ruling, OD-12), then ISS-062, ISS-009, ISS-030, ISS-072
-  (OD-19), ISS-063 and ISS-054 (OD-18), ISS-064.
+- **Security and privacy.** ISS-029 (posture ruling, OD-12; `done` 2026-10-09 — closed on the B-1
+  follow-up #6927 per owner ruling 35; see its closure note), then ISS-062, ISS-009, ISS-030,
+  ISS-072 (OD-19), ISS-063 and ISS-054 (OD-18), ISS-064.
 - **Serving, deploy and supply chain.** ISS-027, ISS-056, ISS-057, ISS-059, ISS-051, then
   ISS-022 (`done` 2026-10-08 — O1.2 #6907 deletes the compose file it asked about; see its closure
   note) and ISS-028 (OD-14), ISS-050 (OD-17), ISS-060 (OD-11).
@@ -5553,7 +5555,7 @@ Exposure of the API, prompt trust, retention, erasure, egress and licences.
 
 #### ISS-029 — The published frontend nginx proxies an API whose data routes have no authentication
 
-`P1` · `bug` · actor `owner-decision` · status `open`
+`P1` · `bug` · actor `owner-decision` · status `done` · closed 2026-10-09 (see the closure note)
 
 - **Evidence**
   - `docker-compose.prod.yml:911` and `docker-compose.prod.yml:912` publish the frontend nginx on
@@ -5614,6 +5616,26 @@ Exposure of the API, prompt trust, retention, erasure, egress and licences.
 - **Severity note.** Verifiers read P1 (only because the compose advertises tunnel ingress) and P2
   (LAN-only home deployment). The admin-route and SMTP-relay sub-claims in the original were
   overstated and are narrowed above.
+- **Closure note — 2026-10-09 (B-1 follow-up, PR #6927) [V].** Closed per owner ruling 35 (#6854),
+  which moved this flip off the F1.3/O1.6 merge-order duty onto this package. The entry's substance
+  — a published port fronting unauthenticated data routes — is fixed on main: OD-12 landed as a
+  two-mode posture, `EXPOSE_LAN` unset keeps everything loopback-bound and documented as such, and
+  `EXPOSE_LAN=true` puts `AuthMiddleware` (outermost, B1.5) in front of every `/api` and `/ws` route
+  — 401 or WebSocket close 4001 without a session cookie or key — pinned by the route-table
+  enumeration in `backend/tests/unit/api/test_expose_lan_routes.py`, whose
+  `test_exposed_iss_029_matrix_is_refused` runs this entry's own unauthenticated-request matrix,
+  while the docs named above (`AGENTS.md`, `docs/operator/admin/security.md`) now describe both
+  modes honestly instead of claiming a loopback boundary for the published port. The leg this
+  package adds: on the authenticated mode the documented browser credential path — offering
+  `api-key.<key>` in `Sec-WebSocket-Protocol` — completed no handshake at all, because no `accept()`
+  in the backend echoed a token and RFC 6455 §4.1 makes browsers fail such a handshake before
+  `open` fires; every accept now echoes the offered token (`backend/core/websocket/subprotocol.py`),
+  pinned by raw-handshake tests over a live uvicorn
+  (`backend/tests/integration/test_ws_subprotocol_echo_b1.py`). The compose publish rebind that
+  makes the LAN-off default physical is O1.6's own already-approved change (#6925) and no longer
+  gates this entry. The world-class half — deny-by-default with a documented allowlist — is met by
+  the gate's `OPEN_PATHS` design (a new route is covered without wiring, and the pin proves it for
+  every mounted route), not by the loopback convention the original evidence found wanting.
 
 #### ISS-030 — Stills and biometric rows have no enforced retention; cleanup leaves files behind
 
