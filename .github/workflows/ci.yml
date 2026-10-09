@@ -42,6 +42,10 @@ jobs:
           # '!frontend/**/*.md' matches every file outside frontend/: frontend was
           # true on every PR, so docs- and backend-only PRs ran all 18 frontend jobs.
           predicate-quantifier: 'some-with-excludes'
+          # '.test_durations' rides the backend filter (batch-9 row 2): the
+          # committed shard-planning file steers the backend shards' pytest-split
+          # groups, so a refresh must re-run the tier it re-plans (and the gate
+          # that reads it). A root dotfile matches no other backend pattern.
           filters: |
             backend:
               - 'backend/**'
@@ -50,6 +54,9 @@ jobs:
               - 'ai/**'
               - 'scripts/**/*.py'
               - 'synthbench/**'
+              # shard-planning data steers the backend shards' pytest-split
+              # groups; a refresh must re-run the tier it re-plans (batch-9 row 2)
+              - '.test_durations'
             frontend:
               - 'frontend/**'
               - '!frontend/**/*.md'
@@ -231,6 +238,7 @@ jobs:
           scripts/audit/test_env_dead_vars.py
           scripts/audit/test_battery_census.py
           scripts/audit/test_literal_groups.py
+          scripts/test_shard_durations.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
