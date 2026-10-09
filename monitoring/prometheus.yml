@@ -4,7 +4,7 @@
 # prometheus container read-only; nothing templates or substitutes into it at
 # startup. (The former monitoring/prometheus.yml.template had zero consumers —
 # no launcher ran envsubst over it — and its port placeholders disagreed with
-# the fixed ports below; it is archived, see archive/README.md.)
+# the fixed ports below; it was deleted with the archive tree by UR-19.)
 #
 # PORT CONFIGURATION NOTE:
 # Internal Docker service names (e.g., backend:8000, alertmanager:9093) use FIXED

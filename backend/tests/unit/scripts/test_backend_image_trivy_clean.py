@@ -163,7 +163,7 @@ UPGRADED_OUT_OF_IGNORE = (
 # so this asserts the stale claim does not come back.
 OPEN_ENTRIES = ("CVE-2025-48965", "CVE-2025-52496", "CVE-2025-7458")
 
-# The five files AVD-DS-0002 actually suppresses, attributed by deleting the ID
+# The four files AVD-DS-0002 actually suppresses, attributed by deleting the ID
 # alone and re-running the CI-pinned scanner (aquasec/trivy:0.74.0 =
 # .github/workflows/trivy.yml:280; repo-wide config scan like trivy.yml:93-108).
 # Each reason is measured, not assumed — see .trivyignore's rationale and the
@@ -171,12 +171,17 @@ OPEN_ENTRIES = ("CVE-2025-48965", "CVE-2025-52496", "CVE-2025-7458")
 # consumer's first apt-get/uv install), one image that runs under ROOTLESS PODMAN
 # with no --user (synthbench/generate/comfy/serve.py:106-136 — container root is
 # already the host UID, so an in-image USER strands its rw host binds at
-# serve.py:131,133), one GPU SERVICE deferred with a fix recipe (ai/gateway needs
-# host-side ownership of the rw model bind before it can drop privileges, and
-# nothing in CI builds it), and one ARCHIVED file no job builds.
+# serve.py:131,133), and one GPU SERVICE deferred with a fix recipe (ai/gateway
+# needs host-side ownership of the rw model bind before it can drop privileges,
+# and nothing in CI builds it).
+#
+# O1.5 (UR-19) removed the fifth member, the archive's Dockerfile.yolo26-benchmark: a
+# file deleted from the tree can carry no finding, so the register names exactly
+# what still exists. The 2026-10-04 attribution (five files) stands in
+# .trivyignore's history prose; the entry's live rationale carries the dated
+# O1.5 note.
 MISCONFIG_TARGETS = (
     "ai/gateway/Dockerfile",
-    "archive/Dockerfile.yolo26-benchmark",
     "docker/base.Dockerfile",
     "docker/python-freethreaded/Dockerfile",
     "synthbench/generate/comfy/Containerfile",
@@ -573,23 +578,27 @@ class TestMisconfigIgnoreNamesRealTargets:
     def test_avd_ds_0002_block_names_every_suppressed_file(self) -> None:
         """The blanket non-root ignore must name what it actually silences.
 
-        AVD-DS-0002 suppresses FIVE HIGH "no USER directive" findings —
-        measured by deleting the ID alone and attributing the result
-        (trivy 0.74.0, repo-wide config scan):
+        AVD-DS-0002 suppresses FOUR HIGH "no USER directive" findings —
+        attributed by deleting the ID alone and re-running the CI-pinned
+        scanner (trivy 0.74.0, repo-wide config scan):
 
             ai/gateway/Dockerfile
-            archive/Dockerfile.yolo26-benchmark
             docker/base.Dockerfile
             docker/python-freethreaded/Dockerfile
             synthbench/generate/comfy/Containerfile
 
+        (Five at the 2026-10-04 measurement; O1.5 deleted the fifth,
+        the archive's Dockerfile.yolo26-benchmark — a file absent from the tree
+        carries no finding.)
+
         The rationale this replaces described vsftpd instead — a file that is
-        NOT flagged (archive/vsftpd/Dockerfile:48 carries USER ftpsecure). One
-        ID covering five files is forced, not lazy: the docker checks report at
-        file level with no line number, and neither an INI-section ignore file
-        (ids+paths, both ID spellings, globs, paths=["*"]) nor an inline
-        '# trivy:ignore:' comment suppressed anything in measurement — so
-        path-scoping does not exist for config scans.
+        NOT flagged (the archive's vsftpd Dockerfile:48, before O1.5 deleted the
+        archive, carried USER ftpsecure). One ID covering the whole set is
+        forced, not lazy: the docker checks report at file level with no line
+        number, and neither an INI-section ignore file (ids+paths, both ID
+        spellings, globs, paths=["*"]) nor an inline '# trivy:ignore:' comment
+        suppressed anything in measurement — so path-scoping does not exist for
+        config scans.
         """
         text = TRIVYIGNORE.read_text()
         block = _entry_comment_block(text, "AVD-DS-0002")
@@ -602,7 +611,7 @@ class TestMisconfigIgnoreNamesRealTargets:
         )
         assert not re.search(r"vsftpd requires root|needs root privileges", block), (
             "AVD-DS-0002's rationale re-claims vsftpd as the reason — that file "
-            "is clean (USER ftpsecure at archive/vsftpd/Dockerfile:48) and is "
+            "is clean (USER ftpsecure at the archive's vsftpd Dockerfile:48) and is "
             "not one of the five suppressed targets"
         )
 

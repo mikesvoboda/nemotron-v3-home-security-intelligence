@@ -152,7 +152,12 @@ class TestS4SurfaceIsRealBeforeItIsGone:
         ruling's whole basis, so it is pinned structurally, not remembered."""
         readers: list[str] = []
         for py in (REPO_ROOT / "backend").rglob("*.py"):
-            if "__pycache__" in py.parts or "/tests/" in str(py) or "/archive/" in str(py.parts):
+            # O1.5 (UR-19) removed a third disjunct here: it tested the slash
+            # form against str(py.parts), which can never match — a tuple's str
+            # has no slashes, so the skip never fired. An archived tree named by
+            # UR-19 reappearing is the retired-paths gate's failure, not this
+            # scan's.
+            if "__pycache__" in py.parts or "/tests/" in str(py):
                 continue
             if py.name == "enrichment.py":
                 continue  # the model module itself defines them

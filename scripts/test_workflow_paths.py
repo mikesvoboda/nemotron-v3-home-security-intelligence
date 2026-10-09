@@ -288,7 +288,7 @@ MISSING_OK: dict[str, str] = {
 PATTERN_OK: dict[str, str] = {
     "^mutants/": "mutmut scratch dir (gitignored; .gitignore mutants/) — the exclude"
                  " guards local runs, exactly the live-convention case .wp25-feed/"
-                 " lost when its contents moved to archive/",
+                 " lost when its contents moved into the archive (deleted by UR-19)",
     r"\.tsbuildinfo$": "tsc incremental build cache suffix (gitignored build output)",
 }
 
@@ -667,7 +667,7 @@ def git_entries(root: Path) -> list[str] | None:
         return None
     # -z = NUL-separated, NEVER quoted: plain ls-files escapes non-ASCII names
     # (core.quotepath) into "…\\307\\201…" strings that match no real path —
-    # this repo's archive/ is full of such names. surrogateescape mirrors
+    # this repo's deleted archive tree was full of such names. surrogateescape mirrors
     # os.fsdecode so undecodable names compare equal to Path-relative paths.
     out = [os.fsdecode(b) for b in raw.split(b"\0") if b]
     if not out:

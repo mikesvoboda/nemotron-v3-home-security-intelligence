@@ -1050,7 +1050,7 @@ class TestConcurrentModelLoading:
 
 
 # =============================================================================
-# WP4.4 kill battery (frozen triage feed archive/wp25-feed/wp44-triage/
+# WP4.4 kill battery (frozen triage feed the deleted archive's wp25-feed/wp44-triage/
 # model_zoo.md, TEST-GAP clusters D1-D12 of 78; 104 EQUIVALENT log-text +
 # 3 LOW-VALUE stay excluded per the dossier's own per-cluster notes).
 # Root cause per dossier: success paths (paddleocr uninstalled in CI), the

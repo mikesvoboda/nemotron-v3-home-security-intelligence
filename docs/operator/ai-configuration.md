@@ -183,15 +183,15 @@ pipeline `ai/gateway/export/export_all.sh` produces the ONNX path Triton serves)
 ./scripts/prebuild-tensorrt-engines.sh yolo26
 ```
 
-**INT8 calibration requirements** (for the archived INT8 export CLI, kept at
-`archive/ai-yolo26-image/export_tensorrt.py`):
+**INT8 calibration requirements** (for the archived INT8 export CLI, in the deleted archive tree
+under `ai-yolo26-image/`; recover `export_tensorrt.py` from git history):
 
 - 100-500 representative images from your deployment environment
 - Cover various lighting conditions and camera angles
 - Include all security-relevant object classes
 
-For the full export-option reference, see
-`archive/ai-yolo26-image/README.md`.
+For the full export-option reference, see the retired tree's
+`ai-yolo26-image/README.md` in git history.
 
 ---
 

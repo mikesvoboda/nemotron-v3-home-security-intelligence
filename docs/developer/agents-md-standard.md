@@ -24,8 +24,8 @@ The committed boundary list lives in `.agents-md-validator.yml` as `boundary_lis
 this page does not copy the list. Its membership rule, also recorded in the config comment:
 
 - the root and the seven lane roots;
-- every directory with **20 or more code files** that is not a test, `docs/`, or `archive/`
-  directory and that has an `AGENTS.md` today;
+- every directory with **20 or more code files** that is not a test, `docs/`, or
+  archived directory and that has an `AGENTS.md` today;
 - the directories the standard names above, plus the ones guarding a cross-lane or CI contract
   (`backend/api/`, `ai/gateway/`, `ai/gateway/export/`, `synthbench/contract/`,
   `.github/codeql/custom-queries/`).

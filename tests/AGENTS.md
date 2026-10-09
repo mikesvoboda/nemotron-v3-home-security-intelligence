@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Auxiliary test suites that run outside the backend/frontend trees: model benchmarks (pytest), K6 load tests, and deployment smoke tests. The old root `test_setup.py` / `test_setup_core.py` were retired to `archive/` — setup-script coverage now lives in `backend/tests/unit/`.
+Auxiliary test suites that run outside the backend/frontend trees: model benchmarks (pytest), K6 load tests, and deployment smoke tests. The old root `test_setup.py` / `test_setup_core.py` were retired to the archive; UR-19 deleted that tree and O1.5 returned the tests to `backend/tests/unit/setup_lib/` — setup-script coverage now lives there.
 
 **Main test suites are elsewhere:**
 

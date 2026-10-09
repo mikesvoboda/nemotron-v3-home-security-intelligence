@@ -1,7 +1,7 @@
 """Batch-24 mutation-kill battery: llm_reasoning pure parser functions.
 
-Targets the WP4.4 dossier module llm_reasoning (archive/wp25-feed/
-wp44-triage/llm_reasoning.md: 210 survivors, 32 clusters, 100% TEST-GAP
+Targets the WP4.4 dossier module llm_reasoning (the deleted archive's
+wp25-feed/wp44-triage/llm_reasoning.md: 210 survivors, 32 clusters, 100% TEST-GAP
 share at dossier time). The cache has since been invalidated (meta today
 reads 420 keys ALL null), so this battery is adjudicated by a fresh
 full-module red-check feed, not by the dossier's key numbers.

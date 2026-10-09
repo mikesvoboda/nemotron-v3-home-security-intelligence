@@ -1077,10 +1077,17 @@ def test_real_tree_scanned_count_floor(real_run):
     stale references — but a shrunk denominator is invisible without this
     floor. A FLOOR, not equality: W3.1 may legitimately add AGENTS.md files;
     if the set SHRINKS, someone widened an exclusion — update the floor and
-    say why in the same PR."""
+    say why in the same PR.
+
+    245 -> 243 (O1.5, UR-19, 2026-10-09): the floor moved with a deliberate
+    deletion, not a widened exclusion — `git rm -r archive docs/archive`
+    removed exactly the 2 AGENTS.md files that lived in those trees
+    (`git ls-tree -r main archive docs/archive | grep -c AGENTS.md` = 2;
+    245 - 2 = 243). Verified before lowering, which is the whole point of
+    the say-why clause above."""
     rc, report, _stderr = real_run
     assert rc == 0
-    assert report["total_agents_md_files"] >= 245
+    assert report["total_agents_md_files"] >= 243
 
 
 @pytest.mark.timeout(180)

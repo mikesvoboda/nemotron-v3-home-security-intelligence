@@ -2108,9 +2108,9 @@ jobs:
   # retired the image fully: no CI or deploy job builds an ai/yolo26 image any
   # more (build-ai / merge-ai / sbom-and-sign / slsa-provenance matrices no
   # longer list it), and the serving Dockerfile + requirements.txt +
-  # export_tensorrt.py moved to archive/ai-yolo26-image/. Triton on ai-gateway
+  # export_tensorrt.py moved to the ai-yolo26-image archive tree. Triton on ai-gateway
   # serves yolo26 among the 14 models. The standalone benchmark Dockerfile had
-  # moved earlier as archive/Dockerfile.yolo26-benchmark. ai/yolo26 itself
+  # moved earlier as the archive's Dockerfile.yolo26-benchmark. ai/yolo26 itself
   # STAYS: contract.py is backend prompt-building's live pure leaf (prompts.py
   # imports it) and model.py/pose_estimation.py are AST-read by the AI-contract
   # conformance tests.
