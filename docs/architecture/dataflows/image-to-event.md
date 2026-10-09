@@ -184,7 +184,7 @@ async def _send_detection_request(
 
 | Parameter        | Value                 | Source                                        |
 | ---------------- | --------------------- | --------------------------------------------- |
-| Read timeout     | `yolo26_read_timeout` | `backend/core/config.py:1118-1123`            |
+| Read timeout     | `yolo26_read_timeout` | `backend/core/config.py:1120-1125`            |
 | Explicit timeout | read + connect        | `backend/services/detector_client.py:637`     |
 | Timeout wiring   | connect/read/pool     | `backend/services/detector_client.py:298-303` |
 
@@ -372,9 +372,9 @@ a NULL score.
 
 | Parameter                   | Value            | Source                                   |
 | --------------------------- | ---------------- | ---------------------------------------- |
-| Connect timeout             | 10s              | `backend/core/config.py:1106-1111`       |
-| Read budget (one attempt)   | 25s              | `backend/core/config.py:1130-1142`       |
-| Wake ping (`max_tokens: 1`) | 90s              | `backend/core/config.py:1143-1151`       |
+| Connect timeout             | 10s              | `backend/core/config.py:1108-1113`       |
+| Read budget (one attempt)   | 25s              | `backend/core/config.py:1132-1144`       |
+| Wake ping (`max_tokens: 1`) | 90s              | `backend/core/config.py:1145-1153`       |
 | Breaker                     | 5 failures / 60s | `backend/services/vlm_client.py:319-322` |
 
 The read budget is a per-read idle budget for one attempt in either phase

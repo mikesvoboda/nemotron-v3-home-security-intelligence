@@ -66,7 +66,7 @@ the two never disagree.
 
 llama.cpp splits one `--ctx-size` pool across `--parallel` slots, and one
 `vlm_assess` only ever gets one slot. The backend mirrors that arithmetic:
-`vlm_context_window` (`backend/core/config.py:1351`, alias `VLM_CTX_SIZE`) is
+`vlm_context_window` (`backend/core/config.py:1353`, alias `VLM_CTX_SIZE`) is
 the per-slot budget the client fits every prompt against.
 
 The client's fit test (`backend/services/vlm_client.py:836-901`) reserves, per
@@ -87,7 +87,7 @@ selector uses, so what survives is what the attached stills can corroborate.
 `record_prompt_truncated()` fires once per batch at the wire.
 
 Token counting itself is `TokenCounter` (`backend/services/token_counter.py`)
-— tiktoken `cl100k_base`, warmed at startup (`backend/main.py:1259`),
+— tiktoken `cl100k_base`, warmed at startup (`backend/main.py:1260`),
 `validate_prompt()`/`get_context_budget()` available for anything that needs
 a budget check.
 
