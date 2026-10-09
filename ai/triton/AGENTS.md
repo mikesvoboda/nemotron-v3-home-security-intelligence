@@ -191,8 +191,10 @@ the gateway-consolidation follow-up:
 
 `florence2` is the only Triton Python-backend model left; `xclip_action`
 (python, zero-shot video action recognition) was superseded by the
-skeleton-based `stgcn_action` pipeline, whose per-frame pose stage the gateway
-drives itself.
+skeleton-based `stgcn_action` pipeline — itself retired in the shipped vlm set
+(`ai/gateway/tests/test_residency.py`), with no exported weights by default,
+and its per-frame pose stage retired with the /pose-analyze route in R8 S3
+(`ai/gateway/adapters/enrichment_light.py`).
 
 ## Model Preparation
 

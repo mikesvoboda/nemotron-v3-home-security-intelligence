@@ -91,9 +91,6 @@ RETIRED_NAMES: tuple[str, ...] = (
 # test_enrichment_light_url_is_not_enrichment.
 RETIRED_NAME_PATTERNS = {name: re.compile(rf"\b{name}\b") for name in RETIRED_NAMES}
 
-# An allowlist entry is a pair, not a pattern: a glob char or a leading / in a
-# committed entry would widen the baseline invisibly at match time.
-
 
 @dataclass
 class ValidatorConfig:
