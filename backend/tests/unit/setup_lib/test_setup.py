@@ -123,7 +123,7 @@ def test_generate_env_content():
 def test_prompt_with_default_accepts_default():
     """Test prompt accepts default value on empty input."""
     setup = _load_setup()
-    with patch("builtins.input", return_value=""):
+    with patch("builtins.input", return_value="", autospec=True):
         result = setup.prompt_with_default("Test", "default_value")
     assert result == "default_value"
 
@@ -131,7 +131,7 @@ def test_prompt_with_default_accepts_default():
 def test_prompt_with_default_accepts_custom():
     """Test prompt accepts custom value."""
     setup = _load_setup()
-    with patch("builtins.input", return_value="custom_value"):
+    with patch("builtins.input", return_value="custom_value", autospec=True):
         result = setup.prompt_with_default("Test", "default_value")
     assert result == "custom_value"
 
@@ -139,7 +139,7 @@ def test_prompt_with_default_accepts_custom():
 def test_prompt_with_default_strips_whitespace():
     """Test prompt strips whitespace from input."""
     setup = _load_setup()
-    with patch("builtins.input", return_value="  trimmed  "):
+    with patch("builtins.input", return_value="  trimmed  ", autospec=True):
         result = setup.prompt_with_default("Test", "default")
     assert result == "trimmed"
 
@@ -147,7 +147,7 @@ def test_prompt_with_default_strips_whitespace():
 def test_prompt_with_default_handles_eof():
     """Test prompt handles EOF gracefully."""
     setup = _load_setup()
-    with patch("builtins.input", side_effect=EOFError):
+    with patch("builtins.input", side_effect=EOFError, autospec=True):
         result = setup.prompt_with_default("Test", "fallback")
     assert result == "fallback"
 
@@ -155,7 +155,7 @@ def test_prompt_with_default_handles_eof():
 def test_prompt_with_default_handles_keyboard_interrupt():
     """Test prompt handles Ctrl+C gracefully."""
     setup = _load_setup()
-    with patch("builtins.input", side_effect=KeyboardInterrupt):
+    with patch("builtins.input", side_effect=KeyboardInterrupt, autospec=True):
         result = setup.prompt_with_default("Test", "fallback")
     assert result == "fallback"
 
@@ -165,8 +165,8 @@ def test_run_quick_mode_returns_config():
     setup = _load_setup()
     # Mock all user inputs to return empty (accept defaults)
     with (
-        patch("builtins.input", return_value=""),
-        patch("setup.check_port_available", return_value=True),
+        patch("builtins.input", return_value="", autospec=True),
+        patch("setup.check_port_available", return_value=True, autospec=True),
     ):
         config = setup.run_quick_mode()
 
@@ -195,8 +195,8 @@ def test_run_quick_mode_accepts_custom_paths():
     inputs = iter(["/custom/cameras", "n", "/custom/models", "", "y", "", "", ""] + [""] * 20)
 
     with (
-        patch("builtins.input", side_effect=lambda _: next(inputs)),
-        patch("setup.check_port_available", return_value=True),
+        patch("builtins.input", side_effect=lambda _: next(inputs), autospec=True),
+        patch("setup.check_port_available", return_value=True, autospec=True),
     ):
         config = setup.run_quick_mode()
 
@@ -211,12 +211,13 @@ def test_run_quick_mode_handles_port_conflicts():
     port_check_results = iter([False] + [True] * 100)
 
     with (
-        patch("builtins.input", return_value=""),
+        patch("builtins.input", return_value="", autospec=True),
         patch(
             "setup.check_port_available",
             side_effect=lambda _: next(port_check_results),
+            autospec=True,
         ),
-        patch("setup.find_available_port", return_value=8001),
+        patch("setup.find_available_port", return_value=8001, autospec=True),
     ):
         config = setup.run_quick_mode()
 
@@ -309,7 +310,7 @@ def test_write_config_files_creates_output_dir():
 def test_configure_firewall_non_linux():
     """Test configure_firewall returns False on non-Linux."""
     setup = _load_setup()
-    with patch("setup.platform.system", return_value="Darwin"):
+    with patch("setup.platform.system", return_value="Darwin", autospec=True):
         result = setup.configure_firewall([8000, 3002])
     assert result is False
 
@@ -318,8 +319,8 @@ def test_configure_firewall_no_firewall_tool():
     """Test configure_firewall returns False when no firewall tool available."""
     setup = _load_setup()
     with (
-        patch("setup.platform.system", return_value="Linux"),
-        patch("setup.shutil.which", return_value=None),
+        patch("setup.platform.system", return_value="Linux", autospec=True),
+        patch("setup.shutil.which", return_value=None, autospec=True),
     ):
         result = setup.configure_firewall([8000, 3002])
     assert result is False
@@ -329,12 +330,13 @@ def test_configure_firewall_firewalld_success():
     """Test configure_firewall with firewalld succeeds."""
     setup = _load_setup()
     with (
-        patch("setup.platform.system", return_value="Linux"),
+        patch("setup.platform.system", return_value="Linux", autospec=True),
         patch(
             "setup.shutil.which",
             side_effect=lambda cmd: "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None,
+            autospec=True,
         ),
-        patch("setup.subprocess.run") as mock_run,
+        patch("setup.subprocess.run", autospec=True) as mock_run,
     ):
         mock_run.return_value.returncode = 0
         result = setup.configure_firewall([8000, 3002])
@@ -348,11 +350,13 @@ def test_configure_firewall_ufw_success():
     """Test configure_firewall with ufw succeeds."""
     setup = _load_setup()
     with (
-        patch("setup.platform.system", return_value="Linux"),
+        patch("setup.platform.system", return_value="Linux", autospec=True),
         patch(
-            "setup.shutil.which", side_effect=lambda cmd: "/usr/sbin/ufw" if cmd == "ufw" else None
+            "setup.shutil.which",
+            side_effect=lambda cmd: "/usr/sbin/ufw" if cmd == "ufw" else None,
+            autospec=True,
         ),
-        patch("setup.subprocess.run") as mock_run,
+        patch("setup.subprocess.run", autospec=True) as mock_run,
     ):
         mock_run.return_value.returncode = 0
         result = setup.configure_firewall([8000, 3002])
@@ -383,9 +387,9 @@ def test_run_guided_mode_returns_config():
         "y",  # proceed with this configuration
     ]
     with (
-        patch("builtins.input", side_effect=inputs),
-        patch("setup.check_port_available", return_value=True),
-        patch.object(Path, "exists", return_value=False),
+        patch("builtins.input", side_effect=inputs, autospec=True),
+        patch("setup.check_port_available", return_value=True, autospec=True),
+        patch.object(Path, "exists", return_value=False, autospec=True),
     ):
         config = setup.run_guided_mode()
 
