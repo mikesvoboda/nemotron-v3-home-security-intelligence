@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -1127,3 +1127,105 @@ async def test_registry_persistence_with_real_redis(
     assert restored.status == ContainerServiceStatus.UNHEALTHY
     assert restored.failure_count == 3
     assert restored.restart_count == 2
+
+
+# =============================================================================
+# B1.6 (D11): two stacks on one host
+# =============================================================================
+
+
+@pytest.fixture
+def two_compose_stacks():
+    """Two compose projects on one host, the same service names in each.
+
+    Containers carry the label compose writes (`com.docker.compose.project`)
+    and compose's `<project>-<service>-1` names, so every name matches a
+    configured pattern and only the label says which stack a container is in.
+    Yields `{name: container}`; everything is removed afterwards.
+    """
+    from docker import DockerClient as BaseDockerClient
+
+    from backend.services.container_discovery import COMPOSE_PROJECT_LABEL
+
+    base = BaseDockerClient.from_env()
+    try:
+        base.images.get(TEST_IMAGE)
+    except Exception:
+        base.images.pull(TEST_IMAGE)
+    suffix = datetime.now(UTC).strftime("%H%M%S%f")
+    containers = {}
+    try:
+        for stack in ("a", "b"):
+            project = f"b16-stack{stack}-{suffix}"
+            for service in ("backend", "postgres"):
+                name = f"{project}-{service}-1"
+                containers[name] = base.containers.run(
+                    TEST_IMAGE,
+                    command=TEST_COMMAND,
+                    name=name,
+                    labels={COMPOSE_PROJECT_LABEL: project},
+                    detach=True,
+                )
+        yield containers
+    finally:
+        for container in containers.values():
+            try:
+                container.remove(force=True)
+            except Exception:
+                pass
+        base.close()
+
+
+def _started_at(containers) -> dict[str, str]:
+    for container in containers.values():
+        container.reload()
+    return {name: c.attrs["State"]["StartedAt"] for name, c in containers.items()}
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.timeout(60)  # real containers: four started, one restarted in place
+async def test_two_stacks_the_orchestrator_touches_only_its_own(
+    docker_client: DockerClient,
+    test_settings: OrchestratorSettings,
+    two_compose_stacks,
+) -> None:
+    """B1.6's Done-when on one host running two stacks: the shipped orchestrator's
+    discovery and recovery touch only its own project's containers.
+
+    The test process runs on the host, not in a container, so it names the
+    hostname the backend would have (stack A's backend container's short id);
+    from there `start()` resolves the project, discovers, and recovers as shipped.
+    """
+    own_backend = next(n for n in two_compose_stacks if "stacka" in n and "backend" in n)
+    own_hostname = two_compose_stacks[own_backend].id[:12]
+    orchestrator = ContainerOrchestrator(
+        docker_client=docker_client,
+        redis_client=AsyncMock(get=AsyncMock(return_value=None)),
+        settings=test_settings,
+        broadcast_fn=AsyncMock(return_value=0),
+    )
+
+    with (
+        patch(
+            "backend.services.container_discovery.socket.gethostname",
+            return_value=own_hostname,
+            autospec=True,
+        ),
+        # no health checks: they would restart containers under the measurement
+        patch("backend.services.container_orchestrator.HealthMonitor", autospec=True),
+    ):
+        await orchestrator.start()
+
+    adopted = {svc.container_id for svc in orchestrator.get_all_services()}
+    stack_a = {c.id for n, c in two_compose_stacks.items() if "stacka" in n}
+    assert adopted == stack_a  # both own services, nothing from stack B or elsewhere
+
+    before = _started_at(two_compose_stacks)
+    postgres = next(s for s in orchestrator.get_all_services() if s.name == "postgres")
+    await orchestrator._on_network_isolation(postgres)
+    after = _started_at(two_compose_stacks)
+
+    restarted = {name for name in two_compose_stacks if before[name] != after[name]}
+    assert restarted == {n for n in two_compose_stacks if "stacka" in n and "postgres" in n}
+    assert all(c.status != "removed" for c in two_compose_stacks.values())

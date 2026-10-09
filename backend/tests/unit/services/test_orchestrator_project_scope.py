@@ -19,9 +19,11 @@ container in place, never removing it, and raises an alert when it fails.
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from requests.exceptions import ConnectionError as SocketDropped
 
 from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.services.container_discovery import (
@@ -37,13 +39,17 @@ OWN = "hsi"
 OTHER = "someone-elses-stack"
 
 
-def _container(name: str, container_id: str, project: str | None) -> MagicMock:
+def _container(
+    name: str, container_id: str, project: str | None, *, hostname: str | None = None
+) -> MagicMock:
     container = MagicMock()
     container.id = container_id
     container.name = name
     container.status = "running"
     container.image.tags = ["postgres:16-alpine"]
     container.labels = {} if project is None else {COMPOSE_PROJECT_LABEL: project}
+    # docker/podman default: a container's hostname is its (short) id
+    container.attrs = {"Config": {"Hostname": hostname or container_id}}
     return container
 
 
@@ -81,6 +87,21 @@ class TestDiscoveryAdoptsOnlyItsOwnProject:
 
         assert [s.container_id for s in discovered] == ["own-pg"]
 
+    async def test_a_project_whose_name_contains_ours_is_not_adopted(self) -> None:
+        own = _container(f"{OWN}-postgres-1", "own-pg", OWN)
+        staging = _container(f"{OWN}-staging-postgres-1", "staging-pg", f"{OWN}-staging")
+
+        discovered = await ContainerDiscoveryService(_docker(own, staging)).discover_all(
+            project=OWN
+        )
+
+        assert [s.container_id for s in discovered] == ["own-pg"]
+
+    async def test_the_project_has_no_default(self) -> None:
+        """No caller can discover unscoped by omission."""
+        with pytest.raises(TypeError):
+            await ContainerDiscoveryService(_docker()).discover_all()  # type: ignore[call-arg]
+
     async def test_a_container_with_no_project_label_is_not_adopted(self) -> None:
         stray = _container("postgres", "stray-pg", None)
 
@@ -113,8 +134,13 @@ class TestTheBackendReadsItsOwnProject:
 
     @pytest.mark.parametrize(
         "own_container",
-        [None, _container("not-compose", "self", None)],
-        ids=["own-container-not-found", "no-project-label"],
+        [
+            None,
+            _container("not-compose", "self", None),
+            # `self` names another stack's container, whose own hostname is not `self`
+            _container("someone-elses-backend-1", "other-id", OTHER),
+        ],
+        ids=["own-container-not-found", "no-project-label", "found-container-is-not-self"],
     )
     async def test_an_unknown_project_is_none_and_logged(
         self, own_container: MagicMock | None, caplog: pytest.LogCaptureFixture
@@ -200,7 +226,56 @@ class TestRecoveryStaysInPlace:
         docker.start_container.assert_awaited_once_with("own-pg")  # the restore attempt
         alert.assert_awaited_once_with(service)
 
-    async def test_the_orchestrator_broadcasts_a_failed_recovery(self) -> None:
+    async def test_a_service_with_no_container_alerts(self) -> None:
+        alert = AsyncMock()
+        manager = LifecycleManager(
+            registry=MagicMock(persist_state=AsyncMock()),
+            docker_client=MagicMock(),
+            on_recovery_failed=alert,
+        )
+        service = _service()
+        service.container_id = None
+
+        assert await manager.recover_in_place(service) is False
+        alert.assert_awaited_once_with(service)
+
+    async def test_a_restart_that_raises_still_restores_and_alerts(self) -> None:
+        """A dropped socket raises outside DockerException; recovery still fails safe."""
+        docker = MagicMock()
+        docker.restart_container = AsyncMock(side_effect=SocketDropped("socket gone"))
+        docker.start_container = AsyncMock(side_effect=SocketDropped("socket gone"))
+        docker.remove_container = AsyncMock()
+        alert = AsyncMock()
+        manager = LifecycleManager(
+            registry=MagicMock(persist_state=AsyncMock()),
+            docker_client=docker,
+            on_recovery_failed=alert,
+        )
+        service = _service("own-pg")
+
+        assert await manager.recover_in_place(service) is False
+        docker.start_container.assert_awaited_once_with("own-pg")
+        docker.remove_container.assert_not_called()
+        alert.assert_awaited_once_with(service)
+
+    async def test_an_isolation_that_persists_backs_off(self) -> None:
+        """In place, an isolation that does not clear would restart the container every
+        health cycle; it takes the same backoff as an unhealthy service."""
+        docker = MagicMock()
+        docker.restart_container = AsyncMock(return_value=True)
+        registry = MagicMock(persist_state=AsyncMock())
+        registry.increment_failure = MagicMock(side_effect=[1, 2])
+        manager = LifecycleManager(registry=registry, docker_client=docker)
+        service = _service("own-pg")
+
+        await manager.handle_isolated(service)
+        await manager.handle_isolated(service)  # within the backoff the first one set
+
+        docker.restart_container.assert_awaited_once_with("own-pg", timeout=10)
+
+    async def test_the_orchestrator_broadcasts_a_failed_recovery(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         docker = AsyncMock()
         docker.restart_container = AsyncMock(return_value=False)
         docker.start_container = AsyncMock(return_value=False)
@@ -219,8 +294,14 @@ class TestRecoveryStaysInPlace:
         service = _service("own-pg")
         orchestrator._registry.register(service)
 
-        await orchestrator._on_network_isolation(service)
+        with caplog.at_level(logging.CRITICAL):
+            await orchestrator._on_network_isolation(service)
 
         docker.remove_container.assert_not_called()
         messages = [call.args[0]["message"] for call in broadcast.await_args_list]
         assert any("Recovery failed" in m for m in messages)
+        # CRITICAL is the alert: Grafana's `critical-error` log rule fires on it
+        assert any(
+            r.levelno == logging.CRITICAL and "Recovery failed" in r.getMessage()
+            for r in caplog.records
+        )

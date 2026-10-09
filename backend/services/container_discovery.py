@@ -71,10 +71,14 @@ async def resolve_own_compose_project(
     running container means no launcher has to pass it, and it cannot disagree
     with the stack the backend was actually started in.
 
+    The container found must be configured with that same hostname
+    (`Config.Hostname`), so a hostname that happens to name ANOTHER container
+    cannot hand the backend that container's project.
+
     None (logged, with the reason) when the backend's own container cannot be
-    found - for instance a backend run on the host - or carries no compose
-    project label. The orchestrator then adopts nothing: an unknown project
-    never widens to every project.
+    found - for instance a backend run on the host, or a compose `hostname:`
+    override - or carries no compose project label. The orchestrator then
+    adopts nothing: an unknown project never widens to every project.
     """
     hostname = hostname or socket.gethostname()
     own = await docker_client.get_container(hostname)
@@ -83,6 +87,17 @@ async def resolve_own_compose_project(
             "Container orchestrator cannot find its own container (hostname %r), so its "
             "compose project is unknown; it will adopt no containers",
             hostname,
+            extra={"hostname": hostname},
+        )
+        return None
+    configured = ((getattr(own, "attrs", None) or {}).get("Config") or {}).get("Hostname")
+    if configured != hostname:
+        logger.warning(
+            "Container orchestrator looked itself up by hostname %r but found a container "
+            "configured with hostname %r, so it is not this backend and its compose project "
+            "is unknown; it will adopt no containers",
+            hostname,
+            configured,
             extra={"hostname": hostname},
         )
         return None

@@ -303,27 +303,29 @@ class ContainerOrchestrator:
         logger.warning(f"Network isolation detected for {service.name}, restarting it in place")
         await self._broadcast_status(service, "Network isolation detected - restarting in place")
 
-        if self._lifecycle_manager and await self._lifecycle_manager.recover_in_place(service):
-            await self._broadcast_status(service, "In-place restart completed")
+        if self._lifecycle_manager:
+            # Backoff and failure count as for an unhealthy service; success
+            # broadcasts through `_on_restart`, failure through `_on_recovery_failed`.
+            await self._lifecycle_manager.handle_isolated(service)
 
     async def _on_recovery_failed(self, service: ManagedService) -> None:
         """The alert for a failed in-place recovery (B1.6, D11).
 
         Called by LifecycleManager when recovering a service in place fails.
-        The container was kept, never removed, so a person can inspect and
-        start it; this logs at ERROR and broadcasts the status that says so.
+        Recovery never removes a container, so a person can inspect and start
+        it. This logs at CRITICAL - the level the repository uses for "manual
+        intervention needed", which Grafana's `critical-error` log rule
+        (`monitoring/grafana/provisioning/alerting/log-alerts.yml`) alerts on -
+        and broadcasts the service status.
 
         Args:
             service: The service whose recovery failed
         """
-        logger.error(
-            f"Recovery failed for {service.name}: its container was kept; manual "
-            "intervention needed",
+        logger.critical(
+            f"Recovery failed for {service.name}; manual intervention needed",
             extra={"service_name": service.name, "container_id": service.container_id},
         )
-        await self._broadcast_status(
-            service, "Recovery failed - container kept, manual intervention needed"
-        )
+        await self._broadcast_status(service, "Recovery failed - manual intervention needed")
 
     async def _on_service_discovered(self, service: ManagedService) -> None:
         """Callback when a service is discovered during startup.

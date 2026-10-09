@@ -252,7 +252,12 @@ class LifecycleManager:
             return False
 
         logger.info(f"Recovering {service.name} by restarting its container in place")
-        if await self.docker_client.restart_container(service.container_id, timeout=10):
+        try:
+            restarted = await self.docker_client.restart_container(service.container_id, timeout=10)
+        except Exception as e:  # a dropped socket raises outside DockerException
+            logger.error(f"Restarting {service.name} in place raised: {e}")
+            restarted = False
+        if restarted:
             self.registry.record_restart(service.name)
             self.registry.update_status(service.name, ContainerServiceStatus.STARTING)
             await self.registry.persist_state(service.name)
@@ -261,7 +266,11 @@ class LifecycleManager:
             logger.info(f"Recovered {service.name} in place")
             return True
 
-        restored = await self.docker_client.start_container(service.container_id)
+        try:
+            restored = await self.docker_client.start_container(service.container_id)
+        except Exception as e:
+            logger.error(f"Restoring {service.name} (starting its kept container) raised: {e}")
+            restored = False
         logger.error(
             f"In-place recovery of {service.name} failed; the container was kept "
             f"({'restarted by the restore' if restored else 'and could not be started'})",
@@ -409,6 +418,32 @@ class LifecycleManager:
         else:
             remaining = self.backoff_remaining(service)
             logger.warning(f"Service {service.name} in backoff, {remaining:.1f}s remaining")
+
+    async def handle_isolated(self, service: ManagedService) -> None:
+        """Handle a network-isolated service (B1.6, D11).
+
+        The same backoff and failure count as an unhealthy service, recovered by
+        restarting its container in place (`recover_in_place`). The earlier
+        compose path ended a persistent isolation by deleting the service; in
+        place, an isolation that does not clear would otherwise restart the
+        container, and raise the alert, on every health cycle.
+
+        Args:
+            service: The network-isolated ManagedService.
+        """
+        can_restart = self.should_restart(service)  # backoff from the PREVIOUS failure
+        new_count = self.registry.increment_failure(service.name)
+        service.failure_count = new_count
+        service.last_failure_at = datetime.now(UTC)
+
+        if can_restart:
+            await self.recover_in_place(service)
+        else:
+            remaining = self.backoff_remaining(service)
+            logger.warning(
+                f"Service {service.name} is network-isolated but in backoff, "
+                f"{remaining:.1f}s remaining"
+            )
 
     async def handle_stopped(self, service: ManagedService) -> None:
         """Handle a stopped service.
