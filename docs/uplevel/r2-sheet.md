@@ -23,19 +23,20 @@
 > which are the one pair measured in two different trees (the `1d847a6a` leg, 216 ERR / 169 OK, re-run
 > in a detached worktree at that commit; this branch's leg, 222 / 163, at head — not remembered; the
 > third round re-ran every two-commit pair in a detached worktree at each leg's own baseline — ERRs,
-> register lines, the 24-citer split — none carried over). Forty-one claims did not survive that
-> re-measurement, a fresh-context review of the sheet, or the re-measurement at the second merge head —
-> the count now runs through four review
-> rounds, the third and fourth from a separate agent, and it grew each time because those rounds'
+> register lines, the 24-citer split — none carried over). Forty-three claims did not survive that
+> re-measurement, a fresh-context review of the sheet, the re-measurement at the second merge head, or a
+> fresh-context verification pass on the fifth round's own wording — the count now runs through four review
+> rounds and a merge-head re-measurement, the third, fourth and sixth from a separate agent, and it grew each time because those rounds'
 > findings, re-measured here, confirmed claims earlier rounds had asserted without measuring; the fifth
 > round's thirteen came not from a reviewer but from `origin/main` moving under the branch again, found
-> by this lane re-measuring at the new head before pushing — and
+> by this lane re-measuring at the new head before pushing; the sixth round's two sit in that round's own
+> sentences — and
 > the bullets say where each came
 > from:
 > thirteen were wrong in the draft as first committed (one of them this header's own date label), fifteen
 > were true at the measured commit and went
-> stale when `origin/main` merged (two at the first merge, thirteen at the second — first bullet), and thirteen were introduced _by the corrections_ —
-> three found by the second round, six by the third, four by the fourth (last bullet). Every one is corrected in place
+> stale when `origin/main` merged (two at the first merge, thirteen at the second — first bullet), and fifteen were introduced _by the corrections_ —
+> three found by the second round, six by the third, four by the fourth, two by the sixth (last bullet). Every one is corrected in place
 > and the row names the draft's wording at the correction, so an owner reading one row sees what changed
 > rather than a silently tidied fact — the corrections sit inside the Facts prose, not at the row end:
 >
@@ -44,15 +45,17 @@
 >   (OD-33) — which arrived as evidence, not just a number, because the tree itself had zero changed
 >   paths; and the register's line count, which has moved twice, 8,485 → 8,518 → **8,565**, with its
 >   staleness delta 373 → **420** (the plan text's 8,145 did not move) (OD-34). The thirteen at the
->   second merge: the six-page-count facts of OD-33's nav row and their echo inside this header —
+>   second merge: the four page-count facts of OD-33's nav row and their echo inside this header —
 >   600 → **601** pages, 599 → **600** `index.html`, home 148 → **149** nav links, busiest 316 →
 >   **317**, and the header's own "148–316 of 600" → **149–317 of 601** is the same four facts at a
 >   second location, counted once — all four from one cause: `mkdocs.yml` gained exactly one nav entry
 >   (`developer/agents-md-standard.md`) and `awesome-pages` rides every nav entry on every page's
 >   sidebar; the invariant the row argues — no page links into the trees — survives it, verified over
->   all 601. Seven line-number cites: `ci.yml:229` → **:230**; `docs/uplevel/40-docs.md:176` →
+>   all 601. Seven line-number cites: the `ci.yml` citation-job cite :229 → **:230** — a re-anchor, not
+>   same-line drift (the draft's :229 pointed inside the step's run block even at the draft commit;
+>   OD-33's row carries the decomposition); `docs/uplevel/40-docs.md:176` →
 >   **:156** (W2.1 rewrote that file); `README.md:243` → **:246** (same rewrite); the validator's `≥2`
->   test `agents_md_validator.py:619` → **:702** (W2.1 grew the validator +186 lines); and inside the
+>   test `agents_md_validator.py:619` → **:702** (W2.1 grew the validator +186/−6); and inside the
 >   register itself, `## Intake log` 7096 → **7143**, OD-24's log line L7150 → **L7197**, "§5 … at
 >   708" → **744** — those three moved by prefix-sum arithmetic, not page counts: main's B1.2 hunks
 >   added +36 lines at 708 and +11 at 3232, so everything below 708 held (the `Ruled 2026` hits at
@@ -82,8 +85,8 @@
 > - **a command that ran but measured nothing** (1): OD-35's transcribed `git ls-files` passed both stems
 >   inside one quoted argument, which matches no path and returns **0** — the printed 26 came from a
 >   different invocation than the one the row showed a reviewer. Fixed to two pathspecs.
-> - **first corrections that were themselves wrong** (13 — three found by the second review round,
->   six by the third, four by the fourth, each named where it sits): (a) OD-33's — the first re-measurement
+> - **first corrections that were themselves wrong** (15 — three found by the second review round,
+>   six by the third, four by the fourth, two by the sixth, each named where it sits): (a) OD-33's — the first re-measurement
 >   replaced "~91 citing files" with "97 distinct across 135 mentions", and re-running its own printed
 >   commands shows its columns (45/35/31) reproduce under no instrument (the nearest prints 44/36/31,
 >   ±1 twice in opposite directions inside the 111 the sum carried), and its 97 silently mixed two
@@ -122,9 +125,21 @@
 >   header's file-hygiene claim named one exception but the merge `10ab08e8` is a second (39 paths,
 >   sheet untouched — now both exceptions are named). And OD-34's "`Ruled 2026` finds 5 and misses 6"
 >   had "those 12" as its object while 6 is the count against the 11 table rows — now "misses 6 of the
->   11 table rows (7 of the full 12)". The lesson compounds: a corrected number has to be chased into
->   every sentence that quotes it, including the recommendation, and "printed" is a claim about an
->   artifact you can open, not about an instrument you re-ran.
+>   11 table rows (7 of the full 12)". (n)–(o) are the sixth round's two, same reviewer, found
+>   verifying the fifth round's new wording rather than the repo: (n) OD-33's new `ci.yml` sentence
+>   claimed the cite had "shifted by one" at the merge — false twice over: the step-name line was :226
+>   at `a0b4ca31` (:229 was the step's loop line there), and the merge's two insert hunks (+3 after
+>   old 195, +1 after old 217) shift every line from 218 down by four, so the :229 → :230 pair is a
+>   re-anchor, not drift (verified at
+>   both commits with `sed -n '226p;229p'` and the `-U0` hunk headers — the row now carries the full
+>   history, which is worse than the reviewer filed: :229 was never the name line even at the draft);
+>   (o) the header's moved-facts bullet opened "the six page-count facts" and then enumerated four
+>   pairs — the totals only close on four, so "six" contradicted its own sentence (the kind-cut
+>   13 = 11+1+1, the merge-split 15 = 2+13 and the census 43 all require four). The lesson compounds
+>   again: a corrected number has to be chased into every sentence that quotes it, including the
+>   recommendation, "printed" is a claim about an artifact you can open, not about an instrument you
+>   re-ran, and a correction sentence written to explain a drift is itself a drift claim — the fix
+>   for a wrong cite has to open the file at both commits before it says which line moved by how much.
 >
 > Everything else measured identically at the first commit, at every revision of this branch since, and
 > — for the claims this header names as held — in a detached worktree at the second merge head.
@@ -196,9 +211,12 @@ paths: `.claude/skills/synthbench-generation/SKILL.md` and `reference.md`,
 doc files under the 4 paths it listed" — the inverse of what the enumeration shows: a path under
 those 4 dirs is by definition inside the scope, so 6 files that all sit outside it cannot be "under"
 them.) And **no CI gate would catch a mis-move**: the
-level-1 citation job (`ci.yml:230` at this head — the step-name line, cited as `:229` at the revision
-before the merge, which shifted it by one; the prose name + the step's own `run:` block are stable
-under any further shift), "Docs citation existence") validates citations _authored inside_
+level-1 citation job (`ci.yml:230` at this head — the step's name line; the draft cited `:229`, which
+was never the name line at any measured commit: it was :225 at the draft (the first merge's +1 hunk
+made it :226, this merge's +3/+1 hunks made it :230) and :229 sat inside the step's own run block,
+4 lines below the name — so this cite is now correct for the first time, by re-anchoring, not drift;
+the prose name + the step's `run:` block are the stable way to re-find it), "Docs citation existence")
+validates citations _authored inside_
 exactly `docs/decisions deployment getting-started operations ui` — 43 citations across all five, every
 one ERR-free today — and of the citers **exactly 2 sit inside those five directories**
 (`docs/decisions/2026-01-12-docs-reorganization-design.md`, `docs/decisions/AGENTS.md`); the other 102 of
@@ -368,7 +386,7 @@ deleting the family does not throw away the record. (The `no_agents_md_required`
 on does no work either way: `check_missing_agents_md` fires on directories holding ≥`min_code_files: 2`
 files matching `code_extensions` — `.md` is not among them — so 26 markdown files could not trip
 `missing_agents_md` wherever they sat. Its `≥2` test lives at `agents_md_validator.py:702` at this
-head (the draft's :619, moved by W2.1's +186-line growth of the validator), not in
+head (the draft's :619, moved by W2.1's +186/−6 growth of the validator), not in
 `find_directories_with_code`.)
 
 **Options.** (a) keep in place as history; (b) delete. (The archive move is not on the list because
