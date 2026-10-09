@@ -883,9 +883,8 @@ background-dependent, so each names its background.)
   redefines the NAME `SEVERITY_COLORS` with a different shape
   (`bgTint`/`borderColor`/`glowShadow`). Its borders match chartColors at
   critical/high/medium but NOT at low — `utils/severityColors.ts:74` uses
-  `#76B900`, the risk token, where chartColors says `#10B981` — so the two
-  "different families" already agree with each other at low and disagree at
-  high. `utils/risk.ts` `getRiskColor` (:144 — there is no
+  `#76B900`, the risk token, where chartColors says `#10B981`. `utils/risk.ts`
+  `getRiskColor` (:144 — there is no
   `getRiskColorHex` in the file) is a sixth table (low `#22c55e` — the green
   above, AA-failing on white only; medium `#eab308`; high `#f97316`;
   critical `#ef4444`).
