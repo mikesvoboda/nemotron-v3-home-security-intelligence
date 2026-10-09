@@ -51,7 +51,7 @@ What the analyzer module owns, in the order the rules apply:
      or into the queue payload; absent both, analyze_batch refuses loudly
 ```
 
-The session split is deliberate. Session 1 READs detections, zones and household context and runs the lookup legs. **No session is held across the engine call**, because one attempt can stall to the read budget — and past it, since the budget is per-read idle, not a wall clock (`backend/core/config.py:1132-1144`). Session 2 WRITEs `Event` and `EventVerification` in one transaction, the idempotency key is set AFTER the write, and the broadcast is LAST and best-effort (`backend/services/vlm_analyzer.py:634-643`).
+The session split is deliberate. Session 1 READs detections, zones and household context and runs the lookup legs. **No session is held across the engine call**, because one attempt can stall to the read budget — and past it, since the budget is per-read idle, not a wall clock (`backend/core/config.py:1133-1145`). Session 2 WRITEs `Event` and `EventVerification` in one transaction, the idempotency key is set AFTER the write, and the broadcast is LAST and best-effort (`backend/services/vlm_analyzer.py:634-643`).
 
 ## Analysis Sequence Diagram
 
@@ -184,16 +184,16 @@ Its two `ValueError` branches enforce the rule that the VLM never originates an 
 
 | Parameter                      | Default                                                 | Source                                                                                            |
 | ------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Read budget, one attempt       | 25 s                                                    | `ai_vlm_read_timeout` (`backend/core/config.py:1132-1144`)                                        |
-| Connect timeout                | 10 s                                                    | `ai_connect_timeout` (`backend/core/config.py:1108-1113`)                                         |
-| Wake ping read budget          | 90 s                                                    | `ai_vlm_wake_timeout_seconds` (`backend/core/config.py:1145-1153`)                                |
-| Engine URL                     | `http://localhost:8098`; `http://ai-vlm:8098` in Docker | `ai_vlm_url` (`backend/core/config.py:1055-1060`)                                                 |
+| Read budget, one attempt       | 25 s                                                    | `ai_vlm_read_timeout` (`backend/core/config.py:1133-1145`)                                        |
+| Connect timeout                | 10 s                                                    | `ai_connect_timeout` (`backend/core/config.py:1109-1114`)                                         |
+| Wake ping read budget          | 90 s                                                    | `ai_vlm_wake_timeout_seconds` (`backend/core/config.py:1146-1154`)                                |
+| Engine URL                     | `http://localhost:8098`; `http://ai-vlm:8098` in Docker | `ai_vlm_url` (`backend/core/config.py:1056-1061`)                                                 |
 | Verdict output budget          | 2048 tokens (raised from 1024 on 2026-10-04)            | `_ASSESS_MAX_TOKENS` (`backend/services/vlm_client.py:141`)                                       |
-| Context pool and slots         | 32768 across 2 slots = 16384 each                       | `docker-compose.prod.yml:210-211`, divided by the validator at `backend/core/config.py:1370-1384` |
-| Largest embedded key frame     | 8 MiB                                                   | `vlm_max_image_bytes` (`backend/core/config.py:1386-1397`)                                        |
+| Context pool and slots         | 32768 across 2 slots = 16384 each                       | `docker-compose.prod.yml:210-211`, divided by the validator at `backend/core/config.py:1371-1385` |
+| Largest embedded key frame     | 8 MiB                                                   | `vlm_max_image_bytes` (`backend/core/config.py:1387-1398`)                                        |
 | Breaker threshold and recovery | 5 failures, 60 s                                        | `backend/services/vlm_client.py:319-322`                                                          |
-| LOW-band clamp ceiling         | 29                                                      | `severity_low_max` (`backend/core/config.py:2442-2447`)                                           |
-| Degraded-path engine label     | `llama.cpp`                                             | `nemotron_verification_engine` (`backend/core/config.py:1403-1406`)                               |
+| LOW-band clamp ceiling         | 29                                                      | `severity_low_max` (`backend/core/config.py:2443-2448`)                                           |
+| Degraded-path engine label     | `llama.cpp`                                             | `nemotron_verification_engine` (`backend/core/config.py:1404-1407`)                               |
 
 ## Concurrency and Circuit Breaking
 
@@ -267,7 +267,7 @@ A budget problem is deliberately kept out of the breaker. `_note_budget_exhauste
         record_pipeline_error(reason)
 ```
 
-Engine-side concurrency is the served slot count: the container runs llama.cpp with `--parallel 2`, so two `vlm_assess` calls share the pool and each request occupies one slot (`docker-compose.prod.yml:210-211`). Analysis throughput is the worker pool's business: `analysis_worker_count` defaults to 2 (`backend/core/config.py:1037-1044`), and each worker holds at most one engine call in flight.
+Engine-side concurrency is the served slot count: the container runs llama.cpp with `--parallel 2`, so two `vlm_assess` calls share the pool and each request occupies one slot (`docker-compose.prod.yml:210-211`). Analysis throughput is the worker pool's business: `analysis_worker_count` defaults to 2 (`backend/core/config.py:1038-1045`), and each worker holds at most one engine call in flight.
 
 ## Retry Logic
 
@@ -336,7 +336,7 @@ and it leaves by returning a verdict or raising the last error:
 | 1       | 0.0         | none                    | 25 s        |
 | 2       | 0.0         | none                    | 25 s        |
 
-There is no sleep between attempts and no third attempt. The second one is for failures where re-asking is not futile: a transport fault whose request never completed its trip (connection refused, `ConnectTimeout`), any other answered status (a 5xx or a plain 4xx, except the 400 context-overflow refusal), or a complete reply that violated the verdict schema — re-sent immediately at temperature 0, each attempt carrying its own read budget (`backend/core/config.py:1132-1144`), so the second attempt fits the S4 target only when the first failed fast. A slow reply never reaches the retry: a reply that outruns the read or write budget raises `VlmSlowReplyError` on the spot (`backend/services/vlm_client.py:976-1009`), breaker untouched.
+There is no sleep between attempts and no third attempt. The second one is for failures where re-asking is not futile: a transport fault whose request never completed its trip (connection refused, `ConnectTimeout`), any other answered status (a 5xx or a plain 4xx, except the 400 context-overflow refusal), or a complete reply that violated the verdict schema — re-sent immediately at temperature 0, each attempt carrying its own read budget (`backend/core/config.py:1133-1145`), so the second attempt fits the S4 target only when the first failed fast. A slow reply never reaches the retry: a reply that outruns the read or write budget raises `VlmSlowReplyError` on the spot (`backend/services/vlm_client.py:976-1009`), breaker untouched.
 
 ### Retriable and Non-Retriable Failures
 
@@ -396,7 +396,7 @@ The httpx client is built per call with one read budget and one connect budget:
 | Breaker recovery   | 60 s          | `CircuitBreakerConfig`             |
 
 The read budget is the load-bearing number: the S4 target of p95 at or under 30 s
-including cold starts is why the ceiling must sit under 30 s (`backend/core/config.py:1132-1144`).
+including cold starts is why the ceiling must sit under 30 s (`backend/core/config.py:1133-1145`).
 A reply that outruns it is a budget, not an outage — it is NOT retried (the request
 leaves unchanged, so a re-send times out identically) and does NOT charge the breaker
 (`backend/services/vlm_client.py` `VlmSlowReplyError`). The §6 temp-0 retry therefore
@@ -1050,7 +1050,7 @@ from backend.core.metrics import (
 | Invariants and the session 2 write                                    | single-digit ms              | none coded                             |
 | WS broadcast                                                          | under a ms                   | best-effort                            |
 
-**Target:** p95 of 30 s or less from batch close to stored event, cold starts included. The 25 s budget is a per-read idle budget (httpx resets it on every reply chunk), sized against that number for the silent-server case — a stalled reply is a budget, not retried, so a silent item costs one ceiling (plus connect), never a ladder, while an engine that dribbles within the budget runs on (`backend/core/config.py:1132-1144`). The temperature-0 retry is reachable only where a re-ask can differ: a trip that never completed (refused, `ConnectTimeout`), any other answered status (a 5xx or a plain 4xx, except the 400 context-overflow refusal), or a complete reply that broke the schema.
+**Target:** p95 of 30 s or less from batch close to stored event, cold starts included. The 25 s budget is a per-read idle budget (httpx resets it on every reply chunk), sized against that number for the silent-server case — a stalled reply is a budget, not retried, so a silent item costs one ceiling (plus connect), never a ladder, while an engine that dribbles within the budget runs on (`backend/core/config.py:1133-1145`). The temperature-0 retry is reachable only where a re-ask can differ: a trip that never completed (refused, `ConnectTimeout`), any other answered status (a 5xx or a plain 4xx, except the 400 context-overflow refusal), or a complete reply that broke the schema.
 
 ## Related Documents
 

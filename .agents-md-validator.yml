@@ -32,9 +32,10 @@ no_agents_md_required:
   - setup_lib/
   # Tests directory at root is minimal
   - tests/
-  # Quarantine for pending-deletion artifacts — content, not code to navigate
-  - archive/
-  - docs/archive/
+  # (O1.5 removed the two archive-tree entries here with the
+  # archives themselves — UR-19. They were the quarantine exemption; the
+  # quarantine is gone, and an exemption naming a deleted path is dead
+  # quarantine of a different kind.)
 
 # File extensions that count as "code files"
 # Directories with >= min_code_files of these need AGENTS.md
@@ -128,7 +129,7 @@ retired_name_baseline:
 # validator's own unit, measured at this config's tree) + the directories the standard
 # names or that guard a cross-lane/CI contract (frontend/src, backend/ai_contract,
 # backend/api, ai/gateway, ai/gateway/export, synthbench/contract,
-# .github/codeql/custom-queries). Test dirs, docs/ subfolders and archive/ are NOT
+# .github/codeql/custom-queries). Test dirs, docs/ subfolders are NOT
 # boundaries; they index themselves. A directory the rule would keep is listed
 # ONLY if it has an AGENTS.md today: W3.1 deletes files outside the list and
 # adds none, so a boundary without a file would sit in the report forever as a

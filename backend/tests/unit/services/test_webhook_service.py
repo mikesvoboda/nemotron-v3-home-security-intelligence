@@ -1621,7 +1621,7 @@ def test_format_for_integration_generic(webhook_service):
 
 
 # =============================================================================
-# WP4.4 kill battery (frozen triage feed archive/wp25-feed/wp44-triage/
+# WP4.4 kill battery (frozen triage feed the deleted archive's wp25-feed/wp44-triage/
 # webhook_service.md, real-shape diffs in webhook-diffs.txt). Covers the
 # health-summary query battery (#3/#14/#15), the format payload shapes
 # (#5/#6/#7), the deliveries/list/get_delivery/delete lookup query builders

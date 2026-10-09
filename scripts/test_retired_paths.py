@@ -19,16 +19,24 @@ What counts as a reference
     ``docker-compose.ci.yml`` would grow the alias ``ci.yml`` and collide with
     ``.github/workflows/ci.yml`` (measured at #6907; ops-A review's other
     suggested shape, rejected for exactly this). An entry ending in ``/`` is a
-    DIRECTORY: the path itself is the term, so text naming anything under it
-    flags and an innocent word like ``dir`` does not.
+    DIRECTORY: the path itself is the term, matched only where it begins a
+    path — so text naming anything under it flags, an innocent word like ``dir``
+    does not, and neither does a longer path that merely ends in the term
+    (``openapi-archive/`` does not match a retired ``archive/``). The anchor is
+    the same "declared, never derived" rule as the alias, one level down: a
+    directory term is a path segment, not a substring (O1.5, UR-19).
 
 What is NOT living text (records keep their references — the package says so:
 "Dated plans and specs keep their references; they are history")
     - Path prefixes: ``docs/plans/``, ``docs/superpowers/``,
-      ``docs/vss-integration/``, ``docs/uplevel/``, ``docs/archive/``,
-      ``archive/`` — plan, spec, program-record and archive trees.
-      ``docs/uplevel/`` includes this package's own text in ``30-ops.md``:
-      a gate may not flag the order that executed it.
+      ``docs/vss-integration/``, ``docs/uplevel/`` — plan, spec and
+      program-record trees. ``docs/uplevel/`` includes this package's own text
+      in ``30-ops.md``: a gate may not flag the order that executed it.
+      ``docs/archive/`` and ``archive/`` are NOT here any more (O1.5, UR-19):
+      they were record trees while they existed, and are now retired entries
+      above, so an exemption for them would exempt the text that names them.
+      Their own historical prose is preserved as a dated note in the file that
+      mentioned them, not as a tree the scanner never looks at.
     - Files named ``docs/goal-prompt-*.txt`` — dated goal prompts, records.
     - ``scripts/retired_paths.txt`` and this file — the gate lists the paths.
     - ``.secrets.baseline`` — generated, and its keys are file paths by design.
@@ -72,6 +80,7 @@ import io
 import re
 import sys
 import tokenize
+from functools import cache
 from pathlib import Path, PurePosixPath
 from typing import NamedTuple
 
@@ -81,14 +90,21 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 RETIRED_LIST = REPO_ROOT / "scripts" / "retired_paths.txt"
 
-# Trees that are records by nature: plans, specs, program records, archives.
+# Trees that are records by nature: plans, specs, program records.
+#
+# O1.5 (UR-19, 2026-10-09) removed "docs/archive/" and "archive/" from this
+# tuple with the two trees themselves. They were listed as record trees while
+# they held the retired reports; once the directories are deleted no scanned
+# path can start with either prefix, so keeping them would be dead quarantine
+# — and worse, the two trees are now RETIRED entries in retired_paths.txt, so
+# an exclusion for them would exempt the very living text the retirement is
+# meant to police. pyproject.toml's exclusion-ledger rule says the same of a
+# dead ignore: only a human deleting both keeps the ledger honest.
 EXCLUDED_PREFIXES = (
     "docs/plans/",
     "docs/superpowers/",
     "docs/vss-integration/",
     "docs/uplevel/",
-    "docs/archive/",
-    "archive/",
 )
 
 # Directory names skipped at any depth (VCS, deps, caches, build output).
@@ -202,13 +218,59 @@ def read_retired_paths(list_path: Path) -> list[RetiredEntry]:
     return entries
 
 
-def _search_terms(entry: RetiredEntry) -> tuple[str, ...]:
-    """A line naming the path, its basename, or a declared alias is a reference."""
+@cache
+def _directory_term(term: str) -> re.Pattern[str]:
+    """Compiled matcher for a directory entry's term: a path-anchored ``term``.
+
+    A directory term is matched only where it begins a path, not inside a longer
+    one. O1.5 (UR-19) supplies the reason it had to: retiring ``archive/`` as the
+    list's first root-level directory entry would otherwise substring-match
+    ``openapi-archive/`` — an unrelated CI artifact directory in
+    ``docs.yml`` — because plain ``in`` cannot tell a path segment from the tail
+    of one. Anchoring also keeps ``archive/`` from firing on a mention of
+    ``docs/archive/``, which has its own entry.
+
+    The optional ``\\.{0,2}/`` prefix admits the parent-relative and current-dir
+    forms: ``../archive/x`` and ``/archive/x`` name the retired tree as plainly
+    as ``archive/x`` does, and the self-review's probe (O1.5) showed the plain
+    lookbehind let them through — the leading ``.`` or ``/`` is a path
+    navigation, not part of a longer name, so anchoring must not read it as one.
+    A prefix followed by a COLLIDING tail stays silent (``../openapi-archive/x``):
+    the group is tried once, at the path start, and the term must follow it
+    immediately.
+
+    The second alternative admits the same navigation in a path's INTERIOR
+    (``docs/../archive/x`` — self-review round two, finding J), where the
+    segment-start lookbehind can't see it because a ``.`` is off-limits
+    character. It requires TWO dots after the separator on purpose: ``../``
+    climbs back to the tree root, so that path really is the retired tree,
+    while ``docs/./archive/x`` normalizes to ``docs/archive/x`` — a different
+    entry's directory — and must stay silent here. A reviewer's proposed
+    separator-lookbehind form (zero-to-two dots after ``[ \\s(/]``) was
+    measured and rejected: with zero dots allowed it
+    degrades to bare ``/archive`` after any separator and re-opens the
+    mid-path collision class the anchor exists to close (it fired on
+    ``site/archive/y`` and ``docs/build/archive/x``). Pinned in
+    ``test_selftest_discriminates`` (fixture lines 8-11).
+
+    Same lesson as the list header's declared-alias rule, one level down: that
+    rule refused to derive ``ci.yml`` from ``docker-compose.ci.yml`` because a
+    derived term collides with a real name. A derived *substring* collides the
+    same way. Pinned both directions in ``test_selftest_discriminates``.
+    """
+    return re.compile(
+        r"(?:(?<![A-Za-z0-9._\-/])(?:\.{0,2}/)?|(?<=/)\.\./)" + re.escape(term)
+    )
+
+
+def _names(entry: RetiredEntry, line: str) -> bool:
+    """Does this line name the entry — by path, basename, or declared alias?"""
     if entry.path.endswith("/"):
-        return (entry.path,) + entry.aliases  # directory entry: full-path term only
+        # directory entry: path-anchored term only (a bare word is not a path)
+        return bool(_directory_term(entry.path).search(line))
     base = entry.path.rsplit("/", 1)[-1]
     terms = (entry.path,) if base == entry.path else (entry.path, base)
-    return terms + entry.aliases
+    return any(term in line for term in terms + entry.aliases)
 
 
 def _is_excluded_file(rel: str) -> bool:
@@ -281,7 +343,7 @@ def find_violations(root: Path, list_path: Path | None = None) -> list[str]:
             if lineno in entry_lines or (rel.endswith(".py") and DATED_TAG_RE.search(line)):
                 continue  # dated decision-log line — a record, not a claim
             for entry in retired:
-                if any(term in line for term in _search_terms(entry)):
+                if _names(entry, line):
                     findings.append(f"{rel}:{lineno}: {entry.path} — {line.strip()[:160]}")
     return findings
 
@@ -342,7 +404,8 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     (tmp_path / "scripts" / "retired_paths.txt").write_text(
         "gone.txt\n"
         "sub/gone.md ; ghost.yml\n"
-        "sub/dir/\n",
+        "sub/dir/\n"
+        "archive/\n",
         encoding="utf-8",
     )
     (tmp_path / "docs").mkdir()
@@ -356,7 +419,23 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
         "A ghost sighting is not a reference.\n"  # 2 — alias is a filename term, not the word
         "Link to gone.md by basename.\n"  # 3 — basename branch of sub/gone.md
         "The dir variable stays out of the list.\n"  # 4 — bare word vs directory term
-        "Nothing under sub/dir/ is innocent.\n",  # 5 — directory entry's term
+        "Nothing under sub/dir/ is innocent.\n"  # 5 — directory entry's term
+        "Copy it into openapi-archive/openapi.json.\n"  # 6 — longer path ending in
+        #     the term is NOT the term: the anchor (O1.5, UR-19 — measured in the
+        #     real tree: docs.yml's openapi-archive/ is the only live collision)
+        "Recover it under archive/ whenever.\n"  # 7 — directory entry at a segment start
+        "Mount it from ../archive/ and ./archive/ too.\n"  # 8 — parent/cur-dir prefixes name
+        #     the retired tree as plainly (the self-review's probe, O1.5: the plain
+        #     lookbehind let these through; the optional \.{0,2}/ group catches them)
+        "Never ../openapi-archive/openapi.json.\n"  # 9 — prefix + tail stays silent
+        # 10 — the dot-prefix in a path's INTERIOR (self-review round two, J):
+        #      docs/../archive/x normalizes to the retired tree, and the
+        #      segment-start lookbehind alone could not see it
+        "Reach it via docs/../archive/x.\n"
+        # 11 — one interior dot does NOT climb: docs/./archive/x is
+        #      docs/archive/x, a different entry's directory. Guards the
+        #      two-dot requirement (a \.{0,2} interior group would fire here).
+        "Link docs/./archive/y elsewhere.\n",
         encoding="utf-8",
     )
     (tmp_path / "docs" / "weird.md").write_bytes(b"caf\xe9 gone.txt lives in latin-1\n")
@@ -406,6 +485,12 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     assert any(f.startswith("docs/terms.md:3:") for f in refs), refs  # basename branch alive
     assert not any(f.startswith("docs/terms.md:4:") for f in refs), refs  # dir term path-anchored
     assert any(f.startswith("docs/terms.md:5:") for f in refs), refs  # directory flags contents
+    assert not any(f.startswith("docs/terms.md:6:") for f in refs), refs  # openapi-archive/ survives
+    assert any(f.startswith("docs/terms.md:7:") for f in refs), refs  # root dir entry alive
+    assert any(f.startswith("docs/terms.md:8:") for f in refs), refs  # ../ ./ prefixes fire
+    assert not any(f.startswith("docs/terms.md:9:") for f in refs), refs  # prefix+tail survives
+    assert any(f.startswith("docs/terms.md:10:") for f in refs), refs  # interior ../ fires (J)
+    assert not any(f.startswith("docs/terms.md:11:") for f in refs), refs  # interior ./ is the OTHER tree
     assert any(f.startswith("docs/weird.md:1:") for f in refs), refs  # encoding drift hides nothing
 
     # Python record shapes: a triple-quoted tagged record (lines 11-13) is

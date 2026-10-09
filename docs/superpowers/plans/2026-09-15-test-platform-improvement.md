@@ -226,7 +226,7 @@ An expired entry fails the build. It does not warn, and it does not silently lap
 
 **Files:** Create `backend/tests/unit/test_route_mounting.py`
 
-`/api/backup` was implemented, unit-tested, and never mounted — a 404 in production that no test caught (fixed at `backend/main.py:1462`). Nothing prevents the identical defect for another router.
+`/api/backup` was implemented, unit-tested, and never mounted — a 404 in production that no test caught (fixed at `backend/main.py:1463`). Nothing prevents the identical defect for another router.
 
 Assert every router module under `backend/api/routes/` is mounted in `backend/main.py`. Handle the legitimate exceptions (redirect routers, conditionally-mounted routers) via an explicit allowlist in the test, not by weakening the assertion.
 

@@ -652,7 +652,7 @@ class TestThroughputAndWorkers:
 
 
 # =============================================================================
-# WP4.4 kill battery (frozen triage feed archive/wp25-feed/wp44-triage,
+# WP4.4 kill battery (frozen triage feed the deleted archive's wp25-feed/wp44-triage,
 # queue_status_service.md clusters 1,3,5,7,8,10-14,16,17,21,23,25 — 50
 # TEST-GAP survivors of 69; the 19 leftovers are EQUIVALENT/LOW-VALUE,
 # per-cluster justified in the dossier). Root cause: every Redis call went

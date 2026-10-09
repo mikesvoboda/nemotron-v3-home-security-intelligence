@@ -612,7 +612,7 @@ class BoundingBox(BaseModel):
 #
 # A7.3 (WP6-A): the 316 inline lines this block carried are GONE. The
 # container image never shipped ai/yolo26/contract.py, which is why model.py
-# kept its own copies; the (since-retired 2026-09-23, archive/ai-yolo26-image/)
+# kept its own copies; the (since-retired 2026-09-23, in the deleted archive tree)
 # Dockerfile COPYed it flat next to model.py (flat /app layout), so the
 # pure-leaf resolves here and in the repo alike (the _here_dir sys.path shim
 # above). This import binds the seven names

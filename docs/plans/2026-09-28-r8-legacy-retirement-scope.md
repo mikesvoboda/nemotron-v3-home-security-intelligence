@@ -25,7 +25,7 @@ prompt is the order of work, this file is the evidence.
 The legacy path is **live-by-environment-variable**, so its removal is a functional change,
 not a cosmetic one.
 
-- `backend/core/config.py:1061-1090` — the validator's own comment says `"legacy" parses
+- `backend/core/config.py:1064-1093` — the validator's own comment says `"legacy" parses
 only because its code stays in the repo until R8 deletes it`. `:1084` accepts the two
   spellings, `:1086` logs a warning. It does **not** reject.
 - Consequence: a deployment with a stale `PIPELINE_MODE=legacy` in its `.env` boots today and

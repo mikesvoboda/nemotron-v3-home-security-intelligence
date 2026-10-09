@@ -68,7 +68,7 @@ graph TD
 ### Initialization
 
 `setup_telemetry(app, settings)` is called during application startup
-(`backend/main.py:839`; defined at `backend/core/telemetry.py:145-353`). It returns `True` when
+(`backend/main.py:840`; defined at `backend/core/telemetry.py:145-353`). It returns `True` when
 tracing is initialized, `False` when disabled or already active. In abbreviated form
 (`backend/core/telemetry.py:145-338`):
 
@@ -117,7 +117,7 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
 
 ### Configuration Options
 
-Defaults are from `backend/core/config.py:1949-2056` (the effective production values are set by
+Defaults are from `backend/core/config.py:1952-2059` (the effective production values are set by
 `docker-compose.prod.yml:630-633`, which mirrors these defaults; the development template
 `.env.example:939-1015` disables tracing and points the endpoint at `http://localhost:4317`).
 
@@ -133,7 +133,7 @@ Defaults are from `backend/core/config.py:1949-2056` (the effective production v
 | `OTEL_BATCH_SCHEDULE_DELAY_MS`     | `int`   | `2000`                | Delay between exports (ms)           |
 | `OTEL_BATCH_EXPORT_TIMEOUT_MS`     | `int`   | `30000`               | Export timeout (ms)                  |
 
-`OTEL_SERVICE_NAME` keeps its default (`backend/core/config.py:1955-1959`) in every deployment:
+`OTEL_SERVICE_NAME` keeps its default (`backend/core/config.py:1958-1962`) in every deployment:
 the backend is the only service that produces spans, so all pipeline traces arrive under the single
 service name `nemotron-backend` — including the calls to `ai-gateway:8090` and `ai-vlm:8098`, which
 are client spans inside a backend trace rather than separate services.
@@ -308,7 +308,7 @@ Format: `version-trace_id-span_id-flags`
 ### W3C Baggage for Cross-Service Context (NEM-3796)
 
 The system uses W3C Baggage to propagate application-specific context across service boundaries
-(`backend/api/middleware/baggage.py`, registered in `backend/main.py:1507`):
+(`backend/api/middleware/baggage.py`, registered in `backend/main.py:1504`):
 
 ```
 baggage: camera.id=front_door,event.priority=high,request.source=api

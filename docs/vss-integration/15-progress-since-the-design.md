@@ -192,7 +192,7 @@ reading). The A5500 rows of the ledger contain the word "accept" zero times **[V
 
 Notes **[V]**:
 
-- (n1) `validate_pipeline_mode` at `backend/core/config.py:1062`; the only live construction point,
+- (n1) `validate_pipeline_mode` at `backend/core/config.py:1065`; the only live construction point,
   `build_pipeline_analyzer` in `backend/services/pipeline_factory.py` (a second, uncalled one sits
   in `analyze_vlm_batch`, `backend/services/vlm_analyzer.py:823`: `grep -rn analyze_vlm_batch`
   over `*.py` finds only its definition); and the test
@@ -322,7 +322,7 @@ named.
   used to derive the client's URL.
 - **Health gates the detector, not the VLM.** `yolo26` is `critical: True` and `ai-vlm` is
   `critical: False` (`backend/api/routes/system.py:5111`, `:5120`); `ai-vlm` is registered on the
-  degradation manager as non-critical with push-only health (`backend/main.py:1150`).
+  degradation manager as non-critical with push-only health (`backend/main.py:1151`).
 - **The alerts page still shows a NULL score as a low one.** `AlertsPage.tsx` and
   `AlertCameraGroup.tsx` coalesce `risk_score` to 0 and carry no `VerdictBadge`
   (`frontend/src/components/alerts/AlertsPage.tsx:116`, `:260`, `:317`;
@@ -614,7 +614,7 @@ Notes on the table:
   `models.yml`, and a wrong file is treated as missing
   (`backend/services/face_recognizer_loader.py:15`). Both rows carry `download_method: skip`, so an
   operator must place them by hand. The match, gate and scan thresholds are marked PROVISIONAL
-  (`backend/core/config.py:1786-1810`). Outcomes are four-valued: match, unknown, not identifiable,
+  (`backend/core/config.py:1789-1813`). Outcomes are four-valued: match, unknown, not identifiable,
   unavailable; a crop that fails the quality gate is never "unknown"
   (`backend/services/vlm_specialists.py:19-24`). Enrollment is server-side with a stored
   `model_id`; `POST /api/face-recognition/known-persons/{person_id}/embeddings` always answers 410
@@ -623,7 +623,7 @@ Notes on the table:
   (`backend/services/vlm_specialists.py:705`, `:723`). A vector from another embedding space reads
   `unavailable (re-enroll)`, and `POST /api/household-matcher/match-person` is retired with 410
   (`backend/api/routes/household_matcher.py:9`). The similarity threshold of 0.7 is PROVISIONAL
-  (`backend/core/config.py:1713`). The Triton `reid` model stays resident in the gateway, and a grep
+  (`backend/core/config.py:1716`). The Triton `reid` model stays resident in the gateway, and a grep
   finds no caller of the gateway's `/person-reid` outside the contract registry and tests.
 - **(n3) `plates`.** `fast-alpr` is declared only in the optional `alpr` extra
   (`pyproject.toml:192-193`), and the backend image installs `--extra face` only
@@ -642,7 +642,7 @@ Notes on the table:
 The compose default is false (`docker-compose.prod.yml:489`); `setup.py` turns it on for 24 GB cards,
 inclusively (`PRELOAD_MIN_VRAM_MB = 24 * 1024`, `setup_lib/nvidia_detect.py:221`, owner ruling
 2026-09-27, `03d1524c`); the selector honours the row-level `preload:` flag
-(`select_preload_candidates`, `backend/main.py:640`) **[V]**. A compose deployment that never set
+(`select_preload_candidates`, `backend/main.py:641`) **[V]**. A compose deployment that never set
 the flag serves `unavailable` for faces and re-ID **[A]**: inferred from the `models.yml` comment
 that the face leg never triggers a load; the backend was not run without the flag.
 

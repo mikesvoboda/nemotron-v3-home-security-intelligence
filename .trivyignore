@@ -186,7 +186,7 @@ CVE-2023-2953
 #     reported. Tripwire: TestNoRepoConsumerOfPublishedBases.
 #   AVD-DS-0002 - entry KEPT (deleting it reddens the PR-gated Config/IaC scan
 #     with five HIGH findings), rationale REWRITTEN. The old comment justified
-#     the ignore with vsftpd's port-21 story — but archive/vsftpd/Dockerfile
+#     the ignore with vsftpd's port-21 story — but the archive's vsftpd Dockerfile
 #     carries USER ftpsecure (:48), is NOT flagged, and is not one of the five
 #     findings the ID actually suppresses. The true five, with per-file reasons,
 #     are named in the entry's new rationale; that text is the review record
@@ -218,10 +218,13 @@ CVE-2023-2953
 # paths, paths=["*"], and an inline "# trivy:ignore:AVD-DS-0002" comment. So the
 # honest lever is the rationale below, not a narrower ignore.
 
-# AVD-DS-0002 - no USER directive (non-root) in five image definitions (REVIEW BY: 2027-07-05)
+# AVD-DS-0002 - no USER directive (non-root) in four image definitions (REVIEW BY: 2027-07-05)
 # Attributed by deleting this ID alone and re-running the CI-pinned scanner
-# (trivy 0.74.0, repo-wide config scan, 2026-10-04). The five HIGH findings, and
-# the measured reason each is deferred rather than fixed:
+# (trivy 0.74.0, repo-wide config scan, 2026-10-04: FIVE findings then; O1.5
+# (UR-19, 2026-10-09) deleted the fifth file — the archive's Dockerfile.yolo26-benchmark,
+# "ARCHIVED, built by nobody" below — with the archive itself, so a register
+# naming it would name a path that no longer exists. Four remain, and the
+# measured reason each is deferred rather than fixed:
 #   docker/base.Dockerfile                  PUBLISHED BASE IMAGE. Every layer
 #     needs root (apt-get install; uv pip install --system writes
 #     /usr/local/lib/python3.14/site-packages; the cache mount is literally
@@ -260,14 +263,10 @@ CVE-2023-2953
 #     home. Must be validated live on the GPU box: NO CI job builds this image
 #     (deploy.yml's matrix is backend+frontend only, ci.yml:1889-1901), so nothing
 #     here can prove it.
-#   archive/Dockerfile.yolo26-benchmark     ARCHIVED, built by nobody — manual
-#     podman only; the YOLO26 image job was retired by owner ruling 2026-09-23
-#     (.github/workflows/ci.yml:1889-1901). A finding in a file no pipeline
-#     builds is documentation, not risk.
 # Deliberately NOT a fix here: adding USER to the two bases or to comfy would
 # satisfy the scanner while breaking real builds. Guard:
 # TestMisconfigIgnoreNamesRealTargets (the ID's rationale must keep naming these
-# five, and must not re-claim the file the old comment described).
+# four, and must not re-claim the file the old comment described).
 AVD-DS-0002
 
 # =============================================================================

@@ -180,7 +180,7 @@ blind to a renamed keyword or an added required parameter — precisely the
 signature drift that caused the original breakage.
 
 **No mount-completeness guard.** `/api/backup` was implemented, unit-tested, and
-never mounted, returning 404 in production. It is fixed (`backend/main.py:1462`),
+never mounted, returning 404 in production. It is fixed (`backend/main.py:1463`),
 but nothing prevents the identical defect recurring for another router.
 
 ## Design

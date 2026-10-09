@@ -122,6 +122,32 @@ def _dep_versions(hook_id: str) -> list[str]:
     return deps
 
 
+def test_secrets_baseline_scan_views_are_identical():
+    """The detect-secrets HOOK's `exclude:` and the regenerate helper's
+    `--exclude-files` string must be character-identical. A baseline is a fixed
+    point of the scan view that maintains it: when the two views differ, the
+    helper's rebuild re-adds findings the hook never scans, and the next
+    hook-consistent rescan prunes them again — a baseline that can never sit
+    still, on a file whose whole job is to sit still. (O1.5 self-review, finding
+    E: the helper's string had drifted narrow — two patterns missing — and the
+    item-4 regeneration made from it carried 45 findings across two keys that
+    the hook's own view cannot produce; fixed by aligning the strings and
+    re-fixpointing the baseline at 224 keys / 351 entries.) Same failure class
+    as the prettier split-brain guard below: two views of one tool disagreeing."""
+    blocks = dict(hook_blocks())
+    hook_exclude = blocks["detect-secrets"].get("exclude", "").strip("'\"")
+    entry = blocks["regenerate-secrets-baseline"].get("entry", "")
+    m = re.search(r"--exclude-files \"([^\"]+)\"", entry)
+    assert m, f"regenerate helper passes no --exclude-files: {entry[:120]!r}"
+    helper_exclude = m.group(1)
+    assert hook_exclude == helper_exclude, (
+        f"secrets-baseline split-brain: the hook excludes {hook_exclude!r} but the "
+        f"conflict-rebuild helper excludes {helper_exclude!r} — a baseline built by "
+        "one view is redirty by the other (findings re-added on rebuild, pruned on "
+        "rescan). Keep the two strings character-identical."
+    )
+
+
 def test_the_two_prettier_hooks_pin_the_same_version():
     """Owner ruling 24 (2026-10-09): ONE prettier for the repo. The general
     mirrors-prettier hook (language: node — so its additional_dependencies

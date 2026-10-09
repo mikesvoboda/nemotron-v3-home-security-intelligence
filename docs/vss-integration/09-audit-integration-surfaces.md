@@ -783,7 +783,7 @@ Since `cdad5cc0e`, only the RT-VLM image default in `services/video-summarizatio
 **Transport, the important finding:**
 
 - Our analyzer calls **llama.cpp's native `/completion`** with a hand-built ChatML prompt (`ours:backend/services/nemotron_analyzer.py:3891-3898,3977-3981`).
-- It adds **`nvext.guided_json`** (`:583-593`), enabled by default (`ours:backend/core/config.py:1279-1285`).
+- It adds **`nvext.guided_json`** (`:583-593`), enabled by default (`ours:backend/core/config.py:1282-1288`).
 - "Support" is detected by probing `/completion` with `nvext` and **treating any 2xx as supported** (`nemotron_analyzer.py:452-478`).
 - llama.cpp's `/completion` takes `json_schema`/`grammar` (`llama.cpp@b7972:tools/server/README.md:450`), not `nvext` **[E]**. **So the constraint is almost certainly ignored while the code believes it is enforced** **[A]**. Confirm with one request and a malformed-output test.
 

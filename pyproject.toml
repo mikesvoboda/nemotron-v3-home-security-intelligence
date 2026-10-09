@@ -311,7 +311,7 @@ dev = [
 target-version = "py314"
 line-length = 100
 src = ["backend"]
-exclude = ["vulture_whitelist.py", "mutants/", "archive/"]
+exclude = ["vulture_whitelist.py", "mutants/"]
 
 # Files that run inside the renderer image (NGC PyTorch, Python 3.12): measure.py and
 # everything it imports from synthbench. Ruff's repo-wide py314 target would rewrite

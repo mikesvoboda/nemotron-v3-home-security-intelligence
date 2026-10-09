@@ -337,7 +337,7 @@ three readings of §2.1 (the L2 tool replaces that rough band with a measured fl
   the set needs owner sign-off, so the fix waits on OD-4.
 - **Band edges.** `_risk_score_to_level` cuts at 40/60/80
   (`backend/services/notification_filter.py:175-190`); the shipped bands are 30/60/85
-  (`backend/core/config.py:2423-2440`, `frontend/src/utils/risk.ts:80-85`). A score of 30-39 is
+  (`backend/core/config.py:2426-2443`, `frontend/src/utils/risk.ts:80-85`). A score of 30-39 is
   `medium` on the dashboard and `low` to the filter (ISS-018).
 - **Specialists.** `load_fast_alpr` rebuilds the ALPR on every call
   (`backend/services/fast_alpr_loader.py:66`, called per leg at
@@ -345,11 +345,11 @@ three readings of §2.1 (the L2 tool replaces that rough band with a measured fl
   `wait_for` or timeout; the backend image installs only `--extra face`
   (`backend/Dockerfile:134`) while `alpr` is a separate extra (`pyproject.toml:192` at the pin,
   `:173` at `HEAD`), so the plate leg reads `unavailable`. Compose defaults `BACKEND_MODEL_PRELOAD`
-  to false (`docker-compose.prod.yml:489`); `backend/core/config.py:2692` says `setup.py` sets it
+  to false (`docker-compose.prod.yml:489`); `backend/core/config.py:2695` says `setup.py` sets it
   true at 24 GB or more, so the face and re-ID legs depend on the deployment.
 - **Dormant controls, to be recorded and not silently wired.** The weapon and smoke/fire batch
   bypasses are reachable only from `backend/api/routes/debug.py:1771-1772`; `priority_*` settings
-  (`backend/core/config.py:997-1012`) have no reader outside config; `should_apply_backpressure`
+  (`backend/core/config.py:1000-1015`) have no reader outside config; `should_apply_backpressure`
   (`backend/services/batch_aggregator.py:1257`) has no production caller. Each may have been left
   dormant for a reason that has to be checked first [?].
 - **CI that said nothing about the VLM path (resolved by deletion in `d8482861`, 2026-10-03).**
@@ -444,7 +444,7 @@ every later rung. S4′ is baselined on a clock that starts when the batch's fir
    at the watcher, `backend/services/file_watcher.py:881`, stored once per batch at
    `backend/services/batch_aggregator.py:429`), stated against the [C] floor of 36-41 s for a
    single-still batch (30 s idle timeout and up to 5 s check interval,
-   `backend/core/config.py:925-962` [V], plus about 6 s warm verdict, ledger median 5,982 ms [A])
+   `backend/core/config.py:928-965` [V], plus about 6 s warm verdict, ledger median 5,982 ms [A])
    and, for a busy batch, up to the 90 s window plus the verdict. Spec S4 is the p95 per-batch verdict
    (`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md:86`), and the
    `batch_to_analyze` metric starts at analysis (`backend/services/pipeline_workers.py:1065`), so
@@ -562,7 +562,7 @@ the only retention path. Write it in the analyzer's second session beside `Event
 (`frontend/src/hooks/useIntegratedNotifications.ts`, `usePushNotifications.ts`). Make
 `alert_engine.evaluate_event` a production caller or delete it. Metrics in
 `backend/core/metrics.py`, rules beside `monitoring/ai-pipeline-alerts.yml`.
-`backend/main.py:1132-1150` registers `ai-vlm` with breaker-push health by design (probe polling
+`backend/main.py:1133-1151` registers `ai-vlm` with breaker-push health by design (probe polling
 would conflate sleep with failure) and `critical=False`, so the metrics must expose its health
 (ISS-058). Retire `pipeline_quality_audit_service` self-critique as a quality signal: a model
 grading itself is not evidence.
@@ -614,7 +614,7 @@ batch should end `verification_failed` with a NULL score; the comment at
   frame offset. A new table is free under `create_all`; an ALTER on `detections` needs a hand-run
   SQL file. `VideoProcessor.extract_frames_for_detection_batch` already exists
   (`backend/services/video_processor.py:632`); the worker calls it with
-  `video_frame_interval_seconds` 4.0 and `video_max_frames` 20 (`backend/core/config.py:2245`,
+  `video_frame_interval_seconds` 4.0 and `video_max_frames` 20 (`backend/core/config.py:2248`,
   `:2595`).
 - Chronological presentation order and a temporal-diversity term in `select_key_frames` (today
   strength then recency, one pick per (camera, class) pair and per file); the file identity becomes
@@ -630,7 +630,7 @@ batch should end `verification_failed` with a NULL score; the comment at
   `_render_prompt` drops each row's `detected_at` when `CAMERA_TIMEZONE` is set
   (`backend/services/vlm_client.py:522-526`), which L4 reconciles with the per-frame lines.
 - The capture-root guard in `_image_parts` (resolved path must lie under `foscam_base_path`,
-  `backend/core/config.py:887`) must be widened deliberately to admit the evidence directory;
+  `backend/core/config.py:890`) must be widened deliberately to admit the evidence directory;
   `video_thumbnails_dir` defaults to `data/thumbnails` (`:2591`), outside it.
 - Record the carriage in the stamped provenance engine string so `EventVerification.engine` slices
   metrics. Regenerate `scripts/gen-ai-contract.py`, the goldens under
@@ -960,7 +960,7 @@ compares to the household gallery only (`backend/services/vlm_specialists.py`,
    Tier A generation (sites and a consistent cast, listed as out of scope of the current generation
    design, `docs/superpowers/specs/2026-09-28-synthbench-agent-driven-generation-design.md:26`) or
    new generation. Calibrate `reid_similarity_threshold`, provisional at 0.7
-   (`backend/core/config.py:1713`). A false "same person as 10 minutes ago" pushes the VLM toward
+   (`backend/core/config.py:1716`). A false "same person as 10 minutes ago" pushes the VLM toward
    alarm, an S2 driver, so memory ships only with a measured false-merge rate.
 5. S2/S3 not worse than L4 or L8 on clips; S4 ≤ 30 s with the tracker running.
 
@@ -1111,13 +1111,13 @@ differentiators the ladder builds on, so they carry no bullet below. Items 4, 8,
 were not re-checked here [?] and may survive in part (the prompt A/B harness of item 8 was deleted
 by `d8482861`). These are the three that the ladder keeps:
 
-- **Event-triggered compute.** 90 s and 30 s batching (`backend/core/config.py:925-934`), a wake on
+- **Event-triggered compute.** 90 s and 30 s batching (`backend/core/config.py:928-937`), a wake on
   batch open (`backend/services/batch_aggregator.py:676`) and llama.cpp sleep after idle
   (`docker-compose.prod.yml:236`, default 300 s) [V].
 - **A graded 0-100 score with a `SeverityService`-derived level.** The model never emits a level
   (`VlmVerdict` has no level field, `backend/services/vlm_verdict.py:55-72`) [V].
 - **Single-GPU degradation.** The breaker named `ai-vlm`, the detector-only rule and the
-  `DegradationManager` registration (`backend/main.py:1150`) [V].
+  `DegradationManager` registration (`backend/main.py:1151`) [V].
 
 What this project adds that VSS lacks and the ladder builds: stored `rejected` verdicts
 (`EventVerification.verdict` carries all four values), the bar judge, noise floor and paired gate
@@ -1159,7 +1159,7 @@ of its items is picked up here without its own spec.
 3. **No new `ai_contract` op for video or triage.** A stakes-ordered scheduler, a "lite" verdict op
    and an early-verdict fast path are deferred until M1 ships and S4′ is measured: the warm median is
    about 6 s against a 30 s bar [A, ledger] and the dormant fast path was disabled because it
-   bypassed enrichment (`backend/core/config.py:1892`). The verify-then-notify against
+   bypassed enrichment (`backend/core/config.py:1895`). The verify-then-notify against
    notify-then-verify policy stays an owner product decision (ISS-021).
 4. **No load-shed ladder, 12 or 16 GiB profiles, ghcr `ai-vlm` service, offline-install work or
    larger-VLM escalation tier.** The ghcr gap is marked owner-adjudicated

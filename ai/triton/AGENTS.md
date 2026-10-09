@@ -169,9 +169,10 @@ ai-gateway:
 (config + an exported version dir linked from the model cache) and the
 `yolo26` / `stgcn_action` configs have no exported weights by default. The
 compose healthcheck comments used to say "13 models" — stale since
-`xclip_action` was retired with NEM-5563 (its config/python `model.py` now
-live under `archive/triton-model-repository/`) — and were corrected to 14 in
-the gateway-consolidation follow-up:
+`xclip_action` was retired with NEM-5563 (its config/python model.py lived
+in the deleted archive tree under triton-model-repository/ until UR-19 deleted the archive tree;
+recover from git history) — and were corrected to 14 in the
+gateway-consolidation follow-up:
 
 | Model               | Backend     | max_batch_size  |
 | ------------------- | ----------- | --------------- |

@@ -1044,6 +1044,19 @@ class TestDLQCircuitBreaker:
 # =============================================================================
 
 
+class _MonotonicStub:
+    """A settable stand-in for the ``time`` module: the circuit breaker reads
+    only ``time.monotonic()``, so replacing the module binding inside
+    ``backend.services.circuit_breaker`` gives the test a clock that advances
+    only when the test says so (ruling 39 L-i)."""
+
+    def __init__(self, start: float = 1_000.0) -> None:
+        self.now = start
+
+    def monotonic(self) -> float:
+        return self.now
+
+
 class TestDLQJobLossLogging:
     """Tests for DLQ job loss logging fix (wa0t.16)."""
 
@@ -1068,7 +1081,15 @@ class TestDLQJobLossLogging:
 
         cb_config = CircuitBreakerConfig(
             failure_threshold=2,
-            recovery_timeout=0.1,
+            # Ruling 39 L-i: this class asserts behavior WHILE the circuit is
+            # open, and with max_retries=1 nothing in the tests sleeps — so a
+            # 0.1 s recovery window made the answer depend on the CI runner
+            # being faster than 100 ms between the trip and the loss call, and
+            # a stall let the breaker self-transition OPEN → HALF_OPEN inside
+            # allow_call (the historical flake). One hour is not a window any
+            # scheduling stall reaches; recovery itself is tested, with an
+            # explicit wait, in TestDLQCircuitBreaker.
+            recovery_timeout=3600.0,
             half_open_max_calls=1,
             success_threshold=1,
         )
@@ -1168,6 +1189,57 @@ class TestDLQJobLossLogging:
                 "lost_job_data" in str(call) or "cam_lost" in str(call) for call in error_calls
             )
             assert has_job_data_in_extra, f"Job data not found in error logs: {error_calls}"
+
+    @pytest.mark.asyncio
+    async def test_slow_ci_between_trip_and_loss_call_still_logs(
+        self, handler_with_low_threshold: RetryHandler
+    ) -> None:
+        """Ruling 39 L-i regression pin: a CI stall between tripping the circuit
+        and the loss call must not swallow the CRITICAL DATA LOSS log.
+
+        The historical flake: this class's fixture gave the breaker a
+        100 ms recovery window, and with ``max_retries=1`` nothing inside the
+        test sleeps — so a >100 ms scheduling gap between the trip and the
+        loss call let the breaker self-transition OPEN → HALF_OPEN inside
+        ``allow_call``, the write was granted, and the loss log never fired.
+        This pin freezes the breaker's monotonic clock, advances it 0.2 s
+        (wider than the old window) at the exact point the stall happened, and
+        still requires the log. Against a fixture whose window a 0.2 s jump can
+        cross, this test is RED; the fixture pins the window where no CI stall
+        can reach it.
+        """
+
+        async def always_fail() -> str:
+            raise ConnectionError("Service unavailable")
+
+        clock = _MonotonicStub()
+        with (
+            patch("backend.services.circuit_breaker.time", clock),
+            patch("backend.services.retry_handler.logger", autospec=True) as mock_logger,
+        ):
+            for camera in ("cam1", "cam2"):
+                await handler_with_low_threshold.with_retry(
+                    operation=always_fail,
+                    job_data={"camera_id": camera},
+                    queue_name="detection_queue",
+                )
+            assert handler_with_low_threshold.is_dlq_circuit_open() is True
+
+            # The stall: wall clock advances past the historical 100 ms window.
+            clock.now += 0.2
+
+            result = await handler_with_low_threshold.with_retry(
+                operation=always_fail,
+                job_data={"camera_id": "cam_stalled"},
+                queue_name="detection_queue",
+            )
+            assert result.moved_to_dlq is False
+
+            error_calls = mock_logger.error.call_args_list
+            assert any("CRITICAL DATA LOSS" in str(call) for call in error_calls), (
+                "a CI stall let the breaker leave OPEN before the loss call; "
+                f"the job was lost silently. Error calls: {error_calls}"
+            )
 
 
 # =============================================================================
