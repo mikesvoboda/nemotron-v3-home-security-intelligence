@@ -4,7 +4,9 @@
 > section (`00 §4.1`). Evidence tags follow [`docs/vss-integration/AGENTS.md`](../vss-integration/AGENTS.md):
 > **[V]** verified by source read at `d6ba78d5`; **[C]** computed; **[A]** reported by an audit
 > subagent, not independently re-verified; **[O]** owner statement. Re-measure any **[A]** number
-> before acting on it. Counts drift as `main` moves.
+> before acting on it. Counts drift as `main` moves. O1.7 committed the scanners behind the
+> **[C]** figures — `scripts/audit/` (each cited at its row); re-run them at current `main`
+> before citing a **[C]** count in a before/after.
 
 ## 1. What the platform is
 
@@ -45,7 +47,7 @@ campaign** raised the mutmut score to 82.6% over 69,854 mutants (history run M53
 | `frontend/tests` (Playwright) | 28 / 11,273              | 70 / 27,211        |                                                            |
 | `synthbench/`                 | 107 files / 15.6K Python | —                  | imports `backend.evaluation`; production imports neither   |
 | `.github/workflows`           | 40 / 14,470              | —                  | `ci.yml` alone 3,320 lines, 40 jobs                        |
-| `AGENTS.md` files             | 244 / 62,889             | —                  | 29 still describe Florence                                 |
+| `AGENTS.md` files             | 244 / 62,889             | —                  | 72 name a retired O1.7 component; 26 Florence [C]          |
 
 Twelve backend files exceed 2,000 lines; the largest are `api/routes/system.py` (5,515),
 `core/metrics.py` (4,012), `core/config.py` (3,366, 337 settings fields) [A].
@@ -82,7 +84,12 @@ Correctness and security faults in shipped paths. These are bugs, not cleanup.
   production code imports, which hides the dead modules from a package-level scan. Includes all of
   `backend/config/` (the prompt A/B and shadow-rollout package), `core/config_nested.py`, 4 of 8
   repositories, 8 middleware modules, `partition_manager`, `managed_service`, `pg_notify_listener`.
-- **50 of 337 settings fields are never read**, 20 of them `florence_*`/`clip_*`/`enrichment_*`.
+- **47 of 337 settings fields are never read** [C, `scripts/audit/settings_orphans.py`: AST pass
+  over `backend/core/config.py` incl. transitive `BaseSettings` subclasses; a field is read if its
+  name appears whole-word, case-insensitively (pydantic-settings binds env case-insensitively), in
+  any non-test `.py` outside config.py, in `docker-compose*.yml`, `config/*.yml` or `setup.py`],
+  21 of them `florence_*`/`clip_*`/`enrichment_*` — the [A] 50/20 was taken at `d6ba78d5` before
+  the drift since (field deletions and new reads on `main`).
 - **R8 residue:** `AIModelEnum` still offers `florence2`, `xclip`, `fashion_clip`, `yolo_world`;
   `get_nemotron_analyzer_dep` returns a `VlmAnalyzer`; `summary_generator._call_nemotron` calls
   `ai_vlm`; 11 unused exception classes; `PromptABTester` and siblings (414 lines).
@@ -138,7 +145,9 @@ verdict": key frames are selected 3× and the prompt fitted 2× per batch; the a
 
 ## 6. Tests and the mutation campaign [A]
 
-- **Batteries.** 130 files named `test_<module>_batchNN[_x].py` (120,913 lines, 3,240 tests) were
+- **Batteries.** 123 files named `test_<module>_batchNN[_x].py` (119,949 lines, 3,279 tests [C,
+  `scripts/audit/battery_census.py`: AST count; `@pytest.mark.parametrize` over a literal list
+  multiplies the count, non-literal args count as 1 and flag the file — 8 flagged]) were
   written 09-22 → 10-07 to kill named mutants. Against other unit tests they carry 2.9× the
   private-attribute references and 8.8× the log-string assertions per 1K lines; some assert that
   production _comments_ are present verbatim (`test_gpu_monitor_batch28_22.py`). 79 cite harness
@@ -147,8 +156,11 @@ verdict": key frames are selected 3× and the prompt fitted 2× per batch; the a
 - **Fragmentation.** `pipeline_workers` has 21 test files (25,852 lines) for 2,271 production
   lines; `detector_client` 17; `gpu_monitor` 23. Route tests live in two trees (`unit/routes/` and
   `unit/api/routes/`).
-- **Parametrize candidates.** 488 groups of 3+ tests differing only in literals: 2,010 functions in
-  247 files. `scripts/parametrize-guard.py` already proves merges safe.
+- **Parametrize candidates.** 605 groups of 3+ tests differing only in literals: 2,665 functions in
+  320 files [C, 2026-10-09; `scripts/audit/literal_groups.py` reuses `parametrize-guard`'s masked-
+  body grouping (literals → `__LIT__`) plus its raises bucket, over every `test_*.py` function,
+  class methods and module-level, whole tree]. The [A] 488/2,010/247 was the same guard's earlier
+  view; `scripts/parametrize-guard.py` already proves merges safe.
 - **Fixture shadowing.** ~215 local redefinitions of conftest fixtures (`mock_redis` ×58).
 - **Dead tests.** 3 permanently skipped `stream_config` files test modules that do not exist; 12
   "moved" skips in `test_system_models.py`; `tests/benchmark` is never run by CI.
@@ -175,8 +187,14 @@ verdict": key frames are selected 3× and the prompt fitted 2× per batch; the a
   `prod` with no `include`/`extends`; image versions drift between them (prometheus v3.1.0 vs
   v2.48.0, loki 3.5.1 vs 2.9.4). `ai-llm-vllm` defaults to the retired Nemotron-30B and nothing
   depends on it.
-- **Config.** `.env.example` 1,022 lines, 182 variables; 34 are read by neither `config.py` nor
-  compose; ~17 name retired components (`GPU_FLORENCE`, `GPU_CLIP`, `LLM_PORT`, …).
+- **Config.** `.env.example` 154 variables [C, 2026-10-09; `scripts/audit/env_dead_vars.py`:
+  uncommented assignments, searched case-insensitively — pydantic-settings binds env case-folded —
+  in `backend/core/config.py`, `docker-compose*.yml` incl. `config/`, and `setup.py`]; 22 are read
+  by none of them (the [A] 182/34 was taken at `d6ba78d5` — variables and readers have both moved
+  since, and the [A] scan did not case-fold: 41 of its 63 uncase-folded "dead" hits have a
+  lowercase live twin in config.py); 7 name retired components (`GPU_FLORENCE`, `GPU_CLIP`,
+  `LLM_PORT`, `GPU_ENRICHMENT`, `GPU_ENRICHMENT_LIGHT`, `CLIP_TENSORRT_PRECISION`,
+  `CLIP_CALIBRATION_DIR`).
   `models.yml` has no row for the shipped Qwen3-VL GGUF; 4 rows are dead.
 - **CI.** pip-audit and npm audit each run in 4 workflows; three release mechanisms; 40
   `continue-on-error: true`. `scripts/` (231 files) is never linted; ~14 scripts are referenced by
@@ -209,7 +227,13 @@ verdict": key frames are selected 3× and the prompt fitted 2× per batch; the a
 - `docs/` PNGs: 421 files, 412.6 MB — 73% of tracked bytes; 28 (15.4 MB) referenced nowhere.
 - `docs/`: 590 markdown files; mkdocs nav covers 128; `docs/development/` is 30 redirect stubs;
   VSS planning is split across `docs/plans`, `docs/superpowers/plans` and `docs/vss-integration`.
-- Retired components appear in 70 non-archive docs and 29 `AGENTS.md` files. `AGENTS.md:240`
+- Retired components appear in 117 living docs and 72 `AGENTS.md` files [C,
+  `scripts/audit/retired_names.py`: whole-word mentions of the five §O1.7 names (florence,
+  nemotron, enrichment, pose, demographic — the validator's gated five differ by xclip/
+  demographics vs pose/demographic), plus 1,376 code files; "living" excludes the dated record
+  trees the retired-paths gate exempts (docs/plans, docs/superpowers, docs/vss-integration,
+  docs/uplevel, goal prompts), so this exceeds the [A] 70, which counted "non-archive" a
+  different way]. `AGENTS.md:240`
   calls `data/` gitignored; it holds 1,409 tracked fixture files.
 
 ## 9. Already registered — cite, do not re-file
