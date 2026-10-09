@@ -15,6 +15,7 @@ from backend.api.schemas.services import ServiceCategory
 from backend.services.container_discovery import (
     AI_CONFIGS,
     ALL_CONFIGS,
+    COMPOSE_PROJECT_LABEL,
     INFRASTRUCTURE_CONFIGS,
     MONITORING_CONFIGS,
     ContainerDiscoveryService,
@@ -25,6 +26,12 @@ from backend.services.container_discovery import (
 )
 
 # Fixtures
+
+
+# Discovery adopts only containers of the backend's own compose project (B1.6):
+# every test container carries this project's label, and every call names it.
+TEST_PROJECT = "security"
+TEST_LABELS = {COMPOSE_PROJECT_LABEL: TEST_PROJECT}
 
 
 @pytest.fixture
@@ -43,6 +50,7 @@ def mock_container() -> MagicMock:
     container.name = "test-container"
     container.status = "running"
     container.image.tags = ["test-image:latest"]
+    container.labels = dict(TEST_LABELS)
     return container
 
 
@@ -58,6 +66,7 @@ def create_mock_container(
     container.name = name
     container.status = status
     container.image.tags = image_tags or ["default:latest"]
+    container.labels = dict(TEST_LABELS)
     return container
 
 
@@ -282,7 +291,7 @@ class TestContainerDiscoveryService:
         mock_docker_client.list_containers = AsyncMock(return_value=[mock_postgres])
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_all()
+        discovered = await service.discover_all(project=TEST_PROJECT)
 
         assert len(discovered) == 1
         assert discovered[0].name == "postgres"
@@ -304,7 +313,7 @@ class TestContainerDiscoveryService:
         mock_docker_client.list_containers = AsyncMock(return_value=[mock_gateway])
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_all()
+        discovered = await service.discover_all(project=TEST_PROJECT)
 
         assert len(discovered) == 1
         assert discovered[0].name == "ai-gateway"
@@ -328,7 +337,7 @@ class TestContainerDiscoveryService:
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_all()
+        discovered = await service.discover_all(project=TEST_PROJECT)
 
         assert len(discovered) == 4
         names = {s.name for s in discovered}
@@ -347,7 +356,7 @@ class TestContainerDiscoveryService:
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_all()
+        discovered = await service.discover_all(project=TEST_PROJECT)
 
         assert len(discovered) == 1
         assert discovered[0].name == "postgres"
@@ -360,7 +369,7 @@ class TestContainerDiscoveryService:
         mock_docker_client.list_containers = AsyncMock(return_value=[])
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_all()
+        discovered = await service.discover_all(project=TEST_PROJECT)
 
         assert discovered == []
 
@@ -376,7 +385,9 @@ class TestContainerDiscoveryService:
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_by_category(ServiceCategory.INFRASTRUCTURE)
+        discovered = await service.discover_by_category(
+            ServiceCategory.INFRASTRUCTURE, project=TEST_PROJECT
+        )
 
         assert len(discovered) == 2
         names = {s.name for s in discovered}
@@ -396,7 +407,7 @@ class TestContainerDiscoveryService:
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_by_category(ServiceCategory.AI)
+        discovered = await service.discover_by_category(ServiceCategory.AI, project=TEST_PROJECT)
 
         # R8 S2 deleted the "ai-llm" ServiceConfig row, so that container is now
         # an unrecognized one: the row's absence is the pin, and "ai-llm-vllm"
@@ -422,7 +433,9 @@ class TestContainerDiscoveryService:
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_by_category(ServiceCategory.MONITORING)
+        discovered = await service.discover_by_category(
+            ServiceCategory.MONITORING, project=TEST_PROJECT
+        )
 
         assert len(discovered) == 3
         names = {s.name for s in discovered}
@@ -510,7 +523,7 @@ class TestContainerDiscoveryService:
         mock_docker_client.list_containers = AsyncMock(return_value=[mock_container])
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_all()
+        discovered = await service.discover_all(project=TEST_PROJECT)
 
         assert len(discovered) == 1
         assert discovered[0].name == "ai-llm-vllm"
@@ -529,7 +542,7 @@ class TestContainerDiscoveryService:
         mock_docker_client.list_containers = AsyncMock(return_value=[mock_container])
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_all()
+        discovered = await service.discover_all(project=TEST_PROJECT)
 
         assert len(discovered) == 1
         # Should have some fallback or empty string
@@ -548,7 +561,7 @@ class TestContainerDiscoveryService:
         mock_docker_client.list_containers = AsyncMock(return_value=[mock_container])
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_all()
+        discovered = await service.discover_all(project=TEST_PROJECT)
 
         assert len(discovered) == 1
         prometheus = discovered[0]
@@ -585,7 +598,7 @@ class TestContainerDiscoveryEdgeCases:
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_all()
+        discovered = await service.discover_all(project=TEST_PROJECT)
 
         # Should discover both containers
         assert len(discovered) == 2
@@ -604,7 +617,7 @@ class TestContainerDiscoveryEdgeCases:
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_all()
+        discovered = await service.discover_all(project=TEST_PROJECT)
 
         # Only lowercase should match (patterns are lowercase)
         assert len(discovered) == 1
@@ -616,7 +629,7 @@ class TestContainerDiscoveryEdgeCases:
     ) -> None:
         """Test discover_all calls docker client with correct parameters."""
         service = ContainerDiscoveryService(mock_docker_client)
-        await service.discover_all()
+        await service.discover_all(project=TEST_PROJECT)
 
         mock_docker_client.list_containers.assert_called_once_with(all=True)
 
@@ -729,7 +742,7 @@ class TestCategoryPriorityOrdering:
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
 
         service = ContainerDiscoveryService(mock_docker_client)
-        discovered = await service.discover_all()
+        discovered = await service.discover_all(project=TEST_PROJECT)
 
         # Find each service
         postgres = next(s for s in discovered if s.name == "postgres")
@@ -1016,7 +1029,7 @@ class TestDiscoveryImageStringEdgeCases:
         mock_docker_client.list_containers = AsyncMock(return_value=[container])
 
         discovery = ContainerDiscoveryService(mock_docker_client)
-        discovered = await discovery.discover_all()
+        discovered = await discovery.discover_all(project=TEST_PROJECT)
 
         assert len(discovered) == 1
         assert discovered[0].image == f"<untagged:{long_id[:12]}>"
@@ -1074,12 +1087,15 @@ class TestWP44DraftedGaps:
         stand in here.
         """
         container = SimpleNamespace(
-            name="security-postgres-1", id="pg-abcdef123456", image=SimpleNamespace()
+            name="security-postgres-1",
+            id="pg-abcdef123456",
+            image=SimpleNamespace(),
+            labels=dict(TEST_LABELS),
         )
         mock_docker_client.list_containers = AsyncMock(return_value=[container])
 
         discovery = ContainerDiscoveryService(mock_docker_client)
-        discovered = await discovery.discover_all()
+        discovered = await discovery.discover_all(project=TEST_PROJECT)
 
         assert discovered[0].image == "<untagged:pg-abcdef123>"
 
@@ -1088,11 +1104,13 @@ class TestWP44DraftedGaps:
         self, mock_docker_client: MagicMock
     ) -> None:
         """A container lacking .image must resolve image='<unknown>', not crash."""
-        bare = SimpleNamespace(name="security-postgres-1", id="pg-abcdef123456")
+        bare = SimpleNamespace(
+            name="security-postgres-1", id="pg-abcdef123456", labels=dict(TEST_LABELS)
+        )
         mock_docker_client.list_containers = AsyncMock(return_value=[bare])
 
         discovery = ContainerDiscoveryService(mock_docker_client)
-        discovered = await discovery.discover_all()
+        discovered = await discovery.discover_all(project=TEST_PROJECT)
 
         assert discovered[0].image == "<unknown>"
         assert discovered[0].container_id == "pg-abcdef123456"
@@ -1110,7 +1128,9 @@ class TestWP44DraftedGaps:
         discovery = ContainerDiscoveryService(mock_docker_client)
         cfg = INFRASTRUCTURE_CONFIGS["postgres"]
 
-        no_id = SimpleNamespace(name="security-postgres-1", image=SimpleNamespace(tags=[]))
+        no_id = SimpleNamespace(
+            name="security-postgres-1", image=SimpleNamespace(tags=[]), labels=dict(TEST_LABELS)
+        )
         svc = discovery._create_managed_service(no_id, "postgres", cfg)
         assert svc.container_id == ""
         assert svc.image == "<untagged:unknown>"
@@ -1126,13 +1146,16 @@ class TestWP44DraftedGaps:
         keys fail the exact-value asserts.
         """
         container = SimpleNamespace(
-            name="security-postgres-1", id="pg-abcdef123456", image=SimpleNamespace(tags=["pg:17"])
+            name="security-postgres-1",
+            id="pg-abcdef123456",
+            image=SimpleNamespace(tags=["pg:17"]),
+            labels=dict(TEST_LABELS),
         )
         mock_docker_client.list_containers = AsyncMock(return_value=[container])
 
         discovery = ContainerDiscoveryService(mock_docker_client)
         with caplog.at_level("DEBUG", logger="backend.services.container_discovery"):
-            await discovery.discover_all()
+            await discovery.discover_all(project=TEST_PROJECT)
 
         rec = next(r for r in caplog.records if "security-postgres-1" in r.getMessage())
         assert rec.container_name == "security-postgres-1"

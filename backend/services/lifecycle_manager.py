@@ -92,6 +92,8 @@ class LifecycleManager:
         docker_client: DockerClient for container operations.
         on_restart: Optional callback invoked after successful restart.
         on_disabled: Optional callback invoked when service is disabled.
+        on_recovery_failed: Optional callback invoked when an in-place recovery
+            fails (the alert).
     """
 
     def __init__(
@@ -100,6 +102,7 @@ class LifecycleManager:
         docker_client: DockerClient,
         on_restart: Callable[[ManagedService], Awaitable[None]] | None = None,
         on_disabled: Callable[[ManagedService], Awaitable[None]] | None = None,
+        on_recovery_failed: Callable[[ManagedService], Awaitable[None]] | None = None,
     ) -> None:
         """Initialize the lifecycle manager.
 
@@ -108,11 +111,14 @@ class LifecycleManager:
             docker_client: DockerClient for container operations.
             on_restart: Optional async callback invoked after restart.
             on_disabled: Optional async callback invoked when service disabled.
+            on_recovery_failed: Optional async callback invoked when an in-place
+                recovery fails - the alert that a person has to look.
         """
         self.registry = registry
         self.docker_client = docker_client
         self.on_restart = on_restart
         self.on_disabled = on_disabled
+        self.on_recovery_failed = on_recovery_failed
 
     def calculate_backoff(self, service: ManagedService) -> float:
         """Calculate exponential backoff for a service.
@@ -216,82 +222,58 @@ class LifecycleManager:
             logger.error(f"Error restarting {service.name}: {e}")
             return False
 
-    async def restart_via_compose(
-        self,
-        service: ManagedService,
-        compose_file: str = "docker-compose.prod.yml",
-    ) -> bool:
-        """Restart a container via docker-compose to fix network isolation.
+    async def recover_in_place(self, service: ManagedService) -> bool:
+        """Recover a service by restarting its own container in place (B1.6, D11).
 
-        This method removes the existing container and uses docker-compose to
-        recreate it, ensuring it's properly attached to the compose network.
-        Use this when a container is running but network-isolated.
+        The orchestrator only holds containers its scoped discovery found, so
+        `service.container_id` is a container of the backend's own compose
+        project. Recovery restarts THAT container through the container API and
+        nothing else: it is never removed and never recreated, so it keeps the
+        project, networks, mounts and environment compose gave it. The earlier
+        path stopped and removed the container, then ran `podman-compose -f
+        <file> up -d <service>` with no project and no env file; the backend
+        image ships no `podman-compose`, so that recreation could not succeed and
+        the service stayed deleted.
+
+        When the restart fails, the container is still there: recovery tries to
+        start it again (the restore), and `on_recovery_failed` raises the alert
+        whatever the restore did, because a failed recovery needs a person.
 
         Args:
-            service: The ManagedService to restart.
-            compose_file: Docker compose file to use (default: docker-compose.prod.yml)
+            service: The ManagedService to recover.
 
         Returns:
-            True if compose restart succeeded, False otherwise.
+            True if the restart succeeded, False otherwise.
         """
-        import asyncio
-        import os
-
         if not service.container_id:
-            logger.error(f"Cannot compose-restart {service.name}: no container_id")
+            logger.error(f"Cannot recover {service.name} in place: no container_id")
+            if self.on_recovery_failed:
+                await self.on_recovery_failed(service)
             return False
 
-        try:
-            logger.info(f"Restarting {service.name} via compose to fix network isolation")
+        logger.info(f"Recovering {service.name} by restarting its container in place")
+        if await self.docker_client.restart_container(service.container_id, timeout=10):
+            self.registry.record_restart(service.name)
+            self.registry.update_status(service.name, ContainerServiceStatus.STARTING)
+            await self.registry.persist_state(service.name)
+            if self.on_restart:
+                await self.on_restart(service)
+            logger.info(f"Recovered {service.name} in place")
+            return True
 
-            # Stop and remove the existing container
-            await self.docker_client.stop_container(service.container_id, timeout=10)
-            await self.docker_client.remove_container(service.container_id)
-
-            # Use compose to recreate the container on the correct network
-            # Find the project root (where docker-compose.prod.yml is)
-            project_root = os.environ.get("PROJECT_ROOT", "/app")
-
-            # Run podman-compose up -d for this specific service
-            # Map service names to compose service names if different
-            compose_service = service.name.replace("_", "-")
-
-            proc = await asyncio.create_subprocess_exec(
-                "podman-compose",
-                "-f",
-                compose_file,
-                "up",
-                "-d",
-                compose_service,
-                cwd=project_root,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            _stdout, stderr = await proc.communicate()
-
-            if proc.returncode == 0:
-                # Update tracking
-                self.registry.record_restart(service.name)
-                self.registry.update_status(service.name, ContainerServiceStatus.STARTING)
-                # Clear the old container_id - discovery will find the new one
-                service.container_id = None
-                await self.registry.persist_state(service.name)
-
-                if self.on_restart:
-                    await self.on_restart(service)
-
-                logger.info(f"Compose-restarted service {service.name} successfully")
-                return True
-            else:
-                logger.error(
-                    f"Compose restart failed for {service.name}: "
-                    f"exit={proc.returncode}, stderr={stderr.decode()}"
-                )
-                return False
-
-        except Exception as e:
-            logger.error(f"Error compose-restarting {service.name}: {e}")
-            return False
+        restored = await self.docker_client.start_container(service.container_id)
+        logger.error(
+            f"In-place recovery of {service.name} failed; the container was kept "
+            f"({'restarted by the restore' if restored else 'and could not be started'})",
+            extra={
+                "service_name": service.name,
+                "container_id": service.container_id,
+                "restored": restored,
+            },
+        )
+        if self.on_recovery_failed:
+            await self.on_recovery_failed(service)
+        return False
 
     async def start_service(self, service: ManagedService) -> bool:
         """Start a stopped container.

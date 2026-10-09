@@ -441,8 +441,9 @@ async def test_discovers_existing_containers(
 
     discovery = ContainerDiscoveryService(docker_client)
 
-    # Discover all containers
-    discovered = await discovery.discover_all()
+    # Discover all containers. Discovery is scoped to a compose project (B1.6);
+    # the test containers carry none, so this exercises the real listing path.
+    discovered = await discovery.discover_all(project="orchestrator-integration-test")
 
     # The discovery service finds containers matching known patterns
     # Verify discovery mechanism works by checking the result is a list
