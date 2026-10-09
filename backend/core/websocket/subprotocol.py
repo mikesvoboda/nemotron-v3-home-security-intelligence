@@ -4,11 +4,11 @@ RFC 6455 §1.3/§4.1: a client that lists subprotocols in
 ``Sec-WebSocket-Protocol`` MUST see one of its own tokens echoed in the 101
 response or it MUST fail the connection — Chromium and undici close 1006
 before ``open`` ever fires. The frontend mints such offers from
-``VITE_API_KEY`` — today on the ``buildWebSocketOptions`` →
-``useWebSocketStatus`` path (``useConnectionStatus.ts`` passes
-``protocols``); the shared WebSocket manager gains the same offer in #6922 —
-so an ``accept()`` that names no subprotocol killed every key-offering socket
-in every browser even when the credential itself was fine.
+``VITE_API_KEY`` via ``buildWebSocketOptions`` — both the direct
+``useWebSocketStatus`` path and (since #6922) the shared WebSocket manager
+pass ``protocols`` through — so an ``accept()`` that named no subprotocol
+killed every key-offering socket in every browser even when the credential
+itself was fine.
 
 Echoing is transport-level, not an authentication decision: the value is one
 the CLIENT sent, and the handshake opens or fails the same way whichever
