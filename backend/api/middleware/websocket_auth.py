@@ -53,6 +53,7 @@ from typing import Any
 from fastapi import Query, WebSocket, WebSocketException, status
 
 from backend.core.config import get_settings
+from backend.core.websocket.subprotocol import offered_key_subprotocol
 from backend.services.auth_service import InvalidTokenError, TokenExpiredError, decode_token
 
 
@@ -230,12 +231,12 @@ async def authenticate_websocket_cookie(websocket: WebSocket) -> bool:
 
     claims = validate_session_cookie(cookie)
     if claims is None:
-        await websocket.accept()
+        await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
         await websocket.close(code=4001)
         return False
 
     if _is_token_expired(claims):
-        await websocket.accept()
+        await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
         await websocket.close(code=4002)
         return False
 
@@ -262,12 +263,12 @@ async def authenticate_websocket_jwt(websocket: WebSocket) -> bool:
 
     claims = validate_websocket_jwt(token)
     if claims is None:
-        await websocket.accept()
+        await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
         await websocket.close(code=4001)
         return False
 
     if _is_token_expired(claims):
-        await websocket.accept()
+        await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
         await websocket.close(code=4002)
         return False
 
@@ -326,7 +327,7 @@ async def authenticate_websocket_first_message(
     Returns:
         True if authentication successful, False otherwise.
     """
-    await websocket.accept()
+    await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
 
     try:
         message = await asyncio.wait_for(
@@ -417,7 +418,7 @@ async def verify_websocket_auth(
         claims = validate_session_cookie(cookie)
         if claims is not None:
             if _is_token_expired(claims):
-                await websocket.accept()
+                await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
                 await websocket.close(code=4002)
                 return False, WebSocketAuthMethod.COOKIE
             return True, WebSocketAuthMethod.COOKIE
@@ -428,7 +429,7 @@ async def verify_websocket_auth(
         claims = validate_websocket_jwt(token)
         if claims is not None:
             if _is_token_expired(claims):
-                await websocket.accept()
+                await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
                 await websocket.close(code=4002)
                 return False, WebSocketAuthMethod.QUERY_PARAM
             return True, WebSocketAuthMethod.QUERY_PARAM

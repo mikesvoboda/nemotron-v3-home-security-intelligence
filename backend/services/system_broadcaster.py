@@ -44,6 +44,7 @@ from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
+from backend.core.websocket.subprotocol import offered_key_subprotocol
 from backend.core.websocket_circuit_breaker import (
     WebSocketCircuitBreaker,
     WebSocketCircuitState,
@@ -260,7 +261,7 @@ class SystemBroadcaster:
         Args:
             websocket: WebSocket connection to add
         """
-        await websocket.accept()
+        await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
         self.connections.add(websocket)
         logger.info(f"WebSocket connected. Total connections: {len(self.connections)}")
 
