@@ -6,17 +6,17 @@ Components for camera-related functionality including scene change detection, an
 
 ## Key Components
 
-| File                            | Purpose                                        |
-| ------------------------------- | ---------------------------------------------- |
-| `CameraSelector.tsx`            | Camera dropdown with React 19 useTransition    |
-| `CameraSelector.test.tsx`       | Test suite for CameraSelector                  |
-| `CameraAnomalyTimeline.tsx`     | Timeline of baseline anomaly events            |
-| `CameraAnomalyTimeline.test.tsx`| Test suite for CameraAnomalyTimeline           |
-| `SceneChangeIndicator.tsx`      | Visual badge for scene change alerts           |
-| `SceneChangeIndicator.test.tsx` | Test suite for SceneChangeIndicator            |
-| `SceneChangeHistory.tsx`        | List of recent scene change events             |
-| `SceneChangeHistory.test.tsx`   | Test suite for SceneChangeHistory              |
-| `index.ts`                      | Barrel exports for all components              |
+| File                             | Purpose                                     |
+| -------------------------------- | ------------------------------------------- |
+| `CameraSelector.tsx`             | Camera dropdown with React 19 useTransition |
+| `CameraSelector.test.tsx`        | Test suite for CameraSelector               |
+| `CameraAnomalyTimeline.tsx`      | Timeline of baseline anomaly events         |
+| `CameraAnomalyTimeline.test.tsx` | Test suite for CameraAnomalyTimeline        |
+| `SceneChangeIndicator.tsx`       | Visual badge for scene change alerts        |
+| `SceneChangeIndicator.test.tsx`  | Test suite for SceneChangeIndicator         |
+| `SceneChangeHistory.tsx`         | List of recent scene change events          |
+| `SceneChangeHistory.test.tsx`    | Test suite for SceneChangeHistory           |
+| `index.ts`                       | Barrel exports for all components           |
 
 ## Component Details
 
@@ -25,6 +25,7 @@ Components for camera-related functionality including scene change detection, an
 Camera selection dropdown with React 19 useTransition for non-blocking UI updates.
 
 **Features:**
+
 - Dropdown with "All Cameras" option
 - Camera status indicators (online/offline/error)
 - useTransition prevents UI blocking during selection
@@ -32,17 +33,19 @@ Camera selection dropdown with React 19 useTransition for non-blocking UI update
 - Memoized for performance
 
 **Props:**
-| Prop         | Type                         | Description                        |
-| ------------ | ---------------------------- | ---------------------------------- |
-| `value`      | `string`                     | Selected camera ID (empty = all)   |
-| `onChange`   | `(cameraId: string) => void` | Selection change callback          |
-| `cameras`    | `CameraOption[]`             | Available cameras                  |
-| `allLabel`   | `string`                     | Label for "All" option             |
-| `showStatus` | `boolean`                    | Show status indicators             |
-| `className`  | `string`                     | Optional CSS class                 |
-| `disabled`   | `boolean`                    | Disable selector                   |
+
+| Prop         | Type                         | Description                      |
+| ------------ | ---------------------------- | -------------------------------- |
+| `value`      | `string`                     | Selected camera ID (empty = all) |
+| `onChange`   | `(cameraId: string) => void` | Selection change callback        |
+| `cameras`    | `CameraOption[]`             | Available cameras                |
+| `allLabel`   | `string`                     | Label for "All" option           |
+| `showStatus` | `boolean`                    | Show status indicators           |
+| `className`  | `string`                     | Optional CSS class               |
+| `disabled`   | `boolean`                    | Disable selector                 |
 
 **CameraOption Type:**
+
 ```typescript
 interface CameraOption {
   id: string;
@@ -56,6 +59,7 @@ interface CameraOption {
 Timeline display of anomaly events detected against camera baseline patterns.
 
 **Features:**
+
 - Fetches anomalies using useCameraAnomaliesQuery
 - Severity-based color coding (critical/high/medium/low)
 - Shows detection class, anomaly score, expected vs observed frequency
@@ -64,6 +68,7 @@ Timeline display of anomaly events detected against camera baseline patterns.
 - Loading, error, and empty states
 
 **Severity Thresholds:**
+
 | Severity | Score Range | Color  |
 | -------- | ----------- | ------ |
 | Critical | >= 90%      | Red    |
@@ -72,19 +77,21 @@ Timeline display of anomaly events detected against camera baseline patterns.
 | Low      | < 50%       | Blue   |
 
 **Props:**
-| Prop         | Type      | Description                   |
-| ------------ | --------- | ----------------------------- |
-| `cameraId`   | `string`  | Camera ID to fetch anomalies  |
-| `cameraName` | `string`  | Camera name for display       |
-| `days`       | `number`  | Days to look back (default: 7)|
-| `showHeader` | `boolean` | Show card header              |
-| `className`  | `string`  | Optional CSS class            |
+
+| Prop         | Type      | Description                    |
+| ------------ | --------- | ------------------------------ |
+| `cameraId`   | `string`  | Camera ID to fetch anomalies   |
+| `cameraName` | `string`  | Camera name for display        |
+| `days`       | `number`  | Days to look back (default: 7) |
+| `showHeader` | `boolean` | Show card header               |
+| `className`  | `string`  | Optional CSS class             |
 
 ### SceneChangeIndicator
 
 Visual badge/indicator for active scene change detection.
 
 **Features:**
+
 - Pulsing animation for high/medium severity
 - Compact mode for small spaces (icon only)
 - Severity-based colors (red/amber/yellow)
@@ -92,6 +99,7 @@ Visual badge/indicator for active scene change detection.
 - Memoized for performance
 
 **Change Types:**
+
 | Type            | Label         | Severity |
 | --------------- | ------------- | -------- |
 | `view_blocked`  | View Blocked  | High     |
@@ -99,18 +107,20 @@ Visual badge/indicator for active scene change detection.
 | `angle_changed` | Angle Changed | Medium   |
 
 **Props:**
-| Prop            | Type                  | Description                    |
-| --------------- | --------------------- | ------------------------------ |
-| `activityState` | `CameraActivityState` | Activity state from hook       |
-| `compact`       | `boolean`             | Compact badge mode             |
-| `className`     | `string`              | Optional CSS class             |
-| `showDetails`   | `boolean`             | Show time since activity       |
+
+| Prop            | Type                  | Description              |
+| --------------- | --------------------- | ------------------------ |
+| `activityState` | `CameraActivityState` | Activity state from hook |
+| `compact`       | `boolean`             | Compact badge mode       |
+| `className`     | `string`              | Optional CSS class       |
+| `showDetails`   | `boolean`             | Show time since activity |
 
 ### SceneChangeHistory
 
 Scrollable list of recent scene change events.
 
 **Features:**
+
 - Shows camera name, change type badge, similarity score
 - Relative timestamps ("5m ago", "2h ago")
 - Click handler for navigation
@@ -120,15 +130,16 @@ Scrollable list of recent scene change events.
 - Memoized for performance
 
 **Props:**
-| Prop             | Type                                | Description                  |
-| ---------------- | ----------------------------------- | ---------------------------- |
-| `events`         | `SceneChangeEventData[]`            | Recent scene change events   |
-| `maxItems`       | `number`                            | Max events to display (20)   |
-| `onEventClick`   | `(event) => void`                   | Event click handler          |
-| `onDismiss`      | `(eventId: number) => void`         | Dismiss event handler        |
-| `className`      | `string`                            | Optional CSS class           |
-| `showEmptyState` | `boolean`                           | Show empty state message     |
-| `emptyMessage`   | `string`                            | Custom empty message         |
+
+| Prop             | Type                        | Description                |
+| ---------------- | --------------------------- | -------------------------- |
+| `events`         | `SceneChangeEventData[]`    | Recent scene change events |
+| `maxItems`       | `number`                    | Max events to display (20) |
+| `onEventClick`   | `(event) => void`           | Event click handler        |
+| `onDismiss`      | `(eventId: number) => void` | Dismiss event handler      |
+| `className`      | `string`                    | Optional CSS class         |
+| `showEmptyState` | `boolean`                   | Show empty state message   |
+| `emptyMessage`   | `string`                    | Custom empty message       |
 
 ## Data Flow
 
@@ -138,7 +149,7 @@ CameraSelector
 
 CameraAnomalyTimeline
 └── useCameraAnomaliesQuery()
-    └── fetchCameraAnomalies() → GET /api/cameras/{id}/anomalies
+    └── fetchCameraAnomalies() → GET /api/cameras/{id}/baseline/anomalies
 
 SceneChangeIndicator / SceneChangeHistory
 └── useSceneChangeEvents()
@@ -147,14 +158,15 @@ SceneChangeIndicator / SceneChangeHistory
 
 ## Hooks Used
 
-| Hook                      | Source                                             | Purpose                      |
-| ------------------------- | -------------------------------------------------- | ---------------------------- |
-| `useCameraAnomaliesQuery` | `frontend/src/hooks/useCameraAnomaliesQuery.ts`    | Fetch camera anomalies       |
-| `useSceneChangeEvents`    | `frontend/src/hooks/useSceneChangeEvents.ts`       | Real-time scene change data  |
+| Hook                      | Source                                          | Purpose                     |
+| ------------------------- | ----------------------------------------------- | --------------------------- |
+| `useCameraAnomaliesQuery` | `frontend/src/hooks/useCameraAnomaliesQuery.ts` | Fetch camera anomalies      |
+| `useSceneChangeEvents`    | `frontend/src/hooks/useSceneChangeEvents.ts`    | Real-time scene change data |
 
 ## Test Coverage
 
 **CameraSelector.test.tsx** covers:
+
 - Accessible select rendering
 - "All Cameras" option display
 - Camera options with status text
@@ -167,6 +179,7 @@ SceneChangeIndicator / SceneChangeHistory
 - Edge cases (empty cameras, special characters)
 
 **CameraAnomalyTimeline.test.tsx** covers:
+
 - Loading state display
 - Error state display
 - Empty state with camera name
@@ -181,6 +194,7 @@ SceneChangeIndicator / SceneChangeHistory
 - Severity legend display
 
 **SceneChangeIndicator.test.tsx** covers:
+
 - Null rendering when inactive
 - Compact mode rendering
 - Change type labels
@@ -189,6 +203,7 @@ SceneChangeIndicator / SceneChangeHistory
 - Accessibility (role="alert", aria-label)
 
 **SceneChangeHistory.test.tsx** covers:
+
 - Empty state rendering
 - Custom empty message
 - Event list rendering
@@ -207,6 +222,7 @@ SceneChangeIndicator / SceneChangeHistory
 ## Related Types
 
 **From `frontend/src/hooks/useSceneChangeEvents.ts`:**
+
 ```typescript
 interface SceneChangeEventData {
   id: number;
@@ -228,6 +244,7 @@ interface CameraActivityState {
 ```
 
 **From `frontend/src/services/api.ts`:**
+
 ```typescript
 interface CameraAnomalyEvent {
   timestamp: string;

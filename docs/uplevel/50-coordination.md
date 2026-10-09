@@ -267,11 +267,21 @@ owner tier — the owner has approved. **Green** means the required check
 failures is not enough: when GitHub rejects a workflow file, its run fails with no jobs and leaves no
 check behind, so `gh run list --commit <head>` shows the failure and the PR's checks do not. It keeps the repository's existing merge style. Because
 `main` requires branches to be up to date, the coordinator updates one queued PR at a time
-(`gh pr update-branch`) and waits for its CI, rather than rebasing every open PR at once. Only the
+(`gh api -X PUT repos/<owner>/<repo>/pulls/<n>/update-branch`, which has GitHub make the merge
+commit; the agents' gh has no `gh pr update-branch`) and waits for its CI, rather than rebasing
+every open PR at once. Only the
 coordinator brings a queued PR up to date with `main`, so one CI run is in flight per merge: a run
 racing it decides only which PR lands first, and the merge discards the others. Authors still
 rebase their own PRs to resolve conflicts. The requirement stays (owner,
 2026-10-08); the owner revisits it if the open-PR count in the daily batch keeps growing.
+
+**Queue order: oldest ready first** (owner, 2026-10-08 and 2026-10-09). A PR is ready at the
+latest of: `CI Gate` passing at its current head, the approving review of that head, and, in the
+owner tier, the owner's approval. Any new head, a conflict fix included, resets the time; a red run
+or a re-opened review takes the PR out until it is ready again. The coordinator gives the slot to
+the oldest ready PR; a PR waiting on its author cannot hold the slot. Only an owner ruling moves a PR
+ahead of that order. Activity on a thread, newness or the coordinator's own reading of the critical
+path do not; to propose a jump, the coordinator asks in the batch with the reason.
 
 **The owner's PRs** carry auto-merge and join the same queue (owner, 2026-10-08). The coordinator
 updates one when its turn comes, and GitHub merges it once the gate passes. The coordinator posts
