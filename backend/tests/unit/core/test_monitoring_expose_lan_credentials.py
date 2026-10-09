@@ -31,6 +31,7 @@ the entrypoint-rendered config).
 from __future__ import annotations
 
 import importlib
+import json
 import re
 import shutil
 from pathlib import Path
@@ -136,7 +137,9 @@ def test_grafana_mode_derivations(value: str, anonymous: str, auth_proxy: str) -
 
 def test_setup_writes_monitoring_key_into_generated_env() -> None:
     setup_src = _text(SETUP_PY)
-    region = setup_src[setup_src.index("FRONTEND_BIND_ADDRESS=") - 2000 :][:4000]
+    region = setup_src[setup_src.index("FRONTEND_BIND_ADDRESS=") - 2000 :][
+        :6000
+    ]  # 6 KB covers the whole derived-mode block (the O1.11 merge comment grew it past 4 KB)
     assert "MONITORING_API_KEY=" in region, (
         "setup.py's generated .env must carry MONITORING_API_KEY= beside the "
         "O1.6 EXPOSE_LAN/FRONTEND_BIND_ADDRESS block"
@@ -253,6 +256,211 @@ def test_alertmanager_routes_its_webhook_through_the_frontend(compose_services: 
     assert "/tmp" in str(am.get("tmpfs") or ""), (
         "alertmanager needs a writable /tmp (read_only rootfs)"
     )
+
+
+@pytest.mark.parametrize("service", ["prometheus", "json-exporter", "alertmanager"])
+def test_shell_render_services_override_their_entrypoint(
+    compose_services: dict, service: str
+) -> None:
+    """compose APPENDS ``command:`` to the image's ENTRYPOINT binary — and for
+    these three images the entrypoint IS the binary. Measured 2026-10-09
+    against the pinned tags with the exact argv compose delivers
+    (``docker run <image> /bin/sh -ec 'echo reached'``):
+    ``prometheus: error: unexpected /bin/sh`` / ``alertmanager: error:
+    unexpected /bin/sh, try --help`` / ``json_exporter: error: path
+    'config.yml' does not exist``. A boot render written as command: [/bin/sh,
+    -ec, …] with no entrypoint: override therefore crash-loops the monitoring
+    stack in BOTH modes — the renders are EXPOSE_LAN-gated, the broken argv is
+    not. The fix shape, also measured (``--entrypoint /bin/sh`` + the script):
+    all three images reach the shell and ``exec`` the binary cleanly.
+
+    Scope: this pins the three render services, NOT every shell command in the
+    file — foscam-init (alpine: entrypoint unset, the command runs AS argv[0])
+    and redis (its docker-entrypoint.sh wrapper consumes the args) start
+    shells legitimately. A global 'shell command ⇒ entrypoint' rule would be
+    the wrong invariant; the right one is 'the image whose entrypoint is the
+    binary needs the override', and that list is exactly these three images.'
+    """
+    svc = compose_services[service]
+    command = svc.get("command") or []
+    assert svc.get("entrypoint") == ["/bin/sh", "-ec"], (
+        f"{service}: compose appends command: to the entrypoint, and for this "
+        "image the entrypoint IS the binary — without the override the container "
+        "runs e.g. /bin/prometheus /bin/sh -ec … and crash-loops in both modes"
+    )
+    assert isinstance(command, list) and command, f"{service}: render command missing"
+    assert not str(command[0]).endswith("/sh"), (
+        f"{service}: entrypoint already carries /bin/sh -ec; a command that "
+        "REPEATS the interpreter executes the string /bin/sh against empty "
+        "stdin and exits — the script must be the whole argv tail"
+    )
+    joined = " ".join(str(part) for part in command)
+    assert ("__HSI_MONITORING_API_KEY__" in joined) or ("__HSI_ALERT_SINK__" in joined), (
+        f"{service}: the boot render must still be present in command:"
+    )
+    assert joined.lstrip().startswith('sed "') or "case " in joined, (
+        f"{service}: command must open with the render (sed or the mode case), "
+        "not with an interpreter it no longer needs"
+    )
+
+
+def _scratch_entrypoint(tmp_path: Path, env: dict[str, str], boots: int = 1) -> str:
+    """Run the real entrypoint ``boots`` times against a fresh nginx.conf.
+
+    Hermetic by rewrite, not by mock: the ``NGINX_CONF`` constant and every
+    ``/tmp/`` path in the script are redirected into ``tmp_path`` so parallel
+    xdist workers (``--dist=worksteal`` splits a file across workers) cannot
+    collide on the shared ``/tmp/hsi-*.conf`` scratch files. ``exec "$@"`` at
+    the script's end gets ``true``, so the render is what runs.
+    """
+    import os
+    import subprocess
+
+    script = _text(ENTRYPOINT).replace("/tmp/", f"{tmp_path}/")
+    script = script.replace(
+        'NGINX_CONF="/etc/nginx/conf.d/default.conf"', f'NGINX_CONF="{tmp_path}/default.conf"'
+    )
+    ep = tmp_path / "entrypoint.sh"
+    ep.write_text(script)
+    (tmp_path / "default.conf").write_text(_text(REPO_ROOT / "frontend" / "nginx.conf"))
+    run_env = {**os.environ, **env}
+    for _ in range(boots):
+        result = subprocess.run(  # noqa: S603 — argv is a literal list, sh is the interpreter  # real
+            ["sh", str(ep), "true"],  # noqa: S607 — sh from PATH on purpose; argv is literal
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+            env=run_env,
+        )
+        assert result.returncode == 0, f"entrypoint boot failed: {result.stderr[:400]}"
+    return (tmp_path / "default.conf").read_text()
+
+
+def test_exposed_boot_is_idempotent_across_container_restarts(tmp_path: Path) -> None:
+    """``$NGINX_CONF`` lives on the container's WRITABLE layer (compose's own
+    comment at docker-compose.prod.yml:915 keeps ``frontend`` off ``read_only``
+    precisely because this entrypoint ``sed -i``s the file), so the appended
+    machine listener PERSISTS across ``docker restart`` and a naive
+    ``cat >>`` adds another copy every boot. Measured before the fix: two boots
+    → two ``listen 8081`` blocks, and real ``nginx -t`` on that file is VALID
+    with ``[warn] conflicting server name "localhost" on 0.0.0.0:8081,
+    ignored`` — a silent failure where the FIRST block (holding a stale key, if
+    one is ever rotated) owns the route. The include/anchor splices are immune
+    (their placeholders are consumed on the first render), so the guard belongs
+    on the appended block: strip-then-append."""
+    rendered = _scratch_entrypoint(
+        tmp_path,
+        {"EXPOSE_LAN": "true", "MONITORING_API_KEY": "hsi_TESTKEY123"},  # pragma: allowlist secret
+        boots=3,
+    )
+    assert rendered.count("listen 8081;") == 1, (
+        "three exposed boots of one container layer must leave ONE machine "
+        "listener — a second copy wins the route with a stale key"
+    )
+    assert rendered.count("location = /api/webhooks/alerts") == 1
+    assert "__HSI_" not in rendered, "no un-rendered placeholder may survive a boot"
+
+
+def test_one_vocabulary_survives_whitespace_in_env(tmp_path: Path) -> None:
+    """``setup_lib.core._expose_lan_is_truthy`` STRIPS (its docstring cites the
+    ``" true"`` case) and pydantic is what arms the gate; the boot renderers
+    lowercase but must strip too, or ``EXPOSE_LAN=" true"`` arms the gate with
+    the renders OFF — scrape 401, alerts to a never-rendered sink, /grafana/
+    locked. Fail-closed, but it contradicts the entrypoint's own "can never
+    disagree" comment, and a padded value is exactly what a hand-edited .env
+    with ``EXPOSE_LAN= true`` produces."""
+    padded = " true"
+    assert _setup_fn("_expose_lan_is_truthy")(padded) is True, (
+        "setup_lib is the reference reader — this test is only meaningful "
+        "because it treats ' true' as exposed"
+    )
+    rendered = _scratch_entrypoint(
+        tmp_path,
+        {"EXPOSE_LAN": padded, "MONITORING_API_KEY": "hsi_TESTKEY123"},  # pragma: allowlist secret
+    )
+    assert "listen 8081;" in rendered, (
+        'EXPOSE_LAN=" true" arms the gate (pydantic) and the bind '
+        "(setup_lib strips) — the render must agree, not split"
+    )
+
+
+def test_json_exporter_gate_strips_whitespace_too(tmp_path: Path) -> None:
+    """The fourth reader of the same vocabulary is the json-exporter's boot
+    command, which lowercases through ``tr`` — it must strip as well, or a
+    padded ``EXPOSE_LAN`` renders its headers OFF (probes 401) while pydantic
+    has the gate ON. Runs the ACTUAL command string out of compose, with only
+    its two file paths rewritten into ``tmp_path`` and the final ``exec``
+    neutralised, so the case arms are what is being tested."""
+    import os
+    import subprocess
+
+    svc = yaml.load(_text(COMPOSE_FILE), Loader=_ComposeLoader)["services"]["json-exporter"]  # noqa: S506  # nosemgrep: unsafe-yaml-load
+    parts = list(svc["command"])
+    if parts and str(parts[0]).endswith("/sh"):
+        parts = parts[
+            2:
+        ]  # old shape: [/bin/sh, -ec, <script>] — the fix moves the interpreter to entrypoint:
+    script = " ".join(parts)
+    stub = tmp_path / "config.yml"
+    stub.write_text(f"modules:\n  hsi-health:\n    headers:\n      X-API-Key: {KEY_PLACEHOLDER}\n")
+    out = tmp_path / "rendered.yml"
+    script = script.replace("/etc/json-exporter/config.yml", str(stub)).replace(
+        "/tmp/json-exporter-config.yml", str(out)
+    )
+    script = script.replace("exec /bin/json_exporter", "exec true")
+    # compose's $$-escape exists precisely so the expansion survives to the
+    # CONTAINER's shell (compose would otherwise interpolate at config time);
+    # running the command through sh directly must replay that unescape, or
+    # sh reads $$ as its own PID and the case never matches.
+    script = script.replace("$${", "${")
+    result = subprocess.run(  # noqa: S603 — argv is a literal list; the script is this repo's compose text  # real
+        ["sh", "-ec", script],  # noqa: S607 — sh from PATH on purpose; argv is literal
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+        env={
+            **os.environ,
+            "EXPOSE_LAN": " true",
+            "MONITORING_API_KEY": "hsi_TESTKEY123",  # pragma: allowlist secret
+        },
+    )
+    assert result.returncode == 0, f"render command failed: {result.stderr[:300]}"
+    rendered_yml = out.read_text()
+    # Positive assertion, not "placeholder absent": the unexposed arm DELETES the
+    # headers lines, so absence alone is also true when the branch was wrong.
+    assert (
+        "hsi_TESTKEY123" in rendered_yml and KEY_PLACEHOLDER not in rendered_yml
+    ), (  # pragma: allowlist secret
+        'padded " true" must render the exposed branch (key substituted) — '
+        "rendering unexposed while pydantic arms the gate 401s every probe"
+    )
+
+
+def test_setup_merges_operator_api_keys_instead_of_replacing() -> None:
+    """setup.py at origin/main wrote no API_KEYS at all (measured:
+    ``git show origin/main:setup.py | grep -c API_KEYS`` → 0), so O1.11's
+    ``API_KEYS=json.dumps([monitoring_key])`` line silently REPLACES whatever
+    keys an operator added by hand the next time setup.py runs — the file's own
+    reuse-first doctrine for MONITORING_API_KEY and its "preserve existing
+    passwords when re-running" rule say merge, not clobber."""
+    merge = _setup_fn("merge_api_keys")
+    merged = json.loads(
+        merge('["operator-key-a", "operator-key-b"]', "hsi_NEW")
+    )  # pragma: allowlist secret
+    assert merged == ["hsi_NEW", "operator-key-a", "operator-key-b"], (
+        "the generated key leads, operator keys survive in order"
+    )
+    assert json.loads(merge("", "hsi_NEW")) == ["hsi_NEW"]  # pragma: allowlist secret
+    assert json.loads(merge("[]", "")) == [], "no key, no list entry"
+    again = json.loads(merge(merge("", "hsi_NEW"), "hsi_NEW"))  # pragma: allowlist secret
+    assert again == ["hsi_NEW"], (
+        "re-running setup.py must not duplicate the key"
+    )  # pragma: allowlist secret
+    # A hand-corrupted value must not take setup.py down: keep the new key,
+    # drop the unparseable list, stay a valid JSON array for pydantic.
+    assert json.loads(merge("not-json", "hsi_NEW")) == ["hsi_NEW"]  # pragma: allowlist secret
 
 
 def test_grafana_gets_the_key_and_the_mode_flips(compose_services: dict) -> None:
@@ -567,7 +775,7 @@ def test_json_exporter_health_module_stays_headerless() -> None:
 
 def test_setup_writes_the_alert_sink_beside_the_mode_block() -> None:
     setup_src = _text(SETUP_PY)
-    region = setup_src[setup_src.index("FRONTEND_BIND_ADDRESS=") - 2000 :][:4000]
+    region = setup_src[setup_src.index("FRONTEND_BIND_ADDRESS=") - 2000 :][:6000]
     assert "ALERT_SINK_URL=" in region, (
         "the sink join point is derived from EXPOSE_LAN like the bind address"
     )
