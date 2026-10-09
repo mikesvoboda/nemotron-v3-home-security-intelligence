@@ -155,14 +155,14 @@ against ground truth.
 
 ### Development Workflow
 
-| Resource               | Location                                                           | Description                          |
-| ---------------------- | ------------------------------------------------------------------ | ------------------------------------ |
-| **Testing Workflow**   | [developer/testing-workflow.md](developer/testing-workflow.md)     | TDD cycle, test patterns             |
-| **Testing Guide**      | [developer/testing.md](developer/testing.md)                       | Test infrastructure and fixtures     |
-| **Git Workflow**       | [developer/git-workflow.md](developer/git-workflow.md)             | Git safety, pre-commit rules         |
-| **Code Quality**       | [developer/code-quality.md](developer/code-quality.md)             | Linting, formatting, static analysis |
-| **Contributing**       | [developer/contributing.md](developer/contributing.md)             | PR process and code standards        |
-| **Linear Integration** | [developer/linear-integration.md](developer/linear-integration.md) | Issue tracking MCP tools             |
+| Resource               | Location                                                             | Description                          |
+| ---------------------- | -------------------------------------------------------------------- | ------------------------------------ |
+| **Testing Workflow**   | [developer/testing-workflow.md](developer/testing-workflow.md)       | TDD cycle, test patterns             |
+| **Testing Guide**      | [developer/testing.md](developer/testing.md)                         | Test infrastructure and fixtures     |
+| **Git Workflow**       | [developer/git-workflow.md](developer/git-workflow.md)               | Git safety, pre-commit rules         |
+| **Code Quality**       | [developer/code-quality.md](developer/code-quality.md)               | Linting, formatting, static analysis |
+| **Contributing**       | [developer/contributing/README.md](developer/contributing/README.md) | PR process and code standards        |
+| **Linear Integration** | [developer/linear-integration.md](developer/linear-integration.md)   | Issue tracking MCP tools             |
 
 ---
 

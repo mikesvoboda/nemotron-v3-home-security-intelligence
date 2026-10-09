@@ -196,9 +196,9 @@ jobs:
       # O1.4 (D9): the workflow-path gate joined the list — every repository
       # path addressed in .github/workflows/*.yml and .pre-commit-config.yaml
       # must exist (the deploy.yml phantom-artifact class made permanent).
-      # O1.7 (rule 3): the five committed measurement scanners joined the
+      # O1.7 (rule 3): the committed measurement scanners joined the
       # list — a census nobody runs in CI is a census that rots, and these
-      # five produce the [C] baselines B3.3, W1.1, W3.3, O3.3, BB.1 and
+      # produce the [C] baselines B3.3, W1.1, W3.3, O3.3, BB.1 and
       # Phase 4 measure against. scripts/audit/AGENTS.md has the doctrine;
       # the comment lives HERE (outside the folded scalar) per the WP0.1
       # lesson: a `#` inside `>-` becomes a bash comment mid-command and
@@ -231,6 +231,7 @@ jobs:
           scripts/audit/test_env_dead_vars.py
           scripts/audit/test_battery_census.py
           scripts/audit/test_literal_groups.py
+          scripts/audit/test_nav_coverage.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref

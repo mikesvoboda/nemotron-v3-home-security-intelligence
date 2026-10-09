@@ -144,7 +144,7 @@ graph TD
 ## Quarantine System (governed — WP0.8)
 
 There is exactly one sanctioned quarantine: an entry in
-[`.github/flake-allowlist.yml`](../.github/flake-allowlist.yml) with a Linear
+[`.github/flake-allowlist.yml`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.github/flake-allowlist.yml) with a Linear
 tracking ref and an ISO expiry. `scripts/check-flake-allowlist.py` fails CI on
 missing refs and on expired entries (expiry is revocation).
 
