@@ -14,9 +14,9 @@ export interface WebSocketOptions {
   url: string;
   /**
    * Sec-WebSocket-Protocol header values for authentication.
-   * When API key authentication is enabled, use ["api-key.{key}"] format.
-   * This is more secure than passing the API key in the URL query string.
-   * Note: protocols are not yet supported by the manager - this option is reserved for future use.
+   * When API key authentication is enabled, use ["api-key.{key}"] format
+   * (`buildWebSocketOptions` mints it). As of F1.3 the manager attaches these
+   * to the WebSocket constructor; B1.5's gate reads the key from the handshake.
    */
   protocols?: string[];
   onMessage?: (data: unknown) => void;
@@ -56,7 +56,7 @@ export interface UseWebSocketReturn {
 export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const {
     url,
-    // Note: protocols not yet supported by manager - may need to add later
+    protocols,
     onMessage,
     onOpen,
     onClose,
@@ -81,6 +81,18 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
 
   const subscriberIdRef = useRef(generateSubscriberId());
   const unsubscribeRef = useRef<(() => void) | null>(null);
+
+  // F1.3: `connect` (and the mount effect that calls it) must depend on the
+  // protocols' CONTENTS, not array identity. Callers rebuild this list every
+  // render — buildWebSocketOptions returns a fresh array — so depending on the
+  // array itself would recreate `connect` each render and the effect below
+  // would disconnect and resubscribe the socket on every parent state change.
+  // The joined string is the dependency; connect re-derives the array from it,
+  // so an identical-content rebuild never changes what the socket gets.
+  // (',' is a safe separator: protocol values are HTTP header tokens, which
+  // cannot contain commas.) An empty list collapses to undefined — there is
+  // nothing to request in the handshake either way.
+  const protocolsKey = protocols?.length ? protocols.join(',') : undefined;
 
   // Store callbacks in refs to avoid stale closures
   const onMessageRef = useRef(onMessage);
@@ -151,6 +163,7 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
         maxReconnectAttempts: reconnectAttempts,
         connectionTimeout,
         autoRespondToHeartbeat,
+        protocols: protocolsKey?.split(','),
       }
     );
   }, [
@@ -160,6 +173,7 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     reconnectAttempts,
     connectionTimeout,
     autoRespondToHeartbeat,
+    protocolsKey,
   ]);
 
   const disconnect = useCallback(() => {
