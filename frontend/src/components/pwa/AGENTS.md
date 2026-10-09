@@ -6,11 +6,11 @@ Progressive Web App (PWA) components for the NVIDIA Security Intelligence dashbo
 
 ## Key Components
 
-| File                    | Purpose                                    |
-| ----------------------- | ------------------------------------------ |
-| `InstallPrompt.tsx`     | PWA install prompt banner component        |
-| `InstallPrompt.test.tsx`| Test suite for InstallPrompt               |
-| `index.ts`              | Barrel exports for PWA components          |
+| File                     | Purpose                             |
+| ------------------------ | ----------------------------------- |
+| `InstallPrompt.tsx`      | PWA install prompt banner component |
+| `InstallPrompt.test.tsx` | Test suite for InstallPrompt        |
+| `index.ts`               | Barrel exports for PWA components   |
 
 ## Component Details
 
@@ -20,12 +20,12 @@ A custom PWA install banner that captures the `beforeinstallprompt` event and di
 
 **Props:**
 
-| Prop                   | Type       | Default   | Description                                          |
-| ---------------------- | ---------- | --------- | ---------------------------------------------------- |
-| `minVisits`            | `number?`  | `2`       | Minimum number of visits before showing the prompt   |
-| `minTimeOnSite`        | `number?`  | `30000`   | Minimum time on site (ms) before showing the prompt  |
-| `dismissCooldownDays`  | `number?`  | `7`       | Days to wait after dismissal before showing again    |
-| `className`            | `string?`  | -         | Additional CSS classes to apply to the banner        |
+| Prop                  | Type      | Default | Description                                         |
+| --------------------- | --------- | ------- | --------------------------------------------------- |
+| `minVisits`           | `number?` | `2`     | Minimum number of visits before showing the prompt  |
+| `minTimeOnSite`       | `number?` | `30000` | Minimum time on site (ms) before showing the prompt |
+| `dismissCooldownDays` | `number?` | `7`     | Days to wait after dismissal before showing again   |
+| `className`           | `string?` | -       | Additional CSS classes to apply to the banner       |
 
 **Features:**
 
@@ -38,11 +38,11 @@ A custom PWA install banner that captures the `beforeinstallprompt` event and di
 
 **localStorage Keys:**
 
-| Key                    | Purpose                          |
-| ---------------------- | -------------------------------- |
-| `pwa-visit-count`      | Number of site visits            |
-| `pwa-install-dismissed`| Timestamp of last dismissal      |
-| `pwa-installed`        | Whether app has been installed   |
+| Key                     | Purpose                        |
+| ----------------------- | ------------------------------ |
+| `pwa-visit-count`       | Number of site visits          |
+| `pwa-install-dismissed` | Timestamp of last dismissal    |
+| `pwa-installed`         | Whether app has been installed |
 
 **Types Exported:**
 

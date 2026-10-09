@@ -136,7 +136,9 @@ test.describe('Zone Selection', () => {
     await zonesPage.selectZone('Front Door Entry');
 
     // Check that the zone item has aria-pressed="true"
-    const zoneItem = zonesPage.page.locator('[role="button"]').filter({ hasText: 'Front Door Entry' });
+    const zoneItem = zonesPage.page
+      .locator('[role="button"]')
+      .filter({ hasText: 'Front Door Entry' });
     await expect(zoneItem).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -144,13 +146,17 @@ test.describe('Zone Selection', () => {
     // Select the first zone
     await zonesPage.selectZone('Front Door Entry');
 
-    const firstZone = zonesPage.page.locator('[role="button"]').filter({ hasText: 'Front Door Entry' });
+    const firstZone = zonesPage.page
+      .locator('[role="button"]')
+      .filter({ hasText: 'Front Door Entry' });
     await expect(firstZone).toHaveAttribute('aria-pressed', 'true');
 
     // Select a different zone
     await zonesPage.selectZone('Front Driveway');
 
-    const secondZone = zonesPage.page.locator('[role="button"]').filter({ hasText: 'Front Driveway' });
+    const secondZone = zonesPage.page
+      .locator('[role="button"]')
+      .filter({ hasText: 'Front Driveway' });
 
     // Second zone should now be selected
     await expect(secondZone).toHaveAttribute('aria-pressed', 'true');
@@ -162,8 +168,12 @@ test.describe('Zone Selection', () => {
     await zonesPage.selectZone('Front Door Entry');
     await zonesPage.selectZone('Front Driveway');
 
-    const firstZone = zonesPage.page.locator('[role="button"]').filter({ hasText: 'Front Door Entry' });
-    const secondZone = zonesPage.page.locator('[role="button"]').filter({ hasText: 'Front Driveway' });
+    const firstZone = zonesPage.page
+      .locator('[role="button"]')
+      .filter({ hasText: 'Front Door Entry' });
+    const secondZone = zonesPage.page
+      .locator('[role="button"]')
+      .filter({ hasText: 'Front Driveway' });
 
     await expect(firstZone).toHaveAttribute('aria-pressed', 'false');
     await expect(secondZone).toHaveAttribute('aria-pressed', 'true');
@@ -206,7 +216,9 @@ test.describe('Zone Drawing - Rectangle', () => {
 
   test('drawing instructions are shown in rectangle mode', async () => {
     await zonesPage.startDrawingRectangle();
-    await expect(zonesPage.page.getByText('Click and drag on the camera view to draw a rectangle zone.')).toBeVisible();
+    await expect(
+      zonesPage.page.getByText('Click and drag on the camera view to draw a rectangle zone.')
+    ).toBeVisible();
   });
 });
 
@@ -234,7 +246,11 @@ test.describe('Zone Drawing - Polygon', () => {
 
   test('drawing instructions are shown in polygon mode', async () => {
     await zonesPage.startDrawingPolygon();
-    await expect(zonesPage.page.getByText('Click on the camera view to add polygon points. Double-click to complete the shape.')).toBeVisible();
+    await expect(
+      zonesPage.page.getByText(
+        'Click on the camera view to add polygon points. Double-click to complete the shape.'
+      )
+    ).toBeVisible();
   });
 
   test('can cancel polygon drawing', async () => {
@@ -352,7 +368,9 @@ test.describe('Zone Editing', () => {
     await zonesPage.cancelZoneForm();
 
     // Original name should still be visible in the zone list
-    const zoneList = zonesPage.page.locator('[role="button"]').filter({ hasText: 'Front Door Entry' });
+    const zoneList = zonesPage.page
+      .locator('[role="button"]')
+      .filter({ hasText: 'Front Door Entry' });
     await expect(zoneList).toBeVisible();
   });
 
@@ -402,7 +420,9 @@ test.describe('Zone Deletion', () => {
     await cancelButton.click();
 
     // Zone should still be visible in the list
-    const zoneList = zonesPage.page.locator('[role="button"]').filter({ hasText: 'Front Door Entry' });
+    const zoneList = zonesPage.page
+      .locator('[role="button"]')
+      .filter({ hasText: 'Front Door Entry' });
     await expect(zoneList).toBeVisible();
   });
 
@@ -437,14 +457,18 @@ test.describe('Zone Visibility Toggle', () => {
 
   test('enabled zone shows eye icon', async () => {
     // Front Door Entry is enabled
-    const zoneItem = zonesPage.page.locator('[role="button"]').filter({ hasText: 'Front Door Entry' });
+    const zoneItem = zonesPage.page
+      .locator('[role="button"]')
+      .filter({ hasText: 'Front Door Entry' });
     const eyeIcon = zoneItem.locator('svg.lucide-eye');
     await expect(eyeIcon).toBeVisible();
   });
 
   test('disabled zone shows eye-off icon', async () => {
     // Sidewalk Monitor is disabled
-    const zoneItem = zonesPage.page.locator('[role="button"]').filter({ hasText: 'Sidewalk Monitor' });
+    const zoneItem = zonesPage.page
+      .locator('[role="button"]')
+      .filter({ hasText: 'Sidewalk Monitor' });
     const eyeOffIcon = zoneItem.locator('svg.lucide-eye-off');
     await expect(eyeOffIcon).toBeVisible();
   });
@@ -481,7 +505,9 @@ test.describe('Multi-Zone Scenarios', () => {
 
     // Check that zones are in priority order (highest first)
     // Front Door Entry (90) should come before Front Driveway (50)
-    const zoneTexts = await zonesPage.page.locator('[role="button"] .font-medium.text-text-primary').allTextContents();
+    const zoneTexts = await zonesPage.page
+      .locator('[role="button"] .font-medium.text-text-primary')
+      .allTextContents();
 
     // First zone should be highest priority
     expect(zoneTexts[0]).toBe('Front Door Entry'); // Priority 90
@@ -621,9 +647,9 @@ test.describe('Zone Editor Error Handling', () => {
     await zonesButton.click();
 
     // Should show error message or dialog might not open properly
-    const errorOrDialog = page.getByText(/Failed|Error|unable/i).or(
-      page.getByRole('heading', { name: /Zone Configuration/i })
-    );
+    const errorOrDialog = page
+      .getByText(/Failed|Error|unable/i)
+      .or(page.getByRole('heading', { name: /Zone Configuration/i }));
     await expect(errorOrDialog).toBeVisible({ timeout: 5000 });
   });
 
@@ -725,7 +751,9 @@ test.describe('Zone Priority Slider', () => {
   test('priority description explains overlap behavior', async () => {
     await zonesPage.clickEditZone('Front Door Entry');
 
-    await expect(zonesPage.page.getByText('Higher priority zones take precedence when overlapping')).toBeVisible();
+    await expect(
+      zonesPage.page.getByText('Higher priority zones take precedence when overlapping')
+    ).toBeVisible();
   });
 
   test('priority slider has correct range', async () => {

@@ -6,25 +6,25 @@ Components for tracking and displaying re-identified entities (persons and vehic
 
 ## Files
 
-| File                                  | Purpose                                        |
-| ------------------------------------- | ---------------------------------------------- |
-| `EntitiesEmptyState.tsx`              | Empty state component for no entities          |
-| `EntitiesEmptyState.test.tsx`         | Test suite for EntitiesEmptyState              |
-| `EntitiesPage.tsx`                    | Main page for listing tracked entities         |
-| `EntitiesPage.test.tsx`               | Test suite for EntitiesPage                    |
-| `EntityCard.tsx`                      | Card display for individual entity             |
-| `EntityCard.test.tsx`                 | Test suite for EntityCard                      |
-| `EntityDetailModal.tsx`               | Modal for entity details                       |
-| `EntityDetailModal.test.tsx`          | Test suite for EntityDetailModal               |
-| `EntityStatsCard.tsx`                 | Statistics card for entity metrics             |
-| `EntityStatsCard.test.tsx`            | Test suite for EntityStatsCard                 |
-| `EntityTimeline.tsx`                  | Timeline of entity appearances                 |
-| `EntityTimeline.test.tsx`             | Test suite for EntityTimeline                  |
-| `ReidHistoryPanel.tsx`                | Re-identification history panel                |
-| `ReidHistoryPanel.test.tsx`           | Test suite for ReidHistoryPanel                |
-| `TrustClassificationControls.tsx`     | Controls for entity trust classification       |
-| `TrustClassificationControls.test.tsx`| Test suite for TrustClassificationControls     |
-| `index.ts`                            | Barrel exports                                 |
+| File                                   | Purpose                                    |
+| -------------------------------------- | ------------------------------------------ |
+| `EntitiesEmptyState.tsx`               | Empty state component for no entities      |
+| `EntitiesEmptyState.test.tsx`          | Test suite for EntitiesEmptyState          |
+| `EntitiesPage.tsx`                     | Main page for listing tracked entities     |
+| `EntitiesPage.test.tsx`                | Test suite for EntitiesPage                |
+| `EntityCard.tsx`                       | Card display for individual entity         |
+| `EntityCard.test.tsx`                  | Test suite for EntityCard                  |
+| `EntityDetailModal.tsx`                | Modal for entity details                   |
+| `EntityDetailModal.test.tsx`           | Test suite for EntityDetailModal           |
+| `EntityStatsCard.tsx`                  | Statistics card for entity metrics         |
+| `EntityStatsCard.test.tsx`             | Test suite for EntityStatsCard             |
+| `EntityTimeline.tsx`                   | Timeline of entity appearances             |
+| `EntityTimeline.test.tsx`              | Test suite for EntityTimeline              |
+| `ReidHistoryPanel.tsx`                 | Re-identification history panel            |
+| `ReidHistoryPanel.test.tsx`            | Test suite for ReidHistoryPanel            |
+| `TrustClassificationControls.tsx`      | Controls for entity trust classification   |
+| `TrustClassificationControls.test.tsx` | Test suite for TrustClassificationControls |
+| `index.ts`                             | Barrel exports                             |
 
 ## Architecture
 
@@ -47,6 +47,7 @@ EntitiesPage
 **Purpose:** Main page component for entity tracking and management
 
 **Features:**
+
 - List tracked persons and vehicles
 - Filter by entity type (All, Persons, Vehicles)
 - Display entity type counts
@@ -55,6 +56,7 @@ EntitiesPage
 - Loading, error, and empty states
 
 **State Management:**
+
 ```typescript
 const [entities, setEntities] = useState<EntitySummary[]>([]);
 const [entityTypeFilter, setEntityTypeFilter] = useState<'all' | 'person' | 'vehicle'>('all');
@@ -67,6 +69,7 @@ const [modalOpen, setModalOpen] = useState(false);
 **Purpose:** Card component displaying entity summary
 
 **Props Interface:**
+
 ```typescript
 interface EntityCardProps {
   id: string;
@@ -82,6 +85,7 @@ interface EntityCardProps {
 ```
 
 **Features:**
+
 - Entity type badge with icon (User/Car)
 - Thumbnail or placeholder
 - Appearance count and camera count
@@ -94,6 +98,7 @@ interface EntityCardProps {
 **Purpose:** Display chronological timeline of entity appearances
 
 **Props Interface:**
+
 ```typescript
 interface EntityTimelineProps {
   entity_id: string;
@@ -114,6 +119,7 @@ interface EntityAppearance {
 ```
 
 **Features:**
+
 - Chronological appearance list (most recent first)
 - Thumbnail for each appearance
 - Camera name and timestamp
@@ -125,6 +131,7 @@ interface EntityAppearance {
 **Purpose:** Modal dialog showing full entity details with timeline
 
 **Props Interface:**
+
 ```typescript
 interface EntityDetailModalProps {
   entity: EntityDetail | null;
@@ -134,6 +141,7 @@ interface EntityDetailModalProps {
 ```
 
 **Features:**
+
 - HeadlessUI Dialog component
 - Entity summary stats (appearances, cameras, timestamps)
 - Camera list badges
@@ -145,11 +153,11 @@ interface EntityDetailModalProps {
 
 Backend endpoints (see `backend/api/routes/entities.py`):
 
-| Endpoint                    | Method | Purpose                              |
-| --------------------------- | ------ | ------------------------------------ |
-| `/api/entities`             | GET    | List entities with filtering         |
-| `/api/entities/{id}`        | GET    | Get entity with all appearances      |
-| `/api/entities/{id}/history`| GET    | Get appearance timeline              |
+| Endpoint                     | Method | Purpose                         |
+| ---------------------------- | ------ | ------------------------------- |
+| `/api/entities`              | GET    | List entities with filtering    |
+| `/api/entities/{id}`         | GET    | Get entity with all appearances |
+| `/api/entities/{id}/history` | GET    | Get appearance timeline         |
 
 Frontend API functions (see `frontend/src/services/api.ts`):
 
@@ -165,6 +173,7 @@ fetchEntityHistory(entityId: string): Promise<EntityHistoryResponse>
 ```
 
 **Query Parameters:**
+
 - `entity_type`: 'person' | 'vehicle' - Filter by type
 - `camera_id`: string - Filter by camera
 - `since`: ISO timestamp - Filter by time
@@ -182,6 +191,7 @@ Embeddings stored in Redis with 24-hour rolling window.
 ## Styling Conventions
 
 NVIDIA Dark Theme:
+
 - Background: `#1F1F1F`
 - Modal background: `#1A1A1A`
 - Accent: `#76B900` (NVIDIA green)
@@ -189,6 +199,7 @@ NVIDIA Dark Theme:
 - Borders: gray-800
 
 Component-specific:
+
 - Entity type badge: `bg-[#76B900]/20` with green text
 - Filter buttons: active = green bg, inactive = gray
 - Timeline connector: `border-l-2 border-gray-700`
@@ -209,6 +220,7 @@ npm test -- --run src/components/entities/EntitiesPage.test.tsx
 ```
 
 **Test Coverage:**
+
 - EntityCard: 37 tests (rendering, interactions, accessibility)
 - EntityTimeline: 24 tests (rendering, chronological order, styling)
 - EntityDetailModal: 21 tests (modal behavior, content, accessibility)
@@ -228,7 +240,7 @@ npm test -- --run src/components/entities/EntitiesPage.test.tsx
 import { EntitiesPage } from './components/entities';
 
 // In router
-<Route path="/entities" element={<EntitiesPage />} />
+<Route path="/entities" element={<EntitiesPage />} />;
 
 // Or use individual components
 import { EntityCard, EntityDetailModal, EntityTimeline } from './components/entities';

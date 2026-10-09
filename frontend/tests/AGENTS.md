@@ -63,8 +63,8 @@ frontend/tests/
 
 ## Test Organization
 
-| Test Type       | Location             | Framework    | Purpose                          |
-| --------------- | -------------------- | ------------ | -------------------------------- |
+| Test Type       | Location               | Framework    | Purpose                          |
+| --------------- | ---------------------- | ------------ | -------------------------------- |
 | **Unit**        | `../src/**/*.test.tsx` | Vitest + RTL | Component/function isolation     |
 | **Integration** | `integration/`         | Vitest       | Cross-component, WebSocket tests |
 | **E2E**         | `e2e/specs/`           | Playwright   | Full browser workflows           |

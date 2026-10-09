@@ -6,13 +6,13 @@ Contains components for video playback with custom controls. Provides a dark-the
 
 ## Files
 
-| File                       | Purpose                                   |
-| -------------------------- | ----------------------------------------- |
-| `VideoPlayer.tsx`          | Custom HTML5 video player                 |
-| `VideoPlayer.test.tsx`     | Comprehensive test suite                  |
-| `RTSPPreviewPlayer.tsx`    | WebRTC video player with go2rtc integration |
-| `RTSPPreviewPlayer.test.tsx` | Test suite for RTSPPreviewPlayer        |
-| `index.ts`                 | Barrel export                             |
+| File                         | Purpose                                     |
+| ---------------------------- | ------------------------------------------- |
+| `VideoPlayer.tsx`            | Custom HTML5 video player                   |
+| `VideoPlayer.test.tsx`       | Comprehensive test suite                    |
+| `RTSPPreviewPlayer.tsx`      | WebRTC video player with go2rtc integration |
+| `RTSPPreviewPlayer.test.tsx` | Test suite for RTSPPreviewPlayer            |
+| `index.ts`                   | Barrel export                               |
 
 ## Key Components
 

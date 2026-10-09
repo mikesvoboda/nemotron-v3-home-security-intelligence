@@ -6,11 +6,11 @@ Reusable chart and data visualization components for the NVIDIA Security Intelli
 
 ## Key Components
 
-| File                         | Purpose                                                       |
-| ---------------------------- | ------------------------------------------------------------- |
-| `RiskDistributionMini.tsx`   | Compact horizontal stacked bar chart showing risk distribution |
-| `RiskDistributionMini.test.tsx` | Test suite for RiskDistributionMini                         |
-| `index.ts`                   | Barrel exports for all chart components                       |
+| File                            | Purpose                                                        |
+| ------------------------------- | -------------------------------------------------------------- |
+| `RiskDistributionMini.tsx`      | Compact horizontal stacked bar chart showing risk distribution |
+| `RiskDistributionMini.test.tsx` | Test suite for RiskDistributionMini                            |
+| `index.ts`                      | Barrel exports for all chart components                        |
 
 ## Component Details
 
@@ -20,10 +20,10 @@ A mini horizontal stacked bar chart displaying the distribution of events by ris
 
 **Props:**
 
-| Prop           | Type                      | Description                          |
-| -------------- | ------------------------- | ------------------------------------ |
-| `distribution` | `RiskDistributionItem[]?` | Risk distribution data from the API  |
-| `className`    | `string?`                 | Additional CSS classes               |
+| Prop           | Type                      | Description                         |
+| -------------- | ------------------------- | ----------------------------------- |
+| `distribution` | `RiskDistributionItem[]?` | Risk distribution data from the API |
+| `className`    | `string?`                 | Additional CSS classes              |
 
 **Features:**
 
@@ -52,7 +52,7 @@ import { RiskDistributionMini } from '@/components/charts';
     { risk_level: 'medium', count: 12 },
     { risk_level: 'low', count: 25 },
   ]}
-/>
+/>;
 ```
 
 ## Test Coverage

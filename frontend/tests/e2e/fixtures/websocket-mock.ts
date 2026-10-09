@@ -40,7 +40,8 @@ export type WebSocketChannel = 'events' | 'system';
 /**
  * WebSocket connection state
  */
-export type WebSocketConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'failed';
+export type WebSocketConnectionState =
+  'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'failed';
 
 /**
  * WebSocket message types that can be sent to the application
@@ -71,7 +72,8 @@ export interface WebSocketPingMessage {
   timestamp?: string;
 }
 
-export type WebSocketMessage = WebSocketEventMessage | WebSocketSystemMessage | WebSocketPingMessage;
+export type WebSocketMessage =
+  WebSocketEventMessage | WebSocketSystemMessage | WebSocketPingMessage;
 
 /**
  * Configuration for WebSocket mock behavior
@@ -245,8 +247,8 @@ export async function setupWebSocketMock(
 
       private simulateConnection(): void {
         const attempts = connectionAttempts.get(this.channel) || 0;
-        const shouldFail = cfg.simulateConnectionFailure &&
-          attempts <= (cfg.failedAttemptsBeforeSuccess || 0);
+        const shouldFail =
+          cfg.simulateConnectionFailure && attempts <= (cfg.failedAttemptsBeforeSuccess || 0);
 
         setTimeout(() => {
           if (shouldFail) {
@@ -420,7 +422,10 @@ export async function setupWebSocketMock(
 
   // Create controller object
   const controller: WebSocketMockController = {
-    async waitForConnection(channel: WebSocketChannel = 'events', timeout: number = 10000): Promise<void> {
+    async waitForConnection(
+      channel: WebSocketChannel = 'events',
+      timeout: number = 10000
+    ): Promise<void> {
       await page.waitForFunction(
         (ch) => {
           const mock = (window as unknown as Record<string, unknown>).__wsMock as {
@@ -434,7 +439,10 @@ export async function setupWebSocketMock(
       );
     },
 
-    async waitForDisconnect(channel: WebSocketChannel = 'events', timeout: number = 10000): Promise<void> {
+    async waitForDisconnect(
+      channel: WebSocketChannel = 'events',
+      timeout: number = 10000
+    ): Promise<void> {
       await page.waitForFunction(
         (ch) => {
           const mock = (window as unknown as Record<string, unknown>).__wsMock as {
@@ -481,7 +489,10 @@ export async function setupWebSocketMock(
       await controller.sendMessage(channel, { type: 'ping', timestamp: new Date().toISOString() });
     },
 
-    async simulateConnectionError(channel: WebSocketChannel, errorMessage: string = 'Connection error'): Promise<void> {
+    async simulateConnectionError(
+      channel: WebSocketChannel,
+      errorMessage: string = 'Connection error'
+    ): Promise<void> {
       await page.evaluate(
         ({ ch, msg }) => {
           const mock = (window as unknown as Record<string, unknown>).__wsMock as {
@@ -497,70 +508,58 @@ export async function setupWebSocketMock(
     },
 
     async simulateReconnection(channel: WebSocketChannel): Promise<void> {
-      await page.evaluate(
-        (ch) => {
-          const mock = (window as unknown as Record<string, unknown>).__wsMock as {
-            mockWebSockets: Map<string, { close: (code: number, reason: string) => void }>;
-          };
-          const ws = mock?.mockWebSockets?.get(ch);
-          if (ws) {
-            // Close with abnormal closure code to trigger reconnection
-            ws.close(1006, 'Simulated disconnection for reconnection test');
-          }
-        },
-        channel
-      );
+      await page.evaluate((ch) => {
+        const mock = (window as unknown as Record<string, unknown>).__wsMock as {
+          mockWebSockets: Map<string, { close: (code: number, reason: string) => void }>;
+        };
+        const ws = mock?.mockWebSockets?.get(ch);
+        if (ws) {
+          // Close with abnormal closure code to trigger reconnection
+          ws.close(1006, 'Simulated disconnection for reconnection test');
+        }
+      }, channel);
     },
 
     async simulateConnectionRecovery(channel: WebSocketChannel): Promise<void> {
-      await page.evaluate(
-        (ch) => {
-          const mock = (window as unknown as Record<string, unknown>).__wsMock as {
-            mockWebSockets: Map<string, { reconnect: () => void }>;
-          };
-          const ws = mock?.mockWebSockets?.get(ch);
-          if (ws) {
-            ws.reconnect();
-          }
-        },
-        channel
-      );
+      await page.evaluate((ch) => {
+        const mock = (window as unknown as Record<string, unknown>).__wsMock as {
+          mockWebSockets: Map<string, { reconnect: () => void }>;
+        };
+        const ws = mock?.mockWebSockets?.get(ch);
+        if (ws) {
+          ws.reconnect();
+        }
+      }, channel);
     },
 
     async getConnectionState(channel: WebSocketChannel): Promise<WebSocketConnectionState> {
-      return page.evaluate(
-        (ch) => {
-          const mock = (window as unknown as Record<string, unknown>).__wsMock as {
-            mockWebSockets: Map<string, { readyState: number }>;
-          };
-          const ws = mock?.mockWebSockets?.get(ch);
-          if (!ws) return 'disconnected';
+      return page.evaluate((ch) => {
+        const mock = (window as unknown as Record<string, unknown>).__wsMock as {
+          mockWebSockets: Map<string, { readyState: number }>;
+        };
+        const ws = mock?.mockWebSockets?.get(ch);
+        if (!ws) return 'disconnected';
 
-          switch (ws.readyState) {
-            case 0:
-              return 'connecting';
-            case 1:
-              return 'connected';
-            case 2:
-            case 3:
-            default:
-              return 'disconnected';
-          }
-        },
-        channel
-      ) as Promise<WebSocketConnectionState>;
+        switch (ws.readyState) {
+          case 0:
+            return 'connecting';
+          case 1:
+            return 'connected';
+          case 2:
+          case 3:
+          default:
+            return 'disconnected';
+        }
+      }, channel) as Promise<WebSocketConnectionState>;
     },
 
     async getReceivedMessages(channel: WebSocketChannel): Promise<unknown[]> {
-      return page.evaluate(
-        (ch) => {
-          const mock = (window as unknown as Record<string, unknown>).__wsMock as {
-            receivedMessages: Map<string, unknown[]>;
-          };
-          return mock?.receivedMessages?.get(ch) || [];
-        },
-        channel
-      );
+      return page.evaluate((ch) => {
+        const mock = (window as unknown as Record<string, unknown>).__wsMock as {
+          receivedMessages: Map<string, unknown[]>;
+        };
+        return mock?.receivedMessages?.get(ch) || [];
+      }, channel);
     },
 
     async reset(): Promise<void> {
@@ -669,15 +668,15 @@ export function createTestSystemStatus(
 export type WebSocketEventType =
   | 'event_created'
   | 'event_updated'
-  | 'event.created'  // Hierarchical format (preferred)
-  | 'event.updated'  // Hierarchical format (preferred)
+  | 'event.created' // Hierarchical format (preferred)
+  | 'event.updated' // Hierarchical format (preferred)
   | 'camera_status'
   | 'gpu_update'
   | 'system_alert'
   | 'performance_update'
-  | 'job_progress'   // Legacy format (backend schema format)
-  | 'job_completed'  // Legacy format (backend schema format)
-  | 'job_failed';    // Legacy format (backend schema format)
+  | 'job_progress' // Legacy format (backend schema format)
+  | 'job_completed' // Legacy format (backend schema format)
+  | 'job_failed'; // Legacy format (backend schema format)
 
 export interface SimulatedWebSocketMessage {
   type: WebSocketEventType;

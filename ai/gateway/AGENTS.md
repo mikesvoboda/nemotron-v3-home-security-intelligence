@@ -10,28 +10,28 @@ Backend (8000) -> AI Gateway (8090, FastAPI) -> Triton (8001 gRPC, same containe
 
 ## Key Files
 
-| File                       | Purpose                                                              |
-| -------------------------- | -------------------------------------------------------------------- |
-| `main.py`                  | FastAPI app; mounts adapter routers under `/yolo26`, `/clip`, `/florence`, `/enrichment`, `/enrich-lt`; `/health` + `/metrics` |
-| `triton_client.py`         | Async gRPC client wrapper (pooling, timeout, numpy <-> InferInput)   |
-| `utils.py`                 | Shared image decode/preprocess helpers (base64, letterbox, normalize)|
-| `adapters/`                | One router module per legacy service (see `adapters/AGENTS.md`)      |
-| `export/`                  | Model export pipeline (see `export/AGENTS.md`)                       |
-| `entrypoint.sh`            | Starts Triton, waits ready, then uvicorn; SIGTERM cleanup            |
-| `patch_triton_configs.py`  | Rewrites `config.pbtxt` instance_group from models.yml before boot   |
-| `Dockerfile`               | Based on `nvcr.io/nvidia/tritonserver:26.01-py3`                     |
-| `tests/`                   | Unit tests (see `tests/AGENTS.md`)                                   |
+| File                      | Purpose                                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `main.py`                 | FastAPI app; mounts adapter routers under `/yolo26`, `/clip`, `/florence`, `/enrichment`, `/enrich-lt`; `/health` + `/metrics` |
+| `triton_client.py`        | Async gRPC client wrapper (pooling, timeout, numpy <-> InferInput)                                                             |
+| `utils.py`                | Shared image decode/preprocess helpers (base64, letterbox, normalize)                                                          |
+| `adapters/`               | One router module per legacy service (see `adapters/AGENTS.md`)                                                                |
+| `export/`                 | Model export pipeline (see `export/AGENTS.md`)                                                                                 |
+| `entrypoint.sh`           | Starts Triton, waits ready, then uvicorn; SIGTERM cleanup                                                                      |
+| `patch_triton_configs.py` | Rewrites `config.pbtxt` instance_group from models.yml before boot                                                             |
+| `Dockerfile`              | Based on `nvcr.io/nvidia/tritonserver:26.01-py3`                                                                               |
+| `tests/`                  | Unit tests (see `tests/AGENTS.md`)                                                                                             |
 
 ## Environment Variables
 
-| Variable                | Default            | Description                    |
-| ----------------------- | ------------------ | ------------------------------ |
-| `GATEWAY_PORT`          | `8090`             | FastAPI port                   |
-| `TRITON_GRPC_URL`       | `localhost:8001`   | Triton gRPC endpoint           |
-| `TRITON_HTTP_URL`       | `http://localhost:8000` | Triton native HTTP       |
-| `TRITON_METRICS_URL`    | `http://localhost:8002` | Triton metrics         |
-| `TRITON_TIMEOUT_S`      | `30`               | Inference timeout              |
-| `MODELS_YAML_PATH`      | `/app/models.yml`  | GPU/CPU assignment source      |
+| Variable             | Default                 | Description               |
+| -------------------- | ----------------------- | ------------------------- |
+| `GATEWAY_PORT`       | `8090`                  | FastAPI port              |
+| `TRITON_GRPC_URL`    | `localhost:8001`        | Triton gRPC endpoint      |
+| `TRITON_HTTP_URL`    | `http://localhost:8000` | Triton native HTTP        |
+| `TRITON_METRICS_URL` | `http://localhost:8002` | Triton metrics            |
+| `TRITON_TIMEOUT_S`   | `30`                    | Inference timeout         |
+| `MODELS_YAML_PATH`   | `/app/models.yml`       | GPU/CPU assignment source |
 
 ## Patterns / Gotchas
 

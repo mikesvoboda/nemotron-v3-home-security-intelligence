@@ -70,83 +70,83 @@ llm_prompt: Mapped[str | None] = deferred(mapped_column(Text, nullable=True))
 
 ### Camera
 
-| Backend Field      | Schema Field       | Frontend Type | Status        |
+| Backend Field | Schema Field | Frontend Type | Status |
 | ------------------ | ------------------ | ------------- | ------------- | --- |
-| id                 | id                 | string        | ✅            |
-| name               | name               | string        | ✅            |
-| folder_path        | folder_path        | string        | ✅            |
-| status             | status             | CameraStatus  | ✅            |
-| created_at         | created_at         | string (ISO)  | ✅            |
-| last_seen_at       | last_seen_at       | string        | ✅            |
-| deleted_at         | deleted_at         | string        | null          | ✅  |
-| property_id        | property_id        | string        | null          | ✅  |
-| rtsp_url           | rtsp_url           | string        | null          | ✅  |
-| rtsp_username      | rtsp_username      | string        | null          | ✅  |
-| rtsp_password      | rtsp_password      | string        | null          | ✅  |
-| stream_profile     | stream_profile     | string        | null          | ✅  |
-| motion_sensitivity | motion_sensitivity | number        | null          | ✅  |
-| -                  | areas              | Area[]        | ✅ (computed) |
+| id | id | string | ✅ |
+| name | name | string | ✅ |
+| folder_path | folder_path | string | ✅ |
+| status | status | CameraStatus | ✅ |
+| created_at | created_at | string (ISO) | ✅ |
+| last_seen_at | last_seen_at | string | ✅ |
+| deleted_at | deleted_at | string | null | ✅ |
+| property_id | property_id | string | null | ✅ |
+| rtsp_url | rtsp_url | string | null | ✅ |
+| rtsp_username | rtsp_username | string | null | ✅ |
+| rtsp_password | rtsp_password | string | null | ✅ |
+| stream_profile | stream_profile | string | null | ✅ |
+| motion_sensitivity | motion_sensitivity | number | null | ✅ |
+| - | areas | Area[] | ✅ (computed) |
 
 **Status:** ✅ Complete
 
 ### Detection
 
-| Backend Field     | Schema Field           | Frontend Type       | Status           |
+| Backend Field | Schema Field | Frontend Type | Status |
 | ----------------- | ---------------------- | ------------------- | ---------------- | --- |
-| id                | id                     | string              | ✅               |
-| camera_id         | camera_id              | string              | ✅               |
-| object_type       | object_type            | string              | ✅               |
-| confidence        | confidence             | number              | ✅               |
-| bbox              | bbox                   | number[]            | ✅               |
-| timestamp         | timestamp              | string              | ✅               |
-| image_path        | image_path             | string              | null             | ✅  |
-| enrichment_data   | enrichment_data        | Record<string, any> | ⚠️ Untyped       |
-| entity_id         | entity_id              | string              | null             | ✅  |
-| track_id          | track_id               | string              | null             | ✅  |
-| detection_count   | detection_count        | number              | ✅ (computed)    |
-| thumbnail_url     | thumbnail_url          | string              | ✅ (computed)    |
-| enrichment_status | enrichment_status      | string              | ✅ (computed)    |
-| -                 | association_created_at | string              | ✅ (schema only) |
+| id | id | string | ✅ |
+| camera_id | camera_id | string | ✅ |
+| object_type | object_type | string | ✅ |
+| confidence | confidence | number | ✅ |
+| bbox | bbox | number[] | ✅ |
+| timestamp | timestamp | string | ✅ |
+| image_path | image_path | string | null | ✅ |
+| enrichment_data | enrichment_data | Record<string, any> | ⚠️ Untyped |
+| entity_id | entity_id | string | null | ✅ |
+| track_id | track_id | string | null | ✅ |
+| detection_count | detection_count | number | ✅ (computed) |
+| thumbnail_url | thumbnail_url | string | ✅ (computed) |
+| enrichment_status | enrichment_status | string | ✅ (computed) |
+| - | association_created_at | string | ✅ (schema only) |
 
 **Status:** ⚠️ enrichment_data untyped
 
 ### Alert
 
-| Backend Field     | Schema Field      | Frontend Type       | Status           |
+| Backend Field | Schema Field | Frontend Type | Status |
 | ----------------- | ----------------- | ------------------- | ---------------- | --- |
-| id                | id                | string              | ✅               |
-| event_id          | event_id          | string              | ✅               |
-| rule_id           | rule_id           | string              | ✅               |
-| status            | status            | AlertStatus         | ✅               |
-| severity          | severity          | AlertSeverity       | ✅               |
-| created_at        | created_at        | string              | ✅               |
-| acknowledged_at   | acknowledged_at   | string              | null             | ✅  |
-| acknowledged_by   | acknowledged_by   | string              | null             | ✅  |
-| dismissed_at      | dismissed_at      | string              | null             | ✅  |
-| dismissed_by      | dismissed_by      | string              | null             | ✅  |
-| notification_sent | notification_sent | boolean             | ✅               |
-| metadata          | metadata          | Record<string, any> | ⚠️               |
-| version_id        | -                 | -                   | ❌ Not in schema |
+| id | id | string | ✅ |
+| event_id | event_id | string | ✅ |
+| rule_id | rule_id | string | ✅ |
+| status | status | AlertStatus | ✅ |
+| severity | severity | AlertSeverity | ✅ |
+| created_at | created_at | string | ✅ |
+| acknowledged_at | acknowledged_at | string | null | ✅ |
+| acknowledged_by | acknowledged_by | string | null | ✅ |
+| dismissed_at | dismissed_at | string | null | ✅ |
+| dismissed_by | dismissed_by | string | null | ✅ |
+| notification_sent | notification_sent | boolean | ✅ |
+| metadata | metadata | Record<string, any> | ⚠️ |
+| version_id | - | - | ❌ Not in schema |
 
 **Status:** ⚠️ version_id not in schema
 
 ### Event
 
-| Backend Field     | Schema Field      | Frontend Type       | Status         |
+| Backend Field | Schema Field | Frontend Type | Status |
 | ----------------- | ----------------- | ------------------- | -------------- | ----------- |
-| id                | id                | string              | ✅             |
-| camera_id         | camera_id         | string              | ✅             |
-| timestamp         | timestamp         | string              | ✅             |
-| risk_score        | risk_score        | number              | null           | ✅          |
-| risk_level        | risk_level        | RiskLevel           | ✅             |
-| summary           | summary           | string              | null           | ✅          |
-| reasoning         | reasoning         | string              | null           | ⚠️ Deferred |
-| llm_prompt        | llm_prompt        | string              | null           | ⚠️ Deferred |
-| entities          | entities          | Record<string, any> | ⚠️ Untyped     |
-| flags             | flags             | Record<string, any> | ⚠️ Untyped     |
-| enrichment_status | enrichment_status | string              | ✅             |
-| detection_count   | detection_count   | number              | ✅ (computed)  |
-| version           | version           | number              | ⚠️ Sync needed |
+| id | id | string | ✅ |
+| camera_id | camera_id | string | ✅ |
+| timestamp | timestamp | string | ✅ |
+| risk_score | risk_score | number | null | ✅ |
+| risk_level | risk_level | RiskLevel | ✅ |
+| summary | summary | string | null | ✅ |
+| reasoning | reasoning | string | null | ⚠️ Deferred |
+| llm_prompt | llm_prompt | string | null | ⚠️ Deferred |
+| entities | entities | Record<string, any> | ⚠️ Untyped |
+| flags | flags | Record<string, any> | ⚠️ Untyped |
+| enrichment_status | enrichment_status | string | ✅ |
+| detection_count | detection_count | number | ✅ (computed) |
+| version | version | number | ⚠️ Sync needed |
 
 **Status:** ⚠️ Multiple issues (deferred fields, untyped JSONB)
 
@@ -167,18 +167,18 @@ llm_prompt: Mapped[str | None] = deferred(mapped_column(Text, nullable=True))
 
 ### Job
 
-| Backend Field | Schema Field | Frontend Type       | Status |
+| Backend Field | Schema Field | Frontend Type | Status |
 | ------------- | ------------ | ------------------- | ------ | --- |
-| id            | id           | string              | ✅     |
-| job_type      | job_type     | JobType             | ✅     |
-| status        | status       | JobStatus           | ✅     |
-| created_at    | created_at   | string              | ✅     |
-| started_at    | started_at   | string              | null   | ✅  |
-| completed_at  | completed_at | string              | null   | ✅  |
-| progress      | progress     | number              | ✅     |
-| result        | result       | Record<string, any> | ⚠️     |
-| error         | error        | string              | null   | ✅  |
-| metadata      | metadata     | Record<string, any> | ⚠️     |
+| id | id | string | ✅ |
+| job_type | job_type | JobType | ✅ |
+| status | status | JobStatus | ✅ |
+| created_at | created_at | string | ✅ |
+| started_at | started_at | string | null | ✅ |
+| completed_at | completed_at | string | null | ✅ |
+| progress | progress | number | ✅ |
+| result | result | Record<string, any> | ⚠️ |
+| error | error | string | null | ✅ |
+| metadata | metadata | Record<string, any> | ⚠️ |
 
 **Status:** ✅ Complete (some untyped JSONB)
 

@@ -126,7 +126,9 @@ test.describe('Responsive Navigation Visual', () => {
     await page.waitForLoadState('networkidle');
 
     // Look for mobile menu button/hamburger
-    const menuButton = page.locator('button[aria-label*="menu" i], button:has(svg[class*="menu" i])');
+    const menuButton = page.locator(
+      'button[aria-label*="menu" i], button:has(svg[class*="menu" i])'
+    );
     if (await menuButton.isVisible()) {
       await expect(menuButton).toHaveScreenshot('navigation-mobile-menu-button.png');
 

@@ -6,25 +6,25 @@ Contains components for managing AI model prompt configurations. These component
 
 ## Files
 
-| File                            | Purpose                                                        | Status |
-| ------------------------------- | -------------------------------------------------------------- | ------ |
-| `ConfigDiffView.tsx`            | Display configuration diff for a single model with highlighting | Active |
-| `ConfigDiffView.test.tsx`       | Test suite for ConfigDiffView                                  | Active |
-| `EventSelector.tsx`             | Searchable event selector for A/B testing                      | Active |
-| `EventSelector.test.tsx`        | Test suite for EventSelector                                   | Active |
-| `ImportExportButtons.tsx`       | Export/Import buttons with file handling and preview modal     | Active |
-| `ImportExportButtons.test.tsx`  | Test suite for ImportExportButtons                             | Active |
-| `ImportPreviewModal.tsx`        | Modal for previewing import changes before applying            | Active |
-| `ImportPreviewModal.test.tsx`   | Test suite for ImportPreviewModal                              | Active |
-| `PromptConfigEditor.tsx`        | Modal for editing AI model prompt configurations               | Active |
-| `PromptConfigEditor.test.tsx`   | Test suite for PromptConfigEditor                              | Active |
-| `PromptManagementPage.tsx`      | Main page for managing AI model prompt configurations          | Active |
-| `PromptManagementPage.test.tsx` | Test suite for PromptManagementPage                            | Active |
-| `PromptTestModal.tsx`           | A/B testing modal for prompt configuration comparison          | Active |
-| `PromptTestModal.test.tsx`      | Test suite for PromptTestModal                                 | Active |
-| `TestResultsComparison.tsx`     | Side-by-side comparison of A/B test results                    | Active |
-| `TestResultsComparison.test.tsx`| Test suite for TestResultsComparison                           | Active |
-| `index.ts`                      | Barrel exports for prompt management components                | Active |
+| File                             | Purpose                                                         | Status |
+| -------------------------------- | --------------------------------------------------------------- | ------ |
+| `ConfigDiffView.tsx`             | Display configuration diff for a single model with highlighting | Active |
+| `ConfigDiffView.test.tsx`        | Test suite for ConfigDiffView                                   | Active |
+| `EventSelector.tsx`              | Searchable event selector for A/B testing                       | Active |
+| `EventSelector.test.tsx`         | Test suite for EventSelector                                    | Active |
+| `ImportExportButtons.tsx`        | Export/Import buttons with file handling and preview modal      | Active |
+| `ImportExportButtons.test.tsx`   | Test suite for ImportExportButtons                              | Active |
+| `ImportPreviewModal.tsx`         | Modal for previewing import changes before applying             | Active |
+| `ImportPreviewModal.test.tsx`    | Test suite for ImportPreviewModal                               | Active |
+| `PromptConfigEditor.tsx`         | Modal for editing AI model prompt configurations                | Active |
+| `PromptConfigEditor.test.tsx`    | Test suite for PromptConfigEditor                               | Active |
+| `PromptManagementPage.tsx`       | Main page for managing AI model prompt configurations           | Active |
+| `PromptManagementPage.test.tsx`  | Test suite for PromptManagementPage                             | Active |
+| `PromptTestModal.tsx`            | A/B testing modal for prompt configuration comparison           | Active |
+| `PromptTestModal.test.tsx`       | Test suite for PromptTestModal                                  | Active |
+| `TestResultsComparison.tsx`      | Side-by-side comparison of A/B test results                     | Active |
+| `TestResultsComparison.test.tsx` | Test suite for TestResultsComparison                            | Active |
+| `index.ts`                       | Barrel exports for prompt management components                 | Active |
 
 ## Subdirectories
 
@@ -39,6 +39,7 @@ Model-specific configuration forms for each AI model. See `model-forms/AGENTS.md
 **Purpose:** Main page component for managing AI model prompt configurations
 
 **Features:**
+
 - Model selector for switching between AI models (Nemotron, Florence-2, YOLO-World, X-CLIP, Fashion-CLIP)
 - Current configuration display with Edit button
 - Version history with Restore functionality
@@ -74,6 +75,7 @@ interface PromptConfigEditorProps {
 ```
 
 **Key Features:**
+
 - Renders model-specific form based on selected model
 - Change description input for version tracking
 - "Test Changes" button to open A/B testing modal
@@ -97,6 +99,7 @@ interface PromptTestModalProps {
 ```
 
 **Key Features:**
+
 - Event selector for choosing test events
 - Runs inference with both current and modified configs in parallel
 - Side-by-side results comparison
@@ -121,6 +124,7 @@ interface ImportExportButtonsProps {
 ```
 
 **Key Features:**
+
 - Export button triggers JSON download
 - Import button with hidden file input
 - Opens ImportPreviewModal for diff preview before applying
@@ -145,6 +149,7 @@ interface ImportPreviewModalProps {
 ```
 
 **Key Features:**
+
 - Shows file name and affected models count
 - Validation errors display
 - Unknown models warning
@@ -168,6 +173,7 @@ interface ConfigDiffViewProps {
 ```
 
 **Key Features:**
+
 - Model name with change status badge (WILL CHANGE / NO CHANGE)
 - Red highlighting for removed values
 - Green highlighting for added values
@@ -201,6 +207,7 @@ interface TestResult {
 ```
 
 **Key Features:**
+
 - Two-column grid with current vs modified results
 - Risk score with colored progress bar
 - Processing time and token usage metrics
@@ -225,6 +232,7 @@ interface EventSelectorProps {
 ```
 
 **Key Features:**
+
 - Search by camera, event ID, or risk level
 - Event cards with risk badge and detection count
 - Relative time display

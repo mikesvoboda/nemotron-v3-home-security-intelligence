@@ -13,7 +13,11 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
 
 import { useWebSocket, WebSocketOptions, UseWebSocketReturn } from '../../src/hooks/useWebSocket';
-import { webSocketManager, resetSubscriberCounter, calculateBackoffDelay } from '../../src/hooks/webSocketManager';
+import {
+  webSocketManager,
+  resetSubscriberCounter,
+  calculateBackoffDelay,
+} from '../../src/hooks/webSocketManager';
 
 // Mock the webSocketManager module
 vi.mock('../../src/hooks/webSocketManager', async (importOriginal) => {

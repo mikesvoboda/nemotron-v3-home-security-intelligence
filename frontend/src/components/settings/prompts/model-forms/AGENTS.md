@@ -6,19 +6,19 @@ Contains model-specific configuration form components for each AI model in the p
 
 ## Files
 
-| File                            | Purpose                                                | Status |
-| ------------------------------- | ------------------------------------------------------ | ------ |
-| `NemotronConfigForm.tsx`        | Form for editing Nemotron model configuration          | Active |
-| `NemotronConfigForm.test.tsx`   | Test suite for NemotronConfigForm                      | Active |
-| `Florence2ConfigForm.tsx`       | Form for editing Florence-2 model configuration        | Active |
-| `Florence2ConfigForm.test.tsx`  | Test suite for Florence2ConfigForm                     | Active |
-| `YoloWorldConfigForm.tsx`       | Form for editing YOLO-World model configuration        | Active |
-| `YoloWorldConfigForm.test.tsx`  | Test suite for YoloWorldConfigForm                     | Active |
-| `XClipConfigForm.tsx`           | Form for editing X-CLIP model configuration            | Active |
-| `XClipConfigForm.test.tsx`      | Test suite for XClipConfigForm                         | Active |
-| `FashionClipConfigForm.tsx`     | Form for editing Fashion-CLIP model configuration      | Active |
-| `FashionClipConfigForm.test.tsx`| Test suite for FashionClipConfigForm                   | Active |
-| `index.ts`                      | Barrel exports for model form components               | Active |
+| File                             | Purpose                                           | Status |
+| -------------------------------- | ------------------------------------------------- | ------ |
+| `NemotronConfigForm.tsx`         | Form for editing Nemotron model configuration     | Active |
+| `NemotronConfigForm.test.tsx`    | Test suite for NemotronConfigForm                 | Active |
+| `Florence2ConfigForm.tsx`        | Form for editing Florence-2 model configuration   | Active |
+| `Florence2ConfigForm.test.tsx`   | Test suite for Florence2ConfigForm                | Active |
+| `YoloWorldConfigForm.tsx`        | Form for editing YOLO-World model configuration   | Active |
+| `YoloWorldConfigForm.test.tsx`   | Test suite for YoloWorldConfigForm                | Active |
+| `XClipConfigForm.tsx`            | Form for editing X-CLIP model configuration       | Active |
+| `XClipConfigForm.test.tsx`       | Test suite for XClipConfigForm                    | Active |
+| `FashionClipConfigForm.tsx`      | Form for editing Fashion-CLIP model configuration | Active |
+| `FashionClipConfigForm.test.tsx` | Test suite for FashionClipConfigForm              | Active |
+| `index.ts`                       | Barrel exports for model form components          | Active |
 
 ## Key Components
 
@@ -37,6 +37,7 @@ interface NemotronConfigFormProps {
 ```
 
 **Configuration Fields:**
+
 - `system_prompt` - Textarea for the AI system prompt (10 rows)
 - `temperature` - Slider for generation temperature (0-2, step 0.1)
 - `max_tokens` - Number input for maximum tokens (100-8192)
@@ -67,6 +68,7 @@ interface Florence2ConfigFormProps {
 ```
 
 **Configuration Fields:**
+
 - `queries` - List of scene analysis queries (add/remove with Enter key support)
 
 **Usage:**
@@ -95,6 +97,7 @@ interface YoloWorldConfigFormProps {
 ```
 
 **Configuration Fields:**
+
 - `classes` - Tag input for custom object classes (pill-style tags)
 - `confidence_threshold` - Slider for detection confidence (0-1, step 0.05)
 
@@ -124,6 +127,7 @@ interface XClipConfigFormProps {
 ```
 
 **Configuration Fields:**
+
 - `action_classes` - Tag input for action recognition classes (pill-style tags)
 
 **Usage:**
@@ -152,6 +156,7 @@ interface FashionClipConfigFormProps {
 ```
 
 **Configuration Fields:**
+
 - `clothing_categories` - Tag input for clothing categories (gray pills)
 - `suspicious_indicators` - Tag input for suspicious clothing indicators (red pills)
 
@@ -161,7 +166,7 @@ interface FashionClipConfigFormProps {
 <FashionClipConfigForm
   config={{
     clothing_categories: ['hoodie', 'mask', 'uniform'],
-    suspicious_indicators: ['face covering', 'all black']
+    suspicious_indicators: ['face covering', 'all black'],
   }}
   onChange={setConfig}
 />
@@ -176,6 +181,7 @@ All forms are controlled components that receive `config` and `onChange` props. 
 ### Tag Input Pattern
 
 Several forms (YoloWorld, XClip, FashionClip) use a consistent tag input pattern:
+
 - Display existing items as pill-style tags with X button for removal
 - Text input with Add button for adding new items
 - Enter key support for quick addition
@@ -191,13 +197,13 @@ All form inputs have associated labels via `htmlFor` or `aria-labelledby` attrib
 
 ## Model Configuration Types
 
-| Model       | Primary Use             | Key Config Parameters                    |
-| ----------- | ----------------------- | ---------------------------------------- |
-| Nemotron    | Risk analysis LLM       | system_prompt, temperature, max_tokens   |
-| Florence-2  | Scene analysis          | queries (VQA questions)                  |
-| YOLO-World  | Object detection        | classes, confidence_threshold            |
-| X-CLIP      | Action recognition      | action_classes                           |
-| Fashion-CLIP| Clothing analysis       | clothing_categories, suspicious_indicators |
+| Model        | Primary Use        | Key Config Parameters                      |
+| ------------ | ------------------ | ------------------------------------------ |
+| Nemotron     | Risk analysis LLM  | system_prompt, temperature, max_tokens     |
+| Florence-2   | Scene analysis     | queries (VQA questions)                    |
+| YOLO-World   | Object detection   | classes, confidence_threshold              |
+| X-CLIP       | Action recognition | action_classes                             |
+| Fashion-CLIP | Clothing analysis  | clothing_categories, suspicious_indicators |
 
 ## Dependencies
 

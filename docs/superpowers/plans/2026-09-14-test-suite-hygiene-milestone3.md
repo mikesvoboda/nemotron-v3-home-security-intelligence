@@ -34,15 +34,15 @@
 
 ## File Structure
 
-| File | Fate | Responsibility |
-| --- | --- | --- |
-| `backend/tests/integration/test_events.py`, `test_cameras.py` | delete (symlinks) | duplicates of `*_api.py` targets (−134 executions) |
-| `backend/tests/integration/test_zone_baselines.py`, `unit/test_matchers.py`, `unit/core/test_result.py`, `unit/api/routes/test_cameras_heatmap.py` | delete | zero-byte phantom coverage |
-| `backend/tests/conftest.py` | edit | dead worker-DB block removal; marker-skip reconciliation; timeout-marker fix (Task 5) |
-| `backend/tests/integration/conftest.py` | edit | `_ensure_worker_schema` (a) + slim `integration_db` (b); deletion-order cache; repositories isolation |
-| `backend/tests/chaos/conftest.py` | edit/delete per ruling | FaultInjector framework disposition |
-| `pyproject.toml` | edit (owner-gated) | `timeout_method="signal"`, `timeout_func_only=false` |
-| `/tmp/durations_plugin.py` → `backend/tests/plugins/durations_plugin.py` | promote | per-phase timing recorder becomes a repo fixture for regression checks |
+| File                                                                                                                                               | Fate                   | Responsibility                                                                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------- |
+| `backend/tests/integration/test_events.py`, `test_cameras.py`                                                                                      | delete (symlinks)      | duplicates of `*_api.py` targets (−134 executions)                                                    |
+| `backend/tests/integration/test_zone_baselines.py`, `unit/test_matchers.py`, `unit/core/test_result.py`, `unit/api/routes/test_cameras_heatmap.py` | delete                 | zero-byte phantom coverage                                                                            |
+| `backend/tests/conftest.py`                                                                                                                        | edit                   | dead worker-DB block removal; marker-skip reconciliation; timeout-marker fix (Task 5)                 |
+| `backend/tests/integration/conftest.py`                                                                                                            | edit                   | `_ensure_worker_schema` (a) + slim `integration_db` (b); deletion-order cache; repositories isolation |
+| `backend/tests/chaos/conftest.py`                                                                                                                  | edit/delete per ruling | FaultInjector framework disposition                                                                   |
+| `pyproject.toml`                                                                                                                                   | edit (owner-gated)     | `timeout_method="signal"`, `timeout_func_only=false`                                                  |
+| `/tmp/durations_plugin.py` → `backend/tests/plugins/durations_plugin.py`                                                                           | promote                | per-phase timing recorder becomes a repo fixture for regression checks                                |
 
 ---
 

@@ -6,36 +6,36 @@ Contains React components for the background jobs monitoring page, providing a s
 
 ## Files
 
-| File                           | Purpose                                            |
-| ------------------------------ | -------------------------------------------------- |
-| `JobsPage.tsx`                 | Main page with split view (list + detail panel)    |
-| `JobsPage.test.tsx`            | Test suite for JobsPage                            |
-| `JobsList.tsx`                 | Scrollable list of jobs                            |
-| `JobsListItem.tsx`             | Individual job item in the list                    |
-| `JobsSearchBar.tsx`            | Search and filter controls                         |
-| `JobsSearchBar.test.tsx`       | Test suite for JobsSearchBar                       |
-| `JobsEmptyState.tsx`           | Empty state when no jobs exist                     |
-| `JobDetailPanel.tsx`           | Right panel showing job details                    |
-| `JobHeader.tsx`                | Job title, status badge, and progress bar          |
-| `JobHeader.test.tsx`           | Test suite for JobHeader                           |
-| `JobMetadata.tsx`              | Job timestamps and type information                |
-| `JobMetadata.test.tsx`         | Test suite for JobMetadata                         |
-| `JobActions.tsx`               | Action buttons (cancel, abort, retry, delete)      |
-| `JobActions.test.tsx`          | Test suite for JobActions                          |
-| `JobLogsViewer.tsx`            | WebSocket-based real-time log viewer               |
-| `JobLogsViewer.test.tsx`       | Test suite for JobLogsViewer                       |
-| `JobHistoryTimeline.tsx`       | Collapsible job state transition timeline          |
-| `JobHistoryTimeline.test.tsx`  | Test suite for JobHistoryTimeline                  |
-| `ConnectionIndicator.tsx`      | WebSocket connection status indicator              |
-| `ConnectionIndicator.test.tsx` | Test suite for ConnectionIndicator                 |
-| `ConfirmDialog.tsx`            | Confirmation dialog for destructive actions        |
-| `ConfirmDialog.test.tsx`       | Test suite for ConfirmDialog                       |
-| `StatusDot.tsx`                | Colored dot for job status indication              |
-| `StatusDot.test.tsx`           | Test suite for StatusDot                           |
-| `TimelineEntry.tsx`            | Single entry in the job history timeline           |
-| `TimelineEntry.test.tsx`       | Test suite for TimelineEntry                       |
-| `LogLine.tsx`                  | Individual log line with level coloring            |
-| `LogLine.test.tsx`             | Test suite for LogLine                             |
+| File                           | Purpose                                         |
+| ------------------------------ | ----------------------------------------------- |
+| `JobsPage.tsx`                 | Main page with split view (list + detail panel) |
+| `JobsPage.test.tsx`            | Test suite for JobsPage                         |
+| `JobsList.tsx`                 | Scrollable list of jobs                         |
+| `JobsListItem.tsx`             | Individual job item in the list                 |
+| `JobsSearchBar.tsx`            | Search and filter controls                      |
+| `JobsSearchBar.test.tsx`       | Test suite for JobsSearchBar                    |
+| `JobsEmptyState.tsx`           | Empty state when no jobs exist                  |
+| `JobDetailPanel.tsx`           | Right panel showing job details                 |
+| `JobHeader.tsx`                | Job title, status badge, and progress bar       |
+| `JobHeader.test.tsx`           | Test suite for JobHeader                        |
+| `JobMetadata.tsx`              | Job timestamps and type information             |
+| `JobMetadata.test.tsx`         | Test suite for JobMetadata                      |
+| `JobActions.tsx`               | Action buttons (cancel, abort, retry, delete)   |
+| `JobActions.test.tsx`          | Test suite for JobActions                       |
+| `JobLogsViewer.tsx`            | WebSocket-based real-time log viewer            |
+| `JobLogsViewer.test.tsx`       | Test suite for JobLogsViewer                    |
+| `JobHistoryTimeline.tsx`       | Collapsible job state transition timeline       |
+| `JobHistoryTimeline.test.tsx`  | Test suite for JobHistoryTimeline               |
+| `ConnectionIndicator.tsx`      | WebSocket connection status indicator           |
+| `ConnectionIndicator.test.tsx` | Test suite for ConnectionIndicator              |
+| `ConfirmDialog.tsx`            | Confirmation dialog for destructive actions     |
+| `ConfirmDialog.test.tsx`       | Test suite for ConfirmDialog                    |
+| `StatusDot.tsx`                | Colored dot for job status indication           |
+| `StatusDot.test.tsx`           | Test suite for StatusDot                        |
+| `TimelineEntry.tsx`            | Single entry in the job history timeline        |
+| `TimelineEntry.test.tsx`       | Test suite for TimelineEntry                    |
+| `LogLine.tsx`                  | Individual log line with level coloring         |
+| `LogLine.test.tsx`             | Test suite for LogLine                          |
 
 ## Key Components
 
@@ -248,7 +248,10 @@ interface JobMetadataProps {
 interface JobActionsProps {
   job: JobResponse;
   compact?: boolean;
-  onSuccess?: (action: JobActionType, response: JobCancelResponse | JobAbortResponse | JobResponse) => void;
+  onSuccess?: (
+    action: JobActionType,
+    response: JobCancelResponse | JobAbortResponse | JobResponse
+  ) => void;
   onError?: (action: JobActionType, error: Error) => void;
   onDelete?: () => void;
   onRetry?: (newJob: JobResponse) => void;

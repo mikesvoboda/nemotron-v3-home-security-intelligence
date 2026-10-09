@@ -55,15 +55,15 @@ Provides advanced Zustand patterns for performance optimization (NEM-3402, NEM-3
 
 ### Advanced Immer Utilities (NEM-3788)
 
-| Function                  | Purpose                                          |
-| ------------------------- | ------------------------------------------------ |
-| `createImmerDevtoolsStore`| Store with Immer + DevTools (configurable)       |
-| `applyImmerUpdate`        | Apply Immer update to any state object           |
-| `createImmerAction`       | Create reusable action functions                 |
-| `combineImmerUpdates`     | Combine multiple updates into one transaction    |
-| `safeReadCurrent`         | Read current state from within draft             |
-| `safeReadOriginal`        | Read original state from within draft            |
-| `createComputedSelector`  | Memoized selector with caching                   |
+| Function                   | Purpose                                       |
+| -------------------------- | --------------------------------------------- |
+| `createImmerDevtoolsStore` | Store with Immer + DevTools (configurable)    |
+| `applyImmerUpdate`         | Apply Immer update to any state object        |
+| `createImmerAction`        | Create reusable action functions              |
+| `combineImmerUpdates`      | Combine multiple updates into one transaction |
+| `safeReadCurrent`          | Read current state from within draft          |
+| `safeReadOriginal`         | Read original state from within draft         |
+| `createComputedSelector`   | Memoized selector with caching                |
 
 ### createImmerStore
 
@@ -72,10 +72,11 @@ Creates a store with Immer middleware for mutable syntax that produces immutable
 ```typescript
 const useStore = createImmerStore<State>((set) => ({
   nested: { deep: { value: 0 } },
-  setDeepValue: (value) => set((state) => {
-    // Mutate directly - Immer handles immutability
-    state.nested.deep.value = value;
-  }),
+  setDeepValue: (value) =>
+    set((state) => {
+      // Mutate directly - Immer handles immutability
+      state.nested.deep.value = value;
+    }),
 }));
 ```
 
@@ -86,9 +87,10 @@ Combines Immer with subscribeWithSelector for fine-grained subscriptions.
 ```typescript
 const useStore = createImmerSelectorStore<State>((set) => ({
   metrics: { cpu: 0, gpu: 0 },
-  updateMetric: (key, value) => set((state) => {
-    state.metrics[key] = value;
-  }),
+  updateMetric: (key, value) =>
+    set((state) => {
+      state.metrics[key] = value;
+    }),
 }));
 
 // Subscribe only to CPU changes
@@ -133,7 +135,14 @@ Zustand-based dashboard configuration store with persist middleware. Manages:
 #### Key Types
 
 ```typescript
-type WidgetId = 'stats-row' | 'ai-summary-row' | 'camera-grid' | 'activity-feed' | 'gpu-stats' | 'pipeline-telemetry' | 'pipeline-queues';
+type WidgetId =
+  | 'stats-row'
+  | 'ai-summary-row'
+  | 'camera-grid'
+  | 'activity-feed'
+  | 'gpu-stats'
+  | 'pipeline-telemetry'
+  | 'pipeline-queues';
 
 type ThemeSetting = 'light' | 'dark' | 'system';
 
@@ -155,26 +164,26 @@ interface DashboardConfigState {
 
 #### Store Actions
 
-| Action | Purpose |
-|--------|---------|
-| `setWidgetVisibility(id, visible)` | Toggle widget visibility |
-| `moveWidgetUp(id)` | Move widget up in order |
-| `moveWidgetDown(id)` | Move widget down in order |
-| `setTheme(theme)` | Set theme preference |
-| `setRefreshInterval(ms)` | Set auto-refresh interval |
-| `setCompactMode(enabled)` | Toggle compact mode |
-| `reset()` | Reset to defaults |
+| Action                             | Purpose                   |
+| ---------------------------------- | ------------------------- |
+| `setWidgetVisibility(id, visible)` | Toggle widget visibility  |
+| `moveWidgetUp(id)`                 | Move widget up in order   |
+| `moveWidgetDown(id)`               | Move widget down in order |
+| `setTheme(theme)`                  | Set theme preference      |
+| `setRefreshInterval(ms)`           | Set auto-refresh interval |
+| `setCompactMode(enabled)`          | Toggle compact mode       |
+| `reset()`                          | Reset to defaults         |
 
 #### Selectors
 
-| Selector | Purpose |
-|----------|---------|
-| `selectVisibleWidgets` | Get visible widgets in order |
-| `selectIsWidgetVisible(id)` | Check if widget is visible |
-| `selectWidgetById(id)` | Get widget config by ID |
-| `selectCanMoveUp(id)` | Check if widget can move up |
-| `selectCanMoveDown(id)` | Check if widget can move down |
-| `selectEffectiveTheme` | Resolve 'system' to actual theme |
+| Selector                    | Purpose                          |
+| --------------------------- | -------------------------------- |
+| `selectVisibleWidgets`      | Get visible widgets in order     |
+| `selectIsWidgetVisible(id)` | Check if widget is visible       |
+| `selectWidgetById(id)`      | Get widget config by ID          |
+| `selectCanMoveUp(id)`       | Check if widget can move up      |
+| `selectCanMoveDown(id)`     | Check if widget can move down    |
+| `selectEffectiveTheme`      | Resolve 'system' to actual theme |
 
 #### Default Visible Widgets
 
@@ -197,9 +206,7 @@ Use Immer for complex nested updates and subscribeWithSelector for performance:
 
 ```typescript
 // Subscribe to specific count - won't re-render on other changes
-const criticalCount = usePrometheusAlertStore(
-  (state) => state.criticalCount
-);
+const criticalCount = usePrometheusAlertStore((state) => state.criticalCount);
 
 // Subscribe to changes programmatically
 usePrometheusAlertStore.subscribe(
@@ -216,9 +223,7 @@ For high-frequency data, use transient slices with batched updates:
 
 ```typescript
 // Subscribe only to GPU utilization
-const gpuUtil = useRealtimeMetricsStore(
-  (state) => state.gpu.data.utilization
-);
+const gpuUtil = useRealtimeMetricsStore((state) => state.gpu.data.utilization);
 
 // Batched WebSocket handler
 websocket.on('gpu_stats', handleGPUStatsEvent);
@@ -361,10 +366,7 @@ type Keys = SelectorKeys<typeof useEventStore>;
 import { shallow } from 'zustand/shallow';
 
 // Good: Uses shallow comparison for object
-const { cpu, gpu } = useStore(
-  (state) => ({ cpu: state.cpu, gpu: state.gpu }),
-  shallow
-);
+const { cpu, gpu } = useStore((state) => ({ cpu: state.cpu, gpu: state.gpu }), shallow);
 
 // Bad: Creates new object each render, always triggers re-render
 const metrics = useStore((state) => ({ cpu: state.cpu, gpu: state.gpu }));
@@ -407,6 +409,7 @@ Configuration is stored in localStorage under the key `'dashboard-config-v2'`.
 ## Version Migration
 
 The store uses Zustand's persist middleware with automatic migration support:
+
 - Version 1 (`dashboard-config`): Legacy manual localStorage
 - Version 2 (`dashboard-config-v2`): Zustand persist with theme, refresh, compact mode
 

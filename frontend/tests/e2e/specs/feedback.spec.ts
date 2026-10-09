@@ -51,7 +51,9 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
       return;
     }
 
-    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
+    const falsePositiveButton = feedbackPanel.locator(
+      '[data-testid="feedback-false_positive-button"]'
+    );
 
     // If button doesn't exist, skip the test - feature not implemented yet
     const fpButtonExists = (await falsePositiveButton.count()) > 0;
@@ -77,7 +79,9 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
       return;
     }
 
-    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
+    const falsePositiveButton = feedbackPanel.locator(
+      '[data-testid="feedback-false_positive-button"]'
+    );
 
     const buttonExists = (await falsePositiveButton.count()) > 0;
     if (!buttonExists) {
@@ -112,7 +116,9 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
       return;
     }
 
-    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
+    const falsePositiveButton = feedbackPanel.locator(
+      '[data-testid="feedback-false_positive-button"]'
+    );
 
     const buttonExists = (await falsePositiveButton.count()) > 0;
     if (!buttonExists) {
@@ -181,7 +187,9 @@ test.describe('Event Feedback - False Positive Submission @critical', () => {
       return;
     }
 
-    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
+    const falsePositiveButton = feedbackPanel.locator(
+      '[data-testid="feedback-false_positive-button"]'
+    );
 
     const buttonExists = (await falsePositiveButton.count()) > 0;
     if (!buttonExists) {
@@ -241,7 +249,9 @@ test.describe('Event Feedback - Missed Detection Submission @critical', () => {
     }
 
     // Look for "Missed Threat" button (actual implementation uses data-testid="feedback-missed_threat-button")
-    const missedThreatButton = feedbackPanel.locator('[data-testid="feedback-missed_threat-button"]');
+    const missedThreatButton = feedbackPanel.locator(
+      '[data-testid="feedback-missed_threat-button"]'
+    );
 
     const mtButtonExists = (await missedThreatButton.count()) > 0;
     if (!mtButtonExists) {
@@ -266,7 +276,9 @@ test.describe('Event Feedback - Missed Detection Submission @critical', () => {
       return;
     }
 
-    const missedThreatButton = feedbackPanel.locator('[data-testid="feedback-missed_threat-button"]');
+    const missedThreatButton = feedbackPanel.locator(
+      '[data-testid="feedback-missed_threat-button"]'
+    );
 
     const buttonExists = (await missedThreatButton.count()) > 0;
     if (!buttonExists) {
@@ -298,7 +310,9 @@ test.describe('Event Feedback - Missed Detection Submission @critical', () => {
       return;
     }
 
-    const missedThreatButton = feedbackPanel.locator('[data-testid="feedback-missed_threat-button"]');
+    const missedThreatButton = feedbackPanel.locator(
+      '[data-testid="feedback-missed_threat-button"]'
+    );
 
     const buttonExists = (await missedThreatButton.count()) > 0;
     if (!buttonExists) {
@@ -402,7 +416,9 @@ test.describe('Event Feedback - Verification and Stats', () => {
       return;
     }
 
-    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
+    const falsePositiveButton = feedbackPanel.locator(
+      '[data-testid="feedback-false_positive-button"]'
+    );
 
     const buttonExists = (await falsePositiveButton.count()) > 0;
     if (!buttonExists) {
@@ -461,7 +477,9 @@ test.describe('Event Feedback - Error Handling', () => {
       return;
     }
 
-    const falsePositiveButton = feedbackPanel.locator('[data-testid="feedback-false_positive-button"]');
+    const falsePositiveButton = feedbackPanel.locator(
+      '[data-testid="feedback-false_positive-button"]'
+    );
 
     const buttonExists = (await falsePositiveButton.count()) > 0;
     if (!buttonExists) {

@@ -6,10 +6,10 @@ Contains components for PTZ (Pan-Tilt-Zoom) camera control. Provides a D-pad sty
 
 ## Files
 
-| File               | Purpose                                       |
-| ------------------ | --------------------------------------------- |
-| `PTZControls.tsx`  | D-pad style PTZ control interface             |
-| `index.ts`         | Barrel export                                 |
+| File              | Purpose                           |
+| ----------------- | --------------------------------- |
+| `PTZControls.tsx` | D-pad style PTZ control interface |
+| `index.ts`        | Barrel export                     |
 
 ## Key Components
 
@@ -70,12 +70,12 @@ import { PTZControls } from '../ptz';
 
 ## Related Files
 
-| Location                            | Purpose                          |
-| ----------------------------------- | -------------------------------- |
-| `frontend/src/hooks/usePtzControl.ts`   | Hook for PTZ command execution (`usePtzControl(cameraId)`) |
-| `frontend/src/hooks/usePresets.ts`      | Hook for preset management (`usePresets(cameraId, enabled)`) |
-| `frontend/src/services/ptzApi.ts`       | `executePtzCommand`, `getPtzPresets`, `gotoPtzPreset` |
-| `frontend/src/types/ptz.ts`             | PTZ types + `PTZ_DIRECTION_MAP` (direction -> command payload) |
+| Location                              | Purpose                                                        |
+| ------------------------------------- | -------------------------------------------------------------- |
+| `frontend/src/hooks/usePtzControl.ts` | Hook for PTZ command execution (`usePtzControl(cameraId)`)     |
+| `frontend/src/hooks/usePresets.ts`    | Hook for preset management (`usePresets(cameraId, enabled)`)   |
+| `frontend/src/services/ptzApi.ts`     | `executePtzCommand`, `getPtzPresets`, `gotoPtzPreset`          |
+| `frontend/src/types/ptz.ts`           | PTZ types + `PTZ_DIRECTION_MAP` (direction -> command payload) |
 
 ## Integration Points
 

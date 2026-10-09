@@ -132,9 +132,9 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
     await expect(firstEventCard).toBeVisible();
 
     // Look for HIGH risk indicator
-    const highRiskBadge = firstEventCard.locator(
-      '[data-testid="risk-badge"], .risk-badge'
-    ).or(firstEventCard.getByText('High'));
+    const highRiskBadge = firstEventCard
+      .locator('[data-testid="risk-badge"], .risk-badge')
+      .or(firstEventCard.getByText('High'));
     const hasBadge = (await highRiskBadge.count()) > 0;
 
     if (hasBadge) {
@@ -156,7 +156,9 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
 
     const feedbackButtonExists = (await falsePositiveButton.count()) > 0;
     if (!feedbackButtonExists) {
-      console.log('False Positive button not found - feature may not be implemented yet (NEM-2319)');
+      console.log(
+        'False Positive button not found - feature may not be implemented yet (NEM-2319)'
+      );
       return;
     }
 
@@ -221,9 +223,7 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
 
     const calibrationSectionExists = (await calibrationSection.count()) > 0;
     if (calibrationSectionExists) {
-      const highThresholdValue = page.locator(
-        '[data-testid="high-threshold-value"], text=/80|85/'
-      );
+      const highThresholdValue = page.locator('[data-testid="high-threshold-value"], text=/80|85/');
 
       await page.waitForTimeout(500);
       const thresholdVisible = await highThresholdValue.isVisible().catch(() => false);
@@ -248,9 +248,9 @@ test.describe('Full Feedback-Calibration Loop @critical', () => {
     await page.waitForTimeout(1000);
 
     const reclassifiedEvent = page.locator('[data-testid^="event-card-"]').first();
-    const mediumRiskBadge = reclassifiedEvent.locator(
-      '[data-testid="risk-badge"], .risk-badge'
-    ).or(reclassifiedEvent.getByText('Medium'));
+    const mediumRiskBadge = reclassifiedEvent
+      .locator('[data-testid="risk-badge"], .risk-badge')
+      .or(reclassifiedEvent.getByText('Medium'));
 
     const hasMediumBadge = (await mediumRiskBadge.count()) > 0;
     if (hasMediumBadge) {
@@ -455,7 +455,9 @@ test.describe('Feedback-Calibration Loop - Edge Cases', () => {
 
     // Verify threshold was raised
     expect(currentCalibration.high_threshold).toBeGreaterThan(initialHighThreshold);
-    console.log(`False positive raised threshold from ${initialHighThreshold} to ${currentCalibration.high_threshold}`);
+    console.log(
+      `False positive raised threshold from ${initialHighThreshold} to ${currentCalibration.high_threshold}`
+    );
   });
 });
 

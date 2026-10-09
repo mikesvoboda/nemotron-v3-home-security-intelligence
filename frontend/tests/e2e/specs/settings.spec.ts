@@ -92,7 +92,9 @@ test.describe('Settings Tab Navigation', () => {
     // Verify there are multiple tab buttons available
     // Settings page has 8 tabs: CAMERAS, RULES, PROCESSING, NOTIFICATIONS, AMBIENT, CALIBRATION, PROMPTS, STORAGE
     // (AI Models moved to System Monitoring page)
-    const tabButtons = page.locator('button').filter({ hasText: /CAMERAS|RULES|PROCESSING|NOTIFICATIONS|AMBIENT|CALIBRATION|PROMPTS|STORAGE/i });
+    const tabButtons = page.locator('button').filter({
+      hasText: /CAMERAS|RULES|PROCESSING|NOTIFICATIONS|AMBIENT|CALIBRATION|PROMPTS|STORAGE/i,
+    });
     const count = await tabButtons.count();
     expect(count).toBe(8);
   });

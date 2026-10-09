@@ -222,7 +222,17 @@ repos:
         # silently corrupting module identifiers. Do not format it.
         exclude: (^frontend/|tsconfig.*\.json$|^docs/openapi\.json$|^docs/index\.md$|^\.wp25-feed/|^archive/)
         additional_dependencies:
-          - prettier@3.2.4
+          # Owner ruling 24 (2026-10-09): ONE prettier for the whole repo — this
+          # hook now runs the frontend lockfile's 3.9.9 (frontend/package.json
+          # pins ^3.9.9; the `prettier-frontend` hook below resolves it from
+          # node_modules). Before this, the two hooks formatted the same .md
+          # files with 3.2.4 vs 3.9.9 and the version changed the answer — the
+          # split-brain that reddened #6869 for main's formatting and blocked
+          # #6861/#6907 (assignment #6913, measurements in its body). The
+          # mirrors-prettier `rev:` stays v3.1.0 on purpose: the mirror is
+          # `language: node`, so its rev only scaffolds the hook and
+          # additional_dependencies (npm, not PyPI) is the real version pin.
+          - prettier@3.9.9
 
   # OpenAPI spec generation - auto-regenerates docs/openapi.json on backend changes
   # Runs before commit so the generated spec is included in the commit

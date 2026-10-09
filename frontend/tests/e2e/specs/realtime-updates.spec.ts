@@ -165,9 +165,15 @@ test.describe('Real-time Dashboard Updates - Timeline', () => {
     await waitForWSProcessing(page, browserName);
 
     // Verify all three events appear in the timeline
-    await expect(page.getByText(/Sequence test 1: Package delivery detected/i)).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText(/Sequence test 2: Unknown vehicle in driveway/i)).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText(/Sequence test 3: Multiple persons at door/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/Sequence test 1: Package delivery detected/i)).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.getByText(/Sequence test 2: Unknown vehicle in driveway/i)).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.getByText(/Sequence test 3: Multiple persons at door/i)).toBeVisible({
+      timeout: 5000,
+    });
   });
 });
 
@@ -175,7 +181,10 @@ test.describe('Real-time Dashboard Updates - Stats Counters', () => {
   // Skip this test - timing-sensitive and affected by WebSocket throttle race conditions
   // The test relies on throttled WebSocket events (500ms delay) which makes timing unpredictable
   // The timeline tests verify WebSocket functionality works correctly without throttling issues
-  test.skip('Events Today counter increments on new event @flaky', async ({ page, browserName }) => {
+  test.skip('Events Today counter increments on new event @flaky', async ({
+    page,
+    browserName,
+  }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const dashboardPage = new DashboardPage(page);
@@ -656,7 +665,10 @@ test.describe('Real-time Dashboard Updates - Error Scenarios', () => {
     expect(errorVisible).toBe(false);
   });
 
-  test('dashboard continues working after WebSocket reconnection', async ({ page, browserName }) => {
+  test('dashboard continues working after WebSocket reconnection', async ({
+    page,
+    browserName,
+  }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const dashboardPage = new DashboardPage(page);

@@ -6,39 +6,39 @@ This directory contains factory functions for creating mock test data. Factories
 
 ## Key Files
 
-| File            | Purpose                                      | Lines |
-| --------------- | -------------------------------------------- | ----- |
-| `index.ts`      | All factory functions and utilities          | ~305  |
-| `index.test.ts` | Tests for factory functions                  | ~367  |
+| File            | Purpose                             | Lines |
+| --------------- | ----------------------------------- | ----- |
+| `index.ts`      | All factory functions and utilities | ~305  |
+| `index.test.ts` | Tests for factory functions         | ~367  |
 
 ## Key Exports
 
 ### Counter Utilities
 
-| Export          | Signature                  | Description                           |
-| --------------- | -------------------------- | ------------------------------------- |
-| `uniqueId`      | `(prefix?) => string`      | Generate unique ID (e.g., `camera-1`) |
-| `resetCounter`  | `() => void`               | Reset counter to 0 (for test setup)   |
+| Export         | Signature             | Description                           |
+| -------------- | --------------------- | ------------------------------------- |
+| `uniqueId`     | `(prefix?) => string` | Generate unique ID (e.g., `camera-1`) |
+| `resetCounter` | `() => void`          | Reset counter to 0 (for test setup)   |
 
 ### Entity Factories
 
-| Export                  | Entity Type       | Default Values                         |
-| ----------------------- | ----------------- | -------------------------------------- |
-| `cameraFactory`         | `Camera`          | name: "Test Camera", status: "online"  |
-| `eventFactory`          | `Event`           | risk_score: 50, risk_level: "medium"   |
-| `detectionFactory`      | `Detection`       | object_type: "person", confidence: 0.85|
-| `gpuStatsFactory`       | `GPUStats`        | utilization: 45.5%, temp: 65C          |
-| `healthResponseFactory` | `HealthResponse`  | status: "healthy", all services healthy|
-| `systemStatsFactory`    | `SystemStats`     | 4 cameras, 150 events, 450 detections  |
+| Export                  | Entity Type      | Default Values                          |
+| ----------------------- | ---------------- | --------------------------------------- |
+| `cameraFactory`         | `Camera`         | name: "Test Camera", status: "online"   |
+| `eventFactory`          | `Event`          | risk_score: 50, risk_level: "medium"    |
+| `detectionFactory`      | `Detection`      | object_type: "person", confidence: 0.85 |
+| `gpuStatsFactory`       | `GPUStats`       | utilization: 45.5%, temp: 65C           |
+| `healthResponseFactory` | `HealthResponse` | status: "healthy", all services healthy |
+| `systemStatsFactory`    | `SystemStats`    | 4 cameras, 150 events, 450 detections   |
 
 ### List Factories
 
-| Export                  | Signature                                    |
-| ----------------------- | -------------------------------------------- |
-| `cameraFactoryList`     | `(count, overrideFn?) => Camera[]`           |
-| `eventFactoryList`      | `(count, overrideFn?) => Event[]`            |
-| `detectionFactoryList`  | `(count, overrideFn?) => Detection[]`        |
-| `gpuStatsFactoryList`   | `(count, overrideFn?) => GPUStats[]`         |
+| Export                 | Signature                             |
+| ---------------------- | ------------------------------------- |
+| `cameraFactoryList`    | `(count, overrideFn?) => Camera[]`    |
+| `eventFactoryList`     | `(count, overrideFn?) => Event[]`     |
+| `detectionFactoryList` | `(count, overrideFn?) => Detection[]` |
+| `gpuStatsFactoryList`  | `(count, overrideFn?) => GPUStats[]`  |
 
 ## Usage Patterns
 
