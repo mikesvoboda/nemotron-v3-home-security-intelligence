@@ -64,7 +64,14 @@ repos:
         exclude: tsconfig.*\.json$
       - id: check-added-large-files
         args: ['--maxkb=1000']
-        exclude: ^docs/images/.*\.png$
+        # docs/images PNGs: reviewed visual assets. .test_durations: pytest-
+        # split's shard-planning file (~4 MB JSON, 32,931 keys) — machine-
+        # regenerated wholesale by scripts/mint-test-durations.py, never
+        # hand-edited, ~418 KB zlib-compressed, and its SIZE IS ITS CONTENT
+        # (one key per test; shrinking it means dropping planning data). The
+        # consumer contract is gated by scripts/test_shard_durations.py, not
+        # by byte count. Scope is this one exact path, not a class.
+        exclude: (^docs/images/.*\.png$|^\.test_durations$)
       - id: check-merge-conflict
       - id: detect-private-key
         # Exclude test files that contain mock/fake private keys for testing.
