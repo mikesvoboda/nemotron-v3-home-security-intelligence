@@ -58,8 +58,9 @@ def _serve(mode: str) -> None:  # pragma: no cover - child process body
         os.environ[name] = value
     os.environ.setdefault("LOG_LEVEL", "CRITICAL")
 
-    import uvicorn
     from unittest.mock import AsyncMock
+
+    import uvicorn
 
     from backend.core.redis import get_redis
     from backend.main import app

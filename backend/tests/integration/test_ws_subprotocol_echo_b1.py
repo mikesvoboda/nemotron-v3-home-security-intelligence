@@ -39,6 +39,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Iterator
+from typing import ClassVar
 
 import pytest
 
@@ -203,7 +204,7 @@ def _raw_handshake(
         lines.append(f"Sec-WebSocket-Protocol: {', '.join(protocols)}")
     if cookie:
         lines.append(f"Cookie: {cookie}")
-    request = "\r\n".join(lines + ["", ""]).encode()
+    request = "\r\n".join([*lines, "", ""]).encode()
 
     sock = socket.create_connection(("127.0.0.1", port), timeout=5)
     try:
@@ -243,7 +244,7 @@ def _close_frame_code(rest: bytes) -> int | None:
 class _Server:
     """One live uvicorn per scenario mode, spawned once per mode."""
 
-    _by_mode: dict[str, "_Server"] = {}
+    _by_mode: ClassVar[dict[str, _Server]] = {}
 
     def __init__(self, mode: str) -> None:
         env = dict(os.environ)
@@ -257,7 +258,7 @@ class _Server:
                 "DATABASE_URL": "postgresql+asyncpg://pin:pin@127.0.0.1:1/pin",
             }
         )
-        self.proc = subprocess.Popen(
+        self.proc = subprocess.Popen(  # noqa: S603  # fixed argv, our own script, no shell
             [sys.executable, str(SERVER_SCRIPT), mode],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -292,7 +293,7 @@ class _Server:
         raise AssertionError(f"child (mode={self.mode}) not accepting after 25s")
 
     @classmethod
-    def get(cls, mode: str) -> "_Server":
+    def get(cls, mode: str) -> _Server:
         if mode not in cls._by_mode:
             cls._by_mode[mode] = cls(mode)
         return cls._by_mode[mode]
@@ -395,7 +396,7 @@ def test_gate_refusal_of_key_offer_echoes_and_closes_4001(
             try:
                 frame = sock.recv(64)
                 code = _close_frame_code(frame) if frame else None
-            except (TimeoutError, socket.timeout):
+            except TimeoutError:  # socket.timeout IS TimeoutError on 3.10+
                 code = None
         assert code == 4001, f"expected the auth close 4001 after the echoing 101, got {code}"
     finally:
