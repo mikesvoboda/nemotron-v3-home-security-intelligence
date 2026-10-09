@@ -8,18 +8,25 @@
 > `OD-32` today, so continue from `OD-36` if new decisions surface.
 >
 > Every row is written so it can be ruled from the row alone, without opening code. Facts were first
-> measured at `1d847a6a` (2026-10-09) and are **re-measured at `10ab08e8` and `2a3a46d0`** (same day, the
-> second pass a second re-measurement plus a fresh-context review of the sheet) by the commands named in
-> each row. Fourteen draft claims did not survive that re-measurement or a fresh-context review of the
-> sheet. Every one is corrected in place
+> measured at `1d847a6a` (2026-10-09) and **re-measured at every revision of this branch since** (the
+> first being `10ab08e8`) by the commands named in each row.
+> Every one of those revisions differs from the last only in this file, so a number printed here is
+> checkable at any of them — including the ERR count's two legs, which are the one pair measured in two
+> different trees (the `1d847a6a` leg, 216 ERR / 169 OK, re-run in a detached worktree at that commit;
+> this branch's leg, 222 / 163, at head — not remembered). Sixteen claims did not survive that
+> re-measurement or a fresh-context review of the sheet, and the bullets say where each came from:
+> twelve were wrong in the draft as first committed, two were true at the measured commit and went
+> stale when `origin/main` merged (first bullet), and two were introduced _by the corrections_ (last
+> bullet). Every one is corrected in place
 > and the row names the draft's wording at the correction, so an owner reading one row sees what changed
 > rather than a silently tidied fact — the corrections sit inside the Facts prose, not at the row end:
 >
 > - **moved with the merge** (2): `docs/plans`' level-1 ERR 216 → **222** (OD-33) — which arrived as
 >   evidence, not just a number, because the tree itself had zero changed paths; the register 8,485 →
 >   **8,518** lines (OD-34).
-> - **wrong at every commit** (9): OD-33's "~91 citing files" (an arithmetic slip — and its first
->   replacement was wrong too, last bullet) and its "0 nav entries" (true of the nav, false of
+> - **wrong at every commit** (10): OD-33's "~91 citing files" (an arithmetic slip) and its per-tree
+>   columns (45/35/31, which match no instrument — the first replacement kept them verbatim and was
+>   wrong too, last bullet); its "0 nav entries" (true of the nav, false of
 >   publication); OD-34's "7 bolded
 >   rulings" and "5 more only in the intake log" (both miscounts of the same 12 decisions — and the
 >   miscount mechanism is now the row's argument for the column it asks for); OD-35's quoted provenance
@@ -32,16 +39,19 @@
 > - **a command that ran but measured nothing** (1): OD-35's transcribed `git ls-files` passed both stems
 >   inside one quoted argument, which matches no path and returns **0** — the printed 26 came from a
 >   different invocation than the one the row showed a reviewer. Fixed to two pathspecs.
-> - **a first correction that was itself wrong** (1): the first re-measurement replaced OD-33's "~91
->   citing files" with "97 distinct across 135 mentions" — re-running its own printed command at the
->   second commit shows its per-tree columns (45/35/31) reproduce under no instrument at either commit
->   (the nearest prints 44/36/31: ±1 twice, in opposite directions, inside a sum that was right), and its
->   97 silently mixed two scopes — AGENTS citers counted repo-wide, docs citers counted only inside the
->   grep's search directories. One whole-repo rule now, transcribed as one command per column: 11/12/1 +
->   44/36/32 = 136 mentions across **104** distinct citers. The re-aim cost the recommendation quotes
->   moves 97 → 104.
+> - **first corrections that were themselves wrong** (2): (a) OD-33's — the first re-measurement
+>   replaced "~91 citing files" with "97 distinct across 135 mentions", and re-running its own printed
+>   commands shows its columns (45/35/31) reproduce under no instrument (the nearest prints 44/36/31,
+>   ±1 twice in opposite directions inside the 111 the sum carried), and its 97 silently mixed two
+>   scopes — AGENTS citers counted repo-wide, docs citers counted only inside the grep's search
+>   directories. One whole-repo rule now, transcribed as one command per column: 11/12/1 + 44/36/32 =
+>   **136** mentions across **104** distinct citers; the re-aim cost the recommendation quotes moves
+>   97 → 104. (b) OD-35's — the same pass printed "median 315" for the family's sizes, which is no
+>   median under any convention: the probe averaged the two middle files (313, 318 → 315.5) and `int()`
+>   truncated it. OD-35's row now prints the straddle. The shared lesson: a printed statistic inherits
+>   its instrument's arithmetic, including its rounding.
 >
-> Everything else measured identically at all three commits.
+> Everything else measured identically at the first commit and at every revision of this branch since.
 
 ## 2b. Docs-lane rulings (`W2.2`)
 
@@ -73,14 +83,24 @@ line 51 is an instruction that a move would have to re-aim, so it counts). Resul
 measured commit and this one: **11 / 12 / 1** `AGENTS.md` and **44 / 36 / 32** other docs. Per-tree
 counts overstate: **136** mentions across **104 distinct files** — the double-count is 32 entries from
 **29 multi-tree citers** (28 docs + 1 `AGENTS.md` name two or three trees; 26 name two, 3 name all
-three). The draft printed **45 / 35 / 31** — which reproduces under no instrument at either commit. The
-nearest one prints 44 / 36 / 31, so the draft's columns sit ±1 in two places _in opposite directions_:
-the slip hid inside a sum that was right (both ways they total 111, both ways 135 mentions). The draft's
-other two claims were sound, just scoped differently from each other, and the row now says so plainly: its
-**97** = 23 `AGENTS.md` citers counted repo-wide + 74 docs citers counted only inside `docs scripts
-.github README.md`, and its "five files sit in both columns" mechanism was real for that grep —
-`--include='*.md'` matches `AGENTS.md` basenames — an artifact of the instrument, not the repo; the
-rule above splits columns by basename, so the overlap is 0 by construction. Counting every tracked `.md`
+three). What is being corrected, precisely, and by whom: the draft printed the columns **45 / 35 / 31**
+and "~91 citing files", and the first re-measurement of this sheet replaced the 91 with "**135** mentions
+across **97** distinct" plus a five-files-in-both-columns mechanism — while keeping the draft's columns
+verbatim. Re-running that first correction's own commands at this commit shows they never reproduced
+either. Its census printed 44 / 36 / 31 — the same whole-repo rule as above, except it excluded this
+sheet by _basename_, and that basename exclusion silently dropped
+`docs/uplevel/templates/r2-sheet.md` with it. The template is a real citer: line 51 instructs the
+record PR to write rulings into `docs/vss-integration/17-action-plan.md`, so a move must re-aim it and
+it belongs in the column. The draft's 45 / 35 / 31 and the first correction's 44 / 36 / 31 agree in sum
+(111) and disagree file by file (±1 twice, in opposite directions) — a reader checking the total would
+never see the split; excluding by full path instead of basename gives the honest docs column, 44 / 36 /
+**32**. And that correction's 97 silently mixed scopes — 23 `AGENTS.md` citers counted repo-wide + 74
+docs citers counted only inside `docs scripts .github README.md` (23 + 74 = 97 exactly; 24 citers live
+outside those search dirs). Its "five files sit in both columns" mechanism was real _for the draft's
+grep_ — `--include='*.md'` matches `AGENTS.md` basenames, so
+`docs/architecture`, `docs/benchmarks`, `docs/decisions`, `docs/synthbench` and `docs/vss-integration`
+`/AGENTS.md` each land in both columns — an artifact of the instrument, not the repo; the rule above
+splits columns by basename, so the overlap is 0 by construction. Counting every tracked `.md`
 whole-repo, the citers outside the draft's docs-scope are **24** — 18 `AGENTS.md` files (root, `ai/`,
 `backend/`, `frontend/`, `synthbench/`) the draft's repo-wide AGENTS grep already caught, + the 6 doc
 files under the 4 paths it listed). And **no CI gate would catch a mis-move**: the
@@ -191,9 +211,12 @@ field role varies — 4 files call the model the _reviewer_, not the validator).
 row said each file _begins_
 "Generated: 2026-01-24 / Validator: Claude Opus 4.5"; that adjacent pair exists in exactly **2 of 26**
 (both named `data-model`, at lines 3–4) — a generalisation from the two files the draft opened, not a
-family property. Sizes vary far more than the draft's "~200–250 lines each": **median 315, range
-156–546** (`image-revalidation-observability.md` 156 → `image-validation-security.md` 546), and only
-**7 of 26** fall in that band. Coverage is roughly one per architecture area, not exactly one: 10 files
+family property. Sizes vary far more than the draft's "~200–250 lines each": **median 315.5 (the 13th
+and 14th files run 313 and 318), range 156–546** (`image-revalidation-observability.md` 156 →
+`image-validation-security.md` 546), and only **7 of 26** fall in that band. (The first re-measurement
+printed "median 315" here, which is no median at all — the probe took the mean of the two middle files,
+315.5, and `int()` truncated it. Same lesson as the census: a printed statistic inherits its
+instrument's arithmetic, and `int()` is an arithmetic.) Coverage is roughly one per architecture area, not exactly one: 10 files
 in each family name a distinct `docs/architecture/<area>/` and the two families name **the same 10
 areas** (identical sets, all still on disk); the other 6 (`data-model` and `detection-pipeline` in both,
 plus `dataflows` and `security` on the validation side) carry `**Hub:**` instead. So 26 files cover ~10
