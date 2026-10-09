@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 Settings are loaded once and cached using the `@cache` decorator. The cache is cold again after the
 settings API writes `data/runtime.env` (`backend/api/routes/settings_api.py:279`).
 
-**Source:** `backend/core/config.py:3346-3352`
+**Source:** `backend/core/config.py:3364-3370`
 
 ```python
 @cache
@@ -152,13 +152,13 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 | `BATCH_CHECK_INTERVAL_SECONDS` | 5.0     | Timeout check frequency      |
 | `BATCH_MAX_DETECTIONS`         | 500     | Max detections before split  |
 
-**Source:** `backend/core/config.py:925-971`
+**Source:** `backend/core/config.py:925-984`
 
 ### Fast Path Configuration
 
 | Variable                         | Default in `Settings` | Default in compose / `.env.example`                      |
 | -------------------------------- | --------------------- | -------------------------------------------------------- |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0 (above any score) | 0.90 (`docker-compose.prod.yml:630`, `.env.example:654`) |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0 (above any score) | 0.90 (`docker-compose.prod.yml:630`, `.env.example:511`) |
 | `FAST_PATH_OBJECT_TYPES`         | `[]` (empty)          | commented out, so empty                                  |
 
 `BatchAggregator._should_use_fast_path` requires the detected type to appear in
@@ -167,7 +167,7 @@ empty, so no detection takes the fast path — every detection reaches the analy
 batch gate regardless of the threshold. The threshold's own field default (2.0) is above any
 possible confidence, which is the second guard.
 
-**Source:** `backend/core/config.py:1892-1910`
+**Source:** `backend/core/config.py:1909-1925`
 
 ### Application Settings
 
@@ -232,7 +232,7 @@ With the shipped values the per-request budget resolves to `262144 // 8 = 32768`
 `CTX_SIZE` is read through a `validation_alias` and divided by the slot count before it becomes what
 the token counter uses (`backend/core/config.py:1268-1287`), so the number in `.env` is not the number applied.
 
-**Source:** `backend/core/config.py:1213-1300`, `.env.example:411-415`
+**Source:** `backend/core/config.py:1230-1454`, `.env.example:324,326,358,359`
 
 ### Feature Toggles
 
@@ -248,8 +248,8 @@ nothing reads them:
 | `REID_ENABLED`              | true    | nothing — reported and mapped only             |
 | `IMAGE_QUALITY_ENABLED`     | true    | nothing — no BRISQUE model ships in this stack |
 
-**Sources:** the fields at `backend/core/config.py:1674`, `backend/core/config.py:1699`, and
-`backend/core/config.py:1704`; the response assembles them at
+**Sources:** the fields at `backend/core/config.py:1691`, `backend/core/config.py:1721`, and
+`backend/core/config.py:1716`; the response assembles them at
 `backend/api/routes/settings_api.py:126-133`; the shipped-stack note on BRISQUE is at
 `backend/api/routes/system.py:4845`.
 
@@ -299,7 +299,7 @@ AI service URLs are validated using `AnyHttpUrl`.
 
 Both AI service URL fields — `yolo26_url` and `ai_vlm_url` — go through one validator.
 
-**Source:** `backend/core/config.py:1454-1487`
+**Source:** `backend/core/config.py:1471-1504`
 
 ```python
 @field_validator("yolo26_url", "ai_vlm_url", mode="before")
@@ -324,7 +324,7 @@ def validate_ai_service_urls(cls, v: Any) -> str:
 
 Grafana URLs include SSRF protection.
 
-**Source:** `backend/core/config.py:1590-1619`
+**Source:** `backend/core/config.py:1605-1636`
 
 ```python
 @field_validator("grafana_url", mode="before")
