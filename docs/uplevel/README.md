@@ -279,7 +279,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | W1.1    | docs                    | 1          | The validator with teeth                       |               | done        | #6870 |
 | W1.2    | docs                    | 1          | Root truth                                     |               | done        | #6884 |
 | W1.3    | docs                    | 1          | Remove dead references now                     |               | done        | #6915 |
-| W2.1    | docs                    | 2          | The boundary list and the line caps            |               | not started |     |
+| W2.1    | docs                    | 2          | The boundary list and the line caps            |               | done        | #6920 |
 | W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | not started |     |
 | W3.1    | docs                    | 3          | Boundaries only                                |               | not started |     |
 | W3.2    | docs                    | 3          | Rewrite the boundary files to the standard     |               | not started |     |
@@ -295,7 +295,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | [`10-backend.md`](10-backend.md)                             | backend lane plan and kickoff prompt                                              |
 | [`20-frontend.md`](20-frontend.md)                           | frontend lane plan and kickoff prompt                                             |
 | [`30-ops.md`](30-ops.md)                                     | ops lane plan and kickoff prompt                                                  |
-| [`40-docs.md`](40-docs.md)                                   | docs lane plan, the AGENTS.md standard, kickoff prompt                            |
+| [`40-docs.md`](40-docs.md)                                   | docs lane plan, kickoff prompt (the AGENTS.md standard moved to docs/developer/)  |
 | [`50-coordination.md`](50-coordination.md)                   | roles, claiming, review and merge, hot files, the daily batch, coordinator prompt |
 | [`operator.md`](operator.md)                                 | the operator's runbook for the real tier                                          |
 | [`templates/r2-sheet.md`](templates/r2-sheet.md)             | the `R2` ruling sheet, filled by `F2.2` and `F2.3`                                |
