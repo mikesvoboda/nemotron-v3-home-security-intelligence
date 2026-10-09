@@ -475,16 +475,129 @@ def test_sibling_readme_is_not_scanned(tmp_path):
     assert r.returncode == 0, r.stderr
 
 
-def test_missing_agents_md_stays_reporting_only(tmp_path):
-    """Scope pin: missing_agents_md is NOT one of the package's three failure
-    conditions — wiring it is W3.1's Phase-3 job. The issue must still be
-    REPORTED (linear_sync keeps filing its tickets) while the gate stays
-    green."""
+# W3.1 boundary mode (UR-21) — the wiring this file's W1.1 scope pin deferred:
+# "required at each boundary, forbidden elsewhere". W1.1's replaced pin read
+# "missing_agents_md stays reporting-only"; the pair-sides below are its
+# successor. The arms are CONTENT (exit 1), not infra: a docs PR that deletes
+# a boundary file or adds a satellite caused the violation itself.
+#
+# issues[] stays byte-frozen for linear_sync (test_report_shape_is_frozen),
+# so the two sides enter the report differently BY DESIGN: the missing side
+# REUSES the missing_agents_md type (linear_sync's tickets now mean "a hole in
+# the boundary map", not a satellite flood), while the forbidden side is a
+# violation string with no issue type at all — the same rail unbalanced_fences
+# rides. A new issue type here would make linear_sync claim issues it cannot
+# name; the type-freeze pair-side below pins that.
+
+
+def test_boundary_mode_satellite_code_dir_is_green(tmp_path):
+    """The UR-21 floor: a non-boundary directory with code files requires NO
+    AGENTS.md and reports nothing — the rule is about FILES at boundaries, not
+    dirs needing one. W1.1's code-file census is retired; a mutant that keeps
+    flagging satellite dirs fails here (issue side) and below (exit side)."""
     root = build(tmp_path, files={"src/a.py": "", "src/b.py": "", "src/c.py": ""})
     r = run_validator(root)
     assert r.returncode == 0, r.stderr
     types = [i["type"] for i in report_of(root)["issues"]]
-    assert "missing_agents_md" in types
+    assert "missing_agents_md" not in types
+
+
+def test_boundary_mode_missing_boundary_file_fails(tmp_path):
+    """Required side, violating half: a listed boundary without its AGENTS.md
+    is a hole in the prune map — exit 1, and the issue rides the EXISTING
+    missing_agents_md type so linear_sync keeps its ticket stream. The root
+    AGENTS.md is what build() writes, so the fixture deletes the second
+    boundary's file to open the hole."""
+    root = build(
+        tmp_path,
+        files={"backend/keep.py": ""},
+        boundary=[
+            {"path": ".", "reason": "the fixture root"},
+            {"path": "backend", "reason": "a boundary whose file went missing"},
+        ],
+    )
+    (root / "backend" / "AGENTS.md").exists()  # build never writes one; sanity
+    r = run_validator(root)
+    assert r.returncode == 1, r.stdout + r.stderr
+    holes = [i for i in report_of(root)["issues"] if i["type"] == "missing_agents_md"]
+    assert [i["directory"] for i in holes] == ["backend/"]
+
+
+def test_boundary_mode_missing_boundary_pair_side(tmp_path):
+    """Required side, green half: the same two-boundary fixture WITH the file
+    present stays green — otherwise the missing arm above passes on a rule
+    that simply fails every two-boundary tree."""
+    root = build(
+        tmp_path,
+        files={"backend/keep.py": "", "backend/AGENTS.md": "# Backend\n\nlive: [n](../notes.md)\n"},
+        boundary=[
+            {"path": ".", "reason": "the fixture root"},
+            {"path": "backend", "reason": "a boundary with its file"},
+        ],
+    )
+    r = run_validator(root)
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_boundary_mode_satellite_agents_md_forbidden(tmp_path):
+    """Forbidden side, violating half: an AGENTS.md outside the boundary list
+    fails the run (UR-21: files live only at boundaries) — but as a violation
+    STRING only. The forbidden file must appear in NO issue: the issue-type
+    vocabulary is byte-frozen, so the forbidden arm rides the fence arm's rail
+    (a violation with no issues[] entry)."""
+    root = build(
+        tmp_path,
+        files={"src/extra/AGENTS.md": "# Satellite\n\nlive: [n](../../notes.md)\n"},
+        boundary=[{"path": ".", "reason": "the only boundary"}],
+    )
+    r = run_validator(root)
+    assert r.returncode == 1, r.stdout + r.stderr
+    out = r.stdout + r.stderr
+    assert "src/extra/AGENTS.md" in out and "boundary" in out.lower()
+    report = report_of(root)
+    assert [i for i in report["issues"] if i.get("agents_md") == "src/extra/AGENTS.md"] == []
+    assert set(report["summary"]) == {"stale_references", "missing_agents_md", "dead_links"}
+
+
+def test_boundary_mode_forbidden_pair_side(tmp_path):
+    """Forbidden side, green half: with no satellite file the same fixture is
+    green (build()'s root AGENTS.md is the listed boundary) — the arm fails
+    satellites, not every tree."""
+    root = build(tmp_path, boundary=[{"path": ".", "reason": "the only boundary"}])
+    r = run_validator(root)
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_boundary_mode_deleting_the_satellite_is_the_fix(tmp_path):
+    """The remediation direction W3.1's deletion batches rely on: the red run
+    flips green by DELETING the satellite (no excuse flag, no config edit) —
+    the violation message names the file, and the same tree minus the file is
+    green with issues[] unchanged."""
+    root = build(
+        tmp_path,
+        files={"src/extra/AGENTS.md": "# Satellite\n\nlive: [n](../../notes.md)\n"},
+        boundary=[{"path": ".", "reason": "the only boundary"}],
+    )
+    assert run_validator(root).returncode == 1
+    (root / "src" / "extra" / "AGENTS.md").unlink()
+    r = run_validator(root)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert report_of(root)["issues"] == []
+
+
+def test_boundary_mode_no_opt_out_flag(tmp_path):
+    """No invented off-switch for the new arms: the red fixture stays red
+    under every plausible-sounding flag (the documented-option-set doctrine
+    extended to W3.1's rule — boundary mode is not negotiable by argv)."""
+    root = build(
+        tmp_path,
+        files={"src/extra/AGENTS.md": "# Satellite\n\nlive: [n](../../notes.md)\n"},
+        boundary=[{"path": ".", "reason": "the only boundary"}],
+    )
+    for opt in ("--no-boundary", "--boundary-off", "--legacy-missing", "--ignore-satellites"):
+        r = run_validator(root, flags=[opt])
+        assert r.returncode == 2, f"{opt} was accepted"
+        assert "unrecognized" in (r.stderr + r.stdout).lower()
 
 
 # --------------------------------------------------------------------------
@@ -686,7 +799,13 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
         caps={"root": 3, "lane_root": 10, "package": 10},
     )
     r = run_validator(root)
-    assert r.returncode == 0, r.stdout + r.stderr  # caps do not fail the run
+    # W3.1 changed WHY this run is red, not the caps claim. The fixture's
+    # synthbench/contract boundary has no AGENTS.md — under W2.1 that was
+    # merely reported; under W3.1 a hole in the boundary map is a CONTENT
+    # violation, so rc is 1. What "caps NEVER fail" now means, pinned exactly:
+    # no violation string is cap-derived, and the caps block's own verdict
+    # field stays False.
+    assert r.returncode == 1, r.stdout + r.stderr
     report = report_of(root)
     block = report["ratchet"]["line_caps"]
     assert block["failing"] is False
@@ -711,16 +830,26 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
     hole = over["synthbench/contract/AGENTS.md"]
     assert hole["measured"] is None
     assert hole["tier"] == "package"
-    # Reporting-only in the strongest sense: the gate's own verdict field.
-    assert report["ratchet"]["violations"] == []
+    # Caps stay reporting-only in the strongest sense available since W3.1:
+    # the gate's verdict vector is non-empty ONLY because of the boundary hole
+    # — zero cap-derived strings. The same fixture minus the hole is green:
+    # test_boundary_mode_missing_boundary_pair_side.
+    violations = report["ratchet"]["violations"]
+    assert len(violations) == 1 and "synthbench/contract/" in violations[0]
+    assert not [v for v in violations if "cap" in v.lower()]
 
 
 def test_caps_apply_to_boundary_files_only(tmp_path):
     """The other side of the rule. A non-boundary AGENTS.md far over every
-    cap is NOT on the work list: files outside the boundary list are W3.1
-    deletions, and capping a file scheduled to disappear is noise, not a
-    ratchet. A one-sided test would pass if the arm measured every AGENTS.md
-    it walked."""
+    cap is NOT on the work list: capping a file the boundary rule has already
+    condemned is noise, not a ratchet. A one-sided test would pass if the arm
+    measured every AGENTS.md it walked.
+
+    W3.1's pair-side caveat, stated honestly: this fixture now exits 1 (the
+    satellite is forbidden) where it exited 0 under W2.1 — the caps assertion
+    is what this test is FOR, and the run being red is pinned separately by
+    the boundary-mode tests. The caps block still measures only the boundary
+    file, which is exactly the claim being pinned."""
     root = build(
         tmp_path,
         files={"backend/satellite/AGENTS.md": "# Satellite\n\n" + "body\n" * 200},
@@ -728,7 +857,7 @@ def test_caps_apply_to_boundary_files_only(tmp_path):
         caps={"root": 1000, "lane_root": 1000, "package": 10},
     )
     r = run_validator(root)
-    assert r.returncode == 0, r.stdout + r.stderr
+    assert r.returncode == 1, r.stdout + r.stderr  # forbidden since W3.1
     block = report_of(root)["ratchet"]["line_caps"]
     assert [e["path"] for e in block["over"]] == []
     assert block["boundaries"] == 1
