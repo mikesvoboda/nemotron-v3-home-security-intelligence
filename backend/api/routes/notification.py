@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Body, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.middleware.auth import authenticated_principal
 from backend.api.schemas.notification import (
     NotificationChannel,
     NotificationConfigResponse,
@@ -329,7 +330,7 @@ async def test_notification(
                 action=AuditAction.NOTIFICATION_TEST,
                 resource_type="notification",
                 resource_id=channel.value,
-                actor="anonymous",
+                actor=await authenticated_principal(request) or "anonymous",
                 details={"channel": channel.value, "success": True},
                 request=request,
             )

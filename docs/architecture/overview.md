@@ -639,7 +639,7 @@ The `HealthMonitor` service:
 
 ### Production Hardening (Recommended)
 
-- Enable `API_KEY_ENABLED=true` with strong keys
+- Set `EXPOSE_LAN=true` whenever anything beyond this machine reaches the UI (login session or API key required)
 - Use HTTPS for AI service endpoints
 - Restrict CORS origins
 - Add rate limiting
