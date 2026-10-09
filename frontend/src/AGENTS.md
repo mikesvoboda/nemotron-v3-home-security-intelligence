@@ -577,6 +577,57 @@ Zone management and visualization:
 | `pageDocumentation.ts` | Page documentation configuration           |
 | `tourSteps.ts`         | Product tour step definitions              |
 
+- **`env.ts` is a near-dormant layer** (knowledge lifted from the deleted
+  config/AGENTS.md, W3.1 batch 9 — its inventory was discoverable; these
+  facts are not): `main.tsx` never calls it, exactly one non-test consumer
+  imports it (`hooks/typedEventEmitter.ts`), and its exported `resetEnvCache`
+  has zero call sites even in tests (`env.test.ts` uses `vi.resetModules`
+  instead). Do not treat it as the app's env layer.
+- **Three different env mechanisms coexist; `import.meta.env` is the live
+  one.** Components and services read `import.meta.env.VITE_*` directly (all
+  14 keys exist somewhere in `frontend/`), and they read it in two shapes —
+  `env.VITE_x` and `env?.VITE_x` — so grepping one form misses the other's
+  readers. `VITE_API_URL`/`VITE_WS_URL` are read by `services/authApi.ts`,
+  `services/alertsApi.ts`, `ExportPanel.tsx`, `ExportButton.tsx` and are a
+  DIFFERENT variable from the config layer's `VITE_API_BASE_URL`. `env.ts`
+  reads only three keys (`VITE_API_BASE_URL`, `VITE_API_KEY`,
+  `VITE_WS_BASE_URL`) with its own defaults, so a value set for one mechanism
+  is invisible to the others. `VITE_DEV_BACKEND_URL` is read by
+  `vite.config.ts` itself (build-time only). `vite-env.d.ts` declares no
+  `ImportMetaEnv` interface, so every direct read is an untyped string.
+- **Production bakes env at BUILD time.** `docker-compose.prod.yml` (~:945)
+  states it outright: `VITE_*` vars are "NOT used at runtime" — the frontend
+  ships relative URLs and nginx proxies `/api` and `/ws`. Editing a `VITE_*`
+  value in a running production container changes nothing; rebuilding the
+  image is the only path.
+
+### `/constants/` - Chart Color Constants
+
+Two files (`index.ts` is `export * from './chartColors'`; `chartColors.ts`
+holds every token). Lifted from the deleted constants/AGENTS.md — the
+group inventory is discoverable from the file; these three facts are not:
+
+- **`SEVERITY_COLORS` is defined twice with different shapes**
+  (`constants/chartColors.ts:24` hexes vs `utils/severityColors.ts:56`
+  bgTint/border/glow objects). An import that "just" changes path silently
+  changes what `.critical` evaluates to — string vs object. See the risk/
+  severity chain section under `/theme/` for the full count.
+- **The file claims to be the chart-color source of truth, but the chart
+  library is transitive**: `recharts` is NOT in `frontend/package.json` — it
+  arrives through `@tremor/react`. A recharts CVE or major bump comes via
+  Tremor's range, and `styles/index.css` already styles recharts DOM
+  (`.recharts-sector` etc.), so the dependency is load-bearing while
+  invisible in the manifest.
+- **Eight exports have no non-test consumer** (measured at this head,
+  excluding tests and prose): the consts `CHART_COLORS`, `CHART_PALETTE`,
+  `TREMOR_PALETTE`, `DETECTION_OBJECT_COLORS`, `PERFORMANCE_COLORS`,
+  `PERFORMANCE_TREMOR_COLORS` and the derived types `ChartColorKey`,
+  `TremorColorName`. `TREMOR_PALETTE`'s own comment says it "matches
+  CHART_PALETTE order" — dead-but-coupled, so editing one without the other
+  breaks a contract nothing type-checks. (`BODY_PART_COLORS` is NOT in the
+  dead set — `components/detection/PoseSkeletonOverlay.tsx:18` imports it
+  directly and :132 re-exports it "for backward compatibility".
+
 ### `/contexts/` - React Contexts
 
 Global state management via React Context:
@@ -593,6 +644,31 @@ Global state management via React Context:
 | `index.ts`                | Barrel export              |
 
 Each context has a co-located test file (named `*.test.tsx`).
+
+### `/lib/` - Functional Utilities (dormant)
+
+Two code files (~1,340 lines + ~1,350 test): `functional.ts` (pipe/compose/
+curry/once/debounce/throttle/memoize) and `result.ts` (an Ok/Err monad with
+map/flatMap/unwrap/match helpers). Lifted from the deleted lib/AGENTS.md
+(W3.1 batch 9); its export tables were discoverable, its status was not:
+
+- **Zero importers.** Nothing outside `lib/` and its own tests imports
+  `lib/functional` or `lib/result` (measured at this head). Its
+  "use Result over try/catch" advice describes nothing the app does. Before
+  adopting a helper from here, check what the app actually uses instead:
+  React-level `useThrottledValue.ts` for timing, plain try/catch at call
+  sites.
+- **TWO mutually incompatible Result implementations ship anyway:**
+  `lib/result.ts` (tagged `_tag: 'Ok'`, lowercase factories `ok()`/`err()`)
+  vs `types/result.ts` (boolean field `ok: true`, capitalized factories
+  `Ok()`/`Err()`, re-exported through the types barrel as `OkResult`/
+  `ErrResult` with its own `isOk`). A value from one is a structural type
+  error in the other, and both files define same-named helpers (`isOk`,
+  `match` with `{onOk, onErr}`) that only accept their OWN shape — mixing
+  the imports type-checks against neither.
+- `utils/tryCatch.ts` is the ONLY consumer of `types/result.ts` — and
+  tryCatch itself has zero consumers (measured; the live call sites use
+  plain `try/catch`). The whole tower is dead code with green tests.
 
 ### `/mocks/` - MSW Mock Server
 
@@ -672,14 +748,56 @@ Each page has a co-located test file (named `*.test.tsx`).
 
 ### `/schemas/` - Validation Schemas
 
-Zod schemas for runtime validation:
+Zod schemas mirroring the backend Pydantic models (the directory holds 8 code
+files + 8 co-located tests, not the 4 the old table listed):
 
-| File           | Purpose                       |
-| -------------- | ----------------------------- |
-| `alert.ts`     | Alert data schemas            |
-| `alertRule.ts` | Alert rule validation schemas |
-| `camera.ts`    | Camera data schemas           |
-| `index.ts`     | Barrel export                 |
+| File                 | Purpose                                           |
+| -------------------- | ------------------------------------------------- |
+| `alert.ts`           | Alert data schemas                                |
+| `alertRule.ts`       | Alert rule validation schemas                     |
+| `api.ts`             | API response schemas + `parseApiResponse` helpers |
+| `asyncValidation.ts` | Async uniqueness refinements (NEM-3825)           |
+| `camera.ts`          | Camera data schemas                               |
+| `index.ts`           | Barrel export                                     |
+| `primitives.ts`      | Reusable schema primitives (NEM-3819)             |
+| `zone.ts`            | Zone form schemas                                 |
+
+Knowledge lifted from the deleted schemas/AGENTS.md (W3.1 batch 9 — names
+and purposes are discoverable, these behaviors are not):
+
+- **`api.ts`'s parse helpers are dormant:** `parseApiResponse` /
+  `safeParseApiResponse` have zero callers outside `schemas/` itself. The
+  response schemas are still consumed as TYPES; nothing runtime validates a
+  live API response through them. Adding response-validation "coverage" by
+  calling them is new behavior, not existing practice.
+- **`index.ts` is a lossy barrel.** `camera.ts` exports 26 names; exactly 10
+  are invisible through the barrel: `rtspUrlSchema`, `rtspUsernameSchema`,
+  `rtspPasswordSchema`, `ingestionModeSchema`, `streamProfileSchema`,
+  `cameraMotionSensitivitySchema`, `INGESTION_MODE_VALUES`,
+  `STREAM_PROFILE_VALUES`, `IngestionModeValue`, `StreamProfileValue`.
+  Import those from `@/schemas/camera` directly; a barrel-only grep will
+  tell you they don't exist. (`cameraStatusSchema` IS re-exported — aliased
+  as `CAMERA_FORM_STATUS_VALUES` — so counting the block by eye miscounts;
+  count by name.)
+- **HH:MM time validation exists in three non-equivalent copies** of
+  backend's `pattern="^\d{2}:\d{2}$"` + 00-23/00-59 range:
+  `schemas/primitives.ts:389` and `schemas/alertRule.ts:79` (regex + length
+  and range), and `utils/validation.ts:464` (length + colon position +
+  `parseInt` ranges — **no regex at all**). Measured divergence: `1a:2b` →
+  parseInt parses the leading `1`, so the regexless copy ACCEPTS it and the
+  regex copies reject it. Fix one and the other two keep lying; a form that
+  validates through `utils/validation.ts` can submit a string the backend
+  schema then rejects.
+- **`asyncValidation.ts` caches uniqueness checks for 5s**
+  (`CACHE_TTL_MS = 5000`, :58) — two identical checks within 5 seconds hit
+  the cache, not the API.
+- **The folder-path rule is NOT the same on both sides** — same string
+  passes the form, fails the save: `schemas/camera.ts:97-117` skips the
+  forbidden-character check (`< > : " | ? *`) when the value is URL-shaped
+  (`isUrl()`, so `rtsp://…` passes the form), while the backend's
+  `_validate_folder_path` (`backend/api/schemas/camera.py:46`) has NO URL
+  exemption and raises on the `:`. Control chars and `..` are rejected by
+  both, always.
 
 ### `/stores/` - State Stores
 
@@ -700,10 +818,73 @@ Each store has a co-located test file (named `*.test.ts`).
 
 ### `/theme/` - Theme Configuration
 
-| File        | Purpose                                   |
-| ----------- | ----------------------------------------- |
-| `colors.ts` | Color palette and theme color definitions |
-| `index.ts`  | Barrel export                             |
+| File             | Purpose                                        |
+| ---------------- | ---------------------------------------------- |
+| `colors.ts`      | Status color constants and threshold utilities |
+| `colors.test.ts` | Co-located tests for the mappings              |
+| `index.ts`       | Barrel export                                  |
+
+- **Status-color consumers** are four system panels
+  (`ServiceStatusIndicator`, `WorkerStatusIndicator`, `PipelineMetricsPanel`,
+  `QueueMetricsPanel` — all import `theme/colors` directly, not via the
+  barrel), and `styles/toast.css` resolves 34 `theme()` calls against
+  tailwind.config.js at build time — 13 of them `colors.gray.*`, the rest
+  `primary`/`status.*`/`link` — edit that config and toast colors move with
+  it. `getStatusColor()` maps raw status strings (with aliases: `ok` →
+  healthy, `fail` → error).
+- **The emerald-not-green rationale in `tailwind.config.js`'s comment
+  ("emerald for better contrast than green") does not reproduce — measured
+  at this head, `green-500` #22c55e computes 7.64:1 on the `#1A1A1A`
+  (gray-900) panel and `emerald-500` #10B981 computes 6.86:1: emerald is the
+  LOWER scorer on every dark background.** The deleted theme guide repeated
+  the comment as "green ~3.8:1, fails AA" — that number matches neither
+  background; the config's "WCAG 2.1 AA compliant" label is aspirational
+  prose, not a measurement. What IS true of both: they fail AA on WHITE
+  (2.28:1 / 2.54:1), so never use either as text on a light background.
+  `utils/risk.ts` paints low risk with plain `#22c55e` anyway — that
+  disagreement is a table disagreement, not the contrast failure the old
+  guide claimed.
+- **Asymmetric threshold operators in `colors.ts`:** `getQueueStatusColor`
+  uses `<=` at both bands (:348-349), `getLatencyStatusColor` uses `<` at
+  both (:370-371) — depth EXACTLY at `threshold/2` or `threshold` colors one tier
+  greener than latency at the same ratio. Copy one function's operator into
+  the other and a boundary reading silently changes color.
+
+### Risk and severity colors: how many systems you are choosing between
+
+(Lifted from the deleted `theme/` + `constants/` guides, W3.1 batch 9. The
+override chain — Tailwind config tokens → JS constant maps → per-component
+hardcodes — resolves differently per file, so "the risk color" is not a
+thing. Every ratio named below was computed at this head; ratios are
+background-dependent, so each names its background.)
+
+- **Same risk level, five sources, four different hexes.** Tailwind `risk.*`
+  tokens (config): low `#76B900`, medium `#FFB800`, high `#FFCDD2` (moved
+  for contrast on `bg-risk-high/10`). The JS status map
+  (`types/constants.ts`): same low/medium, high still `#E74856` — the old
+  config value, so the two "authoritative" sources disagree on high.
+  `constants/chartColors.ts` `SEVERITY_COLORS`: a different family (critical
+  `#EF4444`, high `#F97316` orange, medium `#EAB308`) with `SEVERITY_COLORS_ALT`
+  swapping medium to amber `#F59E0B` — and `utils/severityColors.ts:56`
+  redefines the NAME `SEVERITY_COLORS` with a different shape
+  (`bgTint`/`borderColor`/`glowShadow`) whose borders match chartColors, not
+  the risk tokens. `utils/risk.ts` `getRiskColor` (:144 — there is no
+  `getRiskColorHex` in the file) is a sixth table (low `#22c55e` — the green
+  above, AA-failing on white only; medium `#eab308`; high `#f97316`;
+  critical `#ef4444`).
+- **`#E74856` means OPPOSITE things by file:** high risk in
+  `types/constants.ts`, confidence **LOW** in `utils/confidence.ts:28`
+  (a red "low confidence, needs attention" badge). Copying "the red" between
+  the two inverts a signal.
+- **`medium` exists as three hexes** (`#FFB800` config/constants,
+  `#EAB308` chartColors, `#F59E0B` ALT + components the file's own comment
+  admits hardcode it). Legend-vs-fill mismatches in analytics charts are
+  this, not a rendering bug.
+- **Tremor takes color NAMES, not hexes** — mixing the two families in one
+  chart is the usual mismatched-legend source; and Tremor has no `red`
+  entry in `TREMOR_PALETTE` (emerald/blue/amber/violet/rose/cyan/orange/
+  indigo/lime/pink), while `RISK_TREMOR_COLORS` uses green/yellow/orange —
+  neither list is a subset of the other.
 
 ### `/hooks/` - Custom React Hooks
 
@@ -774,14 +955,19 @@ The `api.ts` file re-exports all types from `types/generated/` for convenience.
 
 ### `/styles/` - Global Styles
 
-- **`index.css`** - Global CSS with Tailwind directives
-  - `@tailwind base` - Base styles reset
-  - `@tailwind components` - Component classes
-  - `@tailwind utilities` - Utility classes
-  - Custom component classes (`.nvidia-card`, `.btn-primary`, etc.)
-  - Custom utilities (`.glass`, `.text-gradient-nvidia`, `.glow-nvidia`)
-  - Dark theme scrollbar styling
-  - Selection color with NVIDIA green
+Three CSS files, not one (the deleted styles/AGENTS.md named only
+`index.css`): `index.css` (imported by `main.tsx:9`; Tailwind layers + the
+custom component classes), `print.css` (`@import`ed by `index.css:2`; the
+report-print stylesheet behind `PrintableReport`), and `toast.css` (imported
+by `components/common/ToastProvider.tsx:31` — NOT via any CSS `@import`, so
+a stylesheet-only trace misses it; its 34 `theme()` calls — 13 of them
+`colors.gray.*` — resolve against tailwind.config.js at build time).
+
+- **A class DEFINED in `index.css` is not a class USED in the app.** The old
+  guide listed its full inventory as if it were the toolkit; about two-thirds
+  of it has zero consumers (details in "Styling Guidelines → Custom CSS
+  Classes" below). Grep for the class name before adopting it — the definition
+  outlives the usage routinely.
 
 ### `/test/` - Test Setup
 
@@ -848,9 +1034,35 @@ is the only surviving statement of the 0-1 bound.
 
 ### `/types/` - TypeScript Types
 
-- **generated subdirectory** - Auto-generated from backend OpenAPI
-  - `api.ts` - Full OpenAPI types (DO NOT EDIT)
-  - `index.ts` - Re-exports with convenient aliases
+- **generated subdirectory** - Auto-generated from the backend OpenAPI spec
+  (three files; lifted from the deleted types/generated/AGENTS.md, W3.1
+  batch 9 — the old guide's headline numbers and file list were fiction):
+  - `api.ts` - the full OpenAPI types: **61,671 lines** (the deleted guide
+    said "~7900" — off by ~8x). DO NOT EDIT; regenerate via
+    `./scripts/generate-types.sh`, and CI runs its `--check` leg
+    (`ci.yml:1812`) plus the hidden second generator `websocket.ts` (849
+    lines, `scripts/generate-ws-types.py --check` at `ci.yml:1815` — the
+    deleted guide's file list named only api.ts + index.ts; the sibling
+    guide's directory tree missed websocket.ts too, and a tree missing a
+    generated file invites someone to hand-write its competitor).
+  - `index.ts` - 520 lines whose header says "DO NOT modify manually,
+    regenerate" — **but `generate-types.sh` never writes this file**
+    (measured: zero references to it in the script). It is hand-maintained
+    behind a generated-file header; the only script-level protection is
+    `scripts/validate-api-types.sh` grepping 6 required names (:149-164).
+    It holds 141 plain schema aliases; the deleted guide showed 26, of which
+    6 don't exist as aliases at all (the `LogEntry`/`LogsResponse`/
+    `LogStats` trio is absent from both it and `api.ts`; `Camera`/
+    `CameraCreate`/`CameraUpdate` are intersection types, not plain
+    aliases). 10 aliases RENAME the backend schema
+    (`Event`→`EventResponse`, `Detection`→`DetectionResponse`, `GPUStats`→
+    `GPUStatsResponse`, `SystemConfig`→`ConfigResponse`, `SystemStats`→
+    `SystemStatsResponse`, `ServiceStatus`→`HealthCheckServiceStatus`,
+    `SystemConfigUpdate`→`ConfigUpdateRequest`, `Zone`→`ZoneResponse`,
+    `ZoneShape`→`CameraZoneShape`, `ZoneType`→`CameraZoneType`) — grepping
+    the backend for an alias name finds nothing.
+  - Coverage: `src/types/generated/**` is excluded from V8 coverage
+    (`vite.config.ts:410`) — that part of the old guide was true.
 - **`aiAudit.ts`** - AI audit type definitions
 - **`analytics.ts`** - Analytics type definitions
 - **`api-endpoints.ts`** - API endpoint type definitions
@@ -1059,32 +1271,29 @@ TypeScript strict mode with:
 
 ### Tailwind Colors
 
-| Color                     | Usage                        |
-| ------------------------- | ---------------------------- |
-| `bg-background`           | Page background (`#0E0E0E`)  |
-| `bg-panel`                | Panel background (`#1A1A1A`) |
-| `bg-card`                 | Card background (`#1E1E1E`)  |
-| `bg-primary-500`          | Primary action (`#76B900`)   |
-| `bg-risk-low/medium/high` | Risk level indicators        |
-| `text-text-primary`       | Main text (`#FFFFFF`)        |
-| `text-text-secondary`     | Secondary text (`#B0B0B0`)   |
-| `text-text-muted`         | Muted text (`#919191`)       |
+The semantic tokens (`bg-background` `#0E0E0E`, `bg-panel` `#1A1A1A`,
+`bg-card` `#1E1E1E`, `bg-primary-500` `#76B900`, `text-text-primary/-secondary/-muted`
+`#FFFFFF`/`#B0B0B0`/`#919191`) live under `theme.extend.colors`, which means
+they **supplement** Tailwind's defaults — `bg-gray-800` and friends still
+work. The custom `gray` scale, however, REPLACES Tailwind's default gray
+entirely (full 50-950 rewrite): there is no stock `gray-900` (#111827) left
+in this app — `gray-900` is `#1A1A1A`, and the scale carries non-standard
+`850` and `950` steps. A component written against stock Tailwind grays
+silently gets the custom ramp. Contrast-comment caveats on these values are
+in `frontend/AGENTS.md` ("Text").
 
 ### Custom CSS Classes
 
-| Class                                  | Purpose                |
-| -------------------------------------- | ---------------------- |
-| `.nvidia-card`                         | Standard card styling  |
-| `.nvidia-card-hover`                   | Card with hover effect |
-| `.nvidia-panel`                        | Panel styling          |
-| `.btn-primary`                         | Primary button         |
-| `.btn-secondary`                       | Secondary button       |
-| `.btn-ghost`                           | Ghost button           |
-| `.nvidia-input`                        | Input field styling    |
-| `.risk-badge-low/medium/high`          | Risk badges            |
-| `.status-online/offline/warning/error` | Status dots            |
-| `.glass`                               | Glass morphism effect  |
-| `.glow-nvidia`                         | NVIDIA green glow      |
+Defined in `styles/index.css`; usage measured at this head (consumer files,
+tests excluded). The old table was a definition inventory — most of it is
+dead in the app:
+
+| Class(es)                                                                                                                               | Status                                                                                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `.btn-primary/-secondary/-ghost/-outline/-outline-primary/-danger`                                                                      | LIVE only through `components/common/Button.tsx` `variantClasses` — buttons go through the component, not the class                                                                                          |
+| `.nvidia-input`                                                                                                                         | LIVE in 2 analytics panels                                                                                                                                                                                   |
+| `.nvidia-card`, `.nvidia-card-hover`, `.nvidia-panel`, `.glass`, `.glow-nvidia`, `.text-gradient-nvidia`, `.risk-badge-low/medium/high` | DEAD — defined, zero non-test consumers; cards/glass are Tailwind utility stacks in JSX now                                                                                                                  |
+| `.status-online/offline/warning/error`                                                                                                  | DEFENSIVE-DORMANT: `index.css:508-521` defines them and `types/constants.ts` stores them as `tailwindDot` values, but no component or page reads `tailwindDot` (measured) — the strings are wired to nothing |
 
 ## Common Imports
 

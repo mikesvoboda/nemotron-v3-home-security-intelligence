@@ -707,8 +707,8 @@ def test_missing_config_exits_2(tmp_path):
 def test_unbalanced_fence_is_content_not_infrastructure(tmp_path):
     """An open fence would mask the rest of the file from BOTH arms — an
     editor could park anything under an unclosed fence. Measured: 0 of the
-    139 scanned files are unbalanced today (245 before W3.1 batch 1's
-    deletions, 139 after batch 8; re-measured at each: still zero), so failing on imbalance costs
+    132 scanned files are unbalanced today (245 before W3.1 batch 1's
+    deletions, 132 after batch 9; re-measured at each: still zero), so failing on imbalance costs
     nothing now and removes the dodge forever. It is a CONTENT violation
     (exit 1, names the file), not a gate failure — the gate ran fine; the
     file is wrong."""
@@ -914,10 +914,17 @@ def test_committed_boundary_list_covers_the_rule():
     supports, including the part that refutes the argument the first version of
     this docstring made. The plan says "Expect 30 to 50 entries"; that band is a
     WEAK filter here, not a selector — measured over thresholds 1..60 at this
-    tree, thresholds 11 through 46 ALL land inside it (36 of the 60 values), so
-    the band rules out >= 10 (52 entries) and >= 47 (29) and says nothing at all
+    tree, thresholds 10 through 46 ALL land inside it (37 of the 60 values), so
+    the band rules out >= 9 (51 entries) and >= 47 (29) and says nothing at all
     about 20 vs 15. It is kept as a coarse guard: a rule edit that puts a
-    threshold's output outside the band is selecting the wrong thing.
+    threshold's output outside the band is selecting the wrong thing. The band's
+    LOOSE edge is a live number, not a constant: W3.1 batch 9 deleted
+    frontend/src/schemas/AGENTS.md — a directory with 15 code files — which
+    pulled derive(10) from 51 down to exactly 50, ON the band, and moved the
+    guard from >= 11 to >= 10. An earlier drift had already moved the prose
+    count once (it quoted "52 entries" for >= 10 when the tree said 51). The
+    guard below therefore asserts the first size STRICTLY inside the band's
+    outside edge (>= 9) rather than the edge itself.
 
     What does discriminate 20 is structural, and it is a keep-argument rather
     than a cut-argument: the committed set is a PLATEAU, equal at thresholds
@@ -935,14 +942,17 @@ def test_committed_boundary_list_covers_the_rule():
       threshold that still covers the one orphan package".
     - Its bottom edge: every entry a looser cut adds is a parent-split —
       >= 17 and >= 16 add exactly one dir, components/settings/prompts (17 code
-      files, under the listed components/settings); >= 15 adds audit,
-      common/skeletons and src/schemas, all under frontend/src. The standard's
-      doctrine is that a satellite folds into its nearest kept ancestor, so no
-      threshold below the plateau can be defended on the rule's own terms. (A
-      previous draft of this paragraph claimed the marginal additions were "all
-      top-level packages, none a parent-split" — that is the exact inverse of
-      what the loop below asserts, which is why the loop asserts it rather than
-      the prose claiming it.)
+      files, under the listed components/settings); >= 15 adds components/audit
+      and common/skeletons too (15 code files each, both under the listed
+      frontend/src). The standard's doctrine is that a satellite folds into its
+      nearest kept ancestor, so no threshold below the plateau can be defended
+      on the rule's own terms. (A previous draft of this paragraph claimed the
+      marginal additions were "all top-level packages, none a parent-split" —
+      that is the exact inverse of what the loop below asserts, which is why the
+      loop asserts it rather than the prose claiming it. A later draft named
+      src/schemas in the >= 15 set and omitted settings/prompts; W3.1 batch 9's
+      deletion of src/schemas/AGENTS.md made that enumeration wrong in a second
+      way, which is why the loop re-derives it.)
 
     The plateaus, band memberships and ancestor relations above are RE-DERIVED
     from the live tree below, not quoted: a tree that grows a top-level package
@@ -1038,13 +1048,16 @@ def test_committed_boundary_list_covers_the_rule():
         assert (REPO_ROOT / d / "AGENTS.md").is_file(), f"{d} has no AGENTS.md"
         assert entry["reason"].strip(), d
     assert 30 <= len(committed) <= 50, f"outside the plan's 30-50 band: {len(committed)}"
-    # The band as a COARSE guard only — see the docstring: thresholds 11..46 all
+    # The band as a COARSE guard only — see the docstring: thresholds 10..46 all
     # land inside it at this tree, so being in-band is not the argument for 20.
     # Only the looser side is asserted, because that is the side that stays true
     # as the tree grows (more dirs -> bigger lists); asserting the tight side
     # (>= 47 falls out at 29 today) would redden a green rule for an unrelated
-    # package gaining files.
-    assert len(derive(5)) > 50 and len(derive(10)) > 50, "a looser threshold now fits the band"
+    # package gaining files. The asserted threshold is 9, not the old 10,
+    # because derive(10) landed exactly ON the band's inside edge (50) when W3.1
+    # batch 9 deleted a guide from a 15-code-file directory — 9 is the first
+    # size still strictly outside it (measured: derive(9)=51, derive(10)=50).
+    assert len(derive(5)) > 50 and len(derive(9)) > 50, "a looser threshold now fits the band"
 
     def proper_ancestors(candidate: str, base: set[str]) -> list[str]:
         """Kept directories that STRICTLY contain `candidate`. `.` is out — it is
@@ -1175,7 +1188,7 @@ def real_run(tmp_path_factory):
         return proc.returncode, json.load(f), proc.stderr
 
 
-@pytest.mark.timeout(180)  # the walk over 139 files; pyproject global timeout=5
+@pytest.mark.timeout(180)  # the walk over 132 files; pyproject global timeout=5
 def test_real_tree_is_green(real_run):
     """DONE-WHEN "the run passes on the current tree", executed here — and
     this file runs inside collection-sanity's anti-rot step, which CI Gate
@@ -1231,13 +1244,19 @@ def test_real_tree_scanned_count_floor(real_run):
     hooks/__tests__, hooks/__tests__/integration, types/__tests__ — none of
     them a boundary; an eleventh deletion, the integration README twin,
     republished the same fiction and is not an AGENTS.md, so the floor moves by
-    ten, not eleven). Each
+    ten, not eleven), then to 132 = 139 - 7 at batch 9 (the seven frontend/src
+    non-test satellites whose knowledge was lifted into frontend/src/AGENTS.md
+    and frontend/src/types/AGENTS.md: schemas, config, constants, styles,
+    theme, lib, types/generated — none a boundary; types/generated nests under
+    the types boundary per the boundary_list comment, so its guide deletes
+    into types/AGENTS.md. W3.1 is parked by owner ruling 41 at this point; the
+    floor is where the parked branch leaves it). Each
     later batch drops
     the floor by its batch size; a shrink that matches no deletion census in a
     PR body is still the exclusion-widening tell."""
     rc, report, _stderr = real_run
     assert rc == 0
-    assert report["total_agents_md_files"] >= 139
+    assert report["total_agents_md_files"] >= 132
 
 
 @pytest.mark.timeout(180)

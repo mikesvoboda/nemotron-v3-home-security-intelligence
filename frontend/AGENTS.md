@@ -282,9 +282,13 @@ Custom NVIDIA-themed dark design system:
 - **Text**: primary `#FFFFFF`, secondary `#B0B0B0`, muted `#919191` (config
   `text.*`; the old `#A0A0A0`/`#707070` were replaced for contrast — `#707070`
   computes 3.90:1 on the `#0E0E0E` page background and fails the WCAG AA floor
-  this guide itself cites). Config comments benchmark "on gray-700" — a
-  background no rendered element uses — and some of their stated ratios do not
-  reproduce; compute against the real page backgrounds before quoting them.
+  this guide itself cites). Config comments benchmark the text shades "on
+  gray-700" (`#3A3A3A`) — a color the app does render (scrollbar thumb,
+  several button states) but NOT the background these text tokens appear on
+  (the page is `#0E0E0E`); and some stated ratios don't reproduce even on
+  their own benchmark (`#9A9A9A` claims 4.7:1 on gray-700, computes 4.04:1 —
+  under the AA floor it cites). Compute against the real background before
+  quoting a config comment.
 
 ### Custom Animations
 
