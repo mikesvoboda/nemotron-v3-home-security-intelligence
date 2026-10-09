@@ -470,10 +470,15 @@ jobs:
           dirty=$(git status --porcelain)
           if [ -n "$dirty" ]; then
             echo
-            echo "=== Formatting fixpoint violation (owner ruling 24 (c)) ==="
+            # "hook", not "formatter": the first real violator of this
+            # step (this PR's own run) was detect-secrets rewriting
+            # .secrets.baseline — line resyncs, new findings, stale prunes.
+            # The rewrite itself is usually correct; what's missing is the
+            # commit of the hook's own output.
+            echo "=== Hook-rewrite fixpoint violation (owner ruling 24 (c)) ==="
             # porcelain v1: "XY path", renames as "XY old -> new" (keep new)
             printf '%s\n' "$dirty" | sed -E 's/^..[ ]//; s/.* -> //' | while IFS= read -r f; do
-              echo "::error file=$f::$f is not at its formatter's fixpoint — run 'pre-commit run --files $f' (or the sweep) and commit the rewrite"
+              echo "::error file=$f::$f is not at its hook's fixpoint — run 'pre-commit run --files $f' and commit the hook's rewrite"
             done
             git --no-pager diff --stat HEAD
             git --no-pager diff HEAD | head -n 200
