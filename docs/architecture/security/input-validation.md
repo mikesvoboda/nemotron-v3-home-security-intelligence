@@ -224,7 +224,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 The `BodySizeLimitMiddleware` prevents denial-of-service via large payloads:
 
 ```python
-# From backend/main.py:1059-1061
+# From backend/main.py:1060-1062
 # Add body size limit middleware to prevent DoS attacks (NEM-1614)
 # Default: 10MB limit for request bodies
 app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)
@@ -235,7 +235,7 @@ app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)
 The `ContentTypeValidationMiddleware` ensures POST/PUT/PATCH requests have valid Content-Type headers:
 
 ```python
-# From backend/main.py:1005-1007
+# From backend/main.py:1006-1008
 # Add Content-Type validation middleware for request body validation (NEM-1617)
 # Validates that POST/PUT/PATCH requests have acceptable Content-Type headers
 app.add_middleware(ContentTypeValidationMiddleware)

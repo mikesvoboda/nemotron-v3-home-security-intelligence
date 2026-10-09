@@ -244,13 +244,12 @@ Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN
 │   ├── ai/               # AI model-zoo and pipeline documentation
 │   ├── api/              # API documentation and deprecation policy
 │   ├── architecture/     # Technical architecture documentation
-│   ├── archive/          # Archived point-in-time reports and NEM investigations
 │   ├── benchmarks/       # Performance benchmarks (model-zoo)
 │   ├── components/       # UI component documentation
 │   ├── decisions/        # Architecture Decision Records (ADRs)
 │   ├── deployment/       # Container-orchestration docs (startup, health checks)
 │   ├── developer/        # Developer-focused documentation (testing, git, quality)
-│   ├── discoveries/      # Incident post-mortem notes (the NEM-tagged set moved to docs/archive/ in 7fba36a6)
+│   ├── discoveries/      # Incident post-mortem notes (the NEM-tagged set moved into the docs archive tree at 7fba36a6; deleted with the archives by UR-19 — recoverable from git history)
 │   ├── getting-started/  # Installation and first-run guides
 │   ├── guides/           # Feature guides (video analytics, zones, faces)
 │   ├── images/           # Visual assets (mockups, diagrams)
@@ -305,7 +304,6 @@ Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN
 │   ├── taxonomy/         # Committed Tier B taxonomy YAML and the seeded quota sampler
 │   └── spikes/           # Throwaway harnesses (p1_bakeoff: the P1 model bake-off)
 ├── tests/                # Root-level test suites (benchmark, load, smoke)
-├── archive/              # Not-load-bearing artifacts pending delete sign-off (see archive/README.md)
 └── .github/              # GitHub Actions workflows and configs
     ├── workflows/        # CI/CD workflows
     ├── codeql/           # CodeQL security analysis

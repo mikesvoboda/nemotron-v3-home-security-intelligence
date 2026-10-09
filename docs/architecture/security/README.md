@@ -116,7 +116,7 @@ sequenceDiagram
 | XSS Prevention   | React automatic escaping + CSP headers    | `backend/api/middleware/security_headers.py` |
 | SSRF Protection  | URL validation with IP range blocking     | `backend/core/url_validation.py`             |
 | Rate Limiting    | Tiered rate limits per endpoint type      | `backend/api/middleware/rate_limit.py`       |
-| Body Size Limits | 10MB request body limit                   | `backend/main.py:1145-1147`                  |
+| Body Size Limits | 10MB request body limit                   | `backend/main.py:1146-1148`                  |
 | Security Headers | Defense-in-depth HTTP headers             | `backend/api/middleware/security_headers.py` |
 
 ### Optional Security Features
@@ -150,7 +150,7 @@ sequenceDiagram
 
 | File                                         | Purpose                        |
 | -------------------------------------------- | ------------------------------ |
-| `backend/main.py:1083-1162`                  | Middleware stack configuration |
+| `backend/main.py:1084-1163`                  | Middleware stack configuration |
 | `backend/api/middleware/auth.py`             | EXPOSE_LAN auth gate           |
 | `backend/api/middleware/security_headers.py` | HTTP security headers          |
 | `backend/core/sanitization.py`               | Input and error sanitization   |

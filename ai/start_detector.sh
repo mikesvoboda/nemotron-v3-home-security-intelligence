@@ -3,7 +3,7 @@
 # YOLO26v2 Detection Server Startup Script
 #
 # HOST-RUN DEV STAND-IN ONLY. The standalone ai-yolo26 GPU image was retired
-# 2026-09-23 (recipe at archive/ai-yolo26-image/Dockerfile): production
+# 2026-09-23 (recipe in the deleted ai-yolo26-image archive tree; git history): production
 # detection is served by Triton inside ai-gateway (router /yolo26 on 8090).
 # This script runs ai/yolo26/model.py directly on the host for debugging a
 # model outside a container - it still works, but it is not the prod path.

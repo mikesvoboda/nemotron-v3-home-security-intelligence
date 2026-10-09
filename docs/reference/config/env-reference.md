@@ -199,7 +199,7 @@ These tune the three in-process lookups (faces, plates, person re-ID).
 
 ### Circuit Breakers
 
-The registry holds three breakers, registered in `backend/main.py:310-331`:
+The registry holds three breakers, registered in `backend/main.py:311-332`:
 `yolo26` (5 failures, 30 s recovery) and the two infrastructure breakers
 `postgresql` and `redis` (10 failures, 60 s recovery). Read them at
 `GET /api/system/circuit-breakers`; reset a registry breaker with

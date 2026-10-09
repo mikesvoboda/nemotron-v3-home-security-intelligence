@@ -217,7 +217,7 @@ The AI service entries are the two rows of `AI_SERVICES_CONFIG`
 the gateway at `http://ai-gateway:8090/yolo26`, and `ai-vlm` (non-critical) is
 the verdict engine at `http://ai-vlm:8098`. Each entry's `url` is the value of
 the setting named by its `url_attr` — `yolo26_url` and `ai_vlm_url`
-(`backend/core/config.py:1036-1044`).
+(`backend/core/config.py:1039-1047`).
 
 ```json
 {
@@ -484,7 +484,7 @@ Get status of all circuit breakers.
 
 `circuit_breakers` is a map keyed by breaker name. The registry is populated by
 the boot-time pre-registration in `init_circuit_breakers()`
-(`backend/main.py:286-331` — `yolo26`, `postgresql`, `redis`) plus the `ai-vlm`
+(`backend/main.py:287-332` — `yolo26`, `postgresql`, `redis`) plus the `ai-vlm`
 breaker the VLM client takes from the same registry
 (`backend/services/vlm_client.py:316-319`):
 

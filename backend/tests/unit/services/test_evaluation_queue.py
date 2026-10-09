@@ -412,7 +412,7 @@ class TestSingletonPattern:
 
 
 # =============================================================================
-# WP4.4 kill battery (frozen triage feed archive/wp25-feed/wp44-triage,
+# WP4.4 kill battery (frozen triage feed the deleted archive's wp25-feed/wp44-triage,
 # evaluation_queue.md clusters C01-C05 — 13 TEST-GAP survivors of 50; the
 # other 37 are log-cosmetic/codec-case EQUIVALENT, per-cluster justified in
 # the dossier). The pre-existing get_pending_events test canned

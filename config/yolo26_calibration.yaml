@@ -53,12 +53,12 @@ names:
 # Export Commands:
 # ---------------
 # The export script retired with the standalone yolo26 GPU image (2026-09-23):
-# see archive/ai-yolo26-image/export_tensorrt.py for the archived script.
+# see export_tensorrt.py in the deleted archive tree (git history).
 # The live Triton INT8 path is ai/gateway/export/export_yolo26.py --int8
 # --calibration-data <dir> (directory of frames, no YAML needed).
 #
 # Basic INT8 export (live gateway path — see docs/benchmarks/yolo26-export-formats.md;
-# the retired standalone recipe lives at archive/ai-yolo26-image/export_tensorrt.py):
+# the retired standalone recipe is git-history-only, in the deleted archive):
 #   python ai/gateway/export/export_yolo26.py --int8 --calibration-data <dir-of-frames>
 #
 # This YAML documents the calibration split; the live exporter takes a frame

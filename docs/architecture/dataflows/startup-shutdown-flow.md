@@ -6,10 +6,10 @@ This document describes the application lifecycle, including startup initializat
 
 ## Application Lifecycle Overview
 
-**Source:** `backend/main.py:461-479`
+**Source:** `backend/main.py:462-480`
 
 ```python
-# backend/main.py:461-479
+# backend/main.py:462-480
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events.
@@ -88,12 +88,12 @@ sequenceDiagram
 
 ## Startup Initialization Order
 
-**Source:** `backend/main.py:480-649`
+**Source:** `backend/main.py:481-650`
 
 ### Phase 1: Logging and Verification
 
 ```python
-# backend/main.py:482-495
+# backend/main.py:483-496
 # Initialize logging first (before any other initialization)
 setup_logging()
 lifespan_logger = get_logger(__name__)
@@ -108,10 +108,10 @@ except RuntimeError as e:
 
 ### Phase 2: Signal Handlers
 
-**Source:** `backend/main.py:141-193`
+**Source:** `backend/main.py:142-194`
 
 ```python
-# backend/main.py:141-193
+# backend/main.py:142-194
 def install_signal_handlers() -> None:
     """Install signal handlers for graceful shutdown.
 
@@ -139,7 +139,7 @@ def install_signal_handlers() -> None:
 ### Phase 3: Configuration and Telemetry
 
 ```python
-# backend/main.py:505-527
+# backend/main.py:506-528
 # Validate configuration and log summary (NEM-2026)
 config_result = validate_config(settings)
 log_config_summary(config_result)
@@ -153,10 +153,10 @@ init_profiling()
 
 ### Phase 4: Circuit Breakers
 
-**Source:** `backend/main.py:248-297`
+**Source:** `backend/main.py:249-298`
 
 ```python
-# backend/main.py:248-297
+# backend/main.py:249-298
 def init_circuit_breakers() -> list[str]:
     """Pre-register circuit breakers for known external services.
 
@@ -186,7 +186,7 @@ def init_circuit_breakers() -> list[str]:
 ### Phase 5: Database Initialization
 
 ```python
-# backend/main.py:533-543
+# backend/main.py:534-544
 await init_db()
 lifespan_logger.info(f"Database initialized: {redact_url(settings.database_url)}")
 
@@ -200,7 +200,7 @@ seeded = await seed_cameras_if_empty()
 ### Phase 6: Redis and Service Wiring
 
 ```python
-# backend/main.py:560-568
+# backend/main.py:561-569
 redis_client = await init_redis()
 lifespan_logger.info(f"Redis initialized: {redact_url(settings.redis_url)}")
 
@@ -212,7 +212,7 @@ await wire_services(container)
 ### Phase 7: Event Broadcaster
 
 ```python
-# backend/main.py:570-575
+# backend/main.py:571-576
 # Initialize and start event broadcaster for WebSocket real-time events
 event_broadcaster = await get_broadcaster(redis_client)
 channel = event_broadcaster.channel_name
@@ -222,7 +222,7 @@ lifespan_logger.info(f"Event broadcaster started, listening on channel: {channel
 ### Phase 8: File Watcher
 
 ```python
-# backend/main.py:577-584
+# backend/main.py:578-585
 # Initialize file watcher (monitors camera directories for new images)
 file_watcher = FileWatcher(
     redis_client=redis_client,
@@ -235,7 +235,7 @@ lifespan_logger.info(f"File watcher started: {settings.foscam_base_path}")
 ### Phase 9: Pipeline Workers
 
 ```python
-# backend/main.py:586-591
+# backend/main.py:587-592
 # Initialize pipeline workers (detection queue, analysis queue, batch timeout)
 pipeline_manager = await get_pipeline_manager(redis_client)
 await pipeline_manager.start()
@@ -247,7 +247,7 @@ lifespan_logger.info(
 ### Phase 10: Worker Supervisor
 
 ```python
-# backend/main.py:593-645
+# backend/main.py:594-646
 # Initialize WorkerSupervisor for automatic crash recovery (NEM-2460)
 supervisor_config = SupervisorConfig(
     check_interval=settings.worker_supervisor_check_interval,
@@ -297,10 +297,10 @@ await worker_supervisor.start()
 
 ### Shutdown Event
 
-**Source:** `backend/main.py:124-138`
+**Source:** `backend/main.py:125-139`
 
 ```python
-# backend/main.py:124-138
+# backend/main.py:125-139
 def get_shutdown_event() -> asyncio.Event:
     """Get the global shutdown event, creating it if necessary.
 
@@ -398,10 +398,10 @@ async def liveness_check():
 
 ## Error Handling During Startup
 
-**Source:** `backend/main.py:647-649`
+**Source:** `backend/main.py:648-650`
 
 ```python
-# backend/main.py:647-649
+# backend/main.py:648-650
 except Exception as e:
     lifespan_logger.error(f"Redis connection failed: {e}")
     lifespan_logger.warning("Continuing without Redis - some features may be unavailable")

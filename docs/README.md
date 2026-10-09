@@ -111,7 +111,6 @@ docs/
 ├── plans/              # Design and implementation plans
 ├── operations/         # Operational runbooks
 ├── deployment/         # Container-orchestration docs
-├── archive/            # Archived point-in-time reports and NEM investigations
 └── images/             # Diagrams and screenshots
 ```
 

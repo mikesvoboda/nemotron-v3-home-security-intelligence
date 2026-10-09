@@ -1694,7 +1694,7 @@ async def test_get_memory_pressure_level_monitor_raises_exception():
 
 
 # -----------------------------------------------------------------------------
-# WP4.4 kill tests (frozen triage feed archive/wp25-feed/wp44-triage,
+# WP4.4 kill tests (frozen triage feed the deleted archive's wp25-feed/wp44-triage,
 # clusters C1/C3 -- the 2 remaining TEST-GAP mutants of this module).
 # test_set_gpu_monitor above calls the setter but asserts NOTHING about the
 # global it writes (its own comment says so), so the
@@ -2162,7 +2162,7 @@ async def test_close_batch_for_size_limit_queue_warning_logged(
 
 
 # -----------------------------------------------------------------------------
-# WP4.4 kill tests (frozen triage feed archive/wp25-feed/wp44-triage,
+# WP4.4 kill tests (frozen triage feed the deleted archive's wp25-feed/wp44-triage,
 # clusters C11-C17 -- 46 surviving mutants of _close_batch_for_size_limit).
 # The pre-existing tests exercise return values but never inspect the Redis
 # CALLS the close sequence makes, so mutations to the lrange key/range args,

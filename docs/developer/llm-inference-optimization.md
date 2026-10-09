@@ -66,7 +66,7 @@ the two never disagree.
 
 llama.cpp splits one `--ctx-size` pool across `--parallel` slots, and one
 `vlm_assess` only ever gets one slot. The backend mirrors that arithmetic:
-`vlm_context_window` (`backend/core/config.py:1353`, alias `VLM_CTX_SIZE`) is
+`vlm_context_window` (`backend/core/config.py:1354`, alias `VLM_CTX_SIZE`) is
 the per-slot budget the client fits every prompt against.
 
 The client's fit test (`backend/services/vlm_client.py:836-901`) reserves, per

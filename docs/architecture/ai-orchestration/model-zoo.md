@@ -41,7 +41,7 @@ class ModelConfig:
 ```
 
 `priority` and `never_evict` are read from the rows and carried on the config, and nothing consumes
-them: the model zoo has no eviction pass (`backend/main.py:653-654`). Treat them as inert.
+them: the model zoo has no eviction pass (`backend/main.py:654-655`). Treat them as inert.
 
 ## What Is Loadable Today
 
@@ -77,7 +77,7 @@ and return `None` when it is absent — they never load.
 The sweep that places it runs at boot and is gated on the setting:
 
 ```python
-# backend/main.py:1214
+# backend/main.py:1215
 if settings.backend_model_preload:
     preload_names = select_preload_candidates(
         model_zoo, preload_enabled=settings.backend_model_preload

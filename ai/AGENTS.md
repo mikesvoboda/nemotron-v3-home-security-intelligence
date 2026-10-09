@@ -111,12 +111,12 @@ it is Triton `yolo26` behind the gateway `/yolo26` router) and
 over `/enrich-lt/threat-detect` when `GATEWAY_ENABLE_THREAT=true`).
 
 The X-CLIP `action_recognizer` slot was retired with the NEM-5563 move to Triton
-`stgcn_action` (code in `archive/ai-enrichment/`), and the whole action chain
-went next: the backend reader is archived in
-`archive/xclip-backend-chain/`, there is no `/action-classify` adapter after
-the R8 S3 prune (`ai/gateway/adapters/` holds `yolo26.py` and
-`enrichment_light.py` only), and `models.yml` has no `xclip-base` row. Action
-recognition is not a shipped capability.
+`stgcn_action`, and the whole action chain went next: there is no
+`/action-classify` adapter after the R8 S3 prune (`ai/gateway/adapters/` holds
+`yolo26.py` and `enrichment_light.py` only), and `models.yml` has no
+`xclip-base` row. Action recognition is not a shipped capability. (The retired
+code sat in the deleted archive tree under ai-enrichment/ and xclip-backend-chain/;
+UR-19 deleted the archive tree — recover it from git history.)
 
 ### Model Priority System
 
@@ -287,11 +287,11 @@ backend clients. The env vars that table documented (`VRAM_BUDGET_GB`,
 `VEHICLE_MODEL_PATH`, `PET_MODEL_PATH`/`PET_DEVICE`, `DEPTH_MODEL_PATH`,
 `POSE_MODEL_PATH`, `THREAT_MODEL_PATH`, `AGE_MODEL_PATH`, `GENDER_MODEL_PATH`,
 `REID_MODEL_PATH`/`REID_DEVICE`, `ACTION_MODEL_PATH`,
-`YOLO26_ENRICHMENT_MODEL_PATH`) have no serving-code reader left: outside docs
-and `archive/`, `git grep` finds them only in this file, plus the
-`gpu_config_service.py` line that still writes `VRAM_BUDGET_GB` into a generated
-override for the deleted `ai-enrichment` service. The two survivors worth
-knowing:
+`YOLO26_ENRICHMENT_MODEL_PATH`) have no serving-code reader left: `git grep`
+finds them only in docs and this file, plus the `gpu_config_service.py` line
+that still writes `VRAM_BUDGET_GB` into a generated override for the deleted
+`ai-enrichment` service. (The archive copies UR-19 deleted are recoverable from
+git history.) The two survivors worth knowing:
 
 | Variable                 | Where it lives                                                     |
 | ------------------------ | ------------------------------------------------------------------ |

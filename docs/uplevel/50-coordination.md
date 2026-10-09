@@ -240,6 +240,13 @@ Contract: rules 1-5 — ok | <which rule, why>
 Notes:
 ```
 
+**Specialist subagents** (owner, 2026-10-09). `.claude/agents/` holds two read-only subagents,
+adapted from `msitarzewski/agency-agents`. The reviewer of a security-and-auth package (§3)
+dispatches `security-auditor` on the diff. The authors of `F2.2` and `O2.3`, and of R2's list of
+modules serving no feature, dispatch `codebase-archaeologist` on their scope. A subagent's findings
+are claims until the agent that dispatched it reproduces them (UR-29): the review or PR quotes only
+the reproduced findings, and says which it set aside and why.
+
 **Trust model (UR-27).** Every agent acts through the owner's GitHub token, so GitHub cannot tell
 an agent's comment from the owner's. Review comments and owner approvals are a protocol agents
 follow, not an authenticated boundary; the owner accepted that risk. An agent writes approvals only

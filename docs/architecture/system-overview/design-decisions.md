@@ -80,7 +80,7 @@ Batch detections into **90-second time windows** with **30-second idle timeout**
 #         * 30 seconds with no new detections (idle timeout)
 ```
 
-**Configuration Source:** `backend/core/config.py:925-934`
+**Configuration Source:** `backend/core/config.py:928-937`
 
 ```python
 batch_window_seconds: int = Field(
@@ -113,7 +113,7 @@ batch_idle_timeout_seconds: int = Field(
 
 `BatchAggregator` has a fast-path branch that would skip the window for a high-confidence detection,
 but it ships inert: `FAST_PATH_OBJECT_TYPES` defaults to an empty list, so the branch never matches
-(`backend/core/config.py:1892-1908`). Every detection reaches the analyzer through the normal batch
+(`backend/core/config.py:1895-1911`). Every detection reaches the analyzer through the normal batch
 gate.
 
 ---
@@ -209,7 +209,7 @@ class PoolType(str, Enum):
     """Fallback pool when dedicated pools are disabled."""
 ```
 
-**Pool Size Configuration Source:** `backend/core/config.py:536-563`
+**Pool Size Configuration Source:** `backend/core/config.py:540-567`
 
 ```python
 redis_pool_dedicated_enabled: bool = Field(
@@ -300,7 +300,7 @@ The face and re-ID legs never trigger their own load: `osnet_loader.get_reid_han
 (`backend/services/osnet_loader.py:182-203`) and `face_recognizer_loader.get_face_leg_handles()`
 (`backend/services/face_recognizer_loader.py:466-490`) are membership reads. The handle exists only
 if the boot sweep ran, and that sweep is gated on `BACKEND_MODEL_PRELOAD`, which ships `false`
-(`.env.example:231`, `backend/main.py:1214`). `setup.py` sets it to true only when detected VRAM is
+(`.env.example:231`, `backend/main.py:1215`). `setup.py` sets it to true only when detected VRAM is
 at least 24 GB. The plate leg is the exception — `fast_alpr_loader` loads on demand.
 
 So on a sub-24 GB host the `faces` and `person_reid` specialist lines report `unavailable` on every
@@ -340,7 +340,7 @@ to all connected clients using Redis pub/sub as the event backbone.
 """
 ```
 
-**Channel Configuration Source:** `backend/core/config.py:508-512`
+**Channel Configuration Source:** `backend/core/config.py:512-516`
 
 ```python
 redis_event_channel: str = Field(
@@ -393,7 +393,7 @@ This is a single-user home security system deployed on a trusted local network. 
 `SetupGuardMiddleware` returns 503 for every non-whitelisted endpoint until the first admin
 registration exists, after which the API is open. System assumes trusted network access by single user.
 
-**Source:** `backend/main.py:1488`
+**Source:** `backend/main.py:1489`
 
 ```python
 # Add setup guard middleware (NEM-5312: Phase 2 API Protection)
@@ -404,7 +404,9 @@ app.add_middleware(SetupGuardMiddleware)
 ```
 
 Per-route dependencies (`verify_api_key`, `require_admin_access`, `get_current_admin_user`) protect
-the admin endpoints regardless (`backend/main.py:1490-1496`).
+the admin endpoints regardless (`backend/api/routes/system.py:271`,
+`backend/api/routes/admin.py:262`, `backend/api/routes/auth.py:479` — B1.5 deleted the
+`backend/main.py` comment that used to carry this claim).
 
 ### Rationale
 

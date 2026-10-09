@@ -98,7 +98,7 @@ analyzer derives it through `SeverityService.risk_score_to_severity()`
 (`backend/services/severity.py:137-163`) and `Event.computed_risk_level`
 (`backend/models/event.py:379-411`) re-derives it from the same configurable
 thresholds (`severity_low_max`/`severity_medium_max`/`severity_high_max`,
-`backend/core/config.py:2423-2440`):
+`backend/core/config.py:2426-2443`):
 
 | Score Range | Risk Level |
 | ----------- | ---------- |

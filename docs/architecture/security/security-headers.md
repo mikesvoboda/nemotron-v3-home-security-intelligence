@@ -7,7 +7,7 @@
 ## Key Files
 
 - `backend/api/middleware/security_headers.py` - Security headers middleware implementation
-- `backend/main.py:1014-1015` - Security headers middleware registration
+- `backend/main.py:1015-1016` - Security headers middleware registration
 - `frontend/vite.config.ts` - Frontend CSP configuration (development)
 - `frontend/nginx.conf` - Frontend CSP configuration (production)
 
@@ -54,7 +54,7 @@ class SecurityHeadersMiddleware:
 The middleware is registered in the application startup:
 
 ```python
-# From backend/main.py:1014-1015
+# From backend/main.py:1015-1016
 # Security headers middleware for defense-in-depth (NEM-1615)
 app.add_middleware(SecurityHeadersMiddleware)
 ```

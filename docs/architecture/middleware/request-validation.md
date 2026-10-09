@@ -138,10 +138,10 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
 
 ### Default Limit
 
-The default limit is 10MB, configured in `backend/main.py:1061`:
+The default limit is 10MB, configured in `backend/main.py:1062`:
 
 ```python
-# From backend/main.py:1061
+# From backend/main.py:1062
 app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)
 ```
 

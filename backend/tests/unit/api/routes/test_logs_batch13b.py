@@ -1,7 +1,7 @@
 """Batch-13b mutation-kill battery: ``_log_frontend_entry`` full-extra-dict pins.
 
 Target: the 61 survivors in the frozen WP4.4 dossier
-``archive/wp25-feed/wp44-triage/logs.md`` / ``logs_surv_keys.txt`` (module
+the deleted archive's ``wp25-feed/wp44-triage/logs.md`` / ``logs_surv_keys.txt`` (module
 ``backend/api/routes/logs.py``). The dossier's stated weakness: shipped tests
 assert SUBSTRING membership in the log text and never pin the FULL ``extra``
 dict — so key renames, CASE renames, value→None swaps, sanitize-cap tweaks, and

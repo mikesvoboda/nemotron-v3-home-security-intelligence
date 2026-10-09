@@ -39,7 +39,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "deploy.yml"
 
 # Serving trees R8 deleted (S2: ai-llm; S3: florence/clip/enrichment; and
-# yolo26's image retired earlier — archive/ai-yolo26-image/). A name here
+# yolo26's image retired earlier — the ai-yolo26-image archive tree). A name here
 # must not survive in any matrix, only in comments explaining its deletion.
 RETIRED_IMAGE_NAMES = {
     "ai-florence",
