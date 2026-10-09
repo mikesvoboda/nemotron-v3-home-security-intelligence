@@ -11,8 +11,8 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
 - **First-time admin registration required** - `SetupGuardMiddleware` returns 503 on the
   API until the first user is created.
 - **Two exposure modes (OD-12)** - With `EXPOSE_LAN` unset (the default) the API requires no
-  credential after registration; after `O1.6` the UI binds to `127.0.0.1` and the service
-  bindings are the security boundary (until then nginx publishes on `0.0.0.0`). Set `EXPOSE_LAN=true` whenever anything beyond this machine can reach the UI (the
+  credential after registration; the UI binds to `127.0.0.1` and the service
+  bindings are the security boundary (`O1.6` landed — `setup.py` derives `FRONTEND_BIND_ADDRESS`). Set `EXPOSE_LAN=true` whenever anything beyond this machine can reach the UI (the
   LAN, a tunnel, a port forward): `AuthMiddleware` then refuses every request without the
   login session cookie or an `API_KEYS` key, except health probes, setup and login.
   Monitoring needs a credential too (UR-33), so Prometheus, Alertmanager and Grafana's
@@ -355,19 +355,20 @@ AI_VLM_URL=https://your-ai-host
 
 Only expose necessary ports:
 
-| Port        | Service                              | Exposure                                             |
-| ----------- | ------------------------------------ | ---------------------------------------------------- |
-| 8080 (HTTP) | Frontend                             | Published `0.0.0.0` — user access                    |
-| 8444 (TLS)  | Frontend + `/grafana/`               | Published `0.0.0.0` — user access                    |
-| 8000        | Backend API                          | Bound `127.0.0.1:${API_PORT}` — host-local           |
-| 5432        | PostgreSQL                           | Bound `127.0.0.1` — **internal only**                |
-| 6379        | Redis                                | Bound `127.0.0.1` — **internal only**                |
-| 8090        | ai-gateway (`/yolo26`, `/enrich-lt`) | Bound `127.0.0.1` — **internal only**                |
-| 8002        | ai-gateway Triton native metrics     | Bound `127.0.0.1` — **internal only**                |
-| 8098        | ai-vlm (reasoning)                   | Bound `127.0.0.1:${AI_VLM_PORT}` — **internal only** |
+| Port        | Service                              | Exposure                                                                             |
+| ----------- | ------------------------------------ | ------------------------------------------------------------------------------------ |
+| 8080 (HTTP) | Frontend                             | Bound `127.0.0.1` by default (`O1.6`) — `EXPOSE_LAN=true` publishes it for LAN users |
+| 8444 (TLS)  | Frontend + `/grafana/`               | Bound `127.0.0.1` by default (`O1.6`) — `EXPOSE_LAN=true` publishes it for LAN users |
+| 8000        | Backend API                          | Bound `127.0.0.1:${API_PORT}` — host-local                                           |
+| 5432        | PostgreSQL                           | Bound `127.0.0.1` — **internal only**                                                |
+| 6379        | Redis                                | Bound `127.0.0.1` — **internal only**                                                |
+| 8090        | ai-gateway (`/yolo26`, `/enrich-lt`) | Bound `127.0.0.1` — **internal only**                                                |
+| 8002        | ai-gateway Triton native metrics     | Bound `127.0.0.1` — **internal only**                                                |
+| 8098        | ai-vlm (reasoning)                   | Bound `127.0.0.1:${AI_VLM_PORT}` — **internal only**                                 |
 
-Most host bindings are already `127.0.0.1` (the compose files bind them that way), so the
-firewall mainly needs to allow the frontend ports for LAN users:
+The compose files bind every listed port to `127.0.0.1` by default (`O1.6`), so a default
+deployment needs no inbound rules at all. If you run with `EXPOSE_LAN=true`, the frontend's ports
+are the ones LAN clients must reach, and the auth gate is the boundary — open just those:
 
 ```bash
 # UFW example (Linux)

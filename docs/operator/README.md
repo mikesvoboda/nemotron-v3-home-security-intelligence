@@ -222,8 +222,9 @@ flowchart TB
 
 ### Ports Reference
 
-Host ports come from `.env`; every service except `frontend` binds `127.0.0.1` only.
-Access Grafana and the API through the frontend nginx proxy for anything off-host.
+Host ports come from `.env`, and every service binds `127.0.0.1` by default (`O1.6`) —
+`EXPOSE_LAN=true` publishes the frontend's ports for LAN clients. Access Grafana and the API
+through the frontend nginx proxy for anything off-host.
 
 | Service            | Env var                   | Host port | Container port | Purpose                                       |
 | ------------------ | ------------------------- | --------- | -------------- | --------------------------------------------- |

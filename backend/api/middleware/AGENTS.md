@@ -566,8 +566,8 @@ Setup guard middleware (`SetupGuardMiddleware`): returns 503 for API endpoints u
 ### Purpose
 
 `AuthMiddleware` is the gate the owner ruled in OD-12 (built by uplevel `B1.5`). With
-`EXPOSE_LAN` unset the backend requires no credential, as before; after `O1.6` the frontend
-then binds to 127.0.0.1 only. With `EXPOSE_LAN=true` it refuses every HTTP request and WebSocket handshake that
+`EXPOSE_LAN` unset the backend requires no credential, as before; the frontend
+now binds to 127.0.0.1 only (`O1.6` landed). With `EXPOSE_LAN=true` it refuses every HTTP request and WebSocket handshake that
 presents no valid credential — whatever the path, including routes added later — except
 `OPEN_PATHS`.
 
