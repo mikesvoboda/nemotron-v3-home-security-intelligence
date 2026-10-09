@@ -60,10 +60,12 @@ patterns/
 - Running mutation tests (mutmut for Python, Stryker for TypeScript)
 - Target modules and mutation scores
 - Understanding and improving mutation score
+- The interface bar — which kills count, and the below-bar assertions that don't
+- Accepted survivors — the `equivalent` / `below-bar` kinds and the file that records them
 - CI integration (non-blocking)
 - Troubleshooting surviving mutants
 
-**When to use:** Evaluating test suite effectiveness, improving test quality, investigating test gaps.
+**When to use:** Evaluating test suite effectiveness, improving test quality, investigating test gaps, deciding whether a test protects a kill.
 
 ### Test Performance (`test-performance.md`)
 

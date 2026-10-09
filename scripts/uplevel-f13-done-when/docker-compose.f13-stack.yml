@@ -1,0 +1,63 @@
+# F1.3 Done-when run: minimal postgres+redis+backend+frontend stack.
+# The full prod compose needs GPU/AI services that are irrelevant to the login
+# gate; this file carries only the four services the checkbox exercises.
+# Service names matter: frontend/nginx.conf proxies to http://backend:8000.
+#
+# Backend runtime provenance: the published :latest image (revision cd3a85a9)
+# predates the B1.5 gate merge and its venv still carries python-jose, so
+# mounting this working tree's source over it dies at `import jwt`. A full
+# `docker build --target dev` from HEAD can fail on disk (torch/polars).
+# f13-backend:live is therefore the published image plus a one-package overlay
+# (backend-overlay.Dockerfile: uv.lock's only app-runtime delta, python-jose
+# out / pyjwt in), with backend/ from THIS working tree mounted read-only
+# below. The process that answers /api/auth/setup-status and gates /ws is the
+# tree under test.
+#
+# Credentials come from the environment; compose refuses without them (no
+# committed throwaway password — the secret scanners here are gating).
+name: f13-done-when
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=security
+      - POSTGRES_PASSWORD=${F13_POSTGRES_PASSWORD:?required}
+      - POSTGRES_DB=security
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U security -d security']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine3.21
+
+  backend:
+    image: f13-backend:live
+    volumes:
+      - ${F13_REPO_ROOT:?repo root, e.g. from git rev-parse --show-toplevel}/backend:/app/backend:ro
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://security:${F13_POSTGRES_PASSWORD:?required}@postgres:5432/security
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=development
+      # EXPOSE_LAN deliberately absent: Done-when run 2 is "EXPOSE_LAN unset".
+      # Run 1 layers docker-compose.f13-expose-true.yml instead of editing here.
+      - OTEL_ENABLED=false
+      - READINESS_REQUIRE_PIPELINE_WORKERS=false
+      - PYROSCOPE_ENABLED=false
+      - PYTHONDONTWRITEBYTECODE=1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  frontend:
+    image: f13-frontend:live
+    ports:
+      - '127.0.0.1:18080:8080'
+    environment:
+      - SSL_ENABLED=false
+    depends_on:
+      - backend

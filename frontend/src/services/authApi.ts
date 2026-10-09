@@ -42,6 +42,16 @@ export interface User {
 export interface SetupStatusResponse {
   /** True if no users exist and setup is required */
   setup_required: boolean;
+  /**
+   * True when the backend requires a login session or API key
+   * (`EXPOSE_LAN=true`; `auth_required=get_settings().expose_lan` in
+   * `backend/api/routes/auth.py`). The app shows its login screen only when
+   * this is true.
+   *
+   * Optional because the field arrived with B1.5: a response from an older
+   * backend omits it, and `AuthContext` fails closed in that case.
+   */
+  auth_required?: boolean;
 }
 
 /**

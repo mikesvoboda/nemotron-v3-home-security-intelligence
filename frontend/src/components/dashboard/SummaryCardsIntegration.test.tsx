@@ -27,6 +27,11 @@ import type { Summary, SummariesLatestResponse } from '../../types/summary';
 // Mock the API module
 vi.mock('../../services/api', () => ({
   fetchSummaries: vi.fn(),
+  // F1.3: useSummaries resolves its default socket through this builder now.
+  buildWebSocketOptions: vi.fn(() => ({
+    url: 'ws://localhost:8000/ws/events',
+    protocols: undefined,
+  })),
 }));
 
 // Mock WebSocket hook - capture onMessage callback for simulating WebSocket events
