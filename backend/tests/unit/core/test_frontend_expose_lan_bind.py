@@ -16,7 +16,8 @@ hand-edited .env that carries EXPOSE_LAN=true without FRONTEND_BIND_ADDRESS at
 all — the render with that shape is pinned below).
 
 Every test here is skip-free: the render test uses the real compose binary when
-one is installed and, when none is (the CI unit-tests job has no compose), an
+one is installed and, when none is (whether a given CI runner carries one is
+not asserted from the repo — both branches run green either way), an
 in-test interpolation emulator pinned by its own unit asserts, so the Done-when
 clause ("that test runs in CI and passes") holds in both directions. The
 environment-skip precedent (test_compose_render_lists_ai_vlm.py) is deliberately
@@ -134,6 +135,8 @@ def test_env_example_declares_the_two_vars():
         # so EXPOSE_LAN=yes can never arm the auth gate while leaving the bind
         # loopback. Case variants of every member open; typos stay shut.
         ("trUe", "0.0.0.0"),
+        ("t", "0.0.0.0"),
+        ("T", "0.0.0.0"),
         ("YES", "0.0.0.0"),
         ("y", "0.0.0.0"),
         ("on", "0.0.0.0"),
@@ -562,6 +565,75 @@ def test_port_and_topology_docs_state_the_landed_bind(doc: str) -> None:
     )
     assert "after O1.6" not in text, f"{doc} still says O1.6 is upcoming"
     assert "after `O1.6`" not in text, f"{doc} still says O1.6 is upcoming"
+
+
+# The inverse-claim FAMILY, stated as claims rather than phrases. Round 1 pinned
+# the deferral phrase ("after `O1.6`"), round 2 pinned one literal paraphrase
+# ("except the frontend"), and each round's own grep missed the next wording —
+# because the claim ("the frontend is the one port published wild") can be
+# written any number of ways. So this gate matches the CLAIM shape across the
+# whole port-doc family: anything that carves the frontend out of the loopback
+# rule, or calls it the exception that is bound/published `0.0.0.0`, or says a
+# host port is open to the network, fails here regardless of phrasing. Prose is
+# whitespace-normalized first so a claim wrapped across lines still matches.
+#
+# The pattern is scoped to the port-doc family deliberately (round-1's live
+# `Settings` gate is the same idea in product code: it catches the string
+# whoever writes it, wherever). New port docs join the list; the pattern is
+# what makes a missing flip loud instead of quiet.
+_INVERSE_BIND_CLAIMS: tuple[tuple[str, str], ...] = (
+    ("carves the frontend out of the loopback rule", r"except[^.]{0,80}frontend"),
+    (
+        "calls the frontend the exception bound to the wildcard",
+        r"exception[^.]{0,40}(?:bound|binds?|publishes?)[^.]{0,12}0\.0\.0\.0",
+    ),
+    (
+        "says a host port is open to the network",
+        r"only[^.]{0,60}host port[^.]{0,40}open to the network",
+    ),
+    (
+        "lists a frontend row as published on the wildcard for users",
+        r"published [`\"]?0\.0\.0\.0[`\"]? — user access",
+    ),
+)
+
+_PORT_DOC_FAMILY: tuple[str, ...] = (
+    "README.md",
+    "docs/operator/README.md",
+    "docs/operator/deployment/README.md",
+    "docs/operator/admin/security.md",
+    "docs/architecture/security/network-security.md",
+    "docs/getting-started/first-run.md",
+    "docs/architecture/overview.md",
+    "docs/architecture/system-overview/deployment-topology.md",
+    # Sixth paraphrase the claim pattern caught that no phrase sweep had:
+    # "Every mapping above except the two frontend ports is published on
+    # 127.0.0.1 only" in a port-mapping table.
+    "docs/diagrams/README.md",
+)
+
+
+@pytest.mark.parametrize("doc", _PORT_DOC_FAMILY)
+def test_port_doc_family_states_the_landed_bind_by_claim(doc: str) -> None:
+    """Claim-level sweep gate (O1.6 review round 2, the structural fix).
+
+    O1.6 made the frontend's published ports loopback-by-default, so every
+    sentence anywhere an operator reads reachability that still describes the
+    OLD wildcard default is now false advice — including the firewall recipes,
+    which would have an operator fence a port that is already shut. Phrase
+    bans cannot catch that (three rounds proved it); this bans the claims.
+    Conditional prose about ``EXPOSE_LAN=true`` staying wildcard is correct and
+    does not match: the claims below are all the *default-state* shape.
+    """
+    text = (REPO_ROOT / doc).read_text(encoding="utf-8")
+    normalized = re.sub(r"\s+", " ", text)
+    for description, pattern in _INVERSE_BIND_CLAIMS:
+        match = re.search(pattern, normalized, re.IGNORECASE)
+        if match is not None:
+            raise AssertionError(
+                f"{doc} still {description} — O1.6 landed the loopback default, "
+                f"so this is false operator advice. Matched: {match.group(0)!r}"
+            )
 
 
 def test_shipped_field_descriptions_do_not_defer_o16() -> None:
