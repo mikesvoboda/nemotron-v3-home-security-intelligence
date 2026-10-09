@@ -114,6 +114,14 @@ def classify(rel: str) -> str | None:
 def scan(root: Path) -> dict:
     per_name: dict[str, int] = {n: 0 for n in NAMES}
     buckets: dict[str, int] = {"agents": 0, "docs": 0, "code": 0}
+    # bucket x name cross-tab: the audit's own figures are per-name-within-
+    # per-bucket ("29 still describe Florence" = florence in AGENTS.md), and
+    # every [C] value 00-audit.md carries must be regenerable from this
+    # script's JSON alone — a committed number the committed script cannot
+    # print is the rule-3 gap this package exists to close.
+    buckets_per_name: dict[str, dict[str, int]] = {
+        b: {n: 0 for n in NAMES} for b in buckets
+    }
     files: list[dict] = []
     for path in sorted(root.rglob("*")):
         if not path.is_file():
@@ -135,12 +143,14 @@ def scan(root: Path) -> dict:
         buckets[bucket] += 1
         for n in hits:
             per_name[n] += 1
+            buckets_per_name[bucket][n] += 1
         files.append({"path": rel, "bucket": bucket, "names": hits})
     return {
         "names": NAMES,
         "files_with_hits": len(files),
         "buckets": buckets,
         "hits_per_name": per_name,
+        "buckets_per_name": buckets_per_name,
         "files": files,
     }
 

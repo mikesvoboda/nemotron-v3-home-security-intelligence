@@ -118,6 +118,27 @@ def test_whole_word_matching(tmp_path: Path):
     assert result["hits_per_name"]["nemotron"] == 0  # only the exempt record names it
 
 
+def test_buckets_per_name_crosstab(tmp_path: Path):
+    """The [C] figures 00-audit.md carries must be readable off this JSON.
+
+    '29 still describe Florence' was florence-WITHIN-AGENTS.md, not the
+    florence total; a committed number the committed script cannot print is
+    the rule-3 gap O1.7 closes. gpu.py's florence-light host is a code-bucket
+    florence hit; root AGENTS.md's enrichment is an agents-bucket hit.
+    """
+    build_tree(tmp_path)
+    result = scan(tmp_path)
+    cross = result["buckets_per_name"]
+    assert cross["agents"]["enrichment"] == 1
+    assert cross["agents"]["florence"] == 0
+    assert cross["code"]["florence"] == 1  # gpu.py, via the hyphenated host
+    assert cross["docs"]["florence"] == 1  # architecture.md, standalone word
+    assert cross["code"]["demographic"] == 1
+    # cross-tab rows sum to the per-name totals
+    for n in result["names"]:
+        assert sum(cross[b][n] for b in cross) == result["hits_per_name"][n]
+
+
 def test_summary_line_and_exit(tmp_path: Path):
     build_tree(tmp_path)
     rc, out, err = run_script(tmp_path)
