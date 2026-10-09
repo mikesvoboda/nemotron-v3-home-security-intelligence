@@ -763,7 +763,7 @@ Each page has a co-located test file (named `*.test.tsx`).
 
 Zod schemas mirroring the backend Pydantic models (the directory holds 8 code
 files + 7 co-located tests — `index.ts` is the code file with no test — not
-the 4 the old table listed):
+the 4 this guide's own table listed before the batch-9 lift):
 
 | File                 | Purpose                                           |
 | -------------------- | ------------------------------------------------- |
@@ -872,7 +872,8 @@ hardcodes — resolves differently per file, so "the risk color" is not a
 thing. Every ratio named below was computed at this head; ratios are
 background-dependent, so each names its background.)
 
-- **Same risk level, five sources, four different hexes.** Tailwind `risk.*`
+- **Same risk level, five sources, three different hexes per level at most.**
+  Tailwind `risk.*`
   tokens (config): low `#76B900`, medium `#FFB800`, high `#FFCDD2` (moved
   for contrast on `bg-risk-high/10`). The JS status map
   (`types/constants.ts`): same low/medium, high still `#E74856` — the old
@@ -892,10 +893,11 @@ background-dependent, so each names its background.)
   high risk in `types/constants.ts:67` (`RISK_LEVEL_CONFIG.high`), confidence
   **LOW** in `utils/confidence.ts:28` (a red "low confidence, needs
   attention" badge). Copying "the red" between the two inverts a signal. And
-  inside `types/constants.ts` itself the same hex carries four meanings:
-  `HEALTH_STATUS_CONFIG.unhealthy` (:122), `CONTAINER_STATUS_CONFIG`
-  `.unhealthy` (:173) and `.error` (:185), `ALERT_SEVERITY_CONFIG.critical`
-  (:398), `MODEL_STATUS_CONFIG.error` (:443). Name the map, not the file.
+  inside `types/constants.ts` itself the same hex recurs at five sites across
+  four config maps: `HEALTH_STATUS_CONFIG.unhealthy` (:122),
+  `CONTAINER_STATUS_CONFIG` `.unhealthy` (:173) and `.error` (:185),
+  `ALERT_SEVERITY_CONFIG.critical` (:398), `MODEL_STATUS_CONFIG.error` (:443).
+  Name the map, not the file.
 - **`medium` exists as three hexes** (`#FFB800` config/constants,
   `#EAB308` chartColors, `#F59E0B` ALT + components the file's own comment
   admits hardcode it). Legend-vs-fill mismatches in analytics charts are
@@ -997,7 +999,9 @@ a stylesheet-only trace misses it; its 34 `theme()` calls — 13 of them
   paints a contrast-adjusted `#3a3a3a` pill, while its partner
   `STATUS_TEXT_CLASSES.inactive = 'text-gray-400'` (:100) has no screen-side
   override (only inside `print.css`'s `@media print`) — the background was
-  adjusted for contrast, the text was not.
+  adjusted for contrast, the text was not. `unknown` (:101) maps to the same
+  class, so whichever status reaches it inherits the un-adjusted text — grep
+  the consumer before assuming the contrast fix applies.
 
 ### `/test/` - Test Setup
 
