@@ -42,6 +42,7 @@ from backend.api.schemas.auth import (
     UserRegisterRequest,
     UserResponse,
 )
+from backend.core.config import get_settings
 from backend.core.database import get_db
 from backend.core.logging import get_logger
 from backend.models.api_key import APIKey
@@ -99,13 +100,14 @@ def _generate_api_key_id() -> str:
 async def get_setup_status(
     db: AsyncSession = Depends(get_db),
 ) -> SetupStatusResponse:
-    """Check if initial setup is required.
+    """Check if initial setup is required, and if the API requires authentication.
 
-    Returns whether the system needs initial setup (first admin user registration).
-    Setup is required if no users exist in the database.
+    Returns whether the system needs initial setup (first admin user registration),
+    which it does while no users exist in the database, and whether the API
+    requires a credential (EXPOSE_LAN=true), so the frontend knows to show login.
 
     Returns:
-        SetupStatusResponse indicating if setup is required.
+        SetupStatusResponse with both flags.
     """
     result = await db.execute(select(func.count(User.id)))
     count = result.scalar() or 0
@@ -120,7 +122,10 @@ async def get_setup_status(
         },
     )
 
-    return SetupStatusResponse(setup_required=setup_required)
+    return SetupStatusResponse(
+        setup_required=setup_required,
+        auth_required=get_settings().expose_lan,
+    )
 
 
 # =============================================================================

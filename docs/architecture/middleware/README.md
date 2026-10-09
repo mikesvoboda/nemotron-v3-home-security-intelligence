@@ -25,10 +25,11 @@ The middleware architecture follows defense-in-depth principles, with multiple l
 ```mermaid
 graph TD
     subgraph "Incoming Request"
-        REQ[HTTP Request] --> IDEM
+        REQ[HTTP Request] --> AUTH
     end
 
     subgraph "Middleware Stack (Execution Order)"
+        AUTH[AuthMiddleware — refuses unauthenticated requests if EXPOSE_LAN=true<br/>backend/api/middleware/auth.py] --> IDEM
         IDEM[IdempotencyMiddleware — if idempotency_enabled<br/>backend/api/middleware/idempotency.py] --> GZIP
         GZIP[GZipMiddleware<br/>FastAPI builtin] --> BL
         BL[BodySizeLimitMiddleware<br/>backend/api/middleware/body_limit.py] --> SEC
@@ -59,14 +60,14 @@ graph TD
     style EH fill:#fbb,stroke:#333
 ```
 
-AuthMiddleware is **not** in this chain — it is intentionally unregistered (NEM-5527);
-see [Middleware Registration](#middleware-registration) below.
+AuthMiddleware, the EXPOSE_LAN gate (OD-12), is the outermost layer; with `EXPOSE_LAN`
+unset it passes every request. See [Middleware Registration](#middleware-registration) below.
 
 ## Quick Reference
 
 | Component                       | File                                               | Purpose                                                      |
 | ------------------------------- | -------------------------------------------------- | ------------------------------------------------------------ |
-| AuthMiddleware                  | `backend/api/middleware/auth.py`                   | API key/session auth — **not registered** (NEM-5527)         |
+| AuthMiddleware                  | `backend/api/middleware/auth.py`                   | EXPOSE_LAN gate: session cookie or API key, outermost        |
 | ContentTypeValidationMiddleware | `backend/api/middleware/content_type_validator.py` | Validate Content-Type headers                                |
 | RequestIDMiddleware             | `backend/api/middleware/request_id.py`             | Generate/propagate request IDs                               |
 | BaggageMiddleware               | `backend/api/middleware/baggage.py`                | OpenTelemetry context propagation                            |
@@ -100,9 +101,9 @@ Request:  Client -> Last Registered -> ... -> First Registered -> Route
 Response: Route -> First Registered -> ... -> Last Registered -> Client
 ```
 
-This means `IdempotencyMiddleware` — the **last** `add_middleware()` call in `backend/main.py:1351-1441`
-(where enabled) — processes requests first and responses last, while `SetupGuardMiddleware` — the first
-call — is innermost. `AuthMiddleware` never processes requests: it is not registered (NEM-5527).
+This means `AuthMiddleware` — the **last** `add_middleware()` call in `backend/main.py` — processes
+requests first and responses last, so nothing (not even an idempotent replay) answers a request the gate
+has not checked, while `SetupGuardMiddleware` — the first call — is innermost.
 
 ### Exception Handlers vs Middleware
 
@@ -139,10 +140,6 @@ requests flow bottom-up through this list:
 # From backend/main.py:1351-1441 (abridged, in registration order)
 app.add_middleware(SetupGuardMiddleware)  # 503 until first admin registered (NEM-5312)
 
-# NEM-5527: global AuthMiddleware is intentionally NOT registered — single-user
-# deployment; per-route deps (verify_api_key, require_admin_access) protect
-# admin endpoints; 127.0.0.1 network binding is the security boundary.
-
 app.add_middleware(ContentTypeValidationMiddleware)  # NEM-1617
 app.add_middleware(RequestIDMiddleware)              # log correlation
 app.add_middleware(BaggageMiddleware)                # W3C Baggage (NEM-3796)
@@ -176,6 +173,8 @@ app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)       # N
 
 if get_settings().idempotency_enabled:                # NEM-1999, ON by default
     app.add_middleware(IdempotencyMiddleware)
+
+app.add_middleware(AuthMiddleware)                    # EXPOSE_LAN gate (OD-12): outermost
 ```
 
 ## Additional Middleware

@@ -19,7 +19,7 @@ The system implements defense-in-depth security measures including input validat
 | Assumption               | Implication                                      |
 | ------------------------ | ------------------------------------------------ |
 | Single-user deployment   | No role-based access control                     |
-| Trusted local network    | API key authentication is optional               |
+| Loopback after `O1.6`    | No credential unless `EXPOSE_LAN=true`           |
 | No internet exposure     | CORS allows local origins by default             |
 | Camera data is sensitive | Path traversal protection on all media endpoints |
 
@@ -73,7 +73,7 @@ flowchart TB
 
 ### Auth Flow
 
-The following diagram illustrates the first-time setup guard and authentication flow. When no admin user exists, the `SetupGuardMiddleware` returns 503 until registration is completed. After the first admin is created, all requests pass through normally.
+The following diagram illustrates the first-time setup guard and authentication flow. When no admin user exists, the `SetupGuardMiddleware` returns 503 until registration is completed. After the first admin is created, requests pass through normally unless `EXPOSE_LAN=true`, in which case `AuthMiddleware` requires the login session cookie or an API key (except health, setup and login).
 
 ```mermaid
 sequenceDiagram
@@ -123,6 +123,7 @@ sequenceDiagram
 
 | Feature                | Environment Variable        | Default |
 | ---------------------- | --------------------------- | ------- |
+| Auth gate (OD-12)      | `EXPOSE_LAN`                | `false` |
 | API Key Authentication | `API_KEY_ENABLED`           | `false` |
 | HSTS Preload           | `HSTS_PRELOAD`              | `false` |
 | TLS/HTTPS              | `TLS_ENABLED`               | `false` |
@@ -140,7 +141,7 @@ sequenceDiagram
 | A04 Insecure Design           | Single-user model, defense-in-depth         | By Design   |
 | A05 Security Misconfiguration | Security headers, restrictive defaults      | Implemented |
 | A06 Vulnerable Components     | Dependabot, pre-commit hooks                | Implemented |
-| A07 Authentication Failures   | Optional API key auth                       | Optional    |
+| A07 Authentication Failures   | Session or API key when `EXPOSE_LAN=true`   | Optional    |
 | A08 Integrity Failures        | Content-Type validation, CSP                | Implemented |
 | A09 Logging Failures          | Structured logging with sanitization        | Implemented |
 | A10 SSRF                      | URL validation, blocked IP ranges           | Implemented |
@@ -150,7 +151,7 @@ sequenceDiagram
 | File                                         | Purpose                        |
 | -------------------------------------------- | ------------------------------ |
 | `backend/main.py:1083-1162`                  | Middleware stack configuration |
-| `backend/api/middleware/auth.py`             | API key authentication         |
+| `backend/api/middleware/auth.py`             | EXPOSE_LAN auth gate           |
 | `backend/api/middleware/security_headers.py` | HTTP security headers          |
 | `backend/core/sanitization.py`               | Input and error sanitization   |
 | `backend/core/url_validation.py`             | SSRF protection                |

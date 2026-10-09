@@ -27,6 +27,7 @@ from fastapi.routing import APIRoute
 
 from backend.api.exception_handlers import register_exception_handlers
 from backend.api.middleware import (
+    AuthMiddleware,
     BaggageMiddleware,
     BodySizeLimitMiddleware,
     ContentTypeValidationMiddleware,
@@ -1487,12 +1488,8 @@ app.openapi = get_cached_openapi_schema  # type: ignore[method-assign]
 # Must be early in the middleware chain (after auth) to block requests before processing
 app.add_middleware(SetupGuardMiddleware)
 
-# NEM-5527: Global AuthMiddleware disabled — it blocks ALL ~450 non-exempt
-# endpoints with 401, breaking Grafana dashboards, GPU settings, etc.
-# Per AGENTS.md "Key Design Decisions": "Single-user local deployment" — network binding
-# to 127.0.0.1 is the security boundary. Per-route auth dependencies
-# (verify_api_key, require_admin_access, get_current_admin_user) still
-# protect admin endpoints. Re-enable for future multi-user support.
+# AuthMiddleware, the EXPOSE_LAN gate (OD-12), is added last of all, below, so
+# that it runs first.
 
 # Add Content-Type validation middleware for request body validation (NEM-1617)
 # Validates that POST/PUT/PATCH requests have acceptable Content-Type headers
@@ -1571,9 +1568,14 @@ app.add_middleware(
 
 # Add idempotency middleware for mutation endpoints (NEM-1999)
 # Caches responses by Idempotency-Key header to prevent duplicate operations
-# Must be after body limit (to validate body first) and before auth (to cache auth'd responses)
+# Must be after body limit (to validate body first); it runs inside the auth gate
 if get_settings().idempotency_enabled:
     app.add_middleware(IdempotencyMiddleware)
+
+# The EXPOSE_LAN gate (OD-12, B1.5). Added last, so it runs before every other
+# middleware: nothing, not even an idempotent replay, answers an unchecked
+# request. With EXPOSE_LAN unset it passes everything.
+app.add_middleware(AuthMiddleware)
 
 # Register global exception handlers for consistent error responses
 register_exception_handlers(app)

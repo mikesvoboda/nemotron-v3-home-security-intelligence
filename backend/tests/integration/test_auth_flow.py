@@ -15,10 +15,11 @@ truth as test_api_protection.py):
 - There is NO /api/auth/refresh endpoint. Session lifecycle is
   login → cookie → logout (or 24h TTL).
 - /api/auth/me and the API-key CRUD require the session cookie via
-  get_current_user / get_current_admin_user; the global AuthMiddleware is
-  disabled (NEM-5527), so business routes like /api/cameras are open and
-  cannot carry auth assertions. The only X-API-Key surface is per-route
-  verify_api_key against settings.api_keys (integration_env sets
+  get_current_user / get_current_admin_user; with EXPOSE_LAN unset the
+  AuthMiddleware gate is off, so business routes like /api/cameras are open and
+  cannot carry auth assertions (test_expose_lan_auth.py covers the gate). Every
+  X-API-Key check (per-route verify_api_key, B1.3's require_api_key and the
+  gate) validates against settings.api_keys (integration_env sets
   API_KEYS=["test-api-key-12345"]); POST /api/system/cleanup?dry_run=true is
   the side-effect-free protected route used to prove it.
 
@@ -392,11 +393,11 @@ class TestAPIKeyAuthentication:
         """Pins a shipped gap: keys created via /api/auth/api-keys are stored
         in the api_keys table, but NO shipped auth path reads that table —
         every key checker validates settings.api_keys only (system.py:269,
-        dlq.py:41, and B1.3's require_api_key at middleware/auth.py:78; the
-        global AuthMiddleware is disabled, NEM-5527). A DB-created key
-        therefore authenticates nothing today, the inbound-webhook routes
-        included: there a settings key is refused with 501 and this key is
-        refused with 401 (owner-ruling candidate, ledger R-T7-APIKEY-DEAD).
+        dlq.py:41, B1.3's require_api_key and the EXPOSE_LAN gate, both in
+        middleware/auth.py). A DB-created key therefore authenticates nothing
+        today, the inbound-webhook routes included: there a settings key is
+        refused with 501 and this key is refused with 401 (owner-ruling
+        candidate, ledger R-T7-APIKEY-DEAD).
         """
         await _register_first_admin(client)
         _, cookie = await _login(client)

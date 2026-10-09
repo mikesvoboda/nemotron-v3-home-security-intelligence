@@ -94,6 +94,24 @@ kickoff = """\
 Follow the kickoff prompt in docs/uplevel/50-coordination.md. \
 It is "The heavy sandbox's kickoff prompt" under "The roster" in that file."""
 
+# UR-30: the only GPU holder. The owner hand-started it for Phase 1; this row lets the
+# launcher create it from the next phase boundary. gpu = true makes `up` add --gpu after
+# the model arguments (the order in 30-ops.md's hand-start line) and requires
+# AGENT_GPU_RUNNER_URL in the launching shell. No mount for /srv/agent-models: agent-dgx
+# --gpu mounts that library itself and refuses any mount at or under it.
+# Name the prompt as a section, never by position: `up` prints this line verbatim, and a
+# position rots when the file grows (#6864 found the heavy row doing exactly this, and
+# main's heavy row now carries the section form).
+# 30-ops.md §O1.10 wrote the operator's line positionally ("at the end of ..."); ruling
+# 13 routed that correction into this PR, so the plan text names the section too.
+[[phase.session]]
+name = "uplevel-operator"
+model = "fast"
+gpu = true
+kickoff = """\
+Follow the kickoff prompt in docs/uplevel/operator.md. \
+It is the section named "Kickoff prompt" in that file."""
+
 # Later phases (the coordinator adds rows as the plan changes; `up --phase <n>` creates
 # what is declared):
 # [[phase]]

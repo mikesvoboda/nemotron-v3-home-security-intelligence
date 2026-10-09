@@ -17,12 +17,18 @@ from pydantic import BaseModel, Field, field_validator
 class SetupStatusResponse(BaseModel):
     """Response schema for setup status check.
 
-    Returns whether initial setup (first user registration) is required.
+    Returns whether initial setup (first user registration) is required, and
+    whether the API requires authentication.
     """
 
     setup_required: bool = Field(
         ...,
         description="Whether initial setup is required (no users exist)",
+    )
+    auth_required: bool = Field(
+        ...,
+        description="Whether the API requires a login session or API key (EXPOSE_LAN=true). "
+        "The frontend shows its login screen only when this is true.",
     )
 
 

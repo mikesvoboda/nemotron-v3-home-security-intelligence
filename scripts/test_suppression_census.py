@@ -549,6 +549,12 @@ def test_real_tree_matches_spec_baselines():
     absent. Same layout-guard shape as the #46 row above: every CI checkout HAS
     docs/ and RUNS the test; only the mutant home skips. Classified todo by the
     generator; registry row + baseline raised the same commit (the same recipe).
+    pytest_skipif 58→59 (2026-10-08): O1.10 #6867 — the operator-line cross-check in
+    test_uplevel_launch.py reads docs/uplevel/operator.md, outside mutmut's also_copy,
+    so it skips (never aborts) when the docs tree is absent. Same layout-guard shape as
+    the #46 row above: every CI checkout HAS docs/ and RUNS the test; only the mutant
+    home skips. Classified todo by the generator; registry row + baseline raised the
+    same commit (the same recipe as #6864, whose guard this learned the gate from).
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -558,7 +564,7 @@ def test_real_tree_matches_spec_baselines():
         "flake_allowlist": 0,
         "frontend_quarantine": 16,
         "pytest_skip": 32,
-        "pytest_skipif": 58,
+        "pytest_skipif": 59,
         "pytest_xfail": 4,
         "pytest_skip_imperative": 87,
         "frontend_skip": 54,
