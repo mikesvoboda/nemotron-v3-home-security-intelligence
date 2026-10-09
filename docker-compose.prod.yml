@@ -192,8 +192,8 @@ services:
       # 5,120, and a fitted batch overflowed the 16,384 slot (A5500 2026-09-28).
       # llama-server reads LLAMA_ARG_* itself; it also bounds encoder VRAM.
       - LLAMA_ARG_IMAGE_MAX_TOKENS=1280
-      # Context budget (spec §2 "sized for 4 images + ~6K text + output",
-      # mirroring ghcr.yml:277-285's comment method): the backend divides
+      # Context budget (spec §2 "sized for 4 images + ~6K text + output" — the
+      # file with the earlier worked-out copy was retired by O1.2 / UR-17): the backend divides
       # CTX_SIZE by PARALLEL itself (config.py nemotron_context_window
       # precedent), so per-slot budget = 32768/2 = 16384 tokens >= the
       # ~12.2K a worst-case vlm_assess needs (4 images x <=1280 tokens +

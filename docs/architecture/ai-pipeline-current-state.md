@@ -348,9 +348,6 @@ degradation never triggers it** — that leg degrades into prompt text by design
 
 ## 9. Where this is NOT settled
 
-- **`docker-compose.ghcr.yml` has `ai-gateway` and no `ai-vlm` service at all** [V] — the two
-  `ai-vlm` occurrences (`:26`, `:241`) are comments. If GHCR is a deploy surface, the VLM pipeline
-  is not shipped _there_.
 - **Runtime state is unmeasured from here.** This sandbox has no GPU (`nvidia-smi` absent) and no
   `/export/ai_models`, so I can read what _ships_, not what is _loaded_. §2.1-2.3 are one
   container-status call and one event query away from being settled on the real box.

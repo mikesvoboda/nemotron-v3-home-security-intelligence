@@ -55,10 +55,10 @@ monitoring/
 > The seven files listed in `rule_files:` inside `prometheus.yml` (`prometheus_rules.yml`,
 > `prometheus-rules.yml`, `alerting-rules.yml`, `profiling-recording-rules.yml`,
 > `profiling-regression-alerts.yml`, `gpu-alerts.yml`, `ai-pipeline-alerts.yml`) are each
-> bind-mounted into the prometheus container by BOTH `docker-compose.prod.yml` and
-> `docker-compose.ghcr.yml` — prometheus exits fatally at startup on a listed-but-absent
-> rule file. Add a rule file to `rule_files:` only together with its mount in both compose
-> files. There are no `.template` variants any more: `prometheus.yml.template` and
+> bind-mounted into the prometheus container by `docker-compose.prod.yml` (the one
+> supported stack) — prometheus exits fatally at startup on a listed-but-absent
+> rule file. Add a rule file to `rule_files:` only together with its mount in that
+> compose file. There are no `.template` variants any more: `prometheus.yml.template` and
 > `prometheus_rules.yml.template` had zero consumers (nothing ever ran envsubst over them)
 > and now live under `../archive/` pending the owner's delete ruling.
 

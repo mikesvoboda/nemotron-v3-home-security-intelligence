@@ -94,12 +94,12 @@ class CircuitBreakerConfig:
 
 ## Service Circuit Breaker Configurations
 
-**Source:** `backend/main.py:286-331`
+**Source:** `backend/main.py:287-332`
 
 ### AI Services (Aggressive)
 
 ```python
-# backend/main.py:302-307
+# backend/main.py:303-308
 ai_service_config = CircuitBreakerConfig(
     failure_threshold=5,
     recovery_timeout=30.0,
@@ -111,7 +111,7 @@ ai_service_config = CircuitBreakerConfig(
 ### Infrastructure Services (Tolerant)
 
 ```python
-# backend/main.py:310-315
+# backend/main.py:311-316
 infrastructure_config = CircuitBreakerConfig(
     failure_threshold=10,
     recovery_timeout=60.0,
@@ -124,7 +124,7 @@ infrastructure_config = CircuitBreakerConfig(
 
 `init_circuit_breakers()` pre-registers `yolo26`, `postgresql`, and `redis` at
 startup so they appear in monitoring before first use
-(`backend/main.py:321-329`). `get_circuit_breaker()` is get-or-create
+(`backend/main.py:322-330`). `get_circuit_breaker()` is get-or-create
 (`backend/services/circuit_breaker.py:1104-1117`), so a service can also
 register its own breaker on first use — `ai-vlm` does exactly that, with
 `failure_threshold=5` and `recovery_timeout=60.0`
@@ -132,11 +132,11 @@ register its own breaker on first use — `ai-vlm` does exactly that, with
 
 | Service         | Failure Threshold | Recovery Timeout | Source                                                           |
 | --------------- | ----------------- | ---------------- | ---------------------------------------------------------------- |
-| yolo26          | 5                 | 30s              | AI config (`backend/main.py:321`)                                |
+| yolo26          | 5                 | 30s              | AI config (`backend/main.py:322`)                                |
 | detector_yolo26 | 5                 | 60s              | `DetectorClient` (`backend/services/detector_client.py:336-345`) |
 | ai-vlm          | 5                 | 60s              | `VlmClient` (`backend/services/vlm_client.py:319-322`)           |
-| postgresql      | 10                | 60s              | Infrastructure config (`backend/main.py:325`)                    |
-| redis           | 10                | 60s              | Infrastructure config (`backend/main.py:328`)                    |
+| postgresql      | 10                | 60s              | Infrastructure config (`backend/main.py:326`)                    |
+| redis           | 10                | 60s              | Infrastructure config (`backend/main.py:329`)                    |
 
 The detector's own client-side breaker is `detector_yolo26` — the name is
 built from the detector type (`backend/services/detector_client.py:280`), so
@@ -572,7 +572,7 @@ Recovery:
 Detection jobs land in the dead-letter queue when retries are exhausted or the
 delivery ceiling is reached (`backend/services/pipeline_workers.py:403-404`,
 `backend/services/retry_handler.py`); queue overflow uses the same policy
-(`backend/core/config.py:2246-2249`). The queues are the `dlq:`-prefixed names
+(`backend/core/config.py:2248-2251`). The queues are the `dlq:`-prefixed names
 built in `backend/core/constants.py:167-173`:
 
 ```python

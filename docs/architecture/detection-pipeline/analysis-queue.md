@@ -13,7 +13,7 @@ The analysis queue receives closed batches from the BatchAggregator and routes t
 
 ## Queue Structure
 
-`USE_REDIS_STREAMS` defaults to true (`backend/core/config.py:2256-2259`), so the durable path is a Redis Stream — `analysis:stream`, read by the `analysis-workers` consumer group (`backend/services/redis_streams.py:873-875`). With the setting turned off, the same payloads ride the Redis LIST below over BRPOP.
+`USE_REDIS_STREAMS` defaults to true (`backend/core/config.py:2258-2261`), so the durable path is a Redis Stream — `analysis:stream`, read by the `analysis-workers` consumer group (`backend/services/redis_streams.py:873-875`). With the setting turned off, the same payloads ride the Redis LIST below over BRPOP.
 
 **Queue Name:** `ANALYSIS_QUEUE = "analysis_queue"` (`backend/core/constants.py:149`)
 
@@ -99,7 +99,7 @@ self._analyzer = analyzer or build_pipeline_analyzer(redis_client=redis_client) 
 
 `build_pipeline_analyzer` (`backend/services/pipeline_factory.py:28-40`) is the single place an analyzer is constructed — the worker's default, the API dependency (`backend/api/dependencies.py:958-960`), the DI container (`backend/core/container.py:506-509`), and the aggregator's fast-path builder all ask it, and it returns `VlmAnalyzer`.
 
-The FastAPI lifespan registers the worker with the `WorkerSupervisor` through `create_analysis_worker` (`backend/services/pipeline_workers.py:2140-2168`, registered as `"analysis"` at `backend/main.py:996-1001`).
+The FastAPI lifespan registers the worker with the `WorkerSupervisor` through `create_analysis_worker` (`backend/services/pipeline_workers.py:2140-2168`, registered as `"analysis"` at `backend/main.py:997-1002`).
 
 ### Processing Loop (Lines 888-976)
 
@@ -245,7 +245,7 @@ Transport and schema failures are retried once — a fast fault, or a complete r
 
 ### Timeout and Concurrency Configuration
 
-**Source:** `backend/core/config.py` (`ai_connect_timeout` :1106-1111, `ai_vlm_read_timeout` :1130-1142, `ai_vlm_wake_timeout_seconds` :1143-1151) and `backend/services/vlm_client.py:337-347`
+**Source:** `backend/core/config.py` (`ai_connect_timeout` :1108-1113, `ai_vlm_read_timeout` :1132-1144, `ai_vlm_wake_timeout_seconds` :1145-1153) and `backend/services/vlm_client.py:337-347`
 
 ```python
 ai_connect_timeout: float = 10.0           # Connection establishment

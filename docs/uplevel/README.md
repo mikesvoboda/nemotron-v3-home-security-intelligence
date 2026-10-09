@@ -237,7 +237,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | F1.2    | frontend                | 1          | Verdict-engine banner (UR-18)                  |               | not started |     |
 | F1.3    | frontend                | 1          | Exposure and auth, frontend part (D10)         | owner         | done        | #6922 |
 | O1.1    | ops                     | 1          | Mutation hold and supersede (UR-2, UR-7)       |               | done        | #6863 |
-| O1.2    | ops                     | 1          | Retire ghcr (UR-17)                            |               | not started |     |
+| O1.2    | ops                     | 1          | Retire ghcr (UR-17)                            |               | done        | #6907 |
 | O1.3    | ops                     | 1          | `ai-vlm` on by default (UR-18)                 |               | done        | #6862 |
 | O1.4    | ops                     | 1          | Broken workflows (D9)                          |               | not started |     |
 | O1.5    | ops                     | 1          | Delete the archives (UR-19)                    |               | not started |     |

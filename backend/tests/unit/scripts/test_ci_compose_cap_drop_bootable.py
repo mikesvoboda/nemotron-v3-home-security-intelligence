@@ -144,14 +144,14 @@ def test_backend_overrides_the_production_environment_default(services: dict) ->
 
     backend:latest then hard-raises at import:
     ``REDIS_PASSWORD must be set for production environment`` (config.py:3276),
-    which the CI redis deliberately does not require. Both other compose
-    files set ENVIRONMENT=development explicitly (docker-compose.prod.yml:477,
-    docker-compose.ghcr.yml:231); the CI compose set nothing and inherited
+    which the CI redis deliberately does not require. The prod compose sets
+    ENVIRONMENT=${ENVIRONMENT:-development} explicitly
+    (docker-compose.prod.yml:479); the CI compose set nothing and inherited
     the production default.
     """
     env = _env(services["backend"])
     assert env.get("ENVIRONMENT") == "development", (
-        "backend must pin ENVIRONMENT=development like the prod/ghcr composes "
+        "backend must pin ENVIRONMENT=development like the prod compose "
         "— the field defaults to 'production' and Settings raises without "
         "REDIS_PASSWORD there"
     )
