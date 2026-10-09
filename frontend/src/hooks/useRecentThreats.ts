@@ -14,14 +14,12 @@ import { useWebSocket, type WebSocketOptions } from './useWebSocket';
 
 import type { RecentThreat, UseRecentThreatsReturn, UseRecentThreatsOptions } from '@/types/threat';
 
+import { buildWebSocketOptions } from '@/services/api';
 import { logger } from '@/services/logger';
 
 // ============================================================================
 // Constants
 // ============================================================================
-
-const DEFAULT_WS_URL =
-  (import.meta.env.VITE_WS_URL as string | undefined) ?? 'ws://localhost:8000/ws/events';
 
 const DEFAULT_MAX_AGE_HOURS = 24;
 
@@ -191,8 +189,15 @@ export function useRecentThreats(options: UseRecentThreatsOptions = {}): UseRece
   }, []);
 
   // Configure WebSocket options
+  // F1.3: route through buildWebSocketOptions so this endpoint gets the same
+  // origin resolution (VITE_WS_BASE_URL / window.location) and the optional
+  // `api-key.{key}` subprotocol as every other hook. The previous default read
+  // VITE_WS_URL — a variable the deploy docs never define — and hardcoded
+  // localhost:8000, so the socket bypassed nginx entirely in a deployed stack.
+  const { url: wsUrl, protocols } = buildWebSocketOptions('/ws/events');
   const wsOptions: WebSocketOptions = {
-    url: DEFAULT_WS_URL,
+    url: wsUrl,
+    protocols,
     onMessage: handleMessage,
     reconnect: true,
     reconnectInterval: 1000,

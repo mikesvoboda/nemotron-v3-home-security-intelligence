@@ -266,6 +266,8 @@ TRACKED_COMPOSE_FILES: tuple[str, ...] = (
     "docker-compose.ci.yml",
     "docker-compose.prod.yml",
     "docker-compose.test.yml",
+    "scripts/uplevel-f13-done-when/docker-compose.f13-expose-true.yml",
+    "scripts/uplevel-f13-done-when/docker-compose.f13-stack.yml",
     "scripts/uplevel-real-tier/docker-compose.b14-real.yml",
 )
 

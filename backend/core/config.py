@@ -504,8 +504,9 @@ class Settings(BaseSettings):
         description="Set true when anything beyond this machine can reach the UI: the "
         "LAN, a tunnel or a port forward. The backend then refuses every request "
         "without a login session or a configured API key, except health probes, "
-        "first-run setup and login; monitoring needs a credential too. Unset, it "
-        "requires no credential; after O1.6 the frontend then binds to 127.0.0.1.",
+        "first-run setup and login; monitoring needs a credential too. It also "
+        "publishes the frontend on 0.0.0.0. Unset, it requires no credential and "
+        "the frontend's published ports bind 127.0.0.1.",
     )
 
     redis_event_channel: str = Field(
@@ -828,7 +829,7 @@ class Settings(BaseSettings):
     # True, so those endpoints are exposed by default) and it does NOT consult
     # ADMIN_API_KEY. In front of them stands only the EXPOSE_LAN auth gate
     # (backend/api/middleware/auth.py): with EXPOSE_LAN=true a caller needs a login
-    # session or an API key; unset, the boundary is the 127.0.0.1 binding (after O1.6).
+    # session or an API key; unset, the boundary is the frontend's 127.0.0.1 binding.
     # The /api/admin/users CRUD endpoints are a separate case — they are gated by
     # get_current_admin_user (authenticated admin session), not by this flag.
     admin_enabled: bool = Field(

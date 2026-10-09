@@ -45,7 +45,12 @@ export function generateConnectionId(): string {
 
 export type MessageHandler = (data: unknown) => void;
 export type OpenHandler = () => void;
-export type CloseHandler = () => void;
+/**
+ * Called when the connection closes. F1.3: the CloseEvent is passed through
+ * when the caller is the manager (close code 4001/4002 is B1.5's auth
+ * refusal); argument-optional handlers (`() => void`) stay compatible.
+ */
+export type CloseHandler = (event?: CloseEvent) => void;
 export type ErrorHandler = (error: Event) => void;
 export type HeartbeatHandler = () => void;
 export type MaxRetriesHandler = () => void;
@@ -130,7 +135,24 @@ export interface ConnectionConfig {
    * Default: false (for backwards compatibility)
    */
   autoResync?: boolean;
+  /**
+   * Sec-WebSocket-Protocol values for the handshake (F1.3).
+   * `buildWebSocketOptions` mints `["api-key.{key}"]` when VITE_API_KEY is
+   * set; `useWebSocket` forwards it here so the manager passes it to the
+   * WebSocket constructor instead of dropping it (B1.5's gate reads it from
+   * the handshake). Omit for cookie-only connections.
+   */
+  protocols?: string[];
 }
+
+/**
+ * Close codes that mean "your credential was refused" (B1.5):
+ * 4001 authentication required/failed, 4002 token expired
+ * (backend/api/middleware/auth.py WS_CLOSE_AUTH_REQUIRED, websocket_auth.py).
+ * Retrying an identical uncredentialed handshake cannot succeed, so these
+ * closes are terminal — the caller must fix the credential, not spam the gate.
+ */
+export const AUTH_TERMINAL_CLOSE_CODES: readonly number[] = [4001, 4002];
 
 /**
  * Heartbeat message structure from the server.
@@ -474,7 +496,12 @@ class WebSocketManager {
         wsUrl = urlObj.toString();
       }
 
-      const ws = new WebSocket(wsUrl);
+      // F1.3: attach the credential. B1.5's gate reads the api key from the
+      // Sec-WebSocket-Protocol handshake (auth.py `_presented_api_key`); the
+      // same-origin session cookie rides the handshake automatically.
+      const ws = config.protocols?.length
+        ? new WebSocket(wsUrl, config.protocols)
+        : new WebSocket(wsUrl);
       connection.ws = ws;
 
       if (config.connectionTimeout > 0) {
@@ -546,10 +573,23 @@ class WebSocketManager {
           was_clean: event.wasClean,
         });
 
+        // F1.3: an auth refusal (4001/4002) is deterministic — replaying the
+        // same uncredentialed handshake cannot get a different answer, and
+        // 15 backoff retries against the gate is log noise, not recovery.
+        // Design dependency (self-review note): recovery after a terminal
+        // close is React's, not the manager's — every WS hook mounts inside
+        // <ProtectedRoute>, so a login remounts it and connect() reruns with
+        // the fresh credential. Nothing here reconnects on an auth transition.
+        // If a WS hook is ever mounted ABOVE the gate (or a provider outside
+        // it gains a socket), that socket stays closed until manual reload —
+        // wire it to useAuth() instead of relaxing this branch.
+        const authRefused = AUTH_TERMINAL_CLOSE_CODES.includes(event.code);
+
         // Check if we should reconnect and update attempt count BEFORE notifying subscribers
         // This ensures subscribers get the correct reconnect count
         let shouldReconnect = false;
         if (
+          !authRefused &&
           connection.refCount > 0 &&
           config.reconnect &&
           connection.reconnectAttempts < config.maxReconnectAttempts
@@ -561,7 +601,7 @@ class WebSocketManager {
         // Notify subscribers of close (with updated reconnect count)
         connection.subscribers.forEach((subscriber) => {
           try {
-            subscriber.onClose?.();
+            subscriber.onClose?.(event);
           } catch (subscriberError) {
             logger.error('WebSocket subscriber onClose callback error', {
               component: 'WebSocketManager',

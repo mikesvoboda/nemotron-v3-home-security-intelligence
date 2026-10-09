@@ -56,7 +56,7 @@ export interface ProtectedRouteProps {
  * 4. If authenticated - render children
  */
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isLoading, isAuthenticated, setupRequired, error } = useAuth();
+  const { isLoading, isAuthenticated, setupRequired, authRequired, error } = useAuth();
   const location = useLocation();
 
   // Show loading spinner while checking auth state
@@ -80,8 +80,11 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/setup" replace />;
   }
 
-  // Redirect to login if not authenticated
-  if (!isAuthenticated) {
+  // F1.3: the login screen appears only when the backend reports auth
+  // required (setup-status auth_required, i.e. EXPOSE_LAN=true). With the
+  // gate down (flag false) nothing is protected and no login bounces up —
+  // authRequired null (setup-status never answered) still fails closed.
+  if (authRequired !== false && !isAuthenticated) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 

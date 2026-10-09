@@ -231,9 +231,9 @@ the point where the `faces` and `person_reid` lookup legs stop reporting `unavai
 
 ### Network Requirements
 
-All ports come from `.env`. Everything except `frontend` binds `127.0.0.1` on the
-host, so the browser only ever needs the frontend ports — nginx proxies `/api`,
-`/ws` and `/grafana/` internally.
+All ports come from `.env`, and everything binds `127.0.0.1` on the host by default
+(`O1.6`) — with `EXPOSE_LAN=true` the frontend's ports are the ones a LAN browser reaches,
+and nginx proxies `/api`, `/ws` and `/grafana/` internally either way.
 
 | Host port | Env var                   | Service                        | Protocol | Access                       |
 | --------- | ------------------------- | ------------------------------ | -------- | ---------------------------- |
