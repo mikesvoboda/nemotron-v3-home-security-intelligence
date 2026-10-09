@@ -244,7 +244,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O1.3    | ops                     | 1          | `ai-vlm` on by default (UR-18)                 |               | done        | #6862 |
 | O1.4    | ops                     | 1          | Broken workflows (D9)                          |               | done        | #6926 |
 | O1.5    | ops                     | 1          | Delete the archives (UR-19)                    |               | not started |     |
-| O1.6    | ops                     | 1          | Exposure and auth, compose part (D10)          | owner         | not started |     |
+| O1.6    | ops                     | 1          | Exposure and auth, compose part (D10)          | owner         | done        | #6925 |
 | O1.7    | ops                     | 1          | Audit measurement scripts                      |               | not started |     |
 | O1.8    | ops                     | 1          | Dependabot alerts                              | owner         | not started |     |
 | O1.9    | ops                     | 1          | Deploy green on `main`                         |               | done        | #6875 |
