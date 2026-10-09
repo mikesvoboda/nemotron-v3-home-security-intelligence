@@ -21,12 +21,16 @@ harness sent before B1.2, so a re-run of a committed corpus reproduces the
 committed prompt bytes, but it is not what production sends. `selector` and
 `burst` apply only to items whose detections
 name the frame each row was seen on (sequence sets; a still's declared
-detections carry no `file_path`): the selector mode drives the SHIPPED
-`build_assess_request`/`select_key_frames` - that import is lazy and inside
-that branch only, because the analyzer module pulls in `vlm_specialists` at
-top level and the AST doctrine below is about THIS module's own imports -
-which collapses a same-camera same-class triplet to one frame, the collapse
-ISS-005 exists to fix, now measured instead of asserted. The burst mode feeds
+detections carry no `file_path`, and neither do frozen production events,
+whose media are each detection's frame and thumbnail): any other item falls
+back to its stored frames, recorded per row and counted in the report. The
+selector mode drives the SHIPPED `build_assess_request`/`select_key_frames`,
+which within `key_frame_spread_seconds` collapses a same-camera same-class
+triplet to one frame (the collapse ISS-005 measures) and past it spends spare
+slots on the pair's far frames. The analyzer imports (`build_assess_request`
+here, `apply_verdict_invariants` in `replay_item`) are lazy, inside the
+functions: the analyzer module pulls in `vlm_specialists` at top level, and
+the AST doctrine below is about THIS module's own imports. The burst mode feeds
 every frame (≤4) with the per-frame `frame_detection_ids` link, the shape
 ISS-003's funded arm (a) will use. Which frames an item actually reached the
 model with is recorded in `raw_response.harness` on EVERY row, refusals
@@ -522,6 +526,11 @@ async def run_replay(
     report["engine"] = engine
     report["commit"] = commit
     report["frames_mode"] = frames_mode  # which supply fed every item in this run
+    # The selector's one production parameter this run used (None when the mode
+    # never selects), so two runs on hosts with different settings stay comparable.
+    report["selector_spread_seconds"] = (
+        get_settings().key_frame_spread_seconds if frames_mode == "selector" else None
+    )
     # The bands every row's level and clamp came from (ISS-014: replay "records
     # the thresholds it used") - env-configurable in production, so a report
     # that cannot say them cannot be compared with another host's.

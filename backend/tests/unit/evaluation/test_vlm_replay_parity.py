@@ -125,9 +125,25 @@ class TestScoreParity:
 
 class TestFrameParity:
     @pytest.mark.parametrize("frames_mode", [None, "selector"], ids=["default", "selector"])
+    @pytest.mark.parametrize(
+        ("spread_setting", "spread_fires"),
+        [(None, True), ("40", False)],
+        ids=["shipped-spread", "spread-40"],
+    )
     async def test_replay_feeds_the_frames_production_attaches(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, frames_mode: str | None
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        frames_mode: str | None,
+        spread_setting: str | None,
+        spread_fires: bool,
     ) -> None:
+        """Both paths read the SAME setting: at the shipped 10 s the 30 s span spreads,
+        and at 40 s it does not. A replay with its own spread constant would agree with
+        production at one setting and fail at the other."""
+        if spread_setting is not None:
+            monkeypatch.setenv("KEY_FRAME_SPREAD_SECONDS", spread_setting)
+            get_settings.cache_clear()
         frames = _spanning_frames(tmp_path)
         rows = [
             make_detection_row(
@@ -144,7 +160,8 @@ class TestFrameParity:
         analyzer, _, _ = make_analyzer(monkeypatch, client=production_client, detections=rows)
         await analyzer.analyze_batch("b1", camera_id=CAMERA, detection_ids=[1, 2, 3, 4, 5])
         attached = production_client.calls[0].image_paths
-        assert len(attached) > 1  # the spread fired: a spread-blind selector keeps one frame
+        # the spread fired (more than the class's one strongest frame) or did not
+        assert (len(attached) > 1) is spread_fires
 
         item = EvalItem(
             item_id="span-1",
@@ -195,6 +212,7 @@ class TestTheReportCountsTheGap:
 
         assert report["parity"] == {"clamped": 1, "fell_back": 2}
         assert report["frames_mode"] == "selector"
+        assert report["selector_spread_seconds"] == get_settings().key_frame_spread_seconds
         # ISS-014: the run records the bands its levels and clamps came from.
         severity = get_severity_service()
         assert report["severity_thresholds"] == {

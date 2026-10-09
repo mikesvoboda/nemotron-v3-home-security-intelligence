@@ -612,8 +612,10 @@ class TestFramesModes:
         assert fake2.requests[item.media_paths[0]] == sent
         assert row["raw_response"]["harness"]["frames_mode"] == "selector"
         assert row["raw_response"]["harness"]["mode_fell_back"] == "no per-frame detection rows"
-        # the lazy-import doctrine in source form: the selector's import lives in the
-        # branch, so stored-mode replay never pulls vlm_analyzer (and thus vlm_specialists)
+        # the lazy-import doctrine in source form: the analyzer's builders are imported
+        # inside the functions that use them, never at this module's top level (the AST
+        # doctrine pins this module's own imports; every replay now runs the analyzer's
+        # invariant table, so vlm_analyzer is loaded at run time in every mode)
         src = inspect.getsource(vlm_replay._build_request)
         assert "from backend.services.vlm_analyzer import build_assess_request" in src
 
