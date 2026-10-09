@@ -41,23 +41,46 @@ jobs:
           pip install pyyaml httpx
 
       - name: Run AGENTS.md validator
+        id: validator
         run: |
+          # W1.1: the validator now has teeth (exit 1 on a ratchet violation,
+          # 2 when the baseline could not load). Its exit code is captured,
+          # not raised here, because the Sync-to-Linear step below is what
+          # historically DIED quietly when it sat behind a masked failure —
+          # and the ticket stream must keep running while violations drain.
+          # The rc decides the job in the final step. `|| true` because the
+          # shell runs with -e.
+          set +e
           python scripts/agents_md_validator.py \
             --output report.json \
             --format json
+          echo "outcome=$?" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Upload report artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
+        # Exit 2 writes NO report (by design — a DEFAULTS-config report would
+        # feed the sync a bogus table), so uploading it would only add a
+        # second, confusing red.
+        if: always() && steps.validator.outputs.outcome != '2'
         with:
           name: agents-md-report
           path: report.json
 
       - name: Sync to Linear (main branch only)
-        if: vars.LINEAR_ENABLED == 'true' && (github.ref == 'refs/heads/main')
+        if: vars.LINEAR_ENABLED == 'true' && (github.ref == 'refs/heads/main') && steps.validator.outputs.outcome != '2'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
+          # Runs on outcome 1 as well as 0: the doc-drift ticket stream and
+          # the gate are allowed to disagree — violations are listed below
+          # in the job log and in report.json's ratchet.violations.
           python scripts/agents_md_linear_sync.py \
             --report report.json \
             --commit ${{ github.sha }}
+
+      - name: Ratchet verdict
+        run: |
+          # || 2: an empty outcome means the validator died before writing
+          # its output — fail closed, never silently green.
+          exit ${{ steps.validator.outputs.outcome || 2 }}
