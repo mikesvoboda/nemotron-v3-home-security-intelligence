@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 Settings are loaded once and cached using the `@cache` decorator. The cache is cold again after the
 settings API writes `data/runtime.env` (`backend/api/routes/settings_api.py:279`).
 
-**Source:** `backend/core/config.py:3346-3352`
+**Source:** `backend/core/config.py:3364-3370`
 
 ```python
 @cache
@@ -116,7 +116,7 @@ The two AI services are `ai-gateway` (Triton) and `ai-vlm` (llama.cpp). `.env.ex
 | `ENRICHMENT_LIGHT_URL` | `http://localhost:8090/enrich-lt` | `/enrich-lt` readiness lane (read by the backend's model management) |
 
 In containers the same routes use `http://ai-gateway:8090/...` and `AI_VLM_URL=http://ai-vlm:8098`
-(`docker-compose.prod.yml:557`). The gateway mounts exactly two routers — `/yolo26` and `/enrich-lt`
+(`docker-compose.prod.yml:554`). The gateway mounts exactly two routers — `/yolo26` and `/enrich-lt`
 (`ai/gateway/main.py:276-277`). ai-vlm is the only LLM service.
 
 ### Pipeline Selection and Residency
@@ -138,10 +138,10 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 | `AI_CONNECT_TIMEOUT`          | 10.0    | Connection timeout (seconds)           |
 | `AI_HEALTH_TIMEOUT`           | 5.0     | Health check timeout                   |
 | `YOLO26_READ_TIMEOUT`         | 30.0    | Detection response timeout             |
-| `AI_VLM_READ_TIMEOUT`         | 25.0    | Per-`vlm_assess`-attempt ceiling       |
+| `AI_VLM_READ_TIMEOUT`         | 25.0    | Per-read idle budget for an attempt    |
 | `AI_VLM_WAKE_TIMEOUT_SECONDS` | 90.0    | Read timeout for the wake-on-open ping |
 
-**Source:** `backend/core/config.py:1093-1134`; the VLM pair is threaded in `docker-compose.prod.yml:559-560`.
+**Source:** `backend/core/config.py:1106-1151`; the VLM pair is threaded in `docker-compose.prod.yml:561-562`.
 
 ### Batch Processing
 
@@ -152,13 +152,13 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 | `BATCH_CHECK_INTERVAL_SECONDS` | 5.0     | Timeout check frequency      |
 | `BATCH_MAX_DETECTIONS`         | 500     | Max detections before split  |
 
-**Source:** `backend/core/config.py:925-971`
+**Source:** `backend/core/config.py:925-984`
 
 ### Fast Path Configuration
 
 | Variable                         | Default in `Settings` | Default in compose / `.env.example`                      |
 | -------------------------------- | --------------------- | -------------------------------------------------------- |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0 (above any score) | 0.90 (`docker-compose.prod.yml:625`, `.env.example:650`) |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | 2.0 (above any score) | 0.90 (`docker-compose.prod.yml:630`, `.env.example:511`) |
 | `FAST_PATH_OBJECT_TYPES`         | `[]` (empty)          | commented out, so empty                                  |
 
 `BatchAggregator._should_use_fast_path` requires the detected type to appear in
@@ -167,7 +167,7 @@ empty, so no detection takes the fast path — every detection reaches the analy
 batch gate regardless of the threshold. The threshold's own field default (2.0) is above any
 possible confidence, which is the second guard.
 
-**Source:** `backend/core/config.py:1892-1910`
+**Source:** `backend/core/config.py:1909-1925`
 
 ### Application Settings
 
@@ -216,7 +216,7 @@ Declared in `.env.example`:
 | `CTX_SIZE`     | 262144  | `nemotron_context_window` | llama.cpp's total pool; aliased and divided by the slots |
 | `PARALLEL`     | 8       | `llama_slot_count`        | llama.cpp slots sharing that pool                        |
 | `VLM_CTX_SIZE` | 32768   | `vlm_context_window`      | The VLM serve's own pool, mirrored to the backend        |
-| `VLM_PARALLEL` | 2       | —                         | Slots on the VLM serve (`docker-compose.prod.yml:587`)   |
+| `VLM_PARALLEL` | 2       | —                         | Slots on the VLM serve (`docker-compose.prod.yml:592`)   |
 
 These four resolve to their `Settings` defaults in every deployment — none appears in
 `.env.example` or in any compose `environment:` block:
@@ -232,7 +232,7 @@ With the shipped values the per-request budget resolves to `262144 // 8 = 32768`
 `CTX_SIZE` is read through a `validation_alias` and divided by the slot count before it becomes what
 the token counter uses (`backend/core/config.py:1268-1287`), so the number in `.env` is not the number applied.
 
-**Source:** `backend/core/config.py:1213-1300`, `.env.example:407-411`
+**Source:** `backend/core/config.py:1230-1454`, `.env.example:324,326,358,359`
 
 ### Feature Toggles
 
@@ -248,10 +248,10 @@ nothing reads them:
 | `REID_ENABLED`              | true    | nothing — reported and mapped only             |
 | `IMAGE_QUALITY_ENABLED`     | true    | nothing — no BRISQUE model ships in this stack |
 
-**Sources:** the fields at `backend/core/config.py:1674`, `backend/core/config.py:1699`, and
-`backend/core/config.py:1704`; the response assembles them at
+**Sources:** the fields at `backend/core/config.py:1691`, `backend/core/config.py:1721`, and
+`backend/core/config.py:1716`; the response assembles them at
 `backend/api/routes/settings_api.py:126-133`; the shipped-stack note on BRISQUE is at
-`backend/api/routes/system.py:4821`.
+`backend/api/routes/system.py:4845`.
 
 Two neighbouring toggles in the same block do gate live code: `CLIP_GENERATION_ENABLED`
 (`backend/services/clip_generator.py:176`) and `BACKGROUND_EVALUATION_ENABLED`
@@ -299,7 +299,7 @@ AI service URLs are validated using `AnyHttpUrl`.
 
 Both AI service URL fields — `yolo26_url` and `ai_vlm_url` — go through one validator.
 
-**Source:** `backend/core/config.py:1454-1487`
+**Source:** `backend/core/config.py:1471-1504`
 
 ```python
 @field_validator("yolo26_url", "ai_vlm_url", mode="before")
@@ -324,7 +324,7 @@ def validate_ai_service_urls(cls, v: Any) -> str:
 
 Grafana URLs include SSRF protection.
 
-**Source:** `backend/core/config.py:1590-1619`
+**Source:** `backend/core/config.py:1605-1636`
 
 ```python
 @field_validator("grafana_url", mode="before")

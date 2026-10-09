@@ -43,7 +43,7 @@ llama-server \
 ```
 
 Compose threads the real values (`docker-compose.prod.yml:180-241`; vars
-declared in `.env.example:421-442`):
+declared in `.env.example:338-359`):
 
 | Env var                  | Compose default   | Flag                   | Notes                                                                                  |
 | ------------------------ | ----------------- | ---------------------- | -------------------------------------------------------------------------------------- |
@@ -66,23 +66,23 @@ the two never disagree.
 
 llama.cpp splits one `--ctx-size` pool across `--parallel` slots, and one
 `vlm_assess` only ever gets one slot. The backend mirrors that arithmetic:
-`vlm_context_window` (`backend/core/config.py:1334`, alias `VLM_CTX_SIZE`) is
+`vlm_context_window` (`backend/core/config.py:1351`, alias `VLM_CTX_SIZE`) is
 the per-slot budget the client fits every prompt against.
 
-The client's fit test (`backend/services/vlm_client.py:703`) reserves, per
+The client's fit test (`backend/services/vlm_client.py:836-901`) reserves, per
 request:
 
-| Reservation         | Amount                        | Source                                                                                                                          |
-| ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Verdict output      | 1,024 tokens                  | `_ASSESS_MAX_TOKENS`, `backend/services/vlm_client.py:91`                                                                       |
-| Images              | 1,280 × (frames, ≤4)          | `_IMAGE_TOKENS_PER_FRAME`, `backend/services/vlm_client.py:107` (Qwen3-VL encodes one still at ≤~1280 vision tokens)            |
-| Counting correction | ×1.5 served-vs-counted tokens | `_SERVED_TOKENS_PER_COUNTED`, `backend/services/vlm_client.py:115` (the Qwen3-VL vocab serves more tokens than tiktoken counts) |
+| Reservation         | Amount                        | Source                                                                                                                        |
+| ------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Verdict output      | 2,048 tokens                  | `_ASSESS_MAX_TOKENS` in `backend/services/vlm_client.py`                                                                      |
+| Images              | 1,280 × (frames, ≤4)          | `_IMAGE_TOKENS_PER_FRAME` in `backend/services/vlm_client.py` (Qwen3-VL encodes one still at ≤~1280 vision tokens)            |
+| Counting correction | ×1.5 served-vs-counted tokens | `_SERVED_TOKENS_PER_COUNTED` in `backend/services/vlm_client.py` (the Qwen3-VL vocab serves more tokens than tiktoken counts) |
 
 With the shipped defaults (32,768 ÷ 2 = 16,384 per slot) a worst-case
-4-image request reserves 1,024 + 5,120 tokens of output+image space before
+4-image request reserves 2,048 + 5,120 tokens of output+image space before
 text. If the rendered text still exceeds the remainder, the client keeps the
 strongest-confidence detections and appends a visible omission marker
-(`backend/services/vlm_client.py:676`) — the same ranking the key-frame
+(`backend/services/vlm_client.py:880-901`) — the same ranking the key-frame
 selector uses, so what survives is what the attached stills can corroborate.
 `record_prompt_truncated()` fires once per batch at the wire.
 
@@ -105,10 +105,15 @@ trusting unconstrained output. `VLM_REQUIRED_BUILD=b7972` pins the
 
 - **VRAM**: Q4_K_M 8B weights + q8_0 KV on a 24GB card leaves room for the
   Triton gateway alongside; the `--sleep-idle-seconds 300` residency means an
-  idle VLM hands its VRAM back and a wake ping (`backend/services/vlm_client.py:947`,
+  idle VLM hands its VRAM back and a wake ping (`backend/services/vlm_client.py:1142`,
   one `max_tokens: 1` request) rouses it before the real call.
-- **Read timeout**: `AI_VLM_READ_TIMEOUT=25.0` (`.env.example:248`) is the
-  per-attempt ceiling; the §6 ladder retries once at temperature 0 within it.
+- **Read timeout**: `AI_VLM_READ_TIMEOUT=25.0` (`.env.example`, the `AI_VLM_READ_TIMEOUT` block) is a
+  per-read IDLE budget, not an attempt deadline: a stalled reply is a budget
+  (`VlmSlowReplyError`), NOT retried and NOT breaker-charged, while an engine that
+  dribbles the reply within it runs on. Keep it under S4's p95 of 30 s to bound
+  the silent-server case. The §6 temp-0 retry re-asks only where that can differ:
+  fast trip faults, any other rejected status (5xx or a plain 4xx, not the 400
+  overflow), a schema-violating complete reply.
 - **Batch pacing**: analysis runs after the 90s/30s/500 batch window
   closes, so back-to-back calls, not streaming, are the throughput unit.
 - **Concurrency**: more than `VLM_PARALLEL` concurrent analyses queue behind

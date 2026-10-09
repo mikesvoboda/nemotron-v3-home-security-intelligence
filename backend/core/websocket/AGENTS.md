@@ -43,7 +43,7 @@ Event types follow the pattern: `{domain}.{action}`
 - Alert events: `ALERT_CREATED`, `ALERT_UPDATED`, `ALERT_DELETED`, `ALERT_ACKNOWLEDGED`, `ALERT_RESOLVED`, `ALERT_DISMISSED`
 - Camera events: `CAMERA_ONLINE`, `CAMERA_OFFLINE`, `CAMERA_STATUS_CHANGED`, `CAMERA_ENABLED`, `CAMERA_DISABLED`, `CAMERA_ERROR`, `CAMERA_CONFIG_UPDATED`
 - Job events: `JOB_STARTED`, `JOB_PROGRESS`, `JOB_COMPLETED`, `JOB_FAILED`, `JOB_CANCELLED`, plus legacy underscore format (NEM-2505)
-- System events: `SYSTEM_HEALTH_CHANGED`, `SYSTEM_ERROR`, `SYSTEM_STATUS`, `SERVICE_STATUS_CHANGED`, `GPU_STATS_UPDATED`
+- System events: `SYSTEM_HEALTH_CHANGED`, `SYSTEM_VERDICT_ENGINE_STATUS_CHANGED`, `SYSTEM_ERROR`, `SYSTEM_STATUS`, `SERVICE_STATUS_CHANGED`, `GPU_STATS_UPDATED`
 - Worker events: `WORKER_STARTED`, `WORKER_STOPPED`, `WORKER_HEALTH_CHECK_FAILED`, `WORKER_RESTARTING`, `WORKER_RECOVERED`, `WORKER_ERROR`
 - Security events: `EVENT_CREATED`, `EVENT_UPDATED`, `EVENT_DELETED`
 - Detection events: `DETECTION_NEW`, `DETECTION_BATCH`
@@ -55,14 +55,14 @@ Event types follow the pattern: `{domain}.{action}`
 
 Standard envelope structure for all WebSocket events:
 
-| Field            | Type               | Description                 |
-| ---------------- | ------------------ | --------------------------- | --------------------------------- |
-| `type`           | WebSocketEventType | Event type from enum        |
-| `payload`        | dict[str, Any]     | Event-specific payload data |
-| `timestamp`      | str                | ISO 8601 timestamp          |
-| `correlation_id` | str                | None                        | Optional ID for event correlation |
-| `sequence`       | int                | None                        | Optional sequence number          |
-| `channel`        | str                | None                        | Optional channel identifier       |
+| Field            | Type               | Description                       |
+| ---------------- | ------------------ | --------------------------------- |
+| `type`           | WebSocketEventType | Event type from enum              |
+| `payload`        | dict[str, Any]     | Event-specific payload data       |
+| `timestamp`      | str                | ISO 8601 timestamp                |
+| `correlation_id` | str \| None        | Optional ID for event correlation |
+| `sequence`       | int \| None        | Optional sequence number          |
+| `channel`        | str \| None        | Optional channel identifier       |
 
 ### Helper Functions
 

@@ -137,6 +137,16 @@ repos:
       - id: semgrep
         name: Semgrep Security Scan
         language_version: python3.12
+        # semgrep 1.96 imports pkg_resources at startup (opentelemetry's
+        # instrumentation layer does), and modern setuptools removed it — a
+        # freshly-built hook env dies ModuleNotFoundError before any scan.
+        # Locally it hides: envs built by older toolchains still carry
+        # setuptools. CI's O1.12 job builds the env clean (run 37812639795:
+        # pysemgrep traceback, exit 1, before scanning a single file), so the
+        # env must declare its own provider. 75.8.0 is the last line still
+        # bundling pkg_resources — the same pin the sandbox recipe uses.
+        additional_dependencies:
+          - setuptools==75.8.0
         args:
           - --config=semgrep.yml
           - --config=p/python

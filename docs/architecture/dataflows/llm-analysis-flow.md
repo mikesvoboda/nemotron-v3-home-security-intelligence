@@ -51,7 +51,7 @@ What the analyzer module owns, in the order the rules apply:
      or into the queue payload; absent both, analyze_batch refuses loudly
 ```
 
-The session split is deliberate. Session 1 READs detections, zones and household context and runs the lookup legs. **No session is held across the engine call**, because one attempt can take the whole read budget (`backend/core/config.py:1117-1124`). Session 2 WRITEs `Event` and `EventVerification` in one transaction, the idempotency key is set AFTER the write, and the broadcast is LAST and best-effort (`backend/services/vlm_analyzer.py:634-643`).
+The session split is deliberate. Session 1 READs detections, zones and household context and runs the lookup legs. **No session is held across the engine call**, because one attempt can stall to the read budget — and past it, since the budget is per-read idle, not a wall clock (`backend/core/config.py:1130-1142`). Session 2 WRITEs `Event` and `EventVerification` in one transaction, the idempotency key is set AFTER the write, and the broadcast is LAST and best-effort (`backend/services/vlm_analyzer.py:634-643`).
 
 ## Analysis Sequence Diagram
 
@@ -83,7 +83,7 @@ sequenceDiagram
     VLM-->>VC: probe const echoed (grammar ENFORCED)
 
     rect rgb(240, 248, 255)
-        Note over VC,VLM: ONE chat request, retried once at temperature 0
+        Note over VC,VLM: ONE chat request; a slow reply is a budget, never retried
         VC->>VLM: POST /v1/chat/completions (1-4 image parts + text)
         Note over VLM: 25s read budget per attempt
         VLM-->>VC: verdict JSON object
@@ -103,10 +103,10 @@ A failure anywhere inside the highlighted block ends in the same place as succes
 
 ## VlmAnalyzer Class
 
-**Source:** `backend/services/vlm_analyzer.py:344-378`
+**Source:** `backend/services/vlm_analyzer.py:412-446`
 
 ```python
-# Source: backend/services/vlm_analyzer.py:344-378
+# Source: backend/services/vlm_analyzer.py:412-446
 class VlmAnalyzer:
     """One analyze_batch call == one batch -> (at most) one assess ->
     one Event (+ EventVerification) -> one broadcast (prod mode).
@@ -146,10 +146,10 @@ class VlmAnalyzer:
 
 `analyze_batch` is the entry the worker calls:
 
-**Source:** `backend/services/vlm_analyzer.py:380-390`
+**Source:** `backend/services/vlm_analyzer.py:448-458`
 
 ```python
-# Source: backend/services/vlm_analyzer.py:380-390
+# Source: backend/services/vlm_analyzer.py:448-458
     async def analyze_batch(
         self,
         batch_id: str,
@@ -165,10 +165,10 @@ class VlmAnalyzer:
 
 Its two `ValueError` branches enforce the rule that the VLM never originates an event: no camera from the queue payload or Redis, and no detection ids, both refuse with zero writes.
 
-**Source:** `backend/services/vlm_analyzer.py:420-428`
+**Source:** `backend/services/vlm_analyzer.py:488-496`
 
 ```python
-# Source: backend/services/vlm_analyzer.py:420-428
+# Source: backend/services/vlm_analyzer.py:488-496
             raise ValueError(
                 f"Batch {batch_id} has no camera metadata - the detector never "
                 "closed it; the VLM never originates events (spec §6)"
@@ -184,25 +184,25 @@ Its two `ValueError` branches enforce the rule that the VLM never originates an 
 
 | Parameter                      | Default                                                 | Source                                                                                            |
 | ------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Read budget, one attempt       | 25 s                                                    | `ai_vlm_read_timeout` (`backend/core/config.py:1117-1124`)                                        |
-| Connect timeout                | 10 s                                                    | `ai_connect_timeout` (`backend/core/config.py:1093-1097`)                                         |
-| Wake ping read budget          | 90 s                                                    | `ai_vlm_wake_timeout_seconds` (`backend/core/config.py:1126-1133`)                                |
-| Engine URL                     | `http://localhost:8098`; `http://ai-vlm:8098` in Docker | `ai_vlm_url` (`backend/core/config.py:1042-1045`)                                                 |
-| Verdict output budget          | 2048 tokens (raised from 1024 on 2026-10-04)            | `_ASSESS_MAX_TOKENS` (`backend/services/vlm_client.py:98`)                                        |
-| Context pool and slots         | 32768 across 2 slots = 16384 each                       | `docker-compose.prod.yml:210-211`, divided by the validator at `backend/core/config.py:1351-1365` |
-| Largest embedded key frame     | 8 MiB                                                   | `vlm_max_image_bytes` (`backend/core/config.py:1367-1374`)                                        |
-| Breaker threshold and recovery | 5 failures, 60 s                                        | `backend/services/vlm_client.py:247-250`                                                          |
-| LOW-band clamp ceiling         | 29                                                      | `severity_low_max` (`backend/core/config.py:2423-2428`)                                           |
-| Degraded-path engine label     | `llama.cpp`                                             | `nemotron_verification_engine` (`backend/core/config.py:1384-1386`)                               |
+| Read budget, one attempt       | 25 s                                                    | `ai_vlm_read_timeout` (`backend/core/config.py:1130-1142`)                                        |
+| Connect timeout                | 10 s                                                    | `ai_connect_timeout` (`backend/core/config.py:1106-1111`)                                         |
+| Wake ping read budget          | 90 s                                                    | `ai_vlm_wake_timeout_seconds` (`backend/core/config.py:1143-1151`)                                |
+| Engine URL                     | `http://localhost:8098`; `http://ai-vlm:8098` in Docker | `ai_vlm_url` (`backend/core/config.py:1053-1058`)                                                 |
+| Verdict output budget          | 2048 tokens (raised from 1024 on 2026-10-04)            | `_ASSESS_MAX_TOKENS` (`backend/services/vlm_client.py:141`)                                       |
+| Context pool and slots         | 32768 across 2 slots = 16384 each                       | `docker-compose.prod.yml:210-211`, divided by the validator at `backend/core/config.py:1368-1382` |
+| Largest embedded key frame     | 8 MiB                                                   | `vlm_max_image_bytes` (`backend/core/config.py:1384-1395`)                                        |
+| Breaker threshold and recovery | 5 failures, 60 s                                        | `backend/services/vlm_client.py:319-322`                                                          |
+| LOW-band clamp ceiling         | 29                                                      | `severity_low_max` (`backend/core/config.py:2440-2445`)                                           |
+| Degraded-path engine label     | `llama.cpp`                                             | `nemotron_verification_engine` (`backend/core/config.py:1401-1404`)                               |
 
 ## Concurrency and Circuit Breaking
 
 One breaker named `ai-vlm` is shared by every client instance, so a dead engine is discovered once rather than once per caller:
 
-**Source:** `backend/services/vlm_client.py:247-250`
+**Source:** `backend/services/vlm_client.py:319-322`
 
 ```python
-# Source: backend/services/vlm_client.py:247-250
+# Source: backend/services/vlm_client.py:319-322
         self._breaker: CircuitBreaker = get_circuit_breaker(
             BREAKER_NAME,
             CircuitBreakerConfig(failure_threshold=5, recovery_timeout=60.0),
@@ -211,10 +211,10 @@ One breaker named `ai-vlm` is shared by every client instance, so a dead engine 
 
 `assess` asks the breaker before any I/O and refuses without a socket when it is open:
 
-**Source:** `backend/services/vlm_client.py:765-771`
+**Source:** `backend/services/vlm_client.py:926-932`
 
 ```python
-# Source: backend/services/vlm_client.py:765-771
+# Source: backend/services/vlm_client.py:926-932
         if not await self._breaker.allow_call():
             record_pipeline_error("vlm_circuit_open")
             await self._push_unhealthy("circuit open")
@@ -240,10 +240,10 @@ HALF_OPEN   allow_call() -> True   recovery traffic is let through
 
 A budget problem is deliberately kept out of the breaker. `_note_budget_exhausted` counts the metric without recording a breaker failure, because a reply cut off by our own `max_tokens` is not evidence that the service should stop being called:
 
-**Source:** `backend/services/vlm_client.py:897-917`
+**Source:** `backend/services/vlm_client.py:1096-1116`
 
 ```python
-# Source: backend/services/vlm_client.py:897-917
+# Source: backend/services/vlm_client.py:1096-1116
     async def _note_budget_exhausted(self, reason: str) -> None:
         """Count it, but do NOT feed the breaker.
 
@@ -267,23 +267,23 @@ A budget problem is deliberately kept out of the breaker. `_note_budget_exhauste
         record_pipeline_error(reason)
 ```
 
-Engine-side concurrency is the served slot count: the container runs llama.cpp with `--parallel 2`, so two `vlm_assess` calls share the pool and each request occupies one slot (`docker-compose.prod.yml:210-211`). Analysis throughput is the worker pool's business: `analysis_worker_count` defaults to 2 (`backend/core/config.py:1022-1026`), and each worker holds at most one engine call in flight.
+Engine-side concurrency is the served slot count: the container runs llama.cpp with `--parallel 2`, so two `vlm_assess` calls share the pool and each request occupies one slot (`docker-compose.prod.yml:210-211`). Analysis throughput is the worker pool's business: `analysis_worker_count` defaults to 2 (`backend/core/config.py:1035-1042`), and each worker holds at most one engine call in flight.
 
 ## Retry Logic
 
 The ladder is split in two on purpose: the client owns the one transport retry, the analyzer owns the mapping to a stored verdict and never re-retries. These are the classes the client raises:
 
-**Source:** `backend/services/vlm_client.py:118-142`
+**Source:** `backend/services/vlm_client.py:174-197`
 
 ```python
-# Source: backend/services/vlm_client.py:118-142
+# Source: backend/services/vlm_client.py:174-197
 class VlmClientError(RuntimeError):
     """Base for every client failure the analyzer maps into the ladder."""
 
 
 class VlmTransportError(VlmClientError):
-    """§6 step 1 territory: connection refused / timeout / 5xx. Retried
-    once at temperature 0, then raised."""
+    """§6 step 1 territory: connection refused, ConnectTimeout, 5xx. Retried
+    once at temp 0, then raised. A slow REPLY is `VlmSlowReplyError`."""
 
 
 class VlmSchemaError(VlmClientError):
@@ -307,10 +307,10 @@ class VlmTruncatedError(VlmSchemaError):
 
 The loop is a two-element tuple over one request body; the first attempt is greedy too, so the retry is a plain re-send:
 
-**Source:** `backend/services/vlm_client.py:810-812`
+**Source:** `backend/services/vlm_client.py:965-967`
 
 ```python
-# Source: backend/services/vlm_client.py:810-812
+# Source: backend/services/vlm_client.py:965-967
         last_error: VlmClientError | None = None
         for attempt, temperature in enumerate((None, 0.0)):
             if temperature is not None:
@@ -318,10 +318,10 @@ The loop is a two-element tuple over one request body; the first attempt is gree
 
 and it leaves by returning a verdict or raising the last error:
 
-**Source:** `backend/services/vlm_client.py:874-878`
+**Source:** `backend/services/vlm_client.py:1073-1077`
 
 ```python
-# Source: backend/services/vlm_client.py:874-878
+# Source: backend/services/vlm_client.py:1073-1077
             await self._breaker.record_success_async()
             await self._push_healthy()
             return verdict.model_copy(update={"provenance": self._served_provenance()})
@@ -336,15 +336,15 @@ and it leaves by returning a verdict or raising the last error:
 | 1       | 0.0         | none                    | 25 s        |
 | 2       | 0.0         | none                    | 25 s        |
 
-There is no sleep between attempts and no third attempt: the retry re-sends the same body immediately at temperature 0, and a second retry would double the p95 budget a single call already fits (`backend/core/config.py:1117-1124`). A second attempt only lands inside the S4 target when the first one failed fast.
+There is no sleep between attempts and no third attempt. The second one is for failures where re-asking is not futile: a transport fault whose request never completed its trip (connection refused, `ConnectTimeout`), any other answered status (a 5xx or a plain 4xx, except the 400 context-overflow refusal), or a complete reply that violated the verdict schema — re-sent immediately at temperature 0, each attempt carrying its own read budget (`backend/core/config.py:1130-1142`), so the second attempt fits the S4 target only when the first failed fast. A slow reply never reaches the retry: a reply that outruns the read or write budget raises `VlmSlowReplyError` on the spot (`backend/services/vlm_client.py:976-1009`), breaker untouched.
 
 ### Retriable and Non-Retriable Failures
 
 | Failure                                                                          | Class                            | Retried                    | Feeds the breaker |
 | -------------------------------------------------------------------------------- | -------------------------------- | -------------------------- | ----------------- |
-| Connection refused, timeout                                                      | `VlmTransportError`              | yes, once                  | yes               |
-| HTTP status other than 200                                                       | `VlmTransportError`              | yes, once                  | yes               |
+| Connection refused, connect-phase timeout, HTTP status other than 200            | `VlmTransportError`              | yes, once                  | yes               |
 | Complete reply that violates `VlmVerdict`                                        | `VlmSchemaError`                 | yes, once                  | yes               |
+| Slow reply, read or write phase                                                  | `VlmSlowReplyError`              | no (budget)                | no                |
 | Reply truncated at its token budget                                              | `VlmTruncatedError`              | no                         | no                |
 | Request larger than the served slot                                              | `VlmContextOverflowError`        | no                         | no                |
 | Grammar unenforced, `/props` unreachable, build mismatch                         | `ConstrainedDecodingNotEnforced` | no                         | yes               |
@@ -353,10 +353,10 @@ There is no sleep between attempts and no third attempt: the retry re-sends the 
 
 A truncation is raised once instead of retried, because the retry re-asks the same body at the same `max_tokens` and re-asking cannot close the object:
 
-**Source:** `backend/services/vlm_client.py:850-856`
+**Source:** `backend/services/vlm_client.py:1049-1055`
 
 ```python
-# Source: backend/services/vlm_client.py:850-856
+# Source: backend/services/vlm_client.py:1049-1055
                     last_error = VlmTruncatedError(
                         f"vlm verdict reply hit its token budget before the "
                         f"object closed (stop={stop!r}, "
@@ -370,10 +370,10 @@ A truncation is raised once instead of retried, because the retry re-asks the sa
 
 The httpx client is built per call with one read budget and one connect budget:
 
-**Source:** `backend/services/vlm_client.py:265-275`
+**Source:** `backend/services/vlm_client.py:337-347`
 
 ```python
-# Source: backend/services/vlm_client.py:265-275
+# Source: backend/services/vlm_client.py:337-347
     async def _http(self) -> httpx.AsyncClient:
         if self._client is None:
             # default= covers write/pool: httpx requires all four or a default.
@@ -387,15 +387,21 @@ The httpx client is built per call with one read budget and one connect budget:
         return self._client
 ```
 
-| Phase                  | Budget          | Set by                        |
-| ---------------------- | --------------- | ----------------------------- |
-| TCP connect            | 10 s            | `ai_connect_timeout`          |
-| One engine attempt     | 25 s read       | `ai_vlm_read_timeout`         |
-| Both attempts together | 50 s worst case | the same per-attempt ceiling  |
-| Wake ping              | 90 s read       | `ai_vlm_wake_timeout_seconds` |
-| Breaker recovery       | 60 s            | `CircuitBreakerConfig`        |
+| Phase              | Budget        | Set by                             |
+| ------------------ | ------------- | ---------------------------------- |
+| TCP connect        | 10 s          | `ai_connect_timeout`               |
+| One engine attempt | 25 s read     | `ai_vlm_read_timeout`              |
+| Retry at temp 0    | second budget | only where re-asking is not futile |
+| Wake ping          | 90 s read     | `ai_vlm_wake_timeout_seconds`      |
+| Breaker recovery   | 60 s          | `CircuitBreakerConfig`             |
 
-The read budget is the load-bearing number: the S4 target of p95 at or under 30 s including cold starts is why a per-attempt ceiling at or above 30 s would leave no room for the retry (`backend/core/config.py:1117-1124`).
+The read budget is the load-bearing number: the S4 target of p95 at or under 30 s
+including cold starts is why the ceiling must sit under 30 s (`backend/core/config.py:1130-1142`).
+A reply that outruns it is a budget, not an outage — it is NOT retried (the request
+leaves unchanged, so a re-send times out identically) and does NOT charge the breaker
+(`backend/services/vlm_client.py` `VlmSlowReplyError`). The §6 temp-0 retry therefore
+only follows a failure a re-ask can change (a trip that never completed, any
+other answered status, or a schema violation), never a slow reply.
 
 ## Prompt Construction
 
@@ -405,10 +411,10 @@ The read budget is the load-bearing number: the S4 target of p95 at or under 30 
 
 One function renders the text half of the message. It is public because the analyzer stores its output verbatim as `Event.llm_prompt`, and `assess` renders through the same call — the stored row records the question that was actually asked, truncation marker included:
 
-**Source:** `backend/services/vlm_client.py:743-753`
+**Source:** `backend/services/vlm_client.py:903-913`
 
 ```python
-# Source: backend/services/vlm_client.py:743-753
+# Source: backend/services/vlm_client.py:903-913
     def prompt_text(self, request: VlmAssessRequest) -> str:
         """The text half of the assess message, FITTED to the vlm slot.
 
@@ -484,9 +490,9 @@ The text it builds:
 | `Camera:`             | `VlmAssessContext.camera_id`                                       | the camera id; no camera name is read                                                                      |
 | `Time:`               | `render_prompt_time` (`backend/services/capture_time.py:87`)       | the capture moment, as local wall time with zone and UTC offset when `CAMERA_TIMEZONE` is set              |
 | `Zones:`              | `get_zones_for_detection` (`backend/services/zone_service.py:169`) | the zone names the batch sits in, plus the `zone_crossing` signal                                          |
-| Box guidance          | `_box_guidance` (`backend/services/vlm_client.py:627`)             | how to read `bbox_2d` and pixel boxes, and the 1-based frame index of each row                             |
+| Box guidance          | `_box_guidance` (`backend/services/vlm_client.py:787`)             | how to read `bbox_2d` and pixel boxes, and the 1-based frame index of each row                             |
 | `Detections:`         | `Detection` rows through `build_assess_context`                    | id, object_type, confidence, bbox, detected_at as JSON                                                     |
-| `Household context:`  | `load_household_context` (`backend/services/vlm_analyzer.py:309`)  | the zone allow-lists, honest-empty on any read failure                                                     |
+| `Household context:`  | `load_household_context` (`backend/services/vlm_analyzer.py:377`)  | the zone allow-lists, honest-empty on any read failure                                                     |
 | `Specialist outputs:` | `collect_specialist_outputs`                                       | one short text per lookup leg                                                                              |
 
 ### Lookup Legs
@@ -523,10 +529,10 @@ A request carries 1-4 stills, as paths — bytes never leave the client. `select
 
 The text budget is one slot, minus the verdict's own output budget, minus a reservation for the attached stills:
 
-**Source:** `backend/services/vlm_client.py:700-706`
+**Source:** `backend/services/vlm_client.py:860-866`
 
 ```python
-# Source: backend/services/vlm_client.py:700-706
+# Source: backend/services/vlm_client.py:860-866
         """
         ctx = request.context
         budget = (
@@ -538,10 +544,10 @@ The text budget is one slot, minus the verdict's own output budget, minus a rese
 
 When it still does not fit, the strongest rows survive and the prompt itself says how many were dropped — a model shown 60 of 500 rows and told nothing would read the gap as no further activity:
 
-**Source:** `backend/services/vlm_client.py:725-732`
+**Source:** `backend/services/vlm_client.py:885-892`
 
 ```python
-# Source: backend/services/vlm_client.py:725-732
+# Source: backend/services/vlm_client.py:885-892
             if omitted <= 0:
                 return body
             return body + (
@@ -556,10 +562,10 @@ When it still does not fit, the strongest rows survive and the prompt itself say
 
 One user turn holds the image parts and the rendered text:
 
-**Source:** `backend/services/vlm_client.py:789-802`
+**Source:** `backend/services/vlm_client.py:950-963`
 
 ```python
-# Source: backend/services/vlm_client.py:795-808
+# Source: backend/services/vlm_client.py:950-963
         body = {
             "messages": [
                 {
@@ -588,10 +594,10 @@ One user turn holds the image parts and the rendered text:
 
 The schema is the generated contract file with `$ref`s inlined and grammar-unsafe constraints stripped — one source, never hand-copied:
 
-**Source:** `backend/services/vlm_client.py:422-431`
+**Source:** `backend/services/vlm_client.py:529-538`
 
 ```python
-# Source: backend/services/vlm_client.py:422-431
+# Source: backend/services/vlm_client.py:529-538
     def _wire_schema(self) -> dict[str, Any]:
         """The GENERATED response contract, $refs inlined and grammar-unsafe
         constraints stripped - one source (backend/ai_contract/schemas/, the
@@ -608,26 +614,26 @@ The schema is the generated contract file with `$ref`s inlined and grammar-unsaf
 
 Every path in a request came from a database row, so each one is checked before it is opened:
 
-**Source:** `backend/services/vlm_client.py:449-452`
+**Source:** `backend/services/vlm_client.py:556-559`
 
 ```python
-# Source: backend/services/vlm_client.py:449-452
+# Source: backend/services/vlm_client.py:556-559
         parts: list[dict[str, Any]] = []
         for raw in request.image_paths[:4]:
             path = Path(raw)
             try:
 ```
 
-The three guards are: inside the capture root (privacy and traversal), a still by extension type from the repo's own image allow-list, and within `vlm_max_image_bytes`. All three refuse by raising `VlmImageError` before any read (`backend/services/vlm_client.py:437-505`), which the analyzer maps to `verification_failed` with a NULL score — that is the honest degradation, and it is what prevents a score computed from pixels the model never saw.
+The three guards are: inside the capture root (privacy and traversal), a still by extension type from the repo's own image allow-list, and within `vlm_max_image_bytes`. All three refuse by raising `VlmImageError` before any read (`backend/services/vlm_client.py:544-607`), which the analyzer maps to `verification_failed` with a NULL score — that is the honest degradation, and it is what prevents a score computed from pixels the model never saw.
 
 ### Enforcement Probe
 
-Before the first verdict is trusted on an endpoint and build, the client reads `GET /props` for the build string and the served model id (`backend/services/vlm_client.py:309-322`), then proves constrained decoding on the chat shape with an image part (`backend/services/vlm_client.py:292-300`). A reply that accepts `response_format` without echoing the probe const is the evidence itself, and the probe fails closed:
+Before the first verdict is trusted on an endpoint and build, the client reads `GET /props` for the build string and the served model id (`backend/services/vlm_client.py:387-392`), then proves constrained decoding on the chat shape with an image part (`backend/services/vlm_client.py:364-369`). A reply that accepts `response_format` without echoing the probe const is the evidence itself, and the probe fails closed:
 
-**Source:** `backend/services/vlm_client.py:405-420`
+**Source:** `backend/services/vlm_client.py:512-527`
 
 ```python
-# Source: backend/services/vlm_client.py:405-420
+# Source: backend/services/vlm_client.py:512-527
             if resp.status_code == 200:
                 # The E5-class lie, generalized to response_format: accepted
                 # the parameter, answered completely, and did not enforce it.
@@ -652,17 +658,17 @@ The proof is cached per client instance and never globally, because enforcement 
 
 ### Parsing Steps
 
-1. Read the message content out of the chat envelope (`backend/services/vlm_client.py:999-1005`).
-2. Ask the engine why generation stopped, reading `finish_reason` (`_stop_reason_of`, `backend/services/vlm_client.py:1008`).
-3. Validate the text against the contract model: `VlmVerdict.model_validate_json` (`backend/services/vlm_client.py:832-835`).
+1. Read the message content out of the chat envelope (`backend/services/vlm_client.py:1198-1204`).
+2. Ask the engine why generation stopped, reading `finish_reason` (`_stop_reason_of`, `backend/services/vlm_client.py:1207`).
+3. Validate the text against the contract model: `VlmVerdict.model_validate_json` (`backend/services/vlm_client.py:1033`).
 4. If validation fails and the stop reason is a length signal, raise `VlmTruncatedError`: the object never closed, so it was never a candidate for being valid JSON.
 5. Otherwise raise `VlmSchemaError`: the reply is complete and still violates the contract.
-6. On success, record breaker success, clear the unhealthy flag, and rewrite `provenance` from what the client knows (`backend/services/vlm_client.py:874-876`, `backend/services/vlm_client.py:252-263`).
+6. On success, record breaker success, clear the unhealthy flag, and rewrite `provenance` from what the client knows (`backend/services/vlm_client.py:1073-1075`, `backend/services/vlm_client.py:324-335`).
 
-**Source:** `backend/services/vlm_client.py:999-1005`
+**Source:** `backend/services/vlm_client.py:1198-1204`
 
 ```python
-# Source: backend/services/vlm_client.py:999-1005
+# Source: backend/services/vlm_client.py:1198-1204
 def _content_of(resp: httpx.Response) -> str:
     if resp.status_code != 200:
         return ""
@@ -719,16 +725,16 @@ A well-formed reply:
 }
 ```
 
-There is no `risk_level` on the wire: the model never emits a level, and `SeverityService` derives it from the score (`backend/services/severity.py:137`). The `provenance` in the reply is replaced by the client's own, because a model cannot know its own identity and the grammar forces it to write something anyway (`backend/services/vlm_client.py:252-263`).
+There is no `risk_level` on the wire: the model never emits a level, and `SeverityService` derives it from the score (`backend/services/severity.py:137`). The `provenance` in the reply is replaced by the client's own, because a model cannot know its own identity and the grammar forces it to write something anyway (`backend/services/vlm_client.py:324-335`).
 
 ## Verdict Invariants and Event Creation
 
 Every outcome passes through the invariant table before it is stored. `verdict is None` is the ladder bottoming out:
 
-**Source:** `backend/services/vlm_analyzer.py:255-280`
+**Source:** `backend/services/vlm_analyzer.py:323-348`
 
 ```python
-# Source: backend/services/vlm_analyzer.py:255-280
+# Source: backend/services/vlm_analyzer.py:323-348
 def apply_verdict_invariants(
     verdict: VlmVerdict | None,
     severity: SeverityService,
@@ -759,10 +765,10 @@ def apply_verdict_invariants(
 
 A real verdict is clamped and levelled in the same function:
 
-**Source:** `backend/services/vlm_analyzer.py:281-299`
+**Source:** `backend/services/vlm_analyzer.py:349-367`
 
 ```python
-# Source: backend/services/vlm_analyzer.py:281-299
+# Source: backend/services/vlm_analyzer.py:349-367
 
     risk_score: int | None = verdict.risk_score
     reasoning = verdict.reasoning
@@ -786,10 +792,10 @@ A real verdict is clamped and levelled in the same function:
 
 Session 2 writes both rows in one transaction:
 
-**Source:** `backend/services/vlm_analyzer.py:573-590`
+**Source:** `backend/services/vlm_analyzer.py:669-686`
 
 ```python
-# Source: backend/services/vlm_analyzer.py:573-590
+# Source: backend/services/vlm_analyzer.py:669-686
         # ---------------- SESSION 2 (WRITE) ------------------------------
         async with get_session() as session:
             event = Event(
@@ -810,10 +816,10 @@ Session 2 writes both rows in one transaction:
             await session.flush()
 ```
 
-**Source:** `backend/services/vlm_analyzer.py:592-607`
+**Source:** `backend/services/vlm_analyzer.py:688-703`
 
 ```python
-# Source: backend/services/vlm_analyzer.py:592-607
+# Source: backend/services/vlm_analyzer.py:688-703
             if verdict is not None:
                 engine, model_id = verdict.provenance.engine, verdict.provenance.model_id
             else:
@@ -856,10 +862,10 @@ The WS payload carries the `verification` key rendered by `verification_payload`
 
 A batch that just opened is the moment to warm the engine, and warming means one minimal real request — a health probe may not wake a sleeping llama.cpp:
 
-**Source:** `backend/services/vlm_client.py:946-960`
+**Source:** `backend/services/vlm_client.py:1145-1159`
 
 ```python
-# Source: backend/services/vlm_client.py:946-960
+# Source: backend/services/vlm_client.py:1145-1159
     async def wake(self) -> bool:
         """`POST /v1/chat/completions` with `max_tokens: 1` - ONE minimal
         REAL request so llama.cpp loads its weights during the 30-90 s
@@ -897,7 +903,7 @@ The batch aggregator fires it and does not wait:
 | Metric on a successful wake  | `record_model_cold_start("ai-vlm")`                            |
 | Any failure                  | swallowed by design; the batch proceeds without the head start |
 
-`wake_ai_vlm()` (`backend/services/vlm_client.py:981`) builds a throwaway client for the ping, so the batch that opened and the batch that gets analyzed minutes later may be different callers — a warm engine serves whoever asks.
+`wake_ai_vlm()` (`backend/services/vlm_client.py:1180`) builds a throwaway client for the ping, so the batch that opened and the batch that gets analyzed minutes later may be different callers — a warm engine serves whoever asks.
 
 ## A/B Testing Support
 
@@ -931,23 +937,24 @@ Nothing in `analyze_batch` calls it: a shipped verdict always rides the one rend
 
 ### Error Categories
 
-| Error                                   | Handling                              | Stored outcome                              |
-| --------------------------------------- | ------------------------------------- | ------------------------------------------- |
-| Connection, timeout, HTTP 5xx           | retried once at temperature 0         | `verification_failed`, NULL score and level |
-| Complete reply violating `VlmVerdict`   | retried once at temperature 0         | `verification_failed`, NULL score and level |
-| Reply truncated at `max_tokens`         | raised once, breaker untouched        | `verification_failed`, NULL score and level |
-| Request larger than the served slot     | raised once, breaker untouched        | `verification_failed`, NULL score and level |
-| Grammar unenforced, or build mismatch   | raised once                           | `verification_failed`, NULL score and level |
-| Key frame refused by a guard            | raised before any I/O                 | `verification_failed`, NULL score and level |
-| Breaker OPEN                            | refused without I/O                   | `verification_failed`, NULL score and level |
-| No camera metadata, or no detection ids | `ValueError` propagates to the worker | no event is written                         |
+| Error                                                                                                                        | Handling                              | Stored outcome                              |
+| ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------- |
+| Connection refused, connect-phase timeout, any answered status (5xx or a plain 4xx, except the 400 context-overflow refusal) | retried once at temperature 0         | `verification_failed`, NULL score and level |
+| Complete reply violating `VlmVerdict`                                                                                        | retried once at temperature 0         | `verification_failed`, NULL score and level |
+| Reply outrunning the read/write budget                                                                                       | raised once, breaker untouched        | `verification_failed`, NULL score and level |
+| Reply truncated at `max_tokens`                                                                                              | raised once, breaker untouched        | `verification_failed`, NULL score and level |
+| Request larger than the served slot                                                                                          | raised once, breaker untouched        | `verification_failed`, NULL score and level |
+| Grammar unenforced, or build mismatch                                                                                        | raised once                           | `verification_failed`, NULL score and level |
+| Key frame refused by a guard                                                                                                 | raised before any I/O                 | `verification_failed`, NULL score and level |
+| Breaker OPEN                                                                                                                 | refused without I/O                   | `verification_failed`, NULL score and level |
+| No camera metadata, or no detection ids                                                                                      | `ValueError` propagates to the worker | no event is written                         |
 
 The mapping is one tuple in the analyzer, and anything outside it is a bug that propagates loud rather than a degraded row:
 
-**Source:** `backend/services/vlm_analyzer.py:85-91`
+**Source:** `backend/services/vlm_analyzer.py:87-93`
 
 ```python
-# Source: backend/services/vlm_analyzer.py:85-91
+# Source: backend/services/vlm_analyzer.py:87-93
 # The failure classes that map to §6 step 2 (verification_failed + NULL):
 # every raise vlm_client documents, plus its probe error. Anything else is
 # a bug and propagates LOUD - the ladder covers engine failures, not
@@ -957,10 +964,10 @@ _DEGRADABLE_ERRORS: tuple[type[BaseException], ...] = (
     ConstrainedDecodingNotEnforced,
 ```
 
-**Source:** `backend/services/vlm_analyzer.py:555-566`
+**Source:** `backend/services/vlm_analyzer.py:651-662`
 
 ```python
-# Source: backend/services/vlm_analyzer.py:555-566
+# Source: backend/services/vlm_analyzer.py:651-662
         verdict: VlmVerdict | None = None
         try:
             verdict = await client.assess(request)
@@ -989,10 +996,10 @@ Every engine failure path ends at the same statement: `apply_verdict_invariants(
 
 ## Metrics and Observability
 
-**Source:** `backend/services/vlm_client.py:52-56`
+**Source:** `backend/services/vlm_client.py:65-69`
 
 ```python
-# Source: backend/services/vlm_client.py:52-56
+# Source: backend/services/vlm_client.py:65-69
 from backend.core.metrics import (
     record_model_cold_start,
     record_pipeline_error,
@@ -1007,25 +1014,27 @@ from backend.core.metrics import (
 | `hsi_pipeline_errors_total`        | Counter | `error_type`           | `backend/core/metrics.py:342-347`   |
 | `hsi_prompts_truncated_total`      | Counter | none                   | `backend/core/metrics.py:422-426`   |
 | `hsi_model_cold_start_total`       | Counter | `model`                | `backend/core/metrics.py:2341-2346` |
-| `hsi_ai_service_degraded`          | Gauge   | `service`              | `backend/core/metrics.py:2380-2385` |
-| `hsi_specialist_unavailable_total` | Counter | `specialist`, `reason` | `backend/core/metrics.py:2394-2399` |
+| `hsi_ai_service_degraded`          | Gauge   | `service`              | `backend/core/metrics.py:2370-2375` |
+| `hsi_specialist_unavailable_total` | Counter | `specialist`, `reason` | `backend/core/metrics.py:2384-2389` |
 
 ### `error_type` Values on This Path
 
-| Value                         | Where                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------- |
-| `vlm_transport_error`         | transport raised, `backend/services/vlm_client.py:813`                    |
-| `vlm_http_error`              | status other than 200, `backend/services/vlm_client.py:830`               |
-| `vlm_schema_invalid`          | validation failed, `backend/services/vlm_client.py:871`                   |
-| `vlm_assess_truncated`        | verdict cut at its budget, `backend/services/vlm_client.py:856`           |
-| `vlm_context_overflow`        | the served slot refused the request, `backend/services/vlm_client.py:821` |
-| `vlm_probe_props_unreachable` | `backend/services/vlm_client.py:318`                                      |
-| `vlm_probe_build_mismatch`    | `backend/services/vlm_client.py:326`                                      |
-| `vlm_probe_transport`         | `backend/services/vlm_client.py:362`                                      |
-| `vlm_probe_truncated`         | probe reply hit its budget, `backend/services/vlm_client.py:396`          |
-| `vlm_probe_not_enforced`      | `backend/services/vlm_client.py:404`                                      |
-| `vlm_circuit_open`            | refused without I/O, `backend/services/vlm_client.py:766`                 |
-| `vlm_verification_failed`     | the analyzer's terminal mapping, `backend/services/vlm_analyzer.py:561`   |
+| Value                         | Where                                                                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `vlm_transport_error`         | transport raised, `backend/services/vlm_client.py:1012`                                               |
+| `vlm_http_error`              | status other than 200, `backend/services/vlm_client.py:1029`                                          |
+| `vlm_schema_invalid`          | validation failed, `backend/services/vlm_client.py:1070`                                              |
+| `vlm_assess_truncated`        | verdict cut at its budget, `backend/services/vlm_client.py:1055`                                      |
+| `vlm_context_overflow`        | the served slot refused the request, `backend/services/vlm_client.py:1017`                            |
+| `vlm_assess_timeout`          | reply outran the read budget; a budget, not retried, not charged to the breaker (`VlmSlowReplyError`) |
+| `vlm_probe_timeout`           | probe reply outran the read budget; fails closed INCONCLUSIVE, breaker untouched                      |
+| `vlm_probe_props_unreachable` | `backend/services/vlm_client.py:394`                                                                  |
+| `vlm_probe_build_mismatch`    | `backend/services/vlm_client.py:402`                                                                  |
+| `vlm_probe_transport`         | `backend/services/vlm_client.py:469`                                                                  |
+| `vlm_probe_truncated`         | probe reply hit its budget, `backend/services/vlm_client.py:503`                                      |
+| `vlm_probe_not_enforced`      | `backend/services/vlm_client.py:511`                                                                  |
+| `vlm_circuit_open`            | refused without I/O, `backend/services/vlm_client.py:927`                                             |
+| `vlm_verification_failed`     | the analyzer's terminal mapping, `backend/services/vlm_analyzer.py:657`                               |
 
 ## Timing Summary
 
@@ -1041,7 +1050,7 @@ from backend.core.metrics import (
 | Invariants and the session 2 write                                    | single-digit ms              | none coded                             |
 | WS broadcast                                                          | under a ms                   | best-effort                            |
 
-**Target:** p95 of 30 s or less from batch close to stored event, cold starts included. The 25 s read budget and the single retry are both sized against that number (`backend/core/config.py:1117-1124`).
+**Target:** p95 of 30 s or less from batch close to stored event, cold starts included. The 25 s budget is a per-read idle budget (httpx resets it on every reply chunk), sized against that number for the silent-server case — a stalled reply is a budget, not retried, so a silent item costs one ceiling (plus connect), never a ladder, while an engine that dribbles within the budget runs on (`backend/core/config.py:1130-1142`). The temperature-0 retry is reachable only where a re-ask can differ: a trip that never completed (refused, `ConnectTimeout`), any other answered status (a 5xx or a plain 4xx, except the 400 context-overflow refusal), or a complete reply that broke the schema.
 
 ## Related Documents
 

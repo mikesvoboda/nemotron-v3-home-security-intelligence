@@ -1559,7 +1559,7 @@ Get the complete registry of available WebSocket event types.
     }
   ],
   "channels": ["alerts", "cameras", "detections", "events", "jobs", "system"],
-  "total_count": 25,
+  "total_count": 29,
   "deprecated_count": 3
 }
 ```
@@ -1609,35 +1609,36 @@ The system supports a comprehensive set of WebSocket event types organized by do
 
 ### Complete Event Type List
 
-| Event Type               | Description                                 |
-| ------------------------ | ------------------------------------------- |
-| `alert.created`          | New alert triggered from rule evaluation    |
-| `alert.updated`          | Alert modified (metadata, channels updated) |
-| `alert.acknowledged`     | Alert marked as seen by user                |
-| `alert.resolved`         | Alert resolved/closed                       |
-| `alert.dismissed`        | Alert dismissed by user                     |
-| `camera.online`          | Camera came online and is streaming         |
-| `camera.offline`         | Camera went offline                         |
-| `camera.status_changed`  | Camera status changed                       |
-| `camera.enabled`         | Camera enabled for monitoring               |
-| `camera.disabled`        | Camera disabled from monitoring             |
-| `camera.error`           | Camera encountered an error                 |
-| `camera.config_updated`  | Camera configuration was updated            |
-| `detection.new`          | New detection from AI pipeline              |
-| `detection.batch`        | Batch of detections from a frame            |
-| `event.created`          | New security event created after analysis   |
-| `event.updated`          | Existing security event updated             |
-| `event.deleted`          | Security event deleted                      |
-| `job.started`            | Background job started                      |
-| `job.progress`           | Background job progress update              |
-| `job.completed`          | Background job completed                    |
-| `job.failed`             | Background job failed                       |
-| `job.cancelled`          | Background job cancelled                    |
-| `system.health_changed`  | System health status changed                |
-| `system.status`          | Periodic system status update               |
-| `service.status_changed` | Individual service status changed           |
-| `gpu.stats_updated`      | GPU statistics updated                      |
-| `scene_change.detected`  | Camera scene change detected                |
+| Event Type                             | Description                                                |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `alert.created`                        | New alert triggered from rule evaluation                   |
+| `alert.updated`                        | Alert modified (metadata, channels updated)                |
+| `alert.acknowledged`                   | Alert marked as seen by user                               |
+| `alert.resolved`                       | Alert resolved/closed                                      |
+| `alert.dismissed`                      | Alert dismissed by user                                    |
+| `camera.online`                        | Camera came online and is streaming                        |
+| `camera.offline`                       | Camera went offline                                        |
+| `camera.status_changed`                | Camera status changed                                      |
+| `camera.enabled`                       | Camera enabled for monitoring                              |
+| `camera.disabled`                      | Camera disabled from monitoring                            |
+| `camera.error`                         | Camera encountered an error                                |
+| `camera.config_updated`                | Camera configuration was updated                           |
+| `detection.new`                        | New detection from AI pipeline                             |
+| `detection.batch`                      | Batch of detections from a frame                           |
+| `event.created`                        | New security event created after analysis                  |
+| `event.updated`                        | Existing security event updated                            |
+| `event.deleted`                        | Security event deleted                                     |
+| `job.started`                          | Background job started                                     |
+| `job.progress`                         | Background job progress update                             |
+| `job.completed`                        | Background job completed                                   |
+| `job.failed`                           | Background job failed                                      |
+| `job.cancelled`                        | Background job cancelled                                   |
+| `system.health_changed`                | System health status changed                               |
+| `system.verdict_engine_status_changed` | Verdict engine (ai-vlm) availability changed (B1.4, UR-18) |
+| `system.status`                        | Periodic system status update                              |
+| `service.status_changed`               | Individual service status changed                          |
+| `gpu.stats_updated`                    | GPU statistics updated                                     |
+| `scene_change.detected`                | Camera scene change detected                               |
 
 ---
 

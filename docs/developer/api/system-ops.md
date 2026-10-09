@@ -221,6 +221,11 @@ GET /api/system/health/ready
     { "name": "detection_worker", "running": true, "message": null },
     { "name": "analysis_worker", "running": true, "message": null }
   ],
+  "verdict_engine": {
+    "state": "available",
+    "since": "2025-12-23T09:00:00Z",
+    "reason": null
+  },
   "timestamp": "2025-12-23T10:30:00Z"
 }
 ```
@@ -230,6 +235,13 @@ GET /api/system/health/ready
 - Database must be healthy
 - Redis must be healthy
 - Pipeline workers must be running
+
+The verdict engine (ai-vlm) is NOT a criterion: `verdict_engine` reports its
+state (`available` / `unavailable` / `unknown`, with the transition time in
+`since` and the engine's own error in `reason`) without moving 200/503, so a
+down engine degrades event verification instead of platform availability.
+Transitions push `system.verdict_engine_status_changed` on `/ws/system`
+(B1.4, UR-18).
 
 ### Full Health Check
 
@@ -244,7 +256,7 @@ GET /api/system/health/full
 The response is a `FullHealthResponse` (`backend/api/schemas/health.py:316`). AI
 services are a list of two entries — YOLO26 (`critical: true`) and the ai-vlm
 verdict service (`critical: false`) — from the service table at
-`backend/api/routes/system.py:5105`.
+`backend/api/routes/system.py:5129`.
 
 ```json
 {
@@ -1802,7 +1814,7 @@ GET /api/system/circuit-breakers
 **Response:**
 
 `circuit_breakers` is a map keyed by service name
-(`CircuitBreakersResponse`, `backend/api/schemas/system.py:1670`):
+(`CircuitBreakersResponse`, `backend/api/schemas/system.py:1724`):
 
 ```json
 {
@@ -1956,8 +1968,8 @@ GET /api/system/websocket/events
     }
   ],
   "channels": ["detections", "events", "alerts", "cameras", "jobs", "system"],
-  "total_count": 24,
-  "deprecated_count": 2
+  "total_count": 29,
+  "deprecated_count": 3
 }
 ```
 

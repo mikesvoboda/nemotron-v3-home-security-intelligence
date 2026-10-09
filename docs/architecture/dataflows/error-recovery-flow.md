@@ -128,13 +128,13 @@ startup so they appear in monitoring before first use
 (`backend/services/circuit_breaker.py:1104-1117`), so a service can also
 register its own breaker on first use — `ai-vlm` does exactly that, with
 `failure_threshold=5` and `recovery_timeout=60.0`
-(`backend/services/vlm_client.py:247-249`).
+(`backend/services/vlm_client.py:319-322`).
 
 | Service         | Failure Threshold | Recovery Timeout | Source                                                           |
 | --------------- | ----------------- | ---------------- | ---------------------------------------------------------------- |
 | yolo26          | 5                 | 30s              | AI config (`backend/main.py:321`)                                |
 | detector_yolo26 | 5                 | 60s              | `DetectorClient` (`backend/services/detector_client.py:336-345`) |
-| ai-vlm          | 5                 | 60s              | `VlmClient` (`backend/services/vlm_client.py:247-249`)           |
+| ai-vlm          | 5                 | 60s              | `VlmClient` (`backend/services/vlm_client.py:319-322`)           |
 | postgresql      | 10                | 60s              | Infrastructure config (`backend/main.py:325`)                    |
 | redis           | 10                | 60s              | Infrastructure config (`backend/main.py:328`)                    |
 
@@ -145,7 +145,7 @@ the guard on live detection traffic is the 5/60s breaker, while the
 
 When the `ai-vlm` breaker opens, the client pushes the service UNHEALTHY to
 `DegradationManager` on the way out and clears the flag on the next success
-(`backend/services/vlm_client.py:919-940`).
+(`backend/services/vlm_client.py:1118-1139`).
 
 ## Circuit Breaker Sequence Diagram
 
@@ -256,14 +256,17 @@ self._circuit_breaker = CircuitBreaker(
 
 ### VLM Client Retry
 
-**Source:** `backend/services/vlm_client.py:810-817`
+**Source:** `backend/services/vlm_client.py:965-972`
 
-The analysis leg does not use the backoff ladder. `VlmClient.assess()` makes
-two attempts inside one read budget (`settings.ai_vlm_read_timeout`, default
-25s) and the retry is a plain re-send of the same body (the first attempt is greedy too):
+The analysis leg does not use the backoff ladder. `VlmClient.assess()` makes at
+most two attempts and the retry is a plain re-send of the same body (the first
+attempt is greedy too) — but the ladder has been re-cut (B1.1): an attempt that
+outruns `settings.ai_vlm_read_timeout` (default 25 s) in either phase — waiting
+for the reply, or waiting to finish sending the image-bearing body — raises on
+the spot as a budget and is never retried:
 
 ```python
-# backend/services/vlm_client.py:810-817
+# backend/services/vlm_client.py:965-972
 last_error: VlmClientError | None = None
 for attempt, temperature in enumerate((None, 0.0)):
     if temperature is not None:
@@ -274,16 +277,17 @@ for attempt, temperature in enumerate((None, 0.0)):
         body["temperature"] = temperature
 ```
 
-Transport failures (connection refused, timeout, HTTP 5xx) and a complete
-reply that violates the verdict schema are both given the second attempt — at
-temperature 0 the failure may not recur on a plain re-send. A context-overflow refusal and
-a reply cut off at `max_tokens` raise on the spot: re-asking at the same budget
-cannot change either answer (`backend/services/vlm_client.py:813-826, 833-866`).
-Each counted failure feeds the `ai-vlm` breaker
-(`backend/services/vlm_client.py:247-249`), while budget-exhaustion failures are
-recorded WITHOUT feeding it — a reply truncated by a token count the backend
-chose is not evidence that the service is down
-(`backend/services/vlm_client.py:897-917`).
+Only failures where re-asking is not futile get that second attempt: the
+request never completed its trip (connection refused, `ConnectTimeout`, HTTP
+5xx) or a complete reply that violates the verdict schema — at temperature 0
+the failure may not recur on a plain re-send. A stalled read, a stalled write,
+a context-overflow refusal and a reply cut off at `max_tokens` all raise on the
+spot: the bytes are unchanged, so re-asking at the same budget cannot change
+any of them. Each counted failure feeds the `ai-vlm` breaker
+(`backend/services/vlm_client.py:1080-1091`), while budget-exhaustion failures are
+recorded WITHOUT feeding it — a reply truncated by a token count, or timed out by
+a duration the backend chose, is not evidence that the service is down
+(`backend/services/vlm_client.py:1096-1116`).
 
 ## Broadcast Retry
 
@@ -337,7 +341,7 @@ async def broadcast_with_retry[T](
 Every one of these lands as a written Event: `_DEGRADABLE_ERRORS` is caught in
 `analyze_batch()` and mapped to `verification_failed`
 (`backend/services/vlm_analyzer.py:556-560`), so a batch is never lost to an
-engine failure (`backend/services/vlm_analyzer.py:267-280`).
+engine failure (`backend/services/vlm_analyzer.py:654-657`).
 
 ### Specialist Lookup Errors
 
@@ -526,8 +530,8 @@ Recovery:
 
 The event is the point: a batch is never parked or discarded waiting for the
 engine, because the UI needs a row that reads "needs review"
-(`backend/services/vlm_analyzer.py:267-280`). The wake ping
-(`backend/services/vlm_client.py:946`) is the cold-start path — one
+(`backend/services/vlm_analyzer.py:654-657`). The wake ping
+(`backend/services/vlm_client.py:1145-1177`) is the cold-start path — one
 `max_tokens: 1` request that loads llama.cpp's weights, and a failed wake is
 swallowed rather than retried.
 
@@ -568,7 +572,7 @@ Recovery:
 Detection jobs land in the dead-letter queue when retries are exhausted or the
 delivery ceiling is reached (`backend/services/pipeline_workers.py:403-404`,
 `backend/services/retry_handler.py`); queue overflow uses the same policy
-(`backend/core/config.py:2229-2232`). The queues are the `dlq:`-prefixed names
+(`backend/core/config.py:2246-2249`). The queues are the `dlq:`-prefixed names
 built in `backend/core/constants.py:167-173`:
 
 ```python
