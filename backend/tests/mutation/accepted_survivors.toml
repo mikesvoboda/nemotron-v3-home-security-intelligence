@@ -1,0 +1,43 @@
+# Accepted survivors — the file the mutation policy's M3 (scheduled B2.1) creates.
+#
+# A mutant the policy lets survive, recorded with a reason, instead of left
+# silent in a battery header or lost between runs. Two kinds, and only two:
+#
+#   equivalent  no test can kill it — the mutated code behaves identically.
+#   below-bar   only below-bar tests killed it, and consolidation surrendered
+#               the kill. The interface bar (what makes a test above or below
+#               it) lives in docs/developer/patterns/mutation-testing.md.
+#
+# The weekly scorer (M2/O3.5) reports each module's score with and without
+# these entries; a kill-loss not covered here fails the PR evidence tool
+# (M4/O3.6). An entry is a claim: the validation test
+# (backend/tests/unit/test_accepted_survivors.py) checks every entry here,
+# so a typo cannot quietly make a survivor "accepted".
+#
+# Entries arrive the way the policy says: EQUIVALENT residue recorded in
+# battery headers moves here when its battery is consolidated, and a
+# below-bar kill surrendered by consolidation is recorded with the name of
+# the test that used to kill it. Zero entries today is the honest state:
+# no battery has been consolidated since this file was created.
+#
+# Schema — one [[survivor]] table per entry, every field required:
+#
+#   module      dotted module path relative to the repo root, e.g.
+#               "backend.services.webhook_service" — resolved as a path
+#               (no imports), so an entry can name a module the test
+#               environment cannot load, but not a module that does not exist
+#   mutant      what the mutation does, as a reader can check it without
+#               opening the mutmut cache: "<function> <expression> <change>"
+#   body_sha256 sha256 hex of the mutated function's CURRENT source, taken
+#               over inspect.getsource(fn) verbatim — the function's own
+#               `def` line through its last line, indentation as in the
+#               file, trailing newline included (decorators excluded).
+#               This binds an entry to code, not to a number: mutmut's
+#               cache keys are positional, so a key renumbering must not
+#               silently re-point an entry. If the hash stops matching,
+#               re-verify the mutant against the new body: update the hash,
+#               or retire the entry.
+#   kind        "equivalent" or "below-bar"
+#   reason      one paragraph: why this survivor is policy-accepted, and
+#               where the measurement that established it lives
+#   date        YYYY-MM-DD the entry was accepted

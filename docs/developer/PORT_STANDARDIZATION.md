@@ -302,16 +302,17 @@ The `${PROMETHEUS_PORT}` only affects external access (`localhost:9090`). Intern
 
 ### Internal vs External Ports
 
-| Service       | Internal Port (Fixed) | External Port (Configurable via .env)       |
-| ------------- | --------------------- | ------------------------------------------- |
-| Prometheus    | 9090                  | `PROMETHEUS_PORT`                           |
-| Alertmanager  | 9093                  | `ALERTMANAGER_PORT`                         |
-| Grafana       | 3000                  | `GRAFANA_PORT` (default host 3002)          |
-| Loki          | 3100                  | `LOKI_PORT`                                 |
-| Tempo (OTLP)  | 4317                  | `TEMPO_OTLP_GRPC`                           |
-| Pyroscope     | 4040                  | `PYROSCOPE_PORT`                            |
-| Node Exporter | 9100                  | `NODE_EXPORTER_PORT`                        |
-| cAdvisor      | systemd service       | `CADVISOR_PORT` (host service, not compose) |
+| Service       | Internal Port (Fixed) | External Port (Configurable via .env)                                  |
+| ------------- | --------------------- | ---------------------------------------------------------------------- |
+| Prometheus    | 9090                  | `PROMETHEUS_PORT`                                                      |
+| Alertmanager  | 9093                  | `ALERTMANAGER_PORT`                                                    |
+| Grafana       | 3000                  | `GRAFANA_PORT` (default host 3002)                                     |
+| Loki          | 3100                  | `LOKI_PORT`                                                            |
+| Tempo (OTLP)  | 4317                  | `TEMPO_OTLP_GRPC`                                                      |
+| Alloy (OTLP)  | 4317 / 4318           | `ALLOY_OTLP_GRPC_PORT` / `ALLOY_OTLP_HTTP_PORT` (defaults 14317/14318) |
+| Pyroscope     | 4040                  | `PYROSCOPE_PORT`                                                       |
+| Node Exporter | 9100                  | `NODE_EXPORTER_PORT`                                                   |
+| cAdvisor      | systemd service       | `CADVISOR_PORT` (host service, not compose)                            |
 
 Traces are served by Grafana Tempo; Alloy exports OTLP to `tempo:4317`.
 

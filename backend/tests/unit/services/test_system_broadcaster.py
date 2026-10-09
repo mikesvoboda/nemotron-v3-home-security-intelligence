@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from starlette.datastructures import Headers
 
 from backend.services.system_broadcaster import SystemBroadcaster, get_system_broadcaster
 
@@ -1892,6 +1893,9 @@ async def test_system_broadcaster_connect_send_initial_status_failure():
     """Test connect() handles failures when sending initial status."""
     broadcaster = SystemBroadcaster()
     mock_websocket = AsyncMock()
+    # connect() reads the offered subprotocols off the handshake headers (B-1
+    # echo); a bare AsyncMock would answer .headers.get() with a coroutine.
+    mock_websocket.headers = Headers({})
 
     # Mock _get_system_status to raise a connection error (specific exception)
     with patch.object(

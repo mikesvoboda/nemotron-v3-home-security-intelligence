@@ -19,7 +19,7 @@ The system implements defense-in-depth security measures including input validat
 | Assumption               | Implication                                      |
 | ------------------------ | ------------------------------------------------ |
 | Single-user deployment   | No role-based access control                     |
-| Loopback after `O1.6`    | No credential unless `EXPOSE_LAN=true`           |
+| Loopback by default      | No credential unless `EXPOSE_LAN=true`           |
 | No internet exposure     | CORS allows local origins by default             |
 | Camera data is sensitive | Path traversal protection on all media endpoints |
 

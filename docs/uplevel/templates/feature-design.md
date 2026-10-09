@@ -36,7 +36,7 @@ Files per lane, including the cross-lane parts (README cross-lane rule).
 
 - **Consolidation scope:** the modules this feature touches, whose tests the test-only PR
   consolidates first (`01`, "The floor").
-- **Tests through the interface:** what the new tests assert. They meet the interface bar (`01`).
+- **Tests through the interface:** what the new tests assert. They meet the interface bar (`docs/developer/patterns/mutation-testing.md`, "The interface bar").
 
 ## Golden path
 

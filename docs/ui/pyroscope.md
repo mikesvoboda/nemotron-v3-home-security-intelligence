@@ -84,11 +84,11 @@ The flame graph is the primary visualization for understanding where time or mem
 
 Profiled today (names as they appear in the selector):
 
-| Service              | How it is profiled                                                                                                                                                           |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **nemotron-backend** | In-process Python SDK (`pyroscope-io`), enabled by `PYROSCOPE_ENABLED=true` in compose; CPU at 100 Hz + memory                                                               |
-| **ai-vlm**           | Alloy eBPF native profiling — the container carries labels `pyroscope.profile=true` / `pyroscope.service=ai-vlm` (prod compose only; the ghcr stack has no `ai-vlm` service) |
-| **alloy**            | Alloy self-profiling; its eBPF sampler runs at 97 Hz (`sample_rate = 97`, prime to avoid aliasing)                                                                           |
+| Service              | How it is profiled                                                                                                                                                            |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **nemotron-backend** | In-process Python SDK (`pyroscope-io`), enabled by `PYROSCOPE_ENABLED=true` in compose; CPU at 100 Hz + memory                                                                |
+| **ai-vlm**           | Alloy eBPF native profiling — the container carries labels `pyroscope.profile=true` / `pyroscope.service=ai-vlm` (defined in the prod compose stack, the one supported stack) |
+| **alloy**            | Alloy self-profiling; its eBPF sampler runs at 97 Hz (`sample_rate = 97`, prime to avoid aliasing)                                                                            |
 
 Other services (gateway, frontend) have no profiler attached yet.
 

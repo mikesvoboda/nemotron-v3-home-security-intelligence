@@ -381,7 +381,7 @@ flowchart TB
 
 ### Port Summary
 
-Host ports are `.env.example` defaults; all bind `127.0.0.1` except the frontend (`0.0.0.0`).
+Host ports are `.env.example` defaults; everything binds `127.0.0.1`, the frontend nginx included, unless `EXPOSE_LAN=true` — the single switch (`O1.6`) that publishes the frontend on `0.0.0.0` and arms the backend's auth gate at the same time.
 
 | Port        | Service                              | Protocol | Exposed To                   |
 | ----------- | ------------------------------------ | -------- | ---------------------------- |

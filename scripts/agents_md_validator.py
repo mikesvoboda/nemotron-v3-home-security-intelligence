@@ -31,18 +31,29 @@ Exit codes:
         link (zero tolerance), a retired-name count above its baseline, an
         unbalanced code fence (it would mask the rest of the file from the
         gate), or an inline ignore-reference comment without a tracking ref
-    2 - the gate COULD NOT RUN: the config is absent/unparseable/incomplete,
-        a pattern does not compile, or an AGENTS.md is unreadable. The report
-        is NOT written — a DEFAULTS-config report would feed
-        agents_md_linear_sync.py a table the tree does not support.
+    2 - the gate COULD NOT RUN: the config is absent/unparseable/incomplete
+        (any missing required key: the five baseline names, boundary_list, or
+        a line_caps tier), a pattern does not compile, or an AGENTS.md is
+        unreadable. The report is NOT written — a DEFAULTS-config report would
+        feed agents_md_linear_sync.py a table the tree does not support.
 
 Output:
     Structured JSON report containing:
     - Total AGENTS.md files found
     - Issues by type (stale_reference, missing_agents_md, dead_link)
     - Summary counts
-    - "ratchet": the additive gate block (counts, baseline, violations). issues[]/summary{} stay byte-identical for
-      agents_md_linear_sync.py; the gate state never enters issues[].
+    - "ratchet": the additive gate block (counts, baseline, violations, and
+      since W2.1 line_caps — the boundary file's tier caps and its over-cap
+      set, reported-not-failing until W3.2). issues[]/summary{} stay
+      byte-identical for agents_md_linear_sync.py; the gate state never
+      enters issues[].
+
+W2.1 added the two config arms (both loader-mandatory, absent = exit 2):
+boundary_list — the directories that keep an AGENTS.md when W3.1 prunes the
+rest, one reason per entry — and line_caps — the per-tier caps
+(root/lane_root/package) measured against the boundary files only, printed
+and reported but never failing until W3.2 rewrites those files to
+docs/developer/agents-md-standard.md and flips the mode.
 """
 
 from __future__ import annotations
@@ -91,6 +102,16 @@ RETIRED_NAMES: tuple[str, ...] = (
 # test_enrichment_light_url_is_not_enrichment.
 RETIRED_NAME_PATTERNS = {name: re.compile(rf"\b{name}\b") for name in RETIRED_NAMES}
 
+# W2.1 cap tiers (DECIDE; the numbers live in the config, this is the shape).
+# root: the single root file; lane_root: the seven directories 40-docs.md
+# names as lane roots; package: every other boundary file. The loader requires
+# all three — a missing tier is the config dropping the arm, not a tier with
+# no cap.
+CAP_TIERS: tuple[str, ...] = ("root", "lane_root", "package")
+LANE_ROOTS: frozenset[str] = frozenset(
+    {"backend", "frontend", "ai", "scripts", ".github", "synthbench", "monitoring"}
+)
+
 
 @dataclass
 class ValidatorConfig:
@@ -110,6 +131,13 @@ class ValidatorConfig:
     # them. Pairs are (agents_md, reference), the exact fields report.json
     # emits, so the gate matches the emitted tuple with no translation layer.
     retired_name_baseline: dict[str, int] = field(default_factory=dict)
+    # W2.1 boundary list + line caps — required keys, same absent-is-exit-2
+    # doctrine as the baselines: a config that dropped boundary_list would
+    # silently stop reporting the W3.1 prune map, and dropped caps would
+    # silently silence the W3.2 rewrite work list. Entries are
+    # {"path": <dir rel to root, "." for root>, "reason": <one line>}.
+    boundary_list: list[dict[str, str]] = field(default_factory=list)
+    line_caps: dict[str, int] = field(default_factory=dict)
     config_loaded: bool = False
 
 
@@ -135,6 +163,13 @@ class Scan(NamedTuple):
     retired_counts: dict[str, int]
     unbalanced_fences: list[str]
     bare_ignore_comments: list[tuple[str, str]]  # (agents_md, reference)
+    # W2.1: relative AGENTS.md path -> physical line count (read_text +
+    # splitlines, the same content both ratchet arms already read — a file
+    # that failed to read raises before this exists). Caps are evaluated
+    # against the config's boundary list at report time, not here: the scan
+    # measures, the gate decides. No default: a NamedTuple default would be a
+    # shared dict, and there is exactly one construction site to update.
+    line_counts: dict[str, int]
 
 
 def get_project_root() -> Path:
@@ -231,6 +266,54 @@ def load_config(config_path: Path | None, project_root: Path) -> ValidatorConfig
         if not isinstance(value, int) or isinstance(value, bool) or value < 0:
             raise ConfigError(f"retired_name_baseline[{name!r}] must be an int >= 0, got {value!r}")
         config.retired_name_baseline[name] = value
+
+    raw_boundaries = data.get("boundary_list")
+    if raw_boundaries is None:
+        raise ConfigError(
+            f"{config_path} has no boundary_list key — W2.1's prune map is what "
+            "W3.1 deletes outside of, and the line caps apply to its files; an "
+            "absent list is not 'no boundaries' and not 'unchecked' — it is the "
+            "config quietly dropping the arm (same doctrine as the baselines)"
+        )
+    if not isinstance(raw_boundaries, list) or not raw_boundaries:
+        raise ConfigError("boundary_list must be a non-empty list of {path, reason} entries")
+    seen_paths: set[str] = set()
+    for entry in raw_boundaries:
+        if not isinstance(entry, dict) or not {"path", "reason"} <= set(entry):
+            raise ConfigError(
+                f"boundary_list entry {entry!r} is not a {{path, reason}} mapping — "
+                "every boundary carries its one-line reason in the config (W2.1)"
+            )
+        path_value = entry["path"]
+        reason_value = entry["reason"]
+        if not isinstance(path_value, str) or not path_value:
+            raise ConfigError(f"boundary_list entry has a non-string/empty path: {entry!r}")
+        if not isinstance(reason_value, str) or not reason_value.strip():
+            raise ConfigError(f"boundary_list[{path_value}] has an empty reason")
+        if path_value in seen_paths:
+            raise ConfigError(f"boundary_list has a duplicate path {path_value!r}")
+        seen_paths.add(path_value)
+        config.boundary_list.append({"path": path_value, "reason": reason_value})
+
+    raw_caps = data.get("line_caps")
+    if raw_caps is None:
+        raise ConfigError(
+            f"{config_path} has no line_caps key — the W2.1 tier caps are the "
+            "reporting arm of the standard; absent caps are not 'no caps', they "
+            "are the work list going silent"
+        )
+    if not isinstance(raw_caps, dict):
+        raise ConfigError("line_caps must be a tier: int mapping")
+    for tier in CAP_TIERS:
+        if tier not in raw_caps:
+            raise ConfigError(
+                f"line_caps is missing {tier!r} — a missing tier is neither 0 nor "
+                f"unchecked; all three of {CAP_TIERS} are required"
+            )
+        cap_value = raw_caps[tier]
+        if not isinstance(cap_value, int) or isinstance(cap_value, bool) or cap_value < 1:
+            raise ConfigError(f"line_caps[{tier!r}] must be an int >= 1, got {cap_value!r}")
+        config.line_caps[tier] = cap_value
 
     config.config_loaded = True
     return config
@@ -683,6 +766,7 @@ def validate_all(project_root: Path, config: ValidatorConfig) -> Scan:
     issues: list[ValidationIssue] = []
     unbalanced_fences: list[str] = []
     bare_ignore_comments: list[tuple[str, str]] = []
+    line_counts: dict[str, int] = {}
 
     for agents_md_path in agents_md_files:
         relative = str(agents_md_path.relative_to(project_root))
@@ -694,6 +778,11 @@ def validate_all(project_root: Path, config: ValidatorConfig) -> Scan:
                 "disappears from the gate's censuses, so the gate refuses to "
                 "report a tree it could not read"
             ) from exc
+
+        # W2.1 caps measure the SAME content the arms already read (splitlines,
+        # not `wc -l`): a file ending without a newline still counts its last
+        # line, and a file ending with one does not count a phantom empty line.
+        line_counts[relative] = len(content.splitlines())
 
         mask, unbalanced = fence_mask(content)
         if unbalanced:
@@ -719,7 +808,78 @@ def validate_all(project_root: Path, config: ValidatorConfig) -> Scan:
         retired_counts=retired_counts,
         unbalanced_fences=unbalanced_fences,
         bare_ignore_comments=bare_ignore_comments,
+        line_counts=line_counts,
     )
+
+
+def boundary_tier(dir_path: str) -> str:
+    """The cap tier a boundary directory falls in (W2.1, DECIDE).
+
+    'root' is the project root ('.'); 'lane_root' is one of the seven lane
+    roots 40-docs.md names; everything else in the boundary list is
+    'package'. Compared on the POSIX-style relative dir, so Windows-style
+    separators never reach here (pathlib str() on the gate's platforms uses
+    '/', and the config's paths are committed with '/').
+    """
+    if dir_path in (".", ""):
+        return "root"
+    if dir_path in LANE_ROOTS:
+        return "lane_root"
+    return "package"
+
+
+def evaluate_line_caps(scan: Scan, config: ValidatorConfig) -> dict[str, Any]:
+    """The W2.1 reporting arm: over-cap boundary files, measured, NOT failing.
+
+    Returns the report's ratchet.line_caps block. Deliberately not a
+    violations[] source until W3.2 flips the mode: W1.3/W3.1 still have
+    boundary files to drain and delete, and a cap that failed today would
+    redden every PR touching a file that is scheduled to be rewritten or
+    pruned. The over-cap SET is the point: it is W3.2's work list per lane.
+    """
+    boundary_paths = {entry["path"] for entry in config.boundary_list}
+    over: list[dict[str, Any]] = []
+    for dir_path in sorted(boundary_paths):
+        agents_md = "AGENTS.md" if dir_path == "." else f"{dir_path}/AGENTS.md"
+        measured = scan.line_counts.get(agents_md)
+        tier = boundary_tier(dir_path)
+        cap = config.line_caps[tier]
+        if measured is None:
+            # A boundary the scan never saw (deleted, or excluded by
+            # exclude_directories/no_agents_md_required). Reporting-only: W3.1
+            # owns reconciling the list against the tree.
+            over.append(
+                {
+                    "path": agents_md,
+                    "tier": tier,
+                    "cap": cap,
+                    "measured": None,
+                    "reason": "boundary in the config but no scanned AGENTS.md at that path",
+                }
+            )
+            continue
+        if measured > cap:
+            over.append(
+                {
+                    "path": agents_md,
+                    "tier": tier,
+                    "cap": cap,
+                    "measured": measured,
+                    "reason": f"over the {tier} cap by {measured - cap} lines",
+                }
+            )
+    return {
+        "caps": config.line_caps,
+        "boundaries": len(boundary_paths),
+        "measured": sum(
+            1
+            for entry in config.boundary_list
+            if ("AGENTS.md" if entry["path"] == "." else f"{entry['path']}/AGENTS.md")
+            in scan.line_counts
+        ),
+        "over": over,
+        "failing": False,  # W3.2 flips this; tests pin it False until then
+    }
 
 
 def evaluate_ratchet(scan: Scan, config: ValidatorConfig) -> list[str]:
@@ -840,6 +1000,9 @@ def generate_report(
             "baseline": config.retired_name_baseline,
             "unbalanced_fences": scan.unbalanced_fences,
             "violations": violations,
+            # W2.1, additive like every ratchet key before it:
+            # agents_md_linear_sync.py reads issues[]/summary{} only.
+            "line_caps": evaluate_line_caps(scan, config),
         },
     }
 
@@ -892,6 +1055,23 @@ def print_summary(report: dict[str, Any]) -> None:
             shown[issue_type] = shown.get(issue_type, 0) + 1
     else:
         print("\nNo issues found!", file=sys.stderr)
+
+    # W2.1: the reporting arm prints even under a clean run — a work list
+    # only visible in the JSON is a work list nobody opens. This line does
+    # not change the exit code; W3.2 flips the caps to violations.
+    caps_block = report.get("ratchet", {}).get("line_caps")
+    if caps_block:
+        print(
+            f"\nLine caps (W2.1, reporting until W3.2): "
+            f"{len(caps_block['over'])} of {caps_block['measured']} boundary "
+            f"files over cap {caps_block['caps']}",
+            file=sys.stderr,
+        )
+        for entry in caps_block["over"]:
+            print(
+                f"  [over-cap] {entry['path']} ({entry['tier']}): {entry['reason']}",
+                file=sys.stderr,
+            )
 
     print("", file=sys.stderr)
 

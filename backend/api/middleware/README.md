@@ -17,7 +17,7 @@ _HTTP request/response flow through the middleware chain showing execution order
 | `EXPOSE_LAN` | `false` | `true`: every request needs the login session cookie or an `API_KEYS` key, except open paths |
 | `API_KEYS`   | `[]`    | Keys the gate accepts (JSON array); `verify_api_key` routes also need `API_KEY_ENABLED=true` |
 
-With `EXPOSE_LAN` unset the gate passes every request; after `O1.6` the `127.0.0.1` binding is the boundary.
+With `EXPOSE_LAN` unset the gate passes every request; with `O1.6` landed the `127.0.0.1` binding is the boundary.
 
 ### Credentials
 

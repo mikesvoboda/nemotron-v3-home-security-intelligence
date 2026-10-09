@@ -325,9 +325,10 @@ Then open the dashboard: first run requires you to register the first admin acco
 
 ## Operations & Monitoring
 
-The monitoring ships in the same compose file — no separate stack to start. Monitoring URLs bind
-`127.0.0.1`, so open them on the host itself (or forward an SSH tunnel); the dashboard is the
-exception, bound `0.0.0.0` for tunnel access — use your firewall to fence it.
+The monitoring ships in the same compose file — no separate stack to start. The URLs below all
+bind `127.0.0.1` by default, the dashboard included, so open them on the host itself (or forward an
+SSH tunnel). Set `EXPOSE_LAN=true` and re-run `setup.py` to publish the frontend's ports on
+`0.0.0.0` for LAN clients, which arms the auth gate; fence that with your firewall.
 
 | Where        | URL                                                       | Notes                                                                                                                                                                  |
 | ------------ | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

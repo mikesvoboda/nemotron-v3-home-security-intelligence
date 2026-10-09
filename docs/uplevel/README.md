@@ -42,7 +42,7 @@ These words carry exact meanings everywhere in `docs/uplevel/`.
 | **test deployment**                                                                         | a disposable stack created for one run: its own compose project, env file, host ports, volumes and camera directory, sharing only read-only model weights with anything else on the machine (`O2.2`). Every real-tier command runs against one, including Phase 1's hand-written commands. A run that would touch the live deployment's database, camera folder or containers stops instead. |
 | **operator**                                                                                | whoever runs real-tier commands: the `uplevel-operator` agent, whose sandbox reaches the GB300 through `agent-gpu` (UR-30), or the owner for the runs that path cannot make. A lane agent writes the command into its PR and the operator runs it, following [`operator.md`](operator.md).                                                                                                   |
 | **feature inventory**                                                                       | `docs/reference/feature-inventory.md` (created by `F2.2`): one row per feature with status, evidence, modules and ruling. Built in Phase 2, kept current after.                                                                                                                                                                                                                              |
-| **interface bar**, **kill-loss**, **zero kill-loss**, **accepted survivor**, **scored set** | mutation terms, defined in [`01-mutation-policy.md`](01-mutation-policy.md)                                                                                                                                                                                                                                                                                                                  |
+| **interface bar**, **kill-loss**, **zero kill-loss**, **accepted survivor**, **scored set** | mutation terms: the bar and survivors in [`mutation-testing.md`](../developer/patterns/mutation-testing.md), the rest in [`01-mutation-policy.md`](01-mutation-policy.md)                                                                                                                                                                                                                    |
 | **lane**, **package**                                                                       | a lane owns a set of files (below); a package (`B1.2`, `O2.1`) is one independently landable unit of work inside a lane                                                                                                                                                                                                                                                                      |
 | **current phase**                                                                           | for a lane, the lowest-numbered phase in which that lane still has a package not `done`                                                                                                                                                                                                                                                                                                      |
 | **living docs**                                                                             | every doc except history: history is dated plans and specs (`docs/plans/`, `docs/superpowers/`), `docs/vss-integration/` and `docs/uplevel/`                                                                                                                                                                                                                                                 |
@@ -80,9 +80,12 @@ consolidates tests of modules no feature touches (test-only PRs, same protocol) 
 no feature has triggered (resilience primitives, the broadcaster, the config split). Every seam is
 designed when it is reached, against the code that remains — never in advance.
 
-**Paused while Phase 1 runs:** VLM prompt and threshold selection (the prompt programme, OD-26,
-OD-29) waits for replay parity, `B1.2`. Synthbench corpus generation continues; it ships no
-production code.
+**The Phase 1 pause has lifted (`B1.2`):** replay now scores verdicts the way production does,
+and feeds production's key-frame selection wherever the corpus names each detection's frame. So
+VLM prompt and threshold selection (the prompt programme, OD-26, OD-29) can resume on replay
+numbers. The register's OD-29 entry says which earlier results the change affects (OD-29's own
+operating point is not one of them) and where frame parity stops. Synthbench corpus generation
+continued throughout; it ships no production code.
 
 ## Lanes
 
@@ -228,27 +231,27 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
 | O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | done        | #6855 |
 | B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | awaiting real tier | #6868 |
-| B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | not started |     |
+| B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | awaiting real tier | #6924 |
 | B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | done        | #6880 |
 | B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | done        | #6886 |
 | B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | done        | #6861 |
 | B1.6    | backend                 | 1          | Scope the orchestrator and its recovery (D11)  | heavy · owner | not started |     |
 | F1.1    | frontend                | 1          | Endpoint truth (D2)                            |               | done        | #6869 |
 | F1.2    | frontend                | 1          | Verdict-engine banner (UR-18)                  |               | awaiting real tier | #6909 |
-| F1.3    | frontend                | 1          | Exposure and auth, frontend part (D10)         | owner         | not started |     |
+| F1.3    | frontend                | 1          | Exposure and auth, frontend part (D10)         | owner         | done        | #6922 |
 | O1.1    | ops                     | 1          | Mutation hold and supersede (UR-2, UR-7)       |               | done        | #6863 |
-| O1.2    | ops                     | 1          | Retire ghcr (UR-17)                            |               | not started |     |
+| O1.2    | ops                     | 1          | Retire ghcr (UR-17)                            |               | done        | #6907 |
 | O1.3    | ops                     | 1          | `ai-vlm` on by default (UR-18)                 |               | done        | #6862 |
-| O1.4    | ops                     | 1          | Broken workflows (D9)                          |               | not started |     |
+| O1.4    | ops                     | 1          | Broken workflows (D9)                          |               | done        | #6926 |
 | O1.5    | ops                     | 1          | Delete the archives (UR-19)                    |               | not started |     |
-| O1.6    | ops                     | 1          | Exposure and auth, compose part (D10)          | owner         | not started |     |
+| O1.6    | ops                     | 1          | Exposure and auth, compose part (D10)          | owner         | done        | #6925 |
 | O1.7    | ops                     | 1          | Audit measurement scripts                      |               | not started |     |
 | O1.8    | ops                     | 1          | Dependabot alerts                              | owner         | not started |     |
 | O1.9    | ops                     | 1          | Deploy green on `main`                         |               | done        | #6875 |
 | O1.10   | ops                     | 1          | The operator sandbox (UR-30)                   | owner         | done        | #6867 |
 | O1.11 | ops | 1 | Monitoring behind the gate (UR-33) | owner | not started | |
 | O1.12 | ops | 1 | The hooks run in the gate (UR-37) | | done | #6901 |
-| B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | not started |     |
+| B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | done     | #6921 |
 | F2.1    | frontend                | 2          | Golden-path harness                            |               | not started |     |
 | F2.2    | frontend                | 2          | Feature inventory                              | heavy         | not started |     |
 | F2.3    | frontend                | 2          | Golden paths for every working feature         |               | not started |     |
@@ -279,8 +282,8 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | W1.1    | docs                    | 1          | The validator with teeth                       |               | done        | #6870 |
 | W1.2    | docs                    | 1          | Root truth                                     |               | done        | #6884 |
 | W1.3    | docs                    | 1          | Remove dead references now                     |               | done        | #6915 |
-| W2.1    | docs                    | 2          | The boundary list and the line caps            |               | not started |     |
-| W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | not started |     |
+| W2.1    | docs                    | 2          | The boundary list and the line caps            |               | done        | #6920 |
+| W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | done        | #6923 |
 | W3.1    | docs                    | 3          | Boundaries only                                |               | not started |     |
 | W3.2    | docs                    | 3          | Rewrite the boundary files to the standard     |               | not started |     |
 | W3.3    | docs                    | 3          | Living docs truth                              |               | not started |     |
@@ -295,7 +298,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | [`10-backend.md`](10-backend.md)                             | backend lane plan and kickoff prompt                                              |
 | [`20-frontend.md`](20-frontend.md)                           | frontend lane plan and kickoff prompt                                             |
 | [`30-ops.md`](30-ops.md)                                     | ops lane plan and kickoff prompt                                                  |
-| [`40-docs.md`](40-docs.md)                                   | docs lane plan, the AGENTS.md standard, kickoff prompt                            |
+| [`40-docs.md`](40-docs.md)                                   | docs lane plan, kickoff prompt (the AGENTS.md standard moved to docs/developer/)  |
 | [`50-coordination.md`](50-coordination.md)                   | roles, claiming, review and merge, hot files, the daily batch, coordinator prompt |
 | [`operator.md`](operator.md)                                 | the operator's runbook for the real tier                                          |
 | [`templates/r2-sheet.md`](templates/r2-sheet.md)             | the `R2` ruling sheet, filled by `F2.2` and `F2.3`                                |

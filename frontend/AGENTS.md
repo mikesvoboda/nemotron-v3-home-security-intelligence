@@ -191,7 +191,7 @@ The `vite.config.ts` configures:
 - **Coverage Thresholds**: 80% statements, 74.6% branches, 78.4% functions, 80.9% lines (R-1: floors set at measured values; CI enforces them on merged shard data via `merge-shard-coverage.mjs --enforce`)
 - **Memory Optimization**: Uses forks pool; files run sequentially per fork unless `VITEST_PARALLEL=1`
 
-> **Production Note:** In production containers (`docker-compose.prod.yml`), nginx serves the built React app (not Vite). HTTP host port `FRONTEND_HTTP_PORT` (default 8080) maps to container port 8080; HTTPS host port `FRONTEND_HTTPS_PORT` (default 8444) maps to container port 8443. SSL is enabled by default with auto-generated self-signed certificates. The container listens on `0.0.0.0` because it runs the unprivileged nginx image.
+> **Production Note:** In production containers (`docker-compose.prod.yml`), nginx serves the built React app (not Vite). HTTP host port `FRONTEND_HTTP_PORT` (default 8080) maps to container port 8080; HTTPS host port `FRONTEND_HTTPS_PORT` (default 8444) maps to container port 8443. SSL is enabled by default with auto-generated self-signed certificates. Inside the container nginx listens on `0.0.0.0` (it runs the unprivileged nginx image) — that is not the exposure question; the host-published socket's bind is `FRONTEND_BIND_ADDRESS`, `127.0.0.1` unless `EXPOSE_LAN=true` (`O1.6`).
 
 ## Source Map Strategy
 

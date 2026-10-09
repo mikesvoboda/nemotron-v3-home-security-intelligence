@@ -16,7 +16,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 
 import { useWebSocket, type WebSocketOptions } from './useWebSocket';
-import { fetchSummaries } from '../services/api';
+import { buildWebSocketOptions, fetchSummaries } from '../services/api';
 import { logger } from '../services/logger';
 import { queryKeys, DEFAULT_STALE_TIME } from '../services/queryClient';
 import { isSummaryUpdateMessage } from '../types/summary';
@@ -59,13 +59,6 @@ export interface UseSummariesOptions {
    */
   staleTime?: number;
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const DEFAULT_WS_URL =
-  (import.meta.env.VITE_WS_URL as string | undefined) ?? 'ws://localhost:8000/ws/events';
 
 // ============================================================================
 // Hook Implementation
@@ -152,8 +145,14 @@ export function useSummaries(options: UseSummariesOptions = {}): UseSummariesRes
   }, []);
 
   // Configure WebSocket options
+  // F1.3: buildWebSocketOptions resolves the origin the same way the REST
+  // client does (VITE_WS_BASE_URL, else window.location) and attaches the
+  // optional api-key subprotocol. The old default used an undefined variable
+  // (VITE_WS_URL) and hardcoded localhost:8000.
+  const { url: wsUrl, protocols } = buildWebSocketOptions('/ws/events');
   const wsOptions: WebSocketOptions = {
-    url: DEFAULT_WS_URL,
+    url: wsUrl,
+    protocols,
     onMessage: handleMessage,
     reconnect: true,
     reconnectInterval: 1000,

@@ -231,9 +231,9 @@ the point where the `faces` and `person_reid` lookup legs stop reporting `unavai
 
 ### Network Requirements
 
-All ports come from `.env`. Everything except `frontend` binds `127.0.0.1` on the
-host, so the browser only ever needs the frontend ports — nginx proxies `/api`,
-`/ws` and `/grafana/` internally.
+All ports come from `.env`, and everything binds `127.0.0.1` on the host by default
+(`O1.6`) — with `EXPOSE_LAN=true` the frontend's ports are the ones a LAN browser reaches,
+and nginx proxies `/api`, `/ws` and `/grafana/` internally either way.
 
 | Host port | Env var                   | Service                        | Protocol | Access                       |
 | --------- | ------------------------- | ------------------------------ | -------- | ---------------------------- |
@@ -361,22 +361,21 @@ sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
 
 ## Compose Files
 
-| File                      | Purpose       | AI Services    | Use Case                                |
-| ------------------------- | ------------- | -------------- | --------------------------------------- |
-| `docker-compose.prod.yml` | Production    | Containerized  | Full deployment with GPU                |
-| `docker-compose.ghcr.yml` | Pre-built     | Detection only | GHCR pull path — see note below         |
-| `docker-compose.test.yml` | Test DB/cache | None           | Local Postgres/Redis on ports 5433/6380 |
-| `docker-compose.ci.yml`   | CI smoke      | Mocked         | GitHub Actions runners (no GPU)         |
+| File                      | Purpose       | AI Services   | Use Case                                |
+| ------------------------- | ------------- | ------------- | --------------------------------------- |
+| `docker-compose.prod.yml` | Production    | Containerized | Full deployment with GPU                |
+| `docker-compose.test.yml` | Test DB/cache | None          | Local Postgres/Redis on ports 5433/6380 |
+| `docker-compose.ci.yml`   | CI smoke      | Mocked        | GitHub Actions runners (no GPU)         |
 
 There is no `docker-compose.yml` in the repository. For development you run the
 backend natively (`uv run uvicorn …`) against the containers you need, or against
 `docker-compose.test.yml` for a throwaway Postgres/Redis.
 
-`docker-compose.ghcr.yml` declares 19 services with **no profiles and no `ai-vlm`
-service**, and CI publishes only the `backend` and `frontend` images. Treat it as the
-detection-only surface and read
-[AI GHCR Deployment](../ai-ghcr-deployment.md#read-this-first-what-ghcr-actually-ships)
-before using it for anything that must produce a verdict.
+`docker-compose.prod.yml` is the **only deployment stack**: the backend, frontend,
+and AI services all build from source there, and CI publishes only the `backend`
+and `frontend` images (for the smoke stack and manual pulls). The old pre-built
+image compose surface was retired — there is one supported install path,
+`setup.py` plus this file.
 
 ### Deployment Mode Selection Guide
 
@@ -388,7 +387,6 @@ Choose your deployment mode based on your needs:
 | **Developing locally with code hot-reload?**     | Native backend + host AI services      |
 | **Need GPU debugging / AI runs better on host?** | Hybrid (container backend + host AI)   |
 | **Have a dedicated GPU server?**                 | Remote AI host mode                    |
-| **Want the pre-built application images?**       | GHCR (detection only)                  |
 
 **Decision flowchart:**
 
@@ -440,21 +438,6 @@ uv run uvicorn backend.main:app --reload --port 8000
 
 The `--mmproj` flag is not decoration: without it the serve is text-only and still
 answers `/health`.
-
-### Deploy from GHCR
-
-```bash
-# Set image location (defaults match this repo, so you can skip these)
-export GHCR_OWNER=mikesvoboda
-export GHCR_REPO=nemotron-v3-home-security-intelligence
-export IMAGE_TAG=latest
-
-# Authenticate (requires GitHub token with read:packages)
-echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
-
-# Deploy — detection only; see the Compose Files note above
-docker compose -f docker-compose.ghcr.yml up -d
-```
 
 ---
 
@@ -1007,6 +990,5 @@ compose file, and if you must raise `ai-vlm`'s number, raise the image's own
 - [Operator Hub](../README.md) - Main operator documentation
 - [GPU Setup Guide](../gpu-setup.md) - Detailed GPU configuration
 - [AI Services Overview](../ai-overview.md) - AI architecture and configuration
-- [AI GHCR Deployment](../ai-ghcr-deployment.md) - What the GHCR surface actually ships
 - [Monitoring Guide](../monitoring/README.md) - Health checks and metrics
 - [Administration Guide](../admin/README.md) - Configuration and secrets

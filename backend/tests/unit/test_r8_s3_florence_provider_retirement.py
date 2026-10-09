@@ -378,7 +378,6 @@ class TestFlorenceProviderRowRetired:
         offenders: list[str] = []
         for fname in (
             "docker-compose.prod.yml",
-            "docker-compose.ghcr.yml",
             "docker-compose.ci.yml",
             "config/docker-compose.gb300.yml",
             "config/docker-compose.test.yml",

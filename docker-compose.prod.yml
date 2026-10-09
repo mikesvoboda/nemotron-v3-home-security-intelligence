@@ -192,8 +192,8 @@ services:
       # 5,120, and a fitted batch overflowed the 16,384 slot (A5500 2026-09-28).
       # llama-server reads LLAMA_ARG_* itself; it also bounds encoder VRAM.
       - LLAMA_ARG_IMAGE_MAX_TOKENS=1280
-      # Context budget (spec §2 "sized for 4 images + ~6K text + output",
-      # mirroring ghcr.yml:277-285's comment method): the backend divides
+      # Context budget (spec §2 "sized for 4 images + ~6K text + output" — the
+      # file with the earlier worked-out copy was retired by O1.2 / UR-17): the backend divides
       # CTX_SIZE by PARALLEL itself (config.py nemotron_context_window
       # precedent), so per-slot budget = 32768/2 = 16384 tokens >= the
       # ~12.2K a worst-case vlm_assess needs (4 images x <=1280 tokens +
@@ -916,9 +916,16 @@ services:
     ports:
       # HTTPS (direct access) and HTTP (for Cloudflare tunnel / Brev secure link)
       # FRONTEND_HTTP_PORT exposes nginx HTTP for tunnels that send plain HTTP
-      # Bound to 0.0.0.0 for external access; use firewall to restrict if needed
-      - '0.0.0.0:${FRONTEND_HTTPS_PORT:-8444}:8443'
-      - '0.0.0.0:${FRONTEND_HTTP_PORT:-8080}:8080'
+      # O1.6 (D10; OD-12): bind address derives from EXPOSE_LAN — setup.py
+      # writes FRONTEND_BIND_ADDRESS (127.0.0.1 default; 0.0.0.0 only when
+      # EXPOSE_LAN=true). The :-127.0.0.1 default is the fail-safe layer for a
+      # hand-edited .env that carries the flag without the derived var.
+      # Tunnels (Cloudflare/Brev) connect out to nginx, so a loopback host
+      # bind does not break one — but a tunnel still lets callers beyond this
+      # machine reach the UI: EXPOSE_LAN=true is what arms the auth gate for
+      # them (the wildcard bind is incidental; see the expose_lan Field).
+      - '${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_HTTPS_PORT:-8444}:8443'
+      - '${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_HTTP_PORT:-8080}:8080'
     volumes:
       # SSL certificates - writable for auto-generation, or mount pre-existing certs
       - frontend_certs:/etc/nginx/certs:U
@@ -1457,10 +1464,14 @@ services:
       - --storage.path=/tmp/alloy
       - /etc/alloy/config.alloy
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
+    # Owner ruling 2026-10-09 (O1.6): the OTLP pair carries that binding too —
+    # the bare short syntax published on all interfaces despite this comment.
+    # Host ports are 14317/14318, not 4317/4318: tempo already default-publishes
+    # 127.0.0.1:4317 (TEMPO_OTLP_GRPC) and duplicate explicit binds fail at up.
     ports:
       - '127.0.0.1:${ALLOY_UI_PORT:-12345}:12345' # Alloy UI
-      - '4317' # OTLP gRPC (internal only)
-      - '4318' # OTLP HTTP (internal only)
+      - '127.0.0.1:${ALLOY_OTLP_GRPC_PORT:-14317}:4317' # OTLP gRPC (loopback)
+      - '127.0.0.1:${ALLOY_OTLP_HTTP_PORT:-14318}:4318' # OTLP HTTP (loopback)
     depends_on:
       - loki
       - pyroscope

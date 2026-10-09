@@ -223,7 +223,8 @@ tip; the measurement was taken elsewhere and is not re-run here (the same conven
 
 ## 2. Dashboard
 
-Counts as of 2026-10-06 (OD-14 partially resolved 2026-10-08 by UR-18 — the plain-`up` branch shipped, the publish branch open — no issue opened or closed; ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`; ISS-016 `done` 2026-10-06 on `vlm-pipeline`, commits `54d036d5`..`8cdbb412`). The Filed columns count every issue by its filed
+Counts as of 2026-10-06, recounted 2026-10-09 when ISS-029 closed on the B-1 follow-up #6927 per
+owner ruling 35 (OD-14 partially resolved 2026-10-08 by UR-18 — the plain-`up` branch shipped, the publish branch open — then the ghcr branch retired 2026-10-08 by O1.2 (PR #6907): the ghcr install path is deleted rather than declared unsupported, so ISS-028's remaining ask is the publish-with-provenance branch alone, and ISS-022 closes the same day — mooted by that deletion, its closure note says how; no issue opened; ISS-087 to ISS-098 as before with ISS-097 since `done` per the sweep-report entry, ISS-099 to ISS-102 filed 2026-10-04, plus ISS-103 filed 2026-10-05 from the OD-29 verification pass; ISS-087 had an entry but was missing from these counts until ISS-088; ISS-001 and ISS-018 `done` 2026-10-06 on the notification slice — PR #6811, commits `db83f1f8` `ffb2d17d` `1fa4e35f` `b0952912`; ISS-043 `done` 2026-10-06 on `vlm-pipeline`; ISS-016 `done` 2026-10-06 on `vlm-pipeline`, commits `54d036d5`..`8cdbb412`). The Filed columns count every issue by its filed
 severity, actor, kind and area, closed or not; the Open columns drop the closed ones. On the day
 the register was written all 82 issues were open; ISS-078 closed later the same day, ISS-083 to
 ISS-086 were filed after `d8482861`, ISS-083 closed in `efa1b586`, and ISS-087 to ISS-098 were filed later. Regenerate the counts by hand
@@ -231,9 +232,9 @@ when you add or close an issue (there is no script; the register is prose).
 
 | Status      | Count |
 | ----------- | ----- |
-| open        | 95    |
+| open        | 93    |
 | in-progress | 0     |
-| done        | 8     |
+| done        | 10    |
 | wont-fix    | 0     |
 | superseded  | 0     |
 | total       | 103   |
@@ -241,21 +242,21 @@ when you add or close an issue (there is no script; the register is prose).
 | Severity | Filed | Open |
 | -------- | ----- | ---- |
 | P0       | 1     | 0    |
-| P1       | 36    | 32   |
+| P1       | 36    | 30   |
 | P2       | 51    | 48   |
 | P3       | 15    | 15   |
-| total    | 103   | 95   |
+| total    | 103   | 93   |
 
 | Actor          | Filed | Open |
 | -------------- | ----- | ---- |
-| agent-now      | 68    | 63   |
-| owner-decision | 29    | 26   |
+| agent-now      | 68    | 62   |
+| owner-decision | 29    | 25   |
 | owner-hardware | 6     | 6    |
 | blocked        | 0     | 0    |
 
 | Kind     | Filed | Open |
 | -------- | ----- | ---- |
-| bug      | 19    | 18   |
+| bug      | 19    | 16   |
 | gap      | 37    | 34   |
 | debt     | 18    | 18   |
 | decision | 17    | 15   |
@@ -269,8 +270,8 @@ when you add or close an issue (there is no script; the register is prose).
 | Video, ingest and key frames              | 0   | 4   | 6   | 1   | 11    | 11   |
 | Evaluation and S-bar measurement          | 0   | 9   | 12  | 2   | 23    | 20   |
 | Specialists                               | 0   | 2   | 4   | 0   | 6     | 6    |
-| Serving, deploy and supply chain          | 0   | 3   | 5   | 0   | 8     | 8    |
-| Security, privacy and licensing           | 0   | 3   | 3   | 1   | 7     | 7    |
+| Serving, deploy and supply chain          | 0   | 3   | 5   | 0   | 8     | 7    |
+| Security, privacy and licensing           | 0   | 3   | 3   | 1   | 7     | 6    |
 | Operator UI and explainability            | 0   | 1   | 3   | 0   | 4     | 4    |
 | Retired-architecture residue, docs and CI | 0   | 1   | 8   | 9   | 18    | 17   |
 
@@ -546,10 +547,12 @@ this order.
   runnable tools), ISS-044 (blind audit, OD-15).
 - **Video path and key frames.** ISS-004 (mixed batch), ISS-070, ISS-033, ISS-035, ISS-005, then
   ISS-002 once ISS-003 (OD-5) is ruled; ISS-068 and ISS-039 follow the decision.
-- **Security and privacy.** ISS-029 (posture ruling, OD-12), then ISS-062, ISS-009, ISS-030, ISS-072
-  (OD-19), ISS-063 and ISS-054 (OD-18), ISS-064.
-- **Serving, deploy and supply chain.** ISS-027, ISS-056, ISS-057, ISS-059, ISS-051, ISS-022 and
-  ISS-028 (OD-14), ISS-050 (OD-17), ISS-060 (OD-11).
+- **Security and privacy.** ISS-029 (posture ruling, OD-12; `done` 2026-10-09 — closed on the B-1
+  follow-up #6927 per owner ruling 35; see its closure note), then ISS-062, ISS-009, ISS-030,
+  ISS-072 (OD-19), ISS-063 and ISS-054 (OD-18), ISS-064.
+- **Serving, deploy and supply chain.** ISS-027, ISS-056, ISS-057, ISS-059, ISS-051, then
+  ISS-022 (`done` 2026-10-08 — O1.2 #6907 deletes the compose file it asked about; see its closure
+  note) and ISS-028 (OD-14), ISS-050 (OD-17), ISS-060 (OD-11).
 - **Specialists.** ISS-023, ISS-025, ISS-052, then ISS-024 and ISS-053 (OD-7).
 - **Operator UI.** ISS-031, ISS-065, ISS-066, ISS-067, ISS-073 (OD-20).
 - **Docs and CI hygiene.** ISS-026, ISS-074, ISS-075, ISS-076, ISS-077, ISS-055, ISS-069.
@@ -703,6 +706,42 @@ both populations). Nothing here contradicts the ruling: floor 60 is what the own
 cameras the default governs; what is undetermined is whether a stored 0 is 'no saved preference'
 or 'a preference that wins', which is OD-30. The 4.3% figure stays as recorded; its scope moves by
 dated note, per the record rules.
+
+Update 2026-10-09 (B1.2, PR #6924; the UR-8 pause lifts) [V: code and tests at the PR's head, and
+the records cited below; the real-tier count is pending]: replay now scores every verdict the way
+production does, and feeds production's key-frame selection wherever the corpus says which frame
+each detection was seen on.
+
+1. **Scores, for every item.** Every replayed verdict passes through `apply_verdict_invariants`,
+   so a `rejected` verdict scores at most `low_max` (29 by default), as production stores it. The
+   model's raw score stays in the row. Earlier replay reports scored the raw value: `s_metrics`
+   scores any non-NULL `risk_score` regardless of verdict
+   (`docs/plans/2026-10-04-vlm-assess-prompt-review-and-experiment-plan.md:335-341`). Their raw
+   S2/S3 readings therefore differ from the production-effective ones only where a `rejected`
+   verdict scored above `low_max`. The effect is nil for the shipped model's 2026-10-03 run
+   (ISS-014: 4 rejected rows, all scored 10 or less), and the plan records the two readings as
+   identical for the control, arm A and arm B runs. The flagship's 15 rejected rows are unchecked.
+2. **Frames, where the corpus allows.** Replay's default is now production's selection, with
+   production's `key_frame_spread_seconds`. Earlier runs fed an item's first four media paths, or,
+   under `--frames selector`, a selector without the spread. The new default can select only for
+   items whose detection rows name their frame (synthbench sequence sets).
+   - **Stills** have one image either way, so they are unchanged.
+   - **Frozen and owner-labelled production events** store each detection's frame and thumbnail as
+     media but name no frame per row, so they still get their first four media paths. Each
+     fallback is recorded per row and counted in the report (`parity.fell_back`).
+   - **Camera timezone.** Parity also assumes `CAMERA_TIMEZONE` unset, which is production's
+     default; `.env.bench` sets it, and with it production selects and prompts on filename capture
+     times, which replay does not.
+   - **`synthbench replay`** still defaults to `stored`. Production's frames need both
+     `--frames selector` and `--with-sequences`.
+
+**OD-29 is unaffected.** Its operating point was computed production-effective, with the clamp
+applied (`docs/vss-integration/README.md:81` and the OD-29 paragraph above), on stills. So neither
+half of this change moves its 4.3% or 43.2%.
+
+The operator re-runs the latest replay report on a test deployment's `ai-vlm` (never the live
+engine) and posts on PR #6924 the count of items whose score or verdict changes. The prompt and
+threshold selection that UR-8 paused can resume on parity replay.
 
 ## 5. The register
 
@@ -3192,6 +3231,17 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   worry no longer applies. The remaining clauses (a per-bar verdict in the reports, one shared
   verdict-to-score path, the `levels.py` versus `Settings` test, the spec rows) are untouched.
   Anchors into `s_metrics.py` moved by -2 and into `vlm_replay.py` by -3 (-5 from `:357`).
+- **Update 2026-10-09 (B1.2, PR #6924) [V: the parity tests at the PR's head].** The replay half of
+  the acceptance and the 'one shared verdict-to-score path' clause are met. `replay_item` scores
+  every verdict through the analyzer's own `apply_verdict_invariants` with production's
+  `SeverityService`. The row carries the level, and the model's raw score stays in the verdict
+  dump. The report records `severity_thresholds` and counts the clamps it made (`parity.clamped`).
+  `backend/tests/unit/evaluation/test_vlm_replay_parity.py` sends one `rejected`/90 verdict through
+  both `analyze_batch` and `replay_item` and asserts the same verdict, score and level. That is the
+  stronger form of the acceptance's `rejected`/70 test, because it runs production's path rather
+  than restating it. The issue stays `open`: the per-bar report verdict, the `levels.py` versus
+  `Settings` test and the spec rows are untouched. Replay's frames changed too; see the OD-29
+  update of the same date.
 
 #### ISS-015 — Decide and disclose S3's floor: band midpoint vs declared minimum (and S2 band edge)
 
@@ -5179,7 +5229,7 @@ The `ai-vlm` image, compose files, provisioning, restart tooling and release art
 
 #### ISS-022 — Make the GHCR ai-gateway boot: it sets no `GATEWAY_MODEL_SET` and residency now hard-raises
 
-`P1` (verifiers read `P2`) · `bug` · actor `agent-now` · status `open`
+`P1` (verifiers read `P2`) · `bug` · actor `agent-now` · status `done` · closed 2026-10-08 (see the closure note)
 
 - **Evidence**
   - `ai/gateway/residency.py:84` raises `KeyError` for any set name but `vlm`, and
@@ -5211,6 +5261,18 @@ The `ai-vlm` image, compose files, provisioning, restart tooling and release art
 - **Tracked as.** Partial: `.github/workflows/deploy.yml:30` records the publish gap (missing image
   and `ai-vlm`), not the missing variable.
 - **Severity note.** Verifiers read P2: latent one-line omission behind the publish gap.
+- **Closure note — 2026-10-08 (O1.2, PR #6907) [V].** Mooted by deletion, which is the Acceptance's
+  own escape hatch ("or the service is removed from that file") carried to its end: the file is
+  gone. `docker-compose.ghcr.yml` no longer exists, so the only tracked compose file that defines
+  `ai-gateway` is `docker-compose.prod.yml`, and its `GATEWAY_MODEL_SET` is pinned to `${GATEWAY_MODEL_SET:-vlm}`
+  by `backend/tests/unit/core/test_gateway_model_set_compose.py` — the Acceptance's parse-every-
+  tracked-compose leg, over the set that now has one member. The 'Triton loads 14 models' comment
+  named here lived in the deleted file. `scripts/retired_paths.txt` + `scripts/test_retired_paths.py`
+  (in ci.yml's collection-sanity list) keep it gone and keep living text off it, so this cannot
+  silently reopen. The world-class half — a CI boot smoke running the gateway entrypoint against each
+  compose file's env — is unmade rather than met: there is one compose file to boot now, and ISS-017
+  (CI for the VLM path) is where a boot smoke belongs. The evidence lines above naming the deleted
+  file are read as filed; its history lives here, not in the tree.
 
 #### ISS-027 — Copying `.env.example` reintroduces the `AI_VLM_URL` loopback trap (100% `verification_failed`)
 
@@ -5301,6 +5363,14 @@ The `ai-vlm` image, compose files, provisioning, restart tooling and release art
   (`test_ai_vlm_compose_service.py::TestComposeServiceShape::test_starts_by_default`), and
   `_ModePlan` carries no profile. The ghcr gap, the publish gap, and OD-14's remaining ask
   stand (E131).
+- **Update 2026-10-08 (O1.2, PR #6907) [V].** The ghcr half of this issue is delivered by
+  deletion, which outranks the declared-unsupported branch of the Acceptance:
+  `docker-compose.ghcr.yml` and `docs/operator/ai-ghcr-deployment.md` are gone, every living
+  reference is rewritten to the one supported install path (`setup.py` + `docker-compose.prod.yml`),
+  and `scripts/test_retired_paths.py` (wired into ci.yml) fails if any living text names either
+  path again. The evidence lines above naming `docker-compose.ghcr.yml` are read as filed — the
+  file's history lives here now, not in the tree. What stays open is OD-14's other branch only:
+  publishing the GPU services with provenance (option (a) of the world-class ask).
 
 #### ISS-051 — Derive the deploy export phase from the residency set: `CORE_MODELS` and `export_all.sh` name deleted models
 
@@ -5532,7 +5602,7 @@ Exposure of the API, prompt trust, retention, erasure, egress and licences.
 
 #### ISS-029 — The published frontend nginx proxies an API whose data routes have no authentication
 
-`P1` · `bug` · actor `owner-decision` · status `open`
+`P1` · `bug` · actor `owner-decision` · status `done` · closed 2026-10-09 (see the closure note)
 
 - **Evidence**
   - `docker-compose.prod.yml:911` and `docker-compose.prod.yml:912` publish the frontend nginx on
@@ -5593,6 +5663,31 @@ Exposure of the API, prompt trust, retention, erasure, egress and licences.
 - **Severity note.** Verifiers read P1 (only because the compose advertises tunnel ingress) and P2
   (LAN-only home deployment). The admin-route and SMTP-relay sub-claims in the original were
   overstated and are narrowed above.
+- **Closure note — 2026-10-09 (B-1 follow-up, PR #6927) [V].** Closed per owner ruling 35 (#6854),
+  which moved this flip off the F1.3/O1.6 merge-order duty onto this package. What is verified
+  true at this head, leg by leg: OD-12 landed on main as the two-mode posture, and
+  `EXPOSE_LAN=true` puts `AuthMiddleware` (outermost, B1.5) in front of every `/api` and `/ws`
+  route — 401 or WebSocket close 4001 without a session cookie or key — pinned by the route-table
+  enumeration in `backend/tests/unit/api/test_expose_lan_routes.py`, whose
+  `test_exposed_iss_029_matrix_is_refused` runs this entry's own unauthenticated-request matrix.
+  The docs named above (`AGENTS.md`, `docs/operator/admin/security.md`) state both modes honestly
+  as of today — including the uncomfortable one: `AGENTS.md` still records the frontend nginx as
+  publishing `0.0.0.0` in the default mode, which is what compose does at this head
+  (`docker-compose.prod.yml:920-921`), and `security.md` says so plainly. Read that against the
+  gate: at `EXPOSE_LAN` unset the gate passes requests through, so the default-mode mitigation
+  until #6925 lands is honest documentation plus the first-run setup guard, not a loopback bind —
+  the compose publish rebind that makes the LAN-off default physical is O1.6's own already-approved
+  change (#6925), and ruling 35 moved this flip to this package precisely so that queued leg no
+  longer gates this entry. The leg this package adds, complete at its head: on the authenticated
+  mode the documented browser credential path — offering `api-key.<key>` in
+  `Sec-WebSocket-Protocol` — completed no handshake at all, because no `accept()` in the backend
+  echoed a token and RFC 6455 §4.1 makes browsers fail such a handshake before `open` fires;
+  every accept now echoes the offered token (`backend/core/websocket/subprotocol.py`), pinned by
+  raw-handshake tests over a live uvicorn
+  (`backend/tests/integration/test_ws_subprotocol_echo_b1.py`). The world-class half —
+  deny-by-default with a documented allowlist — is met on the authenticated mode by the gate's
+  `OPEN_PATHS` design (a new route is covered without wiring, and the pin proves it for every
+  mounted route); on the default mode it lands with #6925's rebind.
 
 #### ISS-030 — Stills and biometric rows have no enforced retention; cleanup leaves files behind
 
@@ -8483,3 +8578,15 @@ expiry.sh` **rc=0** (19 tracked), **Trivy 0.74.0 `fs` with the job's own flags: 
   (15, 18, 21) and the README rows. Verified at `066be346` + the PR branch: the render of
   `docker compose -f docker-compose.prod.yml config --services` with no profile flag lists
   `ai-vlm`. The ghcr/publish half of OD-14 and ISS-028 stays open.
+- O1.2 closes the ghcr half (no new id; one status moved — ISS-022 `open` → `done`, mooted by the
+  deletion, dashboard recounted; ops lane PR #6907).
+  `docker-compose.ghcr.yml` and `docs/operator/ai-ghcr-deployment.md` are deleted, every living
+  reference rewritten to the one supported install path (`setup.py` + the prod compose file), and
+  `scripts/retired_paths.txt` + `scripts/test_retired_paths.py` (wired into ci.yml's
+  collection-sanity list) keep both paths gone and living text off them. ISS-028 carries a dated
+  note; its Acceptance (b) is delivered in the stronger form — the unsupported path is deleted,
+  not just declared. ISS-022 (boot the GHCR ai-gateway) closes by the same deletion: the Acceptance's
+  "or the service is removed from that file" branch, at the file level; its note names the residency
+  pin that covers the one compose file left. OD-14's publish-with-provenance branch (option (a)) is
+  the only remaining ask. Verified on this branch: the gate reports `OK: 2 retired path(s) stay gone;
+no living text names one`.

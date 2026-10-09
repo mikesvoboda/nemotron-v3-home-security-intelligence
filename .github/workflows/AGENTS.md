@@ -12,7 +12,6 @@ workflows/
   # Core CI/CD
   ci.yml                      # Main CI pipeline
   deploy.yml                  # Docker image build and push to GHCR
-  preview-deploy.yml          # PR preview container builds
   release.yml                 # Release workflow
   semantic-release.yml        # Semantic versioning releases
   release-drafter.yml         # Draft release notes
@@ -207,56 +206,12 @@ npm run docs:watch  # Watch mode
 - `contents: read`
 - `packages: write`
 
-### preview-deploy.yml - PR Preview Containers
-
-**Trigger:** Pull request events (opened, synchronize, reopened, closed)
-
-**Purpose:** Build preview containers for PRs to enable local testing before merge.
-
-**Jobs:**
-
-| Job             | Condition         | Description                            |
-| --------------- | ----------------- | -------------------------------------- |
-| build-preview   | PR opened/updated | Build and push containers with PR tags |
-| comment-preview | After build       | Post docker-compose instructions to PR |
-| cleanup-preview | PR closed         | Delete preview images from GHCR        |
-
-**Image Tags:**
-
-- `ghcr.io/{owner}/{repo}/backend:pr-{number}`
-- `ghcr.io/{owner}/{repo}/frontend:pr-{number}`
-
-**Workflow:**
-
-1. Open PR against main
-2. Workflow builds backend and frontend containers with PR-specific tags
-3. Comment posted with docker-compose.preview.yml snippet
-4. Testers pull images and run locally
-5. On PR close, cleanup job marks images for deletion
-
-**Permissions:**
-
-- `contents: read`
-- `packages: write`
-- `pull-requests: write`
-
-**Features:**
-
-- Builds in parallel (backend and frontend)
-- Uses GHA cache for faster rebuilds
-- Comments update on subsequent pushes (not duplicated)
-- Graceful cleanup (non-blocking if deletion fails)
-
-**Local Testing:**
-
-```bash
-# Pull preview images
-docker pull ghcr.io/{owner}/{repo}/backend:pr-123
-docker pull ghcr.io/{owner}/{repo}/frontend:pr-123
-
-# Run with docker-compose (see PR comment for snippet)
-docker compose -f docker-compose.preview.yml up -d
-```
+> **Removed 2026-10-09 (O1.4):** the PR preview-container pipeline — its only
+> trigger was manual dispatch while its body read pull-request context (never
+> populated there), it had no successful run since 2026-01-06, and its PR
+> comment advertised retired service URLs. 30-ops.md's DECIDE rule: 90+ silent
+> days means delete. On the retired-paths list (scripts/retired_paths.txt);
+> its history lives in git.
 
 > **Removed 2026-09-15:** `ai-code-review.yml` (GitHub Models GPT review) —
 > GitHub Models was fully retired 2026-07-30 and its `gh-models` extension was

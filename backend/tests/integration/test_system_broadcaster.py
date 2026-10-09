@@ -9,6 +9,7 @@ import contextlib
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from starlette.datastructures import Headers
 
 from backend.services.system_broadcaster import SystemBroadcaster
 from backend.tests.conftest import unique_id
@@ -22,6 +23,9 @@ async def test_system_broadcaster_connect(isolated_db):
     """Test adding a WebSocket connection."""
     broadcaster = SystemBroadcaster()
     mock_websocket = AsyncMock()
+    # connect() reads offered subprotocols off the handshake headers (B-1
+    # echo); a bare AsyncMock answers .headers.get() with a coroutine.
+    mock_websocket.headers = Headers({})
 
     # Mock the system status gathering to avoid database calls
     with patch.object(
@@ -216,6 +220,9 @@ async def test_system_broadcaster_connect_handles_error(isolated_db):
     """Test that connect handles errors gracefully."""
     broadcaster = SystemBroadcaster()
     mock_websocket = AsyncMock()
+    # connect() reads offered subprotocols off the handshake headers (B-1
+    # echo); a bare AsyncMock answers .headers.get() with a coroutine.
+    mock_websocket.headers = Headers({})
 
     # Mock send_json to fail with a specific exception that the production code catches
     mock_websocket.send_json.side_effect = ConnectionError("Send failed")
