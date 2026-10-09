@@ -144,6 +144,24 @@ describe('parseInventory', () => {
     ]);
   });
 
+  it('ends a table at a blank line, as markdown renders it', () => {
+    // The row after the blank line renders as a paragraph, not a table row, so it
+    // is not read; the gate's raw row count is what notices it went missing.
+    const md =
+      HEADER +
+      '| F-001 | A `/` | a | — | — | unverified | ok | `src/A.tsx` | — | | |\n' +
+      '\n' +
+      '| F-002 | B `/b` | b | — | — | unverified | ok | `src/B.tsx` | — | | |\n';
+    expect(lib.parseInventory(md).rows.map((r) => r.id)).toEqual(['F-001']);
+  });
+
+  it('takes a line as a header only when a delimiter row follows it', () => {
+    const md =
+      '| id | surface | action | API calls | backend | status | evidence | modules | real tier | ruling | priority |\n' +
+      '| F-002 | B `/b` | b | — | — | unverified | ok | `src/B.tsx` | — | | |\n';
+    expect(lib.parseInventory(md).rows).toEqual([]);
+  });
+
   it('does not split a cell on a pipe escaped inside backticks', () => {
     const md =
       HEADER +
@@ -228,6 +246,17 @@ describe('callerChain', () => {
     expect(chain.lines.join('\n')).toMatch(/src\/pages\/Page\.tsx :: Page/);
   });
 
+  it('counts a page App.tsx lazy-loads through a directory barrel', () => {
+    const root = tree({
+      ...files,
+      'src/App.tsx':
+        "import { lazy } from 'react';\nconst Page = lazy(() => import('./pages'));\nexport default function App() { return <Page />; }\n",
+      'src/pages/index.tsx':
+        "import { useThing } from '../hooks/useThing';\nexport default function Index() { const { load } = useThing(); return <button onClick={load} />; }\n",
+    });
+    expect(lib.callerChain({ root, file: 'src/api.ts', name: 'fetchUsed' }).mounted).toBe(true);
+  });
+
   it('reports a function no reference chain mounts', () => {
     const root = tree(files);
     expect(lib.callerChain({ root, file: 'src/api.ts', name: 'fetchNobody' }).mounted).toBe(false);
@@ -260,6 +289,12 @@ describe('rowProblems', () => {
     ]);
   });
 
+  it('demands a file:line cite for a leftover row', () => {
+    expect(lib.rowProblems({ ...base, status: 'leftover', evidence: 'retired in R8' })).toEqual([
+      'F-001: leftover evidence cites no file:line',
+    ]);
+  });
+
   it('demands a file:line cite for a half-built row', () => {
     expect(
       lib.rowProblems({ ...base, status: 'half-built', evidence: 'the backend is a stub' })
@@ -288,6 +323,17 @@ describe('rowCites', () => {
       { file: 'backend/api/routes/events.py', line: 1939 },
       { file: 'backend/api/routes/events.py', line: 281 },
       { file: 'frontend/src/A.tsx', line: 12 },
+    ]);
+  });
+
+  it('reads cites of root-level compose and project files', () => {
+    const row = {
+      backend: '',
+      evidence: '`docker-compose.prod.yml:989` and `pyproject.toml:89-90`',
+    } as Row;
+    expect(lib.rowCites(row)).toEqual([
+      { file: 'docker-compose.prod.yml', line: 989 },
+      { file: 'pyproject.toml', line: 90 },
     ]);
   });
 });

@@ -29,7 +29,7 @@ import { normalisePath } from './api-contract-lib.mjs';
 /** The statuses a row may carry before F2.3 (README, "Vocabulary"). */
 export const STATUSES = new Set(['unverified', 'half-built', 'leftover']);
 
-/** A repo-relative `file.ext:line` cite, the evidence a half-built row needs. */
+/** A `file.ext:line` cite, the evidence a half-built or leftover row needs. */
 const CITE = /[\w./-]+\.[a-z]+:\d+/;
 
 /** Split one markdown table line into trimmed cells; `\|` is a literal pipe. */
@@ -80,18 +80,27 @@ export function parseInventory(markdown) {
   const rows = [];
   const noFeature = [];
   const noFeatureCalls = [];
+  // A table is a header line, then a delimiter row, then rows, up to the first
+  // line that is not a table line — the way GitHub renders it. A pipe line with no
+  // delimiter row under it is not a header, so rows under it are not read.
+  const isDelimiter = (c) => c.every((x) => /^:?-+:?$/.test(x));
+  const lines = markdown.split('\n');
   let header = null;
-  for (const line of markdown.split('\n')) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     if (!line.trim().startsWith('|')) {
       header = null;
       continue;
     }
     const c = cells(line);
     if (!header) {
-      header = c.map((h) => h.toLowerCase());
+      const next = lines[i + 1] ?? '';
+      if (next.trim().startsWith('|') && isDelimiter(cells(next))) {
+        header = c.map((h) => h.toLowerCase());
+        i++;
+      }
       continue;
     }
-    if (c.every((x) => /^:?-+:?$/.test(x))) continue;
     const get = (name) => c[header.indexOf(name)] ?? '';
     if (header[0] === 'id' && header.includes('status')) {
       const row = {};
@@ -206,14 +215,15 @@ export function rowProblems(row) {
   if (!STATUSES.has(row.status))
     problems.push(`${row.id}: status "${row.status}" is not unverified, half-built or leftover`);
   if (!row.evidence.trim()) problems.push(`${row.id}: no evidence`);
-  else if (row.status === 'half-built' && !CITE.test(row.evidence))
-    problems.push(`${row.id}: half-built evidence cites no file:line`);
+  else if ((row.status === 'half-built' || row.status === 'leftover') && !CITE.test(row.evidence))
+    problems.push(`${row.id}: ${row.status} evidence cites no file:line`);
   if (row.modules.length === 0) problems.push(`${row.id}: no modules`);
   return problems;
 }
 
-/** Repo-relative `path:line` (or `path:a-b`) cites under these roots. */
-const REPO_CITE = /\b((?:backend|frontend|ai|docs|scripts|monitoring|docker|config)\/[\w./-]+\.\w+):(\d+)(?:-(\d+))?/g;
+/** Repo-relative `path:line` (or `path:a-b`) cites under these roots, or of root compose/project files. */
+const REPO_CITE =
+  /\b((?:backend|frontend|ai|docs|scripts|monitoring|docker|config)\/[\w./-]+\.\w+|docker-compose[\w.-]*\.ya?ml|pyproject\.toml):(\d+)(?:-(\d+))?/g;
 
 /**
  * The `path:line` cites in a row's backend and evidence cells.
@@ -296,7 +306,10 @@ export function callerChain({ root, file, name }) {
   if (fs.existsSync(appFile)) {
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: as above
     for (const m of fs.readFileSync(appFile, 'utf8').matchAll(/import\('(\.[^']+)'\)/g)) {
-      routeFiles.add(path.resolve(root, 'src', `${m[1]}.tsx`));
+      // `./pages/Page` is a file; `./components/analytics` is a directory barrel.
+      const base = path.resolve(root, 'src', m[1]);
+      for (const f of [`${base}.tsx`, `${base}.ts`, `${base}/index.tsx`, `${base}/index.ts`])
+        routeFiles.add(f);
     }
   }
 

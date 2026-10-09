@@ -104,8 +104,10 @@ const claimText = (c: Claim) =>
   `${c.kind === 'ws' ? 'WS' : (c.method ?? '?')} ${c.path}  (${c.file}:${c.line})`;
 
 describe('feature inventory (F2.2)', () => {
-  it('has rows, each with a unique id', () => {
+  it('has rows, each with a unique id, and parses every row the file holds', () => {
     expect(inv.rows.length).toBeGreaterThan(0);
+    const raw = fs.readFileSync(INVENTORY, 'utf8').match(/^\| F-\d{3,} \|/gm) ?? [];
+    expect(inv.rows.length).toBe(raw.length);
     const ids = inv.rows.map((r) => r.id);
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
@@ -192,8 +194,9 @@ describe('knip sees unreachable files (F2.2)', () => {
 
   it('enters only through src/main.tsx, never through tests', () => {
     expect(knip.entry).toEqual(['src/main.tsx!']);
-    expect(JSON.stringify(knip.vitest ?? {})).not.toMatch(/test/);
-    expect(JSON.stringify(knip.playwright ?? {})).not.toMatch(/e2e/);
+    // A deleted plugin key would let knip auto-enable the plugin and its test entries.
+    expect((knip.vitest as { entry?: unknown }).entry).toEqual([]);
+    expect((knip.playwright as { entry?: unknown }).entry).toEqual([]);
   });
 
   it('checks exports', () => {
@@ -213,7 +216,7 @@ describe("F1.1's known-missing list points at inventory rows (F2.2)", () => {
   it('names a row id in every entry, or lists its request as reaching no feature', () => {
     const ids = new Set(inv.rows.map((r) => r.id));
     const problems = entries.flatMap((e) => {
-      const named = e.next.match(/F-\d{3}/g) ?? [];
+      const named = e.next.match(/F-\d{3,}/g) ?? [];
       if (named.length === 0) {
         // A call in dead code is no feature's gap: the entry says so, and the
         // inventory's "Client requests no feature reaches" table holds the path.
@@ -235,7 +238,7 @@ describe("F1.1's known-missing list points at inventory rows (F2.2)", () => {
   it("lists each entry's path in the API calls of the row it names", () => {
     const byId = new Map(inv.rows.map((r) => [r.id, r]));
     const problems = entries.flatMap((e) =>
-      (e.next.match(/F-\d{3}/g) ?? []).flatMap((id) => {
+      (e.next.match(/F-\d{3,}/g) ?? []).flatMap((id) => {
         const row = byId.get(id);
         if (!row) return [];
         const hit = row.apiCalls.some((call) =>
