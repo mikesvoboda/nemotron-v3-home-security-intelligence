@@ -4,8 +4,8 @@
 
 **Key Files:**
 
-- `backend/main.py:1398-1418` - CORS middleware registration
-- `backend/core/config.py:884-894` - CORS origin configuration
+- `backend/main.py:1399-1419` - CORS middleware registration
+- `backend/core/config.py:887-897` - CORS origin configuration
 - `backend/api/middleware/security_headers.py` - Security headers
 
 ## Overview
@@ -37,10 +37,10 @@ sequenceDiagram
 
 ## CORS Middleware Configuration
 
-The CORS middleware is configured in `backend/main.py:1398-1418`:
+The CORS middleware is configured in `backend/main.py:1399-1419`:
 
 ```python
-# From backend/main.py:1398-1418
+# From backend/main.py:1399-1419
 # Security: Restrict CORS methods and headers to only what's needed
 # NEM-5059: Explicit header allowlist prevents arbitrary headers in cross-origin requests
 # Note: When allow_credentials=True, allow_origins cannot be ["*"]
@@ -62,10 +62,10 @@ app.add_middleware(
 
 ### Default Origins
 
-Default allowed origins are configured in `backend/core/config.py:884-894`:
+Default allowed origins are configured in `backend/core/config.py:887-897`:
 
 ```python
-# From backend/core/config.py:884-894
+# From backend/core/config.py:887-897
 # CORS settings
 # HTTPS origins on port 8444 for external browser access
 # Internal HTTP origins for container-to-container communication within Docker network
@@ -146,10 +146,10 @@ Vary: Origin
 
 ## Credentials Handling
 
-The `allow_credentials` setting is dynamically determined based on origins (`backend/main.py:1405`):
+The `allow_credentials` setting is dynamically determined based on origins (`backend/main.py:1406`):
 
 ```python
-# From backend/main.py:1405
+# From backend/main.py:1406
 _allow_credentials = "*" not in _cors_origins
 ```
 

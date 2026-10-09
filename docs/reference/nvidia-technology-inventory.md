@@ -136,7 +136,7 @@ shipped pair is `Qwen3VL-8B-Instruct-Q4_K_M.gguf` plus
 not from the image: `MODEL_PATH` and `MMPROJ_PATH` at
 `docker-compose.prod.yml:184-185`. The event path POSTs
 `/v1/chat/completions` to `http://ai-vlm:8098`
-(`backend/core/config.py:1042` `ai_vlm_url`).
+(`backend/core/config.py:1045` `ai_vlm_url`).
 
 ### Build Configuration
 

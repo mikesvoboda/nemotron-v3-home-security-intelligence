@@ -581,7 +581,7 @@ Applied all 35 `sweep:reference-user` flags to `env-reference.md` (fabricated va
 
 ### sweep:hubs-nav — flags
 
-- **backend/api/routes/system.py:3085 get_telemetry (and queue_status_service) report queue depths via LLEN on raw 'detection_queue'/'analysis_queue' list keys, but the pipeline writes to Redis Streams 'detections:stream'/'analysis:stream' by default (use_redis_streams=True default in backend/core/config.py:2104, never overridden in compose).**
+- **backend/api/routes/system.py:3085 get_telemetry (and queue_status_service) report queue depths via LLEN on raw 'detection_queue'/'analysis_queue' list keys, but the pipeline writes to Redis Streams 'detections:stream'/'analysis:stream' by default (use_redis_streams=True default in backend/core/config.py:2107, never overridden in compose).**
   WRONG IN CODE: /api/system/telemetry almost certainly returns 0/0 on a default streams-mode deployment even under heavy backlog, while every troubleshooting doc tells operators to use it as the primary backlog check. Docs now note the streams keys explicitly, but the endpoint itself should be fixed to XLEN the stream keys (or the code change coordinated); docs left describing the endpoint as designed rather than rewritten to hide the defect.
 - **YOLO26_PORT is inconsistent across three owners: ai/start_detector.sh defaults to 8090, .env.example ships YOLO26_PORT=8095, and backend config health-check default is 8095.**
   Code-level inconsistency (flagged in docs/operator/ai-configuration.md:22 too). Docs now annotate both spellings where operators would hit the mismatch, but one canonical value should be chosen by the owner.

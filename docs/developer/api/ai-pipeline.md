@@ -758,7 +758,7 @@ flowchart TB
 _Queue architecture showing normal processing flow and failure paths to dead letter queues._
 
 Two carriers exist and both end in the same DLQ names. With the shipped
-default `USE_REDIS_STREAMS=true` (`backend/core/config.py:2239`) the hops run over Redis
+default `USE_REDIS_STREAMS=true` (`backend/core/config.py:2242`) the hops run over Redis
 Streams (`detections:stream`, `analysis:stream`) and a message that exceeds
 its max delivery count is moved to the matching stream DLQ
 (`detections:stream:dlq`, `analysis:stream:dlq` —
@@ -1014,7 +1014,7 @@ GET /api/system/circuit-breakers
 ```
 
 Breakers registered at startup: `yolo26`, `postgresql`, `redis`
-(`backend/main.py:302-329`), plus `ai-vlm`, created lazily by `VlmClient`
+(`backend/main.py:303-330`), plus `ai-vlm`, created lazily by `VlmClient`
 (`backend/services/vlm_client.py:93`). A freshly started backend shows the
 first three; `ai-vlm` appears once the VLM path has been used.
 

@@ -341,7 +341,7 @@ and low risk. Only `rejected` constrains the score.
 2. **Schema or invariant failure after the retry:** `verdict = verification_failed`.
 3. **A `verification_failed` event** is created with `risk_score` and `risk_level` NULL and an
    "unverified" badge. Notification uses a **detector-only rule**: notify when a security-relevant
-   class (person, vehicle) was detected at or above `detection_confidence_threshold` (`backend/core/config.py:1788`).
+   class (person, vehicle) was detected at or above `detection_confidence_threshold` (`backend/core/config.py:1791`).
    The owner is never left blind, and nothing is silently scored (S5). `notification_filter`
    evaluates this rule **before** any threshold comparison. The event does **not** require
    acknowledgment: `requires_ack` becomes null-safe and keeps acknowledgment for scored risk ≥ 80

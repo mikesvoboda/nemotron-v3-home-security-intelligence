@@ -270,7 +270,7 @@ flowchart TB
 
 </details>
 
-Startup pre-registration (`backend/main.py:321-329`) creates three named breakers with two profiles:
+Startup pre-registration (`backend/main.py:322-330`) creates three named breakers with two profiles:
 
 - **AI profile** (`failure_threshold=5`, `recovery_timeout=30.0`, `half_open_max_calls=3`, `success_threshold=2`): used for `yolo26`.
 - **Infrastructure profile** (`failure_threshold=10`, `recovery_timeout=60.0`, `half_open_max_calls=5`, `success_threshold=3`): used for `postgresql` and `redis`.
@@ -490,7 +490,7 @@ All endpoints are on the `/api/dlq` router (`backend/api/routes/dlq.py:38`):
 
 ### DLQ Overflow Protection
 
-The `RetryHandler` wraps its own DLQ writes in a dedicated `dlq_overflow` circuit breaker so a Redis outage cannot turn DLQ writes into an unbounded retry loop (`backend/services/retry_handler.py:236-246`). Its settings come from `backend/core/config.py:2121-2143`: failure threshold 5, recovery timeout 60.0s, half-open max calls 3, success threshold 2. While the breaker is open, DLQ writes are rejected (`is_dlq_circuit_open()`); after manually draining a DLQ, `reset_dlq_circuit_breaker()` closes it again.
+The `RetryHandler` wraps its own DLQ writes in a dedicated `dlq_overflow` circuit breaker so a Redis outage cannot turn DLQ writes into an unbounded retry loop (`backend/services/retry_handler.py:236-246`). Its settings come from `backend/core/config.py:2124-2146`: failure threshold 5, recovery timeout 60.0s, half-open max calls 3, success threshold 2. While the breaker is open, DLQ writes are rejected (`is_dlq_circuit_open()`); after manually draining a DLQ, `reset_dlq_circuit_breaker()` closes it again.
 
 ---
 
@@ -550,7 +550,7 @@ flowchart TB
 
 </details>
 
-The monitored set is exactly `yolo26` (`build_ai_service_health_configs`, `backend/main.py:671-729`): health is checked at the ai-gateway's aggregated `/health` endpoint when `USE_AI_GATEWAY` is on, restarts run `docker restart ai-gateway` in containerized deployments or `ai/start_detector.sh` locally, and `AI_RESTART_ENABLED=false` (`backend/core/config.py:2637`) keeps monitoring while disabling restarts. Redis is deliberately not in the monitored list - the application already handles Redis failures gracefully. ai-vlm is deliberately not a probe target either: probing would wake a sleeping llama.cpp, so its health arrives by breaker-push from `VlmClient` to the DegradationManager instead (`backend/main.py:1134-1150`).
+The monitored set is exactly `yolo26` (`build_ai_service_health_configs`, `backend/main.py:672-730`): health is checked at the ai-gateway's aggregated `/health` endpoint when `USE_AI_GATEWAY` is on, restarts run `docker restart ai-gateway` in containerized deployments or `ai/start_detector.sh` locally, and `AI_RESTART_ENABLED=false` (`backend/core/config.py:2640`) keeps monitoring while disabling restarts. Redis is deliberately not in the monitored list - the application already handles Redis failures gracefully. ai-vlm is deliberately not a probe target either: probing would wake a sleeping llama.cpp, so its health arrives by breaker-push from `VlmClient` to the DegradationManager instead (`backend/main.py:1135-1151`).
 
 ### Health Monitor Implementation
 
@@ -581,7 +581,7 @@ class ServiceHealthMonitor:
         # ...
 ```
 
-The backend wires it up at startup with `check_interval=15.0` (`backend/main.py:1110-1115`).
+The backend wires it up at startup with `check_interval=15.0` (`backend/main.py:1111-1116`).
 
 ### Per-Service Configuration
 
@@ -683,7 +683,7 @@ The event row is still written so the UI shows it as needing review, and the str
 
 The `DegradationManager` (`backend/services/degradation_manager.py:350`) tracks a service-health registry with a mode that goes NON-NORMAL when any registered service is down, queues jobs for later processing during outages (Redis queue `degraded:jobs`, with a disk-backed fallback queue when Redis itself is down), and re-queues them on recovery.
 
-ai-vlm is registered on this singleton at startup with `critical=False` (`backend/main.py:1149-1150`), and its health row is updated by breaker-push: `VlmClient` calls `update_service_health()` when its circuit breaker opens and closes (`backend/services/vlm_client.py:920-929`, `:936-939`). The registration's `health_check` stub is never polled - wake-on-probe would disturb a sleeping llama.cpp, so the manager's poll loop is not the source of truth for this service.
+ai-vlm is registered on this singleton at startup with `critical=False` (`backend/main.py:1150-1151`), and its health row is updated by breaker-push: `VlmClient` calls `update_service_health()` when its circuit breaker opens and closes (`backend/services/vlm_client.py:920-929`, `:936-939`). The registration's `health_check` stub is never polled - wake-on-probe would disturb a sleeping llama.cpp, so the manager's poll loop is not the source of truth for this service.
 
 ---
 
@@ -740,7 +740,7 @@ The system supports different restart strategies via the `ServiceManager` interf
 | `ShellServiceManager`  | Shell commands (`systemctl`, scripts) | Development, native services |
 | `DockerServiceManager` | Docker CLI (`docker restart`, `:407`) | Production containers        |
 
-The backend picks `DockerServiceManager` when containerized restarts are enabled and `ShellServiceManager` otherwise (`backend/main.py:1103-1106`).
+The backend picks `DockerServiceManager` when containerized restarts are enabled and `ShellServiceManager` otherwise (`backend/main.py:1104-1107`).
 
 ---
 
@@ -750,11 +750,11 @@ The shipped resilience parameters are code defaults and class constants, not ded
 
 | Setting                                   | Default | Where                                                        |
 | ----------------------------------------- | ------- | ------------------------------------------------------------ |
-| `AI_RESTART_ENABLED`                      | true    | Detector auto-restart switch (`backend/core/config.py:2637`) |
-| `DLQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD`   | 5       | DLQ overflow breaker (`backend/core/config.py:2121`)         |
-| `DLQ_CIRCUIT_BREAKER_RECOVERY_TIMEOUT`    | 60.0    | DLQ overflow breaker (`backend/core/config.py:2126`)         |
-| `DLQ_CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS` | 3       | DLQ overflow breaker (`backend/core/config.py:2131`)         |
-| `DLQ_CIRCUIT_BREAKER_SUCCESS_THRESHOLD`   | 2       | DLQ overflow breaker (`backend/core/config.py:2136`)         |
+| `AI_RESTART_ENABLED`                      | true    | Detector auto-restart switch (`backend/core/config.py:2640`) |
+| `DLQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD`   | 5       | DLQ overflow breaker (`backend/core/config.py:2124`)         |
+| `DLQ_CIRCUIT_BREAKER_RECOVERY_TIMEOUT`    | 60.0    | DLQ overflow breaker (`backend/core/config.py:2129`)         |
+| `DLQ_CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS` | 3       | DLQ overflow breaker (`backend/core/config.py:2134`)         |
+| `DLQ_CIRCUIT_BREAKER_SUCCESS_THRESHOLD`   | 2       | DLQ overflow breaker (`backend/core/config.py:2139`)         |
 
 Field names on `Settings` map to env vars by name (case-insensitive, no prefix), so `DLQ_CIRCUIT_BREAKER_*` are settable; `ORCHESTRATOR_HEALTH_CHECK_INTERVAL` (30s, `backend/core/config.py:157`) belongs to the container orchestrator's own health loop, not `ServiceHealthMonitor`.
 
@@ -762,7 +762,7 @@ Code-level defaults worth knowing:
 
 - **`CircuitBreakerConfig`**: 5 / 30.0s / 3 / 2 (`backend/services/circuit_breaker.py:150-154`); startup profiles override per service (AI 5/30/3/2, infrastructure 10/60/5/3, ai-vlm 5/60).
 - **`RetryConfig`**: 3 retries, 1.0s base, 30.0s cap, jitter on (`backend/services/retry_handler.py:68-72`).
-- **`ServiceHealthMonitor`**: 15.0s check interval (`backend/services/health_monitor.py:64`, wired at `backend/main.py:1114`); per-service `max_retries` 3 and `backoff_base` 5.0s for yolo26 (`backend/main.py:721-728`).
+- **`ServiceHealthMonitor`**: 15.0s check interval (`backend/services/health_monitor.py:64`, wired at `backend/main.py:1115`); per-service `max_retries` 3 and `backoff_base` 5.0s for yolo26 (`backend/main.py:722-729`).
 - **`WebSocketCircuitBreaker`**: constructor defaults failure_threshold 3, recovery_timeout 30.0s, half-open max calls 1, success threshold 1 (`backend/core/websocket_circuit_breaker.py:125-133`); the broadcasters pass `failure_threshold=MAX_RECOVERY_ATTEMPTS` (5) with the other parameters at their defaults (`backend/services/system_broadcaster.py:120-126`, `backend/services/event_broadcaster.py:404-410`).
 
 ---

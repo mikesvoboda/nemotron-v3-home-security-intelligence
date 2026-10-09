@@ -445,7 +445,7 @@ The engine/model pair is written by `VlmClient._served_provenance()` from the cl
 
 **Usage:**
 
-- Populated by `GPUMonitor` (`backend/services/gpu_monitor.py:131`) polling at `gpu_poll_interval_seconds` (default 5.0, `backend/core/config.py:1911-1912`)
+- Populated by `GPUMonitor` (`backend/services/gpu_monitor.py:131`) polling at `gpu_poll_interval_seconds` (default 5.0, `backend/core/config.py:1914-1915`)
 - Subject to the same retention policy as events/detections
 
 ---
@@ -478,7 +478,7 @@ The engine/model pair is written by `VlmClient._served_provenance()` from the cl
 
 - Backend logs written by `DatabaseHandler` (`backend/core/logging.py:699`)
 - Frontend logs submitted via `POST /api/logs/frontend` (router prefix at `backend/api/routes/logs.py:72`, endpoint at `:210`)
-- Separate retention period (`log_retention_days`, default: 7 days, `backend/core/config.py:2083-2084`)
+- Separate retention period (`log_retention_days`, default: 7 days, `backend/core/config.py:2086-2087`)
 
 ---
 
@@ -502,8 +502,8 @@ The engine/model pair is written by `VlmClient._served_provenance()` from the cl
 
 **Usage:**
 
-- `API_KEY_ENABLED` (default `False`, `backend/core/config.py:1932-1935`) gates key checks; `verify_api_key` protects admin/destructive endpoints (e.g. the cleanup trigger, `backend/api/routes/system.py:3284`)
-- Bootstrap keys from the `API_KEYS` setting are hashed on startup (`backend/core/config.py:1936-1938`)
+- `API_KEY_ENABLED` (default `False`, `backend/core/config.py:1935-1938`) gates key checks; `verify_api_key` protects admin/destructive endpoints (e.g. the cleanup trigger, `backend/api/routes/system.py:3284`)
+- Bootstrap keys from the `API_KEYS` setting are hashed on startup (`backend/core/config.py:1939-1941`)
 
 ---
 
@@ -906,7 +906,7 @@ flowchart TB
 
 ### Processing Queues (Streams, the shipped path)
 
-With `USE_REDIS_STREAMS` (default true, `backend/core/config.py:2239`), the pipeline queues are Redis Streams with consumer groups:
+With `USE_REDIS_STREAMS` (default true, `backend/core/config.py:2242`), the pipeline queues are Redis Streams with consumer groups:
 
 ```
 detections:stream (Redis Stream, maxlen ~10000 approximate)
@@ -948,13 +948,13 @@ dedupe:{sha256_hash} -> file_path (string, 300s TTL default)
 ```
 
 - Prevents duplicate processing of same image content (`backend/services/dedupe.py:11-13`)
-- Key prefix `dedupe:` at `backend/services/dedupe.py:167`; TTL from `dedupe_ttl_seconds` (default 300, `backend/core/config.py:1942-1943`)
+- Key prefix `dedupe:` at `backend/services/dedupe.py:167`; TTL from `dedupe_ttl_seconds` (default 300, `backend/core/config.py:1945-1946`)
 - Key is SHA256 hash of file content; if Redis is unavailable the check falls back to a database lookup, and if the database is unavailable too it fails open (the file is processed)
 
 ### Pub/Sub Channels
 
 ```
-security_events (channel; name from settings.redis_event_channel, backend/core/config.py:509)
+security_events (channel; name from settings.redis_event_channel, backend/core/config.py:513)
 ├── Event broadcasts - published by EventBroadcaster.broadcast_event
 │   (backend/services/event_broadcaster.py:820), invoked by VlmAnalyzer as the
 │   last step of analyze_batch()
@@ -1058,14 +1058,14 @@ stateDiagram-v2
 
 4. **Object Detection:**
 
-   - `DetectorClient` posts the image to `ai-gateway` at `/yolo26` (`settings.yolo26_url` default `http://ai-gateway:8090/yolo26`, `backend/core/config.py:1036`)
+   - `DetectorClient` posts the image to `ai-gateway` at `/yolo26` (`settings.yolo26_url` default `http://ai-gateway:8090/yolo26`, `backend/core/config.py:1039`)
    - Results filtered by confidence threshold (`DETECTION_CONFIDENCE_THRESHOLD`, `.env.example:635` ships 0.5)
    - Detection record(s) created in PostgreSQL; thumbnail generated and stored
 
 5. **Batch Aggregation:**
 
    - Detection added to the camera's active batch (Redis keys above)
-   - Batch closed on window timeout (90s), idle timeout (30s), or size cap (500 detections) (`backend/core/config.py:925`, `:930`, `:964`)
+   - Batch closed on window timeout (90s), idle timeout (30s), or size cap (500 detections) (`backend/core/config.py:928`, `:930`, `:964`)
    - Completed batch XADDed to `analysis:stream`
 
 6. **VLM Analysis (`VlmAnalyzer.analyze_batch()`, `backend/services/vlm_analyzer.py`):**
@@ -1096,10 +1096,10 @@ Data is automatically cleaned up based on age:
 
 | Data Type       | Retention Period      | Configuration                                                     |
 | --------------- | --------------------- | ----------------------------------------------------------------- |
-| Events          | 30 days               | `RETENTION_DAYS` (default 30, `backend/core/config.py:918`)       |
+| Events          | 30 days               | `RETENTION_DAYS` (default 30, `backend/core/config.py:921`)       |
 | Detections      | With parent retention | `RETENTION_DAYS`                                                  |
 | GPU Stats       | 30 days               | `RETENTION_DAYS`                                                  |
-| Logs            | 7 days                | `LOG_RETENTION_DAYS` (default 7, `backend/core/config.py:2083`)   |
+| Logs            | 7 days                | `LOG_RETENTION_DAYS` (default 7, `backend/core/config.py:2086`)   |
 | Thumbnails      | With parent detection | Cascade delete                                                    |
 | Original images | Never (by default)    | `delete_images=False` (`backend/services/cleanup_service.py:124`) |
 
@@ -1168,7 +1168,7 @@ CREATE UNIQUE INDEX ix_api_keys_key_hash ON api_keys(key_hash);
 
 ### CleanupService Operation
 
-The `CleanupService` (`backend/services/cleanup_service.py:111`) runs daily at a configurable time (default `03:00`, `:121`); the backend starts it during lifespan startup (`backend/main.py:1047-1048`).
+The `CleanupService` (`backend/services/cleanup_service.py:111`) runs daily at a configurable time (default `03:00`, `:121`); the backend starts it during lifespan startup (`backend/main.py:1048-1049`).
 
 ![CleanupService Sequence Diagram showing the daily cleanup operation flow between CleanupService, PostgreSQL, and Filesystem, with statistics tracking and optional image deletion](../images/data-model/cleanup-service-sequence.svg)
 

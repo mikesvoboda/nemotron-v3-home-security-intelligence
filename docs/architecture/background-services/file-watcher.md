@@ -82,7 +82,7 @@ flowchart TB
 
 ### Startup
 
-The FileWatcher is started during application lifespan (`backend/main.py:579-584`):
+The FileWatcher is started during application lifespan (`backend/main.py:580-585`):
 
 ```python
 file_watcher = FileWatcher(

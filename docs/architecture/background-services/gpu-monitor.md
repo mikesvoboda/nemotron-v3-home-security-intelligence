@@ -20,7 +20,7 @@ The GPU monitor:
 | --------------------------- | ------- | ------------------------------------- |
 | `GPU_POLL_INTERVAL_SECONDS` | 5.0     | Interval between GPU stat collections |
 
-Configuration is loaded via `backend/core/config.py:1070-1076`:
+Configuration is loaded via `backend/core/config.py:1073-1079`:
 
 ```python
 gpu_poll_interval_seconds: float = Field(
@@ -106,7 +106,7 @@ def _init_gpu_backend(self) -> None:
 The GPU monitor is started during application lifespan:
 
 ```python
-# backend/main.py:671-673
+# backend/main.py:672-674
 gpu_monitor = GPUMonitor(broadcaster=None)
 await gpu_monitor.start()
 ```

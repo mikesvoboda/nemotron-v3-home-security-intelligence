@@ -40,8 +40,8 @@ mmproj projector, in the default compose set:
 | -------------- | -------------------------------------------------------------------------------------------------------- |
 | Model          | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` (`VLM_MODEL_PATH`, `.env.example:338`)                                 |
 | Projector      | `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` (`VLM_MMPROJ_PATH`)                                               |
-| Endpoint       | `AI_VLM_URL` → `http://ai-vlm:8098` in Docker (`backend/core/config.py:1057`)                            |
-| Context budget | `VLM_CTX_SIZE=32768` ÷ `VLM_PARALLEL=2` per slot (`.env.example:358-359`, `backend/core/config.py:1353`) |
+| Endpoint       | `AI_VLM_URL` → `http://ai-vlm:8098` in Docker (`backend/core/config.py:1058`)                            |
+| Context budget | `VLM_CTX_SIZE=32768` ÷ `VLM_PARALLEL=2` per slot (`.env.example:358-359`, `backend/core/config.py:1354`) |
 | Read timeout   | `AI_VLM_READ_TIMEOUT=25.0` (`.env.example:246`)                                                          |
 
 The server must have been started with its mmproj — `/health` answers `200`

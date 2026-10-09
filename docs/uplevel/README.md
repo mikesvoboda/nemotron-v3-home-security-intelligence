@@ -110,7 +110,8 @@ The lane that owns the primary change leads; packages that span lanes name their
 order.
 
 **Cross-lane dependencies:** `B1.4` → `F1.2` (engine status, then the banner). `B1.5` → `F1.3` and
-`O1.6` (OD-12 has parts in all three; whichever of `F1.3` and `O1.6` lands last marks ISS-029 done).
+`O1.6` (OD-12 has parts in all three; the B-1 follow-up (#6927) is the closing entry that marks
+ISS-029 done).
 `O2.1` → `O2.2` → `F2.1` → `F2.3` → `R2` (the stack, its harness, its specs, then the rulings).
 `O1.5` and `B1.5` → `O1.8` (they close 18 of its 21 alerts). `O2.3` → `F2.2`'s module list. `B3.1` and `F3.1` land each retired feature in one PR. The docs
 lane's Phase 3 starts on a lane's directories only after that lane's Phase 3 is `done`.

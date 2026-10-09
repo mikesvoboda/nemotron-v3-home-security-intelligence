@@ -8033,7 +8033,7 @@ detector.get_detector_registry 14, main.init_db 11, main.close_db 11,
 core.redis.init_redis 10, close_redis 7, main.get_container 4,
 core.redis.get_redis 2, metrics.record_slow_query 1. Honest delta vs P's
 98: P's probe retired ~45 `get_settings` sites; `get_settings` is
-`@cache`-decorated (backend/core/config.py:3172) and a wrapper can change a
+`@cache`-decorated (backend/core/config.py:3175) and a wrapper can change a
 signature, so the resolver KEEPS those — 89 is the number the proof earns.
 Baseline lowered via `ratchet-check --update` (the mechanism's own honest
 path: "baseline lowered: {'unspecced_patch': (322, 233)}"), ci.yml
@@ -11310,7 +11310,7 @@ stats map (58,592 fake no_tests, badge read 17.07%) and re-bank #3 death
 found by faithful reproduction (`MUTANT_UNDER_TEST=stats`, cwd=mutants,
 mutmut's exact `-x -q -p no:randomly -p no:random-order` args):
 
-1. `backend/core/config.py:3286` `get_settings()` loads
+1. `backend/core/config.py:3289` `get_settings()` loads
    `_env_file=(".env", HSI_RUNTIME_ENV_PATH or "./data/runtime.env")` —
    CWD-relative. mutmut runs pytest with cwd=mutants/, and a per-mutant
    check of the settings-persistence route (a mutant of
