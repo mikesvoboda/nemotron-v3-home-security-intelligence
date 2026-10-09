@@ -78,9 +78,11 @@ every PR touching a file that is itself scheduled to be rewritten. The over-cap 
 list, one PR per lane; `W3.2` switches the arm to failing as it rewrites.
 
 Read the arm as a **state** measure, not a **delta** one. It answers "is this file over cap" and not
-"did this PR grow it", so a file already over cap can gain any number of lines and the report is
-byte-identical — `W2.1`'s own doc-sync grew `scripts/AGENTS.md` from 1325 to 1334 and nothing
-flagged it. That is why the over-cap set, not a diff, is the work list. `W3.2` has to choose what
+"did this PR grow it". Every run re-measures — the report's `measured` numbers move when a file
+grows — but the over-cap **set** and the exit code do not, so growth in a file already over cap
+raises no signal anyone can act on: `W2.1`'s own doc-sync grew `scripts/AGENTS.md` from 1325 to 1334
+between two commits in its PR and the work list was identical before and after. That is why the
+over-cap set, not a diff, is the work list. `W3.2` has to choose what
 failing means: a per-file baseline that may only fall (the `retired_name_baseline` doctrine, which
 catches growth but needs 42 committed numbers) or one threshold per tier (what exists now, which
 catches nothing already over). The choice is open and asked in #6920.
