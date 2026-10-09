@@ -113,6 +113,65 @@ def test_env_example_declares_the_two_vars():
     )
 
 
+def _alloy_port_entries() -> list[str]:
+    """The alloy service's raw ports strings from the shipped compose file."""
+    text = COMPOSE_FILE.read_text(encoding="utf-8")
+    doc = yaml.load(text, Loader=_ComposeLoader)  # noqa: S506  # nosemgrep: unsafe-yaml-load
+    return list(doc["services"]["alloy"]["ports"])
+
+
+def test_alloy_otlp_ports_bind_loopback_by_variable():
+    """Owner ruling 36 (2026-10-09): alloy's OTLP pair joins the loopback rule.
+
+    The shipped short-syntax ``'4317'``/``'4318'`` publish on ALL interfaces —
+    a live-daemon probe bound them ``0.0.0.0`` AND ``[::]`` (docker 29.8.1),
+    and `compose config --format json` renders them with host_ip unset while
+    every other default-profile service carries ``127.0.0.1``. The fold
+    qualifies both with ``127.0.0.1:``. NB: not entry.split(":")[0] — the :-
+    default carries a colon inside the host part (the frontend pin above
+    documents the trap). The host ports default to 14317/14318, NOT 4317/4318:
+    tempo already default-publishes 127.0.0.1:4317 via TEMPO_OTLP_GRPC
+    (.env.example ships it active), and a duplicate explicit loopback bind is
+    a measured startup failure — "Bind for 127.0.0.1:4317 failed: port is
+    already allocated" (same-daemon probe). The old short syntax dodged that
+    only because it was EPHEMERAL: the host port moved every boot, so nothing
+    could consume it — which is why renaming the host port breaks no consumer
+    (the backend pushes in-network to alloy:4317; scripts/verify-observability.sh
+    probes 4317 as TEMPO's binding).
+    """
+    entries = _alloy_port_entries()
+    # select by container target, not by excluding the qualified UI row — an
+    # exclude-first shape could never see the fold it is meant to catch
+    otlp = [e for e in entries if e.rsplit(":", 1)[1] in ("4317", "4318")]
+    assert len(otlp) == 2, f"expected the 4317/4318 OTLP pair (plus the qualified UI row), got {entries}"
+    for entry in otlp:
+        assert entry.startswith("127.0.0.1:${"), (
+            f"alloy OTLP entry {entry!r} does not derive its bind from a "
+            "qualified 127.0.0.1 long form — short syntax means all interfaces"
+        )
+        target = entry.rsplit(":", 1)[1]
+        assert target in ("4317", "4318"), f"unexpected container target in {entry!r}"
+        host_default = re.search(r"\$\{([A-Z0-9_]+):-([^}]+)\}", entry)
+        assert host_default is not None, f"alloy entry {entry!r} hardcodes its host port — use a :- var"
+        var, default = host_default.group(1), host_default.group(2)
+        assert var in ("ALLOY_OTLP_GRPC_PORT", "ALLOY_OTLP_HTTP_PORT"), f"unexpected var {var} in {entry!r}"
+        assert default in ("14317", "14318"), f"{var} must default to the collision-free 14317/14318 pair, got {default!r}"
+
+
+def test_env_example_declares_the_alloy_otlp_vars():
+    """Ruling 36's vars must ship documented, agreeing with compose's :- defaults
+    (same discipline as the frontend pair above)."""
+    text = ENV_EXAMPLE.read_text(encoding="utf-8")
+    assigns = dict(re.findall(r"^([A-Z0-9_]+)=(.*)$", text, re.MULTILINE))
+    assert assigns.get("ALLOY_OTLP_GRPC_PORT") == "14317", (
+        ".env.example must ship ALLOY_OTLP_GRPC_PORT=14317 so the documented "
+        "default and compose's :- default cannot disagree"
+    )
+    assert assigns.get("ALLOY_OTLP_HTTP_PORT") == "14318", (
+        ".env.example must ship ALLOY_OTLP_HTTP_PORT=14318"
+    )
+
+
 # ---------------------------------------------------------------------------
 # 2. The derivation + the .env writer.
 # ---------------------------------------------------------------------------
@@ -328,12 +387,16 @@ _RENDER_OVERLAY_VARS = frozenset(
         "FRONTEND_HTTPS_PORT",
         "FRONTEND_HTTP_PORT",
         "PODMAN_SOCKET",
+        "ALLOY_OTLP_GRPC_PORT",
+        "ALLOY_OTLP_HTTP_PORT",
     }
 )
 
 
-def _render_frontend_bindings(env_overrides: dict[str, str]) -> list[tuple[str, str, str]]:
-    """Render the frontend's published bindings with an env overlay.
+def _render_bindings(
+    service: str, env_overrides: dict[str, str]
+) -> list[tuple[str, str, str]]:
+    """Render one service's published bindings with an env overlay.
 
     Real `compose config --format json` when a compose binary exists; the
     in-test emulator otherwise (skip-free by design — see module docstring).
@@ -382,14 +445,18 @@ def _render_frontend_bindings(env_overrides: dict[str, str]) -> list[tuple[str, 
             _split_binding(
                 f"{p.get('host_ip') or '0.0.0.0'}:{p.get('published') or ''}:{p['target']}"
             )
-            for p in rendered["services"]["frontend"].get("ports", [])
+            for p in rendered["services"][service].get("ports", [])
         ]
 
     text = compose_file.read_text(encoding="utf-8")
     doc = yaml.load(text, Loader=_ComposeLoader)  # noqa: S506  # nosemgrep: unsafe-yaml-load
     return [
-        _split_binding(_interpolate(entry, env)) for entry in doc["services"]["frontend"]["ports"]
+        _split_binding(_interpolate(entry, env)) for entry in doc["services"][service]["ports"]
     ]
+
+
+def _render_frontend_bindings(env_overrides: dict[str, str]) -> list[tuple[str, str, str]]:
+    return _render_bindings("frontend", env_overrides)
 
 
 @pytest.mark.timeout(120)
@@ -422,6 +489,23 @@ def test_render_lan_flag_without_bind_var_stays_closed() -> None:
         ("127.0.0.1", "8444", "8443"),
         ("127.0.0.1", "8080", "8080"),
     ]
+
+
+@pytest.mark.timeout(120)
+def test_render_alloy_otlp_binds_loopback() -> None:
+    """Ruling 36 through the REAL compose renderer: alloy's OTLP pair renders
+    host_ip 127.0.0.1 on the default env. The shipped short syntax renders
+    host_ip None — this helper's convention maps that to the empirical
+    all-interfaces answer, 0.0.0.0 (daemon probe, docker 29.8.1)."""
+    bindings = _render_bindings("alloy", {})
+    otlp = [b for b in bindings if b[2] in ("4317", "4318")]
+    assert otlp == [
+        ("127.0.0.1", "14317", "4317"),
+        ("127.0.0.1", "14318", "4318"),
+    ], f"alloy OTLP must render loopback on 14317/14318 by default, got {otlp}"
+    # the UI row keeps its own qualified binding next to them (near-miss: the
+    # fold must not disturb the row that was already loopback-bound)
+    assert ("127.0.0.1", "12345", "12345") in bindings, bindings
 
 
 @pytest.mark.timeout(120)
@@ -478,6 +562,41 @@ def test_compose_branch_selects_a_real_invocation() -> None:
 # ---------------------------------------------------------------------------
 # 5. Living docs must not keep the pre-O1.6 claims (contract rule 4 / UR-9).
 # ---------------------------------------------------------------------------
+
+# Owner ruling 36 folded alloy's OTLP pair to loopback on the same tick: docs
+# must not keep the pre-fold claim either. Claim shape (phrase-tolerant,
+# sentence-bounded): an alloy sentence asserting a wildcard/ephemeral publish.
+_ALLOY_WILDCARD_CLAIM = re.compile(
+    r"alloy(?:[\s'’`*]{0,4}(?:service|collector|'s|s))*[^.]{0,160}?"
+    r"(?:all interfaces|0\.0\.0\.0|\[::\]|ephemeral host port|short[- ]syntax)",
+    re.IGNORECASE,
+)
+
+
+@pytest.mark.parametrize("doc", ["docs/architecture/security/network-security.md"])
+def test_security_doc_dropped_the_alloy_wildcard_claim(doc: str) -> None:
+    """Ruling 36 (2026-10-09): alloy's OTLP is loopback-bound; the exposure
+    table and firewall prose that carried it as 'the open ruling' must land."""
+    text = (REPO_ROOT / doc).read_text(encoding="utf-8")
+    normalized = re.sub(r"\s+", " ", text)
+    match = _ALLOY_WILDCARD_CLAIM.search(normalized)
+    assert match is None, (
+        f"{doc} still claims alloy's OTLP publishes on the network — ruling 36 "
+        f"folded it to 127.0.0.1. Matched: {match.group(0)!r}"
+    )
+    # positive leg: some alloy mention now names the qualified bind (a doc that
+    # just DELETED the claim without recording the fold fails here, not green).
+    # Window, not sentence-split: the facts live in markdown table cells, and
+    # a naive split on "." would shred 127.0.0.1 itself.
+    windows = [
+        normalized[m.start() : m.start() + 260]
+        for m in re.finditer(r"alloy", normalized, re.IGNORECASE)
+    ]
+    assert any("127.0.0.1" in w for w in windows), (
+        f"{doc} no longer states how alloy's OTLP binds — the fold deserves "
+        "a landed-fact mention, not a deletion"
+    )
+
 
 
 def test_root_agents_md_dropped_the_pre_o16_claims() -> None:
