@@ -206,7 +206,7 @@ async def test_service_recovery(self) -> None:
 - `/backend/services/circuit_breaker.py` - circuit breaker implementation
 - `/backend/services/degradation_manager.py` - graceful degradation manager
 - `/backend/core/redis.py` - Redis client with retry logic
-- `/backend/tests/AGENTS.md` - overall test documentation
+- The "The test tree" appendix in `backend/AGENTS.md` - overall test documentation (W3.1 pruned the per-directory guides)
 
 ## References
 

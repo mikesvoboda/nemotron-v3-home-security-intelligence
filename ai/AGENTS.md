@@ -48,7 +48,7 @@ ai/
 ├── quantization_config.py # Quantization configuration
 ├── static_kv_cache.py     # Static KV cache for inference
 ├── warmup_utils.py        # Model warmup utilities
-├── shared/                # Shared utilities (gpu_profiler.py) - see shared/AGENTS.md
+├── shared/                # Shared utilities (gpu_profiler.py) — see the appendix below
 ├── common/                # Shared TensorRT optimization infrastructure (NEM-3838)
 │   ├── AGENTS.md          # TensorRT infrastructure documentation
 │   ├── __init__.py        # Package exports
@@ -58,9 +58,9 @@ ai/
 │       └── __init__.py    # Package init
 ├── vlm/                   # ai-vlm compose build context (llama.cpp llama-server + CUDA;
 │                          #   container port 8098 — the shipped verdict engine)
-├── yolo26/                # Pure-leaf contract for backend prompts + host-run dev server
+├── yolo26/                # Pure-leaf contract home + host-run dev server
 │                          #   (GPU image retired 2026-09-23; prod: Triton /yolo26 via ai-gateway
-│                          #    - see yolo26/AGENTS.md)
+│                          #    — contract-seam state in the appendix below)
 ├── gateway/               # AI Gateway: FastAPI facade over Triton (port 8090)
 │   ├── AGENTS.md          # Gateway documentation
 │   ├── main.py            # Routers for yolo26 + enrich-lt only (R8 S3 prune, 2026-09-29)
@@ -618,19 +618,20 @@ if await client.is_healthy():
 await client.close()
 ```
 
-For detailed documentation, see `triton/AGENTS.md` and `docs/plans/triton-migration.md`.
+For detailed documentation, see the Triton section of the appendix below and
+`docs/plans/triton-migration.md`.
 
 ## Entry Points
 
 1. **Pipeline overview**: This file
-2. **Detection server**: `yolo26/AGENTS.md` and `yolo26/model.py`
+2. **Detection server**: `yolo26/model.py` (its guide's content is in the appendix below)
 3. **Gateway**: `gateway/AGENTS.md` (routers `/yolo26` + `/enrich-lt`)
 4. **VLM serving**: `vlm/Dockerfile` (the ai-vlm build context — it carries no
    AGENTS.md) and, on the backend side, `../backend/services/vlm_client.py` /
    `../backend/services/vlm_analyzer.py`
 5. **Model Zoo (backend-side)**: `../backend/services/model_zoo.py` + repo-root
    `models.yml`
-6. **Triton Inference Server**: `triton/AGENTS.md` (NEM-3769)
+6. **Triton Inference Server** (NEM-3769): its guide's content is in the appendix below
    - Client wrapper: `triton/client.py`
    - Model configs: `triton/model_repository/*/config.pbtxt`
    - Migration plan: `docs/plans/triton-migration.md`
@@ -647,3 +648,128 @@ For detailed documentation, see `triton/AGENTS.md` and `docs/plans/triton-migrat
    - Quantization: `quantization_config.py`
    - Static KV cache: `static_kv_cache.py`
    - Warmup utilities: `warmup_utils.py`
+
+## Per-package rules (W3.1 appendix)
+
+UR-21 keeps one AGENTS.md per boundary, so the packages below have no guide of
+their own. Each entry holds what an agent cannot find by looking — invariants,
+traps, the tests that guard them. W3.1's first read of these packages also
+found their old guides stale; where an old claim is dead, it is named here as
+dead rather than repeated.
+
+### Gateway adapters (`gateway/adapters/`)
+
+One FastAPI router module per served API; adapters translate REST (multipart
+uploads or base64 JSON) into Triton gRPC so response shapes stay byte-compatible
+with the retired legacy containers — backend clients change by URL only.
+
+- After the R8 S3 prune only `yolo26.py` (`/yolo26`) and `enrichment_light.py`
+  (`/enrich-lt`) remain; the three adapters they replaced are deleted (their
+  routers, images and ports went with them — the R8 S3 sweep). Shared
+  decode/preprocess helpers (base64, letterbox, normalize) live in
+  `gateway/utils.py` — don't reimplement per adapter, and
+  adapters never talk gRPC directly: everything rides `gateway/triton_client.py`.
+- Adapter test tiers mock the Triton client at the adapter boundary
+  (`mock_triton` fixtures in `gateway/tests/test_adapters_yolo26.py`) and assert
+  the wire shapes the backend clients parse.
+- Trap (pinned by `gateway/tests/test_py312_compat.py`): the gateway image is
+  built on Python 3.12 while the repo targets 3.14, and ruff-format on py314
+  rewrites `except (A, B):` into PEP 758's unparenthesized form, which 3.12
+  cannot parse — that rewrite once killed the container at import because
+  `main.py` imports every adapter unconditionally. Keep everything `main.py`
+  imports at boot 3.12-parseable.
+
+### Gateway test tier (`gateway/tests/`)
+
+Fully mocked — no GPU, no running Triton. The tier cannot exist without
+`gateway/tests/conftest.py`: R8 S3 made `GATEWAY_MODEL_SET` a hard-raise
+resolving at `main.py` import time, so the conftest sets the shipped compose
+default (`vlm`) with `setdefault` — an operator/CI value stays authoritative,
+and a test that wants the raise uses `monkeypatch.delenv`. The compose default
+pairing is pinned by `backend/tests/unit/core/test_gateway_model_set_compose.py`.
+`test_residency.py` / `test_entrypoint_residency.py` pin the residency sets;
+`test_patch_triton_configs.py` works in temp dirs over synthetic `models.yml`
+text and never touches the real repository.
+
+### Triton (`triton/`)
+
+- Production Triton is NOT a standalone service: it runs inside the ai-gateway
+  container (gRPC `localhost:8001`, HTTP 8000, metrics 8002 — only 8090 and
+  8002 publish). `triton/client.py` is a standalone client with no production
+  consumer, guarded by `backend/tests/contracts/ai_providers/test_conformance_vocabulary.py`;
+  production traffic goes through the gateway routers.
+- `triton/model_repository/` ships THREE config dirs — `yolo26`, `reid`, `threat`
+  (all onnxruntime, GPU, CUDAExecutionProvider; NEM-5551 promoted them).
+  The old guide's 14-model table is dead: the residency prune deleted the rest.
+  The `yolo26` config exports no weights by default.
+- Exported weights (`.onnx`/`.plan`) are not in git: the gateway entrypoint
+  symlinks each `<name>/1/` from the mounted cache (`${AI_MODELS_PATH}/triton`
+  → `/models/cache`) into the baked repository, linking only when both the
+  cache version dir and the repo config exist. Export scripts live in
+  `gateway/export/` — use them, not ad-hoc one-liners; `export_yolo26.py`
+  defaults to FP32 ONNX (INT8 ONNX is incompatible with the CUDA EP, per the
+  config header).
+- Prometheus: the `triton-metrics` job in `monitoring/prometheus.yml` scrapes
+  `ai-gateway:8002/metrics` (`nv_inference_*` series); the gateway's own job
+  drops `nv_*` to avoid double-counting. gRPC 8001 is container-internal —
+  test it with `podman exec ai-gateway grpcurl -plaintext localhost:8001 ...`.
+
+### YOLO26 (`yolo26/`)
+
+- The standalone `ai-yolo26` GPU image is retired (owner ruling 2026-09-23);
+  its Dockerfile/requirements/README are archived at `archive/ai-yolo26-image/`,
+  and no CI or deploy job builds an image any more. Production detection is
+  Triton `/yolo26` through the gateway.
+- The contract-seam story its old guide told is dead: `format_detections_with_quality`
+  was deleted after it crashed production by importing the GPU-heavy `model.py`
+  into the backend process (see `backend/ai_contract/__init__.py`).
+  `backend/services/prompts.py` keeps a LOCAL enum mirroring
+  `ai.yolo26.model.ConfidenceQuality` and no backend runtime module imports
+  `ai.yolo26` at all. `contract.py` still exists as the pure-leaf definition
+  `model.py` imports, and `yolo26/tests/test_model.py::TestContractSeam`
+  ratchets the repo-side identity.
+- What pins `model.py` and friends: the conformance battery under
+  `backend/tests/contracts/ai_providers/` AST-reads `SECURITY_CLASSES`,
+  `_DEFAULT_CLASS_CONFIDENCE_THRESHOLDS`, `KEYPOINT_NAMES` / `classify_pose`
+  (the COCO-17 drift check), and ratchets the deleted `/track` route to stay
+  out. Editing those tables means reading those tests first.
+- `model.py` stays a host-run dev stand-in (`./ai/start_detector.sh`,
+  `YOLO26_PORT:-8090`; `model.py` alone falls back to 8095). Its torch/ultralytics
+  deps are absent from the backend CI tier — the reason the leaf-mirror design
+  exists. The test tier injects `ai/yolo26/` onto `sys.path` and flat-imports
+  (`from model import ...`): collection-hygiene rules in
+  `ai/tests/test_module_hygiene.py` (no `sys.modules` poisoning) apply here.
+- Security-relevant COCO classes are person/car/truck/dog/cat/bird/bicycle/
+  motorcycle/bus; the server caps uploads at 10 MB with magic-byte and
+  extension validation (pinned in `yolo26/tests/test_model.py`).
+
+### Common TensorRT infrastructure (`common/`)
+
+- Model-agnostic ONNX→TensorRT conversion + engine wrapper with automatic
+  PyTorch fallback (`tensorrt_utils.py`, `tensorrt_inference.py`; env contract
+  `TENSORRT_ENABLED` / `TENSORRT_PRECISION` / `TENSORRT_CACHE_DIR` /
+  `TENSORRT_MAX_WORKSPACE_SIZE` / `TENSORRT_VERBOSE`, defaults in
+  `common/__init__.py`).
+- Trap: engines are GPU-architecture-specific — the cache key embeds the SM
+  version (`sm_86`-style), precision and the ONNX hash, so engines never
+  silently cross GPUs; rebuild after moving GPUs. INT8 needs calibration data
+  (`convert_onnx_to_trt(calibration_data=...)`).
+- After R8 S2 no zoo model subclasses the bases any more — the classes and
+  their test tier are live infrastructure with no live consumer. The test tier
+  runs without TensorRT installed (everything behind `patch(...)`; abstract-
+  class and `from_env` defaults pinned); run it with
+  `uv run pytest ai/common/tests -v`.
+
+### Shared + `ai/tests/`
+
+- `shared/gpu_profiler.py` (VRAM/utilization tracking) currently has no
+  in-repo importer outside `shared/` — treat it as a library, and check for a
+  consumer before deleting.
+- `ai/tests/` pins the root-level optimization utilities (`test_compile_utils.py`,
+  `test_batch_utils.py`, the cuda/quantization/kv/warmup modules). Collection
+  hygiene is load-bearing there: `test_module_hygiene.py` runs each collection
+  in a SUBPROCESS because a past `test_model.py` poisoned `sys.modules` tree-wide
+  (12 of 19 collection errors); never install fake `ai.*` ModuleTypes at import.
+  CI runs the whole ai/ tier through `uv run pytest ai/ --collect-only -q` plus
+  `ai/gateway` and that hygiene file (`ci.yml`, "AI Tier Tests" job);
+  `pyproject.toml` `testpaths` collects `ai/*/tests`.

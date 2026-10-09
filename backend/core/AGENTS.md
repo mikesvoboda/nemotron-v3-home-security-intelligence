@@ -51,15 +51,65 @@ backend/core/
 ├── tls.py                        # TLS/SSL certificate management
 ├── url_validation.py             # SSRF-safe URL validation for webhooks
 ├── websocket_circuit_breaker.py  # Circuit breaker for WebSocket connections
-├── websocket/                    # WebSocket event types and subscription management
-│   ├── __init__.py               # Package exports
-│   ├── event_schemas.py          # WebSocket event payload schemas
-│   ├── event_types.py            # WebSocket event type enums
-│   └── subscription_manager.py   # Channel subscription management
-├── middleware/                   # Reserved for core middleware (currently empty)
+├── websocket/                    # Event registry, payload schemas, subscription + delivery
+│   │                             #   infrastructure — 9 modules; see the section below
 ├── README.md                     # General documentation
 └── README_REDIS.md               # Detailed Redis documentation
 ```
+
+**There is no `middleware` package here (W3.1 batch 7).** The pruned guide documented a
+directory whose ONLY contents were the guide itself — deleting it deleted the "empty reserved"
+directory, because Git never tracked an empty one. The durable routing fact: HTTP
+request/response middleware lives in `backend/api/middleware/` (23 modules, live, its own
+guide); do not file an HTTP middleware anywhere else, and do not resurrect a core
+`middleware` package on the strength of the deleted guide.
+
+## The `websocket/` package — contracts (W3.1 batch 7 pruned its guide)
+
+Nine live modules, three more than the deleted guide enumerated: `event_types.py` (the
+`WebSocketEventType` StrEnum), `event_schemas.py` (per-type Pydantic payload schemas,
+`get_payload_schema` / `validate_payload`), `subscription_manager.py`, plus the delivery layer
+`compression.py`, `connection_health.py`, `message_batcher.py`, `message_buffer.py` (replay),
+`msgpack_serialization.py`, `sequence_tracker.py`.
+
+- **Envelope:** every event is a `WebSocketEvent` TypedDict — `type`, `payload`, ISO-8601
+  `timestamp`, optional `correlation_id` / `sequence` / `channel`; build it with
+  `create_event(...)` so the timestamp is uniform. `create_event` does NOT populate `sequence`
+  — it never passes it — and the wire key the client actually reads is spelled `seq`, stamped
+  in-place per connection (counter starts at 1) by the route's send helper, not by the producer.
+  So a producer that sets `sequence` itself is writing a field the sender overwrites, and code
+  that reads `event["sequence"]` off a received frame reads nothing.
+- **Event naming is `{domain}.{action}`**. Count it fresh from the enum rather than trusting any
+  list — the deleted guide said 11 domains and the true count at this commit is 17 live dotted
+  domains (alert, camera, job, system, service, gpu, worker, event, detection, scene_change,
+  connection, plus zone, entity, ai, queue, pipeline, prometheus) plus a retired family whose
+  members are still enum entries; enumerate the LIVE domains, never the raw enum. `PING` /
+  `PONG` / `ERROR` are control messages, and the job domain ALSO keeps legacy underscore-format
+  members (NEM-2505) — emit the dotted form, match both.
+- **Subscription semantics:** a registered connection receives ALL events until it sends an
+  explicit `subscribe` (deliberate back-compat); patterns are wildcards (`alert.*`, `*`). An
+  explicit `subscribe` with an EMPTY pattern list means NO events only IN-PROCESS — over the
+  wire the route REJECTS it (`backend/api/routes/websocket.py:179-188`: no `events` (or legacy
+  `channels`) key → a VALIDATION_ERROR frame telling the client to send
+  `{"type": "subscribe", "data": {"events": ["alert.*"]}}`). A client that wants silence
+  unsubscribes everything; it cannot get there by sending an empty list. The manager is
+  `threading.RLock`-guarded; the module singleton is `get_subscription_manager()` with
+  `reset_subscription_manager_state()` for tests.
+- **Inbound wire contract (what a client may send):** the route parses every frame with
+  `WebSocketMessage.model_validate_json` (`backend/api/routes/websocket.py:124`), so a client frame is
+  `{"type": <one of ping|pong|subscribe|unsubscribe|resync>, "data"?: {...}}` — `type` is
+  REQUIRED, the match lower-cases it, `subscribe`/`unsubscribe` read `data.events`
+  (`data.channels` accepted for back-compat), and `resync` replays buffered messages on a
+  detected `seq` gap (NEM-4983). The `{"action": ...}` shape is SERVER→CLIENT only —
+  including the route module's OWN docstring, whose "WebSocket Event Filtering
+  (NEM-2383)" section (:29-30) gives a client "Send:" example
+  `{"action": "subscribe", ...}` that would fail validation if a client sent
+  it. That docstring is the trap; the schema is the contract. `SubscriptionRequest` is exported from
+  the package `__init__` but no route uses it — the route reads `data` as a plain dict.
+- **`event_schemas.py` is not re-exported through the package `__init__`:** consumers
+  deep-import (`from backend.core.websocket.event_schemas import ZoneCrossingPayload`, …),
+  which is how `backend/services/event_broadcaster.py` and `backend/api/schemas/system.py`
+  reach their payload types. Add a payload schema and the import path stays the deep one.
 
 ## `__init__.py` - Public Exports
 
@@ -908,6 +958,19 @@ Provides centralized constants for Redis queue names and DLQ (dead-letter queue)
 - `DETECTION_QUEUE = "detection_queue"` - Queue for incoming detection jobs
 - `ANALYSIS_QUEUE = "analysis_queue"` - Queue for batched detections ready for LLM analysis
 
+**Pass the RAW constant, not the prefixed form — and nothing enforces which one you pass.**
+Every producer and consumer hands the raw constant straight through (`file_watcher.py:405`,
+`pipeline_workers.py:242`), so the real Redis key IS `detection_queue`.
+`get_prefixed_queue_name()` builds `hsi:queue:detection_queue` (prefix from
+`redis_key_prefix`), and the two forms are NOT interchangeable: a wrong key reads as an empty
+queue, never an error. The repo already paid for this — `queue_status_service.py:159-161`
+records the prefixed call being backed out of monitoring for exactly that reason. Two live
+traps: this module's own `Usage:` docstring demonstrates `add_to_queue_safe(prefixed_queue,
+...)`, which would write a key no worker reads; and `backend/api/routes/admin.py:1264-1281`
+(flush-queues) reads AND clears prefixed keys, so it measures and reports a queue depth of 0
+while the real queue stays full — flagged, not repaired (deleting/redirecting that call is
+code-lane scope).
+
 **DLQ Names:**
 
 - `DLQ_PREFIX = "dlq:"` - Prefix for all dead-letter queues
@@ -1293,7 +1356,9 @@ await client.connect()
 
 **Standard operations:**
 
-- `get_from_queue(queue_name, timeout=0)` - BLPOP (blocking pop)
+- `get_from_queue(queue_name, timeout=0)` - BLPOP (blocking pop). Any timeout is raised to a
+  5-second floor (`_MIN_BLPOP_TIMEOUT`): even `timeout=0` never blocks indefinitely, so waiting
+  workers keep polling their shutdown flags.
 - `get_queue_length(queue_name)` - LLEN
 - `peek_queue(queue_name, start=0, end=100, max_items=1000)` - LRANGE
 - `clear_queue(queue_name)` - DELETE
@@ -1314,7 +1379,9 @@ await client.connect()
 
 ### Health Check
 
-**`health_check()`** - Returns status dict with connected state and Redis version.
+**`health_check()`** - Returns status dict with connected state and Redis version. It NEVER
+raises: a failed check returns `{"status": "unhealthy", "connected": False, "error": ...}` —
+branch on the dict, never on an exception.
 
 ### Global Singleton Pattern
 

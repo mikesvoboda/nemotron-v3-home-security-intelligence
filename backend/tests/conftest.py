@@ -93,7 +93,7 @@ Flaky Test Detection:
 - Test outcomes are tracked in FLAKY_TEST_RESULTS_FILE for analysis
 - Use pytest-rerunfailures with --reruns flag for automatic retry
 
-See backend/tests/AGENTS.md for full documentation on test conventions.
+See the test-tree appendix in backend/AGENTS.md for full documentation on test conventions.
 """
 
 from __future__ import annotations

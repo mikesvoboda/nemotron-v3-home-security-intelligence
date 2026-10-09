@@ -40,13 +40,13 @@ detail see [ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md).
 
 ## Quick Links
 
-| Topic                     | Location                                           |
-| ------------------------- | -------------------------------------------------- |
-| Model zoo architecture    | [model-zoo.md](model-zoo.md)                       |
-| AI service implementation | [ai/AGENTS.md](../../ai/AGENTS.md)                 |
-| AI gateway                | [ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md) |
-| YOLO26 detection          | [ai/yolo26/AGENTS.md](../../ai/yolo26/AGENTS.md)   |
-| VLM engine                | [ai/vlm/](../../ai/vlm/)                           |
+| Topic                     | Location                                            |
+| ------------------------- | --------------------------------------------------- |
+| Model zoo architecture    | [model-zoo.md](model-zoo.md)                        |
+| AI service implementation | [ai/AGENTS.md](../../ai/AGENTS.md)                  |
+| AI gateway                | [ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md)  |
+| YOLO26 detection          | [ai/AGENTS.md](../../ai/AGENTS.md) (YOLO26 section) |
+| VLM engine                | [ai/vlm/](../../ai/vlm/)                            |
 
 ## Common Tasks
 

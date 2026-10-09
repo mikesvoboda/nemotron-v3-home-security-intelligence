@@ -140,7 +140,7 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `useSwipeGesture`         | Touch swipe detection                      | `{ onSwipe, threshold?, timeout? }`      | `ref callback`                                                 |
 | `useInfiniteScroll`       | Intersection observer for infinite scroll  | `{ onLoadMore, hasMore, threshold? }`    | `{ ref, isLoading }`                                           |
 | `useDateRangeState`       | Date range with URL persistence            | `{ defaultPreset? }`                     | `{ range, preset, setPreset, setCustomRange }`                 |
-| `usePaginationState`      | Pagination state with URL sync             | `{ type, defaultPageSize? }`             | Cursor or offset pagination state                              |
+| `usePaginationState`      | Pagination state with URL sync             | `{ type, defaultLimit? }`                | Cursor or offset pagination state                              |
 | `useRateLimitCountdown`   | Countdown timer for rate limits            | None                                     | `{ isLimited, secondsRemaining, formattedCountdown, current }` |
 | `useAudioNotifications`   | Audio alert sounds                         | `{ enabled? }`                           | `{ playSound, stopSound }`                                     |
 | `useDesktopNotifications` | Desktop notification API                   | `{ enabled? }`                           | `{ show, permission, requestPermission }`                      |
@@ -209,6 +209,15 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `webSocketManager.ts`       | Singleton WebSocket connection manager with deduplication         | No       |
 
 ### Test Files
+
+The table below lists the COLOCATED tests. There are also 21 out-of-tree unit
+tests in `__tests__/` and 6 cross-hook integration tests in
+`__tests__/integration/` (W3.1 batch 8 pruned those directories' guides; this
+is their index — ten of those hooks, e.g. `useExportJobs`,
+`useZoneEventsWebSocket`, have no other doc pointer anywhere). Note for
+integration tests: they mock `webSocketManager.subscribe`, NOT the WebSocket
+global — the `MockWebSocket` class recipe that circulated in the deleted guides
+does not exist in this repo.
 
 | File                               | Coverage                                                  |
 | ---------------------------------- | --------------------------------------------------------- |
@@ -937,7 +946,12 @@ High-level hook for receiving security events via WebSocket (`/ws/events` endpoi
 - Ignores non-event messages (e.g., `service_status`, `ping`)
 - Maintains in-memory buffer of last 100 events (newest first, constant `MAX_EVENTS`)
 - Provides `latestEvent` computed value via `useMemo`
-- `clearEvents()` method to reset buffer
+- `clearEvents()` method to reset buffer — and it ALSO clears the second
+  dedup layer, the seen-event-ID LRU (`seenEventIdsRef`, useEventStream.ts
+  :70-72/:246-247, bound to MAX_EVENTS per NEM-1998): an event ID dropped by
+  `clearEvents()` is ACCEPTED again on a later refetch instead of being
+  deduped away. A test or caller that clears and re-delivers the same IDs is
+  exercising exactly this contract.
 - Uses `buildWebSocketOptions()` from api service for URL + credential construction (F1.3)
 
 **SecurityEvent Interface:**
@@ -1950,6 +1964,41 @@ function CameraGrid() {
   );
 }
 ```
+
+### `useFormWithApiErrors.ts`
+
+Maps API validation failures onto react-hook-form fields. It accepts TWO error
+shapes and they are different contracts (W3.1 batch 8 lifted this from the
+deleted `__tests__/` guide):
+
+- FastAPI `HTTPValidationError`: `{detail: [{loc: [...], msg: string}, ...]}`
+  (`hasFastAPIValidationDetail`, useFormWithApiErrors.ts:128-139 — requires an
+  array `detail` whose first item has an array `loc` and a string `msg`).
+- The repo's custom `validation_errors[]` format (`isApiValidationException`,
+  :160 — only raised for `ApiError`).
+
+**The loc mapping STRIPS a leading prefix**: `extractFieldPath` drops a first
+loc element when it is one of `body` / `query` / `path` (:204-208), so FastAPI's
+`loc: ["body","profile","firstName"]` becomes form path `profile.firstName`.
+Skipping the strip is why fields never light up: the form has no field named
+`body.email`. Unknown field paths are tolerated — applying an error for a field
+the form doesn't have must not throw (:267-275 test pin in the deleted guide's
+dir).
+
+### `usePaginationState.ts`
+
+URL-synchronized pagination with two modes, cursor and offset.
+
+- **`setLimit` silently resets position** — deliberate design, invisible from
+  the public surface: the offset branch writes page back to 1 with offset 0
+  (:316-326, comment "Reset to page 1 when limit changes"); the cursor branch
+  clears the cursor instead (:216-225). A UI that changes page size is
+  expected to jump the user to the first page.
+- Parameter names are configurable (`paramNames.page/limit/cursor`, :39-45)
+  specifically so multiple independent paginated lists can share one URL
+  without clobbering each other's `?page=` (:34-38 comment).
+- Default page size is `DEFAULT_LIMIT = 20` (:181), so with defaults `?page=3`
+  means offset 40 — arithmetic worth knowing before asserting offsets.
 
 ### Non-Exported Hooks
 

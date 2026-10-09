@@ -17,8 +17,8 @@ This directory contains observability and monitoring infrastructure configuratio
 ```
 monitoring/
   AGENTS.md                    # This file
-  ai-pipeline-alerts.yml       # GPU/OOM, enrichment, prompt/LLM, coalescing,
-                               #   risk-calibration, CLIP/Florence alerts (mounted rule file)
+  ai-pipeline-alerts.yml       # GPU inference/memory, prompt truncation, VLM
+                               #   verification/errors/unhealthy/specialist-legs (mounted rule file)
   alerting-rules.yml           # Pipeline/db/redis/gpu/queue/LLM alerts + Prometheus
                                #   self-monitoring + profiling server alerts (mounted rule file)
   alertmanager.yml             # Alertmanager routing configuration
@@ -26,13 +26,10 @@ monitoring/
     config.alloy               # Alloy collector configuration
   blackbox-exporter.yml        # Blackbox Exporter synthetic monitoring config (NEM-1637)
   cadvisor/                    # cAdvisor systemd unit (container metrics)
-  dcgm/                        # NVIDIA DCGM GPU exporter (see dcgm/AGENTS.md)
-  grafana/                     # Grafana configuration
-    AGENTS.md                  # Grafana directory guide
-    dashboards/                # Dashboard JSON definitions (14 dashboards; see dashboards/AGENTS.md)
-      AGENTS.md                # Dashboards guide
+  dcgm/                        # NVIDIA DCGM GPU exporter (rules in the appendix)
+  grafana/                     # Grafana configuration (rules in the appendix)
+    dashboards/                # Dashboard JSON definitions (11 dashboards; rules in the appendix)
     provisioning/              # Auto-provisioning configs
-      AGENTS.md                # Provisioning guide
       dashboards/
         dashboard.yml          # Dashboard provider config
       datasources/
@@ -381,3 +378,72 @@ relabel_configs:
 - `backend/api/routes/system.py` - Backend endpoints for metrics
 - `grafana/dashboards/consolidated.json` - Main unified monitoring dashboard
 - `grafana/provisioning/` - Auto-provisioning configs
+
+## Per-package rules (W3.1 appendix)
+
+The satellite guides under `grafana/` and `dcgm/` were pruned (W3.1);
+their non-discoverable rules live here. Several of their structural
+claims had gone stale against the configs — the configs are the truth
+and this appendix points at them rather than restating them.
+
+### Grafana provisioning (`grafana/provisioning/`)
+
+- **Six datasources provision, each with an explicit `uid`**: prometheus
+  (default; 15s interval, POST), alertmanager, Backend-API
+  (marcusolsson-json-datasource — the plugin must stay in
+  `GF_INSTALL_PLUGINS`), tempo, loki, pyroscope. Read
+  `grafana/provisioning/datasources/prometheus.yml` for the live set;
+  the deleted guides still described "two datasources, name-as-UID".
+- **Update asymmetry:** datasource edits apply only on grafana restart
+  (startup-only load, `editable: false`); dashboard JSON is rescanned
+  every 30s and hot-reloads. Never wait for a datasource change to
+  "reload" — restart the container.
+- The Tempo datasource embeds ~50 named span-link queries (pipeline
+  health, AI latency, GPU, SLO, cost) — that file, not any dashboard,
+  is the catalog of vetted metric names for span-linked panels.
+
+### Dashboards (`grafana/dashboards/`)
+
+- 11 dashboard JSONs. UIDs are the stable identifiers links and
+  provisioned folders reference — renaming a title must not change the
+  `uid`.
+- **Triton `nv_*` durations are MEAN-only** cumulative counters
+  (summary stats disabled server-side): a latency panel reading
+  `nv_inference_request_duration_us / nv_inference_request_success`
+  must say "mean". Real percentiles exist only from the backend
+  client-side `hsi_ai_request_duration_seconds` (label `service`, no
+  endpoint) or the gateway-side `hsi_ai_inference_*` families
+  (`service`, `endpoint`, scraped from the gateway's own /metrics).
+- **Gateway middleware labels** (`service` = matched router prefix):
+  only the two live routers plus `other` appear now — retired routers'
+  label values survive only in old panel queries. Health and `/metrics`
+  requests are NOT observed, so `rate()` over the gateway families is
+  EMPTY (not 0) until first inference traffic: every query must carry
+  `or vector(0)`. The Gateway Inference Traffic row is duplicated in
+  `consolidated.json` and `ai-services.json` on purpose — keep the two
+  copies byte-identical including that suffix.
+- **Zero-export traps:** the FED action families lost their only
+  emitter with the 2026-09-23 X-CLIP removal and export zero until the
+  ST-GCN++-era feeder is wired; the `hsi_action_recognition_*` family
+  is DEFINED in metrics.py but never `.labels()`'d outside tests, so it
+  never exports at all. Panels reading either carry `or vector(0)` and
+  an annotated feed gap — don't "fix" the panel by deleting the
+  fallback.
+- Blackbox availability probes (`blackbox-http-2xx`, job in
+  `prometheus.yml`) cover llm / gateway / yolo26 / enrich-lt today;
+  panel queries probing any other `model="..."` target are dead
+  weight — treat such a label as a rename or a retirement until proven
+  scrapable.
+- `tracing.json`'s `$service` variable lists exactly one service: the
+  backend is the only OTLP span emitter (neither the gateway nor
+  Triton exports traces).
+
+### dcgm (`dcgm/`)
+
+- `custom-counters.csv` is bind-mounted read-only over
+  /etc/dcgm-exporter/default-counters.csv in the compose stack, so it
+  REPLACES the exporter's default field set: deleting a line deletes a
+  live metric family. The PCIe TX/RX gauges are the PROF fields
+  (modern replacement for the deprecated DEV throughput fields) behind
+  `hsi-gpu-metrics.json`'s PCIe panel; `gpu-alerts.yml` consumes the
+  replay/ECC/XID counters.

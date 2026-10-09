@@ -25,12 +25,16 @@ Usage:
 Exit codes:
     0 - the tree is clean under the baselines (zero dead references — zero
         tolerance since W1.3 removed the allowlist; retired-name counts are at
-        or below baseline; missing_agents_md
-        is reporting-only until W3.1 wires the boundary rule)
+        or below baseline)
     1 - a CONTENT violation: any dead reference (zero tolerance since W1.3), a dead
         link (zero tolerance), a retired-name count above its baseline, an
         unbalanced code fence (it would mask the rest of the file from the
-        gate), or an inline ignore-reference comment without a tracking ref
+        gate), an inline ignore-reference comment without a tracking ref, or
+        since W3.1's boundary mode (UR-21) a boundary_list entry without its
+        AGENTS.md (issue type missing_agents_md) or an AGENTS.md outside the
+        boundary list (violation string only — the issue vocabulary is
+        byte-frozen for linear_sync, so the forbidden arm rides the fence
+        arm's rail: a violation with no issues[] entry)
     2 - the gate COULD NOT RUN: the config is absent/unparseable/incomplete
         (any missing required key: the five baseline names, boundary_list, or
         a line_caps tier), a pattern does not compile, or an AGENTS.md is
@@ -170,6 +174,14 @@ class Scan(NamedTuple):
     # measures, the gate decides. No default: a NamedTuple default would be a
     # shared dict, and there is exactly one construction site to update.
     line_counts: dict[str, int]
+    # W3.1 (UR-21): relative paths of scanned AGENTS.md files whose directory
+    # is not in boundary_list — the forbidden side. A list, not a count: the
+    # violation strings name every file (the deletion batches need the
+    # roster). Excluded directories are invisible here for the same reason
+    # they are invisible to every other arm: find_agents_md_files skipped
+    # them, so site/ or .venv/ satellites cannot exist and a real one under
+    # an excluded path is an exclude-widening story, pinned there.
+    satellites: list[str]
 
 
 def get_project_root() -> Path:
@@ -683,40 +695,34 @@ def check_missing_agents_md(
     config: ValidatorConfig,
     existing_agents_md: set[Path],
 ) -> list[ValidationIssue]:
-    """Check for directories with code files but no AGENTS.md.
+    """Check that every boundary_list entry has its AGENTS.md (W3.1, UR-21).
 
-    Reporting-only in W1.1: missing_agents_md is not one of the package's
-    failure conditions — wiring the boundary rule is W3.1's Phase-3 job.
+    W3.1 replaced W1.1's code-file census with the boundary rule: a directory
+    needs an AGENTS.md iff the config lists it as a boundary. The census arms
+    it used to consult (min_code_files, no_agents_md_required) stay in the
+    config as the W2.1 rule's inputs — test_committed_boundary_list_covers_the_rule
+    re-derives the list from them — but they no longer decide who is required;
+    the list does, one reason per entry.
+
+    Failing now (W3.1 wired what W1.1's scope pin deferred): a hole in the
+    boundary map is a CONTENT violation, exit 1. The issue keeps the EXISTING
+    missing_agents_md type so linear_sync's ticket stream is unchanged;
+    `reason` distinguishes the two eras of its meaning.
     """
     issues = []
 
-    code_dirs = find_directories_with_code(project_root, config)
-
-    # sorted(): rglob yields filesystem-walk order, which varies between
-    # machines — the missing_agents_md block's order must be deterministic
-    # or "report identical on two trees" claims rest on a lucky walk.
-    for dir_path, code_files in sorted(code_dirs.items(), key=lambda kv: str(kv[0])):
-        if dir_path in existing_agents_md:
-            continue
-
-        if len(code_files) < config.min_code_files:
-            continue
-
-        relative_dir = str(dir_path.relative_to(project_root))
-        skip = False
-
-        for allowed in config.no_agents_md_required:
-            allowed_normalized = allowed.rstrip("/")
-            relative_normalized = relative_dir.rstrip("/")
-
-            if relative_normalized == allowed_normalized:
-                skip = True
-                break
-            if relative_dir.startswith(allowed_normalized + "/"):
-                skip = True
-                break
-
-        if skip:
+    # sorted(): the config's list order is author-chosen; the report's must
+    # not move when an entry is inserted mid-list (same determinism reason as
+    # W1.1's walk-order comment this replaces).
+    for entry in sorted(config.boundary_list, key=lambda e: e["path"]):
+        dir_value = entry["path"].rstrip("/") or "."
+        # existing_agents_md is the scan's set of DIRECTORIES holding an
+        # AGENTS.md ({f.parent for f in agents_md_files}), not a set of file
+        # paths — compare directories. And "." maps to project_root itself,
+        # the same Path the scan's parents carry (pathlib never normalizes a
+        # literal "." away, so project_root / "." would miss the root).
+        boundary_dir = project_root if dir_value == "." else project_root / dir_value
+        if boundary_dir in existing_agents_md:
             continue
 
         issues.append(
@@ -726,9 +732,12 @@ def check_missing_agents_md(
                 line=None,
                 reference=None,
                 resolved_path=None,
-                reason="directory_has_code_files",
-                directory=relative_dir + "/",
-                code_files=sorted(code_files)[:10],
+                reason="boundary_listed_without_agents_md",
+                directory=(dir_value + "/") if dir_value != "." else "./",
+                # [] not None: linear_sync slices this field unguarded
+                # (issue.get("code_files", [])[:5] — the default never fires
+                # when the key exists with a null value).
+                code_files=[],
             )
         )
 
@@ -802,6 +811,22 @@ def validate_all(project_root: Path, config: ValidatorConfig) -> Scan:
     agents_md_dirs = {f.parent for f in agents_md_files}
     issues.extend(check_missing_agents_md(project_root, config, agents_md_dirs))
 
+    # W3.1 forbidden side: file is a satellite iff its directory is not a
+    # listed boundary. Directory strings are compared relative to the root,
+    # with "." for the root itself, so the comparison matches how the config
+    # writes paths (no trailing slashes on either side).
+    boundary_dirs = {e["path"].rstrip("/") or "." for e in config.boundary_list}
+    satellites = [
+        str(f.relative_to(project_root))
+        for f in agents_md_files
+        if (
+            "."
+            if f.parent == project_root
+            else str(f.parent.relative_to(project_root))
+        )
+        not in boundary_dirs
+    ]
+
     return Scan(
         total_agents_md_files=len(agents_md_files),
         issues=issues,
@@ -809,6 +834,7 @@ def validate_all(project_root: Path, config: ValidatorConfig) -> Scan:
         unbalanced_fences=unbalanced_fences,
         bare_ignore_comments=bare_ignore_comments,
         line_counts=line_counts,
+        satellites=satellites,
     )
 
 
@@ -908,9 +934,19 @@ def evaluate_ratchet(scan: Scan, config: ValidatorConfig) -> list[str]:
                 f"<!-- agents-md-validator: ignore-reference {issue.reference} "
                 "# <W1.3/ledger-ref> -->"
             )
-        # missing_agents_md: reporting-only until W3.1 (scope pin: a
-        # boundary-list gate here would fail today's tree, which the
-        # package's Done-when requires green).
+        elif issue.type == "missing_agents_md":
+            # W3.1 wired this arm; W1.1's scope pin deferred it. Every issue
+            # reaching this branch is boundary-shaped now — the census era
+            # ended with check_missing_agents_md's rewrite — so the type
+            # reaching linear_sync means "a hole in the boundary map".
+            violations.append(
+                f"boundary without an AGENTS.md: `{issue.directory}` is listed "
+                "in boundary_list with a reason but has no AGENTS.md — either "
+                "restore the file or remove the entry in the same PR (the "
+                "entry's reason is the argument it stays)."
+            )
+        # dead_link is already violated via its branch above; nothing else
+        # fails from issues[] (the forbidden side below carries no issue).
 
     for name in RETIRED_NAMES:
         measured = scan.retired_counts[name]
@@ -928,6 +964,17 @@ def evaluate_ratchet(scan: Scan, config: ValidatorConfig) -> list[str]:
         violations.append(
             f"unbalanced code fence in {relative}: an unclosed fence masks the "
             "rest of the file from both arms of the ratchet — close it."
+        )
+
+    for relative in scan.satellites:
+        violations.append(
+            f"AGENTS.md outside the boundary list: {relative} — UR-21 puts "
+            "these files at boundaries only (boundary_list in "
+            ".agents-md-validator.yml, one reason per entry). Fix: delete it, "
+            "moving any non-discoverable knowledge into the nearest boundary "
+            "file, or — only if it is a real boundary — add a reasoned entry "
+            "to the list in the same PR (the membership rule is pinned by "
+            "test_committed_boundary_list_covers_the_rule)."
         )
 
     for relative, reference in scan.bare_ignore_comments:

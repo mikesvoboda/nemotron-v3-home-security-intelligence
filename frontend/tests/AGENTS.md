@@ -133,7 +133,8 @@ Coverage thresholds are configured in `vite.config.ts`:
 - `/frontend/tests/e2e/pages/AGENTS.md` - Page object documentation
 - `/frontend/tests/e2e/specs/AGENTS.md` - Test spec documentation
 - `/frontend/tests/integration/AGENTS.md` - Integration test documentation
-- `/frontend/src/test/AGENTS.md` - Test setup configuration
+- `/frontend/src/AGENTS.md` - "Test Setup" section (W3.1 batch 8 lifted the
+  deleted test-tree guide into it)
 - `/frontend/vite.config.ts` - Vitest configuration
 - `/frontend/playwright.config.ts` - Playwright configuration
 

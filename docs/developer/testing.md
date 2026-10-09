@@ -4,8 +4,7 @@ last_updated: 2026-10-02
 source_refs:
   - pyproject.toml:577
   - backend/tests/conftest.py:459
-  - backend/tests/unit/AGENTS.md:1
-  - backend/tests/integration/AGENTS.md:1
+  - backend/AGENTS.md:1063
   - .pre-commit-config.yaml:99
   - .github/workflows/ci.yml:536
 ---
@@ -654,7 +653,7 @@ async def test_camera_creation(isolated_db):
 
 Unit tests verify individual components in isolation. All external dependencies (Redis, HTTP, file system) must be mocked.
 
-See [backend/tests/unit/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/unit/AGENTS.md) for complete patterns.
+See the test-tree appendix in [backend/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/AGENTS.md) for complete patterns.
 
 ```python
 # Example: Mocking Redis
@@ -706,7 +705,7 @@ AsyncMock()`) are fine; a whole invented object shape is not.
 
 Integration tests verify that multiple components work together correctly.
 
-See [backend/tests/integration/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/integration/AGENTS.md) for complete patterns.
+See the test-tree appendix in [backend/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/AGENTS.md) for complete patterns.
 
 ```python
 @pytest.mark.asyncio
@@ -1090,6 +1089,6 @@ Snapshots are automatically validated in CI:
 - [Setup Guide](local-setup.md) - Development environment setup
 - [Contributing Guide](contributing/README.md) - PR process and code standards
 - [Code Patterns](patterns-and-conventions.md) - Testing patterns in detail
-- [backend/tests/unit/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/unit/AGENTS.md) - Unit test patterns
-- [backend/tests/integration/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/integration/AGENTS.md) - Integration test patterns
+- [backend/AGENTS.md — test-tree appendix](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/AGENTS.md) - Unit test patterns
+- [backend/AGENTS.md — test-tree appendix](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/AGENTS.md) - Integration test patterns
 - [Mutation Testing Guide](../developer/patterns/mutation-testing.md) - Mutation testing with mutmut and Stryker

@@ -10,7 +10,7 @@ Contains GPU-accelerated ML services for the home security monitoring system:
 
 TensorRT Optimization:
     The common package provides reusable TensorRT infrastructure for accelerating
-    model inference. See ai/common/AGENTS.md for documentation.
+    model inference. See the Common TensorRT section of ai/AGENTS.md.
 
     from ai.common import TensorRTConverter, TensorRTInferenceBase
 

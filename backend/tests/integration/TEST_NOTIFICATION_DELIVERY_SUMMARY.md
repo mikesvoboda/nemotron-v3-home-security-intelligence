@@ -242,7 +242,7 @@ All checks passed:
 ### Test Infrastructure
 
 - `backend/tests/integration/conftest.py` - Integration test fixtures
-- `backend/tests/integration/AGENTS.md` - Integration test documentation
+- `backend/AGENTS.md` - "The test tree" appendix (W3.1 deleted the per-directory guides)
 
 ## Notes for Future Maintenance
 

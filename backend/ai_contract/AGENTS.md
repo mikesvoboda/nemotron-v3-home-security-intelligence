@@ -16,7 +16,7 @@ One importable package declaring every AI-tier operation the product surface has
 | `operations.py` | **GENERATED - DO NOT EDIT.** The 9-operation registry: id, method, path, per-slot availability, backend client methods, evidence        |
 | `provider.py`   | Hand-written support types: `ProviderId` slots, `Operation` dataclass, `AIProvider` protocol, `register_provider`, error/derive helpers |
 | `providers.py`  | Provider registrations executed at import: gateway / gateway_light / llamacpp_llm (fake is a SPEC column, deliberately not registered)  |
-| `fake/`         | The deterministic FakeProvider app (see `fake/AGENTS.md`)                                                                               |
+| `fake/`         | The deterministic FakeProvider app (see "The FakeProvider" below)                                                                       |
 | `schemas/`      | 15 generated JSON schemas (`<op>.request.json` / `<op>.response.json`) - contract sources for golden snapshots and the fake generator   |
 
 ## Patterns and Gotchas
@@ -27,8 +27,55 @@ One importable package declaring every AI-tier operation the product surface has
 - **Provider callables are the bound backend client methods** (`DetectorClient` and `VlmClient` under `backend/services/`), resolved lazily via `_CLIENT_MODULES`; never import those clients at `providers.py` top level (settings/redis singletons would initialize before test fixtures).
 - The `fake` availability column is a conformance SPEC: `fake/app.py` mounts one route per registry operation, so the fake covers every declared op and the count is always the registry's, never a pinned number.
 
+## The FakeProvider (`fake/`) — contracts (W3.1 batch 7 pruned its guide)
+
+- **Determinism is a prohibition, not a setting:** two identical requests are byte-identical
+  because there is NO CHANNEL for a difference to enter — no wall-clock, no `id()`, no set
+  iteration, no global counter. Every seed derives from `sha256("|".join(parts))` of fixed
+  parts (`_rng_for`), never from a counter, and ONE serializer
+  (`json.dumps(..., sort_keys=True)`) emits every response so dict order cannot leak. Never
+  introduce process state into a generator.
+- `create_fake_app()` returns a FRESH app every call and two instances must replay identically;
+  the suite asserts it. The `_get_shared_app` `lru_cache` is a speed affordance, not state. The
+  request body is parsed only for echo fields (`model_name`) and unparsable bodies are swallowed
+  to `None` — ignoring upload bytes cannot break byte-identity.
+- **The one seeded-from-the-request exception:** `vlm_assess` re-draws `verdict`/`risk_score`
+  from the request's IMAGE PATHS (`image_paths` joined into the seed) — spec §3 wants a
+  deterministic verdict keyed on image identity, and the failure-ladder fixtures need verdict
+  variety. Keys are paths, never bytes (D10). A naive reading of the determinism rule would
+  deny this exception exists.
+- **Profiles are the point:** the yolo-family vocabulary defaults to `gateway` = the unfiltered
+  80 COCO names the deployed adapter returns; an `X-Fake-Profile: security` header switches to
+  the 9 `SECURITY_CLASSES` the native server filters to, and an unrecognized value silently
+  falls back to the default. `/fake/profiles/classes` exposes BOTH vocabularies as DATA, so
+  vocabulary assertions need no import of the fake's constants. The class vocabularies are DATA
+  MIRRORS of `ai/yolo26/model.py` / `ai/triton/client.py`, pinned equal by the AST mirror tests
+  in `backend/tests/contracts/ai_providers/test_fake_provider.py` — an upstream rename reddens there.
+- **Schema-driven, both paths:** every generated response is validated against its schema AFTER
+  generation, walker path and literal path alike, so a snapshot edit that makes the fake
+  nonconformant reddens the suite either way. The three ops the walker cannot serve
+  (`_LITERAL_OPS` — the yolo trio) are literal generators precisely because their routes
+  declare a bare dict; their committed `<op>.request.json` / `<op>.response.json` schemas still
+  exist and still gate output. (Older prose called this set `GEN_GAPS` — no such symbol exists.)
+- Semantic overrides are a small table consulted BEFORE the schema walk, keyed
+  `(op_id, "Def.prop")` with a bare-name fallback — currently the 512-dim L2 re-ID embedding
+  (the light lane's vector is 512-dim, L2-normalized) and the llm content/token fields. The
+  class vocabularies are NOT overrides; they live in the yolo literal generators.
+- **The failure ladder rides a header:** `X-Fake-Fault` injects exactly the three modes spec §7
+  needs — `5xx` → HTTP 503; `timeout[:SECONDS]` → `asyncio.sleep` (default 2.0 s);
+  `schema-invalid` → nulls the response schema's FIRST required property, so the body still
+  PARSES but no longer VALIDATES (a 4xx would be server refusal, a different ladder case). It is
+  request-scoped, so the healthy path's byte-identity is untouched, and an unknown value falls
+  back to healthy. Under `httpx.ASGITransport` client timeouts are never enforced — the
+  observable of the timeout fault is THE STALL ITSELF, never a `ReadTimeout`; a ladder test
+  asserting the exception would pass or fail for the wrong reason.
+- `fake_provider_ops()` builds the provider-contract callables over `operations_for_slot("fake",
+OPERATIONS)`, and that helper RAISES `KeyError` on an unknown slot — a typo cannot return `{}`
+  and vacuously pass a conformance run.
+- Never use respx in consumers of this app — every hop is `httpx.ASGITransport` (the fake IS an
+  app; no socket to mock). Repo-wide rule: see the test-tree appendix in `backend/AGENTS.md`.
+
 ## Related
 
-- `backend/ai_contract/fake/AGENTS.md` - the deterministic FakeProvider
-- `backend/tests/contracts/ai_providers/AGENTS.md` - the conformance suite that consumes this package
-- `backend/tests/AGENTS.md` - test infrastructure
+- "The FakeProvider" section above - the deterministic FakeProvider contracts (W3.1 pruned its guide)
+- The "Contracts tier" section of the test-tree appendix in `backend/AGENTS.md` - the conformance suite that consumes this package (W3.1 pruned its own guide)

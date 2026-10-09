@@ -5,8 +5,7 @@ source_refs:
   - backend/core/database.py:1
   - backend/core/redis.py:1
   - backend/services/AGENTS.md:1
-  - backend/tests/unit/AGENTS.md:157
-  - backend/tests/integration/AGENTS.md:76
+  - backend/AGENTS.md:1055
   - frontend/src/hooks/AGENTS.md:1
 ---
 
