@@ -8,7 +8,10 @@
  *
  * - every route `App.tsx` declares appears in some row's surface;
  * - every request a file reachable from `src/main.tsx` can send (the same
- *   claims the endpoint-contract gate reads) appears in some row's API calls;
+ *   claims the endpoint-contract gate reads) appears in some row's API calls,
+ *   or in "Client requests no feature reaches" with the file it sits in — an
+ *   exported function in a live file that nothing in production imports
+ *   (knip's unused exports; the PR carries that cross-check);
  * - every production file `src/main.tsx` cannot reach is either claimed by a row
  *   or listed under "Modules serving no feature" — and nothing reachable is
  *   listed there;
@@ -56,6 +59,7 @@ interface InventoryLib {
   parseInventory: (markdown: string) => {
     rows: Row[];
     noFeature: { module: string; lane: string }[];
+    noFeatureCalls: (ApiCall & { fn: string; file: string })[];
   };
   appRoutes: (source: string) => string[];
   reachableFiles: (options: { root: string; entry: string }) => Set<string>;
@@ -116,8 +120,19 @@ describe('feature inventory (F2.2)', () => {
     // empty `live` would pass vacuously.
     expect(live.length).toBeGreaterThan(200);
     const calls = inv.rows.flatMap((r) => r.apiCalls);
-    const uncovered = live.filter((c) => !calls.some((call) => lib.callCovers(call, c)));
+    const uncovered = live.filter(
+      (c) =>
+        !calls.some((call) => lib.callCovers(call, c)) &&
+        !inv.noFeatureCalls.some((n) => n.file === `frontend/${c.file}` && lib.callCovers(n, c))
+    );
     expect(uncovered.map(claimText)).toEqual([]);
+  });
+
+  it('lists only requests that exist under "Client requests no feature reaches"', () => {
+    const stale = inv.noFeatureCalls.filter(
+      (n) => !claims.some((c) => n.file === `frontend/${c.file}` && lib.callCovers(n, c))
+    );
+    expect(stale.map((n) => `${n.method} ${n.path} (${n.file}, ${n.fn})`)).toEqual([]);
   });
 
   it('gives every row a status from the vocabulary, with evidence', () => {
@@ -194,7 +209,10 @@ describe("F1.1's known-missing list points at inventory rows (F2.2)", () => {
         const row = byId.get(id);
         if (!row) return [];
         const hit = row.apiCalls.some((call) =>
-          lib.callCovers({ ...call, method: null }, { kind: 'rest', method: null, path: e.path, file: '', line: 0 })
+          lib.callCovers(
+            { ...call, method: null },
+            { kind: 'rest', method: null, path: e.path, file: '', line: 0 }
+          )
         );
         return hit ? [] : [`${id} does not list ${e.path}`];
       })

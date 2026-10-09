@@ -41,9 +41,15 @@ interface NoFeatureModule {
   lane: string;
 }
 
+interface NoFeatureCall extends ApiCall {
+  fn: string;
+  file: string;
+}
+
 interface Inventory {
   rows: Row[];
   noFeature: NoFeatureModule[];
+  noFeatureCalls: NoFeatureCall[];
 }
 
 interface Lib {
@@ -51,7 +57,10 @@ interface Lib {
   appRoutes: (source: string) => string[];
   reachableFiles: (options: { root: string; entry: string }) => Set<string>;
   rowProblems: (row: Row) => string[];
-  callCovers: (call: ApiCall, claim: { kind: string; method: string | null; path: string }) => boolean;
+  callCovers: (
+    call: ApiCall,
+    claim: { kind: string; method: string | null; path: string }
+  ) => boolean;
 }
 
 let lib: Lib;
@@ -117,6 +126,17 @@ describe('parseInventory', () => {
     const inv = lib.parseInventory(md);
     expect(inv.rows).toHaveLength(1);
     expect(inv.noFeature).toEqual([{ module: 'src/dead/X.tsx', lane: 'frontend' }]);
+  });
+
+  it('reads the client-requests-no-feature-reaches table with its file', () => {
+    const md =
+      '## Client requests no feature reaches\n\n' +
+      '| request | function | file | why |\n| --- | --- | --- | --- |\n' +
+      '| `GET /api/stats` | `fetchStats` | `frontend/src/services/api.ts` | no production importer |\n';
+    const inv = lib.parseInventory(md);
+    expect(inv.noFeatureCalls).toEqual([
+      { method: 'GET', path: '/api/stats', fn: 'fetchStats', file: 'frontend/src/services/api.ts' },
+    ]);
   });
 
   it('does not split a cell on a pipe escaped inside backticks', () => {
@@ -202,9 +222,9 @@ describe('rowProblems', () => {
   });
 
   it('demands a file:line cite for a half-built row', () => {
-    expect(lib.rowProblems({ ...base, status: 'half-built', evidence: 'the backend is a stub' })).toEqual([
-      'F-001: half-built evidence cites no file:line',
-    ]);
+    expect(
+      lib.rowProblems({ ...base, status: 'half-built', evidence: 'the backend is a stub' })
+    ).toEqual(['F-001: half-built evidence cites no file:line']);
     expect(
       lib.rowProblems({ ...base, status: 'half-built', evidence: '`backend/x.py:12` returns `[]`' })
     ).toEqual([]);
@@ -248,10 +268,16 @@ describe('callCovers', () => {
 
   it('matches a WebSocket claim only with a WS call', () => {
     expect(
-      lib.callCovers({ method: 'WS', path: '/ws/events' }, { kind: 'ws', method: null, path: '/ws/events' })
+      lib.callCovers(
+        { method: 'WS', path: '/ws/events' },
+        { kind: 'ws', method: null, path: '/ws/events' }
+      )
     ).toBe(true);
     expect(
-      lib.callCovers({ method: 'GET', path: '/ws/events' }, { kind: 'ws', method: null, path: '/ws/events' })
+      lib.callCovers(
+        { method: 'GET', path: '/ws/events' },
+        { kind: 'ws', method: null, path: '/ws/events' }
+      )
     ).toBe(false);
   });
 });

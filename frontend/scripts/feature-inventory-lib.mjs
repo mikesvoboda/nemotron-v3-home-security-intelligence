@@ -7,7 +7,8 @@
 //
 // - `parseInventory` reads the markdown: every table whose header starts
 //   `| id |` is feature rows; the table headed `| module | lane |` is the list of
-//   modules serving no feature.
+//   modules serving no feature; the table headed `| request | function |` lists
+//   client requests in exported functions nothing in production imports.
 // - `appRoutes` reads the route paths `App.tsx` declares, joining nested child
 //   routes onto their parent the way React Router does.
 // - `reachableFiles` walks the import graph from an entry, following static
@@ -77,6 +78,7 @@ const ROW_KEYS = {
 export function parseInventory(markdown) {
   const rows = [];
   const noFeature = [];
+  const noFeatureCalls = [];
   let header = null;
   for (const line of markdown.split('\n')) {
     if (!line.trim().startsWith('|')) {
@@ -100,9 +102,15 @@ export function parseInventory(markdown) {
     } else if (header[0] === 'module' && header[1] === 'lane') {
       const [module] = codeSpans(get('module'));
       noFeature.push({ module: module ?? get('module'), lane: get('lane') });
+    } else if (header[0] === 'request' && header[1] === 'function') {
+      const [call] = apiCalls(get('request'));
+      if (!call) continue;
+      const [fn] = codeSpans(get('function'));
+      const [file] = codeSpans(get('file'));
+      noFeatureCalls.push({ ...call, fn: fn ?? '', file: file ?? '' });
     }
   }
-  return { rows, noFeature };
+  return { rows, noFeature, noFeatureCalls };
 }
 
 /** The string value of a JSX attribute, or null. */
