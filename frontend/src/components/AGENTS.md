@@ -59,6 +59,13 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | **webhooks/**         | Webhook management and testing                   | WebhooksPage, WebhookForm, WebhookTestPanel                                                                                                                                                                                                                                                                                                                                                                     |
 | **zones/**            | Zone management components                       | ZoneCanvas, ZoneEditor, ZoneForm, ZoneList                                                                                                                                                                                                                                                                                                                                                                      |
 
+One name in the `common/` row is dead, and it is the row's last: `WorkerStatusIndicator` has zero
+non-test importers and is not re-exported by `common/index.ts`, so nothing can reach it through the
+barrel either. Its remaining mentions are a doc-comment usage example in
+`../hooks/useWorkerEvents.ts` and its own test file. The other 17 names in that row each have at
+least one live importer, so read the row's "used across the application" as true of the row and this
+one name as the exception — not as evidence the row is inflated.
+
 ## Component Hierarchy
 
 \`\`\`
