@@ -1,12 +1,13 @@
 """API key authentication security tests.
 
-This module tests the API key authentication middleware:
-- Valid API key acceptance
-- Invalid API key rejection
-- Missing API key handling
-- API key in header vs query parameter
-- Exempt endpoint handling
+This module tests the API key helpers in backend/api/middleware/auth.py and
+the open endpoints on a loopback deployment:
+- API key hashing and constant-time comparison
 - Key leakage prevention
+- Endpoints open without a key, and media path safety
+
+The EXPOSE_LAN gate itself is tested in backend/tests/unit/api/middleware/test_auth.py
+and, over every mounted route, backend/tests/unit/api/test_expose_lan_routes.py.
 """
 
 import hashlib
@@ -14,7 +15,7 @@ import hashlib
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.api.middleware.auth import AuthMiddleware, _hash_key
+from backend.api.middleware.auth import _hash_key
 
 
 class TestHashKeyFunction:
@@ -44,66 +45,6 @@ class TestHashKeyFunction:
         key2 = "key2"
 
         assert _hash_key(key1) != _hash_key(key2)
-
-
-class TestAuthMiddlewareExemptPaths:
-    """Test the exempt path checking logic in AuthMiddleware."""
-
-    def test_health_endpoints_exempt(self):
-        """Test that health endpoints are exempt from auth."""
-        middleware = AuthMiddleware(app=None, valid_key_hashes=set())
-
-        exempt_paths = ["/", "/health", "/ready", "/api/system/health", "/api/system/health/ready"]
-
-        for path in exempt_paths:
-            assert middleware._is_exempt_path(path), f"Path should be exempt: {path}"
-
-    def test_docs_endpoints_exempt(self):
-        """Test that documentation endpoints are exempt from auth."""
-        middleware = AuthMiddleware(app=None, valid_key_hashes=set())
-
-        exempt_paths = ["/docs", "/docs/", "/redoc", "/redoc/", "/openapi.json"]
-
-        for path in exempt_paths:
-            assert middleware._is_exempt_path(path), f"Path should be exempt: {path}"
-
-    def test_metrics_endpoint_exempt(self):
-        """Test that Prometheus metrics endpoint is exempt from auth."""
-        middleware = AuthMiddleware(app=None, valid_key_hashes=set())
-
-        assert middleware._is_exempt_path("/api/metrics")
-
-    def test_media_endpoints_exempt(self):
-        """Test that media endpoints are exempt from auth."""
-        middleware = AuthMiddleware(app=None, valid_key_hashes=set())
-
-        exempt_paths = [
-            "/api/media/cameras/test/image.jpg",
-            "/api/media/thumbnails/detection.png",
-            "/api/detections/123/image",
-            "/api/detections/123/video",
-            "/api/detections/123/video/thumbnail",
-            "/api/cameras/front_door/snapshot",
-        ]
-
-        for path in exempt_paths:
-            assert middleware._is_exempt_path(path), f"Path should be exempt: {path}"
-
-    def test_api_endpoints_not_exempt(self):
-        """Test that regular API endpoints are NOT exempt from auth."""
-        middleware = AuthMiddleware(app=None, valid_key_hashes=set())
-
-        protected_paths = [
-            "/api/cameras",
-            "/api/events",
-            "/api/events/123",
-            "/api/cameras/front_door",
-            "/api/system/status",
-            "/api/admin/config",
-        ]
-
-        for path in protected_paths:
-            assert not middleware._is_exempt_path(path), f"Path should NOT be exempt: {path}"
 
 
 class TestAPIKeyLeakage:
@@ -205,47 +146,21 @@ class TestConstantTimeComparison:
     comparison regardless of when the first difference occurs.
     """
 
-    def test_validate_api_key_uses_constant_time_comparison(self):
-        """Test that AuthMiddleware._validate_key_hash uses hmac.compare_digest.
-
-        This test verifies the implementation uses constant-time comparison
-        by checking that hmac.compare_digest is called during validation.
-        """
-        from unittest.mock import patch
-
-        from backend.api.middleware.auth import AuthMiddleware
-
-        # Create middleware with a known valid hash
-        valid_hash = _hash_key("valid-api-key")
-        middleware = AuthMiddleware(app=None, valid_key_hashes={valid_hash})
-
-        # Test with matching hash
-        with patch(
-            "backend.api.middleware.auth.hmac.compare_digest", autospec=True
-        ) as mock_compare:
-            mock_compare.return_value = True
-            result = middleware._validate_key_hash(valid_hash)
-
-            # hmac.compare_digest should have been called
-            assert mock_compare.called, "hmac.compare_digest should be used for key validation"
-            assert result is True
-
     def test_validate_api_key_rejects_invalid_with_constant_time(self):
         """Test that invalid keys are rejected using constant-time comparison."""
         from unittest.mock import patch
 
-        from backend.api.middleware.auth import AuthMiddleware
+        from backend.api.middleware.auth import _validate_key_hash_constant_time
 
         valid_hash = _hash_key("valid-api-key")
         invalid_hash = _hash_key("invalid-api-key")
-        middleware = AuthMiddleware(app=None, valid_key_hashes={valid_hash})
 
         # Test with non-matching hash
         with patch(
             "backend.api.middleware.auth.hmac.compare_digest", autospec=True
         ) as mock_compare:
             mock_compare.return_value = False
-            result = middleware._validate_key_hash(invalid_hash)
+            result = _validate_key_hash_constant_time(invalid_hash, {valid_hash})
 
             # hmac.compare_digest should have been called
             assert mock_compare.called, "hmac.compare_digest should be used for key validation"
@@ -281,13 +196,11 @@ class TestConstantTimeComparison:
         """
         from unittest.mock import patch
 
-        from backend.api.middleware.auth import AuthMiddleware
+        from backend.api.middleware.auth import _validate_key_hash_constant_time
 
-        # Create middleware with multiple valid hashes
         hash1 = _hash_key("key1")
         hash2 = _hash_key("key2")
         hash3 = _hash_key("key3")
-        middleware = AuthMiddleware(app=None, valid_key_hashes={hash1, hash2, hash3})
 
         test_hash = _hash_key("key2")  # This matches hash2
 
@@ -299,7 +212,7 @@ class TestConstantTimeComparison:
                 return a == b
 
             mock_compare.side_effect = side_effect
-            result = middleware._validate_key_hash(test_hash)
+            result = _validate_key_hash_constant_time(test_hash, {hash1, hash2, hash3})
 
             # Should return True (found a match)
             assert result is True

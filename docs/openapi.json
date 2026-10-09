@@ -37027,8 +37027,13 @@
         "type": "object"
       },
       "SetupStatusResponse": {
-        "description": "Response schema for setup status check.\n\nReturns whether initial setup (first user registration) is required.",
+        "description": "Response schema for setup status check.\n\nReturns whether initial setup (first user registration) is required, and\nwhether the API requires authentication.",
         "properties": {
+          "auth_required": {
+            "description": "Whether the API requires a login session or API key (EXPOSE_LAN=true). The frontend shows its login screen only when this is true.",
+            "title": "Auth Required",
+            "type": "boolean"
+          },
           "setup_required": {
             "description": "Whether initial setup is required (no users exist)",
             "title": "Setup Required",
@@ -37036,7 +37041,8 @@
           }
         },
         "required": [
-          "setup_required"
+          "setup_required",
+          "auth_required"
         ],
         "title": "SetupStatusResponse",
         "type": "object"
@@ -44084,7 +44090,7 @@
             "description": "Orphan cleanup completed successfully"
           },
           "401": {
-            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
             "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
@@ -44118,7 +44124,7 @@
             "description": "Cache cleared successfully"
           },
           "401": {
-            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
             "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
@@ -44149,7 +44155,7 @@
             "description": "Queues flushed successfully"
           },
           "401": {
-            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
             "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
@@ -44190,7 +44196,7 @@
             "description": "Cameras created successfully"
           },
           "401": {
-            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
             "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
@@ -44237,7 +44243,7 @@
             "description": "Bad request - Confirmation required"
           },
           "401": {
-            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
             "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
@@ -44291,7 +44297,7 @@
             "description": "Bad request - No cameras found"
           },
           "401": {
-            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
             "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
@@ -44335,7 +44341,7 @@
             "description": "Pipeline latency data seeded successfully"
           },
           "401": {
-            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
             "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
@@ -48446,7 +48452,7 @@
     },
     "/api/auth/setup-status": {
       "get": {
-        "description": "Check if initial setup is required.\n\nReturns whether the system needs initial setup (first admin user registration).\nSetup is required if no users exist in the database.\n\nReturns:\n    SetupStatusResponse indicating if setup is required.",
+        "description": "Check if initial setup is required, and if the API requires authentication.\n\nReturns whether the system needs initial setup (first admin user registration),\nwhich it does while no users exist in the database, and whether the API\nrequires a credential (EXPOSE_LAN=true), so the frontend knows to show login.\n\nReturns:\n    SetupStatusResponse with both flags.",
         "operationId": "auth_get_setup_status",
         "responses": {
           "200": {

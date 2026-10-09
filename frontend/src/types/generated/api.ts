@@ -2591,13 +2591,14 @@ export interface paths {
         };
         /**
          * Get Setup Status
-         * @description Check if initial setup is required.
+         * @description Check if initial setup is required, and if the API requires authentication.
          *
-         *     Returns whether the system needs initial setup (first admin user registration).
-         *     Setup is required if no users exist in the database.
+         *     Returns whether the system needs initial setup (first admin user registration),
+         *     which it does while no users exist in the database, and whether the API
+         *     requires a credential (EXPOSE_LAN=true), so the frontend knows to show login.
          *
          *     Returns:
-         *         SetupStatusResponse indicating if setup is required.
+         *         SetupStatusResponse with both flags.
          */
         get: operations["auth_get_setup_status"];
         put?: never;
@@ -39096,9 +39097,15 @@ export interface components {
          * SetupStatusResponse
          * @description Response schema for setup status check.
          *
-         *     Returns whether initial setup (first user registration) is required.
+         *     Returns whether initial setup (first user registration) is required, and
+         *     whether the API requires authentication.
          */
         SetupStatusResponse: {
+            /**
+             * Auth Required
+             * @description Whether the API requires a login session or API key (EXPOSE_LAN=true). The frontend shows its login screen only when this is true.
+             */
+            auth_required: boolean;
             /**
              * Setup Required
              * @description Whether initial setup is required (no users exist)
@@ -44147,7 +44154,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrphanCleanupResponse"];
                 };
             };
-            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
+            /** @description Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -44195,7 +44202,7 @@ export interface operations {
                     "application/json": components["schemas"]["ClearCacheResponse"];
                 };
             };
-            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
+            /** @description Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -44236,7 +44243,7 @@ export interface operations {
                     "application/json": components["schemas"]["FlushQueuesResponse"];
                 };
             };
-            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
+            /** @description Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -44281,7 +44288,7 @@ export interface operations {
                     "application/json": components["schemas"]["SeedCamerasResponse"];
                 };
             };
-            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
+            /** @description Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -44340,7 +44347,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
+            /** @description Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -44401,7 +44408,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
+            /** @description Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -44453,7 +44460,7 @@ export interface operations {
                     "application/json": components["schemas"]["SeedPipelineLatencyResponse"];
                 };
             };
-            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
+            /** @description Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true and the request carries no login session or API key (backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;

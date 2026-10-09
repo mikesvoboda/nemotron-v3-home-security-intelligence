@@ -32,6 +32,7 @@ from fastapi.testclient import TestClient
 
 from backend.api.routes import auth as auth_routes
 from backend.api.routes.auth import SESSION_COOKIE_NAME, router
+from backend.core.config import get_settings
 from backend.core.database import get_db
 
 pytestmark = pytest.mark.unit
@@ -129,6 +130,22 @@ class TestSetupStatus:
         response = client.get("/api/auth/setup-status")
         assert response.status_code == 200
         assert response.json()["setup_required"] is False
+
+    @pytest.mark.parametrize(("expose_lan", "auth_required"), [(None, False), ("true", True)])
+    def test_reports_whether_auth_is_required(
+        self, app_factory, patched_seams, monkeypatch, expose_lan, auth_required
+    ) -> None:
+        """The frontend shows a login screen only when the backend requires one (F1.3)."""
+        if expose_lan is None:
+            monkeypatch.delenv("EXPOSE_LAN", raising=False)
+        else:
+            monkeypatch.setenv("EXPOSE_LAN", expose_lan)
+        get_settings.cache_clear()
+        try:
+            response = TestClient(app_factory(1)).get("/api/auth/setup-status")
+        finally:
+            get_settings.cache_clear()
+        assert response.json()["auth_required"] is auth_required
 
 
 class TestRegistration:
