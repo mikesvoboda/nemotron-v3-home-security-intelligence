@@ -105,7 +105,7 @@ buildWebSocketOptions(endpoint: string): { url: string; protocols?: string[] }
 - Attaches **no credential** — ruling 44. The browser socket is authenticated by
   the session cookie. (`protocols` remains in the type because it is generic
   subprotocol-negotiation plumbing the manager forwards; the builder never
-  fills it, and `src/__tests__/no-browser-api-key.test.ts` fails CI if it starts.)
+  fills it, and `../__tests__/no-browser-api-key.test.ts` fails CI if it starts.)
 - The deprecated `buildWebSocketUrl()` family and `getApiKey()` are gone, not
   deprecated-but-present: they existed only to move a baked-in key around.
 

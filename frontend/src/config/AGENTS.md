@@ -272,7 +272,7 @@ VITE_WS_BASE_URL=ws://localhost:8000
 ## Notes for AI Agents
 
 - Validation happens once at startup (cached)
-- Do not re-add an API-key env var: `src/__tests__/no-browser-api-key.test.ts` fails CI if `frontend/src` reads one again
+- Do not re-add an API-key env var: `../__tests__/no-browser-api-key.test.ts` fails CI if `frontend/src` reads one again
 - Use convenience getters (`getBaseUrl()`) instead of direct `import.meta.env` access
 - Empty strings are valid for optional URLs (triggers fallback behavior)
 - `resetEnvCache()` is for testing only - don't use in production code
