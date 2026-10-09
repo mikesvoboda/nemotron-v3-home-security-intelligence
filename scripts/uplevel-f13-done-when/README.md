@@ -17,7 +17,7 @@ unreachable from it by project scoping and by port.
 | `backend-overlay.Dockerfile`         | makes the published backend image's venv match HEAD's lock (see below) |
 | `ui-drive.cjs`                       | Playwright pass: login-mode or open-mode, prints the evidence lines    |
 | `ui-key-drive.cjs`                   | Playwright pass, run 3: the `VITE_API_KEY` deployment's WS handshake   |
-| `docker-compose.f13-key-mode.yml`    | run-3 override: one throwaway `API_KEYS` entry on the armed gate        |
+| `docker-compose.f13-key-mode.yml`    | run-3 override: one throwaway `API_KEYS` entry on the armed gate       |
 | `ws-probe.cjs`                       | bare-Node WS handshake probe (no `ws` package needed; Node ≥ 22)       |
 
 ## Why the overlay exists

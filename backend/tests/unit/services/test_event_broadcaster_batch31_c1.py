@@ -126,6 +126,9 @@ class FakeWS:
 
     async def accept(self, subprotocol: str | None = None) -> None:
         self.accepted += 1
+        # Recorded, not ignored: B-1 passes the offered token here, so a fake
+        # that drops it could not catch an accept that echoes nothing.
+        self.accepted_subprotocol = subprotocol
 
     async def close(self) -> None:
         self.closed += 1

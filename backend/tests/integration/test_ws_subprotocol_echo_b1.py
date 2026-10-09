@@ -257,10 +257,14 @@ class _Server:
                 "OTEL_ENABLED": "false",
                 # Settings validates DATABASE_URL at import; lifespan=off and
                 # the redis dependency override mean nothing ever connects.
-                "DATABASE_URL": "postgresql+asyncpg://pin:pin@127.0.0.1:1/pin",
+                # Deliberately unroutable port — nothing ever connects; the
+                # value only has to satisfy Settings validation at import.
+                "DATABASE_URL": "postgresql+asyncpg://pin:pin@127.0.0.1:1/pin",  # pragma: allowlist secret
             }
         )
-        self.proc = subprocess.Popen(  # noqa: S603  # fixed argv, our own script, no shell
+        self.proc = subprocess.Popen(  # noqa: S603  # real by design: the non-mock
+            # pin exists to spawn a live uvicorn — mocking it would mock away the
+            # 101 bytes this file asserts. Fixed argv, our own script, no shell.
             [sys.executable, str(SERVER_SCRIPT), mode],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

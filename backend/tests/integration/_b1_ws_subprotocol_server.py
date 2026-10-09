@@ -30,7 +30,7 @@ MODE_ENV: dict[str, dict[str, str]] = {
     # The B-1 deployment: API keys on, gate off. A valid-key offer reaches the
     # route and the broadcaster's accept is the first 101.
     "keys-on": {
-        "API_KEY_ENABLED": "true",
+        "API_KEY_ENABLED": "true",  # pragma: allowlist secret
         "API_KEYS": f'["{TEST_KEY}"]',
         "EXPOSE_LAN": "false",
         "RATE_LIMIT_ENABLED": "false",
@@ -38,7 +38,7 @@ MODE_ENV: dict[str, dict[str, str]] = {
     # The OD-12 gate up: an invalid-key offer dies at the gate's accept-then-
     # close-4001 (auth.py _refuse) — its 101 is the one a browser sees.
     "gate-on": {
-        "API_KEY_ENABLED": "true",
+        "API_KEY_ENABLED": "true",  # pragma: allowlist secret
         "API_KEYS": f'["{TEST_KEY}"]',
         "EXPOSE_LAN": "true",
         "RATE_LIMIT_ENABLED": "false",
@@ -46,7 +46,7 @@ MODE_ENV: dict[str, dict[str, str]] = {
     # No credentials anywhere: control proving a no-offer handshake is
     # untouched by the fix (the 101 must NOT grow a Sec-WebSocket-Protocol).
     "open": {
-        "API_KEY_ENABLED": "false",
+        "API_KEY_ENABLED": "false",  # pragma: allowlist secret
         "EXPOSE_LAN": "false",
         "RATE_LIMIT_ENABLED": "false",
     },

@@ -234,7 +234,7 @@ describe('endpoint contract (D2)', () => {
     // `fetch(url.toString())` site, or a same-origin call to a non-`/api` path,
     // is a claim this scan never made, and "0 unlisted" cannot be read without
     // these lists staying small and recognizable. `dynamic` counts constructs,
-    // not lines: useWebSocketStatus.ts:138 is one line holding two `new
+    // not lines: useWebSocketStatus.ts:141 is one line holding two `new
     // WebSocket(url, …)` constructs (the protocols ternary), so 25 entries over
     // 24 positions is the honest shape, recorded here rather than tidied away.
     // `nonApi` is the empty list with teeth: it fails the moment anything calls
@@ -243,8 +243,8 @@ describe('endpoint contract (D2)', () => {
       audit.scan.dynamic.map((d) => `${d.file}:${d.line}  ${d.reason}`).join('\n'),
       `${audit.scan.dynamic.length} URL position(s) with no statically knowable path`
     ).toMatchInlineSnapshot(`
-      "src/hooks/useWebSocketStatus.ts:138  "url" is not a file-local constant
-      src/hooks/useWebSocketStatus.ts:138  "url" is not a file-local constant
+      "src/hooks/useWebSocketStatus.ts:141  "url" is not a file-local constant
+      src/hooks/useWebSocketStatus.ts:141  "url" is not a file-local constant
       src/hooks/useZoneHouseholdConfig.ts:236  built at runtime: url.toString()
       src/hooks/webSocketManager.ts:503  "url" is not a file-local constant
       src/hooks/webSocketManager.ts:504  "url" is not a file-local constant

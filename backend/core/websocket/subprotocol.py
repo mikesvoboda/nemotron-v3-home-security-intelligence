@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from starlette.websockets import WebSocket
 
-API_KEY_PROTOCOL_PREFIX = "api-key."
+API_KEY_PROTOCOL_PREFIX = "api-key."  # pragma: allowlist secret
 
 
 def offered_key_subprotocol(websocket: WebSocket) -> str | None:
