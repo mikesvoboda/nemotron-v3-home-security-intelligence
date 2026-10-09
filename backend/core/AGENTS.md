@@ -101,9 +101,10 @@ Nine live modules, three more than the deleted guide enumerated: `event_types.py
   REQUIRED, the match lower-cases it, `subscribe`/`unsubscribe` read `data.events`
   (`data.channels` accepted for back-compat), and `resync` replays buffered messages on a
   detected `seq` gap (NEM-4983). The `{"action": ...}` shape is SERVER→CLIENT only —
-  including the route module's OWN docstring (:22-23), whose client "Send:" example
-  `{"action": "subscribe", ...}` would fail validation if a client actually sent it. That
-  docstring is the trap; the schema is the contract. `SubscriptionRequest` is exported from
+  including the route module's OWN docstring, whose "WebSocket Event Filtering
+  (NEM-2383)" section (:29-30) gives a client "Send:" example
+  `{"action": "subscribe", ...}` that would fail validation if a client sent
+  it. That docstring is the trap; the schema is the contract. `SubscriptionRequest` is exported from
   the package `__init__` but no route uses it — the route reads `data` as a plain dict.
 - **`event_schemas.py` is not re-exported through the package `__init__`:** consumers
   deep-import (`from backend.core.websocket.event_schemas import ZoneCrossingPayload`, …),
