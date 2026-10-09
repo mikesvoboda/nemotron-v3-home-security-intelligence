@@ -27,9 +27,9 @@ The nodeid keys: pytest-split looks durations up by item.nodeid
 (algorithms.py:157, "durations.get(item.nodeid, avg)"), but junit's
 classname/name attrs are pytest's MANGLED form (dots, class folded in) —
 _pytest/junitxml.py mangle_test_address. This script inverts that mangling;
-the committed file's key set is exactly what the corpus run collected (its
-four unit shards' junits: 7851/7851/7851/7849 = 31402 nodeids), so every
-test in that tree had a weight. A test newer than the mint — or one whose
+the committed file's key set is exactly what the corpus run collected (unit
+shards 7851/7851/7851/7849 = 31402 nodeids, plus the integration legs' rows —
+32931 keys total), so every test in that tree had a weight. A test newer than the mint — or one whose
 junit row this script cannot place on the test-layout shape — takes the
 file's mean-duration default, exactly as a never-seen test does.
 scripts/test_shard_durations.py round-trips every key against pytest's own

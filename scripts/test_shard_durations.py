@@ -17,20 +17,25 @@ story on the one point that changes what the fix must be:
     5.0.0 keeps module files contiguous (it shuffles within a module, then
     permutes whole module blocks by a seed-keyed sort), so one heavy file
     landing on the wrong side of a boundary decides the shard — test_redis.py
-    alone is 30.9 s of one shard's 168.2 s.
+    alone is 30.9 s of the 148.3 s shard it landed on in run 37940703535
+    (shard 3; the 168.2 s shard 1 lacks it), and the NEXT run it landed in
+    another shard entirely (shard 4, 26.9 s of its 145.5 s).
   * MEASURED: the per-RUN reshuffle is 24,139 of 31,402 tests = 76.9%, driven by
     --randomly-seed=github.run_id re-permuting module blocks. #6921's red
     landed on a docs-only PR — no file was added — so the reshuffle that bit
     was the seed's, not an insert's. Committing durations under the default
-    duration_based_chunks fixes the time spread (simulated 1.75x mean ->
-    1.02x) but leaves that churn untouched, because chunks cuts the collected
-    ORDER. least_duration makes the split a pure function of (collected set,
-    durations): churn 2% (the bare-name tie surface: 2495 of 31403 unit tests
-    share a bare name with at least one other, and pytest-split's tie-break
-    key is str(item) = "<Function test_name>", not the nodeid), and an
-    inserted file repacks the
-    heap (~20% movers) — repacking when the tree genuinely changed is the
-    intended behavior, not roulette.
+    duration_based_chunks fixes the time spread (simulated 1.51x mean ->
+    1.02x at 24 seeds, scripts/simulate-shard-spread.py) but leaves that
+    churn untouched, because chunks cuts the collected ORDER. least_duration
+    makes the split a pure function of (collected set, durations): churn 2%
+    (the same-name tie surface: 2495 of 31403 unit tests share a full test
+    name — pytest-split's
+    tie-break pre-sort key is str(item) = "<Function ...>", which carries the
+    param id, not the nodeid; algorithms.py:62-65). A small insert is nearly
+    incremental there (0 existing movers for a 20-test module, simulated) —
+    greedy LPT only cascades when the added weights straddle a group's balance
+    point — while chunks moves up to 30 existing tests per insert and re-rolls
+    all 31k placements with every seed. See scripts/simulate-shard-spread.py.
 
 So the fix is both halves of the row's "commit .test_durations OR pin the
 split": the committed file (minted by scripts/mint-test-durations.py) and the
@@ -56,8 +61,8 @@ DURATIONS = REPO / ".test_durations"
 # Nodeid shape: a real test file path, then an arbitrary :: tail — the tail
 # carries class chains, test names and parametrization ids, which pytest
 # builds from arbitrary strings ("...blocked[/etc/passwd-absolute path to
-# passwd]" is a real id with 395 siblings in the mint corpus). Only the file
-# part is shape-checkable; JSON keys cannot contain newlines.
+# passwd]" is a real committed key; 2,978 keys carry a [param] id at all).
+# Only the file part is shape-checkable; JSON keys cannot contain newlines.
 NODEID_RE = re.compile(r"^backend/tests/[^:\n]+\.py(::.*)?$")
 ALGORITHM = "--splitting-algorithm=least_duration"
 
@@ -85,16 +90,32 @@ def _durations() -> dict[str, float]:
     return json.loads(DURATIONS.read_text())
 
 
+def _code_lines(script: str) -> str:
+    """Script text minus whole-line shell comments.
+
+    A `run:` scalar is one string to YAML — a `#` line inside it is a shell
+    comment pre-commit/YAML never sees as one, so raw substring matching lets a
+    COMMENT satisfy an assertion about the argv. integration-shard.yml's own
+    explanatory comment quotes --splitting-algorithm=least_duration: with the
+    real flag line deleted, whole-script matching still passes (the shipped
+    gate caught this on itself in review). Stripping #-lines first makes the
+    assertion about the executed command only.
+    """
+    return "\n".join(
+        ln for ln in script.splitlines() if not ln.lstrip().startswith("#")
+    )
+
+
 def _split_legs(path: Path) -> list[str]:
     """Run-scripts of every step that runs pytest-split (contains --splits).
 
-    Text-level on the parsed YAML `run` values, so a comment can never satisfy
-    an assertion here: only the actual pytest argv is examined (mirrors
+    Text-level on the parsed YAML `run` values, comments stripped (see
+    _code_lines): only the actual pytest argv is examined (mirrors
     scripts/test_coverage_denominator.py's scoped-block approach).
     """
     doc = yaml.safe_load(path.read_text())
     return [
-        run
+        _code_lines(run)
         for job in (doc.get("jobs") or {}).values()
         for step in job.get("steps") or []
         if (run := step.get("run")) and "--splits" in run and "pytest" in run
@@ -206,6 +227,28 @@ def test_nodeid_mapping_round_trips_against_pytest_itself() -> None:
         if mint.junit_to_nodeid(classname, name) != nodeid:
             misses.append(nodeid)
     assert not misses, f"{len(misses)}/{len(data)} keys fail the mangle round-trip, e.g. {misses[:3]}"
+
+
+def test_comment_cannot_satisfy_a_pin_assertion() -> None:
+    """7. The assertion-4 mask, caught by this package's own review and pinned.
+
+    Feed _code_lines a script whose ONLY copy of each pinned flag is a shell
+    comment inside the run scalar: after stripping, both substring assertions
+    must fail. Before this fix they passed — integration-shard.yml's
+    explanatory comment quotes the flag, so deleting the real argv line kept
+    the gate green (self-review finding #2, 2026-10-09).
+    """
+    masked = (
+        "# run pytest with --splitting-algorithm=least_duration and\n"
+        "# --randomly-seed=github.run_id, per batch-9 row 2\n"
+        "uv run pytest backend/tests/ --splits 4 --group 1\n"
+    )
+    stripped = _code_lines(masked)
+    assert ALGORITHM not in stripped
+    assert "--randomly-seed=" not in stripped and "github.run_id" not in stripped
+    # and the real argv still survives the strip (the fix is scoping, not
+    # blinding): a comment plus the true flag line asserts green.
+    assert ALGORITHM in _code_lines(masked + f"  uv run pytest {ALGORITHM}\n")
 
 
 def test_gate_is_wired_into_ci() -> None:
