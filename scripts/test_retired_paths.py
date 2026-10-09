@@ -239,12 +239,28 @@ def _directory_term(term: str) -> re.Pattern[str]:
     the group is tried once, at the path start, and the term must follow it
     immediately.
 
+    The second alternative admits the same navigation in a path's INTERIOR
+    (``docs/../archive/x`` — self-review round two, finding J), where the
+    segment-start lookbehind can't see it because a ``.`` is off-limits
+    character. It requires TWO dots after the separator on purpose: ``../``
+    climbs back to the tree root, so that path really is the retired tree,
+    while ``docs/./archive/x`` normalizes to ``docs/archive/x`` — a different
+    entry's directory — and must stay silent here. A reviewer's proposed
+    separator-lookbehind form (zero-to-two dots after ``[ \\s(/]``) was
+    measured and rejected: with zero dots allowed it
+    degrades to bare ``/archive`` after any separator and re-opens the
+    mid-path collision class the anchor exists to close (it fired on
+    ``site/archive/y`` and ``docs/build/archive/x``). Pinned in
+    ``test_selftest_discriminates`` (fixture lines 8-11).
+
     Same lesson as the list header's declared-alias rule, one level down: that
     rule refused to derive ``ci.yml`` from ``docker-compose.ci.yml`` because a
     derived term collides with a real name. A derived *substring* collides the
     same way. Pinned both directions in ``test_selftest_discriminates``.
     """
-    return re.compile(r"(?<![A-Za-z0-9._\-/])(?:\.{0,2}/)?" + re.escape(term))
+    return re.compile(
+        r"(?:(?<![A-Za-z0-9._\-/])(?:\.{0,2}/)?|(?<=/)\.\./)" + re.escape(term)
+    )
 
 
 def _names(entry: RetiredEntry, line: str) -> bool:
@@ -411,7 +427,15 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
         "Mount it from ../archive/ and ./archive/ too.\n"  # 8 — parent/cur-dir prefixes name
         #     the retired tree as plainly (the self-review's probe, O1.5: the plain
         #     lookbehind let these through; the optional \.{0,2}/ group catches them)
-        "Never ../openapi-archive/openapi.json.\n",  # 9 — prefix + colliding tail stays silent
+        "Never ../openapi-archive/openapi.json.\n"  # 9 — prefix + tail stays silent
+        # 10 — the dot-prefix in a path's INTERIOR (self-review round two, J):
+        #      docs/../archive/x normalizes to the retired tree, and the
+        #      segment-start lookbehind alone could not see it
+        "Reach it via docs/../archive/x.\n"
+        # 11 — one interior dot does NOT climb: docs/./archive/x is
+        #      docs/archive/x, a different entry's directory. Guards the
+        #      two-dot requirement (a \.{0,2} interior group would fire here).
+        "Link docs/./archive/y elsewhere.\n",
         encoding="utf-8",
     )
     (tmp_path / "docs" / "weird.md").write_bytes(b"caf\xe9 gone.txt lives in latin-1\n")
@@ -465,6 +489,8 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     assert any(f.startswith("docs/terms.md:7:") for f in refs), refs  # root dir entry alive
     assert any(f.startswith("docs/terms.md:8:") for f in refs), refs  # ../ ./ prefixes fire
     assert not any(f.startswith("docs/terms.md:9:") for f in refs), refs  # prefix+tail survives
+    assert any(f.startswith("docs/terms.md:10:") for f in refs), refs  # interior ../ fires (J)
+    assert not any(f.startswith("docs/terms.md:11:") for f in refs), refs  # interior ./ is the OTHER tree
     assert any(f.startswith("docs/weird.md:1:") for f in refs), refs  # encoding drift hides nothing
 
     # Python record shapes: a triple-quoted tagged record (lines 11-13) is
