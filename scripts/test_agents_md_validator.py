@@ -116,6 +116,86 @@ Names: florence nemotron enrichment xclip demographics.
 # rewrites a baseline is an opt-out with no diff.
 BASE_BASELINE = dict.fromkeys(RETIRED_NAMES, 1)
 
+# W2.1 laundering tripwires, same reasoning as EXPECTED_EXCLUDE_DIRECTORIES:
+# boundary_list sits in the SAME file as the baselines, and entries outside it
+# are the files W3.1 DELETES — so dropping an entry launders a real AGENTS.md
+# into a future deletion, and adding one launders a satellite back into the
+# keep set, breaking the plan's "Expect 30 to 50 entries" band one quiet edit
+# at a time. line_caps is the third edge: raising a cap to fit a file that
+# grew is a baseline raise wearing a different key. Pin all three here; a
+# change must edit these constants in the same, reviewed PR.
+#
+# The list is the membership rule's output, not a hand-tuned set — the rule
+# (root + seven lane roots + every >=20-code-file non-test/non-docs/non-archive
+# dir that HAS an AGENTS.md + the named/contract dirs) is re-derived from the
+# live tree by test_committed_boundary_list_covers_the_rule; this constant
+# catches the list drifting WITHOUT the tree moving.
+EXPECTED_BOUNDARY_PATHS = {
+    ".",
+    ".github",
+    "ai",
+    "ai/gateway",
+    "ai/gateway/export",
+    ".github/codeql/custom-queries",
+    "backend",
+    "backend/ai_contract",
+    "backend/api",
+    "backend/api/middleware",
+    "backend/api/routes",
+    "backend/api/schemas",
+    "backend/core",
+    "backend/models",
+    "backend/services",
+    "frontend",
+    "frontend/src",
+    "frontend/src/components/ai",
+    "frontend/src/components/alerts",
+    "frontend/src/components/analytics",
+    "frontend/src/components/common",
+    "frontend/src/components/dashboard",
+    "frontend/src/components/developer-tools",
+    "frontend/src/components/entities",
+    "frontend/src/components/events",
+    "frontend/src/components/face-recognition",
+    "frontend/src/components/jobs",
+    "frontend/src/components/settings",
+    "frontend/src/components/system",
+    "frontend/src/components/zones",
+    "frontend/src/contexts",
+    "frontend/src/hooks",
+    "frontend/src/pages",
+    "frontend/src/services",
+    "frontend/src/stores",
+    "frontend/src/types",
+    "frontend/src/utils",
+    "monitoring",
+    "scripts",
+    "setup_lib",
+    "synthbench",
+    "synthbench/contract",
+}
+# The >= 20 rule does not explain these; they are the rule's named/contract
+# arm (40-docs.md's exemplars + cross-lane/CI contracts). Pinned separately
+# from the main set so adding a 43rd entry says WHY, in a reviewable place.
+# setup_lib is NOT here — it has exactly 20 code files and survives the >= 20
+# rule on its own; its own exception is softer (it sits on
+# no_agents_md_required, yet the list keeps it — asserted where the rule is).
+EXPECTED_RULE_EXCEPTIONS = {
+    ".github/codeql/custom-queries",  # CI contract
+    "ai/gateway",  # the wire-API contract
+    "ai/gateway/export",
+    "backend/ai_contract",  # standard-named
+    "backend/api",
+    "frontend/src",  # standard-named
+    "synthbench/contract",  # cross-lane event contract
+}
+EXPECTED_LINE_CAPS = {"root": 600, "lane_root": 500, "package": 300}
+# The rule's one live NOT-listed exception, with its reason (config comment
+# carries the same one): >= 20 code files but no AGENTS.md today, and W3.1
+# adds none — a listed boundary without a file is a permanent null hole in
+# the map the caps arm measures.
+RULE_EXCEPTION_NOT_LISTED = {"synthbench/commands"}
+
 _SENTINEL = object()
 
 
@@ -125,6 +205,8 @@ def build(
     md: str = BASE_MD,
     files: dict[str, str] | None = None,
     baseline=_SENTINEL,
+    boundary=_SENTINEL,
+    caps=_SENTINEL,
 ) -> Path:
     """A minimal scannable tree whose config INHERITS the committed exclusion
     lists (hand-transcribed config copies rot) with spliced fixture baselines."""
@@ -139,7 +221,7 @@ def build(
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content)
-    write_config(root, baseline=baseline)
+    write_config(root, baseline=baseline, boundary=boundary, caps=caps)
     return root
 
 
@@ -147,6 +229,8 @@ def write_config(
     root: Path,
     *,
     baseline=_SENTINEL,
+    boundary=_SENTINEL,
+    caps=_SENTINEL,
 ) -> Path:
     config = {
         "exclude_directories": [*COMMITTED_CONFIG["exclude_directories"], "site"],
@@ -155,6 +239,19 @@ def write_config(
         "min_code_files": COMMITTED_CONFIG["min_code_files"],
         "exclude_reference_patterns": list(COMMITTED_CONFIG["exclude_reference_patterns"]),
         "retired_name_baseline": dict(BASE_BASELINE) if baseline is _SENTINEL else baseline,
+        # W2.1 keys are loader-mandatory, so the fixture carries them too.
+        # The fixture's only scanned file is the root AGENTS.md, so the root
+        # boundary is the honest one-entry list; caps default generous so the
+        # green fixture stays green on the reporting arm unless a test pins
+        # them low on purpose.
+        "boundary_list": (
+            [{"path": ".", "reason": "the fixture's only boundary"}]
+            if boundary is _SENTINEL
+            else boundary
+        ),
+        "line_caps": (
+            {"root": 1000, "lane_root": 1000, "package": 1000} if caps is _SENTINEL else caps
+        ),
     }
     path = root / ".agents-md-validator.yml"
     path.write_text(yaml.safe_dump(config, sort_keys=False))
@@ -412,6 +509,19 @@ def _mutate(cfg_path: Path, kind: str) -> None:
             ]
         ),
         "bad_regex": lambda: cfg["exclude_reference_patterns"].append("te(."),
+        # W2.1's two arms, same doctrine as the baselines: dropping a key is
+        # the cheapest way to disable the arm, so absent is infrastructure.
+        "no_boundaries": lambda: cfg.pop("boundary_list"),
+        "boundary_incomplete": lambda: cfg.update(
+            boundary_list=[{"path": ".", "reason": "ok"}, {"path": "backend"}]
+        ),
+        "boundary_duplicate": lambda: cfg.update(
+            boundary_list=[
+                {"path": ".", "reason": "once"},
+                {"path": ".", "reason": "twice — a set with two labels on one dir"},
+            ]
+        ),
+        "missing_tier": lambda: cfg["line_caps"].pop("package"),
     }[kind]()
     cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False))
 
@@ -425,6 +535,10 @@ def _mutate(cfg_path: Path, kind: str) -> None:
         ("missing_name", "demographics"),
         ("allowlist_present", "dead_reference_allowlist"),
         ("bad_regex", "exclude_reference_patterns"),
+        ("no_boundaries", "boundary_list"),
+        ("boundary_incomplete", "reason"),
+        ("boundary_duplicate", "duplicate"),
+        ("missing_tier", "package"),
     ],
 )
 def test_config_failures_exit_2(tmp_path, kind, needle):
@@ -433,7 +547,15 @@ def test_config_failures_exit_2(tmp_path, kind, needle):
     way to disable the gate). They are infrastructure: exit 2, no report. The
     allowlist_present row is the mirror image: since W1.3 the REMOVED key's
     presence is the gate-disable attempt, so re-adding it exits 2 too —
-    the anti-rot side of the drain."""
+    the anti-rot side of the drain.
+
+    W2.1 rides the same doctrine: no_boundaries (deleting boundary_list would
+    be deleting W3.1's prune map), boundary_incomplete (a boundary with no
+    reason is a boundary nobody can defend at review), boundary_duplicate
+    (the list is a SET — two labels on one dir is the map disagreeing with
+    itself), missing_tier (a cap config missing the package tier would leave
+    every non-root boundary file uncapped, which is 'caps off' wearing a
+    config file)."""
     root = build(tmp_path)
     _mutate(root / ".agents-md-validator.yml", kind)
     r = run_validator(root)
@@ -486,6 +608,91 @@ def test_report_shape_is_pinned(tmp_path):
     assert set(ratchet["baseline"]) == set(RETIRED_NAMES)
     assert ratchet["counts"] == dict(BASE_BASELINE)
     assert ratchet["violations"] == []
+    # W2.1 doc-sync: the additive block gained line_caps. issues[]/summary{}
+    # are frozen for the linear sync; the ratchet keys are additively allowed,
+    # so a new one is allowed by construction — this pin makes its arrival a
+    # reviewed edit to THIS line instead of an invisible addition.
+    assert set(ratchet) == {
+        "counts",
+        "baseline",
+        "violations",
+        "unbalanced_fences",
+        "line_caps",
+    }
+
+
+def test_line_caps_report_every_tier_and_never_fail(tmp_path):
+    """W2.1's reporting arm, all four tier arms + the missing-file arm, in
+    one fixture, and the mode: caps NEVER fail the run until W3.2 flips
+    `failing`. Over-cap boundary files are W3.2's work list, so the SET is
+    what is pinned — path, tier, cap, measured — not a count.
+
+    A cap that failed on adoption would redden every PR touching a file that
+    is itself scheduled to be rewritten (measured in PR #6920: 29 of the 42
+    committed boundary files are over cap today, backend/services by 2864
+    lines). Green-on-caps is therefore the pinned behaviour, not an oversight
+    — and `failing: False` is pinned False so W3.2's flip is a reviewed edit
+    to the validator, not a silent drift."""
+    boundary = [
+        {"path": ".", "reason": "root"},
+        {"path": "backend", "reason": "lane root"},
+        {"path": "ai/gateway", "reason": "package"},
+        {"path": "scripts", "reason": "lane root, under cap"},
+        {"path": "synthbench/contract", "reason": "boundary with no AGENTS.md"},
+    ]
+    long_enough = "# Fixture\n\n" + "body\n" * 20
+    root = build(
+        tmp_path,
+        files={
+            "backend/AGENTS.md": long_enough,
+            "ai/gateway/AGENTS.md": long_enough,
+            "scripts/AGENTS.md": "# Short\n",
+        },
+        boundary=boundary,
+        caps={"root": 3, "lane_root": 10, "package": 10},
+    )
+    r = run_validator(root)
+    assert r.returncode == 0, r.stdout + r.stderr  # caps do not fail the run
+    report = report_of(root)
+    block = report["ratchet"]["line_caps"]
+    assert block["failing"] is False
+    assert block["boundaries"] == 5
+    assert block["measured"] == 4  # the fifth has no AGENTS.md to measure
+    over = {e["path"]: e for e in block["over"]}
+    assert over["AGENTS.md"]["tier"] == "root"
+    assert over["backend/AGENTS.md"]["tier"] == "lane_root"
+    assert over["ai/gateway/AGENTS.md"]["tier"] == "package"
+    assert over["backend/AGENTS.md"]["cap"] == 10
+    assert over["AGENTS.md"]["measured"] > over["AGENTS.md"]["cap"]
+    assert "scripts/AGENTS.md" not in over  # under cap => not on the work list
+    # The missing-file arm is REPORTED, not skipped: a boundary the scan never
+    # saw is a hole in the prune map, and skipping it would shrink the map
+    # silently (the vacuous-comparison failure mode).
+    hole = over["synthbench/contract/AGENTS.md"]
+    assert hole["measured"] is None
+    assert hole["tier"] == "package"
+    # Reporting-only in the strongest sense: the gate's own verdict field.
+    assert report["ratchet"]["violations"] == []
+
+
+def test_caps_apply_to_boundary_files_only(tmp_path):
+    """The other side of the rule. A non-boundary AGENTS.md far over every
+    cap is NOT on the work list: files outside the boundary list are W3.1
+    deletions, and capping a file scheduled to disappear is noise, not a
+    ratchet. A one-sided test would pass if the arm measured every AGENTS.md
+    it walked."""
+    root = build(
+        tmp_path,
+        files={"backend/satellite/AGENTS.md": "# Satellite\n\n" + "body\n" * 200},
+        boundary=[{"path": ".", "reason": "the only boundary"}],
+        caps={"root": 1000, "lane_root": 1000, "package": 10},
+    )
+    r = run_validator(root)
+    assert r.returncode == 0, r.stdout + r.stderr
+    block = report_of(root)["ratchet"]["line_caps"]
+    assert [e["path"] for e in block["over"]] == []
+    assert block["boundaries"] == 1
+    assert block["measured"] == 1
 
 
 def test_documented_option_set_only(tmp_path):
@@ -519,6 +726,104 @@ def test_committed_exclusion_sets_are_pinned():
     )
     assert set(COMMITTED_CONFIG["retired_name_baseline"]) == set(RETIRED_NAMES)
     assert "dead_reference_allowlist" not in COMMITTED_CONFIG
+
+
+@pytest.mark.timeout(180)  # the walk over every code file in the tree
+def test_committed_boundary_list_covers_the_rule():
+    """W2.1's Done-when half: the committed list IS the membership rule,
+    re-derived here from the live tree rather than compared to a transcription
+    of itself.
+
+    The rule (config header, same words): root + the seven lane roots + every
+    directory with >= 20 code files that is not a test/docs/archive dir and
+    HAS an AGENTS.md today + the dirs the standard names or that guard a
+    cross-lane/CI contract. >= 20 is a measured choice, not a round number:
+    the census in PR #6920 counted 115 dirs at >= 5 and 53 at >= 10 — both
+    outside the package's "Expect 30 to 50 entries" band — and 42 lands
+    inside it.
+
+    Non-vacuity, since a rule that keeps everything and a rule that keeps
+    nothing both "match" a hand-written list if written carelessly: the
+    >= 20 population BEFORE the test/docs/archive cut must be strictly larger
+    than the kept set (the cut removed real dirs), at least one >= 20 dir is
+    deliberately not listed (the has-an-AGENTS.md arm, RULE_EXCEPTION_NOT_
+    LISTED), and the named/contract arm must be non-empty.
+    """
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import agents_md_validator as v  # the module under test, function-scoped
+
+    config = v.load_config(REPO_ROOT / ".agents-md-validator.yml", REPO_ROOT)
+    # relative_to, not str(p): find_directories_with_code returns absolute
+    # dirs when handed an absolute root (the validator's own main() hands it a
+    # relative one, which is why the report's keys are repo-relative). The
+    # config's paths and the report's are both repo-relative — compare like
+    # for like, or every entry mismatches on the prefix.
+    counts = {
+        str(p.relative_to(REPO_ROOT)): len(f)
+        for p, f in v.find_directories_with_code(REPO_ROOT, config).items()
+    }
+
+    def self_indexed(dir_path: str) -> bool:
+        parts = Path(dir_path).parts
+        return any(p in ("tests", "__tests__", "test", "archive") for p in parts) or (
+            parts[:1] == ("docs",)
+        )
+
+    big = {d for d, n in counts.items() if n >= 20}
+    rule_kept = {d for d in big if not self_indexed(d) and (REPO_ROOT / d / "AGENTS.md").is_file()}
+    roots = set(v.LANE_ROOTS) | {"."}
+    derived = rule_kept | roots | EXPECTED_RULE_EXCEPTIONS
+
+    committed = {entry["path"] for entry in config.boundary_list}
+    assert derived == committed, (
+        f"rule-kept-not-listed: {sorted(derived - committed)}; "
+        f"listed-not-by-rule: {sorted(committed - derived)}"
+    )
+    # The cuts and the exceptions did real work (anti-vacuity).
+    assert len(big) > len(rule_kept), "the test/docs/archive cut removed nothing"
+    # The has-an-AGENTS.md arm's exceptions: >= 20 code files, NOT
+    # self-indexed, and still not kept. This set changing means someone gave
+    # (or removed) a file at a dir the rule was measured against — re-check
+    # whether it should now be listed.
+    no_file = {
+        d for d in big if not self_indexed(d) and not (REPO_ROOT / d / "AGENTS.md").is_file()
+    }
+    assert no_file - roots == RULE_EXCEPTION_NOT_LISTED, (
+        f"the >= 20 dirs with no AGENTS.md changed: {sorted(no_file - roots)}"
+    )
+    # The named/contract arm is not vacuous either: none of it would survive
+    # the >= 20 rule on its own.
+    assert EXPECTED_RULE_EXCEPTIONS - rule_kept - roots == EXPECTED_RULE_EXCEPTIONS
+    assert len(big) >= 40 and committed - big, "the rule is doing nothing"
+    # setup_lib's softer exception, spelled out because it is the only entry
+    # the two lists disagree about: no_agents_md_required says the file is not
+    # REQUIRED, boundary_list says it is KEPT (its config reason says so).
+    # Both are true — the first is W3.1's required-rule input, the second its
+    # delete-don't-add input. Assert it stays a deliberate overlap, not a
+    # copy-paste: drop it and W3.1 deletes the file the exception comment
+    # exists to protect.
+    assert "setup_lib/" in config.no_agents_md_required
+    assert "setup_lib" in committed
+
+    # Every entry: a real directory, a real AGENTS.md, a non-empty reason
+    # (the loader enforces the reason too — this is the cheap version of
+    # "the committed config would not have parsed at all", and it names the
+    # offender instead of exiting 2 from inside the import).
+    for entry in config.boundary_list:
+        d = entry["path"]
+        assert (REPO_ROOT / d).is_dir(), d
+        assert (REPO_ROOT / d / "AGENTS.md").is_file(), f"{d} has no AGENTS.md"
+        assert entry["reason"].strip(), d
+    assert 30 <= len(committed) <= 50, f"outside the plan's 30-50 band: {len(committed)}"
+
+
+def test_committed_boundary_list_and_caps_are_pinned():
+    """The laundering tripwire for the two W2.1 keys (see the EXPECTED_*
+    constants): the list set, and the caps. Raising a cap to fit a file that
+    grew is a baseline raise by another name — W3.2 rewrites the file."""
+    assert {e["path"] for e in COMMITTED_CONFIG["boundary_list"]} == EXPECTED_BOUNDARY_PATHS
+    assert COMMITTED_CONFIG["line_caps"] == EXPECTED_LINE_CAPS
+    assert set(COMMITTED_CONFIG["line_caps"]) == {"root", "lane_root", "package"}
 
 
 def test_committed_tree_has_no_venv_pair():

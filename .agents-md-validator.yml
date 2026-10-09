@@ -122,6 +122,119 @@ retired_name_baseline:
   xclip: 10 # retired clip pipeline
   demographics: 2
 
+# W2.1 boundary list (UR-21): the directories that keep an AGENTS.md when W3.1 prunes the
+# rest. Membership rule (DECIDE; census in PR #6920): root + the seven lane roots +
+# every non-test, non-docs, non-archive directory with >= 20 code files (the
+# validator's own unit, measured at this config's tree) + the directories the standard
+# names or that guard a cross-lane/CI contract (frontend/src, backend/ai_contract,
+# backend/api, ai/gateway, ai/gateway/export, synthbench/contract,
+# .github/codeql/custom-queries). Test dirs, docs/ subfolders and archive/ are NOT
+# boundaries; they index themselves. A directory the rule would keep is listed
+# ONLY if it has an AGENTS.md today: W3.1 deletes files outside the list and
+# adds none, so a boundary without a file would sit in the report forever as a
+# measured-null hole in the map. synthbench/commands (23 code files, no
+# AGENTS.md, flagged by the missing_agents_md arm) is therefore not_boundary —
+# it stays unlisted rather than moving to no_agents_md_required, which would
+# silence a gap the gate already reports. Pinned by
+# test_committed_boundary_list_covers_the_rule.
+boundary_list:
+  - path: .
+    reason: "the project's single root instruction file (owner ruling 2026-09): navigation plus the operational rules every agent reads first"
+  - path: .github
+    reason: 'lane root: CI/CD workflows, security scanning, dependency and review configuration'
+  - path: ai
+    reason: 'lane root: AI inference services; the prod compose builds exactly two AI images (this file says which)'
+  - path: backend
+    reason: "lane root: the FastAPI backend \u2014 request flow, services, models, API wiring"
+  - path: frontend
+    reason: "lane root: the React dashboard app \u2014 build tooling, config, and the src/ workspace"
+  - path: monitoring
+    reason: "lane root: observability config (Prometheus, Grafana provisioning, DCGM) \u2014 config IS the product here"
+  - path: scripts
+    reason: "lane root: dev/test/deploy/maintenance scripts \u2014 the AGENTS.md validator and this gate itself live here"
+  - path: setup_lib
+    reason: "setup.py's extracted utilities; exempt from the AGENTS.md requirement (simple utilities) but keeps its file"
+  - path: synthbench
+    reason: 'lane root: synthetic benchmark generation (the docs/superpowers specs drive the arms)'
+  - path: ai/gateway
+    reason: "the single FastAPI front for Triton (port 8090); the legacy containers' wire APIs are its contract"
+  - path: backend/ai_contract
+    reason: 'the generated single source of truth for AI-tier operations the backend may call (standard-named)'
+  - path: backend/api
+    reason: 'the FastAPI REST layer root: app wiring, media serving, dead-letter queue, metrics'
+  - path: backend/core
+    reason: "foundational infra: settings (config.py), logging, redis/db wiring \u2014 security-adjacent and hot"
+  - path: backend/models
+    reason: 'the SQLAlchemy 2.0 models that ARE the database schema of record'
+  - path: backend/services
+    reason: "detection-pipeline orchestration, enrichment, re-ID, model zoo \u2014 the backend's invariant heart (standard-named)"
+  - path: frontend/src
+    reason: 'the React source workspace every frontend package nests under (standard-named)'
+  - path: synthbench/contract
+    reason: "the event contract (spec section 2): what an event means to show \u2014 a cross-lane interface"
+  - path: .github/codeql/custom-queries
+    reason: "the custom CodeQL queries the security-scan gate runs \u2014 CI-blocking by construction"
+  - path: ai/gateway/export
+    reason: "model export scripts; the Triton model cache they write is GENERATED \u2014 the source-vs-cache trap"
+  - path: backend/api/middleware
+    reason: "cross-cutting HTTP middleware (auth, preflight, content-type) \u2014 registration order is load-bearing"
+  - path: backend/api/routes
+    reason: "HTTP endpoint handlers \u2014 one of the two largest backend packages"
+  - path: backend/api/schemas
+    reason: 'Pydantic request/response models; feeds docs/openapi.json regeneration (hot file)'
+  - path: frontend/src/contexts
+    reason: 'React context providers (global state outside the stores)'
+  - path: frontend/src/hooks
+    reason: "WebSocket/event/polling hooks \u2014 the realtime data plane (the tree's largest package)"
+  - path: frontend/src/pages
+    reason: 'top-level route-destination page components'
+  - path: frontend/src/services
+    reason: "the typed REST client + logging \u2014 the frontend's only path to the backend"
+  - path: frontend/src/stores
+    reason: "Zustand stores \u2014 app state that lives outside the React tree"
+  - path: frontend/src/types
+    reason: 'frontend type definitions; types/generated nests under it (regenerate, never hand-merge)'
+  - path: frontend/src/utils
+    reason: 'shared risk/confidence/time formatting utilities'
+  - path: frontend/src/components/ai
+    reason: 'AI Performance and AI Audit pages: model health, pipeline health, prompt quality'
+  - path: frontend/src/components/alerts
+    reason: 'high/critical alert views and alert-rule configuration'
+  - path: frontend/src/components/analytics
+    reason: 'analytics page: baselines, anomalies, pipeline latency, scene change'
+  - path: frontend/src/components/common
+    reason: 'reusable low-level UI building blocks shared across features'
+  - path: frontend/src/components/dashboard
+    reason: 'main dashboard: risk visualization, camera status, GPU and pipeline status'
+  - path: frontend/src/components/developer-tools
+    reason: 'dev tools page: config inspector, profiler, request recorder, log levels'
+  - path: frontend/src/components/entities
+    reason: 'cross-camera entity tracking UI (ReID embeddings at a pinned cosine threshold)'
+  - path: frontend/src/components/events
+    reason: 'event list/detail UI: AI summaries, detection overlays, export'
+  - path: frontend/src/components/face-recognition
+    reason: 'face-recognition and person re-identification UI'
+  - path: frontend/src/components/jobs
+    reason: 'background-jobs page with WebSocket log streaming'
+  - path: frontend/src/components/settings
+    reason: 'Settings page: cameras, alert rules, processing params, calibration, access control'
+  - path: frontend/src/components/system
+    reason: 'system observability panels: metrics, containers, DB, pipeline flow'
+  - path: frontend/src/components/zones
+    reason: 'detection-zone overlay management on camera feeds'
+
+# W2.1 line caps per tier (DECIDE): REPORTING ONLY until W3.2 flips them to failing.
+# A boundary file over its cap appears in the report's ratchet.line_caps block; the
+# run stays green on caps alone. Caps apply to the boundary files only — files
+# outside the list are W3.1 deletions, and capping a file scheduled to disappear is
+# noise, not a ratchet. The standard that sets these numbers has its single home at
+# docs/developer/agents-md-standard.md (40-docs.md points there). Measured at
+# adoption (PR #6920): root 505; lane roots 41..1325 (4 of 7 over); boundary packages
+# up to 3164 — the over-cap set is the W3.2 rewrite work list, one PR per lane.
+line_caps:
+  root: 600 # the root file; the standard says it is the longest
+  lane_root: 500 # the seven lane roots
+  package: 300 # every other boundary file
 # Linear configuration (used by agents_md_linear_sync.py)
 linear:
   team_id: '998946a2-aa75-491b-a39d-189660131392'
