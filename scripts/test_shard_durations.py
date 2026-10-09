@@ -25,9 +25,10 @@ story on the one point that changes what the fix must be:
     duration_based_chunks fixes the time spread (simulated 1.75x mean ->
     1.02x) but leaves that churn untouched, because chunks cuts the collected
     ORDER. least_duration makes the split a pure function of (collected set,
-    durations): churn 2% (the bare-name tie surface: 1473 of 31406 unit tests
-    share a bare name, and pytest-split's tie-break key is str(item) =
-    "<Function test_name>", not the nodeid), and an inserted file repacks the
+    durations): churn 2% (the bare-name tie surface: 2495 of 31403 unit tests
+    share a bare name with at least one other, and pytest-split's tie-break
+    key is str(item) = "<Function test_name>", not the nodeid), and an
+    inserted file repacks the
     heap (~20% movers) — repacking when the tree genuinely changed is the
     intended behavior, not roulette.
 

@@ -27,9 +27,13 @@ The nodeid keys: pytest-split looks durations up by item.nodeid
 (algorithms.py:157, "durations.get(item.nodeid, avg)"), but junit's
 classname/name attrs are pytest's MANGLED form (dots, class folded in) —
 _pytest/junitxml.py mangle_test_address. This script inverts that mangling;
-the inversion joined 31402 of 31406 collected unit nodeids (99.99%) on the
-mint corpus, the 4 misses being tests merged to main after the artifact run —
-they take the file's mean-duration default, exactly as a never-seen test does.
+the committed file's key set is exactly what the corpus run collected (its
+four unit shards' junits: 7851/7851/7851/7849 = 31402 nodeids), so every
+test in that tree had a weight. A test newer than the mint — or one whose
+junit row this script cannot place on the test-layout shape — takes the
+file's mean-duration default, exactly as a never-seen test does.
+scripts/test_shard_durations.py round-trips every key against pytest's own
+mangler so the inversion can never drift silently.
 
 Durations here are planning WEIGHTS, never pass/fail data; stale ones age as
 gently as this file can. Refresh = rerun the recipe on a fresh green main run;
