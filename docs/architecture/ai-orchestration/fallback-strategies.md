@@ -112,14 +112,14 @@ Detections means no batch, which means no Event.
 - Circuit breaker `detector_yolo26` (`backend/services/detector_client.py:336`): `failure_threshold=5,
 recovery_timeout=60.0, half_open_max_calls=3, success_threshold=2, excluded_exceptions=(ValueError,)`
   so HTTP 4xx never trips the breaker.
-- Retry: `DETECTOR_MAX_RETRIES=3` (`backend/core/config.py:1218-1224`) with 2^attempt backoff capped at
+- Retry: `DETECTOR_MAX_RETRIES=3` (`backend/core/config.py:1220-1226`) with 2^attempt backoff capped at
   30 s.
 - Timeout: connect 10 s (`config.py ai_connect_timeout`), read
-  `YOLO26_READ_TIMEOUT` default 30 s (`backend/core/config.py:1118-1123`), and the client adds an
+  `YOLO26_READ_TIMEOUT` default 30 s (`backend/core/config.py:1120-1125`), and the client adds an
   explicit `read_timeout + connect_timeout` ceiling around the whole attempt
   (`backend/services/detector_client.py:637`).
 - In-flight concurrency: `ai_max_concurrent_inferences`, default 4 (20 on free-threaded Python)
-  (`backend/core/config.py:1428-1435`).
+  (`backend/core/config.py:1430-1437`).
 
 ## Degradation Manager
 
