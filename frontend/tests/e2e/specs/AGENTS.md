@@ -49,6 +49,7 @@ Playwright test specification files that verify end-to-end application behavior.
 | `trash.spec.ts`                 | Trash/deleted items management          |
 | `user-journeys/`                | User journey test subdirectory          |
 | `utils-demo.spec.ts`            | Utility demonstration tests             |
+| `verdict-engine-banner.spec.ts` | Verdict-engine banner appear and clear  |
 | `video-playback.spec.ts`        | Video playback features                 |
 | `websocket.spec.ts`             | WebSocket connection tests              |
 | `zones.spec.ts`                 | Camera zone configuration               |
