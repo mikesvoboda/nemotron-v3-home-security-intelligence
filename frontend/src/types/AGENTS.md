@@ -425,9 +425,15 @@ operator checks, so these are not generic advice):
 
 - Always test `null` and `undefined` inputs — `typeof null === 'object'`, so a
   guard that only checks field presence does not ACCEPT null, it THROWS on it
-  (`'id' in null` raises TypeError). Every `typeof x === 'object'` guard in this
-  directory pairs an explicit `!== null` check; the null case is what pins that
-  pairing, which is also why the two checks must stay together.
+  (`'id' in null` raises TypeError). Every guard that gates its ENTRY with
+  `typeof x === 'object'` pairs an explicit `!== null` check (9 of 9 do); the
+  null case is what pins that pairing, which is also why the two checks must
+  stay together. The exception tests the rule one level down:
+  `job.ts:122` typeof-checks the PROPERTY `job.progress`, and a
+  `typeof`-on-nullable-property check is NOT a null check — `progress: null`
+  passes `isJobDetailResponse` (typeof null is 'object') and callers then
+  dereference `.percent` on it (`JobHeader.tsx:122`). Test `progress: null`
+  as its own case.
 - Test each REQUIRED field's absence as its own case; one "missing everything"
   case proves nothing about per-field branches.
 - Assert config-object completeness against the enum (a `Record<Enum, ...>`

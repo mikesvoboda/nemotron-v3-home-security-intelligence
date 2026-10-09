@@ -274,8 +274,17 @@ Custom NVIDIA-themed dark design system:
 
 - **Background**: `#0E0E0E` (background), `#1A1A1A` (panel), `#1E1E1E` (card)
 - **Primary**: `#76B900` (NVIDIA Green) with full shade range
-- **Risk Levels**: low `#76B900`, medium `#FFB800`, high `#E74856`
-- **Text**: primary `#FFFFFF`, secondary `#A0A0A0`, muted `#707070`
+- **Risk levels have TWO color systems** — name the system before copying a hex.
+  The JS status map (`src/types/constants.ts`) uses low `#76B900`, medium
+  `#FFB800`, high `#E74856`; the Tailwind tokens (`tailwind.config.js` `risk.*`)
+  moved high to `#FFCDD2` (light coral, 4.5:1 on `bg-risk-high/10`). Unrelated
+  third use: `src/utils/confidence.ts` paints confidence LOW with `#E74856`.
+- **Text**: primary `#FFFFFF`, secondary `#B0B0B0`, muted `#919191` (config
+  `text.*`; the old `#A0A0A0`/`#707070` were replaced for contrast — `#707070`
+  computes 3.90:1 on the `#0E0E0E` page background and fails the WCAG AA floor
+  this guide itself cites). Config comments benchmark "on gray-700" — a
+  background no rendered element uses — and some of their stated ratios do not
+  reproduce; compute against the real page backgrounds before quoting them.
 
 ### Custom Animations
 
