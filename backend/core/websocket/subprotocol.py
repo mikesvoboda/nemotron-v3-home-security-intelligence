@@ -3,10 +3,12 @@
 RFC 6455 §1.3/§4.1: a client that lists subprotocols in
 ``Sec-WebSocket-Protocol`` MUST see one of its own tokens echoed in the 101
 response or it MUST fail the connection — Chromium and undici close 1006
-before ``open`` ever fires. The browser WebSocket manager offers
-``api-key.<key>`` (frontend/src/services/api.ts), so an ``accept()`` that
-names no subprotocol kills every manager-routed socket in every browser even
-when the credential itself is fine.
+before ``open`` ever fires. The frontend mints such offers from
+``VITE_API_KEY`` — today on the ``buildWebSocketOptions`` →
+``useWebSocketStatus`` path (``useConnectionStatus.ts`` passes
+``protocols``); the shared WebSocket manager gains the same offer in #6922 —
+so an ``accept()`` that names no subprotocol killed every key-offering socket
+in every browser even when the credential itself was fine.
 
 Echoing is transport-level, not an authentication decision: the value is one
 the CLIENT sent, and the handshake opens or fails the same way whichever
@@ -16,10 +18,17 @@ close refusal paths, where a missing echo replaces the deliberate 4001 with
 an unclassified 1006 the client retries (1006 is not terminal for the
 manager's backoff).
 
-The extraction is first-match-wins over the offered header, mirroring
-``_presented_api_key`` / ``validate_websocket_api_key``, so the echoed token
-is the same token those extractors read the credential from. A bare
-``api-key.`` (no key) is not an offer and is not echoed.
+The extraction is first-match-wins over the offered header, the same order
+``_presented_api_key`` / ``validate_websocket_api_key`` scan it in, so for any
+realistic offer (well-formed tokens) the echoed token is the one whose
+credential gets authenticated. It is deliberately NOT read back out of the
+authentication result: the echoed value must be a token the client offered
+(RFC 6455 again), and in the constructed corner cases where the extractors
+diverge — a first token that is the bare prefix, or a query-string key racing
+a header offer — the echo names the first well-formed offered token while the
+credential may come from elsewhere. No key is authenticated that the echo
+implies otherwise; do not "fix" this toward echoing the authenticated token,
+which could name a token the client never offered.
 """
 
 from __future__ import annotations

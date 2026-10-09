@@ -3,10 +3,13 @@
 RFC 6455 §1.3/§4.1: a client that lists subprotocols in
 ``Sec-WebSocket-Protocol`` MUST see one of its own tokens echoed in the 101
 response or it MUST fail the connection — Chromium and undici close 1006
-before ``open`` ever fires. ``api.ts`` and the WebSocket manager bake
-``VITE_API_KEY`` into exactly such an offer, so on an ``EXPOSE_LAN=true`` +
-``VITE_API_KEY`` deployment every manager-routed socket used to die in every
-browser: no ``accept()`` in the backend ever passed ``subprotocol=``.
+before ``open`` ever fires. The frontend bakes ``VITE_API_KEY`` into exactly
+such an offer, so on an ``EXPOSE_LAN=true`` + ``VITE_API_KEY`` deployment the
+key-offering sockets used to die in every browser: no ``accept()`` in the
+backend ever passed ``subprotocol=``. (On this base the offering client is the
+``buildWebSocketOptions`` → ``useWebSocketStatus`` path — the shared WebSocket
+manager still constructs ``new WebSocket(url)`` with no protocols and picks the
+offer up in #6922.)
 
 Two tiers pin it:
 
@@ -381,8 +384,10 @@ def test_gate_refusal_of_key_offer_echoes_and_closes_4001(
     proper close, not a 403. Browsers enforce the echo BEFORE any close code
     (Chromium: 1006, close code never delivered — measured on main), so that
     accept must echo too or the operator loses 4001 and gets retry-noise
-    instead (1006 is not in AUTH_TERMINAL_CLOSE_CODES, so the manager
-    backoff-retries 15 times). Offer an api-key token the gate cannot
+    instead: a 1006 is an abstraction-level failure, not a close code the
+    client's backoff treats as terminal (on the #6922 branch that set is
+    AUTH_TERMINAL_CLOSE_CODES; the offering useWebSocketStatus hook retries
+    an unknown code up to its 15 attempts). Offer an api-key token the gate cannot
     authenticate (wrong key, gate on) — the 101 echoes it, then 4001 rides."""
     srv = b1_servers.get("gate-on")
     status, headers, sock, rest = _offer(srv.port, ["api-key.the-wrong-key"])
@@ -414,10 +419,17 @@ def test_garbage_offers_do_not_crash_the_handshake(b1_servers: type[_Server]) ->
     status, headers, sock, _rest = _offer(srv.port, ["", "api-key.", " spaced , api-key .x"])
     try:
         # Auth-rejected paths accept-then-close (4001/1008) or HTTP-refuse;
-        # what may never happen is a bare no-echo 101 that names a protocol.
+        # a 500 on the upgrade is likewise out of the question. What may
+        # never happen is a 101 that names a protocol the extractor would
+        # not pick: the bare "api-key." carries no key, so a compliant echo
+        # here is absent — and a response that grew no upgrade at all has no
+        # echo header either, which is why status is pinned first.
+        assert status != 500, "junk in Sec-WebSocket-Protocol 500'd the upgrade"
         echo = headers.get("sec-websocket-protocol")
-        assert echo is None or echo in {"api-key."}, (
-            f"the server echoed a token the client did not offer: {echo!r}"
+        assert echo is None, (
+            f"the server echoed {echo!r}; the offer held no well-formed "
+            "api-key token, so nothing may be echoed (module docstring: a "
+            "bare 'api-key.' is not an offer and is not echoed)"
         )
     finally:
         sock.close()

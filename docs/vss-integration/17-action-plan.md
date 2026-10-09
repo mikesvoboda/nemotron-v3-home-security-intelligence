@@ -5617,25 +5617,30 @@ Exposure of the API, prompt trust, retention, erasure, egress and licences.
   (LAN-only home deployment). The admin-route and SMTP-relay sub-claims in the original were
   overstated and are narrowed above.
 - **Closure note — 2026-10-09 (B-1 follow-up, PR #6927) [V].** Closed per owner ruling 35 (#6854),
-  which moved this flip off the F1.3/O1.6 merge-order duty onto this package. The entry's substance
-  — a published port fronting unauthenticated data routes — is fixed on main: OD-12 landed as a
-  two-mode posture, `EXPOSE_LAN` unset keeps everything loopback-bound and documented as such, and
-  `EXPOSE_LAN=true` puts `AuthMiddleware` (outermost, B1.5) in front of every `/api` and `/ws` route
-  — 401 or WebSocket close 4001 without a session cookie or key — pinned by the route-table
+  which moved this flip off the F1.3/O1.6 merge-order duty onto this package. What is verified
+  true at this head, leg by leg: OD-12 landed on main as the two-mode posture, and
+  `EXPOSE_LAN=true` puts `AuthMiddleware` (outermost, B1.5) in front of every `/api` and `/ws`
+  route — 401 or WebSocket close 4001 without a session cookie or key — pinned by the route-table
   enumeration in `backend/tests/unit/api/test_expose_lan_routes.py`, whose
-  `test_exposed_iss_029_matrix_is_refused` runs this entry's own unauthenticated-request matrix,
-  while the docs named above (`AGENTS.md`, `docs/operator/admin/security.md`) now describe both
-  modes honestly instead of claiming a loopback boundary for the published port. The leg this
-  package adds: on the authenticated mode the documented browser credential path — offering
-  `api-key.<key>` in `Sec-WebSocket-Protocol` — completed no handshake at all, because no `accept()`
-  in the backend echoed a token and RFC 6455 §4.1 makes browsers fail such a handshake before
-  `open` fires; every accept now echoes the offered token (`backend/core/websocket/subprotocol.py`),
-  pinned by raw-handshake tests over a live uvicorn
-  (`backend/tests/integration/test_ws_subprotocol_echo_b1.py`). The compose publish rebind that
-  makes the LAN-off default physical is O1.6's own already-approved change (#6925) and no longer
-  gates this entry. The world-class half — deny-by-default with a documented allowlist — is met by
-  the gate's `OPEN_PATHS` design (a new route is covered without wiring, and the pin proves it for
-  every mounted route), not by the loopback convention the original evidence found wanting.
+  `test_exposed_iss_029_matrix_is_refused` runs this entry's own unauthenticated-request matrix.
+  The docs named above (`AGENTS.md`, `docs/operator/admin/security.md`) state both modes honestly
+  as of today — including the uncomfortable one: `AGENTS.md` still records the frontend nginx as
+  publishing `0.0.0.0` in the default mode, which is what compose does at this head
+  (`docker-compose.prod.yml:920-921`), and `security.md` says so plainly. Read that against the
+  gate: at `EXPOSE_LAN` unset the gate passes requests through, so the default-mode mitigation
+  until #6925 lands is honest documentation plus the first-run setup guard, not a loopback bind —
+  the compose publish rebind that makes the LAN-off default physical is O1.6's own already-approved
+  change (#6925), and ruling 35 moved this flip to this package precisely so that queued leg no
+  longer gates this entry. The leg this package adds, complete at its head: on the authenticated
+  mode the documented browser credential path — offering `api-key.<key>` in
+  `Sec-WebSocket-Protocol` — completed no handshake at all, because no `accept()` in the backend
+  echoed a token and RFC 6455 §4.1 makes browsers fail such a handshake before `open` fires;
+  every accept now echoes the offered token (`backend/core/websocket/subprotocol.py`), pinned by
+  raw-handshake tests over a live uvicorn
+  (`backend/tests/integration/test_ws_subprotocol_echo_b1.py`). The world-class half —
+  deny-by-default with a documented allowlist — is met on the authenticated mode by the gate's
+  `OPEN_PATHS` design (a new route is covered without wiring, and the pin proves it for every
+  mounted route); on the default mode it lands with #6925's rebind.
 
 #### ISS-030 — Stills and biometric rows have no enforced retention; cleanup leaves files behind
 
