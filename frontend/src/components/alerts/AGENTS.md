@@ -23,21 +23,21 @@ AlertForm / AlertRuleForm (alert rule configuration)
 
 ## Files
 
-| File                       | Purpose                                              |
-| -------------------------- | ---------------------------------------------------- |
-| `AlertsPage.tsx`           | Main alerts page with infinite scroll and filtering  |
-| `AlertsPage.test.tsx`      | Test suite for AlertsPage                            |
-| `AlertCard.tsx`            | Individual alert card with acknowledge/dismiss/snooze|
-| `AlertCard.test.tsx`       | Test suite for AlertCard                             |
-| `AlertActions.tsx`         | Bulk operation controls (select all, acknowledge)    |
-| `AlertActions.test.tsx`    | Test suite for AlertActions                          |
-| `AlertFilters.tsx`         | Severity-based filter buttons with counts            |
-| `AlertFilters.test.tsx`    | Test suite for AlertFilters                          |
-| `AlertForm.tsx`            | Alert rule form (basic validation)                   |
-| `AlertForm.test.tsx`       | Test suite for AlertForm                             |
-| `AlertRuleForm.tsx`        | Alert rule form with Zod/react-hook-form validation  |
-| `AlertRuleForm.test.tsx`   | Test suite for AlertRuleForm                         |
-| `index.ts`                 | Barrel exports for all components and types          |
+| File                     | Purpose                                               |
+| ------------------------ | ----------------------------------------------------- |
+| `AlertsPage.tsx`         | Main alerts page with infinite scroll and filtering   |
+| `AlertsPage.test.tsx`    | Test suite for AlertsPage                             |
+| `AlertCard.tsx`          | Individual alert card with acknowledge/dismiss/snooze |
+| `AlertCard.test.tsx`     | Test suite for AlertCard                              |
+| `AlertActions.tsx`       | Bulk operation controls (select all, acknowledge)     |
+| `AlertActions.test.tsx`  | Test suite for AlertActions                           |
+| `AlertFilters.tsx`       | Severity-based filter buttons with counts             |
+| `AlertFilters.test.tsx`  | Test suite for AlertFilters                           |
+| `AlertForm.tsx`          | Alert rule form (basic validation)                    |
+| `AlertForm.test.tsx`     | Test suite for AlertForm                              |
+| `AlertRuleForm.tsx`      | Alert rule form with Zod/react-hook-form validation   |
+| `AlertRuleForm.test.tsx` | Test suite for AlertRuleForm                          |
+| `index.ts`               | Barrel exports for all components and types           |
 
 ## Key Components
 
@@ -252,13 +252,10 @@ interface AlertRuleFormProps {
 AlertsPage uses cursor-based pagination with infinite scroll:
 
 ```typescript
-const {
-  alerts,
-  totalCount,
-  isLoading,
-  hasNextPage,
-  fetchNextPage,
-} = useAlertsInfiniteQuery({ riskFilter, limit: 25 });
+const { alerts, totalCount, isLoading, hasNextPage, fetchNextPage } = useAlertsInfiniteQuery({
+  riskFilter,
+  limit: 25,
+});
 
 const { sentinelRef, isLoadingMore } = useInfiniteScroll({
   onLoadMore: fetchNextPage,

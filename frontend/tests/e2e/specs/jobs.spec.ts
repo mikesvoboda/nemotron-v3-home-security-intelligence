@@ -14,12 +14,7 @@ import { test, expect } from '@playwright/test';
 // Skip entire file in CI - timing issues cause flaky failures
 test.skip(() => !!process.env.CI, 'E2E tests flaky in CI - run locally');
 import { JobsPage } from '../pages';
-import {
-  setupApiMocks,
-  defaultMockConfig,
-  emptyMockConfig,
-  errorMockConfig,
-} from '../fixtures';
+import { setupApiMocks, defaultMockConfig, emptyMockConfig, errorMockConfig } from '../fixtures';
 
 test.describe('Jobs Page Load & Display', () => {
   let jobsPage: JobsPage;

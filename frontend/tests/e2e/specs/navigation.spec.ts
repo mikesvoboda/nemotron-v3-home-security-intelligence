@@ -150,17 +150,11 @@ test.describe('Navigation Tests', () => {
     // Go to dashboard first
     await dashboardPage.goto();
     // Use parallel expects for faster validation
-    await Promise.all([
-      dashboardPage.waitForDashboardLoad(),
-      dashboardPage.expectHeaderVisible(),
-    ]);
+    await Promise.all([dashboardPage.waitForDashboardLoad(), dashboardPage.expectHeaderVisible()]);
 
     // Navigate to settings
     await settingsPage.goto();
-    await Promise.all([
-      settingsPage.waitForSettingsLoad(),
-      settingsPage.expectHeaderVisible(),
-    ]);
+    await Promise.all([settingsPage.waitForSettingsLoad(), settingsPage.expectHeaderVisible()]);
   });
 
   test('sidebar persists across page transitions', async () => {
@@ -169,16 +163,10 @@ test.describe('Navigation Tests', () => {
 
     await dashboardPage.goto();
     // Use parallel expects for faster validation
-    await Promise.all([
-      dashboardPage.waitForDashboardLoad(),
-      dashboardPage.expectSidebarVisible(),
-    ]);
+    await Promise.all([dashboardPage.waitForDashboardLoad(), dashboardPage.expectSidebarVisible()]);
 
     await timelinePage.goto();
-    await Promise.all([
-      timelinePage.waitForTimelineLoad(),
-      timelinePage.expectSidebarVisible(),
-    ]);
+    await Promise.all([timelinePage.waitForTimelineLoad(), timelinePage.expectSidebarVisible()]);
   });
 });
 

@@ -6,36 +6,36 @@ Contains React components for the Developer Tools page, providing debugging, pro
 
 ## Files
 
-| File                            | Purpose                                                |
-| ------------------------------- | ------------------------------------------------------ |
-| `DeveloperToolsPage.tsx`        | Main page with collapsible sections for all dev tools  |
-| `DeveloperToolsPage.test.tsx`   | Test suite for DeveloperToolsPage                      |
-| `CircuitBreakerDebugPanel.tsx`  | Circuit breaker state inspection and management        |
-| `CircuitBreakerDebugPanel.test.tsx` | Test suite for CircuitBreakerDebugPanel            |
-| `CleanupRow.tsx`                | Individual row for cleanup operations in TestDataPanel |
-| `CleanupRow.test.tsx`           | Test suite for CleanupRow                              |
-| `ConfigInspectorPanel.tsx`      | System configuration inspection with JSON viewer       |
-| `ConfigInspectorPanel.test.tsx` | Test suite for ConfigInspectorPanel                    |
-| `ConfirmWithTextDialog.tsx`     | Confirmation dialog requiring text input               |
-| `ConfirmWithTextDialog.test.tsx`| Test suite for ConfirmWithTextDialog                   |
-| `LogLevelPanel.tsx`             | Runtime log level configuration                        |
-| `LogLevelPanel.test.tsx`        | Test suite for LogLevelPanel                           |
-| `MemorySnapshotPanel.tsx`       | Memory profiling and snapshot capture                  |
-| `MemorySnapshotPanel.test.tsx`  | Test suite for MemorySnapshotPanel                     |
-| `ProfilingPanel.tsx`            | Performance profiling with CPU/memory monitoring       |
-| `ProfilingPanel.test.tsx`       | Test suite for ProfilingPanel                          |
-| `RecordingDetailModal.tsx`      | Modal for viewing recording details                    |
-| `RecordingDetailModal.test.tsx` | Test suite for RecordingDetailModal                    |
-| `RecordingReplayPanel.tsx`      | Request recording and replay functionality             |
-| `RecordingReplayPanel.test.tsx` | Test suite for RecordingReplayPanel                    |
-| `RecordingsList.tsx`            | List of captured request recordings                    |
-| `RecordingsList.test.tsx`       | Test suite for RecordingsList                          |
-| `ReplayResultsModal.tsx`        | Modal showing replay comparison results                |
-| `ReplayResultsModal.test.tsx`   | Test suite for ReplayResultsModal                      |
-| `SeedRow.tsx`                   | Individual row for seed data operations                |
-| `SeedRow.test.tsx`              | Test suite for SeedRow                                 |
-| `TestDataPanel.tsx`             | Test data generation and cleanup utilities             |
-| `TestDataPanel.test.tsx`        | Test suite for TestDataPanel                           |
+| File                                | Purpose                                                |
+| ----------------------------------- | ------------------------------------------------------ |
+| `DeveloperToolsPage.tsx`            | Main page with collapsible sections for all dev tools  |
+| `DeveloperToolsPage.test.tsx`       | Test suite for DeveloperToolsPage                      |
+| `CircuitBreakerDebugPanel.tsx`      | Circuit breaker state inspection and management        |
+| `CircuitBreakerDebugPanel.test.tsx` | Test suite for CircuitBreakerDebugPanel                |
+| `CleanupRow.tsx`                    | Individual row for cleanup operations in TestDataPanel |
+| `CleanupRow.test.tsx`               | Test suite for CleanupRow                              |
+| `ConfigInspectorPanel.tsx`          | System configuration inspection with JSON viewer       |
+| `ConfigInspectorPanel.test.tsx`     | Test suite for ConfigInspectorPanel                    |
+| `ConfirmWithTextDialog.tsx`         | Confirmation dialog requiring text input               |
+| `ConfirmWithTextDialog.test.tsx`    | Test suite for ConfirmWithTextDialog                   |
+| `LogLevelPanel.tsx`                 | Runtime log level configuration                        |
+| `LogLevelPanel.test.tsx`            | Test suite for LogLevelPanel                           |
+| `MemorySnapshotPanel.tsx`           | Memory profiling and snapshot capture                  |
+| `MemorySnapshotPanel.test.tsx`      | Test suite for MemorySnapshotPanel                     |
+| `ProfilingPanel.tsx`                | Performance profiling with CPU/memory monitoring       |
+| `ProfilingPanel.test.tsx`           | Test suite for ProfilingPanel                          |
+| `RecordingDetailModal.tsx`          | Modal for viewing recording details                    |
+| `RecordingDetailModal.test.tsx`     | Test suite for RecordingDetailModal                    |
+| `RecordingReplayPanel.tsx`          | Request recording and replay functionality             |
+| `RecordingReplayPanel.test.tsx`     | Test suite for RecordingReplayPanel                    |
+| `RecordingsList.tsx`                | List of captured request recordings                    |
+| `RecordingsList.test.tsx`           | Test suite for RecordingsList                          |
+| `ReplayResultsModal.tsx`            | Modal showing replay comparison results                |
+| `ReplayResultsModal.test.tsx`       | Test suite for ReplayResultsModal                      |
+| `SeedRow.tsx`                       | Individual row for seed data operations                |
+| `SeedRow.test.tsx`                  | Test suite for SeedRow                                 |
+| `TestDataPanel.tsx`                 | Test data generation and cleanup utilities             |
+| `TestDataPanel.test.tsx`            | Test suite for TestDataPanel                           |
 
 ## Key Components
 

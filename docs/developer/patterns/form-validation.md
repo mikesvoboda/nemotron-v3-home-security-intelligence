@@ -23,13 +23,13 @@ This architecture ensures consistency. The audit confirms all validations are cu
 **Backend Schema:** `backend/api/schemas/camera.py`
 **Frontend Validation:** `frontend/src/utils/validation.ts`
 
-| Field         | Frontend Validation            | Backend Validation                     | Match? | Notes                             |
+| Field | Frontend Validation | Backend Validation | Match? | Notes |
 | ------------- | ------------------------------ | -------------------------------------- | ------ | --------------------------------- | ----------------------- |
-| `name`        | `minLength: 1, maxLength: 255` | `min_length=1, max_length=255`         | Yes    | Uses `validateCameraName()`       |
-| `folder_path` | `minLength: 1, maxLength: 500` | `min_length=1, max_length=500`         | Yes    | Uses `validateCameraFolderPath()` |
-| `folder_path` | Path traversal check (`..`)    | `_validate_folder_path()` rejects `..` | Yes    | Security validation aligned       |
-| `folder_path` | Forbidden chars check          | `_FORBIDDEN_PATH_CHARS` regex          | Yes    | Rejects `< > : "                  | ? \*` and control chars |
-| `status`      | Dropdown: online/offline/error | `CameraStatus` enum                    | Yes    | Enum values match                 |
+| `name` | `minLength: 1, maxLength: 255` | `min_length=1, max_length=255` | Yes | Uses `validateCameraName()` |
+| `folder_path` | `minLength: 1, maxLength: 500` | `min_length=1, max_length=500` | Yes | Uses `validateCameraFolderPath()` |
+| `folder_path` | Path traversal check (`..`) | `_validate_folder_path()` rejects `..` | Yes | Security validation aligned |
+| `folder_path` | Forbidden chars check | `_FORBIDDEN_PATH_CHARS` regex | Yes | Rejects `< > : "                  | ? \*` and control chars |
+| `status` | Dropdown: online/offline/error | `CameraStatus` enum | Yes | Enum values match |
 
 **HTML Attributes:**
 

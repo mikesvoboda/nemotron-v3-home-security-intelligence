@@ -17,23 +17,23 @@ This directory contains static assets that are served directly at the root URL p
 
 ### icons/ Subdirectory
 
-| File                    | Purpose                                       |
-| ----------------------- | --------------------------------------------- |
-| `apple-touch-icon.png`  | iOS home screen icon (180x180)                |
-| `apple-touch-icon.svg`  | SVG source for Apple touch icon               |
-| `badge-72.png`          | PWA badge icon (72x72, monochrome)            |
-| `badge-72.svg`          | SVG source for badge icon                     |
-| `icon-192.png`          | PWA icon (192x192, standard + maskable)       |
-| `icon-192.svg`          | SVG source for 192px icon                     |
-| `icon-512.png`          | PWA icon (512x512, standard + maskable)       |
-| `icon-512.svg`          | SVG source for 512px icon                     |
+| File                   | Purpose                                 |
+| ---------------------- | --------------------------------------- |
+| `apple-touch-icon.png` | iOS home screen icon (180x180)          |
+| `apple-touch-icon.svg` | SVG source for Apple touch icon         |
+| `badge-72.png`         | PWA badge icon (72x72, monochrome)      |
+| `badge-72.svg`         | SVG source for badge icon               |
+| `icon-192.png`         | PWA icon (192x192, standard + maskable) |
+| `icon-192.svg`         | SVG source for 192px icon               |
+| `icon-512.png`         | PWA icon (512x512, standard + maskable) |
+| `icon-512.svg`         | SVG source for 512px icon               |
 
 ### images/ Subdirectory
 
-| File                    | Purpose                                             |
-| ----------------------- | --------------------------------------------------- |
-| `nvidia-eye.svg`        | NVIDIA eye icon for AI/monitoring visual elements   |
-| `nvidia-logo-white.svg` | White NVIDIA logo for dark theme header/branding    |
+| File                    | Purpose                                           |
+| ----------------------- | ------------------------------------------------- |
+| `nvidia-eye.svg`        | NVIDIA eye icon for AI/monitoring visual elements |
+| `nvidia-logo-white.svg` | White NVIDIA logo for dark theme header/branding  |
 
 ## favicon.svg
 

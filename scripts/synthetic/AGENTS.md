@@ -100,18 +100,19 @@ success = generate_video_sync(
 - `FieldResult`: Individual field comparison result
 
 **Comparison Types:**
-| Field Type | Comparison Method |
-|------------|-------------------|
-| `count` | Exact match or +/-1 tolerance |
-| `min_confidence` | Actual >= expected |
-| `class` | Exact string match |
-| `is_suspicious` | Boolean exact match |
-| `score_range` | min <= actual <= max |
-| `text_pattern` | Regex match |
-| `must_contain` | All keywords present (case-insensitive) |
-| `must_not_contain` | No keywords present |
-| `enum` | Value in allowed set |
-| `distance_range` | Within [min, max] meters |
+
+| Field Type         | Comparison Method                       |
+| ------------------ | --------------------------------------- |
+| `count`            | Exact match or +/-1 tolerance           |
+| `min_confidence`   | Actual >= expected                      |
+| `class`            | Exact string match                      |
+| `is_suspicious`    | Boolean exact match                     |
+| `score_range`      | min <= actual <= max                    |
+| `text_pattern`     | Regex match                             |
+| `must_contain`     | All keywords present (case-insensitive) |
+| `must_not_contain` | No keywords present                     |
+| `enum`             | Value in allowed set                    |
+| `distance_range`   | Within [min, max] meters                |
 
 **Supported Domains:**
 
@@ -192,11 +193,12 @@ generator.save_report(report, Path("results/report.json"))
 - `CATEGORY_SEARCH_TERMS`: Fallback category-level search terms
 
 **Supported Scenarios:**
-| Category | Scenarios |
-|----------|-----------|
-| Normal | resident_arrival, delivery_driver, pet_activity, vehicle_parking, yard_maintenance |
-| Suspicious | loitering, prowling, casing, tailgating |
-| Threats | break_in_attempt, package_theft, vandalism, weapon_visible |
+
+| Category   | Scenarios                                                                          |
+| ---------- | ---------------------------------------------------------------------------------- |
+| Normal     | resident_arrival, delivery_driver, pet_activity, vehicle_parking, yard_maintenance |
+| Suspicious | loitering, prowling, casing, tailgating                                            |
+| Threats    | break_in_attempt, package_theft, vandalism, weapon_visible                         |
 
 **Environment Variables:**
 

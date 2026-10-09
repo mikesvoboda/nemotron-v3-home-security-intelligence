@@ -6,13 +6,13 @@ One FastAPI router module per legacy AI service. Each adapter translates the ser
 
 ## Key Files
 
-| File                   | Mount prefix    | Legacy service         | Notes                                       |
-| ---------------------- | --------------- | ---------------------- | ------------------------------------------- |
-| `yolo26.py`            | `/yolo26`       | YOLO26 detection       | multipart upload; `/detect`, `/detect/batch`, `/segment` |
-| `clip.py`              | `/clip`         | CLIP embeddings        | backed by SigLIP 2 Base (swapped from ViT-L/14 to save VRAM); `/embed`, `/classify`, `/similarity`, `/anomaly-score` |
-| `florence.py`          | `/florence`     | Florence-2             | Triton Python backend; `/extract`, `/ocr`, region endpoints |
-| `enrichment.py`        | `/enrichment`   | Heavy enrichment       | fans out to per-model Triton models; `/enrich` dispatches on detection_type |
-| `enrichment_light.py`  | `/enrich-lt`    | Light enrichment       | `/pose-analyze`, `/threat-detect`, `/person-reid`, `/pet-classify`, `/depth-estimate` |
+| File                  | Mount prefix  | Legacy service   | Notes                                                                                                                |
+| --------------------- | ------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `yolo26.py`           | `/yolo26`     | YOLO26 detection | multipart upload; `/detect`, `/detect/batch`, `/segment`                                                             |
+| `clip.py`             | `/clip`       | CLIP embeddings  | backed by SigLIP 2 Base (swapped from ViT-L/14 to save VRAM); `/embed`, `/classify`, `/similarity`, `/anomaly-score` |
+| `florence.py`         | `/florence`   | Florence-2       | Triton Python backend; `/extract`, `/ocr`, region endpoints                                                          |
+| `enrichment.py`       | `/enrichment` | Heavy enrichment | fans out to per-model Triton models; `/enrich` dispatches on detection_type                                          |
+| `enrichment_light.py` | `/enrich-lt`  | Light enrichment | `/pose-analyze`, `/threat-detect`, `/person-reid`, `/pet-classify`, `/depth-estimate`                                |
 
 ## Patterns / Gotchas
 

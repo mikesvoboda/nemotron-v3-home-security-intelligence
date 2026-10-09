@@ -24,26 +24,26 @@ users are on x64. Therefore:
 
 **Milestones:**
 
-| # | Scope |
-|---|---|
-| **M1 (this spec)** | Core (CPU-only) stack online on arm64 + `scripts/validate.sh` green |
-| M2 | GPU serving: `ai-gateway` (Triton), `ai-llm` (llama.cpp), optional vLLM, DCGM |
-| M3 | Vision-model landscape refresh (post-port decision, informed by M2) |
+| #                  | Scope                                                                         |
+| ------------------ | ----------------------------------------------------------------------------- |
+| **M1 (this spec)** | Core (CPU-only) stack online on arm64 + `scripts/validate.sh` green           |
+| M2                 | GPU serving: `ai-gateway` (Triton), `ai-llm` (llama.cpp), optional vLLM, DCGM |
+| M3                 | Vision-model landscape refresh (post-port decision, informed by M2)           |
 
 ## 1. Verified host facts (probed 2026-09-12)
 
-| Fact | Value | Contrast with repo assumption |
-|---|---|---|
-| arch | `aarch64` | repo built on amd64 |
-| kernel | `6.17.0-1032-nvidia-64k`, **PAGE_SIZE 65536** | NVIDIA's Grace default flavor; only `-64k` kernels installed; 4k flavor exists in apt (`linux-image-nvidia-*`) with driver-metapackage lockstep |
-| GPU | 1× GB300, cc **10.3 (sm_103)**, 256,703 MiB, driver 610.43.02 (open) | compose defaults assume **two** GPUs (`GPU_LLM=0`, `GPU_AI_SERVICES=1`); GPU 1 does not exist |
-| engine | Docker 29.1.3, Compose 2.40.3; **podman NOT installed** | CLAUDE.md mandates podman |
-| GPU toolkit | nvidia-container-toolkit 1.19.0; CDI devices `nvidia.com/gpu=0,all` already listed by `nvidia-ctk cdi list`; no default-runtime in `/etc/docker/daemon.json` | repo uses CDI + `deploy.resources` dual mechanism for rootless podman |
-| CUDA toolkit | **absent on host** (`nvcc` missing) | all CUDA must come from containers |
-| `.env` | **missing** (`.env.example` present) | `setup.py` has never run here; its quick mode hardcodes `gpu_llm=0`/`gpu_ai_services=1` |
-| compose vars | `TEMPO_PORT`, `TEMPO_OTLP_GRPC`, `AI_GATEWAY_METRICS_PORT`, `GPU_AI_SERVICES` referenced in compose, **absent from `.env.example`** | `setup.py` port-scan can't see these conflicts |
-| co-resident stack | `dgx-inference-*` on Docker: **holds 127.0.0.1:8000** (vllm) = `API_PORT` default; Postgres/Prometheus/DCGM unpublished (no conflict) | fresh install must dodge :8000 |
-| toolchain | `uv 0.12.6 (aarch64)`, venv with **CPU torch 2.9.1 imports**, numpy/cv2/PIL/psutil/uvloop/asyncpg import; **27,502 backend unit tests collect**; node+npm present; **bun absent** (frontend scripts are plain vite/vitest/eslint, so npm is viable); apt has `podman 4.9.3`, `podman-compose 1.0.6` | milestone-1 import surface already works on 64k pages |
+| Fact              | Value                                                                                                                                                                                                                                                                                               | Contrast with repo assumption                                                                                                                   |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| arch              | `aarch64`                                                                                                                                                                                                                                                                                           | repo built on amd64                                                                                                                             |
+| kernel            | `6.17.0-1032-nvidia-64k`, **PAGE_SIZE 65536**                                                                                                                                                                                                                                                       | NVIDIA's Grace default flavor; only `-64k` kernels installed; 4k flavor exists in apt (`linux-image-nvidia-*`) with driver-metapackage lockstep |
+| GPU               | 1× GB300, cc **10.3 (sm_103)**, 256,703 MiB, driver 610.43.02 (open)                                                                                                                                                                                                                                | compose defaults assume **two** GPUs (`GPU_LLM=0`, `GPU_AI_SERVICES=1`); GPU 1 does not exist                                                   |
+| engine            | Docker 29.1.3, Compose 2.40.3; **podman NOT installed**                                                                                                                                                                                                                                             | CLAUDE.md mandates podman                                                                                                                       |
+| GPU toolkit       | nvidia-container-toolkit 1.19.0; CDI devices `nvidia.com/gpu=0,all` already listed by `nvidia-ctk cdi list`; no default-runtime in `/etc/docker/daemon.json`                                                                                                                                        | repo uses CDI + `deploy.resources` dual mechanism for rootless podman                                                                           |
+| CUDA toolkit      | **absent on host** (`nvcc` missing)                                                                                                                                                                                                                                                                 | all CUDA must come from containers                                                                                                              |
+| `.env`            | **missing** (`.env.example` present)                                                                                                                                                                                                                                                                | `setup.py` has never run here; its quick mode hardcodes `gpu_llm=0`/`gpu_ai_services=1`                                                         |
+| compose vars      | `TEMPO_PORT`, `TEMPO_OTLP_GRPC`, `AI_GATEWAY_METRICS_PORT`, `GPU_AI_SERVICES` referenced in compose, **absent from `.env.example`**                                                                                                                                                                 | `setup.py` port-scan can't see these conflicts                                                                                                  |
+| co-resident stack | `dgx-inference-*` on Docker: **holds 127.0.0.1:8000** (vllm) = `API_PORT` default; Postgres/Prometheus/DCGM unpublished (no conflict)                                                                                                                                                               | fresh install must dodge :8000                                                                                                                  |
+| toolchain         | `uv 0.12.6 (aarch64)`, venv with **CPU torch 2.9.1 imports**, numpy/cv2/PIL/psutil/uvloop/asyncpg import; **27,502 backend unit tests collect**; node+npm present; **bun absent** (frontend scripts are plain vite/vitest/eslint, so npm is viable); apt has `podman 4.9.3`, `podman-compose 1.0.6` | milestone-1 import surface already works on 64k pages                                                                                           |
 
 ## 2. Owner-approved decisions
 
@@ -72,13 +72,13 @@ inference stack), and future non-GB300 arm64 hosts should diverge deliberately.
 
 Compose **merges** mappings, so these were empirically tested (docker compose 2.40.3):
 
-| Mechanism | Result |
-|---|---|
-| plain override omitting `ai-llm`/`ai-gateway` | ✗ deps survive (merge semantics) |
-| `required: false` on the deps | ✗ GPU containers still **created** → CUDA builds enter M1 |
-| profiles on `ai-llm`/`ai-gateway` | ✗ `invalid compose project` (backend still references them) |
-| `depends_on: !override` (compose ≥2.24) | ✓ `up backend` creates only postgres+backend; full-stack `config --services` unchanged |
-| `up --no-deps` two-phase (any provider) | ✓ trivially, no file changes |
+| Mechanism                                     | Result                                                                                 |
+| --------------------------------------------- | -------------------------------------------------------------------------------------- |
+| plain override omitting `ai-llm`/`ai-gateway` | ✗ deps survive (merge semantics)                                                       |
+| `required: false` on the deps                 | ✗ GPU containers still **created** → CUDA builds enter M1                              |
+| profiles on `ai-llm`/`ai-gateway`             | ✗ `invalid compose project` (backend still references them)                            |
+| `depends_on: !override` (compose ≥2.24)       | ✓ `up backend` creates only postgres+backend; full-stack `config --services` unchanged |
+| `up --no-deps` two-phase (any provider)       | ✓ trivially, no file changes                                                           |
 
 **Primary mechanism: two-phase bring-up.** Phase A: infra + media + LGTM
 (`postgres redis go2rtc` + observability list), health-gated. Phase B:
@@ -96,7 +96,7 @@ absence only costs ergonomics, not capability.
 - `.env` template: `GPU_AI_SERVICES=0` (comment: single-GPU box; **do not** migrate old
   caches `triton-kernel-cache`, `llama-cache`, `llama-nv-cache` — arch-keyed, M2 note);
   `API_PORT` left at 8000 — the bootstrap port-scan reassigns around the live
-  `dgx-inference-vllm` hold. The template encodes host *config*, not conflicts.
+  `dgx-inference-vllm` hold. The template encodes host _config_, not conflicts.
 - `.env.example` gains the four missing compose-referenced variables (§1). This is the
   one shared-file edit that is **functional, not cosmetic**: `setup.py` parses
   `.env.example` as runtime data, so the port scanner starts seeing
@@ -170,8 +170,8 @@ than rewriting prod files.
 
 - [ ] P0/P1/P2 results recorded (pass or fail, dated, in the ledger)
 - [ ] Core services `Up` + `healthy`: `postgres redis go2rtc backend
-      frontend prometheus grafana loki tempo alloy alertmanager pyroscope
-      node-exporter redis-exporter json-exporter blackbox-exporter`
+frontend prometheus grafana loki tempo alloy alertmanager pyroscope
+node-exporter redis-exporter json-exporter blackbox-exporter`
       (`foscam-init` separately: exited 0, as a `service_completed_successfully` one-shot)
 - [ ] `ai-*` and `dcgm-exporter` **absent** from `podman ps` (proof of exclusion)
 - [ ] API health endpoints 200; pipeline-worker startup evidenced in backend logs
@@ -180,16 +180,16 @@ than rewriting prod files.
 - [ ] No error logs in `podman compose logs --tail=50` across services
 - [ ] Spec + ledger committed on `feat/context-map-2026-09-12`
 
-## 7. Risk register *(provisional — blocker-inventory workflow pending)*
+## 7. Risk register _(provisional — blocker-inventory workflow pending)_
 
-| ID | Risk | Stance |
-|---|---|---|
-| R1 | Triton (`nvcr.io/...tritonserver:26.01-py3`) & llama.cpp (pinned commit `b7972`, arch list `75,80,86,89` — no Blackwell) on sm_103 may reshape M2/M3 | P1 probes the cheapest slice now; full answer in M2 |
-| R2 | apt `podman-compose 1.0.6` handling of the 1246-line prod file (`deploy.resources`, CDI strings, tags) | P2 gates; fallbacks enumerated (§5) |
-| R3 | 64k-page latent breakage in M2 third-party wheels | **Reversal criteria:** two distinct observed mmap/allocator/segfault failures in M1, or CUDA-context failures in M2 that survive image-version bisect → install `linux-image-nvidia` (4k) + matching driver metapackage, re-run M1 |
-| R4 | `setup.py`/`gpu_config_service.py` still generate dead service names (`ai-yolo26`…) and GPU pairs | Revive generator as the overlay's eventual home (M2); ledger-captured, not fixed here |
-| R5 | `docker-compose.ghcr.yml` already describes a broken pre-consolidation topology | M2+ decision (deprecate vs resync); ledger-captured |
-| R6 | healthy-while-degraded masking (§5) | M2 acceptance gate must prove real inference, not health flags |
+| ID  | Risk                                                                                                                                                 | Stance                                                                                                                                                                                                                             |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | Triton (`nvcr.io/...tritonserver:26.01-py3`) & llama.cpp (pinned commit `b7972`, arch list `75,80,86,89` — no Blackwell) on sm_103 may reshape M2/M3 | P1 probes the cheapest slice now; full answer in M2                                                                                                                                                                                |
+| R2  | apt `podman-compose 1.0.6` handling of the 1246-line prod file (`deploy.resources`, CDI strings, tags)                                               | P2 gates; fallbacks enumerated (§5)                                                                                                                                                                                                |
+| R3  | 64k-page latent breakage in M2 third-party wheels                                                                                                    | **Reversal criteria:** two distinct observed mmap/allocator/segfault failures in M1, or CUDA-context failures in M2 that survive image-version bisect → install `linux-image-nvidia` (4k) + matching driver metapackage, re-run M1 |
+| R4  | `setup.py`/`gpu_config_service.py` still generate dead service names (`ai-yolo26`…) and GPU pairs                                                    | Revive generator as the overlay's eventual home (M2); ledger-captured, not fixed here                                                                                                                                              |
+| R5  | `docker-compose.ghcr.yml` already describes a broken pre-consolidation topology                                                                      | M2+ decision (deprecate vs resync); ledger-captured                                                                                                                                                                                |
+| R6  | healthy-while-degraded masking (§5)                                                                                                                  | M2 acceptance gate must prove real inference, not health flags                                                                                                                                                                     |
 
 ## 8. Explicitly out of scope (M1)
 

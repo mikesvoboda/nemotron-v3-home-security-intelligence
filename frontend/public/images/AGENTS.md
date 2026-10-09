@@ -20,11 +20,13 @@ frontend/public/images/
 **Description:** NVIDIA's iconic eye logo in SVG format.
 
 **Usage:**
+
 - Currently not actively used in the application
 - Available for future use in branding elements
 - May be used as a favicon or loading indicator
 
 **Format:**
+
 - Vector graphic (SVG)
 - Scalable to any size without quality loss
 - Small file size for fast loading
@@ -36,22 +38,26 @@ frontend/public/images/
 **Description:** NVIDIA wordmark logo in white color for use on dark backgrounds.
 
 **Usage:**
+
 - **Header branding:** Displayed in the top-left corner of the application header
 - **Component:** `frontend/src/components/layout/Header.tsx`
 - **Purpose:** Primary branding element throughout the application
 
 **Location in Code:**
+
 ```tsx
 // frontend/src/components/layout/Header.tsx (line 243)
 <img src="/images/nvidia-logo-white.svg" alt="NVIDIA" className="h-6 w-auto md:h-8" />
 ```
 
 **Display:**
+
 - Height: 24px (mobile), 32px (desktop)
 - Color: White (#FFFFFF)
 - Background: Dark theme (#1A1A1A)
 
 **Format:**
+
 - Vector graphic (SVG)
 - Optimized for web delivery
 - Renders crisp at any resolution
@@ -65,6 +71,7 @@ Files in `frontend/public/` are served directly at the root URL path:
 ```
 
 **Key characteristics:**
+
 - No build-time processing or optimization
 - Directly accessible via absolute paths
 - Cached by browsers based on HTTP headers
@@ -88,6 +95,7 @@ To reference images from the public directory:
 ### SVG Best Practices
 
 All SVG files in this directory should:
+
 - Be optimized with SVGO or similar tools
 - Remove unnecessary metadata and comments
 - Use viewBox for responsive sizing
@@ -96,10 +104,10 @@ All SVG files in this directory should:
 
 ### Current Images
 
-| File                      | Format | Size   | Optimized | Usage Status |
-| ------------------------- | ------ | ------ | --------- | ------------ |
-| `nvidia-eye.svg`          | SVG    | 749 B  | Yes       | Not used     |
-| `nvidia-logo-white.svg`   | SVG    | 1,265 B| Yes       | Active       |
+| File                    | Format | Size    | Optimized | Usage Status |
+| ----------------------- | ------ | ------- | --------- | ------------ |
+| `nvidia-eye.svg`        | SVG    | 749 B   | Yes       | Not used     |
+| `nvidia-logo-white.svg` | SVG    | 1,265 B | Yes       | Active       |
 
 ## Adding New Images
 
@@ -110,6 +118,7 @@ When adding images to this directory:
    - Use the src directory for images imported in components (processed by Vite)
 
 2. **Optimize before adding:**
+
    ```bash
    # Optimize SVGs
    npx svgo nvidia-logo.svg
@@ -131,11 +140,13 @@ When adding images to this directory:
 ## Security Considerations
 
 Public images are:
+
 - **Accessible to anyone:** No authentication required
 - **Cacheable:** Browsers may cache for extended periods
 - **Version-controlled:** Changes are tracked in git
 
 **Do NOT place in public/**:
+
 - User-uploaded content
 - Sensitive or proprietary images
 - Images requiring authentication
@@ -151,6 +162,7 @@ SVG images in this directory are optimized for performance:
 - **HTTP/2:** Multiple images can be fetched in parallel
 
 **Metrics:**
+
 - Total directory size: ~2KB
 - Load time: < 10ms on fast connections
 - Impact on First Contentful Paint: Minimal
@@ -170,6 +182,7 @@ These public images are tested indirectly through:
 - **Accessibility tests:** Alt text and semantic markup verified
 
 **Example test:**
+
 ```tsx
 // frontend/src/components/layout/Header.test.tsx
 it('renders NVIDIA logo', () => {
@@ -190,6 +203,7 @@ it('renders NVIDIA logo', () => {
 ## License and Attribution
 
 NVIDIA logos are trademarks of NVIDIA Corporation:
+
 - Use only in accordance with NVIDIA branding guidelines
 - Do not modify or distort logos
 - Maintain proper aspect ratios and clear space

@@ -28,7 +28,7 @@ test.describe('Event Filtering and Search Journey (NEM-2049)', () => {
     const timeout = browserName === 'chromium' ? 10000 : 20000;
     await page.waitForSelector('h1:has-text("Event Timeline")', {
       state: 'visible',
-      timeout
+      timeout,
     });
 
     // Wait for main content
@@ -130,7 +130,10 @@ test.describe('Event Filtering and Search Journey (NEM-2049)', () => {
       const eventCards = page.locator('[role="button"][aria-label^="View details for event"]');
       const noEventsMessage = page.getByText(/No Events Found/i);
 
-      const hasEvents = await eventCards.first().isVisible().catch(() => false);
+      const hasEvents = await eventCards
+        .first()
+        .isVisible()
+        .catch(() => false);
       const hasNoEventsMessage = await noEventsMessage.isVisible().catch(() => false);
 
       expect(hasEvents || hasNoEventsMessage).toBeTruthy();
@@ -287,7 +290,7 @@ test.describe('Event Filtering and Search Journey (NEM-2049)', () => {
     const startDateFilter = page.locator('#start-date-filter');
     const endDateFilter = page.locator('#end-date-filter');
 
-    if (await startDateFilter.isVisible() && await endDateFilter.isVisible()) {
+    if ((await startDateFilter.isVisible()) && (await endDateFilter.isVisible())) {
       // Set date range (last 7 days)
       const today = new Date();
       const lastWeek = new Date(today);
@@ -303,7 +306,10 @@ test.describe('Event Filtering and Search Journey (NEM-2049)', () => {
       const eventCards = page.locator('[role="button"][aria-label^="View details for event"]');
       const noEventsMessage = page.getByText(/No Events Found/i);
 
-      const hasEvents = await eventCards.first().isVisible().catch(() => false);
+      const hasEvents = await eventCards
+        .first()
+        .isVisible()
+        .catch(() => false);
       const hasNoEventsMessage = await noEventsMessage.isVisible().catch(() => false);
 
       expect(hasEvents || hasNoEventsMessage).toBeTruthy();
@@ -413,7 +419,10 @@ test.describe('Event Filtering and Search Journey (NEM-2049)', () => {
       const eventCards = page.locator('[role="button"][aria-label^="View details for event"]');
       const noEventsMessage = page.getByText(/No Events Found/i);
 
-      const hasEvents = await eventCards.first().isVisible().catch(() => false);
+      const hasEvents = await eventCards
+        .first()
+        .isVisible()
+        .catch(() => false);
       const hasNoEventsMessage = await noEventsMessage.isVisible().catch(() => false);
 
       expect(hasEvents || hasNoEventsMessage).toBeTruthy();

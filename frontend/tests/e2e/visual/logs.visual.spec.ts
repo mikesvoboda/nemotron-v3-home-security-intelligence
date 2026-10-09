@@ -31,10 +31,7 @@ test.describe('Logs Dashboard Visual Regression', () => {
     // Mask the Grafana iframe as its content is external
     await expect(page).toHaveScreenshot('logs-full-page.png', {
       fullPage: true,
-      mask: [
-        page.locator('[data-testid="logs-iframe"]'),
-        page.locator('time'),
-      ],
+      mask: [page.locator('[data-testid="logs-iframe"]'), page.locator('time')],
     });
   });
 

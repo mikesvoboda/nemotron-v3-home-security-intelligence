@@ -28,7 +28,7 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     const timeout = browserName === 'chromium' ? 10000 : 20000;
     await page.waitForSelector('h1:has-text("Settings")', {
       state: 'visible',
-      timeout
+      timeout,
     });
 
     await page.waitForTimeout(1000);
@@ -51,7 +51,7 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       { name: 'RULES', selector: page.getByRole('tab', { name: /RULES/i }) },
       { name: 'PROCESSING', selector: page.getByRole('tab', { name: /PROCESSING/i }) },
       { name: 'NOTIFICATIONS', selector: page.getByRole('tab', { name: /NOTIFICATIONS/i }) },
-      { name: 'PROMPTS', selector: page.getByRole('tab', { name: /PROMPTS/i }) }
+      { name: 'PROMPTS', selector: page.getByRole('tab', { name: /PROMPTS/i }) },
     ];
 
     for (const tab of tabs) {
@@ -81,7 +81,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     // Given: Navigate to Processing tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const processingTab = page.getByRole('tab', { name: /PROCESSING/i })
+    const processingTab = page
+      .getByRole('tab', { name: /PROCESSING/i })
       .or(page.locator('button').filter({ hasText: 'PROCESSING' }));
 
     if (await processingTab.isVisible()) {
@@ -89,7 +90,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await page.waitForTimeout(1500);
 
       // When: Look for processing configuration inputs (could be range slider or number input)
-      const batchWindowInput = page.getByLabel(/Batch.*duration/i)
+      const batchWindowInput = page
+        .getByLabel(/Batch.*duration/i)
         .or(page.locator('input[aria-label*="Batch window"]'))
         .or(page.locator('input[name*="batch"]'));
 
@@ -114,20 +116,23 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
 
         // Look for save button and save
         const saveButton = page.getByRole('button', { name: /Save/i });
-        if (await saveButton.count() > 0 && await saveButton.first().isVisible()) {
+        if ((await saveButton.count()) > 0 && (await saveButton.first().isVisible())) {
           await saveButton.first().click();
           await page.waitForTimeout(1500);
 
           // Look for success feedback
-          const successMessage = page.getByText(/saved/i)
-            .or(page.locator('[role="alert"]'));
+          const successMessage = page.getByText(/saved/i).or(page.locator('[role="alert"]'));
 
-          const hasSuccess = await successMessage.first().isVisible().catch(() => false);
+          const hasSuccess = await successMessage
+            .first()
+            .isVisible()
+            .catch(() => false);
           expect(hasSuccess || true).toBeTruthy();
         }
 
         // Re-query the input after save (DOM may have updated)
-        const batchWindowInputRefresh = page.getByLabel(/Batch.*duration/i)
+        const batchWindowInputRefresh = page
+          .getByLabel(/Batch.*duration/i)
           .or(page.locator('input[aria-label*="Batch window"]'))
           .or(page.locator('input[name*="batch"]'));
 
@@ -155,7 +160,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     // Given: Navigate to Processing tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const processingTab = page.getByRole('tab', { name: /PROCESSING/i })
+    const processingTab = page
+      .getByRole('tab', { name: /PROCESSING/i })
       .or(page.locator('button').filter({ hasText: 'PROCESSING' }));
 
     if (await processingTab.isVisible()) {
@@ -163,11 +169,12 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await page.waitForTimeout(1500);
 
       // When: Look for retention days input (could be range slider or number input)
-      const retentionInput = page.getByLabel(/Retention.*days/i)
+      const retentionInput = page
+        .getByLabel(/Retention.*days/i)
         .or(page.locator('input[aria-label*="Retention"]'))
         .or(page.locator('input[name*="retention"]'));
 
-      if (await retentionInput.count() > 0) {
+      if ((await retentionInput.count()) > 0) {
         const input = retentionInput.last(); // Get last input if multiple
         if (await input.isVisible()) {
           const originalValue = await input.inputValue();
@@ -210,7 +217,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     // Given: Navigate to Notifications tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const notificationsTab = page.getByRole('tab', { name: /NOTIFICATIONS/i })
+    const notificationsTab = page
+      .getByRole('tab', { name: /NOTIFICATIONS/i })
       .or(page.locator('button').filter({ hasText: 'NOTIFICATIONS' }));
 
     if (await notificationsTab.isVisible()) {
@@ -218,19 +226,26 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await page.waitForTimeout(1500);
 
       // When: Look for notification channel toggles/inputs
-      const emailToggle = page.getByLabel(/Email/i)
+      const emailToggle = page
+        .getByLabel(/Email/i)
         .or(page.locator('input[type="checkbox"]').first())
         .or(page.locator('[role="switch"]').first());
 
-      if (await emailToggle.count() > 0 && await emailToggle.first().isVisible()) {
-        const initialState = await emailToggle.first().isChecked().catch(() => false);
+      if ((await emailToggle.count()) > 0 && (await emailToggle.first().isVisible())) {
+        const initialState = await emailToggle
+          .first()
+          .isChecked()
+          .catch(() => false);
 
         // Toggle email notifications
         await emailToggle.first().click();
         await page.waitForTimeout(500);
 
         // Then: Verify state changed
-        const newState = await emailToggle.first().isChecked().catch(() => false);
+        const newState = await emailToggle
+          .first()
+          .isChecked()
+          .catch(() => false);
         expect(newState).not.toBe(initialState);
 
         // Toggle back
@@ -249,7 +264,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     // Given: Navigate to Notifications tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const notificationsTab = page.getByRole('tab', { name: /NOTIFICATIONS/i })
+    const notificationsTab = page
+      .getByRole('tab', { name: /NOTIFICATIONS/i })
       .or(page.locator('button').filter({ hasText: 'NOTIFICATIONS' }));
 
     if (await notificationsTab.isVisible()) {
@@ -257,11 +273,12 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await page.waitForTimeout(1500);
 
       // When: Look for webhook URL input
-      const webhookInput = page.getByLabel(/Webhook/i)
+      const webhookInput = page
+        .getByLabel(/Webhook/i)
         .or(page.locator('input[name*="webhook"]'))
         .or(page.locator('input[type="url"]'));
 
-      if (await webhookInput.count() > 0 && await webhookInput.first().isVisible()) {
+      if ((await webhookInput.count()) > 0 && (await webhookInput.first().isVisible())) {
         const originalValue = await webhookInput.first().inputValue();
 
         // Enter webhook URL
@@ -292,7 +309,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     // Given: Navigate to Rules tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const rulesTab = page.getByRole('tab', { name: /RULES/i })
+    const rulesTab = page
+      .getByRole('tab', { name: /RULES/i })
       .or(page.locator('button').filter({ hasText: 'RULES' }));
 
     if (await rulesTab.isVisible()) {
@@ -308,8 +326,9 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       const addRuleButton = page.getByRole('button', { name: /Add Rule/i });
       const rulesTable = page.locator('table');
 
-      const hasRulesUI = await addRuleButton.isVisible().catch(() => false) ||
-                        await rulesTable.isVisible().catch(() => false);
+      const hasRulesUI =
+        (await addRuleButton.isVisible().catch(() => false)) ||
+        (await rulesTable.isVisible().catch(() => false));
 
       expect(hasRulesUI).toBeTruthy();
     }
@@ -360,7 +379,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     // Given: Navigate to Processing tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const processingTab = page.getByRole('tab', { name: /PROCESSING/i })
+    const processingTab = page
+      .getByRole('tab', { name: /PROCESSING/i })
       .or(page.locator('button').filter({ hasText: 'PROCESSING' }));
 
     // Wait for tab to be visible before interacting
@@ -394,7 +414,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     // Given: Navigate to Processing tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const processingTab = page.getByRole('tab', { name: /PROCESSING/i })
+    const processingTab = page
+      .getByRole('tab', { name: /PROCESSING/i })
       .or(page.locator('button').filter({ hasText: 'PROCESSING' }));
 
     if (await processingTab.isVisible()) {
@@ -414,10 +435,14 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
 
         // Then: Look for validation error or prevented input
         const currentValue = await numberInput.inputValue();
-        const errorMessage = page.locator('[role="alert"]')
+        const errorMessage = page
+          .locator('[role="alert"]')
           .or(page.locator('[data-testid*="error"]'));
 
-        const hasError = await errorMessage.first().isVisible().catch(() => false);
+        const hasError = await errorMessage
+          .first()
+          .isVisible()
+          .catch(() => false);
         const valueRejected = currentValue !== '-10';
 
         expect(hasError || valueRejected).toBeTruthy();
@@ -440,11 +465,12 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
     // Look for system information in any tab or dedicated section
-    const systemInfo = page.locator('[data-testid*="system"]')
+    const systemInfo = page
+      .locator('[data-testid*="system"]')
       .or(page.getByText(/Version/i))
       .or(page.getByText(/Uptime/i));
 
-    if (await systemInfo.count() > 0) {
+    if ((await systemInfo.count()) > 0) {
       // When: System info is present
       const infoText = await systemInfo.first().textContent();
 
@@ -467,7 +493,7 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     const tabs = [
       page.getByRole('tab', { name: /CAMERAS/i }),
       page.getByRole('tab', { name: /PROCESSING/i }),
-      page.getByRole('tab', { name: /NOTIFICATIONS/i })
+      page.getByRole('tab', { name: /NOTIFICATIONS/i }),
     ];
 
     for (const tab of tabs) {
@@ -499,7 +525,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
     // Navigate to Processing tab (most likely to have reset)
-    const processingTab = page.getByRole('tab', { name: /PROCESSING/i })
+    const processingTab = page
+      .getByRole('tab', { name: /PROCESSING/i })
       .or(page.locator('button').filter({ hasText: 'PROCESSING' }));
 
     if (await processingTab.isVisible()) {
@@ -507,11 +534,15 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await page.waitForTimeout(1500);
 
       // When: Look for reset button
-      const resetButton = page.getByRole('button', { name: /Reset/i })
-        .or(page.getByRole('button', { name: /Default/i })
-        .or(page.getByRole('button', { name: /Restore/i })));
+      const resetButton = page
+        .getByRole('button', { name: /Reset/i })
+        .or(
+          page
+            .getByRole('button', { name: /Default/i })
+            .or(page.getByRole('button', { name: /Restore/i }))
+        );
 
-      if (await resetButton.count() > 0 && await resetButton.first().isVisible()) {
+      if ((await resetButton.count()) > 0 && (await resetButton.first().isVisible())) {
         // Then: Reset button exists
         await expect(resetButton.first()).toBeVisible();
       }
@@ -528,7 +559,8 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     // Given: Navigate to Processing tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const processingTab = page.getByRole('tab', { name: /PROCESSING/i })
+    const processingTab = page
+      .getByRole('tab', { name: /PROCESSING/i })
       .or(page.locator('button').filter({ hasText: 'PROCESSING' }));
 
     if (await processingTab.isVisible()) {
@@ -538,9 +570,12 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       // When: Check save button state without making changes
       const saveButton = page.getByRole('button', { name: /Save/i });
 
-      if (await saveButton.count() > 0 && await saveButton.first().isVisible()) {
+      if ((await saveButton.count()) > 0 && (await saveButton.first().isVisible())) {
         // Then: Button may be disabled or enabled based on implementation
-        const isDisabled = await saveButton.first().isDisabled().catch(() => false);
+        const isDisabled = await saveButton
+          .first()
+          .isDisabled()
+          .catch(() => false);
 
         // Either disabled or enabled is acceptable (depends on UX pattern)
         expect(typeof isDisabled).toBe('boolean');

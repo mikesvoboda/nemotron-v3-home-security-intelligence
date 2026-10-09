@@ -3,6 +3,7 @@
 ## Purpose
 
 TypeScript type definitions for the frontend application. Contains:
+
 - Advanced type utilities (branded types, discriminated unions, type guards)
 - Auto-generated API types from the backend OpenAPI specification
 - Domain-specific types for AI enrichment, performance metrics, and WebSocket messages
@@ -46,30 +47,30 @@ frontend/src/types/
 
 ## Key Files
 
-| File                        | Purpose                                                    |
-| --------------------------- | ---------------------------------------------------------- |
-| `index.ts`                  | Centralized exports for all types                          |
-| `aiAudit.ts`                | AI audit trail, decision logging types                     |
-| `analytics.ts`              | Analytics data types                                       |
-| `api-endpoints.ts`          | API endpoint definitions and request/response types        |
-| `async.ts`                  | AsyncState types for loading/error/success state management|
-| `branded.ts`                | Branded types for CameraId, EventId, DetectionId, etc.     |
-| `constants.ts`              | Type-safe constants (risk levels, health status, etc.)     |
-| `enrichment.ts`             | Detection enrichment types (vehicle, pet, person, weather) |
-| `export.ts`                 | Event export types (CSV, JSON formats)                     |
-| `guards.ts`                 | Type guards for runtime type validation                    |
-| `notificationPreferences.ts`| Notification channel and preference types                  |
-| `performance.ts`            | Performance alert and AI model metrics types               |
-| `promptManagement.ts`       | Prompt template and version types                          |
-| `rate-limit.ts`             | Rate limiting state and response types                     |
-| `result.ts`                 | Result/Either monad for error handling                     |
-| `summary.ts`                | AI summary data types                                      |
-| `websocket.ts`              | Discriminated unions for WebSocket message handling        |
-| `websocket-events.ts`       | WebSocket event payloads and handlers                      |
-| `rtsp.ts`                   | RTSP testing types (RTSPTestRequest, RTSPTestResult, RTSPCapabilities) |
-| `onvif.ts`                  | ONVIF types (OnvifDevice, OnvifDiscoveryRequest/Response, OnvifCapabilities) |
-| `preview.ts`                | Preview types (PreviewState, PreviewConfig)                |
-| `generated/`                | Auto-generated types from backend OpenAPI spec             |
+| File                         | Purpose                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------- |
+| `index.ts`                   | Centralized exports for all types                                            |
+| `aiAudit.ts`                 | AI audit trail, decision logging types                                       |
+| `analytics.ts`               | Analytics data types                                                         |
+| `api-endpoints.ts`           | API endpoint definitions and request/response types                          |
+| `async.ts`                   | AsyncState types for loading/error/success state management                  |
+| `branded.ts`                 | Branded types for CameraId, EventId, DetectionId, etc.                       |
+| `constants.ts`               | Type-safe constants (risk levels, health status, etc.)                       |
+| `enrichment.ts`              | Detection enrichment types (vehicle, pet, person, weather)                   |
+| `export.ts`                  | Event export types (CSV, JSON formats)                                       |
+| `guards.ts`                  | Type guards for runtime type validation                                      |
+| `notificationPreferences.ts` | Notification channel and preference types                                    |
+| `performance.ts`             | Performance alert and AI model metrics types                                 |
+| `promptManagement.ts`        | Prompt template and version types                                            |
+| `rate-limit.ts`              | Rate limiting state and response types                                       |
+| `result.ts`                  | Result/Either monad for error handling                                       |
+| `summary.ts`                 | AI summary data types                                                        |
+| `websocket.ts`               | Discriminated unions for WebSocket message handling                          |
+| `websocket-events.ts`        | WebSocket event payloads and handlers                                        |
+| `rtsp.ts`                    | RTSP testing types (RTSPTestRequest, RTSPTestResult, RTSPCapabilities)       |
+| `onvif.ts`                   | ONVIF types (OnvifDevice, OnvifDiscoveryRequest/Response, OnvifCapabilities) |
+| `preview.ts`                 | Preview types (PreviewState, PreviewConfig)                                  |
+| `generated/`                 | Auto-generated types from backend OpenAPI spec                               |
 
 ## Type System Patterns
 
@@ -148,11 +149,16 @@ import { RISK_LEVELS, isRiskLevel, assertNever, type RiskLevel } from '../types'
 
 function getRiskColor(level: RiskLevel): string {
   switch (level) {
-    case 'low': return 'green';
-    case 'medium': return 'yellow';
-    case 'high': return 'orange';
-    case 'critical': return 'red';
-    default: return assertNever(level); // TypeScript error if case is missing
+    case 'low':
+      return 'green';
+    case 'medium':
+      return 'yellow';
+    case 'high':
+      return 'orange';
+    case 'critical':
+      return 'red';
+    default:
+      return assertNever(level); // TypeScript error if case is missing
   }
 }
 ```
@@ -200,9 +206,9 @@ Manual type definitions for AI-powered detection enrichment data. These types re
 ```typescript
 // Vehicle classification
 interface VehicleEnrichment {
-  type: string;       // sedan, SUV, pickup, van, truck
+  type: string; // sedan, SUV, pickup, van, truck
   color: string;
-  damage?: string[];  // cracks, dents, glass_shatter, etc.
+  damage?: string[]; // cracks, dents, glass_shatter, etc.
   commercial?: boolean;
   confidence: number;
 }
@@ -217,17 +223,26 @@ interface PetEnrichment {
 // Person attributes
 interface PersonEnrichment {
   clothing?: string;
-  action?: string;           // walking, standing, crouching
-  carrying?: string;         // backpack, package
+  action?: string; // walking, standing, crouching
+  carrying?: string; // backpack, package
   suspicious_attire?: boolean;
   service_uniform?: boolean;
   confidence: number;
 }
 
 // Additional enrichment types
-interface LicensePlateEnrichment { text: string; confidence: number; }
-interface WeatherEnrichment { condition: string; confidence: number; }
-interface ImageQualityEnrichment { score: number; issues: string[]; }
+interface LicensePlateEnrichment {
+  text: string;
+  confidence: number;
+}
+interface WeatherEnrichment {
+  condition: string;
+  confidence: number;
+}
+interface ImageQualityEnrichment {
+  score: number;
+  issues: string[];
+}
 
 // Combined enrichment data (all fields optional)
 interface EnrichmentData {

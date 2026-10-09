@@ -170,9 +170,9 @@ test.describe('Operations Error State', () => {
     // In error state, the page shows an error message with Reload Page button
     // Use .first() since both elements may be visible (button is inside the error container)
     // Timeout needs to be long enough for API retry exhaustion (~10s in CI)
-    await expect(
-      systemPage.errorMessage.or(systemPage.reloadButton).first()
-    ).toBeVisible({ timeout: 15000 });
+    await expect(systemPage.errorMessage.or(systemPage.reloadButton).first()).toBeVisible({
+      timeout: 15000,
+    });
   });
 });
 

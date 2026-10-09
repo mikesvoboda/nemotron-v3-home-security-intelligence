@@ -3,18 +3,19 @@
 ## Purpose
 
 This directory contains React 19 form components that leverage the new form patterns:
+
 - `useActionState` for managing form state with async actions
 - `useFormStatus` for automatic pending state detection without prop drilling
 
 ## Key Files
 
-| File                     | Purpose                                      |
-| ------------------------ | -------------------------------------------- |
-| `SubmitButton.tsx`       | Submit button with automatic pending state   |
-| `SubmitButton.test.tsx`  | Tests for SubmitButton                       |
-| `FormField.tsx`          | Input, textarea, select with error display   |
-| `FormField.test.tsx`     | Tests for FormField components               |
-| `index.ts`               | Public exports                               |
+| File                    | Purpose                                    |
+| ----------------------- | ------------------------------------------ |
+| `SubmitButton.tsx`      | Submit button with automatic pending state |
+| `SubmitButton.test.tsx` | Tests for SubmitButton                     |
+| `FormField.tsx`         | Input, textarea, select with error display |
+| `FormField.test.tsx`    | Tests for FormField components             |
+| `index.ts`              | Public exports                             |
 
 ## React 19 Form Patterns
 
@@ -75,10 +76,10 @@ The state object returned by useActionState:
 ```typescript
 interface FormActionState<TData = unknown> {
   status: 'idle' | 'pending' | 'success' | 'error';
-  data?: TData;              // Result data on success
-  error?: string;            // Error message on failure
-  fieldErrors?: Record<string, string>;  // Field-level validation errors
-  timestamp?: number;        // Last state change time
+  data?: TData; // Result data on success
+  error?: string; // Error message on failure
+  fieldErrors?: Record<string, string>; // Field-level validation errors
+  timestamp?: number; // Last state change time
 }
 ```
 
@@ -105,9 +106,9 @@ interface SubmitButtonProps {
   children: ReactNode;
   variant?: 'primary' | 'secondary' | 'danger';
   size?: 'sm' | 'md' | 'lg';
-  pendingText?: string;    // Text shown while pending
+  pendingText?: string; // Text shown while pending
   disabled?: boolean;
-  icon?: ReactNode;        // Icon shown when not pending
+  icon?: ReactNode; // Icon shown when not pending
   pendingIcon?: ReactNode; // Icon shown when pending (defaults to spinner)
   fullWidth?: boolean;
 }
@@ -119,8 +120,8 @@ interface SubmitButtonProps {
 interface FormFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   name: string;
   label: string;
-  error?: string;          // Error message to display
-  helpText?: string;       // Help text below input
+  error?: string; // Error message to display
+  helpText?: string; // Help text below input
   leadingIcon?: ReactNode;
   trailingIcon?: ReactNode;
 }

@@ -83,8 +83,7 @@ export class EntitiesPage extends BasePage {
     // This ensures the API call has completed and data has been processed
     await this.page.waitForFunction(
       () => {
-        const hasEntityCards =
-          document.querySelectorAll('[data-testid="entity-card"]').length > 0;
+        const hasEntityCards = document.querySelectorAll('[data-testid="entity-card"]').length > 0;
 
         // Check for empty state - look for the specific heading text
         // EntitiesEmptyState renders <h2>No Entities Tracked Yet</h2>

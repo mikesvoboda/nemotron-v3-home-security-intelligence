@@ -26,10 +26,7 @@ import type {
 import type { WebSocketMessage } from '../../src/types/websocket';
 
 // Helper to make API calls from within the test
-async function fetchApi<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
+async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`http://localhost:8000${path}`, {
     headers: {
       'Content-Type': 'application/json',
@@ -39,9 +36,7 @@ async function fetchApi<T>(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `API error: ${response.status} ${response.statusText}`
-    );
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
 
   return response.json();
@@ -229,9 +224,7 @@ test.describe('API Contract Tests', () => {
 
   test.describe('Error Response Contracts', () => {
     test('404 errors return consistent error format', async () => {
-      const response = await fetch(
-        'http://localhost:8000/api/cameras/nonexistent'
-      );
+      const response = await fetch('http://localhost:8000/api/cameras/nonexistent');
 
       expect(response.status).toBe(404);
 
@@ -377,14 +370,7 @@ test.describe('API Contract Tests', () => {
       const detections = data.items || data.detections || [];
 
       // Common object types - adjust based on actual model
-      const validObjectTypes = [
-        'person',
-        'dog',
-        'cat',
-        'car',
-        'bicycle',
-        'unknown',
-      ];
+      const validObjectTypes = ['person', 'dog', 'cat', 'car', 'bicycle', 'unknown'];
 
       for (const detection of detections) {
         // Object type should be a non-empty string

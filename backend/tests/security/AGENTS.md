@@ -79,23 +79,23 @@ API security vulnerability testing:
 
 Authentication security testing:
 
-| Test Class                      | Coverage                      |
-| ------------------------------- | ----------------------------- |
-| `TestHashKeyFunction`           | API key SHA-256 hashing       |
-| `TestAuthMiddlewareExemptPaths` | Exempt path checking logic    |
-| `TestAuthMiddlewareValidation`  | API key validation logic      |
-| `TestAuthMiddlewareIntegration` | End-to-end auth flow          |
-| `TestAPIKeyLeakagePrevention`   | Key leakage in logs/responses |
+| Test Class                      | Coverage                                 |
+| ------------------------------- | ---------------------------------------- |
+| `TestHashKeyFunction`           | API key SHA-256 hashing                  |
+| `TestAPIKeyLeakage`             | Key leakage in error responses           |
+| `TestExemptEndpointsWithClient` | Endpoints open without a key on loopback |
+| `TestMediaEndpointSecurity`     | Media 404s and path traversal            |
+| `TestAuthenticationDisabled`    | Root endpoint and ignored invalid keys   |
+| `TestConstantTimeComparison`    | `hmac.compare_digest` for key validation |
+
+The EXPOSE_LAN gate (OD-12) is tested in `backend/tests/unit/api/middleware/test_auth.py`
+and, over every mounted route, `backend/tests/unit/api/test_expose_lan_routes.py`.
 
 **Key Security Tests:**
 
-- Valid API key acceptance
-- Invalid API key rejection
-- Missing API key handling
-- API key in header vs query parameter
-- Exempt endpoint handling (health checks, OpenAPI docs)
-- Key hashing consistency
+- Key hashing consistency and constant-time comparison
 - Key leakage prevention in error messages
+- Open endpoints (health checks, OpenAPI docs) on a loopback deployment
 
 ### `test_input_validation.py`
 

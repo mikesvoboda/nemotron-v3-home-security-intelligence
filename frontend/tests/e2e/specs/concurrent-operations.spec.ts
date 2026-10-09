@@ -73,7 +73,10 @@ async function createIsolatedContext(browser: BrowserContext['browser']): Promis
 }
 
 test.describe('Concurrent Operations - Multi-Context Resource Modifications', () => {
-  test('two contexts making concurrent API requests to same endpoint @critical', async ({ browser, browserName }) => {
+  test('two contexts making concurrent API requests to same endpoint @critical', async ({
+    browser,
+    browserName,
+  }) => {
     // Increase test timeout for multi-context operations
     test.setTimeout(45000);
 
@@ -108,10 +111,7 @@ test.describe('Concurrent Operations - Multi-Context Resource Modifications', ()
       const timeline1 = new TimelinePage(page1);
       const timeline2 = new TimelinePage(page2);
 
-      await Promise.all([
-        timeline1.goto(),
-        timeline2.goto(),
-      ]);
+      await Promise.all([timeline1.goto(), timeline2.goto()]);
 
       // Wait for both to load
       await page1.waitForTimeout(browserName === 'webkit' ? 2000 : 1500);
@@ -162,10 +162,7 @@ test.describe('Concurrent Operations - Multi-Context Resource Modifications', ()
       const timeline2 = new TimelinePage(page2);
 
       // Both contexts fetch data simultaneously
-      await Promise.all([
-        timeline1.goto(),
-        timeline2.goto(),
-      ]);
+      await Promise.all([timeline1.goto(), timeline2.goto()]);
 
       // Wait for both pages to load
       await page1.waitForTimeout(browserName === 'webkit' ? 2000 : 1500);
@@ -191,7 +188,10 @@ test.describe('Concurrent Operations - Multi-Context Resource Modifications', ()
   });
 
   // Skip - multi-context tests have timing issues with global setup storage state
-  test.skip('concurrent navigation to same resource from different contexts', async ({ browser, browserName }) => {
+  test.skip('concurrent navigation to same resource from different contexts', async ({
+    browser,
+    browserName,
+  }) => {
     test.setTimeout(45000);
 
     const context1 = await createIsolatedContext(browser);
@@ -204,19 +204,16 @@ test.describe('Concurrent Operations - Multi-Context Resource Modifications', ()
       await setupApiMocks(page1, defaultMockConfig);
       await setupApiMocks(page2, defaultMockConfig);
 
-    // Both users navigate to the same event detail simultaneously
-    await Promise.all([
-      page1.goto('/timeline?event=1'),
-      page2.goto('/timeline?event=1'),
-    ]);
+      // Both users navigate to the same event detail simultaneously
+      await Promise.all([page1.goto('/timeline?event=1'), page2.goto('/timeline?event=1')]);
 
-    // Wait for pages to load
-    await page1.waitForTimeout(browserName === 'webkit' ? 1000 : 600);
-    await page2.waitForTimeout(browserName === 'webkit' ? 1000 : 600);
+      // Wait for pages to load
+      await page1.waitForTimeout(browserName === 'webkit' ? 1000 : 600);
+      await page2.waitForTimeout(browserName === 'webkit' ? 1000 : 600);
 
-    // Both pages should load successfully without interference
-    const timeline1 = new TimelinePage(page1);
-    const timeline2 = new TimelinePage(page2);
+      // Both pages should load successfully without interference
+      const timeline1 = new TimelinePage(page1);
+      const timeline2 = new TimelinePage(page2);
 
       await expect(timeline1.pageTitle).toBeVisible();
       await expect(timeline2.pageTitle).toBeVisible();
@@ -339,7 +336,10 @@ test.describe('Concurrent Operations - Rapid Action Handling', () => {
   });
 
   // Skip - rapid clicks cause timing issues with navigation
-  test.skip('rapid stat card clicks do not cause duplicate navigation', async ({ page, browserName }) => {
+  test.skip('rapid stat card clicks do not cause duplicate navigation', async ({
+    page,
+    browserName,
+  }) => {
     await setupApiMocks(page, defaultMockConfig);
 
     const dashboardPage = new DashboardPage(page);
@@ -362,7 +362,10 @@ test.describe('Concurrent Operations - Rapid Action Handling', () => {
 });
 
 test.describe('Concurrent Operations - WebSocket Message Ordering', () => {
-  test('high-volume concurrent WebSocket messages processed in order', async ({ page, browserName }) => {
+  test('high-volume concurrent WebSocket messages processed in order', async ({
+    page,
+    browserName,
+  }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const dashboardPage = new DashboardPage(page);
@@ -391,7 +394,9 @@ test.describe('Concurrent Operations - WebSocket Message Ordering', () => {
     await Promise.all(events.map((event) => wsMock.sendSecurityEvent(event)));
 
     // Wait for all messages to be processed
-    await page.waitForTimeout(browserName === 'webkit' ? 3000 : browserName === 'firefox' ? 2500 : 2000);
+    await page.waitForTimeout(
+      browserName === 'webkit' ? 3000 : browserName === 'firefox' ? 2500 : 2000
+    );
 
     // Dashboard should still be functional after burst
     await expect(dashboardPage.pageTitle).toBeVisible();
@@ -402,7 +407,10 @@ test.describe('Concurrent Operations - WebSocket Message Ordering', () => {
     expect(counterText).toBeTruthy();
   });
 
-  test('WebSocket messages on multiple channels processed concurrently', async ({ page, browserName }) => {
+  test('WebSocket messages on multiple channels processed concurrently', async ({
+    page,
+    browserName,
+  }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const dashboardPage = new DashboardPage(page);
@@ -441,7 +449,9 @@ test.describe('Concurrent Operations - WebSocket Message Ordering', () => {
     await Promise.all([...eventsPromises, ...systemPromises]);
 
     // Wait for processing
-    await page.waitForTimeout(browserName === 'webkit' ? 3000 : browserName === 'firefox' ? 2500 : 2000);
+    await page.waitForTimeout(
+      browserName === 'webkit' ? 3000 : browserName === 'firefox' ? 2500 : 2000
+    );
 
     // Both channels should still be connected and functional
     const eventsState = await wsMock.getConnectionState('events');
@@ -454,7 +464,10 @@ test.describe('Concurrent Operations - WebSocket Message Ordering', () => {
     await expect(dashboardPage.pageTitle).toBeVisible();
   });
 
-  test('interleaved WebSocket messages with different priorities', async ({ page, browserName }) => {
+  test('interleaved WebSocket messages with different priorities', async ({
+    page,
+    browserName,
+  }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const timelinePage = new TimelinePage(page);
@@ -464,7 +477,12 @@ test.describe('Concurrent Operations - WebSocket Message Ordering', () => {
     await wsMock.waitForConnection('events');
 
     // Interleave low, medium, high, and critical risk events
-    const riskLevels: Array<'low' | 'medium' | 'high' | 'critical'> = ['low', 'medium', 'high', 'critical'];
+    const riskLevels: Array<'low' | 'medium' | 'high' | 'critical'> = [
+      'low',
+      'medium',
+      'high',
+      'critical',
+    ];
     const riskScores = [25, 50, 75, 95];
 
     const interleavedEvents = Array.from({ length: 40 }, (_, i) => {
@@ -487,7 +505,9 @@ test.describe('Concurrent Operations - WebSocket Message Ordering', () => {
     }
 
     // Wait for all processing
-    await page.waitForTimeout(browserName === 'webkit' ? 2000 : browserName === 'firefox' ? 1500 : 1000);
+    await page.waitForTimeout(
+      browserName === 'webkit' ? 2000 : browserName === 'firefox' ? 1500 : 1000
+    );
 
     // Timeline should remain functional
     await expect(timelinePage.pageTitle).toBeVisible();
@@ -545,7 +565,9 @@ test.describe('Concurrent Operations - Optimistic UI Updates', () => {
     await page.waitForTimeout(browserName === 'webkit' ? 800 : 500);
 
     // Attempt to mark as reviewed
-    const reviewButton = page.getByRole('button', { name: /mark as reviewed|mark as not reviewed/i });
+    const reviewButton = page.getByRole('button', {
+      name: /mark as reviewed|mark as not reviewed/i,
+    });
     await reviewButton.click();
 
     // Wait for request to complete
@@ -595,7 +617,9 @@ test.describe('Concurrent Operations - Optimistic UI Updates', () => {
     await timelinePage.clickEvent(0);
     await page.waitForTimeout(browserName === 'webkit' ? 800 : 500);
 
-    const reviewButton = page.getByRole('button', { name: /mark as reviewed|mark as not reviewed/i });
+    const reviewButton = page.getByRole('button', {
+      name: /mark as reviewed|mark as not reviewed/i,
+    });
 
     // Rapidly click review button multiple times
     await reviewButton.click();
@@ -612,7 +636,10 @@ test.describe('Concurrent Operations - Optimistic UI Updates', () => {
   });
 
   // Skip - filter timing issues with rapid changes
-  test.skip('concurrent filter changes with pending data requests', async ({ page, browserName }) => {
+  test.skip('concurrent filter changes with pending data requests', async ({
+    page,
+    browserName,
+  }) => {
     await setupApiMocks(page, defaultMockConfig);
 
     // Add delay to events API to create pending state
@@ -665,7 +692,9 @@ test.describe('Concurrent Operations - Session Timeout Scenarios', () => {
     await page.waitForTimeout(browserName === 'webkit' ? 800 : 500);
 
     // Attempt operation that will fail
-    const reviewButton = page.getByRole('button', { name: /mark as reviewed|mark as not reviewed/i });
+    const reviewButton = page.getByRole('button', {
+      name: /mark as reviewed|mark as not reviewed/i,
+    });
     await reviewButton.click();
 
     // Wait for failure
@@ -731,7 +760,10 @@ test.describe('Concurrent Operations - Session Timeout Scenarios', () => {
     await expect(dashboardPage.eventsTodayStat).toBeVisible();
   });
 
-  test('page refresh during concurrent operations recovers state', async ({ page, browserName }) => {
+  test('page refresh during concurrent operations recovers state', async ({
+    page,
+    browserName,
+  }) => {
     const wsMock = await setupMocksWithWebSocket(page);
 
     const dashboardPage = new DashboardPage(page);
@@ -770,7 +802,10 @@ test.describe('Concurrent Operations - Session Timeout Scenarios', () => {
 
 test.describe('Concurrent Operations - Edge Cases', () => {
   // Skip - rapid navigation timing issues
-  test.skip('simultaneous API requests to same endpoint deduplicated', async ({ page, browserName }) => {
+  test.skip('simultaneous API requests to same endpoint deduplicated', async ({
+    page,
+    browserName,
+  }) => {
     await setupApiMocks(page, defaultMockConfig);
 
     let apiCallCount = 0;
@@ -829,7 +864,10 @@ test.describe('Concurrent Operations - Edge Cases', () => {
     await expect(page).toHaveURL('/');
   });
 
-  test('memory leak prevention with rapid component mounting/unmounting', async ({ page, browserName }) => {
+  test('memory leak prevention with rapid component mounting/unmounting', async ({
+    page,
+    browserName,
+  }) => {
     // Increase timeout for rapid navigation test
     test.setTimeout(45000);
 

@@ -8,11 +8,11 @@ Components for creating and managing scheduled security reports in the NVIDIA Se
 
 ## Key Components
 
-| File                           | Purpose                                           |
-| ------------------------------ | ------------------------------------------------- |
-| `ScheduledReportForm.tsx`      | Form for creating and editing scheduled reports   |
-| `ScheduledReportForm.test.tsx` | Test suite for ScheduledReportForm                |
-| `index.ts`                     | Barrel exports for report components              |
+| File                           | Purpose                                         |
+| ------------------------------ | ----------------------------------------------- |
+| `ScheduledReportForm.tsx`      | Form for creating and editing scheduled reports |
+| `ScheduledReportForm.test.tsx` | Test suite for ScheduledReportForm              |
+| `index.ts`                     | Barrel exports for report components            |
 
 ## Component Details
 
@@ -22,14 +22,14 @@ A comprehensive form component for creating and editing scheduled report configu
 
 **Props:**
 
-| Prop              | Type                                                        | Default | Description                          |
-| ----------------- | ----------------------------------------------------------- | ------- | ------------------------------------ |
-| `report`          | `ScheduledReport?`                                          | -       | Existing report for editing          |
-| `onSubmit`        | `(data: ScheduledReportCreate \| ScheduledReportUpdate) => Promise<void>` | - | Submit handler                      |
-| `onCancel`        | `() => void`                                                | -       | Cancel handler                       |
-| `isSubmitting`    | `boolean?`                                                  | `false` | Whether form is submitting           |
-| `apiError`        | `string \| null?`                                           | -       | API error message                    |
-| `onClearApiError` | `() => void?`                                               | -       | Clear API error callback             |
+| Prop              | Type                                                                      | Default | Description                 |
+| ----------------- | ------------------------------------------------------------------------- | ------- | --------------------------- |
+| `report`          | `ScheduledReport?`                                                        | -       | Existing report for editing |
+| `onSubmit`        | `(data: ScheduledReportCreate \| ScheduledReportUpdate) => Promise<void>` | -       | Submit handler              |
+| `onCancel`        | `() => void`                                                              | -       | Cancel handler              |
+| `isSubmitting`    | `boolean?`                                                                | `false` | Whether form is submitting  |
+| `apiError`        | `string \| null?`                                                         | -       | API error message           |
+| `onClearApiError` | `() => void?`                                                             | -       | Clear API error callback    |
 
 **Form Sections:**
 
@@ -97,37 +97,45 @@ import { ScheduledReportForm } from '@/components/reports';
 The test suite covers:
 
 **Create Mode:**
+
 - Empty form rendering
 - Validation error for empty name
 - Form submission with valid data
 - Cancel button functionality
 
 **Edit Mode:**
+
 - Form population with existing report data
 - Day of week selector for weekly frequency
 
 **Frequency Selection:**
+
 - Day of month selector for monthly
 - Hidden day selectors for daily
 
 **Email Recipients:**
+
 - Adding email recipients
 - Removing email recipients
 - Adding email on Enter key
 
 **Format Selection:**
+
 - Selecting different output formats (PDF, CSV, JSON)
 
 **Toggles:**
+
 - Enabled state toggle
 - Include charts checkbox
 - Include event details checkbox
 
 **Error Handling:**
+
 - API error display
 - Error dismissal via clear button
 
 **Submitting State:**
+
 - Disabled inputs when submitting
 - Loading state on submit button
 
@@ -143,13 +151,13 @@ The test suite covers:
 ```typescript
 interface FormState {
   name: string;
-  frequency: ReportFrequency;      // 'daily' | 'weekly' | 'monthly'
-  day_of_week: number;             // 0-6 (Monday-Sunday)
-  day_of_month: number;            // 1-31
-  hour: number;                    // 0-23
-  minute: number;                  // 0, 15, 30, 45
-  timezone: string;                // e.g., 'UTC', 'America/New_York'
-  format: ReportFormat;            // 'pdf' | 'csv' | 'json'
+  frequency: ReportFrequency; // 'daily' | 'weekly' | 'monthly'
+  day_of_week: number; // 0-6 (Monday-Sunday)
+  day_of_month: number; // 1-31
+  hour: number; // 0-23
+  minute: number; // 0, 15, 30, 45
+  timezone: string; // e.g., 'UTC', 'America/New_York'
+  format: ReportFormat; // 'pdf' | 'csv' | 'json'
   enabled: boolean;
   email_recipients: string[];
   include_charts: boolean;

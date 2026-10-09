@@ -166,7 +166,7 @@ The process of running an AI model on input data to produce predictions. For thi
 
 ### JWT (JSON Web Token)
 
-A compact, URL-safe token format for securely transmitting claims between parties. The backend's `AuthService` issues JWT access/refresh tokens from `POST /api/auth/login`, but the global `AuthMiddleware` is disabled (NEM-5527) and `AUTH_ENABLED` defaults to false: after first-run setup (SetupGuard), API endpoints are open on the local network. JWT enforcement is reserved for the multi-user model. See [Security Architecture](../architecture/security/README.md).
+A compact, URL-safe token format for securely transmitting claims between parties. The backend's `AuthService` can sign and verify HS256 JWTs (PyJWT), but nothing issues one: `POST /api/auth/login` sets an opaque Redis session cookie, and the `EXPOSE_LAN` auth gate (`AuthMiddleware`) accepts that cookie or an API key, never a JWT. See [Security Architecture](../architecture/security/README.md).
 
 ---
 

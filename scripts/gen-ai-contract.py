@@ -622,8 +622,11 @@ def _json_primitive(x: object) -> bool:
 
 
 def _json_node(node: object, indent: int, suffix: str, prefix: int = 0) -> str:
-    """Serialize one node at prettier 3.x's JSON fixpoint (verified against the
-    pre-commit hook's prettier 3.2.4 bytes: 36/36 schemas byte-identical).
+    """Serialize one node at prettier 3.x's JSON fixpoint (derived against
+    the hook's prettier 3.2.4 bytes: 36/36 schemas byte-identical;
+    re-verified byte-identical at 3.9.9 when owner ruling 24 raised the
+    hook's pin — test_rendered_schemas_are_prettier_fixpoint shells out to
+    the pinned binary, and --check passes on every emitted JSON, 45/45).
 
     Prettier's JSON rules this implements (each probed against the hook):
     - objects always print one-key-per-line (2-space indent, keys sorted here
@@ -642,9 +645,10 @@ def _json_node(node: object, indent: int, suffix: str, prefix: int = 0) -> str:
     decision measures the line prettier would actually print.
 
     Deliberately NOT a prettier shell-out: CI jobs that run --check have no
-    guarantee of the hook's pinned prettier@3.2.4 (the sandbox additionally
-    runs 3.9.7 locally - byte-identical on this corpus, zero drift), and a
-    subprocess would make generation machine-dependent. The hook's rewrite IS
+    guarantee of any pinned prettier binary, and the pin itself moved
+    3.2.4 -> 3.9.9 under owner ruling 24 — every version tried on this
+    corpus (3.2.4, 3.9.7, 3.9.9) is byte-identical, zero JSON drift — while
+    a subprocess would make generation machine-dependent. The hook's rewrite IS
     the contract; the fixpoint test in scripts/test_gen_ai_contract.py shells
     out to the hook binary (skipping cleanly when absent) to prove this
     serializer and the hook agree on every emitted file.

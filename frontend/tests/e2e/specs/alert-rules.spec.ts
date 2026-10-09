@@ -283,8 +283,9 @@ test.describe('Edit Alert Rule', () => {
     });
 
     // Wait for PUT request
-    const responsePromise = page.waitForResponse((response) =>
-      response.url().includes('/api/alerts/rules/') && response.request().method() === 'PUT'
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/alerts/rules/') && response.request().method() === 'PUT'
     );
     await alertRulesPage.submitRuleForm();
     await responsePromise;
@@ -329,8 +330,9 @@ test.describe('Delete Alert Rule', () => {
     await alertRulesPage.deleteRule(0);
 
     // Wait for DELETE request
-    const responsePromise = page.waitForResponse((response) =>
-      response.url().includes('/api/alerts/rules/') && response.request().method() === 'DELETE'
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/alerts/rules/') && response.request().method() === 'DELETE'
     );
     await alertRulesPage.confirmDelete();
     await responsePromise;
@@ -362,8 +364,9 @@ test.describe('Toggle Alert Rule Enabled State', () => {
 
   test('can toggle rule enabled state', async ({ page }) => {
     // Wait for PUT request when toggling
-    const responsePromise = page.waitForResponse((response) =>
-      response.url().includes('/api/alerts/rules/') && response.request().method() === 'PUT'
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/alerts/rules/') && response.request().method() === 'PUT'
     );
 
     await alertRulesPage.toggleRuleEnabled(0);
@@ -371,8 +374,9 @@ test.describe('Toggle Alert Rule Enabled State', () => {
   });
 
   test('can toggle rule by name', async ({ page }) => {
-    const responsePromise = page.waitForResponse((response) =>
-      response.url().includes('/api/alerts/rules/') && response.request().method() === 'PUT'
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/alerts/rules/') && response.request().method() === 'PUT'
     );
 
     await alertRulesPage.toggleRuleEnabledByName('Animal Alert');
@@ -571,9 +575,15 @@ test.describe('Alert Rules Object Type Selection', () => {
     await alertRulesPage.openAddRuleModal();
 
     // Check that object type buttons are visible
-    const personButton = alertRulesPage.ruleModal.locator('button').filter({ hasText: /^person$/i });
-    const vehicleButton = alertRulesPage.ruleModal.locator('button').filter({ hasText: /^vehicle$/i });
-    const animalButton = alertRulesPage.ruleModal.locator('button').filter({ hasText: /^animal$/i });
+    const personButton = alertRulesPage.ruleModal
+      .locator('button')
+      .filter({ hasText: /^person$/i });
+    const vehicleButton = alertRulesPage.ruleModal
+      .locator('button')
+      .filter({ hasText: /^vehicle$/i });
+    const animalButton = alertRulesPage.ruleModal
+      .locator('button')
+      .filter({ hasText: /^animal$/i });
 
     await expect(personButton).toBeVisible();
     await expect(vehicleButton).toBeVisible();
@@ -615,8 +625,12 @@ test.describe('Alert Rules Notification Channels', () => {
 
     // Check that channel buttons are visible
     const emailButton = alertRulesPage.ruleModal.locator('button').filter({ hasText: /^email$/i });
-    const webhookButton = alertRulesPage.ruleModal.locator('button').filter({ hasText: /^webhook$/i });
-    const pushoverButton = alertRulesPage.ruleModal.locator('button').filter({ hasText: /^pushover$/i });
+    const webhookButton = alertRulesPage.ruleModal
+      .locator('button')
+      .filter({ hasText: /^webhook$/i });
+    const pushoverButton = alertRulesPage.ruleModal
+      .locator('button')
+      .filter({ hasText: /^pushover$/i });
 
     await expect(emailButton).toBeVisible();
     await expect(webhookButton).toBeVisible();
@@ -741,8 +755,9 @@ test.describe('Alert Rules Full CRUD Workflow', () => {
       name: 'Updated E2E Rule',
     });
 
-    responsePromise = page.waitForResponse((response) =>
-      response.url().includes('/api/alerts/rules/') && response.request().method() === 'PUT'
+    responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/alerts/rules/') && response.request().method() === 'PUT'
     );
     await alertRulesPage.submitRuleForm();
     await responsePromise;
@@ -750,8 +765,9 @@ test.describe('Alert Rules Full CRUD Workflow', () => {
 
     // 4. DELETE: Delete a rule
     await alertRulesPage.deleteRule(0);
-    responsePromise = page.waitForResponse((response) =>
-      response.url().includes('/api/alerts/rules/') && response.request().method() === 'DELETE'
+    responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/alerts/rules/') && response.request().method() === 'DELETE'
     );
     await alertRulesPage.confirmDelete();
     await responsePromise;

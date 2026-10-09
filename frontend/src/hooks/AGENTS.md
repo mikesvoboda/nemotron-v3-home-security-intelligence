@@ -1,5 +1,7 @@
 # Frontend Hooks Directory
 
+> **Inventory banner (W1.3):** the file-by-file inventory below is **unmaintained until W3.2** — it drifts as code moves. The code is the source of truth; verify any line against the tree before acting on it.
+
 ## Purpose
 
 React custom hooks for managing WebSocket connections, real-time event streams, system status monitoring, storage stats, GPU metrics polling, AI service degradation tracking, keyboard navigation, mobile gestures, and offline support (PWA) in the home security dashboard.

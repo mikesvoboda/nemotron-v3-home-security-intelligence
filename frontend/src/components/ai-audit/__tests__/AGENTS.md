@@ -6,10 +6,10 @@ Contains test files for AI audit components, specifically testing the barrel exp
 
 ## Files
 
-| File                            | Purpose                                              | Status |
-| ------------------------------- | ---------------------------------------------------- | ------ |
-| `PromptPlayground.test.tsx`     | Barrel export verification and integration tests     | Active |
-| `PromptVersionHistory.test.tsx` | Tests for PromptVersionHistory component             | Active |
+| File                            | Purpose                                          | Status |
+| ------------------------------- | ------------------------------------------------ | ------ |
+| `PromptPlayground.test.tsx`     | Barrel export verification and integration tests | Active |
+| `PromptVersionHistory.test.tsx` | Tests for PromptVersionHistory component         | Active |
 
 ## Key Test Files
 
@@ -45,6 +45,7 @@ Contains test files for AI audit components, specifically testing the barrel exp
    - Tests expand/collapse functionality for impact explanation
 
 **Mocked Dependencies:**
+
 - `../../../services/api` - All API functions (fetchAllPrompts, updateModelPrompt, testPrompt, exportPrompts, importPrompts, fetchEvents)
 
 ---
@@ -89,10 +90,12 @@ Contains test files for AI audit components, specifically testing the barrel exp
    - Renders header with title
 
 **Mocked Dependencies:**
+
 - `../../../hooks/useAIAuditQueries` - useAIAuditPromptHistoryQuery hook
 - `../../../services/promptManagementApi` - restorePromptVersion function
 
 **Test Utilities:**
+
 - Custom QueryClientProvider wrapper for React Query
 - Fake timers for consistent timestamp testing
 
@@ -109,6 +112,7 @@ import { PromptPlayground, PromptABTest, ABTestStats } from '../ai-audit';
 ### Mock Data Fixtures
 
 Both test files use consistent mock data structures:
+
 - `ABTestResult` with originalResult/modifiedResult
 - `PromptVersionInfo` with model, version, created_at, is_active
 - `EnrichedSuggestion` with category, priority, impactExplanation

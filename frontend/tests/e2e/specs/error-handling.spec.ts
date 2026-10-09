@@ -12,14 +12,7 @@ import { test, expect } from '@playwright/test';
 
 // Skip entire file in CI - timing issues cause flaky failures
 test.skip(() => !!process.env.CI, 'E2E tests flaky in CI - run locally');
-import {
-  DashboardPage,
-  TimelinePage,
-  AlertsPage,
-  LogsPage,
-  AuditPage,
-  SystemPage,
-} from '../pages';
+import { DashboardPage, TimelinePage, AlertsPage, LogsPage, AuditPage, SystemPage } from '../pages';
 import {
   setupApiMocks,
   errorMockConfig,
@@ -62,7 +55,9 @@ test.describe('Dashboard Error Handling', () => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     // Error UI appears after API retries exhaust
-    await expect(dashboardPage.errorHeading).toHaveText(/Error Loading Dashboard/i, { timeout: ERROR_TIMEOUT });
+    await expect(dashboardPage.errorHeading).toHaveText(/Error Loading Dashboard/i, {
+      timeout: ERROR_TIMEOUT,
+    });
   });
 });
 
@@ -96,7 +91,9 @@ test.describe('Timeline Error Handling', () => {
     // Wait for page structure then error message
     // Error UI appears after API retries exhaust
     await expect(timelinePage.pageTitle).toBeVisible({ timeout: ERROR_TIMEOUT });
-    await expect(timelinePage.errorMessage).toHaveText(/Error Loading Events/i, { timeout: ERROR_TIMEOUT });
+    await expect(timelinePage.errorMessage).toHaveText(/Error Loading Events/i, {
+      timeout: ERROR_TIMEOUT,
+    });
   });
 });
 

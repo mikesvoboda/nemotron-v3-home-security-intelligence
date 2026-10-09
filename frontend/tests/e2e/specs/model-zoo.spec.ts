@@ -512,8 +512,7 @@ test.describe('Model Zoo Panel - Interactions', () => {
     // Intercept the API call
     const loadPromise = page.waitForRequest(
       (request) =>
-        request.url().includes('/api/system/models/osnet-x0-25/load') &&
-        request.method() === 'POST'
+        request.url().includes('/api/system/models/osnet-x0-25/load') && request.method() === 'POST'
     );
 
     await loadButton.click();
@@ -758,18 +757,12 @@ test.describe('Model Zoo Panel - VRAM Display', () => {
     // - Inline style with color
     // - aria-label indicating status
     const gpu0BarFill = gpu0VramBar.locator('[data-testid="vram-bar-fill"]');
-    await expect(gpu0BarFill).toHaveAttribute(
-      'class',
-      /red|danger|critical/i
-    );
+    await expect(gpu0BarFill).toHaveAttribute('class', /red|danger|critical/i);
 
     // GPU 1 VRAM bar should indicate medium usage (yellow/orange)
     const gpu1VramBar = page.getByTestId('vram-bar-gpu-1');
     const gpu1BarFill = gpu1VramBar.locator('[data-testid="vram-bar-fill"]');
-    await expect(gpu1BarFill).toHaveAttribute(
-      'class',
-      /yellow|orange|warning/i
-    );
+    await expect(gpu1BarFill).toHaveAttribute('class', /yellow|orange|warning/i);
   });
 
   test('displays loaded model count in VRAM summary', async ({ page }) => {

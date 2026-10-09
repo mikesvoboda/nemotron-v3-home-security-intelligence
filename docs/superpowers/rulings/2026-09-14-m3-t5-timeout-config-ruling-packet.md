@@ -51,11 +51,11 @@ retires the `/tmp/timeout_stamp_plugin.py` protocol workaround (M3 DoD).
 
 ## 3. Blast radius (run-9 per-phase data, /tmp/test_durations.csv, 4303 rows)
 
-| phase    | p50   | p90   | p99   | max  | sum    |
-| -------- | ----- | ----- | ----- | ---- | ------ |
-| setup    | 0.10s | 1.17s | 1.33s | 2.48 | 2179s  |
-| call     | 0.01s | 0.07s | 1.53s | —    | 280s   |
-| teardown | 1.14s | 2.13s | 2.42s | 2.86 | 4795s  |
+| phase    | p50   | p90   | p99   | max  | sum   |
+| -------- | ----- | ----- | ----- | ---- | ----- |
+| setup    | 0.10s | 1.17s | 1.33s | 2.48 | 2179s |
+| call     | 0.01s | 0.07s | 1.53s | —    | 280s  |
+| teardown | 1.14s | 2.13s | 2.42s | 2.86 | 4795s |
 
 func_only=false shares ONE budget across setup+call+teardown: per-test total
 p99=4.16s, max=17.5s. Consequences at the proposed `timeout = 5`:

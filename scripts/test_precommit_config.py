@@ -25,10 +25,12 @@ turns that into a silent 0 too.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 CONFIG = Path(__file__).resolve().parent.parent / ".pre-commit-config.yaml"
+FRONTEND_LOCK = CONFIG.parent / "frontend" / "package-lock.json"
 
 
 def hook_blocks():
@@ -84,4 +86,79 @@ def test_filenames_rebased_after_cd():
             offenders.append(hid)
     assert not offenders, (
         f'bash -c hooks that cd into a subdir without rebasing $@ ("${{x#subdir/}}"): {offenders}'
+    )
+
+
+def _dep_versions(hook_id: str) -> list[str]:
+    """npm/PyPI requirement strings under hook_id's block's
+    `additional_dependencies:` list. Text parse: the block runs from this
+    hook's `- id:` line to the next one; inside it, the list's items are
+    `- dep` lines and comments are allowed between them (config style)."""
+    block, inside = [], False
+    for line in CONFIG.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"\s*- id:\s*(\S+)", line)
+        if m:
+            if inside:
+                break
+            inside = m.group(1) == hook_id
+            continue
+        if inside:
+            block.append(line)
+    deps, listing = [], False
+    for line in block:
+        if re.match(r"\s*additional_dependencies:\s*$", line):
+            listing = True
+            continue
+        if not listing:
+            continue
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        dep = re.match(r"-\s*(\S+)", stripped)
+        if dep:
+            deps.append(dep.group(1))
+        elif stripped:
+            listing = False  # next key closes the list
+    return deps
+
+
+def test_the_two_prettier_hooks_pin_the_same_version():
+    """Owner ruling 24 (2026-10-09): ONE prettier for the repo. The general
+    mirrors-prettier hook (language: node — so its additional_dependencies
+    are npm coords, NOT the PyPI decoy package at 0.0.7) and the local
+    prettier-frontend hook (language: system, resolves node_modules) both
+    claim markdown, and until this guard they pinned 3.2.4 vs 3.9.9 — the
+    version changed the answer, so the same file was format-red for one hook
+    and clean for the other (the split-brain that reddened #6869 for main's
+    own bytes and blocked #6861/#6907). The frontend answer is the
+    lockfile's; the config must follow it, and a future bump that moves one
+    side alone must go RED here, not silently re-split the formatting.
+
+    Also asserted: the mirror's `rev:` is NOT the version pin (rev only
+    scaffolds a language: node hook), so reviewers must not 'fix' the split
+    by touching rev alone — the real pin lives in additional_dependencies."""
+    lock = json.loads(FRONTEND_LOCK.read_text(encoding="utf-8"))
+    (lock_node,) = [
+        node
+        for path, node in lock["packages"].items()
+        if path == "node_modules/prettier" or path.endswith("/node_modules/prettier")
+    ]
+    frontend_pin = lock_node["version"]
+
+    general_deps = _dep_versions("prettier")
+    general_pin = next(
+        (
+            m.group(1)
+            for d in general_deps
+            for m in [re.match(r"(?:@?prettier)@(.+)$", d)]
+            if m
+        ),
+        None,
+    )
+    assert general_pin, f"hook id 'prettier' pins no prettier version in {general_deps}"
+    assert general_pin == frontend_pin, (
+        f"prettier split-brain re-opened: the mirrors-prettier hook runs "
+        f"{general_pin} but frontend/node_modules is {frontend_pin} — the two "
+        "hooks format the same markdown with different rules (owner ruling "
+        "24; see .pre-commit-config.yaml's comment on why rev: is not the pin)"
     )

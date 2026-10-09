@@ -200,7 +200,10 @@ test.describe('Alerts Empty State', () => {
   test('page loads with empty data', async () => {
     // With empty data, either show "No Alerts" or "0 alerts found"
     const noAlertsVisible = await alertsPage.noAlertsMessage.isVisible().catch(() => false);
-    const zeroAlertsText = await page.getByText(/0 alerts? found/i).isVisible().catch(() => false);
+    const zeroAlertsText = await page
+      .getByText(/0 alerts? found/i)
+      .isVisible()
+      .catch(() => false);
     // One of these should be true
     expect(noAlertsVisible || zeroAlertsText || true).toBe(true);
   });

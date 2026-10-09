@@ -4,14 +4,14 @@ This directory contains integration tests for frontend state management, focusin
 
 ## Test Files
 
-| File | Description | Coverage Target |
-|------|-------------|-----------------|
-| `websocket-react-query.integration.test.ts` | WebSocket event -> cache invalidation | Cross-hook integration |
-| `optimistic-updates.integration.test.ts` | Mutation failure -> rollback | Optimistic update patterns |
-| `cross-tab-sync.integration.test.ts` | localStorage sync between tabs | Cross-tab state sync |
-| `race-conditions.integration.test.ts` | API vs WebSocket timing | Concurrent update handling |
-| `offline-mutations.integration.test.ts` | Offline mutation queuing | PWA/offline support |
-| `memory-leak-prevention.integration.test.ts` | Event listener cleanup | Memory management |
+| File                                         | Description                           | Coverage Target            |
+| -------------------------------------------- | ------------------------------------- | -------------------------- |
+| `websocket-react-query.integration.test.ts`  | WebSocket event -> cache invalidation | Cross-hook integration     |
+| `optimistic-updates.integration.test.ts`     | Mutation failure -> rollback          | Optimistic update patterns |
+| `cross-tab-sync.integration.test.ts`         | localStorage sync between tabs        | Cross-tab state sync       |
+| `race-conditions.integration.test.ts`        | API vs WebSocket timing               | Concurrent update handling |
+| `offline-mutations.integration.test.ts`      | Offline mutation queuing              | PWA/offline support        |
+| `memory-leak-prevention.integration.test.ts` | Event listener cleanup                | Memory management          |
 
 ## Running Tests
 
@@ -28,13 +28,13 @@ cd frontend && npm test -- --coverage src/hooks/__tests__/integration/
 
 ## Coverage Targets
 
-| Test Type | Target |
-|-----------|--------|
-| Cross-hook integration | 80% |
-| Cross-tab sync | 80% |
-| Offline mutations | 80% |
-| Race conditions | 80% |
-| Optimistic updates | 80% |
+| Test Type              | Target |
+| ---------------------- | ------ |
+| Cross-hook integration | 80%    |
+| Cross-tab sync         | 80%    |
+| Offline mutations      | 80%    |
+| Race conditions        | 80%    |
+| Optimistic updates     | 80%    |
 
 ## Test Patterns
 
@@ -47,9 +47,11 @@ class MockWebSocket {
   static instances: MockWebSocket[] = [];
 
   simulateMessage(data: unknown) {
-    this.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify(data),
-    }));
+    this.onmessage?.(
+      new MessageEvent('message', {
+        data: JSON.stringify(data),
+      })
+    );
   }
 }
 

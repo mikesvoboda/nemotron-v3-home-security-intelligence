@@ -6,20 +6,20 @@ Grafana-embedded monitoring pages. Each page is a thin React shell that resolves
 
 ## Key Files
 
-| File                        | Purpose                                        | Grafana dashboard id       |
-| --------------------------- | ---------------------------------------------- | -------------------------- |
-| `index.ts`                  | Barrel for the three pages                     | —                          |
-| `OperationsDashboardPage.tsx` | Consolidated operations / service health     | HSI Operations             |
-| `GpuMetricsPage.tsx`        | GPU utilization, memory, temperature, power    | `hsi-gpu-metrics`          |
-| `RequestProfilingPage.tsx`  | Request latency percentiles, slow queries      | HSI Request Profiling      |
+| File                          | Purpose                                     | Grafana dashboard id  |
+| ----------------------------- | ------------------------------------------- | --------------------- |
+| `index.ts`                    | Barrel for the three pages                  | —                     |
+| `OperationsDashboardPage.tsx` | Consolidated operations / service health    | HSI Operations        |
+| `GpuMetricsPage.tsx`          | GPU utilization, memory, temperature, power | `hsi-gpu-metrics`     |
+| `RequestProfilingPage.tsx`    | Request latency percentiles, slow queries   | HSI Request Profiling |
 
 ## Related Files
 
-| File                                  | Purpose                                            |
-| ------------------------------------- | -------------------------------------------------- |
-| `frontend/src/services/api.ts`        | `fetchConfig()` — source of `grafana_url`          |
-| `frontend/src/utils/grafanaUrl.ts`    | `resolveGrafanaUrl()` — normalizes the configured URL |
-| `frontend/src/App.tsx`                | Routes: `/operations-dashboard`, `/gpu-metrics`, `/request-profiling` (`/operations` is `SystemMonitoringPage` from `frontend/src/components/system/`) |
+| File                               | Purpose                                                                                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `frontend/src/services/api.ts`     | `fetchConfig()` — source of `grafana_url`                                                                                                              |
+| `frontend/src/utils/grafanaUrl.ts` | `resolveGrafanaUrl()` — normalizes the configured URL                                                                                                  |
+| `frontend/src/App.tsx`             | Routes: `/operations-dashboard`, `/gpu-metrics`, `/request-profiling` (`/operations` is `SystemMonitoringPage` from `frontend/src/components/system/`) |
 
 ## Patterns
 

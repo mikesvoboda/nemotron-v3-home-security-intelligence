@@ -7,7 +7,7 @@ runs in production (`docker-compose.prod.yml` builds exactly two AI images):
 
 | Compose service | Port                 | What it is                                                                                                                                                                                                     |
 | --------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ai-vlm`        | 8098 (container)     | The `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29). In the default compose set (since UR-18); build context `vlm/` |
+| `ai-vlm`        | 8098 (container)     | The `ai-vlm` llama.cpp engine (VlmAnalyzer; risk reasoning — model identity is config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29). In the default compose set (since UR-18); build context `vlm/` |
 | `ai-gateway`    | 8090 (+8002 metrics) | FastAPI facade over Triton in one container; after the R8 S3 prune (2026-09-29) it serves ONLY `/yolo26` + `/enrich-lt` through Triton (`ai/gateway/AGENTS.md`)                                                |
 
 A third AI service, `ai-llm-vllm` (vLLM, host port 8097, `--profile vllm`),
@@ -188,7 +188,7 @@ Camera Images
       v
 +-----------------------------------------------------+
 |              ai-vlm container (8098)                |
-|        the ai-vlm llama.cpp engine (VLMAnalyzer;    |
+|        the ai-vlm llama.cpp engine (VlmAnalyzer;    |
 |   risk reasoning — model identity is config, D5)    |
 +-----------------------------------------------------+
                         |
@@ -234,7 +234,7 @@ talked to (R8 S2/S3, 2026-09-29).
 
 ### ai-vlm (in the default compose set)
 
-The `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is
+The `ai-vlm` llama.cpp engine (VlmAnalyzer; risk reasoning — model identity is
 config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29). The compose
 defaults carry the shipped identity, `Qwen3VL-8B-Instruct-Q4_K_M` (owner pick,
 ledger item 35, provisional); the mmproj file is what makes llama-server

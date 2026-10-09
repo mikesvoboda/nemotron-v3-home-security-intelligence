@@ -61,7 +61,9 @@ export class BasePage {
     this.systemStatusIndicator = page.getByText(/System/i).first();
 
     // Navigation - using aria labels or text content
-    this.navDashboard = page.locator('aside a[href="/"], aside button').filter({ hasText: /dashboard/i });
+    this.navDashboard = page
+      .locator('aside a[href="/"], aside button')
+      .filter({ hasText: /dashboard/i });
     this.navTimeline = page.locator('aside a[href="/timeline"]');
     this.navAlerts = page.locator('aside a[href="/alerts"]');
     this.navEntities = page.locator('aside a[href="/entities"]');
@@ -90,9 +92,9 @@ export class BasePage {
    * Call this before navigation to prevent loading images, analytics, and fonts
    */
   async blockUnnecessaryResources(): Promise<void> {
-    await this.page.route('**/*.{png,jpg,jpeg,gif,webp,svg}', route => route.abort());
-    await this.page.route('**/*analytics*', route => route.abort());
-    await this.page.route('**/fonts.googleapis.com/**', route => route.abort());
+    await this.page.route('**/*.{png,jpg,jpeg,gif,webp,svg}', (route) => route.abort());
+    await this.page.route('**/*analytics*', (route) => route.abort());
+    await this.page.route('**/fonts.googleapis.com/**', (route) => route.abort());
   }
 
   /**
@@ -165,7 +167,7 @@ export class BasePage {
   async navigateToSystem(): Promise<void> {
     // Use longer timeout for Firefox/WebKit (NEM-1486)
     const browserName = this.page.context().browser()?.browserType().name();
-    const timeout = (browserName === 'firefox' || browserName === 'webkit') ? 30000 : undefined;
+    const timeout = browserName === 'firefox' || browserName === 'webkit' ? 30000 : undefined;
     await this.page.goto('/system', { timeout });
   }
 
@@ -175,7 +177,7 @@ export class BasePage {
   async navigateToSettings(): Promise<void> {
     // Use longer timeout for Firefox/WebKit (NEM-1486)
     const browserName = this.page.context().browser()?.browserType().name();
-    const timeout = (browserName === 'firefox' || browserName === 'webkit') ? 30000 : undefined;
+    const timeout = browserName === 'firefox' || browserName === 'webkit' ? 30000 : undefined;
     await this.page.goto('/settings', { timeout });
   }
 
@@ -191,9 +193,9 @@ export class BasePage {
    * Wait for a specific heading to appear
    */
   async waitForHeading(text: string | RegExp): Promise<void> {
-    await expect(
-      this.page.getByRole('heading', { name: text })
-    ).toBeVisible({ timeout: this.pageLoadTimeout });
+    await expect(this.page.getByRole('heading', { name: text })).toBeVisible({
+      timeout: this.pageLoadTimeout,
+    });
   }
 
   /**
@@ -201,12 +203,17 @@ export class BasePage {
    */
   async waitForLoadingComplete(): Promise<void> {
     // Wait for common loading indicators to disappear
-    await this.page.waitForFunction(() => {
-      const spinners = document.querySelectorAll('.animate-spin, .animate-pulse');
-      return spinners.length === 0;
-    }, { timeout: this.pageLoadTimeout }).catch(() => {
-      // Ignore if loading indicators aren't found
-    });
+    await this.page
+      .waitForFunction(
+        () => {
+          const spinners = document.querySelectorAll('.animate-spin, .animate-pulse');
+          return spinners.length === 0;
+        },
+        { timeout: this.pageLoadTimeout }
+      )
+      .catch(() => {
+        // Ignore if loading indicators aren't found
+      });
   }
 
   /**
@@ -242,7 +249,10 @@ export class BasePage {
    * Check if an element with text is visible
    */
   async hasText(text: string | RegExp): Promise<boolean> {
-    return this.page.getByText(text).isVisible().catch(() => false);
+    return this.page
+      .getByText(text)
+      .isVisible()
+      .catch(() => false);
   }
 
   /**
@@ -286,10 +296,7 @@ export class BasePage {
    *   page.click('button.refresh'),
    * ]);
    */
-  async waitForApiResponse(
-    endpoint: string,
-    options: WaitForApiOptions = {}
-  ): Promise<Response> {
+  async waitForApiResponse(endpoint: string, options: WaitForApiOptions = {}): Promise<Response> {
     const { timeout = 10000, status, method } = options;
 
     // Build the URL pattern - support both absolute and relative paths
@@ -307,17 +314,13 @@ export class BasePage {
 
       // Validate status if specified
       if (status !== undefined && response.status() !== status) {
-        throw new Error(
-          `Expected status ${status} but got ${response.status()} for ${endpoint}`
-        );
+        throw new Error(`Expected status ${status} but got ${response.status()} for ${endpoint}`);
       }
 
       return response;
     } catch (error) {
       if (error instanceof Error && error.message.includes('Timeout')) {
-        throw new Error(
-          `Timeout waiting for API response from ${endpoint} after ${timeout}ms`
-        );
+        throw new Error(`Timeout waiting for API response from ${endpoint} after ${timeout}ms`);
       }
       throw error;
     }
@@ -344,9 +347,7 @@ export class BasePage {
     endpoints: string[],
     options: WaitForApiOptions = {}
   ): Promise<Response[]> {
-    const promises = endpoints.map((endpoint) =>
-      this.waitForApiResponse(endpoint, options)
-    );
+    const promises = endpoints.map((endpoint) => this.waitForApiResponse(endpoint, options));
     return Promise.all(promises);
   }
 
@@ -380,10 +381,7 @@ export class BasePage {
     endpoint: string,
     options: WaitForApiOptions = {}
   ): Promise<Response> {
-    const [response] = await Promise.all([
-      this.waitForApiResponse(endpoint, options),
-      action(),
-    ]);
+    const [response] = await Promise.all([this.waitForApiResponse(endpoint, options), action()]);
     return response;
   }
 }

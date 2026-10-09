@@ -49,6 +49,7 @@ Step by step:
 
    The 1-second backoff at `pipeline_workers.py:446` lives only in the `except` branch, which is
    **never reached** — a mock does not raise.
+
 6. `unittest.mock` records every call forever in `mock_calls` / `call_args_list`. Each iteration
    allocates a `_Call` tuple that is never released. This is by design: call recording is what
    makes `assert_called_with` work.
@@ -78,12 +79,12 @@ cap the damage at ~1.5 GiB instead of 17 GiB.
 
 Worker classes containing the same `_run_loop` pattern (`backend/services/pipeline_workers.py`):
 
-| Class | `class` line | `_run_loop` line |
-|---|---|---|
-| `DetectionQueueWorker` | 221 | 363 |
-| `AnalysisQueueWorker` | 764 | 885 |
-| `BatchTimeoutWorker` | 1186 | 1286 |
-| `QueueMetricsWorker` | 1366 | 1451 |
+| Class                  | `class` line | `_run_loop` line |
+| ---------------------- | ------------ | ---------------- |
+| `DetectionQueueWorker` | 221          | 363              |
+| `AnalysisQueueWorker`  | 764          | 885              |
+| `BatchTimeoutWorker`   | 1186         | 1286             |
+| `QueueMetricsWorker`   | 1366         | 1451             |
 
 `AnalysisQueueWorker._run_loop` has the identical unthrottled shape at `:935-936`
 (`if not messages: continue`) with its backoff isolated at `:967`.
@@ -101,14 +102,14 @@ simultaneously and exhaust the 62.7 GiB VM.
 
 These were each checked and measured; none is the cause:
 
-| Hypothesis | Verdict |
-|---|---|
-| `backend/tests/load/` perf tests | Measured **0.86 GiB** peak — innocent |
-| Model loading into CPU RAM | `torch` not installed in sandbox; no `/dev/nvidia*` |
-| Thread leak | Thread count **flat at 7** while RSS went 0.43 → 17.42 GiB |
-| Large allocations in tests | Largest found: 100×100×3 images, 512-float arrays |
+| Hypothesis                                 | Verdict                                                                                                                |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `backend/tests/load/` perf tests           | Measured **0.86 GiB** peak — innocent                                                                                  |
+| Model loading into CPU RAM                 | `torch` not installed in sandbox; no `/dev/nvidia*`                                                                    |
+| Thread leak                                | Thread count **flat at 7** while RSS went 0.43 → 17.42 GiB                                                             |
+| Large allocations in tests                 | Largest found: 100×100×3 images, 512-float arrays                                                                      |
 | Network policy blocking the model endpoint | 1103 `net:cidr:192.168.1.186` denials are logged but **not enforced**; `curl` from inside the sandbox returns HTTP 200 |
-| Host resource exhaustion | Host had 352 GiB RAM free, load ~2.9, `sbx diagnose` 12/12 pass |
+| Host resource exhaustion                   | Host had 352 GiB RAM free, load ~2.9, `sbx diagnose` 12/12 pass                                                        |
 
 Note the frame-buffer "memory limit" tests in `backend/tests/load/test_performance.py` provide
 **no protection**: they assert `estimated_memory = frame_count * frame_size < 500MB`, which is
@@ -180,7 +181,7 @@ The call path is confirmed directly from the process's own stack and a `tracemal
 snapshot diff (`compare_to` against a post-startup baseline), and the leak reproduces on demand.
 
 One honest gap: `tracemalloc` accounted for only ~125 MiB of the 1.2 GiB RSS growth observed in
-the instrumented run — `unittest.mock` sites dominated the *tracked* growth (5 separate
+the instrumented run — `unittest.mock` sites dominated the _tracked_ growth (5 separate
 `mock.py` sites, ~290k blocks in 35s), and the mock path is the only application-code path that
 appears in the growth list, but the absolute byte attribution is incomplete. `tracemalloc` also
 slows the loop roughly 10–15×, so instrumented numbers understate real-world growth rate.

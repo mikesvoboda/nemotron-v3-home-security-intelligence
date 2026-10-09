@@ -27,12 +27,7 @@ export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
 // e.g. AI_RESTART_ENABLED=false) was missing: the UI silently never saw the
 // service go down.
 export type ServiceStatusType =
-  | 'healthy'
-  | 'unhealthy'
-  | 'restarting'
-  | 'restart_failed'
-  | 'restart_disabled'
-  | 'failed';
+  'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'restart_disabled' | 'failed';
 
 export interface ServiceStatus {
   service: ServiceName;
@@ -100,14 +95,9 @@ function isServiceName(value: unknown): value is ServiceName {
 function isServiceStatusType(value: unknown): value is ServiceStatusType {
   return (
     typeof value === 'string' &&
-    [
-      'healthy',
-      'unhealthy',
-      'restarting',
-      'restart_failed',
-      'restart_disabled',
-      'failed',
-    ].includes(value)
+    ['healthy', 'unhealthy', 'restarting', 'restart_failed', 'restart_disabled', 'failed'].includes(
+      value
+    )
   );
 }
 

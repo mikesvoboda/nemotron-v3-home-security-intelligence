@@ -6,10 +6,10 @@ Contains top-level page components that serve as route destinations. These pages
 
 ## Files
 
-| File                 | Purpose                                  |
-| -------------------- | ---------------------------------------- |
-| `TrashPage.tsx`      | Soft-deleted events management page      |
-| `TrashPage.test.tsx` | Test suite for TrashPage                 |
+| File                 | Purpose                             |
+| -------------------- | ----------------------------------- |
+| `TrashPage.tsx`      | Soft-deleted events management page |
+| `TrashPage.test.tsx` | Test suite for TrashPage            |
 
 ## Key Components
 
@@ -83,11 +83,13 @@ return <MainContent data={data} />;
 Mutation errors are displayed inline above the content:
 
 ```tsx
-{mutation.error && (
-  <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4">
-    <span className="text-red-400">{mutation.error.message}</span>
-  </div>
-)}
+{
+  mutation.error && (
+    <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4">
+      <span className="text-red-400">{mutation.error.message}</span>
+    </div>
+  );
+}
 ```
 
 ## Styling Conventions
