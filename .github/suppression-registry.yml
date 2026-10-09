@@ -1117,6 +1117,22 @@ pytest_skip_imperative:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
+  - id: backend/tests/unit/core/test_monitoring_expose_lan_credentials.py:680
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: no docker daemon available for the boot arm
+    host_justification: guard wraps shutil.which("docker") == None — host-executable
+      guard, not repo content (same class as test_compose_render_lists_ai_vlm.py:67)
+  - id: backend/tests/unit/core/test_monitoring_expose_lan_credentials.py:694
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: docker.io/prom/prometheus:v3.1.0 not pulled locally (boot arm opt-in by pull)
+    host_justification: guard is `docker image inspect` returncode != 0 — a probe of
+      the host daemon's image store, not repo content
   - id: backend/tests/unit/core/test_nginx_connection_limit_config.py:135
     kind: todo
     owner: mikesvoboda
