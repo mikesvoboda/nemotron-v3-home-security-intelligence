@@ -11,22 +11,25 @@
 > measured at `1d847a6a` (2026-10-08, 23:48 -0400 — the header said 2026-10-09, which is the calendar
 > day the sheet was written, not the commit's date; corrected in the third round) and **re-measured at
 > every revision of this branch since** (the first being `10ab08e8`) by the commands named in each row.
-> Every one of those revisions differs from the last only in this file — except the row-flip commit
-> `cdd0ca95`, which touches only README's status table and leaves this file byte-identical to its
-> parent — so a number printed here is checkable at any of them — including the ERR count's two legs,
+> Every revision that touched this file differs from the last only in this file, with two exceptions:
+> the merge `10ab08e8`, which brings in `origin/main` (39 paths) and does not touch this file at all
+> (its sheet blob is byte-identical to the draft's, so at the merge the sheet's _text_ still carried
+> the draft numbers), and the row-flip commit `cdd0ca95`, which touches only README's status table —
+> so a number printed here is checkable at any of them (the merge's tree was checked for the census
+> and ERR legs in the fourth round) — including the ERR count's two legs,
 > which are the one pair measured in two different trees (the `1d847a6a` leg, 216 ERR / 169 OK, re-run
 > in a detached worktree at that commit; this branch's leg, 222 / 163, at head — not remembered; the
 > third round re-ran every two-commit pair in a detached worktree at each leg's own baseline — ERRs,
-> register lines, the 24-citer split — none carried over). Twenty-four claims did not survive that
-> re-measurement or a fresh-context review of the sheet — the count now runs through three review
-> rounds, the third from a separate agent, and it grew because that round's findings, re-measured
-> here, confirmed five claims earlier rounds had asserted without measuring, and re-running the
-> family's facts for them turned up a sixth of the same kind — and the bullets say where each came
+> register lines, the 24-citer split — none carried over). Twenty-eight claims did not survive that
+> re-measurement or a fresh-context review of the sheet — the count now runs through four review
+> rounds, the third and fourth from a separate agent, and it grew each time because those rounds'
+> findings, re-measured here, confirmed claims earlier rounds had asserted without measuring — and
+> the bullets say where each came
 > from:
 > thirteen were wrong in the draft as first committed (one of them this header's own date label), two
 > were true at the measured commit and went
-> stale when `origin/main` merged (first bullet), and nine were introduced _by the corrections_ —
-> three found by the second round, six by the third (last bullet). Every one is corrected in place
+> stale when `origin/main` merged (first bullet), and thirteen were introduced _by the corrections_ —
+> three found by the second round, six by the third, four by the fourth (last bullet). Every one is corrected in place
 > and the row names the draft's wording at the correction, so an owner reading one row sees what changed
 > rather than a silently tidied fact — the corrections sit inside the Facts prose, not at the row end:
 >
@@ -49,8 +52,8 @@
 > - **a command that ran but measured nothing** (1): OD-35's transcribed `git ls-files` passed both stems
 >   inside one quoted argument, which matches no path and returns **0** — the printed 26 came from a
 >   different invocation than the one the row showed a reviewer. Fixed to two pathspecs.
-> - **first corrections that were themselves wrong** (9 — the first three found by the second
->   review round, the next six by the third, each named where it sits): (a) OD-33's — the first re-measurement
+> - **first corrections that were themselves wrong** (13 — three found by the second review round,
+>   six by the third, four by the fourth, each named where it sits): (a) OD-33's — the first re-measurement
 >   replaced "~91 citing files" with "97 distinct across 135 mentions", and re-running its own printed
 >   commands shows its columns (45/35/31) reproduce under no instrument (the nearest prints 44/36/31,
 >   ±1 twice in opposite directions inside the 111 the sum carried), and its 97 silently mixed two
@@ -77,9 +80,19 @@
 >   (identical sets)" (they are one apart: revalidation also names `data-model`). The first two of
 >   these six came from prose a correction wrote about _counts_ without re-reading the underlying
 >   cells/files; the OD-35 area claim came from trusting the earlier residue list after the counts
->   next to it were fixed. The shared lesson: a printed statistic inherits its
->   instrument's arithmetic, including its rounding and its page — and corrected prose about a
->   measurement is itself a fresh claim that needs the measurement re-run, not just the number.
+>   next to it were fixed. (j)–(m) are the fourth round's four, same reviewer, each confirmed by
+>   re-measurement: OD-35's _recommendation_ still read "~10 architecture areas covered twice over"
+>   after the Facts above moved to ~11/almost — the correction never propagated to the second place
+>   the number lived (a phrase the correction round itself introduced). OD-33's census-correction said
+>   the first correction's census "printed 44 / 36 / 31" — it printed the draft's 45 / 35 / 31
+>   verbatim; 44 / 36 / 31 is what re-running _its instrument_ yields (both verified at its own commit
+>   and at head) — the sentence asserted the correction both kept and replaced the columns. The
+>   header's file-hygiene claim named one exception but the merge `10ab08e8` is a second (39 paths,
+>   sheet untouched — now both exceptions are named). And OD-34's "`Ruled 2026` finds 5 and misses 6"
+>   had "those 12" as its object while 6 is the count against the 11 table rows — now "misses 6 of the
+>   11 table rows (7 of the full 12)". The lesson compounds: a corrected number has to be chased into
+>   every sentence that quotes it, including the recommendation, and "printed" is a claim about an
+>   artifact you can open, not about an instrument you re-ran.
 >
 > Everything else measured identically at the first commit and at every revision of this branch since.
 
@@ -97,7 +110,8 @@ live: the AGENTS.md validator's own design doc lives here); `docs/superpowers/` 
 dated, span 2026-09-12 → 2026-10-07 (the VSS specs — the tree the programme is actively writing into);
 `docs/vss-integration/` **26** files (5 dated; the register and its companions). None of the three
 trees appears in `mkdocs.yml`'s nav — 0 explicit entries each, which is what the draft said and is true
-of the nav, and the built site agrees: a fresh `mkdocs build` emits 600 pages and **none of the 600
+of the nav, and the built site agrees: `uv run mkdocs build --site-dir <tmp>` at this head emits 600
+pages (599 `index.html` + Material's `404.html`) and **none of the 600
 carries a nav link into the three trees** (parsed `<a … md-nav__link …>` tags quote-agnostically —
 `minify` strips the quotes, so a `href="…"` regex matches nothing; the home page runs 148 such links,
 the busiest page 316; counting the raw string `md-nav__link` over-counts because Material puts it on
@@ -122,11 +136,12 @@ three). What is being corrected, precisely, and by whom: the draft printed the c
 and "~91 citing files", and the first re-measurement of this sheet replaced the 91 with "**135** mentions
 across **97** distinct" plus a five-files-in-both-columns mechanism — while keeping the draft's columns
 verbatim. Re-running that first correction's own commands at this commit shows they never reproduced
-either. Its census printed 44 / 36 / 31 — the same whole-repo rule as above, except it excluded this
-sheet by _basename_, and that basename exclusion silently dropped
+either — including the columns it kept: its census commands print **44 / 36 / 31** (verified at the
+correction's own commit and at head), not the 45 / 35 / 31 it printed — the same whole-repo rule as
+above, except it excluded this sheet by _basename_, and that basename exclusion silently dropped
 `docs/uplevel/templates/r2-sheet.md` with it. The template is a real citer: line 51 instructs the
 record PR to write rulings into `docs/vss-integration/17-action-plan.md`, so a move must re-aim it and
-it belongs in the column. The draft's 45 / 35 / 31 and the first correction's 44 / 36 / 31 agree in sum
+it belongs in the column. The printed 45 / 35 / 31 and the re-run's 44 / 36 / 31 agree in sum
 (111) and disagree file by file (±1 twice, in opposite directions) — a reader checking the total would
 never see the split; excluding by full path instead of basename gives the honest docs column, 44 / 36 /
 **32**. And that correction's 97 silently mixed scopes — 23 `AGENTS.md` citers counted repo-wide + 74
@@ -213,7 +228,8 @@ were the `Ruled 2026` grep hits at lines 578–603 — those lines are _inside_ 
 unnumbered; §5 is "The register", at 708) contains **0** occurrences of that string. So the corrected
 total is **12 ruled decisions across table and log**, of which 11 are in the table in 3 markups and 1 is
 log-only. No grep returns those 12 as a clean set — that is the machine-checkable form of "three rulings
-were misread during the audit": `Ruled 2026` finds **5** and misses 6; a bold-clause grep returns **12
+were misread during the audit": `Ruled 2026` finds **5** and misses 6 of the 11 table rows (7 of the
+full 12 — OD-24 is log-only); a bold-clause grep returns **12
 rows** of which only **10** are rulings (it wrongly takes in OD-2 and OD-5, and still misses the unbolded
 OD-29); case-insensitive `[Rr]uled` catches all 11 table rows but adds OD-5's disclaimer and, in the log,
 surfaces OD-24 only as one of 22 log lines that use the word at all.
@@ -313,7 +329,9 @@ files matching `code_extensions` — `.md` is not among them — so 26 markdown 
 UR-19 removed its destination.)
 
 **Recommendation: (b) delete.** They are one-run audit outputs, not plans, and they sit in the tree the
-programme reads as live plans: 26 files / 8,314 lines, ~10 architecture areas covered twice over. Under
+programme reads as live plans: 26 files / 8,314 lines, ~11 architecture areas almost twice over (the
+Facts above said ~10/twice until the fourth round fixed the area-set measurement — the recommendation
+had kept the stale figure). Under
 OD-33's (b) `docs/plans/` freezes as history either way, so (a) is coherent rather than wrong — choose
 (a) if the January findings are still being consulted. Delete is recommended because the cost of (b) is
 near zero and the cost of (a) is permanent: 9 intra-family occurrences to clear, no path citations
