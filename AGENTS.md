@@ -369,7 +369,7 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 1. **Read this file (AGENTS.md)** — the single root instruction file; `CLAUDE.md` was deliberately retired (owner ruling 2026-09), don't look for it
 2. **Check available work:** Visit [Linear Active](https://linear.app/nemotron-v3-home-security/team/NEM/active) or filter by phase label
 3. **Review docs/ROADMAP.md** - Post-MVP roadmap ideas (pursue **after Phases 1-8 are operational**)
-4. **Read the AGENTS.md of any directory before exploring it** — every code directory has one documenting purpose, key files, and patterns (`ai/AGENTS.md`, `backend/AGENTS.md`, `frontend/AGENTS.md`, `docs/AGENTS.md`, …)
+4. **Read the AGENTS.md of any directory before exploring it** — the surviving set is the boundary list in `.agents-md-validator.yml` (W3.1 pruned the per-directory satellites; where a deleted guide's knowledge went is named in the appendix at the end of this file)
 
 ### Understanding the Codebase
 
@@ -502,3 +502,77 @@ Infrastructure work additionally requires the **Infrastructure Verification** ch
 - **Runtime Config:** `docs/reference/config/env-reference.md` (authoritative reference for backend settings vars)
 - **Coverage Reports:** `coverage/backend/index.html` and `frontend/coverage/index.html`
 - **Feature Guides:** [Multi-GPU](docs/developer/multi-gpu.md) · [Video Analytics](docs/guides/video-analytics.md) · [Zone Configuration](docs/guides/zone-configuration.md) · [Face Recognition](docs/guides/face-recognition.md)
+
+## Per-area rules (W3.1 appendix, batch 5)
+
+What the six deleted single-directory guides (tests, tests/benchmark, tests/load,
+data, docker, archive/vsftpd) knew that the tree does not show. Facts here were
+re-verified against the code at this commit.
+
+### tests/ — the suites CI never collects
+
+pyproject `testpaths` is `backend/tests`, `ai/*/tests`, `ai/*/test_*.py`,
+`setup_lib/tests` — **nothing under root `tests/` runs in CI**. A green local run
+here gates nothing; treat these as opt-in tools, not a safety net.
+
+- `tests/smoke/` hits a LIVE stack (backend :8000, frontend :3000, Grafana) —
+  run only after `docker compose up`; env overrides `BACKEND_URL`/`FRONTEND_URL`.
+- The retired root `test_setup.py` / `test_setup_core.py` live in `archive/`;
+  setup coverage is in `backend/tests/unit/` — do not recreate a root tests/unit/.
+
+### tests/benchmark/ — the `scripts/benchmark/` module tests
+
+Counts at this head: test_quality 42, test_compare 33, test_engine_comparison 44,
+test_load_test 29 — 144 pass, 4 fail **by design**: the wall-clock pacing tests
+(`TestSustainedLoadBehavior`, `TestPriorityQueueMeasurement`, the sustained
+runner in `TestLoadTestRunner`) exceed the pyproject global `timeout = 5`. That
+red set is expected on any host; the other 144 are deterministic. MAE thresholds:
+±5 acceptable, ±10 marginal. Ground-truth format and class maps: read the test
+files — they are the inventory.
+
+### tests/load/ — k6 against the live API
+
+Runner is `scripts/load-test.sh <suite> <profile>`; suites events/cameras/
+websocket/mutations/all (all.js weights: 35% events, 30% cameras). Profiles:
+smoke 1 VU/10s, average 10/2min, stress 100/5min, spike 5→100→5, soak 30/10min+.
+**The thresholds the old guide printed are not what ships:** `tests/load/config.js`
+is CI-tuned and far looser — p95 < 2000 ms, avg < 1000 ms, `http_req_failed`
+rate < 0.60 (many endpoints 503 without the AI pipeline). Trust config.js, not
+remembered "p95 < 500 ms" tables. Env: `BASE_URL`, `WS_URL`, `LOAD_PROFILE`,
+`API_KEY`, `ADMIN_API_KEY`.
+
+### data/ — tracked vs runtime (the "gitignored" trap)
+
+`git ls-files data/` = 1,409 files. **Tracked:** synthetic/ (1,283 eval fixtures —
+only its media/screenshot paths are ignored), benchmark/ (101),
+ai-pipeline-evaluation/ (17), external/ (6), certs/ (kept by .gitkeep; contents
+ignored via the repo-wide `*.pem` rule). **Runtime, untracked:** logs/,
+profiles/, clips/, thumbnails/, transcoded/ — kept unbackticked on purpose: the
+gate resolves backticked dirs and these exist only after a run. profiles/ is
+ignored ONLY as data/profiles/ (`.gitignore:107`) — a top-level profiles/ is NOT
+ignored. The DB is PostgreSQL via `DATABASE_URL` (default name home_security per
+`setup_lib/credentials.py`); tables auto-create at startup
+(`backend/core/database.py` `create_all`); retention 30d through
+`backend/services/cleanup_service.py` reading `settings.retention_days`. No
+SQLite file ships here anymore. The alembic workflow the old guide described does
+not exist in this repo — schema change = models + startup create.
+
+### docker/ — two images, one consumer
+
+- `docker/base.Dockerfile` — shared container base.
+- `docker/python-freethreaded/` — Python 3.14 `--disable-gil`, published by
+  `.github/workflows/python-freethreaded.yml` weekly (Mon 03:00 UTC) as
+  `ghcr.io/mikesvoboda/python:3.14t-slim-bookworm`; bumped by editing the
+  Dockerfile's `PYTHON_VERSION` + `PYTHON_SHA256`. No compose service consumes
+  the 3.14t tag today — `backend/Dockerfile` carries it as a commented
+  alternative base; verify GIL-off with
+  `python -c "import sysconfig; print(bool(sysconfig.get_config_var('Py_GIL_DISABLED')))"`.
+
+### archive/vsftpd/ — retired, but its port still matters
+
+The FTP container config is archived; **no compose file defines a vsftpd service
+anymore** (the old guide's `docker-compose.prod.yml` cite was dead). The
+consumer side is live: `FileWatcher` (wired in `backend/main.py` :938) watches
+`settings.foscam_base_path`, default `/export/foscam` — camera uploads arriving
+there are still ingested. If FTP ingest is ever revived, the archive is the
+starting config; until then treat it as reference only.

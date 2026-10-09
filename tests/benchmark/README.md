@@ -1,6 +1,6 @@
 # Benchmark Comparison Tool Tests
 
-This directory holds tests for the benchmark tooling under `scripts/benchmark/` (see `AGENTS.md` for the full inventory); this file covers the comparison tool (`scripts/benchmark/compare.py`) in detail.
+This directory holds tests for the benchmark tooling under `scripts/benchmark/` (the inventory is now the root AGENTS.md appendix — W3.1 pruned this directory's own guide); this file covers the comparison tool (`scripts/benchmark/compare.py`) in detail.
 
 ## Implementation Status
 
