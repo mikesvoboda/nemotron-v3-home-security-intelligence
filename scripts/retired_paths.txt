@@ -34,9 +34,10 @@ docs/operator/ai-ghcr-deployment.md
 # shorthand; no declared alias needed (the gate adds the basename itself).
 .github/workflows/preview-deploy.yml
 
-# O1.5 (UR-19): the two archive trees were 2,978 files of point-in-time
-# artifacts — superseded Dockerfiles, old reports, NEM investigations — that CI
-# and lint configs had to keep excluding to stay green. With the exclusions
+# O1.5 (UR-19): the two archive trees held 2,980 files at main — 2,978 point-in-time
+# artifacts deleted outright (superseded Dockerfiles, old reports, NEM investigations)
+# and 2 installer tests that moved out alive into backend/tests/unit/setup_lib —
+# that CI and lint configs had to keep excluding to stay green. With the exclusions
 # gone the residue would be the rot this program exists to retire, so both
 # trees go, and the directory entries keep every "the recipe lives at
 # archive/..." sentence from outliving the recipe. Both are listed because a

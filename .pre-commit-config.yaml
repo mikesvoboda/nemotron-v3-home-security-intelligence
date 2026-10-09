@@ -100,7 +100,14 @@ repos:
         # compose-render.env is test evidence with deliberate fake stubs (its header
         # testifies); no inline `pragma: allowlist secret` instead, because the file is
         # fed to compose as a literal --env-file, where `#` is not comment syntax.
-        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|\.tsbuildinfo$|^synthbench/generate/manifests/.*\.json$|^backend/tests/fixtures/compose-render\.env$)
+        # The dot in compose-render.env is UNESCAPED on purpose (O1.5 finding E): the
+        # regenerate helper embeds this same string in a bash entry, and
+        # scripts/test_workflow_paths.py's command-domain tokenizer slices regex text
+        # at `\.`, turning `compose-render\.env` into a phantom address that exists
+        # nowhere. Unescaped, the sliced token names the real fixture and the gate
+        # resolves it; the cost is a regex dot that would also match compose-renderXenv
+        # — no such file, and the $ anchor bounds it. Do not "tidy" the backslash back.
+        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|\.tsbuildinfo$|^synthbench/generate/manifests/.*\.json$|^backend/tests/fixtures/compose-render.env$)
 
   # Auto-regenerate secrets baseline if it has conflicts or is out of date
   # Runs on every commit but only regenerates when baseline is invalid/conflicted
@@ -108,7 +115,15 @@ repos:
     hooks:
       - id: regenerate-secrets-baseline
         name: Regenerate secrets baseline
-        entry: bash -c 'if grep -q "^<<<<<<" .secrets.baseline 2>/dev/null; then echo "Detected merge conflicts in .secrets.baseline, regenerating..."; detect-secrets scan --baseline .secrets.baseline --exclude-files "(package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|\.tsbuildinfo$)" && git add .secrets.baseline; fi'
+        # O1.5 self-review (finding E, 2026-10-09): this --exclude-files string and the
+        # detect-secrets hook's exclude above MUST stay character-identical. A baseline
+        # is a fixed point of the scan view that maintains it; the narrower string this
+        # helper used carried two missing patterns, so a conflict rebuild re-added 45
+        # findings (synthbench/generate/manifests/*.json, compose-render.env) that the
+        # real hook never scans — findings it would prune again on the next view,
+        # leaving a permanently dirty baseline. scripts/test_precommit_config.py now
+        # reddens if the two strings diverge.
+        entry: bash -c 'if grep -q "^<<<<<<" .secrets.baseline 2>/dev/null; then echo "Detected merge conflicts in .secrets.baseline, regenerating..."; detect-secrets scan --baseline .secrets.baseline --exclude-files "(package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|\.tsbuildinfo$|^synthbench/generate/manifests/.*\.json$|^backend/tests/fixtures/compose-render.env$)" && git add .secrets.baseline; fi'
         language: system
         pass_filenames: false
         always_run: true

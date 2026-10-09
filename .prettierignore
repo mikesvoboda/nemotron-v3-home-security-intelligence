@@ -1,15 +1,21 @@
-# Triage feed is prose-compute: prettier rewrites identifier underscores into
-# emphasis pairs (read_through_cache -> read*through_cache). Never format it.
-# (O1.5 removed the archive-tree entry here with the archive itself — an ignore
-# whose target does not exist is dead quarantine; see .pre-commit-config.yaml's
-# same-batch comment and scripts/test_workflow_paths.py.)
-.wp25-feed/
+# O1.5 (UR-19) removed the archive-tree entry here with the archive itself — an
+# ignore whose target does not exist is dead quarantine (the same batch removed the
+# tree's entries from .pre-commit-config.yaml). The .wp25-feed/ entry follows it:
+# O1.4 had already called this tree dead and removed ^\.wp25-feed/ from the HOOK
+# excludes (its dead-alternatives note in .pre-commit-config.yaml records that),
+# but the .prettierignore copy survived; git ls-files .wp25-feed → 0 and it is not
+# in .gitignore, so this closes the set. Nothing polices this file — the wiring gate
+# scripts/test_workflow_paths.py reads
+# .github/workflows/*.yml and .pre-commit-config.yaml only — which is exactly why a
+# stale ignore never announces itself. The corruption class those entries defended is
+# why the files below are still ignored: prettier rewrites identifier underscores into
+# emphasis pairs (read_through_cache -> read*through_cache) in prose-compute dumps.
 
 # Generated operator handouts: the strings in them are typed on a machine that
 # has no repo context, and prettier pairs mid-word underscores into emphasis
 # (CUDA_VISIBLE_DEVICES=${GPU_*} -> CUDA*VISIBLE_DEVICES=${GPU*\*}, Q4_K_M ->
-# Q4*K_M). Same corruption class as the deleted archive-tree entry above; here
-# it is load-bearing, because an operator types what the page says. Both files
+# Q4*K_M). Same corruption class the two deleted entries above defended against;
+# here it is load-bearing, because an operator types what the page says. Both files
 # are GENERATED (the
 # A5500 one by scripts/a5500_precheck.py) or hand-authored runbooks (the Brev
 # one), never prose to be reflowed. The operator handoff joins them for a second
