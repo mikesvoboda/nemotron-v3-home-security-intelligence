@@ -87,10 +87,28 @@ Nine live modules, three more than the deleted guide enumerated: `event_types.py
   `PONG` / `ERROR` are control messages, and the job domain ALSO keeps legacy underscore-format
   members (NEM-2505) — emit the dotted form, match both.
 - **Subscription semantics:** a registered connection receives ALL events until it sends an
-  explicit `subscribe` (deliberate back-compat); patterns are wildcards (`alert.*`, `*`), and
-  an explicit `subscribe` with an EMPTY pattern list means NO events. The manager is
+  explicit `subscribe` (deliberate back-compat); patterns are wildcards (`alert.*`, `*`). An
+  explicit `subscribe` with an EMPTY pattern list means NO events only IN-PROCESS — over the
+  wire the route REJECTS it (`backend/api/routes/websocket.py:179-188`: no `events` (or legacy
+  `channels`) key → a VALIDATION_ERROR frame telling the client to send
+  `{"type": "subscribe", "data": {"events": ["alert.*"]}}`). A client that wants silence
+  unsubscribes everything; it cannot get there by sending an empty list. The manager is
   `threading.RLock`-guarded; the module singleton is `get_subscription_manager()` with
   `reset_subscription_manager_state()` for tests.
+- **Inbound wire contract (what a client may send):** the route parses every frame with
+  `WebSocketMessage.model_validate_json` (`backend/api/routes/websocket.py:116`), so a client frame is
+  `{"type": <one of ping|pong|subscribe|unsubscribe|resync>, "data"?: {...}}` — `type` is
+  REQUIRED, the match lower-cases it, `subscribe`/`unsubscribe` read `data.events`
+  (`data.channels` accepted for back-compat), and `resync` replays buffered messages on a
+  detected `seq` gap (NEM-4983). The `{"action": ...}` shape is SERVER→CLIENT only —
+  including the route module's OWN docstring (:22-23), whose client "Send:" example
+  `{"action": "subscribe", ...}` would fail validation if a client actually sent it. That
+  docstring is the trap; the schema is the contract. `SubscriptionRequest` is exported from
+  the package `__init__` but no route uses it — the route reads `data` as a plain dict.
+- **`event_schemas.py` is not re-exported through the package `__init__`:** consumers
+  deep-import (`from backend.core.websocket.event_schemas import ZoneCrossingPayload`, …),
+  which is how `backend/services/event_broadcaster.py` and `backend/api/schemas/system.py`
+  reach their payload types. Add a payload schema and the import path stays the deep one.
 
 ## `__init__.py` - Public Exports
 

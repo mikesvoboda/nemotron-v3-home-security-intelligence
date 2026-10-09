@@ -537,25 +537,53 @@ The schema layer contains 86 Pydantic schema modules for request/response valida
 
 ## Repositories (`repositories/`)
 
-The repository layer provides data access abstraction with a generic base class:
+Generic `Repository[T]` (`base.py`) plus seven per-domain subclasses. Every method is
+discoverable by reading the class; what is NOT is the transaction semantics (W3.1 batch 7
+recovered these from the deleted satellite guide — they had been re-derived three times):
 
-- **`base.py`** - Generic `Repository[T]` base class with:
-
-  - `get_by_id()` - Retrieve by primary key
-  - `get_all()` - Retrieve all entities
-  - `list_paginated()` - Paginated queries with skip/limit
-  - `count()` - Count entities
-  - `create()` / `update()` / `delete()` - CRUD operations
-  - `merge()` - Upsert operations
-  - `save()` - Persist changes
-
-- **`alert_repository.py`** - Alert rule queries
-- **`camera_repository.py`** - Camera-specific queries
-- **`detection_repository.py`** - Detection-specific queries
-- **`entity_repository.py`** - Entity tracking queries
-- **`event_repository.py`** - Event-specific queries
-- **`summary_repository.py`** - Summary queries
-- **`zone_repository.py`** - Zone queries
+- **A repository never commits.** `create()`/`update()`/`delete()`/`save()`/`merge()` only
+  `flush()`; the commit belongs to `core/database.py`'s `get_session()`, which does
+  `yield session` then `await session.commit()` on clean exit. Two same-session writers
+  cannot see each other's rows mid-request, and an early "rollback won" is an illusion —
+  what got undone was the whole `get_session` commit. Test note: `pyproject.toml:544` runs
+  pytest `-n 8 --dist=worksteal -p randomly`, so every test's session is its own and order
+  is shuffled — anything relying on one test's flush being visible in another is broken
+  already.
+- **`list_paginated()` caps your `limit` SILENTLY** via `get_max_limit()` (settings
+  `PAGINATION_MAX_LIMIT`, fallback `MAX_LIMIT` = 1000): the cap is
+  `capped_limit = min(limit, max_limit)`. A short page is not the end of the table.
+- **`save()` is a PostgreSQL upsert, and explicit NULL means CLEAR.** It emits
+  `insert … on_conflict_do_update` over all non-PK columns (NEM-4473: a column set on the
+  instance — even to `None`, when it is present in `__dict__` — rides the UPDATE, so
+  clearing a field is what `save()` DOES, not something it loses). On `IntegrityError`
+  (unique constraints outside the PK) it falls back to `session.merge()`. `merge()` runs
+  inside `begin_nested()` — a savepoint, so its failure rolls back the merge alone.
+- **Alert rules: an EMPTY `camera_ids` list means ALL cameras.** A rule applies when
+  `camera_ids` is NULL, `== []`, or contains the camera (`alert_repository.py:383-392`).
+  "No cameras selected" and "every camera" are the same row. Alert methods also accept the
+  enum OR its string value and normalize internally.
+- **Embedding search is app-level cosine over JSONB — there is no pgvector index here.**
+  `find_by_embedding` compares in Python and applies a PROVENANCE SKIP:
+  `_provenance_matches` returns False for a missing `model_id` or the
+  `vector_provenance.LEGACY_MODEL_ID` sentinel — the docstring says the match is SKIPPED,
+  not scored 0.0, so legacy rows are invisible to searches, not last-ranked. The
+  write-side guard is F11: `models/entity.py`'s `from_detection` (via `set_embedding`)
+  raises when an embedding arrives without `model_id` (the retired literal would mislabel
+  the bytes); a probe that passes no `model_id` compares against nothing.
+- **`get_detections_for_entity` ignores its `limit`/`offset`** — both parameters carry
+  `# noqa: ARG002`, reserved for future use — and `get_camera_counts` pulls every
+  matching entity into Python to group: pagination you pass there does nothing, and the
+  count query is not a GROUP BY.
+- **Named methods can over-promise.** `camera_repository.py`'s `get_cameras_with_stats`
+  fetches NO stats — its body is `select(Camera).order_by(Camera.name)` and its own
+  docstring says event/detection counts must come from separate aggregate queries (the
+  collections are deliberately not eager-loaded).
+- **`event_repository.py` lazy-load landmine:** the `eager_load_camera=True` kwarg exists
+  only on some methods. The default False path leaves `event.camera` unloaded, and touching
+  it in async code raises `MissingGreenlet` — an await inside a template/format, not at the
+  query. `zone_repository.py` names `Zone`/`ZoneType` as aliases of `CameraZone`/
+  `CameraZoneType` (:25-27); `get_by_type()` is GLOBAL — the camera-scoped method is
+  `get_by_camera_and_type()`.
 
 ## Services (`services/`)
 
@@ -1255,13 +1283,30 @@ below was re-verified against the code at this commit.
 ### `backend/jobs/` — three singleton jobs
 
 - Every module pairs a `get_*()` with a `reset_*()` singleton; the reset exists for tests.
-- `OrphanCleanupJob` is safe by DEFAULT: `dry_run=True`, 24 h minimum age, a 10 GB per-run
-  deletion cap, known image/video patterns only. The settings trio: `orphan_cleanup_enabled`,
+  All three `get_*()`s are FIRST-CALL-WINS (`if _singleton is None:`) — arguments passed to a
+  later call are silently ignored while an earlier instance lives. A test that constructs
+  via `get_summary_job_scheduler(interval_minutes=1)` pins the interval for everything
+  later in the process unless it calls the `reset_*()` first.
+- `OrphanCleanupJob` is safe by DEFAULT — `dry_run=True`, 24 h minimum age, a 10 GB per-run
+  deletion cap, known image/video patterns only — but **its scheduler is not**:
+  `OrphanCleanupScheduler` runs the SAME job with `dry_run=False`
+  (`orphan_cleanup_job.py:132` default True vs `:339` the scheduler's False), so anything
+  that starts the scheduler deletes for real. Nothing in production does —
+  `get_orphan_cleanup_scheduler()` and the class have zero non-test callers; only the job's
+  own defaults are live-reviewed. The settings trio: `orphan_cleanup_enabled`,
   `orphan_cleanup_scan_interval_hours`, `orphan_cleanup_age_threshold_hours`.
 - `SummaryJob` runs EVERY 60 MINUTES — `backend/main.py:1082` constructs the scheduler with
-  `interval_minutes=60` (the deleted guide's "every 5 minutes" matches no code), with a
-  180-second per-run timeout (`DEFAULT_TIMEOUT_SECONDS` = 180, not the guide's 60). It
-  invalidates `summaries:latest`, `summaries:hourly`, `summaries:daily`.
+  `interval_minutes=60` (the deleted guide's "every 5 minutes" matches no code — and the
+  scheduler's own `__init__` docstring STILL says "Default: 5 minutes" while
+  `DEFAULT_INTERVAL_MINUTES` = 60; trust the constant, which is where the deleted guide's
+  number probably came from). 180-second per-run timeout (`DEFAULT_TIMEOUT_SECONDS` = 180,
+  not the guide's 60). It invalidates `summaries:latest`, `summaries:hourly`,
+  `summaries:daily` — but cache-invalidation and the WebSocket broadcast are each gated on a
+  constructor-injected client (`summary_job.py:227` `if self._redis_client is not None`,
+  `:235` `if self._broadcaster is not None`). Production gets both (`main.py` passes
+  `redis_client` + `broadcaster`; the scheduler builds a fresh job per run and forwards
+  them), so a bare `SummaryJob()` in a test or ad-hoc script runs the whole summary and
+  invalidates NOTHING, silently.
 - `TimeoutCheckerJob` polls every 30 s and is **NOT WIRED**: zero non-test references to it
   exist outside `backend/jobs/` and `backend/main.py` never imports it, so no job timeout is
   ever checked in the running app. Its singleton pair exists for tests; wiring it is a code
