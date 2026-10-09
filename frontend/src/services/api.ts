@@ -1949,7 +1949,7 @@ export async function fetchCameraAnomalies(
   days: number = 7
 ): Promise<CameraAnomaliesResponse> {
   return fetchApi<CameraAnomaliesResponse>(
-    `/api/cameras/${encodeURIComponent(cameraId)}/anomalies?days=${days}`
+    `/api/cameras/${encodeURIComponent(cameraId)}/baseline/anomalies?days=${days}`
   );
 }
 

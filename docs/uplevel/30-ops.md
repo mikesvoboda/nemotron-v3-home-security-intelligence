@@ -247,8 +247,8 @@ in the roster, so the launcher creates it from the Phase 2 boundary on.
 - [ ] A session may declare `gpu = true`; `up` then adds `--gpu` to its `agent-dgx run`
       arguments. In the draft PR, ask the owner to confirm the flag's exact form, as `O0.1` did for
       the strongest model's arguments.
-- [ ] Add `uplevel-operator` to phase 1, model `fast`, kickoff line "Follow the kickoff prompt at
-      the end of docs/uplevel/operator.md."
+- [ ] Add `uplevel-operator` to phase 1, model `fast`, kickoff line "Follow the kickoff prompt in
+      docs/uplevel/operator.md. It is the section named "Kickoff prompt" in that file."
 - [ ] `up` refuses to create a `gpu` session when the launching shell lacks
       `AGENT_GPU_RUNNER_URL`, and adds no `--mount` for the model library: `agent-dgx --gpu` mounts
       `/srv/agent-models` itself and refuses any mount at or under it.

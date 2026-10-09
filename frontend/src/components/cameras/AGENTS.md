@@ -149,7 +149,7 @@ CameraSelector
 
 CameraAnomalyTimeline
 └── useCameraAnomaliesQuery()
-    └── fetchCameraAnomalies() → GET /api/cameras/{id}/anomalies
+    └── fetchCameraAnomalies() → GET /api/cameras/{id}/baseline/anomalies
 
 SceneChangeIndicator / SceneChangeHistory
 └── useSceneChangeEvents()
