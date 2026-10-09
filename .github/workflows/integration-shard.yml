@@ -122,6 +122,13 @@ jobs:
             uv run pytest backend/tests/integration/ -k "$RERUNS" -n0 --timeout=30 \
               --reruns 2 --reruns-delay 5 || true
           fi
+          # --splitting-algorithm=least_duration (batch-9 row 2, 2026-10-09):
+          # plan the split from the committed .test_durations so shard placement
+          # is a function of the tree, not of the seed permutation (the default
+          # duration_based_chunks cuts the collected ORDER, and the run-scoped
+          # seed below re-permutes module blocks every run -- 75% of tests
+          # changed shard per run measured; #6921's red rode that reshuffle).
+          # Pinned, with the seed pin beside it, by scripts/test_shard_durations.py.
           # --randomly-seed=run_id (WP2.1): same shard-overlap bug as ci.yml's unit
           # shards (pytest-randomly per-process seed + pytest-split = overlapping
           # groups; full mechanism + numbers in ci.yml's unit shard step).
@@ -130,6 +137,7 @@ jobs:
             -n auto \
             --timeout=30 \
             --splits 4 --group ${{ inputs.shard }} \
+            --splitting-algorithm=least_duration \
             --randomly-seed=${{ github.run_id }} \
             --cov=backend \
             --cov-fail-under=0 \
