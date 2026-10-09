@@ -57,9 +57,10 @@ repos:
         # parse; config/docker-compose.gb300.yml uses podman-compose
         # !override tags with the same failure mode (compose itself parses
         # them fine — CI/podman accept the file; only this safe_load hook
-        # chokes). Both excluded; schema validation lives in the compose
+        # chokes). scripts/uplevel-real-tier/docker-compose.b14-real.yml tags !reset the
+        # same way. All excluded; schema validation lives in the compose
         # validation steps, not here.
-        exclude: (mkdocs\.yml$|^config/docker-compose\.gb300\.yml$)
+        exclude: (mkdocs\.yml$|^config/docker-compose\.gb300\.yml$|^scripts/uplevel-real-tier/docker-compose\.b14-real\.yml$)
       - id: check-json
         exclude: (tsconfig.*\.json$|^\.wp25-feed/|^archive/)
       - id: check-added-large-files

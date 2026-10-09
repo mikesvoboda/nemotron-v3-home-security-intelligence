@@ -181,7 +181,6 @@ Dashboard uses NVIDIA-themed dark design:
 Place images in the appropriate subdirectory:
 
 - `admin/` - Admin guide diagrams
-- `ai-pipeline/` - AI pipeline diagrams
 - `architecture/` - System architecture diagrams
 - `data-model/` - Database/data model diagrams
 - `real-time/` - WebSocket/real-time diagrams

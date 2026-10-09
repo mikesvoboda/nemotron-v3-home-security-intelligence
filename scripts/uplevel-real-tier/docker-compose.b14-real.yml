@@ -1,0 +1,211 @@
+# Test-deployment override for B1.4's real tier (owner ruling 22).
+#
+# Apply AFTER the prod file, with its own project, env file and directories:
+#   scripts/uplevel-real-tier/render-test-compose.sh --project <run project> --runner-url <URL>
+# renders the combination, REFUSES anything unsafe, and prints the up/down commands.
+# Read docs/uplevel/operator.md first; scripts/uplevel-real-tier/README.md walks the run.
+#
+# Line refs are to docker-compose.prod.yml at 3bf7d972 (origin/main at writing). The prod
+# `backend:` block is :441-677.
+#
+# What this file changes about `backend`, and why:
+#
+#   image + !reset build   a test deployment pins a PREBUILT image (pull or tag it first —
+#                          `up` will not build; the prod target is a long CUDA-adjacent build).
+#   user + userns_mode     prod runs `user: ${HOST_UID} keep-id` to reach the host Podman
+#                          socket (:445-447); this run has no socket and runs as B14_UID,
+#                          which the renderer sets to the calling uid so the fresh bind dirs
+#                          are writable without chowns.
+#   depends_on !reset      prod's backend waits on foscam-init + ai-gateway + go2rtc
+#                          (:639-653), all excluded below; with the reset gone, excluding a
+#                          depended-on service makes the WHOLE project invalid (measured on
+#                          compose v5.5.1), so careless `up` could not even render. postgres
+#                          and redis still gate their own healthchecks; the backend's own
+#                          entrypoint retries migrations (backend/Dockerfile:127-129).
+#   volumes                compose merges volumes BY TARGET (measured on v5.5.1), so every
+#                          prod mount is re-pointed at the run's fresh directories — including
+#                          the two that most matter: the CHECKOUT's ./backend/data with :U
+#                          (recursive re-own of live files, operator.md step 2, prod :459) and
+#                          the host Podman socket (:473). Nothing below leaves a live host
+#                          path mounted; the renderer additionally REFUSES a render that does.
+#                          (Note: `${PODMAN_SOCKET:?...}` still has to be SET — compose
+#                          interpolates each file at load, before merging — so the run env file
+#                          points it at a fresh dummy file even though its mount is replaced.)
+#   ports                  NOT overridden here (an override ports: entry appends — measured);
+#                          the run env file sets API_PORT=18000 etc. so `curl localhost:18000`
+#                          answers only from YOUR backend. See the postgres/redis comment below.
+#   deploy reservations    prod's backend RESERVES one nvidia GPU (:674-676); a test run on
+#                          a Docker without one could never create the container. limits stay.
+#   environment            AI_VLM_URL -> the project-internal proxy (ruling 22 step 4: the
+#                          backend's url never changes; only the proxy's target does).
+#                          ORCHESTRATOR_ENABLED=false is an INJECTED literal, not a ${VAR}:
+#                          the prod file never wires the variable (only ORCHESTRATOR_DOCKER_HOST
+#                          at :636) and config.py:134-138 defaults the orchestrator ON — it
+#                          restarts containers by NAME in every project, which is exactly the
+#                          live-stack hazard operator.md rules out. Same for
+#                          READINESS_REQUIRE_PIPELINE_WORKERS=false: that IS the prod file's own
+#                          default (:638) — this test stack runs with the worker gate off; the
+#                          verdict_engine report field is gate-independent by code.
+#
+# Every prod service that this run must not start AND is unprofiled in prod gets a
+# `profiles:` tag, which takes it out of the default selection entirely:
+# `docker compose -p <project> … up -d` (even a careless bare one) can only start backend,
+# postgres, redis and vlm-proxy. The GPU fleet (ai-vlm :163/:268, ai-gateway :365) could not
+# be created on a GPU-less Docker anyway, but profiles make it structurally unreachable
+# rather than incidentally failing. Re-measured on compose v5.5.1: with the backend's
+# depends_on reset first, `config --services` returns exactly the four unprofiled services.
+#
+# Two services are NOT re-profiled here, on purpose: the retired vLLM engine (prod :284,
+# profile `vllm`) and dcgm-exporter (prod :1387, profile `gpu-rootful`) are already out of
+# the default selection by prod's own tags, so a second tag is dead weight — profiles
+# merge by UNION (measured on v5.5.1: base [vllm] + override [b14-excluded] renders both,
+# and each re-admits the service under its own name). And the engine's key itself is
+# banned by this file's enrollment in
+# backend/tests/security/test_docker_compose_security.py's retired-name audit, which
+# fails any non-comment `ai-llm` line in a tracked compose file.
+
+x-b14-exclude: &b14-exclude
+  profiles: ['b14-excluded']
+
+services:
+  backend:
+    image: ${B14_BACKEND_IMAGE:-ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest}
+    build: !reset null
+    user: '${B14_UID:-1000}:${B14_GID:-1000}'
+    userns_mode: ''
+    depends_on: !reset null
+    environment:
+      - AI_VLM_URL=http://vlm-proxy:8098
+      - ORCHESTRATOR_ENABLED=false
+      - READINESS_REQUIRE_PIPELINE_WORKERS=false
+      # B1.4's evidence is the tracker's INFO transition line (verdict_engine_status.py:216-217);
+      # prod's own interpolation default at :495 is WARNING, which hides it. Env lists merge BY
+      # NAME (measured), so this replaces prod's entry; the run env file also sets LOG_LEVEL=INFO,
+      # and ${LOG_LEVEL:-INFO} means even a hand-written env file without the line gets INFO.
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-false}
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+    deploy:
+      resources:
+        reservations: !reset null
+    volumes:
+      # Re-points for EVERY prod backend mount target (prod :459-475) — sources come from the
+      # run env file; the renderer creates them all. No live host path stays mounted:
+      #   :459 ./backend/data:z,U        -> run's data dir, NO :U (no recursive re-own anywhere)
+      #   :463 live camera dir           -> run's fresh camera dir
+      #   :464 live model-zoo            -> run's models dir
+      #   :470 live HF cache             -> run's hf dir
+      #   :473 host Podman socket        -> a fresh dummy FILE the renderer made (inert)
+      # Prod's :475 mounts ./docker-compose.prod.yml READ-ONLY at /app/docker-compose.prod.yml;
+      # that entry passes through untouched — a read-only copy of a file the orchestrator would
+      # only read with ORCHESTRATOR_ENABLED=false (injected below) is not a write path.
+      - ${B14_DATA_DIR}:/app/data
+      # :z because every /cameras mount in this repo carries it — the SELinux watch rule
+      # (the security harness greps exactly for that; prod's own camera mount is
+      # ${FOSCAM_BASE_PATH}:/cameras:z,U). The run's dir is fresh and this Docker may not
+      # enforce, but a tagged mount is correct on the enforcing host too and keeps the
+      # harness's rule uniform across every tracked compose file. No :U anywhere.
+      - ${B14_CAM_DIR}:/cameras:z
+      - ${B14_MODELS_DIR}:/models/model-zoo
+      - ${B14_HF_DIR}:/models/huggingface-cache
+      - ${B14_DUMMY_SOCKET}:/var/run/podman/podman.sock
+
+  # No ports: blocks for backend/postgres/redis here ON PURPOSE. The prod file publishes
+  # all three through variables ('127.0.0.1:${API_PORT:-8000}:8000' :457, ${POSTGRES_PORT:-5432}
+  # :59, ${REDIS_PORT:-6379} :691), and an override `ports:` entry APPENDS rather than replaces
+  # (measured: the backend rendered BOTH :8000 and :18000). So the renderer's run env file
+  # moves the ports instead — API_PORT=18000, POSTGRES_PORT=18001, REDIS_PORT=18002 — and the
+  # renderer refuses a render that publishes anything on a non-loopback bind or a live port.
+
+  # The fixed target (ruling 22 step 4): a dumb TCP relay on the project network. The backend
+  # dials http://vlm-proxy:8098 forever; taking the engine away from the readiness probe
+  # toggles THIS service's listener, which the probe cannot tell from a stopped engine — both
+  # land as `ai-vlm service connection refused` (backend/api/routes/system.py:934). The loopback
+  # publish below is a convenience for step B's eyeball curl, nothing in the flow needs it.
+  vlm-proxy:
+    image: docker.io/library/node:22-alpine
+    user: '${B14_UID:-1000}:${B14_GID:-1000}'
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./scripts/uplevel-real-tier/vlm-proxy.mjs:/proxy.mjs:ro
+      # The control channel (/run/b14/mode, /run/b14/target) is a bind of the run's OWN state
+      # dir, not a tmpfs: tmpfs is wiped when the container restarts, and a relay that loses
+      # mode=off mid-check silently undoes the test (measured: RestartCount=1, exit 0 — node
+      # exits once the listener closes, compose brings it back, no mode file, defaults to on).
+      # ${B14_STATE_DIR} is b14run/<project>/state, created by the renderer; never a live path.
+      - ${B14_STATE_DIR:?set by the run env file - the run's own state dir}:/run/b14
+    ports:
+      - '127.0.0.1:${B14_PROXY_PORT:-18003}:8098'
+    environment:
+      # host:port | bare port (-> host.docker.internal) | full URL. The port `agent-gpu run`
+      # printed for real runs; `vlm-mock:8098` under the demo profile. /run/b14/target can
+      # re-point it at runtime without restarting this container.
+      - VLMPROXY_TARGET=${VLMPROXY_TARGET:?set by the run env file - runner URL, or vlm-mock:8098 for demo}
+      - VLMPROXY_STATE_DIR=/run/b14
+    command: ['node', '/proxy.mjs']
+    healthcheck:
+      # Deliberately-off is not unhealthy: when the listener is closed because mode=off was
+      # written on purpose, the check passes on that evidence instead of marking the container
+      # unhealthy mid-check (nothing auto-restarts on unhealthy, but the operator's docker ps
+      # would read like an accident at exactly the moment the test is doing its job).
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "require(''net'').connect(8098,''127.0.0.1'').on(''connect'',()=>process.exit(0)).on(''error'',()=>process.exit(1))" || grep -q off /run/b14/mode',
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - security-net
+
+  # Demo profile only: canned-JSON fake engine so the command sequence rehearses without a GPU.
+  # NOT the production pin, NOT evidence (README "Rehearsing without a GPU"). No real run names it.
+  vlm-mock:
+    profiles: ['mock']
+    image: docker.io/library/node:22-alpine
+    user: '${B14_UID:-1000}:${B14_GID:-1000}'
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./scripts/uplevel-real-tier/vlm-mock.mjs:/mock.mjs:ro
+    environment:
+      - B14_MOCK=1
+      - PORT=8098
+    command: ['node', '/mock.mjs']
+    restart: unless-stopped
+    networks:
+      - security-net
+
+  # ---- excluded from the test run's default selection (see header) ----
+  ai-vlm: *b14-exclude
+  # (the retired vLLM engine is NOT listed — see the header: prod's `vllm` profile already
+  # excludes it, and this key would also violate the security harness's retired-name audit)
+  ai-gateway: *b14-exclude
+  foscam-init: *b14-exclude
+  go2rtc: *b14-exclude
+  frontend: *b14-exclude
+  tempo: *b14-exclude
+  prometheus: *b14-exclude
+  grafana: *b14-exclude
+  redis-exporter: *b14-exclude
+  json-exporter: *b14-exclude
+  alertmanager: *b14-exclude
+  blackbox-exporter: *b14-exclude
+  loki: *b14-exclude
+  pyroscope: *b14-exclude
+  node-exporter: *b14-exclude
+  # (dcgm-exporter is NOT listed — prod's own `gpu-rootful` profile at :1387 already keeps it
+  # out of the default selection, and re-tagging would replace that profile, not add to it)
+  alloy: *b14-exclude

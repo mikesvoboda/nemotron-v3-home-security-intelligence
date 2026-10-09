@@ -164,7 +164,8 @@ docs/
 ├── _includes/                   # MkDocs snippet includes (auth-model, risk-scoring)
 ├── components/                  # UI component documentation (see components/AGENTS.md)
 ├── diagrams/                    # Diagram sources
-├── discoveries/                 # NEM-tagged discovery notes
+├── discoveries/                 # Incident post-mortem notes (the NEM-tagged set
+│                                #   moved to docs/archive/ in 7fba36a6)
 ├── examples/                    # Prompt-engineering examples
 ├── archive/                     # Historical point-in-time reports, snapshots &
 │                                #   NEM investigations (see archive/AGENTS.md)
@@ -248,7 +249,6 @@ Each major directory has its own AGENTS.md:
 SVG diagrams are organized by topic in `images/`:
 
 - `images/admin/` - Admin guide diagrams
-- `images/ai-pipeline/` - AI processing flow diagrams
 - `images/architecture/` - System architecture diagrams
 - `images/data-model/` - Entity relationship diagrams
 - `images/real-time/` - WebSocket and event flow diagrams

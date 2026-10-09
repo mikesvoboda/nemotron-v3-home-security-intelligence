@@ -87,69 +87,16 @@ exclude_reference_patterns:
 # is an opt-out with no diff. See docs/uplevel/40-docs.md (W1.1).
 # ---------------------------------------------------------------------------
 
-# Baseline 1/2 — every dead file reference the validator reports TODAY (13
-# pairs; the audit's 213 is the full census — the committed extractor sees
-# backticked paths only, and widening the grammar is W1.3's job, together
-# with emptying this list). Keys are the report.json fields verbatim
-# (agents_md + reference, trailing slash included), so the gate matches the
-# emitted pair with no translation layer. Loader rules: entries are literal
-# paths (no globs, no leading /) and every entry carries a tracking ref —
-# an admission without a reason to revisit is a permanent excuse. All 13
-# drain under W1.3 ("Remove dead references now"); the PR that fixes a
-# reference deletes its entry in the same diff (test_real_tree_allowlist_is_
-# exact goes red on a zombie entry until then).
-dead_reference_allowlist:
-  - agents_md: .github/AGENTS.md
-    reference: ai/florence/requirements.txt
-    tracking: W1.3
-  # `.venv/` is gitignored AND in exclude_directories above; under ANCHORED
-  # resolution (exists + inside the root + no excluded component) it stays
-  # dead on every tree — absent in CI, excluded-but-present on a dev box.
-  # Keep the entry: whoever measures a local 12 must not "fix" it by
-  # deleting this pair. The other two `.venv/`-shaped traps (references
-  # that exist only under build/ etc.) are excluded from extraction by the
-  # patterns above, so they never reach this list.
-  - agents_md: .github/codeql/custom-queries/AGENTS.md
-    reference: .venv/
-    tracking: W1.3
-  - agents_md: ai/common/AGENTS.md
-    reference: ai/enrichment/models/
-    tracking: W1.3
-  - agents_md: ai/common/tests/AGENTS.md
-    reference: ai/enrichment-light/models/
-    tracking: W1.3
-  - agents_md: ai/common/tests/AGENTS.md
-    reference: ai/enrichment/scripts/
-    tracking: W1.3
-  - agents_md: ai/triton/AGENTS.md
-    reference: ai/gateway/adapters/enrichment.py
-    tracking: W1.3
-  - agents_md: docs/AGENTS.md
-    reference: images/ai-pipeline/
-    tracking: W1.3
-  - agents_md: docs/architecture/AGENTS.md
-    reference: ai/enrichment/
-    tracking: W1.3
-  - agents_md: docs/images/AGENTS.md
-    reference: ai-pipeline/
-    tracking: W1.3
-  - agents_md: synthbench/AGENTS.md
-    reference: status/flagship.json
-    tracking: W1.3
-  - agents_md: synthbench/AGENTS.md
-    reference: status/snapshots.json
-    tracking: W1.3
-  - agents_md: synthbench/clips/AGENTS.md
-    reference: commands/clip_render.py
-    tracking: W1.3
-  - agents_md: tests/AGENTS.md
-    reference: tests/unit/
-    tracking: W1.3
+# dead_reference_allowlist was REMOVED by W1.3 (drained to zero 2026-10-08): dead references
+# now fail the gate directly, zero tolerance. The loader rejects the key's presence
+# (exit 2) — re-adding an excuse is a gate-disable attempt; repair the citation instead.
 
-# Baseline 2/2 — retired-name mentions (docs/uplevel/00-audit.md's retired
+# The remaining baseline — retired-name mentions (docs/uplevel/00-audit.md's retired
 # names), measured at the same commit on this tree and a clean clone
-# (identical: 93/143/159/10/2, total 407, over 245 scanned AGENTS.md;
-# re-measured on the rebased head 2026-10-08). `pose` is OUT of the ratchet
+# (identical: 93/143/153/10/2, total 401, over 245 scanned AGENTS.md;
+# re-measured on the rebased head 2026-10-08, and again at W1.3's head after
+# the drain — W1.3 removed six enrichment mentions, so the ceiling fell
+# 159 -> 153 with it; counts hand-fall in the PR that removes the mentions). `pose` is OUT of the ratchet
 # per the owner's ruling on #6870 (2026-10-08): the count is dominated by the
 # LIVE Triton model actually named `pose`, so it mixes live and retired usage
 # (it measured 37 whole-word while watched). It comes back if R2 retires the
@@ -163,13 +110,15 @@ dead_reference_allowlist:
 # redden any PR that names one — pinned by
 # test_enrichment_light_url_is_not_enrichment.
 # Per-name ceilings, not one total: a total launders by substitution
-# (+1 florence bought with -1 nemotron) — pinned by
-# test_substitution_does_not_green_a_total. ALL FIVE KEYS ARE REQUIRED: the
+# (+1 florence bought with -1 demographics — the fixture drops demographics
+# and doubles florence, so nemotron sits still on both sides of the swap) —
+# pinned by test_substitution_does_not_green_a_total. ALL FIVE KEYS ARE REQUIRED: the
 # run exits 2 without any one of them (absent is neither 0 nor unchecked).
 retired_name_baseline:
-  florence: 93 # retired ai/florence path; citations drain under W1.3
+  florence: 93 # retired ai/florence path (W1.3 drained its dead-reference citations
+  # without adding florence mentions — the count is unchanged by design)
   nemotron: 143 # the retired model family (the repo's own name string)
-  enrichment: 159 # retired ai/enrichment component
+  enrichment: 153 # retired ai/enrichment component (W1.3 drained six dead-citing mentions)
   xclip: 10 # retired clip pipeline
   demographics: 2
 

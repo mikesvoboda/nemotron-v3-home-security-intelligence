@@ -278,7 +278,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | OB.4    | ops                     | on trigger | Lane map and cross-lane check                  |               | not started |     |
 | W1.1    | docs                    | 1          | The validator with teeth                       |               | done        | #6870 |
 | W1.2    | docs                    | 1          | Root truth                                     |               | done        | #6884 |
-| W1.3    | docs                    | 1          | Remove dead references now                     |               | not started |     |
+| W1.3    | docs                    | 1          | Remove dead references now                     |               | done        | #6915 |
 | W2.1    | docs                    | 2          | The boundary list and the line caps            |               | not started |     |
 | W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | not started |     |
 | W3.1    | docs                    | 3          | Boundaries only                                |               | not started |     |

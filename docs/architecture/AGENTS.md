@@ -280,7 +280,6 @@ FileWatcher --> detection_queue --> DetectionWorker --> YOLO26
    - `fallback-strategies.md` - Graceful degradation patterns
 2. Review source files in `backend/services/` for implementation details:
    - `backend/services/detector_client.py` - YOLO26 detector client implementation
-3. Check `ai/enrichment/` for enrichment service models
 
 ### Database Changes
 
