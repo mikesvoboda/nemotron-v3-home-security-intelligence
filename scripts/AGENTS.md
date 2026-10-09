@@ -1264,6 +1264,13 @@ there, and since W1.3 that it reports ZERO dead references. Baselines and the
 zero census re-measured 2026-10-08 at the W1.3 PR head; the pattern to follow
 for any future ratchet is `scripts/ratchet-check.py`.
 
+#### audit/ - committed measurement censuses (O1.7)
+
+Five scanners print the **[C]** baselines `docs/uplevel/00-audit.md` carries,
+one per count a later package measures against; tests and CI conventions live
+in `scripts/audit/AGENTS.md`. This file deliberately does not list the retired
+component names the first census counts - it is itself a scanned AGENTS.md.
+
 ## Usage Patterns
 
 ### Initial Setup
