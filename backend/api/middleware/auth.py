@@ -37,6 +37,7 @@ from backend.api.middleware.websocket_auth import (
 )
 from backend.core import get_settings
 from backend.core.logging import get_logger, mask_ip
+from backend.core.websocket.subprotocol import offered_key_subprotocol
 from backend.services.session_service import SessionService
 
 logger = get_logger(__name__)
@@ -280,7 +281,10 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     if not await validate_websocket_api_key(websocket):
         # Must accept the WebSocket before we can close it with a proper close frame.
         # Without accept(), calling close() results in HTTP 403 during handshake.
-        await websocket.accept()
+        # The accept echoes an offered api-key.* subprotocol (B-1): browsers
+        # enforce the echo BEFORE they read any close code, so a bare accept
+        # here turns the deliberate 4001 into a 1006 the client retries.
+        await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
         # Use 4001 if hybrid auth is enabled (new behavior), otherwise 1008 (backward compat)
         close_code = 4001 if hybrid_auth_enabled else status.WS_1008_POLICY_VIOLATION
         await websocket.close(code=close_code)
@@ -399,7 +403,10 @@ class AuthMiddleware:
         )
         if scope["type"] == "websocket":
             websocket = WebSocket(scope, receive, send)
-            await websocket.accept()
+            # Echo an offered api-key.* token (B-1): the browser enforces the
+            # echo before it ever reads the 4001, so a bare accept here would
+            # surface as a retried 1006 instead of the terminal close.
+            await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
             await websocket.close(code=WS_CLOSE_AUTH_REQUIRED, reason="Authentication required")
             return
         response = JSONResponse(

@@ -358,7 +358,7 @@ Both use broadcaster pattern for efficient multi-client messaging. WebSocket aut
 
 ### Authentication Middleware
 
-`AuthMiddleware` (`middleware/auth.py`) is the EXPOSE_LAN gate (OD-12), registered outermost in `backend/main.py`. With `EXPOSE_LAN` unset it requires no credential; after `O1.6` the 127.0.0.1 binding is the boundary (until then nginx publishes on 0.0.0.0). With `EXPOSE_LAN=true` every request and WebSocket handshake needs the login session cookie (`session_id`) or an `API_KEYS` key, except the exact paths in `OPEN_PATHS` (health, setup, login, logout; monitoring is gated too, UR-33); refusals are `401` or a WebSocket close `4001`. The per-route guards (`verify_api_key`, `require_admin_access`, `get_current_admin_user`) still apply after it. Details: `middleware/AGENTS.md`.
+`AuthMiddleware` (`middleware/auth.py`) is the EXPOSE_LAN gate (OD-12), registered outermost in `backend/main.py`. With `EXPOSE_LAN` unset it requires no credential; the frontend's published ports bind 127.0.0.1 (`O1.6` landed — `setup.py` derives `FRONTEND_BIND_ADDRESS`), and that binding is the boundary. With `EXPOSE_LAN=true` every request and WebSocket handshake needs the login session cookie (`session_id`) or an `API_KEYS` key, except the exact paths in `OPEN_PATHS` (health, setup, login, logout; monitoring is gated too, UR-33); refusals are `401` or a WebSocket close `4001`. The per-route guards (`verify_api_key`, `require_admin_access`, `get_current_admin_user`) still apply after it. Details: `middleware/AGENTS.md`.
 
 ### Media Endpoint Security
 

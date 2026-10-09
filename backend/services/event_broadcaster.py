@@ -65,6 +65,7 @@ from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
 from backend.core.websocket.compression import SerializationFormat
+from backend.core.websocket.subprotocol import offered_key_subprotocol
 from backend.core.websocket_circuit_breaker import (
     WebSocketCircuitBreaker,
     WebSocketCircuitState,
@@ -749,7 +750,7 @@ class EventBroadcaster:
                    - ZLIB: zlib-compressed JSON for large messages
                    - MSGPACK: MessagePack binary (30-50% smaller than JSON)
         """
-        await websocket.accept()
+        await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
         self._connections.add(websocket)
         self._client_formats[websocket] = format
         logger.info(

@@ -1,0 +1,17 @@
+# B-1 key-mode run (run 3): the authenticated deployment a browser reaches
+# with VITE_API_KEY baked — the gate is armed and a key is live. Layered on
+# docker-compose.f13-stack.yml together with docker-compose.f13-expose-true.yml.
+#
+# API_KEYS is the JSON-array form docs/reference/config/env-reference.md
+# documents. The value is throwaway-by-design (this stack is disposable and
+# loopback-only); the secret scanners read the F13_API_KEY_DEFAULT below as
+# what it is. Override at run time by editing the value here — compose has no
+# sane way to interpolate a ${F13_API_KEY:?} that ALSO lands inside JSON quotes.
+#
+# The gate honors API_KEYS unconditionally when EXPOSE_LAN=true — it does not
+# consult api_key_enabled (backend/api/middleware/auth.py, validate_gate_api_key).
+name: f13-done-when
+services:
+  backend:
+    environment:
+      - API_KEYS=["${F13_API_KEY:-f13-throwaway-key-not-a-secret}"] # pragma: allowlist secret

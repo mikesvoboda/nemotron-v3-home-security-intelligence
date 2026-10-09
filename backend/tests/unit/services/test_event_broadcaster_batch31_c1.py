@@ -43,6 +43,8 @@ if (Path(_ROOT) / "backend" / "services" / "event_broadcaster.py").is_file():
     if _ROOT not in sys.path:
         sys.path.insert(0, _ROOT)
 
+from starlette.datastructures import Headers  # noqa: E402
+
 from backend.core.websocket.compression import SerializationFormat  # noqa: E402
 from backend.core.websocket_circuit_breaker import WebSocketCircuitState  # noqa: E402
 from backend.services import event_broadcaster as eb  # noqa: E402
@@ -112,13 +114,21 @@ class FakeRedis:
 
 
 class FakeWS:
+    # Real handshakes always carry headers (empty when the client offered no
+    # subprotocols); connect() reads them to pick its B-1 echo, so the fake
+    # needs the field the ASGI contract guarantees.
+    headers = Headers({})
+
     def __init__(self) -> None:
         self.accepted = 0
         self.closed = 0
         self.text: list[str] = []
 
-    async def accept(self) -> None:
+    async def accept(self, subprotocol: str | None = None) -> None:
         self.accepted += 1
+        # Recorded, not ignored: B-1 passes the offered token here, so a fake
+        # that drops it could not catch an accept that echoes nothing.
+        self.accepted_subprotocol = subprotocol
 
     async def close(self) -> None:
         self.closed += 1

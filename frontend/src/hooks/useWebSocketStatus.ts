@@ -20,6 +20,9 @@ export interface WebSocketStatusOptions {
    * Sec-WebSocket-Protocol header values for authentication.
    * When API key authentication is enabled, use ["api-key.{key}"] format.
    * This is more secure than passing the API key in the URL query string.
+   * The backend reads an api-key.* token as the credential and echoes it back
+   * in the 101 response — RFC 6455 requires that echo, and without it the
+   * browser fails the handshake before onOpen ever fires.
    */
   protocols?: string[];
   channelName: string;

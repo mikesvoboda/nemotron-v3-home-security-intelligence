@@ -9,6 +9,13 @@ WebSocket Authentication:
     1. Query parameter: ws://host/ws/events?api_key=YOUR_KEY
     2. Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
 
+    A client that offered subprotocols gets one echoed back in the 101
+    response: the accept echoes the first offered "api-key.*" token verbatim
+    (and only that — a client that offered nothing sees no such header).
+    RFC 6455 §4.1 requires the echo, and browsers enforce it before reading
+    anything else, so a handshake without it fails in the browser even when
+    the server goes on to accept.
+
     Connections without a valid API key will be rejected with code 1008
     (Policy Violation).
 
@@ -65,6 +72,7 @@ from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
 from backend.core.websocket.message_buffer import get_message_buffer
 from backend.core.websocket.sequence_tracker import get_sequence_tracker
+from backend.core.websocket.subprotocol import offered_key_subprotocol
 from backend.core.websocket.subscription_manager import (
     SubscriptionResponse,
     get_subscription_manager,
@@ -965,7 +973,7 @@ async def websocket_job_logs(
 
     try:
         # Accept the WebSocket connection
-        await websocket.accept()
+        await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
         # Register connection with sequence tracker, including WebSocket mapping (NEM-3142)
         sequence_tracker.register_connection(connection_id, websocket)
         logger.info(
