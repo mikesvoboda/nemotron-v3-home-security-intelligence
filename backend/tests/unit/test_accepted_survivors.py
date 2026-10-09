@@ -5,9 +5,10 @@ with a malformed one." The file itself (backend/tests/mutation/
 accepted_survivors.toml) ships empty — EQUIVALENT residue moves in only when
 a battery is consolidated — so the fail-path is exercised two ways: against
 fixtures (every malformed shape in _SHAPE_CHECKS), and against the real file
-whenever it grows entries (each entry the file carries is validated by the
-same battery the fixtures prove — the check can never be vacuous over shipped
-data).
+through an always-run loop: when the file carries entries they go through the
+same battery the fixtures prove, and the structural checks run on it whatever
+it holds, so a future file cannot pass by being shaped wrong at the top level
+(a mistyped table name once hid entries from every entry-level check).
 
 The schema contract lives as the TOML's header comment; this file is its
 teeth. Field meanings are stated once, there; here the field names are bare
