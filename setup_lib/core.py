@@ -5,6 +5,7 @@ and other setup-related operations. These functions are extracted from the
 main setup.py to enable better testing and reusability.
 """
 
+import json
 import secrets
 import socket
 
@@ -195,6 +196,48 @@ def derive_alert_sink_url(expose_lan: str) -> str:
     if _expose_lan_is_truthy(expose_lan):
         return "http://frontend:8081/api/webhooks/alerts"
     return "http://backend:8000/api/webhooks/alerts"
+
+
+def merge_api_keys(existing: str, new_key: str) -> str:
+    """Merge the generated monitoring key into an existing ``API_KEYS`` value.
+
+    O1.11 (UR-33) makes setup.py write ``API_KEYS`` for the first time — setup.py
+    on origin/main wrote none at all (measured: ``git show origin/main:setup.py |
+    grep -c API_KEYS`` → 0). Writing the generated key as the WHOLE list would
+    silently delete every key an operator added by hand the next time setup.py
+    runs, which contradicts this file's own reuse-first doctrine for
+    ``MONITORING_API_KEY`` and setup.py's "preserve existing passwords when
+    re-running" rule. So: generated key first (it is the one compose renders into
+    the monitoring stack), operator keys after it in their original order,
+    duplicates collapsed.
+
+    A corrupt existing value (not JSON, or a JSON non-list) degrades to the
+    generated key alone rather than raising: setup.py must still produce a valid
+    ``.env``, and the unparseable value was never reaching pydantic anyway
+    (``Settings.api_keys`` would have failed to construct).
+
+    Args:
+        existing: the current ``API_KEYS`` value ("" when absent)
+        new_key: the generated monitoring key ("" when none)
+
+    Returns:
+        A JSON array string — the form ``Settings.api_keys`` parses.
+    """
+    keys: list[str] = []
+    if new_key:
+        keys.append(new_key)
+    raw = (existing or "").strip()
+    if raw:
+        try:
+            parsed = json.loads(raw)
+        except ValueError:
+            parsed = None
+        if isinstance(parsed, list):
+            keys.extend(str(item) for item in parsed if str(item))
+    # Dedupe while preserving order; the generated key keeps the lead.
+    seen: set[str] = set()
+    unique = [k for k in keys if not (k in seen or seen.add(k))]
+    return json.dumps(unique)
 
 
 def is_weak_password(password: str) -> bool:

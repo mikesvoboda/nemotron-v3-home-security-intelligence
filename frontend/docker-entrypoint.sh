@@ -36,7 +36,14 @@ sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" "$NGINX_CONF"
 # pre-O1.11 render (diffed in-container against origin/main's entrypoint
 # under nginx -t; the seam markers are what make the deletion exact).
 HSI_EXPOSED=false
-case "$(printf '%s' "${EXPOSE_LAN:-false}" | tr '[:upper:]' '[:lower:]')" in
+# tr -d '[:space:]' keeps this reader honest with the two that already strip:
+# setup_lib/core.py (_expose_lan_is_truthy calls .strip()) and pydantic, whose
+# Settings.expose_lan is what ARMS the gate. Without the strip a hand-edited
+# .env line of `EXPOSE_LAN= true` arms the gate while every render below stays
+# OFF — scrape 401s, alerts to a never-rendered sink, /grafana/ locked.
+# Fail-closed, but the comment above promises "can never disagree", so the
+# vocabulary has to survive the whitespace a hand-edit actually produces.
+case "$(printf '%s' "${EXPOSE_LAN:-false}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" in
     true|t|yes|y|on|1) HSI_EXPOSED=true ;;
 esac
 
@@ -864,6 +871,17 @@ server {
 HSI_MACHINE_EOF
     sed -i "s/__MACHINE_RESOLVER__/${RESOLVER:-127.0.0.11}/g" /tmp/hsi-machine-listener.conf
     sed -i "s|__HSI_MONITORING_API_KEY__|${MONITORING_API_KEY:-}|g" /tmp/hsi-machine-listener.conf
+    # Strip-then-append: $NGINX_CONF lives on the container's WRITABLE layer
+    # (compose keeps frontend off read_only precisely because this script
+    # sed -i's it — see the note at docker-compose.prod.yml), so a plain
+    # `cat >>` would stack a second listener on every `docker restart`: nginx
+    # then boots VALID with "conflicting server name on 0.0.0.0:8081, ignored"
+    # and the FIRST block — holding a stale key if one was ever rotated —
+    # owns the route. A mode flip can't hit this (changing EXPOSE_LAN means a
+    # compose RECREATE, which resets the layer), but a same-mode restart is
+    # routine. The seam splices are immune: their placeholder lines are
+    # consumed by the first render, so only the appended block can duplicate.
+    sed -i '/# O1.11 exposed render (appended at boot)/,$d' "$NGINX_CONF"
     # Append after the last line: the file ends in http context once the SSL
     # placeholder above was consumed/blanked, so this top-level server lands
     # beside the 8080 server (and beside 8443 when SSL is on).

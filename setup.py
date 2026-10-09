@@ -38,6 +38,7 @@ from setup_lib.core import (
     find_available_port,
     generate_password,
     is_weak_password,
+    merge_api_keys,
 )
 from setup_lib.credentials import generate_api_key
 from setup_lib.firewall_config import prompt_and_configure_firewall
@@ -459,9 +460,13 @@ def generate_env_content(config: dict) -> str:
         # just reads the values (each with its own fail-safe default for a
         # hand-edited .env that sets EXPOSE_LAN without re-running setup.py).
         f"MONITORING_API_KEY={config.get('monitoring_api_key', '')}",
+        # merge_api_keys keeps the generated key first and any keys already in
+        # the .env after it (empty existing value → json.dumps([key]) exactly
+        # as before; a fresh install has no operator keys to keep).
         "API_KEYS="
-        + (
-            json.dumps([config["monitoring_api_key"]]) if config.get("monitoring_api_key") else "[]"
+        + merge_api_keys(
+            str(config.get("existing_api_keys") or ""),
+            str(config.get("monitoring_api_key") or ""),
         ),
         "GRAFANA_ANONYMOUS_ENABLED="
         + derive_grafana_anonymous_enabled("true" if config.get("expose_lan", False) else "false"),
@@ -966,7 +971,21 @@ def write_config_files(
     output.mkdir(parents=True, exist_ok=True)
 
     env_path = output / ".env"
-    env_content = generate_env_content(config)
+    # O1.11 (UR-33, ops-b review LOW 3): setup.py on origin/main wrote no
+    # API_KEYS at all, so the line generate_env_content adds would silently
+    # REPLACE an operator's hand-added keys on every re-run. Merge instead —
+    # same doctrine as the password defaults ("preserve existing values when
+    # re-running"). Read from the file ABOUT TO BE OVERWRITTEN rather than via
+    # load_existing_env(), so a non-default output_dir merges its own .env.
+    existing_keys = ""
+    if env_path.exists():
+        try:
+            for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+                if raw_line.strip().startswith("API_KEYS="):
+                    existing_keys = raw_line.strip().split("=", 1)[1]
+        except OSError:
+            existing_keys = ""  # unreadable file: the generated key alone still boots
+    env_content = generate_env_content({**config, "existing_api_keys": existing_keys})
     env_path.write_text(env_content)
 
     # Set .env file permissions to 600 (owner read/write only)

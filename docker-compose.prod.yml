@@ -1071,9 +1071,15 @@ services:
     # The key reaches the shell via this service's environment, so it is a
     # $$-escaped shell expansion (compose leaves $$ alone); retention keeps
     # compose-side interpolation exactly as before this block changed.
+    # entrypoint: is NOT optional here — compose APPENDS command: to the image's
+    # ENTRYPOINT, and for this image the entrypoint IS /bin/prometheus. Without
+    # the override the container runs `/bin/prometheus /bin/sh -ec …` and dies
+    # with "unexpected /bin/sh" in BOTH modes (measured against
+    # prom/prometheus:v3.1.0). The interpreter lives in entrypoint:, so
+    # command: is the script alone — repeating /bin/sh -ec here would run the
+    # string /bin/sh with no arguments and exit.
+    entrypoint: ['/bin/sh', '-ec']
     command:
-      - /bin/sh
-      - -ec
       - >-
         sed "s|__HSI_MONITORING_API_KEY__|$${MONITORING_API_KEY:-}|g"
         /etc/prometheus/prometheus.yml > /tmp/prometheus.yml && exec
@@ -1263,12 +1269,17 @@ services:
       - '127.0.0.1:${JSON_EXPORTER_PORT:-7979}:7979'
     volumes:
       - ./monitoring/json-exporter-config.yml:/etc/json-exporter/config.yml:ro,z
+    # entrypoint: override required for the same reason as prometheus above
+    # (this image's entrypoint is /bin/json_exporter). The case arms .strip()
+    # the flag through tr -d [:space:] so a hand-edited .env line of
+    # EXPOSE_LAN= true renders exposed — the same decision setup_lib (which
+    # .strip()s) and pydantic already make. Without the strip the gate would
+    # arm while these headers render OFF: every probe 401s.
+    entrypoint: ['/bin/sh', '-ec']
     command:
-      - /bin/sh
-      - -ec
       - >-
-        case "$(printf %s "$${EXPOSE_LAN:-false}" | tr "[:upper:]"
-        "[:lower:]")" in true|t|yes|y|on|1) sed
+        case "$(printf %s "$${EXPOSE_LAN:-false}" | tr "[:upper:]" "[:lower:]"
+        | tr -d "[:space:]")" in true|t|yes|y|on|1) sed
         "s|__HSI_MONITORING_API_KEY__|$${MONITORING_API_KEY:-}|g"
         /etc/json-exporter/config.yml > /tmp/json-exporter-config.yml ;; *)
         sed "/^    headers:\$/{N;d;}" /etc/json-exporter/config.yml >
@@ -1317,9 +1328,11 @@ services:
     # never sets ALERT_SINK_URL at all). The unescaped form would be
     # compose-interpolated instead and bake an EMPTY url into the rendered
     # config for such an env — alertmanager then fails validation on boot.
+    # entrypoint: override required (this image's entrypoint is
+    # /bin/alertmanager — measured: without the override the container runs
+    # `/bin/alertmanager /bin/sh -ec …` and dies "unexpected /bin/sh").
+    entrypoint: ['/bin/sh', '-ec']
     command:
-      - /bin/sh
-      - -ec
       - >-
         sed "s|__HSI_ALERT_SINK__|$${ALERT_SINK_URL}|g"
         /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml && exec
