@@ -410,15 +410,15 @@ select vuln, "Message explaining the issue and how to fix it"
 
 ### Common Predicates
 
-| Predicate                | Returns                           |
+| Predicate | Returns |
 | ------------------------ | --------------------------------- | ----- | --------------------------------- |
-| `getADecorator()`        | A decorator on this function      |
-| `getAnArg()`             | An argument to this function      |
-| `getArg(n)`              | The nth argument (0-indexed)      |
-| `getFunc()`              | The callable being invoked        |
-| `getName()`              | The name of this symbol           |
-| `getValue()`             | The value of this expression      |
-| `getText()`              | Source text of this node          |
+| `getADecorator()` | A decorator on this function |
+| `getAnArg()` | An argument to this function |
+| `getArg(n)` | The nth argument (0-indexed) |
+| `getFunc()` | The callable being invoked |
+| `getName()` | The name of this symbol |
+| `getValue()` | The value of this expression |
+| `getText()` | Source text of this node |
 | `getEnclosingFunction()` | The function containing this node |
 | `exists(T x              | ...                               | ...)` | True if there exists a matching x |
 

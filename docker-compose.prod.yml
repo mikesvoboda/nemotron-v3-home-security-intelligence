@@ -623,6 +623,8 @@ services:
       - CAMERA_TIMEZONE=${CAMERA_TIMEZONE:-}
       - DEBUG=${DEBUG:-false}
       - ADMIN_ENABLED=${ADMIN_ENABLED:-false}
+      # OD-12: true makes the backend refuse requests without a login session or API key
+      - EXPOSE_LAN=${EXPOSE_LAN:-false}
       - FAST_PATH_ENABLED=${FAST_PATH_ENABLED:-false}
       - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
       # OpenTelemetry distributed tracing (NEM-1629)

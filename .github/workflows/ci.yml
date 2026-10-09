@@ -444,14 +444,49 @@ jobs:
         # stage would check. (Deliberately NOT gated on detect-changes file
         # filters — hooks select by their own files:/types:, and this job must
         # run on EVERY PR per the O1.12 Done-when.)
+        #
+        # Owner ruling 24 (c) (2026-10-09): a fixer hook rewriting the tree
+        # used to fail as pre-commit's own "files were modified by this
+        # hook" — it names the hook and buries the files. Here a rewritten
+        # file IS the finding: each dirty path gets a ::error:: annotation
+        # plus the diff (prettier --check style), then the tree is restored
+        # to HEAD and the step fails. A genuine hook failure (clean tree,
+        # rc>=1) still exits with pre-commit's own code, output untouched.
         run: |
+          set +e            # this step inspects exit codes itself; -e would abort before classifying
+          set -u
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             pre-commit run --from-ref "origin/${{ github.base_ref }}" --to-ref HEAD
+            rc=$?
           elif git rev-parse --verify -q 'HEAD^' >/dev/null; then
             pre-commit run --from-ref 'HEAD^' --to-ref HEAD
+            rc=$?
           else
             echo "no parent commit to compare (first commit) — nothing to run"
+            exit 0
           fi
+          # pre-commit STAGES the files it rewrote, so plain `git checkout
+          # -- .` would restore the rewritten bytes straight back out of the
+          # index; reset --hard is the only restore that means HEAD.
+          dirty=$(git status --porcelain)
+          if [ -n "$dirty" ]; then
+            echo
+            # "hook", not "formatter": the first real violator of this
+            # step (this PR's own run) was detect-secrets rewriting
+            # .secrets.baseline — line resyncs, new findings, stale prunes.
+            # The rewrite itself is usually correct; what's missing is the
+            # commit of the hook's own output.
+            echo "=== Hook-rewrite fixpoint violation (owner ruling 24 (c)) ==="
+            # porcelain v1: "XY path", renames as "XY old -> new" (keep new)
+            printf '%s\n' "$dirty" | sed -E 's/^..[ ]//; s/.* -> //' | while IFS= read -r f; do
+              echo "::error file=$f::$f is not at its hook's fixpoint — run 'pre-commit run --files $f' and commit the hook's rewrite"
+            done
+            git --no-pager diff --stat HEAD
+            git --no-pager diff HEAD | head -n 200
+            git reset -q --hard
+            [ "$rc" -eq 0 ] && rc=1
+          fi
+          exit "$rc"
 
   # Backend Jobs
 

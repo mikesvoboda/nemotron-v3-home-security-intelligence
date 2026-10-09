@@ -58,36 +58,8 @@ jobs:
           #   - Impact: We don't use ParseDict() with untrusted nested Any messages
           #   - Status: Awaiting upstream fix from google/protobuf
           #   - Review date: 2026-01-23
-          # CVE-2024-23342: python-ecdsa Minerva timing attack
-          #   - Severity: Moderate (requires local timing measurement for attack)
-          #   - Impact: ecdsa is transitive dep (used by jose for JWT signing)
-          #   - Status: Upstream considers side-channel attacks out of scope, no fix planned
-          #   - Review date: 2026-02-03
-          # PYSEC-2026-1325: python-ecdsa Minerva timing attack on P-256
-          #   - The current registry advisory ID for the same out-of-scope class
-          #     as CVE-2024-23342 above (advisory text itself states "no planned
-          #     fix"); ecdsa 0.19.2 is the newest release.
-          #   - Review date: 2026-09-15
-          # CVE-2026-85394: python-jose algorithm-confusion guard bypassed by
-          #   DER-encoded public keys (advisory published in the 2026-10-06
-          #   weekend wave; pip-audit newly flags python-jose 3.5.0)
-          #   - Severity: Critical upstream, but the forge premise is an
-          #     attacker-held ASYMMETRIC public key fed to HS256 verification.
-          #   - Impact: none here — all three JWT call sites (auth_service.py
-          #     :162/:197 jwt.encode, :217 jwt.decode) pin
-          #     algorithm/algorithms explicitly and verify with a symmetric
-          #     secret; no call path accepts a caller-supplied key or omits
-          #     algorithms=. That is exactly the mitigation the advisory
-          #     prescribes ("when algorithms are not explicitly restricted").
-          #   - Status: no released fix (OSV "affected", no fix versions;
-          #     3.5.0 is the newest release). A JWT dependency fork is a
-          #     separate owner-sized call if upstream never ships.
-          #   - Review date: 2027-01-06
           pip-audit -r requirements-audit-filtered.txt --desc \
-            --ignore-vuln CVE-2026-0994 \
-            --ignore-vuln CVE-2024-23342 \
-            --ignore-vuln PYSEC-2026-1325 \
-            --ignore-vuln CVE-2026-85394
+            --ignore-vuln CVE-2026-0994
         continue-on-error: false
 
   npm-audit:

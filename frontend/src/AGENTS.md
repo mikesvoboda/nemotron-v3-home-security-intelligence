@@ -48,41 +48,42 @@ Components are organized by feature area. Each component directory contains:
 
 #### Feature Directories
 
-| Directory           | Description                              |
-| ------------------- | ---------------------------------------- |
-| `components/ai/`               | AI performance and audit pages           |
-| `components/ai-audit/`         | AI audit visualization components        |
-| `components/ai-performance/`   | AI performance summary components        |
-| `components/alerts/`           | Alert management page                    |
-| `components/analytics/`        | Analytics dashboard and visualizations   |
-| `components/audit/`            | Audit log viewer                         |
-| `components/common/`           | Reusable UI components                   |
-| `components/dashboard/`        | Main dashboard components                |
-| `components/detection/`        | Object detection visualization           |
-| `components/developer-tools/`  | Developer tools and debugging panels     |
-| `components/entities/`         | Entity tracking page                     |
-| `components/events/`           | Event list and detail components         |
-| `components/exports/`          | Export modal and progress components     |
-| `components/feedback/`         | User feedback collection components      |
-| `components/forms/`            | Reusable form field components           |
-| `components/jobs/`             | Background jobs management page          |
-| `components/layout/`           | Layout, header, and sidebar              |
-| `components/logs/`             | Application logs viewer                  |
-| `components/performance/`      | Performance dashboard and charts         |
-| `components/pyroscope/`        | Pyroscope profiling integration page     |
-| `components/search/`           | Global search components                 |
-| `components/settings/`         | Settings pages and forms                 |
-| `components/status/`           | AI service status components             |
-| `components/system/`           | System monitoring components             |
-| `components/tracing/`          | Distributed tracing page                 |
-| `components/video/`            | Video player component                   |
-| `components/zones/`            | Zone management and visualization        |
+| Directory                     | Description                            |
+| ----------------------------- | -------------------------------------- |
+| `components/ai/`              | AI performance and audit pages         |
+| `components/ai-audit/`        | AI audit visualization components      |
+| `components/ai-performance/`  | AI performance summary components      |
+| `components/alerts/`          | Alert management page                  |
+| `components/analytics/`       | Analytics dashboard and visualizations |
+| `components/audit/`           | Audit log viewer                       |
+| `components/common/`          | Reusable UI components                 |
+| `components/dashboard/`       | Main dashboard components              |
+| `components/detection/`       | Object detection visualization         |
+| `components/developer-tools/` | Developer tools and debugging panels   |
+| `components/entities/`        | Entity tracking page                   |
+| `components/events/`          | Event list and detail components       |
+| `components/exports/`         | Export modal and progress components   |
+| `components/feedback/`        | User feedback collection components    |
+| `components/forms/`           | Reusable form field components         |
+| `components/jobs/`            | Background jobs management page        |
+| `components/layout/`          | Layout, header, and sidebar            |
+| `components/logs/`            | Application logs viewer                |
+| `components/performance/`     | Performance dashboard and charts       |
+| `components/pyroscope/`       | Pyroscope profiling integration page   |
+| `components/search/`          | Global search components               |
+| `components/settings/`        | Settings pages and forms               |
+| `components/status/`          | AI service status components           |
+| `components/system/`          | System monitoring components           |
+| `components/tracing/`         | Distributed tracing page               |
+| `components/video/`           | Video player component                 |
+| `components/zones/`           | Zone management and visualization      |
 
 #### `/components/common/`
 
 Reusable UI components and utilities:
 
 **Badges and Indicators:**
+
 - `RiskBadge.tsx` - Displays risk level badges (low/medium/high/critical)
 - `ConfidenceBadge.tsx` - Detection confidence score badge with color coding
 - `ObjectTypeBadge.tsx` - Displays object type badges (person/vehicle/animal/package)
@@ -93,6 +94,7 @@ Reusable UI components and utilities:
 - `WorkerStatusIndicator.tsx` - Worker status indicator
 
 **Error Handling:**
+
 - `ErrorBoundary.tsx` - Generic error boundary with customizable title/description
 - `ChunkLoadErrorBoundary.tsx` - Handles lazy-loaded chunk failures with retry
 - `FeatureErrorBoundary.tsx` - Feature-specific error isolation
@@ -101,6 +103,7 @@ Reusable UI components and utilities:
 - `SafeErrorMessage.tsx` - Safe error message display
 
 **Loading and Transitions:**
+
 - `LoadingSpinner.tsx` - Animated loading indicator
 - `RouteLoadingFallback.tsx` - Loading state for lazy-loaded routes
 - `PageTransition.tsx` - Animated page transitions
@@ -108,6 +111,7 @@ Reusable UI components and utilities:
 - `InfiniteScrollStatus.tsx` - Infinite scroll status indicator
 
 **Modals and Overlays:**
+
 - `Lightbox.tsx` - Full-size image viewer with navigation
 - `AnimatedModal.tsx` - Modal with entrance/exit animations
 - `ShortcutsHelpModal.tsx` - Keyboard shortcuts help dialog
@@ -117,6 +121,7 @@ Reusable UI components and utilities:
 - `ResponsiveModal.tsx` - Responsive modal component
 
 **User Experience:**
+
 - `ProductTour.tsx` - Interactive onboarding tour for first-time users
 - `ToastProvider.tsx` - Global toast notification system
 - `OfflineFallback.tsx` - Offline state display
@@ -126,6 +131,7 @@ Reusable UI components and utilities:
 - `FaviconBadge.tsx` - Favicon badge for notifications
 
 **Content Display:**
+
 - `EmptyState.tsx` - Empty state placeholder with icon and action
 - `TruncatedText.tsx` - Text truncation with tooltip
 - `AnimatedList.tsx` - Animated list with enter/exit transitions
@@ -137,26 +143,32 @@ Reusable UI components and utilities:
 - `VirtualizedList.tsx` - Virtualized list component
 
 **Charts:**
+
 - `ResponsiveChart.tsx` - Responsive chart wrapper
 - `ChartLegend.tsx` - Chart legend component
 
 **Accessibility:**
+
 - `LiveRegion.tsx` - ARIA live region
 - `SkipLink.tsx` - Skip navigation link
 - `NavigationTracker.tsx` - Navigation tracking
 
 **Alerts:**
+
 - `SceneChangeAlert.tsx` - Scene change alert component
 
 **Performance:**
+
 - `ProfiledComponent.tsx` - Profiled component wrapper
 - `RateLimitIndicator.tsx` - Rate limit indicator
 
 **Ambient:**
+
 - `AmbientBackground.tsx` - Ambient background component
 - `AmbientStatusProvider.tsx` - Ambient status provider
 
 **Exports:**
+
 - `index.ts` - Barrel export for all components
 
 Note: Tests are co-located with components (named `*.test.tsx`). Contains subdirectories: `components/common/animations/`, `components/common/skeletons/`.
@@ -166,22 +178,26 @@ Note: Tests are co-located with components (named `*.test.tsx`). Contains subdir
 AI performance monitoring and audit pages:
 
 **Pages:**
+
 - `AIPerformancePage.tsx` - Main AI performance monitoring dashboard
 - `AIAuditPage.tsx` - AI decision audit and analysis page
 
 **Model Monitoring:**
+
 - `ModelStatusCards.tsx` - Model health and status cards
 - `ModelZooSection.tsx` - Model zoo overview with VRAM stats
 - `ModelLeaderboard.tsx` - Model performance ranking
 - `ModelContributionChart.tsx` - Model contribution visualization
 
 **Performance Metrics:**
+
 - `LatencyPanel.tsx` - Inference latency metrics
 - `PipelineHealthPanel.tsx` - AI pipeline health indicators
 - `QualityScoreTrends.tsx` - Quality score trend charts
 - `InsightsCharts.tsx` - AI insights visualizations
 
 **Prompt Engineering:**
+
 - `PromptPlayground.tsx` - Interactive prompt testing environment
 - `PromptABTest.tsx` - A/B testing for prompts
 - `ABTestStats.tsx` - A/B test statistics display
@@ -189,10 +205,12 @@ AI performance monitoring and audit pages:
 - `SuggestionExplanation.tsx` - Explanation for AI suggestions
 
 **Audit:**
+
 - `BatchAuditModal.tsx` - Batch audit modal dialog
 - `RecommendationsPanel.tsx` - AI recommendations display
 
 **Exports:**
+
 - `index.ts` - Barrel export
 
 #### `/components/ai-audit/`
@@ -553,26 +571,26 @@ Zone management and visualization:
 
 ### `/config/` - Application Configuration
 
-| File                  | Purpose                                     |
-| --------------------- | ------------------------------------------- |
-| `env.ts`              | Environment variable validation and access  |
-| `pageDocumentation.ts`| Page documentation configuration            |
-| `tourSteps.ts`        | Product tour step definitions               |
+| File                   | Purpose                                    |
+| ---------------------- | ------------------------------------------ |
+| `env.ts`               | Environment variable validation and access |
+| `pageDocumentation.ts` | Page documentation configuration           |
+| `tourSteps.ts`         | Product tour step definitions              |
 
 ### `/contexts/` - React Contexts
 
 Global state management via React Context:
 
-| File                      | Purpose                        |
-| ------------------------- | ------------------------------ |
-| `AnnouncementContext.tsx` | System announcements           |
-| `CameraContext.tsx`       | Camera state and selection     |
-| `DebugModeContext.tsx`    | Debug mode toggle              |
-| `HealthContext.tsx`       | System health state            |
-| `MetricsContext.tsx`      | Metrics data context           |
-| `SystemDataContext.tsx`   | System-wide data context       |
-| `ToastContext.tsx`        | Toast notification context     |
-| `index.ts`                | Barrel export                  |
+| File                      | Purpose                    |
+| ------------------------- | -------------------------- |
+| `AnnouncementContext.tsx` | System announcements       |
+| `CameraContext.tsx`       | Camera state and selection |
+| `DebugModeContext.tsx`    | Debug mode toggle          |
+| `HealthContext.tsx`       | System health state        |
+| `MetricsContext.tsx`      | Metrics data context       |
+| `SystemDataContext.tsx`   | System-wide data context   |
+| `ToastContext.tsx`        | Toast notification context |
+| `index.ts`                | Barrel export              |
 
 Each context has a co-located test file (named `*.test.tsx`).
 
@@ -580,22 +598,22 @@ Each context has a co-located test file (named `*.test.tsx`).
 
 Mock Service Worker handlers for testing:
 
-| File          | Purpose                  |
-| ------------- | ------------------------ |
-| `handlers.ts` | MSW request handlers     |
-| `server.ts`   | MSW server setup         |
+| File          | Purpose              |
+| ------------- | -------------------- |
+| `handlers.ts` | MSW request handlers |
+| `server.ts`   | MSW server setup     |
 
 ### `/pages/` - Additional Page Components
 
 Page components not in feature directories:
 
-| File                             | Purpose                       |
-| -------------------------------- | ----------------------------- |
-| `DataManagementPage.tsx`         | Data management settings page |
-| `GpuSettingsPage.tsx`            | GPU configuration settings    |
-| `NotificationPreferencesPage.tsx`| Notification preferences      |
-| `TrashPage.tsx`                  | Deleted items / trash page    |
-| `ZonesPage.tsx`                  | Zones management page         |
+| File                              | Purpose                       |
+| --------------------------------- | ----------------------------- |
+| `DataManagementPage.tsx`          | Data management settings page |
+| `GpuSettingsPage.tsx`             | GPU configuration settings    |
+| `NotificationPreferencesPage.tsx` | Notification preferences      |
+| `TrashPage.tsx`                   | Deleted items / trash page    |
+| `ZonesPage.tsx`                   | Zones management page         |
 
 Each page has a co-located test file (named `*.test.tsx`).
 
@@ -603,12 +621,12 @@ Each page has a co-located test file (named `*.test.tsx`).
 
 Zod schemas for runtime validation:
 
-| File          | Purpose                       |
-| ------------- | ----------------------------- |
-| `alert.ts`    | Alert data schemas            |
-| `alertRule.ts`| Alert rule validation schemas |
-| `camera.ts`   | Camera data schemas           |
-| `index.ts`    | Barrel export                 |
+| File           | Purpose                       |
+| -------------- | ----------------------------- |
+| `alert.ts`     | Alert data schemas            |
+| `alertRule.ts` | Alert rule validation schemas |
+| `camera.ts`    | Camera data schemas           |
+| `index.ts`     | Barrel export                 |
 
 ### `/stores/` - State Stores
 
@@ -660,44 +678,44 @@ Each hook has a co-located test file (named `*.test.ts`).
 
 ### `/services/` - API Client and Services
 
-| File                       | Purpose                                          |
-| -------------------------- | ------------------------------------------------ |
-| `api.ts`                   | REST API client with typed fetch wrappers        |
-| `aiAuditApi.ts`            | AI audit API client                              |
-| `auditApi.ts`              | AI pipeline audit API client                     |
-| `promptManagementApi.ts`   | Prompt management API client                     |
-| `abTestService.ts`         | A/B testing service                              |
-| `queryClient.ts`           | React Query client configuration                 |
-| `interceptors.ts`          | Request/response interceptors                    |
-| `logger.ts`                | Client-side structured logging                   |
-| `metricsParser.ts`         | Prometheus text format parser                    |
-| `sentry.ts`                | Sentry error tracking integration                |
-| `rum.ts`                   | Real User Monitoring (RUM) service               |
-| `errorReporting.ts`        | Error reporting service                          |
-| `gpuConfigApi.ts`          | GPU configuration API client                     |
-| `optimisticUpdates.ts`     | Optimistic update utilities                      |
-| `performanceTracker.ts`    | Performance tracking service                     |
-| `queryPersistence.ts`      | Query persistence utilities                      |
-| `routePrefetching.ts`      | Route prefetching service                        |
+| File                     | Purpose                                   |
+| ------------------------ | ----------------------------------------- |
+| `api.ts`                 | REST API client with typed fetch wrappers |
+| `aiAuditApi.ts`          | AI audit API client                       |
+| `auditApi.ts`            | AI pipeline audit API client              |
+| `promptManagementApi.ts` | Prompt management API client              |
+| `abTestService.ts`       | A/B testing service                       |
+| `queryClient.ts`         | React Query client configuration          |
+| `interceptors.ts`        | Request/response interceptors             |
+| `logger.ts`              | Client-side structured logging            |
+| `metricsParser.ts`       | Prometheus text format parser             |
+| `sentry.ts`              | Sentry error tracking integration         |
+| `rum.ts`                 | Real User Monitoring (RUM) service        |
+| `errorReporting.ts`      | Error reporting service                   |
+| `gpuConfigApi.ts`        | GPU configuration API client              |
+| `optimisticUpdates.ts`   | Optimistic update utilities               |
+| `performanceTracker.ts`  | Performance tracking service              |
+| `queryPersistence.ts`    | Query persistence utilities               |
+| `routePrefetching.ts`    | Route prefetching service                 |
 
 **Test Files:**
 
-| File                          | Purpose                                      |
-| ----------------------------- | -------------------------------------------- |
-| `api.test.ts`                 | API client tests                             |
-| `api.abort.test.ts`           | Request cancellation tests                   |
-| `api.timeout.test.ts`         | Request timeout tests                        |
-| `api.sentry.test.ts`          | Sentry integration tests                     |
-| `api.missing-coverage.test.ts`| Coverage gap tests                           |
-| `auditApi.test.ts`            | Audit API client tests                       |
-| `promptManagementApi.test.ts` | Prompt management API tests                  |
-| `abTestService.test.ts`       | A/B test service tests                       |
-| `queryClient.test.ts`         | Query client tests                           |
-| `interceptors.test.ts`        | Interceptor tests                            |
-| `logger.test.ts`              | Logger tests                                 |
-| `metricsParser.test.ts`       | Metrics parser tests                         |
-| `sentry.test.ts`              | Sentry integration tests                     |
-| `rum.test.ts`                 | RUM service tests                            |
+| File                           | Purpose                     |
+| ------------------------------ | --------------------------- |
+| `api.test.ts`                  | API client tests            |
+| `api.abort.test.ts`            | Request cancellation tests  |
+| `api.timeout.test.ts`          | Request timeout tests       |
+| `api.sentry.test.ts`           | Sentry integration tests    |
+| `api.missing-coverage.test.ts` | Coverage gap tests          |
+| `auditApi.test.ts`             | Audit API client tests      |
+| `promptManagementApi.test.ts`  | Prompt management API tests |
+| `abTestService.test.ts`        | A/B test service tests      |
+| `queryClient.test.ts`          | Query client tests          |
+| `interceptors.test.ts`         | Interceptor tests           |
+| `logger.test.ts`               | Logger tests                |
+| `metricsParser.test.ts`        | Metrics parser tests        |
+| `sentry.test.ts`               | Sentry integration tests    |
+| `rum.test.ts`                  | RUM service tests           |
 
 The `api.ts` file re-exports all types from `types/generated/` for convenience.
 
@@ -714,15 +732,15 @@ The `api.ts` file re-exports all types from `types/generated/` for convenience.
 
 ### `/test/` - Test Setup
 
-| File                 | Purpose                                           |
-| -------------------- | ------------------------------------------------- |
-| `setup.ts`           | Vitest test configuration                         |
-| `common-mocks.ts`    | Common mock utilities                             |
-| `matchers.ts`        | Custom test matchers                              |
-| `matchers.test.ts`   | Tests for custom matchers                         |
-| `utils.tsx`          | Test utility functions                            |
-| `utils.test.tsx`     | Tests for test utilities                          |
-| `README.md`          | Test infrastructure documentation                 |
+| File               | Purpose                           |
+| ------------------ | --------------------------------- |
+| `setup.ts`         | Vitest test configuration         |
+| `common-mocks.ts`  | Common mock utilities             |
+| `matchers.ts`      | Custom test matchers              |
+| `matchers.test.ts` | Tests for custom matchers         |
+| `utils.tsx`        | Test utility functions            |
+| `utils.test.tsx`   | Tests for test utilities          |
+| `README.md`        | Test infrastructure documentation |
 
 Contains subdirectories for test factories, fixtures, and mocks
 
@@ -757,37 +775,37 @@ Note: Tests are co-located with type files (e.g., `*.test.ts`).
 
 ### `/utils/` - Utility Functions
 
-| File                       | Purpose                                                                      |
-| -------------------------- | ---------------------------------------------------------------------------- |
-| `risk.ts`                  | Risk level utilities (getRiskLevel, getRiskColor, getRiskLabel)              |
-| `confidence.ts`            | Detection confidence utilities (levels, colors, Tailwind classes, array ops) |
-| `time.ts`                  | Time formatting (formatDuration, getDurationLabel, isEventOngoing)           |
-| `webcodecs.ts`             | WebCodecs API feature detection and fallback helpers                         |
-| `error-handling.ts`        | Error handling utilities                                                     |
-| `eventClustering.ts`       | Event clustering utilities                                                   |
-| `grafanaUrl.ts`            | Grafana URL utilities                                                        |
-| `groupBy.ts`               | Group by utility function                                                    |
-| `memoization.ts`           | Memoization utilities                                                        |
-| `pipeline.ts`              | Pipeline utilities                                                           |
-| `promptDiff.ts`            | Prompt diff utilities                                                        |
-| `sanitize.ts`              | Sanitization utilities                                                       |
-| `severityCalculator.ts`    | Severity calculation utilities                                               |
-| `severityColors.ts`        | Severity color utilities                                                     |
-| `summaryParser.ts`         | Summary parsing utilities                                                    |
-| `tryCatch.ts`              | Try-catch utility wrapper                                                    |
-| `validation.ts`            | Validation utilities                                                         |
-| `websocketCompression.ts`  | WebSocket compression utilities                                              |
+| File                      | Purpose                                                                      |
+| ------------------------- | ---------------------------------------------------------------------------- |
+| `risk.ts`                 | Risk level utilities (getRiskLevel, getRiskColor, getRiskLabel)              |
+| `confidence.ts`           | Detection confidence utilities (levels, colors, Tailwind classes, array ops) |
+| `time.ts`                 | Time formatting (formatDuration, getDurationLabel, isEventOngoing)           |
+| `webcodecs.ts`            | WebCodecs API feature detection and fallback helpers                         |
+| `error-handling.ts`       | Error handling utilities                                                     |
+| `eventClustering.ts`      | Event clustering utilities                                                   |
+| `grafanaUrl.ts`           | Grafana URL utilities                                                        |
+| `groupBy.ts`              | Group by utility function                                                    |
+| `memoization.ts`          | Memoization utilities                                                        |
+| `pipeline.ts`             | Pipeline utilities                                                           |
+| `promptDiff.ts`           | Prompt diff utilities                                                        |
+| `sanitize.ts`             | Sanitization utilities                                                       |
+| `severityCalculator.ts`   | Severity calculation utilities                                               |
+| `severityColors.ts`       | Severity color utilities                                                     |
+| `summaryParser.ts`        | Summary parsing utilities                                                    |
+| `tryCatch.ts`             | Try-catch utility wrapper                                                    |
+| `validation.ts`           | Validation utilities                                                         |
+| `websocketCompression.ts` | WebSocket compression utilities                                              |
 
 Each utility has a co-located test file.
 
 ### `/test-utils/` - Test Utilities
 
-| File                     | Purpose                                                   |
-| ------------------------ | --------------------------------------------------------- |
-| `index.ts`               | Central export point for all test utilities               |
-| `renderWithProviders.tsx`| Custom render function wrapping components with providers |
-| `factories.ts`           | Test data factories for events, detections, cameras       |
-| `test-utils.test.tsx`    | Tests for test utilities                                  |
+| File                      | Purpose                                                   |
+| ------------------------- | --------------------------------------------------------- |
+| `index.ts`                | Central export point for all test utilities               |
+| `renderWithProviders.tsx` | Custom render function wrapping components with providers |
+| `factories.ts`            | Test data factories for events, detections, cameras       |
+| `test-utils.test.tsx`     | Tests for test utilities                                  |
 
 Import test utilities from `../test-utils` in test files.
 
@@ -803,19 +821,19 @@ Import test utilities from `../test-utils` in test files.
 
 All routes use lazy loading for code splitting. Defined in `App.tsx`:
 
-| Path          | Component              | Description                        |
-| ------------- | ---------------------- | ---------------------------------- |
-| `/`           | `DashboardPage`        | Main dashboard with live monitoring|
-| `/timeline`   | `EventTimeline`        | Chronological event timeline       |
-| `/analytics`  | `AnalyticsPage`        | Analytics and insights dashboard   |
-| `/alerts`     | `AlertsPage`           | Alert management and history       |
-| `/entities`   | `EntitiesPage`         | Entity tracking and management     |
-| `/logs`       | `LogsPage`             | System logs via Grafana/Loki       |
-| `/audit`      | `AuditLogPage`         | System audit log                   |
-| `/ai`         | `AIPerformancePage`    | AI model performance monitoring    |
-| `/ai-audit`   | `AIAuditPage`          | AI decision audit and analysis     |
-| `/system`     | `SystemMonitoringPage` | System health and metrics          |
-| `/settings`   | `SettingsPage`         | Application settings               |
+| Path         | Component              | Description                         |
+| ------------ | ---------------------- | ----------------------------------- |
+| `/`          | `DashboardPage`        | Main dashboard with live monitoring |
+| `/timeline`  | `EventTimeline`        | Chronological event timeline        |
+| `/analytics` | `AnalyticsPage`        | Analytics and insights dashboard    |
+| `/alerts`    | `AlertsPage`           | Alert management and history        |
+| `/entities`  | `EntitiesPage`         | Entity tracking and management      |
+| `/logs`      | `LogsPage`             | System logs via Grafana/Loki        |
+| `/audit`     | `AuditLogPage`         | System audit log                    |
+| `/ai`        | `AIPerformancePage`    | AI model performance monitoring     |
+| `/ai-audit`  | `AIAuditPage`          | AI decision audit and analysis      |
+| `/system`    | `SystemMonitoringPage` | System health and metrics           |
+| `/settings`  | `SettingsPage`         | Application settings                |
 
 ### Lazy Loading Pattern
 

@@ -266,6 +266,7 @@ TRACKED_COMPOSE_FILES: tuple[str, ...] = (
     "docker-compose.ci.yml",
     "docker-compose.prod.yml",
     "docker-compose.test.yml",
+    "scripts/uplevel-real-tier/docker-compose.b14-real.yml",
 )
 
 # Short syntax ``<source>:<target>[:<opts>]``. The shortest source wins, so the

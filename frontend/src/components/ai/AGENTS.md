@@ -16,45 +16,45 @@ The AI pages consolidate AI-related metrics into dedicated views:
 
 ## Files
 
-| File                             | Purpose                                            |
-| -------------------------------- | -------------------------------------------------- |
-| `AIPerformancePage.tsx`          | Main AI performance dashboard                      |
-| `AIPerformancePage.test.tsx`     | Test suite for AIPerformancePage                   |
-| `AIAuditPage.tsx`                | AI quality metrics and recommendations dashboard   |
-| `AIAuditPage.test.tsx`           | Test suite for AIAuditPage                         |
-| `ABTestStats.tsx`                | Aggregate A/B test statistics with recommendations |
-| `ABTestStats.test.tsx`           | Test suite for ABTestStats                         |
-| `BatchAuditModal.tsx`            | Modal for triggering batch AI audit                |
-| `BatchAuditModal.test.tsx`       | Test suite for BatchAuditModal                     |
-| `InsightsCharts.tsx`             | Detection and risk distribution charts             |
-| `InsightsCharts.test.tsx`        | Test suite for InsightsCharts                      |
-| `LatencyPanel.tsx`               | Latency metrics with percentile breakdowns         |
-| `LatencyPanel.test.tsx`          | Test suite for LatencyPanel                        |
-| `ModelContributionChart.tsx`     | Horizontal bar chart of model contributions        |
-| `ModelContributionChart.test.tsx`| Test suite for ModelContributionChart              |
-| `ModelLeaderboard.tsx`           | Sortable table ranking AI models                   |
-| `ModelLeaderboard.test.tsx`      | Test suite for ModelLeaderboard                    |
-| `ModelStatusCards.tsx`           | YOLO26 and Nemotron status cards                |
-| `ModelStatusCards.test.tsx`      | Test suite for ModelStatusCards                    |
-| `ModelZooSection.tsx`            | Model Zoo status cards with latency chart          |
-| `ModelZooSection.test.tsx`       | Test suite for ModelZooSection                     |
-| `PipelineHealthPanel.tsx`        | Queue depths, throughput, error monitoring         |
-| `PipelineHealthPanel.test.tsx`   | Test suite for PipelineHealthPanel                 |
-| `PromptABTest.tsx`               | Split-view A/B testing for prompt comparison       |
-| `PromptABTest.test.tsx`          | Test suite for PromptABTest                        |
-| `PromptPlayground.tsx`           | Slide-out panel for prompt editing and testing     |
-| `PromptPlayground.test.tsx`      | Test suite for PromptPlayground                    |
-| `QualityScoreTrends.tsx`         | Quality score stat cards with progress indicators  |
-| `QualityScoreTrends.test.tsx`    | Test suite for QualityScoreTrends                  |
-| `RecommendationsPanel.tsx`       | Grouped prompt improvement suggestions             |
-| `RecommendationsPanel.test.tsx`  | Test suite for RecommendationsPanel                |
-| `SuggestionDiffView.tsx`         | GitHub-style diff view for prompt suggestions      |
-| `SuggestionDiffView.test.tsx`    | Test suite for SuggestionDiffView                  |
-| `SuggestionExplanation.tsx`      | Expandable explanation for prompt suggestions      |
-| `SuggestionExplanation.test.tsx` | Test suite for SuggestionExplanation               |
-| `index.ts`                       | Barrel exports                                     |
-| `__tests__/`                     | Additional test files for PromptPlayground         |
-| `AGENTS.md`                      | This documentation file                            |
+| File                              | Purpose                                            |
+| --------------------------------- | -------------------------------------------------- |
+| `AIPerformancePage.tsx`           | Main AI performance dashboard                      |
+| `AIPerformancePage.test.tsx`      | Test suite for AIPerformancePage                   |
+| `AIAuditPage.tsx`                 | AI quality metrics and recommendations dashboard   |
+| `AIAuditPage.test.tsx`            | Test suite for AIAuditPage                         |
+| `ABTestStats.tsx`                 | Aggregate A/B test statistics with recommendations |
+| `ABTestStats.test.tsx`            | Test suite for ABTestStats                         |
+| `BatchAuditModal.tsx`             | Modal for triggering batch AI audit                |
+| `BatchAuditModal.test.tsx`        | Test suite for BatchAuditModal                     |
+| `InsightsCharts.tsx`              | Detection and risk distribution charts             |
+| `InsightsCharts.test.tsx`         | Test suite for InsightsCharts                      |
+| `LatencyPanel.tsx`                | Latency metrics with percentile breakdowns         |
+| `LatencyPanel.test.tsx`           | Test suite for LatencyPanel                        |
+| `ModelContributionChart.tsx`      | Horizontal bar chart of model contributions        |
+| `ModelContributionChart.test.tsx` | Test suite for ModelContributionChart              |
+| `ModelLeaderboard.tsx`            | Sortable table ranking AI models                   |
+| `ModelLeaderboard.test.tsx`       | Test suite for ModelLeaderboard                    |
+| `ModelStatusCards.tsx`            | YOLO26 and Nemotron status cards                   |
+| `ModelStatusCards.test.tsx`       | Test suite for ModelStatusCards                    |
+| `ModelZooSection.tsx`             | Model Zoo status cards with latency chart          |
+| `ModelZooSection.test.tsx`        | Test suite for ModelZooSection                     |
+| `PipelineHealthPanel.tsx`         | Queue depths, throughput, error monitoring         |
+| `PipelineHealthPanel.test.tsx`    | Test suite for PipelineHealthPanel                 |
+| `PromptABTest.tsx`                | Split-view A/B testing for prompt comparison       |
+| `PromptABTest.test.tsx`           | Test suite for PromptABTest                        |
+| `PromptPlayground.tsx`            | Slide-out panel for prompt editing and testing     |
+| `PromptPlayground.test.tsx`       | Test suite for PromptPlayground                    |
+| `QualityScoreTrends.tsx`          | Quality score stat cards with progress indicators  |
+| `QualityScoreTrends.test.tsx`     | Test suite for QualityScoreTrends                  |
+| `RecommendationsPanel.tsx`        | Grouped prompt improvement suggestions             |
+| `RecommendationsPanel.test.tsx`   | Test suite for RecommendationsPanel                |
+| `SuggestionDiffView.tsx`          | GitHub-style diff view for prompt suggestions      |
+| `SuggestionDiffView.test.tsx`     | Test suite for SuggestionDiffView                  |
+| `SuggestionExplanation.tsx`       | Expandable explanation for prompt suggestions      |
+| `SuggestionExplanation.test.tsx`  | Test suite for SuggestionExplanation               |
+| `index.ts`                        | Barrel exports                                     |
+| `__tests__/`                      | Additional test files for PromptPlayground         |
+| `AGENTS.md`                       | This documentation file                            |
 
 ## Components
 
@@ -284,10 +284,10 @@ Expandable "Why This Matters" component providing educational context for prompt
 
 ```typescript
 interface SuggestionExplanationProps {
-  suggestion: EnrichedSuggestion;           // The suggestion with explanation data
+  suggestion: EnrichedSuggestion; // The suggestion with explanation data
   onEventClick?: (eventId: number) => void; // Callback when user clicks an event link
-  defaultExpanded?: boolean;                // Whether to start expanded
-  className?: string;                       // Additional CSS classes
+  defaultExpanded?: boolean; // Whether to start expanded
+  className?: string; // Additional CSS classes
 }
 ```
 
@@ -315,14 +315,14 @@ Split-view A/B testing component for side-by-side prompt comparison.
 
 ```typescript
 interface PromptABTestProps {
-  originalPrompt: string;                   // The original (A) prompt
-  modifiedPrompt: string;                   // The modified (B) prompt
-  results: ABTestResult[];                  // Test results for completed tests
-  isRunning: boolean;                       // Whether a test is currently running
-  onRunTest: (eventId: number) => void;     // Callback to run test on specific event
-  onRunRandomTests: (count: number) => void;// Callback to run test on N random events
-  onPromoteB: () => void;                   // Callback to promote B as new default
-  className?: string;                       // Additional CSS classes
+  originalPrompt: string; // The original (A) prompt
+  modifiedPrompt: string; // The modified (B) prompt
+  results: ABTestResult[]; // Test results for completed tests
+  isRunning: boolean; // Whether a test is currently running
+  onRunTest: (eventId: number) => void; // Callback to run test on specific event
+  onRunRandomTests: (count: number) => void; // Callback to run test on N random events
+  onPromoteB: () => void; // Callback to promote B as new default
+  className?: string; // Additional CSS classes
 }
 ```
 
@@ -343,8 +343,8 @@ Aggregate statistics display for A/B test results with recommendations.
 
 ```typescript
 interface ABTestStatsProps {
-  results: ABTestResult[];                  // Array of A/B test results to analyze
-  className?: string;                       // Additional CSS classes
+  results: ABTestResult[]; // Array of A/B test results to analyze
+  className?: string; // Additional CSS classes
 }
 ```
 

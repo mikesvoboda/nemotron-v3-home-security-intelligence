@@ -6,10 +6,10 @@ This directory contains tests for TypeScript type definitions, specifically test
 
 ## Key Files
 
-| File                | Purpose                                      | Lines |
-| ------------------- | -------------------------------------------- | ----- |
-| `summary.test.ts`   | Tests for Summary type guards                | ~211  |
-| `zoneAlert.test.ts` | Tests for zone alert type system             | ~395  |
+| File                | Purpose                          | Lines |
+| ------------------- | -------------------------------- | ----- |
+| `summary.test.ts`   | Tests for Summary type guards    | ~211  |
+| `zoneAlert.test.ts` | Tests for zone alert type system | ~395  |
 
 ## What These Tests Cover
 
@@ -17,10 +17,10 @@ This directory contains tests for TypeScript type definitions, specifically test
 
 Tests type guards for the Summary type used in event summaries:
 
-| Type Guard              | Purpose                                    |
-| ----------------------- | ------------------------------------------ |
-| `isSummary`             | Validates Summary object structure         |
-| `isSummaryUpdateMessage`| Validates WebSocket summary update messages|
+| Type Guard               | Purpose                                     |
+| ------------------------ | ------------------------------------------- |
+| `isSummary`              | Validates Summary object structure          |
+| `isSummaryUpdateMessage` | Validates WebSocket summary update messages |
 
 **Test Scenarios:**
 
@@ -35,17 +35,17 @@ Tests type guards for the Summary type used in event summaries:
 
 Tests the zone alert type system including enums, type guards, and conversion functions:
 
-| Export                      | Type          | Purpose                           |
-| --------------------------- | ------------- | --------------------------------- |
-| `TrustViolationType`        | Enum          | Trust violation categories        |
-| `AlertPriority`             | Enum          | Alert priority levels (0=critical)|
-| `TRUST_VIOLATION_TYPE_CONFIG` | Config      | Display config for violation types|
-| `severityToPriority`        | Function      | Convert severity to priority enum |
-| `isTrustViolationType`      | Type guard    | Validate violation type string    |
-| `isTrustViolation`          | Type guard    | Validate TrustViolation object    |
-| `isUnifiedZoneAlert`        | Type guard    | Validate UnifiedZoneAlert object  |
-| `isAnomalyAlert`            | Type guard    | Check if alert is anomaly-based   |
-| `isTrustViolationAlert`     | Type guard    | Check if alert is trust violation |
+| Export                        | Type       | Purpose                            |
+| ----------------------------- | ---------- | ---------------------------------- |
+| `TrustViolationType`          | Enum       | Trust violation categories         |
+| `AlertPriority`               | Enum       | Alert priority levels (0=critical) |
+| `TRUST_VIOLATION_TYPE_CONFIG` | Config     | Display config for violation types |
+| `severityToPriority`          | Function   | Convert severity to priority enum  |
+| `isTrustViolationType`        | Type guard | Validate violation type string     |
+| `isTrustViolation`            | Type guard | Validate TrustViolation object     |
+| `isUnifiedZoneAlert`          | Type guard | Validate UnifiedZoneAlert object   |
+| `isAnomalyAlert`              | Type guard | Check if alert is anomaly-based    |
+| `isTrustViolationAlert`       | Type guard | Check if alert is trust violation  |
 
 **Test Scenarios:**
 
@@ -180,11 +180,11 @@ it('has configuration for all types', () => {
 
 These tests validate types defined in the parent types directory:
 
-| Type File          | Tested In              |
-| ------------------ | ---------------------- |
-| `summary.ts`       | `summary.test.ts`      |
-| `zoneAlert.ts`     | `zoneAlert.test.ts`    |
-| `zoneAnomaly.ts`   | Used in zoneAlert tests|
+| Type File        | Tested In               |
+| ---------------- | ----------------------- |
+| `summary.ts`     | `summary.test.ts`       |
+| `zoneAlert.ts`   | `zoneAlert.test.ts`     |
+| `zoneAnomaly.ts` | Used in zoneAlert tests |
 
 ## Notes for AI Agents
 

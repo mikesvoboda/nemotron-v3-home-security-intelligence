@@ -51,9 +51,7 @@ const WCAG_AA_TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa'];
  * Color-contrast is now enforced after WCAG 2.1 AA compliance fixes (NEM-1481).
  */
 async function runA11yCheck(page: InstanceType<typeof import('@playwright/test').Page>) {
-  return new AxeBuilder({ page })
-    .withTags(WCAG_AA_TAGS)
-    .analyze();
+  return new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();
 }
 
 /**
@@ -70,41 +68,53 @@ async function runA11yCheck(page: InstanceType<typeof import('@playwright/test')
  * - WCAG 2.1 contrast: https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html
  */
 function filterFirefoxContrastViolations(
-  violations: typeof AxeBuilder.prototype.analyze extends () => Promise<infer R> ? R extends { violations: infer V } ? V : never : never,
+  violations: typeof AxeBuilder.prototype.analyze extends () => Promise<infer R>
+    ? R extends { violations: infer V }
+      ? V
+      : never
+    : never,
   browserName: string
 ): typeof violations {
   if (browserName !== 'firefox') {
     return violations;
   }
 
-  return violations.filter((violation: { id: string; nodes: { any: { message?: string }[] }[] }) => {
-    if (violation.id !== 'color-contrast') {
-      return true; // Keep non-contrast violations
-    }
-
-    // Check if ALL nodes in this violation are near-threshold (4.4-4.49)
-    const allNodesNearThreshold = violation.nodes.every((node) => {
-      const message = node.any[0]?.message || '';
-      // Match pattern: "contrast of 4.43" or "contrast of 4.45"
-      const match = message.match(/contrast of (\d+\.\d+)/);
-      if (match) {
-        const ratio = parseFloat(match[1]);
-        // Firefox-specific: filter 4.4-4.49 range (within 0.1 of 4.5 threshold)
-        return ratio >= 4.4 && ratio < 4.5;
+  return violations.filter(
+    (violation: { id: string; nodes: { any: { message?: string }[] }[] }) => {
+      if (violation.id !== 'color-contrast') {
+        return true; // Keep non-contrast violations
       }
-      return false;
-    });
 
-    // If ALL nodes are near-threshold, this is a Firefox rendering difference - filter it out
-    // If ANY node has a contrast ratio outside this range, keep the violation
-    return !allNodesNearThreshold;
-  });
+      // Check if ALL nodes in this violation are near-threshold (4.4-4.49)
+      const allNodesNearThreshold = violation.nodes.every((node) => {
+        const message = node.any[0]?.message || '';
+        // Match pattern: "contrast of 4.43" or "contrast of 4.45"
+        const match = message.match(/contrast of (\d+\.\d+)/);
+        if (match) {
+          const ratio = parseFloat(match[1]);
+          // Firefox-specific: filter 4.4-4.49 range (within 0.1 of 4.5 threshold)
+          return ratio >= 4.4 && ratio < 4.5;
+        }
+        return false;
+      });
+
+      // If ALL nodes are near-threshold, this is a Firefox rendering difference - filter it out
+      // If ANY node has a contrast ratio outside this range, keep the violation
+      return !allNodesNearThreshold;
+    }
+  );
 }
 
 /**
  * Helper function to format violations for better error messages
  */
-function formatViolations(violations: typeof AxeBuilder.prototype.analyze extends () => Promise<infer R> ? R extends { violations: infer V } ? V : never : never) {
+function formatViolations(
+  violations: typeof AxeBuilder.prototype.analyze extends () => Promise<infer R>
+    ? R extends { violations: infer V }
+      ? V
+      : never
+    : never
+) {
   if (!violations || violations.length === 0) return 'No violations';
 
   return violations
@@ -181,7 +191,12 @@ test.describe('Event Timeline Page Accessibility', () => {
     // Wait for LiveActivitySection to fully render with its animated elements
     // This prevents flaky accessibility violations from timing-dependent rendering of
     // animated badges, pulse animations, and dynamic connection status indicators
-    await page.waitForSelector('[aria-labelledby="live-activity-heading"]', { state: 'visible', timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('[aria-labelledby="live-activity-heading"]', {
+        state: 'visible',
+        timeout: 10000,
+      })
+      .catch(() => {});
     await page.waitForLoadState('networkidle').catch(() => {});
     // Additional wait for animations to settle
     await page.waitForTimeout(500);
@@ -267,7 +282,9 @@ test.describe('Settings Page Accessibility', () => {
     await settingsPage.goto();
     await settingsPage.waitForSettingsLoad();
     // Navigate to Processing tab (now the 4th tab: Cameras, Analytics, Rules, Processing, Notifications)
-    const processingTab = page.getByRole('tab', { name: /PROCESSING/i }).or(page.locator('button').filter({ hasText: 'PROCESSING' }));
+    const processingTab = page
+      .getByRole('tab', { name: /PROCESSING/i })
+      .or(page.locator('button').filter({ hasText: 'PROCESSING' }));
     await processingTab.click();
     // Wait for tab content to load
     await page.waitForLoadState('networkidle');

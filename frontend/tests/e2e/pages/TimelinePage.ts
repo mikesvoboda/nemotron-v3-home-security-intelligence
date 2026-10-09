@@ -129,7 +129,9 @@ export class TimelinePage extends BasePage {
 
     // Event Detail Modal
     this.eventDetailModal = page.locator('[role="dialog"]');
-    this.modalCloseButton = page.locator('[role="dialog"] button[aria-label*="close" i], [role="dialog"] button:has-text("Close")');
+    this.modalCloseButton = page.locator(
+      '[role="dialog"] button[aria-label*="close" i], [role="dialog"] button:has-text("Close")'
+    );
 
     // Loading/Error States
     this.loadingSpinner = page.locator('.animate-spin');

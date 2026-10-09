@@ -305,4 +305,3 @@ models:
     preload: false
     never_evict: false
     runtime_path: 'ultralytics/yolo26'
-

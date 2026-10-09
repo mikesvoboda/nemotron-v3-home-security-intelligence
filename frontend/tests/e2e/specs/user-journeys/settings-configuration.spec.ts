@@ -26,13 +26,13 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     const timeout = browserName === 'chromium' ? 10000 : 20000;
     await page.waitForSelector('[data-testid="dashboard-container"]', {
       state: 'visible',
-      timeout
+      timeout,
     });
 
     // WebSocket status should be visible after dashboard loads
     await page.waitForSelector('[data-testid="websocket-status"]', {
       state: 'attached',
-      timeout: 5000
+      timeout: 5000,
     });
   });
 
@@ -55,11 +55,9 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     }
 
     // When: Click settings navigation link
-    const settingsLink = page.locator('[data-testid="nav-settings"]').or(
-      page.locator('a[href="/settings"]').or(
-        page.locator('[aria-label="Settings"]')
-      )
-    );
+    const settingsLink = page
+      .locator('[data-testid="nav-settings"]')
+      .or(page.locator('a[href="/settings"]').or(page.locator('[aria-label="Settings"]')));
 
     await expect(settingsLink.first()).toBeVisible();
     await settingsLink.first().click();
@@ -68,9 +66,9 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     await expect(page).toHaveURL(/\/settings/);
 
     // Verify settings page container
-    const settingsPage = page.locator('[data-testid="settings-page"]').or(
-      page.locator('[data-testid="settings-container"]')
-    );
+    const settingsPage = page
+      .locator('[data-testid="settings-page"]')
+      .or(page.locator('[data-testid="settings-container"]'));
     await expect(settingsPage.first()).toBeVisible({ timeout: 5000 });
   });
 
@@ -83,7 +81,7 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
 
     // Given: Navigate to settings with extended timeout for Firefox/WebKit
     // Wait for the cameras API response during navigation (it's triggered on page load)
-    const navigationTimeout = (browserName === 'firefox' || browserName === 'webkit') ? 30000 : 15000;
+    const navigationTimeout = browserName === 'firefox' || browserName === 'webkit' ? 30000 : 15000;
 
     const [_, camerasResponse] = await Promise.all([
       page.goto('/settings', { timeout: navigationTimeout }),
@@ -131,21 +129,19 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     await page.waitForTimeout(1000);
 
     // Look for camera settings section
-    const camerasSection = page.locator('[data-testid="settings-cameras"]').or(
-      page.locator('[data-testid="camera-settings"]')
-    );
+    const camerasSection = page
+      .locator('[data-testid="settings-cameras"]')
+      .or(page.locator('[data-testid="camera-settings"]'));
 
-    if (await camerasSection.count() > 0) {
+    if ((await camerasSection.count()) > 0) {
       await expect(camerasSection.first()).toBeVisible();
 
       // When: Look for a toggle or input to modify
-      const cameraToggle = page.locator('[data-testid="camera-enabled-toggle"]').or(
-        page.locator('input[type="checkbox"]').or(
-          page.locator('[role="switch"]')
-        )
-      );
+      const cameraToggle = page
+        .locator('[data-testid="camera-enabled-toggle"]')
+        .or(page.locator('input[type="checkbox"]').or(page.locator('[role="switch"]')));
 
-      if (await cameraToggle.count() > 0) {
+      if ((await cameraToggle.count()) > 0) {
         const toggle = cameraToggle.first();
         await expect(toggle).toBeVisible();
 
@@ -176,47 +172,44 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
 
     await page.waitForTimeout(1000);
 
-    const camerasSection = page.locator('[data-testid="settings-cameras"]').or(
-      page.locator('[data-testid="camera-settings"]')
-    );
+    const camerasSection = page
+      .locator('[data-testid="settings-cameras"]')
+      .or(page.locator('[data-testid="camera-settings"]'));
 
-    if (await camerasSection.count() > 0) {
+    if ((await camerasSection.count()) > 0) {
       // Modify a setting
-      const cameraInput = page.locator('[data-testid="camera-name-input"]').or(
-        page.locator('input[name*="camera"]').or(
-          page.locator('input[type="text"]')
-        )
-      );
+      const cameraInput = page
+        .locator('[data-testid="camera-name-input"]')
+        .or(page.locator('input[name*="camera"]').or(page.locator('input[type="text"]')));
 
-      if (await cameraInput.count() > 0) {
+      if ((await cameraInput.count()) > 0) {
         const input = cameraInput.first();
         await input.fill('Test Camera Name');
       }
 
       // When: Click save button
-      const saveButton = page.locator('[data-testid="save-settings"]').or(
-        page.locator('button:has-text("Save")').or(
-          page.locator('[type="submit"]')
-        )
-      );
+      const saveButton = page
+        .locator('[data-testid="save-settings"]')
+        .or(page.locator('button:has-text("Save")').or(page.locator('[type="submit"]')));
 
-      if (await saveButton.count() > 0) {
+      if ((await saveButton.count()) > 0) {
         await expect(saveButton.first()).toBeVisible();
         await saveButton.first().click();
 
         // Then: Look for success message
-        const successMessage = page.locator('[data-testid="save-success"]').or(
-          page.locator('[role="alert"]').or(
-            page.locator(':has-text("saved")')
-          )
-        );
+        const successMessage = page
+          .locator('[data-testid="save-success"]')
+          .or(page.locator('[role="alert"]').or(page.locator(':has-text("saved")')));
 
         // Wait for success feedback
         await page.waitForTimeout(2000);
 
         // Either success message appears or button state changes
-        const messageVisible = await successMessage.count() > 0;
-        const buttonDisabled = await saveButton.first().isDisabled().catch(() => false);
+        const messageVisible = (await successMessage.count()) > 0;
+        const buttonDisabled = await saveButton
+          .first()
+          .isDisabled()
+          .catch(() => false);
 
         expect(messageVisible || buttonDisabled || true).toBeTruthy();
       }
@@ -283,21 +276,19 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     await page.waitForTimeout(1000);
 
     // Look for alert settings section
-    const alertsSection = page.locator('[data-testid="settings-alerts"]').or(
-      page.locator('[data-testid="alert-settings"]')
-    );
+    const alertsSection = page
+      .locator('[data-testid="settings-alerts"]')
+      .or(page.locator('[data-testid="alert-settings"]'));
 
-    if (await alertsSection.count() > 0) {
+    if ((await alertsSection.count()) > 0) {
       await expect(alertsSection.first()).toBeVisible();
 
       // When: Look for threshold/sensitivity controls
-      const thresholdInput = page.locator('[data-testid="alert-threshold"]').or(
-        page.locator('input[type="range"]').or(
-          page.locator('input[type="number"]')
-        )
-      );
+      const thresholdInput = page
+        .locator('[data-testid="alert-threshold"]')
+        .or(page.locator('input[type="range"]').or(page.locator('input[type="number"]')));
 
-      if (await thresholdInput.count() > 0) {
+      if ((await thresholdInput.count()) > 0) {
         const input = thresholdInput.first();
         await expect(input).toBeVisible();
 
@@ -327,32 +318,30 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     await page.waitForTimeout(1000);
 
     // When: Try to clear a required field
-    const requiredInput = page.locator('input[required]').or(
-      page.locator('[data-testid*="name-input"]')
-    );
+    const requiredInput = page
+      .locator('input[required]')
+      .or(page.locator('[data-testid*="name-input"]'));
 
-    if (await requiredInput.count() > 0) {
+    if ((await requiredInput.count()) > 0) {
       const input = requiredInput.first();
       await input.fill('');
       await input.blur(); // Trigger validation
 
       // Then: Look for error message
-      const errorMessage = page.locator('[data-testid*="error"]').or(
-        page.locator('.error').or(
-          page.locator('[role="alert"]')
-        )
-      );
+      const errorMessage = page
+        .locator('[data-testid*="error"]')
+        .or(page.locator('.error').or(page.locator('[role="alert"]')));
 
       await page.waitForTimeout(500);
 
       // Either error message appears or save button is disabled
-      const errorVisible = await errorMessage.count() > 0;
-      const saveButton = page.locator('[data-testid="save-settings"]').or(
-        page.locator('button:has-text("Save")')
-      );
+      const errorVisible = (await errorMessage.count()) > 0;
+      const saveButton = page
+        .locator('[data-testid="save-settings"]')
+        .or(page.locator('button:has-text("Save")'));
 
       let saveDisabled = false;
-      if (await saveButton.count() > 0) {
+      if ((await saveButton.count()) > 0) {
         saveDisabled = await saveButton.first().isDisabled();
       }
 
@@ -374,30 +363,28 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     await page.waitForTimeout(1000);
 
     // When: Look for reset button
-    const resetButton = page.locator('[data-testid="reset-settings"]').or(
-      page.locator('button:has-text("Reset")').or(
-        page.locator('button:has-text("Default")')
-      )
-    );
+    const resetButton = page
+      .locator('[data-testid="reset-settings"]')
+      .or(page.locator('button:has-text("Reset")').or(page.locator('button:has-text("Default")')));
 
-    if (await resetButton.count() > 0) {
+    if ((await resetButton.count()) > 0) {
       await expect(resetButton.first()).toBeVisible();
 
       // Click reset
       await resetButton.first().click();
 
       // Then: Look for confirmation dialog or immediate reset
-      const confirmDialog = page.locator('[role="dialog"]').or(
-        page.locator('[data-testid="confirm-reset"]')
-      );
+      const confirmDialog = page
+        .locator('[role="dialog"]')
+        .or(page.locator('[data-testid="confirm-reset"]'));
 
-      if (await confirmDialog.count() > 0) {
+      if ((await confirmDialog.count()) > 0) {
         // Confirm reset
-        const confirmButton = confirmDialog.locator('button:has-text("Confirm")').or(
-          confirmDialog.locator('button:has-text("Yes")')
-        );
+        const confirmButton = confirmDialog
+          .locator('button:has-text("Confirm")')
+          .or(confirmDialog.locator('button:has-text("Yes")'));
 
-        if (await confirmButton.count() > 0) {
+        if ((await confirmButton.count()) > 0) {
           await confirmButton.first().click();
         }
       }
@@ -406,11 +393,11 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
       await page.waitForTimeout(1000);
 
       // Verify reset feedback (success message or default values loaded)
-      const successMessage = page.locator('[data-testid="reset-success"]').or(
-        page.locator(':has-text("reset")')
-      );
+      const successMessage = page
+        .locator('[data-testid="reset-success"]')
+        .or(page.locator(':has-text("reset")'));
 
-      const messageVisible = await successMessage.count() > 0;
+      const messageVisible = (await successMessage.count()) > 0;
       expect(messageVisible || true).toBeTruthy();
     }
   });
@@ -428,11 +415,11 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     await page.waitForTimeout(1000);
 
     // When: Look for system information section
-    const systemSection = page.locator('[data-testid="settings-system"]').or(
-      page.locator('[data-testid="system-info"]')
-    );
+    const systemSection = page
+      .locator('[data-testid="settings-system"]')
+      .or(page.locator('[data-testid="system-info"]'));
 
-    if (await systemSection.count() > 0) {
+    if ((await systemSection.count()) > 0) {
       await expect(systemSection.first()).toBeVisible();
 
       // Then: Verify system info is present

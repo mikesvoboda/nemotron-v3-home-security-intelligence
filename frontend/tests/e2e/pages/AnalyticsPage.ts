@@ -63,9 +63,9 @@ export class AnalyticsPage extends BasePage {
    */
   async waitForPageLoad(): Promise<void> {
     // Wait for either the page container or loading state
-    await expect(
-      this.pageContainer.or(this.loadingState)
-    ).toBeVisible({ timeout: this.pageLoadTimeout });
+    await expect(this.pageContainer.or(this.loadingState)).toBeVisible({
+      timeout: this.pageLoadTimeout,
+    });
 
     // If loading, wait for actual page
     if (await this.loadingState.isVisible().catch(() => false)) {

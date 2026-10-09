@@ -6,11 +6,11 @@ Contains React components for data export functionality, providing modal-based e
 
 ## Files
 
-| File                                    | Purpose                                      |
-| --------------------------------------- | -------------------------------------------- |
-| `ExportModal.tsx`                       | Modal for configuring and starting exports   |
-| `ExportProgress.tsx`                    | Progress tracking for running export jobs    |
-| `__tests__/ExportProgress.test.tsx`     | Test suite for ExportProgress                |
+| File                                | Purpose                                    |
+| ----------------------------------- | ------------------------------------------ |
+| `ExportModal.tsx`                   | Modal for configuring and starting exports |
+| `ExportProgress.tsx`                | Progress tracking for running export jobs  |
+| `__tests__/ExportProgress.test.tsx` | Test suite for ExportProgress              |
 
 ## Key Components
 

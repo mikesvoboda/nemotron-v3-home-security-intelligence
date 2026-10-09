@@ -122,7 +122,11 @@ export class AlertRulesPage extends BasePage {
       .or(page.locator('[role="tablist"] button').filter({ hasText: 'RULES' }));
 
     // Rules Header - use exact match for h2 heading "Alert Rules"
-    this.alertRulesHeader = page.getByRole('heading', { name: 'Alert Rules', exact: true, level: 2 });
+    this.alertRulesHeader = page.getByRole('heading', {
+      name: 'Alert Rules',
+      exact: true,
+      level: 2,
+    });
     this.alertRulesDescription = page.getByText(
       /Configure custom alert rules for security events/i
     );
@@ -189,14 +193,14 @@ export class AlertRulesPage extends BasePage {
     // Form Actions - use dialog-scoped locators
     // The dialog's submit button is inside the dialog (aria-labelledby identifies it)
     this.cancelButton = page.getByLabel(/Alert Rule/i).getByRole('button', { name: /Cancel/i });
-    this.submitButton = page.getByLabel(/Alert Rule/i).getByRole('button', { name: /Add Rule|Update Rule/i });
+    this.submitButton = page
+      .getByLabel(/Alert Rule/i)
+      .getByRole('button', { name: /Add Rule|Update Rule/i });
 
     // Form Validation - use text patterns within the modal form
     // Note: "Name is required" aligns with backend min_length=1 constraint
     this.nameError = this.ruleModal.getByText(/Name is required/i);
-    this.riskThresholdError = this.ruleModal.getByText(
-      /Risk threshold must be between 0 and 100/i
-    );
+    this.riskThresholdError = this.ruleModal.getByText(/Risk threshold must be between 0 and 100/i);
     this.minConfidenceError = this.ruleModal.getByText(/Confidence must be between 0 and 1/i);
     this.scheduleError = this.ruleModal.getByText(
       /Start and end times are required when schedule is enabled/i
@@ -347,7 +351,10 @@ export class AlertRulesPage extends BasePage {
     }
     if (data.objectTypes !== undefined) {
       for (const type of data.objectTypes) {
-        await this.ruleModal.locator('button').filter({ hasText: new RegExp(`^${type}$`, 'i') }).click();
+        await this.ruleModal
+          .locator('button')
+          .filter({ hasText: new RegExp(`^${type}$`, 'i') })
+          .click();
       }
     }
     if (data.scheduleEnabled !== undefined && data.scheduleEnabled) {
@@ -472,7 +479,9 @@ export class AlertRulesPage extends BasePage {
    */
   async waitForTestResults(): Promise<void> {
     // Wait for loading to disappear
-    await this.testLoading.waitFor({ state: 'hidden', timeout: this.pageLoadTimeout }).catch(() => {});
+    await this.testLoading
+      .waitFor({ state: 'hidden', timeout: this.pageLoadTimeout })
+      .catch(() => {});
     // Wait for results or "no events" message
     await Promise.race([
       this.eventsTested.first().waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),

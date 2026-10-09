@@ -84,10 +84,7 @@ test.describe('System Page Visual Regression', () => {
     const pipelinePanel = systemPage.pipelineMetricsPanel;
     if (await pipelinePanel.isVisible()) {
       await expect(pipelinePanel).toHaveScreenshot('system-pipeline-metrics.png', {
-        mask: [
-          page.locator('[data-testid="queue-size"]'),
-          page.locator('[data-testid="latency"]'),
-        ],
+        mask: [page.locator('[data-testid="queue-size"]'), page.locator('[data-testid="latency"]')],
       });
     }
   });

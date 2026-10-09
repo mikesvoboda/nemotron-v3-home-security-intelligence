@@ -1,5 +1,7 @@
 # Backend Services Directory
 
+> **Inventory banner (W1.3):** the file-by-file inventory below is **unmaintained until W3.2** — it drifts as code moves. The code is the source of truth; verify any line against the tree before acting on it.
+
 ## Purpose
 
 This directory contains the core business logic and background services for the AI-powered home security monitoring system. Services orchestrate the complete detection pipeline from file monitoring through AI analysis to event creation, along with context enrichment, re-identification, and model zoo management.

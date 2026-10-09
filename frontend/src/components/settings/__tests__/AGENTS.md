@@ -6,10 +6,10 @@ Focused tests for settings panels that need isolation from the rest of the setti
 
 ## Test Files
 
-| File                                      | Component Under Test       | Key Coverage                                                        |
-| ----------------------------------------- | -------------------------- | ------------------------------------------------------------------- |
-| `CamerasSettings.motionSensitivity.test.tsx` | `../CamerasSettings.tsx` | Motion-sensitivity slider: RTSP-only, 0-1 range step 0.01, default 0.5, `motion_sensitivity` in API payload |
-| `FeatureTogglesPanel.test.tsx`            | `../FeatureTogglesPanel.tsx` | Toggle rendering, `useSettingsApi` save/invalidate behavior          |
+| File                                         | Component Under Test         | Key Coverage                                                                                                |
+| -------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `CamerasSettings.motionSensitivity.test.tsx` | `../CamerasSettings.tsx`     | Motion-sensitivity slider: RTSP-only, 0-1 range step 0.01, default 0.5, `motion_sensitivity` in API payload |
+| `FeatureTogglesPanel.test.tsx`               | `../FeatureTogglesPanel.tsx` | Toggle rendering, `useSettingsApi` save/invalidate behavior                                                 |
 
 ## Test Patterns
 
@@ -19,8 +19,8 @@ Focused tests for settings panels that need isolation from the rest of the setti
 
 ## Related Files
 
-| File                                | Purpose                                 |
-| ----------------------------------- | --------------------------------------- |
-| `frontend/src/components/settings/AGENTS.md` | Component directory overview |
-| `frontend/src/hooks/index.ts`       | Barrel mocked by the camera test        |
-| `frontend/src/hooks/useSettingsApi.ts` | Settings API hook mocked by the toggles test |
+| File                                         | Purpose                                      |
+| -------------------------------------------- | -------------------------------------------- |
+| `frontend/src/components/settings/AGENTS.md` | Component directory overview                 |
+| `frontend/src/hooks/index.ts`                | Barrel mocked by the camera test             |
+| `frontend/src/hooks/useSettingsApi.ts`       | Settings API hook mocked by the toggles test |

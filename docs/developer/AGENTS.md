@@ -292,7 +292,6 @@ Purpose, coverage, and triggers for the workflow guides in this directory.
 
 **When to use:** Configuring multi-GPU setups, distributing AI workloads, troubleshooting GPU assignment issues.
 
-
 ### patterns-and-conventions.md
 
 **Purpose:** Code patterns and conventions used in the project.

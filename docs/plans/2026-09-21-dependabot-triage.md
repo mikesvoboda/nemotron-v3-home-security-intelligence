@@ -822,16 +822,16 @@ case** — signature-match against either head before believing it.
 Eight PRs, three ecosystems, all opened by the Mon 06:00 CT pass; combined into two
 superseder PRs the owner chose ("one or two"), zero merged from dependabot directly.
 
-| PR | Content | Disposition | Landed as |
-| --- | --- | --- | --- |
-| #6799 uv group ×21 | uv.lock | supersede-close | #6805 `0f8277c0` |
-| #6800 rich 14.3.4→15 | uv.lock major | supersede-close | #6805 `0f8277c0` |
-| #6801 av 18.1→19 | uv.lock major | supersede-close | #6805 `0f8277c0` |
-| #6802 python-json-logger 3.3→4.2 | uv.lock major | supersede-close | #6805 `0f8277c0` |
-| #6798 actions pair | deploy.yml + release-drafter.yml | supersede-close | #6805 `0f8277c0` |
-| #6795 npm group ×9 | package*.json | supersede-close | #6806 `bd67001c` |
-| #6796 vitest 5.0.3 pair | package*.json | supersede-close | #6806 `bd67001c` |
-| #6797 typescript-eslint 8.71 | package*.json | supersede-close | #6806 `bd67001c` |
+| PR                               | Content                          | Disposition     | Landed as        |
+| -------------------------------- | -------------------------------- | --------------- | ---------------- |
+| #6799 uv group ×21               | uv.lock                          | supersede-close | #6805 `0f8277c0` |
+| #6800 rich 14.3.4→15             | uv.lock major                    | supersede-close | #6805 `0f8277c0` |
+| #6801 av 18.1→19                 | uv.lock major                    | supersede-close | #6805 `0f8277c0` |
+| #6802 python-json-logger 3.3→4.2 | uv.lock major                    | supersede-close | #6805 `0f8277c0` |
+| #6798 actions pair               | deploy.yml + release-drafter.yml | supersede-close | #6805 `0f8277c0` |
+| #6795 npm group ×9               | package*.json                    | supersede-close | #6806 `bd67001c` |
+| #6796 vitest 5.0.3 pair          | package*.json                    | supersede-close | #6806 `bd67001c` |
+| #6797 typescript-eslint 8.71     | package*.json                    | supersede-close | #6806 `bd67001c` |
 
 **Supersede verification was mechanical, not by title.** Each dependabot head was
 fetched to `dependabot-saved/*` BEFORE closing (wave-3 practice) and its lock diff

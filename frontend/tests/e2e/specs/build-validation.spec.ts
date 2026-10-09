@@ -47,8 +47,9 @@ function analyzeChunksForCircularDeps(distPath: string) {
     throw new Error(`Assets directory not found: ${assetsPath}`);
   }
 
-  const jsFiles = fs.readdirSync(assetsPath)
-    .filter(file => file.endsWith('.js') && !file.endsWith('.map'));
+  const jsFiles = fs
+    .readdirSync(assetsPath)
+    .filter((file) => file.endsWith('.js') && !file.endsWith('.map'));
 
   const results = {
     totalChunks: jsFiles.length,
@@ -76,7 +77,8 @@ function analyzeChunksForCircularDeps(distPath: string) {
     for (const helper of interopHelpers) {
       const matches = content.match(new RegExp(helper, 'g'));
       if (matches) {
-        results.interopHelperUsage[helper] = (results.interopHelperUsage[helper] || 0) + matches.length;
+        results.interopHelperUsage[helper] =
+          (results.interopHelperUsage[helper] || 0) + matches.length;
       }
     }
 
@@ -121,7 +123,8 @@ function analyzeChunksForCircularDeps(distPath: string) {
     // Look for: function init() { ... return module; } ... module = init();
     // BUT: Ignore minified single-letter variables (e.g., var c = ...; c = ...)
     // These are common in production builds and don't indicate real circular deps
-    const circularInitPattern = /function\s+\w+\(\)\s*{[\s\S]*?return\s+(\w{2,})[\s\S]*?}\s*;\s*\1\s*=/g;
+    const circularInitPattern =
+      /function\s+\w+\(\)\s*{[\s\S]*?return\s+(\w{2,})[\s\S]*?}\s*;\s*\1\s*=/g;
     const circularInits = Array.from(content.matchAll(circularInitPattern));
 
     if (circularInits.length > 0) {
@@ -144,7 +147,10 @@ const buildExists = fs.existsSync(distPath) && fs.existsSync(path.join(distPath,
 
 test.describe('Build Validation Tests @critical @build', () => {
   // Skip entire suite if no production build exists (CI runs against dev server)
-  test.skip(!buildExists, 'Skipping build validation - no production build found. Run "npm run build" first.');
+  test.skip(
+    !buildExists,
+    'Skipping build validation - no production build found. Run "npm run build" first.'
+  );
 
   test.beforeAll(() => {
     // Double-check the build exists (safety check)
@@ -208,7 +214,7 @@ test.describe('Build Validation Tests @critical @build', () => {
 
     if (oversizedChunks.length > 0) {
       console.warn('\n=== Oversized Chunks (>1MB) ===');
-      oversizedChunks.forEach(chunk => console.warn(`  ${chunk}`));
+      oversizedChunks.forEach((chunk) => console.warn(`  ${chunk}`));
     }
 
     // This is a soft warning, not a hard failure
@@ -219,7 +225,10 @@ test.describe('Build Validation Tests @critical @build', () => {
 
 test.describe('Runtime Build Validation @critical @build', () => {
   // Skip entire suite if no production build exists
-  test.skip(!buildExists, 'Skipping runtime validation - no production build found. Run "npm run build" first.');
+  test.skip(
+    !buildExists,
+    'Skipping runtime validation - no production build found. Run "npm run build" first.'
+  );
 
   test.beforeEach(async ({ page }) => {
     // Set up console error capturing
@@ -261,11 +270,12 @@ test.describe('Runtime Build Validation @critical @build', () => {
     await page.waitForSelector('body', { timeout: 10000 });
 
     // Check for TDZ-specific error patterns
-    const tdzErrors = errors.filter((error) =>
-      error.includes('ReferenceError') ||
-      error.includes('before initialization') ||
-      error.includes('Cannot access') ||
-      error.includes('is not defined')
+    const tdzErrors = errors.filter(
+      (error) =>
+        error.includes('ReferenceError') ||
+        error.includes('before initialization') ||
+        error.includes('Cannot access') ||
+        error.includes('is not defined')
     );
 
     if (tdzErrors.length > 0) {
@@ -274,10 +284,9 @@ test.describe('Runtime Build Validation @critical @build', () => {
     }
 
     // Check for circular dependency warnings
-    const circularDepWarnings = warnings.filter((warning) =>
-      warning.includes('circular') ||
-      warning.includes('cycle') ||
-      warning.includes('recursive')
+    const circularDepWarnings = warnings.filter(
+      (warning) =>
+        warning.includes('circular') || warning.includes('cycle') || warning.includes('recursive')
     );
 
     if (circularDepWarnings.length > 0) {
@@ -315,11 +324,12 @@ test.describe('Runtime Build Validation @critical @build', () => {
     expect(rootContent.length).toBeGreaterThan(0);
 
     // Verify no critical React errors
-    const reactErrors = errors.filter((error) =>
-      error.includes('React') ||
-      error.includes('render') ||
-      error.includes('component') ||
-      error.includes('hook')
+    const reactErrors = errors.filter(
+      (error) =>
+        error.includes('React') ||
+        error.includes('render') ||
+        error.includes('component') ||
+        error.includes('hook')
     );
 
     if (reactErrors.length > 0) {
@@ -407,10 +417,11 @@ test.describe('Runtime Build Validation @critical @build', () => {
     await page.goto('/', { waitUntil: 'networkidle' });
 
     // Check for duplicate initialization warnings
-    const duplicateWarnings = warnings.filter((warning) =>
-      warning.includes('duplicate') ||
-      warning.includes('already initialized') ||
-      warning.includes('multiple instances')
+    const duplicateWarnings = warnings.filter(
+      (warning) =>
+        warning.includes('duplicate') ||
+        warning.includes('already initialized') ||
+        warning.includes('multiple instances')
     );
 
     if (duplicateWarnings.length > 0) {
@@ -419,10 +430,11 @@ test.describe('Runtime Build Validation @critical @build', () => {
     }
 
     // Check for errors related to duplicate modules
-    const duplicateErrors = errors.filter((error) =>
-      error.includes('duplicate') ||
-      error.includes('already defined') ||
-      error.includes('redeclaration')
+    const duplicateErrors = errors.filter(
+      (error) =>
+        error.includes('duplicate') ||
+        error.includes('already defined') ||
+        error.includes('redeclaration')
     );
 
     if (duplicateErrors.length > 0) {

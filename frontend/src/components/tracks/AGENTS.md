@@ -6,19 +6,19 @@ Object-tracking UI: active-track counts on camera cards, trajectory rendering on
 
 ## Key Files
 
-| File                         | Purpose                                                              |
-| ---------------------------- | -------------------------------------------------------------------- |
+| File                         | Purpose                                                                                                                     |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `index.ts`                   | Barrel: components + `ActiveTracksBadgeProps`, `TrackHistorySectionProps`, `TrackPathVisualizationProps`, `TrajectoryPoint` |
-| `ActiveTracksBadge.tsx`      | Pulsing badge with the count of active tracks on a camera            |
-| `TrackPathVisualization.tsx` | Pure SVG overlay — polyline trajectory, age-faded dots, green start / red end markers |
-| `TrackHistorySection.tsx`    | Section for entity detail modals; fetches via `useTrackHistory` and embeds the visualization |
+| `ActiveTracksBadge.tsx`      | Pulsing badge with the count of active tracks on a camera                                                                   |
+| `TrackPathVisualization.tsx` | Pure SVG overlay — polyline trajectory, age-faded dots, green start / red end markers                                       |
+| `TrackHistorySection.tsx`    | Section for entity detail modals; fetches via `useTrackHistory` and embeds the visualization                                |
 
 ## Related Files
 
-| File                        | Purpose                                        |
-| --------------------------- | ---------------------------------------------- |
-| `frontend/src/hooks/useTracks.ts` | Track queries incl. `useTrackHistory` (used by `TrackHistorySection`) |
-| `frontend/src/pages/TracksPage.tsx` | Track browser page (consumes the hook, not these components) |
+| File                                | Purpose                                                               |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| `frontend/src/hooks/useTracks.ts`   | Track queries incl. `useTrackHistory` (used by `TrackHistorySection`) |
+| `frontend/src/pages/TracksPage.tsx` | Track browser page (consumes the hook, not these components)          |
 
 ## Gotchas
 

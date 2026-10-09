@@ -18,12 +18,7 @@ import { test, expect } from '@playwright/test';
 // Skip entire file in CI - page load timing issues cause flaky failures
 test.skip(() => !!process.env.CI, 'AI audit tests flaky in CI - run locally');
 import { AIAuditPage } from '../pages';
-import {
-  setupApiMocks,
-  defaultMockConfig,
-  emptyMockConfig,
-  errorMockConfig,
-} from '../fixtures';
+import { setupApiMocks, defaultMockConfig, emptyMockConfig, errorMockConfig } from '../fixtures';
 
 test.describe('AI Audit Page Load', () => {
   // Skip in CI - timing out waiting for pages to load
@@ -222,9 +217,8 @@ test.describe('AI Audit Empty State', () => {
     const zeroValue = page.getByText('0').first();
 
     // At least one of these indicators should be present
-    const hasEmptyIndicator = (await naText.count()) > 0 ||
-                              (await emptyState.count()) > 0 ||
-                              (await zeroValue.count()) > 0;
+    const hasEmptyIndicator =
+      (await naText.count()) > 0 || (await emptyState.count()) > 0 || (await zeroValue.count()) > 0;
     expect(hasEmptyIndicator).toBeTruthy();
   });
 });

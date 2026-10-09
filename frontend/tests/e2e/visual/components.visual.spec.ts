@@ -67,7 +67,9 @@ test.describe('Card Components Visual', () => {
     // Capture individual stat cards
     const activeCamerasStat = dashboardPage.activeCamerasStat;
     if (await activeCamerasStat.isVisible()) {
-      await expect(activeCamerasStat.locator('..')).toHaveScreenshot('component-stat-card-cameras.png');
+      await expect(activeCamerasStat.locator('..')).toHaveScreenshot(
+        'component-stat-card-cameras.png'
+      );
     }
   });
 
@@ -184,7 +186,9 @@ test.describe('Button Components Visual', () => {
     await page.waitForLoadState('networkidle');
 
     // Find a primary button
-    const primaryButton = page.locator('button[class*="primary"], button[class*="Primary"]').first();
+    const primaryButton = page
+      .locator('button[class*="primary"], button[class*="Primary"]')
+      .first();
     if (await primaryButton.isVisible()) {
       await expect(primaryButton).toHaveScreenshot('component-button-primary.png');
     }
@@ -195,7 +199,9 @@ test.describe('Button Components Visual', () => {
     await page.waitForLoadState('networkidle');
 
     // Find a secondary button
-    const secondaryButton = page.locator('button[class*="secondary"], button[class*="Secondary"]').first();
+    const secondaryButton = page
+      .locator('button[class*="secondary"], button[class*="Secondary"]')
+      .first();
     if (await secondaryButton.isVisible()) {
       await expect(secondaryButton).toHaveScreenshot('component-button-secondary.png');
     }

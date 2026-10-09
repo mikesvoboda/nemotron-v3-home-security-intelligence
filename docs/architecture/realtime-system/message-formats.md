@@ -13,9 +13,7 @@ All WebSocket messages follow a consistent envelope format with a `type` field i
 ```json
 {
   "type": "message_type",
-  "data": {
-    /* payload specific to message type */
-  },
+  "data": {/* payload specific to message type */},
   "seq": 42, // Optional: sequence number for ordering
   "timestamp": "...", // Optional: ISO 8601 timestamp
   "requires_ack": true // Optional: client should acknowledge high-priority messages

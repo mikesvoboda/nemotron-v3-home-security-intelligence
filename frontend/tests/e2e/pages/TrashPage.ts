@@ -48,7 +48,9 @@ export class TrashPage extends BasePage {
     this.pageSubtitle = page.getByText(/Review and manage deleted events/i);
 
     // Info notice
-    this.autoCleanupNotice = page.getByText(/Events in trash are automatically deleted after 30 days/i);
+    this.autoCleanupNotice = page.getByText(
+      /Events in trash are automatically deleted after 30 days/i
+    );
 
     // Event count
     this.eventsCount = page.getByText(/\d+ events? in trash/i);
@@ -57,7 +59,9 @@ export class TrashPage extends BasePage {
     this.deletedEventCards = page.locator('[data-testid^="deleted-event-card-"]');
 
     // Empty state
-    this.emptyStateIcon = page.locator('svg').filter({ has: page.locator('title', { hasText: /trash/i }) });
+    this.emptyStateIcon = page
+      .locator('svg')
+      .filter({ has: page.locator('title', { hasText: /trash/i }) });
     this.emptyStateTitle = page.getByText(/Trash is empty/i);
     this.emptyStateDescription = page.getByText(/Deleted events will appear here/i);
 
@@ -203,7 +207,9 @@ export class TrashPage extends BasePage {
    * Check if confirmation dialog is visible
    */
   async isConfirmDialogVisible(): Promise<boolean> {
-    return this.getConfirmDialog().isVisible().catch(() => false);
+    return this.getConfirmDialog()
+      .isVisible()
+      .catch(() => false);
   }
 
   /**
@@ -247,7 +253,10 @@ export class TrashPage extends BasePage {
     const restoreButton = this.getRestoreButton(index);
     // Check if button is disabled or has loading spinner
     const isDisabled = await restoreButton.isDisabled().catch(() => false);
-    const hasSpinner = await restoreButton.locator('.animate-spin').isVisible().catch(() => false);
+    const hasSpinner = await restoreButton
+      .locator('.animate-spin')
+      .isVisible()
+      .catch(() => false);
     return isDisabled || hasSpinner;
   }
 
@@ -257,7 +266,10 @@ export class TrashPage extends BasePage {
   async isDeleteInProgress(index: number = 0): Promise<boolean> {
     const deleteButton = this.getConfirmDialogDeleteButton();
     const isDisabled = await deleteButton.isDisabled().catch(() => false);
-    const hasSpinner = await deleteButton.locator('.animate-spin').isVisible().catch(() => false);
+    const hasSpinner = await deleteButton
+      .locator('.animate-spin')
+      .isVisible()
+      .catch(() => false);
     return isDisabled || hasSpinner;
   }
 }

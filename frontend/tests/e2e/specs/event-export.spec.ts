@@ -127,16 +127,25 @@ async function mockExportJobStatus(
 /**
  * Mock export file download endpoint
  */
-async function mockExportDownload(page: Page, jobId: string, format: 'csv' | 'json' = 'csv'): Promise<void> {
+async function mockExportDownload(
+  page: Page,
+  jobId: string,
+  format: 'csv' | 'json' = 'csv'
+): Promise<void> {
   await page.route(`**/api/exports/jobs/${jobId}/download`, async (route: Route) => {
-    const content = format === 'csv'
-      ? `Event ID,Camera Name,Timestamp,Risk Score,Risk Level,Summary
+    const content =
+      format === 'csv'
+        ? `Event ID,Camera Name,Timestamp,Risk Score,Risk Level,Summary
 1,Front Door,2024-01-09T10:00:00Z,85,high,Person detected
 2,Back Yard,2024-01-09T10:05:00Z,45,medium,Animal detected`
-      : JSON.stringify([
-          { id: 1, camera: 'Front Door', risk_level: 'high' },
-          { id: 2, camera: 'Back Yard', risk_level: 'medium' },
-        ], null, 2);
+        : JSON.stringify(
+            [
+              { id: 1, camera: 'Front Door', risk_level: 'high' },
+              { id: 2, camera: 'Back Yard', risk_level: 'medium' },
+            ],
+            null,
+            2
+          );
 
     await route.fulfill({
       status: 200,
@@ -259,7 +268,10 @@ test.describe('Event Export Modal - Format Selection', () => {
 
     // Click format selector to open dropdown
     // Tremor Select uses button with SelectItem children
-    const formatButton = modal.locator('button').filter({ hasText: /CSV|JSON|Excel/i }).first();
+    const formatButton = modal
+      .locator('button')
+      .filter({ hasText: /CSV|JSON|Excel/i })
+      .first();
     await formatButton.click();
 
     // Select JSON option
@@ -274,7 +286,10 @@ test.describe('Event Export Modal - Format Selection', () => {
     const modal = page.locator('.fixed.inset-0.z-50');
 
     // Click format selector
-    const formatButton = modal.locator('button').filter({ hasText: /CSV|JSON|Excel/i }).first();
+    const formatButton = modal
+      .locator('button')
+      .filter({ hasText: /CSV|JSON|Excel/i })
+      .first();
     await formatButton.click();
 
     // Select Excel option
@@ -289,7 +304,10 @@ test.describe('Event Export Modal - Format Selection', () => {
     const modal = page.locator('.fixed.inset-0.z-50');
 
     // Click format selector
-    const formatButton = modal.locator('button').filter({ hasText: /CSV|JSON|Excel|ZIP/i }).first();
+    const formatButton = modal
+      .locator('button')
+      .filter({ hasText: /CSV|JSON|Excel|ZIP/i })
+      .first();
     await formatButton.click();
 
     // Select ZIP option
@@ -316,7 +334,10 @@ test.describe('Event Export Modal - Filter Configuration', () => {
     const modal = page.locator('.fixed.inset-0.z-50');
 
     // Click camera selector
-    const cameraButton = modal.locator('button').filter({ hasText: /All cameras|Front/i }).first();
+    const cameraButton = modal
+      .locator('button')
+      .filter({ hasText: /All cameras|Front/i })
+      .first();
     await cameraButton.click();
 
     // Select a specific camera (Front Door from mock data)
@@ -332,7 +353,10 @@ test.describe('Event Export Modal - Filter Configuration', () => {
     const modal = page.locator('.fixed.inset-0.z-50');
 
     // Click risk level selector
-    const riskButton = modal.locator('button').filter({ hasText: /All levels|Low|Medium|High|Critical/i }).first();
+    const riskButton = modal
+      .locator('button')
+      .filter({ hasText: /All levels|Low|Medium|High|Critical/i })
+      .first();
     await riskButton.click();
 
     // Select High risk level
@@ -363,7 +387,10 @@ test.describe('Event Export Modal - Filter Configuration', () => {
     const modal = page.locator('.fixed.inset-0.z-50');
 
     // Click review status selector
-    const reviewButton = modal.locator('button').filter({ hasText: /All events|Reviewed|Unreviewed/i }).first();
+    const reviewButton = modal
+      .locator('button')
+      .filter({ hasText: /All events|Reviewed|Unreviewed/i })
+      .first();
     await reviewButton.click();
 
     // Select "Reviewed only"
@@ -557,13 +584,22 @@ test.describe('Event Export - Error Handling', () => {
   test('shows error when no events match filters', async ({ page }) => {
     // Mock export job that will fail due to no data
     await mockExportJobStart(page, jobId);
-    await mockExportJobStatus(page, jobId, 'failed', 0, 'No events found matching the specified filters');
+    await mockExportJobStatus(
+      page,
+      jobId,
+      'failed',
+      0,
+      'No events found matching the specified filters'
+    );
 
     await openExportModal(page);
     const modal = page.locator('.fixed.inset-0.z-50');
 
     // Configure filters that won't match anything
-    const riskButton = modal.locator('button').filter({ hasText: /All levels/i }).first();
+    const riskButton = modal
+      .locator('button')
+      .filter({ hasText: /All levels/i })
+      .first();
     await riskButton.click();
     const criticalOption = page.getByText('Critical', { exact: true });
     await criticalOption.click();

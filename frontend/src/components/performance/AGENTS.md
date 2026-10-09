@@ -6,14 +6,14 @@ Contains React components for real-time system performance monitoring, providing
 
 ## Files
 
-| File                            | Purpose                                          |
-| ------------------------------- | ------------------------------------------------ |
-| `PerformanceDashboard.tsx`      | Main dashboard with metric cards grid            |
-| `PerformanceDashboard.test.tsx` | Test suite for PerformanceDashboard              |
-| `PerformanceCharts.tsx`         | Time-series charts for historical metrics        |
-| `PerformanceCharts.test.tsx`    | Test suite for PerformanceCharts                 |
-| `PerformanceAlerts.tsx`         | Active performance alerts display                |
-| `PerformanceAlerts.test.tsx`    | Test suite for PerformanceAlerts                 |
+| File                            | Purpose                                   |
+| ------------------------------- | ----------------------------------------- |
+| `PerformanceDashboard.tsx`      | Main dashboard with metric cards grid     |
+| `PerformanceDashboard.test.tsx` | Test suite for PerformanceDashboard       |
+| `PerformanceCharts.tsx`         | Time-series charts for historical metrics |
+| `PerformanceCharts.test.tsx`    | Test suite for PerformanceCharts          |
+| `PerformanceAlerts.tsx`         | Active performance alerts display         |
+| `PerformanceAlerts.test.tsx`    | Test suite for PerformanceAlerts          |
 
 ## Key Components
 
@@ -269,11 +269,11 @@ Main hook providing all performance data from WebSocket:
 
 ```typescript
 const {
-  current,      // Current metrics snapshot
-  history,      // Historical data by time range
-  alerts,       // Active alerts
-  isConnected,  // WebSocket connection status
-  timeRange,    // Current time range selection
+  current, // Current metrics snapshot
+  history, // Historical data by time range
+  alerts, // Active alerts
+  isConnected, // WebSocket connection status
+  timeRange, // Current time range selection
   setTimeRange, // Change time range
 } = usePerformanceMetrics();
 ```

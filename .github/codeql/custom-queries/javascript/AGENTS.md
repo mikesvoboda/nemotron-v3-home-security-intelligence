@@ -596,16 +596,16 @@ select vuln, "Message explaining the issue and how to fix it"
 
 ### Common Predicates
 
-| Predicate                | Returns                        |
+| Predicate | Returns |
 | ------------------------ | ------------------------------ | ----- | --------------------------------- |
-| `getReceiver()`          | Object receiving method call   |
-| `getMethodName()`        | Name of method being called    |
-| `getCalleeName()`        | Name of function being called  |
-| `getArgument(n)`         | The nth argument (0-indexed)   |
-| `getName()`              | Name of attribute/property     |
-| `getValue()`             | Value of literal or expression |
-| `getPropertyName()`      | Name of accessed property      |
-| `getEnclosingFunction()` | Function containing this node  |
+| `getReceiver()` | Object receiving method call |
+| `getMethodName()` | Name of method being called |
+| `getCalleeName()` | Name of function being called |
+| `getArgument(n)` | The nth argument (0-indexed) |
+| `getName()` | Name of attribute/property |
+| `getValue()` | Value of literal or expression |
+| `getPropertyName()` | Name of accessed property |
+| `getEnclosingFunction()` | Function containing this node |
 | `exists(T x              | ...                            | ...)` | True if there exists a matching x |
 
 ### Example: Finding localStorage Calls

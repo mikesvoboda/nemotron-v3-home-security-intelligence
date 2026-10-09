@@ -88,7 +88,7 @@ backend/
 
 - Lifespan context manager for startup/shutdown
 - CORS middleware configuration
-- Authentication middleware (optional API key validation via `AuthMiddleware`)
+- Authentication gate (`AuthMiddleware`): login session or API key required when `EXPOSE_LAN=true`
 - Request ID middleware for log correlation (`RequestIDMiddleware`)
 - Health check endpoints (`/`, `/health`)
 - Router registration for 60 API modules:

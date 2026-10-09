@@ -107,10 +107,18 @@ export class SystemPage extends BasePage {
 
     // Time Range Selector - actual values are 5m, 15m, 60m per TimeRangeSelector component
     this.timeRangeSelector = page.locator('[data-testid="time-range-selector"]');
-    this.timeRange1h = page.locator('[data-testid="time-range-selector"] button').filter({ hasText: '5m' });
-    this.timeRange6h = page.locator('[data-testid="time-range-selector"] button').filter({ hasText: '15m' });
-    this.timeRange24h = page.locator('[data-testid="time-range-selector"] button').filter({ hasText: '60m' });
-    this.timeRange7d = page.locator('[data-testid="time-range-selector"] button').filter({ hasText: '60m' });
+    this.timeRange1h = page
+      .locator('[data-testid="time-range-selector"] button')
+      .filter({ hasText: '5m' });
+    this.timeRange6h = page
+      .locator('[data-testid="time-range-selector"] button')
+      .filter({ hasText: '15m' });
+    this.timeRange24h = page
+      .locator('[data-testid="time-range-selector"] button')
+      .filter({ hasText: '60m' });
+    this.timeRange7d = page
+      .locator('[data-testid="time-range-selector"] button')
+      .filter({ hasText: '60m' });
 
     // Performance Alerts
     this.performanceAlerts = page.locator('[data-testid="system-performance-alerts"]');
@@ -118,10 +126,22 @@ export class SystemPage extends BasePage {
 
     // System Overview Card
     this.systemOverviewCard = page.locator('[data-testid="system-overview-card"]');
-    this.uptime = page.getByText(/Uptime/i).locator('..').locator('[class*="Metric"]');
-    this.totalCameras = page.getByText(/Total Cameras/i).locator('..').locator('[class*="Metric"]');
-    this.totalEvents = page.getByText(/Total Events/i).locator('..').locator('[class*="Metric"]');
-    this.totalDetections = page.getByText(/Total Detections/i).locator('..').locator('[class*="Metric"]');
+    this.uptime = page
+      .getByText(/Uptime/i)
+      .locator('..')
+      .locator('[class*="Metric"]');
+    this.totalCameras = page
+      .getByText(/Total Cameras/i)
+      .locator('..')
+      .locator('[class*="Metric"]');
+    this.totalEvents = page
+      .getByText(/Total Events/i)
+      .locator('..')
+      .locator('[class*="Metric"]');
+    this.totalDetections = page
+      .getByText(/Total Detections/i)
+      .locator('..')
+      .locator('[class*="Metric"]');
 
     // Service Health Card
     this.serviceHealthCard = page.locator('[data-testid="service-health-card"]');
@@ -143,7 +163,10 @@ export class SystemPage extends BasePage {
     this.analysisQueue = page.locator('[data-testid="analysis-queue-row"]');
 
     // GPU Stats Card - look for the section with GPU heading
-    this.gpuStatsCard = page.locator('div').filter({ has: page.getByText(/GPU Status|GPU Metrics/i) }).first();
+    this.gpuStatsCard = page
+      .locator('div')
+      .filter({ has: page.getByText(/GPU Status|GPU Metrics/i) })
+      .first();
     this.gpuName = page.getByText(/NVIDIA|RTX|GPU/i).first();
     this.gpuUtilization = page.getByText(/Utilization/i).first();
     this.gpuMemory = page.getByText(/Memory/i).first();
@@ -157,8 +180,14 @@ export class SystemPage extends BasePage {
 
     // AI Models Panel
     this.aiModelsPanel = page.locator('[data-testid="ai-models-panel-section"]');
-    this.rtdetrPanel = page.getByText(/RT-DETR/i).first().locator('..');
-    this.nemotronPanel = page.getByText(/Nemotron/i).first().locator('..');
+    this.rtdetrPanel = page
+      .getByText(/RT-DETR/i)
+      .first()
+      .locator('..');
+    this.nemotronPanel = page
+      .getByText(/Nemotron/i)
+      .first()
+      .locator('..');
 
     // Databases Panel
     this.databasesPanel = page.locator('[data-testid="databases-panel-section"]');
@@ -173,7 +202,9 @@ export class SystemPage extends BasePage {
 
     // Containers Panel
     this.containersPanel = page.locator('[data-testid="containers-panel-section"]');
-    this.containerItems = page.locator('[data-testid="containers-panel-section"] [class*="container"]');
+    this.containerItems = page.locator(
+      '[data-testid="containers-panel-section"] [class*="container"]'
+    );
 
     // Loading/Error States
     this.loadingSkeleton = page.locator('[data-testid="operations-loading"]');
@@ -282,7 +313,9 @@ export class SystemPage extends BasePage {
   /**
    * Check if a specific service is healthy
    */
-  async isServiceHealthy(service: 'postgresql' | 'redis' | 'rtdetr' | 'nemotron'): Promise<boolean> {
+  async isServiceHealthy(
+    service: 'postgresql' | 'redis' | 'rtdetr' | 'nemotron'
+  ): Promise<boolean> {
     const serviceLocators: Record<string, Locator> = {
       postgresql: this.postgresqlService,
       redis: this.redisService,

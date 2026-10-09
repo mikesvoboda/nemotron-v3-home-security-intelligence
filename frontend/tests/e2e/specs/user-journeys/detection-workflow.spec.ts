@@ -51,13 +51,13 @@ test.describe('Detection to Alert Journey (NEM-1664)', () => {
     const timeout = browserName === 'chromium' ? 10000 : 20000;
     await page.waitForSelector('[data-testid="dashboard-container"]', {
       state: 'visible',
-      timeout
+      timeout,
     });
 
     // WebSocket status should be visible after dashboard loads
     await page.waitForSelector('[data-testid="websocket-status"]', {
       state: 'attached',
-      timeout: 5000
+      timeout: 5000,
     });
   });
 

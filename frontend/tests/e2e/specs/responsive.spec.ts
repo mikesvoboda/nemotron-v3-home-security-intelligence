@@ -346,11 +346,9 @@ test.describe('Mobile Interaction Tests', () => {
     await page.mouse.wheel(0, 500);
 
     // Wait for scroll to complete
-    await page.waitForFunction(
-      (initialY) => window.scrollY > initialY,
-      initialScrollY,
-      { timeout: 5000 }
-    );
+    await page.waitForFunction((initialY) => window.scrollY > initialY, initialScrollY, {
+      timeout: 5000,
+    });
 
     // Verify scroll happened
     const newScrollY = await page.evaluate(() => window.scrollY);
