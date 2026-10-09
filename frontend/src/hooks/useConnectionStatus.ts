@@ -283,7 +283,7 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
   /* v8 ignore stop */
 
   // Build WebSocket options using helper (respects VITE_WS_BASE_URL)
-  // SECURITY: API key is passed via Sec-WebSocket-Protocol header, not URL query param
+  // SECURITY (ruling 44): browsers open this socket cookie-authenticated; no key
   const eventsWsOptions = buildWebSocketOptions('/ws/events');
   const systemWsOptions = buildWebSocketOptions('/ws/system');
 

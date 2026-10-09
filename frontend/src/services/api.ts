@@ -3331,7 +3331,7 @@ export async function downloadEventMedia(eventId: number): Promise<void> {
     ? getDetectionVideoUrl(detectionId)
     : getDetectionFullImageUrl(detectionId);
 
-  // Build headers with optional API key
+  // Request headers (ruling 44: no credential header — browsers ride the cookie)
   const headers: HeadersInit = {};
 
   try {
@@ -3410,7 +3410,7 @@ export async function fetchDlqJobs(
 
 /**
  * Requeue a single job from a DLQ back to its processing queue.
- * Requires API key authentication.
+ * Authenticates via the browser login cookie (keys are non-browser only).
  *
  * @param queueName - The DLQ to requeue from
  * @returns Result of the requeue operation
@@ -3424,7 +3424,7 @@ export async function requeueDlqJob(queueName: DLQQueueName): Promise<GeneratedD
 
 /**
  * Requeue all jobs from a DLQ back to their processing queue.
- * Requires API key authentication.
+ * Authenticates via the browser login cookie (keys are non-browser only).
  *
  * @param queueName - The DLQ to requeue from
  * @returns Result of the requeue operation with count
@@ -3440,7 +3440,7 @@ export async function requeueAllDlqJobs(
 
 /**
  * Clear all jobs from a DLQ.
- * Requires API key authentication.
+ * Authenticates via the browser login cookie (keys are non-browser only).
  * WARNING: This permanently removes all jobs.
  *
  * @param queueName - The DLQ to clear
@@ -3486,7 +3486,7 @@ export async function exportEventsCSV(params?: ExportQueryParams): Promise<void>
   const endpoint = queryString ? `/api/events/export?${queryString}` : '/api/events/export';
   const url = `${BASE_URL}${endpoint}`;
 
-  // Build headers with optional API key
+  // Request headers (ruling 44: no credential header — browsers ride the cookie)
   const headers: HeadersInit = {};
 
   try {
@@ -3555,7 +3555,7 @@ export async function exportEventsJSON(params?: ExportQueryParams): Promise<void
   const endpoint = queryString ? `/api/events/export?${queryString}` : '/api/events/export';
   const url = `${BASE_URL}${endpoint}`;
 
-  // Build headers with API key and Accept header for JSON format
+  // Accept header for JSON (ruling 44: no credential header)
   const headers: HeadersInit = {
     Accept: 'application/json',
   };
@@ -3697,7 +3697,7 @@ export async function getExportDownloadInfo(jobId: string): Promise<ExportDownlo
 export async function downloadExportFile(jobId: string): Promise<void> {
   const url = `${BASE_URL}/api/exports/${jobId}/download`;
 
-  // Build headers with optional API key
+  // Request headers (ruling 44: no credential header — browsers ride the cookie)
   const headers: HeadersInit = {};
 
   try {

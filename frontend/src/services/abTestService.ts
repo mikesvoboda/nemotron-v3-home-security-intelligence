@@ -145,7 +145,7 @@ async function testPromptApi(
 ): Promise<TestPromptResponse> {
   const url = `${BASE_URL}/api/prompts/test-prompt`;
 
-  // Build headers with optional API key
+  // Request headers (ruling 44: no credential header — browsers ride the cookie)
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };

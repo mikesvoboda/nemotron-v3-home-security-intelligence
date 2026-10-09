@@ -141,7 +141,7 @@ export function useWebSocketStatus(options: WebSocketStatusOptions): UseWebSocke
 
     try {
       // Pass protocols to WebSocket constructor for Sec-WebSocket-Protocol header
-      // This is used for API key authentication without exposing the key in the URL
+      // Ruling 44: browser callers pass no credential; the socket rides the cookie.
       const ws = protocols ? new WebSocket(url, protocols) : new WebSocket(url);
       wsRef.current = ws;
 

@@ -64,7 +64,7 @@ export class WebhookApiError extends Error {
 // ============================================================================
 
 /**
- * Build headers with optional API key authentication.
+ * Build JSON request headers (ruling 44: browsers ride the cookie, no key header).
  */
 function buildHeaders(): HeadersInit {
   const headers: Record<string, string> = {
