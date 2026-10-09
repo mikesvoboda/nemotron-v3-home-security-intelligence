@@ -363,11 +363,11 @@ Risk score ranges for severity levels. See [Risk Levels Reference](risk-levels.m
 
 ## Authentication
 
-| Variable          | Required | Default | Description                                                                                                                                                                                                    |
-| ----------------- | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EXPOSE_LAN`      | No       | `false` | Set `true` when anything beyond this machine reaches the UI. The backend then requires the login session or an `API_KEYS` key on every request but health, setup and login, monitoring included (OD-12, UR-33) |
-| `API_KEY_ENABLED` | No       | `false` | Require `X-API-Key` on the routes guarded by `verify_api_key` (DLQ, some `/api/system` routes)                                                                                                                 |
-| `API_KEYS`        | No       | `[]`    | Valid API keys (JSON array), accepted by `verify_api_key` and, when `EXPOSE_LAN=true`, by the auth gate                                                                                                        |
+| Variable          | Required | Default | Description                                                                                                                                                                                                                                                                                                           |
+| ----------------- | -------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EXPOSE_LAN`      | No       | `false` | Set `true` when anything beyond this machine reaches the UI. Two effects, one switch (`O1.6`): the frontend's published ports bind `0.0.0.0` instead of `127.0.0.1`, and the backend requires the login session or an `API_KEYS` key on every request but health, setup and login, monitoring included (OD-12, UR-33) |
+| `API_KEY_ENABLED` | No       | `false` | Require `X-API-Key` on the routes guarded by `verify_api_key` (DLQ, some `/api/system` routes)                                                                                                                                                                                                                        |
+| `API_KEYS`        | No       | `[]`    | Valid API keys (JSON array), accepted by `verify_api_key` and, when `EXPOSE_LAN=true`, by the auth gate                                                                                                                                                                                                               |
 
 **Example:**
 
@@ -760,13 +760,14 @@ Configuration for the Model Zoo, which provides on-demand AI model loading durin
 
 The `VITE_*` variables are embedded at frontend build time; the `FRONTEND_*` port variables are consumed by `docker-compose.prod.yml` at deploy time:
 
-| Variable                 | Required | Default                 | Description                              |
-| ------------------------ | -------- | ----------------------- | ---------------------------------------- |
-| `VITE_API_BASE_URL`      | No       | `http://localhost:8000` | Backend API URL                          |
-| `VITE_WS_BASE_URL`       | No       | `ws://localhost:8000`   | WebSocket URL                            |
-| `FRONTEND_HTTP_PORT`     | No       | `8080`                  | Host port mapped to frontend nginx HTTP  |
-| `FRONTEND_HTTPS_PORT`    | No       | `8444`                  | Host port mapped to frontend nginx HTTPS |
-| `FRONTEND_INTERNAL_PORT` | No       | `8080`                  | Container port for nginx (health checks) |
+| Variable                 | Required | Default                 | Description                                                                                                                                                         |
+| ------------------------ | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_API_BASE_URL`      | No       | `http://localhost:8000` | Backend API URL                                                                                                                                                     |
+| `VITE_WS_BASE_URL`       | No       | `ws://localhost:8000`   | WebSocket URL                                                                                                                                                       |
+| `FRONTEND_HTTP_PORT`     | No       | `8080`                  | Host port mapped to frontend nginx HTTP                                                                                                                             |
+| `FRONTEND_HTTPS_PORT`    | No       | `8444`                  | Host port mapped to frontend nginx HTTPS                                                                                                                            |
+| `FRONTEND_BIND_ADDRESS`  | No       | `127.0.0.1`             | Host bind address of both published frontend ports; `setup.py` derives it from `EXPOSE_LAN` (`O1.6`) — compose's `:-127.0.0.1` keeps loopback if the var is missing |
+| `FRONTEND_INTERNAL_PORT` | No       | `8080`                  | Container port for nginx (health checks)                                                                                                                            |
 
 > `FRONTEND_PORT=5173` is dead in `docker-compose.prod.yml` — the compose file never references it (5173 only survives as the Vite dev-server target in `frontend/Dockerfile`). It is still consumed by `scripts/test-docker.sh` and a `setup.py` port-scanner entry, but it does not affect deployed frontend ports.
 

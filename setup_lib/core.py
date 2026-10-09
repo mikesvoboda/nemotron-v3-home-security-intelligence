@@ -81,6 +81,30 @@ def generate_password(length: int = 32) -> str:
     return secrets.token_urlsafe(length)[:length]
 
 
+def derive_frontend_bind_address(expose_lan: str) -> str:
+    """Map an EXPOSE_LAN value to the frontend's published-port bind address.
+
+    O1.6 (D10; OD-12): compose has no conditionals, so the switch lives here —
+    setup.py derives FRONTEND_BIND_ADDRESS from EXPOSE_LAN and writes both into
+    the .env it generates, and docker-compose.prod.yml references the bind var.
+
+    Fail-safe by construction: only the case-insensitive truthy set {"true",
+    "1"} yields the wildcard "0.0.0.0"; everything else — unset, "false", a
+    typo, "yes" — yields loopback "127.0.0.1". The second fail-safe layer is
+    compose's own ${FRONTEND_BIND_ADDRESS:-127.0.0.1} default, which covers a
+    hand-edited .env that sets EXPOSE_LAN=true without re-running setup.py.
+
+    Args:
+        expose_lan: raw EXPOSE_LAN value (from a prompt answer or an env read)
+
+    Returns:
+        "0.0.0.0" when the UI is deliberately LAN-exposed, else "127.0.0.1"
+    """
+    return (
+        "0.0.0.0" if expose_lan.strip().lower() in ("true", "1") else "127.0.0.1"  # noqa: S104
+    )
+
+
 def is_weak_password(password: str) -> bool:
     """Check if a password is considered weak.
 

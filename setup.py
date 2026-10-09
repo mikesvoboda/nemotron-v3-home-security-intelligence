@@ -15,6 +15,7 @@ Security features:
 """
 
 import argparse
+import os
 import platform
 import secrets
 import shutil
@@ -29,6 +30,7 @@ from typing import Any, TypedDict
 from setup_lib.core import (
     WEAK_PASSWORDS,
     check_port_available,
+    derive_frontend_bind_address,
     find_available_port,
     generate_password,
     is_weak_password,
@@ -433,6 +435,14 @@ def generate_env_content(config: dict) -> str:
         f"FRONTEND_PORT={ports.get('frontend', 5173)}",
         f"FRONTEND_HTTPS_PORT={ports.get('frontend_https', 8444)}",
         f"FRONTEND_HTTP_PORT={ports.get('frontend_http', 8080)}",
+        # O1.6: compose has no conditionals, so the LAN-exposure switch is
+        # derived here and compose just reads the bind address it lands on.
+        # Keep both vars (compose's own default is the second fail-safe).
+        f"EXPOSE_LAN={'true' if config.get('expose_lan', False) else 'false'}",
+        "FRONTEND_BIND_ADDRESS="
+        + derive_frontend_bind_address(
+            "true" if config.get("expose_lan", False) else "false"
+        ),
         "",
         "# -- Foscam Init (chown on FOSCAM_BASE_PATH) " + "-" * 22,
         f"HOST_UID={config.get('host_uid', 1000)}",
@@ -615,6 +625,16 @@ def run_quick_mode() -> dict:
                 ports[service] = suggested
     print()
 
+    # Network exposure (O1.6, OD-12): one switch, loopback by default. setup.py
+    # derives FRONTEND_BIND_ADDRESS from the answer (compose has no
+    # conditionals); EXPOSE_LAN=true also arms the backend's auth gate.
+    print("Frontend published ports bind 127.0.0.1 by default (tunnels and")
+    print("localhost still work). true publishes them on 0.0.0.0 and the")
+    print("backend then requires the login session on every request.")
+    expose_answer = prompt_with_default("Expose the UI beyond this machine?", "n")
+    expose_lan = expose_answer.lower() in ("y", "yes")
+    print()
+
     # Detect GPU compute capability and VRAM for optimized CUDA builds
     from setup_lib.nvidia_detect import get_gpu_info, should_preload_models
 
@@ -643,6 +663,7 @@ def run_quick_mode() -> dict:
         "jwt_expiry_hours": jwt_expiry_hours,
         "refresh_token_days": refresh_token_days,
         "ports": ports,
+        "expose_lan": expose_lan,
         "gpu_llm": 0,
         "gpu_ai_services": 1,
         "cuda_architectures": cuda_arch,
@@ -815,6 +836,14 @@ def run_guided_mode() -> dict:
                 ports[service] = suggested
     print()
 
+    # Network exposure (O1.6, OD-12): same single switch as quick mode.
+    print("Frontend published ports bind 127.0.0.1 by default (tunnels and")
+    print("localhost still work). true publishes them on 0.0.0.0 and the")
+    print("backend then requires the login session on every request.")
+    expose_answer = prompt_with_default("Expose the UI beyond this machine?", "n")
+    expose_lan = expose_answer.lower() in ("y", "yes")
+    print()
+
     # Step 5: Summary
     print("=" * 60)
     print("  Step 5 of 5: Configuration Summary")
@@ -825,6 +854,11 @@ def run_guided_mode() -> dict:
     print(f"Database Port:  {ports['postgres']}")
     print(f"Frontend Port:  {ports['frontend']}")
     print(f"Grafana Port:   {ports['grafana']}")
+    print(
+        "Frontend bind:  "
+        + derive_frontend_bind_address("true" if expose_lan else "false")
+        + (" (LAN-exposed; auth gate armed)" if expose_lan else " (loopback only)")
+    )
     print()
     confirm = prompt_with_default("Proceed with this configuration?", "y")
     if confirm.lower() not in ("y", "yes"):
@@ -859,6 +893,7 @@ def run_guided_mode() -> dict:
         "jwt_expiry_hours": jwt_expiry_hours,
         "refresh_token_days": refresh_token_days,
         "ports": ports,
+        "expose_lan": expose_lan,
         "host_uid": os.getuid(),
         "host_gid": os.getgid(),
         "gpu_llm": 0,
@@ -1020,6 +1055,10 @@ def run_defaults_mode() -> dict:
         "jwt_expiry_hours": 24,
         "refresh_token_days": 30,
         "ports": ports,
+        # Non-interactive bootstrap (redeploy.py) never opens the UI to the
+        # LAN: the switch defaults closed, a human flips it in an interactive
+        # mode or by editing .env + re-deriving via setup.py.
+        "expose_lan": False,
         "host_uid": os.getuid(),
         "host_gid": os.getgid(),
         "gpu_llm": 0,

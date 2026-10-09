@@ -1,0 +1,410 @@
+# ruff: noqa: S104
+"""O1.6: the frontend's published ports bind loopback unless EXPOSE_LAN=true.
+
+The chain under test, end to end:
+
+    EXPOSE_LAN (user answer / .env)
+      -> setup.py derives FRONTEND_BIND_ADDRESS (127.0.0.1 default, 0.0.0.0 on true)
+      -> docker-compose.prod.yml frontend ports reference ${FRONTEND_BIND_ADDRESS:-127.0.0.1}
+      -> the published socket's bind address
+
+Compose has no conditionals, so the DECIDE the package asks for is the derivation
+above: the fail-safe default lives in BOTH ends (the derive maps anything but a
+true-ish "true"/"1" to loopback; compose's own ``:-127.0.0.1`` covers a hand-edited
+.env that carries EXPOSE_LAN=true without FRONTEND_BIND_ADDRESS at all — the
+render with that shape is pinned below).
+
+Every test here is skip-free: the render test uses the real compose binary when
+one is installed and, when none is (the CI unit-tests job has no compose), an
+in-test interpolation emulator pinned by its own unit asserts, so the Done-when
+clause ("that test runs in CI and passes") holds in both directions. The
+environment-skip precedent (test_compose_render_lists_ai_vlm.py) is deliberately
+NOT copied.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+import yaml
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+COMPOSE_FILE = REPO_ROOT / "docker-compose.prod.yml"
+ENV_EXAMPLE = REPO_ROOT / ".env.example"
+# The committed render-env precedent: stubs for the two ${VAR:?} hard-required
+# vars so `compose config` can interpolate the whole file.
+RENDER_ENV_FIXTURE = REPO_ROOT / "backend/tests/fixtures/compose-render.env"
+
+
+# A compose-native test file needs the safe loader (see
+# test_docker_compose_security.py:301 for why); prod.yml carries no custom tags,
+# but keep the tolerant shape so a tagged import elsewhere can't bite.
+class _ComposeLoader(yaml.SafeLoader):
+    """safe_load that also reads compose's merge tags (!override, !reset)."""
+
+
+def _construct_compose_tag(loader: yaml.SafeLoader, _suffix: str, node: yaml.Node) -> object:
+    if isinstance(node, yaml.MappingNode):
+        return loader.construct_mapping(node, deep=True)
+    if isinstance(node, yaml.SequenceNode):
+        return loader.construct_sequence(node, deep=True)
+    return loader.construct_scalar(node)  # type: ignore[arg-type]
+
+
+_ComposeLoader.add_multi_constructor("!", _construct_compose_tag)
+
+
+def _frontend_port_entries() -> list[str]:
+    """The frontend service's raw ports strings from the shipped compose file."""
+    # _ComposeLoader IS a SafeLoader: it only adds plain-node reads of compose's
+    # own tags, no Python object construction.
+    text = COMPOSE_FILE.read_text(encoding="utf-8")
+    doc = yaml.load(text, Loader=_ComposeLoader)  # noqa: S506  # nosemgrep: unsafe-yaml-load
+    return list(doc["services"]["frontend"]["ports"])
+
+
+# ---------------------------------------------------------------------------
+# 1. The compose shape: variable-ised bind address, fail-safe default, no
+#    hardcoded 0.0.0.0 left on the frontend.
+# ---------------------------------------------------------------------------
+
+
+def test_frontend_ports_use_the_bind_address_variable():
+    entries = _frontend_port_entries()
+    assert len(entries) == 2, f"expected the 8444/8080 pair, got {entries}"
+    # NB: not entry.split(":")[0] — the :- default carries a colon INSIDE the
+    # host part, so a naive split cuts the interpolation in half (my first
+    # draft did exactly that and reddened on a correct compose file).
+    for entry in entries:
+        assert entry.startswith("${FRONTEND_BIND_ADDRESS:-127.0.0.1}:"), (
+            f"frontend entry {entry!r} does not derive its bind from "
+            "FRONTEND_BIND_ADDRESS with the loopback fail-safe default"
+        )
+        target = entry.rsplit(":", 1)[1]
+        assert target in ("8443", "8080"), f"unexpected container target in {entry!r}"
+
+
+def test_frontend_ports_have_no_hardcoded_wildcard_bind():
+    for entry in _frontend_port_entries():
+        assert not entry.startswith("0.0.0.0:"), (
+            f"frontend entry {entry!r} hardcodes the wildcard bind — the "
+            "0.0.0.0 default must come only from EXPOSE_LAN=true via setup.py"
+        )
+
+
+def test_env_example_declares_the_two_vars():
+    text = ENV_EXAMPLE.read_text(encoding="utf-8")
+    assigns = dict(re.findall(r"^([A-Z0-9_]+)=(.*)$", text, re.MULTILINE))
+    assert assigns.get("EXPOSE_LAN") == "false", (
+        ".env.example must carry EXPOSE_LAN=false (the package's clause)"
+    )
+    assert assigns.get("FRONTEND_BIND_ADDRESS") == "127.0.0.1", (
+        ".env.example must carry FRONTEND_BIND_ADDRESS=127.0.0.1 so the "
+        "documented default and compose's :- default cannot disagree"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 2. The derivation + the .env writer.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("", "127.0.0.1"),  # unset / bare Enter
+        ("false", "127.0.0.1"),
+        ("False", "127.0.0.1"),
+        ("FALSE", "127.0.0.1"),
+        ("true", "0.0.0.0"),
+        ("True", "0.0.0.0"),
+        ("TRUE", "0.0.0.0"),
+        ("1", "0.0.0.0"),
+        # fail-safe: anything unrecognised binds loopback, never wild. The
+        # truthy set is case-insensitive {true, 1}; case VARIANTS of true all
+        # open (trUe IS true), but anything else — yes, typos, 0 — stays shut.
+        ("trUe", "0.0.0.0"),
+        ("yes", "127.0.0.1"),
+        ("0", "127.0.0.1"),
+        ("garbage", "127.0.0.1"),
+    ],
+)
+def test_derive_frontend_bind_address(raw: str, expected: str) -> None:
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from setup_lib.core import derive_frontend_bind_address
+
+    assert derive_frontend_bind_address(raw) == expected
+
+
+def test_generate_env_content_writes_both_vars() -> None:
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    import setup
+
+    default_env = setup.generate_env_content({})
+    assert "EXPOSE_LAN=false" in default_env
+    assert "FRONTEND_BIND_ADDRESS=127.0.0.1" in default_env
+
+    lan_env = setup.generate_env_content({"expose_lan": True})
+    assert "EXPOSE_LAN=true" in lan_env
+    assert "FRONTEND_BIND_ADDRESS=0.0.0.0" in lan_env
+
+
+# ---------------------------------------------------------------------------
+# 3. The prompt flow: EXPOSE_LAN reaches the config dict in every mode.
+# ---------------------------------------------------------------------------
+
+
+def _answer_prompt_containing(prompt_map: dict[str, str]):
+    """A fake input() wired by prompt-substring; anything else gets default.
+
+    prompt_with_default renders ``{prompt} [{default}]: `` — matching on the
+    substring keeps this honest about the real prompt text: if the prompt is
+    renamed the mapping stops matching and the default path is exercised, not
+    a bypass.
+    """
+
+    def fake_input(prompt: str = "") -> str:
+        for needle, answer in prompt_map.items():
+            if needle.lower() in prompt.lower():
+                return answer
+        return ""
+
+    return fake_input
+
+
+def test_defaults_mode_never_exposes_the_lan(monkeypatch: pytest.MonkeyPatch) -> None:
+    """redeploy.py bootstraps through this path — defaults must be loopback."""
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    import setup
+
+    def no_input(prompt: str = "") -> str:  # pragma: no cover - must not fire
+        raise AssertionError("defaults mode must not prompt")
+
+    monkeypatch.setattr("builtins.input", no_input)
+    config = setup.run_defaults_mode()
+    assert config["expose_lan"] is False
+
+
+def test_quick_mode_prompt_flips_expose_lan(monkeypatch: pytest.MonkeyPatch) -> None:
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    import setup
+
+    monkeypatch.setattr("builtins.input", _answer_prompt_containing({"expose the UI": "y"}))
+    config = setup.run_quick_mode()
+    assert config["expose_lan"] is True
+
+
+def test_quick_mode_default_keeps_loopback(monkeypatch: pytest.MonkeyPatch) -> None:
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    import setup
+
+    monkeypatch.setattr("builtins.input", _answer_prompt_containing({}))
+    config = setup.run_quick_mode()
+    assert config["expose_lan"] is False
+
+
+# ---------------------------------------------------------------------------
+# 4. The render: bindings with EXPOSE_LAN unset and set.
+# ---------------------------------------------------------------------------
+
+_VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}")
+
+
+def _interpolate(value: str, env: dict[str, str]) -> str:
+    """${VAR:-default} grammar, one level (what compose does for these lines).
+
+    compose treats an EMPTY value like an unset one for :- defaults (probed
+    against docker compose config: TB= renders host_ip=127.0.0.1), so the
+    emulator must not return "" — that is pinned in test_binding_helpers_are_pinned.
+    """
+
+    def sub(m: re.Match[str]) -> str:
+        current = env.get(m.group(1), "")
+        if current == "" and m.group(2) is not None:
+            return m.group(2)
+        return current
+
+    return _VAR_RE.sub(sub, value)
+
+
+def _split_binding(entry: str) -> tuple[str, str, str]:
+    """Compose short vs qualified syntax -> (host_ip, published, target).
+
+    The short form's semantics are pinned by an empirical daemon probe (docker
+    29.8.1: `4317/tcp -> 0.0.0.0:32915` and `[::]:32915`): an unqualified
+    publish means all interfaces. That is why a bind variable defaulting to
+    127.0.0.1 must appear in the long form, never the short.
+    """
+    parts = entry.split(":")
+    if len(parts) == 3:
+        return parts[0], parts[1], parts[2]
+    return "0.0.0.0", "", parts[0]
+
+
+def test_binding_helpers_are_pinned() -> None:
+    assert _interpolate("${FRONTEND_BIND_ADDRESS:-127.0.0.1}", {}) == "127.0.0.1"
+    assert (
+        _interpolate("${FRONTEND_BIND_ADDRESS:-127.0.0.1}", {"FRONTEND_BIND_ADDRESS": "0.0.0.0"})
+        == "0.0.0.0"
+    )
+    # compose's :- grammar treats an EMPTY value like an unset one (verified
+    # against `docker compose config` behaviour); an emulator that returned ""
+    # here would disagree with the binary on exactly the fail-safe case.
+    assert (
+        _interpolate("${FRONTEND_BIND_ADDRESS:-127.0.0.1}", {"FRONTEND_BIND_ADDRESS": ""})
+        == "127.0.0.1"
+    )
+    assert _split_binding("127.0.0.1:8444:8443") == ("127.0.0.1", "8444", "8443")
+    assert _split_binding("4317") == ("0.0.0.0", "", "4317")
+
+
+def _render_frontend_bindings(env_overrides: dict[str, str]) -> list[tuple[str, str, str]]:
+    """Render the frontend's published bindings with an env overlay.
+
+    Real `compose config --format json` when a compose binary exists; the
+    in-test emulator otherwise (skip-free by design — see module docstring).
+    """
+    env = {"EXPOSE_LAN": "false"}  # .env.example defaults section
+    compose_file = COMPOSE_FILE
+    with RENDER_ENV_FIXTURE.open(encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, _, v = line.partition("=")
+                env.setdefault(k, v)
+    env.update({k: v for k, v in env_overrides.items() if v is not None})
+    env.update({k: "" for k, v in env_overrides.items() if v is None})
+
+    argv = None
+    for candidate in (
+        ["docker", "compose"],
+        ["podman", "compose"],
+        ["podman-compose"],
+        ["docker-compose"],
+    ):
+        if all(shutil.which(part) for part in candidate):
+            argv = candidate
+            break
+
+    if argv is not None:
+        proc_env = {**os.environ, **env}
+        with RENDER_ENV_FIXTURE.open(encoding="utf-8") as fh:
+            result = subprocess.run(  # noqa: S603 - argv is a literal list, never a shell string  # real
+                [
+                    *argv,
+                    "--env-file",
+                    str(RENDER_ENV_FIXTURE),
+                    "-f",
+                    str(compose_file),
+                    "config",
+                    "--format",
+                    "json",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=100,
+                check=False,
+                env=proc_env,
+            )
+        assert result.returncode == 0, f"compose config failed: {result.stderr[:400]}"
+        rendered = json.loads(result.stdout)
+        return [
+            _split_binding(
+                f"{p.get('host_ip') or '0.0.0.0'}:{p.get('published') or ''}:{p['target']}"
+            )
+            for p in rendered["services"]["frontend"].get("ports", [])
+        ]
+
+    text = compose_file.read_text(encoding="utf-8")
+    doc = yaml.load(text, Loader=_ComposeLoader)  # noqa: S506  # nosemgrep: unsafe-yaml-load
+    return [
+        _split_binding(_interpolate(entry, env)) for entry in doc["services"]["frontend"]["ports"]
+    ]
+
+
+@pytest.mark.timeout(120)
+def test_render_unset_binds_loopback() -> None:
+    bindings = _render_frontend_bindings(
+        {"EXPOSE_LAN": "false", "FRONTEND_BIND_ADDRESS": "127.0.0.1"}
+    )
+    assert bindings == [
+        ("127.0.0.1", "8444", "8443"),
+        ("127.0.0.1", "8080", "8080"),
+    ], "EXPOSE_LAN unset must publish the frontend on loopback only"
+
+
+@pytest.mark.timeout(120)
+def test_render_expose_lan_set_binds_wildcard() -> None:
+    bindings = _render_frontend_bindings({"EXPOSE_LAN": "true", "FRONTEND_BIND_ADDRESS": "0.0.0.0"})
+    assert bindings == [
+        ("0.0.0.0", "8444", "8443"),
+        ("0.0.0.0", "8080", "8080"),
+    ], "EXPOSE_LAN=true must publish the frontend on all interfaces"
+
+
+@pytest.mark.timeout(120)
+def test_render_lan_flag_without_bind_var_stays_closed() -> None:
+    """A hand-edited .env with EXPOSE_LAN=true but no FRONTEND_BIND_ADDRESS
+    (setup.py never re-run) must still bind loopback — compose's own :- default
+    is the second fail-safe layer."""
+    bindings = _render_frontend_bindings({"EXPOSE_LAN": "true", "FRONTEND_BIND_ADDRESS": None})
+    assert bindings == [
+        ("127.0.0.1", "8444", "8443"),
+        ("127.0.0.1", "8080", "8080"),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# 5. Living docs must not keep the pre-O1.6 claims (contract rule 4 / UR-9).
+# ---------------------------------------------------------------------------
+
+
+def test_root_agents_md_dropped_the_pre_o16_claims() -> None:
+    text = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    assert "except the frontend nginx (intentionally `0.0.0.0`" not in text, (
+        "AGENTS.md still claims the frontend is intentionally 0.0.0.0 — after "
+        "O1.6 that is only the EXPOSE_LAN=true mode"
+    )
+    assert "(until then nginx publishes" not in text, (
+        "AGENTS.md still defers the binding to a future O1.6 that has landed"
+    )
+    assert "both bound to 0.0.0.0" not in text, (
+        "the Frontend Port Note must state the conditional bind, not 0.0.0.0 flat"
+    )
+
+
+def test_backend_api_agents_md_dropped_the_forward_reference() -> None:
+    text = (REPO_ROOT / "backend/api/AGENTS.md").read_text(encoding="utf-8")
+    assert "after `O1.6` the 127.0.0.1 binding is the boundary" not in text, (
+        "backend/api/AGENTS.md still says O1.6 is upcoming"
+    )
+
+
+@pytest.mark.parametrize(
+    "doc",
+    [
+        "docs/_includes/auth-model.md",
+        "docs/operator/admin/security.md",
+    ],
+)
+def test_exposure_docs_dropped_the_forward_reference(doc: str) -> None:
+    # The living register (docs/vss-integration/17-action-plan.md) QUOTES the
+    # old AGENTS.md wording inside a dated [V] discovery entry — that record
+    # stays as written until ISS-029 closes with F1.3. These two are live docs.
+    text = (REPO_ROOT / doc).read_text(encoding="utf-8")
+    assert "(until then nginx publishes on `0.0.0.0`)" not in text, (
+        f"{doc} still defers the loopback bind to a future O1.6 that has landed"
+    )
+    assert "after `O1.6` the UI binds" not in text, f"{doc} still says O1.6 is upcoming"

@@ -11,8 +11,8 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
 - **First-time admin registration required** - `SetupGuardMiddleware` returns 503 on the
   API until the first user is created.
 - **Two exposure modes (OD-12)** - With `EXPOSE_LAN` unset (the default) the API requires no
-  credential after registration; after `O1.6` the UI binds to `127.0.0.1` and the service
-  bindings are the security boundary (until then nginx publishes on `0.0.0.0`). Set `EXPOSE_LAN=true` whenever anything beyond this machine can reach the UI (the
+  credential after registration; the UI binds to `127.0.0.1` and the service
+  bindings are the security boundary (`O1.6` landed — `setup.py` derives `FRONTEND_BIND_ADDRESS`). Set `EXPOSE_LAN=true` whenever anything beyond this machine can reach the UI (the
   LAN, a tunnel, a port forward): `AuthMiddleware` then refuses every request without the
   login session cookie or an `API_KEYS` key, except health probes, setup and login.
   Monitoring needs a credential too (UR-33), so Prometheus, Alertmanager and Grafana's

@@ -916,9 +916,14 @@ services:
     ports:
       # HTTPS (direct access) and HTTP (for Cloudflare tunnel / Brev secure link)
       # FRONTEND_HTTP_PORT exposes nginx HTTP for tunnels that send plain HTTP
-      # Bound to 0.0.0.0 for external access; use firewall to restrict if needed
-      - '0.0.0.0:${FRONTEND_HTTPS_PORT:-8444}:8443'
-      - '0.0.0.0:${FRONTEND_HTTP_PORT:-8080}:8080'
+      # O1.6 (D10; OD-12): bind address derives from EXPOSE_LAN — setup.py
+      # writes FRONTEND_BIND_ADDRESS (127.0.0.1 default; 0.0.0.0 only when
+      # EXPOSE_LAN=true). The :-127.0.0.1 default is the fail-safe layer for a
+      # hand-edited .env that carries the flag without the derived var.
+      # Tunnels (Cloudflare/Brev connect out to nginx) are unaffected by a
+      # loopback host bind; only direct LAN/wildcard access needs EXPOSE_LAN.
+      - '${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_HTTPS_PORT:-8444}:8443'
+      - '${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_HTTP_PORT:-8080}:8080'
     volumes:
       # SSL certificates - writable for auto-generation, or mount pre-existing certs
       - frontend_certs:/etc/nginx/certs:U
