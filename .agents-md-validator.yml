@@ -96,7 +96,10 @@ exclude_reference_patterns:
 # (identical: 93/143/153/10/2, total 401, over 245 scanned AGENTS.md;
 # re-measured on the rebased head 2026-10-08, and again at W1.3's head after
 # the drain — W1.3 removed six enrichment mentions, so the ceiling fell
-# 159 -> 153 with it; counts hand-fall in the PR that removes the mentions). `pose` is OUT of the ratchet
+# 159 -> 153 with it; counts hand-fall in the PR that removes the mentions;
+# re-measured at W3.1 deletion batch 1 — identical 93/143/153/10/2, now over
+# 235 scanned (245 -> 235: the ten deleted synthbench satellite guides named
+# none of the five, so the denominator moved and the counts did not)). `pose` is OUT of the ratchet
 # per the owner's ruling on #6870 (2026-10-08): the count is dominated by the
 # LIVE Triton model actually named `pose`, so it mixes live and retired usage
 # (it measured 37 whole-word while watched). It comes back if R2 retires the

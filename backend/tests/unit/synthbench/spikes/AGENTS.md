@@ -31,5 +31,5 @@ uv run pytest backend/tests/unit/synthbench/spikes/ -n0 -q
 
 ## Related
 
-- `synthbench/spikes/p1_bakeoff/AGENTS.md`: the code under test
+- `synthbench/AGENTS.md`: the lane guide, whose spikes section carries the bake-off's rules (W3.1 folded the per-package guides into it)
 - `../AGENTS.md`: the `synthbench/generate` tests

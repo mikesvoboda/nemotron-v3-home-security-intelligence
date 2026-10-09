@@ -66,5 +66,6 @@ uv run pytest backend/tests/unit/synthbench/ -n auto -q -p randomly   # as CI ru
 
 ## Related
 
-- `synthbench/AGENTS.md`, `synthbench/generate/AGENTS.md`, `synthbench/contract/AGENTS.md` and `synthbench/taxonomy/AGENTS.md`: the code under test
+- `synthbench/AGENTS.md`: the lane guide, which carries the rules for `synthbench/generate/`, `synthbench/taxonomy/` and the rest (W3.1 folded the per-package guides into it)
+- `synthbench/contract/AGENTS.md`: the contract boundary's own guide
 - `spikes/AGENTS.md`: the P1 spike's tests

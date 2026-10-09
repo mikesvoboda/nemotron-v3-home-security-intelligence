@@ -707,7 +707,8 @@ def test_missing_config_exits_2(tmp_path):
 def test_unbalanced_fence_is_content_not_infrastructure(tmp_path):
     """An open fence would mask the rest of the file from BOTH arms — an
     editor could park anything under an unclosed fence. Measured: 0 of the
-    245 scanned files are unbalanced today, so failing on imbalance costs
+    235 scanned files are unbalanced today (245 before W3.1 batch 1's
+    deletions, re-measured: still zero), so failing on imbalance costs
     nothing now and removes the dodge forever. It is a CONTENT violation
     (exit 1, names the file), not a gate failure — the gate ran fine; the
     file is wrong."""
@@ -1174,7 +1175,7 @@ def real_run(tmp_path_factory):
         return proc.returncode, json.load(f), proc.stderr
 
 
-@pytest.mark.timeout(180)  # the walk over 245 files; pyproject global timeout=5
+@pytest.mark.timeout(180)  # the walk over 235 files; pyproject global timeout=5
 def test_real_tree_is_green(real_run):
     """DONE-WHEN "the run passes on the current tree", executed here — and
     this file runs inside collection-sanity's anti-rot step, which CI Gate
@@ -1206,10 +1207,17 @@ def test_real_tree_scanned_count_floor(real_run):
     stale references — but a shrunk denominator is invisible without this
     floor. A FLOOR, not equality: W3.1 may legitimately add AGENTS.md files;
     if the set SHRINKS, someone widened an exclusion — update the floor and
-    say why in the same PR."""
+    say why in the same PR.
+
+    A second legitimate shrink exists: W3.1's own deletions. The tree measured
+    245 before batch 1 — 42 boundaries plus 203 satellites — and the floor
+    moved to 235 = 245 - 10 when that batch deleted the ten synthbench
+    satellite guides. Each later batch drops the floor by its batch size; a
+    shrink that matches no deletion census in a PR body is still the
+    exclusion-widening tell."""
     rc, report, _stderr = real_run
     assert rc == 0
-    assert report["total_agents_md_files"] >= 245
+    assert report["total_agents_md_files"] >= 235
 
 
 @pytest.mark.timeout(180)
