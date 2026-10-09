@@ -358,10 +358,12 @@ The backend's Container Orchestrator manages service lifecycle:
 On startup, the orchestrator:
 
 1. Connects to Docker daemon
-2. Discovers containers matching name patterns
-3. Registers services in the service registry
-4. Loads persisted state from Redis
-5. Starts health monitoring
+2. Reads its own compose project from its container's `com.docker.compose.project` label
+3. Discovers that project's containers matching name patterns. Another stack on the same host is
+   never adopted, and with no project known it adopts nothing.
+4. Registers services in the service registry
+5. Loads persisted state from Redis
+6. Starts health monitoring
 
 ### Health Monitoring
 
