@@ -235,7 +235,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | done        | #6880 |
 | B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | done        | #6886 |
 | B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | done        | #6861 |
-| B1.6    | backend                 | 1          | Scope the orchestrator and its recovery (D11)  | heavy · owner | done        | #6929 |
+| B1.6    | backend                 | 1          | Scope the orchestrator and its recovery (D11)  | heavy · owner | awaiting real tier | #6929 |
 | F1.1    | frontend                | 1          | Endpoint truth (D2)                            |               | done        | #6869 |
 | F1.2    | frontend                | 1          | Verdict-engine banner (UR-18)                  |               | not started |     |
 | F1.3    | frontend                | 1          | Exposure and auth, frontend part (D10)         | owner         | done        | #6922 |

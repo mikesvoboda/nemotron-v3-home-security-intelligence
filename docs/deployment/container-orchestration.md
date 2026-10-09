@@ -26,7 +26,7 @@ The Container Orchestrator is a self-healing container management system that mo
 
 ### Key Features
 
-- **Container Discovery**: Automatically discovers containers by name pattern
+- **Container Discovery**: Automatically discovers its own compose project's containers by name pattern; another stack on the same host is never adopted
 - **Health Monitoring**: Periodic health checks via HTTP endpoints or shell commands
 - **Self-Healing**: Automatic restart with exponential backoff on failure
 - **WebSocket Broadcasting**: Real-time service status updates to connected clients
@@ -38,7 +38,7 @@ The Container Orchestrator is a self-healing container management system that mo
 | Component                 | File                                              | Purpose                                           |
 | ------------------------- | ------------------------------------------------- | ------------------------------------------------- |
 | ContainerOrchestrator     | `backend/services/container_orchestrator.py`      | Main coordinator integrating all components       |
-| ContainerDiscoveryService | `backend/services/container_discovery.py`         | Discovers containers by name pattern              |
+| ContainerDiscoveryService | `backend/services/container_discovery.py`         | Discovers own-project containers by name pattern  |
 | HealthMonitor             | `backend/services/health_monitor_orchestrator.py` | Periodic health check loop                        |
 | LifecycleManager          | `backend/services/lifecycle_manager.py`           | Restart logic with exponential backoff            |
 | ServiceRegistry           | `backend/services/orchestrator/registry.py`       | In-memory service state with Redis persistence    |
@@ -107,10 +107,10 @@ flowchart TB
 
 ### Data Flow
 
-1. **Startup**: ContainerOrchestrator connects to Docker, discovers containers via ContainerDiscoveryService
+1. **Startup**: ContainerOrchestrator connects to Docker, reads its own compose project from its container's `com.docker.compose.project` label, and discovers that project's containers via ContainerDiscoveryService (no project known: it adopts nothing)
 2. **Registration**: Discovered services are registered in ServiceRegistry, state loaded from Redis
 3. **Monitoring**: HealthMonitor runs periodic health checks (default: every 30 seconds)
-4. **Recovery**: On failure, LifecycleManager handles restart with exponential backoff
+4. **Recovery**: On failure, LifecycleManager restarts the service's own container in place with exponential backoff; it never removes or recreates a container, and a failed recovery logs at CRITICAL
 5. **Broadcasting**: Status changes are broadcast via WebSocket to connected clients
 6. **Persistence**: Service state is persisted to Redis for durability across restarts
 
