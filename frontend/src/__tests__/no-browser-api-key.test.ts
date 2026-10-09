@@ -47,6 +47,11 @@ interface ScannedFile {
 
 function walk(dir: string): ScannedFile[] {
   const out: ScannedFile[] = [];
+  // SAFE for this rule's purpose (user input reaching fs): the only argument
+  // ever passed is SRC_ROOT or a path.join of it with a directory name this
+  // same walk produced — a repo-relative tree baked into the test. This guard
+  // runs in CI against the checked-out source, so it reads the tree by design.
+  /* eslint-disable security/detect-non-literal-fs-filename */
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
@@ -55,12 +60,31 @@ function walk(dir: string): ScannedFile[] {
       out.push({ path: path.relative(SRC_ROOT, full), content: fs.readFileSync(full, 'utf8') });
     }
   }
+  /* eslint-enable security/detect-non-literal-fs-filename */
   return out;
 }
 
 /** Test-support paths may reference the credential form to assert its ABSENCE. */
 function isTestSupport(path: string): boolean {
   return /(^|\/)(__tests__|__mocks__)(\/|$)/.test(path) || /\.test\.tsx?$/.test(path);
+}
+
+/**
+ * Does this doc text carry `NAME` in its ASSIGNMENT form — `NAME=`, `NAME =`,
+ * `NAME:` (as an env block writes it) — rather than merely naming it in prose?
+ * Hand-rolled instead of `new RegExp(name + '\\s*[=:]')` so the guard never
+ * builds a pattern out of a computed string.
+ */
+function carriesAssignmentForm(text: string, name: string): boolean {
+  let from = 0;
+  for (;;) {
+    const at = text.indexOf(name, from);
+    if (at === -1) return false;
+    from = at + name.length;
+    let i = from;
+    while (/\s/.test(text[i] ?? '')) i++;
+    if (text[i] === '=' || text[i] === ':') return true;
+  }
 }
 
 describe('ruling 44: no API key in the browser bundle', () => {
@@ -85,13 +109,14 @@ describe('ruling 44: no API key in the browser bundle', () => {
 
   it('leg A2: no doc recommends SETTING the baked key env var', () => {
     // Prose may NAME the removed variable to tell operators to unset it; docs
-    // may not carry its assignment form (`NAME=…`, or backticked `NAME: …` in
-    // an env block) — the assignment form is the copy-paste that re-arms the
-    // leak. Threat model: an operator following the docs.
-    const assignment = new RegExp(`${ENV_VAR_NAME}\\s*[=:]`, 'm');
+    // may not carry its assignment form (`NAME=…`, or `NAME: …` in an env
+    // block) — the assignment form is the copy-paste that re-arms the leak.
+    // Threat model: an operator following the docs. Plain string scanning, not
+    // a RegExp: the env-var name is built by concatenation, and interpolating
+    // it into a pattern would build a regex from a computed string.
     const offenders = files
       .filter((f) => /\.md$/.test(f.path))
-      .filter((f) => assignment.test(f.content))
+      .filter((f) => carriesAssignmentForm(f.content, ENV_VAR_NAME))
       .map((f) => f.path.replace(/\\/g, '/'));
     expect(offenders).toEqual([]);
   });
