@@ -21,9 +21,11 @@ Pre-configured Service Categories:
 - MONITORING_CONFIGS: Prometheus, Grafana, Alertmanager, Loki, Pyroscope, Alloy, Tempo,
   Redis/JSON/Blackbox/Node/DCGM Exporters, cAdvisor (lenient, per CATEGORY_DEFAULTS).
   Jaeger/Elasticsearch were retired in favour of Tempo (NEM-5545) and their
-  settings fields deleted. cAdvisor and dcgm-exporter are live in
-  docker-compose.ghcr.yml (dcgm also as a rootful systemd service), so their
-  cadvisor_port/dcgm_exporter_port settings fields remain live-read. The retired
+  settings fields deleted. cAdvisor runs as a rootful systemd service (the
+  prod compose file documents the install; see its cadvisor note) and
+  dcgm-exporter ships both as a prod compose service and as that same kind of
+  systemd unit, so their cadvisor_port/dcgm_exporter_port settings fields
+  remain live-read. The retired
   YOLO26/Florence/CLIP/Enrichment settings fields were deleted with the
   discovery rows — the ai-gateway port (AI_GATEWAY_PORT) covers those models.
 
