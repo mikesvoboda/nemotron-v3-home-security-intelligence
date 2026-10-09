@@ -103,8 +103,11 @@ exclude_reference_patterns:
 # at batch 2 the deleted ai/ satellites carried retired-name mentions, and
 # the boundary files they left behind lost their stale five-adapter rows, so
 # the counts fell and the ceilings hand-fell to the final measurement:
-# 85/143/145/10/2 over 225 scanned — florence 93 -> 85 and enrichment
-# 153 -> 145, the other three unmoved). `pose` is OUT of the ratchet
+# florence 93 -> 84 and enrichment 153 -> 145 over 225 scanned;
+# at batch 3 the deleted scripts/ satellites named Florence twice and the
+# retired family once (the synthetic pipeline prose) — florence 84 -> 82,
+# nemotron 143 -> 142 over 217 scanned; enrichment/xclip/demographics
+# unmoved since batch 2). `pose` is OUT of the ratchet
 # per the owner's ruling on #6870 (2026-10-08): the count is dominated by the
 # LIVE Triton model actually named `pose`, so it mixes live and retired usage
 # (it measured 37 whole-word while watched). It comes back if R2 retires the
@@ -123,11 +126,12 @@ exclude_reference_patterns:
 # pinned by test_substitution_does_not_green_a_total. ALL FIVE KEYS ARE REQUIRED: the
 # run exits 2 without any one of them (absent is neither 0 nor unchecked).
 retired_name_baseline:
-  florence: 84 # retired ai/florence path (W1.3 drained its dead-reference citations
+  florence: 82 # retired ai/florence path (W1.3 drained its dead-reference citations
   # without adding florence mentions — the count is unchanged by design; W3.1
-  # batch 2 removed nine mentions — the deleted ai/ satellites plus stale
-  # five-adapter prose in ai/gateway/AGENTS.md — 93 -> 84, hand-fall)
-  nemotron: 143 # the retired model family (the repo's own name string)
+  # batch 2 removed nine mentions (93 -> 84) and batch 3 two more — the
+  # synthetic pipeline prose — 84 -> 82, hand-fall)
+  nemotron: 142 # the retired model family (the repo's own name string; W3.1
+  # batch 3 removed one mention with the synthetic satellite — hand-fall)
   enrichment: 145 # retired ai/enrichment component (W1.3 drained six dead-citing mentions;
   # W3.1 batch 2 removed eight more — the deleted ai/ satellites plus the same
   # stale gateway prose — 153 -> 145, hand-fall)

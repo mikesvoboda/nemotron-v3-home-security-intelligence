@@ -1332,3 +1332,95 @@ rm -f data/security.db
 - `/README.md` - Project overview
 - `/docs/operator/ai-installation.md` - AI services detailed setup
 - `/.pre-commit-config.yaml` - Pre-commit hook configuration
+
+## Per-package rules (W3.1 appendix)
+
+Sub-AGENTS.md files were pruned from this lane (W3.1); the non-discoverable
+rules lived here instead.
+
+### validate_docs (`python -m scripts.validate_docs`)
+
+- **What CI enforces is level 1 only**: the docs-citation job runs the tool
+  over five scoped dirs with
+  `--no-ast --no-code-match --no-cross-ref --no-staleness --errors-only`
+  (`.github/workflows/ci.yml`, "Docs citation existence (level 1, scoped
+  dirs)"). Docs outside those dirs — `docs/plans/` et al. — are not gated;
+  don't assume a stale citation there will be caught.
+- Levels: 1 file-exists + line-bounds, 2 AST symbol check (optional —
+  needs tree-sitter packages, degrades to WARNING), 3 fenced-code content
+  match, 4 cross-doc consistency, 5 git staleness. Statuses:
+  `valid | error | warning | stale` (`validate_docs/config.py` `CitationStatus`).
+  Exit 0 clean / 1 errors; JSON mode emits `has_errors` for CI's `jq -e`
+  gate.
+- **Code-match contract** (`validate_docs/validators/code_match.py`):
+  `difflib.SequenceMatcher` over whitespace-normalized code; default
+  threshold 0.85 VALID, 0.5–0.85 WARNING, <0.5 ERROR.
+- **Host-address rejection** (`validate_docs/config.py` `looks_like_host_address` +
+  `HOST_TLD_SUFFIXES`): `smtp.example.com:587` matches the inline citation
+  shape exactly; both inline parsers call the guard before building a
+  `Citation` so level 1 never sees a mail relay. Add new host TLD labels to
+  the frozenset, not to a parser.
+- Citation shapes parsed: backticked `path:line[-line]` prose, YAML
+  frontmatter `source_refs`, `# Source: path:lines` inside fenced blocks
+  (the block body feeds level 3), mermaid notes/`%%` comments/labels.
+- The CLI dedupes citations by `(file_path, start_line, end_line)` — a
+  duplicate at a different `doc_line` is kept; same coords collapse.
+
+### benchmark (`scripts/benchmark/`)
+
+- **Engine comparison dials two live services**: the llama.cpp arm hits the
+  shipped `ai-vlm` serve (`AI_VLM_URL`, default port 8098); the vllm arm
+  hits `ai-llm-vllm` (`VLLM_PORT` 8097) — `engine_comparison.py`.
+- **Quality scoring is code-enforced, not the doc-table**: MAE ≤5 counts
+  acceptable, ≤10 marginal; `overall_quality` weights MAE-score 0.4 +
+  risk-level accuracy 0.3 + JSON validity 0.15 + reasoning 0.15
+  (`quality.py` score_dataset). Ground truth requires
+  `risk_score|risk_level|summary|reasoning`. Tests: 42 in
+  `tests/benchmark/test_quality.py`.
+
+### synthetic (`scripts/synthetic/`)
+
+- Pipeline contract: scenario-spec JSON → media (Veo 3.1 / Gemini via the
+  NVIDIA inference API, or Pexels/Pixabay stock) → pipeline run →
+  `ComparisonEngine` vs `expected_labels.json` → JSON test report.
+  Keys: `NVIDIA_API_KEY` or `NVAPIKEY`; `PEXELS_API_KEY`,
+  `PIXABAY_API_KEY`. Generated media lands under `data/synthetic/`.
+- **Comparison semantics are per-field contracts**
+  (`comparison_engine.py`): `count` exact-or-±1, `min_confidence` actual ≥
+  expected, `class` exact string, `score_range` inclusive bounds,
+  `text_pattern` regex, `must_contain`/`must_not_contain`
+  case-insensitive keywords, `distance_range` meters. Caption keyword
+  matching expands through the synonym dictionary in the same module —
+  don't hand-assert raw caption substrings.
+
+### dataset_converters (`scripts/dataset_converters/`)
+
+- COCO / FLIR / CCPD / ShanghaiTech → the `expected_labels.json` scenario
+  format. Subclass the `DatasetConverter` ABC in `__init__.py` and reuse
+  `to_expected_labels()` instead of hand-rolling output JSON.
+- **Risk scoring is centralized** in `RISK_MAPPINGS` (`__init__.py`) —
+  new action/label mappings go there, never inside one converter.
+- Raw data is not in git: download first via
+  `scripts/download_open_datasets.py`; converters read
+  `data/external/<dataset>/raw`, write `.../converted`.
+
+### uplevel (`scripts/uplevel/`)
+
+- `launch.py` is a **host tool for the owner** — no agent runs it. `up
+--phase <n>` creates missing sandboxes and prints kickoff lines; `retire
+<name>` refuses (exit 2) on any uncommitted/untracked/unpushed work.
+- **Never run host git against a mounted agent workspace**: the workspace's
+  `.git/config` is the agent's to write and settings like `core.fsmonitor`
+  execute commands when host git opens the repo. All git rides inside the
+  sandbox via `sbx exec`, forced `-c core.fsmonitor=false`.
+- `agent-dgx` reads an unknown word as a new session's name — never run
+  `agent-dgx help`/`ls`, never invent a flag; use only forms the repo
+  already shows (`synthbench/host/agent.py`, operator runbook).
+- A session with `gpu = true` requires `AGENT_GPU_RUNNER_URL` in the
+  launching shell or the whole `up` refuses first (UR-30, one GPU holder).
+- `sandboxes.toml` mirrors the roster in `docs/uplevel/50-coordination.md`
+  — a plan change must update both. The loader refuses non-boolean `gpu`,
+  `gpu` rows mounting at/under `/srv/agent-models`, and names repeated
+  within a phase. Kickoff lines name the prompt's **section**, never a
+  position (#6864 — positions rot as the file grows). Tests:
+  `backend/tests/unit/scripts/test_uplevel_launch.py`.
