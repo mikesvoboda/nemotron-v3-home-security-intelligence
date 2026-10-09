@@ -59,6 +59,16 @@ paths = [
   '''docs/.*\.md$''',
   # Migration files (auto-generated)
   '''alembic/versions/.*\.py$''',
+  # .test_durations is pytest-generated: a JSON map of test node-id -> seconds.
+  # Its only high-entropy strings are test names, and generic-api-key-pattern
+  # fires when a node-id ends in a >=32-char identifier right after a segment
+  # named *ApiKey -- e.g. TestRequireApiKey::test_no_keys_configured_refuses_everything,
+  # where the "secret" the rule captures is the next test's name. Fingerprint
+  # entries in .gitleaksignore cannot help: the fingerprint embeds the line
+  # number, and this file's lines reshuffle every time durations are regenerated.
+  # Committed deliberately (it pins the least_duration shard split), so the cure
+  # has to be path-scoped. Values are floats; no credential can be represented.
+  '''^\.test_durations$''',
 ]
 
 # Regex patterns for allowlisted content (applies to all files including tests)

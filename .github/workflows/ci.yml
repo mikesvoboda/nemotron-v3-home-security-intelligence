@@ -42,6 +42,10 @@ jobs:
           # '!frontend/**/*.md' matches every file outside frontend/: frontend was
           # true on every PR, so docs- and backend-only PRs ran all 18 frontend jobs.
           predicate-quantifier: 'some-with-excludes'
+          # '.test_durations' rides the backend filter (batch-9 row 2): the
+          # committed shard-planning file steers the backend shards' pytest-split
+          # groups, so a refresh must re-run the tier it re-plans (and the gate
+          # that reads it). A root dotfile matches no other backend pattern.
           filters: |
             backend:
               - 'backend/**'
@@ -50,6 +54,7 @@ jobs:
               - 'ai/**'
               - 'scripts/**/*.py'
               - 'synthbench/**'
+              - '.test_durations'
             frontend:
               - 'frontend/**'
               - '!frontend/**/*.md'
@@ -231,6 +236,7 @@ jobs:
           scripts/audit/test_env_dead_vars.py
           scripts/audit/test_battery_census.py
           scripts/audit/test_literal_groups.py
+          scripts/test_shard_durations.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
@@ -707,6 +713,7 @@ jobs:
           uv run pytest backend/tests/unit/ \
             -n auto --dist=worksteal \
             --splits 4 --group ${{ matrix.shard }} \
+            --splitting-algorithm=least_duration \
             --randomly-seed=${{ github.run_id }} \
             --timeout=60 \
             --cov=backend \
@@ -962,9 +969,14 @@ jobs:
         # Ideal duration-balanced 4-way is 653.4s junit (~6.2m wall) -- roughly
         # 5x cap headroom instead of ~2x.
         #
-        # pytest-split still count-balances (no .test_durations in tree);
-        # measured imbalance at 2-way was 1.22x. A durations file would close
-        # that and is tracked separately -- it is not required for this split.
+        # 2026-10-09 (batch-9 row 2): the tracked durations file landed. With
+        # no .test_durations pytest-split count-balanced, and because
+        # pytest-randomly permutes whole module files as blocks, count-balance
+        # was not time-balance: run 37940703535's shards held 7851/7851/7851/
+        # 7849 tests but 168.2/166.8/148.3/76.2s of junit time (2.207x spread).
+        # The committed file plus --splitting-algorithm=least_duration closes
+        # that AND makes placement a function of the tree, not the seed (the
+        # per-run reshuffle measured 76.9%); see scripts/test_shard_durations.py.
         shard: [1, 2, 3, 4]
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
