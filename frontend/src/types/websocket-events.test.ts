@@ -46,7 +46,8 @@ describe('WebSocket Event Types', () => {
       // NEM-4808 (5b9d75b8) added scene_change.detected/acknowledged -> 55 total.
       // The length assert was never bumped when the source array grew (52->53->55);
       // verified against the array literal on main, drift is pre-existing.
-      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(55);
+      // F1.2 (UR-18) added system.verdict_engine_status_changed -> 56 total.
+      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(56);
     });
 
     it('should include new hierarchical event keys', () => {
@@ -67,6 +68,7 @@ describe('WebSocket Event Types', () => {
       expect(WEBSOCKET_EVENT_KEYS).toContain('job.completed');
       expect(WEBSOCKET_EVENT_KEYS).toContain('job.failed');
       expect(WEBSOCKET_EVENT_KEYS).toContain('system.health_changed');
+      expect(WEBSOCKET_EVENT_KEYS).toContain('system.verdict_engine_status_changed');
       expect(WEBSOCKET_EVENT_KEYS).toContain('system.error');
     });
   });
@@ -94,6 +96,7 @@ describe('WebSocket Event Types', () => {
       expect(isWebSocketEventKey('job.completed')).toBe(true);
       expect(isWebSocketEventKey('job.failed')).toBe(true);
       expect(isWebSocketEventKey('system.health_changed')).toBe(true);
+      expect(isWebSocketEventKey('system.verdict_engine_status_changed')).toBe(true);
       expect(isWebSocketEventKey('system.error')).toBe(true);
     });
 
