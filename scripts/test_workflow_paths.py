@@ -79,10 +79,27 @@ checkout has. A filesystem basis let laptop state move the gate: a built
 it unearned (or vice versa) — same command, opposite answers. Index view +
 fs walk off a git root (the self-test's tmp_path) keeps every caller on one
 basis, so the earned check and the main check can never disagree about what
-the tree holds.
+the tree holds. Since ops-A's B1 on #6926 the basis covers WHICH files are
+scanned, not only which paths exist: the config set is index-derived and a
+worktree-deleted-but-index-present config is read from its INDEX BLOB, so a
+half-finished ``rm`` can no longer shrink the scan and flip an allowlist
+entry's earned-ness (measured at the previous head: deleting one workflow
+printed "38 CI config(s)" where CI would print 39, and reddened the pin test
+with a real finding for a file CI still runs).
 
-Known conservative gaps (each one-directional: the gate misses, never
-false-reds): comment text is literature — a stale path in prose is invisible
+Directionality (ops-A's B3 forced this sentence honest — the previous one
+read "the gate misses, never false-reds" while the classifier ended block
+scalars at blank lines, silently dropping the ``cd`` anchors that follow and
+false-REDDING every relative claim those anchors license): the candidate
+FILTERS are one-directional — every rejection in ``token_ok`` removes a
+claim, so filters can miss but never manufacture a red — and block scalars
+now continue across blanks (YAML ends a block only at a line at or above the
+key's indent), with comment/skip/exempt rules keeping precedence inside the
+block body. Residual false-red risk lives in the claims that ARE checked
+against the basis (a glob's fixed directory under a generated root), which
+is why the allowlists are pinned alive rather than trusted. The gaps below
+are all miss-direction and stay so: comment text is literature — a stale
+path in prose is invisible
 (this head's instance, ci.yml's shard comment naming
 scripts/merge-shard-coverage.mjs, verified to resolve through its own step's
 ``cd frontend``, so nothing rots today; a future stale comment waits for a
@@ -110,6 +127,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -228,6 +246,19 @@ MISSING_OK: dict[str, str] = {
     "openapi-versions/openapi-latest.json": "openapi latest copy (generated)",
     "reports/flaky-test-report.json": "flaky-report job output (generated)",
     "reports/weekly-test-report.json": "weekly report job output (generated)",
+    # Same generated-report family, named in weekly-test-report.yml's shell
+    # guards (``if [ -f reports/… ]`` at :243/:247). Invisible to the shipped
+    # classifier — the blank at :236 ended the block early and the exempt-key
+    # bare ``if`` then cleared the guards as prose; the B3 fix made them real
+    # findings. Runtime mechanism: the bare-named files are written by this
+    # workflow's --json-report-file= steps (:85/:95) and uploaded as artifact
+    # test-reports (:118-127); the reports/-prefixed path the guards test is
+    # actions/download-artifact's ``path: reports`` (:170-173). Exists only
+    # on the runner — git ls-files reports/ → 0 entries.
+    "reports/backend-unit-report.json": "artifact test-reports, downloaded"
+                                        " into reports/ at runtime (generated)",
+    "reports/backend-integration-report.json": "artifact test-reports, downloaded"
+                                               " into reports/ at runtime (generated)",
     "reports/mutation/mutation.json": "stryker report file (generated)",
     "frontend/reports/mutation/mutation-report.html": "stryker HTML report (generated)",
     "frontend/lighthouse-output.txt": "lhci stdout capture (generated)",
@@ -264,37 +295,105 @@ PATTERN_OK: dict[str, str] = {
 # ---------------------------------------------------------------- extraction
 
 
+class ConfigSource:
+    """A scanned config: repo-relative label + content that survives deletion.
+
+    ``text()`` prefers the worktree file and falls back to the staged INDEX
+    blob (``git show :<path>``). A half-finished ``rm`` — file gone from the
+    worktree, still in the index — is what CI's checkout still holds, so the
+    gate reads the index copy and the scan cannot shift basis with laptop
+    state. Off a git root (the self-test's tmp_path) there is no index, so
+    only the worktree path answers.
+    """
+
+    def __init__(self, root: Path, rel: str) -> None:
+        self.root = root
+        self.label = rel
+
+    def text(self) -> str:
+        p = self.root / self.label
+        if p.is_file():
+            return p.read_text(encoding="utf-8", errors="replace")
+        if git_entries(self.root) is not None:
+            try:
+                return subprocess.run(
+                    ["git", "-C", str(self.root), "show", f":{self.label}"],
+                    capture_output=True,
+                    check=True,
+                ).stdout.decode("utf-8", "replace")
+            except (OSError, subprocess.CalledProcessError):
+                return ""  # index raced away mid-scan; empty = no claims, never a crash
+        return ""
+
+    def read_lines(self, is_precommit: bool) -> list[tuple[str, str]]:
+        return classify_lines(self.text(), is_precommit)
+
+
+def workflow_labels(root: Path) -> list[str]:
+    """Repo-relative labels of the workflow configs, on the tree's scan basis.
+
+    On a git toplevel that basis is the INDEX (``tree_entries``), so a
+    worktree-deleted workflow stays in the set it was scanned from — the
+    one-basis invariant below extends from the tree facts to the file set.
+    Off-git (the self-test's tmp_path) the fs walk answers, as elsewhere.
+    """
+    entries, _ = tree_facts(root)
+    return sorted(
+        e for e in entries
+        if e.startswith(".github/workflows/") and e.endswith((".yml", ".yaml"))
+    )
+
+
 def workflow_files(root: Path) -> list[Path]:
-    wd = root / ".github" / "workflows"
-    return sorted(wd.glob("*.yml")) + sorted(wd.glob("*.yaml"))
+    """Paths of the workflow configs (fs view — what a worktree check sees)."""
+    return [root / label for label in workflow_labels(root)]
 
 
-def config_sources(root: Path) -> list[tuple[str, Path]]:
-    """(repo-relative label, path) for every file the gate reads."""
-    out = [(p.relative_to(root).as_posix(), p) for p in workflow_files(root)]
-    config = root / ".pre-commit-config.yaml"
-    if config.is_file():
-        out.append((".pre-commit-config.yaml", config))
+def config_sources(root: Path) -> list[ConfigSource]:
+    """Every file the gate reads, as ConfigSource (label, content-on-basis)."""
+    out = [ConfigSource(root, label) for label in workflow_labels(root)]
+    precommit = ".pre-commit-config.yaml"
+    paths, _ = tree_facts(root)
+    if precommit in paths or (root / precommit).is_file():
+        out.append(ConfigSource(root, precommit))
     return out
 
 
-def classify(path: Path, is_precommit: bool) -> list[tuple[str, str]]:
-    """(domain, text) per line; domain in {comment, command, yaml, pattern, skip}.
-
-    A run/entry/script block scalar swallows the deeper-indented lines that
-    follow it into ``command``. YAML comments (any ``#``-lead line) are the
-    literary domain.
-    """
+def classify_lines(text: str, is_precommit: bool) -> list[tuple[str, str]]:
+    """(domain, text) per line of a config's CONTENT; see ``classify``."""
     out: list[tuple[str, str]] = []
     block_indent: int | None = None
-    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for raw in text.splitlines():
         stripped = raw.strip()
-        if block_indent is not None:
+        if block_indent is not None and stripped:
             indent = len(raw) - len(raw.lstrip())
-            if stripped and indent > block_indent:
+            if indent > block_indent:
+                # Block body. YAML does not end a ``run: |`` at a BLANK line
+                # (only a line at-or-shallower than the key ends it; the
+                # shipped head ended it at blanks, which threw the rest of a
+                # script out of the command domain — ops-A B3 on #6926).
+                # Inside the body only the COMMENT rule keeps precedence
+                # (shell ``#`` lines are literature); every other line is
+                # script text, command domain. The yaml-line rules (exempt
+                # keys, ``uses:`` skip) do NOT reach in here: they key on the
+                # YAML line shape, which a block body doesn't have. Reading
+                # them inside the block is how ``if [ -f coverage-merged/… ]``
+                # (ci.yml:2178) hid from the gate under the shipped head —
+                # YAML_EXEMPT_KEYS' bare ``if`` cleared it as prose, which
+                # silently unearned its MISSING_OK entry. Command-first costs
+                # exactly two repo-wide findings, both TRUE (measured): the
+                # weekly-report ``if [ -f reports/…-report.json ]`` guards
+                # name pytest-json-report output that no commit ever contains
+                # — MISSING_OK entries, same generated-report family as the
+                # weekly-test-report.json sibling those guards sit next to.
+                if COMMENT_RE.match(raw):
+                    out.append(("comment", raw))
+                    continue
                 out.append(("command", raw))
                 continue
-            block_indent = None  # block ended; fall through to normal rules
+            block_indent = None  # at-or-above the key: block ended; fall through
+        # here: outside a block, or a blank line (inside or out — a blank
+        # inside continues the block; it carries no tokens either way)
         if not stripped:
             out.append(("skip", raw))
             continue
@@ -323,6 +422,18 @@ def classify(path: Path, is_precommit: bool) -> list[tuple[str, str]]:
             continue
         out.append(("yaml", raw))
     return out
+
+
+def classify(path: Path, is_precommit: bool) -> list[tuple[str, str]]:
+    """(domain, text) per line; domain in {comment, command, yaml, pattern, skip}.
+
+    A run/entry/script block scalar swallows the deeper-indented lines that
+    follow it into ``command`` and BLANK lines do not end it — YAML ends a
+    block only at a line at or above the key's indent (the shipped head ended
+    at blanks and went blind mid-script; ops-A B3 on #6926). YAML comments
+    (any ``#``-lead line) are the literary domain, inside blocks too.
+    """
+    return classify_lines(path.read_text(encoding="utf-8", errors="replace"), is_precommit)
 
 
 def cd_anchors(lines: list[tuple[str, str]]) -> list[str]:
@@ -380,7 +491,16 @@ def token_ok(tok: str, root: Path, anchors: list[str]) -> bool:
     if segs[0] in GIT_REF_FIRST:
         return False
     if segs[0] in TOOL_FIRST:
-        return False
+        # A TOOL_FIRST name that IS a tracked directory is a path claim, not
+        # tool prose — the silent-invisible shape ops-A measured on #6926: a
+        # broken ``file: docker/x/DOES-NOT-EXIST`` was excused as the docker
+        # CLI. The tree answers first: first segment live at the root or under
+        # an anchor (same live-parent rule the extensionless branch below
+        # uses) keeps the token checkable; only a name with no directory wins
+        # the tool excuse.
+        _paths, dirs = tree_facts(root)
+        if segs[0] not in dirs and not any(f"{a}/{segs[0]}" in dirs for a in anchors):
+            return False
     if len(segs[0]) == 1:
         return False  # single-letter namespace shorthand (semgrep p/python) — no 1-char top-level dir at head
     if "." in segs[0] and segs[0].rsplit(".", 1)[-1] in TLD_SUFFIXES:
@@ -694,9 +814,10 @@ def find_missing(root: Path, use_allowlists: bool = True) -> list[str]:
     addr_allow = MISSING_OK if use_allowlists else {}
     pat_allow = PATTERN_OK if use_allowlists else {}
     findings: list[str] = []
-    for label, path in config_sources(root):
+    for src in config_sources(root):
+        label = src.label
         is_precommit = label == ".pre-commit-config.yaml"
-        lines = classify(path, is_precommit)
+        lines = src.read_lines(is_precommit)
         anchors = [] if is_precommit else cd_anchors(lines)
         seen: set[tuple[str, str]] = set()
         for domain, text in lines:
@@ -803,9 +924,13 @@ def test_allowlists_stay_fully_earned() -> None:
             f"reports no finding for it (no longer named in scanned text, or a "
             f"filter now rejects it): delete it ({reason})"
         )
+    cfg = next((s for s in config_sources(REPO_ROOT) if s.label == ".pre-commit-config.yaml"), None)
+    assert cfg is not None, "pre-commit config off the scan basis entirely"
     for alt, reason in PATTERN_OK.items():
         assert reason, f"PATTERN_OK entry {alt!r} has no reason"
-        assert alt in (REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"), (
+        # read through the scan basis (worktree-or-index), same one basis the
+        # gate itself uses — a half-finished rm must not crash the pin
+        assert alt in cfg.text(), (
             f"PATTERN_OK entry {alt!r} is no longer named — delete it"
         )
         raw = find_missing(REPO_ROOT, use_allowlists=False)
@@ -862,6 +987,25 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     assert not token_ok("CI/CD", tmp_path, [])  # CI is no dir: prose class
     assert token_ok("frontend/nope", tmp_path, [])  # frontend IS a dir: stays checkable
     assert check_address("frontend/nope", tmp_path, []) is not None  # …and flags when dead
+    # TOOL_FIRST vs a tracked dir (ops-A B2 on #6926): the tree answers before
+    # the tool-name excuse. live/ is a real dir whose name is not a tool;
+    # docker/ is made a dir whose name IS one — the only TOOL_FIRST name with a
+    # directory at repo head. Dead under either: flagged. Live: silent. Absent
+    # dir with a tool name (docs/curl): still the prose excuse (near-miss both
+    # ways — the fix must not turn every "docker/x" prose compound into a red).
+    (tmp_path / "live" / "ghost.txt").write_text("x\n")
+    (tmp_path / "docker" / "sub").mkdir(parents=True)
+    (tmp_path / "docker" / "sub" / "Dockerfile").write_text("x\n")
+    clear_tree_caches()
+    assert not token_ok("curl/jq", tmp_path, [])  # no curl dir: tool prose stays silent
+    assert token_ok("docs/curl", tmp_path, []) and check_address("docs/curl", tmp_path, []) is not None
+    #  ^ near-miss: the tree-first rule is about segment 0 only — a tool name
+    #    in a NONFIRST position under a live dir is a path claim and still
+    #    flags (the excuse must not spread down the token)
+    assert token_ok("docker/nope", tmp_path, [])  # docker IS a dir: tool name no longer excuses it
+    assert check_address("docker/nope", tmp_path, []) is not None  # …and flags when dead
+    assert check_address("docker/sub/Dockerfile", tmp_path, []) is None  # live sibling silent
+    assert token_ok("live/nope.txt", tmp_path, []) and check_address("live/nope.txt", tmp_path, []) is not None
     # line classification end-to-end through a miniature workflow file
     wf = tmp_path / ".github" / "workflows"
     wf.mkdir(parents=True)
@@ -890,6 +1034,54 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
         for m in [PATH_TOKEN_RE.search(strip_comment_value(t))] if m
     ]
     assert "docs" in toks or "scripts/guard.mjs" in toks
+    # blank lines inside a ``run: |`` block (ops-A B3 on #6926): YAML ends a
+    # block only at a line at-or-above the key's indent, so a script CONTINUES
+    # across blanks — paths after a blank stay command domain (the shipped
+    # head classified them yaml/skip: gate blind mid-script) and a ``cd``
+    # after a blank still earns its anchor.
+    (wf / "blank.yml").write_text(
+        "jobs:\n"
+        "  j:\n"
+        "    steps:\n"
+        "      - run: |\n"
+        "          cat docs/gone1.md\n"
+        "\n"
+        "          cat docs/gone2.md\n"
+        "          cd frontend\n"
+        "      - run: |\n"
+        "          cd backend\n"
+        "\n"
+        "      - name: after\n"
+        "        if: github.ref == 'x'\n",
+        encoding="utf-8",
+    )
+    blines = classify(wf / "blank.yml", is_precommit=False)
+    bd = {i: d for i, (d, _) in enumerate(blines)}  # one entry per line
+    assert bd[4] == "command" and bd[5] == "skip" and bd[6] == "command"
+    assert "docs/gone1.md" in PATH_TOKEN_RE.search(blines[4][1]).group(0)
+    assert "docs/gone2.md" in PATH_TOKEN_RE.search(blines[6][1]).group(0)
+    assert cd_anchors(blines) == ["frontend", "backend"]  # anchor AFTER the blank survives
+    # near-misses: blanks classify skip wherever they sit (block 2's interior
+    # line 10, and outside every block); what ENDS block 2 is the `name:` at
+    # line 11 (at-or-above the key), and the `if:` at 12 is outside the block.
+    assert bd[10] == "skip" and bd[11] == "skip" and bd[12] == "skip"
+    # precedence inside a block: ONLY the comment rule reaches in (a shell
+    # ``#`` line stays literature); the yaml-line rules do not — the weekly
+    # report's ``if [ -f … ]`` guard is SCRIPT, so its path token is checked
+    # (under the shipped order the exempt bare-``if`` key swallowed it as
+    # prose; the pin below is that line, domain-pinned both ways).
+    guard = classify_lines(
+        "      - run: |\n"
+        "          if [ -f reports/x.json ]; then\n"
+        "          # uses: ./nonsense\n",
+        False,
+    )
+    assert guard[1][0] == "command", guard
+    assert "reports/x.json" in PATH_TOKEN_RE.search(guard[1][1]).group(0), guard
+    assert guard[2][0] == "comment", guard
+    # same line OUTSIDE a block stays the exempt yaml-line prose it always was
+    # (the fix must not widen the command domain past block bodies)
+    assert classify_lines("        if: github.ref == 'x'\n", False)[0][0] == "skip"
     # local reusable-workflow calls: live callee silent, dead callee flagged,
     # external actions still skipped (near-miss both directions)
     assert LOCAL_USES_RE.match("    uses: ./.github/workflows/x.yml").group(1) == "./.github/workflows/x.yml"
@@ -907,6 +1099,42 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     )
     hits = [x for x in find_missing(tmp_path) if "caller.yml" in x]
     assert len(hits) == 1 and "ghost.yml" in hits[0], hits
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
+def test_index_basis_survives_worktree_deletion(tmp_path: Path) -> None:
+    """B1 (ops-A on #6926): WHICH files are scanned is an index claim.
+
+    A tracked workflow deleted from the worktree but still in the index is
+    what CI's checkout still holds — it must stay in the scan, read from its
+    INDEX BLOB, and its dead refs still flag. Near-miss: an UNTRACKED file
+    with a dead ref on disk is invisible (the honest claim is "named paths
+    are COMMITTED" — same basis, opposite direction)."""
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "gone.yml").write_text(
+        "jobs:\n  j:\n    steps:\n      - run: cat scripts/ghost.md\n", encoding="utf-8"
+    )
+    (wf / "kept.yml").write_text("jobs:\n  j:\n    steps:\n      - run: echo hi\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    labels = [s.label for s in config_sources(tmp_path)]
+    assert ".github/workflows/gone.yml" in labels  # fs-walk parity BEFORE deletion
+    # untracked file with a dead ref: NOT on the basis (near-miss direction)
+    (wf / "untracked.yml").write_text(
+        "jobs:\n  j:\n    steps:\n      - run: cat scripts/alsoghost.md\n", encoding="utf-8"
+    )
+    clear_tree_caches()
+    (wf / "gone.yml").unlink()  # half-finished rm: worktree-deleted, index-held
+    clear_tree_caches()
+    labels = [s.label for s in config_sources(tmp_path)]
+    assert ".github/workflows/gone.yml" in labels, "worktree deletion shrank the scan"
+    assert ".github/workflows/untracked.yml" not in labels, "untracked file joined the scan"
+    hits = find_missing(tmp_path)
+    assert any("gone.yml" in h and "ghost.md" in h for h in hits), (
+        f"index-blob content not scanned: {hits}"
+    )
+    assert not any("alsoghost.md" in h for h in hits), hits
 
 
 # --------------------------------------------------------------- standalone
