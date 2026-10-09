@@ -123,8 +123,6 @@ export interface ABTestService {
 // ============================================================================
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
-const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
-
 /** Timeout for A/B test API calls (30 seconds) */
 const TEST_TIMEOUT_MS = 30000;
 
@@ -151,9 +149,6 @@ async function testPromptApi(
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY;
-  }
 
   // Create abort controller for timeout
   const controller = new AbortController();

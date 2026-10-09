@@ -87,32 +87,27 @@ Run `./scripts/generate-types.sh` to regenerate types after backend changes.
 | -------------------- | ---------------------------------- | -------------------- |
 | `VITE_API_BASE_URL`  | Base URL for REST API calls        | `''` (relative)      |
 | `VITE_WS_BASE_URL`   | Base URL for WebSocket connections | Uses window.location |
-| `VITE_API_KEY`       | API key for authentication         | undefined            |
+
+(There is no API-key variable — ruling 44; see Authentication below.)
 
 ### WebSocket URL Helpers
 
 ```typescript
-// Build the WebSocket URL AND the handshake credential (F1.3 — use this)
+// Build the WebSocket URL for a browser client (use this)
 buildWebSocketOptions(endpoint: string): { url: string; protocols?: string[] }
-// Example with VITE_API_KEY set:
-//   => { url: 'ws://localhost:8000/ws/events', protocols: ['api-key.xxx'] }
-
-// Deprecated: puts the key in the URL (?api_key=xxx), which leaks it into
-// access logs and Referer-style sinks. Kept only for call sites that cannot
-// take options yet — do not use in new code.
-buildWebSocketUrl(endpoint: string): string
-
-// Check if API key is configured
-getApiKey(): string | undefined
+// => { url: 'ws://localhost:8000/ws/events' }   // protocols: none — ruling 44
 ```
 
 `buildWebSocketOptions` (the pattern hooks/AGENTS.md documents):
 
 - Uses `VITE_WS_BASE_URL` if set, otherwise falls back to `window.location.host`
 - Automatically selects `ws:` or `wss:` based on page protocol
-- With `VITE_API_KEY` set it mints `protocols = ['api-key.{key}']` — the
-  credential rides the handshake as `Sec-WebSocket-Protocol`, **never** the
-  URL (B1.5's gate reads it there; F1.3 made the manager attach it)
+- Attaches **no credential** — ruling 44. The browser socket is authenticated by
+  the session cookie. (`protocols` remains in the type because it is generic
+  subprotocol-negotiation plumbing the manager forwards; the builder never
+  fills it, and `src/__tests__/no-browser-api-key.test.ts` fails CI if it starts.)
+- The deprecated `buildWebSocketUrl()` family and `getApiKey()` are gone, not
+  deprecated-but-present: they existed only to move a baked-in key around.
 
 ### Core Functions
 
@@ -384,10 +379,17 @@ log.error('Failed to fetch events');
 
 ## Authentication
 
-When `VITE_API_KEY` is set:
+**Ruling 44 — browsers authenticate only through the cookie login.**
 
-- REST requests include `X-API-Key` header
-- WebSocket URLs include `api_key` query parameter
+The browser sends no API key anywhere: not as an `X-API-Key` header, not as a
+query parameter, not as a credential subprotocol. Same-origin requests carry
+the session cookie; `fetchApi`'s 401 seam (F1.3) handles expiry.
+
+API keys are for **non-browser clients** only — a script or service calling the
+API sets its own `X-API-Key` header, or offers the credential subprotocol for
+scripted WebSocket clients. That belongs outside this bundle: Vite inlines
+`VITE_*` values into the built JavaScript, and the UI is served to whoever can
+reach it, so a browser-side key is a public value, not a secret.
 
 ## Testing
 
@@ -925,7 +927,7 @@ For AI agents exploring this codebase:
 
 1. **Start with `api.ts`** - Main API client with all REST endpoint methods
 2. **Type imports**: Types are re-exported from `../types/generated/`
-3. **WebSocket connections**: Use `buildWebSocketOptions()` (URL + `Sec-WebSocket-Protocol` credential, F1.3); `buildWebSocketUrl()` is deprecated — it leaks the key into the URL
+3. **WebSocket connections**: Use `buildWebSocketOptions()` — URL only; the browser socket rides the session cookie (ruling 44)
 4. **Error handling**: All API calls can throw `ApiError` with status and data
 5. **Logging**: Import `logger` singleton for frontend logging to backend
 6. **A/B testing**: Use `abTestService.ts` for prompt playground A/B tests

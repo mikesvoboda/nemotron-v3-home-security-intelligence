@@ -6,8 +6,10 @@
  * docs define, so in a running stack the socket bypassed nginx — and nothing
  * tested the hook, so nothing noticed (CI's Test Coverage Gate named that
  * missing file at PR #6922's head). The rewired path (commit e0cd9333) takes
- * url + `api-key.{key}` subprotocol from buildWebSocketOptions; these tests
- * pin that forwarding, then cover the hook's own message contract.
+ * its url from buildWebSocketOptions; ruling 44 means the browser builder
+ * attaches no credential subprotocol (the session cookie authenticates), so
+ * these tests pin the url forwarding and the absence of any minted protocol,
+ * then cover the hook's own message contract.
  *
  * The builder itself is unit-tested in services/api.test.ts; here it is
  * mocked so the assertion is exactly "the hook forwards what it was given".
@@ -83,31 +85,24 @@ describe('useRecentThreats', () => {
     mocks.buildWebSocketOptions.mockReset();
     mocks.buildWebSocketOptions.mockReturnValue({
       url: 'ws://stack.example.test/ws/events',
-      protocols: ['api-key.test-credential'],
     });
   });
 
-  describe('credential path (F1.3)', () => {
+  describe('socket wiring (F1.3 path, ruling-44 credential-free)', () => {
     it('asks buildWebSocketOptions for the /ws/events endpoint', () => {
       renderHook(() => useRecentThreats());
       expect(mocks.buildWebSocketOptions).toHaveBeenCalledWith('/ws/events');
     });
 
-    it('forwards the builder url and api-key subprotocol to useWebSocket', () => {
-      // Pre-F1.3 this failed twice over: url was the hardcoded
-      // ws://localhost:8000/ws/events (bypassing nginx) and no protocols were
-      // passed at all, so B1.5's gate refused the socket with close 4001.
+    it('forwards the builder url to useWebSocket with NO credential', () => {
+      // Pre-F1.3 this failed: url was the hardcoded
+      // ws://localhost:8000/ws/events (bypassing nginx). Post ruling 44 the
+      // builder mints no protocol at all — the socket is cookie-authenticated.
       renderHook(() => useRecentThreats());
       expect(mocks.wsOptions).toMatchObject({
         url: 'ws://stack.example.test/ws/events',
-        protocols: ['api-key.test-credential'],
         reconnect: true,
       });
-    });
-
-    it('passes no protocols when the builder mints none (open mode)', () => {
-      mocks.buildWebSocketOptions.mockReturnValue({ url: 'ws://stack.example.test/ws/events' });
-      renderHook(() => useRecentThreats());
       expect(mocks.wsOptions?.protocols).toBeUndefined();
     });
   });

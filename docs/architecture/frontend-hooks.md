@@ -35,7 +35,7 @@ The hook architecture follows a layered design:
 5. **REST Layer**: Polling-based hooks for health, GPU history, storage stats, and AI model status
 6. **UI Layer**: Context hooks and localStorage persistence (`useSidebarContext`, `useSavedSearches`)
 
-All WebSocket URLs are constructed via `buildWebSocketUrl()` from the API service, which respects environment variables (`VITE_WS_BASE_URL`, `VITE_API_KEY`) and provides SSR-safe connection handling.
+All WebSocket URLs are constructed via `buildWebSocketOptions()` from the API service, which respects `VITE_WS_BASE_URL`, falls back to the page origin, and provides SSR-safe connection handling. It attaches **no credential**: browsers authenticate through the cookie login only (ruling 44), because Vite inlines `VITE_*` values into the served JavaScript bundle.
 
 ## Hook Hierarchy
 
@@ -969,17 +969,19 @@ function isBackendEventMessage(data: unknown): data is BackendEventMessage {
 
 ### URL Construction Pattern
 
-All WebSocket hooks use `buildWebSocketUrl()` for consistent URL construction:
+All WebSocket hooks use `buildWebSocketOptions()` for consistent URL construction:
 
 ```typescript
-import { buildWebSocketUrl } from '../services/api';
+import { buildWebSocketOptions } from '../services/api';
 
 // Automatically handles:
 // - VITE_WS_BASE_URL environment variable
 // - Falls back to window.location.host
-// - Appends api_key query param if VITE_API_KEY is set
 // - Converts ws:// or wss:// protocol based on location
-const wsUrl = buildWebSocketUrl('/ws/events');
+// Attaches no credential (ruling 44): the session cookie authenticates the
+// socket, so a key never needs to exist inside the bundle. API keys are for
+// non-browser clients only.
+const { url: wsUrl } = buildWebSocketOptions('/ws/events');
 
 const { isConnected } = useWebSocket({ url: wsUrl });
 ```

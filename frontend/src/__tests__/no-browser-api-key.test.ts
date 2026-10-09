@@ -9,11 +9,15 @@
  * API keys are for non-browser clients (the X-API-Key header, or the scripted
  * WebSocket subprotocol form — prose here, never minted in browser code).
  *
- * Two legs, both plain filesystem scans of the checked-out tree:
+ * Three legs, all plain filesystem scans of the checked-out tree:
  *
- *  A. The env var's name (the VITE_-prefixed key variable) must not appear
- *     anywhere under frontend/src — not as an `import.meta.env` read, not in a
- *     test fixture, not in an AGENTS.md example re-recommending it.
+ *  A. The env var's name (the VITE_-prefixed key variable) must not appear in
+ *     any CODE file under frontend/src — not as an `import.meta.env` read, not
+ *     in a test fixture.
+ *  A2. Docs may still NAME the removed variable (prose that tells an operator
+ *     to unset it is useful prose), but may not carry its ASSIGNMENT form
+ *     (`NAME=…` / `NAME: …`) — that is the copy-paste which re-arms the leak,
+ *     and the ruling's threat model is an operator following the docs.
  *  B. Production sources (*.ts / *.tsx outside test directories) must not
  *     contain the WebSocket credential subprotocol prefix. Docs may NAME the
  *     form in prose; test files may reference it in negative assertions;
@@ -100,4 +104,13 @@ describe('ruling 44: no API key in the browser bundle', () => {
       .map((f) => f.path.replace(/\\/g, '/'));
     expect(offenders).toEqual([]);
   });
+
+  // A third leg — "no production source mentions the credential HEADER" — was
+  // tried and rejected as the wrong instrument: 24 legitimate mentions survive
+  // in types/generated/api.ts (describing the header the BACKEND accepts), in
+  // WebhookForm's placeholder and RecordingDetailModal's REDACTION list, and in
+  // the comments that explain the ruling. The behavioural pin lives instead in
+  // services/api.test.ts ("sends NO credential header"), which asserts on the
+  // headers actually handed to fetch — a header set from anywhere trips that,
+  // and prose cannot trip it spuriously.
 });

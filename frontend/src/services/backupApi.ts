@@ -25,7 +25,6 @@ import type {
 // ============================================================================
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
-const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 const API_BASE = '/api/backup';
 
 // ============================================================================
@@ -58,9 +57,6 @@ function buildHeaders(contentType?: string): HeadersInit {
   const headers: Record<string, string> = {};
   if (contentType) {
     headers['Content-Type'] = contentType;
-  }
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY;
   }
   return headers;
 }
@@ -287,9 +283,6 @@ export async function startRestore(file: File): Promise<RestoreJobStartResponse>
   // Note: Don't set Content-Type header - browser will set it automatically
   // with the correct boundary for multipart/form-data
   const headers: Record<string, string> = {};
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY;
-  }
 
   try {
     const response = await fetch(url, {

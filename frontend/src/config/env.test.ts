@@ -12,7 +12,6 @@ import {
   isValidUrl,
   getBaseUrl,
   getWsBaseUrl,
-  getApiKey,
   isDevelopment,
   isProduction,
   isTest,
@@ -63,7 +62,6 @@ describe('env validation', () => {
       const env = {
         VITE_API_BASE_URL: 'http://localhost:8000',
         VITE_WS_BASE_URL: 'ws://localhost:8000',
-        VITE_API_KEY: 'test-api-key', // pragma: allowlist secret
         MODE: 'development',
       };
 
@@ -120,7 +118,6 @@ describe('env validation', () => {
       const env = {
         VITE_API_BASE_URL: 'http://localhost:8000',
         VITE_WS_BASE_URL: 'ws://localhost:8000',
-        VITE_API_KEY: 'secret-key', // pragma: allowlist secret
         MODE: 'production',
       };
 
@@ -129,7 +126,6 @@ describe('env validation', () => {
       expect(config).toEqual({
         apiBaseUrl: 'http://localhost:8000',
         wsBaseUrl: 'ws://localhost:8000',
-        apiKey: 'secret-key', // pragma: allowlist secret
         mode: 'production',
         isDevelopment: false,
         isProduction: true,
@@ -151,7 +147,6 @@ describe('env validation', () => {
 
       expect(config).toHaveProperty('apiBaseUrl');
       expect(config).toHaveProperty('wsBaseUrl');
-      expect(config).toHaveProperty('apiKey');
       expect(config).toHaveProperty('mode');
       expect(config).toHaveProperty('isDevelopment');
       expect(config).toHaveProperty('isProduction');
@@ -168,11 +163,6 @@ describe('env validation', () => {
     it('getWsBaseUrl returns the WebSocket base URL', () => {
       const wsUrl = getWsBaseUrl();
       expect(wsUrl === undefined || typeof wsUrl === 'string').toBe(true);
-    });
-
-    it('getApiKey returns the configured value', () => {
-      const key = getApiKey(); // pragma: allowlist secret
-      expect(key === undefined || typeof key === 'string').toBe(true);
     });
 
     it('isDevelopment returns boolean', () => {
@@ -217,7 +207,6 @@ describe('env validation', () => {
       const config: EnvConfig = {
         apiBaseUrl: '',
         wsBaseUrl: undefined,
-        apiKey: undefined,
         mode: 'development',
         isDevelopment: true,
         isProduction: false,
