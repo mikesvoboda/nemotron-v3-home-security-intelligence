@@ -507,8 +507,8 @@ the specialist lookups and the key frames, and nothing else is consulted.
 - [AI Pipeline — Current State](../architecture/ai-pipeline-current-state.md)
 - [AI Services Guide](../../ai/AGENTS.md)
 - [AI Gateway](../../ai/gateway/AGENTS.md)
-- [Triton Model Repository](../../ai/triton/AGENTS.md)
-- [YOLO26 Detection Server](../../ai/yolo26/AGENTS.md)
+- [Triton Model Repository](../../ai/AGENTS.md) (Triton section of the lane guide)
+- [YOLO26 Detection Server](../../ai/AGENTS.md) (YOLO26 section of the lane guide)
 - [Risk Levels Configuration](config/risk-levels.md)
 - [GPU Troubleshooting](troubleshooting/gpu-issues.md)
 

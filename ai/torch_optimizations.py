@@ -40,7 +40,7 @@ TensorRT Optimization:
 
     from ai.common import TensorRTInferenceBase, TensorRTConverter
 
-    See ai/common/AGENTS.md for full documentation.
+    See the Common TensorRT section of ai/AGENTS.md for full documentation.
 """
 
 from __future__ import annotations

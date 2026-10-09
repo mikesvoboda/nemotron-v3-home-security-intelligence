@@ -197,5 +197,5 @@ written first.
 
 - `/backend/tests/AGENTS.md` - Test infrastructure overview
 - `/backend/tests/e2e/AGENTS.md` - End-to-end pipeline testing
-- `/ai/yolo26/AGENTS.md` - YOLO26 detection server
+- `/ai/AGENTS.md` - AI lane guide (YOLO26 section: the host-run dev stand-in)
 - `/ai/nemotron/AGENTS.md` - Nemotron LLM risk analysis

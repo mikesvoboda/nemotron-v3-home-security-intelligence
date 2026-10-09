@@ -3160,5 +3160,5 @@ assert clamped == (10, 10, 100, 100)
 - `/backend/api/schemas/AGENTS.md` - Pydantic schema documentation
 - `/backend/core/AGENTS.md` - Core infrastructure documentation
 - `/ai/AGENTS.md` - AI pipeline overview
-- `/ai/yolo26/AGENTS.md` - YOLO26v2 detection server
+- `/ai/AGENTS.md` - AI lane guide (YOLO26 section: the retired server + host-run dev stand-in)
 - `/ai/gateway/AGENTS.md` - The Triton gateway the detection and specialist calls ride

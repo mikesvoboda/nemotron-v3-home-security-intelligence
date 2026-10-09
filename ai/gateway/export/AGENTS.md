@@ -27,10 +27,10 @@ Scripts that convert HuggingFace/PyTorch models into Triton-servable artifacts: 
 
 ## Patterns / Gotchas
 
-- TensorRT engines are GPU-architecture-specific — rebuild after moving GPUs (see `ai/common/AGENTS.md` caching).
+- TensorRT engines are GPU-architecture-specific — rebuild after moving GPUs (see `ai/AGENTS.md` appendix, Common TensorRT infrastructure).
 - Runs inside the ai-gateway image (`torch`/`transformers`/`ultralytics`/`onnx` are installed there for this pipeline), not in the backend env.
 - Florence-2 is deliberately NOT here — it serves via Triton's Python backend, not exported. (xclip_action used to be in that same boat; it was retired with NEM-5563, superseded by the exported `stgcn_action` ONNX + the gateway's per-frame pose stage.)
 
 ## Related
 
-- `../AGENTS.md` (gateway), `../../triton/AGENTS.md`
+- `../AGENTS.md` (gateway); Triton rules are in `../../AGENTS.md` and its appendix

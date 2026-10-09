@@ -169,4 +169,4 @@ for image_path in IMAGES_DIR.glob("*.jpg"):
 - `/backend/tests/AGENTS.md` - Overview of test infrastructure
 - `/backend/tests/fixtures/AGENTS.md` - Parent fixtures directory
 - `/backend/tests/e2e/test_gpu_pipeline.py` - E2E tests using these images
-- `/ai/yolo26/AGENTS.md` - YOLO26 detection model documentation
+- `/ai/AGENTS.md` - AI lane guide (YOLO26 section)

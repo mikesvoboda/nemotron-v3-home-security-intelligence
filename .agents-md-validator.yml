@@ -99,7 +99,12 @@ exclude_reference_patterns:
 # 159 -> 153 with it; counts hand-fall in the PR that removes the mentions;
 # re-measured at W3.1 deletion batch 1 — identical 93/143/153/10/2, now over
 # 235 scanned (245 -> 235: the ten deleted synthbench satellite guides named
-# none of the five, so the denominator moved and the counts did not)). `pose` is OUT of the ratchet
+# none of the five, so the denominator moved and the counts did not);
+# at batch 2 the deleted ai/ satellites carried retired-name mentions, and
+# the boundary files they left behind lost their stale five-adapter rows, so
+# the counts fell and the ceilings hand-fell to the final measurement:
+# 85/143/145/10/2 over 225 scanned — florence 93 -> 85 and enrichment
+# 153 -> 145, the other three unmoved). `pose` is OUT of the ratchet
 # per the owner's ruling on #6870 (2026-10-08): the count is dominated by the
 # LIVE Triton model actually named `pose`, so it mixes live and retired usage
 # (it measured 37 whole-word while watched). It comes back if R2 retires the
@@ -118,10 +123,14 @@ exclude_reference_patterns:
 # pinned by test_substitution_does_not_green_a_total. ALL FIVE KEYS ARE REQUIRED: the
 # run exits 2 without any one of them (absent is neither 0 nor unchecked).
 retired_name_baseline:
-  florence: 93 # retired ai/florence path (W1.3 drained its dead-reference citations
-  # without adding florence mentions — the count is unchanged by design)
+  florence: 84 # retired ai/florence path (W1.3 drained its dead-reference citations
+  # without adding florence mentions — the count is unchanged by design; W3.1
+  # batch 2 removed nine mentions — the deleted ai/ satellites plus stale
+  # five-adapter prose in ai/gateway/AGENTS.md — 93 -> 84, hand-fall)
   nemotron: 143 # the retired model family (the repo's own name string)
-  enrichment: 153 # retired ai/enrichment component (W1.3 drained six dead-citing mentions)
+  enrichment: 145 # retired ai/enrichment component (W1.3 drained six dead-citing mentions;
+  # W3.1 batch 2 removed eight more — the deleted ai/ satellites plus the same
+  # stale gateway prose — 153 -> 145, hand-fall)
   xclip: 10 # retired clip pipeline
   demographics: 2
 
