@@ -142,15 +142,17 @@ class TestCheckCameraRoot:
         assert f"prod.yml: {mount}" in v.detail
 
     def test_one_bare_file_among_relabelling_ones_warns_and_names_only_it(self) -> None:
-        v = _check({"prod.yml": ["r:/cameras:z"], "ghcr.yml": ["r:/cameras:ro"]})
+        # Fixture names are arbitrary; O1.2 / UR-17 retired the compose file the
+        # second one used to be named after (scripts/test_retired_paths.py).
+        v = _check({"prod.yml": ["r:/cameras:z"], "legacy.yml": ["r:/cameras:ro"]})
         assert v.verdict == WARN
-        assert "ghcr.yml: r:/cameras:ro" in v.detail
+        assert "legacy.yml: r:/cameras:ro" in v.detail
         assert "prod.yml: " not in v.detail
 
     def test_no_backend_mount_anywhere_warns_naming_the_files_read(self) -> None:
-        v = _check({"prod.yml": [], "ghcr.yml": []})
+        v = _check({"prod.yml": [], "legacy.yml": []})
         assert v.verdict == WARN
-        assert "no backend /cameras mount found in prod.yml, ghcr.yml" in v.detail
+        assert "no backend /cameras mount found in prod.yml, legacy.yml" in v.detail
 
     def test_an_unreadable_label_under_enforcing_warns(self) -> None:
         v = _check({"prod.yml": ["r:/cameras"]}, label=None)

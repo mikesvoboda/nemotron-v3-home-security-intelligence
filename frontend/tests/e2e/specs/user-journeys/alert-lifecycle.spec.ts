@@ -26,13 +26,13 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
     const timeout = browserName === 'chromium' ? 10000 : 20000;
     await page.waitForSelector('[data-testid="dashboard-container"]', {
       state: 'visible',
-      timeout
+      timeout,
     });
 
     // Wait for main content to be ready (handles lazy loading)
     await page.waitForSelector('[data-testid="main-content"]', {
       state: 'visible',
-      timeout: 5000
+      timeout: 5000,
     });
   });
 
@@ -47,9 +47,9 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
     await expect(page).toHaveURL('/');
 
     // When: Click alerts navigation link (navigation is always visible)
-    const alertsLink = page.locator('[data-testid="nav-alerts"]').or(
-      page.locator('a[href="/alerts"]')
-    );
+    const alertsLink = page
+      .locator('[data-testid="nav-alerts"]')
+      .or(page.locator('a[href="/alerts"]'));
 
     await expect(alertsLink.first()).toBeVisible({ timeout: 10000 });
     await alertsLink.first().click();
@@ -78,12 +78,12 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // When: Locate severity filter dropdown/buttons
-    const severityFilter = page.locator('[data-testid="severity-filter"]').or(
-      page.locator('[data-testid="filter-severity"]')
-    );
+    const severityFilter = page
+      .locator('[data-testid="severity-filter"]')
+      .or(page.locator('[data-testid="filter-severity"]'));
 
     // Check if filter exists
-    if (await severityFilter.count() > 0) {
+    if ((await severityFilter.count()) > 0) {
       await expect(severityFilter.first()).toBeVisible();
 
       // Get initial alert count
@@ -91,13 +91,11 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
       const initialCount = await allAlerts.count();
 
       // Select high severity filter
-      const highSeverityOption = page.locator('[data-testid="severity-high"]').or(
-        page.locator('button:has-text("High")').or(
-          page.locator('option:has-text("High")')
-        )
-      );
+      const highSeverityOption = page
+        .locator('[data-testid="severity-high"]')
+        .or(page.locator('button:has-text("High")').or(page.locator('option:has-text("High")')));
 
-      if (await highSeverityOption.count() > 0) {
+      if ((await highSeverityOption.count()) > 0) {
         await highSeverityOption.first().click();
 
         // Then: Wait for filter to apply
@@ -133,30 +131,30 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
     // Find first unacknowledged alert
     const alerts = page.locator('[data-testid^="event-card-"]');
 
-    if (await alerts.count() > 0) {
+    if ((await alerts.count()) > 0) {
       const firstAlert = alerts.first();
       await expect(firstAlert).toBeVisible();
 
       // When: Click acknowledge button
-      const acknowledgeButton = firstAlert.locator('[data-testid="acknowledge-button"]').or(
-        firstAlert.locator('button:has-text("Acknowledge")')
-      );
+      const acknowledgeButton = firstAlert
+        .locator('[data-testid="acknowledge-button"]')
+        .or(firstAlert.locator('button:has-text("Acknowledge")'));
 
       // Check if acknowledge button exists
-      if (await acknowledgeButton.count() > 0) {
+      if ((await acknowledgeButton.count()) > 0) {
         await acknowledgeButton.click();
 
         // Then: Verify status change
         // Look for acknowledged status indicator
-        const acknowledgedStatus = firstAlert.locator('[data-testid="alert-status-acknowledged"]').or(
-          firstAlert.locator('[data-testid*="acknowledged"]')
-        );
+        const acknowledgedStatus = firstAlert
+          .locator('[data-testid="alert-status-acknowledged"]')
+          .or(firstAlert.locator('[data-testid*="acknowledged"]'));
 
         // Status should appear or button should be disabled/hidden
         await page.waitForTimeout(1000);
 
         // Verify either status badge appears or button is disabled
-        const statusVisible = await acknowledgedStatus.count() > 0;
+        const statusVisible = (await acknowledgedStatus.count()) > 0;
         const buttonDisabled = await acknowledgeButton.isDisabled().catch(() => true);
         const buttonHidden = await acknowledgeButton.isHidden().catch(() => true);
 
@@ -182,26 +180,24 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
     // When: Click on first alert
     const firstAlert = page.locator('[data-testid^="event-card-"]').first();
 
-    if (await firstAlert.count() > 0) {
+    if ((await firstAlert.count()) > 0) {
       await firstAlert.click();
 
       // Then: Alert detail should open (either modal or expanded view)
-      const alertDetail = page.locator('[data-testid="alert-detail-modal"]').or(
-        page.locator('[data-testid="alert-detail"]').or(
-          page.locator('[data-testid="event-detail-modal"]')
-        )
-      );
+      const alertDetail = page
+        .locator('[data-testid="alert-detail-modal"]')
+        .or(
+          page
+            .locator('[data-testid="alert-detail"]')
+            .or(page.locator('[data-testid="event-detail-modal"]'))
+        );
 
       await expect(alertDetail.first()).toBeVisible({ timeout: 5000 });
 
       // Verify detail contains key information
-      await expect(
-        alertDetail.first().locator('[data-testid*="timestamp"]')
-      ).toBeVisible();
+      await expect(alertDetail.first().locator('[data-testid*="timestamp"]')).toBeVisible();
 
-      await expect(
-        alertDetail.first().locator('[data-testid*="severity"]')
-      ).toBeVisible();
+      await expect(alertDetail.first().locator('[data-testid*="severity"]')).toBeVisible();
     }
   });
 
@@ -219,12 +215,12 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // Then: Look for summary statistics
-    const summarySection = page.locator('[data-testid="alerts-summary"]').or(
-      page.locator('[data-testid="alert-stats"]')
-    );
+    const summarySection = page
+      .locator('[data-testid="alerts-summary"]')
+      .or(page.locator('[data-testid="alert-stats"]'));
 
     // Check if summary section exists
-    if (await summarySection.count() > 0) {
+    if ((await summarySection.count()) > 0) {
       await expect(summarySection.first()).toBeVisible();
 
       // Verify summary contains numeric statistics
@@ -257,11 +253,11 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
     await expect(page.locator('h1:has-text("Alerts")')).toBeVisible({ timeout: 10000 });
 
     // Check if batch actions are available
-    const batchActionButton = page.locator('[data-testid="batch-acknowledge"]').or(
-      page.locator('[data-testid="acknowledge-all"]')
-    );
+    const batchActionButton = page
+      .locator('[data-testid="batch-acknowledge"]')
+      .or(page.locator('[data-testid="acknowledge-all"]'));
 
-    if (await batchActionButton.count() > 0) {
+    if ((await batchActionButton.count()) > 0) {
       await expect(batchActionButton.first()).toBeVisible();
 
       // Get initial alert count
@@ -307,18 +303,16 @@ test.describe('Alert Lifecycle Journey (NEM-1664)', () => {
     // When: Locate alerts with severity indicators
     const alerts = page.locator('[data-testid^="event-card-"]');
 
-    if (await alerts.count() > 0) {
+    if ((await alerts.count()) > 0) {
       const firstAlert = alerts.first();
       await expect(firstAlert).toBeVisible();
 
       // Then: Verify severity badge exists with color/styling
-      const severityBadge = firstAlert.locator('[data-testid*="severity"]').or(
-        firstAlert.locator('.severity-badge').or(
-          firstAlert.locator('[class*="severity"]')
-        )
-      );
+      const severityBadge = firstAlert
+        .locator('[data-testid*="severity"]')
+        .or(firstAlert.locator('.severity-badge').or(firstAlert.locator('[class*="severity"]')));
 
-      if (await severityBadge.count() > 0) {
+      if ((await severityBadge.count()) > 0) {
         await expect(severityBadge.first()).toBeVisible();
 
         // Verify badge has styling (background color, text color, etc.)

@@ -28,14 +28,19 @@ import type { Page, Route } from '@playwright/test';
  */
 async function clickEventCheckbox(page: Page, index: number): Promise<void> {
   // Get all checkbox buttons (both selected and unselected)
-  const checkboxes = page.locator('button').filter({
-    has: page.locator('svg'), // Has an icon (Square or CheckSquare)
-  }).filter({
-    hasText: '', // Filter for buttons with no text content (icon-only)
-  });
+  const checkboxes = page
+    .locator('button')
+    .filter({
+      has: page.locator('svg'), // Has an icon (Square or CheckSquare)
+    })
+    .filter({
+      hasText: '', // Filter for buttons with no text content (icon-only)
+    });
 
   // Find checkboxes with specific aria-labels
-  const eventCheckboxes = page.locator('button[aria-label*="Select event"], button[aria-label*="Deselect event"]');
+  const eventCheckboxes = page.locator(
+    'button[aria-label*="Select event"], button[aria-label*="Deselect event"]'
+  );
   await eventCheckboxes.nth(index).click();
 }
 
@@ -55,21 +60,21 @@ test.describe('Batch Operations - Event Selection', () => {
     expect(eventCount).toBeGreaterThanOrEqual(3);
 
     // Select first event using helper function
-    await clickEventCheckbox(page,0);
+    await clickEventCheckbox(page, 0);
     await expect(timelinePage.selectedCount).toHaveText('1 selected');
 
     // Select second event
-    await clickEventCheckbox(page,1);
+    await clickEventCheckbox(page, 1);
     await expect(timelinePage.selectedCount).toHaveText('2 selected');
 
     // Select third event
-    await clickEventCheckbox(page,2);
+    await clickEventCheckbox(page, 2);
     await expect(timelinePage.selectedCount).toHaveText('3 selected');
   });
 
   test('can deselect events by clicking checkbox again', async ({ page }) => {
     // Select first event
-    await clickEventCheckbox(page,0);
+    await clickEventCheckbox(page, 0);
     await expect(timelinePage.selectedCount).toHaveText('1 selected');
 
     // Deselect first event by clicking again (toggle)
@@ -112,7 +117,7 @@ test.describe('Batch Operations - Event Selection', () => {
   // TODO: Fix modal navigation causing test instability
   test.skip('selection persists when navigating between events', async ({ page }) => {
     // Select first event
-    await clickEventCheckbox(page,0);
+    await clickEventCheckbox(page, 0);
     await expect(timelinePage.selectedCount).toHaveText('1 selected');
 
     // Click event to open modal (wait for modal content to be visible)
@@ -154,7 +159,7 @@ test.describe('Batch Operations - Bulk Mark as Reviewed', () => {
     await expect(timelinePage.markReviewedButton).not.toBeVisible();
 
     // Select first event
-    await clickEventCheckbox(page,0);
+    await clickEventCheckbox(page, 0);
     await expect(timelinePage.selectedCount).toHaveText('1 selected');
 
     // Button should now be visible (with increased timeout for state update)
@@ -198,9 +203,9 @@ test.describe('Batch Operations - Bulk Mark as Reviewed', () => {
     });
 
     // Select 3 events
-    await clickEventCheckbox(page,0);
-    await clickEventCheckbox(page,1);
-    await clickEventCheckbox(page,2);
+    await clickEventCheckbox(page, 0);
+    await clickEventCheckbox(page, 1);
+    await clickEventCheckbox(page, 2);
     await expect(timelinePage.selectedCount).toHaveText('3 selected');
 
     // Click bulk mark as reviewed
@@ -242,8 +247,8 @@ test.describe('Batch Operations - Bulk Mark as Reviewed', () => {
     });
 
     // Select 2 events
-    await clickEventCheckbox(page,0);
-    await clickEventCheckbox(page,1);
+    await clickEventCheckbox(page, 0);
+    await clickEventCheckbox(page, 1);
     await expect(timelinePage.selectedCount).toHaveText('2 selected');
 
     // Mark Not Reviewed button should be visible
@@ -276,7 +281,7 @@ test.describe('Batch Operations - Bulk Mark as Reviewed', () => {
     });
 
     // Select one event
-    await clickEventCheckbox(page,0);
+    await clickEventCheckbox(page, 0);
 
     // Click bulk mark as reviewed
     const markReviewedPromise = timelinePage.markSelectedAsReviewed();
@@ -309,8 +314,8 @@ test.describe('Batch Operations - Bulk Mark as Reviewed', () => {
     });
 
     // Select 2 events
-    await clickEventCheckbox(page,0);
-    await clickEventCheckbox(page,1);
+    await clickEventCheckbox(page, 0);
+    await clickEventCheckbox(page, 1);
 
     // Mark as reviewed
     await timelinePage.markSelectedAsReviewed();
@@ -326,14 +331,15 @@ test.describe('Batch Operations - Bulk Mark as Reviewed', () => {
 
   // TODO: Enable when bulk mark UI components are implemented
   test.skip('bulk action buttons have proper aria-labels', async ({ page }) => {
-    await clickEventCheckbox(page,0);
+    await clickEventCheckbox(page, 0);
 
     // Check Mark as Reviewed button aria-label
     const markReviewedLabel = await timelinePage.markReviewedButton.getAttribute('aria-label');
     expect(markReviewedLabel).toMatch(/Mark \d+ selected event/);
 
     // Check Mark Not Reviewed button aria-label
-    const markNotReviewedLabel = await timelinePage.markNotReviewedButton.getAttribute('aria-label');
+    const markNotReviewedLabel =
+      await timelinePage.markNotReviewedButton.getAttribute('aria-label');
     expect(markNotReviewedLabel).toMatch(/Mark \d+ selected event/);
   });
 });
@@ -578,7 +584,7 @@ test.describe('Batch Operations - Select All Functionality', () => {
     expect(eventCount).toBeGreaterThanOrEqual(2);
 
     // Select first event
-    await clickEventCheckbox(page,0);
+    await clickEventCheckbox(page, 0);
 
     // Select all button should still show partial state (not all selected)
     const selectAllText = await timelinePage.selectAllButton.textContent();
@@ -586,7 +592,7 @@ test.describe('Batch Operations - Select All Functionality', () => {
 
     // Select all remaining events manually
     for (let i = 1; i < eventCount; i++) {
-      await clickEventCheckbox(page,i);
+      await clickEventCheckbox(page, i);
     }
 
     // Now select all button should show all selected state
@@ -611,7 +617,7 @@ test.describe('Batch Operations - Select All Functionality', () => {
 
   test('selection clears when changing pages', async ({ page }) => {
     // Select first event
-    await clickEventCheckbox(page,0);
+    await clickEventCheckbox(page, 0);
     await expect(timelinePage.selectedCount).toHaveText('1 selected');
 
     // Note: With default mock data, pagination might not be visible
@@ -652,10 +658,13 @@ test.describe('Batch Operations - Edge Cases', () => {
   // TODO: Enable when checkbox visual feedback UI is implemented
   test.skip('selection state visual feedback is clear', async ({ page }) => {
     // Select first event
-    await clickEventCheckbox(page,0);
+    await clickEventCheckbox(page, 0);
 
     // Verify checkbox shows selected state (CheckSquare icon with green color)
-    const firstCheckbox = timelinePage.eventCards.first().locator('button[aria-label*="Deselect"]').first();
+    const firstCheckbox = timelinePage.eventCards
+      .first()
+      .locator('button[aria-label*="Deselect"]')
+      .first();
     await expect(firstCheckbox).toBeVisible();
 
     // Icon should have green color class
@@ -666,7 +675,10 @@ test.describe('Batch Operations - Edge Cases', () => {
   // TODO: Enable when checkbox keyboard navigation is implemented
   test.skip('keyboard navigation works with checkboxes', async ({ page }) => {
     // Focus first checkbox
-    const firstCheckbox = timelinePage.eventCards.first().locator('button[aria-label*="Select"]').first();
+    const firstCheckbox = timelinePage.eventCards
+      .first()
+      .locator('button[aria-label*="Select"]')
+      .first();
     await firstCheckbox.focus();
 
     // Press Enter to select
@@ -692,7 +704,10 @@ test.describe('Batch Operations - Edge Cases', () => {
           status: 207,
           contentType: 'application/json',
           body: JSON.stringify({
-            successful: [{ id: 1, status: 200 }, { id: 2, status: 200 }],
+            successful: [
+              { id: 1, status: 200 },
+              { id: 2, status: 200 },
+            ],
             failed: [],
             summary: { total: 2, succeeded: 2, failed: 0 },
           }),
@@ -701,8 +716,8 @@ test.describe('Batch Operations - Edge Cases', () => {
     });
 
     // Select multiple events (different risk levels)
-    await clickEventCheckbox(page,0);
-    await clickEventCheckbox(page,1);
+    await clickEventCheckbox(page, 0);
+    await clickEventCheckbox(page, 1);
 
     // Bulk mark as reviewed should work
     await timelinePage.markSelectedAsReviewed();
@@ -717,15 +732,15 @@ test.describe('Batch Operations - Edge Cases', () => {
   test('rapid selection changes are handled correctly', async ({ page }) => {
     // Rapidly toggle selection
     for (let i = 0; i < 3; i++) {
-      await clickEventCheckbox(page,0);
-      await clickEventCheckbox(page,0); // Deselect
+      await clickEventCheckbox(page, 0);
+      await clickEventCheckbox(page, 0); // Deselect
     }
 
     // Final state should be deselected
     await expect(timelinePage.selectedCount).not.toBeVisible();
 
     // Select and verify final state
-    await clickEventCheckbox(page,0);
+    await clickEventCheckbox(page, 0);
     await expect(timelinePage.selectedCount).toHaveText('1 selected');
   });
 });

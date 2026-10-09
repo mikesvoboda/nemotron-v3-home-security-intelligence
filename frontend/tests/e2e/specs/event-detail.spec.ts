@@ -41,7 +41,10 @@ async function waitForModalContent(page: Page) {
   // Headless UI transitions cause visibility issues, so we wait for the heading specifically
   // which is inside the Dialog.Panel (the actual modal content container).
   // Using getByRole is more reliable than data-testid during Headless UI transitions.
-  const modalHeading = page.getByRole('heading', { level: 2, name: /Front Door|Back Yard|Garage|Driveway|Unknown Camera/i });
+  const modalHeading = page.getByRole('heading', {
+    level: 2,
+    name: /Front Door|Back Yard|Garage|Driveway|Unknown Camera/i,
+  });
   await expect(modalHeading).toBeVisible({
     timeout: 15000,
   });
@@ -199,7 +202,7 @@ test.describe.skip('Event Detail Modal - Mark as Reviewed', () => {
     const markReviewedButton = page.locator('[data-testid="mark-reviewed"]');
 
     // Check if button exists (may not exist if event is already reviewed)
-    const buttonExists = await markReviewedButton.count() > 0;
+    const buttonExists = (await markReviewedButton.count()) > 0;
 
     if (buttonExists) {
       await expect(markReviewedButton).toBeVisible();
@@ -210,7 +213,7 @@ test.describe.skip('Event Detail Modal - Mark as Reviewed', () => {
   test('mark as reviewed button is clickable', async ({ page }) => {
     const markReviewedButton = page.locator('[data-testid="mark-reviewed"]');
 
-    const buttonExists = await markReviewedButton.count() > 0;
+    const buttonExists = (await markReviewedButton.count()) > 0;
 
     if (buttonExists) {
       await expect(markReviewedButton).toBeEnabled();
@@ -222,8 +225,8 @@ test.describe.skip('Event Detail Modal - Mark as Reviewed', () => {
 
     // Either the button exists (unreviewed) or the status shows reviewed
     const markReviewedButton = page.locator('[data-testid="mark-reviewed"]');
-    const buttonExists = await markReviewedButton.count() > 0;
-    const statusExists = await reviewedStatus.count() > 0;
+    const buttonExists = (await markReviewedButton.count()) > 0;
+    const statusExists = (await reviewedStatus.count()) > 0;
 
     // One or the other should be true
     expect(buttonExists || statusExists).toBe(true);
@@ -423,7 +426,10 @@ test.describe.skip('Event Detail Modal - Tab Navigation', () => {
     const modal = page.locator('[data-testid="event-detail-modal"]');
 
     // Default view shows AI summary
-    let aiSummaryVisible = await modal.locator('[data-testid="ai-analysis-section"]').isVisible().catch(() => false);
+    let aiSummaryVisible = await modal
+      .locator('[data-testid="ai-analysis-section"]')
+      .isVisible()
+      .catch(() => false);
     expect(aiSummaryVisible).toBe(true);
 
     // Switch to AI Audit tab
@@ -570,8 +576,8 @@ test.describe.skip('Event Detail Modal - Navigation Buttons', () => {
     const nextButton = modal.locator('button[aria-label="Next event"]');
 
     // Both should exist (they're always rendered when onNavigate is provided)
-    const prevExists = await previousButton.count() > 0;
-    const nextExists = await nextButton.count() > 0;
+    const prevExists = (await previousButton.count()) > 0;
+    const nextExists = (await nextButton.count()) > 0;
 
     expect(prevExists).toBe(true);
     expect(nextExists).toBe(true);

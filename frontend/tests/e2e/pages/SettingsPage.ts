@@ -68,14 +68,30 @@ export class SettingsPage extends BasePage {
     // Order: Cameras, Rules, Processing, Notifications, Ambient, Calibration, Prompts, Storage
     // Note: AI Models tab was moved to /ai page
     this.tabList = page.locator('[role="tablist"]');
-    this.camerasTab = page.getByRole('tab', { name: /CAMERAS/i }).or(page.locator('button').filter({ hasText: 'CAMERAS' }));
-    this.rulesTab = page.getByRole('tab', { name: /RULES/i }).or(page.locator('button').filter({ hasText: 'RULES' }));
-    this.processingTab = page.getByRole('tab', { name: /PROCESSING/i }).or(page.locator('button').filter({ hasText: 'PROCESSING' }));
-    this.notificationsTab = page.getByRole('tab', { name: /NOTIFICATIONS/i }).or(page.locator('button').filter({ hasText: 'NOTIFICATIONS' }));
-    this.ambientTab = page.getByRole('tab', { name: /AMBIENT/i }).or(page.locator('button').filter({ hasText: 'AMBIENT' }));
-    this.calibrationTab = page.getByRole('tab', { name: /CALIBRATION/i }).or(page.locator('button').filter({ hasText: 'CALIBRATION' }));
-    this.promptsTab = page.getByRole('tab', { name: /PROMPTS/i }).or(page.locator('button').filter({ hasText: 'PROMPTS' }));
-    this.storageTab = page.getByRole('tab', { name: /STORAGE/i }).or(page.locator('button').filter({ hasText: 'STORAGE' }));
+    this.camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
+      .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
+    this.rulesTab = page
+      .getByRole('tab', { name: /RULES/i })
+      .or(page.locator('button').filter({ hasText: 'RULES' }));
+    this.processingTab = page
+      .getByRole('tab', { name: /PROCESSING/i })
+      .or(page.locator('button').filter({ hasText: 'PROCESSING' }));
+    this.notificationsTab = page
+      .getByRole('tab', { name: /NOTIFICATIONS/i })
+      .or(page.locator('button').filter({ hasText: 'NOTIFICATIONS' }));
+    this.ambientTab = page
+      .getByRole('tab', { name: /AMBIENT/i })
+      .or(page.locator('button').filter({ hasText: 'AMBIENT' }));
+    this.calibrationTab = page
+      .getByRole('tab', { name: /CALIBRATION/i })
+      .or(page.locator('button').filter({ hasText: 'CALIBRATION' }));
+    this.promptsTab = page
+      .getByRole('tab', { name: /PROMPTS/i })
+      .or(page.locator('button').filter({ hasText: 'PROMPTS' }));
+    this.storageTab = page
+      .getByRole('tab', { name: /STORAGE/i })
+      .or(page.locator('button').filter({ hasText: 'STORAGE' }));
 
     // Tab Panels (filter to visible panel only to avoid strict mode violation)
     this.tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])');
@@ -188,7 +204,17 @@ export class SettingsPage extends BasePage {
   /**
    * Check if a tab is selected
    */
-  async isTabSelected(tab: 'cameras' | 'rules' | 'processing' | 'notifications' | 'ambient' | 'calibration' | 'prompts' | 'storage'): Promise<boolean> {
+  async isTabSelected(
+    tab:
+      | 'cameras'
+      | 'rules'
+      | 'processing'
+      | 'notifications'
+      | 'ambient'
+      | 'calibration'
+      | 'prompts'
+      | 'storage'
+  ): Promise<boolean> {
     const tabs: Record<string, Locator> = {
       cameras: this.camerasTab,
       rules: this.rulesTab,

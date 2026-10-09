@@ -248,7 +248,7 @@ jobs:
 
       - name: Create alert issue if needed
         if: steps.health-check.outputs.ALERTS_FOUND == 'true'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3    # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const alertMessages = process.env.ALERT_MESSAGES || 'CI health check failed';

@@ -13,7 +13,12 @@
 
 import { test, expect } from '@playwright/test';
 import { DashboardPage } from '../pages';
-import { setupApiMocks, defaultMockConfig, emptyMockConfig, highAlertMockConfig } from '../fixtures';
+import {
+  setupApiMocks,
+  defaultMockConfig,
+  emptyMockConfig,
+  highAlertMockConfig,
+} from '../fixtures';
 
 test.describe('Dashboard Visual Regression', () => {
   test.beforeEach(async ({ page }) => {

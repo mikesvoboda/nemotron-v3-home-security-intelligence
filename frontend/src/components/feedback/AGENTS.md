@@ -6,10 +6,10 @@ Contains React components for event feedback functionality, enabling users to pr
 
 ## Files
 
-| File                      | Purpose                                           |
-| ------------------------- | ------------------------------------------------- |
-| `FeedbackPanel.tsx`       | Feedback submission panel for event detail modal  |
-| `FeedbackPanel.test.tsx`  | Test suite for FeedbackPanel                      |
+| File                     | Purpose                                          |
+| ------------------------ | ------------------------------------------------ |
+| `FeedbackPanel.tsx`      | Feedback submission panel for event detail modal |
+| `FeedbackPanel.test.tsx` | Test suite for FeedbackPanel                     |
 
 ## Key Components
 

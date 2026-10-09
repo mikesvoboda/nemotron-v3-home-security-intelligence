@@ -20,12 +20,11 @@ This directory contains GitHub-specific configuration files for the Home Securit
   prompts/                    # AI prompt templates
     AGENTS.md                 # Prompts directory guide
     code-review.prompt.md     # System prompt for AI code review
-  workflows/                  # GitHub Actions workflow definitions (39 workflows)
+  workflows/                  # GitHub Actions workflow definitions (38 workflows)
     AGENTS.md                 # Workflows directory guide
     # Core CI/CD
     ci.yml                    # Main CI pipeline
     deploy.yml                # Docker image build and push
-    preview-deploy.yml        # PR preview container builds
     release.yml               # Release workflow
     semantic-release.yml      # Semantic versioning releases
     release-drafter.yml       # Draft release notes (workflow trigger)
@@ -193,32 +192,12 @@ those floors, so review such hunks by hand.
   `publish-latest`, AFTER the smoke test passes (O1.9), so `:latest` names the
   last VALIDATED commit and lags the newest build while a run is in flight
 
-### Preview Deploy Pipeline (preview-deploy.yml)
-
-**Trigger:** Pull request events (opened, synchronize, reopened, closed)
-
-**Purpose:** Build preview containers for pull requests to enable local testing before merge.
-
-**Jobs:**
-
-| Job             | When              | Description                            |
-| --------------- | ----------------- | -------------------------------------- |
-| build-preview   | PR opened/updated | Build and push containers with PR tags |
-| comment-preview | After build       | Post docker-compose instructions to PR |
-| cleanup-preview | PR closed         | Delete preview images from GHCR        |
-
-**Image Tags:**
-
-- `ghcr.io/{owner}/{repo}/backend:pr-{number}`
-- `ghcr.io/{owner}/{repo}/frontend:pr-{number}`
-
-**Usage:**
-
-1. Open a PR against main
-2. Workflow builds containers tagged with PR number
-3. PR comment includes docker-compose.preview.yml snippet
-4. Testers pull and run containers locally
-5. Containers cleaned up when PR closes
+> **Removed 2026-10-09 (O1.4):** the PR preview-container pipeline — its only
+> trigger was manual dispatch while its body read pull-request context (never
+> populated there), it had no successful run since 2026-01-06, and its PR
+> comment advertised retired service URLs. 30-ops.md's DECIDE rule: 90+ silent
+> days means delete. On the retired-paths list (scripts/retired_paths.txt);
+> its history lives in git.
 
 ### Security Workflows
 

@@ -164,7 +164,6 @@ test.describe('Timeline Event Tests @smoke', () => {
  * Color-contrast is now enforced after WCAG 2.1 AA compliance fixes (NEM-1481).
  */
 test.describe('Accessibility Smoke Tests @smoke @critical', () => {
-
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
   });
@@ -174,9 +173,7 @@ test.describe('Accessibility Smoke Tests @smoke @critical', () => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
 
-    const results = await new AxeBuilder({ page })
-      .withTags(WCAG_AA_TAGS)
-      .analyze();
+    const results = await new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();
 
     // Log violations for debugging if any exist
     if (results.violations.length > 0) {
@@ -194,9 +191,7 @@ test.describe('Accessibility Smoke Tests @smoke @critical', () => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
 
-    const results = await new AxeBuilder({ page })
-      .withTags(WCAG_AA_TAGS)
-      .analyze();
+    const results = await new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();
 
     if (results.violations.length > 0) {
       console.log(
@@ -213,9 +208,7 @@ test.describe('Accessibility Smoke Tests @smoke @critical', () => {
     await settingsPage.goto();
     await settingsPage.waitForSettingsLoad();
 
-    const results = await new AxeBuilder({ page })
-      .withTags(WCAG_AA_TAGS)
-      .analyze();
+    const results = await new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();
 
     if (results.violations.length > 0) {
       console.log(

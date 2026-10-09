@@ -554,10 +554,27 @@ export async function setupApiMocks(
             message: baseHealth.services?.redis?.message || 'Connected',
             latency_ms: 1,
           },
-          ai_services: aiServices.length > 0 ? aiServices : [
-            { name: 'rtdetr', status: 'healthy', critical: true, error: null, last_check: new Date().toISOString(), circuit_breaker: { state: 'closed', failure_count: 0 } },
-            { name: 'nemotron', status: 'healthy', critical: true, error: null, last_check: new Date().toISOString(), circuit_breaker: { state: 'closed', failure_count: 0 } },
-          ],
+          ai_services:
+            aiServices.length > 0
+              ? aiServices
+              : [
+                  {
+                    name: 'rtdetr',
+                    status: 'healthy',
+                    critical: true,
+                    error: null,
+                    last_check: new Date().toISOString(),
+                    circuit_breaker: { state: 'closed', failure_count: 0 },
+                  },
+                  {
+                    name: 'nemotron',
+                    status: 'healthy',
+                    critical: true,
+                    error: null,
+                    last_check: new Date().toISOString(),
+                    circuit_breaker: { state: 'closed', failure_count: 0 },
+                  },
+                ],
           circuit_breakers: {
             total: 2,
             closed: 2,
@@ -565,9 +582,24 @@ export async function setupApiMocks(
             half_open: 0,
           },
           workers: [
-            { name: 'file-watcher', running: true, critical: true, message: 'Watching for new files' },
-            { name: 'batch-aggregator', running: true, critical: true, message: 'Processing batches' },
-            { name: 'cleanup-service', running: true, critical: false, message: 'Cleanup scheduled' },
+            {
+              name: 'file-watcher',
+              running: true,
+              critical: true,
+              message: 'Watching for new files',
+            },
+            {
+              name: 'batch-aggregator',
+              running: true,
+              critical: true,
+              message: 'Processing batches',
+            },
+            {
+              name: 'cleanup-service',
+              running: true,
+              critical: false,
+              message: 'Cleanup scheduled',
+            },
           ],
           timestamp: new Date().toISOString(),
           version: '0.1.0',
@@ -591,9 +623,24 @@ export async function setupApiMocks(
         body: JSON.stringify({
           ready: true,
           workers: [
-            { name: 'file-watcher', running: true, critical: true, message: 'Watching for new files' },
-            { name: 'batch-aggregator', running: true, critical: true, message: 'Processing batches' },
-            { name: 'cleanup-service', running: true, critical: false, message: 'Cleanup scheduled' },
+            {
+              name: 'file-watcher',
+              running: true,
+              critical: true,
+              message: 'Watching for new files',
+            },
+            {
+              name: 'batch-aggregator',
+              running: true,
+              critical: true,
+              message: 'Processing batches',
+            },
+            {
+              name: 'cleanup-service',
+              running: true,
+              critical: false,
+              message: 'Cleanup scheduled',
+            },
           ],
           timestamp: new Date().toISOString(),
         }),
@@ -749,9 +796,7 @@ export async function setupApiMocks(
       image_path: null,
       created_at: (d as { created_at?: string }).created_at || new Date().toISOString(),
       detected_at:
-        (d as { detected_at?: string }).detected_at ||
-        event?.timestamp ||
-        new Date().toISOString(),
+        (d as { detected_at?: string }).detected_at || event?.timestamp || new Date().toISOString(),
       media_type: (d as { media_type?: string }).media_type || 'image',
       object_type: (d as { object_type?: string }).object_type || d.label,
     }));
@@ -1069,7 +1114,9 @@ export async function setupApiMocks(
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mergedConfig.aiAuditRecommendations || mockAiAuditRecommendations.normal),
+        body: JSON.stringify(
+          mergedConfig.aiAuditRecommendations || mockAiAuditRecommendations.normal
+        ),
       });
     }
   });
@@ -1117,7 +1164,8 @@ export async function setupApiMocks(
           },
           consistency_risk_score: 75,
           consistency_diff: -5,
-          self_eval_critique: 'Good overall analysis with room for improvement in risk justification.',
+          self_eval_critique:
+            'Good overall analysis with room for improvement in risk justification.',
           improvements: {
             missing_context: ['Add time since last motion'],
             confusing_sections: [],
@@ -1223,7 +1271,10 @@ export async function setupApiMocks(
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } }),
+        body: JSON.stringify({
+          items: [],
+          pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+        }),
       });
       return;
     }
@@ -1777,7 +1828,13 @@ export async function setupApiMocks(
     const url = route.request().url();
 
     // Skip if this is logs, history, retry, cancel, or list endpoint
-    if (url.includes('/logs') || url.includes('/history') || url.includes('/retry') || url.includes('/cancel') || url.endsWith('/jobs')) {
+    if (
+      url.includes('/logs') ||
+      url.includes('/history') ||
+      url.includes('/retry') ||
+      url.includes('/cancel') ||
+      url.endsWith('/jobs')
+    ) {
       await route.continue();
       return;
     }
@@ -1847,9 +1904,10 @@ export async function setupApiMocks(
       // Filter by search query
       if (query) {
         const lowerQuery = query.toLowerCase();
-        filteredJobs = filteredJobs.filter((j: { job_id: string; job_type: string }) =>
-          j.job_id.toLowerCase().includes(lowerQuery) ||
-          j.job_type.toLowerCase().includes(lowerQuery)
+        filteredJobs = filteredJobs.filter(
+          (j: { job_id: string; job_type: string }) =>
+            j.job_id.toLowerCase().includes(lowerQuery) ||
+            j.job_type.toLowerCase().includes(lowerQuery)
         );
       }
 
@@ -1916,9 +1974,10 @@ export async function setupApiMocks(
       // Filter by search query
       if (query) {
         const lowerQuery = query.toLowerCase();
-        filteredJobs = filteredJobs.filter((j: { job_id: string; job_type: string }) =>
-          j.job_id.toLowerCase().includes(lowerQuery) ||
-          j.job_type.toLowerCase().includes(lowerQuery)
+        filteredJobs = filteredJobs.filter(
+          (j: { job_id: string; job_type: string }) =>
+            j.job_id.toLowerCase().includes(lowerQuery) ||
+            j.job_type.toLowerCase().includes(lowerQuery)
         );
       }
 

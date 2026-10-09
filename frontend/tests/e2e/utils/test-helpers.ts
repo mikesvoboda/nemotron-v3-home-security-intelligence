@@ -243,13 +243,15 @@ export async function takeScreenshotOnFailure(page: Page, testInfo: TestInfo): P
     const screenshotPath = testInfo.outputPath(`failure-${Date.now()}.png`);
 
     // Capture full page screenshot
-    await page.screenshot({
-      path: screenshotPath,
-      fullPage: true,
-      timeout: 5000,
-    }).catch((error) => {
-      console.error('Failed to capture screenshot:', error);
-    });
+    await page
+      .screenshot({
+        path: screenshotPath,
+        fullPage: true,
+        timeout: 5000,
+      })
+      .catch((error) => {
+        console.error('Failed to capture screenshot:', error);
+      });
 
     // Attach to test report
     await testInfo.attach('screenshot', {
@@ -259,7 +261,9 @@ export async function takeScreenshotOnFailure(page: Page, testInfo: TestInfo): P
 
     // Also capture HTML snapshot for debugging
     const htmlPath = testInfo.outputPath(`failure-${Date.now()}.html`);
-    const html = await page.content().catch(() => '<html><body>Failed to capture HTML</body></html>');
+    const html = await page
+      .content()
+      .catch(() => '<html><body>Failed to capture HTML</body></html>');
     await fs.promises.writeFile(htmlPath, html);
 
     await testInfo.attach('html-snapshot', {
@@ -391,7 +395,9 @@ export async function fillFormField(
     await page
       .waitForFunction(
         () => {
-          const validatingSpinners = document.querySelectorAll('.validating, [data-validating="true"]');
+          const validatingSpinners = document.querySelectorAll(
+            '.validating, [data-validating="true"]'
+          );
           return validatingSpinners.length === 0;
         },
         { timeout: validationTimeout }
@@ -556,7 +562,8 @@ export async function waitForConsoleMessage(
       }
 
       // Check pattern match
-      const matches = pattern instanceof RegExp ? pattern.test(messageText) : messageText.includes(pattern);
+      const matches =
+        pattern instanceof RegExp ? pattern.test(messageText) : messageText.includes(pattern);
 
       if (matches) {
         clearTimeout(timeoutId);

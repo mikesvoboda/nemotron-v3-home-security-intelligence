@@ -6,22 +6,22 @@ Contains components for managing camera detection zones. Zones define regions of
 
 ## Files
 
-| File                       | Purpose                                            |
-| -------------------------- | -------------------------------------------------- |
-| `ZoneEditor.tsx`           | Main modal for zone management with drawing UI     |
-| `ZoneEditor.test.tsx`      | Test suite for ZoneEditor                          |
-| `ZoneCanvas.tsx`           | SVG canvas for drawing and displaying zones        |
-| `ZoneCanvas.test.tsx`      | Test suite for ZoneCanvas                          |
-| `ZoneForm.tsx`             | Form for zone properties (name, type, color)       |
-| `ZoneForm.test.tsx`        | Test suite for ZoneForm                            |
-| `ZoneList.tsx`             | List view of zones with CRUD actions               |
-| `ZoneList.test.tsx`        | Test suite for ZoneList                            |
-| `LineZoneEditor.tsx`       | Tripwire/line zone drawing component               |
-| `LineZoneEditor.test.tsx`  | Test suite for LineZoneEditor                      |
-| `PolygonZoneEditor.tsx`    | Polygon zone drawing with zone type support        |
-| `PolygonZoneEditor.test.tsx` | Test suite for PolygonZoneEditor                 |
-| `CameraZoneOverlay.tsx`    | SVG overlay for camera feeds with zone display     |
-| `index.ts`                 | Barrel exports                                     |
+| File                         | Purpose                                        |
+| ---------------------------- | ---------------------------------------------- |
+| `ZoneEditor.tsx`             | Main modal for zone management with drawing UI |
+| `ZoneEditor.test.tsx`        | Test suite for ZoneEditor                      |
+| `ZoneCanvas.tsx`             | SVG canvas for drawing and displaying zones    |
+| `ZoneCanvas.test.tsx`        | Test suite for ZoneCanvas                      |
+| `ZoneForm.tsx`               | Form for zone properties (name, type, color)   |
+| `ZoneForm.test.tsx`          | Test suite for ZoneForm                        |
+| `ZoneList.tsx`               | List view of zones with CRUD actions           |
+| `ZoneList.test.tsx`          | Test suite for ZoneList                        |
+| `LineZoneEditor.tsx`         | Tripwire/line zone drawing component           |
+| `LineZoneEditor.test.tsx`    | Test suite for LineZoneEditor                  |
+| `PolygonZoneEditor.tsx`      | Polygon zone drawing with zone type support    |
+| `PolygonZoneEditor.test.tsx` | Test suite for PolygonZoneEditor               |
+| `CameraZoneOverlay.tsx`      | SVG overlay for camera feeds with zone display |
+| `index.ts`                   | Barrel exports                                 |
 
 ## Key Components
 

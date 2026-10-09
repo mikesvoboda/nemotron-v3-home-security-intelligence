@@ -24,6 +24,7 @@ frontend/src/components/ai/__tests__/
 **Purpose:** Tests basic rendering and visibility of the PromptPlayground component.
 
 **Coverage:**
+
 - Component visibility (open/closed state)
 - Title and description rendering
 - Model accordions rendering (Nemotron, Florence2, YOLO-World)
@@ -33,6 +34,7 @@ frontend/src/components/ai/__tests__/
 - Export/import buttons
 
 **Key Test Cases:**
+
 - Renders when open, hidden when closed
 - Displays correct title and description
 - Shows all model configuration sections
@@ -45,6 +47,7 @@ frontend/src/components/ai/__tests__/
 **Purpose:** Tests action buttons (Export, Import, Save, Reset, etc.).
 
 **Coverage:**
+
 - Export button functionality
 - Import button functionality
 - Save button behavior (creates or updates prompts)
@@ -53,6 +56,7 @@ frontend/src/components/ai/__tests__/
 - Loading states during API calls
 
 **Key Test Cases:**
+
 - Export downloads JSON configuration
 - Import loads JSON and updates UI
 - Save calls API with correct payload
@@ -65,6 +69,7 @@ frontend/src/components/ai/__tests__/
 **Purpose:** Tests the diff preview modal that shows configuration changes before saving.
 
 **Coverage:**
+
 - Diff preview modal rendering
 - Side-by-side comparison display
 - "Primary → Secondary" workflow
@@ -73,6 +78,7 @@ frontend/src/components/ai/__tests__/
 - Modal close and cancel functionality
 
 **Key Test Cases:**
+
 - Modal shows differences between configurations
 - Highlights added, removed, and modified fields
 - Correctly labels "Primary" and "Secondary" configurations
@@ -85,6 +91,7 @@ frontend/src/components/ai/__tests__/
 **Purpose:** Tests individual model editor sections (Nemotron, Florence2, YOLO-World).
 
 **Coverage:**
+
 - Nemotron editor: system prompt, temperature, max_tokens
 - Florence2 editor: VQA queries array
 - YOLO-World editor: object classes and confidence threshold
@@ -92,6 +99,7 @@ frontend/src/components/ai/__tests__/
 - Real-time state updates
 
 **Key Test Cases:**
+
 - Each model's editor renders with correct fields
 - Input changes update component state
 - Validation errors display for invalid inputs
@@ -104,6 +112,7 @@ frontend/src/components/ai/__tests__/
 **Purpose:** Tests the "Promote to Primary" workflow (B-to-A promotion).
 
 **Coverage:**
+
 - Promote button visibility and behavior
 - Confirmation dialog
 - API call to update primary configuration
@@ -112,6 +121,7 @@ frontend/src/components/ai/__tests__/
 - Post-promotion cleanup (secondary becomes copy of primary)
 
 **Key Test Cases:**
+
 - Promote button only visible when secondary differs from primary
 - Confirmation dialog shows before promotion
 - API call includes correct payload
@@ -125,6 +135,7 @@ frontend/src/components/ai/__tests__/
 **Purpose:** Tests form validation and error handling in PromptPlayground.
 
 **Coverage:**
+
 - Input validation for prompt fields
 - Error message display
 - Form submission prevention on invalid input
@@ -132,6 +143,7 @@ frontend/src/components/ai/__tests__/
 - Required field validation
 
 **Key Test Cases:**
+
 - Empty prompt validation
 - Character limit validation
 - Invalid format detection
@@ -155,7 +167,7 @@ All test files mock the API client:
 ```tsx
 // Mock the API functions
 vi.mock('../../../services/api', () => ({
-  fetchAllPrompts: vi.fn(() => Promise.resolve({ /* mock data */ })),
+  fetchAllPrompts: vi.fn(() => Promise.resolve({/* mock data */})),
   updatePrompt: vi.fn(() => Promise.resolve({ success: true })),
   createPrompt: vi.fn(() => Promise.resolve({ success: true })),
 }));
@@ -174,6 +186,7 @@ PromptPlayground.<test-suite>.test.tsx
 ```
 
 **Benefits:**
+
 - Grouped together when sorted alphabetically
 - Clear indication of parent component
 - Specific test suite purpose in filename
@@ -239,6 +252,7 @@ These thresholds are enforced in CI.
 **Context:** These test files were refactored from a single large `PromptPlayground.test.tsx` file as part of NEM-1320.
 
 **Benefits of split structure:**
+
 - Faster test execution (parallel test runners)
 - Easier to locate specific test failures
 - Better code organization and maintainability
@@ -259,7 +273,7 @@ it('saves configuration on save button click', async () => {
   await user.click(saveButton);
 
   await waitFor(() => {
-    expect(updatePrompt).toHaveBeenCalledWith(expect.objectContaining({ /* ... */ }));
+    expect(updatePrompt).toHaveBeenCalledWith(expect.objectContaining({/* ... */}));
   });
 });
 ```
@@ -357,6 +371,7 @@ These tests run in CI as part of the frontend test suite:
 ```
 
 **CI Requirements:**
+
 - All tests must pass
 - Coverage thresholds must be met
 - No console errors or warnings
@@ -366,13 +381,13 @@ These tests run in CI as part of the frontend test suite:
 
 Current test execution times (approximate):
 
-| Test File                              | Duration | Tests |
-| -------------------------------------- | -------- | ----- |
-| `PromptPlayground.rendering.test.tsx`  | ~0.8s    | 12    |
-| `PromptPlayground.actions.test.tsx`    | ~1.2s    | 15    |
-| `PromptPlayground.diffPreview.test.tsx`| ~1.5s    | 18    |
-| `PromptPlayground.modelEditors.test.tsx`| ~0.9s    | 10    |
-| `PromptPlayground.promoteB.test.tsx`   | ~1.8s    | 20    |
-| **Total**                              | **~6.2s**| **75**|
+| Test File                                | Duration  | Tests  |
+| ---------------------------------------- | --------- | ------ |
+| `PromptPlayground.rendering.test.tsx`    | ~0.8s     | 12     |
+| `PromptPlayground.actions.test.tsx`      | ~1.2s     | 15     |
+| `PromptPlayground.diffPreview.test.tsx`  | ~1.5s     | 18     |
+| `PromptPlayground.modelEditors.test.tsx` | ~0.9s     | 10     |
+| `PromptPlayground.promoteB.test.tsx`     | ~1.8s     | 20     |
+| **Total**                                | **~6.2s** | **75** |
 
 These tests run in parallel during CI, reducing total wall-clock time.

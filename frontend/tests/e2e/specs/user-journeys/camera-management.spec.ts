@@ -27,20 +27,20 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
     const timeout = browserName === 'chromium' ? 10000 : 20000;
     await page.waitForSelector('[data-testid="dashboard-container"]', {
       state: 'visible',
-      timeout
+      timeout,
     });
 
     // Wait for main content to be ready (handles lazy loading)
     await page.waitForSelector('[data-testid="main-content"]', {
       state: 'visible',
-      timeout: 5000
+      timeout: 5000,
     });
 
     // Wait for camera data to load - camera grid appears after API data loads
     // This ensures we're past the skeleton loading state
     await page.waitForSelector('[data-testid="camera-grid"]', {
       state: 'visible',
-      timeout: 10000
+      timeout: 10000,
     });
   });
 
@@ -87,7 +87,9 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
 
     // Status badge is in the top-right corner with Circle icon and status text
     // Look for the text content like "Online", "Offline", "Recording", etc.
-    const statusBadge = firstCard.locator('span:has-text("Online"), span:has-text("Offline"), span:has-text("Recording"), span:has-text("Error"), span:has-text("Unknown")');
+    const statusBadge = firstCard.locator(
+      'span:has-text("Online"), span:has-text("Offline"), span:has-text("Recording"), span:has-text("Error"), span:has-text("Unknown")'
+    );
     await expect(statusBadge.first()).toBeVisible();
   });
 
@@ -144,7 +146,9 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
 
     // Then: Should navigate to timeline page with camera filter
     // URL should include /timeline?camera=<camera_id>
-    await expect(page).toHaveURL(new RegExp(`/timeline\\?camera=${extractedId}`), { timeout: 5000 });
+    await expect(page).toHaveURL(new RegExp(`/timeline\\?camera=${extractedId}`), {
+      timeout: 5000,
+    });
   });
 
   test('timeline page displays events filtered by camera', async ({ page }) => {
@@ -164,15 +168,17 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
 
     // When: Click camera to navigate to timeline
     await firstCamera.click();
-    await expect(page).toHaveURL(new RegExp(`/timeline\\?camera=${extractedId}`), { timeout: 5000 });
+    await expect(page).toHaveURL(new RegExp(`/timeline\\?camera=${extractedId}`), {
+      timeout: 5000,
+    });
 
     // Then: Timeline page should load and display the camera name or events
     // Wait for timeline container to be visible
-    const timelineContainer = page.locator('[data-testid="timeline-container"]').or(
-      page.locator('[data-testid="events-container"]')
-    );
+    const timelineContainer = page
+      .locator('[data-testid="timeline-container"]')
+      .or(page.locator('[data-testid="events-container"]'));
 
-    if (await timelineContainer.count() > 0) {
+    if ((await timelineContainer.count()) > 0) {
       await expect(timelineContainer.first()).toBeVisible({ timeout: 5000 });
     }
   });
@@ -195,7 +201,9 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
     await expect(firstCamera).toBeVisible();
 
     // Then: Status badge should be visible with status text
-    const statusBadge = firstCamera.locator('span:has-text("Online"), span:has-text("Offline"), span:has-text("Recording"), span:has-text("Error"), span:has-text("Unknown")');
+    const statusBadge = firstCamera.locator(
+      'span:has-text("Online"), span:has-text("Offline"), span:has-text("Recording"), span:has-text("Error"), span:has-text("Unknown")'
+    );
     await expect(statusBadge.first()).toBeVisible();
 
     // Note: Actual real-time update testing would require WebSocket message injection
@@ -262,7 +270,9 @@ test.describe('Camera Management Journey (NEM-1664)', () => {
     // Each card should have a status badge in the top-right corner
     for (let i = 0; i < Math.min(cardCount, 4); i++) {
       const card = cameraCards.nth(i);
-      const statusBadge = card.locator('span:has-text("Online"), span:has-text("Offline"), span:has-text("Recording"), span:has-text("Error"), span:has-text("Unknown")');
+      const statusBadge = card.locator(
+        'span:has-text("Online"), span:has-text("Offline"), span:has-text("Recording"), span:has-text("Error"), span:has-text("Unknown")'
+      );
       await expect(statusBadge.first()).toBeVisible();
     }
   });

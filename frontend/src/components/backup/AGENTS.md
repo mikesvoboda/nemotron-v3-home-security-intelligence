@@ -21,6 +21,7 @@ Components for database backup and restore operations in the NVIDIA Security Int
 Main orchestrator component integrating all backup functionality.
 
 **Features:**
+
 - Create new backups with progress tracking
 - View list of existing backups
 - Download completed backups
@@ -28,11 +29,13 @@ Main orchestrator component integrating all backup functionality.
 - Restore from backup file via modal
 
 **Props:**
-| Prop        | Type     | Description      |
-| ----------- | -------- | ---------------- |
+
+| Prop        | Type     | Description        |
+| ----------- | -------- | ------------------ |
 | `className` | `string` | Optional CSS class |
 
 **Usage:**
+
 ```tsx
 <BackupSection />
 ```
@@ -42,25 +45,28 @@ Main orchestrator component integrating all backup functionality.
 Displays a list of available backups with status indicators and actions.
 
 **Features:**
+
 - Shows backup ID, status badge, creation date, and file size
 - Download button for completed backups
 - Delete button with confirmation dialog
 - Loading skeleton, empty state, and error state
 
 **Props:**
-| Prop           | Type                               | Description                        |
-| -------------- | ---------------------------------- | ---------------------------------- |
-| `backups`      | `BackupListItem[]`                 | List of backup items               |
-| `isLoading`    | `boolean`                          | Whether list is loading            |
-| `isError`      | `boolean`                          | Whether there's an error           |
-| `errorMessage` | `string`                           | Error message if any               |
-| `onDelete`     | `(backupId: string) => Promise<void>` | Delete callback              |
-| `isDeleting`   | `boolean`                          | Whether delete is in progress      |
-| `deletingId`   | `string`                           | ID of backup being deleted         |
-| `onRetry`      | `() => void`                       | Retry callback for errors          |
-| `className`    | `string`                           | Optional CSS class                 |
+
+| Prop           | Type                                  | Description                   |
+| -------------- | ------------------------------------- | ----------------------------- |
+| `backups`      | `BackupListItem[]`                    | List of backup items          |
+| `isLoading`    | `boolean`                             | Whether list is loading       |
+| `isError`      | `boolean`                             | Whether there's an error      |
+| `errorMessage` | `string`                              | Error message if any          |
+| `onDelete`     | `(backupId: string) => Promise<void>` | Delete callback               |
+| `isDeleting`   | `boolean`                             | Whether delete is in progress |
+| `deletingId`   | `string`                              | ID of backup being deleted    |
+| `onRetry`      | `() => void`                          | Retry callback for errors     |
+| `className`    | `string`                              | Optional CSS class            |
 
 **Status Types:**
+
 - `pending` - Yellow badge, clock icon
 - `running` - Blue badge, spinning loader
 - `completed` - Green badge, checkmark icon
@@ -71,6 +77,7 @@ Displays a list of available backups with status indicators and actions.
 Visual progress indicator for running backup or restore jobs.
 
 **Features:**
+
 - Progress bar with percentage display
 - Status badge showing current state
 - Current step description
@@ -79,21 +86,23 @@ Visual progress indicator for running backup or restore jobs.
 - Success message on completion
 
 **Props:**
-| Prop           | Type                                    | Description                |
-| -------------- | --------------------------------------- | -------------------------- |
-| `progress`     | `BackupJobProgress \| RestoreJobProgress` | Progress information     |
-| `status`       | `string`                                | Current status label       |
-| `errorMessage` | `string \| null`                        | Error message if failed    |
-| `isComplete`   | `boolean`                               | Whether job is complete    |
-| `isFailed`     | `boolean`                               | Whether job failed         |
-| `className`    | `string`                                | Optional CSS class         |
-| `size`         | `'sm' \| 'md'`                          | Size variant               |
+
+| Prop           | Type                                      | Description             |
+| -------------- | ----------------------------------------- | ----------------------- |
+| `progress`     | `BackupJobProgress \| RestoreJobProgress` | Progress information    |
+| `status`       | `string`                                  | Current status label    |
+| `errorMessage` | `string \| null`                          | Error message if failed |
+| `isComplete`   | `boolean`                                 | Whether job is complete |
+| `isFailed`     | `boolean`                                 | Whether job failed      |
+| `className`    | `string`                                  | Optional CSS class      |
+| `size`         | `'sm' \| 'md'`                            | Size variant            |
 
 ### RestoreModal
 
 Multi-step modal dialog for restore operations.
 
 **Features:**
+
 - Drag and drop file upload
 - Warning banner about data overwrite
 - Upload progress indicator
@@ -102,6 +111,7 @@ Multi-step modal dialog for restore operations.
 - Error state with retry option
 
 **Modal States:**
+
 - `upload` - File dropzone with warning
 - `uploading` - Upload progress spinner
 - `restoring` - Restore progress with BackupProgress
@@ -109,6 +119,7 @@ Multi-step modal dialog for restore operations.
 - `error` - Error message with retry button
 
 **Props:**
+
 | Prop                | Type         | Description                     |
 | ------------------- | ------------ | ------------------------------- |
 | `isOpen`            | `boolean`    | Whether modal is open           |
@@ -133,18 +144,19 @@ BackupSection
 
 ## Hooks Used
 
-| Hook              | Source                               | Purpose                     |
-| ----------------- | ------------------------------------ | --------------------------- |
-| `useBackupList`   | `frontend/src/hooks/useBackup.ts`    | Fetch list of backups       |
-| `useBackupJob`    | `frontend/src/hooks/useBackup.ts`    | Poll backup job status      |
-| `useCreateBackup` | `frontend/src/hooks/useBackup.ts`    | Start new backup mutation   |
-| `useDeleteBackup` | `frontend/src/hooks/useBackup.ts`    | Delete backup mutation      |
-| `useRestoreJob`   | `frontend/src/hooks/useBackup.ts`    | Poll restore job status     |
-| `useStartRestore` | `frontend/src/hooks/useBackup.ts`    | Start restore from file     |
+| Hook              | Source                            | Purpose                   |
+| ----------------- | --------------------------------- | ------------------------- |
+| `useBackupList`   | `frontend/src/hooks/useBackup.ts` | Fetch list of backups     |
+| `useBackupJob`    | `frontend/src/hooks/useBackup.ts` | Poll backup job status    |
+| `useCreateBackup` | `frontend/src/hooks/useBackup.ts` | Start new backup mutation |
+| `useDeleteBackup` | `frontend/src/hooks/useBackup.ts` | Delete backup mutation    |
+| `useRestoreJob`   | `frontend/src/hooks/useBackup.ts` | Poll restore job status   |
+| `useStartRestore` | `frontend/src/hooks/useBackup.ts` | Start restore from file   |
 
 ## Test Coverage
 
 No test files currently exist in this directory. Tests should cover:
+
 - BackupList loading, empty, and error states
 - BackupList delete confirmation flow
 - BackupProgress visual states (pending, running, complete, failed)
@@ -154,11 +166,11 @@ No test files currently exist in this directory. Tests should cover:
 
 ## Related Files
 
-| File                                  | Purpose                    |
-| ------------------------------------- | -------------------------- |
-| `frontend/src/hooks/useBackup.ts`     | Backup/restore hooks       |
-| `frontend/src/types/backup.ts`        | Backup type definitions    |
-| `frontend/src/services/backupApi.ts`  | API functions for backups  |
+| File                                 | Purpose                   |
+| ------------------------------------ | ------------------------- |
+| `frontend/src/hooks/useBackup.ts`    | Backup/restore hooks      |
+| `frontend/src/types/backup.ts`       | Backup type definitions   |
+| `frontend/src/services/backupApi.ts` | API functions for backups |
 
 ## Entry Points
 

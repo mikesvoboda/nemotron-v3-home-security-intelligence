@@ -390,7 +390,12 @@ export async function waitForLoadingToComplete(page: Page, timeout: number = 100
           el.textContent?.match(/loading|loading\.\.\.|please wait/i)
         );
 
-        return spinners.length === 0 && skeletons.length === 0 && progressBars.length === 0 && loadingText.length === 0;
+        return (
+          spinners.length === 0 &&
+          skeletons.length === 0 &&
+          progressBars.length === 0 &&
+          loadingText.length === 0
+        );
       },
       { timeout }
     )
@@ -457,7 +462,11 @@ export async function waitForTextChange(
       // Otherwise, just check if text changed
       return currentText !== initial;
     },
-    { sel: typeof selector === 'string' ? selector : null, initial: initialText, expected: expectedText },
+    {
+      sel: typeof selector === 'string' ? selector : null,
+      initial: initialText,
+      expected: expectedText,
+    },
     { timeout }
   );
 }

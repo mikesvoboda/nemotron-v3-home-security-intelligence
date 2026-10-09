@@ -150,9 +150,7 @@ test.describe('Flaky Test Detection Patterns', () => {
     console.log(`Page load timing: ${timing}ms (attempt: ${testInfo.retry})`);
   });
 
-  test('demonstrates proper waiting patterns for dynamic content @critical', async ({
-    page,
-  }) => {
+  test('demonstrates proper waiting patterns for dynamic content @critical', async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
     const dashboardPage = new DashboardPage(page);
 

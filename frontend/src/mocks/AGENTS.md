@@ -49,19 +49,19 @@ http.get('/api/cameras', () => {
     cameras: mockCameras,
     count: mockCameras.length,
   });
-})
+});
 ```
 
 ### Path Parameters
 
 ```typescript
 http.get('/api/cameras/:id', ({ params }) => {
-  const camera = mockCameras.find(c => c.id === params.id);
+  const camera = mockCameras.find((c) => c.id === params.id);
   if (!camera) {
     return HttpResponse.json({ detail: 'Not found' }, { status: 404 });
   }
   return HttpResponse.json(camera);
-})
+});
 ```
 
 ### Query Parameters
@@ -74,7 +74,7 @@ http.get('/api/events', ({ request }) => {
 
   const events = mockEvents.slice(offset, offset + limit);
   return HttpResponse.json({ events, count: events.length, limit, offset });
-})
+});
 ```
 
 ### POST with Request Body
@@ -84,7 +84,7 @@ http.post('/api/system/cleanup', async ({ request }) => {
   const body = await request.json();
   // Process body...
   return HttpResponse.json({ success: true });
-})
+});
 ```
 
 ### DELETE Requests
@@ -95,7 +95,7 @@ http.delete('/api/dlq/:queueName', () => {
     success: true,
     message: 'Queue cleared',
   });
-})
+});
 ```
 
 ### Delayed Responses (for Loading States)
@@ -106,13 +106,13 @@ import { delay } from 'msw';
 http.get('/api/system/storage', async () => {
   await delay(100); // 100ms delay
   return HttpResponse.json(mockStorageStats);
-})
+});
 
 // Or infinite delay for testing loading states
 http.get('/api/system/storage', async () => {
   await delay('infinite');
   return HttpResponse.json(mockStorageStats);
-})
+});
 ```
 
 ## Error Handling Patterns
@@ -123,11 +123,8 @@ Use 400 status to avoid API client retry backoff:
 
 ```typescript
 http.get('/api/system/storage', () => {
-  return HttpResponse.json(
-    { detail: 'Bad request' },
-    { status: 400 }
-  );
-})
+  return HttpResponse.json({ detail: 'Bad request' }, { status: 400 });
+});
 ```
 
 ### Retriable Errors (500)
@@ -136,11 +133,8 @@ Note: 500 errors trigger retry logic with exponential backoff. Use sparingly in 
 
 ```typescript
 http.get('/api/system/storage', () => {
-  return HttpResponse.json(
-    { detail: 'Server error' },
-    { status: 500 }
-  );
-})
+  return HttpResponse.json({ detail: 'Server error' }, { status: 500 });
+});
 ```
 
 ### Sequential Responses
@@ -206,9 +200,7 @@ import { http, HttpResponse } from 'msw';
 
 beforeEach(() => {
   clearInFlightRequests();
-  server.use(
-    http.get('/api/system/storage', () => HttpResponse.json(mockStats))
-  );
+  server.use(http.get('/api/system/storage', () => HttpResponse.json(mockStats)));
 });
 
 it('shows error', async () => {

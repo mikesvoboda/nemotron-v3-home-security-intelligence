@@ -24,30 +24,30 @@
 
 New files:
 
-| File | Responsibility |
-| --- | --- |
-| `scripts/check-test-collection.py` | Collection-sanity gate: zero-byte tracked test files + zero-test collected files (spec §5.3). stdlib-only; `--allow` is emergency-only and must carry a tracking ref in-file. |
-| `scripts/test_check_test_collection.py` | Its unit tests (lives in `scripts/`, outside pytest `testpaths`, so it never self-collects; run explicitly). |
-| `.github/workflows/flake-allowlist.yml` | The single registered-flake list (test-id → tracking ref + expiry), machine-readable, grepped at load by callers. |
-| `scripts/check-flake-allowlist.py` | Allowlist hygiene: every entry has a tracking ref + parseable ISO expiry; expired ⇒ nonzero. |
-| `scripts/test_check_flake_allowlist.py` | Its unit tests. |
-| `backend/tests/test_db_isolation.py` | Contract tests for the per-worker PG + Redis isolation machinery (tasks 5–9). Name matches `python_files = ["test_*.py"]`; lands in the already-collected `backend/tests` root (1 sibling: `test_utils.py`). |
-| `scripts/fast_select.py` | Backend change→test selection: dotted-import + patch-string resolution over a `git ls-files` candidate set (spec §4.1's proximity table realized by import truth — the fact-sweep showed filename mirroring silently drops 9 route + 18 service modules, and lazy imports/patch-strings defeat top-level-import scans). Directory policy for `backend/api/**` (contracts + security smoke). |
-| `scripts/test_fast_select.py` | Its unit tests. |
-| `scripts/fast-backend-runner.sh` | Runs the selected backend set with `--dist=loadgroup` + `-p no:randomly` + no-cov (selection is position-dependent under `-p randomly`, so fast-tier selection and fast-tier run must agree on ordering determinism). |
-| `scripts/fast-frontend-runner.sh` | `vitest related --run` wrapper: NODE_OPTIONS wrapper replication, changed-file filtering to `frontend/`, selection-count parsing (a zero-selection related run exits 0 — exit code alone cannot distinguish "nothing affected" from "all green"). |
-| `scripts/fast-validation-playbook.sh` | The §6.3 scripted 5-change playbook with per-change timing + wall assertions. |
-| `.github/workflows/nightly-full-validation.yml` | Nightly no-flag full-gate run + job summary (spec §5.4). |
-| `docs/development/fast-confidence-loop-measurements.md` | Before/after numbers per spec §6; the M1 CI-blind-spot findings ride along. |
+| File                                                    | Responsibility                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/check-test-collection.py`                      | Collection-sanity gate: zero-byte tracked test files + zero-test collected files (spec §5.3). stdlib-only; `--allow` is emergency-only and must carry a tracking ref in-file.                                                                                                                                                                                                               |
+| `scripts/test_check_test_collection.py`                 | Its unit tests (lives in `scripts/`, outside pytest `testpaths`, so it never self-collects; run explicitly).                                                                                                                                                                                                                                                                                |
+| `.github/workflows/flake-allowlist.yml`                 | The single registered-flake list (test-id → tracking ref + expiry), machine-readable, grepped at load by callers.                                                                                                                                                                                                                                                                           |
+| `scripts/check-flake-allowlist.py`                      | Allowlist hygiene: every entry has a tracking ref + parseable ISO expiry; expired ⇒ nonzero.                                                                                                                                                                                                                                                                                                |
+| `scripts/test_check_flake_allowlist.py`                 | Its unit tests.                                                                                                                                                                                                                                                                                                                                                                             |
+| `backend/tests/test_db_isolation.py`                    | Contract tests for the per-worker PG + Redis isolation machinery (tasks 5–9). Name matches `python_files = ["test_*.py"]`; lands in the already-collected `backend/tests` root (1 sibling: `test_utils.py`).                                                                                                                                                                                |
+| `scripts/fast_select.py`                                | Backend change→test selection: dotted-import + patch-string resolution over a `git ls-files` candidate set (spec §4.1's proximity table realized by import truth — the fact-sweep showed filename mirroring silently drops 9 route + 18 service modules, and lazy imports/patch-strings defeat top-level-import scans). Directory policy for `backend/api/**` (contracts + security smoke). |
+| `scripts/test_fast_select.py`                           | Its unit tests.                                                                                                                                                                                                                                                                                                                                                                             |
+| `scripts/fast-backend-runner.sh`                        | Runs the selected backend set with `--dist=loadgroup` + `-p no:randomly` + no-cov (selection is position-dependent under `-p randomly`, so fast-tier selection and fast-tier run must agree on ordering determinism).                                                                                                                                                                       |
+| `scripts/fast-frontend-runner.sh`                       | `vitest related --run` wrapper: NODE_OPTIONS wrapper replication, changed-file filtering to `frontend/`, selection-count parsing (a zero-selection related run exits 0 — exit code alone cannot distinguish "nothing affected" from "all green").                                                                                                                                           |
+| `scripts/fast-validation-playbook.sh`                   | The §6.3 scripted 5-change playbook with per-change timing + wall assertions.                                                                                                                                                                                                                                                                                                               |
+| `.github/workflows/nightly-full-validation.yml`         | Nightly no-flag full-gate run + job summary (spec §5.4).                                                                                                                                                                                                                                                                                                                                    |
+| `docs/development/fast-confidence-loop-measurements.md` | Before/after numbers per spec §6; the M1 CI-blind-spot findings ride along.                                                                                                                                                                                                                                                                                                                 |
 
 Modified files (line anchors are post-`c29c319b`/`f2b941f4` positions — re-grep before editing):
 
-| File | Change |
-| --- | --- |
-| `.github/workflows/ci.yml` | §5.2 retry-mask removal (4 integration sites), §5.1 frontend hack replacement + pipefail, §5.3 collection-sanity steps, allowlist wiring |
-| `frontend/vite.config.ts` | test block only: env-driven `fileParallelism`/`maxWorkers`/`minWorkers` (Task 3); `--testPool` CLI override (Task 4) |
-| `scripts/validate.sh` | frontend heap envs (Task 3); `--fast` flag + `run_fast_validation()` dispatch (Task 13) |
-| `backend/tests/conftest.py` | per-worker DB + Redis isolation (Tasks 6–7, 9) |
+| File                                          | Change                                                                                                                                                                       |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/workflows/ci.yml`                    | §5.2 retry-mask removal (4 integration sites), §5.1 frontend hack replacement + pipefail, §5.3 collection-sanity steps, allowlist wiring                                     |
+| `frontend/vite.config.ts`                     | test block only: env-driven `fileParallelism`/`maxWorkers`/`minWorkers` (Task 3); `--testPool` CLI override (Task 4)                                                         |
+| `scripts/validate.sh`                         | frontend heap envs (Task 3); `--fast` flag + `run_fast_validation()` dispatch (Task 13)                                                                                      |
+| `backend/tests/conftest.py`                   | per-worker DB + Redis isolation (Tasks 6–7, 9)                                                                                                                               |
 | `scripts/AGENTS.md` + validate.sh header/help | `--fast` documented in all three places the flags are documented (the existing script documents flags in header :10-14, `show_help`, and AGENTS.md — keep all three in sync) |
 
 `frontend/AGENTS.md` — no change required: it does not document the test scripts or validate.sh flags (checked at plan time); if the executor finds it does, update it there too.
@@ -61,11 +61,13 @@ Modified files (line anchors are post-`c29c319b`/`f2b941f4` positions — re-gre
 Makes the zero-byte-tracked-test-file class red within one push. The class is proven live: a zero-byte test file made vitest exit 1 (M1 R-T7 gate-impact probe), yet nothing on CI detected it.
 
 **Files:**
+
 - Create: `scripts/check-test-collection.py`
 - Test: `scripts/test_check_test_collection.py` (run explicitly: `uv run pytest scripts/test_check_test_collection.py`)
 - Modify: `.github/workflows/ci.yml` — new `collection-sanity` job placed before `unit-tests-summary`'s `needs` chain consumes results (add it as a `needs` entry of `unit-tests-summary`, `integration-tests-summary`, and `frontend-tests-summary` so its red reaches `ci-gate`)
 
 **Interfaces:**
+
 - Consumes: nothing (fresh script, stdlib-only).
 - Produces: exit 0 clean / exit 1 findings on stderr; `--allow id1,id2` emergency opt-out; the `collection-sanity` CI job both later tasks' injected-failure acceptance runs lean on.
 
@@ -276,6 +278,7 @@ Expected: PASS (6 tests).
 ```bash
 uv run python scripts/check-test-collection.py backend frontend && echo GATE-OK
 ```
+
 Expected: exit 0. If it reports findings, those are real §5.3-class findings — stop and adjudicate, do not `--allow` past them at first discovery.
 
 - [ ] **Step 6: Add the CI job**
@@ -283,15 +286,15 @@ Expected: exit 0. If it reports findings, those are real §5.3-class findings �
 In `ci.yml`, after the `detect-changes` job, add (jobs are name-keyed; placement is cosmetic):
 
 ```yaml
-  collection-sanity:
-    name: Collection Sanity (zero-byte / zero-test tracked files)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
-      - name: Check tracked test files collect real tests
-        run: uv run --no-project python scripts/check-test-collection.py backend frontend
+collection-sanity:
+  name: Collection Sanity (zero-byte / zero-test tracked files)
+  runs-on: ubuntu-latest
+  timeout-minutes: 10
+  steps:
+    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+    - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+    - name: Check tracked test files collect real tests
+      run: uv run --no-project python scripts/check-test-collection.py backend frontend
 ```
 
 Then add `collection-sanity` to the `needs:` lists of `unit-tests-summary`, `integration-tests-summary`, and `frontend-tests-summary` (each `needs:` line is a YAML list — append the entry; grep `needs:` to find all three). This makes its red reach `ci-gate`.
@@ -314,12 +317,14 @@ GOTCHAS for this task: the AST heuristic means a py file that imports fine but p
 The fact-sweep produced a sharper finding than the spec assumed: of the five `exit 0` line numbers the spec cites, **only four are in-loop retry exit-0s** (`ci.yml:462` api, `:573` websocket, `:690` services, `:799` models — the fifth, `:360`, is `unit-tests-summary`'s legitimate "tests were skipped, treat as pass" branch and stays). And the api job's retry loop is **dead code today**: `if uv run pytest ... | tee test-output.log; then` has no `set -o pipefail` anywhere in ci.yml, so the `if` tests `tee`'s status (always 0) and attempt 1 exits 0 **unconditionally**, even with every test failing. The teardown therefore both restores honesty and removes a mask that never let the retries matter.
 
 **Files:**
+
 - Create: `.github/workflows/flake-allowlist.yml`
 - Create: `scripts/check-flake-allowlist.py`
 - Test: `scripts/test_check_flake_allowlist.py`
 - Modify: `.github/workflows/ci.yml:436-470` (api retry step), `:555-580` (websocket), `:671-697` (services), `:781-806` (models)
 
 **Interfaces:**
+
 - Consumes: Task 1's job-placement pattern (same needs-chain wiring — none needed here; the integration jobs already reach `integration-tests-summary`).
 - Produces: the allowlist file (canonical list at `.github/workflows/flake-allowlist.yml`), the `apply-flake-reruns` step convention that Task 4's frontend job references, and the allowlist-hygiene job.
 
@@ -494,40 +499,40 @@ Expected: PASS (6 tests).
 Each of the four steps collapses from the 3-attempt loop to a single honest run. **API job** (`Run API integration tests with retry`, ci.yml:436-470) becomes:
 
 ```yaml
-      - name: Run API integration tests
-        run: |
-          set -euo pipefail
-          START_TIME=$(date +%s)
-          RERUNS=""
-          if [ -f .github/workflows/flake-allowlist.yml ]; then
-            RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
-          fi
-          if [ -n "$RERUNS" ]; then
-            echo "Rerunning registered flakes: $RERUNS"
-            uv run pytest backend/tests/integration/ -k "$RERUNS" -n0 --timeout=30 \
-              --reruns 2 --reruns-delay 5 || true
-          fi
-          if uv run pytest backend/tests/integration/ \
-            -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
-            -n auto \
-            --timeout=30 \
-            --cov=backend \
-            --cov-fail-under=0 \
-            --cov-report=xml:coverage-integration-api.xml \
-            --cov-report=term-missing \
-            --junit-xml=test-results-integration-api.xml \
-            --durations=20 \
-            -v 2>&1 | tee test-output.log; then
-            END_TIME=$(date +%s)
-            DURATION=$((END_TIME - START_TIME))
-            WORKERS=$(grep -oP 'gw\d+' test-output.log | sort -u | wc -l || echo "unknown")
-            echo "::notice::API Integration Tests completed in ${DURATION}s using ${WORKERS} workers"
-            exit 0
-          fi
-          exit 1
+- name: Run API integration tests
+  run: |
+    set -euo pipefail
+    START_TIME=$(date +%s)
+    RERUNS=""
+    if [ -f .github/workflows/flake-allowlist.yml ]; then
+      RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
+    fi
+    if [ -n "$RERUNS" ]; then
+      echo "Rerunning registered flakes: $RERUNS"
+      uv run pytest backend/tests/integration/ -k "$RERUNS" -n0 --timeout=30 \
+        --reruns 2 --reruns-delay 5 || true
+    fi
+    if uv run pytest backend/tests/integration/ \
+      -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
+      -n auto \
+      --timeout=30 \
+      --cov=backend \
+      --cov-fail-under=0 \
+      --cov-report=xml:coverage-integration-api.xml \
+      --cov-report=term-missing \
+      --junit-xml=test-results-integration-api.xml \
+      --durations=20 \
+      -v 2>&1 | tee test-output.log; then
+      END_TIME=$(date +%s)
+      DURATION=$((END_TIME - START_TIME))
+      WORKERS=$(grep -oP 'gw\d+' test-output.log | sort -u | wc -l || echo "unknown")
+      echo "::notice::API Integration Tests completed in ${DURATION}s using ${WORKERS} workers"
+      exit 0
+    fi
+    exit 1
 ```
 
-`set -euo pipefail` is the load-bearing line: with it, `if pytest | tee` finally tests **pytest's** status. The `-k` keyword list is preserved verbatim; the loop, both `echo "::endgroup::"` wrappers, and the `sleep 10` retry scaffolding are deleted. Create `scripts/flake-k-filter.py` (6-line stdlib script: reads the allowlist YAML via the same line parse as Task 2's hygiene script, prints ids joined by ` or `, prints empty string when the list is empty):
+`set -euo pipefail` is the load-bearing line: with it, `if pytest | tee` finally tests **pytest's** status. The `-k` keyword list is preserved verbatim; the loop, both `echo "::endgroup::"` wrappers, and the `sleep 10` retry scaffolding are deleted. Create `scripts/flake-k-filter.py` (6-line stdlib script: reads the allowlist YAML via the same line parse as Task 2's hygiene script, prints ids joined by `or`, prints empty string when the list is empty):
 
 ```python
 #!/usr/bin/env python3
@@ -552,8 +557,8 @@ The **websocket** (`:555-580`), **services** (`:671-697`), and **models** (`:781
 Add to the existing `collection-sanity` job (from Task 1) a second step:
 
 ```yaml
-      - name: Flake allowlist hygiene
-        run: uv run --no-project python scripts/check-flake-allowlist.py
+- name: Flake allowlist hygiene
+  run: uv run --no-project python scripts/check-flake-allowlist.py
 ```
 
 - [ ] **Step 8: Validate + commit**
@@ -579,10 +584,12 @@ GOTCHAS: the three non-api sites DID retry honestly today (no `tee`), so their t
 ### Task 3: Machine-aware frontend parallelism (spec §3.3, config + validate.sh)
 
 **Files:**
+
 - Modify: `frontend/vite.config.ts` (test block, :370-384 region)
 - Modify: `scripts/validate.sh` (frontend vitest step, :403-407 region)
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `VITEST_PARALLEL` / `VITEST_MAX_WORKERS` / `VITEST_HEAP_MB` env contract (used by Task 4's CI job, Task 12's fast runner, and the §6.2 acceptance measurement); the validate.sh RAM-detection block.
 
@@ -654,6 +661,7 @@ and give `test:coverage` (:21) the same wrapper substitution. `print_info` alrea
 ```bash
 cd frontend && env -u VITEST_PARALLEL npx vitest related --run src/hooks/useAlertsQuery.ts 2>&1 | tail -5
 ```
+
 Expected: run completes (exit 0; related selects useAlertsQuery's tests), and while it runs, a concurrent `ps -eo comm,args | awk '$1=="node"' | grep -c vitest` shows ≤1 fork at a time (sequential = inherited default preserved).
 
 - [ ] **Step 4: Verify parallel-on works and is faster**
@@ -662,6 +670,7 @@ Expected: run completes (exit 0; related selects useAlertsQuery's tests), and wh
 cd frontend && VITEST_PARALLEL=1 VITEST_MAX_WORKERS=8 VITEST_HEAP_MB=16384 \
   npx vitest run src/components/dashboard src/hooks --reporter=basic 2>&1 | tail -4
 ```
+
 Expected: green, noticeably faster than the same command without the envs (time both with `time`; record both numbers in the measurements doc, Task 15). On the 72-core box expect 3–6×; if heap-related failures appear, they are §3.3-class findings for this task's review, not noise.
 
 - [ ] **Step 5: Commit**
@@ -683,9 +692,11 @@ GOTCHAS: `Number('')` is 0 — if someone exports `VITEST_MAX_WORKERS=` (empty),
 ### Task 4: Frontend CI job honesty — replace the exit-0-on-first-summary hack (spec §5.1)
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml:1296-1321` (the background-run + polling-kill step) and the job env block `:1240-1244`
 
 **Interfaces:**
+
 - Consumes: Task 3's env contract (`VITEST_PARALLEL`, `VITEST_MAX_WORKERS` — read by `frontend/vite.config.ts` regardless of whether vitest is invoked via npm or npx; the heap cap in CI travels via `NODE_OPTIONS` because the step calls `npx` directly, which bypasses the npm-script wrapper).
 - Produces: a frontend job whose red/green is truthful — required before Task 14's nightly and the §6.4 acceptance can mean anything; the §6 acceptance test ("injected failing test turns the job red").
 
@@ -694,33 +705,33 @@ GOTCHAS: `Number('')` is 0 — if someone exports `VITEST_MAX_WORKERS=` (empty),
 Replace the current step (background `npx vitest run ... | tee & ` + polling grep + `pkill -9` + `exit 0`, ci.yml:1299-1320) with:
 
 ```yaml
-      # Real exit code (fast-confidence-loop spec SS5.1). The previous step
-      # grepped for the first 'passed' summary line, SIGKILLed vitest, and
-      # exit 0'd — an OOM workaround that also hid every failing frontend
-      # test (the R-T7-VITEST class). The OOM (old comment: "cleanup takes
-      # 5+ minutes and OOMs") is instead bounded at the settings level:
-      # 16 shards, at most 2 concurrent forks, 4 GB heap each, teardown
-      # capped at 1 s. If a runner OOM recurs anyway that is evidence for a
-      # runner-size conversation (spec SS5.5), not for restoring the hack.
-      - name: Run tests (real exit code)
-        env:
-          VITEST_PARALLEL: '1'
-          VITEST_MAX_WORKERS: '2'
-        run: |
-          set -euo pipefail
-          npx vitest run --shard=${{ matrix.shard }}/16 \
-            --reporter=default --teardownTimeout=1000 2>&1 | tee /tmp/vitest-shard.log
-        shell: bash
+# Real exit code (fast-confidence-loop spec SS5.1). The previous step
+# grepped for the first 'passed' summary line, SIGKILLed vitest, and
+# exit 0'd — an OOM workaround that also hid every failing frontend
+# test (the R-T7-VITEST class). The OOM (old comment: "cleanup takes
+# 5+ minutes and OOMs") is instead bounded at the settings level:
+# 16 shards, at most 2 concurrent forks, 4 GB heap each, teardown
+# capped at 1 s. If a runner OOM recurs anyway that is evidence for a
+# runner-size conversation (spec SS5.5), not for restoring the hack.
+- name: Run tests (real exit code)
+  env:
+    VITEST_PARALLEL: '1'
+    VITEST_MAX_WORKERS: '2'
+  run: |
+    set -euo pipefail
+    npx vitest run --shard=${{ matrix.shard }}/16 \
+      --reporter=default --teardownTimeout=1000 2>&1 | tee /tmp/vitest-shard.log
+  shell: bash
 ```
 
 And change the job-level env block (`:1240-1244`, `NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'`) to:
 
 ```yaml
-    env:
-      NODE_VERSION: '20'
-      # 4 GB per fork now that up to 2 forks run per shard (spec 5.1); the old
-      # single-fork 6144 MB setting assumed sequential files and OOMed anyway.
-      NODE_OPTIONS: '--max-old-space-size=4096 --expose-gc'
+env:
+  NODE_VERSION: '20'
+  # 4 GB per fork now that up to 2 forks run per shard (spec 5.1); the old
+  # single-fork 6144 MB setting assumed sequential files and OOMed anyway.
+  NODE_OPTIONS: '--max-old-space-size=4096 --expose-gc'
 ```
 
 `set -euo pipefail` makes vitest's exit status the step's status (the old fallback path `wait $vitest_pid; exit $?` at :1319-1320 and the polling loop at :1304-1313 are deleted with the step). Worst-case shard memory: 2 forks × 4 GB ≈ 8 GB on a 16 GB `ubuntu-latest`, with the sequential-shard legacy (fileParallelism) one notch up and shard lifetime short.
@@ -737,6 +748,7 @@ cd frontend && VITEST_PARALLEL=1 VITEST_MAX_WORKERS=2 sh -c '
     | tee /tmp/vt-honest.log
   echo "STEP-WOULD-EXIT-0"'
 ```
+
 Expected: `STEP-WOULD-EXIT-0` prints only on a green shard; watch peak RSS once with `ps -eo rss,comm,args | awk '$2>1000 && /vitest|node/' | sort -rn | head -3` mid-run (record in Task 15's doc). Then the injected-failure half of §6.4:
 
 ```bash
@@ -745,6 +757,7 @@ printf 'import { describe, it, expect } from "vitest";\ndescribe("injected", () 
 VITEST_PARALLEL=1 VITEST_MAX_WORKERS=2 sh -c 'set -euo pipefail; NODE_OPTIONS="--max-old-space-size=4096" npx vitest run --shard=1/16 --reporter=default --teardownTimeout=1000 >/dev/null 2>&1; echo UNREACHED'; echo "exit=$?"
 rm src/injected-fail.probe.test.ts
 ```
+
 Expected: `UNREACHED` absent and `exit=1` **if shard 1/16 includes the probe** — vitest shards partition the sorted test-file list, and an added src-root test file may land in any shard. Iterate `--shard=k/16` (cheap: add `--reporter=basic` and stop at the first shard whose run lists `injected-fail`) until the injected file is selected, then assert nonzero. **The probe file must never be committed** — Step 4's commit list excludes it and Step 3 deletes it unconditionally.
 
 - [ ] **Step 3: Delete the probe, verify tree clean**
@@ -752,6 +765,7 @@ Expected: `UNREACHED` absent and `exit=1` **if shard 1/16 includes the probe** �
 ```bash
 rm -f src/injected-fail.probe.test.ts && git status --porcelain frontend/src | grep -c . || echo CLEAN
 ```
+
 Expected: `CLEAN`.
 
 - [ ] **Step 4: Validate YAML + commit**
@@ -779,10 +793,12 @@ The serialization root cause (ledger R-T7-DBRACE-FINAL): `get_test_db_url()` ret
 ### Task 5: Isolation helpers + contract tests (pure functions first)
 
 **Files:**
+
 - Create: `backend/tests/test_db_isolation.py`
 - Modify: `backend/tests/conftest.py` (add module-level helper functions near `get_test_db_url`, ~line 592 region; do NOT change `get_test_db_url` behavior yet)
 
 **Interfaces:**
+
 - Consumes: nothing new (psycopg2 already a dependency; `xdist` already imported at `backend/tests/integration/conftest.py:40`, root conftest does not yet import xdist).
 - Produces: `worker_id()` (env-based, no fixture needed), `worker_db_name(base_url)`, `_create_worker_database(base_url, db_name)`, `_drop_worker_database(base_url, db_name)` in `backend/tests/conftest.py` — Task 6's `worker_database` session fixture and Task 9's Redis work consume them; `worker_redis_url_for(base_url)` lands in Task 9 (same test file extends).
 
@@ -1057,17 +1073,19 @@ behavior unchanged until the cutover task).
 Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
-GOTCHAS: `_get_advisory_lock_key` exists in root conftest (~:702-719, sha256[:15] % 2**31 — the integration tier has its own copy AND two other inline variants without the `% 2**31`; reuse the root one only); dropping requires connecting to a *different* database (`dbname="postgres"`) — connecting to the target and dropping it fails; the `DuplicateDatabase` except needs psycopg2 ≥ 3.1 exception classes (repo pins psycopg2-binary; confirm with `uv run python -c "import psycopg2; print(hasattr(psycopg2.errors, 'DuplicateDatabase'))"` in Step 3).
+GOTCHAS: `_get_advisory_lock_key` exists in root conftest (~:702-719, sha256[:15] % 2**31 — the integration tier has its own copy AND two other inline variants without the `% 2**31`; reuse the root one only); dropping requires connecting to a _different_ database (`dbname="postgres"`) — connecting to the target and dropping it fails; the `DuplicateDatabase` except needs psycopg2 ≥ 3.1 exception classes (repo pins psycopg2-binary; confirm with `uv run python -c "import psycopg2; print(hasattr(psycopg2.errors, 'DuplicateDatabase'))"` in Step 3).
 
 ---
 
 ### Task 6: Cutover `get_test_db_url` to per-worker databases
 
 **Files:**
+
 - Modify: `backend/tests/conftest.py` (`get_test_db_url` at :557-590)
 - Test: `backend/tests/test_db_isolation.py` (extend)
 
 **Interfaces:**
+
 - Consumes: Task 5's four helpers.
 - Produces: `get_test_db_url()` now returns a **worker-suffixed** URL (the change every downstream consumer sees: `isolated_db` :1489, `test_db` :1641, benchmarks importing it). Consumers keep working because they only treat the return value as "a URL to point DATABASE_URL at" — verified by grep of the five benchmark importers (they write `os.environ` + `get_settings.cache_clear()`, same contract).
 
@@ -1156,9 +1174,10 @@ Replace the body of `get_test_db_url` (keep its docstring, rewrite the "Returns"
 uv run pytest backend/tests/test_db_isolation.py -v -n0 -p no:randomly -o addopts=""
 # then prove parallel behavior: same file under 4 workers, twice, each
 # worker resetting its OWN schema without queueing
-uv run pytest backend/tests/test_utils.py backend/tests/test_db_isolation.py -n4 -p no:randomly -o addopts="-v" 
+uv run pytest backend/tests/test_utils.py backend/tests/test_db_isolation.py -n4 -p no:randomly -o addopts="-v"
 uv run pytest backend/tests/test_utils.py backend/tests/test_db_isolation.py -n4 -p no:randomly -o addopts="-v"
 ```
+
 Expected: PASS both; second run must not error on existing databases (create is idempotent).
 
 - [ ] **Step 5: Prove the serialization class is dead (instrumented probe)**
@@ -1169,6 +1188,7 @@ Run the heaviest `test_db` consumer subset with timing, old-vs-new:
 OLDHASH=$(git rev-parse HEAD)
 uv run pytest backend/tests/unit/core/test_database.py backend/tests/unit/repositories -n8 -o addopts="-v -m 'not gpu'" 2>&1 | tail -3
 ```
+
 Record wall-time. (The full before/after DBRACE-cluster measurement belongs to Task 8's acceptance run; here we only require: green + wall-time not worse by more than template-creation cost.)
 
 - [ ] **Step 6: Commit**
@@ -1194,10 +1214,12 @@ GOTCHAS: `get_test_db_url` is called from fixtures (`isolated_db` :1515, `test_d
 Create-per-call (Task 6) is idempotent but re-parses pg_database on every fixture invocation, and crashed sessions leak `<base>_gwN` copies. This task adds the session-scoped lifecycle without changing the URL contract.
 
 **Files:**
+
 - Modify: `backend/tests/conftest.py` (new session fixture + module-level memo; extend existing session-scoped hygiene if present)
 - Test: `backend/tests/test_db_isolation.py` (extend)
 
 **Interfaces:**
+
 - Consumes: Task 5 helpers, Task 6's `get_test_db_url`.
 - Produces: `worker_database` session fixture (autouse within the root tier) guaranteeing create-once + drop-on-session-end; a `_created_worker_db` module memo making post-first `get_test_db_url` calls pure-cache (no psycopg2 round-trip).
 
@@ -1285,6 +1307,7 @@ uv run pytest backend/tests/test_db_isolation.py -n4 -p no:randomly -o addopts="
 psql "postgresql://postgres:postgres@localhost:5432/postgres" -Atc \
   "SELECT datname FROM pg_database WHERE datname LIKE '%\\_gw%' ORDER BY 1" | head
 ```
+
 Expected: green ×2; between runs, zero leaked `<base>_gw*` rows except any live-session ones (after the second run ends: zero).
 
 - [ ] **Step 5: Commit**
@@ -1310,10 +1333,12 @@ GOTCHAS: an autouse session fixture in the ROOT conftest applies to every test i
 This is the measurement task: no code unless the numbers demand it. It closes the loop on M1's DBRACE ruling and executes spec §9 item 5 (`--dist=loadgroup` removal strictly after green ×2).
 
 **Files:**
+
 - Modify: `scripts/validate.sh` — ONLY if the green-×2 condition holds AND M1 shipped the flag (today's tree: it did not — `grep -n 'dist=' scripts/validate.sh` must be re-run at execution time; if M1's final commit shipped it, remove it here with the supersession note; if not, this task records "no supersession needed" and changes nothing)
 - Modify: `docs/development/fast-confidence-loop-measurements.md` (Task 15's file — first row filled: before/after lane numbers)
 
 **Interfaces:**
+
 - Consumes: Tasks 5–7 on disk; the M1 ledger's R-T7-DBRACE-FINAL cluster list (alert_repository 41, zone/queues/admin/dlq, api_protection) as the acceptance set.
 - Produces: the two green full-run records that unblock Task 9's clean attribution and Task 10's "selection over a non-contended suite" precondition; the measurements doc's first row.
 
@@ -1340,6 +1365,7 @@ fast-loop measurements the same way it poisoned the gates.
 grep -n 'dist=' scripts/validate.sh || echo NO-DIST-FLAG
 git log --oneline -5 -- scripts/validate.sh
 ```
+
 Record the answer in the ledger/report either way. If a flag exists (M1 shipped it after this plan was drafted), Steps 2–4 run WITH it (green ×2 proven under the belt), Step 5 removes it, Steps 6–7 re-prove ×2 without it before merge of the removal.
 
 - [ ] **Step 2: Run the DBRACE cluster at `-n auto` (run 1 of 2)**
@@ -1353,6 +1379,7 @@ uv run pytest backend/tests/unit/repositories/test_alert_repository.py \
   2>&1 | tee /tmp/fcl-dbrace-run1.log
 grep -c 'node down' /tmp/fcl-dbrace-run1.log || true
 ```
+
 Expected: exit 0 (or only known-red tests unrelated to contention — adjudicate against the ledger's class tables), and `node down` count **0** (spec §6.1). If individual tests are red, this is Task-9's forensics moment: capture tracebacks; DB-class errors (lock wait timeouts, missing tables another worker dropped, UniqueViolation across workers) mean a missed shared-state path; redis-class is expected-red until Task 9.
 
 - [ ] **Step 3: Run 2 of 2.** Same command → `/tmp/fcl-dbrace-run2.log`. Two greens required.
@@ -1362,6 +1389,7 @@ Expected: exit 0 (or only known-red tests unrelated to contention — adjudicate
 ```bash
 time (TEST_DATABASE_URL="..." ./scripts/validate.sh --backend) 2>&1 | tee /tmp/fcl-full-backend-1.log
 ```
+
 Record wall-time. Target is spec §6.1 (< 30 min) — if the run lands 30–45 min because Redis (Task 9) is still shared, that is the expected intermediate; note it, don't fail the task. Zero node-downs is the hard requirement; the < 30 min wall is finally adjudicated after Task 9's run.
 
 - [ ] **Step 5 (conditional): remove loadgroup** — only under the Step-1 positive + green-×2 both with it. Replace `--dist=loadgroup` on the pytest line with nothing, and add above it:
@@ -1384,22 +1412,24 @@ After: <wall-time from Step 4>, zero node-downs in 2 DBRACE-cluster runs.
 Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
-GOTCHAS: `-p no:randomly` keeps the cluster co-located deterministically (under worksteal + randomly, the same 5 files scatter — which is also a valid acceptance shape; the plan chooses the deterministic form first, and Step 4's full validate.sh run covers the scattered form); the run MUST happen on the dev box with the dev stack up (validate.sh's discover_containers exports the same URL — running Steps 2–3 bare without the env silently uses DEFAULT_DEV_POSTGRES_URL and still passes, testing the wrong base name); watch for `duplicate_database` warnings in logs between workers — benign by design (the except), but a *flood* of them means the memo from Task 7 isn't engaging.
+GOTCHAS: `-p no:randomly` keeps the cluster co-located deterministically (under worksteal + randomly, the same 5 files scatter — which is also a valid acceptance shape; the plan chooses the deterministic form first, and Step 4's full validate.sh run covers the scattered form); the run MUST happen on the dev box with the dev stack up (validate.sh's discover_containers exports the same URL — running Steps 2–3 bare without the env silently uses DEFAULT_DEV_POSTGRES_URL and still passes, testing the wrong base name); watch for `duplicate_database` warnings in logs between workers — benign by design (the except), but a _flood_ of them means the memo from Task 7 isn't engaging.
 ---
 
 ## Phase C — Per-worker Redis isolation (spec §3.2)
 
 ### Task 9: Per-worker Redis logical DB + session-start flush + singleton eviction
 
-The mechanism is a three-parter or it silently does nothing: (1) the URL env must be set **before any client constructs** (RedisClient bakes `self._redis_url` at construction, `backend/core/redis.py:227-228`, and the pool at `connect()`, :637); (2) `get_settings.cache_clear()` (already per-test via `reset_settings_cache`, root conftest :1617/:1638 — but it does not re-derive connections); (3) **eviction of an already-built client** — the module-global `_redis_client` singleton (:2658) survives cache_clear with the old pool baked in. xdist gives each worker a fresh interpreter, so at *session* scope (3) is mostly automatic; the fixture still defensively evicts because serial (`-n0`) sessions and in-test `patch` teardowns can leave a live singleton.
+The mechanism is a three-parter or it silently does nothing: (1) the URL env must be set **before any client constructs** (RedisClient bakes `self._redis_url` at construction, `backend/core/redis.py:227-228`, and the pool at `connect()`, :637); (2) `get_settings.cache_clear()` (already per-test via `reset_settings_cache`, root conftest :1617/:1638 — but it does not re-derive connections); (3) **eviction of an already-built client** — the module-global `_redis_client` singleton (:2658) survives cache_clear with the old pool baked in. xdist gives each worker a fresh interpreter, so at _session_ scope (3) is mostly automatic; the fixture still defensively evicts because serial (`-n0`) sessions and in-test `patch` teardowns can leave a live singleton.
 
 **Files:**
+
 - Modify: `backend/tests/conftest.py` (new helpers + session autouse fixture; extend the `reset_settings_cache` defaults region :1610-1611 to defer to the worker URL)
 - Test: `backend/tests/test_db_isolation.py` (extend)
 
 **Interfaces:**
+
 - Consumes: Task 5's `worker_id()`.
-- Produces: `worker_redis_url()` (pure function) + `worker_redis` session autouse fixture. The unit tier's `mock_redis`/`mock_redis_client` fixtures are untouched (pure mocks — this task only moves the *real*-connection tier).
+- Produces: `worker_redis_url()` (pure function) + `worker_redis` session autouse fixture. The unit tier's `mock_redis`/`mock_redis_client` fixtures are untouched (pure mocks — this task only moves the _real_-connection tier).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1573,7 +1603,8 @@ uv run pytest backend/tests/integration/test_queues_api.py backend/tests/integra
   -n auto --timeout=60 -p no:randomly -o addopts="-v -m 'not gpu'" 2>&1 | tee /tmp/fcl-a2-redis.log
 grep -c 'node down' /tmp/fcl-a2-redis.log || true
 ```
-Expected: green, zero node-downs (spec §3.2 acceptance). Note the integration tier has its OWN `worker_redis_url` session fixture mapping gw0→db0…master→db15 (`backend/tests/integration/conftest.py:683-707`) and its `integration_env` writes REDIS_URL per-test — the root-tier fixture above must not fight it: the integration fixture overwrites within its own scope (function-scoped, wins ordering), and both mappings are worker-exclusive, so no cross-worker collision results. The acceptance run executes the integration chain (the A2 files are integration tests) — this is the *combination* under test; if the two layers fight (flapping between worker db indexes mid-test), the ruling path is: root fixture becomes non-autouse and only the unit tier uses it (record as Ruling; the spec §3.2 scope is "conftest-scope only", the unit tier is the owner of the shared-redis failure class).
+
+Expected: green, zero node-downs (spec §3.2 acceptance). Note the integration tier has its OWN `worker_redis_url` session fixture mapping gw0→db0…master→db15 (`backend/tests/integration/conftest.py:683-707`) and its `integration_env` writes REDIS_URL per-test — the root-tier fixture above must not fight it: the integration fixture overwrites within its own scope (function-scoped, wins ordering), and both mappings are worker-exclusive, so no cross-worker collision results. The acceptance run executes the integration chain (the A2 files are integration tests) — this is the _combination_ under test; if the two layers fight (flapping between worker db indexes mid-test), the ruling path is: root fixture becomes non-autouse and only the unit tier uses it (record as Ruling; the spec §3.2 scope is "conftest-scope only", the unit tier is the owner of the shared-redis failure class).
 
 - [ ] **Step 5: Commit**
 
@@ -1597,14 +1628,16 @@ GOTCHAS: `asyncio.run(close_redis())` inside a sync session fixture works only i
 
 ### Task 10: Backend change→test selector (`scripts/fast_select.py`)
 
-Spec §4.1 sketches a path-proximity table; the plan's fact-sweep measured why a *table* is the wrong v1: filename mirroring silently drops 9 of 62 route modules and 18 of 206 service modules (their only tests are integration-root, differently named), 85 test basenames are duplicated across dirs, and route tests import their module lazily inside test bodies or reference it only as a `patch("backend.api.routes.metrics...")` string. Import-truth beats naming-heuristics and needs no maintained table: the selector builds the dotted-reference index from the test files' own text (imports AND patch strings — one regex over file text captures both) and maps changed modules to every test that mentions them. Spec §4.1's "proximity table realized by import truth" is a RULING recorded here (deviation from the spec's illustrative mechanism, faithful to its intent: predictable, explainable, printed selection).
+Spec §4.1 sketches a path-proximity table; the plan's fact-sweep measured why a _table_ is the wrong v1: filename mirroring silently drops 9 of 62 route modules and 18 of 206 service modules (their only tests are integration-root, differently named), 85 test basenames are duplicated across dirs, and route tests import their module lazily inside test bodies or reference it only as a `patch("backend.api.routes.metrics...")` string. Import-truth beats naming-heuristics and needs no maintained table: the selector builds the dotted-reference index from the test files' own text (imports AND patch strings — one regex over file text captures both) and maps changed modules to every test that mentions them. Spec §4.1's "proximity table realized by import truth" is a RULING recorded here (deviation from the spec's illustrative mechanism, faithful to its intent: predictable, explainable, printed selection).
 
 **Files:**
+
 - Create: `scripts/fast_select.py`
 - Test: `scripts/test_fast_select.py`
 - Create: `scripts/fast-backend-runner.sh`
 
 **Interfaces:**
+
 - Consumes: git (repo checkout), no third-party deps.
 - Produces: `fast_select.py --base REF [--list-out FILE] [--why]` → exit 0 with stdout report; writes the newline-separated selected test-file paths (repo-root-relative) to `--list-out` for Task 13's runner; exit 2 operational error. Directory policy for `backend/api/**` changes emits the smoke set (`backend/tests/contracts` — see Task 13 for the contracts-tier note; the spec's "3 smoke files named in validate.sh's contracts step" does not exist on disk — validate.sh has no contracts step (verified: grep 'contracts' scripts/validate.sh → comment-only hits); ruling: the smoke set IS `backend/tests/contracts/` (4 test files, the CI-named contracts tier), recorded as an in-flight spec-text correction in the measurements doc).
 
@@ -1862,6 +1895,7 @@ if __name__ == "__main__":
 ```bash
 uv run python scripts/fast_select.py --base "$(git merge-base HEAD main)" --why | tail -8
 ```
+
 Expected on a docs-only diff branch tail: `SELECTED-BACKEND-FILES: 0`. Sanity the other direction: `uv run python scripts/fast_select.py --base HEAD~5 --why | grep -E 'SELECTED |UNMAPPED' | head` — on the real repo expect a plausible mix (M1 commits touching backend files → their importers). Timing note for the measurements doc: the full `backend/tests` parse runs once per invocation (≈1-2 s over 913 files at plan time — no caching layer in v1, YAGNI; cache behind a flag only if measurement disagrees).
 
 - [ ] **Step 6: Create the backend runner**
@@ -1888,6 +1922,7 @@ xargs -a "$LIST" -d '\n' -r uv run pytest \
     --dist=loadgroup -p no:randomly \
     -o addopts="-v -m 'not gpu' --timeout=60"
 ```
+
 `chmod +x scripts/fast-backend-runner.sh`.
 
 - [ ] **Step 7: Commit**
@@ -1904,16 +1939,18 @@ backend/tests/contracts for any backend/api change; unmapped files print loud.
 Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
-GOTCHAS: the regex `backend(\.\w+)+` also catches prose/docstrings mentioning dotted paths — over-selection direction only (a test mentioning the module in a comment gets run; harmless under an advisory tier, cheaper than AST-parsing 913 files); `--base REF` must be a reachable ref — `git diff --name-only REF` against a non-ancestor fails loud (exit 2, by design: silent-empty selection is the failure mode to avoid); deleted test files can appear in the selection if the *diff* deletes them — `xargs uv run pytest deleted_file` errors loud, which is correct (a deletion changing the selection is a human-should-see-it event; the playbook never deletes files); `-o addopts=` REPLACES the pyproject addopts string wholesale — that's why `-m 'not gpu'` and `-v` are restated inside it (validate.sh's own comment at :283 documents the same trap).
+GOTCHAS: the regex `backend(\.\w+)+` also catches prose/docstrings mentioning dotted paths — over-selection direction only (a test mentioning the module in a comment gets run; harmless under an advisory tier, cheaper than AST-parsing 913 files); `--base REF` must be a reachable ref — `git diff --name-only REF` against a non-ancestor fails loud (exit 2, by design: silent-empty selection is the failure mode to avoid); deleted test files can appear in the selection if the _diff_ deletes them — `xargs uv run pytest deleted_file` errors loud, which is correct (a deletion changing the selection is a human-should-see-it event; the playbook never deletes files); `-o addopts=` REPLACES the pyproject addopts string wholesale — that's why `-m 'not gpu'` and `-v` are restated inside it (validate.sh's own comment at :283 documents the same trap).
 
 ---
 
 ### Task 11: Frontend related-tests runner (`scripts/fast-frontend-runner.sh`)
 
 **Files:**
+
 - Create: `scripts/fast-frontend-runner.sh`
 
 **Interfaces:**
+
 - Consumes: Task 3's env contract; vitest 4.0.18 `related` (verified live: command exists, exclude is honored, `--run` is mandatory for determinism).
 - Produces: exit 0 + a parsed `SELECTED-FRONTEND-FILES: N` line Task 13 folds into the aggregate header; nonzero on any selected-test failure.
 
@@ -1973,6 +2010,7 @@ RUN_COUNT=$(grep -cE '^ *(✓|✗|×|❯)? *(Test Files|.*\.test\.(ts|tsx))' "$L
 echo "SELECTED-FRONTEND-FILES: ${RUN_COUNT:-0}"
 exit $RC
 ```
+
 `chmod +x`.
 
 - [ ] **Step 2: Prove the three shapes on the live tree**
@@ -1990,6 +2028,7 @@ printf 'export const fclProbe = 1;\n' > frontend/src/fcl-probe-no-importers.ts
 sh scripts/fast-frontend-runner.sh "$BASE"; echo "rc=$?"
 rm frontend/src/fcl-probe-no-importers.ts
 ```
+
 Expected: (a) rc=0 with a selection ≥1 (`useAlertsQuery.test.ts` colocation verified at plan time); (b) `SELECTED-FRONTEND-FILES: 0` rc=0; (c) rc=0 and count line present (the count parsing is the fragile part — if `grep -c` returns 0-lines-not-found exit 1 swallowed by `|| true`, the `:-0` default keeps it clean; verify the actual default-reporter line shape during this step and adjust the regex to what 4.0.18 prints, e.g. counting `✓`-prefixed file lines — that calibration IS step 2's deliverable, record the final regex in the commit).
 
 - [ ] **Step 3: Commit**
@@ -2005,17 +2044,19 @@ reported instead).
 Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
-GOTCHAS: unquoted `$SELECTABLE` word-splitting is deliberate-POSIX (repo file names contain no spaces — same convention the backend runner relies on; add a guard `case "$SELECTABLE" in *$'\n'*) : ;; esac` only if the executor finds spaced names, which the plan-time `git ls-files frontend/src | grep ' '` check says none do); `related` follows the full transitive import graph, so a change to the shared api client or generated types selects most of the suite — that is correct behavior (spec: related is only *fast* for leaf edits; a wide-selection --fast run degrading to ~full-suite time is honest, not broken — the header count tells the developer why today's fast run wasn't); `tests/integration/*.test.ts` (2 files, in the default suite, NOT excluded) are reachable via the `src/`-filtered list only through the import graph, never as positionals — consistent with `related` semantics.
+GOTCHAS: unquoted `$SELECTABLE` word-splitting is deliberate-POSIX (repo file names contain no spaces — same convention the backend runner relies on; add a guard `case "$SELECTABLE" in *$'\n'*) : ;; esac` only if the executor finds spaced names, which the plan-time `git ls-files frontend/src | grep ' '` check says none do); `related` follows the full transitive import graph, so a change to the shared api client or generated types selects most of the suite — that is correct behavior (spec: related is only _fast_ for leaf edits; a wide-selection --fast run degrading to ~full-suite time is honest, not broken — the header count tells the developer why today's fast run wasn't); `tests/integration/*.test.ts` (2 files, in the default suite, NOT excluded) are reachable via the `src/`-filtered list only through the import graph, never as positionals — consistent with `related` semantics.
 
 ---
 
 ### Task 12: The scripted §6.3 playbook (5 changes × ≤10 min each)
 
 **Files:**
+
 - Create: `scripts/fast-validation-playbook.sh`
 - Modify: `docs/development/fast-confidence-loop-measurements.md` (selection table + timings filled by running it)
 
 **Interfaces:**
+
 - Consumes: Tasks 10–11's runners (invokes the runners directly — the playbook predates Task 13's `--fast` wiring by design, so it can also serve as the pre-wiring acceptance harness).
 - Produces: the spec §6.3 artifact ("playbook file committed under scripts/"), per-change wall numbers, and the selection table the exit criteria demand. The 5 changes (all five files verified on disk at plan time): route `backend/api/routes/alerts.py`; service `backend/services/alert_service.py`; component `frontend/src/components/dashboard/ActionableInsights.tsx`; hook `frontend/src/hooks/useAlertsQuery.ts`; config `frontend/vite.config.ts` (the config case deliberately demonstrates the full-suite guard: expected result = Tier-0-style notice + nonzero-fast skip, per spec's "files with no import path fall back to Tier 0 + a notice line").
 
@@ -2060,13 +2101,15 @@ run_case "config (vite.config.ts)"    frontend/vite.config.ts                   
 echo "--- playbook summary ---"; cat "$RESULTS"
 exit "${OVERALL:-0}"
 ```
-`chmod +x`. The route/service cases pass a LISTFILE-less runner invocation — no: `fast-backend-runner.sh` takes a LISTFILE. The runner contract is list-file-based (Task 10), so `run_case`'s backend branch must first generate the list: change the backend invocation to a two-step (`uv run python scripts/fast_select.py --base "$BASE" --list-out /tmp/fcl-sel.txt >/dev/null && sh scripts/fast-backend-runner.sh /tmp/fcl-sel.txt`) — implement `run_case`'s third parameter as a *command string* (`$3='uv run python scripts/fast_select.py --base "$BASE" --list-out /tmp/fcl-sel.txt >/dev/null 2>&1 && sh scripts/fast-backend-runner.sh /tmp/fcl-sel.txt'`) executed via `sh -c "$RUNNER"` (rewrite `if sh "$RUNNER"` → `if sh -c "$RUNNER"`). The frontend parameter is `"sh scripts/fast-frontend-runner.sh $BASE"`. This is the shape that keeps the playbook honest: it runs exactly what Task 13's `--fast` will run.
+
+`chmod +x`. The route/service cases pass a LISTFILE-less runner invocation — no: `fast-backend-runner.sh` takes a LISTFILE. The runner contract is list-file-based (Task 10), so `run_case`'s backend branch must first generate the list: change the backend invocation to a two-step (`uv run python scripts/fast_select.py --base "$BASE" --list-out /tmp/fcl-sel.txt >/dev/null && sh scripts/fast-backend-runner.sh /tmp/fcl-sel.txt`) — implement `run_case`'s third parameter as a _command string_ (`$3='uv run python scripts/fast_select.py --base "$BASE" --list-out /tmp/fcl-sel.txt >/dev/null 2>&1 && sh scripts/fast-backend-runner.sh /tmp/fcl-sel.txt'`) executed via `sh -c "$RUNNER"` (rewrite `if sh "$RUNNER"` → `if sh -c "$RUNNER"`). The frontend parameter is `"sh scripts/fast-frontend-runner.sh $BASE"`. This is the shape that keeps the playbook honest: it runs exactly what Task 13's `--fast` will run.
 
 - [ ] **Step 2: Execute and fill the measurements table**
 
 ```bash
 sh scripts/fast-validation-playbook.sh 2>&1 | tee /tmp/fcl-playbook.log
 ```
+
 Expected: five OK rows (config case: rc as designed by Task 11's guard, wall bounded). Paste the summary + each case's SELECTED count into `docs/development/fast-confidence-loop-measurements.md` §playbook. If the route case exceeds 600 s because the selector legitimately pulls a wide net (alerts.py fans into ~4-18 test files per the fact-sweep — those files' own fixtures then boot), the ruling menu is, in order: accept and record (advisory tier), narrow `backend/api/**` policy to contracts-only-on-schema-touch (needs a schema-diff heuristic — YAGNI until needed), or split selection from `-p randomly` ordering further. Record the decision in the ledger; do not silently loosen the 600 s wall.
 
 - [ ] **Step 3: Commit**
@@ -2083,10 +2126,12 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ### Task 13: `validate.sh --fast` wiring (spec §4.1 output contract)
 
 **Files:**
+
 - Modify: `scripts/validate.sh` (arg parser :179-200, new `run_fast_validation()`, dispatch :438-455, header :10-14, `show_help`)
 - Modify: `scripts/AGENTS.md` (:303-316 region)
 
 **Interfaces:**
+
 - Consumes: Task 10's runner contract (`fast_select.py --list-out` + `fast-backend-runner.sh LISTFILE`), Task 11's frontend runner, Task 1's selection line formats.
 - Produces: the user-facing flag; the aggregate header/footer contract spec §4.1 defines verbatim.
 
@@ -2154,7 +2199,8 @@ The `FE_N=$(...)` line above is intentionally incomplete in this draft because t
     sh "$SCRIPT_DIR/fast-frontend-runner.sh" "$VALIDATE_BASE" 2>&1 | tee "$FE_LOG"
     FE_RC=$?   # with set -e, wrap: if ! sh ... | tee; then ...
 ```
-(`set -e` + pipelines: use `if ! sh "$SCRIPT_DIR/fast-frontend-runner.sh" "$VALIDATE_BASE" 2>&1 | tee "$FE_LOG"; then print_error "Fast frontend tests failed"; exit 1; fi` — note: without pipefail the `if` sees `tee` — same trap the ci.yml audit found; therefore do NOT pipe here: capture with command substitution *and* echo: `FE_OUT=$(sh "$SCRIPT_DIR/fast-frontend-runner.sh" "$VALIDATE_BASE"); FE_RC=$?; printf '%s\n' "$FE_OUT"` — runner is already loud. Apply the identical pattern to the backend runner call.)
+
+(`set -e` + pipelines: use `if ! sh "$SCRIPT_DIR/fast-frontend-runner.sh" "$VALIDATE_BASE" 2>&1 | tee "$FE_LOG"; then print_error "Fast frontend tests failed"; exit 1; fi` — note: without pipefail the `if` sees `tee` — same trap the ci.yml audit found; therefore do NOT pipe here: capture with command substitution _and_ echo: `FE_OUT=$(sh "$SCRIPT_DIR/fast-frontend-runner.sh" "$VALIDATE_BASE"); FE_RC=$?; printf '%s\n' "$FE_OUT"` — runner is already loud. Apply the identical pattern to the backend runner call.)
 
 Dispatch block (the file has no main(); append before the final banner block, and guard the final banner):
 
@@ -2204,16 +2250,18 @@ byte-identical.
 Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
-GOTCHAS: `trap` inside a function with `EXIT` overwrites prior traps in POSIX sh (mktemp cleanup uses one accumulated trap — declare both files in one trap string, as drafted); `set -e` semantics with `$(...)` assignment: `X=$(cmd)` propagates cmd's failure *only* at the assignment line — that's why `FE_RC=$?` follows on its own line only in the non-`set -e` variant; the committed shape uses the `if ! X=$(...)` guard form — the executor picks ONE of these two drafts and deletes the other (the plan mandates the `if ! ... ; then` guard form, final); `git merge-base HEAD main` fails on a repo cloned without a local `main` (fallback `origin/main` — `git rev-parse --verify -q main || echo origin/main` inside the `${VALIDATE_BASE:-...}` default); CI never invokes validate.sh at all today (verified: no workflow references it) so the flag ships dev-box-only by default, which is the design (spec §4.1 "its position moves" happens in Task 14).
+GOTCHAS: `trap` inside a function with `EXIT` overwrites prior traps in POSIX sh (mktemp cleanup uses one accumulated trap — declare both files in one trap string, as drafted); `set -e` semantics with `$(...)` assignment: `X=$(cmd)` propagates cmd's failure _only_ at the assignment line — that's why `FE_RC=$?` follows on its own line only in the non-`set -e` variant; the committed shape uses the `if ! X=$(...)` guard form — the executor picks ONE of these two drafts and deletes the other (the plan mandates the `if ! ... ; then` guard form, final); `git merge-base HEAD main` fails on a repo cloned without a local `main` (fallback `origin/main` — `git rev-parse --verify -q main || echo origin/main` inside the `${VALIDATE_BASE:-...}` default); CI never invokes validate.sh at all today (verified: no workflow references it) so the flag ships dev-box-only by default, which is the design (spec §4.1 "its position moves" happens in Task 14).
 
 ---
 
 ### Task 14: Nightly full-gate workflow (spec §5.4)
 
 **Files:**
+
 - Create: `.github/workflows/nightly-full-validation.yml`
 
 **Interfaces:**
+
 - Consumes: honest CI (Tasks 1–2, 4) — a nightly wrapping lying jobs is a lie on a schedule, which is why this is gated on Phase A.
 - Produces: the §6 exit-criteria substrate ("the full suite ran somewhere trustworthy yesterday") and the standing home for the §6.1/§6.2 wall-time trend rows.
 
@@ -2229,7 +2277,7 @@ Create `.github/workflows/nightly-full-validation.yml`:
 name: Nightly Full Validation
 on:
   schedule:
-    - cron: '17 4 * * *'   # 21:17 Pacific-ish drift off the :00 herd; UTC 04:17
+    - cron: '17 4 * * *' # 21:17 Pacific-ish drift off the :00 herd; UTC 04:17
   workflow_dispatch: {}
 
 permissions:
@@ -2300,6 +2348,7 @@ git commit -m "ci: nightly full-gate validation workflow (spec 5.4)
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
+
 Push is owner-gated (M1 policy: pushes authorized per-event); after the owner's next authorized push, run `gh workflow run "Nightly Full Validation"` once and read the Job Summary; record first nightly duration in the measurements doc.
 
 GOTCHAS: cron `17 4 * * *` follows the off-:00 herd convention; the container-spelled credentials mirror the repo's dev defaults and are non-secret dev values (the repo's own DEFAULT_DEV constants carry them) — if a reviewer demands parity with ci.yml's service setup, adopt ci.yml's existing service-container method verbatim instead of `docker run` (ci.yml uses services: blocks or step-up containers — grep `services:` in ci.yml at execution time and mirror whichever the jobs use; this is byte-parity with what unit/integration jobs already prove on the same runner image); pytest here runs with pyproject addopts (`-n 8 --dist=worksteal`) which is validate.sh's effective parallelism too (validate passes no -n; addopts supplies -n 8) — parity holds.
@@ -2309,9 +2358,11 @@ GOTCHAS: cron `17 4 * * *` follows the off-:00 herd convention; the container-sp
 ### Task 15: Measurements record + M1 blind-spot findings (spec §6)
 
 **Files:**
+
 - Create/modify: `docs/development/fast-confidence-loop-measurements.md` (scaffolded in Task 8, completed here)
 
 **Interfaces:**
+
 - Consumes: every task's recorded numbers.
 - Produces: the spec §6 "notes doc under docs/development/" exit artifact.
 

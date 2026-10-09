@@ -152,7 +152,8 @@ export const mockDeletedEvents = {
     risk_score: 45,
     risk_level: 'medium',
     summary: 'Raccoon activity near fence',
-    reasoning: 'Animal detected near property boundary. Medium risk flagged due to unusual nighttime movement.',
+    reasoning:
+      'Animal detected near property boundary. Medium risk flagged due to unusual nighttime movement.',
     reviewed: true,
     notes: 'Just a raccoon',
     detections: [{ label: 'animal', confidence: 0.87 }],
@@ -168,7 +169,8 @@ export const mockDeletedEvents = {
     risk_score: 68,
     risk_level: 'high',
     summary: 'Unknown vehicle lingering in driveway',
-    reasoning: 'Unrecognized vehicle remained stationary for extended period. Potential surveillance risk.',
+    reasoning:
+      'Unrecognized vehicle remained stationary for extended period. Potential surveillance risk.',
     reviewed: true,
     notes: "Neighbor's new car",
     detections: [{ label: 'car', confidence: 0.94 }],
@@ -184,13 +186,14 @@ export const mockDeletedEvents = {
     risk_score: 85,
     risk_level: 'high',
     summary: 'Multiple individuals at door late at night',
-    reasoning: 'Three unidentified persons at entrance during late night hours. High risk due to time and behavior.',
+    reasoning:
+      'Three unidentified persons at entrance during late night hours. High risk due to time and behavior.',
     reviewed: true,
     notes: 'False alarm - friends visiting',
     detections: [
       { label: 'person', confidence: 0.96 },
       { label: 'person', confidence: 0.93 },
-      { label: 'person', confidence: 0.90 },
+      { label: 'person', confidence: 0.9 },
     ],
     deleted_at: new Date(Date.now() - 43200000).toISOString(), // Deleted 12 hours ago
   },

@@ -14,12 +14,7 @@ import { test, expect } from '@playwright/test';
 // Skip entire file in CI - timing issues cause flaky failures
 test.skip(() => !!process.env.CI, 'E2E tests flaky in CI - run locally');
 import { AuditPage } from '../pages';
-import {
-  setupApiMocks,
-  defaultMockConfig,
-  emptyMockConfig,
-  errorMockConfig,
-} from '../fixtures';
+import { setupApiMocks, defaultMockConfig, emptyMockConfig, errorMockConfig } from '../fixtures';
 
 // Skip all audit tests on webkit - timing issues with page load
 // Chromium provides sufficient coverage
@@ -97,14 +92,26 @@ test.describe('Audit Table', () => {
     // Wait for one of the possible states to appear (use Promise.race for auto-waiting)
     await Promise.race([
       auditPage.auditTable.waitFor({ state: 'visible', timeout: 5000 }).catch(() => null),
-      page.getByText(/No Audit Entries Found|No audit logs/i).waitFor({ state: 'visible', timeout: 5000 }).catch(() => null),
-      page.getByText(/Loading audit logs/i).waitFor({ state: 'visible', timeout: 5000 }).catch(() => null),
+      page
+        .getByText(/No Audit Entries Found|No audit logs/i)
+        .waitFor({ state: 'visible', timeout: 5000 })
+        .catch(() => null),
+      page
+        .getByText(/Loading audit logs/i)
+        .waitFor({ state: 'visible', timeout: 5000 })
+        .catch(() => null),
     ]);
 
     // After waiting, check that at least one state is now visible
     const tableVisible = await auditPage.auditTable.isVisible().catch(() => false);
-    const emptyVisible = await page.getByText(/No Audit Entries Found|No audit logs/i).isVisible().catch(() => false);
-    const loadingVisible = await page.getByText(/Loading audit logs/i).isVisible().catch(() => false);
+    const emptyVisible = await page
+      .getByText(/No Audit Entries Found|No audit logs/i)
+      .isVisible()
+      .catch(() => false);
+    const loadingVisible = await page
+      .getByText(/Loading audit logs/i)
+      .isVisible()
+      .catch(() => false);
 
     // One of these should be true after page load
     expect(tableVisible || emptyVisible || loadingVisible).toBe(true);

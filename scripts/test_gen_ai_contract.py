@@ -107,7 +107,8 @@ class TestEmissionDeterminism:
     def test_rendered_schemas_are_prettier_fixpoint(self, tmp_path):
         """Artifact bytes == hook-prettier(artifact bytes) for EVERY generated
         JSON file - schemas AND the WP7.2 goldens (snapshots + payloads). The
-        JSON prettier hook (mirrors-prettier + prettier@3.2.4, printWidth 100
+        JSON prettier hook (mirrors-prettier; prettier@3.9.9 since owner
+        ruling 24, was 3.2.4, printWidth 100
         from .prettierrc) collapsed the generator's multi-line `required`
         arrays on the first commit attempt - the same class of failure as the
         ruff one above. prettier_canonical() implements the hook's rules

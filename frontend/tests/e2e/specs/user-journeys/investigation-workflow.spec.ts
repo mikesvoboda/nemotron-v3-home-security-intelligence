@@ -26,13 +26,16 @@ test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally'
  */
 async function waitForModalContent(page: Page, timeout = 15000) {
   // Wait for modal to be attached to DOM
-  const modal = page.locator('[data-testid="event-detail-modal"]').or(
-    page.locator('[data-testid="event-detail"]')
-  );
+  const modal = page
+    .locator('[data-testid="event-detail-modal"]')
+    .or(page.locator('[data-testid="event-detail"]'));
   await modal.first().waitFor({ state: 'attached', timeout: 5000 });
 
   // Wait for modal heading (camera name) to be visible
-  const modalHeading = page.getByRole('heading', { level: 2, name: /Front Door|Back Yard|Garage|Driveway|Unknown Camera/i });
+  const modalHeading = page.getByRole('heading', {
+    level: 2,
+    name: /Front Door|Back Yard|Garage|Driveway|Unknown Camera/i,
+  });
   await expect(modalHeading).toBeVisible({ timeout });
 
   // Wait for close button to be visible (indicates modal UI is interactive)
@@ -44,7 +47,7 @@ async function waitForModalContent(page: Page, timeout = 15000) {
   // Additional stability check
   await waitForElementStable(page, '[data-testid="event-detail-modal"]', {
     timeout: 5000,
-    stabilityThreshold: 150
+    stabilityThreshold: 150,
   }).catch(() => {
     // If element stability check fails, continue - modal might be stable enough
   });
@@ -59,13 +62,13 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     const timeout = browserName === 'chromium' ? 10000 : 20000;
     await page.waitForSelector('[data-testid="dashboard-container"]', {
       state: 'visible',
-      timeout
+      timeout,
     });
 
     // WebSocket status should be visible after dashboard loads
     await page.waitForSelector('[data-testid="websocket-status"]', {
       state: 'attached',
-      timeout: 5000
+      timeout: 5000,
     });
   });
 
@@ -80,15 +83,15 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     await expect(page.locator('[data-testid="dashboard-container"]')).toBeVisible();
 
     // When: Click timeline navigation link
-    const timelineLink = page.locator('[data-testid="nav-timeline"]').or(
-      page.locator('a[href="/timeline"]').or(
-        page.locator('[data-testid="nav-events"]').or(
-          page.locator('a[href="/events"]')
-        )
-      )
-    );
+    const timelineLink = page
+      .locator('[data-testid="nav-timeline"]')
+      .or(
+        page
+          .locator('a[href="/timeline"]')
+          .or(page.locator('[data-testid="nav-events"]').or(page.locator('a[href="/events"]')))
+      );
 
-    if (await timelineLink.count() > 0) {
+    if ((await timelineLink.count()) > 0) {
       await expect(timelineLink.first()).toBeVisible();
       await timelineLink.first().click();
 
@@ -96,17 +99,19 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
       await expect(page).toHaveURL(/\/(timeline|events)/);
 
       // Verify timeline page container
-      const timelinePage = page.locator('[data-testid="timeline-page"]').or(
-        page.locator('[data-testid="events-page"]').or(
-          page.locator('[data-testid="timeline-container"]')
-        )
-      );
+      const timelinePage = page
+        .locator('[data-testid="timeline-page"]')
+        .or(
+          page
+            .locator('[data-testid="events-page"]')
+            .or(page.locator('[data-testid="timeline-container"]'))
+        );
       await expect(timelinePage.first()).toBeVisible({ timeout: 5000 });
     } else {
       // Alternative: Timeline might be on dashboard itself
-      const timelineComponent = page.locator('[data-testid="timeline"]').or(
-        page.locator('[data-testid="event-timeline"]')
-      );
+      const timelineComponent = page
+        .locator('[data-testid="timeline"]')
+        .or(page.locator('[data-testid="event-timeline"]'));
       await expect(timelineComponent.first()).toBeVisible({ timeout: 5000 });
     }
   });
@@ -124,38 +129,38 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     await page.waitForTimeout(1000);
 
     // When: Locate date range filter
-    const dateFilter = page.locator('[data-testid="date-filter"]').or(
-      page.locator('[data-testid="date-range-picker"]').or(
-        page.locator('input[type="date"]')
-      )
-    );
+    const dateFilter = page
+      .locator('[data-testid="date-filter"]')
+      .or(page.locator('[data-testid="date-range-picker"]').or(page.locator('input[type="date"]')));
 
-    if (await dateFilter.count() > 0) {
+    if ((await dateFilter.count()) > 0) {
       await expect(dateFilter.first()).toBeVisible();
 
       // Get initial event count
-      const events = page.locator('[data-testid^="event-"]').or(
-        page.locator('[data-testid^="timeline-event-"]')
-      );
+      const events = page
+        .locator('[data-testid^="event-"]')
+        .or(page.locator('[data-testid^="timeline-event-"]'));
       const initialCount = await events.count();
 
       // Select date filter (e.g., "Last 24 hours")
-      const last24Hours = page.locator('[data-testid="filter-24h"]').or(
-        page.locator('button:has-text("24 hours")').or(
-          page.locator('option:has-text("24 hours")')
-        )
-      );
+      const last24Hours = page
+        .locator('[data-testid="filter-24h"]')
+        .or(
+          page
+            .locator('button:has-text("24 hours")')
+            .or(page.locator('option:has-text("24 hours")'))
+        );
 
-      if (await last24Hours.count() > 0) {
+      if ((await last24Hours.count()) > 0) {
         await last24Hours.first().click();
 
         // Then: Wait for filter to apply
         await page.waitForTimeout(1000);
 
         // Verify events are filtered
-        const filteredEvents = page.locator('[data-testid^="event-"]').or(
-          page.locator('[data-testid^="timeline-event-"]')
-        );
+        const filteredEvents = page
+          .locator('[data-testid^="event-"]')
+          .or(page.locator('[data-testid^="timeline-event-"]'));
         const filteredCount = await filteredEvents.count();
 
         // Count should be defined (may be same or different)
@@ -177,15 +182,15 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     await page.waitForTimeout(1000);
 
     // When: Locate search input
-    const searchInput = page.locator('[data-testid="search-events"]').or(
-      page.locator('[data-testid="event-search"]').or(
-        page.locator('input[type="search"]').or(
-          page.locator('input[placeholder*="Search"]')
-        )
-      )
-    );
+    const searchInput = page
+      .locator('[data-testid="search-events"]')
+      .or(
+        page
+          .locator('[data-testid="event-search"]')
+          .or(page.locator('input[type="search"]').or(page.locator('input[placeholder*="Search"]')))
+      );
 
-    if (await searchInput.count() > 0) {
+    if ((await searchInput.count()) > 0) {
       await expect(searchInput.first()).toBeVisible();
 
       // Enter search term
@@ -195,17 +200,17 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
       await page.waitForTimeout(1000);
 
       // Verify events are displayed (results may vary)
-      const events = page.locator('[data-testid^="event-"]').or(
-        page.locator('[data-testid^="timeline-event-"]')
-      );
+      const events = page
+        .locator('[data-testid^="event-"]')
+        .or(page.locator('[data-testid^="timeline-event-"]'));
 
       // Either events appear or "no results" message shows
       const eventCount = await events.count();
-      const noResults = page.locator('[data-testid="no-results"]').or(
-        page.locator(':has-text("No events found")')
-      );
+      const noResults = page
+        .locator('[data-testid="no-results"]')
+        .or(page.locator(':has-text("No events found")'));
 
-      const noResultsVisible = await noResults.count() > 0;
+      const noResultsVisible = (await noResults.count()) > 0;
 
       // At least one should be true
       expect(eventCount > 0 || noResultsVisible).toBeTruthy();
@@ -228,19 +233,21 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     await page.waitForTimeout(1000);
 
     // When: Click on first event
-    const firstEvent = page.locator('[data-testid^="event-"]').or(
-      page.locator('[data-testid^="timeline-event-"]').or(
-        page.locator('[data-testid^="detection-card-"]')
-      )
-    );
+    const firstEvent = page
+      .locator('[data-testid^="event-"]')
+      .or(
+        page
+          .locator('[data-testid^="timeline-event-"]')
+          .or(page.locator('[data-testid^="detection-card-"]'))
+      );
 
-    if (await firstEvent.count() > 0) {
+    if ((await firstEvent.count()) > 0) {
       await expect(firstEvent.first()).toBeVisible({ timeout: 10000 });
 
       // Ensure event card is stable before clicking
       await waitForElementStable(page, firstEvent.first() as any, {
         timeout: 5000,
-        stabilityThreshold: 100
+        stabilityThreshold: 100,
       }).catch(() => {
         // Continue if stability check times out
       });
@@ -251,9 +258,9 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
       await waitForModalContent(page);
 
       // Verify modal is visible
-      const eventDetail = page.locator('[data-testid="event-detail-modal"]').or(
-        page.locator('[data-testid="event-detail"]')
-      );
+      const eventDetail = page
+        .locator('[data-testid="event-detail-modal"]')
+        .or(page.locator('[data-testid="event-detail"]'));
       await expect(eventDetail.first()).toBeVisible({ timeout: 5000 });
 
       // Verify detail contains key information
@@ -261,9 +268,7 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
         eventDetail.first().locator('[data-testid="detection-timestamp"]')
       ).toBeVisible();
 
-      await expect(
-        eventDetail.first().locator('[data-testid="detection-camera"]')
-      ).toBeVisible();
+      await expect(eventDetail.first().locator('[data-testid="detection-camera"]')).toBeVisible();
 
       // detection-objects is optional - only rendered when event.detections.length > 0
       // Modal fetches detections via API into detectionsData state, shown via thumbnail strip
@@ -289,19 +294,21 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
-    const firstEvent = page.locator('[data-testid^="event-"]').or(
-      page.locator('[data-testid^="timeline-event-"]').or(
-        page.locator('[data-testid^="detection-card-"]')
-      )
-    );
+    const firstEvent = page
+      .locator('[data-testid^="event-"]')
+      .or(
+        page
+          .locator('[data-testid^="timeline-event-"]')
+          .or(page.locator('[data-testid^="detection-card-"]'))
+      );
 
-    if (await firstEvent.count() > 0) {
+    if ((await firstEvent.count()) > 0) {
       await expect(firstEvent.first()).toBeVisible({ timeout: 10000 });
 
       // Ensure event card is stable before clicking
       await waitForElementStable(page, firstEvent.first() as any, {
         timeout: 5000,
-        stabilityThreshold: 100
+        stabilityThreshold: 100,
       }).catch(() => {
         // Continue if stability check times out
       });
@@ -311,19 +318,23 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
       // Wait for modal to open with proper stability checks
       await waitForModalContent(page);
 
-      const eventDetail = page.locator('[data-testid="event-detail-modal"]').or(
-        page.locator('[data-testid="event-detail"]')
-      );
+      const eventDetail = page
+        .locator('[data-testid="event-detail-modal"]')
+        .or(page.locator('[data-testid="event-detail"]'));
       await expect(eventDetail.first()).toBeVisible({ timeout: 5000 });
 
       // When: Click "Mark as Reviewed" button
-      const reviewButton = eventDetail.first().locator('[data-testid="mark-reviewed"]').or(
-        eventDetail.first().locator('button:has-text("Mark as Reviewed")').or(
-          eventDetail.first().locator('button:has-text("Reviewed")')
-        )
-      );
+      const reviewButton = eventDetail
+        .first()
+        .locator('[data-testid="mark-reviewed"]')
+        .or(
+          eventDetail
+            .first()
+            .locator('button:has-text("Mark as Reviewed")')
+            .or(eventDetail.first().locator('button:has-text("Reviewed")'))
+        );
 
-      if (await reviewButton.count() > 0) {
+      if ((await reviewButton.count()) > 0) {
         // Wait for button to be stable and clickable
         await expect(reviewButton.first()).toBeVisible({ timeout: 5000 });
         await expect(reviewButton.first()).toBeEnabled({ timeout: 3000 });
@@ -334,13 +345,17 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
         // Then: Wait for API call to complete and UI to update
         await page.waitForTimeout(1500);
 
-        const reviewedStatus = eventDetail.first().locator('[data-testid="status-reviewed"]').or(
-          eventDetail.first().locator('[data-testid*="reviewed"]')
-        );
+        const reviewedStatus = eventDetail
+          .first()
+          .locator('[data-testid="status-reviewed"]')
+          .or(eventDetail.first().locator('[data-testid*="reviewed"]'));
 
         // Either status badge appears or button changes state
-        const statusVisible = await reviewedStatus.count() > 0;
-        const buttonDisabled = await reviewButton.first().isDisabled().catch(() => true);
+        const statusVisible = (await reviewedStatus.count()) > 0;
+        const buttonDisabled = await reviewButton
+          .first()
+          .isDisabled()
+          .catch(() => true);
 
         expect(statusVisible || buttonDisabled).toBeTruthy();
       }
@@ -360,17 +375,15 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     await page.waitForTimeout(1000);
 
     // When: Look for events with review status
-    const events = page.locator('[data-testid^="event-"]').or(
-      page.locator('[data-testid^="timeline-event-"]')
-    );
+    const events = page
+      .locator('[data-testid^="event-"]')
+      .or(page.locator('[data-testid^="timeline-event-"]'));
 
-    if (await events.count() > 0) {
+    if ((await events.count()) > 0) {
       // Then: Check if any events show reviewed status
-      const reviewedIndicators = page.locator('[data-testid*="reviewed"]').or(
-        page.locator('.reviewed').or(
-          page.locator('[class*="reviewed"]')
-        )
-      );
+      const reviewedIndicators = page
+        .locator('[data-testid*="reviewed"]')
+        .or(page.locator('.reviewed').or(page.locator('[class*="reviewed"]')));
 
       const reviewedCount = await reviewedIndicators.count();
 
@@ -402,30 +415,32 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     await page.waitForTimeout(1000);
 
     // When: Look for review status filter
-    const reviewFilter = page.locator('[data-testid="filter-reviewed"]').or(
-      page.locator('[data-testid="review-status-filter"]')
-    );
+    const reviewFilter = page
+      .locator('[data-testid="filter-reviewed"]')
+      .or(page.locator('[data-testid="review-status-filter"]'));
 
-    if (await reviewFilter.count() > 0) {
+    if ((await reviewFilter.count()) > 0) {
       await expect(reviewFilter.first()).toBeVisible();
 
       // Select "Unreviewed" option
-      const unreviewedOption = page.locator('[data-testid="filter-unreviewed"]').or(
-        page.locator('button:has-text("Unreviewed")').or(
-          page.locator('option:has-text("Unreviewed")')
-        )
-      );
+      const unreviewedOption = page
+        .locator('[data-testid="filter-unreviewed"]')
+        .or(
+          page
+            .locator('button:has-text("Unreviewed")')
+            .or(page.locator('option:has-text("Unreviewed")'))
+        );
 
-      if (await unreviewedOption.count() > 0) {
+      if ((await unreviewedOption.count()) > 0) {
         await unreviewedOption.first().click();
 
         // Then: Wait for filter to apply
         await page.waitForTimeout(1000);
 
         // Verify events are filtered
-        const events = page.locator('[data-testid^="event-"]').or(
-          page.locator('[data-testid^="timeline-event-"]')
-        );
+        const events = page
+          .locator('[data-testid^="event-"]')
+          .or(page.locator('[data-testid^="timeline-event-"]'));
 
         // All visible events should not have "reviewed" status
         const reviewedBadges = page.locator('[data-testid*="status-reviewed"]');
@@ -453,9 +468,10 @@ test.describe('Investigation Workflow Journey (NEM-1664)', () => {
     const events = page.locator('[data-testid^="event-card-"]');
 
     // Wait for at least one event to be visible or verify empty state
-    const firstEventOrEmpty = page.locator('[data-testid^="event-card-"]').first().or(
-      page.locator('[data-testid="timeline-empty-state"]')
-    );
+    const firstEventOrEmpty = page
+      .locator('[data-testid^="event-card-"]')
+      .first()
+      .or(page.locator('[data-testid="timeline-empty-state"]'));
 
     await expect(firstEventOrEmpty).toBeVisible({ timeout: 5000 });
 

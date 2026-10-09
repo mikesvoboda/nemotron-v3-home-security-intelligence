@@ -6,12 +6,12 @@ This directory contains low-level functional programming utilities and type-safe
 
 ## Key Files
 
-| File              | Purpose                                                    | Lines |
-| ----------------- | ---------------------------------------------------------- | ----- |
-| `functional.ts`   | Function composition, currying, debounce, throttle, memoize | ~755  |
-| `functional.test.ts` | Comprehensive tests for functional utilities            | ~740  |
-| `result.ts`       | Rust-inspired Result type for type-safe error handling     | ~584  |
-| `result.test.ts`  | Tests for Result type and utilities                        | ~616  |
+| File                 | Purpose                                                     | Lines |
+| -------------------- | ----------------------------------------------------------- | ----- |
+| `functional.ts`      | Function composition, currying, debounce, throttle, memoize | ~755  |
+| `functional.test.ts` | Comprehensive tests for functional utilities                | ~740  |
+| `result.ts`          | Rust-inspired Result type for type-safe error handling      | ~584  |
+| `result.test.ts`     | Tests for Result type and utilities                         | ~616  |
 
 ## Key Exports
 
@@ -19,91 +19,91 @@ This directory contains low-level functional programming utilities and type-safe
 
 #### Function Composition
 
-| Export      | Signature                                | Description                              |
-| ----------- | ---------------------------------------- | ---------------------------------------- |
-| `pipe`      | `(...fns) => (arg) => result`            | Left-to-right function composition       |
-| `compose`   | `(...fns) => (arg) => result`            | Right-to-left function composition       |
+| Export    | Signature                     | Description                        |
+| --------- | ----------------------------- | ---------------------------------- |
+| `pipe`    | `(...fns) => (arg) => result` | Left-to-right function composition |
+| `compose` | `(...fns) => (arg) => result` | Right-to-left function composition |
 
 #### Currying
 
-| Export      | Signature                                | Description                              |
-| ----------- | ---------------------------------------- | ---------------------------------------- |
-| `curry`     | `(fn: (a, b) => R) => curried`           | Curry a 2-argument function              |
-| `curry3`    | `(fn: (a, b, c) => R) => curried`        | Curry a 3-argument function              |
+| Export   | Signature                         | Description                 |
+| -------- | --------------------------------- | --------------------------- |
+| `curry`  | `(fn: (a, b) => R) => curried`    | Curry a 2-argument function |
+| `curry3` | `(fn: (a, b, c) => R) => curried` | Curry a 3-argument function |
 
 #### Timing Control
 
-| Export      | Signature                                | Description                              |
-| ----------- | ---------------------------------------- | ---------------------------------------- |
-| `debounce`  | `(fn, wait, options?) => DebouncedFn`    | Delay until wait ms after last call      |
-| `throttle`  | `(fn, wait, options?) => ThrottledFn`    | At most once per wait ms                 |
+| Export     | Signature                             | Description                         |
+| ---------- | ------------------------------------- | ----------------------------------- |
+| `debounce` | `(fn, wait, options?) => DebouncedFn` | Delay until wait ms after last call |
+| `throttle` | `(fn, wait, options?) => ThrottledFn` | At most once per wait ms            |
 
 #### Additional Utilities
 
-| Export      | Signature                                | Description                              |
-| ----------- | ---------------------------------------- | ---------------------------------------- |
-| `once`      | `(fn) => fn`                             | Call at most once, cache result          |
-| `memoize`   | `(fn, getKey?) => fn`                    | Cache results by argument                |
-| `negate`    | `(predicate) => predicate`               | Logical NOT of predicate                 |
-| `constant`  | `(value) => () => value`                 | Always returns same value                |
-| `identity`  | `(value) => value`                       | Returns argument unchanged               |
+| Export     | Signature                  | Description                     |
+| ---------- | -------------------------- | ------------------------------- |
+| `once`     | `(fn) => fn`               | Call at most once, cache result |
+| `memoize`  | `(fn, getKey?) => fn`      | Cache results by argument       |
+| `negate`   | `(predicate) => predicate` | Logical NOT of predicate        |
+| `constant` | `(value) => () => value`   | Always returns same value       |
+| `identity` | `(value) => value`         | Returns argument unchanged      |
 
 ### result.ts
 
 #### Core Types
 
-| Export      | Description                                                  |
-| ----------- | ------------------------------------------------------------ |
-| `Result<T, E>` | Discriminated union: `Ok<T> | Err<E>`                     |
-| `Ok<T>`     | Success result containing a value                            |
-| `Err<E>`    | Error result containing an error                             |
+| Export         | Description                       |
+| -------------- | --------------------------------- |
+| `Result<T, E>` | Discriminated union: `Ok<T>       | Err<E>` |
+| `Ok<T>`        | Success result containing a value |
+| `Err<E>`       | Error result containing an error  |
 
 #### Factory Functions
 
-| Export      | Signature                    | Description                              |
-| ----------- | ---------------------------- | ---------------------------------------- |
-| `ok`        | `(value: T) => Ok<T>`        | Create success result                    |
-| `err`       | `(error: E) => Err<E>`       | Create error result                      |
+| Export | Signature              | Description           |
+| ------ | ---------------------- | --------------------- |
+| `ok`   | `(value: T) => Ok<T>`  | Create success result |
+| `err`  | `(error: E) => Err<E>` | Create error result   |
 
 #### Type Guards
 
-| Export      | Signature                                | Description                              |
-| ----------- | ---------------------------------------- | ---------------------------------------- |
-| `isOk`      | `(result) => result is Ok<T>`            | Check if result is success               |
-| `isErr`     | `(result) => result is Err<E>`           | Check if result is error                 |
+| Export  | Signature                      | Description                |
+| ------- | ------------------------------ | -------------------------- |
+| `isOk`  | `(result) => result is Ok<T>`  | Check if result is success |
+| `isErr` | `(result) => result is Err<E>` | Check if result is error   |
 
 #### Transformations
 
-| Export      | Signature                                | Description                              |
-| ----------- | ---------------------------------------- | ---------------------------------------- |
-| `map`       | `(result, fn) => Result<U, E>`           | Transform success value                  |
-| `mapErr`    | `(result, fn) => Result<T, F>`           | Transform error value                    |
-| `flatMap`   | `(result, fn) => Result<U, E>`           | Chain result-returning functions         |
-| `andThen`   | Alias for `flatMap`                      | Alternative name for flatMap             |
+| Export    | Signature                      | Description                      |
+| --------- | ------------------------------ | -------------------------------- |
+| `map`     | `(result, fn) => Result<U, E>` | Transform success value          |
+| `mapErr`  | `(result, fn) => Result<T, F>` | Transform error value            |
+| `flatMap` | `(result, fn) => Result<U, E>` | Chain result-returning functions |
+| `andThen` | Alias for `flatMap`            | Alternative name for flatMap     |
 
 #### Extraction
 
-| Export         | Signature                             | Description                              |
-| -------------- | ------------------------------------- | ---------------------------------------- |
-| `unwrap`       | `(result) => T`                       | Get value or throw error                 |
-| `unwrapOr`     | `(result, default) => T`              | Get value or return default              |
-| `unwrapOrElse` | `(result, fn) => T`                   | Get value or compute from error          |
-| `unwrapErr`    | `(result) => E`                       | Get error or throw                       |
-| `match`        | `(result, {onOk, onErr}) => U`        | Pattern match on result                  |
+| Export         | Signature                      | Description                     |
+| -------------- | ------------------------------ | ------------------------------- |
+| `unwrap`       | `(result) => T`                | Get value or throw error        |
+| `unwrapOr`     | `(result, default) => T`       | Get value or return default     |
+| `unwrapOrElse` | `(result, fn) => T`            | Get value or compute from error |
+| `unwrapErr`    | `(result) => E`                | Get error or throw              |
+| `match`        | `(result, {onOk, onErr}) => U` | Pattern match on result         |
 
 #### Async Utilities
 
-| Export         | Signature                             | Description                              |
-| -------------- | ------------------------------------- | ---------------------------------------- |
-| `fromPromise`  | `(promise) => Promise<Result<T, E>>`  | Convert Promise to Result                |
-| `toPromise`    | `(result) => Promise<T>`              | Convert Result to Promise                |
+| Export        | Signature                            | Description               |
+| ------------- | ------------------------------------ | ------------------------- |
+| `fromPromise` | `(promise) => Promise<Result<T, E>>` | Convert Promise to Result |
+| `toPromise`   | `(result) => Promise<T>`             | Convert Result to Promise |
 
 #### Combining Results
 
-| Export      | Signature                                | Description                              |
-| ----------- | ---------------------------------------- | ---------------------------------------- |
-| `all`       | `(results) => Result<T[], E>`            | Combine array of results                 |
-| `allTuple`  | `(results) => Result<Tuple, E>`          | Combine tuple preserving types           |
+| Export     | Signature                       | Description                    |
+| ---------- | ------------------------------- | ------------------------------ |
+| `all`      | `(results) => Result<T[], E>`   | Combine array of results       |
+| `allTuple` | `(results) => Result<Tuple, E>` | Combine tuple preserving types |
 
 ## Usage Patterns
 
@@ -157,10 +157,7 @@ function parseJSON<T>(json: string): Result<T, Error> {
 
 // Chain validations
 function validateUser(input: unknown): Result<User, string> {
-  return flatMap(
-    flatMap(parseJSON(input), validateName),
-    validateEmail
-  );
+  return flatMap(flatMap(parseJSON(input), validateName), validateEmail);
 }
 
 // Handle result with default
@@ -186,10 +183,7 @@ if (isOk(result)) {
 }
 
 // Combine multiple async results
-const results = await Promise.all([
-  fromPromise(fetchUser(1)),
-  fromPromise(fetchUser(2)),
-]);
+const results = await Promise.all([fromPromise(fetchUser(1)), fromPromise(fetchUser(2))]);
 const combined = all(results);
 ```
 

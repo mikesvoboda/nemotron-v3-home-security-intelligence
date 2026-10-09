@@ -20,17 +20,8 @@ import { test, expect } from '@playwright/test';
 
 // Skip entire file in CI - WebSocket mock timing issues cause flaky failures
 test.skip(() => !!process.env.CI, 'AI error handling tests flaky in CI - run locally');
-import {
-  DashboardPage,
-  SystemPage,
-  AIAuditPage,
-} from '../pages';
-import {
-  setupApiMocks,
-  defaultMockConfig,
-  errorMockConfig,
-  type ApiMockConfig,
-} from '../fixtures';
+import { DashboardPage, SystemPage, AIAuditPage } from '../pages';
+import { setupApiMocks, defaultMockConfig, errorMockConfig, type ApiMockConfig } from '../fixtures';
 import {
   setupWebSocketMock,
   type WebSocketMockController,
@@ -69,13 +60,14 @@ function createAIServiceStatusMessage(
       florence: { ...defaultService(services.florence || 'healthy'), service: 'florence' },
       clip: { ...defaultService(services.clip || 'healthy'), service: 'clip' },
     },
-    available_features: degradationMode === 'normal'
-      ? ['detection', 'analysis', 'enrichment', 'reid']
-      : degradationMode === 'degraded'
-      ? ['detection', 'analysis']
-      : degradationMode === 'minimal'
-      ? ['detection']
-      : [],
+    available_features:
+      degradationMode === 'normal'
+        ? ['detection', 'analysis', 'enrichment', 'reid']
+        : degradationMode === 'degraded'
+          ? ['detection', 'analysis']
+          : degradationMode === 'minimal'
+            ? ['detection']
+            : [],
   };
 }
 
@@ -89,10 +81,13 @@ test.describe('AI Service Timeout Scenarios @critical', () => {
     await dashboardPage.waitForDashboardLoad();
 
     // Simulate AI service timeout via WebSocket
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('minimal', {
-      rtdetr: 'healthy',
-      nemotron: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('minimal', {
+        rtdetr: 'healthy',
+        nemotron: 'unavailable',
+      })
+    );
 
     // Verify dashboard still functional
     await expect(dashboardPage.pageTitle).toBeVisible();
@@ -100,7 +95,7 @@ test.describe('AI Service Timeout Scenarios @critical', () => {
 
     // Check for degradation indicator
     const degradationIndicator = page.locator('[data-testid="ai-service-status"]');
-    if (await degradationIndicator.count() > 0) {
+    if ((await degradationIndicator.count()) > 0) {
       await expect(degradationIndicator).toBeVisible();
     }
   });
@@ -114,17 +109,20 @@ test.describe('AI Service Timeout Scenarios @critical', () => {
     await systemPage.waitForSystemLoad();
 
     // Simulate AI service timeout
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('minimal', {
-      rtdetr: 'healthy',
-      nemotron: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('minimal', {
+        rtdetr: 'healthy',
+        nemotron: 'unavailable',
+      })
+    );
 
     // Wait for WebSocket message to be processed
     await page.waitForTimeout(500);
 
     // Check for timeout indicator in service health
     const nemotronService = systemPage.nemotronService;
-    if (await nemotronService.count() > 0) {
+    if ((await nemotronService.count()) > 0) {
       await expect(nemotronService).toBeVisible();
       const badgeText = await nemotronService.locator('[class*="Badge"]').textContent();
       expect(badgeText?.toLowerCase()).toMatch(/unavailable|unhealthy|timeout|error/);
@@ -140,18 +138,21 @@ test.describe('AI Service Timeout Scenarios @critical', () => {
     await aiAuditPage.waitForPageLoad();
 
     // Simulate AI service timeout
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('degraded', {
-      rtdetr: 'healthy',
-      nemotron: 'healthy',
-      florence: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('degraded', {
+        rtdetr: 'healthy',
+        nemotron: 'healthy',
+        florence: 'unavailable',
+      })
+    );
 
     // Page should remain functional
     await expect(aiAuditPage.pageTitle).toBeVisible();
 
     // Check for degradation notice if available
     const degradationNotice = page.getByText(/degraded|limited functionality/i);
-    if (await degradationNotice.count() > 0) {
+    if ((await degradationNotice.count()) > 0) {
       await expect(degradationNotice.first()).toBeVisible();
     }
   });
@@ -174,12 +175,15 @@ test.describe('AI Service Error Responses @critical', () => {
     await dashboardPage.waitForDashboardLoad();
 
     // Simulate all AI services offline
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('offline', {
-      rtdetr: 'unavailable',
-      nemotron: 'unavailable',
-      florence: 'unavailable',
-      clip: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('offline', {
+        rtdetr: 'unavailable',
+        nemotron: 'unavailable',
+        florence: 'unavailable',
+        clip: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
@@ -188,7 +192,7 @@ test.describe('AI Service Error Responses @critical', () => {
 
     // Look for offline indicator
     const offlineIndicator = page.getByText(/AI.*offline|services.*unavailable/i);
-    if (await offlineIndicator.count() > 0) {
+    if ((await offlineIndicator.count()) > 0) {
       await expect(offlineIndicator.first()).toBeVisible();
     }
   });
@@ -256,13 +260,13 @@ test.describe('AI Service Error Responses @critical', () => {
     await page.waitForTimeout(500);
 
     // Check for service status indicators
-    if (await systemPage.nemotronService.count() > 0) {
+    if ((await systemPage.nemotronService.count()) > 0) {
       await expect(systemPage.nemotronService).toBeVisible();
     }
 
     // Look for error message display
     const errorText = page.getByText(/timeout|not responding|out of memory/i);
-    if (await errorText.count() > 0) {
+    if ((await errorText.count()) > 0) {
       await expect(errorText.first()).toBeVisible();
     }
   });
@@ -281,16 +285,19 @@ test.describe('AI Service Error Responses @critical', () => {
     await systemPage.waitForSystemLoad();
 
     // Simulate service errors
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('offline', {
-      rtdetr: 'unavailable',
-      nemotron: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('offline', {
+        rtdetr: 'unavailable',
+        nemotron: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
     // Look for refresh/retry button
     const retryButton = page.getByRole('button', { name: /retry|refresh|reload/i });
-    if (await retryButton.count() > 0) {
+    if ((await retryButton.count()) > 0) {
       await expect(retryButton.first()).toBeVisible();
       await expect(retryButton.first()).toBeEnabled();
     }
@@ -306,19 +313,22 @@ test.describe('Degraded Mode UI Indicators @critical', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Simulate degraded mode
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('degraded', {
-      rtdetr: 'healthy',
-      nemotron: 'healthy',
-      florence: 'unavailable',
-      clip: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('degraded', {
+        rtdetr: 'healthy',
+        nemotron: 'healthy',
+        florence: 'unavailable',
+        clip: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
     // Look for degraded mode indicator in header
     const header = page.locator('header');
     const degradedBadge = header.getByText(/degraded|limited/i);
-    if (await degradedBadge.count() > 0) {
+    if ((await degradedBadge.count()) > 0) {
       await expect(degradedBadge.first()).toBeVisible();
     }
   });
@@ -332,28 +342,31 @@ test.describe('Degraded Mode UI Indicators @critical', () => {
     await systemPage.waitForSystemLoad();
 
     // Simulate degraded mode
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('degraded', {
-      rtdetr: 'healthy',
-      nemotron: 'healthy',
-      florence: 'unavailable',
-      clip: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('degraded', {
+        rtdetr: 'healthy',
+        nemotron: 'healthy',
+        florence: 'unavailable',
+        clip: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
     // Check for AI service status section
     const aiStatusSection = page.locator('[data-testid="ai-service-status"]');
-    if (await aiStatusSection.count() > 0) {
+    if ((await aiStatusSection.count()) > 0) {
       await expect(aiStatusSection).toBeVisible();
 
       // Should show which services are unavailable
       const florenceStatus = page.getByText(/florence.*unavailable/i);
       const clipStatus = page.getByText(/clip.*unavailable/i);
 
-      if (await florenceStatus.count() > 0) {
+      if ((await florenceStatus.count()) > 0) {
         await expect(florenceStatus.first()).toBeVisible();
       }
-      if (await clipStatus.count() > 0) {
+      if ((await clipStatus.count()) > 0) {
         await expect(clipStatus.first()).toBeVisible();
       }
     }
@@ -368,18 +381,23 @@ test.describe('Degraded Mode UI Indicators @critical', () => {
     await systemPage.waitForSystemLoad();
 
     // Simulate minimal mode (only detection available)
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('minimal', {
-      rtdetr: 'healthy',
-      nemotron: 'unavailable',
-      florence: 'unavailable',
-      clip: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('minimal', {
+        rtdetr: 'healthy',
+        nemotron: 'unavailable',
+        florence: 'unavailable',
+        clip: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
     // Look for critical warning
-    const warningBanner = page.getByText(/minimal.*mode|critical.*unavailable|reduced.*functionality/i);
-    if (await warningBanner.count() > 0) {
+    const warningBanner = page.getByText(
+      /minimal.*mode|critical.*unavailable|reduced.*functionality/i
+    );
+    if ((await warningBanner.count()) > 0) {
       await expect(warningBanner.first()).toBeVisible();
     }
   });
@@ -392,18 +410,21 @@ test.describe('Degraded Mode UI Indicators @critical', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Simulate offline mode
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('offline', {
-      rtdetr: 'unavailable',
-      nemotron: 'unavailable',
-      florence: 'unavailable',
-      clip: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('offline', {
+        rtdetr: 'unavailable',
+        nemotron: 'unavailable',
+        florence: 'unavailable',
+        clip: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
     // Look for offline alert
     const offlineAlert = page.getByText(/AI.*offline|services.*unavailable|historical.*only/i);
-    if (await offlineAlert.count() > 0) {
+    if ((await offlineAlert.count()) > 0) {
       await expect(offlineAlert.first()).toBeVisible();
     }
   });
@@ -418,22 +439,25 @@ test.describe('Manual Override When AI Unavailable', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Simulate offline mode
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('offline', {
-      rtdetr: 'unavailable',
-      nemotron: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('offline', {
+        rtdetr: 'unavailable',
+        nemotron: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
     // Events should still be visible (from existing data)
     const eventCards = page.locator('[data-testid^="event-card-"]');
-    if (await eventCards.count() > 0) {
+    if ((await eventCards.count()) > 0) {
       await expect(eventCards.first()).toBeVisible();
     }
 
     // Check for notice about missing AI analysis
     const noAINotice = page.getByText(/AI.*unavailable|no.*analysis|offline/i);
-    if (await noAINotice.count() > 0) {
+    if ((await noAINotice.count()) > 0) {
       await expect(noAINotice.first()).toBeVisible();
     }
   });
@@ -453,7 +477,7 @@ test.describe('Manual Override When AI Unavailable', () => {
 
     // Click on an event to open details
     const eventCard = page.locator('[data-testid^="event-card-"]').first();
-    if (await eventCard.count() > 0) {
+    if ((await eventCard.count()) > 0) {
       await eventCard.click();
 
       // Modal should open
@@ -462,7 +486,7 @@ test.describe('Manual Override When AI Unavailable', () => {
 
       // User should be able to review and add notes
       const notesField = page.getByPlaceholder(/notes|comments/i);
-      if (await notesField.count() > 0) {
+      if ((await notesField.count()) > 0) {
         await expect(notesField).toBeVisible();
         await expect(notesField).toBeEditable();
       }
@@ -500,28 +524,34 @@ test.describe('Recovery When AI Service Returns', () => {
     await systemPage.waitForSystemLoad();
 
     // Start with degraded mode
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('degraded', {
-      rtdetr: 'healthy',
-      nemotron: 'healthy',
-      florence: 'unavailable',
-      clip: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('degraded', {
+        rtdetr: 'healthy',
+        nemotron: 'healthy',
+        florence: 'unavailable',
+        clip: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
     // Simulate recovery
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('normal', {
-      rtdetr: 'healthy',
-      nemotron: 'healthy',
-      florence: 'healthy',
-      clip: 'healthy',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('normal', {
+        rtdetr: 'healthy',
+        nemotron: 'healthy',
+        florence: 'healthy',
+        clip: 'healthy',
+      })
+    );
 
     await page.waitForTimeout(500);
 
     // Look for recovery indicator
     const healthyIndicator = page.getByText(/all.*operational|normal|healthy/i);
-    if (await healthyIndicator.count() > 0) {
+    if ((await healthyIndicator.count()) > 0) {
       await expect(healthyIndicator.first()).toBeVisible();
     }
   });
@@ -543,7 +573,7 @@ test.describe('Recovery When AI Service Returns', () => {
 
     // Degraded badge should not be visible
     const degradedBadge = page.getByText(/degraded/i);
-    if (await degradedBadge.count() > 0) {
+    if ((await degradedBadge.count()) > 0) {
       // If badge exists, it should not be visible or should show "normal"
       const badgeText = await degradedBadge.first().textContent();
       expect(badgeText?.toLowerCase()).not.toContain('degraded');
@@ -559,10 +589,13 @@ test.describe('Recovery When AI Service Returns', () => {
     await aiAuditPage.waitForPageLoad();
 
     // Start with minimal mode
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('minimal', {
-      rtdetr: 'healthy',
-      nemotron: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('minimal', {
+        rtdetr: 'healthy',
+        nemotron: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
@@ -575,7 +608,7 @@ test.describe('Recovery When AI Service Returns', () => {
 
     // Warning banner should disappear
     const warningBanner = page.getByText(/minimal|unavailable/i);
-    if (await warningBanner.count() > 0) {
+    if ((await warningBanner.count()) > 0) {
       await expect(warningBanner.first()).not.toBeVisible();
     }
   });
@@ -591,10 +624,13 @@ test.describe('Partial AI Results Handling', () => {
     await dashboardPage.waitForDashboardLoad();
 
     // Simulate partial service (detection works, analysis doesn't)
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('minimal', {
-      rtdetr: 'healthy',
-      nemotron: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('minimal', {
+        rtdetr: 'healthy',
+        nemotron: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
@@ -604,7 +640,7 @@ test.describe('Partial AI Results Handling', () => {
 
     // Look for partial functionality notice
     const partialNotice = page.getByText(/detection.*available|analysis.*unavailable/i);
-    if (await partialNotice.count() > 0) {
+    if ((await partialNotice.count()) > 0) {
       await expect(partialNotice.first()).toBeVisible();
     }
   });
@@ -617,16 +653,19 @@ test.describe('Partial AI Results Handling', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Simulate detection-only mode
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('minimal', {
-      rtdetr: 'healthy',
-      nemotron: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('minimal', {
+        rtdetr: 'healthy',
+        nemotron: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
     // Events should be visible
     const eventCards = page.locator('[data-testid^="event-card-"]');
-    if (await eventCards.count() > 0) {
+    if ((await eventCards.count()) > 0) {
       await expect(eventCards.first()).toBeVisible();
 
       // Click to see details
@@ -634,9 +673,9 @@ test.describe('Partial AI Results Handling', () => {
 
       // Modal should indicate missing analysis
       const analysisSection = page.getByText(/risk.*analysis|AI.*reasoning/i);
-      if (await analysisSection.count() > 0) {
+      if ((await analysisSection.count()) > 0) {
         const noAnalysisText = page.getByText(/not.*available|unavailable|pending/i);
-        if (await noAnalysisText.count() > 0) {
+        if ((await noAnalysisText.count()) > 0) {
           await expect(noAnalysisText.first()).toBeVisible();
         }
       }
@@ -652,24 +691,27 @@ test.describe('Partial AI Results Handling', () => {
     await systemPage.waitForSystemLoad();
 
     // Simulate degraded mode with partial features
-    await wsMock.sendMessage('events', createAIServiceStatusMessage('degraded', {
-      rtdetr: 'healthy',
-      nemotron: 'healthy',
-      florence: 'unavailable',
-      clip: 'unavailable',
-    }));
+    await wsMock.sendMessage(
+      'events',
+      createAIServiceStatusMessage('degraded', {
+        rtdetr: 'healthy',
+        nemotron: 'healthy',
+        florence: 'unavailable',
+        clip: 'unavailable',
+      })
+    );
 
     await page.waitForTimeout(500);
 
     // Look for feature availability indicator
     const featureList = page.getByText(/available.*features|detection.*analysis/i);
-    if (await featureList.count() > 0) {
+    if ((await featureList.count()) > 0) {
       await expect(featureList.first()).toBeVisible();
     }
 
     // Should indicate enrichment is unavailable
     const enrichmentStatus = page.getByText(/enrichment|florence|clip/i);
-    if (await enrichmentStatus.count() > 0) {
+    if ((await enrichmentStatus.count()) > 0) {
       await expect(enrichmentStatus.first()).toBeVisible();
     }
   });
@@ -735,17 +777,17 @@ test.describe('Circuit Breaker Status Display', () => {
 
     // Look for circuit breaker panel or indicators
     const circuitBreakerPanel = page.locator('[data-testid*="circuit-breaker"]');
-    if (await circuitBreakerPanel.count() > 0) {
+    if ((await circuitBreakerPanel.count()) > 0) {
       await expect(circuitBreakerPanel.first()).toBeVisible();
 
       // Should show different states
       const openState = page.getByText(/open|tripped/i);
       const halfOpenState = page.getByText(/half.*open|testing/i);
 
-      if (await openState.count() > 0) {
+      if ((await openState.count()) > 0) {
         await expect(openState.first()).toBeVisible();
       }
-      if (await halfOpenState.count() > 0) {
+      if ((await halfOpenState.count()) > 0) {
         await expect(halfOpenState.first()).toBeVisible();
       }
     }
@@ -810,7 +852,7 @@ test.describe('Circuit Breaker Status Display', () => {
 
     // Look for failure count display
     const failureCount = page.getByText(/3.*failure|failure.*3/i);
-    if (await failureCount.count() > 0) {
+    if ((await failureCount.count()) > 0) {
       await expect(failureCount.first()).toBeVisible();
     }
   });

@@ -27,7 +27,7 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     const timeout = browserName === 'chromium' ? 10000 : 20000;
     await page.waitForSelector('h1:has-text("Settings")', {
       state: 'visible',
-      timeout
+      timeout,
     });
 
     // Wait for page stabilization
@@ -45,7 +45,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
     // When: Click Cameras tab
-    const camerasTab = page.getByRole('tab', { name: /CAMERAS/i })
+    const camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
       .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
     await expect(camerasTab).toBeVisible();
@@ -72,7 +73,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     // Given: Navigate to Cameras tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const camerasTab = page.getByRole('tab', { name: /CAMERAS/i })
+    const camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
       .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
     await camerasTab.click();
@@ -103,7 +105,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     // Given: Navigate to Cameras tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const camerasTab = page.getByRole('tab', { name: /CAMERAS/i })
+    const camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
       .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
     await camerasTab.click();
@@ -139,17 +142,20 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     // Given: Navigate to Cameras tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const camerasTab = page.getByRole('tab', { name: /CAMERAS/i })
+    const camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
       .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
     await camerasTab.click();
     await page.waitForTimeout(1500);
 
     // When: Look for enable/disable toggle
-    const enableToggle = page.locator('[role="switch"]').first()
+    const enableToggle = page
+      .locator('[role="switch"]')
+      .first()
       .or(page.locator('input[type="checkbox"]').first());
 
-    if (await enableToggle.count() > 0) {
+    if ((await enableToggle.count()) > 0) {
       const initialState = await enableToggle.isChecked().catch(() => false);
 
       // Toggle state
@@ -176,17 +182,17 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     // Given: Navigate to Cameras tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const camerasTab = page.getByRole('tab', { name: /CAMERAS/i })
+    const camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
       .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
     await camerasTab.click();
     await page.waitForTimeout(1500);
 
     // When: Look for FTP path input
-    const ftpPathInput = page.locator('input[name*="ftp"]')
-      .or(page.locator('input[name*="path"]'));
+    const ftpPathInput = page.locator('input[name*="ftp"]').or(page.locator('input[name*="path"]'));
 
-    if (await ftpPathInput.count() > 0 && await ftpPathInput.first().isVisible()) {
+    if ((await ftpPathInput.count()) > 0 && (await ftpPathInput.first().isVisible())) {
       const originalPath = await ftpPathInput.first().inputValue();
 
       // Update FTP path
@@ -214,7 +220,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     // Given: Navigate to Cameras tab and modify something
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const camerasTab = page.getByRole('tab', { name: /CAMERAS/i })
+    const camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
       .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
     await camerasTab.click();
@@ -228,21 +235,29 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
       await page.waitForTimeout(500);
 
       // When: Look for and click save button
-      const saveButton = page.getByRole('button', { name: /Save/i })
+      const saveButton = page
+        .getByRole('button', { name: /Save/i })
         .or(page.getByRole('button', { name: /Update/i }));
 
-      if (await saveButton.count() > 0 && await saveButton.first().isVisible()) {
+      if ((await saveButton.count()) > 0 && (await saveButton.first().isVisible())) {
         await saveButton.first().click();
         await page.waitForTimeout(2000);
 
         // Then: Look for success feedback
-        const successMessage = page.getByText(/saved successfully/i)
+        const successMessage = page
+          .getByText(/saved successfully/i)
           .or(page.getByText(/updated successfully/i))
           .or(page.locator('[role="alert"]'));
 
         // Either success message appears or button state changes
-        const hasSuccess = await successMessage.first().isVisible().catch(() => false);
-        const isButtonDisabled = await saveButton.first().isDisabled().catch(() => false);
+        const hasSuccess = await successMessage
+          .first()
+          .isVisible()
+          .catch(() => false);
+        const isButtonDisabled = await saveButton
+          .first()
+          .isDisabled()
+          .catch(() => false);
 
         expect(hasSuccess || isButtonDisabled || true).toBeTruthy();
 
@@ -263,7 +278,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     // Given: Navigate to Cameras tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const camerasTab = page.getByRole('tab', { name: /CAMERAS/i })
+    const camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
       .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
     await camerasTab.click();
@@ -312,7 +328,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     // Given: Navigate to Cameras tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const camerasTab = page.getByRole('tab', { name: /CAMERAS/i })
+    const camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
       .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
     await camerasTab.click();
@@ -330,7 +347,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
       await page.waitForTimeout(1500);
 
       // Navigate back to Cameras tab
-      const camerasTabAfterReload = page.getByRole('tab', { name: /CAMERAS/i })
+      const camerasTabAfterReload = page
+        .getByRole('tab', { name: /CAMERAS/i })
         .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
       await camerasTabAfterReload.click();
@@ -355,7 +373,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     // Given: Navigate to Cameras tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const camerasTab = page.getByRole('tab', { name: /CAMERAS/i })
+    const camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
       .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
     await camerasTab.click();
@@ -363,16 +382,20 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
 
     // When/Then: Check for status indicators
     const cameraRows = page.locator('table tbody tr');
-    if (await cameraRows.count() > 0) {
+    if ((await cameraRows.count()) > 0) {
       const firstRow = cameraRows.first();
 
       // Look for status indicator (badge, icon, or text)
-      const statusIndicator = firstRow.locator('[data-testid*="status"]')
+      const statusIndicator = firstRow
+        .locator('[data-testid*="status"]')
         .or(firstRow.locator('span:has-text("Online")'))
         .or(firstRow.locator('span:has-text("Offline")'))
         .or(firstRow.locator('[role="switch"]'));
 
-      const hasStatusIndicator = await statusIndicator.first().isVisible().catch(() => false);
+      const hasStatusIndicator = await statusIndicator
+        .first()
+        .isVisible()
+        .catch(() => false);
       expect(hasStatusIndicator || true).toBeTruthy();
     }
   });
@@ -387,25 +410,29 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     // Given: Navigate to Cameras tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const camerasTab = page.getByRole('tab', { name: /CAMERAS/i })
+    const camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
       .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
     await camerasTab.click();
     await page.waitForTimeout(1500);
 
     // When: Look for zone configuration UI
-    const zoneButton = page.getByRole('button', { name: /zone/i })
+    const zoneButton = page
+      .getByRole('button', { name: /zone/i })
       .or(page.getByRole('button', { name: /detection area/i }));
 
-    if (await zoneButton.count() > 0 && await zoneButton.first().isVisible()) {
+    if ((await zoneButton.count()) > 0 && (await zoneButton.first().isVisible())) {
       await zoneButton.first().click();
       await page.waitForTimeout(1000);
 
       // Then: Zone configuration UI should appear
-      const zoneModal = page.locator('[role="dialog"]')
-        .or(page.locator('[data-testid*="zone"]'));
+      const zoneModal = page.locator('[role="dialog"]').or(page.locator('[data-testid*="zone"]'));
 
-      const hasZoneUI = await zoneModal.first().isVisible().catch(() => false);
+      const hasZoneUI = await zoneModal
+        .first()
+        .isVisible()
+        .catch(() => false);
       expect(hasZoneUI || true).toBeTruthy();
 
       // Close modal if opened
@@ -426,7 +453,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
     // When: Click Analytics tab
-    const analyticsTab = page.getByRole('tab', { name: /ANALYTICS/i })
+    const analyticsTab = page
+      .getByRole('tab', { name: /ANALYTICS/i })
       .or(page.locator('button').filter({ hasText: 'ANALYTICS' }));
 
     if (await analyticsTab.isVisible()) {
@@ -452,7 +480,8 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
     // Given: Navigate to Cameras tab
     await expect(page.locator('h1:has-text("Settings")')).toBeVisible();
 
-    const camerasTab = page.getByRole('tab', { name: /CAMERAS/i })
+    const camerasTab = page
+      .getByRole('tab', { name: /CAMERAS/i })
       .or(page.locator('button').filter({ hasText: 'CAMERAS' }));
 
     await camerasTab.click();
@@ -460,15 +489,16 @@ test.describe('Camera Configuration Journey (NEM-2049)', () => {
 
     // When/Then: Check for timestamp information
     const cameraRows = page.locator('table tbody tr');
-    if (await cameraRows.count() > 0) {
+    if ((await cameraRows.count()) > 0) {
       const firstRow = cameraRows.first();
       const rowText = await firstRow.textContent();
 
       // Look for date/time patterns or "Last seen" text
-      const hasTimestamp = rowText?.match(/\d{1,2}:\d{2}/) ||
-                          rowText?.match(/\d{4}-\d{2}-\d{2}/) ||
-                          rowText?.includes('ago') ||
-                          rowText?.includes('Last');
+      const hasTimestamp =
+        rowText?.match(/\d{1,2}:\d{2}/) ||
+        rowText?.match(/\d{4}-\d{2}-\d{2}/) ||
+        rowText?.includes('ago') ||
+        rowText?.includes('Last');
 
       // Timestamp may or may not be present depending on camera status
       expect(hasTimestamp !== null || true).toBeTruthy();

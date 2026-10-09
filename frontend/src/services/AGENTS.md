@@ -6,40 +6,40 @@ REST API client and logging service for interacting with the FastAPI backend. Pr
 
 ## Key Files
 
-| File                                | Purpose                                                       |
-| ----------------------------------- | ------------------------------------------------------------- |
-| `abTestService.ts`                  | A/B testing service for prompt playground                     |
-| `abTestService.test.ts`             | Tests for A/B testing service                                 |
-| `aiAuditApi.ts`                     | AI audit trail API client (decision logs, audit data)         |
-| `aiAuditApi.test.ts`                | Tests for AI audit API client                                 |
-| `api.ts`                            | Complete API client with typed methods for all REST endpoints |
-| `api.test.ts`                       | Comprehensive test coverage for API client                    |
-| `api.abort.test.ts`                 | Tests for request cancellation and AbortController usage      |
-| `api.frontend-error-log.test.ts`    | Tests for frontend error logging via API                      |
-| `api.missing-coverage.test.ts`      | Tests for missing coverage scenarios                          |
-| `api.sentry.test.ts`                | Tests for API Sentry integration and error tracking           |
-| `api.timeout.test.ts`               | Tests for API timeout handling and configuration              |
-| `auditApi.ts`                       | AI pipeline audit API client (model contributions, stats)     |
-| `auditApi.test.ts`                  | Tests for audit API client                                    |
-| `errorReporting.ts`                 | Centralized error reporting service (batched, deduplicated)   |
-| `errorReporting.test.ts`            | Tests for error reporting service                             |
-| `interceptors.ts`                   | HTTP request/response interceptors for api client             |
-| `interceptors.test.ts`              | Tests for interceptors                                        |
-| `logger.ts`                         | Frontend logging service with batched backend sync            |
-| `logger.test.ts`                    | Tests for logger functionality                                |
-| `metricsParser.ts`                  | Prometheus text format parser for AI performance metrics      |
-| `metricsParser.test.ts`             | Tests for Prometheus metrics parsing                          |
-| `performanceTracker.ts`             | Client-side performance tracking and metrics collection       |
-| `performanceTracker.test.ts`        | Tests for performance tracker                                 |
-| `promptManagementApi.ts`            | Prompt management API client (CRUD, history, import/export)   |
-| `promptManagementApi.test.ts`       | Tests for prompt management API                               |
-| `queryClient.ts`                    | TanStack Query configuration and query key factories          |
-| `queryClient.test.ts`               | Tests for QueryClient configuration                           |
-| `queryClient.retry.test.ts`         | Tests for QueryClient retry logic                             |
-| `rum.ts`                            | Real User Monitoring (RUM) for Core Web Vitals collection     |
-| `rum.test.ts`                       | Tests for RUM service                                         |
-| `sentry.ts`                         | Sentry error tracking, performance monitoring, session replay |
-| `sentry.test.ts`                    | Tests for Sentry service                                      |
+| File                             | Purpose                                                       |
+| -------------------------------- | ------------------------------------------------------------- |
+| `abTestService.ts`               | A/B testing service for prompt playground                     |
+| `abTestService.test.ts`          | Tests for A/B testing service                                 |
+| `aiAuditApi.ts`                  | AI audit trail API client (decision logs, audit data)         |
+| `aiAuditApi.test.ts`             | Tests for AI audit API client                                 |
+| `api.ts`                         | Complete API client with typed methods for all REST endpoints |
+| `api.test.ts`                    | Comprehensive test coverage for API client                    |
+| `api.abort.test.ts`              | Tests for request cancellation and AbortController usage      |
+| `api.frontend-error-log.test.ts` | Tests for frontend error logging via API                      |
+| `api.missing-coverage.test.ts`   | Tests for missing coverage scenarios                          |
+| `api.sentry.test.ts`             | Tests for API Sentry integration and error tracking           |
+| `api.timeout.test.ts`            | Tests for API timeout handling and configuration              |
+| `auditApi.ts`                    | AI pipeline audit API client (model contributions, stats)     |
+| `auditApi.test.ts`               | Tests for audit API client                                    |
+| `errorReporting.ts`              | Centralized error reporting service (batched, deduplicated)   |
+| `errorReporting.test.ts`         | Tests for error reporting service                             |
+| `interceptors.ts`                | HTTP request/response interceptors for api client             |
+| `interceptors.test.ts`           | Tests for interceptors                                        |
+| `logger.ts`                      | Frontend logging service with batched backend sync            |
+| `logger.test.ts`                 | Tests for logger functionality                                |
+| `metricsParser.ts`               | Prometheus text format parser for AI performance metrics      |
+| `metricsParser.test.ts`          | Tests for Prometheus metrics parsing                          |
+| `performanceTracker.ts`          | Client-side performance tracking and metrics collection       |
+| `performanceTracker.test.ts`     | Tests for performance tracker                                 |
+| `promptManagementApi.ts`         | Prompt management API client (CRUD, history, import/export)   |
+| `promptManagementApi.test.ts`    | Tests for prompt management API                               |
+| `queryClient.ts`                 | TanStack Query configuration and query key factories          |
+| `queryClient.test.ts`            | Tests for QueryClient configuration                           |
+| `queryClient.retry.test.ts`      | Tests for QueryClient retry logic                             |
+| `rum.ts`                         | Real User Monitoring (RUM) for Core Web Vitals collection     |
+| `rum.test.ts`                    | Tests for RUM service                                         |
+| `sentry.ts`                      | Sentry error tracking, performance monitoring, session replay |
+| `sentry.test.ts`                 | Tests for Sentry service                                      |
 
 ## API Client Structure (`api.ts`)
 
@@ -513,8 +513,8 @@ Provides centralized server-state management for the frontend using TanStack Que
 ### Stale Time Constants
 
 ```typescript
-DEFAULT_STALE_TIME = 30 * 1000;   // 30 seconds - events, cameras
-REALTIME_STALE_TIME = 5 * 1000;   // 5 seconds - health, GPU metrics
+DEFAULT_STALE_TIME = 30 * 1000; // 30 seconds - events, cameras
+REALTIME_STALE_TIME = 5 * 1000; // 5 seconds - health, GPU metrics
 STATIC_STALE_TIME = 5 * 60 * 1000; // 5 minutes - config, severity
 ```
 
@@ -524,11 +524,11 @@ Hierarchical key structure enables granular cache invalidation:
 
 ```typescript
 // Examples
-queryKeys.cameras.all           // ['cameras'] - invalidate all camera queries
-queryKeys.cameras.list()        // ['cameras', 'list']
-queryKeys.cameras.detail(id)    // ['cameras', 'detail', 'cam-1']
-queryKeys.events.list(filters)  // ['events', 'list', { camera_id: 'cam-1' }]
-queryKeys.system.health         // ['system', 'health']
+queryKeys.cameras.all; // ['cameras'] - invalidate all camera queries
+queryKeys.cameras.list(); // ['cameras', 'list']
+queryKeys.cameras.detail(id); // ['cameras', 'detail', 'cam-1']
+queryKeys.events.list(filters); // ['events', 'list', { camera_id: 'cam-1' }]
+queryKeys.system.health; // ['system', 'health']
 ```
 
 ### Usage
@@ -748,13 +748,13 @@ Centralized error tracking, performance monitoring, and session replay integrati
 
 **Configuration (Environment Variables):**
 
-| Variable                         | Purpose                                   | Default       |
-| -------------------------------- | ----------------------------------------- | ------------- |
-| `VITE_SENTRY_DSN`                | Sentry DSN (required to enable)           | -             |
-| `VITE_SENTRY_ENVIRONMENT`        | Environment name                          | 'production'  |
-| `VITE_SENTRY_TRACES_SAMPLE_RATE` | Transaction sample rate                   | 0.1           |
-| `VITE_SENTRY_REPLAY_SAMPLE_RATE` | Session replay sample rate                | 0.1           |
-| `VITE_SENTRY_REPLAY_ON_ERROR_RATE`| Replay on error sample rate              | 1.0           |
+| Variable                           | Purpose                         | Default      |
+| ---------------------------------- | ------------------------------- | ------------ |
+| `VITE_SENTRY_DSN`                  | Sentry DSN (required to enable) | -            |
+| `VITE_SENTRY_ENVIRONMENT`          | Environment name                | 'production' |
+| `VITE_SENTRY_TRACES_SAMPLE_RATE`   | Transaction sample rate         | 0.1          |
+| `VITE_SENTRY_REPLAY_SAMPLE_RATE`   | Session replay sample rate      | 0.1          |
+| `VITE_SENTRY_REPLAY_ON_ERROR_RATE` | Replay on error sample rate     | 1.0          |
 
 **Key Functions:**
 
@@ -828,25 +828,25 @@ Core Web Vitals collection and reporting service for production user monitoring.
 
 **Metrics Collected:**
 
-| Metric | Full Name                 | Measures                    |
-| ------ | ------------------------- | --------------------------- |
-| LCP    | Largest Contentful Paint  | Loading performance         |
-| INP    | Interaction to Next Paint | Interactivity (new standard)|
-| CLS    | Cumulative Layout Shift   | Visual stability            |
-| TTFB   | Time to First Byte        | Server response time        |
-| FCP    | First Contentful Paint    | First content render        |
-| FID    | First Input Delay         | Interactivity (legacy)      |
+| Metric | Full Name                 | Measures                     |
+| ------ | ------------------------- | ---------------------------- |
+| LCP    | Largest Contentful Paint  | Loading performance          |
+| INP    | Interaction to Next Paint | Interactivity (new standard) |
+| CLS    | Cumulative Layout Shift   | Visual stability             |
+| TTFB   | Time to First Byte        | Server response time         |
+| FCP    | First Contentful Paint    | First content render         |
+| FID    | First Input Delay         | Interactivity (legacy)       |
 
 **Configuration:**
 
 ```typescript
 interface RUMConfig {
-  endpoint: string;        // default: '/api/rum'
-  enabled: boolean;        // default: true
-  batchSize: number;       // default: 5
+  endpoint: string; // default: '/api/rum'
+  enabled: boolean; // default: true
+  batchSize: number; // default: 5
   flushIntervalMs: number; // default: 10000
-  sessionId?: string;      // optional session identifier
-  maxQueueSize: number;    // default: 50
+  sessionId?: string; // optional session identifier
+  maxQueueSize: number; // default: 50
 }
 ```
 

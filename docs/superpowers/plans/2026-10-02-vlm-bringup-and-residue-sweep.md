@@ -32,7 +32,7 @@ path is green **on the real box** stops rather than proceeds.
 
 Baseline, measured before any change: **206 passed in 4.55s** over the seven VLM-path guard files
 (`.venv/bin/python -m pytest <files> -p no:randomly --no-cov -o addopts=''`). The interpreter
-matters: system `python3` has no pytest, and `timeout … | tail` reports *tail's* status, so a
+matters: system `python3` has no pytest, and `timeout … | tail` reports _tail's_ status, so a
 silent `No module named pytest` once looked like exit 0. Use `.venv/bin/python` and read the
 output, never just the exit code.
 
@@ -98,9 +98,10 @@ curl -s http://127.0.0.1:8000/metrics | grep hsi_specialist_unavailable_total
 ```
 
 Non-zero and unbroken since boot ⇒ that leg has **never** run. The fix is host-specific:
->= 24 GB VRAM ⇒ `BACKEND_MODEL_PRELOAD=true` (`setup.py:461-464` auto-sets exactly this). Note the
-shipped default is pinned by `test_ai_vlm_compose_service.py:402-409`, so **changing the shipped
-default is a gate edit** — decide it explicitly or set it in the host `.env` only.
+
+> = 24 GB VRAM ⇒ `BACKEND_MODEL_PRELOAD=true` (`setup.py:461-464` auto-sets exactly this). Note the
+> shipped default is pinned by `test_ai_vlm_compose_service.py:402-409`, so **changing the shipped
+> default is a gate edit** — decide it explicitly or set it in the host `.env` only.
 
 ### A5. Decide whether the alert half is meant to run
 
@@ -157,22 +158,22 @@ Executed as a fan-out (`docs-clean-slate-ai-stack`, six zones over `docs/operato
 subdirs, `docs/developer/`, and `docs/reference/` + `getting-started/` + root README), with a
 completeness critic over the post-edit tree and the deletions performed centrally afterwards.
 
-| File | Defect | Action |
-| --- | --- | --- |
-| `docs/architecture/ai-pipeline.md` | `last_updated: 2026-01-04`; `source_refs` cite two deleted files; 49 retired-name mentions; 941 lines | banner at top → "pre-R8 historical", pointer to the current-state doc; **fix the 3 dead `source_refs`** so `validate_docs` is clean |
-| `docs/operator/ai-overview.md` | `:19-22` present-tense "ai-gateway: YOLO26, Florence-2, CLIP, enrichment" and "ai-llm … Nemotron 30B" | rewrite to the two shipped services |
-| `docs/operator/ai-services.md` | `:14` same table; `:111,121` tell an operator to `curl` `ai-llm` and `/florence/health` | rewrite |
-| `docs/operator/ai-configuration.md` | `:124,129,140` documents `NEMOTRON_MODEL_PATH`, `LLM_MODEL_PATH` for `ai-llm` | rewrite |
-| `docs/operator/deployment-modes.md` | `:14,25` "one container serves YOLO26, Florence-2, CLIP"; `:73` `FLORENCE_URL=` | rewrite |
-| `docs/operator/ai-installation.md` | `:17` "Nemotron-3-Nano-30B + ai-gateway (Florence-2, SigLIP 2)"; `:85` mermaid with dead routers | rewrite |
-| `docs/operator/ai-ghcr-deployment.md` | `:103,139,160` dead routers + `ai-llm` section | rewrite — **and** reconcile with `docker-compose.ghcr.yml` having **no `ai-vlm` service at all** (open question §9 of the state doc; may be "GHCR does not ship the VLM", which must be said out loud) |
-| `docs/operator/ai-troubleshooting.md` | `:12` "two containers: ai-gateway and ai-llm"; `:17,37,104,109` tell you to `podman logs ai-llm` | rewrite |
-| `docs/architecture/AGENTS.md` | `:84` advertises "Nemotron LLM risk analysis" | fix pointer |
-| `docs/ROADMAP.md` | `:22` "Nemotron produces a risk score + summary + reasoning" | fix |
-| `docs/ai/AGENTS.md` (already swept) + `README.md:334,466,532` | README still carries present-tense `ai-llm`/`NEMOTRON_URL` instructions `aabd7cd6` missed | fix README |
-| `backend/evaluation/AGENTS.md` | describes the module as Nemotron prompt-template eval; omits all five modules the shipped replay runs | rewrite |
-| `backend/ai_contract/AGENTS.md` | "38 operations", "45 schemas" (real: **9 ops, 15 files**), names three deleted client classes | fix counts |
-| `backend/ai_contract/{operations,providers,provider}.py` | prose counts (38/31); `operations.py` evidence `file:line`s point at deleted files yet still satisfy `per_model_server: True` because the derivation greps the **string** | fix prose; **flag, do not silently fix** the evidence-string derivation — it is a doctrine gap (`gen-ai-contract.py:25-30` already names this hazard for Tier-A) |
+| File                                                          | Defect                                                                                                                                                                    | Action                                                                                                                                                                                                 |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `docs/architecture/ai-pipeline.md`                            | `last_updated: 2026-01-04`; `source_refs` cite two deleted files; 49 retired-name mentions; 941 lines                                                                     | banner at top → "pre-R8 historical", pointer to the current-state doc; **fix the 3 dead `source_refs`** so `validate_docs` is clean                                                                    |
+| `docs/operator/ai-overview.md`                                | `:19-22` present-tense "ai-gateway: YOLO26, Florence-2, CLIP, enrichment" and "ai-llm … Nemotron 30B"                                                                     | rewrite to the two shipped services                                                                                                                                                                    |
+| `docs/operator/ai-services.md`                                | `:14` same table; `:111,121` tell an operator to `curl` `ai-llm` and `/florence/health`                                                                                   | rewrite                                                                                                                                                                                                |
+| `docs/operator/ai-configuration.md`                           | `:124,129,140` documents `NEMOTRON_MODEL_PATH`, `LLM_MODEL_PATH` for `ai-llm`                                                                                             | rewrite                                                                                                                                                                                                |
+| `docs/operator/deployment-modes.md`                           | `:14,25` "one container serves YOLO26, Florence-2, CLIP"; `:73` `FLORENCE_URL=`                                                                                           | rewrite                                                                                                                                                                                                |
+| `docs/operator/ai-installation.md`                            | `:17` "Nemotron-3-Nano-30B + ai-gateway (Florence-2, SigLIP 2)"; `:85` mermaid with dead routers                                                                          | rewrite                                                                                                                                                                                                |
+| `docs/operator/ai-ghcr-deployment.md`                         | `:103,139,160` dead routers + `ai-llm` section                                                                                                                            | rewrite — **and** reconcile with `docker-compose.ghcr.yml` having **no `ai-vlm` service at all** (open question §9 of the state doc; may be "GHCR does not ship the VLM", which must be said out loud) |
+| `docs/operator/ai-troubleshooting.md`                         | `:12` "two containers: ai-gateway and ai-llm"; `:17,37,104,109` tell you to `podman logs ai-llm`                                                                          | rewrite                                                                                                                                                                                                |
+| `docs/architecture/AGENTS.md`                                 | `:84` advertises "Nemotron LLM risk analysis"                                                                                                                             | fix pointer                                                                                                                                                                                            |
+| `docs/ROADMAP.md`                                             | `:22` "Nemotron produces a risk score + summary + reasoning"                                                                                                              | fix                                                                                                                                                                                                    |
+| `docs/ai/AGENTS.md` (already swept) + `README.md:334,466,532` | README still carries present-tense `ai-llm`/`NEMOTRON_URL` instructions `aabd7cd6` missed                                                                                 | fix README                                                                                                                                                                                             |
+| `backend/evaluation/AGENTS.md`                                | describes the module as Nemotron prompt-template eval; omits all five modules the shipped replay runs                                                                     | rewrite                                                                                                                                                                                                |
+| `backend/ai_contract/AGENTS.md`                               | "38 operations", "45 schemas" (real: **9 ops, 15 files**), names three deleted client classes                                                                             | fix counts                                                                                                                                                                                             |
+| `backend/ai_contract/{operations,providers,provider}.py`      | prose counts (38/31); `operations.py` evidence `file:line`s point at deleted files yet still satisfy `per_model_server: True` because the derivation greps the **string** | fix prose; **flag, do not silently fix** the evidence-string derivation — it is a doctrine gap (`gen-ai-contract.py:25-30` already names this hazard for Tier-A)                                       |
 
 **Verify S1:** `python3 -m scripts.validate_docs docs/architecture/ai-pipeline-current-state.md
 --no-ast --no-code-match --no-cross-ref --no-staleness --errors-only` → 0 ERR (and the same on
@@ -206,7 +207,7 @@ three surviving targets = 1.
    failure before pruning**, because today the retired rows may be the reason deploy logs look
    odd. This is the item most likely to look safe and not be.
 2. **`scripts/download-model-zoo.py`** still provisions smoke-fire / yolo-world / vitpose /
-   segformer / stgcn / fashion-clip [V] **and it is on the shipped installer path**: 
+   segformer / stgcn / fashion-clip [V] **and it is on the shipped installer path**:
    `setup_lib/model_downloader.py:863` shells out to it with `--all` when `hf_hub` is unavailable
    [V]. Either prune it to the keeps or delete it and remove the fallback. Do not leave a fallback
    that materialises a retired zoo.
@@ -294,10 +295,10 @@ tightening while wiring it.
 4. **Second severity-band copy.** `api/schemas/events.py:21-23` hardcodes 29/59/84 while the bands
    are runtime-mutable (`system.py:3459`, `:3548`), so DB-stored and API-echoed `risk_level` can
    disagree. Small fix, genuinely user-visible.
-5. **Eval cannot score a specialist change.** Replay feeds *stored* `specialist_outputs` and
+5. **Eval cannot score a specialist change.** Replay feeds _stored_ `specialist_outputs` and
    tierb-v0 declares none, and the only corpus that joined media + specialist context (38 items,
    ledger item 40) lives off-repo and is not reproducible [V]. **Any specialist-pipeline change is
-   currently unmeasurable** — rebuilding that corpus should gate a specialist *change*, even though
+   currently unmeasurable** — rebuilding that corpus should gate a specialist _change_, even though
    it does not gate this sweep. Also: nightly `prompt-evaluation.yml` scores the **retired**
    Nemotron harness in `--mock` mode and is green regardless — decide whether to retire it or
    repoint it at the VLM replay.
@@ -308,16 +309,16 @@ tightening while wiring it.
 
 Things that look like residue and are not:
 
-| Looks like | Actually | Evidence |
-| --- | --- | --- |
-| `ai/gateway/export/` | builds the shipped `{yolo26,reid,threat}` engines, runs in deploy | `export_all.sh:145,155,196` + `deploy_phases.py:648` |
-| `ENRICHMENT_LIGHT_URL` / `/enrich-lt` | live readiness lane | `model_management.py:172`; `prod.yml:601`; `ghcr.yml:251` |
-| `ai/yolo26/`, `ai/triton/` | pure-leaf contract + the repository Triton runs inside ai-gateway | `ai/AGENTS.md` |
-| `osnet_loader`, `face_recognizer_loader`, `fast_alpr_loader` | the **live** specialists, in-process | `vlm_specialists.py:174,535,566,705` |
-| `PIPELINE_MODE`/`GATEWAY_MODEL_SET` hard-raises | the guard itself | `config.py:1079-1083`; `residency.py:84` |
-| `models.yml` + `download_models.sh` | already swept, provisions only the keeps | state doc §residue |
-| `ai_fallback.py` | dead but ledgered as deliberately kept | `test_r8_s3…:396-400` |
-| `docs/vss-integration/`, `docs/plans/`, `docs/superpowers/` | the frozen research/ledger record; correcting them is out of bounds except by dated addendum | `docs/vss-integration/AGENTS.md` |
+| Looks like                                                   | Actually                                                                                     | Evidence                                                  |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `ai/gateway/export/`                                         | builds the shipped `{yolo26,reid,threat}` engines, runs in deploy                            | `export_all.sh:145,155,196` + `deploy_phases.py:648`      |
+| `ENRICHMENT_LIGHT_URL` / `/enrich-lt`                        | live readiness lane                                                                          | `model_management.py:172`; `prod.yml:601`; `ghcr.yml:251` |
+| `ai/yolo26/`, `ai/triton/`                                   | pure-leaf contract + the repository Triton runs inside ai-gateway                            | `ai/AGENTS.md`                                            |
+| `osnet_loader`, `face_recognizer_loader`, `fast_alpr_loader` | the **live** specialists, in-process                                                         | `vlm_specialists.py:174,535,566,705`                      |
+| `PIPELINE_MODE`/`GATEWAY_MODEL_SET` hard-raises              | the guard itself                                                                             | `config.py:1079-1083`; `residency.py:84`                  |
+| `models.yml` + `download_models.sh`                          | already swept, provisions only the keeps                                                     | state doc §residue                                        |
+| `ai_fallback.py`                                             | dead but ledgered as deliberately kept                                                       | `test_r8_s3…:396-400`                                     |
+| `docs/vss-integration/`, `docs/plans/`, `docs/superpowers/`  | the frozen research/ledger record; correcting them is out of bounds except by dated addendum | `docs/vss-integration/AGENTS.md`                          |
 
 ## Ledger follow-ups this plan creates
 

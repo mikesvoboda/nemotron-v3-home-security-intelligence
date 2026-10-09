@@ -79,7 +79,14 @@ test.describe('E2E Utility Usage Examples', () => {
     // Use pagination envelope format (NEM-2075)
     await mockApiResponse(page, '/api/cameras', {
       items: [camera],
-      pagination: { total: 1, limit: 50, offset: null, cursor: null, next_cursor: null, has_more: false },
+      pagination: {
+        total: 1,
+        limit: 50,
+        offset: null,
+        cursor: null,
+        next_cursor: null,
+        has_more: false,
+      },
     });
     await mockApiResponse(page, '/api/events', {
       items: highRiskEvents,
@@ -142,7 +149,7 @@ test.describe('E2E Utility Usage Examples', () => {
 
     // Open modal (if exists)
     const modalButton = page.getByRole('button', { name: /open|modal/i }).first();
-    if (await modalButton.count() > 0) {
+    if ((await modalButton.count()) > 0) {
       await modalButton.click();
 
       // Wait for modal animation to complete
@@ -252,7 +259,14 @@ test.describe('E2E Utility Usage Examples', () => {
     // Use pagination envelope format (NEM-2075)
     await mockApiResponse(page, '/api/cameras', {
       items: cameras,
-      pagination: { total: cameras.length, limit: 50, offset: null, cursor: null, next_cursor: null, has_more: false },
+      pagination: {
+        total: cameras.length,
+        limit: 50,
+        offset: null,
+        cursor: null,
+        next_cursor: null,
+        has_more: false,
+      },
     });
 
     // 3. Navigate and wait for page load

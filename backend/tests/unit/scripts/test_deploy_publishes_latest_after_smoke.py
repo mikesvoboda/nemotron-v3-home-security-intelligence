@@ -6,9 +6,10 @@ metadata-action's short sha (`deploy.yml:148-150` at ``acfe5b56``), and
 itself (`deploy.yml:189-190`, ``IMAGE_TAG: latest`` at 196). Measured at run
 ``37726762316``, head ``acfe5b56``: the manifests were already live while the
 run's only red job was the smoke test, so every consumer of ``:latest`` —
-``docker-compose.ghcr.yml`` (``IMAGE_TAG`` defaults to ``latest`` at lines 162,
-218, 344) and the operator's documented pull path
-(``docs/operator/deployment/README.md:447``: ``export IMAGE_TAG=latest``) —
+the then-shipped prebuilt-image compose stack (its ``IMAGE_TAG`` defaulted to
+``latest``; O1.2 has since retired that file) and the operator's documented
+pull path (the deployment runbook's ``export IMAGE_TAG=latest``, since
+rewritten with the rest of the GHCR section) —
 resolved images the pipeline had just declared broken. "Deploy is red" and "the
 images everyone pulls are broken" are the same fact, and the louder half
 (the red run) was the one nobody acted on.
@@ -132,7 +133,7 @@ def _moves_latest(job: dict) -> bool:
 def test_merge_core_does_not_publish_latest(jobs: dict) -> None:
     """Nothing may tag ``:latest`` before the smoke test has run.
 
-    ``latest`` is the tag the operator's runbook and both ghcr composes pull by
+    ``latest`` is the tag an operator's runbook or manual pull follows by
     default, so publishing it pre-smoke advertises an unvalidated build as the
     current one.
     """

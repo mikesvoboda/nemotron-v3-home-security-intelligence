@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 Settings are loaded once and cached using the `@cache` decorator. The cache is cold again after the
 settings API writes `data/runtime.env` (`backend/api/routes/settings_api.py:279`).
 
-**Source:** `backend/core/config.py:3364-3370`
+**Source:** `backend/core/config.py:3366-3372`
 
 ```python
 @cache
@@ -75,7 +75,7 @@ print(settings.database_url)
 | `REDIS_POOL_SIZE_PUBSUB`       | 10                         | Pub/sub pool connections        |
 | `REDIS_POOL_SIZE_RATELIMIT`    | 10                         | Rate limit pool connections     |
 
-**Source:** `backend/core/config.py:465-563`
+**Source:** `backend/core/config.py:465-566`
 
 ### Redis SSL/TLS Settings
 
@@ -88,7 +88,7 @@ print(settings.database_url)
 | `REDIS_SSL_KEYFILE`        | None       | Client key path               |
 | `REDIS_SSL_CHECK_HOSTNAME` | true       | Verify hostname               |
 
-**Source:** `backend/core/config.py:593-624`
+**Source:** `backend/core/config.py:596-627`
 
 ### Cache TTL Settings
 
@@ -101,7 +101,7 @@ print(settings.database_url)
 | `CACHE_SWR_ENABLED`   | true    | Enable SWR pattern            |
 | `SNAPSHOT_CACHE_TTL`  | 3600    | Camera snapshot cache TTL     |
 
-**Source:** `backend/core/config.py:698-736`
+**Source:** `backend/core/config.py:701-739`
 
 ### AI Service Endpoints
 
@@ -123,7 +123,7 @@ In containers the same routes use `http://ai-gateway:8090/...` and `AI_VLM_URL=h
 
 | Variable                | Default | Description                                                                                                             |
 | ----------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `PIPELINE_MODE`         | `vlm`   | Only `vlm` parses; any other value raises at boot (`backend/core/config.py:1061-1063`)                                  |
+| `PIPELINE_MODE`         | `vlm`   | Only `vlm` parses; any other value raises at boot (`backend/core/config.py:1063-1065`)                                  |
 | `GATEWAY_MODEL_SET`     | `vlm`   | Triton residency set; only `vlm` is accepted, anything else raises at container start (`ai/gateway/residency.py:79-83`) |
 | `GATEWAY_ENABLE_THREAT` | false   | Opt the `threat` model into the Triton set                                                                              |
 | `BACKEND_MODEL_PRELOAD` | false   | Boot sweep that loads `preload: true` rows from `models.yml`                                                            |
@@ -141,7 +141,7 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 | `AI_VLM_READ_TIMEOUT`         | 25.0    | Per-read idle budget for an attempt    |
 | `AI_VLM_WAKE_TIMEOUT_SECONDS` | 90.0    | Read timeout for the wake-on-open ping |
 
-**Source:** `backend/core/config.py:1106-1151`; the VLM pair is threaded in `docker-compose.prod.yml:561-562`.
+**Source:** `backend/core/config.py:1108-1153`; the VLM pair is threaded in `docker-compose.prod.yml:561-562`.
 
 ### Batch Processing
 
@@ -152,7 +152,7 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 | `BATCH_CHECK_INTERVAL_SECONDS` | 5.0     | Timeout check frequency      |
 | `BATCH_MAX_DETECTIONS`         | 500     | Max detections before split  |
 
-**Source:** `backend/core/config.py:925-984`
+**Source:** `backend/core/config.py:927-986`
 
 ### Fast Path Configuration
 
@@ -167,7 +167,7 @@ empty, so no detection takes the fast path — every detection reaches the analy
 batch gate regardless of the threshold. The threshold's own field default (2.0) is above any
 possible confidence, which is the second guard.
 
-**Source:** `backend/core/config.py:1909-1925`
+**Source:** `backend/core/config.py:1911-1927`
 
 ### Application Settings
 
@@ -181,7 +181,7 @@ possible confidence, which is the second guard.
 | `API_PORT`       | 8000         | API port                                                           |
 | `RETENTION_DAYS` | 30           | Data retention period                                              |
 
-**Source:** `backend/core/config.py:812-922`
+**Source:** `backend/core/config.py:815-924`
 
 ### CORS Settings
 
@@ -189,7 +189,7 @@ possible confidence, which is the second guard.
 | -------------- | ----------- | -------------------- |
 | `CORS_ORIGINS` | (see below) | Allowed CORS origins |
 
-Default CORS origins (see `backend/core/config.py:874-884`):
+Default CORS origins (see `backend/core/config.py:876-886`):
 
 ```python
 [
@@ -230,9 +230,9 @@ These four resolve to their `Settings` defaults in every deployment — none app
 
 With the shipped values the per-request budget resolves to `262144 // 8 = 32768` tokens:
 `CTX_SIZE` is read through a `validation_alias` and divided by the slot count before it becomes what
-the token counter uses (`backend/core/config.py:1268-1287`), so the number in `.env` is not the number applied.
+the token counter uses (`backend/core/config.py:1270-1289`), so the number in `.env` is not the number applied.
 
-**Source:** `backend/core/config.py:1230-1454`, `.env.example:324,326,358,359`
+**Source:** `backend/core/config.py:1232-1456`, `.env.example:324,326,358,359`
 
 ### Feature Toggles
 
@@ -248,14 +248,14 @@ nothing reads them:
 | `REID_ENABLED`              | true    | nothing — reported and mapped only             |
 | `IMAGE_QUALITY_ENABLED`     | true    | nothing — no BRISQUE model ships in this stack |
 
-**Sources:** the fields at `backend/core/config.py:1691`, `backend/core/config.py:1721`, and
-`backend/core/config.py:1716`; the response assembles them at
+**Sources:** the fields at `backend/core/config.py:1693`, `backend/core/config.py:1723`, and
+`backend/core/config.py:1718`; the response assembles them at
 `backend/api/routes/settings_api.py:126-133`; the shipped-stack note on BRISQUE is at
 `backend/api/routes/system.py:4845`.
 
 Two neighbouring toggles in the same block do gate live code: `CLIP_GENERATION_ENABLED`
 (`backend/services/clip_generator.py:176`) and `BACKGROUND_EVALUATION_ENABLED`
-(`backend/main.py:1054`).
+(`backend/main.py:1055`).
 
 Whether a specialist leg actually runs on an event is decided by weight residency, not by any of these
 toggles: the face and re-ID legs answer `unavailable` until the `BACKEND_MODEL_PRELOAD` boot sweep
@@ -299,7 +299,7 @@ AI service URLs are validated using `AnyHttpUrl`.
 
 Both AI service URL fields — `yolo26_url` and `ai_vlm_url` — go through one validator.
 
-**Source:** `backend/core/config.py:1471-1504`
+**Source:** `backend/core/config.py:1473-1506`
 
 ```python
 @field_validator("yolo26_url", "ai_vlm_url", mode="before")
@@ -324,7 +324,7 @@ def validate_ai_service_urls(cls, v: Any) -> str:
 
 Grafana URLs include SSRF protection.
 
-**Source:** `backend/core/config.py:1605-1636`
+**Source:** `backend/core/config.py:1607-1638`
 
 ```python
 @field_validator("grafana_url", mode="before")

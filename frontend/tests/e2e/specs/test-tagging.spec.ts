@@ -165,8 +165,10 @@ test.describe('Slow Tests @slow', () => {
     // Skip on Firefox/WebKit due to sequential navigation timeout issues (NEM-1486)
     // These browsers have slower page loads and multiple sequential navigations
     // exceed even extended timeouts in CI environment
-    test.skip(browserName === 'firefox' || browserName === 'webkit',
-      'Sequential navigation through 8+ pages exceeds navigation timeouts');
+    test.skip(
+      browserName === 'firefox' || browserName === 'webkit',
+      'Sequential navigation through 8+ pages exceeds navigation timeouts'
+    );
 
     // This test navigates through many pages, so needs a longer timeout
     test.setTimeout(60000);
@@ -213,10 +215,7 @@ test.describe('Slow Tests @slow', () => {
       camera_id: `cam-${(i % 4) + 1}`,
       camera_name: ['Front Door', 'Back Yard', 'Garage', 'Driveway'][i % 4],
       risk_level: ['low', 'medium', 'high', 'critical'][i % 4] as
-        | 'low'
-        | 'medium'
-        | 'high'
-        | 'critical',
+        'low' | 'medium' | 'high' | 'critical',
       risk_score: (i * 10) % 100,
       summary: `Event ${i + 1} summary`,
       thumbnail_url: null,

@@ -15,21 +15,21 @@ frontend/src/config/
 
 ## Key Files
 
-| File         | Purpose                                                |
-| ------------ | ------------------------------------------------------ |
-| `env.ts`     | Environment variable validation with runtime checking  |
-| `env.test.ts` | Comprehensive tests for validation logic               |
+| File          | Purpose                                               |
+| ------------- | ----------------------------------------------------- |
+| `env.ts`      | Environment variable validation with runtime checking |
+| `env.test.ts` | Comprehensive tests for validation logic              |
 
 ## Environment Variables (`env.ts`)
 
 ### Supported Variables
 
-| Variable             | Required | Type   | Default             | Description                            |
-| -------------------- | -------- | ------ | ------------------- | -------------------------------------- |
-| `VITE_API_BASE_URL`  | No       | URL    | `''` (relative)     | Base URL for REST API calls            |
-| `VITE_WS_BASE_URL`   | No       | WS URL | `undefined` (auto)  | Base URL for WebSocket connections     |
-| `VITE_API_KEY`       | No       | string | `undefined`         | API key for authentication             |
-| `MODE`               | Auto     | string | `'development'`     | Vite mode (development/production/test)|
+| Variable            | Required | Type   | Default            | Description                             |
+| ------------------- | -------- | ------ | ------------------ | --------------------------------------- |
+| `VITE_API_BASE_URL` | No       | URL    | `''` (relative)    | Base URL for REST API calls             |
+| `VITE_WS_BASE_URL`  | No       | WS URL | `undefined` (auto) | Base URL for WebSocket connections      |
+| `VITE_API_KEY`      | No       | string | `undefined`        | API key for authentication              |
+| `MODE`              | Auto     | string | `'development'`    | Vite mode (development/production/test) |
 
 ### Configuration Interface
 
@@ -88,10 +88,10 @@ Validates URL with allowed protocols: `http:`, `https:`, `ws:`, `wss:`.
 
 ```typescript
 isValidUrl('https://api.example.com'); // true
-isValidUrl('http://localhost:8000');   // true
-isValidUrl('');                        // false (required by default)
-isValidUrl('', false);                 // true (optional)
-isValidUrl('ftp://invalid');           // false (wrong protocol)
+isValidUrl('http://localhost:8000'); // true
+isValidUrl(''); // false (required by default)
+isValidUrl('', false); // true (optional)
+isValidUrl('ftp://invalid'); // false (wrong protocol)
 ```
 
 ## Convenience Getters
@@ -103,12 +103,12 @@ Cached configuration with simple getters:
 const config = getEnvConfig(); // EnvConfig
 
 // Individual getters
-const baseUrl = getBaseUrl();           // string
-const wsBaseUrl = getWsBaseUrl();       // string | undefined
-const apiKey = getApiKey();             // string | undefined
-const isDev = isDevelopment();          // boolean
-const isProd = isProduction();          // boolean
-const isTestMode = isTest();            // boolean
+const baseUrl = getBaseUrl(); // string
+const wsBaseUrl = getWsBaseUrl(); // string | undefined
+const apiKey = getApiKey(); // string | undefined
+const isDev = isDevelopment(); // boolean
+const isProd = isProduction(); // boolean
+const isTestMode = isTest(); // boolean
 ```
 
 **Caching:** Configuration is validated once and cached for subsequent calls.

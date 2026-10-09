@@ -249,9 +249,10 @@ def get_service_name_for_model(model_name: str) -> str:
     return "ai-gateway"
 
 
-# The host GPU the one serving lane sits on. Set by the compose files, not the
-# registry: docker-compose.prod.yml:397 and .ghcr.yml:183 both give ai-gateway
-# (which hosts the only router) CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}.
+# The host GPU the one serving lane sits on. Set by the compose file, not the
+# registry: docker-compose.prod.yml:398 gives ai-gateway (which hosts the only
+# router) CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1} — the only such line since
+# O1.2 (UR-17) retired the GHCR stack, which set the same value.
 # There is nothing left to branch on -- the heavy lane's device 0 was the other
 # half of the old split.
 _GPU_LANE_ID = 1

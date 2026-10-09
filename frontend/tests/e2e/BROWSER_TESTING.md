@@ -4,18 +4,20 @@ This document describes browser-specific testing considerations and setup requir
 
 ## Browser Support
 
-| Browser  | Status  | CI Priority | Notes                              |
-| -------- | ------- | ----------- | ---------------------------------- |
-| Chromium | Primary | Required    | Fast, stable, primary test target  |
+| Browser  | Status    | CI Priority  | Notes                             |
+| -------- | --------- | ------------ | --------------------------------- |
+| Chromium | Primary   | Required     | Fast, stable, primary test target |
 | Firefox  | Secondary | Non-blocking | Slower, needs longer timeouts     |
 | WebKit   | Secondary | Non-blocking | Requires system dependencies      |
 
 ## Browser Installation
 
 ### Chromium
+
 Chromium is installed automatically by Playwright and requires no additional setup.
 
 ### Firefox
+
 Firefox is installed automatically by Playwright and requires no additional setup.
 
 ### WebKit (Safari)
@@ -33,6 +35,7 @@ Alternatively, use apt:
 ```
 
 **Fix:**
+
 ```bash
 # Option 1: Install all Playwright dependencies (recommended)
 sudo npx playwright install-deps
@@ -59,6 +62,7 @@ These are configured in `playwright.config.ts`.
 ### Why Firefox Needs Longer Timeouts
 
 Firefox has longer timeouts because:
+
 1. **WebSocket connections** take longer to establish (especially in CI)
 2. **Page loads** are slightly slower due to different rendering engine
 3. **CSS animations** may take longer to stabilize
@@ -69,6 +73,7 @@ Reference: NEM-1807, NEM-1486
 ## Known Browser Differences
 
 ### WebSocket Status Indicator
+
 - **Issue:** WebSocket status indicator takes longer to appear in Firefox/WebKit
 - **Solution:** Use 20s timeout instead of 10s for `websocket-status` element
 - **Files affected:** `user-journeys/*.spec.ts`
@@ -78,27 +83,30 @@ Reference: NEM-1807, NEM-1486
 const timeout = browserName === 'chromium' ? 10000 : 20000;
 await page.waitForSelector('[data-testid="websocket-status"]', {
   state: 'visible',
-  timeout
+  timeout,
 });
 
 // Bad: Fixed timeout that fails in Firefox
 await page.waitForSelector('[data-testid="websocket-status"]', {
   state: 'visible',
-  timeout: 10000
+  timeout: 10000,
 });
 ```
 
 ### Touch Target Sizing
+
 - **Issue:** CSS rendering differences cause button dimensions to vary by 1-2px
 - **Solution:** Allow 2px variance (42px instead of 44px) and tolerate 20% failure rate
 - **Files affected:** `mobile-optimization.spec.ts`
 
 ### Empty State Rendering
+
 - **Issue:** Null values may render as "N/A", "0", or "No data" depending on browser
 - **Solution:** Check for multiple possible empty state indicators
 - **Files affected:** `ai-audit.spec.ts`
 
 ### Multi-Page Navigation
+
 - **Issue:** Sequential navigation through many pages can exceed navigation timeout
 - **Solution:** Increase test timeout for `@slow` tests to 90s for Firefox/WebKit
 - **Files affected:** `test-tagging.spec.ts`
@@ -146,7 +154,8 @@ await expect(page.getByText('Connected')).toBeVisible();
 
 ```typescript
 // Good: Handle browser differences
-const indicator = page.getByText('N/A')
+const indicator = page
+  .getByText('N/A')
   .or(page.getByText('—'))
   .or(page.getByText(/no data/i));
 await expect(indicator.first()).toBeVisible();
@@ -165,9 +174,9 @@ CI runs browsers in parallel jobs:
 matrix:
   project: [chromium, firefox, webkit]
   continue-on-error:
-    - chromium: false  # Chromium failures block merge
-    - firefox: true    # Firefox failures are warnings
-    - webkit: true     # WebKit failures are warnings
+    - chromium: false # Chromium failures block merge
+    - firefox: true # Firefox failures are warnings
+    - webkit: true # WebKit failures are warnings
 ```
 
 ### Retry Strategy
@@ -176,7 +185,7 @@ All browsers get 2 retries in CI:
 
 ```typescript
 // playwright.config.ts
-retries: process.env.CI ? 2 : 0
+retries: process.env.CI ? 2 : 0;
 ```
 
 This catches flaky tests while allowing real failures to surface.

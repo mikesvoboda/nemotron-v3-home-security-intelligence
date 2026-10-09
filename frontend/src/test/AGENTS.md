@@ -66,16 +66,16 @@ globalThis.IntersectionObserver = class IntersectionObserver {
 
 From `vite.config.ts`:
 
-| Setting       | Value                 | Purpose                                   |
-| ------------- | --------------------- | ----------------------------------------- |
-| `globals`     | `true`                | `describe`, `it`, `expect` without import |
-| `environment` | `jsdom`               | Browser-like DOM environment              |
-| `setupFiles`  | This setup file       | Test initialization                       |
-| `css`         | `true`                | Process CSS for style-dependent tests     |
-| `pool`        | `forks`               | Fork pool for memory optimization         |
-| `singleFork`  | `true`                | Prevents heap out of memory errors        |
-| `testTimeout` | `10000`               | 10 second timeout per test                |
-| `hookTimeout` | `10000`               | 10 second timeout for hooks               |
+| Setting       | Value           | Purpose                                   |
+| ------------- | --------------- | ----------------------------------------- |
+| `globals`     | `true`          | `describe`, `it`, `expect` without import |
+| `environment` | `jsdom`         | Browser-like DOM environment              |
+| `setupFiles`  | This setup file | Test initialization                       |
+| `css`         | `true`          | Process CSS for style-dependent tests     |
+| `pool`        | `forks`         | Fork pool for memory optimization         |
+| `singleFork`  | `true`          | Prevents heap out of memory errors        |
+| `testTimeout` | `10000`         | 10 second timeout per test                |
+| `hookTimeout` | `10000`         | 10 second timeout for hooks               |
 
 ## Available DOM Matchers
 

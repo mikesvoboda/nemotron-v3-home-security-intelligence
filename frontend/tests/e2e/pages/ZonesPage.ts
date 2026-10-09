@@ -58,17 +58,23 @@ export class ZonesPage extends BasePage {
     // Zone Editor Modal - use heading as primary indicator since dialog may have transitions
     this.zoneEditorTitle = page.getByRole('heading', { name: /Zone Configuration/i });
     this.zoneEditorModal = page.locator('[role="dialog"]').filter({ has: this.zoneEditorTitle });
-    this.zoneEditorCloseButton = this.zoneEditorModal.locator('button').filter({ has: page.locator('svg.lucide-x') }).first();
+    this.zoneEditorCloseButton = this.zoneEditorModal
+      .locator('button')
+      .filter({ has: page.locator('svg.lucide-x') })
+      .first();
 
     // Drawing Toolbar
     this.drawRectangleButton = page.getByRole('button', { name: /Rectangle/i });
     this.drawPolygonButton = page.getByRole('button', { name: /Polygon/i });
     // The UI shows "Drawing rectangle..." or "Drawing polygon..." in a badge
     this.drawingModeIndicator = page.getByText(/Drawing (rectangle|polygon)\.\.\./i);
-    this.cancelDrawingButton = page.getByRole('button', { name: /Cancel/i }).filter({ hasNotText: 'Delete' });
+    this.cancelDrawingButton = page
+      .getByRole('button', { name: /Cancel/i })
+      .filter({ hasNotText: 'Delete' });
 
     // Zone Canvas - label changes when in drawing mode
-    this.zoneCanvas = page.getByLabel('Camera zones view')
+    this.zoneCanvas = page
+      .getByLabel('Camera zones view')
       .or(page.getByLabel('Zone drawing canvas - click and drag to draw'));
     this.zoneCanvasImage = page.locator('img[alt="Camera snapshot"]');
 
@@ -93,7 +99,9 @@ export class ZonesPage extends BasePage {
     this.deleteCancelButton = page.getByRole('button', { name: /^Cancel$/i });
 
     // Error Display
-    this.errorMessage = page.locator('.text-red-400, .text-red-500').filter({ hasText: /Failed|Error/i });
+    this.errorMessage = page
+      .locator('.text-red-400, .text-red-500')
+      .filter({ hasText: /Failed|Error/i });
   }
 
   /**
@@ -101,11 +109,15 @@ export class ZonesPage extends BasePage {
    */
   async gotoSettings(): Promise<void> {
     await this.page.goto('/settings');
-    await expect(this.page.getByRole('heading', { name: /Settings/i })).toBeVisible({ timeout: this.pageLoadTimeout });
+    await expect(this.page.getByRole('heading', { name: /Settings/i })).toBeVisible({
+      timeout: this.pageLoadTimeout,
+    });
 
     // Wait for camera table to load
     // Look for either the table or "no cameras" message
-    const cameraTable = this.page.locator('table').or(this.page.getByText(/No cameras configured/i));
+    const cameraTable = this.page
+      .locator('table')
+      .or(this.page.getByText(/No cameras configured/i));
     await expect(cameraTable).toBeVisible({ timeout: this.pageLoadTimeout });
   }
 
@@ -118,7 +130,9 @@ export class ZonesPage extends BasePage {
     await expect(cameraRow).toBeVisible({ timeout: this.pageLoadTimeout });
 
     // Click the "Configure zones" button
-    const zonesButton = cameraRow.getByRole('button', { name: new RegExp(`Configure zones for ${cameraName}`, 'i') });
+    const zonesButton = cameraRow.getByRole('button', {
+      name: new RegExp(`Configure zones for ${cameraName}`, 'i'),
+    });
     await expect(zonesButton).toBeVisible({ timeout: 5000 });
     await zonesButton.click();
 
@@ -184,12 +198,7 @@ export class ZonesPage extends BasePage {
    * Draw a rectangle zone on the canvas
    * Coordinates are percentages (0-100) of the canvas dimensions
    */
-  async drawRectangle(
-    startX: number,
-    startY: number,
-    endX: number,
-    endY: number
-  ): Promise<void> {
+  async drawRectangle(startX: number, startY: number, endX: number, endY: number): Promise<void> {
     const canvas = this.zoneCanvas;
     const box = await canvas.boundingBox();
     if (!box) throw new Error('Canvas not found');
@@ -273,9 +282,9 @@ export class ZonesPage extends BasePage {
     const loadingIndicator = this.page.getByText('Loading zones...');
     // Either wait for it to appear and disappear, or skip if it doesn't appear (fast)
     await Promise.race([
-      loadingIndicator.waitFor({ state: 'visible', timeout: 1000 }).then(() =>
-        expect(loadingIndicator).not.toBeVisible({ timeout: 5000 })
-      ),
+      loadingIndicator
+        .waitFor({ state: 'visible', timeout: 1000 })
+        .then(() => expect(loadingIndicator).not.toBeVisible({ timeout: 5000 })),
       this.page.waitForTimeout(500), // If loading is too fast to catch
     ]).catch(() => {
       // Ignore timeout if loading was instant
@@ -330,7 +339,9 @@ export class ZonesPage extends BasePage {
    */
   async toggleZoneEnabled(zoneName: string): Promise<void> {
     const zoneItem = this.page.locator('[role="button"]').filter({ hasText: zoneName });
-    const toggleButton = zoneItem.locator('button[title*="zone"]').filter({ has: this.page.locator('svg.lucide-eye, svg.lucide-eye-off') });
+    const toggleButton = zoneItem
+      .locator('button[title*="zone"]')
+      .filter({ has: this.page.locator('svg.lucide-eye, svg.lucide-eye-off') });
     await toggleButton.click();
   }
 
@@ -347,9 +358,9 @@ export class ZonesPage extends BasePage {
     // Wait for zones to reload (loading indicator appears and disappears)
     const loadingIndicator = this.page.getByText('Loading zones...');
     await Promise.race([
-      loadingIndicator.waitFor({ state: 'visible', timeout: 1000 }).then(() =>
-        expect(loadingIndicator).not.toBeVisible({ timeout: 5000 })
-      ),
+      loadingIndicator
+        .waitFor({ state: 'visible', timeout: 1000 })
+        .then(() => expect(loadingIndicator).not.toBeVisible({ timeout: 5000 })),
       this.page.waitForTimeout(500), // If loading is too fast to catch
     ]).catch(() => {
       // Ignore timeout if loading was instant
@@ -395,7 +406,8 @@ export class ZonesPage extends BasePage {
    * Select a color in the form
    */
   async selectColor(colorHex: string): Promise<void> {
-    const colorButton = this.page.locator(`button[style*="background-color: ${colorHex}"]`)
+    const colorButton = this.page
+      .locator(`button[style*="background-color: ${colorHex}"]`)
       .or(this.page.locator(`button[style*="background-color:${colorHex}"]`));
     await colorButton.click();
   }
