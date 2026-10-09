@@ -72,8 +72,8 @@ flowchart TB
 | ---------- | ----------------- | ---------------- | ----------------------------------------- |
 | YOLO26     | 5                 | 60s              | `backend/services/detector_client.py:336` |
 | AI VLM     | 5                 | 60s              | `backend/services/vlm_client.py:316-319`  |
-| PostgreSQL | 10                | 60s              | `backend/main.py:310-328`                 |
-| Redis      | 10                | 60s              | `backend/main.py:310-328`                 |
+| PostgreSQL | 10                | 60s              | `backend/main.py:311-329`                 |
+| Redis      | 10                | 60s              | `backend/main.py:311-329`                 |
 
 ## Concurrency Control
 

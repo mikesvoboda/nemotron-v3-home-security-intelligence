@@ -102,7 +102,7 @@ Events are broadcast to connected WebSocket clients via the `EventBroadcaster`:
 
 ## Queue Architecture
 
-Both queues run on Redis Streams by default (`USE_REDIS_STREAMS`, `backend/core/config.py:2239-2242`): `XADD` producers, a consumer group per queue, and `XACK` after the item is processed. The Redis LIST names below stay active when the setting is turned off.
+Both queues run on Redis Streams by default (`USE_REDIS_STREAMS`, `backend/core/config.py:2242-2245`): `XADD` producers, a consumer group per queue, and `XACK` after the item is processed. The Redis LIST names below stay active when the setting is turned off.
 
 ```
 detection_queue (Redis LIST) / detections:stream (Redis Stream)
@@ -142,7 +142,7 @@ The `PipelineWorkerManager` provides unified lifecycle management:
 
 **Source:** `backend/services/pipeline_workers.py` (lines 1494-1988)
 
-The FastAPI lifespan registers the same workers with the `WorkerSupervisor` through factory callables — `create_analysis_worker` at `backend/services/pipeline_workers.py:2140`, registered as `"analysis"` at `backend/main.py:996-1001`.
+The FastAPI lifespan registers the same workers with the `WorkerSupervisor` through factory callables — `create_analysis_worker` at `backend/services/pipeline_workers.py:2140`, registered as `"analysis"` at `backend/main.py:997-1002`.
 
 ## Metrics and Observability
 

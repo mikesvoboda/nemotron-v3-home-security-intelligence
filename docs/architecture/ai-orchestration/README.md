@@ -136,7 +136,7 @@ Two shipped facts worth knowing before you budget:
 
 1. **Detection phase**: each image is posted to `/yolo26/detect` and stored as `Detection` rows.
 2. **Batching phase**: detections aggregate per camera and the batch closes on a 90 s window, a 30 s
-   idle gap, or 500 detections (`backend/core/config.py:927,932,979`).
+   idle gap, or 500 detections (`backend/core/config.py:928,933,980`).
 3. **Key-frame phase**: `select_key_frames()` picks 1-4 distinct stills
    (`backend/services/key_frame_selector.py:73`).
 4. **Specialist phase**: the three lookup legs produce one short text each.
