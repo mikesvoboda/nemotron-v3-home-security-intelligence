@@ -80,10 +80,12 @@ consolidates tests of modules no feature touches (test-only PRs, same protocol) 
 no feature has triggered (resilience primitives, the broadcaster, the config split). Every seam is
 designed when it is reached, against the code that remains — never in advance.
 
-**The Phase 1 pause has lifted (`B1.2`):** replay now scores verdicts and selects frames the way
-production does, so VLM prompt and threshold selection (the prompt programme, OD-26, OD-29) can
-resume on replay numbers. The register's OD-29 entry says which earlier results that change
-affects. Synthbench corpus generation continued throughout; it ships no production code.
+**The Phase 1 pause has lifted (`B1.2`):** replay now scores verdicts the way production does,
+and feeds production's key-frame selection wherever the corpus names each detection's frame. So
+VLM prompt and threshold selection (the prompt programme, OD-26, OD-29) can resume on replay
+numbers. The register's OD-29 entry says which earlier results the change affects (OD-29's own
+operating point is not one of them) and where frame parity stops. Synthbench corpus generation
+continued throughout; it ships no production code.
 
 ## Lanes
 

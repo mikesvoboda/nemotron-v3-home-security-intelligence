@@ -71,9 +71,12 @@ Replay measures the judge production runs (B1.2):
   `SeverityService`, so a row's score and level are the ones the analyzer stores. The model's raw
   score stays in the row's verdict dump.
 - The default frames mode, `selector`, is production's `build_assess_request` with
-  `key_frame_spread_seconds`. `stored` (an item's first four media paths) re-runs a committed corpus
-  byte for byte; `burst` feeds every frame.
-- The report counts clamps and frame fallbacks (`parity`) and records its `severity_thresholds`.
+  `key_frame_spread_seconds`, for items whose detection rows name their frame. Other items (stills,
+  frozen events) fall back to their stored frames, and each fallback is counted. `stored` (an
+  item's first four media paths) re-runs a committed corpus byte for byte; `burst` feeds every
+  frame.
+- The report counts clamps and frame fallbacks (`parity`), and records its `severity_thresholds`
+  and `selector_spread_seconds`.
 
 ## Testing
 

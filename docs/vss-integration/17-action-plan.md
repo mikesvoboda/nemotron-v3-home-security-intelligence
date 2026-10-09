@@ -705,27 +705,41 @@ cameras the default governs; what is undetermined is whether a stored 0 is 'no s
 or 'a preference that wins', which is OD-30. The 4.3% figure stays as recorded; its scope moves by
 dated note, per the record rules.
 
-Update 2026-10-09 (B1.2, PR #6924; the UR-8 pause lifts) [V: code and tests at the PR's head; the
-real-tier count is pending]: replay now matches production on the two points D6 named.
+Update 2026-10-09 (B1.2, PR #6924; the UR-8 pause lifts) [V: code and tests at the PR's head, and
+the records cited below; the real-tier count is pending]: replay now scores every verdict the way
+production does, and feeds production's key-frame selection wherever the corpus says which frame
+each detection was seen on.
 
-1. **Scores.** Every replayed verdict passes through `apply_verdict_invariants`, so a `rejected`
-   verdict scores at most `low_max` (29 by default), as production stores it. Every replay figure
-   before this used the raw score, which differs only where a `rejected` verdict carried a raw
-   score above `low_max`. At OD-29's floor of 60, such a row counted as an alert in replay that
-   production never raises. That effect is measured nil for the shipped model's 2026-10-03 run
-   (ISS-014: 4 rejected rows, all scored 10 or less). It is unverified for the stage-3.5 rows behind
-   OD-29's 4.3% and 43.2%, and for the flagship's 15 rejected rows.
-2. **Frames.** Replay's default (`backend/evaluation/vlm_replay.py`) is now production's key-frame
-   selection with production's `key_frame_spread_seconds`. Earlier runs fed an item's first four
-   media paths (`stored`), or, under `--frames selector`, a selector without the spread. Stills are
-   unaffected, since they have one image either way; sequence-set items are not. `synthbench
-replay` still defaults to `stored` and needs `--frames selector --with-sequences` for
-   production's frames.
+1. **Scores, for every item.** Every replayed verdict passes through `apply_verdict_invariants`,
+   so a `rejected` verdict scores at most `low_max` (29 by default), as production stores it. The
+   model's raw score stays in the row. Earlier replay reports scored the raw value: `s_metrics`
+   scores any non-NULL `risk_score` regardless of verdict
+   (`docs/plans/2026-10-04-vlm-assess-prompt-review-and-experiment-plan.md:335-341`). Their raw
+   S2/S3 readings therefore differ from the production-effective ones only where a `rejected`
+   verdict scored above `low_max`. The effect is nil for the shipped model's 2026-10-03 run
+   (ISS-014: 4 rejected rows, all scored 10 or less), and the plan records the two readings as
+   identical for the control, arm A and arm B runs. The flagship's 15 rejected rows are unchecked.
+2. **Frames, where the corpus allows.** Replay's default is now production's selection, with
+   production's `key_frame_spread_seconds`. Earlier runs fed an item's first four media paths, or,
+   under `--frames selector`, a selector without the spread. The new default can select only for
+   items whose detection rows name their frame (synthbench sequence sets).
+   - **Stills** have one image either way, so they are unchanged.
+   - **Frozen and owner-labelled production events** store each detection's frame and thumbnail as
+     media but name no frame per row, so they still get their first four media paths. Each
+     fallback is recorded per row and counted in the report (`parity.fell_back`).
+   - **Camera timezone.** Parity also assumes `CAMERA_TIMEZONE` unset, which is production's
+     default; `.env.bench` sets it, and with it production selects and prompts on filename capture
+     times, which replay does not.
+   - **`synthbench replay`** still defaults to `stored`. Production's frames need both
+     `--frames selector` and `--with-sequences`.
+
+**OD-29 is unaffected.** Its operating point was computed production-effective, with the clamp
+applied (`docs/vss-integration/README.md:81` and the OD-29 paragraph above), on stills. So neither
+half of this change moves its 4.3% or 43.2%.
 
 The operator re-runs the latest replay report on a test deployment's `ai-vlm` (never the live
-engine) and posts on PR #6924 the count of items whose score or verdict changes. Until then
-OD-29's figures stand as recorded, with this scope note. The prompt and threshold selection that
-UR-8 paused can resume on parity replay.
+engine) and posts on PR #6924 the count of items whose score or verdict changes. The prompt and
+threshold selection that UR-8 paused can resume on parity replay.
 
 ## 5. The register
 
