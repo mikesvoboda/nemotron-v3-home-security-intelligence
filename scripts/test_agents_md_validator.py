@@ -41,7 +41,7 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 import yaml
@@ -737,10 +737,25 @@ def test_committed_boundary_list_covers_the_rule():
     The rule (config header, same words): root + the seven lane roots + every
     directory with >= 20 code files that is not a test/docs/archive dir and
     HAS an AGENTS.md today + the dirs the standard names or that guard a
-    cross-lane/CI contract. >= 20 is a measured choice, not a round number:
-    the census in PR #6920 counted 115 dirs at >= 5 and 53 at >= 10 — both
-    outside the package's "Expect 30 to 50 entries" band — and 42 lands
-    inside it.
+    cross-lane/CI contract.
+
+    >= 20 is a measured choice, not a round one, and it is measured HERE rather
+    than quoted from a census nobody can re-run: the same rule is derived at
+    four thresholds and the resulting LIST SIZES are asserted against the
+    package's "Expect 30 to 50 entries" band. >= 5 would put 77 entries in the
+    config and >= 10 would put 52 — both out of the band, which is what the
+    band is for: it is telling the author the rule is selecting satellites
+    instead of packages.
+
+    >= 15 lands in the band at 46, so the band alone does not pick 20 — the
+    four directories between the two thresholds do. Each one is a child of a
+    directory ALREADY in the list (audit/schemas under frontend/src,
+    common/skeletons under components/common, settings/prompts under
+    components/settings), and the standard's doctrine is that a satellite folds
+    into its nearest kept ancestor rather than getting its own file. 20 is the
+    largest threshold whose marginal additions are all top-level packages and
+    none is a parent-split; that is asserted below, so the discriminator
+    survives even if the tree grows and the numbers move.
 
     Non-vacuity, since a rule that keeps everything and a rule that keeps
     nothing both "match" a hand-written list if written carelessly: the
@@ -764,15 +779,26 @@ def test_committed_boundary_list_covers_the_rule():
     }
 
     def self_indexed(dir_path: str) -> bool:
-        parts = Path(dir_path).parts
+        parts = PurePosixPath(dir_path).parts
         return any(p in ("tests", "__tests__", "test", "archive") for p in parts) or (
             parts[:1] == ("docs",)
         )
 
+    roots = set(v.LANE_ROOTS) | {"."}
+
+    def derive(threshold: int) -> set[str]:
+        """The rule as the config comment states it, at one threshold."""
+        kept = {
+            d
+            for d, n in counts.items()
+            if n >= threshold and not self_indexed(d) and (REPO_ROOT / d / "AGENTS.md").is_file()
+        }
+        return kept | roots | EXPECTED_RULE_EXCEPTIONS
+
     big = {d for d, n in counts.items() if n >= 20}
     rule_kept = {d for d in big if not self_indexed(d) and (REPO_ROOT / d / "AGENTS.md").is_file()}
-    roots = set(v.LANE_ROOTS) | {"."}
-    derived = rule_kept | roots | EXPECTED_RULE_EXCEPTIONS
+    derived = derive(20)
+    assert derived == rule_kept | roots | EXPECTED_RULE_EXCEPTIONS  # derive == the spelled-out set
 
     committed = {entry["path"] for entry in config.boundary_list}
     assert derived == committed, (
@@ -815,6 +841,28 @@ def test_committed_boundary_list_covers_the_rule():
         assert (REPO_ROOT / d / "AGENTS.md").is_file(), f"{d} has no AGENTS.md"
         assert entry["reason"].strip(), d
     assert 30 <= len(committed) <= 50, f"outside the plan's 30-50 band: {len(committed)}"
+    # The threshold choice, re-measured rather than quoted: the plan says
+    # "Expect 30 to 50 entries", so a rule whose output leaves the band is
+    # selecting the wrong thing. >= 10 (52) and >= 5 (77) fall out of it; the
+    # committed 20 does not. Pinned as a RANGE of list sizes, not the sizes
+    # themselves, so the tree may grow without reddening this — only a rule
+    # change that pushes a threshold across the band boundary does.
+    assert len(derive(5)) > 50 and len(derive(10)) > 50, "a looser threshold now fits the band"
+    assert 30 <= len(derive(20)) <= 50
+    # And 15, which ALSO fits the band (46), is rejected for the reason the
+    # standard gives: everything the looser cut adds is a child of a directory
+    # already listed, so it would duplicate an ancestor's map instead of
+    # covering a package. If a future top-level package crosses 15 code files,
+    # this assertion fires and the threshold is re-debated on real evidence.
+    marginal = derive(15) - derive(20)
+    assert marginal, "the 15-vs-20 discriminator is doing nothing"
+    for candidate in marginal:
+        parents = [
+            kept
+            for kept in derived
+            if kept != "." and PurePosixPath(candidate).is_relative_to(kept)
+        ]
+        assert parents, f"{candidate} is a top-level package the rule should keep"
 
 
 def test_committed_boundary_list_and_caps_are_pinned():
