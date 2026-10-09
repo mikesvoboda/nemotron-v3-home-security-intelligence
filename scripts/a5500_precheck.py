@@ -397,8 +397,8 @@ def _check_ai_vlm_mount(compose_paths: list[Path]) -> Check:
             WARN,
             "no ai-vlm service defined in "
             + ", ".join(sorted(set(absent)))
-            + " - that compose cannot serve the shipped vlm mode (prod "
-            "compose is the vlm path; the ghcr image path never gained one)",
+            + " - that compose cannot serve the shipped vlm mode (the prod "
+            "stack is the vlm path: docker-compose.prod.yml)",
         )
     return Check("ai_vlm_mount", WARN, "ai-vlm has no weights mount at /models - inspect by eye")
 
@@ -534,8 +534,8 @@ def _check_vlm_image(compose_paths: list[Path]) -> Check:
 
     The A5500 build line (--build-arg CUDA_ARCHITECTURES=86) only means
     something through a build: block; an image: ref says nothing about the
-    arch it carries, and a compose with no ai-vlm at all (ghcr.yml's shipped
-    shape) cannot serve the mode at all.
+    arch it carries, and a compose with no ai-vlm at all cannot serve the
+    mode at all.
     """
     buildable: list[str] = []
     image_only: list[str] = []
@@ -559,7 +559,7 @@ def _check_vlm_image(compose_paths: list[Path]) -> Check:
             WARN,
             "no ai-vlm service in "
             + ", ".join(sorted(set(absent)))
-            + " - the ghcr image path cannot serve the shipped vlm mode; run "
+            + " - those composes cannot serve the shipped vlm mode; run "
             "docker-compose.prod.yml on the A5500 box (ai-vlm is in its "
             "default set since UR-18, no flag needed)",
         )
@@ -716,6 +716,13 @@ AMENDMENTS: dict[str, list[str]] = {
         "wrong-arch image with the right build-id passes every check in this "
         "repo and then fails at runtime, so nothing here can certify the "
         "image for you except compute_cap beside build_info.",
+        "[V 2026-10-08] amend (O1.2, PR #6907): two clauses above have aged - "
+        "the prebuilt-image compose file this record checked for an ai-vlm "
+        "service is DELETED (the retired-paths gate keeps it gone), and "
+        "deploy.yml's matrix is now [backend, frontend] (R8 retired the "
+        "ai-llm/florence/clip/enrichment images it built). The verdict "
+        "stands, simplified: nothing to pull, one compose file, BUILD "
+        "ai-vlm locally.",
     ],
     "Serving VLM": [
         "[V 2026-09-27] the shipped mode is the VLM path: PIPELINE_MODE=vlm "
@@ -874,6 +881,12 @@ AMENDMENTS: dict[str, list[str]] = {
         "Run docker-compose.prod.yml on the A5500 box "
         "(that compose file also hardcodes its legacy ai-llm's "
         "MODEL_PATH=...Q2_K_L.gguf at :172, unchanged)",
+        "[V 2026-10-08] amend (O1.2, PR #6907): the prebuilt-image compose "
+        "file the entry above names is DELETED - it is not a path an operator "
+        "can run any more. `docker-compose.prod.yml` is the one supported "
+        "stack (setup.py plus it) and the only one this handout means; read "
+        "the sentence above as history of why the prod stack was always the "
+        "answer.",
     ],
     "No legacy LLM": [
         "[V 2026-09-27] prod compose's ai-llm has NO profiles: block (cited by "
@@ -1106,7 +1119,7 @@ def main(argv: list[str] | None = None) -> int:
         "--compose",
         action="append",
         default=None,
-        help="compose file to check (repeatable; default: prod + ghcr)",
+        help="compose file to check (repeatable; default: the prod stack)",
     )
     ap.add_argument("--repo-root", default=str(REPO_ROOT))
     ap.add_argument("--out", default=None, help="write the dated checklist here")
@@ -1117,10 +1130,9 @@ def main(argv: list[str] | None = None) -> int:
     compose = (
         [Path(p) for p in args.compose]
         if args.compose
-        else [
-            REPO_ROOT / "docker-compose.prod.yml",
-            REPO_ROOT / "docker-compose.ghcr.yml",
-        ]
+        # O1.2 (UR-17): the ghcr compose file is retired — one default scan
+        # target now, the one supported install stack.
+        else [REPO_ROOT / "docker-compose.prod.yml"]
     )
     checks = run_precheck(Path(args.env_file), compose, Path(args.repo_root))
     for c in checks:

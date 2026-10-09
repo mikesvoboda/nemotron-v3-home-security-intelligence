@@ -130,10 +130,10 @@ services:
       - FOSCAM_BASE_PATH=/cameras
       - DEBUG=false
       # config.py's environment field defaults to 'production', and the
-      # production path hard-raises without REDIS_PASSWORD. The prod and
-      # ghcr composes both set 'development' explicitly; the CI compose
-      # silently inherited the production default and backend died at
-      # Settings validation before uvicorn started.
+      # production path hard-raises without REDIS_PASSWORD. The prod compose
+      # sets 'development' explicitly (the retired GHCR stack set it the same
+      # way until O1.2 / UR-17); the CI compose inherited the production
+      # default and backend died at Settings validation before uvicorn started.
       - ENVIRONMENT=development
       # Disable file watcher in CI (no camera folders)
       - FILE_WATCHER_ENABLED=false

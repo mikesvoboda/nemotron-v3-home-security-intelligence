@@ -26,10 +26,10 @@ global:
 # See prometheus_rules.yml for rule definitions and severity documentation
 #
 # RULE FILE MOUNTING: each entry below must also be bind-mounted into the
-# prometheus container in docker-compose.prod.yml AND docker-compose.ghcr.yml —
+# prometheus container in docker-compose.prod.yml (the one supported stack) —
 # prometheus exits fatally at startup on a listed-but-absent rule file. All 7
-# are mounted in both stacks as of the gateway-consolidation work item. Do not
-# add a rule file here without adding its volume mount to both compose files.
+# are mounted there as of the gateway-consolidation work item. Do not add a
+# rule file here without adding its volume mount to that service.
 rule_files:
   - 'prometheus_rules.yml'
   - 'prometheus-rules.yml'

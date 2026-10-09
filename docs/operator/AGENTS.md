@@ -15,7 +15,6 @@ This directory contains focused documentation for operators (sysadmins, DevOps e
 | Document                    | Description                                      |
 | --------------------------- | ------------------------------------------------ |
 | `ai-configuration.md`       | AI service environment variables                 |
-| `ai-ghcr-deployment.md`     | GHCR deployment for AI services                  |
 | `ai-installation.md`        | AI prerequisites and model downloads             |
 | `ai-overview.md`            | AI pipeline architecture                         |
 | `ai-performance.md`         | AI performance tuning                            |
@@ -43,7 +42,6 @@ operator/
   AGENTS.md               # This file
   README.md               # Operator documentation hub
   ai-configuration.md     # AI service environment variables
-  ai-ghcr-deployment.md   # GHCR deployment for AI services
   ai-installation.md      # AI prerequisites and model downloads
   ai-overview.md          # AI pipeline architecture
   ai-performance.md       # AI performance tuning

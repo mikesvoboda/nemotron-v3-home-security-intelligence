@@ -45,16 +45,15 @@ watch -n 5 'curl -s http://localhost:8000/api/system/health/ready'
 
 > First launch requires admin registration: `SetupGuardMiddleware` returns 503 on most API routes until the first user is created via the browser setup flow.
 
-## Update Deployment (GHCR)
+## Updating a Deployment
 
-Pre-built frontend/backend containers are published to GitHub Container Registry (`docker-compose.ghcr.yml`) — CI publishes those two images only. `ai-gateway` and `ai-vlm` build locally from `docker-compose.prod.yml` (`ai/gateway/Dockerfile` and `./ai/vlm`), yet `docker-compose.ghcr.yml` pulls an `ai-gateway` image from GHCR and has no `ai-vlm` service at all (the reported publish gap, adjudicated in `.github/workflows/deploy.yml`).
+CI publishes pre-built frontend/backend containers to GitHub Container Registry (the `:latest` pointer moves only after the deploy smoke test passes). The AI services are never published there — `ai-gateway` and `ai-vlm` build locally from `docker-compose.prod.yml` (`ai/gateway/Dockerfile` and `./ai/vlm`), which since the O1.2 retirement is the only application compose file the repository ships.
 
 ```bash
-# Pull latest frontend + backend from GHCR
-podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
-podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
+# Update the checkout the stack builds from
+git pull
 
-# Rebuild AI containers if ai/ code changed
+# Rebuild what changed (omit the service args to rebuild everything)
 podman-compose -f docker-compose.prod.yml build ai-gateway ai-vlm
 
 # Restart everything
@@ -180,16 +179,17 @@ nvidia-smi
 podman exec -it $(podman ps -qf name=postgres) psql -U security -d security
 ```
 
-## Deploy from CI/CD Containers
+## Updating from the main branch
 
-Pull and redeploy using pre-built containers from GitHub Container Registry:
+CI's published `:latest` containers (GitHub Container Registry) exist for the CI
+smoke stack and manual inspection — the deployment stack builds its own images
+from source, so a pull changes nothing it runs. Update the checkout and rebuild:
 
 ```bash
-# Pull latest containers from GHCR (main branch)
-podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
-podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
+git pull
 
-# Redeploy
+# Redeploy (add service names to rebuild only what changed)
+podman-compose -f docker-compose.prod.yml build
 podman-compose -f docker-compose.prod.yml down
 podman-compose -f docker-compose.prod.yml up -d
 ```
