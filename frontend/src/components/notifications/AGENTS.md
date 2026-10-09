@@ -6,11 +6,11 @@ Components for displaying and managing notification delivery history in the NVID
 
 ## Key Components
 
-| File                                 | Purpose                                          |
-| ------------------------------------ | ------------------------------------------------ |
-| `NotificationHistoryPanel.tsx`       | Paginated table of notification delivery history |
-| `NotificationHistoryPanel.test.tsx`  | Test suite for NotificationHistoryPanel          |
-| `index.ts`                           | Barrel exports for notification components       |
+| File                                | Purpose                                          |
+| ----------------------------------- | ------------------------------------------------ |
+| `NotificationHistoryPanel.tsx`      | Paginated table of notification delivery history |
+| `NotificationHistoryPanel.test.tsx` | Test suite for NotificationHistoryPanel          |
+| `index.ts`                          | Barrel exports for notification components       |
 
 ## Component Details
 
@@ -20,11 +20,11 @@ A card component displaying notification delivery history with filtering and pag
 
 **Props:**
 
-| Prop        | Type       | Default | Description                                    |
-| ----------- | ---------- | ------- | ---------------------------------------------- |
-| `className` | `string?`  | -       | Optional CSS class name                        |
-| `alertId`   | `string?`  | -       | Optional alert ID to filter by                 |
-| `pageSize`  | `number?`  | `10`    | Number of entries per page                     |
+| Prop        | Type      | Default | Description                    |
+| ----------- | --------- | ------- | ------------------------------ |
+| `className` | `string?` | -       | Optional CSS class name        |
+| `alertId`   | `string?` | -       | Optional alert ID to filter by |
+| `pageSize`  | `number?` | `10`    | Number of entries per page     |
 
 **Features:**
 
@@ -38,11 +38,11 @@ A card component displaying notification delivery history with filtering and pag
 
 **Channel Configuration:**
 
-| Channel   | Icon          | Color   |
-| --------- | ------------- | ------- |
-| `email`   | Mail          | blue    |
-| `webhook` | Webhook       | purple  |
-| `push`    | AlertCircle   | orange  |
+| Channel   | Icon        | Color  |
+| --------- | ----------- | ------ |
+| `email`   | Mail        | blue   |
+| `webhook` | Webhook     | purple |
+| `push`    | AlertCircle | orange |
 
 **Usage:**
 

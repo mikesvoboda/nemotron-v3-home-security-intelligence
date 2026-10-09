@@ -47,8 +47,9 @@ function analyzeChunksForCircularDeps(): AnalysisResults {
     process.exit(2);
   }
 
-  const jsFiles = fs.readdirSync(ASSETS_PATH)
-    .filter(file => file.endsWith('.js') && !file.endsWith('.map'));
+  const jsFiles = fs
+    .readdirSync(ASSETS_PATH)
+    .filter((file) => file.endsWith('.js') && !file.endsWith('.map'));
 
   const results: AnalysisResults = {
     totalChunks: jsFiles.length,
@@ -76,7 +77,8 @@ function analyzeChunksForCircularDeps(): AnalysisResults {
     for (const helper of interopHelpers) {
       const matches = content.match(new RegExp(helper, 'g'));
       if (matches) {
-        results.interopHelperUsage[helper] = (results.interopHelperUsage[helper] || 0) + matches.length;
+        results.interopHelperUsage[helper] =
+          (results.interopHelperUsage[helper] || 0) + matches.length;
       }
     }
 
@@ -98,7 +100,8 @@ function analyzeChunksForCircularDeps(): AnalysisResults {
     // Pattern 2: Circular module initialization patterns
     // Look for: function init() { ... return module; } ... module = init();
     // BUT: Ignore minified single-letter variables (common in production builds)
-    const circularInitPattern = /function\s+\w+\(\)\s*{[\s\S]{0,200}return\s+(\w{2,})[\s\S]{0,50}}\s*;\s*\1\s*=/g;
+    const circularInitPattern =
+      /function\s+\w+\(\)\s*{[\s\S]{0,200}return\s+(\w{2,})[\s\S]{0,50}}\s*;\s*\1\s*=/g;
     const circularInits = Array.from(content.matchAll(circularInitPattern));
 
     if (circularInits.length > 0) {
@@ -180,7 +183,9 @@ function main() {
       console.error(`Pattern: ${issue.pattern}\n`);
     }
 
-    console.error(`\n❌ Found ${analysis.potentialIssues.length} potential circular dependency issue(s)`);
+    console.error(
+      `\n❌ Found ${analysis.potentialIssues.length} potential circular dependency issue(s)`
+    );
     console.error('   These patterns may cause TDZ errors at runtime.');
     console.error('   Review vite.config.ts rollupOptions.output.manualChunks configuration.');
     process.exit(1);

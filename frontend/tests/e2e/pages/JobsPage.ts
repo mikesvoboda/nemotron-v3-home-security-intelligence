@@ -110,7 +110,9 @@ export class JobsPage extends BasePage {
   /**
    * Filter by job status
    */
-  async filterByStatus(status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'): Promise<void> {
+  async filterByStatus(
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+  ): Promise<void> {
     await this.statusFilter.selectOption(status);
   }
 

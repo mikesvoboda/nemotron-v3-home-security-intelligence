@@ -1,5 +1,7 @@
 > ESCAPING KEY: <LL-IM-START>/<LL-IM-END> = ChatML im_start/im_end; <LL-VISION-START>/<LL-IMG>/<LL-IMG-END> = vision_start/img/img_end; G-START-OF-TURN/G-END-OF-TURN/G-START-OF-IMAGE/G-END-OF-IMAGE/G-IMG = Gemma3 markers; G-TURN-OPEN/G-TURN-CLOSE/G-THINK/G-CHANNEL/CHANNEL-CLOSE = Gemma4 markers. Restore the pipe delimiters before use.
+
 # PART 2 (continues after C1-C5). ALL special tokens escaped: <LL-IM-START> = im_start,
+
 # <LL-IM-END> = im_end, <LL-VISION-START> = vision_start, etc. Gemma tokens escaped likewise.
 
 ## Q1 (cont.) — Qwen-VL family
@@ -28,11 +30,11 @@
 - Grounding: JSON is the NATIVE output idiom, with no special bbox tokens in the Qwen3-VL
   family (old <box>/<ref> from 2023 are gone). Official eval prompts (report App. B.5/B.6) are
   one-liners and do NOT state the 0-1000 scale or the key name: `Locate every object that
-  matches the description "{ref_sentence}" in the image. Report bbox coordinates in JSON
-  format.` / `Report bbox coordinates in JSON format.` / `Output the point coordinates in JSON
-  format. For example: [{"point_2d": [x, y], "label": "point_1"}]`. Only the 3D task spells
+matches the description "{ref_sentence}" in the image. Report bbox coordinates in JSON
+format.` / `Report bbox coordinates in JSON format.` / `Output the point coordinates in JSON
+format. For example: [{"point_2d": [x, y], "label": "point_1"}]`. Only the 3D task spells
   the schema. Cookbooks do add extra keys by example: `{"bbox_2d": [x1,y1,x2,y2], "label": ...,
-  "type": ..., "color": ...}` with the line "You can set the output format to include additional
+"type": ..., "color": ...}` with the line "You can set the output format to include additional
   key information like object attributes, descriptions, etc." => format-by-example is the
   official Qwen technique. Confidence: tech report (PDF pp.36-38) + official cookbook.
   KEY NAME IS VERSION-PINNED: bbox_2d/point_2d = Qwen2-VL through Qwen3-VL; do NOT assume it
@@ -86,26 +88,26 @@
   `<G-CHANNEL>thought\n<CHANNEL-CLOSE>` (docs: added to suppress "ghost" thought channels).
   => a template-forced prefix before your first token now exists on BOTH families. Sources:
   official Google GGUF chat_template (18,683 bytes) + ai.google.dev/gemma/docs/capabilities/thinking
-  + prompt-formatting-gemma4. Confidence: shipped artifact + official docs.
+  - prompt-formatting-gemma4. Confidence: shipped artifact + official docs.
 - Multi-image (Gemma 3): one G-START-OF-IMAGE per image in array order, expanded by the
   processor to `G-START-OF-IMAGE + 256 x G-IMAGE + G-END-OF-IMAGE` (image_seq_length=256).
   NO index/timestamp/position marker; no documented max images; official prompting = list N
   images then ask. Source: transformers/models/gemma3/processing_gemma3.py. Confidence: official source.
 - Resolution/tiles, verdict on your quoted numbers:
-  * 896x896 CONFIRMED ("the Gemma vision encoder takes as input square images resized to
+  - 896x896 CONFIRMED ("the Gemma vision encoder takes as input square images resized to
     896 x 896"; model card "normalized to 896 x 896 resolution and encoded to 256 tokens each").
-  * ~256 tokens CONFIRMED but per TILE (4x4 avg-pool on the 896 encoder).
-  * "5 tiles" is WRONG as a default — correction: pan&scan is adaptive and OFF by default in
+  - ~256 tokens CONFIRMED but per TILE (4x4 avg-pool on the 896 encoder).
+  - "5 tiles" is WRONG as a default — correction: pan&scan is adaptive and OFF by default in
     transformers (do_pan_and_scan=False; min_crop_size 256, max_num_crops 4,
     min_ratio_to_activate 1.2), and crops are a 1xN or Nx1 strip following the aspect ratio,
     NEVER 2x2. For a 1920x1080 doorbell frame: ratio 1.78>=1.2 fires, num_crops_w=2,
     num_crops_h=1 => 2 crops + 1 thumbnail = 3 tiles = 768 image tokens. A square frame does
     NOT fire => one 896^2 tile, 256 tokens (a 1080p square is downscaled ~1.2x).
-  * Resolution matters a lot for security stills (Table 7, 2B probe): DocVQA 31.9->59.8,
+  - Resolution matters a lot for security stills (Table 7, 2B probe): DocVQA 31.9->59.8,
     InfoVQA 23.1->33.7, TextVQA 44.1->58.0 from 256->896. Report: fixed resolution causes
     "unreadable text, or small objects disappearing".
-  Sources: arXiv:2503.19786; transformers/models/gemma3/image_processing_gemma3.py; model card.
-  Confidence: tech report + official source + model card.
+    Sources: arXiv:2503.19786; transformers/models/gemma3/image_processing_gemma3.py; model card.
+    Confidence: tech report + official source + model card.
 - Gemma 4 supersedes the tile story: variable aspect ratio, dims divisible by 48, no ImageNet
   norm, configurable visual token budget {70,140,280,560,1120} (default 280); docs tie budget
   to task: "Use lower budgets for classification, captioning, or video understanding... higher
@@ -114,7 +116,7 @@
 - JSON/structured output: the Gemma 3 tech report has ZERO mentions of "JSON" or "structured"
   output and no structured-output eval => the documented-weakness reputation is NOT in primary
   sources. Google's own vision docs instead EXPECT markdown fences: prompt
-  "detect person and car, output only ```json" and parser re.search(r'```json\s+(.*?)\s+```').
+  "detect person and car, output only `json" and parser re.search(r'`json\s+(.*?)\s+```').
   Under your grammar the fence is simply ungrammatical — a non-issue for you, but it tells you
   Gemma's native idiom is fenced-JSON-by-example, not raw-JSON.
   Grounding: "Bounding box coordinates are expressed as normalized values relative to 1000x1000
@@ -285,59 +287,59 @@
   common/sampling.cpp). GBNF perf note: "x? x? x?... may result in extremely slow sampling.
   Instead, write x{0,N}". Confidence: GitHub PR + source + official docs.
 - Cross-family template gotchas (all closed issues, verified to exist with these titles):
-  * #11866 "Problems with official jinja templates (Gemma 2, Llama 3.2, Qwen 2.5)" — official HF
+  - #11866 "Problems with official jinja templates (Gemma 2, Llama 3.2, Qwen 2.5)" — official HF
     templates produced "error parsing grammar" in llama.cpp for BOTH families => TEMPLATE-level,
     reappears on any swap. Prefer model-metadata template + --jinja (default enabled now).
-  * #16749 (merged) "convert: clean Gemma vision/audio chat template markers" — <start_of_image>
+  - #16749 (merged) "convert: clean Gemma vision/audio chat template markers" — <start_of_image>
     -> <media> marker mismatch caused EMPTY CONTENT in vision tests => TEMPLATE-level:
     image-placeholder naming is the #1 cross-family vision gotcha.
-  * #22396 "`--json-schema` fails with 'Failed to initialize samplers: std::exception' on
+  - #22396 "`--json-schema` fails with 'Failed to initialize samplers: std::exception' on
     Gemma 4 (E2B/E4B), works with [hand-written grammar]" — same failure reproduced on Qwen3-4B
     and Qwen3.5-2B with the identical schema => hits BOTH families. Ship a hand-written GBNF
     fallback (keep a parallel --grammar-file path in your deploy).
-  * #23677 "Grammar sampler crash: 'Unexpected empty grammar stack' on Gemma 4 <unused> tokens"
+  - #23677 "Grammar sampler crash: 'Unexpected empty grammar stack' on Gemma 4 <unused> tokens"
     (family of #12433 Gemma3 <unused32> spam, where a non-Q4_K_M quant avoided it) =>
     MODEL-level, but the lesson ports: a grammar crashes rather than degrades when a family
     emits reserved tokens. Your Q4_K_M choice is family-specific, not neutral.
-  * Multimodal is officially unstable: tools/mtmd/README.md "under very heavy development, and
+  - Multimodal is officially unstable: tools/mtmd/README.md "under very heavy development, and
     breaking changes are expected"; docs/multimodal/gemma3.md "very experimental". Vision needs
     two GGUFs (-m + --mmproj).
-  * For Qwen3-VL swaps: no ggml-org pre-quant set (docs/multimodal.md lists Qwen2/2.5-VL,
+  - For Qwen3-VL swaps: no ggml-org pre-quant set (docs/multimodal.md lists Qwen2/2.5-VL,
     InternVL, Gemma); Qwen3-VL support arrived via merged mtmd/clip PRs (#25781 align_corners,
     #21103, #17594, #21443). --image-min/max-tokens govern dynamic resolution.
-  * Other swap candidates' llama.cpp support (verified in tools/mtmd/models): internvl.cpp
+  - Other swap candidates' llama.cpp support (verified in tools/mtmd/models): internvl.cpp
     exists; Phi-Vision has NO dedicated mtmd file in the current list (only phi3/phi4 text
     templates in the built-in list) => treat Phi-VL as the weakest llama.cpp citizen of your
     three candidates. Confidence: official repo listing.
 - Debugging hooks: /v1 with /tokenize (return_metadata gives per-token special=true/false —
   shows what your images expand to), /apply-template (returns the formatted prompt WITHOUT
   inference — this is how you diff prompt bytes across families), /props (returns chat_template
-  + chat_template_caps). Confidence: official docs.
+  - chat_template_caps). Confidence: official docs.
 
 ## Technique table (works-on-Qwen? / works-on-Gemma? / evidence)
 
-| Technique | Qwen3-VL | Gemma 3 | Gemma 4 | Evidence |
-|---|---|---|---|---|
-| ChatML-style turn syntax | native | NO | NO (own G-TURN form) | shipped templates both sides |
-| System role for policy text | yes (no default since Qwen3) | NO (fold into user turn) | yes | readthedocs concepts; prompt-structure; g4 card |
-| Ask for raw JSON object, no fence | yes (native idiom) | works but native idiom is ```json-fenced | native | Qwen App.B.5; Gemma vision docs parser |
-| JSON format-by-example in prompt | yes, official | yes (fenced) | yes | Qwen cookbook/App.B; Gemma vision docs |
-| Name the output KEY + 0-1000 scale | Qwen native key bbox_2d, x1y1x2y2 | key box_2d, y1x1y2x2 | box_2d/y-first lineage | Qwen report §3.2.4; Gemma vision docs |
-| Per-image label ("Frame 1: ") | official (add_vision_id) | no convention; array order only | interleaved freely | Qwen README/template; gemma3 processing.py |
-| Interleave text between images | yes, documented | yes | yes, "freely mix" | Qwen README; Gemma4 card |
-| Images before the text | neutral (any position) | neutral | documented preference | Gemma 4 card §4 |
-| 0-shot + terse format instruction | official eval style | off-protocol for vision | unknown | Qwen App.B (0-shot); Gemma T (4-shot) |
-| 4-shot in-prompt exemplars | undocumented for Qwen | official vision protocol | unknown | Gemma 3 report Tables 19-20 |
-| CoT/"think step by step" prose | official technique | explicitly NOT used for vision | thinking toggle instead | Qwen modelcard/App.B; Gemma T20 |
-| /no_think flag | Qwen3 LLMs only, NOT VL | n/a | G-THINK token in system turn | Qwen docs; g4 card |
-| Terse concrete instruction | fine | documented preference | documented | Gemma vision docs; modelcards |
-| Long multi-clause instruction | NOT FOUND either side | NOT FOUND | NOT FOUND | verified absence |
-| Numeric score bands / rubric | NOT FOUND | NOT FOUND | NOT FOUND | verified absence — both families thin |
-| "answer using a single word or phrase" | official eval phrasing | n/a (documented for Gemma single-word answers too) | — | Qwen App.B.4 |
-| temperature 0 greedy | against official guidance | official temp 1.0/top_p 0.95/top_k 64 | same | Qwen modelcard; Gemma 4 card §1 |
-| presence_penalty ~1.5-2.0 | official anti-repetition | n/a | n/a | Qwen best practices (+ language-mixing caveat) |
-| Grammar enforces 0-100 integer | yes (llama.cpp) | yes, but #22396/#23677 hit Gemma | same open-lineage | grammars/README; issues |
-| Prefill assistant "{" to force JSON | template-dependent (continue_final_message) | template raises on role alternation | — | HF chat_templating docs |
+| Technique                              | Qwen3-VL                                    | Gemma 3                                            | Gemma 4                      | Evidence                                        |
+| -------------------------------------- | ------------------------------------------- | -------------------------------------------------- | ---------------------------- | ----------------------------------------------- |
+| ChatML-style turn syntax               | native                                      | NO                                                 | NO (own G-TURN form)         | shipped templates both sides                    |
+| System role for policy text            | yes (no default since Qwen3)                | NO (fold into user turn)                           | yes                          | readthedocs concepts; prompt-structure; g4 card |
+| Ask for raw JSON object, no fence      | yes (native idiom)                          | works but native idiom is ```json-fenced           | native                       | Qwen App.B.5; Gemma vision docs parser          |
+| JSON format-by-example in prompt       | yes, official                               | yes (fenced)                                       | yes                          | Qwen cookbook/App.B; Gemma vision docs          |
+| Name the output KEY + 0-1000 scale     | Qwen native key bbox_2d, x1y1x2y2           | key box_2d, y1x1y2x2                               | box_2d/y-first lineage       | Qwen report §3.2.4; Gemma vision docs           |
+| Per-image label ("Frame 1: ")          | official (add_vision_id)                    | no convention; array order only                    | interleaved freely           | Qwen README/template; gemma3 processing.py      |
+| Interleave text between images         | yes, documented                             | yes                                                | yes, "freely mix"            | Qwen README; Gemma4 card                        |
+| Images before the text                 | neutral (any position)                      | neutral                                            | documented preference        | Gemma 4 card §4                                 |
+| 0-shot + terse format instruction      | official eval style                         | off-protocol for vision                            | unknown                      | Qwen App.B (0-shot); Gemma T (4-shot)           |
+| 4-shot in-prompt exemplars             | undocumented for Qwen                       | official vision protocol                           | unknown                      | Gemma 3 report Tables 19-20                     |
+| CoT/"think step by step" prose         | official technique                          | explicitly NOT used for vision                     | thinking toggle instead      | Qwen modelcard/App.B; Gemma T20                 |
+| /no_think flag                         | Qwen3 LLMs only, NOT VL                     | n/a                                                | G-THINK token in system turn | Qwen docs; g4 card                              |
+| Terse concrete instruction             | fine                                        | documented preference                              | documented                   | Gemma vision docs; modelcards                   |
+| Long multi-clause instruction          | NOT FOUND either side                       | NOT FOUND                                          | NOT FOUND                    | verified absence                                |
+| Numeric score bands / rubric           | NOT FOUND                                   | NOT FOUND                                          | NOT FOUND                    | verified absence — both families thin           |
+| "answer using a single word or phrase" | official eval phrasing                      | n/a (documented for Gemma single-word answers too) | —                            | Qwen App.B.4                                    |
+| temperature 0 greedy                   | against official guidance                   | official temp 1.0/top_p 0.95/top_k 64              | same                         | Qwen modelcard; Gemma 4 card §1                 |
+| presence_penalty ~1.5-2.0              | official anti-repetition                    | n/a                                                | n/a                          | Qwen best practices (+ language-mixing caveat)  |
+| Grammar enforces 0-100 integer         | yes (llama.cpp)                             | yes, but #22396/#23677 hit Gemma                   | same open-lineage            | grammars/README; issues                         |
+| Prefill assistant "{" to force JSON    | template-dependent (continue_final_message) | template raises on role alternation                | —                            | HF chat_templating docs                         |
 
 ## 3-line summary
 

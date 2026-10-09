@@ -6,17 +6,17 @@ Contains the core application layout components that provide consistent structur
 
 ## Files
 
-| File                          | Purpose                                            |
-| ----------------------------- | -------------------------------------------------- |
-| `Header.tsx`                  | Top navigation with branding and status            |
-| `Header.test.tsx`             | Test suite for Header                              |
-| `Layout.tsx`                  | Main layout wrapper composing Header + Sidebar     |
-| `Layout.test.tsx`             | Test suite for Layout                              |
-| `MobileBottomNav.tsx`         | Bottom navigation bar with "More" menu for mobile  |
-| `MobileBottomNav.test.tsx`    | Test suite for MobileBottomNav                     |
-| `Sidebar.tsx`                 | Left navigation menu with route links              |
-| `Sidebar.test.tsx`            | Test suite for Sidebar                             |
-| `sidebarNav.ts`               | Navigation configuration (groups, items, paths)    |
+| File                       | Purpose                                           |
+| -------------------------- | ------------------------------------------------- |
+| `Header.tsx`               | Top navigation with branding and status           |
+| `Header.test.tsx`          | Test suite for Header                             |
+| `Layout.tsx`               | Main layout wrapper composing Header + Sidebar    |
+| `Layout.test.tsx`          | Test suite for Layout                             |
+| `MobileBottomNav.tsx`      | Bottom navigation bar with "More" menu for mobile |
+| `MobileBottomNav.test.tsx` | Test suite for MobileBottomNav                    |
+| `Sidebar.tsx`              | Left navigation menu with route links             |
+| `Sidebar.test.tsx`         | Test suite for Sidebar                            |
+| `sidebarNav.ts`            | Navigation configuration (groups, items, paths)   |
 
 ## Key Components
 
@@ -123,21 +123,21 @@ On hover, displays per-service status breakdown (redis, yolo26, nemotron, etc.) 
 
 **Navigation Routes:**
 
-| ID          | Label          | Icon           | Path         | Badge |
-| ----------- | -------------- | -------------- | ------------ | ----- |
-| dashboard   | Dashboard      | Home           | `/`          | -     |
-| timeline    | Timeline       | Clock          | `/timeline`  | -     |
-| entities    | Entities       | Users          | `/entities`  | -     |
-| alerts      | Alerts         | Bell           | `/alerts`    | -     |
-| analytics   | Analytics      | BarChart3      | `/analytics` | -     |
-| ai-audit    | AI Audit       | ClipboardCheck | `/ai-audit`  | -     |
-| ai          | AI Performance | Brain          | `/ai`        | -     |
-| jobs        | Jobs           | Briefcase      | `/jobs`      | -     |
-| operations  | Pipeline       | Workflow       | `/operations`| -     |
-| logs        | Logs           | ScrollText     | `/logs`      | -     |
-| audit       | Audit Log      | Shield         | `/audit`     | -     |
-| trash       | Trash          | Trash2         | `/trash`     | -     |
-| settings    | Settings       | Settings       | `/settings`  | -     |
+| ID         | Label          | Icon           | Path          | Badge |
+| ---------- | -------------- | -------------- | ------------- | ----- |
+| dashboard  | Dashboard      | Home           | `/`           | -     |
+| timeline   | Timeline       | Clock          | `/timeline`   | -     |
+| entities   | Entities       | Users          | `/entities`   | -     |
+| alerts     | Alerts         | Bell           | `/alerts`     | -     |
+| analytics  | Analytics      | BarChart3      | `/analytics`  | -     |
+| ai-audit   | AI Audit       | ClipboardCheck | `/ai-audit`   | -     |
+| ai         | AI Performance | Brain          | `/ai`         | -     |
+| jobs       | Jobs           | Briefcase      | `/jobs`       | -     |
+| operations | Pipeline       | Workflow       | `/operations` | -     |
+| logs       | Logs           | ScrollText     | `/logs`       | -     |
+| audit      | Audit Log      | Shield         | `/audit`      | -     |
+| trash      | Trash          | Trash2         | `/trash`      | -     |
+| settings   | Settings       | Settings       | `/settings`   | -     |
 
 **NavItem Interface:**
 

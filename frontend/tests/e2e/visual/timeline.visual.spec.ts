@@ -49,10 +49,7 @@ test.describe('Timeline Visual Regression', () => {
     // Get first event card for component screenshot
     const eventCard = timelinePage.eventCards.first();
     await expect(eventCard).toHaveScreenshot('timeline-event-card.png', {
-      mask: [
-        page.locator('time'),
-        page.locator('[data-testid="event-time"]'),
-      ],
+      mask: [page.locator('time'), page.locator('[data-testid="event-time"]')],
     });
   });
 

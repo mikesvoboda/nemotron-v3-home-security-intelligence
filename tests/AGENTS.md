@@ -24,7 +24,7 @@ Each suite has its own `README.md`; `benchmark/` and `load/` have their own `AGE
 
 - **Smoke tests need a running stack** - `tests/smoke/` hits live endpoints (`/api/system/health`, Grafana, WebSocket); run only after `docker compose up`.
 - **K6 scripts are config-driven** - endpoints/thresholds come from `load/config.js`; `all.js` is the combined suite.
-- **`tests/unit/` is vestigial** - only a gitignored `__pycache__` remains from the retired root setup-script tests; do not add new tests there.
+- **No root unit tree** - the retired root setup-script tests' tests/unit/ is gone (a gitignored `__pycache__` was its last remnant); unit tests live under `backend/tests/unit/` - do not recreate a root tests/unit/.
 
 ## Related Documentation
 

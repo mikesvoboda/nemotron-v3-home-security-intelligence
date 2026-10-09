@@ -203,12 +203,28 @@ export async function toggleDarkMode(page: Page): Promise<'dark' | 'light'> {
 export const NETWORK_PRESETS = {
   // Mobile networks
   '2g': { downloadThroughput: (50 * 1024) / 8, uploadThroughput: (20 * 1024) / 8, latency: 300 },
-  '3g': { downloadThroughput: (1.5 * 1024 * 1024) / 8, uploadThroughput: (750 * 1024) / 8, latency: 100 },
-  '4g': { downloadThroughput: (10 * 1024 * 1024) / 8, uploadThroughput: (5 * 1024 * 1024) / 8, latency: 20 },
+  '3g': {
+    downloadThroughput: (1.5 * 1024 * 1024) / 8,
+    uploadThroughput: (750 * 1024) / 8,
+    latency: 100,
+  },
+  '4g': {
+    downloadThroughput: (10 * 1024 * 1024) / 8,
+    uploadThroughput: (5 * 1024 * 1024) / 8,
+    latency: 20,
+  },
 
   // Broadband
-  dsl: { downloadThroughput: (2 * 1024 * 1024) / 8, uploadThroughput: (1 * 1024 * 1024) / 8, latency: 5 },
-  cable: { downloadThroughput: (5 * 1024 * 1024) / 8, uploadThroughput: (1 * 1024 * 1024) / 8, latency: 5 },
+  dsl: {
+    downloadThroughput: (2 * 1024 * 1024) / 8,
+    uploadThroughput: (1 * 1024 * 1024) / 8,
+    latency: 5,
+  },
+  cable: {
+    downloadThroughput: (5 * 1024 * 1024) / 8,
+    uploadThroughput: (1 * 1024 * 1024) / 8,
+    latency: 5,
+  },
 
   // Degraded
   slow: { downloadThroughput: (500 * 1024) / 8, uploadThroughput: (100 * 1024) / 8, latency: 200 },
@@ -237,7 +253,9 @@ export const NETWORK_PRESETS = {
  */
 export async function simulateSlowNetwork(
   page: Page,
-  preset: keyof typeof NETWORK_PRESETS | { downloadThroughput: number; uploadThroughput: number; latency: number }
+  preset:
+    | keyof typeof NETWORK_PRESETS
+    | { downloadThroughput: number; uploadThroughput: number; latency: number }
 ): Promise<void> {
   const config = typeof preset === 'string' ? NETWORK_PRESETS[preset] : preset;
 
@@ -338,32 +356,29 @@ export async function clearStorage(
   } else {
     // Clear localStorage and sessionStorage - wrap in try-catch for security restrictions
     try {
-      await page.evaluate(
-        (keysToPreserve) => {
-          try {
-            // Save values to preserve
-            const savedValues: Record<string, string> = {};
-            keysToPreserve.forEach((key) => {
-              const value = localStorage.getItem(key);
-              if (value !== null) {
-                savedValues[key] = value;
-              }
-            });
+      await page.evaluate((keysToPreserve) => {
+        try {
+          // Save values to preserve
+          const savedValues: Record<string, string> = {};
+          keysToPreserve.forEach((key) => {
+            const value = localStorage.getItem(key);
+            if (value !== null) {
+              savedValues[key] = value;
+            }
+          });
 
-            // Clear all storage
-            localStorage.clear();
-            sessionStorage.clear();
+          // Clear all storage
+          localStorage.clear();
+          sessionStorage.clear();
 
-            // Restore preserved values
-            Object.entries(savedValues).forEach(([key, value]) => {
-              localStorage.setItem(key, value);
-            });
-          } catch {
-            // Ignore security errors (e.g., cross-origin frames)
-          }
-        },
-        preserveLocalStorage
-      );
+          // Restore preserved values
+          Object.entries(savedValues).forEach(([key, value]) => {
+            localStorage.setItem(key, value);
+          });
+        } catch {
+          // Ignore security errors (e.g., cross-origin frames)
+        }
+      }, preserveLocalStorage);
     } catch {
       // Ignore evaluate errors (page context issues)
     }
@@ -575,11 +590,13 @@ export async function getCookie(context: BrowserContext, name: string): Promise<
  */
 export async function blockResources(
   page: Page,
-  resourceTypes: ('document' | 'stylesheet' | 'image' | 'media' | 'font' | 'script' | 'xhr' | 'fetch')[]
+  resourceTypes: (
+    'document' | 'stylesheet' | 'image' | 'media' | 'font' | 'script' | 'xhr' | 'fetch'
+  )[]
 ): Promise<void> {
   await page.route('**/*', (route) => {
     const type = route.request().resourceType();
-    if (resourceTypes.includes(type as typeof resourceTypes[number])) {
+    if (resourceTypes.includes(type as (typeof resourceTypes)[number])) {
       route.abort();
     } else {
       route.continue();
@@ -635,13 +652,10 @@ export async function setGeolocation(
  */
 export async function setTimezone(context: BrowserContext, timezoneId: string): Promise<void> {
   await context.addInitScript({ path: require.resolve('timezone-mock') });
-  await context.addInitScript(
-    (tz) => {
-      // @ts-expect-error - timezone-mock library
-      window.timezoneMock?.register?.(tz);
-    },
-    timezoneId
-  );
+  await context.addInitScript((tz) => {
+    // @ts-expect-error - timezone-mock library
+    window.timezoneMock?.register?.(tz);
+  }, timezoneId);
 }
 
 /**
@@ -684,7 +698,9 @@ export async function takeFullPageScreenshot(page: Page, path: string): Promise<
  * });
  * ```
  */
-export function getConsoleLogs(page: Page): Promise<{ type: string; text: string; location?: string }[]> {
+export function getConsoleLogs(
+  page: Page
+): Promise<{ type: string; text: string; location?: string }[]> {
   const logs: { type: string; text: string; location?: string }[] = [];
 
   page.on('console', (msg) => {

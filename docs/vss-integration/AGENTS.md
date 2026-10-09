@@ -132,6 +132,7 @@ history are ISS-102).
 - **A prompt-prefix-cache deficit is NOT an overlap.** llama.cpp serves part of a solo call's
   prompt from the prefix cache, so a `d_prompt` deficit against the call's estimate is normal and
   must not trip the guard (owner-approved 2026-10-04).
+
 ## Related documentation
 
 - [`ai/AGENTS.md`](../../ai/AGENTS.md): the AI tier. Note that E4 corrects its on-demand Triton

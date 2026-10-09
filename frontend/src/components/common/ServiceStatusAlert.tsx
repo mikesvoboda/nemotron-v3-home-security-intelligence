@@ -24,12 +24,7 @@ export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
  * Service status values matching backend WebSocket events
  */
 export type ServiceStatusValue =
-  | 'healthy'
-  | 'unhealthy'
-  | 'restarting'
-  | 'restart_failed'
-  | 'restart_disabled'
-  | 'failed';
+  'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'restart_disabled' | 'failed';
 
 /**
  * Service status data from WebSocket

@@ -92,7 +92,7 @@ Python is `uv`-only: the root `pyproject.toml` + `uv.lock` are the manifests.
 `requirements-audit.txt` is a generated `uv export` artifact that CI regenerates per job and does
 not commit. The hand-maintained `requirements-base.txt` and `ai/*/requirements.txt` remain real
 container build inputs — Dependabot's uv resolver demonstrably rewrites floors in them (PR #6544
-lifted `ai/florence/requirements.txt` torch/transformers in one commit) and no CI job validates
+lifted the retired Florence container's requirements torch/transformers in one commit) and no CI job validates
 those floors, so review such hunks by hand.
 
 **Labels Applied:**

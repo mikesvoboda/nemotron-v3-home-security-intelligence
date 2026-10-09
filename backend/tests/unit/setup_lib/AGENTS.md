@@ -8,15 +8,15 @@ Unit tests for `setup_lib/` - the Python utilities behind `setup.py` and the dep
 
 15 test files, each named test_<module>.py after its twin module in `setup_lib/`:
 
-| Test file                                          | Under test (`setup_lib/`)             |
-| -------------------------------------------------- | ------------------------------------- |
-| `test_deploy.py`, `test_deploy_phases.py`          | deploy orchestration + phases         |
-| `test_platform_detect.py`, `test_nvidia_detect.py` | platform / NVIDIA driver detection    |
-| `test_nvidia_toolkit.py`, `test_podman_install.py` | container runtime + GPU toolkit setup |
-| `test_image_pull.py`, `test_model_downloader.py`   | image pulls, AI model downloads       |
-| `test_firewall_config.py`, `test_port_scanner.py`, `test_ssl_certs.py`, `test_storage_config.py` | host configuration |
-| `test_linux_optimizer.py`                          | Linux workstation tuning              |
-| `test_healthcheck.py`                              | deployment health checks              |
+| Test file                                                                                        | Under test (`setup_lib/`)             |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| `test_deploy.py`, `test_deploy_phases.py`                                                        | deploy orchestration + phases         |
+| `test_platform_detect.py`, `test_nvidia_detect.py`                                               | platform / NVIDIA driver detection    |
+| `test_nvidia_toolkit.py`, `test_podman_install.py`                                               | container runtime + GPU toolkit setup |
+| `test_image_pull.py`, `test_model_downloader.py`                                                 | image pulls, AI model downloads       |
+| `test_firewall_config.py`, `test_port_scanner.py`, `test_ssl_certs.py`, `test_storage_config.py` | host configuration                    |
+| `test_linux_optimizer.py`                                                                        | Linux workstation tuning              |
+| `test_healthcheck.py`                                                                            | deployment health checks              |
 
 ## Running Tests
 

@@ -402,7 +402,9 @@ test.describe.skip('Notification Preferences Form Validation', () => {
   });
 
   test('can toggle notification enabled state', async ({ page }) => {
-    const toggleSwitch = settingsPage.page.locator('[role="switch"][aria-label*="Enable notifications"]');
+    const toggleSwitch = settingsPage.page.locator(
+      '[role="switch"][aria-label*="Enable notifications"]'
+    );
     await expect(toggleSwitch).toBeVisible();
 
     // Get initial state
@@ -419,7 +421,10 @@ test.describe.skip('Notification Preferences Form Validation', () => {
   });
 
   test('can select notification sound', async () => {
-    const soundSelect = settingsPage.page.locator('select, [role="combobox"]').filter({ hasText: /default|chime|alert|bell/i }).first();
+    const soundSelect = settingsPage.page
+      .locator('select, [role="combobox"]')
+      .filter({ hasText: /default|chime|alert|bell/i })
+      .first();
     await expect(soundSelect).toBeVisible();
   });
 
@@ -477,7 +482,9 @@ test.describe.skip('Quiet Hours Form Validation', () => {
     await submitButton.click();
 
     // Should show validation error
-    const labelError = form.locator('text=/label.*required/i').or(settingsPage.page.locator('text=/label.*required/i'));
+    const labelError = form
+      .locator('text=/label.*required/i')
+      .or(settingsPage.page.locator('text=/label.*required/i'));
     await expect(labelError).toBeVisible();
   });
 
@@ -557,7 +564,9 @@ test.describe.skip('Quiet Hours Form Validation', () => {
 
 // TODO: Fix cross-browser validation consistency - NEM-2748 (pre-existing test failures)
 test.describe.skip('Cross-Browser Form Validation Consistency', () => {
-  test('alert rule validation messages are consistent across browsers @critical', async ({ page }) => {
+  test('alert rule validation messages are consistent across browsers @critical', async ({
+    page,
+  }) => {
     await setupApiMocks(page, defaultMockConfig);
     const alertRulesPage = new AlertRulesPage(page);
     await alertRulesPage.goto();

@@ -22,7 +22,7 @@ data/
   transcoded/         # Transcoded video files (runtime, created as needed)
 ```
 
-**Note:** Most content in this directory is runtime-generated and excluded via `.gitignore`. Only certs/ is version-controlled (via `.gitkeep`); the logs/, profiles/, thumbnails/ and transcoded/ subdirectories appear only after the app or `backend/core/profiling.py` creates them. Additional tracked content: `ai-pipeline-evaluation/` (evaluation reports), `benchmark/` (evaluation-set fixtures), `external/` (external dataset staging dirs).
+**Note:** Do not call this directory "gitignored" wholesale — that claim was corrected here in W1.3 (routed from #6884's ledger; it misled the root AGENTS.md until then). Measured against `git ls-files data/` (1,409 files): **tracked** are `synthetic/` (1,283 evaluation-set fixtures — only its `**/media/` and screenshot paths are gitignored), `benchmark/` (101 evaluation-set fixtures), `ai-pipeline-evaluation/` (17 evaluation reports), `external/` (6 dataset staging dirs), `certs/` (kept by `.gitkeep`; contents ignored), and this file. **Runtime, untracked:** logs/ (repo-wide `.gitignore` pattern; written by the app) and profiles/ (ignored only by the data-scoped data/profiles/ pattern — a top-level profiles/ is NOT ignored; written by `backend/core/profiling.py`), plus clips/thumbnails/transcoded as needed — left un-backticked because this file is scanned by the gate: profiles/ exists only after a profiling run.
 
 **DATABASE MIGRATION NOTE**
 

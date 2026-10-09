@@ -339,15 +339,9 @@ percentiles require summary stats, which are disabled).
       "type": "stat|gauge|timeseries|barchart",
       "title": "Panel title",
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
-      "targets": [
-        /* data queries */
-      ],
-      "fieldConfig": {
-        /* display config */
-      },
-      "options": {
-        /* panel-specific options */
-      }
+      "targets": [/* data queries */],
+      "fieldConfig": {/* display config */},
+      "options": {/* panel-specific options */}
     }
   ]
 }

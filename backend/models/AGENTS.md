@@ -1,5 +1,7 @@
 # Database Models - Agent Guide
 
+> **Inventory banner (W1.3):** the file-by-file inventory below is **unmaintained until W3.2** — it drifts as code moves. The code is the source of truth; verify any line against the tree before acting on it.
+
 ## Purpose
 
 This directory contains SQLAlchemy 2.0 ORM models for the home security intelligence system. These models define the database schema for tracking cameras, object detections, security events, alerts, zones, activity baselines, GPU performance metrics, application logs, audit trails, and API keys.

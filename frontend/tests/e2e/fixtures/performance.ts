@@ -90,7 +90,10 @@ export const PERFORMANCE_BUDGETS = {
  * expect(metrics.lcp).toBeLessThan(PERFORMANCE_BUDGETS.LCP_GOOD);
  * ```
  */
-export async function collectWebVitals(page: Page, timeout: number = 5000): Promise<WebVitalsMetrics> {
+export async function collectWebVitals(
+  page: Page,
+  timeout: number = 5000
+): Promise<WebVitalsMetrics> {
   // Inject Web Vitals collection script and wait for metrics
   const metrics = await page.evaluate(
     async (timeoutMs) => {
@@ -103,7 +106,9 @@ export async function collectWebVitals(page: Page, timeout: number = 5000): Prom
         };
 
         // Collect TTFB from Navigation Timing API
-        const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+        const navEntry = performance.getEntriesByType(
+          'navigation'
+        )[0] as PerformanceNavigationTiming;
         if (navEntry) {
           results.ttfb = navEntry.responseStart - navEntry.requestStart;
         }
@@ -148,15 +153,18 @@ export async function collectWebVitals(page: Page, timeout: number = 5000): Prom
         }
 
         // Wait for metrics to stabilize, then resolve
-        setTimeout(() => {
-          lcpObserver.disconnect();
-          clsObserver.disconnect();
+        setTimeout(
+          () => {
+            lcpObserver.disconnect();
+            clsObserver.disconnect();
 
-          results.lcp = lcpValue;
-          results.cls = clsValue;
+            results.lcp = lcpValue;
+            results.cls = clsValue;
 
-          resolve(results as WebVitalsMetrics);
-        }, Math.min(timeoutMs, 3000));
+            resolve(results as WebVitalsMetrics);
+          },
+          Math.min(timeoutMs, 3000)
+        );
       });
     },
     [timeout]

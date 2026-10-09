@@ -18,8 +18,10 @@ run's rglob would fold a committed fixture into the scanned set):
 Pair-sides doctrine (test_ratchet_check.py's house rule): every rule is
 pinned in BOTH directions — a one-sided gate leaks in the untested direction.
 The laundering sides are pinned too: exclusion-set edits are visible diffs
-(test_committed_exclusion_sets_are_pinned), the allowlist is keyed on the
-PAIR (agents_md, reference) not either half, resolution is ANCHORED (a path
+(test_committed_exclusion_sets_are_pinned), dead references carry ZERO
+tolerance — W1.3 drained and REMOVED dead_reference_allowlist, and the
+loader rejects the key's PRESENCE (re-adding an excuse list is a gate-disable
+attempt, pinned by test_config_failures_exit_2), resolution is ANCHORED (a path
 that exists only inside an excluded directory is dead on every machine), and
 retired-name counting is whole-word over the scanned AGENTS.md set only —
 "ENRICHMENT_LIGHT_URL" is not "enrichment", and a README next door is not an
@@ -96,28 +98,22 @@ EXPECTED_EXCLUDE_REFERENCE_PATTERNS = {
     "\\.msw\\.test\\.tsx$",
 }
 
-# The pair the package's own first CI run would otherwise lose. Under ANCHORED
-# resolution `.venv/` is dead on every tree — absent in CI, or inside an
-# excluded component on a dev machine — so the entry stays; whoever measures a
-# local 12 must NOT "fix" it away (measured delta, dev vs clean clone: 1).
-VENV_PAIR = (".github/codeql/custom-queries/AGENTS.md", ".venv/")
-
+# W1.1's 12-vs-13 trap pair lives here as a lesson, not a constant: anchored
+# resolution called `.venv/` dead on EVERY tree (absent on CI, excluded-but-
+# present on dev), so W1.1 admitted it; W1.3 drained it by rewriting the
+# citation to name the real mechanism instead of the phantom directory (see
+# test_committed_tree_has_no_venv_pair).
 BASE_MD = """# Fixture
 
-Dead: `ghost/a.py` and `ghost/b/`.
-
-Link: [notes](notes.md)
+Live: [notes](notes.md)
 
 Names: florence nemotron enrichment xclip demographics.
 """
 
-# What minting WOULD produce for BASE_MD — hand-written here because no
-# --mint/--update flag exists on purpose: a flag that rewrites the baseline
-# is an opt-out with no diff. Drain is a hand edit either way.
-BASE_ALLOWLIST = [
-    {"agents_md": "AGENTS.md", "reference": "ghost/a.py", "tracking": "fixture"},
-    {"agents_md": "AGENTS.md", "reference": "ghost/b/", "tracking": "fixture"},
-]
+# W1.3 REMOVED dead_reference_allowlist: the fixture is green by having NO
+# dead references (zero tolerance), so there is nothing to mint and no excuse
+# list to hand-write. No --mint/--update flag exists on purpose: a flag that
+# rewrites a baseline is an opt-out with no diff.
 BASE_BASELINE = dict.fromkeys(RETIRED_NAMES, 1)
 
 _SENTINEL = object()
@@ -128,7 +124,6 @@ def build(
     *,
     md: str = BASE_MD,
     files: dict[str, str] | None = None,
-    allowlist=_SENTINEL,
     baseline=_SENTINEL,
 ) -> Path:
     """A minimal scannable tree whose config INHERITS the committed exclusion
@@ -144,14 +139,13 @@ def build(
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content)
-    write_config(root, allowlist=allowlist, baseline=baseline)
+    write_config(root, baseline=baseline)
     return root
 
 
 def write_config(
     root: Path,
     *,
-    allowlist=_SENTINEL,
     baseline=_SENTINEL,
 ) -> Path:
     config = {
@@ -160,9 +154,6 @@ def write_config(
         "code_extensions": list(COMMITTED_CONFIG["code_extensions"]),
         "min_code_files": COMMITTED_CONFIG["min_code_files"],
         "exclude_reference_patterns": list(COMMITTED_CONFIG["exclude_reference_patterns"]),
-        "dead_reference_allowlist": (
-            [dict(e) for e in BASE_ALLOWLIST] if allowlist is _SENTINEL else allowlist
-        ),
         "retired_name_baseline": dict(BASE_BASELINE) if baseline is _SENTINEL else baseline,
     }
     path = root / ".agents-md-validator.yml"
@@ -207,17 +198,18 @@ def dead_pairs(report: dict) -> set[tuple[str, str]]:
 
 
 # --------------------------------------------------------------------------
-# Done-when A: a new dead reference fails — and the allowlist is what excuses
+# Done-when A: a dead reference fails, full stop — W1.3 removed the excuse list
 # --------------------------------------------------------------------------
 
 
 def test_green_fixture_is_green(tmp_path):
-    """The harness is not vacuously red: the minted fixture passes, and its
-    reported pairs are exactly the allowlisted ones."""
+    """The harness is not vacuously red: the clean fixture passes and reports
+    NO dead pairs — under W1.3 zero tolerance, green means EMPTY, not
+    "everything excused"."""
     root = build(tmp_path)
     r = run_validator(root)
     assert r.returncode == 0, r.stderr
-    assert dead_pairs(report_of(root)) == {(a["agents_md"], a["reference"]) for a in BASE_ALLOWLIST}
+    assert dead_pairs(report_of(root)) == set()
 
 
 def test_new_dead_reference_fails(tmp_path):
@@ -233,39 +225,25 @@ def test_new_dead_reference_fails(tmp_path):
     assert "nowhere/nothing.py" in r.stderr and "AGENTS.md" in r.stderr
 
 
-def test_allowlisted_pair_excused_and_removal_fails(tmp_path):
-    """Both sides of bullet 1: the allowlist is consulted (green with the
-    entry) AND enforced (red when an entry is hand-removed while the citation
-    stands — the drain direction)."""
+def test_dead_reference_fails_and_the_key_stays_dead(tmp_path):
+    """Both sides of zero tolerance (W1.3 removed the allowlist): a dead
+    reference reddens the run directly, AND re-adding the config key is
+    infrastructure, not an excuse channel — the loader exits 2 on its mere
+    presence, so no PR can reinstate pardons by editing YAML."""
     root = build(tmp_path)
-    assert run_validator(root).returncode == 0
-    cfg_path = root / ".agents-md-validator.yml"
-    cfg = yaml.safe_load(cfg_path.read_text())
-    cfg["dead_reference_allowlist"] = [
-        e for e in cfg["dead_reference_allowlist"] if e["reference"] != "ghost/b/"
-    ]
-    cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False))
+    amend(root, "\nDead: `ghost/b/`.\n")
     r = run_validator(root)
     assert r.returncode == 1
     assert "ghost/b/" in r.stderr
-
-
-def test_allowlist_is_keyed_on_the_pair_not_either_half(tmp_path):
-    """Mutants that match by agents_md alone (lends any file's entry to any
-    of its references) or by reference alone pass every one-sided fixture.
-    Two dead references, entries that each guard the OTHER half: the
-    unguarded reference must still redden, naming itself."""
-    root = build(
-        tmp_path,
-        allowlist=[
-            {"agents_md": "AGENTS.md", "reference": "ghost/b/", "tracking": "fixture"},
-            {"agents_md": "other/AGENTS.md", "reference": "ghost/a.py", "tracking": "fixture"},
-        ],
-    )
+    cfg_path = root / ".agents-md-validator.yml"
+    cfg = yaml.safe_load(cfg_path.read_text())
+    cfg["dead_reference_allowlist"] = [
+        {"agents_md": "AGENTS.md", "reference": "ghost/b/", "tracking": "fixture"}
+    ]
+    cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False))
     r = run_validator(root)
-    assert r.returncode == 1
-    assert "ghost/a.py" in r.stderr
-    assert "ghost/b/" not in r.stderr
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "dead_reference_allowlist" in r.stderr
 
 
 def test_dead_link_fails(tmp_path):
@@ -315,7 +293,7 @@ def test_excluded_dir_reference_is_dead_on_every_machine(tmp_path):
     which is the machine-dependent baseline the panel caught: dead on CI,
     alive on dev."""
     root = build(tmp_path, md=BASE_MD + "\nOutput lives in `build/cache/x/`.\n")
-    r = run_validator(root)  # rc 1: the pair is not in the fixture allowlist
+    r = run_validator(root)  # rc 1: zero tolerance — dead is dead, no excuse list
     assert r.returncode == 1
     assert ("AGENTS.md", "build/cache/x/") in dead_pairs(report_of(root))
 
@@ -365,8 +343,7 @@ def test_substitution_does_not_green_a_total(tmp_path):
     implementation returns green here and launders by substitution."""
     root = build(
         tmp_path,
-        md="# Fixture\n\nDead: `ghost/a.py` and `ghost/b/`.\n\n"
-        "Link: [notes](notes.md)\n\n"
+        md="# Fixture\n\nLive: [notes](notes.md)\n\n"
         "Names: florence florence nemotron enrichment xclip.\n",
     )
     r = run_validator(root)
@@ -429,9 +406,11 @@ def _mutate(cfg_path: Path, kind: str) -> None:
     {
         "missing_name": lambda: cfg["retired_name_baseline"].pop("demographics"),
         "no_baseline": lambda: cfg.pop("retired_name_baseline"),
-        "no_allowlist": lambda: cfg.pop("dead_reference_allowlist"),
-        "entry_incomplete": lambda: cfg["dead_reference_allowlist"][0].pop("reference"),
-        "entry_glob": lambda: cfg["dead_reference_allowlist"][0].update(reference="ghost/*"),
+        "allowlist_present": lambda: cfg.update(
+            dead_reference_allowlist=[
+                {"agents_md": "AGENTS.md", "reference": "ghost/a.py", "tracking": "x"}
+            ]
+        ),
         "bad_regex": lambda: cfg["exclude_reference_patterns"].append("te(."),
     }[kind]()
     cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False))
@@ -444,16 +423,17 @@ def _mutate(cfg_path: Path, kind: str) -> None:
         ("list", "mapping"),
         ("no_baseline", "retired_name_baseline"),
         ("missing_name", "demographics"),
-        ("no_allowlist", "dead_reference_allowlist"),
-        ("entry_incomplete", "reference"),
-        ("entry_glob", "ghost/*"),
+        ("allowlist_present", "dead_reference_allowlist"),
         ("bad_regex", "exclude_reference_patterns"),
     ],
 )
 def test_config_failures_exit_2(tmp_path, kind, needle):
     """Absent baseline keys are NOT read as 0 (would fire on every existing
     mention) and NOT read as unchecked (deleting a key would be the cheapest
-    way to disable the gate). They are infrastructure: exit 2, no report."""
+    way to disable the gate). They are infrastructure: exit 2, no report. The
+    allowlist_present row is the mirror image: since W1.3 the REMOVED key's
+    presence is the gate-disable attempt, so re-adding it exits 2 too —
+    the anti-rot side of the drain."""
     root = build(tmp_path)
     _mutate(root / ".agents-md-validator.yml", kind)
     r = run_validator(root)
@@ -512,7 +492,8 @@ def test_documented_option_set_only(tmp_path):
     """No invented opt-out: every undocumented flag fails closed (argparse,
     rc 2) — no --update (it would rewrite the hand-commented baseline or
     destroy its comments), no --no-teeth/--soft/--warn-only, no --allow FILE
-    (a widened allowlist from argv leaves no diff), no --strict (the safe
+    (an argv excuse list leaves no diff — and since W1.3 neither does the
+    YAML key), no --strict (the safe
     config behaviour is default-on, not a flag a future author forgets).
     --root is the only new flag."""
     root = build(tmp_path)
@@ -529,27 +510,27 @@ def test_documented_option_set_only(tmp_path):
 
 def test_committed_exclusion_sets_are_pinned():
     """The laundering tripwire itself (see the EXPECTED_* constants). Also
-    enforces the allowlist entry schema the loader requires: non-empty
-    agents_md/reference AND a tracking ref — a raise must cost a sentence."""
+    pins that the committed config does NOT carry the removed allowlist key —
+    the loader exits 2 on its presence, so this is a green-build pin, not
+    style."""
     assert set(COMMITTED_CONFIG["exclude_directories"]) == EXPECTED_EXCLUDE_DIRECTORIES
     assert set(COMMITTED_CONFIG["exclude_reference_patterns"]) == (
         EXPECTED_EXCLUDE_REFERENCE_PATTERNS
     )
     assert set(COMMITTED_CONFIG["retired_name_baseline"]) == set(RETIRED_NAMES)
-    for entry in COMMITTED_CONFIG["dead_reference_allowlist"]:
-        assert entry.get("agents_md") and entry.get("reference"), entry
-        assert entry.get("tracking"), f"allowlist entry without tracking: {entry}"
+    assert "dead_reference_allowlist" not in COMMITTED_CONFIG
 
 
-def test_committed_allowlist_covers_the_venv_pair():
-    """The 12-vs-13 pin — the difference between a green first CI run of this
-    very package and a red one. `.venv/` is absent on CI and excluded-but-
-    present on dev machines; anchored resolution calls it dead on BOTH, so
-    the entry must exist."""
-    committed = {
-        (e["agents_md"], e["reference"]) for e in COMMITTED_CONFIG["dead_reference_allowlist"]
-    }
-    assert VENV_PAIR in committed
+def test_committed_tree_has_no_venv_pair():
+    """The 12-vs-13 pair, drained rather than admitted: the codeql custom-
+    queries citation that anchored resolution called dead on EVERY tree (so a
+    dev-machine "fix" could never green CI) now names the real mechanism — the
+    committed codeql config's paths-ignore patterns — which exists on both CI
+    and dev trees. The bare backticked form is the extractable pair; the
+    real-tree zero-dead test below is the general pin."""
+    text = (REPO_ROOT / ".github/codeql/custom-queries/AGENTS.md").read_text()
+    assert "codeql-config.yml" in text
+    assert "`" + ".venv/" + "`" not in text
 
 
 @pytest.fixture(scope="module")
@@ -574,22 +555,15 @@ def test_real_tree_is_green(real_run):
 
 
 @pytest.mark.timeout(180)
-def test_real_tree_allowlist_is_exact(real_run):
-    """The may-only-fall check that lives in the TEST, not the exit code: a
-    zombie allowlist entry stays GREEN at exit (a docs PR must not be
-    reddened for an excuse it did not delete) but is RED here, so the entry
-    dies in the same PR that drains the pair. The sets measured identical on
-    the dev workspace and a clean clone — 13 == 13 — which is what makes
-    this assertion machine-independent."""
+def test_real_tree_has_zero_dead_references(real_run):
+    """W1.3's Done-when, asserted: the real tree reports NO dead file
+    references at all — the number the gate stands on, not a census matched
+    against an excuse list. Anchored resolution is what makes the assertion
+    machine-independent: W1.1's dev-vs-clean-clone delta (13 == 13 pairs) is
+    now 0 == 0."""
     rc, report, stderr = real_run
     assert rc == 0, stderr
-    committed = {
-        (e["agents_md"], e["reference"]) for e in COMMITTED_CONFIG["dead_reference_allowlist"]
-    }
-    assert dead_pairs(report) == committed, (
-        f"drained entries to delete here: {sorted(committed - dead_pairs(report))}; "
-        f"un-admitted dead refs to fix: {sorted(dead_pairs(report) - committed)}"
-    )
+    assert dead_pairs(report) == set(), f"dead pairs: {sorted(dead_pairs(report))}"
 
 
 @pytest.mark.timeout(180)

@@ -19,14 +19,14 @@ The ServiceHealthMonitor:
 
 The health monitor is configured per-service via `ServiceConfig`:
 
-| Parameter         | Type    | Description                                     |
+| Parameter | Type | Description |
 | ----------------- | ------- | ----------------------------------------------- | -------------------------------------------------- |
-| `name`            | `str`   | Service name (e.g., "redis", "yolo26")          |
-| `health_endpoint` | `str`   | URL for health check                            |
-| `restart_cmd`     | `str    | None`                                           | Command to restart service (None disables restart) |
-| `max_retries`     | `int`   | Maximum restart attempts before giving up       |
-| `backoff_base`    | `float` | Base delay for exponential backoff (seconds)    |
-| `check_interval`  | `float` | Interval between health checks (default: 15.0s) |
+| `name` | `str` | Service name (e.g., "redis", "yolo26") |
+| `health_endpoint` | `str` | URL for health check |
+| `restart_cmd` | `str    | None` | Command to restart service (None disables restart) |
+| `max_retries` | `int` | Maximum restart attempts before giving up |
+| `backoff_base` | `float` | Base delay for exponential backoff (seconds) |
+| `check_interval` | `float` | Interval between health checks (default: 15.0s) |
 
 ## Initialization
 

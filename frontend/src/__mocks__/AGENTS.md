@@ -24,13 +24,13 @@ frontend/src/services/__mocks__/
 
 ## Key Files
 
-| File | Purpose | Exports |
-|------|---------|---------|
-| `index.ts` | Central re-export point for all mocks | All mock factories and utilities |
-| `../hooks/__mocks__/useWebSocket.ts` | Mock WebSocket connection state and callbacks | `createMockWebSocket`, `mockUseWebSocket` |
-| `../hooks/__mocks__/useEventStream.ts` | Mock security event stream | `createMockEventStream`, `mockUseEventStream` |
-| `../hooks/__mocks__/useSystemStatus.ts` | Mock system status updates | `createMockSystemStatus`, `mockUseSystemStatus` |
-| `../services/__mocks__/api.ts` | Mock API client functions | All API mock factories |
+| File                                    | Purpose                                       | Exports                                         |
+| --------------------------------------- | --------------------------------------------- | ----------------------------------------------- |
+| `index.ts`                              | Central re-export point for all mocks         | All mock factories and utilities                |
+| `../hooks/__mocks__/useWebSocket.ts`    | Mock WebSocket connection state and callbacks | `createMockWebSocket`, `mockUseWebSocket`       |
+| `../hooks/__mocks__/useEventStream.ts`  | Mock security event stream                    | `createMockEventStream`, `mockUseEventStream`   |
+| `../hooks/__mocks__/useSystemStatus.ts` | Mock system status updates                    | `createMockSystemStatus`, `mockUseSystemStatus` |
+| `../services/__mocks__/api.ts`          | Mock API client functions                     | All API mock factories                          |
 
 ## Usage Patterns
 
@@ -75,9 +75,7 @@ vi.mock('../hooks/useWebSocket', () => ({
 describe('Component using WebSocket', () => {
   it('renders connected state', () => {
     // Configure mock for this test
-    mockUseWebSocket.mockReturnValue(
-      createMockWebSocket({ isConnected: true })
-    );
+    mockUseWebSocket.mockReturnValue(createMockWebSocket({ isConnected: true }));
 
     // ... test component
   });
@@ -89,11 +87,7 @@ describe('Component using WebSocket', () => {
 The API mock provides factory functions for each endpoint:
 
 ```typescript
-import {
-  createMockApi,
-  createMockCamerasResponse,
-  createMockHealthResponse,
-} from '../__mocks__';
+import { createMockApi, createMockCamerasResponse, createMockHealthResponse } from '../__mocks__';
 
 // Create full API mock
 const api = createMockApi();
@@ -166,11 +160,11 @@ interface MockSystemStatusOptions {
 
 These mocks follow the same patterns as `backend/tests/mock_utils.py`:
 
-| Backend Pattern | Frontend Equivalent |
-|-----------------|---------------------|
-| `create_mock_redis()` | `createMockApi()` |
-| `create_mock_http_client()` | `createMockFetch()` |
-| `parametrize_risk_levels()` | `RISK_LEVEL_TEST_CASES` |
+| Backend Pattern              | Frontend Equivalent      |
+| ---------------------------- | ------------------------ |
+| `create_mock_redis()`        | `createMockApi()`        |
+| `create_mock_http_client()`  | `createMockFetch()`      |
+| `parametrize_risk_levels()`  | `RISK_LEVEL_TEST_CASES`  |
 | `parametrize_object_types()` | `OBJECT_TYPE_TEST_CASES` |
 
 ## Test Data Factories
@@ -211,14 +205,11 @@ For parameterized testing, use the provided test case arrays:
 ```typescript
 import { RISK_LEVEL_TEST_CASES, OBJECT_TYPE_TEST_CASES } from '../__mocks__';
 
-describe.each(RISK_LEVEL_TEST_CASES)(
-  'Risk level $riskLevel',
-  ({ score, level }) => {
-    it(`maps score ${score} to level ${level}`, () => {
-      // ... test implementation
-    });
-  }
-);
+describe.each(RISK_LEVEL_TEST_CASES)('Risk level $riskLevel', ({ score, level }) => {
+  it(`maps score ${score} to level ${level}`, () => {
+    // ... test implementation
+  });
+});
 ```
 
 ## Best Practices

@@ -352,9 +352,9 @@ test.describe('Alert Workflow - Bulk Selection', () => {
 
     if (alertCount >= 2) {
       // Look for selection checkboxes
-      const checkboxes = page.locator('input[type="checkbox"]').or(
-        page.locator('button[aria-label*="Select"]')
-      );
+      const checkboxes = page
+        .locator('input[type="checkbox"]')
+        .or(page.locator('button[aria-label*="Select"]'));
 
       const checkboxCount = await checkboxes.count();
 
@@ -363,11 +363,11 @@ test.describe('Alert Workflow - Bulk Selection', () => {
         await checkboxes.nth(0).click();
 
         // Look for selection count indicator
-        const selectionCount = page.locator('[data-testid="selection-count"]').or(
-          page.getByText(/\d+ selected/i)
-        );
+        const selectionCount = page
+          .locator('[data-testid="selection-count"]')
+          .or(page.getByText(/\d+ selected/i));
 
-        if (await selectionCount.count() > 0) {
+        if ((await selectionCount.count()) > 0) {
           await expect(selectionCount).toContainText('1');
 
           // Select second alert
@@ -402,11 +402,11 @@ test.describe('Alert Workflow - Bulk Selection', () => {
         await page.waitForTimeout(300);
 
         // Look for selection count
-        const selectionCount = page.locator('[data-testid="selection-count"]').or(
-          page.getByText(/\d+ selected/i)
-        );
+        const selectionCount = page
+          .locator('[data-testid="selection-count"]')
+          .or(page.getByText(/\d+ selected/i));
 
-        if (await selectionCount.count() > 0) {
+        if ((await selectionCount.count()) > 0) {
           const countText = await selectionCount.textContent();
           expect(countText).toMatch(/\d+ selected/);
         }
@@ -440,9 +440,9 @@ test.describe('Alert Workflow - Bulk Selection', () => {
         await page.waitForTimeout(300);
 
         // Selection count should be hidden
-        const selectionCount = page.locator('[data-testid="selection-count"]').or(
-          page.getByText(/\d+ selected/i)
-        );
+        const selectionCount = page
+          .locator('[data-testid="selection-count"]')
+          .or(page.getByText(/\d+ selected/i));
 
         const isVisible = await selectionCount.isVisible().catch(() => false);
         expect(isVisible).toBe(false);
@@ -459,9 +459,9 @@ test.describe('Alert Workflow - Bulk Selection', () => {
     const alertCount = await alertsPage.getAlertCount();
 
     if (alertCount > 0) {
-      const checkboxes = page.locator('input[type="checkbox"]').or(
-        page.locator('button[aria-label*="Select"]')
-      );
+      const checkboxes = page
+        .locator('input[type="checkbox"]')
+        .or(page.locator('button[aria-label*="Select"]'));
 
       const checkboxCount = await checkboxes.count();
 
@@ -471,7 +471,10 @@ test.describe('Alert Workflow - Bulk Selection', () => {
         // Check initial state
         const initialState = await firstCheckbox.isChecked().catch(() => {
           // If not a checkbox input, check for aria-pressed or aria-checked
-          return firstCheckbox.getAttribute('aria-checked').then(val => val === 'true').catch(() => false);
+          return firstCheckbox
+            .getAttribute('aria-checked')
+            .then((val) => val === 'true')
+            .catch(() => false);
         });
 
         // Click to select
@@ -480,7 +483,10 @@ test.describe('Alert Workflow - Bulk Selection', () => {
 
         // Verify state changed
         const newState = await firstCheckbox.isChecked().catch(() => {
-          return firstCheckbox.getAttribute('aria-checked').then(val => val === 'true').catch(() => false);
+          return firstCheckbox
+            .getAttribute('aria-checked')
+            .then((val) => val === 'true')
+            .catch(() => false);
         });
 
         expect(newState).not.toBe(initialState);
@@ -515,9 +521,9 @@ test.describe('Alert Workflow - Bulk Operations', () => {
 
     if (alertCount >= 2) {
       // Select multiple alerts
-      const checkboxes = page.locator('input[type="checkbox"]').or(
-        page.locator('button[aria-label*="Select"]')
-      );
+      const checkboxes = page
+        .locator('input[type="checkbox"]')
+        .or(page.locator('button[aria-label*="Select"]'));
 
       const checkboxCount = await checkboxes.count();
 
@@ -542,7 +548,10 @@ test.describe('Alert Workflow - Bulk Operations', () => {
                 status: 207,
                 contentType: 'application/json',
                 body: JSON.stringify({
-                  successful: [{ id: 1, status: 200 }, { id: 2, status: 200 }],
+                  successful: [
+                    { id: 1, status: 200 },
+                    { id: 2, status: 200 },
+                  ],
                   failed: [],
                   summary: { total: 2, succeeded: 2, failed: 0 },
                 }),
@@ -558,9 +567,9 @@ test.describe('Alert Workflow - Bulk Operations', () => {
           await page.waitForTimeout(500);
 
           // Selection should be cleared after successful operation
-          const selectionCount = page.locator('[data-testid="selection-count"]').or(
-            page.getByText(/\d+ selected/i)
-          );
+          const selectionCount = page
+            .locator('[data-testid="selection-count"]')
+            .or(page.getByText(/\d+ selected/i));
           const isVisible = await selectionCount.isVisible().catch(() => false);
           expect(isVisible).toBe(false);
         }
@@ -577,9 +586,9 @@ test.describe('Alert Workflow - Bulk Operations', () => {
     const alertCount = await alertsPage.getAlertCount();
 
     if (alertCount >= 2) {
-      const checkboxes = page.locator('input[type="checkbox"]').or(
-        page.locator('button[aria-label*="Select"]')
-      );
+      const checkboxes = page
+        .locator('input[type="checkbox"]')
+        .or(page.locator('button[aria-label*="Select"]'));
 
       const checkboxCount = await checkboxes.count();
 
@@ -606,7 +615,10 @@ test.describe('Alert Workflow - Bulk Operations', () => {
                 status: 207,
                 contentType: 'application/json',
                 body: JSON.stringify({
-                  successful: [{ id: 1, status: 204 }, { id: 2, status: 204 }],
+                  successful: [
+                    { id: 1, status: 204 },
+                    { id: 2, status: 204 },
+                  ],
                   failed: [],
                   summary: { total: 2, succeeded: 2, failed: 0 },
                 }),
@@ -647,12 +659,15 @@ test.describe('Alert Workflow - Bulk Operations', () => {
         hasText: /Acknowledge All|Dismiss All|Acknowledge Selected|Dismiss Selected/i,
       });
 
-      const initialVisible = await bulkButtons.first().isVisible().catch(() => false);
+      const initialVisible = await bulkButtons
+        .first()
+        .isVisible()
+        .catch(() => false);
 
       // Select an alert
-      const checkboxes = page.locator('input[type="checkbox"]').or(
-        page.locator('button[aria-label*="Select"]')
-      );
+      const checkboxes = page
+        .locator('input[type="checkbox"]')
+        .or(page.locator('button[aria-label*="Select"]'));
 
       const checkboxCount = await checkboxes.count();
 
@@ -661,7 +676,10 @@ test.describe('Alert Workflow - Bulk Operations', () => {
         await page.waitForTimeout(300);
 
         // Buttons should now be visible (or still hidden if not implemented)
-        const newVisible = await bulkButtons.first().isVisible().catch(() => false);
+        const newVisible = await bulkButtons
+          .first()
+          .isVisible()
+          .catch(() => false);
 
         // State should change (or both be false if not implemented)
         expect(typeof newVisible).toBe('boolean');
@@ -678,9 +696,9 @@ test.describe('Alert Workflow - Bulk Operations', () => {
     const alertCount = await alertsPage.getAlertCount();
 
     if (alertCount >= 2) {
-      const checkboxes = page.locator('input[type="checkbox"]').or(
-        page.locator('button[aria-label*="Select"]')
-      );
+      const checkboxes = page
+        .locator('input[type="checkbox"]')
+        .or(page.locator('button[aria-label*="Select"]'));
 
       const checkboxCount = await checkboxes.count();
 
@@ -722,7 +740,9 @@ test.describe('Alert Workflow - Bulk Operations', () => {
           const buttonText = await bulkAcknowledgeButton.textContent();
 
           // Either button is disabled or shows loading text
-          expect(isDisabled || buttonText?.includes('...') || buttonText?.includes('Loading')).toBeTruthy();
+          expect(
+            isDisabled || buttonText?.includes('...') || buttonText?.includes('Loading')
+          ).toBeTruthy();
 
           await clickPromise;
         }
@@ -739,9 +759,9 @@ test.describe('Alert Workflow - Bulk Operations', () => {
     const alertCount = await alertsPage.getAlertCount();
 
     if (alertCount >= 2) {
-      const checkboxes = page.locator('input[type="checkbox"]').or(
-        page.locator('button[aria-label*="Select"]')
-      );
+      const checkboxes = page
+        .locator('input[type="checkbox"]')
+        .or(page.locator('button[aria-label*="Select"]'));
 
       const checkboxCount = await checkboxes.count();
 
@@ -775,11 +795,9 @@ test.describe('Alert Workflow - Bulk Operations', () => {
           await page.waitForTimeout(500);
 
           // Look for error message
-          const errorMessage = page.locator('[role="alert"]').or(
-            page.getByText(/failed|error/i)
-          );
+          const errorMessage = page.locator('[role="alert"]').or(page.getByText(/failed|error/i));
 
-          const hasError = await errorMessage.count() > 0;
+          const hasError = (await errorMessage.count()) > 0;
           expect(typeof hasError).toBe('boolean');
         }
       }
@@ -862,7 +880,7 @@ test.describe('Alert Workflow - Refresh Functionality', () => {
 
     // Check for loading indicator (disabled button or spinner)
     const isDisabled = await alertsPage.refreshButton.isDisabled().catch(() => false);
-    const hasSpinner = await page.locator('.animate-spin').count() > 0;
+    const hasSpinner = (await page.locator('.animate-spin').count()) > 0;
 
     expect(isDisabled || hasSpinner).toBeTruthy();
 
@@ -900,9 +918,9 @@ test.describe('Alert Workflow - Refresh Functionality', () => {
 
     if (alertCount > 0) {
       // Select an alert
-      const checkboxes = page.locator('input[type="checkbox"]').or(
-        page.locator('button[aria-label*="Select"]')
-      );
+      const checkboxes = page
+        .locator('input[type="checkbox"]')
+        .or(page.locator('button[aria-label*="Select"]'));
 
       const checkboxCount = await checkboxes.count();
 
@@ -911,11 +929,11 @@ test.describe('Alert Workflow - Refresh Functionality', () => {
         await page.waitForTimeout(300);
 
         // Verify selection exists
-        const selectionCount = page.locator('[data-testid="selection-count"]').or(
-          page.getByText(/\d+ selected/i)
-        );
+        const selectionCount = page
+          .locator('[data-testid="selection-count"]')
+          .or(page.getByText(/\d+ selected/i));
 
-        const hasSelection = await selectionCount.count() > 0;
+        const hasSelection = (await selectionCount.count()) > 0;
 
         if (hasSelection) {
           // Refresh

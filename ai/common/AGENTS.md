@@ -195,4 +195,3 @@ Models in the Model Zoo should inherit from the appropriate base class:
 2. **TensorRT utilities**: `tensorrt_utils.py`
 3. **Base classes**: `tensorrt_inference.py`
 4. **Tests**: `tests/test_tensorrt_utils.py`, `tests/test_tensorrt_inference.py`
-5. **Model implementations**: See `ai/enrichment/models/` for examples

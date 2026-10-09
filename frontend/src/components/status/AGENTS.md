@@ -22,10 +22,10 @@ Contains components for displaying AI service health and degradation status. The
 
 ```typescript
 interface AIServiceStatusProps {
-  showDetails?: boolean;      // Show per-service status (default: true)
-  defaultExpanded?: boolean;  // Start details expanded (default: false)
-  className?: string;         // Additional CSS classes
-  compact?: boolean;          // Compact mode for header badge (default: false)
+  showDetails?: boolean; // Show per-service status (default: true)
+  defaultExpanded?: boolean; // Start details expanded (default: false)
+  className?: string; // Additional CSS classes
+  compact?: boolean; // Compact mode for header badge (default: false)
 }
 ```
 
@@ -41,29 +41,29 @@ interface AIServiceStatusProps {
 
 **Degradation Modes:**
 
-| Mode     | Icon          | Color  | Description                                     |
-| -------- | ------------- | ------ | ----------------------------------------------- |
-| normal   | CheckCircle   | green  | All AI services healthy and functioning         |
-| degraded | AlertTriangle | yellow | Non-critical services (Florence-2, CLIP) down   |
-| minimal  | AlertCircle   | orange | Critical services partially available           |
-| offline  | XCircle       | red    | All AI services unavailable                     |
+| Mode     | Icon          | Color  | Description                                   |
+| -------- | ------------- | ------ | --------------------------------------------- |
+| normal   | CheckCircle   | green  | All AI services healthy and functioning       |
+| degraded | AlertTriangle | yellow | Non-critical services (Florence-2, CLIP) down |
+| minimal  | AlertCircle   | orange | Critical services partially available         |
+| offline  | XCircle       | red    | All AI services unavailable                   |
 
 **Circuit Breaker States:**
 
-| State     | Color  | Meaning                                |
-| --------- | ------ | -------------------------------------- |
-| closed    | green  | Normal operation, requests allowed     |
-| half_open | yellow | Testing if service recovered           |
-| open      | red    | Service failures, requests blocked     |
+| State     | Color  | Meaning                            |
+| --------- | ------ | ---------------------------------- |
+| closed    | green  | Normal operation, requests allowed |
+| half_open | yellow | Testing if service recovered       |
+| open      | red    | Service failures, requests blocked |
 
 **AI Services Displayed:**
 
-| Service   | Display Name | Description                           |
-| --------- | ------------ | ------------------------------------- |
-| yolo26    | YOLO26    | Object detection (persons, vehicles)  |
-| nemotron  | Nemotron     | Risk analysis and LLM reasoning       |
-| florence  | Florence-2   | Image captioning and OCR              |
-| clip      | CLIP         | Entity re-identification              |
+| Service  | Display Name | Description                          |
+| -------- | ------------ | ------------------------------------ |
+| yolo26   | YOLO26       | Object detection (persons, vehicles) |
+| nemotron | Nemotron     | Risk analysis and LLM reasoning      |
+| florence | Florence-2   | Image captioning and OCR             |
+| clip     | CLIP         | Entity re-identification             |
 
 **Subcomponents:**
 
@@ -128,42 +128,52 @@ AIServiceStatus component
 **Test Coverage (35 tests in 10 describe blocks):**
 
 **Normal mode:**
+
 - Renders normal status header with "All Systems Operational"
 - Applies green styling for normal mode
 
 **Degraded mode:**
+
 - Renders degraded status header with "Degraded Mode"
 - Applies yellow styling for degraded mode
 
 **Minimal mode:**
+
 - Renders minimal status header with "Minimal Mode"
 - Applies orange styling for minimal mode
 
 **Offline mode:**
+
 - Renders offline status header with "AI Services Offline"
 - Applies red styling for offline mode
 
 **Expandable details:**
+
 - Expands to show service details when clicked
 - Renders expanded by default when `defaultExpanded` is true
 - Does not render expand button when `showDetails` is false
 
 **Service status rows:**
+
 - Shows circuit breaker state badges (Closed, Half-Open, Open)
 - Shows failure count for unhealthy services
 - Shows error message for unavailable services
 
 **Available features list:**
+
 - Renders available features when expanded
 
 **Compact mode:**
+
 - Renders as compact badge when `compact` is true
 - Shows degradation status in compact badge
 
 **Last update timestamp:**
+
 - Shows last update time with relative formatting
 
 **Loading state:**
+
 - Shows loading text for services with null state
 
 **Mocking Pattern:**
@@ -191,6 +201,7 @@ The component receives real-time updates via the `useAIServiceStatus` hook which
 ### Graceful Degradation Display
 
 The component visually communicates system health at a glance:
+
 - Green = fully operational
 - Yellow = minor issues (non-critical services)
 - Orange = significant issues (critical services partially affected)
@@ -211,9 +222,11 @@ Uses relative time formatting ("5s ago", "2m ago", "1h ago") for recent updates 
 **Start here:** `AIServiceStatus.tsx` - Main component for AI service health display
 
 **Used by:**
+
 - `SystemMonitoringPage.tsx` - Full panel on system monitoring page
 - `Header.tsx` - Compact badge in application header (optional)
 
 **Dependencies:**
+
 - `useAIServiceStatus` hook - See `frontend/src/hooks/useAIServiceStatus.ts`
 - Backend `AIFallbackService` - Broadcasts `ai_service_status` messages

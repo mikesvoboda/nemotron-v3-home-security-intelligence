@@ -100,8 +100,10 @@ export function generateCamera(overrides: Partial<CameraData> = {}, seed?: numbe
     name,
     folder_path: `/export/foscam/${id}`,
     status: overrides.status || (rng() > 0.2 ? 'online' : 'offline'),
-    created_at: overrides.created_at || new Date(Date.now() - rng() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-    last_seen_at: overrides.last_seen_at || new Date(Date.now() - rng() * 60 * 60 * 1000).toISOString(),
+    created_at:
+      overrides.created_at || new Date(Date.now() - rng() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+    last_seen_at:
+      overrides.last_seen_at || new Date(Date.now() - rng() * 60 * 60 * 1000).toISOString(),
     ...overrides,
   };
 }
@@ -286,11 +288,15 @@ export function generateEvents(
  * });
  * ```
  */
-export function generateDetection(overrides: Partial<DetectionData> = {}, seed?: number): DetectionData {
+export function generateDetection(
+  overrides: Partial<DetectionData> = {},
+  seed?: number
+): DetectionData {
   const rng = seed !== undefined ? seededRandom(seed) : Math.random;
 
   const objectClasses = ['person', 'vehicle', 'animal', 'bicycle', 'package'];
-  const objectClass = overrides.object_class || objectClasses[Math.floor(rng() * objectClasses.length)];
+  const objectClass =
+    overrides.object_class || objectClasses[Math.floor(rng() * objectClasses.length)];
 
   // Generate realistic bounding box [x, y, width, height]
   const x = Math.floor(rng() * 800);
@@ -319,7 +325,9 @@ export function generateDetection(overrides: Partial<DetectionData> = {}, seed?:
  * @returns Array of detection data
  */
 export function generateDetections(count: number, seed?: number): DetectionData[] {
-  return Array.from({ length: count }, (_, i) => generateDetection({}, seed ? seed + i : undefined));
+  return Array.from({ length: count }, (_, i) =>
+    generateDetection({}, seed ? seed + i : undefined)
+  );
 }
 
 /**
@@ -346,9 +354,9 @@ export function generateDetections(count: number, seed?: number): DetectionData[
 export function generateAlert(overrides: Partial<AlertData> = {}, seed?: number): AlertData {
   const rng = seed !== undefined ? seededRandom(seed) : Math.random;
 
-  const severity = overrides.severity || (['low', 'medium', 'high', 'critical'][
-    Math.floor(rng() * 4)
-  ] as AlertData['severity']);
+  const severity =
+    overrides.severity ||
+    (['low', 'medium', 'high', 'critical'][Math.floor(rng() * 4)] as AlertData['severity']);
 
   const titles = {
     low: ['Low Activity Alert', 'Minor Detection', 'Routine Event'],
@@ -365,7 +373,8 @@ export function generateAlert(overrides: Partial<AlertData> = {}, seed?: number)
   };
 
   const title = overrides.title || titles[severity][Math.floor(rng() * titles[severity].length)];
-  const message = overrides.message || messages[severity][Math.floor(rng() * messages[severity].length)];
+  const message =
+    overrides.message || messages[severity][Math.floor(rng() * messages[severity].length)];
 
   const sentTime = new Date(Date.now() - rng() * 60 * 60 * 1000);
   const acknowledged = overrides.acknowledged ?? rng() > 0.6;
@@ -380,7 +389,9 @@ export function generateAlert(overrides: Partial<AlertData> = {}, seed?: number)
     channels: overrides.channels || ['email', 'pushover'],
     sent_at: overrides.sent_at || sentTime.toISOString(),
     acknowledged,
-    acknowledged_at: acknowledged ? new Date(sentTime.getTime() + rng() * 30 * 60 * 1000).toISOString() : undefined,
+    acknowledged_at: acknowledged
+      ? new Date(sentTime.getTime() + rng() * 30 * 60 * 1000).toISOString()
+      : undefined,
     ...overrides,
   };
 }
