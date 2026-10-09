@@ -2,7 +2,7 @@
 
 > Every way into the backend — HTTP routes, WebSocket channels, background workers, and process launch paths — traced to the code each one actually reaches, with a standing index of what never runs.
 
-**Purpose:** this is the trace feeding package F2.2's feature inventory (`docs/reference/feature-inventory.md`): before a feature can be catalogued, every entry point and what it transitively touches has to be enumerable from one document. It is also the answer to "where does execution start, and what does it actually reach?" — including the paths that are registered, documented, or instantiated but dead.
+**Purpose:** this is the trace feeding package F2.2's feature inventory (`docs/reference/feature-inventory.md` — F2.2's own deliverable, so absent from the tree at the traced SHA): before a feature can be catalogued, every entry point and what it transitively touches has to be enumerable from one document. It is also the answer to "where does execution start, and what does it actually reach?" — including the paths that are registered, documented, or instantiated but dead.
 
 **Traced at:** commit `18005870b9d92c4aba59b9701556869d23ef797e` (all line numbers below are against this tree). The trace was produced at `d44a63744ecb543f4b36371e9f92a90974fcd0c0`, whose `backend/` tree is byte-identical to this one (`git diff --stat` over `backend/` between the two is empty), so every cite is valid at both.
 
@@ -63,7 +63,7 @@ Flattening matters: with FastAPI 0.142's deferred `_IncludedRouter` wrappers, `a
 - **473 inventory rows** = 466 `backend.api.routes.*` + 3 `backend.main` (below) + 4 `fastapi.applications` (framework scope note).
 - **60 route-module sections** below — the 59 modules the inventory attributes, plus `websocket.py` (whose 4 routes are absent from the inventory by design and whose channels get their own chapter); `backend/api/routes/` holds 61 `.py` files — those 60 plus `__init__.py`.
 - **4 WebSocket channels** (WebSocket chapter) = the 4 WS routes the live app carries.
-- **104** `scripts/` files have `__main__`/argparse entry points (recursive: `grep -rlE "argparse|if __name__" scripts/ --include='*.py' | wc -l`); **13** of them import `backend` symbols and are product-runtime entry points; the other **91** are repo tooling.
+- **104** `scripts/` files have `__main__`/argparse entry points at the traced SHA (recursive: `grep -rlE "argparse|if __name__" scripts/ --include='*.py' | wc -l`); **13** of them import `backend` symbols and are product-runtime entry points; the other **91** are repo tooling. These are trace-SHA measurements like every other figure here; the same recipes return **109/13/96** on `main` after O1.7 merged five argparse-carrying measurement scripts under `scripts/audit/` (none imports `backend`) — see the Counting note in the Process & CLI chapter.
 
 ---
 
@@ -1441,7 +1441,7 @@ All cites are repo-relative to the traced tree. Lifespan is `backend/main.py:781
 
 ## Process & CLI entry points
 
-Counting note: the task's premise figures ("83 main-having", "23 importing backend") did not reproduce at the pinned SHA. Measured at the traced SHA: **104** scripts under `scripts/` contain `argparse`/`if __name__`, and **13** genuinely `import`/`from backend` at statement level (a loose grep for the string `from backend` returns 24 files, but 11 of those are string-literals or comments inside CI-gate/pytest code, not real imports — verified individually). The 13 are grouped below; the rest of the 104 main-having scripts are repo tooling.
+Counting note: the task's premise figures ("83 main-having", "23 importing backend") did not reproduce at the pinned SHA. Measured at the traced SHA: **104** scripts under `scripts/` contain `argparse`/`if __name__` (recipe: `grep -rlE "argparse|if __name__" scripts/ --include='*.py' | wc -l` — **recursive**; a top-level-only glob returns 83, which is where the premise figure came from), and **13** genuinely `import`/`from backend` at statement level (recipe: `grep -rlE "^[[:space:]]*(from|import) backend" scripts/ --include='*.py'` — indentation allowed, because three of the 13 import inside functions; a strict `^`-anchored run instead returns 10 `.py` files plus 3 `.sh` scripts whose _heredoc'd_ Python matches at column zero, coincidentally also 13 for the wrong files). A loose grep for the string `from backend` returns 24 files: 12 of them are the real `from backend` importers, and **12** carry the string only in string-literals, docstrings, or comments inside CI-gate/pytest code — e.g. `scripts/fast_select.py:107`, `scripts/check-test-mocks.py:52` (verified individually). The 13th importer uses the `import backend.main` form and contains no `from backend` string. The 13 are grouped below; the rest of the 104 main-having scripts are repo tooling. Drift check at `main` after `90f820e3d`: the argparse recipe returns **109** (O1.7's five `scripts/audit/` measurement scripts, none a `backend` importer) and the loose string returns **25** (one new test fixture embeds `from backend` as a string; `scripts/audit/test_settings_orphans.py:64`), while the 13-importer set itself is set-identical between the trees (`comm -13` both directions empty).
 
 ### ASGI server — `backend.main:app`
 
