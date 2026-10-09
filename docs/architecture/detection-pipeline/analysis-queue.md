@@ -13,7 +13,7 @@ The analysis queue receives closed batches from the BatchAggregator and routes t
 
 ## Queue Structure
 
-`USE_REDIS_STREAMS` defaults to true (`backend/core/config.py:2239-2242`), so the durable path is a Redis Stream — `analysis:stream`, read by the `analysis-workers` consumer group (`backend/services/redis_streams.py:873-875`). With the setting turned off, the same payloads ride the Redis LIST below over BRPOP.
+`USE_REDIS_STREAMS` defaults to true (`backend/core/config.py:2256-2259`), so the durable path is a Redis Stream — `analysis:stream`, read by the `analysis-workers` consumer group (`backend/services/redis_streams.py:873-875`). With the setting turned off, the same payloads ride the Redis LIST below over BRPOP.
 
 **Queue Name:** `ANALYSIS_QUEUE = "analysis_queue"` (`backend/core/constants.py:149`)
 
@@ -238,14 +238,14 @@ The level is never emitted by the model: `VlmVerdict` carries no `risk_level` fi
 
 Transport and schema failures are retried once — a fast fault, or a complete reply that violated the schema — and then mapped; no event is dropped. Budget outcomes raise on the first attempt:
 
-- `VlmClient.assess` makes the first attempt, then re-sends the same body at temperature 0 — only after a trip that never completed (connection refused, `ConnectTimeout`), any other answered status (5xx or a plain 4xx, except the 400 overflow refusal), or a schema violation; a slow reply raises `VlmSlowReplyError` without a retry (`backend/services/vlm_client.py:962-964`)
-- Every raise the client documents sits in `_DEGRADABLE_ERRORS` (`backend/services/vlm_analyzer.py:89-92`): `VlmClientError` — transport, schema, truncation, context overflow, breaker-open — and `ConstrainedDecodingNotEnforced`
+- `VlmClient.assess` makes the first attempt, then re-sends the same body at temperature 0 — only after a trip that never completed (connection refused, `ConnectTimeout`), any other answered status (5xx or a plain 4xx, except the 400 overflow refusal), or a schema violation; a slow reply raises `VlmSlowReplyError` without a retry (`backend/services/vlm_client.py:966-1072`)
+- Every raise the client documents sits in `_DEGRADABLE_ERRORS` (`backend/services/vlm_analyzer.py:87-93`): `VlmClientError` — transport, schema, truncation, context overflow, breaker-open — and `ConstrainedDecodingNotEnforced`
 - The analyzer catches those, records `vlm_verification_failed`, and writes the NULL-score event. It never re-retries: a second retry would double the p95 budget a single call already fits
 - Anything outside that tuple is a bug and propagates loud
 
 ### Timeout and Concurrency Configuration
 
-**Source:** `backend/core/config.py` (`ai_connect_timeout` :1106-1111, `ai_vlm_read_timeout` :1130-1142, `ai_vlm_wake_timeout_seconds` :1143-1151) and `backend/services/vlm_client.py:334-344`
+**Source:** `backend/core/config.py` (`ai_connect_timeout` :1106-1111, `ai_vlm_read_timeout` :1130-1142, `ai_vlm_wake_timeout_seconds` :1143-1151) and `backend/services/vlm_client.py:337-347`
 
 ```python
 ai_connect_timeout: float = 10.0           # Connection establishment
@@ -258,7 +258,7 @@ waiting for the reply, or waiting to finish sending the image-bearing body):
 httpx resets it on every reply chunk, so a STALLED reply or request write is a
 budget outcome, not retried, sized against p95 <= 30s including cold starts
 (connect counted on top) — that sizing bounds the silent-server case; an engine
-that dribbles the reply within the budget runs on. Concurrency is bounded by the `ai-vlm` circuit breaker (`backend/services/vlm_client.py:316-319`, `failure_threshold=5`, `recovery_timeout=60.0`): while it is open, `assess` raises `VlmUnavailableError` without doing I/O (`backend/services/vlm_client.py:923-929`). The shared inference semaphore (`backend/services/inference_semaphore.py`) is held by the detector leg (`backend/services/detector_client.py:1115-1116`), not by the VLM call.
+that dribbles the reply within the budget runs on. Concurrency is bounded by the `ai-vlm` circuit breaker (`backend/services/vlm_client.py:319-322`, `failure_threshold=5`, `recovery_timeout=60.0`): while it is open, `assess` raises `VlmUnavailableError` without doing I/O (`backend/services/vlm_client.py:926-932`). The shared inference semaphore (`backend/services/inference_semaphore.py`) is held by the detector leg (`backend/services/detector_client.py:1115-1116`), not by the VLM call.
 
 ## Context Read Before the Prompt
 
@@ -298,11 +298,11 @@ Replay never re-runs them — the texts a stored verdict was judged on ride the 
 
 ## Prompt Rendering
 
-**Source:** `backend/services/vlm_client.py` (`_render_prompt`, lines 518-554)
+**Source:** `backend/services/vlm_client.py` (`_render_prompt`, lines 625-687)
 
 The client renders the prompt from the AssessContext rather than from a template file: the camera, the capture time, the zones and the crossing flag, the detection rows (each naming the attached frame it sits on), the household context, and the specialist texts, followed by the instruction to answer only with the verdict JSON object.
 
-Two budget rules apply at the wire (`_fitted_prompt`, lines 676-742). The slot is `settings.vlm_context_window` minus the image reservation minus the verdict's output budget; and when rows have to go, truncation is visible and deterministic — the strongest detections survive and the prompt says how many rows were omitted (`hsi_prompts_truncated_total` is bumped once, at the wire).
+Two budget rules apply at the wire (`_fitted_prompt`, lines 836-901). The slot is `settings.vlm_context_window` minus the image reservation minus the verdict's output budget; and when rows have to go, truncation is visible and deterministic — the strongest detections survive and the prompt says how many rows were omitted (`hsi_prompts_truncated_total` is bumped once, at the wire).
 
 The request ships `response_format: {"type": "json_schema", ...}` carrying the generated contract schema (`backend/ai_contract/schemas/vlm_assess.response.json`), so the shape is enforced by the engine's grammar and validated again on receipt.
 
@@ -351,12 +351,12 @@ record_pipeline_stage_latency("total_pipeline", total_duration_ms)
 From the analyzer and the client:
 
 ```python
-record_pipeline_error("vlm_verification_failed")   # vlm_analyzer.py:561
-record_pipeline_error("vlm_transport_error")        # vlm_client.py:813
-record_pipeline_error("vlm_circuit_open")           # vlm_client.py:768
-record_prompt_truncated()                           # vlm_client.py:780
-record_model_cold_start(BREAKER_NAME)               # vlm_client.py:973
-set_ai_service_degraded("ai-vlm", degraded=True)    # vlm_client.py:931
+record_pipeline_error("vlm_verification_failed")   # vlm_analyzer.py:657
+record_pipeline_error("vlm_transport_error")        # vlm_client.py:1012
+record_pipeline_error("vlm_circuit_open")           # vlm_client.py:927
+record_prompt_truncated()                           # vlm_client.py:941
+record_model_cold_start(BREAKER_NAME)               # vlm_client.py:1172
+set_ai_service_degraded("ai-vlm", degraded=True)    # vlm_client.py:1128
 ```
 
 ## Error Handling

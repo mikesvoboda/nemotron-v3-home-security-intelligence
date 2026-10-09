@@ -244,10 +244,10 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O1.6    | ops                     | 1          | Exposure and auth, compose part (D10)          | owner         | not started |     |
 | O1.7    | ops                     | 1          | Audit measurement scripts                      |               | not started |     |
 | O1.8    | ops                     | 1          | Dependabot alerts                              | owner         | not started |     |
-| O1.9    | ops                     | 1          | Deploy green on `main`                         |               | not started |     |
+| O1.9    | ops                     | 1          | Deploy green on `main`                         |               | done        | #6875 |
 | O1.10   | ops                     | 1          | The operator sandbox (UR-30)                   | owner         | not started |     |
 | O1.11 | ops | 1 | Monitoring behind the gate (UR-33) | owner | not started | |
-| O1.12 | ops | 1 | The hooks run in the gate (UR-37) | | not started | |
+| O1.12 | ops | 1 | The hooks run in the gate (UR-37) | | done | #6901 |
 | B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | not started |     |
 | F2.1    | frontend                | 2          | Golden-path harness                            |               | not started |     |
 | F2.2    | frontend                | 2          | Feature inventory                              | heavy         | not started |     |
@@ -276,8 +276,8 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | OB.2    | ops                     | after 1    | CI dedupe                                      |               | not started |     |
 | OB.3    | ops                     | after 1    | Image weight                                   |               | not started |     |
 | OB.4    | ops                     | on trigger | Lane map and cross-lane check                  |               | not started |     |
-| W1.1    | docs                    | 1          | The validator with teeth                       |               | not started |     |
-| W1.2    | docs                    | 1          | Root truth                                     |               | not started |     |
+| W1.1    | docs                    | 1          | The validator with teeth                       |               | done        | #6870 |
+| W1.2    | docs                    | 1          | Root truth                                     |               | done        | #6884 |
 | W1.3    | docs                    | 1          | Remove dead references now                     |               | not started |     |
 | W2.1    | docs                    | 2          | The boundary list and the line caps            |               | not started |     |
 | W2.2    | docs                    | 2          | Docs rulings for `R2`                          |               | not started |     |
