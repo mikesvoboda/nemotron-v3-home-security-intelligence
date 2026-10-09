@@ -234,9 +234,17 @@ def merge_api_keys(existing: str, new_key: str) -> str:
             parsed = None
         if isinstance(parsed, list):
             keys.extend(str(item) for item in parsed if str(item))
-    # Dedupe while preserving order; the generated key keeps the lead.
+    # Dedupe while preserving order; the generated key keeps the lead. An
+    # explicit loop rather than the ``x in seen or seen.add(x)`` comprehension:
+    # mypy 2.3 (the CI Type Check leg, which follows imports in here even
+    # though the pre-commit mypy hook's ``files:`` filter does not) rejects
+    # ``set.add`` used as a value — [func-returns-value].
     seen: set[str] = set()
-    unique = [k for k in keys if not (k in seen or seen.add(k))]
+    unique: list[str] = []
+    for key in keys:
+        if key not in seen:
+            seen.add(key)
+            unique.append(key)
     return json.dumps(unique)
 
 
