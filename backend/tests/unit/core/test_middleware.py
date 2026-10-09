@@ -2,13 +2,13 @@
 
 This module provides comprehensive tests for:
 - RequestIDMiddleware: Request ID generation and propagation
-- AuthMiddleware: API key authentication (extending existing coverage)
+- AuthMiddleware: the EXPOSE_LAN gate composed with RequestIDMiddleware
 - WebSocket authentication functions
 """
 
 import hashlib
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI, WebSocket, status
@@ -560,178 +560,6 @@ class TestAuthenticateWebsocket:
 
 
 # =============================================================================
-# AuthMiddleware Additional Tests (Extending existing coverage)
-# =============================================================================
-
-
-class TestAuthMiddlewareExtended:
-    """Extended tests for AuthMiddleware class to improve coverage."""
-
-    @pytest.fixture(autouse=True)
-    def cleanup_env(self):
-        """Clean up environment after each test."""
-        yield
-        os.environ.pop("API_KEY_ENABLED", None)
-        os.environ.pop("API_KEYS", None)
-        get_settings.cache_clear()
-
-    def test_middleware_hash_key_static_method(self):
-        """Test the static _hash_key method on the middleware class."""
-        key = "static_method_test"
-        expected = hashlib.sha256(key.encode()).hexdigest()
-        assert AuthMiddleware._hash_key(key) == expected
-
-    def test_load_key_hashes_from_settings(self):
-        """Test that _load_key_hashes correctly loads from settings."""
-        test_key = "load_test_key"
-        os.environ["API_KEYS"] = f'["{test_key}"]'
-        get_settings.cache_clear()
-
-        app = FastAPI()
-        middleware = AuthMiddleware(app)
-
-        expected_hash = hashlib.sha256(test_key.encode()).hexdigest()
-        assert expected_hash in middleware.valid_key_hashes
-
-    def test_exempt_paths_with_docs_subpath(self):
-        """Test that /docs/* subpaths are exempt."""
-        os.environ["API_KEY_ENABLED"] = "true"
-        os.environ["API_KEYS"] = '["test_key"]'
-        get_settings.cache_clear()
-
-        app = FastAPI()
-        middleware = AuthMiddleware(app)
-
-        assert middleware._is_exempt_path("/docs") is True
-        assert middleware._is_exempt_path("/docs/") is True
-        assert middleware._is_exempt_path("/docs/oauth2-redirect") is True
-
-    def test_exempt_paths_with_redoc_subpath(self):
-        """Test that /redoc/* subpaths are exempt."""
-        os.environ["API_KEY_ENABLED"] = "true"
-        os.environ["API_KEYS"] = '["test_key"]'
-        get_settings.cache_clear()
-
-        app = FastAPI()
-        middleware = AuthMiddleware(app)
-
-        assert middleware._is_exempt_path("/redoc") is True
-        assert middleware._is_exempt_path("/redoc/") is True
-
-    def test_non_exempt_api_paths(self):
-        """Test that API paths are not exempt."""
-        app = FastAPI()
-        middleware = AuthMiddleware(app, valid_key_hashes=set())
-
-        assert middleware._is_exempt_path("/api/events") is False
-        assert middleware._is_exempt_path("/api/cameras") is False
-        assert middleware._is_exempt_path("/api/detections") is False
-        assert middleware._is_exempt_path("/api/telemetry") is False
-
-    def test_custom_valid_key_hashes_override(self):
-        """Test that custom valid_key_hashes override settings-loaded hashes."""
-        os.environ["API_KEYS"] = '["settings_key"]'
-        get_settings.cache_clear()
-
-        custom_hash = hashlib.sha256(b"custom_key").hexdigest()
-        app = FastAPI()
-        middleware = AuthMiddleware(app, valid_key_hashes={custom_hash})
-
-        # Should only have custom hash, not settings hash
-        assert custom_hash in middleware.valid_key_hashes
-        settings_hash = hashlib.sha256(b"settings_key").hexdigest()
-        assert settings_hash not in middleware.valid_key_hashes
-
-    @pytest.mark.asyncio
-    async def test_dispatch_auth_disabled_path(self):
-        """Test dispatch when api_key_enabled is false uses session auth.
-
-        When api_key_enabled=False, the middleware falls back to session
-        cookie authentication. This test mocks session validation to pass.
-        """
-        os.environ["API_KEY_ENABLED"] = "false"
-        get_settings.cache_clear()
-
-        app = FastAPI()
-        app.add_middleware(AuthMiddleware)
-
-        @app.get("/api/test")
-        async def test_endpoint():
-            return {"message": "success"}
-
-        # Mock session validation to return True (valid session)
-        with patch.object(AuthMiddleware, "_validate_session", return_value=True, autospec=True):
-            client = TestClient(app, cookies={"session_id": "test-session"})
-            response = client.get("/api/test")
-
-        assert response.status_code == 200
-        assert response.json() == {"message": "success"}
-
-    def test_api_key_from_both_header_and_query_uses_header(self):
-        """Test that header takes precedence when both are provided."""
-        valid_key = "header_key"
-        os.environ["API_KEY_ENABLED"] = "true"
-        os.environ["API_KEYS"] = f'["{valid_key}"]'
-        get_settings.cache_clear()
-
-        app = FastAPI()
-        app.add_middleware(AuthMiddleware)
-
-        @app.get("/api/test")
-        async def test_endpoint():
-            return {"message": "success"}
-
-        client = TestClient(app)
-        # Valid header, invalid query param
-        response = client.get(
-            "/api/test?api_key=invalid_query_key", headers={"X-API-Key": valid_key}
-        )
-
-        assert response.status_code == 200
-
-    def test_missing_key_detailed_error_message(self):
-        """Test that missing key returns descriptive error message."""
-        os.environ["API_KEY_ENABLED"] = "true"
-        os.environ["API_KEYS"] = '["test_key"]'
-        get_settings.cache_clear()
-
-        app = FastAPI()
-        app.add_middleware(AuthMiddleware)
-
-        @app.get("/api/test")
-        async def test_endpoint():
-            return {"message": "success"}
-
-        client = TestClient(app)
-        response = client.get("/api/test")
-
-        assert response.status_code == 401
-        detail = response.json()["detail"]
-        assert "API key required" in detail
-        assert "X-API-Key" in detail
-        assert "api_key" in detail
-
-    def test_invalid_key_error_message(self):
-        """Test that invalid key returns correct error message."""
-        os.environ["API_KEY_ENABLED"] = "true"
-        os.environ["API_KEYS"] = '["valid_key"]'
-        get_settings.cache_clear()
-
-        app = FastAPI()
-        app.add_middleware(AuthMiddleware)
-
-        @app.get("/api/test")
-        async def test_endpoint():
-            return {"message": "success"}
-
-        client = TestClient(app)
-        response = client.get("/api/test", headers={"X-API-Key": "wrong_key"})
-
-        assert response.status_code == 401
-        assert response.json()["detail"] == "Invalid API key"
-
-
-# =============================================================================
 # Integration-style tests for middleware chain
 # =============================================================================
 
@@ -743,21 +571,21 @@ class TestMiddlewareChain:
     def cleanup_env(self):
         """Clean up environment after each test."""
         yield
-        os.environ.pop("API_KEY_ENABLED", None)
+        os.environ.pop("EXPOSE_LAN", None)
         os.environ.pop("API_KEYS", None)
         get_settings.cache_clear()
 
     def test_request_id_and_auth_middleware_together(self):
         """Test that RequestIDMiddleware and AuthMiddleware work together."""
         test_key = "integration_key"
-        os.environ["API_KEY_ENABLED"] = "true"
+        os.environ["EXPOSE_LAN"] = "true"
         os.environ["API_KEYS"] = f'["{test_key}"]'
         get_settings.cache_clear()
 
         app = FastAPI()
-        # Add both middlewares (order matters: last added runs first)
-        app.add_middleware(AuthMiddleware)
+        # The real app's order: the auth gate is added last, so it runs first
         app.add_middleware(RequestIDMiddleware)
+        app.add_middleware(AuthMiddleware)
 
         @app.get("/api/test")
         async def test_endpoint():
@@ -770,15 +598,15 @@ class TestMiddlewareChain:
         assert "X-Request-ID" in response.headers
         assert response.json() == {"message": "success"}
 
-    def test_request_id_present_on_auth_failure(self):
-        """Test that request ID is still added even when auth fails."""
-        os.environ["API_KEY_ENABLED"] = "true"
+    def test_refusal_is_answered_before_request_id_middleware(self):
+        """The gate runs first, as in backend/main.py: a refusal never reaches inner layers."""
+        os.environ["EXPOSE_LAN"] = "true"
         os.environ["API_KEYS"] = '["valid_key"]'
         get_settings.cache_clear()
 
         app = FastAPI()
-        app.add_middleware(AuthMiddleware)
         app.add_middleware(RequestIDMiddleware)
+        app.add_middleware(AuthMiddleware)
 
         @app.get("/api/test")
         async def test_endpoint():
@@ -788,18 +616,17 @@ class TestMiddlewareChain:
         response = client.get("/api/test")  # No API key
 
         assert response.status_code == 401
-        # Request ID should still be present from RequestIDMiddleware
-        assert "X-Request-ID" in response.headers
+        assert "X-Request-ID" not in response.headers
 
     def test_exempt_path_with_both_middlewares(self):
         """Test that exempt paths work with both middlewares."""
-        os.environ["API_KEY_ENABLED"] = "true"
+        os.environ["EXPOSE_LAN"] = "true"
         os.environ["API_KEYS"] = '["valid_key"]'
         get_settings.cache_clear()
 
         app = FastAPI()
-        app.add_middleware(AuthMiddleware)
         app.add_middleware(RequestIDMiddleware)
+        app.add_middleware(AuthMiddleware)
 
         @app.get("/health")
         async def health():
@@ -815,13 +642,13 @@ class TestMiddlewareChain:
     def test_provided_request_id_preserved_through_chain(self):
         """Test that provided request ID is preserved through middleware chain."""
         test_key = "chain_test_key"
-        os.environ["API_KEY_ENABLED"] = "true"
+        os.environ["EXPOSE_LAN"] = "true"
         os.environ["API_KEYS"] = f'["{test_key}"]'
         get_settings.cache_clear()
 
         app = FastAPI()
-        app.add_middleware(AuthMiddleware)
         app.add_middleware(RequestIDMiddleware)
+        app.add_middleware(AuthMiddleware)
 
         @app.get("/api/test")
         async def test_endpoint():
