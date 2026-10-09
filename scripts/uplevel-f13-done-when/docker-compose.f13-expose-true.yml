@@ -1,0 +1,8 @@
+# Done-when run 1: EXPOSE_LAN=true. Layered on docker-compose.f13-stack.yml,
+# which leaves the variable absent so run 2 ("EXPOSE_LAN unset") needs no edit
+# at all — run 2 just drops this file and force-recreates the backend.
+name: f13-done-when
+services:
+  backend:
+    environment:
+      - EXPOSE_LAN=true
