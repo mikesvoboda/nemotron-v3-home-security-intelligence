@@ -919,7 +919,7 @@ track open.
   - `backend/services/notification_filter.py:175` `_risk_score_to_level` hard-codes 80/60/40 (`:184`
     `score >= 80`); `backend/models/notification_preferences.py:34` documents CRITICAL 80-100, HIGH
     60-79, MEDIUM 40-59 [V]
-  - The shipped bands are 29/59/84: `backend/core/config.py:2423` `severity_low_max` (default 29,
+  - The shipped bands are 29/59/84: `backend/core/config.py:2426` `severity_low_max` (default 29,
     `:2429` 59, `:2435` 84), `backend/evaluation/levels.py:22`; the analyzer stores `risk_level`
     through `SeverityService` (`backend/services/severity.py:137` `risk_score_to_severity`) [V]
   - `backend/services/event_broadcaster.py:332` `requires_ack` tests a raw `risk_score >= 80`, a
@@ -1039,7 +1039,7 @@ track open.
     `backend/services/vlm_analyzer.py:617` writes only the `event_detections` junction; no per-event
     summary of the strongest detection is persisted [V]
   - The detector labels will not match: `backend/services/detector_client.py:1286` stores
-    `object_type=detection_data.get("class")` (COCO labels), and `backend/core/config.py:1832` keys
+    `object_type=detection_data.get("class")` (COCO labels), and `backend/core/config.py:1835` keys
     thresholds on `car`, `truck`; there is no `vehicle` label, so even a correct producer is silent
     for vehicles unless it maps classes. `backend/services/batch_coalescer.py:79` `VEHICLE_TYPES` is
     a reusable set. The exact YOLO26 label strings are inferred from config keys [A]
@@ -1130,10 +1130,10 @@ track open.
     none, so neither branch fires in production [V]
   - The single-detection analyze fast path is disabled: `backend/services/batch_aggregator.py:1194`
     says the defaults always return False; the code defaults are threshold 2.0 and an empty type
-    list (`backend/core/config.py:1892`, `:1902`), while compose sets
+    list (`backend/core/config.py:1895`, `:1902`), while compose sets
     `FAST_PATH_CONFIDENCE_THRESHOLD=0.90` (`docker-compose.prod.yml:620`); it stays off because
     `fast_path_object_types` is empty [V]
-  - `backend/core/config.py:925` `batch_window_seconds` 90 and idle timeout 30 bound the first
+  - `backend/core/config.py:928` `batch_window_seconds` 90 and idle timeout 30 bound the first
     notification from below; the audit row `docs/vss-integration/10-audit-feature-inventory.md:832`
     (at `5c605e1d`) still says 'WIRED; may fail with session=None [A]' [V]
   - The design intent is that weapon hits reach the VLM 'as hints, never triggers'
@@ -1323,7 +1323,7 @@ track open.
     candidates [V]
   - Quiet hours compare the event timestamp directly (`backend/services/notification_filter.py:160`
     `timestamp.strftime`); `backend/models/notification_preferences.py:157` `QuietHoursPeriod` has
-    no timezone while `backend/core/config.py:939` `camera_timezone` exists; event times stay
+    no timezone while `backend/core/config.py:942` `camera_timezone` exists; event times stay
     arrival time (`backend/services/vlm_analyzer.py:525`) [V]
   - `backend/services/__init__.py:8` exports `AlertDeduplicationService` with no production caller;
     cooldown exists only in `backend/services/alert_engine.py:1005` `_check_cooldown`, so the filter
@@ -1690,7 +1690,7 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
   - `backend/services/vlm_analyzer.py:554` measures `latency_ms` and persists it
     (`backend/models/event_verification.py:136`) but no histogram is observed, so S4 p95 is not
     alertable; tracing is mentioned only in a docstring (`backend/services/vlm_client.py:890`) [V]
-  - `backend/main.py:1150` registers `ai-vlm` with `critical=False`, so a dead VLM marks the
+  - `backend/main.py:1151` registers `ai-vlm` with `critical=False`, so a dead VLM marks the
     platform degraded rather than down [V]
   - The spec asks for the health endpoint plus a Prometheus alert
     (`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md:353`); the Alertmanager
@@ -1786,13 +1786,13 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
     against a threshold of 5 (`backend/services/vlm_client.py:249`), so the breaker opens after
     about three batches; the module docstring concedes a second attempt fits only if the first
     failed fast (`backend/services/vlm_client.py:21`) [V]
-  - No overall deadline: `backend/core/config.py:1130-1134` `ai_vlm_read_timeout` is a 25 s
+  - No overall deadline: `backend/core/config.py:1133-1137` `ai_vlm_read_timeout` is a 25 s
     per-read idle budget for an attempt (httpx resets it per chunk) - no wall ceiling on
     two attempts exists; a stalled attempt costs 25 s + connect against S4's 30 s [V]
   - The only semaphore, `backend/services/inference_semaphore.py`, is used by
     `backend/services/detector_client.py:99` only; `vlm_client.py`, `vlm_analyzer.py` and
-    `pipeline_workers.py` have none. `backend/core/config.py:1022` `analysis_worker_count` (2) and
-    `backend/core/config.py:1326` `vlm_slot_count` (2) have no cross-validator [V]
+    `pipeline_workers.py` have none. `backend/core/config.py:1025` `analysis_worker_count` (2) and
+    `backend/core/config.py:1329` `vlm_slot_count` (2) have no cross-validator [V]
   - Non-verdict callers bypass `VlmClient` and its breaker:
     `backend/services/summary_generator.py:87` and `:443` POST `/completion`;
     `backend/services/pipeline_quality_audit_service.py:137` and `:392` use the same endpoint [V]
@@ -2020,7 +2020,7 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
     so it is never redelivered; DLQ and stale-claim recovery cover only consumer crashes (verifier
     read [A])
   - A database failure after a successful VLM call discards a paid-for verdict and creates no Event;
-    partial mitigation: `backend/main.py:958` `recover_orphaned_detections` re-injects detections
+    partial mitigation: `backend/main.py:959` `recover_orphaned_detections` re-injects detections
     with no event link at startup only, under a new batch id (verifier read [A])
   - `analysis_batch_error` is recorded through `record_pipeline_error` but is not in
     `KNOWN_ERROR_TYPES` (`backend/core/sanitization.py:315`), so it probably collapses to 'other';
@@ -2042,8 +2042,8 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
 `P2` · `debt` · actor `agent-now` · status `open`
 
 - **Evidence**
-  - `backend/main.py:1132` registers `ai-vlm` only inside the FastAPI lifespan, with
-    `critical=False` (`backend/main.py:1150`) and a stub health check nobody polls [V]
+  - `backend/main.py:1133` registers `ai-vlm` only inside the FastAPI lifespan, with
+    `critical=False` (`backend/main.py:1151`) and a stub health check nobody polls [V]
   - `backend/services/degradation_manager.py:487` `update_service_health` warns and returns for an
     unregistered name (`backend/services/degradation_manager.py:502`); replay and CLI processes
     never run the lifespan, so the per-item warning there is a harness artifact (handoff Addendum 2,
@@ -2077,10 +2077,10 @@ What happens when the VLM fails, is slow, is truncated or varies, and whether an
 `P3` · `debt` · actor `agent-now` · status `open`
 
 - **Evidence**
-  - `backend/main.py:770` the startup check calls `client._probe_enforcement([])` with no image
+  - `backend/main.py:771` the startup check calls `client._probe_enforcement([])` with no image
     parts, and `backend/services/vlm_client.py:340` builds the probe body with `*image_parts[:1]`,
     so the startup check is text-only; the log line 'ENFORCED at startup probe' is at
-    `backend/main.py:914` [V]
+    `backend/main.py:915` [V]
   - The per-call proof is image-bearing: `backend/services/vlm_client.py:773` runs
     `_probe_enforcement(parts)` inside `assess` until the client has proved enforcement, so the
     startup check is visibility, not the gate [V]
@@ -2132,7 +2132,7 @@ What the model is asked, what it is shown, and how its score maps to the levels 
   - Budget arithmetic from the module constants [C]: `backend/services/vlm_client.py:91`
     `_ASSESS_MAX_TOKENS = 1024`, 1,280 per still (`:107`), `backend/services/vlm_client.py:115`
     `_SERVED_TOKENS_PER_COUNTED = 1.5`: 16,384 - 1,024 - 4x1,280 = 10,240 served tokens, roughly
-    100-110 rows, against `backend/core/config.py:964` `batch_max_detections` (500)
+    100-110 rows, against `backend/core/config.py:967` `batch_max_detections` (500)
   - Per-row cost, added after the round-2 audit [C: a scratch script calling
     `VlmClient._fitted_prompt` on 2026-10-03 with 500 synthetic person rows (`id`, `object_type`,
     `confidence`, a four-number `bbox`, an ISO `detected_at`), four attached stills and the default
@@ -2178,7 +2178,7 @@ What the model is asked, what it is shown, and how its score maps to the levels 
       calm-neutrality and ordinary-visitor rules. This block's subject (a rubric, then a measured
       mapping from scores to the level bands) is half done: the rubric rung is met by the shipped
       text, the measured mapping is not. The single-message, no-system-role facts still hold.
-  - The bands S2/S3 are judged on are 29/59/84 (`backend/core/config.py:2423` `severity_low_max`
+  - The bands S2/S3 are judged on are 29/59/84 (`backend/core/config.py:2426` `severity_low_max`
     default 29, `:2429` 59, `:2435` 84; `backend/evaluation/levels.py:22`); the prompt never
     mentions them [V]
   - The response schema gives `risk_score` only a 0-100 range
@@ -2561,7 +2561,7 @@ Clips, frame selection, tracking and the detector gate.
     sampled into still bursts, scored by the product VLM' because of C1 [V]
   - The product contract is stills: `backend/services/vlm_verdict.py:113` `image_paths` max 4;
     `backend/services/vlm_client.py:107` `_IMAGE_TOKENS_PER_FRAME = 1280`;
-    `backend/core/config.py:1334` `vlm_context_window` default 32768, divided across `VLM_PARALLEL`
+    `backend/core/config.py:1337` `vlm_context_window` default 32768, divided across `VLM_PARALLEL`
     slots (`docker-compose.prod.yml:206` default 2) [V]
   - The clips are long: `docs/superpowers/specs/2026-09-30-synthbench-h3-clips-design.md:58` records
     243-frame clips and `:57` 124-frame clips [V]
@@ -2667,12 +2667,12 @@ Clips, frame selection, tracking and the detector gate.
     claim cites no measurement [V]
   - Batches are per camera (`backend/services/batch_aggregator.py:578`), so the 4-slot budget
     (`backend/services/key_frame_selector.py:37` `MAX_KEY_FRAMES`) is capped by distinct classes;
-    the window is 90 s (`backend/core/config.py:925` `batch_window_seconds`) [V]
+    the window is 90 s (`backend/core/config.py:928` `batch_window_seconds`) [V]
   - The spec says 'the best detection per camera/class plus the most recent'
     (`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md:116`); the code has no
     dedicated most-recent pick, recency is only the tie-break at
     `backend/services/key_frame_selector.py:70` [V]
-  - `backend/core/config.py:2245` `video_frame_interval_seconds` and `backend/core/config.py:2595`
+  - `backend/core/config.py:2248` `video_frame_interval_seconds` and `backend/core/config.py:2598`
     `video_max_frames` are uniform sampling settings for the detector, not a VLM recall design [V]
 - **Why it matters.** Behaviours that need temporal context (approach, loitering, grab-and-run,
   tampering, entry, a prop that appears later) are judged from a single peak-confidence frame, and a
@@ -2762,7 +2762,7 @@ Clips, frame selection, tracking and the detector gate.
 
 - **Evidence**
   - `backend/services/batch_aggregator.py:578` batches are keyed per camera;
-    `backend/core/config.py:925` `batch_window_seconds` 90 and `backend/core/config.py:930` idle
+    `backend/core/config.py:928` `batch_window_seconds` 90 and `backend/core/config.py:933` idle
     timeout 30 [V]
   - `backend/services/vlm_verdict.py:91` `VlmAssessContext` carries camera, detections, zones,
     `zone_crossing`, household, timestamp and specialist outputs: no prior events and no other
@@ -2920,7 +2920,7 @@ Clips, frame selection, tracking and the detector gate.
   - The prompt frames the task as verifying 'the detected candidate'
     (`backend/services/vlm_client.py:540`); with `Detections: []` the shipped prompt returns
     `uncertain` and 0 on most incident stills (`docs/benchmarks/synthbench/p5a-probes.md:75`) [V]
-  - `backend/core/config.py:1826` `detection_class_thresholds` cover COCO person, vehicle, animal
+  - `backend/core/config.py:1829` `detection_class_thresholds` cover COCO person, vehicle, animal
     and bag classes only; `ai/gateway/adapters/yolo26.py:42` is the COCO vocabulary [V]
   - No scene-level or candidate-free lane exists in `backend/`, and no scope-limit statement
     (verifier grep [A])
@@ -3179,7 +3179,7 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     from `verdict.risk_score`, with no call to `apply_verdict_invariants`
     (`backend/services/vlm_analyzer.py:255`, called by the analyzer at `:570`), which clamps a
     `rejected` score to `low_max` [V]
-  - `backend/evaluation/levels.py:22` hard-codes 29/59/84 while `backend/core/config.py:2423`
+  - `backend/evaluation/levels.py:22` hard-codes 29/59/84 while `backend/core/config.py:2426`
     `severity_low_max` is env-configurable; no test ties them [V]
   - The package front door still describes the Nemotron prompt harness (at `5c605e1d`; both were
     rewritten or deleted in `d8482861`, see the update below): the docstring on line 1 of
@@ -3190,7 +3190,7 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
     count over the `verdict` field, 2026-10-03: confirmed 440, uncertain 6, rejected 4]. The four
     rejected rows are all benign (`B-batch-5-029`, `-039`, `-049` and `-094`, scenario
     `landscaper_machete`) and carry stored scores 0, 0, 10 and 0, all at or below the default
-    `severity_low_max` of 29 (`backend/core/config.py:2423`), so the `rejected` clamp in
+    `severity_low_max` of 29 (`backend/core/config.py:2426`), so the `rejected` clamp in
     `apply_verdict_invariants` would change none of them and S2 19/209 and S3 87/241 stand. The
     flagship's 15 rejected rows (`docs/benchmarks/synthbench/p5a-2026-09-30.md:101`) could not be
     checked: no flagship replay is in this store [V: `run.json` of every replay under
@@ -3756,7 +3756,7 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   - `backend/evaluation/eval_store.py:34` `_REAL_MEDIA_PREFIXES` is four literal substrings
     (`/data/captures`, `/var/lib/hsi`, `captures/`, `data/events`); `put_item`
     (`backend/evaluation/eval_store.py:88`) refuses only those (`:91`) and the repo checkout [V]
-  - The actual capture root default is `/export/foscam` (`backend/core/config.py:887`
+  - The actual capture root default is `/export/foscam` (`backend/core/config.py:890`
     `foscam_base_path`, default at `:888`), which matches none of them [V]
   - `backend/evaluation/control_freeze.py:61` imports the same tuple and
     `backend/evaluation/control_freeze.py:173` reuses it, so the gap is shared [V]
@@ -3827,10 +3827,10 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   - `synthbench/run/replay.py:179` builds its settings with `get_settings().model_copy(...)`, and
     `backend/evaluation/vlm_replay.py:95` and `:288` do the same;
     `backend/services/vlm_client.py:234` also calls `get_settings()` [V]
-  - `backend/core/config.py:813` `environment` defaults to `production`; `database_url` defaults to
+  - `backend/core/config.py:817` `environment` defaults to `production`; `database_url` defaults to
     the empty string (`backend/core/config.py:377`) and `validate_database_url` raises
-    '`DATABASE_URL` environment variable is required' (`backend/core/config.py:3293`);
-    `validate_production_passwords` (`backend/core/config.py:3192`) also rejects weak or default
+    '`DATABASE_URL` environment variable is required' (`backend/core/config.py:3296`);
+    `validate_production_passwords` (`backend/core/config.py:3195`) also rejects weak or default
     passwords and requires a Redis password in `production` and `staging` [V]
   - The 2026-10-03 runs worked only with `ENVIRONMENT=development` and a placeholder `DATABASE_URL`;
     no `VlmClient` setting depends on either
@@ -4930,9 +4930,9 @@ Face, plate and re-ID legs and the specialists not yet built.
 `P1` (verifiers read `P2`) · `gap` · actor `agent-now` · status `open`
 
 - **Evidence**
-  - `backend/core/config.py:2692` `backend_model_preload` defaults False (auto-true only when setup
+  - `backend/core/config.py:2695` `backend_model_preload` defaults False (auto-true only when setup
     sees 24 GB or more: `setup_lib/nvidia_detect.py:221` `PRELOAD_MIN_VRAM_MB`);
-    `backend/main.py:640` `select_preload_candidates` returns nothing when off; compose defaults it
+    `backend/main.py:641` `select_preload_candidates` returns nothing when off; compose defaults it
     off (`docker-compose.prod.yml:489`) and `docker-compose.ghcr.yml` has no `BACKEND_MODEL_PRELOAD`
     [V]
   - `models.yml:148` face-detector-scrfd and `models.yml:169` face-recognizer rows are
@@ -5032,9 +5032,9 @@ Face, plate and re-ID legs and the specialists not yet built.
 `P2` · `risk` · actor `owner-hardware` · status `open`
 
 - **Evidence**
-  - `backend/core/config.py:1791` `face_min_size_px` (40), `backend/core/config.py:1797`
+  - `backend/core/config.py:1794` `face_min_size_px` (40), `backend/core/config.py:1800`
     `face_scrfd_threshold` and the face match threshold (0.68) are PROVISIONAL, to be calibrated on
-    the owner's gallery and night footage; `backend/core/config.py:1713` `reid_similarity_threshold`
+    the owner's gallery and night footage; `backend/core/config.py:1716` `reid_similarity_threshold`
     is 0.7, 'PROVISIONAL - calibrate against real household galleries' [V]
   - No calibration run, ROC, operating point or calibration script exists in the repo (verifier grep
     [A])
@@ -5327,7 +5327,7 @@ The `ai-vlm` image, compose files, provisioning, restart tooling and release art
     (`docker-compose.prod.yml:126` 'the default `up` never starts it') and pinned by
     `backend/tests/unit/core/test_ai_vlm_compose_service.py:74` (`profiles == ["vlm"]`) and `:84`
     (no `depends_on`) [V]
-  - `backend/core/config.py:1055` makes `vlm` the only accepted `PIPELINE_MODE`, so there is no
+  - `backend/core/config.py:1058` makes `vlm` the only accepted `PIPELINE_MODE`, so there is no
     fallback mode [V]
   - The manual deploy docs give a plain `up -d` with no `--profile vlm`: `README.md:307`,
     `AGENTS.md:65`; `setup_lib/deploy_phases.py:108` passes `profile="vlm"` [V]
@@ -5455,7 +5455,7 @@ The `ai-vlm` image, compose files, provisioning, restart tooling and release art
     when the mmproj path is empty, so a missing or misnamed mmproj degrades silently [V]
   - Nothing at runtime compares the served GGUF to a pinned hash: the served model identity is
     `Path(model_path).stem` (`backend/services/vlm_client.py:316`), and the build pin defaults empty
-    (`docker-compose.prod.yml:562` `VLM_REQUIRED_BUILD`, `backend/core/config.py:1310`) even though
+    (`docker-compose.prod.yml:562` `VLM_REQUIRED_BUILD`, `backend/core/config.py:1313`) even though
     `.env.example:263` sets `b7972` [V]
   - `ai/vlm/Dockerfile:36` builds llama.cpp with `git clone` and `git checkout` of the mutable tag
     `b7972` (`ai/vlm/Dockerfile:47`); `docker-compose.prod.yml:138` runs `ai-vlm` with
@@ -5613,18 +5613,21 @@ Exposure of the API, prompt trust, retention, erasure, egress and licences.
     `auth_basic` or `allow`/`deny` in the file [V]
   - `backend/main.py:1490` (NEM-5527) records that the global `AuthMiddleware` is disabled;
     `backend/main.py` has no `add_middleware(AuthMiddleware)` and
-    `backend/api/middleware/auth.py:214` defines the class [V]
+    `backend/api/middleware/auth.py:214` defines the class [V] (note 2026-10-09: all three
+    numbers are (at `5c605e1d`); B1.5 (#6861) deleted the disabled-note and added
+    `app.add_middleware(AuthMiddleware)` at `backend/main.py:1578` — the closure note below
+    carries the current state)
   - Route modules with an auth dependency: `admin`, `auth`, `dlq`, `inbound_webhooks`, `debug`,
     `system` (grep of `backend/api/routes` for `Depends(require_`/`verify_`/`get_current`). A match
     count of 0 for `events.py`, `media.py`, `face_recognition.py`, `household.py`, `notification.py`
     and `zones.py` [V]
   - `require_admin_access` (`backend/api/routes/admin.py:262`) checks only `admin_enabled` and no
-    credential; `backend/core/config.py:832` defaults it True and says `admin_api_key` is enforced
+    credential; `backend/core/config.py:835` defaults it True and says `admin_api_key` is enforced
     by nothing; but `docker-compose.prod.yml:618` (backend service) sets
     `ADMIN_ENABLED=${ADMIN_ENABLED:-false}`, so the admin wipe routes return 403 by default in the
     shipped compose. Behind `ADMIN_ENABLED=true` anyone who can reach the port can call them [V]
   - The WebSocket gate is a no-op by default: `backend/api/middleware/auth.py:93` returns True when
-    `api_key_enabled` is false, and `backend/core/config.py:1932` defaults it False [V]
+    `api_key_enabled` is false, and `backend/core/config.py:1935` defaults it False [V]
   - `POST /api/notification/test` (`backend/api/routes/notification.py:252`) accepts caller-supplied
     `email_recipients` and `webhook_url` (`backend/api/schemas/notification.py:112`, `:115`; the
     webhook URL passes SSRF validation) and records the audit actor as the literal 'anonymous'
@@ -5655,7 +5658,7 @@ Exposure of the API, prompt trust, retention, erasure, egress and licences.
   documented exemption; the unauthenticated-request matrix (`/api/events`, `/api/media/*`,
   `/api/known-persons`, `/api/household/members`, `/api/notification/test`, `/ws/events`) is tested
   against the prod compose configuration; `AGENTS.md:150`, `AGENTS.md:353`,
-  `docs/operator/admin/security.md` and `backend/core/config.py:832` are made consistent with it.
+  `docs/operator/admin/security.md` and `backend/core/config.py:835` are made consistent with it.
 - **Depends on.** OD-12. Related: ISS-009 and ISS-062 (unauthenticated writes feed the prompt),
   ISS-030 and ISS-072 (stored data worth protecting).
 - **Tracked as.** None found. `docs/vss-integration/10-audit-feature-inventory.md:967` (at
@@ -5694,10 +5697,10 @@ Exposure of the API, prompt trust, retention, erasure, egress and licences.
 `P1` (verifiers read `P1`, `P2`) · `gap` · actor `agent-now` · status `open`
 
 - **Evidence**
-  - `backend/main.py:1047` builds `CleanupService()` with defaults;
+  - `backend/main.py:1048` builds `CleanupService()` with defaults;
     `backend/services/cleanup_service.py:124` `delete_images` defaults False, so the original camera
     stills (the VLM key frames) are never unlinked at the 30-day retention
-    (`backend/core/config.py:918` `retention_days`); the manual routes pass `delete_images=False`
+    (`backend/core/config.py:921` `retention_days`); the manual routes pass `delete_images=False`
     too (`backend/api/routes/system.py:3302`, `:3338`) and no setting or environment variable
     exposes it [V]
   - The stills default is documented, not accidental: `docs/operator/storage-retention.md:69` lists
@@ -5753,7 +5756,7 @@ Exposure of the API, prompt trust, retention, erasure, egress and licences.
     `backend/api/routes/face_recognition.py:254` (DELETE) and the enrollment approval
     `backend/api/routes/face_recognition.py:1558`; grep for `Depends(` auth guards and `audit` in
     `household.py` finds none [V]
-  - `backend/core/config.py:1759` `face_auto_enroll_enabled` defaults True, so a candidate queue
+  - `backend/core/config.py:1762` `face_auto_enroll_enabled` defaults True, so a candidate queue
     exists and its approval route is also unauthenticated [V]
   - `backend/services/vlm_analyzer.py:586` stores the prompt text as `llm_prompt`, but nothing
     records which household or gallery version produced the verdict [V]
@@ -6207,7 +6210,7 @@ Drift left by the legacy-path retirement, stale docs and CI gaps.
     `osnet_loader.get_reid_handle()` embeds crops with the resident OSNet handle from
     `backend/services/osnet_loader.py` (CPU torch wheels pinned in `pyproject.toml`) [V]
   - `docker-compose.prod.yml:601` sets `ENRICHMENT_LIGHT_URL`; the `enrichment_light_url` setting
-    (`backend/core/config.py:1501`) is read only by the model-management route
+    (`backend/core/config.py:1504`) is read only by the model-management route
     (`backend/api/routes/model_management.py:172`), so the original 'nothing reads it' claim is
     withdrawn; no pipeline code dials `/enrich-lt` [V]
   - `docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md:119` still says 're-ID and
@@ -6253,9 +6256,9 @@ Drift left by the legacy-path retirement, stale docs and CI gaps.
     enrichment)'; `docker-compose.prod.yml:590` and `:591` still pass `CTX_SIZE=262144` and
     `PARALLEL=8` to the backend (documented as legacy defaults); `models.yml:83` the `yolo26` row is
     `enabled: false` with `vram_mb: 0` although it is the critical detector [V]
-  - `backend/core/config.py:2639` says 'Nemotron only in `PIPELINE_MODE`=legacy' although legacy now
-    raises at boot (`backend/core/config.py:1055`); two context-window sources exist
-    (`backend/core/config.py:1233` `nemotron_context_window` versus the VLM per-slot 16,384) [V]
+  - `backend/core/config.py:2642` says 'Nemotron only in `PIPELINE_MODE`=legacy' although legacy now
+    raises at boot (`backend/core/config.py:1058`); two context-window sources exist
+    (`backend/core/config.py:1236` `nemotron_context_window` versus the VLM per-slot 16,384) [V]
   - `backend/ai_contract/providers.py:193` registers a VLM provider with `deployed=False` under a
     comment that the flip 'rides M2', although the M2 pick was made on 2026-09-28 [V]
   - The `yolo11-face` and `yolo11-license-plate` rows (661 of the 763 MB that
@@ -6770,7 +6773,7 @@ design.md`, `2026-09-12-context-map-doc-updates.md`, `2026-09-22-docs-scan-findi
     components (`frontend/src/components/ai/PromptPlayground.tsx`, `PromptABTest.tsx`,
     `frontend/src/components/ai-audit/PromptVersionHistory.tsx`,
     `frontend/src/components/settings/PromptManagementPanel.tsx`) [V: `find`]
-  - It is live code, not a stub: the router is mounted (`backend/main.py:1631`,
+  - It is live code, not a stub: the router is mounted (`backend/main.py:1633`,
     `app.include_router(prompt_management.router)`) and the UI is on a routed page
     (`frontend/src/App.tsx:267` `/ai-audit`; `frontend/src/components/ai/AIAuditPage.tsx:508`
     `PromptVersionHistory` and `:523` `PromptPlayground`) [V]
@@ -6829,11 +6832,11 @@ design.md`, `2026-09-12-context-map-doc-updates.md`, `2026-09-22-docs-scan-findi
     backend sites still POST to a text-LLM `/completion` ... the text LLM they talk to is not
     deployed' (Addendum 7) is half right: three sites talk to `ai-vlm` by owner ruling ('Re-home on
     ai-vlm', ledger item 44, heading 'R8 SLICE S2b'), and the fourth is the enforcement probe
-  - They run without an operator. `backend/main.py:1074-1086` starts `SummaryJobScheduler` at boot
+  - They run without an operator. `backend/main.py:1075-1087` starts `SummaryJobScheduler` at boot
     with a 60-minute interval whenever Redis is up (no setting gates it), and the comment above it
     still says 'to accommodate Nemotron LLM inference time'. `BackgroundEvaluator`, which calls the
     audit service, starts by default (`background_evaluation_enabled` defaults true,
-    `backend/core/config.py:2704-2705`; `backend/main.py:1053-1067`), and the audit service is also
+    `backend/core/config.py:2707-2708`; `backend/main.py:1054-1068`), and the audit service is also
     reached from `backend/api/routes/ai_audit.py:227` and `:273`. A grep of `backend` finds
     `evaluation_queue` only in the queue module, the evaluator, `main.py`,
     `backend/services/__init__.py` and `backend/core/protocols.py`, so I found no producer for the
@@ -6970,12 +6973,12 @@ design.md`, `2026-09-12-context-map-doc-updates.md`, `2026-09-22-docs-scan-findi
     the smaller part of the class.
   - The scene-change feature has a consumer side and no production producer. Consumers [V]:
     `backend/api/routes/cameras.py` `get_camera_scene_changes` (`GET /{camera_id}/scene-changes`,
-    `:1751`) and `acknowledge_scene_change` (`:1852`; router mounted at `backend/main.py:1599`), the
+    `:1751`) and `acknowledge_scene_change` (`:1852`; router mounted at `backend/main.py:1601`), the
     `SceneChange` model (`backend/models/scene_change.py`, table `scene_changes`), the
     `scene_change.detected` WebSocket type (`backend/core/websocket/event_types.py:182`) with its
     dispatch branch (`backend/services/websocket_emitter.py:448`) and
     `EventBroadcaster.broadcast_scene_change` (`backend/services/event_broadcaster.py:891`), the
-    setting `scene_change_enabled` (`backend/core/config.py:1709`, default true; its only reader is
+    setting `scene_change_enabled` (`backend/core/config.py:1712`, default true; its only reader is
     `backend/api/routes/settings_api.py:129`, which echoes it, with `:57` mapping it to its env
     name), and in the frontend the routed `/scene-changes` page (`frontend/src/App.tsx:325`,
     `frontend/src/pages/SceneChangesPage.tsx`, change types `view_blocked`, `angle_changed`,

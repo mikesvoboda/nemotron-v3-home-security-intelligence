@@ -572,7 +572,7 @@ Recovery:
 Detection jobs land in the dead-letter queue when retries are exhausted or the
 delivery ceiling is reached (`backend/services/pipeline_workers.py:403-404`,
 `backend/services/retry_handler.py`); queue overflow uses the same policy
-(`backend/core/config.py:2248-2251`). The queues are the `dlq:`-prefixed names
+(`backend/core/config.py:2249-2252`). The queues are the `dlq:`-prefixed names
 built in `backend/core/constants.py:167-173`:
 
 ```python

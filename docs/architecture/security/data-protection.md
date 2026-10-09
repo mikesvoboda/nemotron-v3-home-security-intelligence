@@ -8,7 +8,7 @@
 
 - `backend/api/routes/media.py:42-124` - Secure media serving with path validation
 - `backend/core/sanitization.py:133-230` - Error message sanitization
-- `backend/core/config.py:1090-1098` - API key configuration (hashed storage)
+- `backend/core/config.py:1093-1101` - API key configuration (hashed storage)
 - `backend/api/middleware/auth.py` - API key hashing implementation
 - `backend/api/middleware/request_recorder.py` - Request body redaction
 - `backend/core/logging.py` - Structured logging with sensitive data filtering
@@ -145,7 +145,7 @@ def verify_api_key(provided_key: str, stored_hash: str) -> bool:
 API keys are configured via environment variables and hashed on startup:
 
 ```python
-# From backend/core/config.py:1090-1098
+# From backend/core/config.py:1093-1101
 api_key_enabled: bool = Field(
     default=False,
     description="Enable API key authentication (default: False for development)",
@@ -271,7 +271,7 @@ def redact_request_body(body: dict) -> dict:
 Detection and event data is retained for a configurable period:
 
 ```python
-# From backend/core/config.py:618-623
+# From backend/core/config.py:622-627
 retention_days: int = Field(
     default=30,
     gt=0,

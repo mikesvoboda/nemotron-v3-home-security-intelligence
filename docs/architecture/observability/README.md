@@ -111,12 +111,12 @@ Alerts use multi-window burn rate calculations for SLO monitoring. Fast burns (1
 
 | Setting                       | Location                      | Default                  | Description                   |
 | ----------------------------- | ----------------------------- | ------------------------ | ----------------------------- |
-| `LOG_LEVEL`                   | `backend/core/config.py:2059` | `WARNING`                | Minimum log level             |
-| `LOG_FILE_PATH`               | `backend/core/config.py:2063` | `data/logs/security.log` | Log file location             |
-| `OTEL_ENABLED`                | `backend/core/config.py:1950` | `True`                   | Enable OpenTelemetry tracing  |
-| `OTEL_SERVICE_NAME`           | `backend/core/config.py:1955` | `nemotron-backend`       | Service name in traces        |
-| `OTEL_TRACE_SAMPLE_RATE`      | `backend/core/config.py:1970` | `1.0`                    | Trace sampling rate (0.0-1.0) |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `backend/core/config.py:1960` | `http://alloy:4317`      | OTLP collector endpoint       |
+| `LOG_LEVEL`                   | `backend/core/config.py:2062` | `WARNING`                | Minimum log level             |
+| `LOG_FILE_PATH`               | `backend/core/config.py:2066` | `data/logs/security.log` | Log file location             |
+| `OTEL_ENABLED`                | `backend/core/config.py:1953` | `True`                   | Enable OpenTelemetry tracing  |
+| `OTEL_SERVICE_NAME`           | `backend/core/config.py:1958` | `nemotron-backend`       | Service name in traces        |
+| `OTEL_TRACE_SAMPLE_RATE`      | `backend/core/config.py:1973` | `1.0`                    | Trace sampling rate (0.0-1.0) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `backend/core/config.py:1963` | `http://alloy:4317`      | OTLP collector endpoint       |
 
 ## Monitoring Stack Components
 

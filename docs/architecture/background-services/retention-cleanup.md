@@ -22,7 +22,7 @@ The cleanup service handles:
 | `RETENTION_DAYS`     | 30      | Number of days to retain data |
 | `LOG_RETENTION_DAYS` | 7       | Number of days to retain logs |
 
-Configuration is loaded via `backend/core/config.py:619-631`:
+Configuration is loaded via `backend/core/config.py:623-635`:
 
 ```python
 retention_days: int = Field(
@@ -73,7 +73,7 @@ def __init__(
 The cleanup service is started during application lifespan:
 
 ```python
-# backend/main.py:676-678
+# backend/main.py:677-679
 cleanup_service = CleanupService()
 await cleanup_service.start()
 ```

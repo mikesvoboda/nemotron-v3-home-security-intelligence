@@ -62,7 +62,7 @@ sequenceDiagram
 
 ## Middleware Stack
 
-**Source:** imports at `backend/main.py:24-40`, registration at `backend/main.py:1351-1441`
+**Source:** imports at `backend/main.py:24-41`, registration at `backend/main.py:1352-1442`
 
 ### Middleware Imports (what actually gets registered)
 
@@ -71,7 +71,7 @@ sequenceDiagram
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-# backend/main.py:29-40
+# backend/main.py:29-41
 from backend.api.middleware import (
     AuthMiddleware,
     BaggageMiddleware,
@@ -195,12 +195,12 @@ sequenceDiagram
 
 ## Route Registration
 
-**Source:** `backend/main.py:35-71`
+**Source:** `backend/main.py:36-72`
 
 ### Route Groups
 
 ```python
-# backend/main.py:35-71
+# backend/main.py:36-72
 from backend.api.routes import (
     admin,
     ai_audit,
