@@ -627,8 +627,9 @@ Contracts this package carries (W3.1 batch 8 pruned its guide):
   ms: a 500 handler costs ~7 extra seconds of real time); 4xx returns
   immediately. That is why the shipped handlers answer client-error cases with
   400 — a test-runtime choice, not a semantic claim.
-- **The handler set is read-heavy and narrower than it looks**: 24 handlers,
-  verbs GET/POST/PATCH only — there are NO DELETE handlers; `/api/cameras` is
+- **The handler set is read-heavy and narrower than it looks**: 32 handler
+  entries over 24 unique URLs (GET 26 / POST 5 / PATCH 1), verbs GET/POST/PATCH
+  only — there are NO DELETE handlers; `/api/cameras` is
   read-only; the DLQ surface is exactly one handler (`GET /api/dlq/stats`,
   `handlers.ts:487`). List responses use the `{items, pagination:{total,limit,
 offset,has_more}}` envelope — there is no `{cameras, count}` or
@@ -646,12 +647,14 @@ either. New tests mock hooks with inline `vi.fn()` / `vi.importActual`
 factories, which is what every real hook-mocking test does. Two other mock
 layers ARE live and must not be confused with them: `mocks/` (MSW, above)
 and `services/__mocks__/api.ts`, which is bound by Vitest's
-`__mocks__/<name>.ts` ADJACENCY auto-resolution — a dozen test files call
+`__mocks__/<name>.ts` ADJACENCY auto-resolution — 11 test files call
 `vi.mock('../services/api')` with NO factory argument and silently get that
 file (the mechanism is stated in its own header comment). If the dead hub is
-ever deleted, delete its four `hooks/__mocks__` re-export targets in the same
-commit — tsconfig includes src, so a hub importing deleted files reddens
-typecheck.
+ever deleted, delete the `hooks/__mocks__` files in the same commit — the hub
+re-exports three of the directory's four files (`useWebSocket`,
+`useEventStream`, `useSystemStatus`) and the fourth (`webSocketManager.ts`) is
+imported by nothing at all, so the whole directory dies with the hub; tsconfig
+includes src, so a hub importing deleted files reddens typecheck.
 
 ### `/pages/` - Additional Page Components
 
@@ -817,6 +820,12 @@ reused fork runs NEXT, not to the file that leaked (the in-code comment at
 setup.ts:160-175 records an innocent-neighbor incident). 350 ms > the 300 ms
 tooltip delay.
 
+**Two files share the name `matchers.ts`.** `__tests__/matchers.ts` is the
+`expect.extend` one (the registered nine below, global once imported);
+`test/matchers.ts` exports fifteen `expect*` helper functions
+(`expectRiskLevel`, `expectValidCamera`, …) that you import by name and that
+register nothing. Importing the wrong one is silent.
+
 **Custom matchers live at `__tests__/matchers.ts` and work by import
 side-effect** (`expect.extend` runs at module scope) — a test file that never
 imports the module gets "matcher is not a function" with no pointer here.
@@ -921,10 +930,12 @@ Contracts this package carries (W3.1 batch 8 pruned its guide):
   `risk_label: event.risk_level ?? undefined` onto components fed by these
   factories. A component written against canonical types will NOT accept
   `createEvent()` output; "matches backend API responses" is the deleted
-  guide's false claim. Adoption follows: 7 files use `renderWithProviders`,
-  4 use `createQueryWrapper`, ZERO use the factories — the tests that need
-  bespoke data (`TimeGroupedEvents.test.tsx:27`, `Layout.test.tsx:76`) define
-  LOCAL factories instead.
+  guide's false claim. Adoption follows: 109 files import
+  `renderWithProviders` (102 via the deep `test-utils/renderWithProviders`
+  path, only 7 through the barrel's index), 74 import `createQueryWrapper`
+  (70 deep / 4 barrel), and ZERO import the package's factories — the tests
+  that need bespoke data (`TimeGroupedEvents.test.tsx:27`,
+  `Layout.test.tsx:76`) define LOCAL factories instead.
 - **Consumers import from the package's files, not the barrel's TL re-exports.**
   Real import lines pull `renderWithProviders`/`createQueryWrapper` from
   `test-utils` and `screen`/`waitFor`/`userEvent`/`fireEvent` directly from
