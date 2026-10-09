@@ -47,13 +47,22 @@
 #                          default (:638) — this test stack runs with the worker gate off; the
 #                          verdict_engine report field is gate-independent by code.
 #
-# Every other prod service that this run must not start gets a `profiles:` tag, which takes
-# it out of the default selection entirely: `docker compose -p <project> … up -d` (even a
-# careless bare one) can only start backend, postgres, redis and vlm-proxy. The GPU fleet
-# (ai-vlm :163/:268, ai-llm-vllm :344, ai-gateway :365, dcgm-exporter :1392) could not be
-# created on a GPU-less Docker anyway, but profiles make it structurally unreachable rather
-# than incidentally failing. Re-measured on compose v5.5.1: with the backend's depends_on
-# reset first, `config --services` returns exactly the four unprofiled services.
+# Every prod service that this run must not start AND is unprofiled in prod gets a
+# `profiles:` tag, which takes it out of the default selection entirely:
+# `docker compose -p <project> … up -d` (even a careless bare one) can only start backend,
+# postgres, redis and vlm-proxy. The GPU fleet (ai-vlm :163/:268, ai-gateway :365) could not
+# be created on a GPU-less Docker anyway, but profiles make it structurally unreachable
+# rather than incidentally failing. Re-measured on compose v5.5.1: with the backend's
+# depends_on reset first, `config --services` returns exactly the four unprofiled services.
+#
+# Two services are NOT re-profiled here, on purpose: the retired vLLM engine (prod :284,
+# profile `vllm`) and dcgm-exporter (prod :1387, profile `gpu-rootful`) are already out of
+# the default selection by prod's own tags, so a second tag is dead weight — profiles
+# merge by UNION (measured on v5.5.1: base [vllm] + override [b14-excluded] renders both,
+# and each re-admits the service under its own name). And the engine's key itself is
+# banned by this file's enrollment in
+# backend/tests/security/test_docker_compose_security.py's retired-name audit, which
+# fails any non-comment `ai-llm` line in a tracked compose file.
 
 x-b14-exclude: &b14-exclude
   profiles: ['b14-excluded']
@@ -91,7 +100,12 @@ services:
       # that entry passes through untouched — a read-only copy of a file the orchestrator would
       # only read with ORCHESTRATOR_ENABLED=false (injected below) is not a write path.
       - ${B14_DATA_DIR}:/app/data
-      - ${B14_CAM_DIR}:/cameras
+      # :z because every /cameras mount in this repo carries it — the SELinux watch rule
+      # (the security harness greps exactly for that; prod's own camera mount is
+      # ${FOSCAM_BASE_PATH}:/cameras:z,U). The run's dir is fresh and this Docker may not
+      # enforce, but a tagged mount is correct on the enforcing host too and keeps the
+      # harness's rule uniform across every tracked compose file. No :U anywhere.
+      - ${B14_CAM_DIR}:/cameras:z
       - ${B14_MODELS_DIR}:/models/model-zoo
       - ${B14_HF_DIR}:/models/huggingface-cache
       - ${B14_DUMMY_SOCKET}:/var/run/podman/podman.sock
@@ -141,7 +155,7 @@ services:
       test:
         [
           'CMD-SHELL',
-          "node -e \"require('net').connect(8098,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))\" || grep -q off /run/b14/mode",
+          'node -e "require(''net'').connect(8098,''127.0.0.1'').on(''connect'',()=>process.exit(0)).on(''error'',()=>process.exit(1))" || grep -q off /run/b14/mode',
         ]
       interval: 10s
       timeout: 3s
@@ -176,7 +190,8 @@ services:
 
   # ---- excluded from the test run's default selection (see header) ----
   ai-vlm: *b14-exclude
-  ai-llm-vllm: *b14-exclude
+  # (the retired vLLM engine is NOT listed — see the header: prod's `vllm` profile already
+  # excludes it, and this key would also violate the security harness's retired-name audit)
   ai-gateway: *b14-exclude
   foscam-init: *b14-exclude
   go2rtc: *b14-exclude
@@ -191,5 +206,6 @@ services:
   loki: *b14-exclude
   pyroscope: *b14-exclude
   node-exporter: *b14-exclude
-  dcgm-exporter: *b14-exclude
+  # (dcgm-exporter is NOT listed — prod's own `gpu-rootful` profile at :1387 already keeps it
+  # out of the default selection, and re-tagging would replace that profile, not add to it)
   alloy: *b14-exclude

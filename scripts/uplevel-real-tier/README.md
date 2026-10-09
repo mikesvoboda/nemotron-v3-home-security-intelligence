@@ -9,12 +9,12 @@ small TCP proxy in the test project.
 
 Read `docs/uplevel/operator.md` first; this README is the command sheet, that file is the role.
 
-| file                                     | what it is                                                            |
-| ---------------------------------------- | --------------------------------------------------------------------- |
-| `render-test-compose.sh`                 | renders the test stack's compose config and REFUSES unsafe values     |
-| `docker-compose.b14-real.yml`            | override: pins the backend to a prebuilt image, strips its GPU        |
-| `vlm-proxy.mjs`                          | TCP proxy the backend dials instead of the engine (ruling 22 step 4)  |
-| `vlm-mock.mjs`                           | fake engine for rehearsing the check without a GPU (demo profile)     |
+| file                          | what it is                                                           |
+| ----------------------------- | -------------------------------------------------------------------- |
+| `render-test-compose.sh`      | renders the test stack's compose config and REFUSES unsafe values    |
+| `docker-compose.b14-real.yml` | override: pins the backend to a prebuilt image, strips its GPU       |
+| `vlm-proxy.mjs`               | TCP proxy the backend dials instead of the engine (ruling 22 step 4) |
+| `vlm-mock.mjs`                | fake engine for rehearsing the check without a GPU (demo profile)    |
 
 ## Two things this stack is NOT
 
@@ -180,7 +180,7 @@ Two measured facts about the toggle, so a surprise reads correctly rather than a
   accepting). This is deliberate: a bare socket reset surfaces as `httpx.ReadError`, which the
   probe's handlers (`system.py:933-941`) and `_bounded_health_check` (`system.py:1034`) both
   miss — the endpoint then 500s, and because the backend's own Docker healthcheck curls for a
-  readiness 200 it starts reporting *unhealthy* (all observed at a real backend, 2026-10-08).
+  readiness 200 it starts reporting _unhealthy_ (all observed at a real backend, 2026-10-08).
   A 502 reads as `reason: "ai-vlm service returned HTTP 502"` with `ready`/200 intact. If you
   ever see 500s from `/health/ready`, suspect an old proxy build, not your toggle. The backend
   catch-ladder missing `httpx.RequestError` generally is worth its own issue, not this PR.
@@ -235,7 +235,7 @@ A run against the mock must be posted as a rehearsal, never as the real tier.
   renderer creates, so the mount is inert and the real socket is never mounted.
 - **`ORCHESTRATOR_ENABLED` not false** — prod never wires the var (only `ORCHESTRATOR_DOCKER_HOST`
   at `docker-compose.prod.yml:636`) and `config.py:134-138` defaults the orchestrator ON, so the
-  run env file *cannot* disable it — the override injects it as a literal env entry. This matters
+  run env file _cannot_ disable it — the override injects it as a literal env entry. This matters
   because the orchestrator restarts any container whose name matches, in every project, through
   the mounted compose file. The gate reads the RENDER, so an injection that a later merge
   silently dropped still refuses.
