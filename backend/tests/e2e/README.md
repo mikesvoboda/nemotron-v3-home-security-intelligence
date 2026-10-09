@@ -303,6 +303,6 @@ After E2E tests are passing, proceed to:
 ## Related Documentation
 
 - `/backend/services/AGENTS.md` - Services architecture overview
-- `/backend/tests/AGENTS.md` - Test infrastructure overview
+- The "The test tree" appendix in `backend/AGENTS.md` - Test infrastructure overview (W3.1 pruned the per-directory guides)
 - `/backend/tests/integration/README.md` - Integration tests documentation
 - `/AGENTS.md` - Project instructions and phase overview

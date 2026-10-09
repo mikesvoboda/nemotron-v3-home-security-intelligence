@@ -1031,26 +1031,26 @@ The backend provides three health endpoints for different use cases:
 
 ### Backend Subdirectories
 
-| Path                                | Purpose                                          |
-| ----------------------------------- | ------------------------------------------------ |
-| `/backend/ai_contract/AGENTS.md`    | AI-tier operation registry (generated)           |
-| `/backend/api/AGENTS.md`            | API layer overview                               |
-| `/backend/api/routes/AGENTS.md`     | API endpoints (60 routes)                        |
-| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (86 modules)                    |
-| `/backend/api/middleware/AGENTS.md` | Middleware components (23 modules)               |
-| `/backend/api/utils/AGENTS.md`      | API utility modules                              |
-| `/backend/core/AGENTS.md`           | Core infrastructure (54 modules)                 |
-| `/backend/config/AGENTS.md`         | Prompt A/B rollout and experiments               |
-| `/backend/core/websocket/AGENTS.md` | WebSocket event infrastructure                   |
-| `/backend/evaluation/AGENTS.md`     | VLM verdict-path evaluation and replay           |
-| `/backend/jobs/AGENTS.md`           | Background job modules                           |
-| `/backend/models/AGENTS.md`         | Database models (54 models)                      |
-| `/backend/repositories/AGENTS.md`   | Repository pattern (base + 7 repos)              |
-| `/backend/services/AGENTS.md`       | Service layer (177 modules)                      |
-| `/backend/tests/AGENTS.md`          | Test infrastructure                              |
-| `/backend/examples/AGENTS.md`       | Example scripts (Redis usage)                    |
-| `/backend/scripts/AGENTS.md`        | Utility scripts (VRAM benchmarking)              |
-| `/backend/data/`                    | Runtime data directory (no AGENTS.md - data dir) |
+| Path                                | Purpose                                                    |
+| ----------------------------------- | ---------------------------------------------------------- |
+| `/backend/ai_contract/AGENTS.md`    | AI-tier operation registry (generated)                     |
+| `/backend/api/AGENTS.md`            | API layer overview                                         |
+| `/backend/api/routes/AGENTS.md`     | API endpoints (60 routes)                                  |
+| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (86 modules)                              |
+| `/backend/api/middleware/AGENTS.md` | Middleware components (23 modules)                         |
+| `/backend/api/utils/AGENTS.md`      | API utility modules                                        |
+| `/backend/core/AGENTS.md`           | Core infrastructure (54 modules)                           |
+| `/backend/config/AGENTS.md`         | Prompt A/B rollout and experiments                         |
+| `/backend/core/websocket/AGENTS.md` | WebSocket event infrastructure                             |
+| `/backend/evaluation/AGENTS.md`     | VLM verdict-path evaluation and replay                     |
+| `/backend/jobs/AGENTS.md`           | Background job modules                                     |
+| `/backend/models/AGENTS.md`         | Database models (54 models)                                |
+| `/backend/repositories/AGENTS.md`   | Repository pattern (base + 7 repos)                        |
+| `/backend/services/AGENTS.md`       | Service layer (177 modules)                                |
+| this file, "The test tree" appendix | Test infrastructure (W3.1 pruned the per-directory guides) |
+| `/backend/examples/AGENTS.md`       | Example scripts (Redis usage)                              |
+| `/backend/scripts/AGENTS.md`        | Utility scripts (VRAM benchmarking)                        |
+| `/backend/data/`                    | Runtime data directory (no AGENTS.md - data dir)           |
 
 ### Project-Level Documentation
 
@@ -1059,3 +1059,170 @@ The backend provides three health endpoints for different use cases:
 | `/AGENTS.md`                 | Project-wide instructions      |
 | `/docs/developer/testing.md` | Comprehensive testing patterns |
 | `/docs/ROADMAP.md`           | Post-MVP enhancements          |
+
+## The test tree (W3.1 appendix, batch 6)
+
+The per-directory guides under `backend/tests/` are deleted (45 files). This section carries
+their non-discoverable rules — every line below was re-verified against the code at this commit,
+and where a guide contradicted the code the code's value is printed. The old parent guide at
+backend/tests/AGENTS.md was a zero-byte file: five sibling guides cited it as "the overview"
+and it said nothing — the shared machinery is stated here directly instead.
+
+### Shared machinery
+
+- `backend/tests/conftest.py` is the shared root: `ENVIRONMENT=test`, autouse
+  `reset_settings_cache`, `unique_id(prefix)` for parallel-safe ids, stale-test-database cleanup.
+  The `session` / `isolated_db_session` fixtures live in `backend/tests/integration/conftest.py`
+  (`session` wraps `isolated_db_session`); a unit test requesting `session` will not resolve it.
+- Two error envelopes ship and keep shipping: legacy `{"detail": "..."}` and structured
+  `{"error": {"code", "message", "errors": [...]}}` (RFC 7807 handlers in
+  `backend/api/exception_handlers.py`). Tests go through `get_error_message()` / `has_error()`
+  in `backend/tests/integration/test_helpers.py` — never hand-parse, so a contract change is a
+  one-file fix. Trap: `backend/tests/unit/integration/` holds _unit_ tests of those
+  _integration-tree_ helpers — moving `test_helpers.py` breaks a directory nothing predicts.
+
+### Runner canon
+
+- Run tests with `uv run pytest`. `pyproject.toml` `addopts` silently adds
+  `-n 8 --dist=worksteal -p randomly --strict-markers -m 'not gpu'` with `timeout = 5`; a bare
+  invocation outside the repo config runs a different suite. `asyncio_mode = "auto"` — the
+  `@pytest.mark.asyncio` decorator is not needed (several guides said "always"; false).
+- The 5s timeout times setup and teardown too (`timeout_func_only = false`, set explicitly after
+  an owner ruling — see the pyproject comment): never sleep for real
+  in a test — inject a fake clock/sleep. See the pre-import rationale in
+  `backend/tests/unit/synthbench/conftest.py` (first test on each worker paid a 2.3s import
+  inside its budget).
+- Hypothesis profiles are registered **in code** in `backend/tests/conftest.py` and selected by
+  `HYPOTHESIS_PROFILE`; the `[tool.hypothesis.profiles.*]` tables in `pyproject.toml` are read
+  by nothing — do not "fix" a profile by editing them.
+- Settings are cached process-wide: env-mutating tests need the cache cleared (`reset_settings_cache`
+  is autouse; the manual escape hatch is `get_settings.cache_clear()`) and the app must be
+  imported **after** env setup or fixtures silently use stale settings.
+
+### What CI collects (the guides were silent; verified at this commit)
+
+- `.github/workflows/nightly-full-gate.yml` collects `backend/tests/unit`, `backend/tests/contracts`
+  and `backend/tests/security`, and `--ignore`s `load`, `benchmarks`, `e2e`, `chaos`.
+  `.github/workflows/benchmarks.yml` runs `backend/tests/benchmarks/` via pytest-benchmark,
+  failing on >20% mean regression from a saved baseline. NO workflow collects
+  `backend/tests/gpu/` (the old gpu workflow was deleted); `-m 'not gpu'` excludes gpu-marked
+  nodes everywhere, including the gpu tests inside `backend/tests/e2e/test_gpu_pipeline.py`.
+- Skip-not-fail suites lie green: gpu (no hardware → all skip) and `backend/tests/benchmarks/` (optional
+  `memray`/`big-o` absent → skipif) can pass while measuring nothing. Judge by skip counts.
+- There are TWO `test_performance.py` files: `backend/tests/benchmarks/` (pytest-benchmark
+  regression tracking) and `backend/tests/load/` (feature-SLO checks whose memory assertions are
+  `frame_count × ~100KB` **arithmetic** and whose p99 is hand-rolled over 100 samples — the
+  verdict rides on stated assumptions, not measurements).
+
+### Unit tier (`backend/tests/unit/`)
+
+- `mock_session`, `clean_env`, `sample_detections`, `temp_camera_root` are NOT global fixtures —
+  each is defined locally in dozens of files. Copy the fixture; do not request it.
+- Mocked-session contract: `session.add` is a **sync** MagicMock while
+  `commit`/`flush`/`refresh`/`execute` are AsyncMock; result stubs chain through
+  `execute.return_value` → `scalars().all()`. `get_by_id` on a missing row returns None (it
+  calls `session.get` — mock that, not `execute().scalar_one_or_none()`).
+- Patch in the module's OWN namespace (`patch("backend.api.routes.cameras.get_db")` — the route
+  module imported the symbol); for FastAPI DI the shipped idiom is
+  `app.dependency_overrides[get_db]` keyed by `backend.core.database.get_db`.
+- Route tests live in TWO sibling directories, `backend/tests/unit/routes/` and
+  `backend/tests/unit/api/routes/`, with no tree rule for which takes a new test — and
+  `test_events_routes.py` exists in BOTH. New test → join the endpoint's existing siblings.
+- Same-name-different-suite traps: `backend/tests/unit/middleware/` covers
+  `backend/core/logging.py`, while `backend/tests/unit/api/middleware/` covers
+  `backend/api/middleware/*`; `backend/tests/unit/integration/` is unit tests, not the
+  integration tier.
+- Retired surfaces stay absent **by test**: `test_enrichment_transformers_retired.py` locks the
+  dead-twin `backend.api.helpers` package out of existence; `test_materialized_views_retired.py` locks the
+  phantom materialized-view admin surface. A red here means something resurrected a dead
+  module — delete it, never re-create the surface to go green.
+- NEM-5558 deleted `RequestTimingMiddleware`/`RequestLoggingMiddleware` (modules AND tests);
+  their coverage re-homed to `TestRequestLogFormatting` in
+  `backend/tests/unit/api/middleware/test_observability.py`. Chain-order, `X-Response-Time`
+  and slow-request logging are pinned ONLY by `backend/tests/integration/test_middleware_chain.py`
+  — a unit-only run proves nothing about ordering.
+- Correlation IDs: a client-supplied `X-Correlation-ID` is echoed **verbatim, unvalidated**
+  (`backend/api/middleware/request_id.py`) — do not "improve" this; the UUID check applies only
+  to generated IDs, and the contextvar set/reset around the request is the leak guard. This
+  suite is the sole pin for several wire specs (RFC 8594 Sunset, W3C Baggage, ETag,
+  Idempotency-Key replay, rate-limit **proxy trust**, upload magic-numbers).
+- Secret-looking fixture literals need a trailing `# pragma: allowlist secret` or the
+  detect-secrets hook blocks the commit with no hint why (repo-wide convention — the
+  pragmas live in `backend/tests/security/conftest.py`, the root conftest, and more).
+- Source-text guards (`backend/tests/unit/frontend/` and the R8 siblings in the unit root):
+  pins, not greps — assert on LIVE forms only (import specifiers, JSX elements, `data-testid`)
+  with **comments stripped** so a retirement docblock cannot fail the file, and every scan
+  carries its own non-vacuity witness (the import-resolution pin requires >2000 resolved
+  specifiers; an empty scan would pass a naive check).
+- `backend/config/` singletons: autouse-reset ALL of them before and after every test — the
+  `reset_*` functions there (four today) — or A/B state leaks across tests. Two validation
+  messages are pinned by substring (`"between 0.0 and 1.0"`, `"must be positive"`): rewording
+  the ValueError breaks tests. Camera→PromptVersion assignment is hash-deterministic; swapping
+  the hash silently re-aims the distribution band a 1000-camera test asserts.
+- `backend/tests/unit/synthbench/`: `gpu_window()` in `synthbench/generate/window.py` **stops
+  real GPU containers by default** — tests must inject `before_restore`. These tests live here,
+  not under `synthbench/`, because CI collects `backend/tests/unit/` — do not "tidy" them into
+  the lane. In the spikes tier, `synthbench/spikes/p1_bakeoff/measure.py` and
+  `synthbench/spikes/p1_bakeoff/cases.py` must stay Python 3.12-parseable (they run inside the
+  renderer image; `backend/tests/unit/synthbench/spikes/test_p1_py312.py` enforces it).
+
+### Integration tier (`backend/tests/integration/`)
+
+- Real Postgres (testcontainers **or** local service) plus a real Redis container for the DB
+  suites, with per-worker isolation: each xdist worker owns database `security_test_gw<N>`, and
+  Redis DB index gw0–gw14 → 0–14 with **master → 15** — a 16th worker would collide. Tests that
+  do not need real Redis use the `mock_redis` double instead; both patterns coexist on purpose.
+- The `client` fixture DELETEs all tables before AND after each test (DELETE, not TRUNCATE —
+  it avoids table locks) in a dynamically computed FK-safe topological order (parents last — do
+  not hardcode a table list). Standalone `db_session` does NOT clean up: request
+  `isolated_db_session` when a test skips `client`.
+- Cascade tests must issue an explicit `delete(Camera)` statement — an ORM
+  `session.delete(obj)` never reaches the DB-level `ON DELETE CASCADE`, so the assertion would
+  pass for the wrong reason.
+- Deadlock handling catches `(OperationalError, DBAPIError)` together (deadlock surfaces as the
+  subclass); `session.expire_all()` is required between two reads that must observe committed
+  state, or the identity map returns a cached row and isolation tests report false stability.
+- `setup_explain_logging()` takes `engine.sync_engine` — the event hooks are sync-only, so the
+  async engine attaches nothing and the test passes while measuring nothing.
+
+### Contracts tier (`backend/tests/contracts/`)
+
+- **No xfail / skip / importorskip anywhere in the tier** (goal rule): a ruling-blocked finding
+  becomes a characterization test, and an absence assertion is a GREEN GUARD — never "fix" one
+  by adding a skip.
+- **Never respx**: the fake provider is a real ASGI app
+  (`backend/ai_contract/fake/app.py`) and every hop is `httpx.ASGITransport`.
+- `backend/tests/contracts/ai_providers/golden/` is GENERATED by `scripts/gen-ai-contract.py` — regenerate, never hand-edit; the
+  `api-types-check` CI job fails on drift. Conformance tests import the golden payloads
+  verbatim instead of hand-writing dicts.
+
+### Host-bound tiers (where the guides were most stale — code values printed)
+
+- `backend/tests/gpu/`: explicit invocation only (`uv run pytest backend/tests/gpu/ -v -m gpu`).
+  Everything SKIPS (never fails) when the services/hardware are absent. Default URLs in
+  `backend/tests/gpu/test_detector_integration.py`: `YOLO26_URL` → `http://localhost:8090`
+  (one guide printed 8095 — the code says 8090) and `NEMOTRON_URL` → `http://localhost:8091`;
+  the localhost defaults only work when pytest runs ON the GPU host. There is no
+  `--ignore-missing-gpu` pytest flag — a guide invented it.
+- `backend/tests/chaos/`: NO fault-injection framework exists (the old one was deleted) — files
+  inject `unittest.mock` side-effects around the real resilience singletons, and every module
+  autouse-resets `reset_circuit_breaker_registry()` / `reset_degradation_manager()`.
+  `test_worker_chaos.py` forces `use_redis_streams=False` via its autouse fixture: do NOT
+  re-enable Streams against the LIST-only mock — an empty `xreadgroup` reply hits the
+  consumer's un-slept `continue` and HANGS. The directory is excluded from every gate by the
+  pre-approved conditional in `scripts/validate.sh` (R-T7-POISON-CASCADE); one guide claimed it
+  now runs green under xdist — the recorded hang says otherwise.
+- `backend/tests/e2e/`: real business logic + real Postgres; ONLY the external AI HTTP services
+  and Redis are mocked. httpx mock responses: `.json()` must be a **MagicMock**, not an
+  AsyncMock, or the run drowns in "coroutine was never awaited".
+- `backend/tests/security/`: dir-local `conftest.py` supplies `security_client` and the key
+  fixtures. Auth contract: API keys are SHA-256 digested and compared with
+  `hmac.compare_digest` (constant-time), and a key never appears in an error response. The
+  keyless-path truth is `OPEN_PATHS` in `backend/api/middleware/auth.py` — read it; a guide's
+  five-path list is already stale. `EXPOSE_LAN` is deliberately NOT covered here: it is pinned
+  in `backend/tests/unit/api/middleware/` and, across every mounted route, by
+  `backend/tests/unit/api/test_expose_lan_routes.py`.
+- `backend/tests/fixtures/compose-render.env` is the minimal FAKE env that makes
+  `docker-compose.prod.yml` render on any box (exactly two hard-required `${VAR:?}` vars) so
+  the O1.3 evidence test `backend/tests/unit/core/test_compose_render_lists_ai_vlm.py` is
+  reproducible — it is test evidence, never a deployment env.

@@ -30,5 +30,4 @@ One importable package declaring every AI-tier operation the product surface has
 ## Related
 
 - `backend/ai_contract/fake/AGENTS.md` - the deterministic FakeProvider
-- `backend/tests/contracts/ai_providers/AGENTS.md` - the conformance suite that consumes this package
-- `backend/tests/AGENTS.md` - test infrastructure
+- The "Contracts tier" section of the test-tree appendix in `backend/AGENTS.md` - the conformance suite that consumes this package (W3.1 pruned its own guide)

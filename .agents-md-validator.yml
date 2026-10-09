@@ -113,6 +113,11 @@ exclude_reference_patterns:
 # at batch 5 the six tail singletons (tests, tests/benchmark, tests/load, data,
 # docker, archive/vsftpd) carried two mentions, both in the data guide's
 # schema prose — nemotron 141 -> 139, final measurement over 205 scanned;
+# at batch 6 the 45 backend/tests/** guides carried the largest fall of the
+# drain — florence 50 -> 42, nemotron 139 -> 115, enrichment 134 -> 101 —
+# re-measured by the validator at this commit (33 enrichment mentions counting
+# case variants; the appendix in backend/AGENTS.md states everything DB- and
+# module-neutral, verified zero net new mentions by the pre-deletion run);
 # xclip/demographics unmoved throughout). `pose` is OUT of the ratchet
 # per the owner's ruling on #6870 (2026-10-08): the count is dominated by the
 # LIVE Triton model actually named `pose`, so it mixes live and retired usage
@@ -132,18 +137,23 @@ exclude_reference_patterns:
 # pinned by test_substitution_does_not_green_a_total. ALL FIVE KEYS ARE REQUIRED: the
 # run exits 2 without any one of them (absent is neither 0 nor unchecked).
 retired_name_baseline:
-  florence: 50 # retired ai/florence path (W1.3 drained its dead-reference citations
+  florence: 42 # retired ai/florence path (W1.3 drained its dead-reference citations
   # without adding florence mentions; W3.1 batches 2-4 removed 43 mentions —
   # deleted satellites plus stale prose, the batch-4 fall (-32) living in the
   # monitoring dashboards guide — 93 -> 84 -> 82 -> 50, hand-fell each PR;
-  # batch 5's six guides named no florence at all — ceiling unmoved)
-  nemotron: 139 # the retired model family (the repo's own name string; W3.1
+  # batch 5's six guides named no florence at all; batch 6's backend/tests guides
+  # carried eight (the unit/services and unit/models prose) — 50 -> 42, hand-fell)
+  nemotron: 115 # the retired model family (the repo's own name string; W3.1
   # batch 3 removed one mention and batch 4 one more; batch 5's data guide
-  # carried two (141 -> 139, the schema prose the appendix now states DB-neutral)
-  # — hand-fall every PR)
-  enrichment: 134 # retired ai/enrichment component (W1.3 drained six dead-citing
+  # carried two (141 -> 139, the schema prose the appendix now states DB-neutral);
+  # batch 6's test-tree guides carried 24 (the gpu/e2e/fixtures prose — including
+  # one guide printing a URL port the code contradicts) — 139 -> 115, hand-fall
+  # every PR)
+  enrichment: 101 # retired ai/enrichment component (W1.3 drained six dead-citing
   # mentions; W3.1 batch 2 removed eight (153 -> 145) and batch 4 eleven
-  # more with the monitoring dashboards guide — 145 -> 134, hand-fall)
+  # more with the monitoring dashboards guide — 145 -> 134; batch 6's unit-tier
+  # guides carried 33 (adapter/transformer prose the appendix now states
+  # module-neutral) — 134 -> 101, hand-fall)
   xclip: 10 # retired clip pipeline
   demographics: 2
 

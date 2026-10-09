@@ -707,8 +707,8 @@ def test_missing_config_exits_2(tmp_path):
 def test_unbalanced_fence_is_content_not_infrastructure(tmp_path):
     """An open fence would mask the rest of the file from BOTH arms — an
     editor could park anything under an unclosed fence. Measured: 0 of the
-    205 scanned files are unbalanced today (245 before W3.1 batch 1's
-    deletions, 205 after batch 5; re-measured at each: still zero), so failing on imbalance costs
+    160 scanned files are unbalanced today (245 before W3.1 batch 1's
+    deletions, 160 after batch 6; re-measured at each: still zero), so failing on imbalance costs
     nothing now and removes the dodge forever. It is a CONTENT violation
     (exit 1, names the file), not a gate failure — the gate ran fine; the
     file is wrong."""
@@ -1175,7 +1175,7 @@ def real_run(tmp_path_factory):
         return proc.returncode, json.load(f), proc.stderr
 
 
-@pytest.mark.timeout(180)  # the walk over 205 files; pyproject global timeout=5
+@pytest.mark.timeout(180)  # the walk over 160 files; pyproject global timeout=5
 def test_real_tree_is_green(real_run):
     """DONE-WHEN "the run passes on the current tree", executed here — and
     this file runs inside collection-sanity's anti-rot step, which CI Gate
@@ -1218,12 +1218,15 @@ def test_real_tree_scanned_count_floor(real_run):
     lane root), then to 211 = 217 - 6 at batch 4 (the six monitoring/
     satellites under the monitoring lane root), then to 205 = 211 - 6 at batch
     5 (the six tail singletons: tests, tests/benchmark, tests/load, data,
-    docker, archive/vsftpd — none of them a boundary). Each later batch drops
+    docker, archive/vsftpd — none of them a boundary), then to 160 = 205 - 45
+    at batch 6 (the backend/tests/** subtree — 45 guides, none of them a
+    boundary; the parent backend/tests/AGENTS.md was a zero-byte file). Each
+    later batch drops
     the floor by its batch size; a shrink that matches no deletion census in a
     PR body is still the exclusion-widening tell."""
     rc, report, _stderr = real_run
     assert rc == 0
-    assert report["total_agents_md_files"] >= 205
+    assert report["total_agents_md_files"] >= 160
 
 
 @pytest.mark.timeout(180)

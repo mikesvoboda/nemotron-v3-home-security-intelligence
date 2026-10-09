@@ -26,4 +26,4 @@ Every response is `create_response_bytes(value generated from sha256(op_id | pat
 ## Related
 
 - `../AGENTS.md` - the contract package and its no-`ai.*`-at-runtime rule
-- `../../tests/contracts/ai_providers/AGENTS.md` - the suite that exercises this fake
+- The "Contracts tier" section of the test-tree appendix in `backend/AGENTS.md` - the suite that exercises this fake (W3.1 pruned its own guide)
