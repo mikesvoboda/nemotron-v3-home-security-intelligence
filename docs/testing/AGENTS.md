@@ -4,8 +4,8 @@
 
 Historical marker directory. The testing analysis reports that used to live
 here (the 2026-01 integration-coverage snapshot and the TDD "red phase" test
-summaries) were point-in-time artifacts of shipped work and now live in
-`docs/archive/`.
+summaries) were point-in-time artifacts of shipped work, moved into the docs archive tree and deleted with it by UR-19 — recover them from git history
+before that commit.
 
 ## Where the living documentation is
 
@@ -17,6 +17,7 @@ summaries) were point-in-time artifacts of shipped work and now live in
 
 ## Gotcha
 
-Do not quote the coverage tables inside `docs/archive/INTEGRATION_TEST_COVERAGE_ANALYSIS.md`
+Do not quote the coverage tables of the old INTEGRATION_TEST_COVERAGE_ANALYSIS.md
+(in the docs archive tree until UR-19 deleted it; recover from git history)
 — it measures ~2,300 integration tests against today's ~4,300. It exists only as
 historical record of the 2026-01 analysis.

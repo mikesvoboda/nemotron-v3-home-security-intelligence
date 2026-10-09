@@ -1,11 +1,11 @@
 """Installer tests returned to the live suite by O1.5 (UR-19, archive deletion).
 
-These lived as ``archive/test_setup.py``; the package moved them under
+These lived in the archive tree as ``test_setup.py``; the package moved them under
 ``backend/tests/unit/setup_lib/``. Two changes rode the move:
 
 * ``test_generate_docker_override_content`` was dropped — it exercised
   ``generate_docker_override_content``, which lives only in
-  ``archive/scripts/setup_docker_override.py`` and is gone with the archive.
+  the archive's ``scripts/setup_docker_override.py`` and is gone with it.
   The sibling ``test_write_config_files_no_docker_override`` pins the
   surviving contract ("no override file; .env is the source of truth").
 * The import of the root ``setup`` module is function-level via

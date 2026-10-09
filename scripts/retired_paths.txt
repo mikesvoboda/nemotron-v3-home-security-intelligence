@@ -6,16 +6,18 @@
 # see a shorthand the list does not declare. Declared, never derived: a
 # derived stem would give `docker-compose.ci.yml` the alias `ci.yml`, which
 # is a real file (.github/workflows/ci.yml). A line ending in `/` is a
-# directory entry: text naming anything under it flags.
+# directory entry: text naming anything under it flags — where the term begins
+# a path, not inside a longer one, so a retired `archive/` does not fire on an
+# unrelated `openapi-archive/` (O1.5's first root-level directory entry proved
+# the anchor necessary; the checker's docstring has the rule).
 # scripts/test_retired_paths.py fails (a) when a listed path exists again, and
 # (b) when a LIVING doc, workflow, hook, script or test names a listed path
 # (by path, by basename, or by a declared term). Records keep their
-# references: the plan/spec/program-record/archive trees (docs/plans/,
-# docs/superpowers/, docs/vss-integration/, docs/uplevel/, docs/archive/,
-# archive/), goal prompts, and — in .py files only — a line carrying a dated
-# decision-log tag like [V 2026-09-28]. Markdown gets no tag exemption: a
-# prose record is a tree above, not a dated line. See the checker's docstring
-# for the full rule set.
+# references: the plan/spec/program-record trees (docs/plans/,
+# docs/superpowers/, docs/vss-integration/, docs/uplevel/), goal prompts, and —
+# in .py files only — a line carrying a dated decision-log tag like
+# [V 2026-09-28]. Markdown gets no tag exemption: a prose record is a tree
+# above, not a dated line. See the checker's docstring for the full rule set.
 #
 # O1.2 (UR-17): the ghcr compose install path had no ai-vlm service, yet
 # docs/operator/ai-ghcr-deployment.md advertised it as an install path (00-audit D5).
@@ -32,4 +34,13 @@ docs/operator/ai-ghcr-deployment.md
 # shorthand; no declared alias needed (the gate adds the basename itself).
 .github/workflows/preview-deploy.yml
 
-# O1.5 will add its own entries here (docs/uplevel/30-ops.md).
+# O1.5 (UR-19): the two archive trees were 2,978 files of point-in-time
+# artifacts — superseded Dockerfiles, old reports, NEM investigations — that CI
+# and lint configs had to keep excluding to stay green. With the exclusions
+# gone the residue would be the rot this program exists to retire, so both
+# trees go, and the directory entries keep every "the recipe lives at
+# archive/..." sentence from outliving the recipe. Both are listed because a
+# directory term is path-anchored: `archive/` alone would not see a mention of
+# `docs/archive/`. (The order itself is in docs/uplevel/, a record tree.)
+archive/
+docs/archive/

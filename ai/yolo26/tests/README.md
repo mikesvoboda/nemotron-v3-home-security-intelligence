@@ -149,6 +149,6 @@ Follow TDD principles:
 
 ## Related Documentation
 
-- [Retired service documentation (GPU image era)](../../../archive/ai-yolo26-image/README.md) — the standalone `ai-yolo26` image was retired 2026-09-23; `model.py` stays for the host-run dev server and the conformance tests that AST-read its tables
+- **Retired service documentation (GPU image era)** — the standalone `ai-yolo26` image was retired 2026-09-23; its README lived in the archive tree UR-19 deleted (recover `ai-yolo26-image/README.md` from git history). `model.py` stays for the host-run dev server and the conformance tests that AST-read its tables
 - [TDD Workflow Guide](../../../docs/developer/testing-workflow.md)
 - [Testing Patterns](../../../docs/developer/patterns/AGENTS.md)

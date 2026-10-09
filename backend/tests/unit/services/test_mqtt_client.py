@@ -943,7 +943,7 @@ async def test_graceful_shutdown_with_active_subscriptions(mqtt_client, mock_aio
 
 
 # =============================================================================
-# WP4.4 kill battery (frozen triage feed archive/wp25-feed/wp44-triage,
+# WP4.4 kill battery (frozen triage feed the deleted archive's wp25-feed/wp44-triage,
 # mqtt_client.md clusters T1-T8/T10-T12 — 70 TEST-GAP survivors of 232;
 # 141 LOW-VALUE log/metric-name mutants and 21 EQUIVALENT stay
 # per-cluster justified in the dossier). Root cause: tests asserted that

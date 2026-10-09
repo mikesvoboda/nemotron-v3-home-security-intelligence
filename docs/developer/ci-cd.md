@@ -187,7 +187,7 @@ Builds images for multiple architectures:
 
 > `ai-yolo26` (`./ai/yolo26/Dockerfile`) was in this matrix until 2026-09-23, when
 > the standalone GPU image was retired fully (owner ruling — Triton on ai-gateway
-> serves yolo26 among the 14 models); the recipe lives in `archive/ai-yolo26-image/`.
+> serves yolo26 among the 14 models); the recipe is git-history-only (UR-19 deleted the archive tree).
 
 **Platforms:**
 

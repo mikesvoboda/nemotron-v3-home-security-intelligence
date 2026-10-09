@@ -1,7 +1,7 @@
 """Tests for the setup_lib.core module, returned to the live suite by O1.5.
 
-These lived as ``archive/test_setup_core.py``. The old sys.path insert resolved
-``parent.parent`` from ``archive/`` (one level under the root) and no longer
+These lived in the archive tree as ``test_setup_core.py``. The old sys.path insert resolved
+``parent.parent`` from the archive directory (one level under the root) and no longer
 points anywhere from ``backend/tests/unit/setup_lib/``; the package's own
 conftest already puts the repo root on sys.path, so it is gone. The
 backward-compat load of setup.py below repoints at ``REPO_ROOT / "setup.py"``.
@@ -203,7 +203,7 @@ class TestBackwardCompatibility:
         import importlib.util
 
         # Load setup.py directly as a module to avoid package import.
-        # O1.5 move: the archived copy resolved this relative to archive/;
+        # O1.5 move: the archived copy resolved this relative to the archive root;
         # from backend/tests/unit/setup_lib/ the root setup.py is REPO_ROOT.
         spec = importlib.util.spec_from_file_location(
             "setup_module",

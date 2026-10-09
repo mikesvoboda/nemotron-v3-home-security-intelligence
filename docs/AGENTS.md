@@ -9,7 +9,6 @@ This directory contains all project documentation organized into role-based hubs
 | Directory          | Purpose                                                                   | Entry Point                            |
 | ------------------ | ------------------------------------------------------------------------- | -------------------------------------- |
 | `ai/`              | AI model zoo and pipeline architecture                                    | [AGENTS.md](ai/AGENTS.md)              |
-| `archive/`         | Archived working documents (historical)                                   | [AGENTS.md](archive/AGENTS.md)         |
 | `getting-started/` | Installation and first-run setup                                          | [README](getting-started/README.md)    |
 | `developer/`       | Architecture, API, patterns, contributing                                 | [README](developer/README.md)          |
 | `guides/`          | Feature guides (video analytics, zones)                                   | [AGENTS.md](guides/AGENTS.md)          |
@@ -39,10 +38,6 @@ docs/
 ├── api/                         # API governance documentation
 │   ├── AGENTS.md                # API docs navigation
 │   └── migrations/              # Migration guides
-│
-├── archive/                     # Archived working documents
-│   ├── AGENTS.md                # Archive navigation
-│   └── *.md                     # Historical documents
 │
 ├── architecture/                # System design documentation
 │   ├── AGENTS.md                # Architecture navigation
@@ -165,10 +160,10 @@ docs/
 ├── components/                  # UI component documentation (see components/AGENTS.md)
 ├── diagrams/                    # Diagram sources
 ├── discoveries/                 # Incident post-mortem notes (the NEM-tagged set
-│                                #   moved to docs/archive/ in 7fba36a6)
+│                                #   moved into the docs archive tree at 7fba36a6; deleted
+│                                #   with the archives by UR-19 — recoverable
+│                                #   from git history)
 ├── examples/                    # Prompt-engineering examples
-├── archive/                     # Historical point-in-time reports, snapshots &
-│                                #   NEM investigations (see archive/AGENTS.md)
 ├── research/                    # Numbered research studies
 ├── stylesheets/                 # MkDocs custom CSS
 └── superpowers/                 # Agent handoff/plan documents
@@ -213,7 +208,6 @@ Each major directory has its own AGENTS.md:
 | Path                                  | Purpose                         |
 | ------------------------------------- | ------------------------------- |
 | `docs/AGENTS.md`                      | This file - documentation root  |
-| `archive/AGENTS.md`                   | Archived working documents      |
 | `ai/AGENTS.md`                        | AI model zoo documentation      |
 | `api/AGENTS.md`                       | API governance documentation    |
 | `guides/AGENTS.md`                    | Feature guides documentation    |

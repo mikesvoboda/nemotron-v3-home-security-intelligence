@@ -1,12 +1,15 @@
 # Triage feed is prose-compute: prettier rewrites identifier underscores into
 # emphasis pairs (read_through_cache -> read*through_cache). Never format it.
+# (O1.5 removed the archive-tree entry here with the archive itself — an ignore
+# whose target does not exist is dead quarantine; see .pre-commit-config.yaml's
+# same-batch comment and scripts/test_workflow_paths.py.)
 .wp25-feed/
-archive/
 
 # Generated operator handouts: the strings in them are typed on a machine that
 # has no repo context, and prettier pairs mid-word underscores into emphasis
 # (CUDA_VISIBLE_DEVICES=${GPU_*} -> CUDA*VISIBLE_DEVICES=${GPU*\*}, Q4_K_M ->
-# Q4*K_M). Same corruption class as archive/ above; here it is load-bearing,
+# Q4*K_M). Same corruption class as the deleted archive-tree entry above; here it
+# is load-bearing,
 # because an operator types what the page says. Both files are GENERATED (the
 # A5500 one by scripts/a5500_precheck.py) or hand-authored runbooks (the Brev
 # one), never prose to be reflowed. The operator handoff joins them for a second

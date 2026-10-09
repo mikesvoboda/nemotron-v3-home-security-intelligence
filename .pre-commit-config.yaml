@@ -42,18 +42,15 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
-      # archive/ (see archive/README.md) is mutation-triage EVIDENCE (mutmut
-      # diff dumps, dossier prose, frozen meta snapshots): content must stay
-      # byte-for-byte as produced (trailing-whitespace/end-of-file-fixer would
-      # silently amend mutant payloads; the dumps are not source and must not
-      # be parsed, linted, formatted or secret-scanned as such). Same ruling
-      # as the prettier exclusion below and the ^mutants/ exclusions
-      # throughout. (O1.4 removed the sibling ^\.wp25-feed/ exclusions: that
-      # tree moved to archive/ and the pattern had no tracked files to match.)
+      # O1.5 removed the archive-tree exclusions here with the archive itself
+      # (UR-19): the tree was mutation-triage EVIDENCE (mutmut diff dumps,
+      # dossier prose) kept byte-for-byte, same ruling as the ^mutants/
+      # exclusions that remain below — but an ignore whose target does not
+      # exist is dead quarantine, and scripts/test_workflow_paths.py reddens
+      # on such a pattern (O1.4 set the precedent with ^\.wp25-feed/).
       - id: trailing-whitespace
-        exclude: (\.ambr$|^archive/) # Syrupy snapshot files require trailing whitespace
+        exclude: \.ambr$ # Syrupy snapshot files require trailing whitespace
       - id: end-of-file-fixer
-        exclude: ^archive/
       - id: check-yaml
         # mkdocs.yml uses Python tags (!!python/name:) that safe_load can't
         # parse; config/docker-compose.gb300.yml uses podman-compose
@@ -64,15 +61,15 @@ repos:
         # validation steps, not here.
         exclude: (mkdocs\.yml$|^config/docker-compose\.gb300\.yml$|^scripts/uplevel-real-tier/docker-compose\.b14-real\.yml$)
       - id: check-json
-        exclude: (tsconfig.*\.json$|^archive/)
+        exclude: tsconfig.*\.json$
       - id: check-added-large-files
         args: ['--maxkb=1000']
         exclude: ^docs/images/.*\.png$
       - id: check-merge-conflict
       - id: detect-private-key
-        # Exclude test files that contain mock/fake private keys for testing
-        # (+ the triage evidence tree: mutant payloads contain fake-key strings)
-        exclude: (^backend/tests/.*test_config\.py$|^archive/)
+        # Exclude test files that contain mock/fake private keys for testing.
+        # (O1.5 removed the triage-evidence-tree alternative with the archive.)
+        exclude: ^backend/tests/.*test_config\.py$
 
   # Commit message linting - enforces conventional commit format
   - repo: https://github.com/compilerla/conventional-pre-commit
@@ -103,7 +100,7 @@ repos:
         # compose-render.env is test evidence with deliberate fake stubs (its header
         # testifies); no inline `pragma: allowlist secret` instead, because the file is
         # fed to compose as a literal --env-file, where `#` is not comment syntax.
-        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|^archive/|\.tsbuildinfo$|^synthbench/generate/manifests/.*\.json$|^backend/tests/fixtures/compose-render\.env$)
+        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|\.tsbuildinfo$|^synthbench/generate/manifests/.*\.json$|^backend/tests/fixtures/compose-render\.env$)
 
   # Auto-regenerate secrets baseline if it has conflicts or is out of date
   # Runs on every commit but only regenerates when baseline is invalid/conflicted
@@ -158,12 +155,13 @@ repos:
         # Exclude mutants/, test_database_isolation.py (uses intentional raw SQL for advisory locks),
         # test_database_failover.py (text("SELECT 1") is a connection health probe, not user input),
         # and conftest.py (table names come from SQLAlchemy reflection, not user input).
-        # O1.4 removed three dead alternatives: ^\.wp25-feed/ (tree moved to
-        # archive/), backend/alembic/helpers\.py$ (alembic removed at #4465),
+        # O1.4 removed three dead alternatives: ^\.wp25-feed/ (tree moved into
+        # the deleted archive), backend/alembic/helpers\.py$ (alembic removed at #4465),
         # and backend/services/vehicle_classifier_loader\.py$ (loader never
-        # re-added after its move). scripts/test_workflow_paths.py reddens on
-        # any of them reappearing.
-        exclude: (^mutants/|^archive/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/test_database_failover\.py$|backend/tests/integration/conftest\.py$)
+        # re-added after its move). O1.5 removed the archive-tree pattern with the archive
+        # itself (UR-19). scripts/test_workflow_paths.py reddens on any of
+        # them reappearing.
+        exclude: (^mutants/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/test_database_failover\.py$|backend/tests/integration/conftest\.py$)
 
   # Python - Ruff (fast linter + formatter)
   # NOTE: Keep in sync with uv.lock ruff version for consistent behavior
@@ -222,11 +220,12 @@ repos:
     hooks:
       - id: prettier
         types_or: [css, json, markdown, yaml]
-        # archive/ (see archive/README.md) is triage PROSE-COMPUTE: prettier
-        # pairs mid-word underscores into emphasis (read_through_cache ->
-        # read*through_cache), silently corrupting module identifiers. Do not
-        # format it. (O1.4 removed the dead ^\.wp25-feed/ alternative.)
-        exclude: (^frontend/|tsconfig.*\.json$|^docs/openapi\.json$|^docs/index\.md$|^archive/)
+        # (O1.5 removed the archive-tree alternative with the archive itself —
+        # the tree was triage PROSE-COMPUTE: prettier pairs mid-word
+        # underscores into emphasis (read_through_cache ->
+        # read*through_cache). O1.4 removed the dead ^\.wp25-feed/
+        # alternative.)
+        exclude: (^frontend/|tsconfig.*\.json$|^docs/openapi\.json$|^docs/index\.md$)
         additional_dependencies:
           # Owner ruling 24 (2026-10-09): ONE prettier for the whole repo — this
           # hook now runs the frontend lockfile's 3.9.9 (frontend/package.json

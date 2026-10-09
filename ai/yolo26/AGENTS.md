@@ -14,10 +14,11 @@ Production detection is served by Triton inside the `ai-gateway` container
 (FastAPI router prefix `/yolo26` on port 8090; yolo26 is one of the 14 served
 models — see `ai/gateway/AGENTS.md` and `ai/gateway/adapters/yolo26.py`).
 The compose stack has no `ai-yolo26` service and no CI or deploy job builds the
-image any more. The serving build recipe, `requirements.txt`, `export_tensorrt.py`
-and the era's `README.md` are archived at
-`archive/ai-yolo26-image/` (`Dockerfile` there keeps the full build recipe for
-reference; the earlier benchmark image is `archive/Dockerfile.yolo26-benchmark`).
+image any more. The serving build recipe, requirements.txt, export_tensorrt.py
+and the era's README.md lived in the ai-yolo26-image archive tree (that Dockerfile kept
+the full build recipe for reference; the earlier benchmark image was
+the archive's Dockerfile.yolo26-benchmark) until UR-19 deleted the archive tree —
+recover from git history before that commit.
 
 ## What Stays Here (and Why)
 
@@ -78,8 +79,8 @@ repo-side; the container-side half of that proof retired with the image
 
 The retired server's API surface (`/health`, `/detect`, `/detect/batch`),
 environment variables, TensorRT fallback behavior, and metrics tables are
-documented in the archived `archive/ai-yolo26-image/README.md` and in this
-file's git history (pre-2026-09-23 revisions). Production request shapes are
+documented in this file's git history (pre-2026-09-23 revisions; the archived
+README UR-19 deleted was ai-yolo26-image/README.md in that tree). Production request shapes are
 owned by the gateway adapter contract
 (`backend/ai_contract/operations.py`, 37 operations).
 

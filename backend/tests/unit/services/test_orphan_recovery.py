@@ -148,7 +148,7 @@ class TestRecoverOrphanedDetections:
         assert ORPHAN_MIN_AGE_MINUTES == 3
 
     # ------------------------------------------------------------------
-    # WP4.4 kill tests (frozen triage feed archive/wp25-feed/wp44-triage,
+    # WP4.4 kill tests (frozen triage feed the deleted archive's wp25-feed/wp44-triage,
     # clusters C6/C7/C8/C9 -- 26 surviving mutants of recover_orphaned_-
     # detections). The pre-existing tests mock session.execute and never
     # inspect the statement it receives, so mutations to the query's

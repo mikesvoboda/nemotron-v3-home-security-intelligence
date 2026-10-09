@@ -16,8 +16,8 @@ model.py does `from contract import ...`, so backend and container shared
 ONE definition. The duplicate is deleted (ratcheted absent by
 ai/yolo26/tests/test_model.py::TestContractSeam, repo-side; the retired
 ai-yolo26-image-smoke CI job proved `import model` inside the built
-image). The standalone GPU image was retired 2026-09-23 (build recipe at
-archive/ai-yolo26-image/Dockerfile) — this module now serves backend and
+image). The standalone GPU image was retired 2026-09-23 (build recipe in the deleted ai-yolo26-image
+archive tree; git history) — this module now serves backend and
 the kept-locally model modules only.
 """
 

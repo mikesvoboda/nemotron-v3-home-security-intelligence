@@ -428,7 +428,7 @@ auto-generates a cert, the TLS handshake just fails). It proxies `/api` and
 Useful when iterating on AI model code directly on the host. The host-run detector
 replaces only the gateway's `/yolo26` router — the `/enrich-lt` readiness lane still needs
 the `ai-gateway` container. (Triton inside `ai-gateway` serves yolo26; the archived
-standalone GPU image build recipe lives at `archive/ai-yolo26-image/Dockerfile`.)
+standalone GPU image build recipe lived in the retired ai-yolo26-image tree; recover it from git history.)
 
 ```bash
 # Start the AI servers on the host (separate terminals)
@@ -505,7 +505,7 @@ Cameras upload images/videos to:
 You can:
 
 - Bring your own FTP server and point it at `/export/foscam`
-- Run the archived vsftpd container yourself from [`archive/vsftpd/`](archive/vsftpd/) — `vsftpd.conf`, `Dockerfile`, `docker-compose-wrapper.sh`, `install-systemd.sh`. It is not wired into any compose file.
+- Run the archived vsftpd container yourself (it lived in the archive tree UR-19 deleted — recover `vsftpd.conf`, `Dockerfile`, `docker-compose-wrapper.sh`, `install-systemd.sh` from git history). It was never wired into any compose file.
 
 > [!NOTE]
 > In production containers, the host camera path is mounted to `/cameras` and the backend uses `FOSCAM_BASE_PATH=/cameras`.

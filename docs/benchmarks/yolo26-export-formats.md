@@ -5,7 +5,7 @@
 > NOTE (2026-09-23): point-in-time evaluation kept as the measured record. Its
 > `ai-yolo26:` compose excerpts describe the standalone server, which was
 > retired fully that day (owner ruling — Triton on ai-gateway serves yolo26;
-> recipe in `archive/ai-yolo26-image/`). Export guidance itself still applies
+> recipe in the retired ai-yolo26-image tree, recoverable from git history). Export guidance itself still applies
 > via `ai/gateway/export/export_yolo26.py` and `ai/yolo26/build_engine.py`.
 
 **Date:** 2026-01-26

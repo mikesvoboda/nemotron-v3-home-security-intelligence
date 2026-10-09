@@ -186,7 +186,7 @@ CVE-2023-2953
 #     reported. Tripwire: TestNoRepoConsumerOfPublishedBases.
 #   AVD-DS-0002 - entry KEPT (deleting it reddens the PR-gated Config/IaC scan
 #     with five HIGH findings), rationale REWRITTEN. The old comment justified
-#     the ignore with vsftpd's port-21 story — but archive/vsftpd/Dockerfile
+#     the ignore with vsftpd's port-21 story — but the archive's vsftpd Dockerfile
 #     carries USER ftpsecure (:48), is NOT flagged, and is not one of the five
 #     findings the ID actually suppresses. The true five, with per-file reasons,
 #     are named in the entry's new rationale; that text is the review record
@@ -221,7 +221,7 @@ CVE-2023-2953
 # AVD-DS-0002 - no USER directive (non-root) in four image definitions (REVIEW BY: 2027-07-05)
 # Attributed by deleting this ID alone and re-running the CI-pinned scanner
 # (trivy 0.74.0, repo-wide config scan, 2026-10-04: FIVE findings then; O1.5
-# (UR-19, 2026-10-09) deleted the fifth file — archive/Dockerfile.yolo26-benchmark,
+# (UR-19, 2026-10-09) deleted the fifth file — the archive's Dockerfile.yolo26-benchmark,
 # "ARCHIVED, built by nobody" below — with the archive itself, so a register
 # naming it would name a path that no longer exists. Four remain, and the
 # measured reason each is deferred rather than fixed:

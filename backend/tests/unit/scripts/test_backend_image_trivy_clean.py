@@ -175,7 +175,7 @@ OPEN_ENTRIES = ("CVE-2025-48965", "CVE-2025-52496", "CVE-2025-7458")
 # needs host-side ownership of the rw model bind before it can drop privileges,
 # and nothing in CI builds it).
 #
-# O1.5 (UR-19) removed the fifth member, archive/Dockerfile.yolo26-benchmark: a
+# O1.5 (UR-19) removed the fifth member, the archive's Dockerfile.yolo26-benchmark: a
 # file deleted from the tree can carry no finding, so the register names exactly
 # what still exists. The 2026-10-04 attribution (five files) stands in
 # .trivyignore's history prose; the entry's live rationale carries the dated
@@ -588,11 +588,11 @@ class TestMisconfigIgnoreNamesRealTargets:
             synthbench/generate/comfy/Containerfile
 
         (Five at the 2026-10-04 measurement; O1.5 deleted the fifth,
-        archive/Dockerfile.yolo26-benchmark — a file absent from the tree
+        the archive's Dockerfile.yolo26-benchmark — a file absent from the tree
         carries no finding.)
 
         The rationale this replaces described vsftpd instead — a file that is
-        NOT flagged (archive/vsftpd/Dockerfile:48, before O1.5 deleted the
+        NOT flagged (the archive's vsftpd Dockerfile:48, before O1.5 deleted the
         archive, carried USER ftpsecure). One ID covering the whole set is
         forced, not lazy: the docker checks report at file level with no line
         number, and neither an INI-section ignore file (ids+paths, both ID
@@ -611,7 +611,7 @@ class TestMisconfigIgnoreNamesRealTargets:
         )
         assert not re.search(r"vsftpd requires root|needs root privileges", block), (
             "AVD-DS-0002's rationale re-claims vsftpd as the reason — that file "
-            "is clean (USER ftpsecure at archive/vsftpd/Dockerfile:48) and is "
+            "is clean (USER ftpsecure at the archive's vsftpd Dockerfile:48) and is "
             "not one of the five suppressed targets"
         )
 
