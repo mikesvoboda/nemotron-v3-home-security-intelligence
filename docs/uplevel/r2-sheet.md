@@ -7,8 +7,31 @@
 > renumber this section.** The §2b OD numbers (`OD-33`…`OD-35`) are assigned; register rows run to
 > `OD-32` today, so continue from `OD-36` if new decisions surface.
 >
-> Every row is written so it can be ruled from the row alone, without opening code. Facts are
-> measured at `1d847a6a` (2026-10-09) by the commands named in each row.
+> Every row is written so it can be ruled from the row alone, without opening code. Facts were first
+> measured at `1d847a6a` (2026-10-09) and are **re-measured at `10ab08e8`** (same day, after
+> `origin/main` merged into this branch) by the commands named in each row. Thirteen draft claims did not
+> survive that re-measurement or a fresh-context review of the sheet. Every one is corrected in place
+> and the row names the draft's wording at the correction, so an owner reading one row sees what changed
+> rather than a silently tidied fact — the corrections sit inside the Facts prose, not at the row end:
+>
+> - **moved with the merge** (2): `docs/plans`' level-1 ERR 216 → **222** (OD-33) — which arrived as
+>   evidence, not just a number, because the tree itself had zero changed paths; the register 8,485 →
+>   **8,518** lines (OD-34).
+> - **wrong at both commits** (9): OD-33's "~91 citing files" (an arithmetic slip; now a stated union
+>   with its command) and its "0 nav entries" (true of the nav, false of publication); OD-34's "7 bolded
+>   rulings" and "5 more only in the intake log" (both miscounts of the same 12 decisions — and the
+>   miscount mechanism is now the row's argument for the column it asks for); OD-35's quoted provenance
+>   header, "~200–250 lines each", "one per architecture doc", "they cross-cite each other" (one-way),
+>   and "2 external referrers to re-aim" (both are prose mentions, not citations).
+> - **a ruling this sheet had not read** (1, and the most serious): OD-35 recommended moving the family
+>   into `docs/archive/`, which **UR-19** has already ruled deleted and **`O1.5`** executes — and README's
+>   "Considered and rejected" table rejects that exact move. OD-35's options and recommendation are
+>   rewritten around that; nothing in the draft mentioned UR-19.
+> - **a command that ran but measured nothing** (1): OD-35's transcribed `git ls-files` passed both stems
+>   inside one quoted argument, which matches no path and returns **0** — the printed 26 came from a
+>   different invocation than the one the row showed a reviewer. Fixed to two pathspecs.
+>
+> Everything else measured identically at both commits.
 
 ## 2b. Docs-lane rulings (`W2.2`)
 
@@ -17,29 +40,56 @@
 **The question** (`40-docs.md` W2.2): VSS material is split across `docs/plans/`,
 `docs/superpowers/` and `docs/vss-integration/` today. Where do future plans and specs go?
 
-**Facts.** `git ls-files` at this commit: `docs/plans/` 93 files (57 dated-named, span 2025-01-23 →
-2026-10-04 — still live: the AGENTS.md validator's own design doc lives here);
-`docs/superpowers/` 37 files, ALL dated, span 2026-09-12 → 2026-10-07 (the VSS specs — the tree the
-programme is actively writing into); `docs/vss-integration/` 26 files (5 dated; the register and its
-companions). None of the three trees appears in `mkdocs.yml`'s nav (0 entries each). A move is
-citation-cheap in one direction and expensive in the other: the trees are cited FROM 11 / 12 / 1
-`AGENTS.md` files and 45 / 35 / 31 other docs, and **no CI gate would catch a mis-move** — the
-level-1 citation job (`ci.yml` "Docs citation existence") covers exactly
-`docs/decisions deployment getting-started operations ui`; `docs/plans` itself carries **216
-level-1 ERR citations today** (`python -m scripts.validate_docs docs/plans --no-ast
---no-code-match --no-cross-ref --no-staleness`), i.e. the tree that most needs consolidation is the
-one whose citations no gate watches. `docs/superpowers/` is already citation-gated by nothing but is
-the only tree with a uniform naming discipline (100% dated names).
+**Facts.** `git ls-files docs/plans/ docs/superpowers/ docs/vss-integration/` — all extensions; an
+`--include='*.md'` variant loses 2 `.json` design files and reports 91 files / 56 dated, which is the
+wrong census: `docs/plans/` **93** files (**57** dated-named, span 2025-01-23 → 2026-10-04 — still
+live: the AGENTS.md validator's own design doc lives here); `docs/superpowers/` **37** files, ALL
+dated, span 2026-09-12 → 2026-10-07 (the VSS specs — the tree the programme is actively writing into);
+`docs/vss-integration/` **26** files (5 dated; the register and its companions). None of the three
+trees appears in `mkdocs.yml`'s nav — 0 explicit entries each, which is what the draft said and is true
+of the nav (built: 296 nav links on a page, none into the three trees) — but the draft's "(0 entries
+each)" invites the inference that these trees are not on the site, and they are: **154 pages built and
+URL-reachable**, `site/plans/` 91 + `site/superpowers/` 37 + `site/vss-integration/` 26, because
+`mkdocs.yml` loads `awesome-pages` and there are zero `.pages`
+files repo-wide to exclude anything. So "not in the nav" is not "not published" — it is published
+unlinked — which is what `W3.3` (rebuild the nav to cover every living doc) actually has to fix, and it
+constrains any freeze rule phrased in terms of the nav. A move is citation-cheap in one direction and
+expensive in the other. Files _outside_ the cited tree that cite it (`grep -rl --include=AGENTS.md
+'<tree>/' .`, and the same over `docs scripts .github README.md` for docs): **11 / 12 / 1** `AGENTS.md`
+files and **45 / 35 / 31** other docs — unchanged between the two commits. Those are per-tree counts, so
+they overstate: the columns sum to **135** mentions across **97 distinct files**. Two mechanisms, both
+measured: `--include='*.md'` matches `AGENTS.md` basenames, so five files
+(`docs/architecture/AGENTS.md`, `docs/benchmarks/AGENTS.md`, `docs/decisions/AGENTS.md`,
+`docs/synthbench/AGENTS.md`, `docs/vss-integration/AGENTS.md`) sit in _both_ columns, and a doc citing
+two of the trees is counted in both trees. The re-aim cost is therefore the union, **97** — and that
+union inherits the command's search scope; widening to every tracked `.md` adds 6 more citers
+(`archive/wp25-feed/`, `.claude/skills/synthbench-generation/`, `ai/gateway/export/README.md`,
+`backend/tests/plugins/README.md`), so say **97–103**. And **no CI gate would catch a mis-move**: the
+level-1 citation job (`ci.yml:229`, "Docs citation existence") validates citations _authored inside_
+exactly `docs/decisions deployment getting-started operations ui` — 43 citations across all five, every
+one ERR-free today — and of the citers **exactly 2 sit inside those five directories**
+(`docs/decisions/2026-01-12-docs-reorganization-design.md`, `docs/decisions/AGENTS.md`); the other 95 of
+97 (101 of 103 repo-wide) are outside its reach. `docs/plans` itself carries **222 level-1 ERR
+citations** (`python -m
+scripts.validate_docs docs/plans --no-ast --no-code-match --no-cross-ref --no-staleness`; 385 checked,
+163 OK), up from 216/169 at `1d847a6a` with **zero changed paths under `docs/plans/`** — the +6 came in
+on a neighbour's merge (`O1.2` deleted `docker-compose.ghcr.yml`, cited by 7 files here, and shrank
+`setup_lib/image_pull.py` 379 → 103 lines). So the decay is already running, ungated: the tree that
+most needs consolidation is the one whose citations no gate watches. `docs/superpowers/` is citation-
+gated by nothing but is the only tree with a uniform naming discipline (100% dated names).
 
 **Options as the register states them.** (a) consolidate the three trees into one directory now;
 (b) name one home for FUTURE material and freeze the others as history; (c) keep the split and
 record each tree's role.
 
-**Recommendation: (b)**, home = `docs/superpowers/<date>-<slug>/` — the discipline is already
-proven there (37/37 dated names, current spans), it moves zero files (so the 216 ungated citations
-cannot silently worsen), and it makes the freeze testable by eye: a dated file outside
-`docs/superpowers/` after this ruling is the violation. (a) is the worst option on the evidence:
-~91 citing files to re-aim with no gate verifying the re-aim. Under (b), `docs/plans/` and
+**Recommendation: (b)**, home = `docs/superpowers/<date>-<slug>/` — the discipline is already proven
+there (37/37 dated names, current spans), it moves zero files, and it makes the freeze testable by eye:
+a dated file outside `docs/superpowers/` after this ruling is the violation. (a) is the worst option on
+the evidence: **97 citing files** to re-aim, of which a gate re-checks 2. One caveat so (b) is not
+chosen for the wrong reason: moving nothing removes the _re-aim_ risk, not the _decay_ — the 222 rose
+from 216 without an edit to `docs/plans`, when `O1.2` retired a file seven of them cite. (b) leaves
+that ungated either way; closing it is a separate decision (extend the level-1 job's dir list, or gate
+`docs/plans` on a no-new-ERR bar), and it is not what OD-33 is asking. Under (b), `docs/plans/` and
 `docs/vss-integration/` stay where their citations point; `docs/vss-integration/` remains the
 register's home (it is live, not history).
 
@@ -51,15 +101,42 @@ register's home (it is live, not history).
 options column today, "which is how three rulings were misread during the audit" — and closed issues
 move to a history file.
 
-**Facts.** `docs/vss-integration/17-action-plan.md` is **8,485 lines** — the plan text says 8,145,
-which is stale by roughly a Phase 1's growth (~340 lines; the plan-text edit belongs in whichever PR
-touches it first, or the owner's next plan edit). Its OD table has **32 rows**
-(`grep -cE '^\| *OD-[0-9]+'`). Rulings ride inline: **7 OD rows carry bolded "**Ruled/Both
-floors/Follow-up scope ruled …**" clauses inside the options cell** (e.g. OD-1's option list ends
-with a bolded follow-up ruling pointing at "(Intake log entry 2026-10-05)"), and 5 more rulings live
-only in Intake log entries ("Ruled 2026…"). The register's own status vocabulary (§1) already
-requires a dated closure note and says "A closed issue is never deleted" — so a history-file move
-conflicts with the file's stated doctrine unless the moved line leaves a dated pointer in place. The
+**Facts.** `docs/vss-integration/17-action-plan.md` is **8,518 lines** (`wc -l`) — the plan text says
+8,145, stale by **373** lines, about one Phase 1's growth (it was 8,485 when this sheet was first
+measured; the merge of `origin/main` that brought the number to 8,518 added 44 lines and removed 11,
+per `git diff --numstat`). The plan-text edit belongs in whichever PR touches it first, or the owner's
+next plan edit. Its OD table has **32 rows** (`grep -cE '^\| *OD-[0-9]+'`), 5 columns each.
+
+**Where the rulings actually are.** **11 of the 32 rows record their ruling inside the options cell, and
+they do it in three different markups** — which is the finding, and the argument for the column: **10
+bolded** clauses, of which only 5 begin `**Ruled 2026…` (OD-3/12/15/20/28) while 5 use other wording
+(OD-1 `**Follow-up scope ruled…**`, OD-8 `**Acceptance half ruled…**`, and OD-30/31/32 lowercase
+`**ruled 2026-10-05 (a):**`), plus **1 unbolded** ruling at OD-29 (`ruled 2026-10-05 (a): the arm B
+rubric text …`, plain text in the options cell). Even "which cell names the ruling" is not single-valued:
+2 of the 11 mention it in a second cell too (OD-1's Source is a pointer, "follow-up ruled in the
+2026-10-05 Intake log"; OD-30's Unblocks argues with it, "the ruling reached (c) only").
+**1 more ruling, OD-24, exists nowhere in the table** —
+only as an intake-log line ("OD-24 ruled by the owner [O]", L7150); that is the _only_ log-only ruling,
+and 3 rows (OD-1/31/32) carry an explicit "(Intake log entry 2026-10-05)" pointer from their options
+cell. An earlier draft of this row said "7 bolded rulings, 5 more only in the intake log"; both halves
+were wrong, and wrong in the instructive way. The 7 came from one grep vocabulary
+(`**Ruled` + `**Both floors` + `**Follow-up scope ruled`), which **misses 5 real rulings** (OD-8,
+OD-29/30/31/32 — casing and wording variance, exactly the misreading hazard the package text cites)
+**and includes 1 non-ruling**: OD-2's bold clause is "**Both floors are measured as of 2026-10-05**",
+and OD-5's says out loud "**Input landed 2026-10-05, not a ruling:**". The "5 more in the intake log"
+were the `Ruled 2026` grep hits at lines 578–603 — those lines are _inside_ §4's own table (OD-3/12/15/
+20/28), a strict subset of the 7 already counted, and the Intake log (`## Intake log`, line 7096 — it is
+unnumbered; §5 is "The register", at 708) contains **0** occurrences of that string. So the corrected
+total is **12 ruled decisions across table and log**, of which 11 are in the table in 3 markups and 1 is
+log-only. No grep returns those 12 as a clean set — that is the machine-checkable form of "three rulings
+were misread during the audit": `Ruled 2026` finds **5** and misses 6; a bold-clause grep returns **12
+rows** of which only **10** are rulings (it wrongly takes in OD-2 and OD-5, and still misses the unbolded
+OD-29); case-insensitive `[Rr]uled` catches all 11 table rows but adds OD-5's disclaimer and, in the log,
+surfaces OD-24 only as one of 22 log lines that use the word at all.
+
+The register's own status vocabulary (§1) already requires a dated closure note and says "A closed issue
+is never deleted" — so a history-file move conflicts with the file's stated doctrine unless the moved
+line leaves a dated pointer in place. The
 OD table is 5 columns × 32 rows: a 6th "ruling" column re-lays in one mechanical commit.
 
 **Options.** (a) as the package text proposes: ruling column + closed issues to a history file;
@@ -68,8 +145,13 @@ OD table is 5 columns × 32 rows: a 6th "ruling" column re-lays in one mechanica
 **Recommendation: (a) with one amendment** — the history file keeps the text (so "never deleted"
 survives) but every moved issue leaves a one-line dated pointer at its original position, matching
 the register's existing closure-note convention; the ruling column is the part the misreading hazard
-actually justifies, and it converts 7 inline bold rulings + 5 intake-log rulings into a column that
-greps. Do not let the history-file half block the column half: they are separable commits.
+actually justifies, and it converts **12 ruled decisions in 3 markups** (10 bold + OD-29 unbolded +
+OD-24 log-only) into one column that greps. Cost, measured, and it is not the zero-cost edit the draft
+implied: the re-lay itself is one mechanical commit (5→6 columns × 32 rows), but **the extraction cannot
+be a grep** — the draft's own vocabulary misses 5 of the 11 table rulings and a bold-only read misses
+OD-29, so populating the column honestly costs a human read of all 32 rows plus one log-only ruling
+(OD-24) recovered from §Intake log. Budget that read; do not let the history-file half block the column
+half — they are separable commits.
 
 **Ruling:**
 
@@ -78,26 +160,70 @@ greps. Do not let the history-file half block the column half: they are separabl
 **The question** (`40-docs.md` W2.2): whether the near-identical `docs/plans/image-(re)validation-*`
 plans stay as history or go.
 
-**Facts.** The plan text says 28; **the tree holds 26** (`git ls-files 'docs/plans/image-validation-*
-image-revalidation-*'`): 12 `image-revalidation-*` + 14 `image-validation-*`, both families generated
-2026-01-24 (each begins "Generated: 2026-01-24 / Validator: Claude Opus 4.5"), one per architecture
-doc, ~200–250 lines each — the same audit run twice under two name stems, not 28 distinct audits.
-They cross-cite each other and `docs/plans/2026-09-22-docs-scan-findings.md` cites the family; **zero
-`AGENTS.md` files cite them**, and they are outside every CI citation gate (OD-33 facts).
-`docs/archive/` exists as the in-repo precedent for retired docs material and is already in the
-validator's `no_agents_md_required` list (`docs/archive/`), so moving the family there creates no
-AGENTS.md obligation and is invisible to the boundaries work (`W3.1`).
+**Facts.** The plan text says 28; **the tree holds 26** (`git ls-files 'docs/plans/image-validation-*' 'docs/plans/image-revalidation-*'` — two pathspecs; the single quoted argument `'…-* …-*'` the draft transcribed matches nothing and returns **0**): 12 `image-revalidation-*` + 14 `image-validation-*`, both families dated
+2026-01-24 — **all 26 carry that date in their first 15 lines**, which is the provenance fact that
+matters, and it is uniform. What is _not_ uniform is the field name: **8 header shapes** across the 26
+(`**Validation Date:**` 7, `**Revalidation Date:**` 5, `**Generated:**` 5, `**Date:**` 4, a quoted
+`> Generated:` 2, `**Date**:` 2, `**Original Validation Date:**` and `**Re-Validation Date:**` 1 each —
+27 lines over 26 files, since `image-revalidation-api-reference.md` carries both of the last two),
+and validator attribution is a minority header — only **9/26** name Claude Opus 4.5 at all, split four
+ways: `**Validator:**` 3, a quoted `> Validator:` 2, `**Reviewer:**` 2, `**Reviewer**:` 2 (note the
+field role varies — 4 files call the model the _reviewer_, not the validator). An earlier draft of this
+row said each file _begins_
+"Generated: 2026-01-24 / Validator: Claude Opus 4.5"; that adjacent pair exists in exactly **2 of 26**
+(both named `data-model`, at lines 3–4) — a generalisation from the two files the draft opened, not a
+family property. Sizes vary far more than the draft's "~200–250 lines each": **median 315, range
+156–546** (`image-revalidation-observability.md` 156 → `image-validation-security.md` 546), and only
+**7 of 26** fall in that band. Coverage is roughly one per architecture area, not exactly one: 10 files
+in each family name a distinct `docs/architecture/<area>/` and the two families name **the same 10
+areas** (identical sets, all still on disk); the other 6 (`data-model` and `detection-pipeline` in both,
+plus `dataflows` and `security` on the validation side) carry `**Hub:**` instead. So 26 files cover ~10
+architecture areas twice over — the positive form of "the same audit run twice", not 26 distinct audits.
+The cross-cites run **one way**: 8 of the 12 revalidation files name an `image-validation-*` sibling by
+exact stem (0 the other way — the validation half never mentions the revalidation half), 9 such
+occurrences in total across the family. **Zero `AGENTS.md` files cite them** (`git grep -lE
+'image-(re)?validation-' -- '**/AGENTS.md' 'AGENTS.md'` → no hits) and they sit outside every CI
+citation gate (OD-33 facts). Outside the family, **2 files mention it and neither is a re-aimable path**
+(a third, this sheet, names the family as its own subject and is not a referrer to re-aim):
+`docs/uplevel/40-docs.md:176` says "image-validation plans." in prose,
+and `docs/plans/2026-09-22-docs-scan-findings.md:311` records them as an audit finding — "other
+image-validation-* and image-revalidation-_ (14 files)" — which is a _record of what that audit saw_,
+so re-aiming it would falsify it. The draft's "2 external referrers to re-aim" was a file count of
+those two prose mentions, not a citation count; the real re-aim surface is the 9 intra-family
+occurrences.
 
-**Options.** (a) keep in place as history; (b) move to `docs/archive/image-validation/`; (c) delete.
+**The archive destination is already ruled out.** An earlier draft of this row recommended moving the
+family to `docs/archive/`, citing it as "the in-repo precedent for retired docs material", already in
+the validator's `no_agents_md_required` list. Both halves were true at the measured commit and are
+foreclosed by a standing ruling the draft had not read: **UR-19** (`docs/uplevel/README.md`) is
+"`archive/` and `docs/archive/` are deleted … git history is not rewritten", **`O1.5`** (
+`30-ops.md:125-137`) executes it — "`git rm -r archive docs/archive`. Remove the archive excludes from
+… `.agents-md-validator.yml`" — and its status row is still `not started` (`README.md:243`). README's
+"Considered and rejected" table then rejects this row's exact move: "Moving dead code into `archive/` |
+relocates sediment; git history already keeps every deleted file | UR-19". Recommending it again would
+be reopening a settled ruling inside a ruling request. UR-19's stated reason is also the direct answer
+to this row's own argument against deletion — "git history already keeps every deleted file" is why
+deleting the family does not throw away the record. (The `no_agents_md_required` fact the draft leaned
+on does no work either way: `check_missing_agents_md` fires on directories holding ≥`min_code_files: 2`
+files matching `code_extensions` — `.md` is not among them — so 26 markdown files could not trip
+`missing_agents_md` wherever they sat. Its `≥2` test lives at `agents_md_validator.py:619`, not in
+`find_directories_with_code`.)
 
-**Recommendation: (b).** They are one-run audit outputs, not plans — "keep in place" leaves 26 files
-(8,314 lines by `wc -l`) in the tree the programme reads as live plans, and deletion (c) throws away the only
-record of what the January docs audit found, which the W2.2 register history in OD-34's spirit says
-to keep. A move needs its 2 external referrers re-aimed (`docs/uplevel/40-docs.md`,
-`docs/plans/2026-09-22-docs-scan-findings.md`) plus the intra-family cites; no CI gate verifies the
-re-aim (OD-33 facts), so the mover runs `scripts.validate_docs` over `docs/plans` before and after
-and counts ERR deltas by hand. If the owner expects these to be deleted rather than archived,
-say so and the lane will re-run the recommendation as (c) with the same re-aim list.
+**Options.** (a) keep in place as history; (b) delete. (The archive move is not on the list because
+UR-19 removed its destination.)
+
+**Recommendation: (b) delete.** They are one-run audit outputs, not plans, and they sit in the tree the
+programme reads as live plans: 26 files / 8,314 lines, ~10 architecture areas covered twice over. Under
+OD-33's (b) `docs/plans/` freezes as history either way, so (a) is coherent rather than wrong — choose
+(a) if the January findings are still being consulted. Delete is recommended because the cost of (b) is
+near zero and the cost of (a) is permanent: 9 intra-family occurrences to clear, no path citations
+outside the family to re-aim, no gate to satisfy and no AGENTS.md consequence either way (above). The
+gate claim is measured, not inferred: the only files mentioning the family are two prose mentions plus
+this sheet, and **none of the five gate-validated directories mentions it at all** — so deleting the 26
+files breaks zero citations in a gated tree. `git rm -r` of the two pathspecs keeps the record
+recoverable, which is UR-19's own doctrine — and unlike the draft's version, this recommendation needs
+no `validate_docs` before/after ERR-delta ritual, for that measured reason. If the owner rules (a), the
+row's answer to "then what marks them as dead?" is OD-33's freeze rule, not a new file.
 
 **Ruling:**
 
