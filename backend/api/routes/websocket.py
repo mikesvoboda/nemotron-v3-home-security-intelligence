@@ -9,6 +9,13 @@ WebSocket Authentication:
     1. Query parameter: ws://host/ws/events?api_key=YOUR_KEY
     2. Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
 
+    A client that offered subprotocols gets one echoed back in the 101
+    response: the accept echoes the first offered "api-key.*" token verbatim
+    (and only that — a client that offered nothing sees no such header).
+    RFC 6455 §4.1 requires the echo, and browsers enforce it before reading
+    anything else, so a handshake without it fails in the browser even when
+    the server goes on to accept.
+
     Connections without a valid API key will be rejected with code 1008
     (Policy Violation).
 
