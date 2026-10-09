@@ -91,7 +91,7 @@ External ports are the `.env.example` defaults (bind address `127.0.0.1` unless 
 | json-exporter     | 7979          | 7979                 | HTTP       |
 | blackbox-exporter | 9115          | 9115                 | HTTP       |
 
-The frontend binds `0.0.0.0` (all interfaces) rather than loopback so browsers on the LAN can reach the dashboard. All other published ports bind `127.0.0.1`. Grafana is normally reached through the frontend nginx proxy at `https://<host>:8444/grafana/` (`GF_SERVER_ROOT_URL=/grafana/`); port 3002 is the direct host mapping.
+The frontend binds `127.0.0.1` by default — the loopback published-port binding is the security boundary — and `EXPOSE_LAN=true` is the single switch (`O1.6`) that publishes it on `0.0.0.0` for LAN browsers while arming the backend's auth gate in the same step. All other published ports bind `127.0.0.1` in both modes. Grafana is normally reached through the frontend nginx proxy at `https://<host>:8444/grafana/` (`GF_SERVER_ROOT_URL=/grafana/`); port 3002 is the direct host mapping.
 
 The container-side ports are fixed (for example ai-vlm always listens on 8098 inside the container), so the internal URL `http://ai-vlm:8098` never depends on the host-side mapping. The `.env` port variables only change the host binding.
 

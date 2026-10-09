@@ -626,9 +626,10 @@ def run_quick_mode() -> dict:
     # Network exposure (O1.6, OD-12): one switch, loopback by default. setup.py
     # derives FRONTEND_BIND_ADDRESS from the answer (compose has no
     # conditionals); EXPOSE_LAN=true also arms the backend's auth gate.
-    print("Frontend published ports bind 127.0.0.1 by default (tunnels and")
-    print("localhost still work). true publishes them on 0.0.0.0 and the")
-    print("backend then requires the login session on every request.")
+    print("Frontend published ports bind 127.0.0.1 by default (localhost still")
+    print("works). true publishes them on 0.0.0.0 and arms the backend's auth")
+    print("gate — set true whenever the LAN, a tunnel or a port forward reaches")
+    print("the UI (a host-run tunnel works through the loopback bind unguarded).")
     expose_answer = prompt_with_default("Expose the UI beyond this machine?", "n")
     expose_lan = expose_answer.lower() in ("y", "yes")
     print()
@@ -835,9 +836,10 @@ def run_guided_mode() -> dict:
     print()
 
     # Network exposure (O1.6, OD-12): same single switch as quick mode.
-    print("Frontend published ports bind 127.0.0.1 by default (tunnels and")
-    print("localhost still work). true publishes them on 0.0.0.0 and the")
-    print("backend then requires the login session on every request.")
+    print("Frontend published ports bind 127.0.0.1 by default (localhost still")
+    print("works). true publishes them on 0.0.0.0 and arms the backend's auth")
+    print("gate — set true whenever the LAN, a tunnel or a port forward reaches")
+    print("the UI (a host-run tunnel works through the loopback bind unguarded).")
     expose_answer = prompt_with_default("Expose the UI beyond this machine?", "n")
     expose_lan = expose_answer.lower() in ("y", "yes")
     print()

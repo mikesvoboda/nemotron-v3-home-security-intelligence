@@ -9,10 +9,11 @@ The chain under test, end to end:
       -> the published socket's bind address
 
 Compose has no conditionals, so the DECIDE the package asks for is the derivation
-above: the fail-safe default lives in BOTH ends (the derive maps anything but a
-true-ish "true"/"1" to loopback; compose's own ``:-127.0.0.1`` covers a hand-edited
-.env that carries EXPOSE_LAN=true without FRONTEND_BIND_ADDRESS at all — the
-render with that shape is pinned below).
+above: the fail-safe default lives in BOTH ends (the derive maps anything but
+pydantic's own case-insensitive truthy set — true/t/yes/y/on/1, the SAME words
+that arm the auth gate — to loopback; compose's own ``:-127.0.0.1`` covers a
+hand-edited .env that carries EXPOSE_LAN=true without FRONTEND_BIND_ADDRESS at
+all — the render with that shape is pinned below).
 
 Every test here is skip-free: the render test uses the real compose binary when
 one is installed and, when none is (the CI unit-tests job has no compose), an
@@ -299,6 +300,35 @@ def test_binding_helpers_are_pinned() -> None:
     assert _split_binding("4317") == ("0.0.0.0", "", "4317")
 
 
+def _compose_argv() -> list[str] | None:
+    """The first compose invocation this machine can run (repo precedent:
+    test_compose_render_lists_ai_vlm.py::_compose_argv). `docker compose` and
+    `podman compose` are SUBCOMMANDS — which("compose") is None everywhere, so
+    an all(which(part) …) over the pair can never fire (the O1.6 review caught
+    exactly that dead branch here). None means: emulator path."""
+    if shutil.which("podman"):
+        return ["podman", "compose"]
+    if shutil.which("docker"):
+        return ["docker", "compose"]
+    for binary in ("podman-compose", "docker-compose"):
+        if shutil.which(binary):
+            return [binary]
+    return None
+
+
+# Env vars the render tests own: a developer or CI runner export must never
+# move what the "default env" render asserts.
+_RENDER_OVERLAY_VARS = frozenset(
+    {
+        "EXPOSE_LAN",
+        "FRONTEND_BIND_ADDRESS",
+        "FRONTEND_HTTPS_PORT",
+        "FRONTEND_HTTP_PORT",
+        "PODMAN_SOCKET",
+    }
+)
+
+
 def _render_frontend_bindings(env_overrides: dict[str, str]) -> list[tuple[str, str, str]]:
     """Render the frontend's published bindings with an env overlay.
 
@@ -316,19 +346,15 @@ def _render_frontend_bindings(env_overrides: dict[str, str]) -> list[tuple[str, 
     env.update({k: v for k, v in env_overrides.items() if v is not None})
     env.update({k: "" for k, v in env_overrides.items() if v is None})
 
-    argv = None
-    for candidate in (
-        ["docker", "compose"],
-        ["podman", "compose"],
-        ["podman-compose"],
-        ["docker-compose"],
-    ):
-        if all(shutil.which(part) for part in candidate):
-            argv = candidate
-            break
+    argv = _compose_argv()
 
     if argv is not None:
-        proc_env = {**os.environ, **env}
+        # Strip the vars the render tests own BEFORE overlaying, so a developer
+        # or CI-runner export (FRONTEND_HTTPS_PORT=9999 in the shell) can't move
+        # what the "default env" assertions pin. os.environ keeps HOME/PATH and
+        # the DOCKER_/PODMAN_ wiring the binary needs.
+        proc_env = {k: v for k, v in os.environ.items() if k not in _RENDER_OVERLAY_VARS}
+        proc_env.update(env)
         with RENDER_ENV_FIXTURE.open(encoding="utf-8") as fh:
             result = subprocess.run(  # noqa: S603 - argv is a literal list, never a shell string  # real
                 [
@@ -432,11 +458,7 @@ def test_compose_branch_selects_a_real_invocation() -> None:
     named "compose"); on a bare box the loop returns None and the emulator
     carries the Done-when clause. Either way the selector must agree with
     shutil.which on the real commands — that agreement is the pin."""
-    if str(REPO_ROOT) not in sys.path:
-        sys.path.insert(0, str(REPO_ROOT))
-    import backend.tests.unit.core.test_frontend_expose_lan_bind as mod
-
-    argv = mod._compose_argv()
+    argv = _compose_argv()  # same module — call it, don't self-import (PLW0406)
     if argv is None:
         assert shutil.which("podman") is None
         assert shutil.which("docker") is None

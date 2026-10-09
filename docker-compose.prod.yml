@@ -920,8 +920,10 @@ services:
       # writes FRONTEND_BIND_ADDRESS (127.0.0.1 default; 0.0.0.0 only when
       # EXPOSE_LAN=true). The :-127.0.0.1 default is the fail-safe layer for a
       # hand-edited .env that carries the flag without the derived var.
-      # Tunnels (Cloudflare/Brev connect out to nginx) are unaffected by a
-      # loopback host bind; only direct LAN/wildcard access needs EXPOSE_LAN.
+      # Tunnels (Cloudflare/Brev) connect out to nginx, so a loopback host
+      # bind does not break one — but a tunnel still lets callers beyond this
+      # machine reach the UI: EXPOSE_LAN=true is what arms the auth gate for
+      # them (the wildcard bind is incidental; see the expose_lan Field).
       - '${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_HTTPS_PORT:-8444}:8443'
       - '${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_HTTP_PORT:-8080}:8080'
     volumes:

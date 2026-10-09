@@ -151,18 +151,16 @@ cmd_env() {
 	fi
 
 	echo ".env absent — generating via setup.py machinery (never setup.py main())"
-	# setup.py has no top-level 'import os' but run_defaults_mode() calls os.getuid()
-	# (setup.py:1116) — inject the stdlib module into the loaded object in-memory
-	# only (proven workaround, task-3 report; disk setup.py stays untouched).
+	# setup.py now carries a top-level 'import os' (the O1.6 package fixed the
+	# NameError run_defaults_mode() hit when os.getuid() ran without it), so the
+	# in-memory module injection this block used to need is gone.
 	python3 - <<'PYEOF'
 import importlib.util
-import os
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location("setup_mod", "setup.py")
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
-m.os = os  # setup.py has no top-level "import os"; run_defaults_mode() calls os.getuid() @1116
 cfg = m.run_defaults_mode()
 Path(".env").write_text(m.generate_env_content(cfg))
 Path(".env").chmod(0o600)

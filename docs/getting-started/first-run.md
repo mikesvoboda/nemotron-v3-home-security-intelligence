@@ -84,7 +84,7 @@ podman compose -f docker-compose.prod.yml up -d
 
 The rest is the observability stack (prometheus, grafana on 3002, loki, tempo, alertmanager, pyroscope, alloy, the exporters) plus `foscam-init`, a one-shot job that prepares the camera directory.
 
-> **Port Note:** Every service binds `127.0.0.1` only, except the frontend, which listens on all interfaces. The dashboard is on **port 8080 (HTTP)** by default, configurable via `FRONTEND_HTTP_PORT`, and **port 8444 (HTTPS)** when enabled via `SSL_ENABLED=true`, configurable via `FRONTEND_HTTPS_PORT`. The HTTPS listener serves auto-generated self-signed certificates; the backend's own AI calls go to the gateway over compose DNS, not through these ports.
+> **Port Note:** Every service binds `127.0.0.1` only, the frontend nginx included — so out of the box only this machine reaches the dashboard. `EXPOSE_LAN=true` is the one switch that changes it: the frontend then publishes on all interfaces and the backend requires a login session or API key on every request (`O1.6`). The dashboard is on **port 8080 (HTTP)** by default, configurable via `FRONTEND_HTTP_PORT`, and **port 8444 (HTTPS)** when enabled via `SSL_ENABLED=true`, configurable via `FRONTEND_HTTPS_PORT`. The HTTPS listener serves auto-generated self-signed certificates; the backend's own AI calls go to the gateway over compose DNS, not through these ports.
 
 ### Verify Production Deployment
 

@@ -149,7 +149,7 @@ ports:
   - '127.0.0.1:8097:8000'
 ```
 
-Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN=true`, the single switch (OD-12; `O1.6`): `setup.py` derives `FRONTEND_BIND_ADDRESS` from it and compose publishes the frontend on `0.0.0.0` only then, while the backend's auth gate arms at the same time. Loopback binding is the primary security boundary; tunnels (Cloudflare/Brev) connect out to nginx and are unaffected by the loopback bind. **When adding new services:** add the port variable to `.env.example` first, then reference it in docker-compose. The port tables live in **Service Ports** below; `docs/reference/config/env-reference.md` is the authoritative runtime settings reference.
+Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN=true`, the single switch (OD-12; `O1.6`): `setup.py` derives `FRONTEND_BIND_ADDRESS` from it and compose publishes the frontend on `0.0.0.0` only then, while the backend's auth gate arms at the same time. Loopback binding is the primary security boundary; a host-resident Cloudflare/Brev tunnel keeps working through it (it dials `127.0.0.1`) — which is why running a tunnel is itself an `EXPOSE_LAN=true` situation: the loopback bind does not gate the callers the tunnel lets in, the auth gate does (see the Auth model bullet below). **When adding new services:** add the port variable to `.env.example` first, then reference it in docker-compose. The port tables live in **Service Ports** below; `docs/reference/config/env-reference.md` is the authoritative runtime settings reference.
 
 ## Key Files in Root
 

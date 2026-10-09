@@ -88,11 +88,17 @@ def derive_frontend_bind_address(expose_lan: str) -> str:
     setup.py derives FRONTEND_BIND_ADDRESS from EXPOSE_LAN and writes both into
     the .env it generates, and docker-compose.prod.yml references the bind var.
 
-    Fail-safe by construction: only the case-insensitive truthy set {"true",
-    "1"} yields the wildcard "0.0.0.0"; everything else — unset, "false", a
-    typo, "yes" — yields loopback "127.0.0.1". The second fail-safe layer is
-    compose's own ${FRONTEND_BIND_ADDRESS:-127.0.0.1} default, which covers a
-    hand-edited .env that sets EXPOSE_LAN=true without re-running setup.py.
+    One flag, one vocabulary (O1.6 review follow-up): the truthy set matches
+    what pydantic parses for Settings.expose_lan from a string — case-
+    insensitive {"true", "t", "yes", "y", "on", "1"} (probed against
+    TypeAdapter(bool) on pydantic 2.13), so a value like EXPOSE_LAN=yes can
+    never arm the auth gate here while the bind stayed loopback there.
+    Everything else — unset, "false"/"no"/"off", a typo — yields loopback
+    "127.0.0.1" (fail-safe). The words pydantic REJECTS outright (e.g. "banana")
+    can't split the readers either: Settings construction raises before any
+    render happens. The second fail-safe layer is compose's own
+    ${FRONTEND_BIND_ADDRESS:-127.0.0.1} default, which covers a hand-edited
+    .env that sets EXPOSE_LAN=true without re-running setup.py.
 
     Args:
         expose_lan: raw EXPOSE_LAN value (from a prompt answer or an env read)
@@ -101,7 +107,9 @@ def derive_frontend_bind_address(expose_lan: str) -> str:
         "0.0.0.0" when the UI is deliberately LAN-exposed, else "127.0.0.1"
     """
     return (
-        "0.0.0.0" if expose_lan.strip().lower() in ("true", "1") else "127.0.0.1"  # noqa: S104
+        "0.0.0.0"  # noqa: S104
+        if expose_lan.strip().lower() in ("true", "t", "yes", "y", "on", "1")
+        else "127.0.0.1"
     )
 
 
