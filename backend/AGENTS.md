@@ -1327,7 +1327,7 @@ below was re-verified against the code at this commit.
 - Auto-rollback defaults: latency +50 %, FP rate +5 %, error rate +5 %, at 100 FEEDBACK
   submissions per arm (`prompt_ab_rollout.py:571-572` gates on `total_feedback_count` only —
   recording analyses never satisfies the gate, so an analysis-only experiment reports
-  "Insufficient samples" forever and cannot roll back), plus +50 % latency
+  "Insufficient samples" forever and cannot roll back)
   (`backend/config/prompt_experiment.py:90`, `backend/config/ab_rollout_production.py:73-83`);
   the production profile is a 50/50 split for 48 hours (`backend/config/ab_rollout_production.py:62-66`).
   `PromptExperiment.traffic_split` defaults to 0.1.
