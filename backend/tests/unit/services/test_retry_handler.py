@@ -1081,7 +1081,15 @@ class TestDLQJobLossLogging:
 
         cb_config = CircuitBreakerConfig(
             failure_threshold=2,
-            recovery_timeout=0.1,
+            # Ruling 39 L-i: this class asserts behavior WHILE the circuit is
+            # open, and with max_retries=1 nothing in the tests sleeps — so a
+            # 0.1 s recovery window made the answer depend on the CI runner
+            # being faster than 100 ms between the trip and the loss call, and
+            # a stall let the breaker self-transition OPEN → HALF_OPEN inside
+            # allow_call (the historical flake). One hour is not a window any
+            # scheduling stall reaches; recovery itself is tested, with an
+            # explicit wait, in TestDLQCircuitBreaker.
+            recovery_timeout=3600.0,
             half_open_max_calls=1,
             success_threshold=1,
         )
