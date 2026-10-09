@@ -2144,9 +2144,9 @@ const { isPendingChord } = useKeyboardShortcuts({
 ## Notes
 
 - WebSocket URLs come from `buildWebSocketOptions()` (respects
-  `VITE_WS_BASE_URL`; it mints no credential — the browser socket rides the
-  session cookie, per ruling 44,
-  which the manager attaches to the handshake as of F1.3 — B1.5's gate reads it there)
+  `VITE_WS_BASE_URL`; it mints no credential, per ruling 44). The browser
+  attaches the session cookie to the handshake itself; `webSocketManager`
+  forwards `protocols` only. B1.5's gate authenticates the cookie there)
 - SSR-safe: checks for `window.WebSocket` availability before connecting
 - Events are stored in reverse chronological order (newest first)
 - Connection state is tracked per hook instance
