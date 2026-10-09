@@ -24,8 +24,9 @@
  * @see NEM-5322 Phase 4: Frontend Integration
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
 
+import { setUnauthorizedHandler } from '../services/api';
 import {
   getSetupStatus,
   getCurrentUser,
@@ -53,6 +54,13 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   /** True if first-time setup is required (no users exist) */
   setupRequired: boolean | null;
+  /**
+   * True when the backend reported `auth_required` on setup-status
+   * (`EXPOSE_LAN=true`). `null` until setup status has been answered.
+   * `ProtectedRoute` shows the login screen only when this is true; an
+   * absent flag (a backend predating B1.5) is treated as required.
+   */
+  authRequired: boolean | null;
   /** Error from setup status or current user fetch */
   error: Error | null;
   /**
@@ -132,7 +140,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Derive setupRequired from query result
   const setupRequired = setupStatus?.setup_required ?? null;
 
-  // Fetch current user only when setup is not required
+  // F1.3: does the backend gate its API? B1.5 put the flag in the
+  // setup-status body (EXPOSE_LAN). A response predating the field omits it;
+  // fail closed — guessing "open" would expose the UI, guessing "required"
+  // only shows a login form the (older) backend can still answer.
+  const authRequired = setupStatus ? (setupStatus.auth_required ?? true) : null;
+
+  // Fetch current user only when setup is not required AND the backend
+  // gates its API. With EXPOSE_LAN unset nothing is being gated, so the
+  // guard must not round-trip /api/auth/me and bounce to a login nobody
+  // asked for (F1.3 Done when: "with EXPOSE_LAN unset no login appears").
   const {
     data: currentUser,
     isLoading: isUserLoading,
@@ -140,13 +157,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
   } = useQuery({
     queryKey: CURRENT_USER_KEY,
     queryFn: getCurrentUser,
-    enabled: setupRequired === false, // Only fetch when setup not required
+    enabled: setupRequired === false && authRequired !== false,
     staleTime: 60000, // 1 minute
     retry: false,
   });
 
+  // F1.3: a 401 from any fetchApi call means the session stopped being valid
+  // (the B1.5 gate refuses with 401 {"detail": "Authentication required"}).
+  // Drop the cached user; ProtectedRoute re-derives from the empty cache and
+  // routes to /login. The guard's own redirect is the router — AuthProvider
+  // renders outside BrowserRouter, so this layer cannot call useNavigate.
+  useEffect(
+    () =>
+      setUnauthorizedHandler(() => {
+        queryClient.setQueryData(CURRENT_USER_KEY, null);
+      }),
+    [queryClient]
+  );
+
   // Determine overall loading state
-  const isLoading = isSetupLoading || (setupRequired === false && isUserLoading);
+  // F1.3: setup-status must be ANSWERED before the guard decides anything.
+  // The persisted-query provider renders children during restore, and a
+  // query that is pending-but-not-yet-fetching reports isLoading false
+  // (React Query v5: isLoading = isPending && isFetching). Without this
+  // window covered, ProtectedRoute's fail-closed branch (authRequired null
+  // !== false) bounces a cold-starting visitor to /login before the
+  // backend has answered — observed at +143ms against a live stack, with
+  // the setup-status response landing 42ms later. Done when run 2 forbids
+  // that bounce. An ANSWERED-but-fieldless status still fails closed (see
+  // authRequired above); only an errored one skips the loading window.
+  const setupStatusPending = setupStatus === undefined && !setupError;
+  const isLoading =
+    setupStatusPending || isSetupLoading || (setupRequired === false && isUserLoading);
 
   // User is null if not authenticated or setup required
   const user = setupRequired ? null : (currentUser ?? null);
@@ -203,12 +245,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isLoading,
       isAuthenticated,
       setupRequired,
+      authRequired,
       error: error,
       login,
       logout,
       register,
     }),
-    [user, isLoading, isAuthenticated, setupRequired, error, login, logout, register]
+    [user, isLoading, isAuthenticated, setupRequired, authRequired, error, login, logout, register]
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

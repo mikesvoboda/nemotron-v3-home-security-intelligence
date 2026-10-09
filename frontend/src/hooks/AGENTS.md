@@ -938,7 +938,7 @@ High-level hook for receiving security events via WebSocket (`/ws/events` endpoi
 - Maintains in-memory buffer of last 100 events (newest first, constant `MAX_EVENTS`)
 - Provides `latestEvent` computed value via `useMemo`
 - `clearEvents()` method to reset buffer
-- Uses `buildWebSocketUrl()` from api service for URL construction
+- Uses `buildWebSocketOptions()` from api service for URL + credential construction (F1.3)
 
 **SecurityEvent Interface:**
 
@@ -978,7 +978,7 @@ High-level hook for receiving system health updates via WebSocket (`/ws/system` 
 - Tracks GPU metrics: utilization, temperature, memory (used/total)
 - Tracks active camera count and overall system health
 - Type guard function `isBackendSystemStatus()` for message validation
-- Uses `buildWebSocketUrl()` from api service for URL construction
+- Uses `buildWebSocketOptions()` from api service for URL + credential construction (F1.3)
 
 **SystemStatus Interface:**
 
@@ -2004,15 +2004,19 @@ clearAll(): void
 
 ### URL Construction Pattern
 
-WebSocket hooks use `buildWebSocketUrl()` from `../services/api` for URL construction:
+WebSocket hooks use `buildWebSocketOptions()` from `../services/api` for URL **and credential**
+construction (F1.3): it returns `{ url, protocols }`, and the hook passes both to `useWebSocket`,
+which hands `protocols` to the manager — they ride the handshake as
+`Sec-WebSocket-Protocol`. The old `buildWebSocketUrl()` is deprecated (it puts `api_key` in the
+URL); it stays exported only for call sites that cannot take options yet:
 
 ```typescript
-import { buildWebSocketUrl } from '../services/api';
+import { buildWebSocketOptions } from '../services/api';
 
 // Respects VITE_WS_BASE_URL env var
 // Falls back to window.location.host
-// Appends api_key query param if VITE_API_KEY is configured
-const wsUrl = buildWebSocketUrl('/ws/events');
+// With VITE_API_KEY set: protocols = ['api-key.{key}'] (never the URL)
+const { url: wsUrl, protocols } = buildWebSocketOptions('/ws/events');
 ```
 
 ### Message Envelope Pattern
@@ -2138,7 +2142,9 @@ const { isPendingChord } = useKeyboardShortcuts({
 
 ## Notes
 
-- All WebSocket URLs are constructed via `buildWebSocketUrl()` which respects `VITE_WS_BASE_URL` and `VITE_API_KEY`
+- WebSocket URLs and credentials come from `buildWebSocketOptions()` (respects
+  `VITE_WS_BASE_URL`; with `VITE_API_KEY` set it mints the `api-key.{key}` subprotocol,
+  which the manager attaches to the handshake as of F1.3 — B1.5's gate reads it there)
 - SSR-safe: checks for `window.WebSocket` availability before connecting
 - Events are stored in reverse chronological order (newest first)
 - Connection state is tracked per hook instance
