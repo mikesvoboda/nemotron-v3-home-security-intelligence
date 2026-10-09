@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import importlib
 import re
+import shutil
 from pathlib import Path
 
 import pytest
@@ -39,6 +40,10 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 COMPOSE_FILE = REPO_ROOT / "docker-compose.prod.yml"
+# Committed render-env stubs for the compose file's two ${VAR:?} hard-required
+# vars (the test_frontend_expose_lan_bind.py fixture — `compose config` needs
+# them to interpolate the whole file).
+RENDER_ENV_FIXTURE = REPO_ROOT / "backend/tests/fixtures/compose-render.env"
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
 PROM_CONFIG = REPO_ROOT / "monitoring" / "prometheus.yml"
 ALERTMANAGER_CONFIG = REPO_ROOT / "monitoring" / "alertmanager.yml"
@@ -142,6 +147,29 @@ def test_setup_writes_monitoring_key_into_generated_env() -> None:
     )
     assert "derive_grafana_anonymous_enabled(" in setup_src
     assert "derive_grafana_auth_proxy_enabled(" in setup_src
+
+
+def test_generated_env_carries_key_and_derived_mode_lines() -> None:
+    """End-to-end through the real generator (the region test above only
+    proves the literals exist; this proves what setup.py WRITES, both modes).
+    API_KEYS is json.dumps([key]) — the form pydantic parses; the key itself
+    is hsi_+token_urlsafe, whose alphabet is JSON- and shell-safe."""
+    import setup
+
+    base = {"monitoring_api_key": "hsi_TESTKEY123"}
+    exposed = setup.generate_env_content({**base, "expose_lan": True})
+    unexposed = setup.generate_env_content({**base, "expose_lan": False})
+    for content in (exposed, unexposed):
+        assert "MONITORING_API_KEY=hsi_TESTKEY123" in content
+        assert 'API_KEYS=["hsi_TESTKEY123"]' in content, (
+            "the key mirrors into API_KEYS in BOTH modes"
+        )
+    assert "GRAFANA_ANONYMOUS_ENABLED=false" in exposed
+    assert "GRAFANA_AUTH_PROXY_ENABLED=true" in exposed
+    assert "ALERT_SINK_URL=http://frontend:8081/api/webhooks/alerts" in exposed
+    assert "GRAFANA_ANONYMOUS_ENABLED=true" in unexposed
+    assert "GRAFANA_AUTH_PROXY_ENABLED=false" in unexposed
+    assert "ALERT_SINK_URL=http://backend:8000/api/webhooks/alerts" in unexposed
 
 
 def test_env_documents_the_machine_key() -> None:
@@ -287,6 +315,244 @@ def test_backend_api_datasource_carries_the_key_via_grafana_core() -> None:
     assert "$MONITORING_API_KEY" in ds, (
         "Grafana expands $VAR in provisioning and sends core-level headers on "
         "datasource-proxy requests (probe: backend echo received grafana-LITVAL)"
+    )
+
+
+# ---------------------------------------------------------------------------
+# The render precedence the composed line must keep (upgrade safety): the
+# anonymous-Admin line GAINS a derived channel without losing the hand-set
+# one, so a user who already set GF_AUTH_ANONYMOUS_ENABLED=false in .env is
+# never silently handed anonymous Admin back by a setup.py run. The nested
+# ${OUTER:-${INNER:-true}} grammar renders under compose v5.5.1 (probed) —
+# asserted against the real binary when one exists, and against a two-level
+# emulator otherwise (skip-free, the test_frontend_expose_lan_bind.py
+# strategy; a one-level emulator would disagree with the binary on exactly
+# this line, so the recursion is pinned by a pin-test below).
+# ---------------------------------------------------------------------------
+
+_RENDER_OWNED_VARS = frozenset(
+    {
+        "EXPOSE_LAN",
+        "MONITORING_API_KEY",
+        "API_KEYS",
+        "ALERT_SINK_URL",
+        "GF_AUTH_ANONYMOUS_ENABLED",
+        "GRAFANA_ANONYMOUS_ENABLED",
+        "GRAFANA_AUTH_PROXY_ENABLED",
+        "GRAFANA_AUTH_PROXY_AUTO_SIGN_UP",
+        "PODMAN_SOCKET",
+    }
+)
+
+# One ${VAR:-default}, whose default may itself be ${…} (the nested form).
+_NESTED_VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-((?:[^{}]|\$\{[^{}]*\})*))?\}")
+# NOTE the trailing \}: without it the scanner stops one brace early on the
+# nested form (the inner default owns the first }), leaving a stray "}" —
+# exactly what the pin-test's first assert caught.
+
+
+def _interpolate(value: str, env: dict[str, str]) -> str:
+    """${VAR:-default} grammar, two levels deep (what compose does here).
+
+    Like the O1.6 sibling's one-level emulator, but the nested default is the
+    point of the line under test; compose treats an EMPTY value like an unset
+    one for :- defaults (probed against docker compose config v5.5.1).
+    """
+
+    def sub(m: re.Match[str]) -> str:
+        current = env.get(m.group(1), "")
+        if current == "" and m.group(2) is not None:
+            return _interpolate(m.group(2), env)
+        return current
+
+    return _NESTED_VAR_RE.sub(sub, value)
+
+
+def test_nested_interpolator_agrees_with_compose() -> None:
+    """Pin the emulator on the exact cases the precedence test leans on.
+
+    (Mirror of the sibling's test_binding_helpers_are_pinned: when the real
+    binary is absent, the emulator is the test — so its nested semantics are
+    asserted here, not assumed.)
+    """
+    line = "${GF_AUTH_ANONYMOUS_ENABLED:-${GRAFANA_ANONYMOUS_ENABLED:-true}}"
+    assert _interpolate(line, {}) == "true"
+    assert _interpolate(line, {"GF_AUTH_ANONYMOUS_ENABLED": "false"}) == "false"
+    assert _interpolate(line, {"GRAFANA_ANONYMOUS_ENABLED": "false"}) == "false"
+    # derived channel wins over the legacy one when both are set
+    assert (
+        _interpolate(
+            line, {"GF_AUTH_ANONYMOUS_ENABLED": "true", "GRAFANA_ANONYMOUS_ENABLED": "false"}
+        )
+        == "false"
+    )
+    # EMPTY counts as unset (compose's :- grammar), including for the inner default
+    assert (
+        _interpolate(line, {"GF_AUTH_ANONYMOUS_ENABLED": "", "GRAFANA_ANONYMOUS_ENABLED": ""})
+        == "true"
+    )
+
+
+def _compose_argv() -> list[str] | None:
+    """First runnable compose invocation (test_frontend_expose_lan_bind.py::_compose_argv)."""
+    if shutil.which("podman"):
+        return ["podman", "compose"]
+    if shutil.which("docker"):
+        return ["docker", "compose"]
+    for binary in ("podman-compose", "docker-compose"):
+        if shutil.which(binary):
+            return [binary]
+    return None
+
+
+def _render_env_lines(service: str, env_overrides: dict[str, str]) -> list[str]:
+    """One service's rendered environment under an overlay: real compose when
+    a binary exists, the two-level emulator otherwise. Skip-free both ways."""
+    env: dict[str, str] = {}
+    with RENDER_ENV_FIXTURE.open(encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, _, v = line.partition("=")
+                env.setdefault(k, v)
+    env.update({k: v for k, v in env_overrides.items() if v is not None})
+    env.update({k: "" for k, v in env_overrides.items() if v is None})
+
+    argv = _compose_argv()
+    if argv is not None:
+        import json as _json
+        import os
+        import subprocess
+
+        proc_env = {k: v for k, v in os.environ.items() if k not in _RENDER_OWNED_VARS}
+        proc_env.update(env)
+        result = subprocess.run(  # noqa: S603 — argv is a literal list  # real
+            [
+                *argv,
+                "--env-file",
+                str(RENDER_ENV_FIXTURE),
+                "-f",
+                str(COMPOSE_FILE),
+                "config",
+                "--format",
+                "json",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+            env=proc_env,
+        )
+        assert result.returncode == 0, f"compose config failed: {result.stderr[:400]}"
+        rendered = _json.loads(result.stdout)
+        svc_env = rendered["services"][service].get("environment") or {}
+        if isinstance(svc_env, list):  # older schema: ["K=V", …]
+            return list(svc_env)
+        return [f"{k}={v}" for k, v in svc_env.items()]
+
+    text = _text(COMPOSE_FILE)
+    doc = yaml.load(text, Loader=_ComposeLoader)  # noqa: S506  # nosemgrep: unsafe-yaml-load
+    return [_interpolate(line, env) for line in _env_lines(doc["services"][service])]
+
+
+def _grafana_env(env_overrides: dict[str, str]) -> dict[str, str]:
+    lines = _render_env_lines("grafana", env_overrides)
+    return {ln.split("=", 1)[0]: ln.split("=", 1)[1] for ln in lines if "=" in ln}
+
+
+def test_anonymous_admin_render_respects_legacy_and_derived_channels() -> None:
+    """The composed line: unset → true (today); legacy hand-set false → false
+    (never resurrected by the new channel); derived false → false (exposure
+    kills anonymous Admin). The security direction only ever goes one way."""
+    assert _grafana_env({}).get("GF_AUTH_ANONYMOUS_ENABLED") == "true"
+    assert (
+        _grafana_env({"GF_AUTH_ANONYMOUS_ENABLED": "false"}).get("GF_AUTH_ANONYMOUS_ENABLED")
+        == "false"
+    )
+    assert (
+        _grafana_env({"GRAFANA_ANONYMOUS_ENABLED": "false"}).get("GF_AUTH_ANONYMOUS_ENABLED")
+        == "false"
+    )
+
+
+def test_derived_channels_render_end_to_end() -> None:
+    """setup.py's exposed-mode values reach Grafana through compose: anonymous
+    off, auth-proxy on, sign-up landing on Viewer."""
+    env = _grafana_env(
+        {
+            "GRAFANA_ANONYMOUS_ENABLED": "false",
+            "GRAFANA_AUTH_PROXY_ENABLED": "true",
+            "GRAFANA_AUTH_PROXY_AUTO_SIGN_UP": "true",
+        }
+    )
+    assert env.get("GF_AUTH_ANONYMOUS_ENABLED") == "false"
+    assert env.get("GF_AUTH_PROXY_ENABLED") == "true"
+    assert env.get("GF_AUTH_PROXY_AUTO_SIGN_UP") == "true"
+    assert (
+        env.get("GF_AUTH_PROXY_ORG_ROLE") == "Viewer"
+        or env.get("GF_AUTH_PROXY_AUTO_SIGN_UP_ORG_ROLE") == "Viewer"
+    )
+
+
+# ---------------------------------------------------------------------------
+# json-exporter: the fourth machine caller, admitted after an ack-time
+# oversight — the hsi-telemetry/stats/gpu jobs target endpoints the gate
+# COVERS (/api/system/telemetry|stats|gpu are NOT in OPEN_PATHS), so the
+# probes 401 when exposed unless the exporter carries the key. Probe fact
+# (v0.6.0, wire-verified against an echo target): modules.<name>.headers
+# SCALAR map sends X-API-Key; a list value fails to unmarshal; a top-level/
+# global headers: key is silently ignored; the binary expands no env vars,
+# so its config renders too.
+# ---------------------------------------------------------------------------
+
+JSON_EXPORTER_CONFIG = REPO_ROOT / "monitoring" / "json-exporter-config.yml"
+
+
+def test_json_exporter_renders_the_key_for_the_gated_modules(compose_services: dict) -> None:
+    jx = compose_services["json-exporter"]
+    lines = _env_lines(jx)
+    assert "MONITORING_API_KEY=${MONITORING_API_KEY:-}" in lines
+    assert "EXPOSE_LAN=${EXPOSE_LAN:-false}" in lines, (
+        "the key renders ONLY when exposed — default-mode probes go out exactly as they do today"
+    )
+    command = " ".join(jx.get("command") or [])
+    assert KEY_PLACEHOLDER in command, "json_exporter expands nothing (probe) — boot-render it"
+    assert "--config.file=/tmp/json-exporter-config.yml" in command
+    assert "/tmp" in str(jx.get("tmpfs") or ""), "needs writable /tmp if rootfs is read_only"
+
+    text = _text(JSON_EXPORTER_CONFIG)
+    for module in ("telemetry", "stats", "gpu"):
+        block = text[text.index(f"  {module}:") :]
+        block = block[: block.index("\n  #") :] if "\n  #" in block[10:] else block
+        assert "headers" in block and "X-API-Key" in block and KEY_PLACEHOLDER in block, (
+            f"module {module!r} probes a gated endpoint — it must render the key"
+        )
+
+
+def test_json_exporter_health_module_stays_headerless() -> None:
+    """/api/system/health is in OPEN_PATHS — its probes need no credential,
+    and a header on a module whose target list an operator can extend (the
+    exporter is published on loopback 7979 for ad-hoc probes) is a needless
+    credential-forwarding surface. Keep the open-probe module clean."""
+    text = _text(JSON_EXPORTER_CONFIG)
+    health = text[text.index("  health:") :]
+    health = health[: health.index("\n  #") :] if "\n  #" in health[10:] else health
+    health = health[: health.index("\n  telemetry") :] if "\n  telemetry" in health[10:] else health
+    assert "X-API-Key" not in health
+
+
+# ---------------------------------------------------------------------------
+# setup.py also derives the alert sink (exposed: through the frontend machine
+# listener that injects the header AM cannot send; unexposed: today's direct
+# backend URL).
+# ---------------------------------------------------------------------------
+
+
+def test_setup_writes_the_alert_sink_beside_the_mode_block() -> None:
+    setup_src = _text(SETUP_PY)
+    region = setup_src[setup_src.index("FRONTEND_BIND_ADDRESS=") - 2000 :][:4000]
+    assert "ALERT_SINK_URL=" in region, (
+        "the sink join point is derived from EXPOSE_LAN like the bind address"
     )
 
 
