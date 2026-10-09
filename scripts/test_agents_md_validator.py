@@ -655,7 +655,7 @@ def test_line_caps_report_every_tier_and_never_fail(tmp_path):
     The `backend/models` fixture entry is the case the real tree cannot supply:
     a file whose line count EQUALS its cap, which must NOT be reported (a cap is
     a maximum, not a trigger). No committed boundary file sits at one — the
-    smallest |lines − cap| anywhere on the real tree is 18
+    smallest |lines - cap| anywhere on the real tree is 18
     (frontend/src/components/developer-tools, 318 against the 300 cap), and
     shifting every cap by ±5 leaves the over-set at 29 — so a `>` slipping to
     `>=` is invisible to every real-tree assertion in this file. Confirmed by
