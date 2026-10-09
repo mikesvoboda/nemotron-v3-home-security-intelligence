@@ -65,6 +65,19 @@ expected minimum level), each reported as rate, n and a 95% Wilson interval, plu
 results through `EvalStore`. It reads each item's STORED specialist outputs and never re-runs a
 specialist: the givens are the point of a replay.
 
+Replay measures the judge production runs (B1.2):
+
+- Every verdict passes through the analyzer's own `apply_verdict_invariants` with production's
+  `SeverityService`, so a row's score and level are the ones the analyzer stores. The model's raw
+  score stays in the row's verdict dump.
+- The default frames mode, `selector`, is production's `build_assess_request` with
+  `key_frame_spread_seconds`, for items whose detection rows name their frame. Other items (stills,
+  frozen events) fall back to their stored frames, and each fallback is counted. `stored` (an
+  item's first four media paths) re-runs a committed corpus byte for byte; `burst` feeds every
+  frame.
+- The report counts clamps and frame fallbacks (`parity`), and records its `severity_thresholds`
+  and `selector_spread_seconds`.
+
 ## Testing
 
 Tests live in `backend/tests/unit/evaluation/` (see its `AGENTS.md`). They need no GPU and no pandas.
