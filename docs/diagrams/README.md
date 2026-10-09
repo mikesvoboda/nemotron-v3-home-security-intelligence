@@ -308,8 +308,8 @@ colliding port is fixed in `.env` rather than by editing compose.
 | Pyroscope            | `${PYROSCOPE_PORT:-4040}`          | 4040      |
 | Tempo API            | `${TEMPO_PORT:-3200}`              | 3200      |
 
-Every mapping above except the two frontend ports is published on
-`127.0.0.1` only.
+Every mapping above is published on `127.0.0.1` only by default (`O1.6`);
+`EXPOSE_LAN=true` publishes the two frontend ports for LAN clients.
 
 ---
 

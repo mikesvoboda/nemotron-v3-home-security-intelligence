@@ -96,7 +96,10 @@ def derive_frontend_bind_address(expose_lan: str) -> str:
     Everything else — unset, "false"/"no"/"off", a typo — yields loopback
     "127.0.0.1" (fail-safe). The words pydantic REJECTS outright (e.g. "banana")
     can't split the readers either: Settings construction raises before any
-    render happens. The second fail-safe layer is compose's own
+    render happens. One edge, stated exactly: this derive .strip()s, pydantic
+    does not — a whitespace-padded truthy word (" true") wilds the bind here
+    while Settings raises there, so the backend never boots behind it (the
+    split is loud, never silent). The second fail-safe layer is compose's own
     ${FRONTEND_BIND_ADDRESS:-127.0.0.1} default, which covers a hand-edited
     .env that sets EXPOSE_LAN=true without re-running setup.py.
 
