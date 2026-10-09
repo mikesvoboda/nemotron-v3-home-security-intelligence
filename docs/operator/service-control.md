@@ -335,17 +335,19 @@ Service status changes are broadcast via the `/ws/system` channel:
 
 **Event Types:**
 
-| Message                  | Meaning                           |
-| ------------------------ | --------------------------------- |
-| Service discovered       | Container found during discovery  |
-| Service recovered        | Health check passed after failure |
-| Health check failed      | Service became unhealthy          |
-| Manual restart initiated | User triggered restart            |
-| Restart completed        | Restart finished successfully     |
-| Restart failed           | Restart did not succeed           |
-| Service disabled         | Max failures or manual disable    |
-| Service enabled          | Manual re-enable                  |
-| Service started          | Start operation completed         |
+| Message                                          | Meaning                                                                              |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Service discovered                               | Container found during discovery                                                     |
+| Service recovered                                | Health check passed after failure                                                    |
+| Health check failed                              | Service became unhealthy                                                             |
+| Manual restart initiated                         | User triggered restart                                                               |
+| Restart completed                                | Restart finished successfully                                                        |
+| Restart failed                                   | Restart did not succeed                                                              |
+| Network isolation detected - restarting in place | Reachable on localhost, not by its hostname; restarted in place                      |
+| Recovery failed - manual intervention needed     | An in-place recovery failed; the container was not removed (also logged at CRITICAL) |
+| Service disabled                                 | Max failures or manual disable                                                       |
+| Service enabled                                  | Manual re-enable                                                                     |
+| Service started                                  | Start operation completed                                                            |
 
 ---
 
@@ -358,10 +360,12 @@ The backend's Container Orchestrator manages service lifecycle:
 On startup, the orchestrator:
 
 1. Connects to Docker daemon
-2. Discovers containers matching name patterns
-3. Registers services in the service registry
-4. Loads persisted state from Redis
-5. Starts health monitoring
+2. Reads its own compose project from its container's `com.docker.compose.project` label
+3. Discovers that project's containers matching name patterns. Another stack on the same host is
+   never adopted, and with no project known it adopts nothing.
+4. Registers services in the service registry
+5. Loads persisted state from Redis
+6. Starts health monitoring
 
 ### Health Monitoring
 
@@ -376,10 +380,16 @@ Continuous health checks:
 
 When a service fails health check:
 
-1. Orchestrator initiates restart
+1. Orchestrator restarts the service's own container in place (it never removes or recreates
+   a container, and acts only on its own compose project's containers)
 2. Failure count incremented
 3. If count exceeds threshold, service disabled
 4. WebSocket broadcast notifies clients
+
+A network-isolated service (reachable on localhost but not by its hostname) takes the same backoff
+and is restarted in place. If that recovery fails, the container is kept, a restore start is
+attempted, and the failure is logged at CRITICAL, which Grafana's `critical-error` log rule alerts
+on.
 
 ### State Persistence
 

@@ -41,7 +41,10 @@ from typing import TYPE_CHECKING, Any
 
 from backend.api.schemas.services import ServiceInfo, ServiceStatusEvent
 from backend.core.logging import get_logger
-from backend.services.container_discovery import ContainerDiscoveryService
+from backend.services.container_discovery import (
+    ContainerDiscoveryService,
+    resolve_own_compose_project,
+)
 from backend.services.health_monitor_orchestrator import HealthMonitor
 from backend.services.lifecycle_manager import LifecycleManager
 from backend.services.orchestrator import (
@@ -289,27 +292,40 @@ class ContainerOrchestrator:
         """Callback when network isolation is detected for a service.
 
         Called by HealthMonitor when a service is reachable via localhost
-        but not via its hostname (indicating it's not on the compose network).
-        Triggers a compose-based restart to fix the network isolation.
+        but not via its hostname. Recovers it by restarting its own container
+        in place (B1.6, D11): the container keeps the networks compose attached
+        it to, and a failed recovery raises the alert through
+        `_on_recovery_failed` instead of leaving the service deleted.
 
         Args:
             service: The service with network isolation
         """
-        logger.warning(
-            f"Network isolation detected for {service.name}, attempting compose-based restart"
-        )
-        await self._broadcast_status(service, "Network isolation detected - restarting via compose")
+        logger.warning(f"Network isolation detected for {service.name}, restarting it in place")
+        await self._broadcast_status(service, "Network isolation detected - restarting in place")
 
         if self._lifecycle_manager:
-            success = await self._lifecycle_manager.restart_via_compose(service)
-            if success:
-                await self._broadcast_status(
-                    service, "Compose restart completed - network isolation fixed"
-                )
-            else:
-                await self._broadcast_status(
-                    service, "Compose restart failed - manual intervention needed"
-                )
+            # Backoff and failure count as for an unhealthy service; success
+            # broadcasts through `_on_restart`, failure through `_on_recovery_failed`.
+            await self._lifecycle_manager.handle_isolated(service)
+
+    async def _on_recovery_failed(self, service: ManagedService) -> None:
+        """The alert for a failed in-place recovery (B1.6, D11).
+
+        Called by LifecycleManager when recovering a service in place fails.
+        Recovery never removes a container, so a person can inspect and start
+        it. This logs at CRITICAL - the level the repository uses for "manual
+        intervention needed", which Grafana's `critical-error` log rule
+        (`monitoring/grafana/provisioning/alerting/log-alerts.yml`) alerts on -
+        and broadcasts the service status.
+
+        Args:
+            service: The service whose recovery failed
+        """
+        logger.critical(
+            f"Recovery failed for {service.name}; manual intervention needed",
+            extra={"service_name": service.name, "container_id": service.container_id},
+        )
+        await self._broadcast_status(service, "Recovery failed - manual intervention needed")
 
     async def _on_service_discovered(self, service: ManagedService) -> None:
         """Callback when a service is discovered during startup.
@@ -516,9 +532,13 @@ class ContainerOrchestrator:
 
         logger.info("Connected to Docker daemon")
 
-        # 2. Discover containers
-        discovered = await self._discovery_service.discover_all()
-        logger.info(f"Discovered {len(discovered)} containers")
+        # 2. Discover the containers of the backend's OWN compose project
+        # (B1.6, D11): the socket shows every container on the host, and a name
+        # match alone would adopt another stack's services. An unknown project
+        # adopts nothing.
+        project = await resolve_own_compose_project(self._docker_client)
+        discovered = await self._discovery_service.discover_all(project=project)
+        logger.info(f"Discovered {len(discovered)} containers in compose project {project!r}")
 
         # 3. Register discovered services in our registry
         # ContainerDiscoveryService now returns ManagedService directly
@@ -552,6 +572,7 @@ class ContainerOrchestrator:
             docker_client=self._docker_client,
             on_restart=self._on_restart,
             on_disabled=self._on_disabled,
+            on_recovery_failed=self._on_recovery_failed,
         )
 
         # 7. Create health monitor using the shared registry

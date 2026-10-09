@@ -1140,7 +1140,7 @@ class TestRegistryWritesTargetTheServiceName:
         """handle_missing must persist the named service after clearing container_id.
 
         update_status is asserted called-once so this cannot be satisfied by the
-        restart_via_compose branch, which carries a near-identical STARTING write.
+        recover_in_place branch, which carries a near-identical STARTING write.
         """
         await lifecycle_manager.handle_missing(monitoring_service)
 
