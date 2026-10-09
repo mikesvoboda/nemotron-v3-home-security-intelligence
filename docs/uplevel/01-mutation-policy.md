@@ -4,7 +4,9 @@
 > [`docs/plans/2026-09-29-mutation-ladder-85-goal-prompt.md`](../plans/2026-09-29-mutation-ladder-85-goal-prompt.md)
 > and the two `docs/goal-prompt-mutation-80-*.txt` prompts. Evidence: [`00 §4.4, §6`](00-audit.md).
 
-This file is the single source for how mutation testing works from now on. Its five packages
+This file is the single source for how mutation testing works from now on — except the interface
+bar and the accepted-survivor definitions, which M3 / B2.1 moved to
+`docs/developer/patterns/mutation-testing.md`; that doc owns those two sections. Its five packages
 (M1–M5) are scheduled in the lane plans by the IDs in the README status table.
 
 ## What the score is for

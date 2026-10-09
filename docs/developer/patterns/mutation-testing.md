@@ -423,6 +423,9 @@ Results are uploaded as artifacts for review without blocking PRs.
 
 ## The interface bar
 
+The rulings these sections illustrate are UR-6 and UR-16 (`docs/uplevel/README.md`); the rule that
+gives the bar its teeth is the floor (`docs/uplevel/01-mutation-policy.md`).
+
 A kill counts when the killing test observes the module through its **interface** (UR-6). Above
 the bar, a test asserts on:
 
@@ -448,11 +451,11 @@ An **accepted survivor** is a mutant the policy lets survive, recorded with a re
 - `below-bar` — only below-bar tests killed it, and consolidation surrendered the kill.
 
 Accepted survivors live in one file, `backend/tests/mutation/accepted_survivors.toml`. The
-weekly scorer reports scores both with and without them.
+weekly scorer will report scores both with and without them (`01` package M2).
 
 ## Equivalent Mutants
 
-Some mutations produce code that is semantically identical to the original. These "equivalent mutants" can never be killed and should be ignored.
+Some mutations produce code that is semantically identical to the original. These "equivalent mutants" can never be killed; under the current policy they are recorded as `equivalent` accepted survivors (see above) rather than ignored silently.
 
 Example of equivalent mutant:
 
