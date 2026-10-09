@@ -505,7 +505,7 @@ Cameras upload images/videos to:
 You can:
 
 - Bring your own FTP server and point it at `/export/foscam`
-- Run the archived vsftpd container yourself (it lived in the archive tree UR-19 deleted — recover `vsftpd.conf`, `Dockerfile`, `docker-compose-wrapper.sh`, `install-systemd.sh` from git history). It was never wired into any compose file.
+- Run the archived vsftpd container yourself (it lived in the archive tree UR-19 deleted — recover `vsftpd.conf`, `Dockerfile`, `docker-compose-wrapper.sh`, `install-systemd.sh` from git history). It is not wired into any compose file today; it briefly was (added at `bd5ef70a7`, removed at `d585135e7`, 2025-12-31 to 2026-01-02).
 
 > [!NOTE]
 > In production containers, the host camera path is mounted to `/cameras` and the backend uses `FOSCAM_BASE_PATH=/cameras`.

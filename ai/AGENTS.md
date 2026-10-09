@@ -116,7 +116,7 @@ The X-CLIP `action_recognizer` slot was retired with the NEM-5563 move to Triton
 `yolo26.py` and `enrichment_light.py` only), and `models.yml` has no
 `xclip-base` row. Action recognition is not a shipped capability. (The retired
 code sat in the deleted archive tree under ai-enrichment/ and xclip-backend-chain/;
-UR-19 deleted the archive tree — recover from git history before that commit.)
+UR-19 deleted the archive tree — recover it from git history.)
 
 ### Model Priority System
 

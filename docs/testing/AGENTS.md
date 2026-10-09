@@ -4,8 +4,8 @@
 
 Historical marker directory. The testing analysis reports that used to live
 here (the 2026-01 integration-coverage snapshot and the TDD "red phase" test
-summaries) were point-in-time artifacts of shipped work, moved into the docs archive tree and deleted with it by UR-19 — recover them from git history
-before that commit.
+summaries) were point-in-time artifacts of shipped work, moved into the docs archive tree and
+deleted with it by UR-19 — recover them from git history.
 
 ## Where the living documentation is
 

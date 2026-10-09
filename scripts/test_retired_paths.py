@@ -230,12 +230,21 @@ def _directory_term(term: str) -> re.Pattern[str]:
     of one. Anchoring also keeps ``archive/`` from firing on a mention of
     ``docs/archive/``, which has its own entry.
 
+    The optional ``\\.{0,2}/`` prefix admits the parent-relative and current-dir
+    forms: ``../archive/x`` and ``/archive/x`` name the retired tree as plainly
+    as ``archive/x`` does, and the self-review's probe (O1.5) showed the plain
+    lookbehind let them through — the leading ``.`` or ``/`` is a path
+    navigation, not part of a longer name, so anchoring must not read it as one.
+    A prefix followed by a COLLIDING tail stays silent (``../openapi-archive/x``):
+    the group is tried once, at the path start, and the term must follow it
+    immediately.
+
     Same lesson as the list header's declared-alias rule, one level down: that
     rule refused to derive ``ci.yml`` from ``docker-compose.ci.yml`` because a
     derived term collides with a real name. A derived *substring* collides the
     same way. Pinned both directions in ``test_selftest_discriminates``.
     """
-    return re.compile(r"(?<![A-Za-z0-9._\-/])" + re.escape(term))
+    return re.compile(r"(?<![A-Za-z0-9._\-/])(?:\.{0,2}/)?" + re.escape(term))
 
 
 def _names(entry: RetiredEntry, line: str) -> bool:
@@ -398,7 +407,11 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
         "Copy it into openapi-archive/openapi.json.\n"  # 6 — longer path ending in
         #     the term is NOT the term: the anchor (O1.5, UR-19 — measured in the
         #     real tree: docs.yml's openapi-archive/ is the only live collision)
-        "Recover it under archive/ whenever.\n",  # 7 — directory entry at a segment start
+        "Recover it under archive/ whenever.\n"  # 7 — directory entry at a segment start
+        "Mount it from ../archive/ and ./archive/ too.\n"  # 8 — parent/cur-dir prefixes name
+        #     the retired tree as plainly (the self-review's probe, O1.5: the plain
+        #     lookbehind let these through; the optional \.{0,2}/ group catches them)
+        "Never ../openapi-archive/openapi.json.\n",  # 9 — prefix + colliding tail stays silent
         encoding="utf-8",
     )
     (tmp_path / "docs" / "weird.md").write_bytes(b"caf\xe9 gone.txt lives in latin-1\n")
@@ -450,6 +463,8 @@ def test_selftest_discriminates(tmp_path: Path) -> None:
     assert any(f.startswith("docs/terms.md:5:") for f in refs), refs  # directory flags contents
     assert not any(f.startswith("docs/terms.md:6:") for f in refs), refs  # openapi-archive/ survives
     assert any(f.startswith("docs/terms.md:7:") for f in refs), refs  # root dir entry alive
+    assert any(f.startswith("docs/terms.md:8:") for f in refs), refs  # ../ ./ prefixes fire
+    assert not any(f.startswith("docs/terms.md:9:") for f in refs), refs  # prefix+tail survives
     assert any(f.startswith("docs/weird.md:1:") for f in refs), refs  # encoding drift hides nothing
 
     # Python record shapes: a triple-quoted tagged record (lines 11-13) is

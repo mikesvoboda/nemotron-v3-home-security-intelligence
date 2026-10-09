@@ -18,7 +18,7 @@ image any more. The serving build recipe, requirements.txt, export_tensorrt.py
 and the era's README.md lived in the ai-yolo26-image archive tree (that Dockerfile kept
 the full build recipe for reference; the earlier benchmark image was
 the archive's Dockerfile.yolo26-benchmark) until UR-19 deleted the archive tree —
-recover from git history before that commit.
+recover them from git history.
 
 ## What Stays Here (and Why)
 
