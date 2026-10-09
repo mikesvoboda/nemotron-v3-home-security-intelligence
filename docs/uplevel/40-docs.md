@@ -13,37 +13,17 @@ real exit codes.
 This lane makes the map true and keeps it true.
 
 Its heavy work waits for the other lanes' Phase 3: rewriting docs before the code they describe is
-deleted would be wasted. Phase 1 stops active misdirection; Phase 3 rewrites to the standard below.
+deleted would be wasted. Phase 1 stops active misdirection; Phase 3 rewrites to the standard.
 
 ---
 
 ## The AGENTS.md standard
 
-The reference every package in this lane applies (UR-21).
-
-**Where they live.** At **boundaries** only: the root, each lane root (`backend/`, `frontend/`,
-`ai/`, `scripts/`, `.github/`, `synthbench/`, `monitoring/`), and packages that hold real
-invariants or traps (for example `backend/services/`, `backend/ai_contract/`, `frontend/src/`). The
-committed boundary list lives in `.agents-md-validator.yml`, one reason per entry. Test directories
-and `docs/` subfolders have none: tests and docs index themselves.
-
-**What an AGENTS.md holds** — what an agent cannot find by looking:
-
-- the directory's purpose, in one to three sentences;
-- its entry points: where to start reading, and which files are generated;
-- its invariants and contracts: what must stay true, and the test that guards each;
-- its traps: the non-obvious failure modes, each with the file or test that shows it;
-- how to test it: the command;
-- pointers to the design docs and decisions behind it.
-
-**What it leaves to the environment** — file-by-file inventories, restated code, counts, and
-history narratives. The directory listing, the imports and `git log` are the source of truth; a
-copy of them is a cache that goes stale as soon as the code moves. That is where the 213 dead
-references live.
-
-**How it is written.** State the target behaviour rather than the prohibition. One meaning in one
-place: link to the doc that owns a rule instead of restating it. The root file is the longest;
-**DECIDE** a line cap per tier in `W2.1` and enforce it in the validator.
+Held at [`../developer/agents-md-standard.md`](../developer/agents-md-standard.md) — that file is
+its **single home** (`UR-21`, moved out of this section by `W2.1`, which is the package that
+commands the move). Every package in this lane applies it, `W3.2` rewrites the boundary files to
+it, and this plan restates none of it: a rule in two documents is two rules the next time one of
+them is edited.
 
 ---
 
@@ -193,9 +173,10 @@ Paste this to the agent taking the docs lane.
 
 ```text
 You are the docs lane of the uplevel programme. Read docs/uplevel/README.md
-(vocabulary, contract, rulings), then docs/uplevel/40-docs.md, including its
-AGENTS.md standard, then the docs/uplevel/00-audit.md sections each package
-cites.
+(vocabulary, contract, rulings), then docs/uplevel/40-docs.md, then the
+AGENTS.md standard it points to at
+docs/developer/agents-md-standard.md, then the docs/uplevel/00-audit.md
+sections each package cites.
 
 Take the package the coordinator assigns you. Otherwise claim one yourself: the
 lowest-numbered package in your current phase that is "not started", not

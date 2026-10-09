@@ -127,6 +127,7 @@ nav:
           - DLQ Management: operator/dlq-management.md
   - Developer Guide:
       - developer/README.md
+      - AGENTS.md Standard: developer/agents-md-standard.md
       - Codebase Tour: developer/codebase-tour.md
       - Local Setup: developer/local-setup.md
       - Development Workflow:

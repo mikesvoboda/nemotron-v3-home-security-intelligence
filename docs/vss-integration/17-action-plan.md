@@ -705,6 +705,42 @@ cameras the default governs; what is undetermined is whether a stored 0 is 'no s
 or 'a preference that wins', which is OD-30. The 4.3% figure stays as recorded; its scope moves by
 dated note, per the record rules.
 
+Update 2026-10-09 (B1.2, PR #6924; the UR-8 pause lifts) [V: code and tests at the PR's head, and
+the records cited below; the real-tier count is pending]: replay now scores every verdict the way
+production does, and feeds production's key-frame selection wherever the corpus says which frame
+each detection was seen on.
+
+1. **Scores, for every item.** Every replayed verdict passes through `apply_verdict_invariants`,
+   so a `rejected` verdict scores at most `low_max` (29 by default), as production stores it. The
+   model's raw score stays in the row. Earlier replay reports scored the raw value: `s_metrics`
+   scores any non-NULL `risk_score` regardless of verdict
+   (`docs/plans/2026-10-04-vlm-assess-prompt-review-and-experiment-plan.md:335-341`). Their raw
+   S2/S3 readings therefore differ from the production-effective ones only where a `rejected`
+   verdict scored above `low_max`. The effect is nil for the shipped model's 2026-10-03 run
+   (ISS-014: 4 rejected rows, all scored 10 or less), and the plan records the two readings as
+   identical for the control, arm A and arm B runs. The flagship's 15 rejected rows are unchecked.
+2. **Frames, where the corpus allows.** Replay's default is now production's selection, with
+   production's `key_frame_spread_seconds`. Earlier runs fed an item's first four media paths, or,
+   under `--frames selector`, a selector without the spread. The new default can select only for
+   items whose detection rows name their frame (synthbench sequence sets).
+   - **Stills** have one image either way, so they are unchanged.
+   - **Frozen and owner-labelled production events** store each detection's frame and thumbnail as
+     media but name no frame per row, so they still get their first four media paths. Each
+     fallback is recorded per row and counted in the report (`parity.fell_back`).
+   - **Camera timezone.** Parity also assumes `CAMERA_TIMEZONE` unset, which is production's
+     default; `.env.bench` sets it, and with it production selects and prompts on filename capture
+     times, which replay does not.
+   - **`synthbench replay`** still defaults to `stored`. Production's frames need both
+     `--frames selector` and `--with-sequences`.
+
+**OD-29 is unaffected.** Its operating point was computed production-effective, with the clamp
+applied (`docs/vss-integration/README.md:81` and the OD-29 paragraph above), on stills. So neither
+half of this change moves its 4.3% or 43.2%.
+
+The operator re-runs the latest replay report on a test deployment's `ai-vlm` (never the live
+engine) and posts on PR #6924 the count of items whose score or verdict changes. The prompt and
+threshold selection that UR-8 paused can resume on parity replay.
+
 ## 5. The register
 
 Grouped by area, most severe first within each area. Each block carries the verified evidence, why
@@ -3193,6 +3229,17 @@ Whether S2, S3, S1, S4 and S5 mean what they are quoted to mean.
   worry no longer applies. The remaining clauses (a per-bar verdict in the reports, one shared
   verdict-to-score path, the `levels.py` versus `Settings` test, the spec rows) are untouched.
   Anchors into `s_metrics.py` moved by -2 and into `vlm_replay.py` by -3 (-5 from `:357`).
+- **Update 2026-10-09 (B1.2, PR #6924) [V: the parity tests at the PR's head].** The replay half of
+  the acceptance and the 'one shared verdict-to-score path' clause are met. `replay_item` scores
+  every verdict through the analyzer's own `apply_verdict_invariants` with production's
+  `SeverityService`. The row carries the level, and the model's raw score stays in the verdict
+  dump. The report records `severity_thresholds` and counts the clamps it made (`parity.clamped`).
+  `backend/tests/unit/evaluation/test_vlm_replay_parity.py` sends one `rejected`/90 verdict through
+  both `analyze_batch` and `replay_item` and asserts the same verdict, score and level. That is the
+  stronger form of the acceptance's `rejected`/70 test, because it runs production's path rather
+  than restating it. The issue stays `open`: the per-bar report verdict, the `levels.py` versus
+  `Settings` test and the spec rows are untouched. Replay's frames changed too; see the OD-29
+  update of the same date.
 
 #### ISS-015 — Decide and disclose S3's floor: band midpoint vs declared minimum (and S2 band edge)
 
