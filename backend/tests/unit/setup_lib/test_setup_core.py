@@ -1,15 +1,14 @@
-# tests/test_setup_core.py
-"""Tests for the setup_lib.core module.
+"""Tests for the setup_lib.core module, returned to the live suite by O1.5.
 
-This module tests the core utility functions extracted from setup.py.
+These lived as ``archive/test_setup_core.py``. The old sys.path insert resolved
+``parent.parent`` from ``archive/`` (one level under the root) and no longer
+points anywhere from ``backend/tests/unit/setup_lib/``; the package's own
+conftest already puts the repo root on sys.path, so it is gone. The
+backward-compat load of setup.py below repoints at ``REPO_ROOT / "setup.py"``.
 """
 
 import socket
-import sys
 from pathlib import Path
-
-# Add project root to path for setup_lib package import
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from setup_lib.core import (
     WEAK_PASSWORDS,
@@ -18,6 +17,8 @@ from setup_lib.core import (
     generate_password,
     is_weak_password,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 class TestCheckPortAvailable:
@@ -201,10 +202,12 @@ class TestBackwardCompatibility:
         """Test that functions can still be imported from setup.py (the module)."""
         import importlib.util
 
-        # Load setup.py directly as a module to avoid package import
+        # Load setup.py directly as a module to avoid package import.
+        # O1.5 move: the archived copy resolved this relative to archive/;
+        # from backend/tests/unit/setup_lib/ the root setup.py is REPO_ROOT.
         spec = importlib.util.spec_from_file_location(
             "setup_module",
-            str(Path(__file__).parent.parent / "setup.py"),
+            str(REPO_ROOT / "setup.py"),
         )
         setup_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(setup_module)
