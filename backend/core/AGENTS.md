@@ -1,5 +1,7 @@
 # Backend Core Infrastructure Guide
 
+> **Inventory banner (W1.3):** the file-by-file inventory below is **unmaintained until W3.2** — it drifts as code moves. The code is the source of truth; verify any line against the tree before acting on it.
+
 ## Purpose
 
 The `backend/core/` directory contains the foundational infrastructure components for the home security intelligence system:

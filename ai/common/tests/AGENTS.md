@@ -200,5 +200,3 @@ def test_initialization_with_tensorrt(self):
 ## Related Documentation
 
 - Parent module documentation: `ai/common/AGENTS.md`
-- Model implementations: `ai/enrichment-light/models/`
-- Export scripts: `ai/enrichment/scripts/`
