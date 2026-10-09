@@ -25,4 +25,11 @@
 docker-compose.ghcr.yml ; ghcr.yml
 docs/operator/ai-ghcr-deployment.md
 
-# O1.4 and O1.5 will add their own entries here (docs/uplevel/30-ops.md).
+# O1.4 (D9): the PR preview-container pipeline read github.event.pull_request.*
+# under a dispatch-only trigger (never populated), had no successful run since
+# 2026-01-06 (90+ silent days = delete, per the package's DECIDE rule), and its
+# PR comment advertised retired service URLs. The basename term covers prose
+# shorthand; no declared alias needed (the gate adds the basename itself).
+.github/workflows/preview-deploy.yml
+
+# O1.5 will add its own entries here (docs/uplevel/30-ops.md).

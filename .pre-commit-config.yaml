@@ -42,16 +42,18 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
-      # .wp25-feed/ (now archive/ — pass 2 widened the ruling to the whole archive tree; see archive/README.md) is mutation-triage EVIDENCE (mutmut diff dumps, dossier
-      # prose, frozen meta snapshots): content must stay byte-for-byte as
-      # produced (trailing-whitespace/end-of-file-fixer would silently amend
-      # mutant payloads; the dumps are not source and must not be parsed,
-      # linted, formatted or secret-scanned as such). Same ruling as the
-      # prettier exclusion below and the ^mutants/ exclusions throughout.
+      # archive/ (see archive/README.md) is mutation-triage EVIDENCE (mutmut
+      # diff dumps, dossier prose, frozen meta snapshots): content must stay
+      # byte-for-byte as produced (trailing-whitespace/end-of-file-fixer would
+      # silently amend mutant payloads; the dumps are not source and must not
+      # be parsed, linted, formatted or secret-scanned as such). Same ruling
+      # as the prettier exclusion below and the ^mutants/ exclusions
+      # throughout. (O1.4 removed the sibling ^\.wp25-feed/ exclusions: that
+      # tree moved to archive/ and the pattern had no tracked files to match.)
       - id: trailing-whitespace
-        exclude: (\.ambr$|^\.wp25-feed/|^archive/) # Syrupy snapshot files require trailing whitespace
+        exclude: (\.ambr$|^archive/) # Syrupy snapshot files require trailing whitespace
       - id: end-of-file-fixer
-        exclude: ^\.wp25-feed/|^archive/
+        exclude: ^archive/
       - id: check-yaml
         # mkdocs.yml uses Python tags (!!python/name:) that safe_load can't
         # parse; config/docker-compose.gb300.yml uses podman-compose
@@ -62,7 +64,7 @@ repos:
         # validation steps, not here.
         exclude: (mkdocs\.yml$|^config/docker-compose\.gb300\.yml$|^scripts/uplevel-real-tier/docker-compose\.b14-real\.yml$)
       - id: check-json
-        exclude: (tsconfig.*\.json$|^\.wp25-feed/|^archive/)
+        exclude: (tsconfig.*\.json$|^archive/)
       - id: check-added-large-files
         args: ['--maxkb=1000']
         exclude: ^docs/images/.*\.png$
@@ -70,7 +72,7 @@ repos:
       - id: detect-private-key
         # Exclude test files that contain mock/fake private keys for testing
         # (+ the triage evidence tree: mutant payloads contain fake-key strings)
-        exclude: (^backend/tests/.*test_config\.py$|^\.wp25-feed/|^archive/)
+        exclude: (^backend/tests/.*test_config\.py$|^archive/)
 
   # Commit message linting - enforces conventional commit format
   - repo: https://github.com/compilerla/conventional-pre-commit
@@ -101,7 +103,7 @@ repos:
         # compose-render.env is test evidence with deliberate fake stubs (its header
         # testifies); no inline `pragma: allowlist secret` instead, because the file is
         # fed to compose as a literal --env-file, where `#` is not comment syntax.
-        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|^\.wp25-feed/|^archive/|\.tsbuildinfo$|^synthbench/generate/manifests/.*\.json$|^backend/tests/fixtures/compose-render\.env$)
+        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|^archive/|\.tsbuildinfo$|^synthbench/generate/manifests/.*\.json$|^backend/tests/fixtures/compose-render\.env$)
 
   # Auto-regenerate secrets baseline if it has conflicts or is out of date
   # Runs on every commit but only regenerates when baseline is invalid/conflicted
@@ -155,10 +157,13 @@ repos:
         types: [python]
         # Exclude mutants/, test_database_isolation.py (uses intentional raw SQL for advisory locks),
         # test_database_failover.py (text("SELECT 1") is a connection health probe, not user input),
-        # conftest.py (table names come from SQLAlchemy reflection, not user input),
-        # helpers.py (migration DDL operations require raw SQL),
-        # and vehicle_classifier_loader.py (file path is from internal model directory, not user input)
-        exclude: (^mutants/|^\.wp25-feed/|^archive/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/test_database_failover\.py$|backend/tests/integration/conftest\.py$|backend/alembic/helpers\.py$|backend/services/vehicle_classifier_loader\.py$)
+        # and conftest.py (table names come from SQLAlchemy reflection, not user input).
+        # O1.4 removed three dead alternatives: ^\.wp25-feed/ (tree moved to
+        # archive/), backend/alembic/helpers\.py$ (alembic removed at #4465),
+        # and backend/services/vehicle_classifier_loader\.py$ (loader never
+        # re-added after its move). scripts/test_workflow_paths.py reddens on
+        # any of them reappearing.
+        exclude: (^mutants/|^archive/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/test_database_failover\.py$|backend/tests/integration/conftest\.py$)
 
   # Python - Ruff (fast linter + formatter)
   # NOTE: Keep in sync with uv.lock ruff version for consistent behavior
@@ -217,10 +222,11 @@ repos:
     hooks:
       - id: prettier
         types_or: [css, json, markdown, yaml]
-        # .wp25-feed/ (now archive/ — pass 2 widened the ruling to the whole archive tree; see archive/README.md) is triage PROSE-COMPUTE: prettier pairs mid-word
-        # underscores into emphasis (read_through_cache -> read*through_cache),
-        # silently corrupting module identifiers. Do not format it.
-        exclude: (^frontend/|tsconfig.*\.json$|^docs/openapi\.json$|^docs/index\.md$|^\.wp25-feed/|^archive/)
+        # archive/ (see archive/README.md) is triage PROSE-COMPUTE: prettier
+        # pairs mid-word underscores into emphasis (read_through_cache ->
+        # read*through_cache), silently corrupting module identifiers. Do not
+        # format it. (O1.4 removed the dead ^\.wp25-feed/ alternative.)
+        exclude: (^frontend/|tsconfig.*\.json$|^docs/openapi\.json$|^docs/index\.md$|^archive/)
         additional_dependencies:
           # Owner ruling 24 (2026-10-09): ONE prettier for the whole repo — this
           # hook now runs the frontend lockfile's 3.9.9 (frontend/package.json
