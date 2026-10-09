@@ -576,6 +576,13 @@ class WebSocketManager {
         // F1.3: an auth refusal (4001/4002) is deterministic — replaying the
         // same uncredentialed handshake cannot get a different answer, and
         // 15 backoff retries against the gate is log noise, not recovery.
+        // Design dependency (self-review note): recovery after a terminal
+        // close is React's, not the manager's — every WS hook mounts inside
+        // <ProtectedRoute>, so a login remounts it and connect() reruns with
+        // the fresh credential. Nothing here reconnects on an auth transition.
+        // If a WS hook is ever mounted ABOVE the gate (or a provider outside
+        // it gains a socket), that socket stays closed until manual reload —
+        // wire it to useAuth() instead of relaxing this branch.
         const authRefused = AUTH_TERMINAL_CLOSE_CODES.includes(event.code);
 
         // Check if we should reconnect and update attempt count BEFORE notifying subscribers

@@ -92,19 +92,27 @@ Run `./scripts/generate-types.sh` to regenerate types after backend changes.
 ### WebSocket URL Helpers
 
 ```typescript
-// Build WebSocket URL with proper protocol and optional API key
+// Build the WebSocket URL AND the handshake credential (F1.3 — use this)
+buildWebSocketOptions(endpoint: string): { url: string; protocols?: string[] }
+// Example with VITE_API_KEY set:
+//   => { url: 'ws://localhost:8000/ws/events', protocols: ['api-key.xxx'] }
+
+// Deprecated: puts the key in the URL (?api_key=xxx), which leaks it into
+// access logs and Referer-style sinks. Kept only for call sites that cannot
+// take options yet — do not use in new code.
 buildWebSocketUrl(endpoint: string): string
-// Example: buildWebSocketUrl('/ws/events') => 'ws://localhost:8000/ws/events?api_key=xxx'
 
 // Check if API key is configured
 getApiKey(): string | undefined
 ```
 
-The `buildWebSocketUrl` function:
+`buildWebSocketOptions` (the pattern hooks/AGENTS.md documents):
 
 - Uses `VITE_WS_BASE_URL` if set, otherwise falls back to `window.location.host`
 - Automatically selects `ws:` or `wss:` based on page protocol
-- Appends `api_key` query parameter if `VITE_API_KEY` is configured
+- With `VITE_API_KEY` set it mints `protocols = ['api-key.{key}']` — the
+  credential rides the handshake as `Sec-WebSocket-Protocol`, **never** the
+  URL (B1.5's gate reads it there; F1.3 made the manager attach it)
 
 ### Core Functions
 
@@ -917,7 +925,7 @@ For AI agents exploring this codebase:
 
 1. **Start with `api.ts`** - Main API client with all REST endpoint methods
 2. **Type imports**: Types are re-exported from `../types/generated/`
-3. **WebSocket URLs**: Use `buildWebSocketUrl()` for WebSocket connections
+3. **WebSocket connections**: Use `buildWebSocketOptions()` (URL + `Sec-WebSocket-Protocol` credential, F1.3); `buildWebSocketUrl()` is deprecated — it leaks the key into the URL
 4. **Error handling**: All API calls can throw `ApiError` with status and data
 5. **Logging**: Import `logger` singleton for frontend logging to backend
 6. **A/B testing**: Use `abTestService.ts` for prompt playground A/B tests

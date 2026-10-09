@@ -18,6 +18,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import { AuthProvider, useAuth } from './AuthContext';
 import { server } from '../mocks/server';
+import { ApiError, fetchApi, setUnauthorizedHandler } from '../services/api';
 
 import type { User } from '../services/authApi';
 
@@ -384,6 +385,67 @@ describe('AuthContext', () => {
       });
 
       expect(result.current.isAuthenticated).toBe(false);
+    });
+  });
+
+  describe('401 seam wiring (F1.3)', () => {
+    afterEach(() => {
+      // Detach the handler AuthProvider installed so a later suite never
+      // fires a stale queryClient.
+      setUnauthorizedHandler(null);
+    });
+
+    // The Done-when sentence "a 401 from fetchApi routes to login" is a
+    // claim about a CHAIN: fetchApi fires the seam (api.auth-seam.test.ts),
+    // AuthContext installs a handler that clears the cached user, and
+    // ProtectedRoute derives /login from the emptied cache
+    // (ProtectedRoute.auth-gate.test.tsx). Both end-links are
+    // mutation-verified by their own suites, but neither covers the middle
+    // link — deleting the provider's setUnauthorizedHandler useEffect
+    // wholesale left the entire suite green (self-review finding, 37/37).
+    // This test runs the whole chain in one fixture: a REAL fetchApi call
+    // takes the gate refusal, and the mounted provider must report the
+    // session gone without any manual cache touch.
+    it('a mid-session 401 from fetchApi clears the cached user', async () => {
+      server.use(
+        http.get('/api/auth/setup-status', () => {
+          return HttpResponse.json({ setup_required: false, auth_required: true });
+        }),
+        http.get('/api/auth/me', () => {
+          return HttpResponse.json(mockUser);
+        })
+      );
+
+      const queryClient = createTestQueryClient();
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: createWrapper(queryClient),
+      });
+
+      // Authenticated: the provider fetched /me and the cache holds the user.
+      await waitFor(() => {
+        expect(result.current.user).toEqual(mockUser);
+      });
+
+      // The session stops being valid: from here every gated call 401s.
+      server.use(
+        http.get('/api/detections/1', () => {
+          return HttpResponse.json(
+            { detail: 'Authentication required' },
+            { status: 401 } // backend/api/middleware/auth.py refusal body
+          );
+        })
+      );
+
+      // An ordinary app call — no manual cache write, no logout().
+      await expect(fetchApi('/api/detections/1')).rejects.toBeInstanceOf(ApiError);
+
+      // The provider's installed handler fired and cleared the cache; the
+      // guard's inputs now say "not authenticated", which is what routes
+      // ProtectedRoute to /login.
+      await waitFor(() => {
+        expect(result.current.user).toBeNull();
+        expect(result.current.isAuthenticated).toBe(false);
+      });
     });
   });
 

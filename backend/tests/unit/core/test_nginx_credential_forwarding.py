@@ -88,12 +88,21 @@ class TestCredentialForwardingApi:
             "Cookie must be forwarded by directive, not by nginx default."
         )
 
-    def test_ssl_8443_api_block_included(self, entrypoint_text: str) -> None:
-        # The SSL server block is the third variant; its absence from the
-        # assertion above would let SSL mode regress silently.
-        ssl_section = entrypoint_text[entrypoint_text.find("listen 8443") :]
-        blocks = _proxied_credential_blocks(ssl_section)
-        assert blocks, "no proxied blocks found in the SSL (8443) server section"
+    def test_ssl_8443_blocks_set_cookie_header(self, entrypoint_text: str) -> None:
+        # The SSL server block is the third rendered variant. The whole-file
+        # scans above already SEE its blocks (escaped \$ heredoc form), but an
+        # existence-only check here would let a rework keep the section and
+        # lose the directive, so assert the directive by name: a dropped SSL
+        # Cookie line fails HERE, not only in the aggregate scan.
+        at = entrypoint_text.find("listen 8443")
+        assert at != -1, "SSL (8443) server section missing from docker-entrypoint.sh"
+        blocks = _named(_proxied_credential_blocks(entrypoint_text[at:]))
+        paths = {path.rsplit(" #", 1)[0] for path, _ in blocks}
+        assert {"/api/ai-audit", "/api", "/ws"} <= paths, (
+            f"SSL section proxies only {sorted(paths)}"
+        )
+        missing = [path for path, body in blocks if "proxy_set_header Cookie" not in body]
+        assert not missing, f"SSL blocks without an explicit Cookie forward: {missing}"
 
 
 class TestCredentialForwardingWebSocket:
