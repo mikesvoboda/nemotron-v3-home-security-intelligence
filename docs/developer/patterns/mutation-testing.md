@@ -421,6 +421,35 @@ Results are uploaded as artifacts for review without blocking PRs.
 - **Don't mutate everything**: Focus on code where correctness matters most
 - **Don't block CI on score**: Use mutation testing as guidance, not enforcement
 
+## The interface bar
+
+A kill counts when the killing test observes the module through its **interface** (UR-6). Above
+the bar, a test asserts on:
+
+- return values and raised errors;
+- state the module persists (database rows, Redis keys, files) read back through a real or
+  in-memory store;
+- calls the module makes across a real **seam** — HTTP, Redis, the database, the filesystem, the
+  event bus — asserted at the seam (the request sent, the row written), not on a mock's call list;
+- log lines and metrics that are a **documented contract** — named in an `AGENTS.md`, a runbook or
+  an alert rule.
+
+Below the bar sit assertions on private attributes (`worker._stats.errors`), on the exact kwargs a
+mock received, on log wording that is not a contract, and on source text. A below-bar test may
+stay while it earns its keep; it never protects a kill on its own.
+
+## Accepted survivors
+
+An **accepted survivor** is a mutant the policy lets survive, recorded with a reason. Two kinds:
+
+- `equivalent` — no test can kill it (the mutated code behaves identically). These are the
+  "EQUIVALENT residue" the campaign recorded in battery headers; they move to the file when their
+  battery is consolidated.
+- `below-bar` — only below-bar tests killed it, and consolidation surrendered the kill.
+
+Accepted survivors live in one file, `backend/tests/mutation/accepted_survivors.toml`. The
+weekly scorer reports scores both with and without them.
+
 ## Equivalent Mutants
 
 Some mutations produce code that is semantically identical to the original. These "equivalent mutants" can never be killed and should be ignored.

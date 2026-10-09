@@ -17,7 +17,8 @@ go down. There is no numeric target. (UR-1)
 The campaign that climbed toward 85% is held after M54 (UR-2). Its batteries stay in the tree and
 their kills count. Each battery's future is settled by the module it targets: deleted with its
 module in Phase 3, or consolidated when a feature package or the background track reaches that
-module (UR-16). New tests are written to the interface bar below; new battery files are not.
+module (UR-16). New tests are written to the interface bar (`docs/developer/patterns/mutation-testing.md`,
+section "The interface bar"); new battery files are not.
 
 ## The scored set
 
@@ -26,32 +27,9 @@ reachability check (M1) reports it (UR-3). A module leaves the scored set when i
 deleting dead code therefore changes the denominator, and that change needs no ruling — the PR
 discloses it. Modules on the reachability keep-list ship by declaration and stay scored.
 
-## The interface bar
+## The interface bar and accepted survivors
 
-A kill counts when the killing test observes the module through its **interface** (UR-6). Above
-the bar, a test asserts on:
-
-- return values and raised errors;
-- state the module persists (database rows, Redis keys, files) read back through a real or
-  in-memory store;
-- calls the module makes across a real **seam** — HTTP, Redis, the database, the filesystem, the
-  event bus — asserted at the seam (the request sent, the row written), not on a mock's call list;
-- log lines and metrics that are a **documented contract** — named in an `AGENTS.md`, a runbook or
-  an alert rule.
-
-Below the bar sit assertions on private attributes (`worker._stats.errors`), on the exact kwargs a
-mock received, on log wording that is not a contract, and on source text. A below-bar test may
-stay while it earns its keep; it never protects a kill on its own.
-
-An **accepted survivor** is a mutant the policy lets survive, recorded with a reason. Two kinds:
-
-- `equivalent` — no test can kill it (the mutated code behaves identically). These are the
-  "EQUIVALENT residue" the campaign recorded in battery headers; they move to the file when their
-  battery is consolidated.
-- `below-bar` — only below-bar tests killed it, and consolidation surrendered the kill.
-
-Accepted survivors live in one file, `backend/tests/mutation/accepted_survivors.toml` (M3). The
-weekly scorer reports scores both with and without them.
+Moved to `docs/developer/patterns/mutation-testing.md` ("The interface bar", "Accepted survivors") as `01` M3 / B2.1 required; that doc is the single source. UR-6 and UR-16 above still own the rulings this text illustrated.
 
 ## The floor
 
