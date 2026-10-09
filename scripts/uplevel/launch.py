@@ -94,6 +94,7 @@ class Session:
     model: str
     kickoff: str
     mounts: tuple[str, ...] = ()
+    gpu: bool = False
 
     @property
     def sandbox(self) -> str:
@@ -220,6 +221,23 @@ def _phases_of(data: Mapping[str, Any], path: Path) -> dict[int, list[Session]]:
         if not sessions:
             raise Refused(f"phase {number} in {path} declares no session")
         phases.setdefault(number, []).extend(sessions)
+    # A hand-edited roster can name one session twice, and the merge above folds both
+    # shapes into one list: two rows in one [[phase]] block, or two blocks with the same
+    # number. `up` cannot honour that - it reads every name's state before any change (the
+    # gpu grant check can only know a create is coming once it knows who is missing), so
+    # both rows read missing and both create: two sandboxes, and for a gpu row two grants
+    # where UR-30 allows one. Refuse as the required-key refusals do. A name may reappear
+    # in a *later* phase - each boundary creates its own members - so this is per phase.
+    for number, rows in phases.items():
+        seen: set[str] = set()
+        for session in rows:
+            if session.name in seen:
+                raise Refused(
+                    f"phase {number} in {path} lists {session.name} twice. A name appears "
+                    f"once per phase. Remove the repeat from {path}; the same name may "
+                    "reappear in a later phase."
+                )
+            seen.add(session.name)
     return phases
 
 
@@ -234,11 +252,39 @@ def _phase_number(entry: Mapping[str, Any], path: Path, position: int) -> int:
 
 def _session_row(row: Mapping[str, Any], path: Path, where: str) -> Session:
     label = f"{where} session {row.get('name', '?')}"
+    # `gpu` is optional, so _required never sees it - and a truthy typo (`gpu = 1`,
+    # `gpu = "yes"`) must not silently hand a sandbox the GPU UR-30 rationed to one
+    # holder. Refuse the row, naming the key, as the required keys' refusals do.
+    gpu = row.get("gpu", False)
+    if gpu is not True and gpu is not False:
+        raise Refused(
+            f"{label} has `gpu = {gpu!r}`. In {path} the flag is a plain TOML boolean: "
+            "`gpu = true` grants the GPU, and saying nothing withholds it."
+        )
+    mounts = tuple(str(m) for m in row.get("mount", ()))
+    if gpu:
+        # 30-ops.md §O1.10, as the operator row's comment says: agent-dgx --gpu mounts
+        # /srv/agent-models itself and refuses any mount at or under it. A row that
+        # collides with the library dies inside agent-dgx at create time; refusing the row
+        # here is the launcher's own check, not a guess about agent-dgx's behaviour.
+        for mount in mounts:
+            # Normalize, don't just trim: the rule is about the path the mount lands on,
+            # so an equivalent spelling (/srv//agent-models, /srv/agent-models/./) names
+            # the same library and must refuse too (backend review note 7b on #6867).
+            source = os.path.normpath(mount.partition(":")[0])
+            if source == "/srv/agent-models" or source.startswith("/srv/agent-models/"):
+                raise Refused(
+                    f"{label} has `gpu = true` and mounts {mount}, at or under "
+                    "/srv/agent-models, which `agent-dgx --gpu` mounts itself and "
+                    f"refuses any mount at or under (30-ops.md §O1.10). Remove that mount "
+                    f"from {path}."
+                )
     return Session(
         name=str(_required(row, "name", path, label)),
         model=str(_required(row, "model", path, label)),
         kickoff=" ".join(str(_required(row, "kickoff", path, label)).split()),
-        mounts=tuple(str(m) for m in row.get("mount", ())),
+        mounts=mounts,
+        gpu=gpu,
     )
 
 
@@ -386,15 +432,36 @@ def up(host: Host, *, phase: int) -> None:
     # every session's model arguments resolve before anything is created: all checks, then
     # all changes - so a phase naming the strongest model refuses whole.
     arguments = {s.name: run_args_for(data, host.manifest, s) for s in sessions}
+    # the phase's inspect results, gathered before any change (they are reads): the
+    # gpu check below must refuse a whole phase the way the model check does, and it
+    # can only know a --gpu create is actually coming once it knows who is missing.
+    present = {s.name: _session(host, s.name) for s in sessions}
+    grant = [s.name for s in sessions if s.gpu and present[s.name] is None]
+    if grant and not host.env.get("AGENT_GPU_RUNNER_URL"):
+        raise Refused(
+            f"{', '.join(grant)} would be created with `--gpu`, but this shell has no "
+            "AGENT_GPU_RUNNER_URL: that is how agent-gpu's runner - the only thing "
+            "`--gpu`'s model library mounts from - reaches the launching shell "
+            "(30-ops.md §O1.10). Run this from the shell that has it, or start "
+            f"{grant[0]} by hand (UR-30: one GPU holder). No session in this phase was "
+            "created."
+        )
     _say(f"the agents' commit: {target[:8]} (origin/main), from {host.checkout}")
 
     created: list[Session] = []
     for session in sessions:
-        found = _session(host, session.name)
+        found = present[session.name]
         if found is None:
             run = ["agent-dgx", "run", session.name, *arguments[session.name]]
             run += [arg for mount in session.mounts for arg in ("--mount", mount)]
-            _do(host, f"create {session.name}", [*run, "--split"], cwd=host.checkout, timeout=900)
+            # after the model arguments, before --split: the order the owner's hand-start
+            # line shows (30-ops.md §O1.10). No --mount is added for /srv/agent-models -
+            # agent-dgx --gpu mounts the library itself and refuses any mount at or under it.
+            if session.gpu:
+                run.append("--gpu")
+            _do(
+                host, f"create {session.name}", [*run, "--split"], cwd=host.checkout, timeout=900
+            )
             created.append(session)
         elif found.get("sandbox") is None:
             # Half-removal is real, not hypothetical: both of the owner's real retires on
