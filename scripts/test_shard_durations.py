@@ -18,7 +18,7 @@ story on the one point that changes what the fix must be:
     permutes whole module blocks by a seed-keyed sort), so one heavy file
     landing on the wrong side of a boundary decides the shard — test_redis.py
     alone is 30.9 s of one shard's 168.2 s.
-  * MEASURED: the per-RUN reshuffle is 75% of tests, driven by
+  * MEASURED: the per-RUN reshuffle is 24,139 of 31,402 tests = 76.9%, driven by
     --randomly-seed=github.run_id re-permuting module blocks. #6921's red
     landed on a docs-only PR — no file was added — so the reshuffle that bit
     was the seed's, not an insert's. Committing durations under the default
@@ -61,9 +61,10 @@ DURATIONS = REPO / ".test_durations"
 NODEID_RE = re.compile(r"^backend/tests/[^:\n]+\.py(::.*)?$")
 ALGORITHM = "--splitting-algorithm=least_duration"
 
-# Floors set well below the 2026-10-09 mint (31,402 unit + 1,529 integration
-# nodeids, 559.5 s of unit-tier time) so an ordinary refresh passes with room;
-# a tier going dark, or a truncated file, cannot.
+# Floors set well below the 2026-10-09 mint (32,931 keys: 31,402 carry
+# /unit/, 1,542 carry /integration/, 13 both — backend/tests/unit/
+# integration/; 559.5 s of unit-tier time) so an ordinary refresh passes
+# with room; a tier going dark, or a truncated file, cannot.
 MIN_KEYS_TOTAL = 20_000
 MIN_KEYS_UNIT = 15_000
 MIN_KEYS_INTEGRATION = 200
@@ -159,7 +160,7 @@ def test_sharded_legs_pin_least_duration_and_keep_the_seed(workflow: Path) -> No
 
     Without the algorithm the legs run duration_based_chunks, which cuts the
     collected ORDER — and pytest-randomly re-permutes module blocks per run,
-    so 75% of tests change shard every run even on a docs-only PR (#6921's
+    so 76.9% of tests change shard every run even on a docs-only PR (#6921's
     mechanism). The seed assertions here are a tripwire for THIS package's
     edit; scripts/test_coverage_denominator.py owns that property's full proof.
     """

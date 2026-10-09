@@ -126,7 +126,7 @@ jobs:
           # plan the split from the committed .test_durations so shard placement
           # is a function of the tree, not of the seed permutation (the default
           # duration_based_chunks cuts the collected ORDER, and the run-scoped
-          # seed below re-permutes module blocks every run -- 75% of tests
+          # seed below re-permutes module blocks every run -- 76.9% of tests
           # changed shard per run measured; #6921's red rode that reshuffle).
           # Pinned, with the seed pin beside it, by scripts/test_shard_durations.py.
           # --randomly-seed=run_id (WP2.1): same shard-overlap bug as ci.yml's unit

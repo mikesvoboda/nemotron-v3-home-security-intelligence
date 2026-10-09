@@ -976,7 +976,7 @@ jobs:
         # 7849 tests but 168.2/166.8/148.3/76.2s of junit time (2.207x spread).
         # The committed file plus --splitting-algorithm=least_duration closes
         # that AND makes placement a function of the tree, not the seed (the
-        # per-run reshuffle measured 75%); see scripts/test_shard_durations.py.
+        # per-run reshuffle measured 76.9%); see scripts/test_shard_durations.py.
         shard: [1, 2, 3, 4]
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
