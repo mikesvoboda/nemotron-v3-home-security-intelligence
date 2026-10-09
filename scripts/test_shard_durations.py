@@ -13,7 +13,7 @@ story on the one point that changes what the fix must be:
 
   * MEASURED (runs 37940703535 @ 5689e80ef, 37933347572 @ fb7ddce9): shard
     counts are equal (7851/7851/7851/7849) while junit TIME sums span 2.207x
-    and 1.216x. Count-balancing is not time-balancing because pytest-randomly
+    and 1.207x. Count-balancing is not time-balancing because pytest-randomly
     5.0.0 keeps module files contiguous (it shuffles within a module, then
     permutes whole module blocks by a seed-keyed sort), so one heavy file
     landing on the wrong side of a boundary decides the shard — test_redis.py

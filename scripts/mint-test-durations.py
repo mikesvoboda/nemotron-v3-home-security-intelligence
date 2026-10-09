@@ -19,7 +19,8 @@ module files contiguous (its _reorganize_items shuffles WITHIN a module, then
 permutes module blocks by a seed-keyed sort), count-balanced shards are not
 time-balanced. Measured on run 37940703535: shard test counts 7851/7851/7851/
 7849 (1.0003x) but junit time sums 168.2/166.8/148.3/76.2 s (2.207x); run
-37933347572 spread 1.216x. test_redis.py alone (30.9 s / 152 tests) decides
+37933347572 spread 1.207x (same testcase-sum method). test_redis.py alone
+(30.9 s / 152 tests) decides
 which shard wins the lottery.
 
 The nodeid keys: pytest-split looks durations up by item.nodeid
