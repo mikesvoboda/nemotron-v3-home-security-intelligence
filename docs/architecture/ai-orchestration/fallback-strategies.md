@@ -39,7 +39,7 @@ that the VLM is unreachable or blind, not that the camera saw nothing.
 ## VLM Client Fallback
 
 `VlmClient.assess()` classifies every failure it can hit as a distinct exception, because the
-retry calculus differs (`backend/services/vlm_client.py:171-232`):
+retry calculus differs (`backend/services/vlm_client.py:174-235`):
 
 | Class                     | Meaning                                                       | §6 retry?                    |
 | ------------------------- | ------------------------------------------------------------- | ---------------------------- |
@@ -57,19 +57,19 @@ the §6 re-ask. A truncated object never closes on a second send at the same `ma
 slow reply re-asks the identical question at the identical speed — both burn a second charge against
 `ai_vlm_read_timeout` (and used to charge the breaker) to reach the same outcome. The breaker asks
 "stop calling this engine?"; a budget that we set answers no. See `VlmSlowReplyError`'s own
-docstring and `_note_budget_exhausted` (`backend/services/vlm_client.py:1093-1113`).
+docstring and `_note_budget_exhausted` (`backend/services/vlm_client.py:1096-1116`).
 
 The breaker is named `ai-vlm` with `failure_threshold=5, recovery_timeout=60.0`
-(`backend/services/vlm_client.py:93,318`). When it opens, subsequent calls refuse without I/O
+(`backend/services/vlm_client.py:95,321`). When it opens, subsequent calls refuse without I/O
 rather than piling onto the same dead endpoint.
 
 ### Prompt Fitting
 
 A batch that overflows the served slot is a designed-for case, not an error.
 `_fitted_prompt()` drops the weakest detection rows until the prompt fits the slot the request will
-actually land in and records that it did (`backend/services/vlm_client.py:938`). The slot budget is
+actually land in and records that it did (`backend/services/vlm_client.py:941`). The slot budget is
 `VLM_CTX_SIZE // VLM_PARALLEL` (`config.py vlm_context_window`), shipped 32768 / 2 = 16384 tokens.
-Each still is capped at `LLAMA_ARG_IMAGE_MAX_TOKENS=1280` (`docker-compose.prod.yml:212`) so
+Each still is capped at `LLAMA_ARG_IMAGE_MAX_TOKENS=1280` (`docker-compose.prod.yml:194`) so
 uncapped image vision tokens cannot push a fitted batch over.
 
 ## Verdict Invariants
@@ -94,7 +94,7 @@ Each leg has one failure funnel, `_unavailable_line()`
 
 - The face and re-ID legs read the model manager's resident handles. Absent is legal
   (`osnet_loader.get_reid_handle():182`, `face_recognizer_loader.get_face_leg_handles():466`);
-  residency ships off (`.env.example:231`).
+  residency ships off (`.env.example:224`).
 - The plate leg loads on demand and catches its own loader errors
   (`backend/services/fast_alpr_loader.py:66`, `backend/services/vlm_specialists.py:588`).
 - Even a stage bug lands as all-unavailable texts on the same keys
@@ -112,14 +112,14 @@ Detections means no batch, which means no Event.
 - Circuit breaker `detector_yolo26` (`backend/services/detector_client.py:336`): `failure_threshold=5,
 recovery_timeout=60.0, half_open_max_calls=3, success_threshold=2, excluded_exceptions=(ValueError,)`
   so HTTP 4xx never trips the breaker.
-- Retry: `DETECTOR_MAX_RETRIES=3` (`backend/core/config.py:1201`) with 2^attempt backoff capped at
+- Retry: `DETECTOR_MAX_RETRIES=3` (`backend/core/config.py:1218-1224`) with 2^attempt backoff capped at
   30 s.
 - Timeout: connect 10 s (`config.py ai_connect_timeout`), read
-  `YOLO26_READ_TIMEOUT` default 30 s (`backend/core/config.py:1105`), and the client adds an
+  `YOLO26_READ_TIMEOUT` default 30 s (`backend/core/config.py:1118-1123`), and the client adds an
   explicit `read_timeout + connect_timeout` ceiling around the whole attempt
   (`backend/services/detector_client.py:637`).
 - In-flight concurrency: `ai_max_concurrent_inferences`, default 4 (20 on free-threaded Python)
-  (`backend/core/config.py:1411`).
+  (`backend/core/config.py:1428-1435`).
 
 ## Degradation Manager
 
@@ -132,7 +132,7 @@ gauge), and offers a `FallbackQueue` — memory-capped with an on-disk overflow 
 
 `VlmClient` is the shipped consumer on the AI side: when the §6 ladder marks the serve unhealthy,
 `_push_unhealthy()` calls `get_degradation_manager().update_service_health(...)` and
-`set_ai_service_degraded("ai-vlm", True)` (`backend/services/vlm_client.py:1115-1125`).
+`set_ai_service_degraded("ai-vlm", True)` (`backend/services/vlm_client.py:1118-1128`).
 
 ## Degradation Status API
 

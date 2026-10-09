@@ -287,9 +287,9 @@ def require_admin_access() -> None:
     responses={
         201: {"description": "Cameras created successfully"},
         401: {
-            "description": "Unauthorized - Only produced by the global auth middleware, "
-            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
-            "ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true "
+            "and the request carries no login session or API key "
+            "(backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
         },
         403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         422: {"description": "Validation error"},
@@ -438,9 +438,9 @@ async def seed_cameras(
         201: {"description": "Events and detections created successfully"},
         400: {"description": "Bad request - No cameras found"},
         401: {
-            "description": "Unauthorized - Only produced by the global auth middleware, "
-            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
-            "ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true "
+            "and the request carries no login session or API key "
+            "(backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
         },
         403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         422: {"description": "Validation error"},
@@ -660,9 +660,9 @@ async def seed_events(
     responses={
         400: {"description": "Bad request - Confirmation required"},
         401: {
-            "description": "Unauthorized - Only produced by the global auth middleware, "
-            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
-            "ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true "
+            "and the request carries no login session or API key "
+            "(backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
         },
         403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         500: {"description": "Internal server error"},
@@ -773,9 +773,9 @@ async def clear_seeded_data(
     responses={
         200: {"description": "Orphan cleanup completed successfully"},
         401: {
-            "description": "Unauthorized - Only produced by the global auth middleware, "
-            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
-            "ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true "
+            "and the request carries no login session or API key "
+            "(backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
         },
         403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         422: {"description": "Validation error"},
@@ -905,9 +905,9 @@ async def cleanup_orphans(
     responses={
         200: {"description": "Pipeline latency data seeded successfully"},
         401: {
-            "description": "Unauthorized - Only produced by the global auth middleware, "
-            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
-            "ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true "
+            "and the request carries no login session or API key "
+            "(backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
         },
         403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         500: {"description": "Internal server error"},
@@ -1073,9 +1073,9 @@ class FlushQueuesResponse(BaseModel):
     responses={
         200: {"description": "Cache cleared successfully"},
         401: {
-            "description": "Unauthorized - Only produced by the global auth middleware, "
-            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
-            "ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true "
+            "and the request carries no login session or API key "
+            "(backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
         },
         403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         500: {"description": "Internal server error"},
@@ -1211,9 +1211,9 @@ async def clear_cache(
     responses={
         200: {"description": "Queues flushed successfully"},
         401: {
-            "description": "Unauthorized - Only produced by the global auth middleware, "
-            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
-            "ADMIN_API_KEY is not enforced by this endpoint"
+            "description": "Unauthorized - Only produced by the auth gate when EXPOSE_LAN=true "
+            "and the request carries no login session or API key "
+            "(backend/api/middleware/auth.py); ADMIN_API_KEY is not enforced by this endpoint"
         },
         403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         500: {"description": "Internal server error"},

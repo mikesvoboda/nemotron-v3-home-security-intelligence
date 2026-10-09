@@ -426,7 +426,7 @@ the admin endpoints regardless (`backend/main.py:1490-1496`).
 
 For multi-user or internet-facing deployments:
 
-- Enable `API_KEY_ENABLED=true` with strong keys
+- Set `EXPOSE_LAN=true` (login session or API key required on every request)
 - Use HTTPS for all endpoints
 - Add rate limiting
 - Deploy behind reverse proxy with TLS

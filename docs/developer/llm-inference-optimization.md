@@ -14,7 +14,7 @@ service's live configuration.
 | Item          | Value                                                                                      |
 | ------------- | ------------------------------------------------------------------------------------------ |
 | Model         | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` + `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`                 |
-| Server        | llama.cpp `llama-server`, pinned at `b7972` (`VLM_REQUIRED_BUILD`, `.env.example:260`)     |
+| Server        | llama.cpp `llama-server`, pinned at `b7972` (`VLM_REQUIRED_BUILD`, `.env.example:261`)     |
 | Build         | `ai/vlm/Dockerfile` — CUDA 13.3.1, compiled for the host GPU via `CUDA_ARCHITECTURES`      |
 | Port          | container-side `PORT=8098` fixed (`ai/vlm/Dockerfile:123`); host mapping via `AI_VLM_PORT` |
 | GPU           | `nvidia.com/gpu=${GPU_LLM:-0}` + `CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}`                      |
@@ -43,7 +43,7 @@ llama-server \
 ```
 
 Compose threads the real values (`docker-compose.prod.yml:180-241`; vars
-declared in `.env.example:425-446`):
+declared in `.env.example:338-359`):
 
 | Env var                  | Compose default   | Flag                   | Notes                                                                                  |
 | ------------------------ | ----------------- | ---------------------- | -------------------------------------------------------------------------------------- |
@@ -66,10 +66,10 @@ the two never disagree.
 
 llama.cpp splits one `--ctx-size` pool across `--parallel` slots, and one
 `vlm_assess` only ever gets one slot. The backend mirrors that arithmetic:
-`vlm_context_window` (`backend/core/config.py:1334`, alias `VLM_CTX_SIZE`) is
+`vlm_context_window` (`backend/core/config.py:1351`, alias `VLM_CTX_SIZE`) is
 the per-slot budget the client fits every prompt against.
 
-The client's fit test (`backend/services/vlm_client.py:703`) reserves, per
+The client's fit test (`backend/services/vlm_client.py:836-901`) reserves, per
 request:
 
 | Reservation         | Amount                        | Source                                                                                                                        |
@@ -82,7 +82,7 @@ With the shipped defaults (32,768 ÷ 2 = 16,384 per slot) a worst-case
 4-image request reserves 2,048 + 5,120 tokens of output+image space before
 text. If the rendered text still exceeds the remainder, the client keeps the
 strongest-confidence detections and appends a visible omission marker
-(`backend/services/vlm_client.py:676`) — the same ranking the key-frame
+(`backend/services/vlm_client.py:880-901`) — the same ranking the key-frame
 selector uses, so what survives is what the attached stills can corroborate.
 `record_prompt_truncated()` fires once per batch at the wire.
 
@@ -93,7 +93,7 @@ a budget check.
 
 ## Enforcement Probe and Build Pin
 
-`VLM_ENFORCEMENT_PROBE_ENABLED=true` (`.env.example:255`): before the first
+`VLM_ENFORCEMENT_PROBE_ENABLED=true` (`.env.example:256`): before the first
 real call the client sends one schema-constrained probe and verifies the
 engine actually enforces the JSON schema (grammar-constrained decoding) —
 if it does not, `ConstrainedDecodingNotEnforced` fails closed rather than

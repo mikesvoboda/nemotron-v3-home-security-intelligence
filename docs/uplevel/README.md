@@ -230,10 +230,10 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | awaiting real tier | #6868 |
 | B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | not started |     |
 | B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | done        | #6880 |
-| B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | awaiting real tier | #6886 |
-| B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | not started |     |
+| B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | done        | #6886 |
+| B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | done        | #6861 |
 | B1.6    | backend                 | 1          | Scope the orchestrator and its recovery (D11)  | heavy · owner | not started |     |
-| F1.1    | frontend                | 1          | Endpoint truth (D2)                            |               | not started |     |
+| F1.1    | frontend                | 1          | Endpoint truth (D2)                            |               | done        | #6869 |
 | F1.2    | frontend                | 1          | Verdict-engine banner (UR-18)                  |               | not started |     |
 | F1.3    | frontend                | 1          | Exposure and auth, frontend part (D10)         | owner         | not started |     |
 | O1.1    | ops                     | 1          | Mutation hold and supersede (UR-2, UR-7)       |               | done        | #6863 |
@@ -245,7 +245,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O1.7    | ops                     | 1          | Audit measurement scripts                      |               | not started |     |
 | O1.8    | ops                     | 1          | Dependabot alerts                              | owner         | not started |     |
 | O1.9    | ops                     | 1          | Deploy green on `main`                         |               | done        | #6875 |
-| O1.10   | ops                     | 1          | The operator sandbox (UR-30)                   | owner         | not started |     |
+| O1.10   | ops                     | 1          | The operator sandbox (UR-30)                   | owner         | done        | #6867 |
 | O1.11 | ops | 1 | Monitoring behind the gate (UR-33) | owner | not started | |
 | O1.12 | ops | 1 | The hooks run in the gate (UR-37) | | done | #6901 |
 | B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | not started |     |
