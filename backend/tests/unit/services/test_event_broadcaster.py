@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 import pytest
+from starlette.datastructures import Headers
 
 from backend.services import event_broadcaster
 from backend.services.event_broadcaster import (
@@ -369,6 +370,9 @@ async def test_connect_accepts_websocket_and_registers(
 
     mock_ws = AsyncMock()
     mock_ws.accept = AsyncMock(return_value=None)
+    # connect() reads the offered subprotocols off the handshake headers (B-1
+    # echo); a bare AsyncMock would answer .headers.get() with a coroutine.
+    mock_ws.headers = Headers({})
 
     await broadcaster.connect(mock_ws)
 
@@ -386,8 +390,10 @@ async def test_connect_multiple_websockets() -> None:
 
     ws1 = AsyncMock()
     ws1.accept = AsyncMock(return_value=None)
+    ws1.headers = Headers({})
     ws2 = AsyncMock()
     ws2.accept = AsyncMock(return_value=None)
+    ws2.headers = Headers({})
 
     await broadcaster.connect(ws1)
     await broadcaster.connect(ws2)
