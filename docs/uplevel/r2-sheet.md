@@ -67,7 +67,12 @@ live: the AGENTS.md validator's own design doc lives here); `docs/superpowers/` 
 dated, span 2026-09-12 → 2026-10-07 (the VSS specs — the tree the programme is actively writing into);
 `docs/vss-integration/` **26** files (5 dated; the register and its companions). None of the three
 trees appears in `mkdocs.yml`'s nav — 0 explicit entries each, which is what the draft said and is true
-of the nav (built: 296 nav links on a page, none into the three trees) — but the draft's "(0 entries
+of the nav, and the built site agrees: a fresh `mkdocs build` emits 600 pages and **none of the 600
+carries a nav link into the three trees** (parsed `<a … md-nav__link …>` tags quote-agnostically —
+`minify` strips the quotes, so a `href="…"` regex matches nothing; the home page runs 148 such links,
+the busiest page 316; counting the raw string `md-nav__link` over-counts because Material puts it on
+`<label>`s too, and an earlier revision of this sheet quoted one such count, "296", as if it were a
+page property — it is neither rerunnable nor stable across pages) — but the draft's "(0 entries
 each)" invites the inference that these trees are not on the site, and they are: **154 pages built and
 URL-reachable**, `site/plans/` 91 + `site/superpowers/` 37 + `site/vss-integration/` 26, because
 `mkdocs.yml` loads `awesome-pages` and there are zero `.pages`
