@@ -619,6 +619,12 @@ async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
             patch("backend.main.close_redis", return_value=None),
             patch("backend.core.config.get_settings", return_value=no_admin_settings),
             patch("backend.api.routes.admin.get_settings", return_value=no_admin_settings),
+            # Same reason as Test 1 above: the guard runs before the ADMIN gate,
+            # and on a worker where an earlier test made its users query
+            # succeed at zero rows it caches that 503-verdict for 60s on the
+            # shared app instance. This test's contract is the 403 gate; the
+            # guard must not be able to answer first. See CI shards 2026-10-09.
+            patch.object(SetupGuardMiddleware, "_check_setup_complete", _setup_complete),
         ):
             from backend.core.config import get_settings
 
