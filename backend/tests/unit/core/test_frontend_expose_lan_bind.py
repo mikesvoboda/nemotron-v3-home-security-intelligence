@@ -182,7 +182,7 @@ def _answer_prompt_containing(prompt_map: dict[str, str]):
 
 
 def test_defaults_mode_never_exposes_the_lan(monkeypatch: pytest.MonkeyPatch) -> None:
-    """redeploy.py bootstraps through this path — defaults must be loopback."""
+    """``--defaults``/``--yes`` bootstrap through here — defaults must be loopback."""
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
     import setup
@@ -397,14 +397,21 @@ def test_backend_api_agents_md_dropped_the_forward_reference() -> None:
     [
         "docs/_includes/auth-model.md",
         "docs/operator/admin/security.md",
+        "backend/api/middleware/README.md",
+        "docs/architecture/security/README.md",
+        "docs/architecture/dataflows/api-request-flow.md",
     ],
 )
 def test_exposure_docs_dropped_the_forward_reference(doc: str) -> None:
     # The living register (docs/vss-integration/17-action-plan.md) QUOTES the
     # old AGENTS.md wording inside a dated [V] discovery entry — that record
-    # stays as written until ISS-029 closes with F1.3. These two are live docs.
+    # stays as written until ISS-029 closes with F1.3. The parametrized files
+    # are live docs; the family assertion is the UR-9 sweep as a regression
+    # gate: any live doc that later calls O1.6 future fails here, not on a
+    # future grep. (docs/uplevel/50-coordination.md sequences O1.6 *after*
+    # B1.5 — package order, not the bind — so it is deliberately out of scope.)
     text = (REPO_ROOT / doc).read_text(encoding="utf-8")
     assert "(until then nginx publishes on `0.0.0.0`)" not in text, (
         f"{doc} still defers the loopback bind to a future O1.6 that has landed"
     )
-    assert "after `O1.6` the UI binds" not in text, f"{doc} still says O1.6 is upcoming"
+    assert "after `O1.6`" not in text, f"{doc} still says O1.6 is upcoming"

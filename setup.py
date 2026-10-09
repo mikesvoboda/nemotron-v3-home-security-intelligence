@@ -440,9 +440,7 @@ def generate_env_content(config: dict) -> str:
         # Keep both vars (compose's own default is the second fail-safe).
         f"EXPOSE_LAN={'true' if config.get('expose_lan', False) else 'false'}",
         "FRONTEND_BIND_ADDRESS="
-        + derive_frontend_bind_address(
-            "true" if config.get("expose_lan", False) else "false"
-        ),
+        + derive_frontend_bind_address("true" if config.get("expose_lan", False) else "false"),
         "",
         "# -- Foscam Init (chown on FOSCAM_BASE_PATH) " + "-" * 22,
         f"HOST_UID={config.get('host_uid', 1000)}",
@@ -1055,9 +1053,9 @@ def run_defaults_mode() -> dict:
         "jwt_expiry_hours": 24,
         "refresh_token_days": 30,
         "ports": ports,
-        # Non-interactive bootstrap (redeploy.py) never opens the UI to the
-        # LAN: the switch defaults closed, a human flips it in an interactive
-        # mode or by editing .env + re-deriving via setup.py.
+        # Non-interactive bootstrap (--defaults / --yes) never opens the UI to
+        # the LAN: the switch defaults closed, a human flips it in an
+        # interactive mode or by editing .env + re-deriving via setup.py.
         "expose_lan": False,
         "host_uid": os.getuid(),
         "host_gid": os.getgid(),
