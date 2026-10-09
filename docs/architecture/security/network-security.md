@@ -394,11 +394,10 @@ The shipped `docker-compose.prod.yml` puts every service on a single bridge
 network, `security-net` (`docker-compose.prod.yml:1529-1531`). Isolation comes
 from host port bindings instead of network splits:
 
-| Exposure                                                              | Services                                                                                                                                                                                                                                                                                                                                                                                              |
-| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Published on loopback only (`127.0.0.1:...`)                          | Frontend nginx (app, `/api` proxy, `/grafana` proxy) by default (`O1.6`; `EXPOSE_LAN=true` flips its bind to `0.0.0.0` and arms the auth gate), Backend 8000 (`API_PORT`), ai-gateway 8090 (`AI_GATEWAY_PORT`), ai-vlm 8098 (`AI_VLM_PORT`), ai-llm-vllm 8097 (`VLLM_PORT`, `vllm` profile), PostgreSQL 5432, Redis 6379, go2rtc 1984, Prometheus 9090, Alertmanager 9093, Grafana 3002, and the rest |
-| Published by short-syntax entry (all interfaces, ephemeral host port) | alloy's OTLP `4317`/`4318` (`'4317'`, `'4318'` at `docker-compose.prod.yml:1469-1470`) — the comments call them "internal only"; compose publishes them on `0.0.0.0`/`[::]` regardless (measured against a live daemon, O1.6). Routed as a ruling 2026-10-09                                                                                                                                          |
-| Not published at all                                                  | Containers reachable only over `security-net` service names (e.g. `http://backend:8000`, `http://ai-gateway:8090`)                                                                                                                                                                                                                                                                                    |
+| Exposure                                     | Services                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Published on loopback only (`127.0.0.1:...`) | Frontend nginx (app, `/api` proxy, `/grafana` proxy) by default (`O1.6`; `EXPOSE_LAN=true` flips its bind to `0.0.0.0` and arms the auth gate), Backend 8000 (`API_PORT`), ai-gateway 8090 (`AI_GATEWAY_PORT`), ai-vlm 8098 (`AI_VLM_PORT`), ai-llm-vllm 8097 (`VLLM_PORT`, `vllm` profile), PostgreSQL 5432, Redis 6379, go2rtc 1984, Prometheus 9090, Alertmanager 9093, Grafana 3002, alloy's OTLP on host 14317/14318 (`ALLOY_OTLP_GRPC_PORT`/`ALLOY_OTLP_HTTP_PORT`, ruling 2026-10-09), and the rest |
+| Not published at all                         | Containers reachable only over `security-net` service names (e.g. `http://backend:8000`, `http://ai-gateway:8090`)                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ### Firewall Recommendations
 
@@ -408,9 +407,10 @@ deployment: everything sits on loopback or inside `security-net`, and no
 additional firewall rules are required. Run with `EXPOSE_LAN=true` and the
 frontend's HTTPS port (8444) is the port LAN clients reach — the auth gate
 guards it; keep every other port loopback-bound and never expose PostgreSQL,
-Redis, or the AI service ports directly. (alloy's OTLP `4317`/`4318` stay
-published on all interfaces by short syntax — the open ruling at the exposure
-table above, not the frontend.)
+Redis, or the AI service ports directly. (alloy's OTLP receivers are
+loopback-bound too — qualified `127.0.0.1:` on host ports 14317/14318,
+`docker-compose.prod.yml:1473-1474`, per the 2026-10-09 ruling; the
+container-internal OTLP hop stays `alloy:4317` over `security-net`.)
 
 ## Related Documentation
 

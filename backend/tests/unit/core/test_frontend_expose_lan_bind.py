@@ -143,7 +143,9 @@ def test_alloy_otlp_ports_bind_loopback_by_variable():
     # select by container target, not by excluding the qualified UI row — an
     # exclude-first shape could never see the fold it is meant to catch
     otlp = [e for e in entries if e.rsplit(":", 1)[1] in ("4317", "4318")]
-    assert len(otlp) == 2, f"expected the 4317/4318 OTLP pair (plus the qualified UI row), got {entries}"
+    assert len(otlp) == 2, (
+        f"expected the 4317/4318 OTLP pair (plus the qualified UI row), got {entries}"
+    )
     for entry in otlp:
         assert entry.startswith("127.0.0.1:${"), (
             f"alloy OTLP entry {entry!r} does not derive its bind from a "
@@ -152,10 +154,16 @@ def test_alloy_otlp_ports_bind_loopback_by_variable():
         target = entry.rsplit(":", 1)[1]
         assert target in ("4317", "4318"), f"unexpected container target in {entry!r}"
         host_default = re.search(r"\$\{([A-Z0-9_]+):-([^}]+)\}", entry)
-        assert host_default is not None, f"alloy entry {entry!r} hardcodes its host port — use a :- var"
+        assert host_default is not None, (
+            f"alloy entry {entry!r} hardcodes its host port — use a :- var"
+        )
         var, default = host_default.group(1), host_default.group(2)
-        assert var in ("ALLOY_OTLP_GRPC_PORT", "ALLOY_OTLP_HTTP_PORT"), f"unexpected var {var} in {entry!r}"
-        assert default in ("14317", "14318"), f"{var} must default to the collision-free 14317/14318 pair, got {default!r}"
+        assert var in ("ALLOY_OTLP_GRPC_PORT", "ALLOY_OTLP_HTTP_PORT"), (
+            f"unexpected var {var} in {entry!r}"
+        )
+        assert default in ("14317", "14318"), (
+            f"{var} must default to the collision-free 14317/14318 pair, got {default!r}"
+        )
 
 
 def test_env_example_declares_the_alloy_otlp_vars():
@@ -393,9 +401,7 @@ _RENDER_OVERLAY_VARS = frozenset(
 )
 
 
-def _render_bindings(
-    service: str, env_overrides: dict[str, str]
-) -> list[tuple[str, str, str]]:
+def _render_bindings(service: str, env_overrides: dict[str, str]) -> list[tuple[str, str, str]]:
     """Render one service's published bindings with an env overlay.
 
     Real `compose config --format json` when a compose binary exists; the
@@ -450,9 +456,7 @@ def _render_bindings(
 
     text = compose_file.read_text(encoding="utf-8")
     doc = yaml.load(text, Loader=_ComposeLoader)  # noqa: S506  # nosemgrep: unsafe-yaml-load
-    return [
-        _split_binding(_interpolate(entry, env)) for entry in doc["services"][service]["ports"]
-    ]
+    return [_split_binding(_interpolate(entry, env)) for entry in doc["services"][service]["ports"]]
 
 
 def _render_frontend_bindings(env_overrides: dict[str, str]) -> list[tuple[str, str, str]]:
@@ -567,7 +571,7 @@ def test_compose_branch_selects_a_real_invocation() -> None:
 # must not keep the pre-fold claim either. Claim shape (phrase-tolerant,
 # sentence-bounded): an alloy sentence asserting a wildcard/ephemeral publish.
 _ALLOY_WILDCARD_CLAIM = re.compile(
-    r"alloy(?:[\s'’`*]{0,4}(?:service|collector|'s|s))*[^.]{0,160}?"
+    r"alloy(?:[\s'\u2019`*]{0,4}(?:service|collector|'s|s))*[^.]{0,160}?"
     r"(?:all interfaces|0\.0\.0\.0|\[::\]|ephemeral host port|short[- ]syntax)",
     re.IGNORECASE,
 )
@@ -596,7 +600,6 @@ def test_security_doc_dropped_the_alloy_wildcard_claim(doc: str) -> None:
         f"{doc} no longer states how alloy's OTLP binds — the fold deserves "
         "a landed-fact mention, not a deletion"
     )
-
 
 
 def test_root_agents_md_dropped_the_pre_o16_claims() -> None:

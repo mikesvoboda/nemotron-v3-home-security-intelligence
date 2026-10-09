@@ -70,26 +70,26 @@ networks:
 
 External ports are the `.env.example` defaults (bind address `127.0.0.1` unless noted).
 
-| Service           | Internal Port | External Port        | Protocol   |
-| ----------------- | ------------- | -------------------- | ---------- |
-| frontend          | 8443 / 8080   | 8444 / 8080          | HTTP/HTTPS |
-| backend           | 8000          | 8000                 | HTTP/WS    |
-| postgres          | 5432          | 5432                 | TCP        |
-| redis             | 6379          | 6379                 | TCP        |
-| ai-gateway        | 8090          | 8090 (+8002 metrics) | HTTP       |
-| ai-vlm            | 8098          | 8098                 | HTTP       |
-| go2rtc            | 1984          | 1984 (+8555 WebRTC)  | HTTP       |
-| prometheus        | 9090          | 9090                 | HTTP       |
-| grafana           | 3000          | 3002                 | HTTP       |
-| tempo             | 3200          | 3200 (+4317 OTLP)    | HTTP       |
-| alertmanager      | 9093          | 9093                 | HTTP       |
-| loki              | 3100          | 3100                 | HTTP       |
-| pyroscope         | 4040          | 4040                 | HTTP       |
-| alloy             | 12345         | 12345                | HTTP       |
-| node-exporter     | 9100          | 9100                 | HTTP       |
-| redis-exporter    | 9121          | 9121                 | HTTP       |
-| json-exporter     | 7979          | 7979                 | HTTP       |
-| blackbox-exporter | 9115          | 9115                 | HTTP       |
+| Service           | Internal Port | External Port             | Protocol   |
+| ----------------- | ------------- | ------------------------- | ---------- |
+| frontend          | 8443 / 8080   | 8444 / 8080               | HTTP/HTTPS |
+| backend           | 8000          | 8000                      | HTTP/WS    |
+| postgres          | 5432          | 5432                      | TCP        |
+| redis             | 6379          | 6379                      | TCP        |
+| ai-gateway        | 8090          | 8090 (+8002 metrics)      | HTTP       |
+| ai-vlm            | 8098          | 8098                      | HTTP       |
+| go2rtc            | 1984          | 1984 (+8555 WebRTC)       | HTTP       |
+| prometheus        | 9090          | 9090                      | HTTP       |
+| grafana           | 3000          | 3002                      | HTTP       |
+| tempo             | 3200          | 3200 (+4317 OTLP)         | HTTP       |
+| alertmanager      | 9093          | 9093                      | HTTP       |
+| loki              | 3100          | 3100                      | HTTP       |
+| pyroscope         | 4040          | 4040                      | HTTP       |
+| alloy             | 12345         | 12345 (+14317/14318 OTLP) | HTTP       |
+| node-exporter     | 9100          | 9100                      | HTTP       |
+| redis-exporter    | 9121          | 9121                      | HTTP       |
+| json-exporter     | 7979          | 7979                      | HTTP       |
+| blackbox-exporter | 9115          | 9115                      | HTTP       |
 
 The frontend binds `127.0.0.1` by default — the loopback published-port binding is the security boundary — and `EXPOSE_LAN=true` is the single switch (`O1.6`) that publishes it on `0.0.0.0` for LAN browsers while arming the backend's auth gate in the same step. All other published ports bind `127.0.0.1` in both modes. Grafana is normally reached through the frontend nginx proxy at `https://<host>:8444/grafana/` (`GF_SERVER_ROOT_URL=/grafana/`); port 3002 is the direct host mapping.
 

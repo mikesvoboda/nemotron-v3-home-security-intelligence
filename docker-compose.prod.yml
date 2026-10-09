@@ -1464,10 +1464,14 @@ services:
       - --storage.path=/tmp/alloy
       - /etc/alloy/config.alloy
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
+    # Owner ruling 2026-10-09 (O1.6): the OTLP pair carries that binding too —
+    # the bare short syntax published on all interfaces despite this comment.
+    # Host ports are 14317/14318, not 4317/4318: tempo already default-publishes
+    # 127.0.0.1:4317 (TEMPO_OTLP_GRPC) and duplicate explicit binds fail at up.
     ports:
       - '127.0.0.1:${ALLOY_UI_PORT:-12345}:12345' # Alloy UI
-      - '4317' # OTLP gRPC (internal only)
-      - '4318' # OTLP HTTP (internal only)
+      - '127.0.0.1:${ALLOY_OTLP_GRPC_PORT:-14317}:4317' # OTLP gRPC (loopback)
+      - '127.0.0.1:${ALLOY_OTLP_HTTP_PORT:-14318}:4318' # OTLP HTTP (loopback)
     depends_on:
       - loki
       - pyroscope
