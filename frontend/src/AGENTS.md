@@ -968,6 +968,16 @@ a stylesheet-only trace misses it; its 34 `theme()` calls — 13 of them
   of it has zero consumers (details in "Styling Guidelines → Custom CSS
   Classes" below). Grep for the class name before adopting it — the definition
   outlives the usage routinely.
+- **`index.css:528-550` (`@layer utilities`) re-points Tailwind's gray
+  utilities with `!important`**: `.bg-gray-500` (+`dark:` twin) renders
+  `#3a3a3a`, `.text-gray-500`/`-600` (+twins) render `#9a9a9a`/`#b0b0b0`, and
+  `.tremor-Badge-text` gets `color: inherit` — so a gray utility you write does
+  NOT render its tailwind.config.js value. The pair that bites lives in two
+  files: `theme/colors.ts` `STATUS_BG_CLASSES.inactive = 'bg-gray-500'` (:68)
+  paints a contrast-adjusted `#3a3a3a` pill, while its partner
+  `STATUS_TEXT_CLASSES.inactive = 'text-gray-400'` (:100) has no screen-side
+  override (only inside `print.css`'s `@media print`) — the background was
+  adjusted for contrast, the text was not.
 
 ### `/test/` - Test Setup
 

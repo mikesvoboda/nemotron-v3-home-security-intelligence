@@ -155,7 +155,9 @@ All components use:
 
 - Low: green (\`#76B900\` / Tailwind green)
 - Medium: yellow (\`#FFB800\` / Tailwind yellow)
-- High: orange (\`#E74856\` / Tailwind orange)
+- High: \`#E74856\` (JS map \`frontend/src/types/constants.ts:67\`, commented
+  "NVIDIA Red"; the Tailwind \`risk.high\` token is \`#FFCDD2\`,
+  \`frontend/tailwind.config.js:52\` — two systems; see frontend/AGENTS.md)
 - Critical: red (\`#ef4444\` / Tailwind red-500)
 
 ## Testing
