@@ -34,14 +34,21 @@ global:
 # prometheus exits fatally at startup on a listed-but-absent rule file. All 7
 # are mounted there as of the gateway-consolidation work item. Do not add a
 # rule file here without adding its volume mount to that service.
+#
+# PATHS ARE ABSOLUTE ON PURPOSE. rule_files resolves relative to the directory
+# of the CONFIG FILE, and O1.11's boot renders this file to /tmp to substitute
+# the scrape key (the rootfs is read_only) — relative entries then look for the
+# rules in /tmp and load NOTHING, silently: measured on the pinned image with
+# the real files, 0 groups and zero ERROR/WARN lines while /-/ready reports
+# green. Absolute /etc/prometheus paths are render-location independent.
 rule_files:
-  - 'prometheus_rules.yml'
-  - 'prometheus-rules.yml'
-  - 'alerting-rules.yml'
-  - 'profiling-recording-rules.yml'
-  - 'profiling-regression-alerts.yml'
-  - 'gpu-alerts.yml'
-  - 'ai-pipeline-alerts.yml'
+  - '/etc/prometheus/prometheus_rules.yml'
+  - '/etc/prometheus/prometheus-rules.yml'
+  - '/etc/prometheus/alerting-rules.yml'
+  - '/etc/prometheus/profiling-recording-rules.yml'
+  - '/etc/prometheus/profiling-regression-alerts.yml'
+  - '/etc/prometheus/gpu-alerts.yml'
+  - '/etc/prometheus/ai-pipeline-alerts.yml'
 
 # Alertmanager configuration for alert delivery
 alerting:

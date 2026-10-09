@@ -1082,7 +1082,8 @@ services:
     command:
       - >-
         sed "s|__HSI_MONITORING_API_KEY__|$${MONITORING_API_KEY:-}|g"
-        /etc/prometheus/prometheus.yml > /tmp/prometheus.yml && exec
+        /etc/prometheus/prometheus.yml > /tmp/prometheus.yml && chmod 0600
+        /tmp/prometheus.yml && exec
         /bin/prometheus --config.file=/tmp/prometheus.yml
         --storage.tsdb.path=/prometheus
         --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}
@@ -1283,7 +1284,8 @@ services:
         "s|__HSI_MONITORING_API_KEY__|$${MONITORING_API_KEY:-}|g"
         /etc/json-exporter/config.yml > /tmp/json-exporter-config.yml ;; *)
         sed "/^    headers:\$/{N;d;}" /etc/json-exporter/config.yml >
-        /tmp/json-exporter-config.yml ;; esac; exec /bin/json_exporter
+        /tmp/json-exporter-config.yml ;; esac; chmod 0600
+        /tmp/json-exporter-config.yml; exec /bin/json_exporter
         --config.file=/tmp/json-exporter-config.yml
         --web.listen-address=:7979
     restart: unless-stopped
@@ -1335,7 +1337,8 @@ services:
     command:
       - >-
         sed "s|__HSI_ALERT_SINK__|$${ALERT_SINK_URL}|g"
-        /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml && exec
+        /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml && chmod
+        0600 /tmp/alertmanager.yml && exec
         /bin/alertmanager --config.file=/tmp/alertmanager.yml
         --storage.path=/alertmanager --web.listen-address=:9093
         --cluster.listen-address=

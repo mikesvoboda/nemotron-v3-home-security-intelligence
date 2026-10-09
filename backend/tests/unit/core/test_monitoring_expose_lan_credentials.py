@@ -21,6 +21,16 @@ before it was asserted (probe evidence in PR #6930's ready-mark):
   session (``auth_request`` to ``/api/auth/me`` + auth-proxy), the spec's
   recorded DECIDE; the default render stays byte-identical to today's.
 
+Two findings from ops-b's ``security-auditor`` pass on #6930 fixed in-commit
+(each with its own pin below): the boot render made the RELATIVE ``rule_files``
+entries resolve against ``/tmp``, blinding all Prometheus alerting in silence
+(finding 1, HIGH — absolute paths restore it, plus a docker-gated boot arm that
+counts loaded rule files end to end); and the tmpfs renders rested the machine
+key world-readable at the shell's default mode (finding 2, MEDIUM — the boot
+scripts now ``chmod 0600``). Finding 2's structural half — ``API_KEYS`` is one
+flat list, so the monitoring key holds the same privilege as an operator key —
+is recorded as an owner DECIDE in the PR, not fixed here.
+
 Sibling precedents: test_frontend_expose_lan_bind.py (O1.6 derivation +
 compose-render idioms), test_nginx_credential_forwarding.py (brace parser for
 the entrypoint-rendered config).
@@ -438,6 +448,79 @@ def test_json_exporter_gate_strips_whitespace_too(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.parametrize("service", ["prometheus", "json-exporter", "alertmanager"])
+def test_tmpfs_config_renders_are_owner_read_write_only(
+    compose_services: dict, service: str, tmp_path: Path
+) -> None:
+    """Ops-b security pass on #6930 (finding 2, MEDIUM): the boot renders put a
+    live API key onto tmpfs with the SHELL DEFAULT file mode — sed creates (and
+    preserves) modes, so under the usual umask 022 the render rests 0644,
+    group/world readable, for the container's whole life. Mitigation: ``chmod
+    0600`` the render before ``exec``. Runs the ACTUAL compose command (the
+    test_json_exporter_gate_strips_whitespace_too idiom: paths rewritten into
+    tmp_path, ``exec`` neutralised, ``$${`` replayed) with the output file
+    PRE-SET to 0644 — the finding's real-world mode — so a passing run can
+    only come from the script itself
+    tightening the mode. json-exporter runs both case arms — a chmod on the
+    exposed arm alone would leave today's default render unprotected."""
+    import os
+    import stat
+    import subprocess
+
+    svc = compose_services[service]
+    src_container = str(svc["volumes"][0]).split(":")[1]  # the config mount target
+    script_src = " ".join(str(part) for part in (svc.get("command") or []))
+    m = re.search(r">\s*(/tmp/\S+)", script_src)
+    assert m, f"{service}: no /tmp render target found in command:"
+    out_container = m.group(1)
+
+    stub = tmp_path / "stub.yml"
+    stub.write_text(
+        f"marker: {SINK_PLACEHOLDER if service == 'alertmanager' else KEY_PLACEHOLDER}\n"
+    )
+    envs = (
+        [("exposed", "true"), ("default", "false")]
+        if service == "json-exporter"
+        else [("default", "false")]
+    )
+    for label, expose in envs:
+        out = tmp_path / f"rendered-{label}.yml"
+        out.write_text("stale\n")
+        # The trap's mode is the finding's real-world mode: under the usual
+        # umask 022 the sed render rests 0644. sed keeps an existing target's
+        # mode, so a render that starts group-readable can only pass the
+        # <= 0600 assertion below if the script itself tightens it.
+        os.chmod(out, 0o644)
+        script = (
+            script_src.replace("$${", "${")
+            .replace(src_container, str(stub))
+            .replace(out_container, str(out))
+        )
+        script = re.sub(r"exec /bin/\w+", "exec true", script)
+        result = subprocess.run(  # noqa: S603 — argv literal; script is repo compose text  # real
+            ["sh", "-ec", script],  # noqa: S607 — sh from PATH on purpose
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+            env={
+                **os.environ,
+                "EXPOSE_LAN": expose,
+                "MONITORING_API_KEY": "hsi_TESTKEY123",  # pragma: allowlist secret
+                "ALERT_SINK_URL": DEFAULT_SINK,
+            },
+        )
+        assert result.returncode == 0, f"{service} ({label}) render failed: {result.stderr[:300]}"
+        rendered = out.read_text()
+        assert "stale" not in rendered, f"{service} ({label}): render did not overwrite its target"
+        mode = stat.S_IMODE(out.stat().st_mode)
+        assert mode <= 0o600, (
+            f"{service} ({label}): tmpfs config render is mode {mode:04o} — it holds "
+            "the machine key; sed keeps the umask default, so the boot script must "
+            "chmod 0600 before exec"
+        )
+
+
 def test_setup_merges_operator_api_keys_instead_of_replacing() -> None:
     """setup.py at origin/main wrote no API_KEYS at all (measured:
     ``git show origin/main:setup.py | grep -c API_KEYS`` → 0), so O1.11's
@@ -532,6 +615,140 @@ def test_backend_api_datasource_carries_the_key_via_grafana_core() -> None:
     assert "$MONITORING_API_KEY" in ds, (
         "Grafana expands $VAR in provisioning and sends core-level headers on "
         "datasource-proxy requests (probe: backend echo received grafana-LITVAL)"
+    )
+
+
+def test_prometheus_rule_files_are_absolute_under_the_tmp_boot(
+    compose_services: dict,
+) -> None:
+    """Prometheus resolves ``rule_files`` relative to the DIRECTORY OF THE
+    CONFIG FILE, and the O1.11 boot renders that config to /tmp — so relative
+    entries look for rules in /tmp and load NOTHING. Ops-b's security pass on
+    #6930 (finding 1, HIGH) measured the shipped shape on the pinned image
+    with the repo's real files: groups=0 alerting=0 total=0, zero ERROR/WARN
+    log lines, ``/-/ready`` green — total alerting blindness in silence. The
+    same image with the config in place at /etc/prometheus (pre-O1.11 shape)
+    loaded 34/121/168. Absolute entries restore it under the /tmp boot
+    (measured 34/121/168). The boot render itself stays (tmpfs, read_only
+    rootfs); this pins that its rule anchor is the mount, not the render dir."""
+    cfg = yaml.safe_load(_text(PROM_CONFIG))
+    rule_files = cfg["rule_files"]
+    assert rule_files, "rule_files must stay populated"
+    for entry in rule_files:
+        assert entry.startswith("/etc/prometheus/"), (
+            f"rule_files entry {entry!r} is relative: Prometheus resolves it "
+            "against the config FILE'S directory, and the boot renders the "
+            "config to /tmp — relative entries load 0 groups silently"
+        )
+    mounted = {
+        str(v).split(":")[1]
+        for v in (compose_services["prometheus"].get("volumes") or [])
+        if str(v).count(":") >= 1
+    }
+    for entry in rule_files:
+        assert entry in mounted, (
+            f"{entry} is absolute but never mounted into the container — "
+            "a rule_files entry that points at nothing is silently ignored "
+            "(same blindness class, docs/operator/prometheus-alerting.md)"
+        )
+    command = " ".join(compose_services["prometheus"].get("command") or [])
+    assert "/tmp/prometheus.yml" in command, (
+        "the /tmp render is WHY the entries must be absolute; if the boot "
+        "ever stops rendering to /tmp, revisit the rule anchor in the same "
+        "change rather than silently stranding absolute paths"
+    )
+
+
+@pytest.mark.timeout(120)  # conftest honors an explicit timeout marker over the 5s tier
+def test_prometheus_boot_loads_every_committed_rule_file(compose_services: dict) -> None:
+    """Finding 1's class end to end: run the REAL compose boot command against
+    the REAL pinned image with the compose service's own volume mounts, and
+    require every committed rule file to contribute at least one loaded group
+    (per-group ``file`` attribution from /api/v1/rules — attribution, not
+    rule counts, so the pin survives legitimate rule churn). Pre-fix
+    measurement on this head: 0 of 7 files loaded, silently. Skips — never
+    fails — without a docker daemon or the pinned image present; the CI
+    standing guard for the class is the static absolute-entry pin above."""
+    import socket
+    import subprocess
+    import time
+    import urllib.request
+    import uuid
+
+    docker = shutil.which("docker")
+    if docker is None:
+        pytest.skip("no docker daemon available for the boot arm")
+
+    def run_docker(*argv: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(  # noqa: S603 — argv literal; docker from PATH  # real
+            [docker, *argv],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+
+    svc = compose_services["prometheus"]
+    image = svc["image"]
+    if run_docker("image", "inspect", image).returncode != 0:
+        pytest.skip(f"{image} not pulled locally — the boot arm is opt-in by pull")
+
+    volumes: list[str] = []
+    for v in svc.get("volumes") or []:
+        src, _, rest = str(v).partition(":")
+        if not src.startswith("."):
+            continue  # named volume (prometheus_data:/prometheus) — container-side
+        volumes += ["-v", f"{(REPO_ROOT / src[2:]).resolve()}:{rest.partition(':')[0]}:ro"]
+    script = " ".join(str(part) for part in (svc.get("command") or [])).replace("$${", "${")
+
+    with socket.socket() as probe:  # ephemeral port — xdist workers run this concurrently
+        probe.bind(("127.0.0.1", 0))
+        host_port = probe.getsockname()[1]
+    name = f"o111-bootpin-{uuid.uuid4().hex[:8]}"
+    started = run_docker(
+        "run",
+        "-d",
+        "--rm",
+        "--name",
+        name,
+        "-p",
+        f"127.0.0.1:{host_port}:9090",
+        "-e",
+        "MONITORING_API_KEY=hsi_TESTKEY123",  # pragma: allowlist secret
+        *volumes,
+        "--entrypoint",
+        "/bin/sh",
+        image,
+        "-ec",
+        script,
+    )
+    assert started.returncode == 0, f"docker run failed: {started.stderr[:300]}"
+    try:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        deadline = time.monotonic() + 25.0
+        ready = False
+        while time.monotonic() < deadline:
+            try:
+                ready = (
+                    opener.open(f"http://127.0.0.1:{host_port}/-/ready", timeout=2).status == 200
+                )
+            except OSError:
+                time.sleep(0.5)
+            else:
+                break
+        assert ready, f"prometheus never became ready:\n{run_docker('logs', name).stdout[-800:]}"
+        with opener.open(f"http://127.0.0.1:{host_port}/api/v1/rules", timeout=5) as resp:
+            payload = json.load(resp)
+    finally:
+        run_docker("stop", name)
+
+    loaded = {str(g.get("file", "")) for g in payload["data"]["groups"]}
+    expected = {Path(entry).name for entry in yaml.safe_load(_text(PROM_CONFIG))["rule_files"]}
+    missing = {n for n in expected if not any(f.endswith("/" + n) for f in loaded)}
+    assert not missing, (
+        f"{len(missing)} of {len(expected)} rule files loaded NO groups under the "
+        f"real /tmp boot: {sorted(missing)} — alerting is blind and the boot "
+        "logs stay clean (finding 1); entries must be absolute /etc/prometheus paths"
     )
 
 
