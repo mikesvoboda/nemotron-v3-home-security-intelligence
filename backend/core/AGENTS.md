@@ -96,7 +96,7 @@ Nine live modules, three more than the deleted guide enumerated: `event_types.py
   `threading.RLock`-guarded; the module singleton is `get_subscription_manager()` with
   `reset_subscription_manager_state()` for tests.
 - **Inbound wire contract (what a client may send):** the route parses every frame with
-  `WebSocketMessage.model_validate_json` (`backend/api/routes/websocket.py:116`), so a client frame is
+  `WebSocketMessage.model_validate_json` (`backend/api/routes/websocket.py:124`), so a client frame is
   `{"type": <one of ping|pong|subscribe|unsubscribe|resync>, "data"?: {...}}` — `type` is
   REQUIRED, the match lower-cases it, `subscribe`/`unsubscribe` read `data.events`
   (`data.channels` accepted for back-compat), and `resync` replays buffered messages on a

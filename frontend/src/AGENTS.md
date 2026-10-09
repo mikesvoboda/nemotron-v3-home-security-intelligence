@@ -587,12 +587,15 @@ Zone management and visualization:
   one.** Components and services read `import.meta.env.VITE_*` directly (all
   14 keys exist somewhere in `frontend/`), and they read it in two shapes —
   `env.VITE_x` and `env?.VITE_x` — so grepping one form misses the other's
-  readers. `VITE_API_URL`/`VITE_WS_URL` are read by `services/authApi.ts`,
-  `services/alertsApi.ts`, `ExportPanel.tsx`, `ExportButton.tsx` and are a
-  DIFFERENT variable from the config layer's `VITE_API_BASE_URL`. `env.ts`
-  reads only three keys (`VITE_API_BASE_URL`, `VITE_API_KEY`,
-  `VITE_WS_BASE_URL`) with its own defaults, so a value set for one mechanism
-  is invisible to the others. `VITE_DEV_BACKEND_URL` is read by
+  readers. `VITE_API_URL` is read live by four files — `services/authApi.ts`,
+  `services/alertsApi.ts`, `ExportPanel.tsx`, `ExportButton.tsx` — and is a
+  DIFFERENT variable from the config layer's `VITE_API_BASE_URL`. Its sibling
+  `VITE_WS_URL` has no live read left: its seven remaining mentions under
+  `hooks/` are all comments describing the F1.3 fix that removed it.
+  `env.ts` reads four keys — `VITE_API_BASE_URL`, `VITE_API_KEY`,
+  `VITE_WS_BASE_URL`, and `MODE` (which drives `isDevelopment`/
+  `isProduction`/`isTest`) — with its own defaults, so a value set for one
+  mechanism is invisible to the others. `VITE_DEV_BACKEND_URL` is read by
   `vite.config.ts` itself (build-time only). `vite-env.d.ts` declares no
   `ImportMetaEnv` interface, so every direct read is an untyped string.
 - **Production bakes env at BUILD time.** `docker-compose.prod.yml` (~:945)
@@ -604,29 +607,39 @@ Zone management and visualization:
 ### `/constants/` - Chart Color Constants
 
 Two files (`index.ts` is `export * from './chartColors'`; `chartColors.ts`
-holds every token). Lifted from the deleted constants/AGENTS.md — the
-group inventory is discoverable from the file; these three facts are not:
+holds every _chart_ token — see the source-of-truth bullet below before
+treating that as app-wide). Lifted from the deleted constants/AGENTS.md — the
+group inventory is discoverable from the file; these facts are not:
 
 - **`SEVERITY_COLORS` is defined twice with different shapes**
   (`constants/chartColors.ts:24` hexes vs `utils/severityColors.ts:56`
   bgTint/border/glow objects). An import that "just" changes path silently
   changes what `.critical` evaluates to — string vs object. See the risk/
   severity chain section under `/theme/` for the full count.
-- **The file claims to be the chart-color source of truth, but the chart
-  library is transitive**: `recharts` is NOT in `frontend/package.json` — it
-  arrives through `@tremor/react`. A recharts CVE or major bump comes via
-  Tremor's range, and `styles/index.css` already styles recharts DOM
-  (`.recharts-sector` etc.), so the dependency is load-bearing while
-  invisible in the manifest.
-- **Eight exports have no non-test consumer** (measured at this head,
+- **Its header's "single source of truth for all chart-related colors" claim
+  is false** (quoted from `chartColors.ts:4`, echoed by the deleted constants
+  guide): `components/dashboard/RiskDistributionChart.tsx:81` — a chart —
+  re-declares a value-identical copy of `RISK_TREMOR_COLORS` while importing
+  `RISK_HEX_COLORS` from this same file (:25). Same values today; nothing
+  pins them tomorrow. Adjacent (outside the header's chart scope, same
+  hazard): `components/zones/ZoneEditor.tsx:413` hardcodes its zone-swatch
+  row inline, and all six of those hexes already live in this file — but in
+  other tables, not as a palette it could import.
+- **The chart library is transitive**: `recharts` is NOT in
+  `frontend/package.json` — it arrives through `@tremor/react`. A recharts
+  CVE or major bump comes via Tremor's range, and `styles/index.css` already
+  styles recharts DOM (`.recharts-sector` etc.), so the dependency is
+  load-bearing while invisible in the manifest.
+- **Nine exports have no non-test consumer** (measured at this head,
   excluding tests and prose): the consts `CHART_COLORS`, `CHART_PALETTE`,
   `TREMOR_PALETTE`, `DETECTION_OBJECT_COLORS`, `PERFORMANCE_COLORS`,
-  `PERFORMANCE_TREMOR_COLORS` and the derived types `ChartColorKey`,
-  `TremorColorName`. `TREMOR_PALETTE`'s own comment says it "matches
-  CHART_PALETTE order" — dead-but-coupled, so editing one without the other
-  breaks a contract nothing type-checks. (`BODY_PART_COLORS` is NOT in the
-  dead set — `components/detection/PoseSkeletonOverlay.tsx:18` imports it
-  directly and :132 re-exports it "for backward compatibility".
+  `PERFORMANCE_TREMOR_COLORS`, the derived types `ChartColorKey`,
+  `TremorColorName`, and the accessor `getChartPaletteColor`.
+  `TREMOR_PALETTE`'s own comment says it "matches CHART_PALETTE order" —
+  dead-but-coupled, so editing one without the other breaks a contract
+  nothing type-checks. (`BODY_PART_COLORS` is NOT in the dead set —
+  `components/detection/PoseSkeletonOverlay.tsx:18` imports it directly and
+  :132 re-exports it "for backward compatibility".)
 
 ### `/contexts/` - React Contexts
 
@@ -749,7 +762,8 @@ Each page has a co-located test file (named `*.test.tsx`).
 ### `/schemas/` - Validation Schemas
 
 Zod schemas mirroring the backend Pydantic models (the directory holds 8 code
-files + 8 co-located tests, not the 4 the old table listed):
+files + 7 co-located tests — `index.ts` is the code file with no test — not
+the 4 the old table listed):
 
 | File                 | Purpose                                           |
 | -------------------- | ------------------------------------------------- |
@@ -867,15 +881,22 @@ background-dependent, so each names its background.)
   `#EF4444`, high `#F97316` orange, medium `#EAB308`) with `SEVERITY_COLORS_ALT`
   swapping medium to amber `#F59E0B` — and `utils/severityColors.ts:56`
   redefines the NAME `SEVERITY_COLORS` with a different shape
-  (`bgTint`/`borderColor`/`glowShadow`) whose borders match chartColors, not
-  the risk tokens. `utils/risk.ts` `getRiskColor` (:144 — there is no
+  (`bgTint`/`borderColor`/`glowShadow`). Its borders match chartColors at
+  critical/high/medium but NOT at low — `utils/severityColors.ts:74` uses
+  `#76B900`, the risk token, where chartColors says `#10B981` — so the two
+  "different families" already agree with each other at low and disagree at
+  high. `utils/risk.ts` `getRiskColor` (:144 — there is no
   `getRiskColorHex` in the file) is a sixth table (low `#22c55e` — the green
   above, AA-failing on white only; medium `#eab308`; high `#f97316`;
   critical `#ef4444`).
-- **`#E74856` means OPPOSITE things by file:** high risk in
-  `types/constants.ts`, confidence **LOW** in `utils/confidence.ts:28`
-  (a red "low confidence, needs attention" badge). Copying "the red" between
-  the two inverts a signal.
+- **`#E74856` means OPPOSITE things — and "by file" is already too coarse:**
+  high risk in `types/constants.ts:67` (`RISK_LEVEL_CONFIG.high`), confidence
+  **LOW** in `utils/confidence.ts:28` (a red "low confidence, needs
+  attention" badge). Copying "the red" between the two inverts a signal. And
+  inside `types/constants.ts` itself the same hex carries four meanings:
+  `HEALTH_STATUS_CONFIG.unhealthy` (:122), `CONTAINER_STATUS_CONFIG`
+  `.unhealthy` (:173) and `.error` (:185), `ALERT_SEVERITY_CONFIG.critical`
+  (:398), `MODEL_STATUS_CONFIG.error` (:443). Name the map, not the file.
 - **`medium` exists as three hexes** (`#FFB800` config/constants,
   `#EAB308` chartColors, `#F59E0B` ALT + components the file's own comment
   admits hardcode it). Legend-vs-fill mismatches in analytics charts are
