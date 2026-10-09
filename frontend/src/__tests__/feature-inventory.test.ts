@@ -15,9 +15,12 @@
  * - every production file `src/main.tsx` cannot reach is either claimed by a row
  *   or listed under "Modules serving no feature" — and nothing reachable is
  *   listed there;
- * - every row carries a status from the README vocabulary and its evidence;
+ * - every row carries a status from the README vocabulary and its evidence,
+ *   and every `path:line` it cites exists (a reviewer reads the lines with
+ *   scripts/feature-inventory-cites.mjs);
  * - knip is configured to see unreachable files (F2.2's knip clause);
- * - F1.1's known-missing list points at inventory rows, and those rows exist.
+ * - F1.1's known-missing list points at inventory rows, and those rows exist —
+ *   or, for a call in dead code, at "Client requests no feature reaches".
  *
  * The readers live in scripts/feature-inventory-lib.mjs and the request scan is
  * scripts/api-contract-lib.mjs's, so the two gates cannot disagree about what
@@ -64,6 +67,7 @@ interface InventoryLib {
   appRoutes: (source: string) => string[];
   reachableFiles: (options: { root: string; entry: string }) => Set<string>;
   rowProblems: (row: Row) => string[];
+  rowCites: (row: Row) => { file: string; line: number }[];
   callCovers: (call: ApiCall, claim: Claim) => boolean;
 }
 
@@ -156,6 +160,20 @@ describe('feature inventory (F2.2)', () => {
     expect(listed.filter((f) => reachable.has(f))).toEqual([]);
   });
 
+  it('cites only lines that exist', () => {
+    const problems = inv.rows.flatMap((r) =>
+      lib.rowCites(r).flatMap(({ file, line }) => {
+        const p = path.join(REPO, file);
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: repo-relative paths read from a committed doc
+        if (!fs.existsSync(p)) return [`${r.id}: ${file} does not exist`];
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: as above
+        const lines = fs.readFileSync(p, 'utf8').split('\n').length;
+        return line <= lines ? [] : [`${r.id}: ${file}:${line} is past the end (${lines} lines)`];
+      })
+    );
+    expect(problems).toEqual([]);
+  });
+
   it('names only modules that exist', () => {
     const named = [...inv.rows.flatMap((r) => r.modules), ...inv.noFeature.map((m) => m.module)];
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: repo-relative paths read from a committed doc
@@ -192,11 +210,23 @@ describe('knip sees unreachable files (F2.2)', () => {
 describe("F1.1's known-missing list points at inventory rows (F2.2)", () => {
   const entries = (knownMissingData as { entries: { path: string; next: string }[] }).entries;
 
-  it('names a row id in every entry, and every named row exists', () => {
+  it('names a row id in every entry, or lists its request as reaching no feature', () => {
     const ids = new Set(inv.rows.map((r) => r.id));
     const problems = entries.flatMap((e) => {
       const named = e.next.match(/F-\d{3}/g) ?? [];
-      if (named.length === 0) return [`${e.path}: next names no inventory row`];
+      if (named.length === 0) {
+        // A call in dead code is no feature's gap: the entry says so, and the
+        // inventory's "Client requests no feature reaches" table holds the path.
+        const deadCode =
+          e.next.includes('Client requests no feature reaches') &&
+          inv.noFeatureCalls.some((n) =>
+            lib.callCovers(
+              { ...n, method: null },
+              { kind: 'rest', method: null, path: e.path, file: '', line: 0 }
+            )
+          );
+        return deadCode ? [] : [`${e.path}: next names no inventory row`];
+      }
       return named.filter((id) => !ids.has(id)).map((id) => `${e.path}: ${id} is not a row`);
     });
     expect(problems).toEqual([]);

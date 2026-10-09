@@ -13,7 +13,8 @@
 //   routes onto their parent the way React Router does.
 // - `reachableFiles` walks the import graph from an entry, following static
 //   imports, re-exports and `import()` — the lazy routes are all `import()`.
-// - `rowProblems` and `callCovers` are the row rules and the request matcher.
+// - `rowProblems`, `rowCites` and `callCovers` are the row rules, the cite
+//   reader and the request matcher.
 //
 // Requests are not scanned here: the gate takes them from api-contract-lib.mjs's
 // `scanClient`, so the inventory gate and the endpoint-contract gate cannot
@@ -211,6 +212,24 @@ export function rowProblems(row) {
   return problems;
 }
 
+/** Repo-relative `path:line` (or `path:a-b`) cites under these roots. */
+const REPO_CITE = /\b((?:backend|frontend|ai|docs|scripts|monitoring|docker|config)\/[\w./-]+\.\w+):(\d+)(?:-(\d+))?/g;
+
+/**
+ * The `path:line` cites in a row's backend and evidence cells.
+ *
+ * A range cites its last line, so a range that runs past the end of the file
+ * fails the gate's existence check. Shorthand cites (`:44`, after a full cite of
+ * the same file) are not read: they carry no path to check.
+ */
+export function rowCites(row) {
+  const out = [];
+  for (const cell of [row.backend ?? '', row.evidence ?? '']) {
+    for (const m of cell.matchAll(REPO_CITE)) out.push({ file: m[1], line: Number(m[3] ?? m[2]) });
+  }
+  return out;
+}
+
 /**
  * Does an inventory API call account for a scanned client request?
  *
@@ -226,4 +245,106 @@ export function callCovers(call, claim) {
   if (!claim.method || !call.method) return true;
   const verb = call.method === 'SSE' ? 'GET' : call.method;
   return verb === claim.method;
+}
+
+/** Files a caller chain must not climb through: tests, mocks, stories. */
+const NOT_PRODUCTION =
+  /\.test\.tsx?$|\.stories\.tsx?$|\/__tests__\/|\/__mocks__\/|\/mocks\/|\/test\/|\/test-utils\//;
+
+/**
+ * Who calls a top-level function, up to the route that mounts it.
+ *
+ * Follows the TypeScript language service's `findReferences` from the function to
+ * the top-level declaration enclosing each production reference, then from that
+ * declaration in turn, until `src/App.tsx` or a page it lazy-loads. `App.tsx`
+ * loads most pages with `lazy(() => import('./…'))`, which `findReferences` does
+ * not follow, so reaching one of those files counts as mounted.
+ *
+ * `mounted: true` means a mounted module *references* the function, not that a
+ * control fires it: a hook can build a mutation its only consumer never takes
+ * (`useServiceMutations().startService`). Read the last hop before calling a
+ * request live.
+ */
+export function callerChain({ root, file, name }) {
+  const configPath = path.join(root, 'tsconfig.json');
+  const parsed = ts.getParsedCommandLineOfConfigFile(configPath, {}, {
+    ...ts.sys,
+    onUnRecoverableConfigFileDiagnostic() {},
+  });
+  const fileNames = parsed.fileNames;
+  const host = {
+    getScriptFileNames: () => fileNames,
+    getScriptVersion: () => '1',
+    getScriptSnapshot: (f) =>
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: a file the TypeScript host asks for
+      fs.existsSync(f) ? ts.ScriptSnapshot.fromString(fs.readFileSync(f, 'utf8')) : undefined,
+    getCurrentDirectory: () => root,
+    getCompilationSettings: () => parsed.options,
+    getDefaultLibFileName: (o) => ts.getDefaultLibFilePath(o),
+    fileExists: ts.sys.fileExists,
+    readFile: ts.sys.readFile,
+    readDirectory: ts.sys.readDirectory,
+    directoryExists: ts.sys.directoryExists,
+    getDirectories: ts.sys.getDirectories,
+  };
+  const service = ts.createLanguageService(host);
+  const program = service.getProgram();
+
+  const appFile = path.join(root, 'src/App.tsx');
+  const routeFiles = new Set([appFile]);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: root's own App.tsx
+  if (fs.existsSync(appFile)) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- SAFE: as above
+    for (const m of fs.readFileSync(appFile, 'utf8').matchAll(/import\('(\.[^']+)'\)/g)) {
+      routeFiles.add(path.resolve(root, 'src', `${m[1]}.tsx`));
+    }
+  }
+
+  const declaration = (sf, wanted) => {
+    for (const st of sf.statements) {
+      if ((ts.isFunctionDeclaration(st) || ts.isClassDeclaration(st)) && st.name?.text === wanted)
+        return st.name.getStart();
+      if (ts.isVariableStatement(st))
+        for (const d of st.declarationList.declarations)
+          if (d.name.getText() === wanted) return d.name.getStart();
+    }
+    return -1;
+  };
+  const enclosing = (sf, pos) => {
+    for (const st of sf.statements) {
+      if (pos < st.getStart() || pos >= st.end) continue;
+      if ((ts.isFunctionDeclaration(st) || ts.isClassDeclaration(st)) && st.name) return st.name.text;
+      if (ts.isVariableStatement(st)) return st.declarationList.declarations[0].name.getText();
+      return null;
+    }
+    return null;
+  };
+
+  const lines = [];
+  const seen = new Set();
+  let mounted = false;
+  const walk = (absFile, symbol, depth) => {
+    const sf = program.getSourceFile(absFile);
+    const pos = sf ? declaration(sf, symbol) : -1;
+    if (pos < 0) return;
+    for (const group of service.findReferences(absFile, pos) ?? []) {
+      for (const ref of group.references) {
+        if (ref.isDefinition || NOT_PRODUCTION.test(ref.fileName)) continue;
+        const refSf = program.getSourceFile(ref.fileName);
+        const encl = refSf && enclosing(refSf, ref.textSpan.start);
+        if (!encl) continue;
+        const key = `${ref.fileName}#${encl}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        lines.push(`${'  '.repeat(depth)}${path.relative(root, ref.fileName)} :: ${encl}`);
+        if (routeFiles.has(ref.fileName)) {
+          mounted = true;
+          continue;
+        }
+        walk(ref.fileName, encl, depth + 1);
+      }
+    }
+  };
+  walk(path.resolve(root, file), name, 0);
+  return { mounted, lines };
 }

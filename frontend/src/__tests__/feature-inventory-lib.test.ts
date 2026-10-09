@@ -57,6 +57,11 @@ interface Lib {
   appRoutes: (source: string) => string[];
   reachableFiles: (options: { root: string; entry: string }) => Set<string>;
   rowProblems: (row: Row) => string[];
+  rowCites: (row: Row) => { file: string; line: number }[];
+  callerChain: (options: { root: string; file: string; name: string }) => {
+    mounted: boolean;
+    lines: string[];
+  };
   callCovers: (
     call: ApiCall,
     claim: { kind: string; method: string | null; path: string }
@@ -195,6 +200,40 @@ describe('reachableFiles', () => {
   });
 });
 
+describe('callerChain', () => {
+  const files = {
+    'tsconfig.json': JSON.stringify({
+      compilerOptions: {
+        jsx: 'react-jsx',
+        moduleResolution: 'bundler',
+        module: 'esnext',
+        strict: false,
+      },
+      include: ['src'],
+    }),
+    'src/App.tsx':
+      "import { lazy } from 'react';\nconst Page = lazy(() => import('./pages/Page'));\nexport default function App() { return <Page />; }\n",
+    'src/pages/Page.tsx':
+      "import { useThing } from '../hooks/useThing';\nexport default function Page() { const { load } = useThing(); return <button onClick={load} />; }\n",
+    'src/hooks/useThing.ts':
+      "import { fetchUsed, fetchBuilt } from '../api';\nexport function useThing() { return { load: fetchUsed, unused: fetchBuilt }; }\nexport function useOrphan() { return fetchBuilt; }\n",
+    'src/api.ts':
+      "export function fetchUsed() { return fetch('/api/a'); }\nexport function fetchBuilt() { return fetch('/api/b'); }\nexport function fetchNobody() { return fetch('/api/c'); }\n",
+  };
+
+  it('follows references up to a page App.tsx lazy-loads', () => {
+    const root = tree(files);
+    const chain = lib.callerChain({ root, file: 'src/api.ts', name: 'fetchUsed' });
+    expect(chain.mounted).toBe(true);
+    expect(chain.lines.join('\n')).toMatch(/src\/pages\/Page\.tsx :: Page/);
+  });
+
+  it('reports a function no reference chain mounts', () => {
+    const root = tree(files);
+    expect(lib.callerChain({ root, file: 'src/api.ts', name: 'fetchNobody' }).mounted).toBe(false);
+  });
+});
+
 describe('rowProblems', () => {
   const base: Row = {
     id: 'F-001',
@@ -234,6 +273,21 @@ describe('rowProblems', () => {
     expect(lib.rowProblems({ ...base, evidence: '', modules: [] })).toEqual([
       'F-001: no evidence',
       'F-001: no modules',
+    ]);
+  });
+});
+
+describe('rowCites', () => {
+  it('reads repo-relative path:line cites from the backend and evidence cells', () => {
+    const row = {
+      backend: '`update_event` `backend/api/routes/events.py:1939` → `events`',
+      evidence:
+        'read by `backend/api/routes/events.py:281`; ranges `frontend/src/A.tsx:10-12`; bare `:44` skipped',
+    } as Row;
+    expect(lib.rowCites(row)).toEqual([
+      { file: 'backend/api/routes/events.py', line: 1939 },
+      { file: 'backend/api/routes/events.py', line: 281 },
+      { file: 'frontend/src/A.tsx', line: 12 },
     ]);
   });
 });
