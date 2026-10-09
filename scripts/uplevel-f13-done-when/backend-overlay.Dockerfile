@@ -12,7 +12,16 @@
 # The working-tree source is mounted at runtime (see
 # docker-compose.f13-stack.yml), so the process that answers
 # /api/auth/setup-status and gates /ws is the tree under test.
-FROM ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
+#
+# FROM is digest-pinned, not :latest, for two reasons. (1) Provenance: since
+# O1.9 the publish-latest job moves :latest on every merge-core smoke pass, so
+# a tag-pinned overlay silently changes base mid-run; the digest below is the
+# exact manifest the Done-when runs executed against. (2) CI's Trivy Config/IaC
+# scan fails the PR on DS-0001 "Specify a tag in the FROM statement" for
+# :latest, and main deleted the AVD-DS-0001 ignore entry in the 2026-10-04
+# sweep — re-adding an ignore would resurrect a deliberately-dead entry.
+# Re-pin by pulling: docker buildx imagetools inspect .../backend:latest.
+FROM ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend@sha256:baf7b10dddf60cc40559a13133513dbf2680962f359f2dc7d6c3257e4f739bd5
 
 # hadolint ignore=DL3002
 USER root

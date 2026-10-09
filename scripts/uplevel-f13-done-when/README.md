@@ -29,6 +29,12 @@ answering `/api/auth/setup-status` and gating `/ws` is **the tree under test**.
 A full `docker build --target dev` is the alternative wherever disk allows it
 (the overlay exists because the PR sandbox ran out of disk mid-run).
 
+The overlay's `FROM` is pinned to the digest
+`backend@sha256:baf7b10d…739bd5` — the exact manifest both Done-when runs
+executed against — not to `:latest`, which O1.9 makes move under every merge.
+To re-pin for a fresh run:
+`docker buildx imagetools inspect ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest`.
+
 ## Setup (once)
 
 ```bash
