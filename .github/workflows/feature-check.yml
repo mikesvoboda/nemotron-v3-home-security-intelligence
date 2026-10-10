@@ -7,8 +7,19 @@ name: Feature Check
 # preflight and a postflight that it touched nothing else on the runner.
 # docs/developer/testing.md, "Feature check". The real tier (--real) never
 # runs from GitHub (UR-15).
+#
+# Trigger (O2.2 DECIDE, from its MEASURE): the first run on a PR, 38062007618
+# at bed9693be, took 5m33s of job time: 1m56s freeing disk, 1m25s building
+# backend from the warm GHA cache, 3s frontend, 1m35s the harness. That is
+# under the CI workflow it runs beside, so every pull request runs it; a
+# change that touches only Markdown cannot break a golden path, so it is
+# filtered out. main runs it after every merge.
 on:
   pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  push:
     branches: [main]
   workflow_dispatch:
 

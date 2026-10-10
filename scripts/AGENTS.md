@@ -798,7 +798,8 @@ The logic is `feature_check.py`, standard library only:
   the scenario's verdict.
 
 The tests are in `backend/tests/unit/scripts/test_feature_check.py`. The
-`Feature Check` workflow runs `--fake` on PRs. Usage and the golden-path
+`Feature Check` workflow runs `--fake` on every PR that changes more than
+Markdown, and on `main`. Usage and the golden-path
 contract are in `docs/developer/testing.md`, "Feature Check".
 
 #### close-rollback-issues.sh
