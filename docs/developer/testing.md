@@ -435,6 +435,119 @@ pkill -f "vite preview"
 ./scripts/test-runner.sh
 ```
 
+## Feature Check
+
+`scripts/feature-check.sh` runs the golden paths against a running stack. A
+golden path is an unmocked spec that drives a feature end to end. The logic
+lives in `scripts/feature_check.py`, which uses only the standard library.
+
+```bash
+# The CI stack with the fake AI (docker-compose.fake-ai.yml), images at a published tag
+scripts/feature-check.sh --fake --image-tag <sha7>
+```
+
+`--fake` runs these steps in order:
+
+1. Renders `docker-compose.ci.yml` with `docker-compose.fake-ai.yml` and turns
+   the rendering into a **test deployment**.
+2. Renders the test deployment again and checks it with the preflight.
+3. Starts it, with one camera folder per scenario of the fake AI's scenario
+   book in the watched folder.
+4. Registers the first admin, which lifts the setup guard, and registers a
+   camera for each of those folders.
+5. Runs the in-run check, the harness smoke check and the golden paths.
+6. Collects artifacts.
+7. Tears down and runs the postflight.
+
+The smoke check drops `harness-smoke.jpg` into the `harness-smoke` camera, then
+asserts through `/api/events` that exactly one event arrives carrying the
+scenario's verdict and risk score. The smoke scenario has image bytes of its
+own, so the backend's content dedupe never swallows a golden path's image.
+
+**Isolation.** A run touches nothing else on the machine, so it is safe beside
+a live stack.
+
+- **Its own project and files.** A run gets its own compose project
+  (`hsi-check-<run-id>`), its own run directory and its own generated env file.
+  Compose never reads the checkout's `.env` or the caller's shell.
+- **No fixed host ports.** Every published port moves to an engine-assigned
+  port on `127.0.0.1`.
+- **Its own camera directory.** The camera directory is `<run>/cameras`.
+- **No orchestrator.** The backend runs with `ORCHESTRATOR_ENABLED=false`.
+- **The preflight** refuses the run when any of these hold:
+  - a writable bind mount points outside the run directory;
+  - a service mounts an engine socket;
+  - a service gets the host's network, processes or devices;
+  - a service is configured with a host address;
+  - a service carries a fixed `container_name`;
+  - the backend's orchestrator is not off;
+  - the project, a container name, a host port, a volume or a writable host
+    path overlaps what the machine snapshot found.
+- **The in-run check** fails the run when a container holds an engine socket,
+  or when the backend reports its orchestrator on.
+- **Teardown** is `docker compose -p <project> down -v` and nothing else.
+- **The postflight** asserts that every container and volume from the
+  snapshot still exists, and that every container that was running still is,
+  with the same start time.
+
+Exit codes:
+
+| exit | meaning                                                                                     |
+| ---- | ------------------------------------------------------------------------------------------- |
+| 0    | green                                                                                       |
+| 1    | a check of the run failed                                                                   |
+| 2    | the preflight refused; nothing started                                                      |
+| 3    | the postflight found a pre-existing container or volume changed: report it, restore nothing |
+
+Artifacts land in `<run>/artifacts`:
+
+- the snapshots taken before and after the run;
+- the rendered configuration;
+- the compose logs and `ps` output;
+- the smoke check's events;
+- the golden-path reports;
+- `summary.json`.
+
+Run directories go under `$FEATURE_CHECK_ROOT` (default
+`/tmp/hsi-feature-check`). `--engine podman` (or `FEATURE_CHECK_ENGINE`) uses
+`podman compose`.
+
+**Golden paths.** The harness runs them in two places:
+
+- the pytest specs in `backend/tests/golden/` (external interfaces), which sit
+  outside the default test paths;
+- the `golden` Playwright project in `frontend/playwright.config.ts` (UI).
+
+It skips each one until it exists. Specs read the stack from these
+environment variables:
+
+| variable                                                       | value                                         |
+| -------------------------------------------------------------- | --------------------------------------------- |
+| `FEATURE_CHECK_API_URL`                                        | the backend, e.g. `http://127.0.0.1:32772`    |
+| `FEATURE_CHECK_UI_URL`                                         | the frontend                                  |
+| `FEATURE_CHECK_CAMERA_ROOT`                                    | the run's camera directory (`/cameras` in it) |
+| `FEATURE_CHECK_CAMERAS`                                        | JSON: each seeded camera's folder and its id  |
+| `FEATURE_CHECK_SCENARIOS`                                      | the fake AI's scenario book                   |
+| `FEATURE_CHECK_ADMIN_USERNAME`, `FEATURE_CHECK_ADMIN_PASSWORD` | the first admin the harness registered        |
+| `FEATURE_CHECK_MODE`                                           | `fake` or `real`                              |
+
+To drop a fixture image into a camera folder, run
+`scripts/feature-check.sh drop <image> <camera>`, or copy the image into
+`$FEATURE_CHECK_CAMERA_ROOT/<camera>/`.
+
+- Each scenario has a camera of the same name. Its id replaces `-` with `_`,
+  so `person-at-door` has the id `person_at_door`.
+- The backend creates a camera for any other folder the first time an image
+  lands in it.
+- The backend deduplicates images by content for 300 s, across cameras. So
+  dropping the same bytes twice within five minutes yields one event.
+- The scenario image chooses the detections and the verdict
+  (`backend/ai_contract/fake/AGENTS.md`).
+
+**`--real`** runs the same test deployment with real models served through
+`agent-gpu`, run by the operator (`docs/uplevel/operator.md`). It is not built
+yet; its open questions are on PR #6961.
+
 ## Pytest Configuration
 
 The pytest configuration is defined in `pyproject.toml:577`:
