@@ -44,3 +44,21 @@ def test_session_cookie_secure_reaches_the_backend_container(compose_file: str) 
         "in the shipped stack (no env_file:, .env dockerignored), and the true "
         "default must match Settings' secure default, not flip it"
     )
+
+
+@pytest.mark.parametrize("compose_file", COMPOSE_FILES)
+def test_expose_lan_reaches_the_backend_container(compose_file: str) -> None:
+    """The OTHER half of the two-variable decision, pinned too (#6950 Note).
+
+    env-reference's section says both rows' threading is "pinned by compose
+    tests"; before this pin only SESSION_COOKIE_SECURE was (a mutation
+    removing the EXPOSE_LAN environment line passed the whole unit tier).
+    Same mechanism, same stakes: the gate, the warning and this doc's remedy
+    all read Settings, and Settings only sees the environment: list.
+    """
+    env = _backend_env(compose_file)
+    assert env.get("EXPOSE_LAN") == "${EXPOSE_LAN:-false}", (
+        f"{compose_file} must pass EXPOSE_LAN=${{EXPOSE_LAN:-false}} to the "
+        "backend: without it the auth gate never engages in the container and "
+        "the false in compose is decorative (no env_file:, .env dockerignored)"
+    )

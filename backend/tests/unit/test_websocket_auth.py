@@ -645,13 +645,17 @@ class TestWebSocketAuthHelpers:
 
     @pytest.mark.asyncio
     async def test_cookie_under_the_wrong_name_authenticates_nothing(self):
-        """Negative control for the R55 name fix.
+        """Negative control for THIS helper's name fix (R55).
 
         A session id delivered under the literal "session" (the name the
         sockets used to read) must not authenticate: the extractor finds
-        nothing, so validate_session_cookie is never consulted. Without this
-        half, a green test suite could not tell the fixed reader from the
-        broken one.
+        nothing, so validate_session_cookie is never consulted. Scope note
+        (#6950 review, Note B): routes call auth.authenticate_websocket,
+        not this test-only helper — so this pins the helper's extraction
+        only. A regression re-introducing the literal "session" into the
+        LIVE reader survives this file (verified by mutation); that half is
+        pinned by test_auth.py's TestLiveCookieReader, which drives the
+        live function with a real session under the real cookie name.
         """
         mock_websocket = MagicMock(spec=WebSocket)
         mock_websocket.cookies = {"session": "a_real_session_id"}

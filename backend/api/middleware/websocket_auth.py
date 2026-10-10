@@ -159,9 +159,10 @@ async def validate_session_cookie(session_id: str) -> str | None:
     (middleware/auth.py::_session_username, used by authenticated_principal at
     :329), so a cookie that authenticates HTTP also authenticates a socket, and
     a Redis rebinding patch on the gate controls both transports.
-    Deferred import: middleware/auth.py imports verify_websocket_auth from this
-    module at import time, so importing back at module level would be a cycle;
-    inside the function the graph resolves at call time.
+    Deferred import: middleware/auth.py imports THIS module at import time
+    (its own cookie leg calls this function), so a module-level import back
+    into auth would be a cycle; inside the function the graph resolves at
+    call time.
     Redis TTL is the expiry: an expired session is simply not in Redis, like
     for the HTTP gate (the cookie leg therefore has no separate 4002 path).
     """

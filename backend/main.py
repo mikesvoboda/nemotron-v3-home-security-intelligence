@@ -1799,10 +1799,12 @@ def _warn_if_secure_cookie_loops_login(settings: Settings) -> None:
         get_logger(__name__).warning(
             "EXPOSE_LAN is on with the session cookie's Secure flag set, but TLS is not "
             "configured here: a browser opening this origin over http:// will DROP the login "
-            "cookie and loop on the sign-in screen. Fix one of them — set "
-            "TLS_MODE=self_signed (or TLS_MODE=provided with TLS_CERT_PATH/TLS_KEY_PATH) when "
-            "this process serves TLS itself (python -m backend.main; the compose image's CMD "
-            "never reads TLS_MODE); if TLS terminates in front of this backend (the frontend "
+            "cookie and loop on the sign-in screen. Fix one of them — when this process "
+            "serves TLS itself (python -m backend.main) it needs TLS_MODE=provided with "
+            "TLS_CERT_PATH AND TLS_KEY_PATH set to existing files; TLS_MODE=self_signed "
+            "without both paths still binds plain here (get_ssl_context generates a "
+            "certificate the uvicorn bind never receives — see _tls_configured). The compose "
+            "image's CMD never reads TLS_MODE; if TLS terminates in front of this backend (the frontend "
             "image's SSL_ENABLED=true, or any TLS proxy) this warning is a false positive — "
             "the backend cannot see that termination — and you can ignore it while logins "
             "work. Or set "
@@ -1812,17 +1814,31 @@ def _warn_if_secure_cookie_loops_login(settings: Settings) -> None:
 
 
 def _tls_configured(settings: Settings) -> bool:
-    """Whether the operator asked for TLS, WITHOUT building or generating certs.
+    """Whether THIS process's bind can serve TLS, WITHOUT building or generating certs.
 
     ``get_tls_config()`` is the authoritative TLS entry point, but it
     auto-generates a self-signed certificate as a side effect and raises when
     configured cert files are missing — far too much machinery for a startup
     log line, which must also stay silent-safe on a misconfigured box it is
-    about to describe. This reads the two knobs the operator sets
-    (``tls_mode``, and the legacy ``tls_enabled``) which are exactly what
-    ``get_tls_config()`` consults before doing anything else (tls.py:622).
+    about to describe. This reads the knobs the ``python -m backend.main``
+    bind actually consumes — ``tls_mode`` plus the ``tls_cert_path`` /
+    ``tls_key_path`` fields passed verbatim as uvicorn's ``ssl_certfile`` /
+    ``ssl_keyfile`` — and NOT the legacy ``tls_enabled``: when a mode is set
+    but the paths are not, ``get_ssl_context`` happily returns a context from
+    certificates it generated under ``data/certs/``, yet the bind hands
+    uvicorn two ``None``s, so the process listens plain while believing it is
+    HTTPS — the exact http-login-loop shape this warning names, and a
+    suppression here would hide it. When the paths ARE set, the bind serves
+    TLS and silence is right. The legacy edge is no loss: a compose box cannot
+    suppress this warning through the backend's TLS at all (TLS_MODE is not
+    threaded into the backend container — see env-reference.md), so every
+    setting where the old predicate said "TLS" but no bind serves it now warns.
     """
-    return settings.tls_enabled or settings.tls_mode != "disabled"
+    return (
+        settings.tls_mode != "disabled"
+        and bool(settings.tls_cert_path)
+        and bool(settings.tls_key_path)
+    )
 
 
 def get_ssl_context() -> ssl.SSLContext | None:

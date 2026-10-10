@@ -431,7 +431,9 @@ class TestInvalidCredentialCastsNoVote:
     the single-user default (gate off, keys disabled, sockets open to all):
     one login + an aged-out Redis session = every socket 4001-forever, while
     a browser that never logged in kept working — /me is disabled in that
-    mode, so nothing clears the cookie. These pins hold both halves: invalid
+    mode, so nothing clears the auth state (the cookie itself only a
+    server-side logout removes, which this mode never triggers). These pins
+    hold both halves: invalid
     credentials never refuse alone, and the key leg's refusal still closes
     exactly once (the accept-after-close crash stays structurally dead: no
     validation path touches accept/close anymore — the fake raises if one
@@ -517,6 +519,35 @@ class TestInvalidCredentialCastsNoVote:
         ws = _HybridSocket(cookie=None, query={"api_key": VALID_KEY}, first_message="ping")
         assert await authenticate_websocket(ws) is True
         assert ws.accepts == []  # the route accepts on success, not the authenticator
+        assert ws.closes == []
+
+
+class TestLiveCookieReader:
+    """The LIVE cookie read in authenticate_websocket is pinned here (R55 Note B).
+
+    The older wrong-name negative control (test_websocket_auth.py's
+    cookie_under_the_wrong_name test) drives websocket_auth's
+    authenticate_websocket_cookie — a helper no route imports, reached only
+    from that test file. A regression re-introducing the literal "session"
+    into authenticate_websocket's own cookies.get() therefore survives the
+    whole unit tier as that control was written, caught only by integration
+    tests. This drives the LIVE function with a valid session under the real
+    cookie name and NO key offered on a keys-enabled box: only the cookie leg
+    can serve, so reverting the reader to the literal "session" flips the
+    expected True into the key-leg refusal (False + a 4001 close).
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("session_store", "enable_api_key_auth")
+    async def test_valid_cookie_serves_the_socket_without_any_key(
+        self, session_store: _SessionStore
+    ) -> None:
+        from backend.api.middleware.auth import authenticate_websocket
+
+        session_id = await _login(session_store)
+        ws = _HybridSocket(cookie=session_id, query={}, first_message="ping")
+        assert await authenticate_websocket(ws) is True
+        assert ws.accepts == []  # validation only; the route owns the accept
         assert ws.closes == []
 
 

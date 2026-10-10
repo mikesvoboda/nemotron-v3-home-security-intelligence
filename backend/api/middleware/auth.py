@@ -277,15 +277,18 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     # killed every socket for a browser that once logged in and aged out —
     # 4001 is terminal in the frontend and /me is disabled in single-user
     # mode (AuthContext: enabled: authRequired !== false), so nothing 401s
-    # to clear the cookie: a browser that never logged in worked, one that
-    # did was dead for up to 24h. So: validate each present credential,
+    # to clear the auth state (the cookie itself is only ever removed by a
+    # server-side logout, which this mode also never triggers): a browser
+    # that never logged in worked, one that did was dead for up to 24h. So:
+    # validate each present credential,
     # first valid one wins (cookie before ?token=, the order the priority
     # test pins); an invalid one casts no vote and the API-key leg below —
     # the pre-existing hierarchy — decides, exactly as it does for a client
     # with no cookie at all. EXPOSE_LAN mode is untouched by this: the gate
     # runs BEFORE these routes and still refuses a stale-cookie+no-key
-    # handshake with 4001 there, where /me's 401 clears the cookie and the
-    # login screen returns. Gate-off refusal was the bug; gate-on was not.
+    # handshake with 4001 there, where /me's 401 clears the auth state and
+    # the login screen returns (and a fresh login replaces the cookie).
+    # Gate-off refusal was the bug; gate-on was not.
     #
     # No validation path here accepts or closes the socket (the first
     # accept-then-close owner inside this function is deleted with the
