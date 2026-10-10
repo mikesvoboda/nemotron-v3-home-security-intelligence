@@ -207,7 +207,7 @@ those floors, so review such hunks by hand.
 | codeql.yml                   | CodeQL          | Push/PR/Weekly       | Deep code analysis            |
 | gitleaks.yml                 | Gitleaks        | Push/PR              | Secret detection              |
 | trivy.yml                    | Trivy           | Push/PR (Dockerfile) | Container vulnerabilities     |
-| zap-security.yml             | OWASP ZAP       | Weekly/Manual        | Dynamic security testing      |
+| zap-security.yml             | OWASP ZAP       | Nightly/Manual       | Dynamic security testing      |
 | dependency-audit.yml         | pip-audit, npm  | Push/PR/Weekly       | Dependency vulnerability scan |
 | vulnerability-management.yml | Multiple        | Weekly               | CVE tracking and remediation  |
 | weekly-audit.yml             | Multiple        | Weekly (Monday 9 AM) | Security + code quality       |
@@ -246,7 +246,7 @@ those floors, so review such hunks by hand.
 | ----------------------- | --------- | ---------------------------------------- |
 | accessibility-tests.yml | PR        | Run accessibility (a11y) tests           |
 | lighthouse.yml          | PR/Weekly | Lighthouse performance and SEO audits    |
-| visual-tests.yml        | PR        | Visual regression testing with snapshots |
+| visual-tests.yml        | Nightly/Manual | Visual regression testing with snapshots |
 
 ## Usage
 

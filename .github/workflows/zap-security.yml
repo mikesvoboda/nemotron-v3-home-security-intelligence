@@ -1,23 +1,21 @@
 name: ZAP Security Scan
 
 # Dynamic Application Security Testing (DAST) using OWASP ZAP.
-# Runs on merge to main only (not PRs) to save runner capacity.
+# Runs nightly + on demand only (not on push, not on PRs) to save runner
+# capacity — owner ruling 71.
 #
-# Why main-only?
+# Why nightly-only?
 # - Some ZAP findings may be false positives requiring investigation
 # - Low/Medium alerts are informational and don't block deployment
 # - Only HIGH/CRITICAL alerts should warrant immediate attention
-# - Saves CI runner capacity for required checks on PRs
+# - Saves CI runner capacity for required checks on PRs and keeps main pushes
+#   clear of a scan whose findings are triaged, not gating
 #
 # Use the results to identify and prioritize security improvements.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/zap-security.yml'
-      - 'zap-rules.tsv'
+  schedule:
+    - cron: '31 5 * * *' # Daily 05:31 UTC — off the :00 herd, 8 min after visual-tests so the two scans don't share a runner peak
   # Manual trigger for on-demand security scanning
   workflow_dispatch:
 
@@ -251,11 +249,11 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        if: vars.LINEAR_ENABLED == 'true' && (needs.zap-api-scan.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: vars.LINEAR_ENABLED == 'true' && (needs.zap-api-scan.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          # Only create issue for failures on main branch pushes (not PRs)
+          # Only create issue for failures on main's scheduled/dispatch runs (not PRs)
           response=$(curl -s -w "\n%{http_code}" -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \

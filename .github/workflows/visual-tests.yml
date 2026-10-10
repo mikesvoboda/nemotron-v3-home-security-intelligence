@@ -1,13 +1,12 @@
 name: Visual Regression Tests
 
-# Runs on merge to main only (not PRs) to save runner capacity.
+# Runs nightly + on demand only (not on push, not on PRs) to save runner
+# capacity — owner ruling 71: the known-failing suite (defect tracked on #6942)
+# no longer reddens main pushes; its failure stays a defect, just a nightly one.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/visual-tests.yml'
+  schedule:
+    - cron: '23 5 * * *' # Daily 05:23 UTC — off the :00 herd (nightly-full-gate convention)
   # Allow manual trigger for updating baselines
   workflow_dispatch:
     inputs:
@@ -121,11 +120,11 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        if: vars.LINEAR_ENABLED == 'true' && (needs.visual-regression.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: vars.LINEAR_ENABLED == 'true' && (needs.visual-regression.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          # Only create issue for failures on main branch pushes (not PRs)
+          # Only create issue for failures on main's scheduled/dispatch runs (not PRs)
           curl -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
