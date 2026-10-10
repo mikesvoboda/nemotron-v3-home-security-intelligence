@@ -181,14 +181,15 @@ by a third service.
 
 These tune the three in-process lookups (faces, plates, person re-ID).
 
-| Variable                       | Required | Default | Range   | Description                                                        |
-| ------------------------------ | -------- | ------- | ------- | ------------------------------------------------------------------ |
-| `BACKEND_MODEL_PRELOAD`        | No       | `false` | -       | Run the boot preload sweep that makes the face and re-ID legs live |
-| `REID_SIMILARITY_THRESHOLD`    | No       | `0.7`   | 0.5-1.0 | Cosine similarity cutoff for a person match                        |
-| `REID_MAX_CONCURRENT_REQUESTS` | No       | `10`    | 1-100   | Cap on concurrent embedding work                                   |
-| `REID_EMBEDDING_TIMEOUT`       | No       | `30.0`  | 5-120s  | Timeout for one embedding generation                               |
-| `FACE_MIN_SIZE_PX`             | No       | `40`    | 8-      | Smallest face side (px) worth encoding                             |
-| `FACE_SCRFD_THRESHOLD`         | No       | `0.6`   | 0.0-1.0 | SCRFD face-detection confidence cutoff                             |
+| Variable                       | Required | Default | Range              | Description                                                                                 |
+| ------------------------------ | -------- | ------- | ------------------ | ------------------------------------------------------------------------------------------- |
+| `BACKEND_MODEL_PRELOAD`        | No       | `false` | -                  | Run the boot preload sweep that makes the face and re-ID legs live                          |
+| `REID_BACKEND`                 | No       | `local` | `local`, `gateway` | Where person re-ID runs: the backend's OSNet copy, or the gateway's GPU `reid` model (B2.2) |
+| `REID_SIMILARITY_THRESHOLD`    | No       | `0.7`   | 0.5-1.0            | Cosine similarity cutoff for a person match                                                 |
+| `REID_MAX_CONCURRENT_REQUESTS` | No       | `10`    | 1-100              | Cap on concurrent embedding work                                                            |
+| `REID_EMBEDDING_TIMEOUT`       | No       | `30.0`  | 5-120s             | Timeout for one embedding generation                                                        |
+| `FACE_MIN_SIZE_PX`             | No       | `40`    | 8-                 | Smallest face side (px) worth encoding                                                      |
+| `FACE_SCRFD_THRESHOLD`         | No       | `0.6`   | 0.0-1.0            | SCRFD face-detection confidence cutoff                                                      |
 
 > **Note:** `BACKEND_MODEL_PRELOAD=false` is the shipped default so a small host
 > never loads weights it cannot hold; on a host with the VRAM, set it `true` and
