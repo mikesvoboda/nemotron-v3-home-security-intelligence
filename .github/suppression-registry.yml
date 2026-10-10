@@ -1109,8 +1109,9 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: no compose binary (podman/docker) on this machine
-    host_justification: argv is None when no compose binary (podman/docker)
-      resolves via shutil.which — host-executable guard, not repo content
+    host_justification:
+      argv is None when no compose binary (podman/docker) resolves via shutil.which — host-executable
+      guard, not repo content
   - id: backend/tests/unit/core/test_dockerfile_config.py:29
     kind: todo
     owner: mikesvoboda
@@ -1123,16 +1124,18 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: no docker daemon available for the boot arm
-    host_justification: guard wraps shutil.which("docker") == None — host-executable
-      guard, not repo content (same class as test_compose_render_lists_ai_vlm.py:67)
+    host_justification:
+      docker is None where docker = shutil.which("docker") two lines above — host-executable guard,
+      not repo content
   - id: backend/tests/unit/core/test_monitoring_expose_lan_credentials.py:694
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
-    reason: docker.io/prom/prometheus:v3.1.0 not pulled locally (boot arm opt-in by pull)
-    host_justification: guard is `docker image inspect` returncode != 0 — a probe of
-      the host daemon's image store, not repo content
+    reason: null
+    host_justification:
+      "`docker image inspect` returncode != 0 — probes the host daemon's image store, not repo
+      content"
   - id: backend/tests/unit/core/test_nginx_connection_limit_config.py:135
     kind: todo
     owner: mikesvoboda
