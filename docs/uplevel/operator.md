@@ -141,7 +141,11 @@ hand-written command yourself:
    from output in the comment (UR-29).
 2. Add the teardown evidence: on the agent-gpu path, the empty `agent-gpu ps`; on the host, the
    before/after snapshot diff.
-3. Set the package's README status row from `awaiting real tier` to `done` in a one-line follow-up
+3. Name every store or file the result was read from by its path and its `sha256sum`. When it
+   lives only in a sandbox's broker directory (`/agents/<sandbox>/gpu/out` on the host), say so on
+   the PR: the owner copies it to a durable path under `/synthbench` before a report depends on it
+   (owner, 2026-10-10). Copy nothing yourself.
+4. Set the package's README status row from `awaiting real tier` to `done` in a one-line follow-up
    PR, or ask the lane agent to.
 
 ## When something goes wrong
@@ -175,4 +179,7 @@ reason its PR did not anticipate, post the output and the exit code and move
 on. Every number you post comes from output in the same comment. Always tear
 down, also after a failure. Before each new run, read the new comments on your
 own open PRs (UR-35).
+
+Never wait inside a turn on CI, a check run or a background watcher: read it
+once, report what you see and end the turn; your next tick re-reads (UR-38).
 ```
