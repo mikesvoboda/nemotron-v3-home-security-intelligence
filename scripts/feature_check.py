@@ -1510,7 +1510,7 @@ class AgentGpu:
             _log(f"agent-gpu {args[0]} did not complete ({type(error).__name__}: {error})")
             return None
 
-    def _reading(self, label: str) -> None:
+    def _reading(self, label: str) -> dict[str, str]:
         """``agent-gpu ps`` and ``status``, the runner's own view of the VLM
         and its VRAM, into the summary and artifacts/."""
         reading = {}
@@ -1519,6 +1519,7 @@ class AgentGpu:
             text = result.stdout if result is not None else f"agent-gpu {verb} did not complete"
             reading[verb] = self._record(f"agent-gpu-{verb}-{label}.txt", text)
         self.run.summary.setdefault("vram", {"declared_gib": VLM_VRAM_GIB})[label] = reading
+        return reading
 
     def vlm_tree(self) -> str:
         """``ai/vlm/``'s tree hash, which tags its image; uncommitted changes
@@ -1641,7 +1642,13 @@ class AgentGpu:
                 f"the VLM serves {model_path or 'no model_path'}; the pin is {expected}"
             )
         self.served_model = PurePosixPath(model_path).stem
-        self._reading("serving")
+        # The teardown proves the VLM gone by its name's absence from ps,
+        # which proves nothing unless ps lists it by that name now.
+        if self.name not in self._reading("serving")["ps"]:
+            raise HarnessError(
+                f"agent-gpu ps does not list {self.name} while it serves, so the "
+                "teardown could not prove it gone; see agent-gpu-ps-serving.txt"
+            )
         _log(f"vlm: ready, build {props.get('build_info')}, model {model_path}")
 
     def teardown(self) -> list[str]:
