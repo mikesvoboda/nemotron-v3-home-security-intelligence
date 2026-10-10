@@ -17,7 +17,7 @@ The WP8.2 deterministic FakeProvider: a FastAPI app + seeded generators implemen
 
 ## The Determinism Contract
 
-Every response is `create_response_bytes(value generated from sha256(op_id | path | profile))` serialized through ONE `json.dumps(sort_keys=True)` call - no wall-clock, no `id()`, no set iteration. Two identical requests are byte-identical because there is no channel for a difference to enter. That is the plan's literal Done-when; never introduce process state into a generator.
+Every response is `create_response_bytes(value generated from sha256(op_id | path | profile))` serialized through ONE `json.dumps(sort_keys=True)` call - no wall-clock, no `id()`, no set iteration. Two identical requests are byte-identical because there is no channel for a difference to enter. That is the plan's literal Done-when; never introduce process state into a generator. The engine-wire and scenario replies (O2.1, below) keep the same contract by other means: each is a pure function of the request bytes and the committed scenario book.
 
 ## Patterns and Gotchas
 
@@ -31,7 +31,7 @@ Every response is `create_response_bytes(value generated from sha256(op_id | pat
 The backend never dials the contract path `/vlm/chat/completions`; its `VlmClient` speaks llama.cpp's wire. So the app also serves:
 
 - `GET /props`: `build_info` (the `build_info=` argument; the container reads `FAKE_VLM_BUILD_INFO`) and `model_path`. The backend's startup gate checks `VLM_REQUIRED_BUILD` against it.
-- `POST /v1/chat/completions` **with** `response_format.json_schema`: answered as an enforcing grammar would. The reply validates against the schema the request carried, every `const` is echoed (the startup probe's nonce, `constrained_decoding.build_probe_schema`), and it rides in the chat envelope (`choices[0].message.content`, `finish_reason: "stop"`). **Without** `response_format` (the batch-open wake call) the path is still the `llm_chat_completion` op, byte for byte.
+- `POST /v1/chat/completions` **with** `response_format.json_schema`: answered as an enforcing grammar would. The reply validates against the schema the request carried, every top-level `const` is echoed (the startup probe's nonce, `constrained_decoding.build_probe_schema`), and it rides in the chat envelope (`choices[0].message.content`, `finish_reason: "stop"`). **Without** `response_format` (the batch-open wake call) the path is still the `llm_chat_completion` op, byte for byte.
 - `GET /health` (llama-server and the gateway's aggregate) and `GET /yolo26/health` (the adapter's). The backend reads only the status code. These are not registry ops.
 
 ## The Scenario Book (O2.1)
@@ -40,6 +40,7 @@ The fixture image chooses the outcome. `scenario_fixtures/scenarios.json` names 
 
 - An image no scenario names gets the generator answers, so this tier's byte pins are unchanged. The verdict is seeded by the image's sha256 (spec §3).
 - `reply_delay_seconds` delays the verdict reply, never the enforcement probe the client sends first with the same image. This is the slow-reply failure mode, and it must stay above the shipped `ai_vlm_read_timeout` (pinned).
+- **One event per image per 5 minutes:** the backend's file watcher dedupes on the same sha256 for 300 s (`backend/services/dedupe.py`), across cameras. A second drop of the same bytes inside that window is ignored, on any camera.
 - **Adding a scenario:** drop a JPEG of at least 10 KB (the file watcher's floor) into `scenario_fixtures/` and add its entry. Every scenario needs its own image bytes.
 
 ## Running It as a Service

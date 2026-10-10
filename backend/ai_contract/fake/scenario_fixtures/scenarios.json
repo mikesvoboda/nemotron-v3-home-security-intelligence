@@ -1,5 +1,5 @@
 {
-  "about": "The fake AI stack's scenario book (O2.1). Each image here chooses its own outcome: the fake hashes the bytes it receives (the detector's multipart upload, the VLM's data URI) and answers with this file's detections and verdict for the scenario whose image matches. Drop an image into a camera folder and the event carries that verdict. reply_delay_seconds delays the verdict reply (the slow-reply failure mode). See backend/ai_contract/fake/AGENTS.md.",
+  "about": "The fake AI stack's scenario book (O2.1). Each image here chooses its own outcome: the fake hashes the bytes it receives (the detector's multipart upload, the VLM's data URI) and answers with this file's detections and verdict for the scenario whose image matches. Drop an image into a camera folder and the event carries that verdict. reply_delay_seconds delays the verdict reply (the slow-reply failure mode). The backend's file watcher dedupes by the same sha256 for 5 minutes (backend/services/dedupe.py), so on one stack an image yields one event per 5 minutes. See backend/ai_contract/fake/AGENTS.md.",
   "scenarios": [
     {
       "name": "person-at-door",

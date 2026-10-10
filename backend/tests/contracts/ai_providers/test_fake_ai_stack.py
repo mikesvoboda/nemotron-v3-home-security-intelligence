@@ -303,6 +303,19 @@ class TestTheFixtureImageChoosesTheOutcome:
         for scenario in ScenarioBook.load():
             assert is_valid_image(str(scenario.image)), scenario.name
 
+    async def test_every_scenario_detect_reply_is_a_valid_wire_reply(self) -> None:
+        from backend.ai_contract.fake.scenarios import ScenarioBook
+
+        schema = json.loads((SCHEMA_DIR / "yolo26_detect.response.json").read_text())
+        app = create_fake_app()
+        for scenario in ScenarioBook.load():
+            resp = await _post(
+                app,
+                "/yolo26/detect",
+                files={"file": (scenario.image.name, scenario.image.read_bytes())},
+            )
+            jsonschema.validate(resp.json(), schema)
+
     def test_every_scenario_verdict_is_a_valid_wire_verdict(self) -> None:
         from backend.ai_contract.fake.scenarios import ScenarioBook
 
@@ -312,6 +325,30 @@ class TestTheFixtureImageChoosesTheOutcome:
 
 
 class TestAnUnknownImageStaysDeterministic:
+    @pytest.mark.parametrize(
+        ("body", "content_type"),
+        [
+            (b"abc", "multipart/form-data"),  # no boundary: Starlette's 400
+            (b"--x\r\nNoColonHere\r\n\r\nabc\r\n--x--\r\n", "multipart/form-data; boundary=x"),
+        ],
+        ids=["no-boundary", "bad-part-header"],
+    )
+    async def test_an_upload_that_does_not_parse_keeps_the_literal_script(
+        self, body: bytes, content_type: str
+    ) -> None:
+        """Before scenarios the detect route never parsed the upload, so a
+        broken one still got the literal script; parsing it must not turn
+        that into a 400 or a 500."""
+        resp = await _post(
+            create_fake_app(),
+            "/yolo26/detect",
+            content=body,
+            headers={"content-type": content_type},
+        )
+
+        assert resp.status_code == 200
+        assert resp.content == create_response_bytes(generate("yolo26_detect"))
+
     async def test_detections_for_an_unknown_image_are_the_literal_script(self) -> None:
         resp = await _post(
             create_fake_app(), "/yolo26/detect", files={"file": ("x.jpg", b"not-a-scenario")}
@@ -335,6 +372,40 @@ class TestAnUnknownImageStaysDeterministic:
 
         assert same[0] == same[1]
         assert len(sweep) > 1
+
+
+class TestTheFaultKnobReachesTheNewPaths:
+    async def test_a_scenario_detect_reply_takes_the_fault_like_the_literal_one(self) -> None:
+        """The scenario path runs the registry ops' own schema-invalid code. For
+        yolo26_detect that breaks nothing on either path: its snapshot is a
+        bare dict naming no required key (generators.py GEN_GAPS)."""
+        from backend.ai_contract.fake.scenarios import ScenarioBook
+
+        app = create_fake_app()
+        changed = []
+        for data in (b"not-a-scenario", next(iter(ScenarioBook.load())).image.read_bytes()):
+            replies = [
+                await _post(app, "/yolo26/detect", files={"file": ("x.jpg", data)}, headers=h)
+                for h in ({}, {"x-fake-fault": "schema-invalid"})
+            ]
+            changed.append(replies[0].content != replies[1].content)
+
+        assert changed[0] == changed[1]
+
+    async def test_schema_invalid_breaks_a_constrained_reply(self, tmp_path: Path) -> None:
+        schema = _wire_schema(tmp_path)
+
+        resp = await _post(
+            create_fake_app(),
+            "/v1/chat/completions",
+            json=_chat(None, schema),
+            headers={"x-fake-fault": "schema-invalid"},
+        )
+
+        content = json.loads(resp.json()["choices"][0]["message"]["content"])
+        assert resp.status_code == 200
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(content, schema)
 
 
 class TestTheContainerSeam:

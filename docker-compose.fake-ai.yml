@@ -29,6 +29,9 @@ x-fake-ai: &fake-ai
     args:
       BACKEND_IMAGE: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/backend:${IMAGE_TAG:-latest}
   image: hsi-fake-ai:${IMAGE_TAG:-latest}
+  # A local image: never pulled (no registry carries hsi-fake-ai, and a
+  # `compose pull` must not go looking for that name on Docker Hub).
+  pull_policy: build
   environment:
     # /props reports this build; the backend's pin below is the same value, so
     # its build check runs (an empty pin would skip it). b7972 is the llama.cpp

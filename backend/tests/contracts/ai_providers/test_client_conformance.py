@@ -89,9 +89,10 @@ CONTRACT FACTS THIS FILE RELIES ON (re-measured at HEAD on 2026-09-29)
   never 422. Every 422/404 pin therefore drives the real gateway adapter
   routers, and the fake side of those tests pins the 200. The asymmetry IS the
   finding.
-* The fake serves NO /health route (no registry op has one — re-probed:
-  GET /health and every ``{op.path}/health`` 404 against it). That absence is
-  what the health/wake characterization legs pin.
+* No registry op is a health route. Since O2.1 the fake serves GET /health
+  and GET /yolo26/health anyway (outside the registry), because it boots a
+  backend as ai-vlm and ai-gateway; the health characterization's "down"
+  leg therefore points at an app with no such route.
 * Deterministic fake values were dumped at draft time via
   ``backend.ai_contract.fake.generate(op_id)`` (profile "gateway"); the
   literals below are those dumps. A change to the generator seed logic reddens
@@ -2100,7 +2101,7 @@ def _deleted_registry_ops() -> frozenset[str]:
 
 
 @_aio
-async def test_detector_health_probe_reads_down_against_the_fake(
+async def test_detector_health_probe_reads_a_missing_route_as_down(
     fake_app, monkeypatch, settings_factory
 ) -> None:
     """Characterization (re-homed in R8 S2, narrowed in R8 S3 to the one
@@ -2121,7 +2122,7 @@ async def test_detector_health_probe_reads_down_against_the_fake(
     _point_at(det, fake_app)
     assert await det.health_check() is True
     # Non-vacuity: the same client is NOT unable to talk to the fake — the
-    # 404 is the /health absence, not a broken seam.
+    # False above is the empty app's 404, not a broken seam.
     #
     # Composed the way the client composes it (:424,:668 build ABSOLUTE urls
     # from self._detector_url), because _point_at deliberately does not give

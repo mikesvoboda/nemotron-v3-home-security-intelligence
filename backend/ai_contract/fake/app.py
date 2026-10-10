@@ -28,7 +28,7 @@ path /vlm/chat/completions; it speaks llama.cpp's wire, GET /props for the
 pinned build and POST /v1/chat/completions with a response_format
 json_schema. A constrained chat on that path is answered the way an
 enforcing grammar answers it: a verdict that validates against the schema
-the request carried, every `const` echoed (the startup probe's nonce,
+the request carried, every top-level `const` echoed (the startup probe's nonce,
 constrained_decoding.build_probe_schema), wrapped in the chat envelope. An
 unconstrained chat there (the batch-open wake call) is still the llm op.
 GET /health and GET /yolo26/health answer the pollers. The verdict, and the
@@ -54,6 +54,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.ai_contract.fake.generators import (
     GATEWAY_CLASSES,
@@ -61,6 +62,7 @@ from backend.ai_contract.fake.generators import (
     SECURITY_CLASSES,
     create_response_bytes,
     generate,
+    validate,
 )
 from backend.ai_contract.fake.scenarios import ScenarioBook
 from backend.ai_contract.operations import OPERATIONS
@@ -134,8 +136,9 @@ def _has_const(schema: dict[str, Any]) -> bool:
 
 
 def _fill(schema: dict[str, Any], verdict: dict[str, Any]) -> dict[str, Any]:
-    """The object an enforcing grammar emits: the schema's properties, each
-    `const` echoed, the rest taken from the verdict."""
+    """The object an enforcing grammar emits: the schema's top-level
+    properties, each `const` echoed, the rest taken from the verdict. Top
+    level is all the probe uses (build_probe_schema adds one property)."""
     out: dict[str, Any] = {}
     for name, node in (schema.get("properties") or {}).items():
         if isinstance(node, dict) and "const" in node:
@@ -185,7 +188,9 @@ def create_fake_app(
         # its provenance reads the model file's stem (vlm_client.py).
         return _response({"build_info": build_info, "model_path": MODEL_PATH})
 
-    async def _engine_chat(payload: dict[str, Any], schema: dict[str, Any], prof: str) -> Response:
+    async def _engine_chat(
+        payload: dict[str, Any], schema: dict[str, Any], prof: str, fault: str | None
+    ) -> Response:
         images = _images_of(payload)
         scenario = next((s for s in map(book.for_image, images) if s is not None), None)
         if scenario is not None:
@@ -213,6 +218,13 @@ def create_fake_app(
             raise HTTPException(
                 status_code=500, detail=f"fake cannot satisfy the requested schema: {exc.message}"
             ) from exc
+        if fault == "schema-invalid":
+            # The same ladder knob as the registry ops: a reply that still
+            # parses as JSON but no longer validates (here, against the schema
+            # the request carried).
+            required = schema.get("required") or []
+            if required:
+                content[required[0]] = None
         return _response(
             {
                 "id": "chatcmpl-fake-ai",
@@ -233,24 +245,32 @@ def create_fake_app(
             }
         )
 
-    async def _scenario_detect(request: Request, prof: str) -> Response | None:
+    async def _scenario_detect(request: Request, prof: str) -> dict[str, Any] | None:
         """The detector's multipart upload, answered from the book when the
-        uploaded file is a scenario's image."""
+        uploaded file is a scenario's image. Anything else, an upload that
+        does not parse included, keeps the literal script (None)."""
         if not request.headers.get("content-type", "").startswith("multipart/form-data"):
             return None
-        upload = (await request.form()).get("file")
+        try:
+            upload = (await request.form()).get("file")
+        except StarletteHTTPException, ValueError:
+            # Starlette answers a missing boundary with a 400 and
+            # python-multipart's parse errors are ValueErrors; the fake
+            # answered both with the literal script before scenarios existed.
+            return None
         if upload is None or isinstance(upload, str):
             return None
         scenario = book.for_image(await upload.read())
         if scenario is None:
             return None
-        value = generate("yolo26_detect", None, prof)
+        value: dict[str, Any] = generate("yolo26_detect", None, prof)
         value.update(
             detections=list(scenario.detections),
             image_width=scenario.width,
             image_height=scenario.height,
         )
-        return _response(value)
+        validate("yolo26_detect", value)  # the book cannot step outside the contract
+        return value
 
     def _make_handler(op_id: str) -> Callable[[Request], Awaitable[Response]]:
         async def _handler(request: Request) -> Response:
@@ -287,12 +307,10 @@ def create_fake_app(
             if op_id == "llm_chat_completion":
                 schema = _constrained_schema(payload)
                 if schema is not None:
-                    return await _engine_chat(payload, schema, prof)
-            if op_id == "yolo26_detect":
-                answered = await _scenario_detect(request, prof)
-                if answered is not None:
-                    return answered
-            value = generate(op_id, payload, prof)
+                    return await _engine_chat(payload, schema, prof, fault)
+            value = await _scenario_detect(request, prof) if op_id == "yolo26_detect" else None
+            if value is None:
+                value = generate(op_id, payload, prof)
             if fault == "schema-invalid":
                 key = _response_property(op_id, "response")
                 if key:
