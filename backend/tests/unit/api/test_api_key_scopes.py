@@ -36,25 +36,33 @@ idiom backend/tests/integration already uses with backend/tests/mock_utils.py
 
 from __future__ import annotations
 
+import hmac
 import json
 import re
 import warnings
-from collections.abc import Iterator
+from collections.abc import Awaitable, Callable, Iterator
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from typing import Any
+from unittest.mock import MagicMock, patch
 from urllib.parse import urlsplit
 
 import pytest
 import yaml
 from fastapi import HTTPException
 from pydantic_settings import SettingsError
-from starlette.requests import Request
+from starlette.requests import HTTPConnection, Request
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from backend.api.middleware.auth import (
+    API_KEY_PRINCIPAL,
     OPEN_PATHS,
+    _api_key_principal,
+    _hash_key,
+    _key_admits,
+    _key_entry_for_digest,
     require_api_key,
     validate_websocket_api_key,
 )
@@ -88,6 +96,11 @@ SCOPED_KEY = "scope-test-monitoring-key"  # pragma: allowlist secret
 PLAIN_KEY = "scope-test-operator-key"  # pragma: allowlist secret
 TYPO_KEY = "scope-test-typo-scope-key"  # pragma: allowlist secret
 KEYED_OTHER = "scope-test-second-key"  # pragma: allowlist secret
+# A key that is never armed: the invalid-key control in
+# TestKeyLegHasNoTimingOracle. Named rather than inline for the file's fake-key
+# doctrine (and because an inline literal + pragma risks the ruff-format wrap
+# that orphans a pragma — see ANY_PRESENTED_KEY below).
+ABSENT_KEY = "scope-test-never-armed-key"  # pragma: allowlist secret
 # Not a credential: the flag-off route copies return None before looking at
 # the value. A named constant rather than an inline literal because the
 # inline form + its detect-secrets pragma exceeds the line length, ruff
@@ -352,6 +365,160 @@ class TestAbsorption:
         """Control: without the plain twin the SAME key is refused there."""
         assert _client().get("/api/metrics", headers=_key_headers(SCOPED_KEY)).status_code == 200
         assert _client().get("/api/events/123", headers=_key_headers(SCOPED_KEY)).status_code == 401
+
+
+class TestKeyLegHasNoTimingOracle:
+    """Review #6959 S2: the gate's key leg must cost the same for every answer.
+
+    R60 moved the gate's key check from the base's full digest sweep to this
+    lookup, and the first draft stopped at the first unscoped match — ~1.9 µs
+    for a valid key against ~17.6 µs for a miss (reviewer-reproduced, disjoint
+    p5/p95), i.e. a valid-key oracle handed to exactly the callers the gate was
+    about to refuse. Timing is not what a unit test can pin (a loaded runner
+    makes any threshold either flaky or vacuous), so the pin is the MECHANISM:
+    ``hmac.compare_digest`` calls per credential check, counted, must be a
+    function of the list length and nothing else — not the key, not its
+    position, not whether the key is real, in scope, or nonsense.
+
+    Counting rather than adding a sweep is deliberate. A sweep first would not
+    close this: ``_validate_key_hash_constant_time`` is an ``any()``, so it
+    short-circuits on match and a valid key would still cost ~N/2+k compares
+    against an invalid key's N. One always-full pass is the only shape whose
+    cost cannot depend on the answer, and exactly-one-pass is pinned too (== N,
+    not 2N) so a future "belt and braces" second pass can't quietly double it.
+    """
+
+    @staticmethod
+    def _spy() -> Any:
+        """A real-semantics spy over the module's ``compare_digest``.
+
+        ``side_effect`` keeps the genuine behavior — a mock that always answered
+        True would make this whole suite agree with a mutated gate.
+        """
+        return patch(
+            "backend.api.middleware.auth.hmac.compare_digest",
+            autospec=True,
+            side_effect=hmac.compare_digest,
+        )
+
+    @classmethod
+    def _count_compares(cls, fn: Callable[[], object]) -> tuple[int, object]:
+        with cls._spy() as spy:
+            result = fn()
+        return spy.call_count, result
+
+    @classmethod
+    async def _count_compares_async(cls, fn: Callable[[], Awaitable[object]]) -> tuple[int, object]:
+        """The await-inside-the-spy form; awaiting outside it would count zero."""
+        with cls._spy() as spy:
+            result = await fn()
+        return spy.call_count, result
+
+    @staticmethod
+    def _conn(key: str, path: str) -> HTTPConnection:
+        return HTTPConnection(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": path,
+                "headers": [(b"x-api-key", key.encode())],
+                "query_string": b"",
+            }
+        )
+
+    def test_answer_and_position_cost_the_same_number_of_comparisons(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Valid-first, valid-last and invalid each cost exactly N compares."""
+        first, last = "oracle-first-key", "oracle-last-key"  # pragma: allowlist secret
+        _arm_gate(
+            monkeypatch,
+            json.dumps(first),
+            _object_entry(SCOPED_KEY),
+            json.dumps(KEYED_OTHER),
+            json.dumps(last),
+        )
+        n = len(get_settings().api_keys)
+        assert n == 4  # the N below is this list's length, not a magic number
+
+        counts = {}
+        for label, key in [
+            ("valid_first", first),
+            ("valid_last", last),
+            ("valid_scoped", SCOPED_KEY),
+            ("invalid", ABSENT_KEY),
+        ]:
+            counts[label] = self._count_compares(lambda k=key: _key_entry_for_digest(_hash_key(k)))[
+                0
+            ]
+
+        assert counts == dict.fromkeys(counts, n), (
+            f"per-candidate lookup stopped early: {counts} — every answer must "
+            f"cost the full {n}-entry scan"
+        )
+
+    @pytest.mark.asyncio
+    async def test_gate_leg_costs_the_same_for_valid_in_scope_and_refused_keys(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The cold leg itself: three different answers, one cost.
+
+        This is the reviewer's p14 observation (real-but-unentitled ≈ invalid,
+        overlapping) turned into an invariant: the scoped refusal and the
+        unknown key cost the same, so neither the answer nor the reason for it
+        is readable off the wire.
+        """
+        _arm_gate(
+            monkeypatch,
+            json.dumps(PLAIN_KEY),
+            _object_entry(SCOPED_KEY),
+            json.dumps(KEYED_OTHER),
+        )
+        n = len(get_settings().api_keys)
+        in_scope, out_of_scope = ("GET", "/api/metrics"), ("GET", "/api/events/123")
+
+        async def _leg(key: str, path: str) -> str | None:
+            return await _api_key_principal(self._conn(key, path))
+
+        answers: dict[tuple[str, str], str | None] = {}
+        counts: dict[str, int] = {}
+        for label, key, path in [
+            ("plain_valid", PLAIN_KEY, out_of_scope[1]),
+            ("scoped_in_scope", SCOPED_KEY, in_scope[1]),
+            ("scoped_out_of_scope", SCOPED_KEY, out_of_scope[1]),
+            ("unknown", ABSENT_KEY, out_of_scope[1]),
+        ]:
+            count, answers[label] = await self._count_compares_async(partial(_leg, key, path))
+            counts[label] = count
+
+        assert counts == dict.fromkeys(counts, n), f"gate key leg leaked cost: {counts}"
+        # ... while the answers themselves stay exactly as ruling 60 wants them.
+        assert answers["plain_valid"] == API_KEY_PRINCIPAL
+        assert answers["scoped_in_scope"] == API_KEY_PRINCIPAL
+        assert answers["scoped_out_of_scope"] is None  # no vote; the cookie may serve
+        assert answers["unknown"] is None
+
+    def test_serving_and_refusing_the_same_scoped_key_cost_the_same(
+        self, scoped_only: None
+    ) -> None:
+        """One key, two scope answers, one cost.
+
+        Both totals are the full N-entry scan, so the scope arm itself adds no
+        comparison at all — ``_key_admits`` is a frozenset membership test. That
+        is what makes the byte-identical 401 more than a rendering trick.
+        """
+        served = self._count_compares(
+            lambda: _key_admits(
+                _key_entry_for_digest(_hash_key(SCOPED_KEY)), ("GET", "/api/metrics")
+            )
+        )
+        refused = self._count_compares(
+            lambda: _key_admits(
+                _key_entry_for_digest(_hash_key(SCOPED_KEY)), ("GET", "/api/events/123")
+            )
+        )
+        assert served[1] is True and refused[1] is False
+        assert served[0] == refused[0] == len(get_settings().api_keys)
 
 
 class TestNoVoteCookie:

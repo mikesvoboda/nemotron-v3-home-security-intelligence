@@ -135,10 +135,21 @@ def _key_entry_for_digest(digest: str) -> object | None:
     """The settings entry that answers a presented key, if any (R60 lookup).
 
     ``hmac.compare_digest`` per comparison, as everywhere a key is compared
-    (OWASP A07:2021). Every caller runs this only AFTER the membership sweep
-    (``_validate_key_hash_constant_time`` over the full digest set) already
-    accepted the key, so this second pass is reached only by a caller that
-    holds a valid credential — where an early return can leak nothing secret.
+    (OWASP A07:2021) — and EXACTLY one pass over every entry per call, with no
+    early return, whatever the answer. The first R60 draft stopped at the first
+    unscoped match; measured at review (#6959, reviewer-reproduced), that hit
+    cost ~1.9 µs against ~17.6 µs for a miss (disjoint p5/p95), and because
+    the GATE calls this cold — no membership sweep ahead of it, unlike
+    :func:`require_api_key` and :func:`validate_websocket_api_key`, which sweep
+    first — the gap was a valid-key oracle handed to exactly the callers the
+    gate was about to refuse, the inverse of this module's OWASP posture and
+    new with R60 (base's gate key legs were all full-sweep). A sweep-before-
+    lookup would NOT fix it: the sweep itself short-circuits on match (its
+    ``any()``), so a valid key would still cost ~N/2+k compares against an
+    invalid key's N. The compare count now depends on nothing but the list
+    length — which the caller already knows — for valid, invalid, and every
+    position in between. N is a deployment's key-list length (single digits);
+    the extra microseconds sit under an HTTP round-trip's noise floor.
 
     ABSORPTION RULE (ratified amendment 10, and what ``merge_api_keys``'s
     cross-form dedupe relies on): one value listed BOTH plainly and inside an
@@ -148,20 +159,28 @@ def _key_entry_for_digest(digest: str) -> object | None:
     the first match, which made the rule depend on whether setup.py's generated
     object or the operator's hand listing happened to come first; the merge
     docstring's promise ("a surviving plain entry would leave the value
-    unscoped") would then have been false half the time. Deliberately NOT a
-    parse-time map: R60 derives everything from ``settings.api_keys`` at
-    request time so the SimpleNamespace/MagicMock fixtures keep working.
+    unscoped") would then have been false half the time. The scan now keeps
+    going PAST a plain hit for the timing reason above; that changes cost, not
+    answer — any plain match answers, else the first scoped match, in every
+    order, exactly as before. Deliberately NOT a parse-time map: R60 derives
+    everything from ``settings.api_keys`` at request time so the
+    SimpleNamespace/MagicMock fixtures keep working.
     """
+    plain_hit: object | None = None
     scoped_fallback: object | None = None
     for entry in get_settings().api_keys:
         value = entry.get_secret_value() if hasattr(entry, "get_secret_value") else entry
         if not hmac.compare_digest(_hash_key(str(value)), digest):
             continue
         if _key_scope(entry) is None:
-            return entry  # an unscoped entry absorbs any scoped twin
-        if scoped_fallback is None:
+            # An unscoped entry absorbs any scoped twin. Recorded, not
+            # returned: the scan must run its full length for the cost shape
+            # above. Answer unchanged — plain wins whenever one matched.
+            if plain_hit is None:
+                plain_hit = entry
+        elif scoped_fallback is None:
             scoped_fallback = entry
-    return scoped_fallback
+    return plain_hit if plain_hit is not None else scoped_fallback
 
 
 def _call_name(conn: HTTPConnection) -> tuple[str, str]:
