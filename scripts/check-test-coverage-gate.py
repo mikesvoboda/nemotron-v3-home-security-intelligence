@@ -14,6 +14,7 @@ Usage:
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -392,6 +393,66 @@ def _base_percent_from_git(base_branch: str) -> tuple[float | None, str]:
 
 
 COVERAGE_DIFF_EPSILON_PP = 0.5
+
+# Ruling 72 (owner, 2026-10-10): the fall-through inline collection gets a
+# timeout wrapper. MEASURE (GitHub Actions steps API, 12 success-only runs of
+# the "Check test coverage requirements" step, 2026-10-10): median 463 s, max
+# 495 s, min 321 s. DECIDE: 900 s = ~1.8x the observed max — wide enough that
+# a loaded runner never reds on slowness, bounded enough that a hung
+# collection (the step has died before: #6969's pytest INTERNALERROR rc=3)
+# fails in minutes naming the step and the limit, instead of burning the
+# job's 6 h runner default with no message at all. Overridable via
+# COVERAGE_GATE_COLLECT_TIMEOUT (seconds) for tests and slow experiments;
+# the constant is the shipped decision and a re-measurement, not a tweak —
+# pinned by backend/tests/unit/scripts/test_check_test_coverage_gate.py.
+COLLECT_TIMEOUT_SECONDS = 900
+
+
+def _collect_timeout_limit() -> int:
+    """Seconds for the collection timeout: env override wins when it is a
+    positive integer; anything else falls back to the measured 900."""
+    raw = os.environ.get("COVERAGE_GATE_COLLECT_TIMEOUT", "")
+    try:
+        value = int(raw)
+    except ValueError:
+        return COLLECT_TIMEOUT_SECONDS
+    return value if value > 0 else COLLECT_TIMEOUT_SECONDS
+
+
+def _kill_process_group(proc: subprocess.Popen) -> None:
+    """SIGTERM the collection's whole process group, then SIGKILL survivors.
+
+    The group (not just proc.pid) is the unit because uv spawns pytest as a
+    grandchild: killing uv alone orphans an active pytest that keeps the
+    pipes - and the measurement - open. start_new_session=True at Popen made
+    pgid == proc.pid. A dead/absent group is NOT an error worth raising: the
+    caller is already on the timeout path and must return its named failure.
+    """
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+    except (ProcessLookupError, PermissionError, OSError):
+        return  # already gone; nothing to escalate
+    try:
+        # Grace for the DIRECT child only (pytest-cov may be mid-write):
+        # this wait is NOT the escalation trigger - see the unconditional
+        # SIGKILL below.
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        pass
+    # UNCONDITIONAL escalation, addressed by numeric pgid (== proc.pid via
+    # start_new_session, so still valid after the group leader is reaped;
+    # os.getpgid raises ProcessLookupError post-reap - measured twice, the
+    # reviewer and this lane). Gating SIGKILL on ANY observable that dies
+    # with the direct child is the refuted shape (self-review 2026-10-10,
+    # nit 1): uv's default TERM disposition makes proc.wait() return
+    # instantly, so a wait-gated (or drain-gated) kill never fires exactly
+    # for the likeliest hang class - a TERM-trapping pytest/xdist worker
+    # (mid-C-call workers trap it; and once its output is redirected to
+    # disk our drain returns CLEAN, so no timeout exists to key on).
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        pass  # the whole group was already gone - fine
 """Real drops are points-wide; the baseline itself is noise below that.
 
 WP2.3 set this to 2.0pp on the observed 68.70 -> 70.33 -> 70.32 lineage
@@ -473,8 +534,20 @@ def check_coverage_diff(
             # gate for the wrong reason — collection, not diff (same
             # extraction-not-floor rationale as the ci.yml shard jobs).
             project_root = Path(__file__).resolve().parent.parent
+            limit = _collect_timeout_limit()
             try:
-                proc = subprocess.run(
+                # R72 wrapper, Popen shape ON PURPOSE. subprocess.run's own
+                # timeout= kills only the DIRECT child (uv) and then drains
+                # the captured pipes — an orphaned pytest/xdist worker still
+                # holding stdout turns that "bounded" wait back into a hang
+                # (the behavior test measured the full run time past a 1 s
+                # limit with the naive shape). start_new_session + a
+                # process-group SIGTERM/SIGKILL takes uv AND its children,
+                # and communicate(timeout=) puts the bound on the drain
+                # itself. Same shell-level idiom as pre-push-tests.sh:97
+                # (timeout --kill-after) — a kill-after escalation, not a
+                # bare signal a wedged child can ignore.
+                proc = subprocess.Popen(
                     [
                         "uv",
                         "run",
@@ -499,32 +572,67 @@ def check_coverage_diff(
                         "-q",
                     ],
                     cwd=project_root,
-                    # check=False on purpose: pytest's exit code is the UNIT-TEST
-                    # tier's verdict, not this gate's. With check=True any single
-                    # failure in the ~27.5k-test suite raised and returned
-                    # "Coverage collection failed (rc=1)", reddening the REQUIRED
-                    # CI Gate for a reason this gate does not adjudicate. Observed
-                    # 2026-09-19: four consecutive runs across #6553 and #6560
-                    # failed this way (2, 4, 3, 4 failures) while the coverage
-                    # number itself was healthy and identical. The --reruns above
-                    # absorbs FLAKES; this absorbs genuine reds, which the Backend
-                    # Unit Tests (1-4) jobs in ci.yml already report honestly and
-                    # are the tier that should fail for them. pytest-cov still
-                    # writes coverage.json when tests fail, so the measurement
-                    # survives either way.
-                    check=False,
-                    capture_output=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                     text=True,
+                    start_new_session=True,  # own process group: killable wholesale
                 )
             except OSError as e:
                 return False, f"Coverage collection failed to launch: {e}"
+            try:
+                stdout, stderr = proc.communicate(timeout=_collect_timeout_limit())
+            except subprocess.TimeoutExpired as exc:
+                _kill_process_group(proc)
+                # Partial output the timed-out drain ALREADY read - the
+                # collector's last words before it wedged - kept as the
+                # fallback tail. (Nit 2, self-review 2026-10-10:
+                # TimeoutExpired.output carries BYTES even under text=True -
+                # measured - so decode here; raw concat would TypeError the
+                # f-string and the named failure would never post.)
+                def _decoded(e: subprocess.TimeoutExpired) -> str:
+                    raw = e.output if isinstance(e.output, (bytes, bytearray)) else b""
+                    return raw.decode("utf-8", "replace")
+
+                fallback = _decoded(exc)
+                try:
+                    # reap + drain whatever the killed group leaves, bounded
+                    # again so a half-dead pipe cannot re-hang us here. 10s,
+                    # not a repeat of the full limit: after the now-
+                    # unconditional group SIGKILL every writer is dead and
+                    # the pipes close in milliseconds — a drain still open
+                    # at 10s means the kill did not take (measured shapes +
+                    # the vacuous-pass analysis live in the test file).
+                    stdout, stderr = proc.communicate(timeout=10)
+                except subprocess.TimeoutExpired as exc2:
+                    stdout, stderr = _decoded(exc2), fallback
+                return False, (
+                    f"Coverage collection timed out: the inline "
+                    f"`pytest backend/tests/unit/ --cov` collection step "
+                    f"exceeded its {limit}s limit (measured normal duration "
+                    f"median 463s / max 495s, 12 runs, 2026-10-10 — ruling "
+                    f"72 wrapper, COVERAGE_GATE_COLLECT_TIMEOUT overrides). "
+                    f"Tail: {((stderr or '') + (stdout or '')).strip()[-300:]}"
+                )
+            # check=False parity: pytest's exit code is the UNIT-TEST
+            # tier's verdict, not this gate's. With check=True any single
+            # failure in the ~27.5k-test suite raised and returned
+            # "Coverage collection failed (rc=1)", reddening the REQUIRED
+            # CI Gate for a reason this gate does not adjudicate. Observed
+            # 2026-09-19: four consecutive runs across #6553 and #6560
+            # failed this way (2, 4, 3, 4 failures) while the coverage
+            # number itself was healthy and identical. The --reruns above
+            # absorbs FLAKES; this absorbs genuine reds, which the Backend
+            # Unit Tests (1-4) jobs in ci.yml already report honestly and
+            # are the tier that should fail for them. pytest-cov still
+            # writes coverage.json when tests fail, so the measurement
+            # survives either way.
             current_percent = _read_percent(project_root / "coverage.json")
             if current_percent is None:
                 # NOT a vacuous skip: no data means this gate could not measure,
                 # which is a real failure of the gate's own job. pytest's output
                 # is reported here because a missing coverage.json after a run
                 # usually means collection died, not that tests failed.
-                detail = ((proc.stderr or "") + "\n" + (proc.stdout or "")).strip()[-300:]
+                detail = ((stderr or "") + "\n" + (stdout or "")).strip()[-300:]
                 return False, f"no coverage data produced (pytest rc={proc.returncode}): {detail}"
 
     drop = base_percent - current_percent
