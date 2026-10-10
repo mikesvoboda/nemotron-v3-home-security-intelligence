@@ -78,7 +78,7 @@
       "path": "/api/system/detectors/active",
       "calledFrom": "src/services/detectorApi.ts:158",
       "cited": "found by F1.1's scan; not in D2's list",
-      "backend": "detector.router is mounted with no prefix (backend/main.py:1618), so the route is /system/detectors/active — the client's /api prefix is not served",
+      "backend": "detector.router is mounted with no prefix (backend/main.py:1625), so the route is /system/detectors/active — the client's /api prefix is not served",
       "next": "owner: mount detector.router under /api or drop the prefix client-side (docs/reference/feature-inventory.md F-244: detector switching)"
     },
     {
