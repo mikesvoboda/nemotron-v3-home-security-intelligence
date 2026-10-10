@@ -24,7 +24,11 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import os
 import re
+import signal
+import socket
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -805,15 +809,19 @@ names = open(state).read().split() if os.path.exists(state) else []
 verb = sys.argv[1]
 if verb == "run":
     name = sys.argv[sys.argv.index("--name") + 1]
+    if os.environ.get("AGENT_GPU_STUB_RUN_EXIT"):
+        print("admission refused: 38 of 40 GiB declared", file=sys.stderr)
+        sys.exit(int(os.environ["AGENT_GPU_STUB_RUN_EXIT"]))
     open(state, "w").write("\\n".join([*names, name]))
     print(f"{name}: admitted")
-    print("port 8098 -> http://host.docker.internal:18123")
+    url = os.environ.get("AGENT_GPU_STUB_RUN_URL", "http://host.docker.internal:18123")
+    print(f"port 8098 -> {url}")
 elif verb == "rm" and os.environ.get("AGENT_GPU_STUB_KEEP") != "1":
     open(state, "w").write("\\n".join(n for n in names if n != sys.argv[2]))
 elif verb == "ps":
     print("NAME IMAGE VRAM")
     for name in names:
-        print(f"{name} ai-vlm:0000000 14GiB")
+        print(f"{os.environ.get('AGENT_GPU_STUB_PS_PREFIX', '')}{name} ai-vlm:0000000 14GiB")
 elif verb == "status":
     print("declared 0 of 40 GiB")
 elif verb == "images":
@@ -1220,15 +1228,30 @@ def test_the_vlm_is_built_and_served_as_operator_md_says(
     assert "declared 0 of 40 GiB" in run.summary["agent_gpu"]["status_before"]
 
 
+@pytest.mark.parametrize(
+    ("listing", "built"),
+    [
+        ("IMAGE TAG\nai-vlm abc1234", True),
+        ("localhost/agent-uplevel-operator/ai-vlm:abc1234 5.1GB", True),
+        ("ai-vlm:abc1234f 5.1GB", False),
+        ("ai-vlm-old:abc1234 5.1GB", False),
+        ("my-ai-vlm abc1234", False),
+    ],
+)
 def test_the_vlm_image_is_built_once_per_state_of_ai_vlm(
-    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    agent_gpu: AgentGpuStub,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    listing: str,
+    built: bool,
 ) -> None:
     _pin(monkeypatch, PINNED)
     _library(tmp_path / "library", PINNED)
     monkeypatch.setattr(fc.AgentGpu, "vlm_tree", lambda *_: "abc1234")
-    monkeypatch.setenv("AGENT_GPU_STUB_IMAGES", "IMAGE TAG\nai-vlm abc1234")
+    monkeypatch.setenv("AGENT_GPU_STUB_IMAGES", listing)
     fc.AgentGpu(_run(tmp_path)).prepare()
-    assert agent_gpu.verbs() == ["status", "images"]
+    expected = ["status", "images"] + ([] if built else ["pull", "pull", "build"])
+    assert agent_gpu.verbs() == expected
 
 
 def test_weights_that_are_not_the_pin_refuse_before_anything_is_served(
@@ -1245,9 +1268,19 @@ def test_weights_that_are_not_the_pin_refuse_before_anything_is_served(
     assert not vlm.started
 
 
-def _green_real_run(monkeypatch: pytest.MonkeyPatch, order: list[str], fail: str = "") -> None:
+def _green_real_run(
+    monkeypatch: pytest.MonkeyPatch,
+    order: list[str],
+    *,
+    log: Path,
+    fail: str = "",
+    error: type[BaseException] = RuntimeError,
+    kill: int | None = None,
+) -> None:
     """Every phase of a real run stubbed green but the agent-gpu calls; the
-    phase named ``fail`` raises."""
+    phase named ``fail`` raises ``error``, and with ``kill`` the smoke check
+    sends the process that signal. The compose teardown is logged in ``log``
+    beside the stand-in's calls, so their order shows."""
     empty = fc.Snapshot(containers=(), volumes=frozenset())
 
     def prepare(self: Any) -> Any:
@@ -1260,13 +1293,19 @@ def _green_real_run(monkeypatch: pytest.MonkeyPatch, order: list[str], fail: str
             order.append(name)
             if name == "up":
                 self.started = True
+            if name == "teardown":
+                with log.open("a", encoding="utf-8") as calls:
+                    calls.write(json.dumps(["compose-down"]) + "\n")
+            if name == "smoke" and kill is not None:
+                os.kill(os.getpid(), kill)
             if name == fail:
-                raise RuntimeError(f"{name} broke")
+                raise error(f"{name} broke")
             return result
 
         return call
 
     monkeypatch.setattr(fc.Run, "prepare", prepare)
+    monkeypatch.setattr(fc.Run, "take_snapshot", phase("take_snapshot", empty), raising=False)
     monkeypatch.setattr(fc.AgentGpu, "prepare", phase("vlm.prepare"))
     monkeypatch.setattr(fc.AgentGpu, "wait_ready", phase("vlm.wait_ready"))
     monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
@@ -1291,7 +1330,7 @@ def test_a_green_real_run_removes_its_vlm_after_the_test_deployment(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     order: list[str] = []
-    _green_real_run(monkeypatch, order)
+    _green_real_run(monkeypatch, order, log=agent_gpu.log)
     monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
     status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
     assert status == fc.EXIT_OK, capsys.readouterr().out
@@ -1299,7 +1338,14 @@ def test_a_green_real_run_removes_its_vlm_after_the_test_deployment(
     (summary_file,) = (tmp_path / "runs").glob("hsi-check-*/artifacts/summary.json")
     summary = json.loads(summary_file.read_text(encoding="utf-8"))
     name = f"{summary['project']}-vlm"
-    assert agent_gpu.calls()[-4:] == [["ps"], ["stop", name], ["rm", name], ["ps"]]
+    assert agent_gpu.calls()[-6:] == [
+        ["compose-down"],
+        ["ps"],
+        ["status"],
+        ["stop", name],
+        ["rm", name],
+        ["ps"],
+    ]
     assert summary["results"]["agent_gpu"] == "ok"
     assert summary["exit"] == 0
     assert summary["mode"] == "real"
@@ -1312,7 +1358,7 @@ def test_a_real_run_that_breaks_still_removes_its_vlm(
 ) -> None:
     """operator.md step 6: tear down, also after a failure."""
     order: list[str] = []
-    _green_real_run(monkeypatch, order, fail=fail)
+    _green_real_run(monkeypatch, order, log=agent_gpu.log, fail=fail)
     monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
     status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
     assert status == fc.EXIT_FAILED
@@ -1330,7 +1376,7 @@ def test_a_vlm_that_outlives_the_run_fails_it(
     """operator.md step 6: agent-gpu ps must list none of the run's containers."""
     monkeypatch.setenv("AGENT_GPU_STUB_KEEP", "1")
     order: list[str] = []
-    _green_real_run(monkeypatch, order)
+    _green_real_run(monkeypatch, order, log=agent_gpu.log)
     monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
     status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
     assert status == fc.EXIT_FAILED
@@ -1423,3 +1469,321 @@ def test_a_golden_suite_with_no_report_lists_no_specs(tmp_path: Path) -> None:
     broken = tmp_path / "broken.xml"
     broken.write_text("<testsuites><testsuite", encoding="utf-8")
     assert fc.junit_results(broken) == {}
+
+
+# ---------------------------------------------------------------------------
+# The second self-review's findings (the --real diff), each reproduced here
+# ---------------------------------------------------------------------------
+
+
+def _real_summary(root: Path) -> dict[str, Any]:
+    (summary_file,) = root.glob("hsi-check-*/artifacts/summary.json")
+    return json.loads(summary_file.read_text(encoding="utf-8"))
+
+
+class _Unhandled(BaseException):
+    """What a signal raises when the harness installed no handler for it."""
+
+
+@pytest.mark.parametrize("signum", [signal.SIGTERM, signal.SIGHUP])
+def test_a_signal_still_tears_down_and_removes_the_vlm(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, signum: int
+) -> None:
+    """An operator whose tool call times out sends SIGTERM. Python's default
+    ends the process with no `finally`: the stack and the VLM stay up."""
+
+    def unhandled(*_: Any) -> None:
+        raise _Unhandled
+
+    previous = signal.signal(signum, unhandled)
+    try:
+        order: list[str] = []
+        _green_real_run(monkeypatch, order, log=agent_gpu.log, kill=signum)
+        status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+        assert signal.getsignal(signum) is unhandled, "the run restores the caller's handler"
+    finally:
+        signal.signal(signum, previous)
+    assert status == fc.EXIT_FAILED
+    assert "teardown" in order
+    assert agent_gpu.verbs()[-3:] == ["stop", "rm", "ps"]
+    summary = _real_summary(tmp_path / "runs")
+    assert summary["exit"] == 1
+    assert summary["interrupted"] == signal.Signals(signum).name
+
+
+def test_ctrl_c_is_a_failed_run_that_still_tears_down(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """KeyboardInterrupt is no Exception: the summary said exit 0."""
+    order: list[str] = []
+    _green_real_run(monkeypatch, order, log=agent_gpu.log, fail="smoke", error=KeyboardInterrupt)
+    status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+    assert status == fc.EXIT_FAILED
+    assert "teardown" in order
+    assert agent_gpu.verbs()[-3:] == ["stop", "rm", "ps"]
+    summary = _real_summary(tmp_path / "runs")
+    assert summary["exit"] == 1
+    assert summary["interrupted"] == "SIGINT"
+
+
+def test_removing_the_vlm_does_not_wait_on_recording_its_vram(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+    cli = fc.AgentGpu._cli
+
+    def flaky(self: Any, *args: str, **kwargs: Any) -> Any:
+        calls.append(args[0])
+        if args[0] in ("ps", "status") and "stop" not in calls:
+            raise subprocess.TimeoutExpired(["agent-gpu", args[0]], 300)
+        return cli(self, *args, **kwargs)
+
+    monkeypatch.setattr(fc.AgentGpu, "_cli", flaky)
+    vlm = fc.AgentGpu(_run(tmp_path))
+    assert vlm.teardown() == []
+    assert calls == ["ps", "status", "stop", "rm", "ps"]
+
+
+@pytest.mark.parametrize("real", [False, True])
+@pytest.mark.parametrize(
+    ("service", "test", "needle"),
+    [
+        (
+            "frontend",
+            ["CMD", "curl", "-f", "http://host.docker.internal:8000/api/health"],
+            "host.docker.internal:8000",
+        ),
+        (
+            "redis",
+            ["CMD", "redis-cli", "-h", "host.docker.internal", "-p", "6379", "ping"],
+            "host.docker.internal",
+        ),
+    ],
+)
+def test_a_healthcheck_that_reaches_the_host_refuses(
+    base: dict[str, Any],
+    live: Any,
+    real: bool,
+    service: str,
+    test: list[str],
+    needle: str,
+) -> None:
+    deployment = fc.as_test_deployment(
+        base, project=PROJECT, run_dir=RUN_DIR, vlm_url=VLM_URL if real else None
+    )
+    deployment["services"][service]["healthcheck"]["test"] = test
+    allowed = frozenset({18123}) if real else frozenset()
+    _one_problem(_preflight(deployment, live, allowed_host_ports=allowed), service, needle)
+
+
+def test_an_extra_hosts_entry_to_the_host_refuses_on_real_too(
+    real_deployment: dict[str, Any], live: Any
+) -> None:
+    """The backend's built-in service URLs (alloy, prometheus, go2rtc) are not
+    in its environment, so an alias to the host would carry them there."""
+    real_deployment["services"]["redis"]["extra_hosts"] = ["alloy=host-gateway"]
+    problems = _preflight(real_deployment, live, allowed_host_ports=frozenset({18123}))
+    _one_problem(problems, "redis", "host-gateway")
+
+
+@pytest.mark.parametrize("failure", ["refused", "outside the pool", "timed out"])
+def test_a_vlm_that_fails_to_start_is_still_removed(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    order: list[str] = []
+    _green_real_run(monkeypatch, order, log=agent_gpu.log)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
+    if failure == "refused":
+        monkeypatch.setenv("AGENT_GPU_STUB_RUN_EXIT", "3")
+    elif failure == "outside the pool":
+        monkeypatch.setenv("AGENT_GPU_STUB_RUN_URL", "http://host.docker.internal:8000")
+    else:
+        cli = fc.AgentGpu._cli
+
+        def slow(self: Any, *args: str, **kwargs: Any) -> Any:
+            if args[0] == "run":
+                raise subprocess.TimeoutExpired(["agent-gpu", "run"], 900)
+            return cli(self, *args, **kwargs)
+
+        monkeypatch.setattr(fc.AgentGpu, "_cli", slow)
+    status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+    assert status == fc.EXIT_FAILED
+    assert "render" not in order
+    name = f"{_real_summary(tmp_path / 'runs')['project']}-vlm"
+    calls = agent_gpu.calls()
+    assert ["stop", name] in calls
+    assert ["rm", name] in calls
+
+
+@pytest.mark.parametrize("real", [False, True])
+def test_the_preflight_allows_the_one_port_agent_gpu_printed(
+    base: dict[str, Any], live: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, real: bool
+) -> None:
+    run = _run(tmp_path, mode="real" if real else "fake")
+    vlm = fc.AgentGpu(run) if real else None
+    if vlm is not None:
+        vlm.url, vlm.host_port = VLM_URL, 18123
+    seen: dict[str, Any] = {}
+
+    def compose(self: Any, files: Any, *args: str, **kwargs: Any) -> Any:
+        return subprocess.CompletedProcess(args, 0, json.dumps(base), "")
+
+    def deployment(self: Any, *args: str, **kwargs: Any) -> Any:
+        return subprocess.CompletedProcess(args, 0, self.compose_file.read_text(), "")
+
+    def preflight(rendered: Any, **kwargs: Any) -> list[str]:
+        seen.update(kwargs, rendered=rendered)
+        return []
+
+    monkeypatch.setattr(fc.Run, "compose", compose)
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    monkeypatch.setattr(fc.Run, "host_addresses", lambda *_: frozenset())
+    monkeypatch.setattr(fc, "preflight", preflight)
+    run.render(live, vlm)
+    assert seen["allowed_host_ports"] == (frozenset({18123}) if real else frozenset())
+    backend = seen["rendered"]["services"]["backend"]["environment"]
+    assert (backend.get("AI_VLM_URL") == VLM_URL) is real
+
+
+@pytest.mark.parametrize(("porcelain", "refused"), [("", False), (" M ai/vlm/Dockerfile\n", True)])
+def test_uncommitted_changes_under_ai_vlm_refuse(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, porcelain: str, refused: bool
+) -> None:
+    """The image is tagged with ai/vlm's committed tree; a dirty tree would
+    build something the tag does not name. Nothing has started: exit 2."""
+    commands: list[list[str]] = []
+
+    def git(self: Any, command: list[str], **kwargs: Any) -> Any:
+        commands.append(command)
+        out = porcelain if "status" in command else "abc1234\n"
+        return subprocess.CompletedProcess(command, 0, out, "")
+
+    monkeypatch.setattr(fc.Run, "_run", git)
+    vlm = fc.AgentGpu(_run(tmp_path))
+    if refused:
+        with pytest.raises(fc.Refused) as refusal:
+            vlm.vlm_tree()
+        _one_problem(refusal.value.problems, "ai/vlm/", "uncommitted")
+    else:
+        assert vlm.vlm_tree() == "abc1234"
+    assert commands[0] == ["git", "-C", str(fc.REPO_ROOT), "status", "--porcelain", "--", "ai/vlm"]
+
+
+@pytest.mark.parametrize(("answer", "reaches"), [("200\n", True), ("Traceback\nURLError\n", False)])
+def test_the_backend_must_reach_the_vlm_once_up(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, answer: str, reaches: bool
+) -> None:
+    def deployment(self: Any, *args: str, **kwargs: Any) -> Any:
+        out = {"up": "", "port": "127.0.0.1:32800\n", "exec": answer}[args[0]]
+        return subprocess.CompletedProcess(args, 0, out, "")
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.url = VLM_URL
+    if reaches:
+        vlm.run.up(vlm)
+    else:
+        with pytest.raises(fc.HarnessError, match="cannot reach the VLM"):
+            vlm.run.up(vlm)
+
+
+@pytest.mark.parametrize(
+    ("environ", "argv", "engine"),
+    [
+        ({}, [], "docker"),
+        ({"FEATURE_CHECK_ENGINE": "podman"}, [], "podman"),
+        ({"FEATURE_CHECK_ENGINE": "podman"}, ["--engine", "docker"], "docker"),
+    ],
+)
+def test_the_engine_comes_from_feature_check_engine(
+    monkeypatch: pytest.MonkeyPatch, environ: dict[str, str], argv: list[str], engine: str
+) -> None:
+    """Ruling 66, Q3: the preflight, postflight and teardown take
+    FEATURE_CHECK_ENGINE=docker|podman."""
+    monkeypatch.delenv("FEATURE_CHECK_ENGINE", raising=False)
+    for key, value in environ.items():
+        monkeypatch.setenv(key, value)
+    seen: list[str] = []
+    monkeypatch.setattr(fc, "run_check", lambda args, **_: seen.append(args.engine) or 0)
+    assert fc.main(["--fake", *argv]) == 0
+    assert seen == [engine]
+
+
+def test_a_vlm_listed_under_a_decorated_name_still_fails_the_run(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The check fails closed: any listing that contains the run's name."""
+    monkeypatch.setenv("AGENT_GPU_STUB_KEEP", "1")
+    monkeypatch.setenv("AGENT_GPU_STUB_PS_PREFIX", "agent-uplevel-operator-")
+    monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.vlm_image = "ai-vlm:abc1234"
+    vlm.start()
+    _one_problem(vlm.teardown(), vlm.name)
+
+
+def test_the_harness_follows_no_redirect() -> None:
+    """A redirect could lead past the allowlist (to localhost, or the host)."""
+    import http.server
+
+    hits: list[str] = []
+
+    class Target(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            hits.append(self.path)
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *args: Any) -> None:
+            pass
+
+    target = _serve(Target)
+
+    class Redirect(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(302)
+            self.send_header("Location", f"http://localhost:{target.server_address[1]}/")
+            self.end_headers()
+
+        def log_message(self, *args: Any) -> None:
+            pass
+
+    redirect = _serve(Redirect)
+    try:
+        status, _ = fc._http("GET", f"http://127.0.0.1:{redirect.server_address[1]}/", timeout=2)
+        assert status == 302
+        assert hits == []
+    finally:
+        for server in (redirect, target):
+            server.shutdown()
+            server.server_close()
+
+
+def test_the_host_aliases_own_addresses_count_as_host_addresses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A literal host IP (Docker Desktop's 192.168.65.254) is the host too."""
+    resolve = socket.getaddrinfo
+
+    def getaddrinfo(host: str, *args: Any, **kwargs: Any) -> Any:
+        if host == "host.docker.internal":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.168.65.254", 0))]
+        if host in fc.HOST_ALIASES:
+            raise socket.gaierror(host)
+        return resolve(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
+    monkeypatch.setattr(fc.Run, "_run", lambda *_, **__: subprocess.CompletedProcess([], 1, "", ""))
+    assert "192.168.65.254" in _run(tmp_path).host_addresses()
+
+
+def test_the_real_snapshot_is_taken_once_the_vlm_is_ready(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The first run builds llama.cpp for hours; the preflight must judge the
+    machine as it is when the test deployment starts."""
+    order: list[str] = []
+    _green_real_run(monkeypatch, order, log=agent_gpu.log)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
+    assert fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"]) == 0
+    assert order.index("vlm.wait_ready") < order.index("take_snapshot") < order.index("render")
