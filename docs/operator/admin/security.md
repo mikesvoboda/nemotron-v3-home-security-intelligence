@@ -22,7 +22,11 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   delivery keep working with the gate on. An install predating R60 still lists that
   key as a plain `API_KEYS` entry, which the gate reads as unscoped — re-running
   `setup.py` converts it (the key value is kept; only its `API_KEYS` entry becomes
-  scoped). `/grafana/` moves from anonymous Admin to
+  scoped), but the running backend honours it only after its container is recreated
+  (`podman compose -f docker-compose.prod.yml up -d --force-recreate backend`) — compose bakes
+  `API_KEYS` when it creates the container, so a plain `restart` keeps serving the old value, as
+  [this directory's own rotation table](README.md#secrets-vs-environment-variables) says for
+  environment variables. `/grafana/` moves from anonymous Admin to
   `auth_request` against the login session plus Grafana `auth.proxy` as Viewer: one
   login serves the UI and the dashboards, and `/grafana/` is refused without a
   session. Logging in then needs TLS in front
