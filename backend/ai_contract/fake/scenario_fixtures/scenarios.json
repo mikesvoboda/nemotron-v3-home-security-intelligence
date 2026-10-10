@@ -108,6 +108,33 @@
         "provenance": { "engine": "fake-ai", "model_id": "fake-ai-vlm" }
       },
       "reply_delay_seconds": 40
+    },
+    {
+      "name": "harness-smoke",
+      "image": "harness-smoke.jpg",
+      "detections": [
+        {
+          "class": "person",
+          "confidence": 0.89,
+          "bbox": { "x": 260, "y": 120, "width": 110, "height": 300 }
+        }
+      ],
+      "verdict": {
+        "verdict": "confirmed",
+        "risk_score": 61,
+        "summary": "Harness smoke check: a person at the front door",
+        "reasoning": "The feature-check harness's own scenario (O2.2): a person stands at the door, so the event is confirmed.",
+        "description": "One adult stands at the front door facing the entrance.",
+        "criteria": [
+          {
+            "name": "person_present",
+            "passed": true,
+            "evidence": "A person is visible at the door in the first frame."
+          }
+        ],
+        "provenance": { "engine": "fake-ai", "model_id": "fake-ai-vlm" }
+      },
+      "reply_delay_seconds": 0
     }
   ]
 }
