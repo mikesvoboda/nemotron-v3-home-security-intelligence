@@ -175,6 +175,25 @@ Specified in [`01-mutation-policy.md`](01-mutation-policy.md) §M3.
 questions about backend behaviour from the code and from the fake stack; a behaviour you cannot
 explain is itself an inventory finding.
 
+### B2.2 Re-ID on the GPU (OD-17, re-ID half)
+
+Approved by owner ruling 68 (issue #6854, comment `6099657064`, 2026-10-10). The text below is the
+ruling's, verbatim.
+
+> **Package `B2.2` — Re-ID on the GPU (OD-17, re-ID half).** Lane backend; Phase 2; flags `heavy · owner` (production safety: it changes the verdict path); label `cell:heavy-2`; depends on `O2.1` (merged).
+>
+> - **The seam:** `osnet_loader.extract_person_embedding`, which both live callers use (`vlm_specialists.py:754`, `reid_service.py:567`). Put a gateway-backed embedding behind it (`/enrich-lt/person-reid`), so neither caller changes.
+> - **MEASURE first:** time per crop and per event, CPU path and GPU path, in the PR.
+> - **Parity gate, in CI:** the same crop pixels through both paths, with the same weights in each, give cosine similarity of at least 0.999 on the final vector. That covers resize, normalisation, the wire encoding (no lossy round-trip) and L2 normalisation (the gateway returns the raw vector). If the gate fails, stop and report; do not loosen it.
+> - **Model ID, never asserted:** the model ID on a gateway embedding comes from the source checkpoint's sha256, recorded at export and reported by the gateway. If that provenance is missing, the embedding carries the sentinel, which `compare_person_vectors` refuses (`space_mismatch`, "unavailable (re-enroll)"). It is never relabelled with the enrolled rows' ID.
+> - **Failure:** the gateway being down degrades the step with its own reason code; the step's never-raise contract stands.
+> - **Fake stack:** the fake-AI overlay serves `/enrich-lt/person-reid` with deterministic vectors under a fake model ID that never matches a real one.
+> - **Owner run:** a command in the PR body that checks parity on the owner's host with the production weights (`operator.md`, "The owner on the host"). The row is `awaiting real tier` until its output is posted.
+> - **Cleanup, in a follow-up PR after the owner run is posted:** remove the backend's CPU OSNet path, `torchreid` if nothing else imports it, and the backend's GPU reservation in compose if nothing in the backend uses it. Until then, reverting the switch is the rollback.
+> - **Done when:** the measurements, the parity gate green in CI, the switch merged, the owner run's output posted with parity at or above the gate, and the cleanup merged.
+>
+> **Why:** the backend runs OSNet-AIN x1.0 on CPU (`uv.lock`: `torch 2.14.0+cpu`; 2-CPU limit) on every event with person crops (`backend/services/vlm_specialists.py:754`), while the same network and weights sit resident and uncalled in Triton (ruling 67's facts).
+
 ---
 
 ## Phase 3 — The tree matches the rulings
