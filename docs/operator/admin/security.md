@@ -20,13 +20,12 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   `monitoring` — R60 — so it cannot read operator-only paths), and Prometheus,
   Alertmanager and Grafana's backend API each present it, so scraping and alert
   delivery keep working with the gate on. An install predating R60 still lists that
-  key as a plain `API_KEYS` entry, which the gate reads as unscoped — re-running
-  `setup.py` converts it (the key value is kept; only its `API_KEYS` entry becomes
-  scoped), but the running backend honours it only after its container is recreated
-  (`podman compose -f docker-compose.prod.yml up -d --force-recreate backend`) — compose bakes
-  `API_KEYS` when it creates the container, so a plain `restart` keeps serving the old value, as
-  [this directory's own rotation table](README.md#secrets-vs-environment-variables) says for
-  environment variables. `/grafana/` moves from anonymous Admin to
+  key as a plain `API_KEYS` entry, which the gate reads as unscoped. Re-running
+  `python setup.py` interactively converts it — the key value is kept and only its
+  `API_KEYS` entry becomes scoped; `--yes` and `--defaults` skip that reuse, minting a
+  second key and leaving the old plain entry live. Recreate the backend to apply it:
+  `podman compose -f docker-compose.prod.yml up -d --force-recreate backend` — a plain
+  `restart` keeps serving the old value. `/grafana/` moves from anonymous Admin to
   `auth_request` against the login session plus Grafana `auth.proxy` as Viewer: one
   login serves the UI and the dashboards, and `/grafana/` is refused without a
   session. Logging in then needs TLS in front
