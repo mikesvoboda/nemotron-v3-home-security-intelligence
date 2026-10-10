@@ -534,3 +534,12 @@ def test_drop_lands_the_image_in_the_camera_folder(tmp_path: Path) -> None:
 def test_drop_refuses_a_camera_root_that_does_not_exist(tmp_path: Path) -> None:
     with pytest.raises(fc.HarnessError, match="does not exist"):
         fc.drop(fc.SCENARIO_DIR / "person-at-door.jpg", "front-door", tmp_path / "missing")
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["http://10.0.0.5:8000/api/events", "http://host.docker.internal:8000/", "http://localhost:1/"],
+)
+def test_the_harness_talks_only_to_its_own_loopback_ports(url: str) -> None:
+    with pytest.raises(fc.HarnessError, match=r"127\.0\.0\.1"):
+        fc._http("GET", url)
