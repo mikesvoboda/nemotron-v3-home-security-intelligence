@@ -232,7 +232,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | ------- | ----------------------- | ---------- | ---------------------------------------------- | ------------- | ----------- | --- |
 | O0.1    | ops                     | 0          | The sandbox launcher (UR-26, UR-28)            | owner         | done        | #6855 |
 | B1.1    | backend                 | 1          | VLM timeout ladder (D1)                        |               | awaiting real tier | #6868 |
-| B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | awaiting real tier | #6924 |
+| B1.2    | backend                 | 1          | Replay parity (D6)                             | heavy         | done        | #6924 |
 | B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | done        | #6880 |
 | B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | done        | #6886 |
 | B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | done        | #6861 |
