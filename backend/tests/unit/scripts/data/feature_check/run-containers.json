@@ -1,0 +1,168 @@
+{
+  "about": "A test deployment once it is up, as the in-run check reads it: `inspect` of the run project's containers. Hand-written in `docker inspect`'s shape; the only bind mount is the run's own camera directory.",
+  "containers": [
+    {
+      "Id": "1111111111111111111111111111111111111111111111111111111111111111",
+      "Name": "/hsi-check-fixture-postgres-1",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-10T15:01:00.000000Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "hsi-check-fixture",
+          "com.docker.compose.service": "postgres"
+        }
+      },
+      "Mounts": [],
+      "NetworkSettings": {
+        "Ports": {
+          "5432/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "32768"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "2222222222222222222222222222222222222222222222222222222222222222",
+      "Name": "/hsi-check-fixture-redis-1",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-10T15:02:00.000000Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "hsi-check-fixture",
+          "com.docker.compose.service": "redis"
+        }
+      },
+      "Mounts": [],
+      "NetworkSettings": {
+        "Ports": {
+          "6379/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "32769"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "3333333333333333333333333333333333333333333333333333333333333333",
+      "Name": "/hsi-check-fixture-ai-vlm-1",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-10T15:03:00.000000Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "hsi-check-fixture",
+          "com.docker.compose.service": "ai-vlm"
+        }
+      },
+      "Mounts": [],
+      "NetworkSettings": {
+        "Ports": {
+          "8098/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "32770"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "4444444444444444444444444444444444444444444444444444444444444444",
+      "Name": "/hsi-check-fixture-ai-gateway-1",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-10T15:04:00.000000Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "hsi-check-fixture",
+          "com.docker.compose.service": "ai-gateway"
+        }
+      },
+      "Mounts": [],
+      "NetworkSettings": {
+        "Ports": {
+          "8090/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "32771"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "5555555555555555555555555555555555555555555555555555555555555555",
+      "Name": "/hsi-check-fixture-backend-1",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-10T15:05:00.000000Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "hsi-check-fixture",
+          "com.docker.compose.service": "backend"
+        }
+      },
+      "Mounts": [
+        {
+          "Type": "bind",
+          "Source": "/runs/hsi-check-fixture/cameras",
+          "Destination": "/cameras",
+          "RW": true
+        }
+      ],
+      "NetworkSettings": {
+        "Ports": {
+          "8000/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "32772"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "6666666666666666666666666666666666666666666666666666666666666666",
+      "Name": "/hsi-check-fixture-frontend-1",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-10T15:06:00.000000Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "hsi-check-fixture",
+          "com.docker.compose.service": "frontend"
+        }
+      },
+      "Mounts": [],
+      "NetworkSettings": {
+        "Ports": {
+          "8080/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "32773"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

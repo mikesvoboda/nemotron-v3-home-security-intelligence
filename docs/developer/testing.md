@@ -435,6 +435,191 @@ pkill -f "vite preview"
 ./scripts/test-runner.sh
 ```
 
+## Feature Check
+
+`scripts/feature-check.sh` runs the golden paths against a running stack. A
+golden path is an unmocked spec that drives a feature end to end. The logic
+lives in `scripts/feature_check.py`, which uses only the standard library.
+
+```bash
+# The CI stack with the fake AI (docker-compose.fake-ai.yml), images at a published tag
+scripts/feature-check.sh --fake --image-tag <sha7>
+
+# The real VLM through agent-gpu: the operator sandbox only (see --real below)
+scripts/feature-check.sh --real --image-tag <sha7>
+```
+
+`--fake` runs these steps in order:
+
+1. Renders `docker-compose.ci.yml` with `docker-compose.fake-ai.yml` and turns
+   the rendering into a **test deployment**.
+2. Renders the test deployment again and checks it with the preflight.
+3. Starts it, with one camera folder per scenario of the fake AI's scenario
+   book in the watched folder.
+4. Registers the first admin, which lifts the setup guard, and registers a
+   camera for each of those folders.
+5. Runs the in-run check, the harness smoke check and the golden paths.
+6. Collects artifacts.
+7. Tears down and runs the postflight.
+
+The smoke check drops `harness-smoke.jpg` into the `harness-smoke` camera, then
+asserts through `/api/events` that exactly one event arrives carrying the
+scenario's verdict and risk score. The smoke scenario has image bytes of its
+own, so the backend's content dedupe never swallows a golden path's image.
+
+**Isolation.** A run touches nothing else on the machine, so it is safe beside
+a live stack.
+
+- **Its own project and files.** A run gets its own compose project
+  (`hsi-check-<run-id>`), its own run directory and its own generated env file.
+  Compose never reads the checkout's `.env` or the caller's shell.
+- **No fixed host ports.** Every published port moves to an engine-assigned
+  port on `127.0.0.1`.
+- **Its own camera directory.** The camera directory is `<run>/cameras`.
+- **No orchestrator.** The backend runs with `ORCHESTRATOR_ENABLED=false`.
+- **The preflight** fails closed: any compose setting it has no rule for
+  (`volumes_from`, `devices`, `cap_add`, `ipc`, a `build` option, a
+  top-level section ...) refuses the run. It also refuses the run when any of
+  these hold:
+  - a writable bind mount points outside the run directory;
+  - a service mounts an engine socket;
+  - a service gets the host's network, processes or devices, or another
+    container's network or processes;
+  - a network is not the run's own bridge (external, foreign-named, or
+    another driver), or a named volume carries `driver_opts`;
+  - a service names a host address in its environment, command, entrypoint
+    or healthcheck (on `--real`, on any port but the one `agent-gpu run`
+    printed), or maps a name to the host in `extra_hosts`;
+  - a service carries a fixed `container_name`;
+  - the backend's orchestrator is not off;
+  - the project, a container name, a host port or a volume overlaps what the
+    machine snapshot found;
+  - a writable host path of the run contains a running container's bind, or
+    sits inside one that is writable or narrower than `/`. A read-only view
+    of the whole filesystem (node-exporter's `/:/host:ro`) only reads.
+- **The in-run check** fails the run when a container holds an engine socket,
+  or when the backend reports its orchestrator on.
+- **Teardown** is `docker compose -p <project> down -v` and nothing else. It
+  runs after a failure too, and after SIGTERM, SIGHUP or Ctrl-C, which end the
+  run as a failure (exit 1). A second signal is ignored until teardown ends;
+  SIGKILL is not. A signal the caller already ignores, such as `nohup`'s
+  SIGHUP, stays ignored.
+- **The postflight** asserts that every container and volume from the
+  snapshot still exists, and that every container that was running still is,
+  with the same start time.
+
+Exit codes:
+
+| exit | meaning                                                                                         |
+| ---- | ----------------------------------------------------------------------------------------------- |
+| 0    | green                                                                                           |
+| 1    | a check of the run failed, or teardown left the run's own containers, volumes or (`--real`) VLM |
+| 2    | the preflight refused; the test deployment never started                                        |
+| 3    | the postflight found a pre-existing container or volume changed: report it, restore nothing     |
+| 4    | the mode cannot run here (`--real` without `agent-gpu`)                                         |
+
+Artifacts land in `<run>/artifacts`:
+
+- the snapshots taken before and after the run;
+- the rendered configuration;
+- the compose logs and `ps` output;
+- the smoke check's events;
+- the golden-path reports;
+- on `--real`, each `agent-gpu` output;
+- `summary.json`, which the run also prints whole.
+
+Run directories go under `$FEATURE_CHECK_ROOT` (default
+`/tmp/hsi-feature-check`). `--engine podman` (or `FEATURE_CHECK_ENGINE`) uses
+`podman compose`. The snapshot is the engine's view of the machine: rootless
+podman lists only the calling user's containers, so run the harness as the
+user that runs any live stack, or its checks see nothing to protect.
+
+**Golden paths.** The harness runs them in two places:
+
+- the pytest specs in `backend/tests/golden/` (external interfaces), which sit
+  outside the default test paths;
+- the `golden` Playwright project in `frontend/playwright.config.ts` (UI).
+
+It skips each one until it exists. Specs read the stack from these
+environment variables:
+
+| variable                                                       | value                                         |
+| -------------------------------------------------------------- | --------------------------------------------- |
+| `FEATURE_CHECK_API_URL`                                        | the backend, e.g. `http://127.0.0.1:32772`    |
+| `FEATURE_CHECK_UI_URL`                                         | the frontend                                  |
+| `FEATURE_CHECK_CAMERA_ROOT`                                    | the run's camera directory (`/cameras` in it) |
+| `FEATURE_CHECK_CAMERAS`                                        | JSON: each seeded camera's folder and its id  |
+| `FEATURE_CHECK_SCENARIOS`                                      | the fake AI's scenario book                   |
+| `FEATURE_CHECK_ADMIN_USERNAME`, `FEATURE_CHECK_ADMIN_PASSWORD` | the first admin the harness registered        |
+| `FEATURE_CHECK_MODE`                                           | `fake` or `real`                              |
+| `FEATURE_CHECK_RUN_DIR`                                        | the run's directory                           |
+
+To drop a fixture image into a camera folder, run
+`scripts/feature-check.sh drop <image> <camera>`, or copy the image into
+`$FEATURE_CHECK_CAMERA_ROOT/<camera>/`.
+
+- Each scenario has a camera of the same name. Its id replaces `-` with `_`,
+  so `person-at-door` has the id `person_at_door`.
+- The backend creates a camera for any other folder the first time an image
+  lands in it.
+- The backend deduplicates images by content for 300 s, across cameras. So
+  dropping the same bytes twice within five minutes yields one event.
+- The scenario image chooses the detections and the verdict
+  (`backend/ai_contract/fake/AGENTS.md`).
+
+**`--real`** (owner ruling 66) runs the same test deployment with the real VLM
+in place of the fake one, and keeps the fake detector. It serves the VLM only
+through `agent-gpu`, so it runs in the `uplevel-operator` sandbox
+(`docs/uplevel/operator.md`, "The agent-gpu path"). Elsewhere it exits 4, and
+it never runs from GitHub. Run it from the checkout at the sandbox's workspace
+root, since `agent-gpu build` reads `workspace:ai/vlm`. The images at
+`--image-tag` are the ones `deploy.yml` publishes for a `main` commit, or ones
+built locally under the same names.
+
+Before the test deployment starts, `--real`:
+
+1. Checks `$AGENT_GPU_LIBRARY/qwen3vl-8b-instruct-q4km/*.gguf` against the
+   production pin's sha256. Unless the files are exactly the pin, it refuses
+   the run (exit 2).
+2. Records `agent-gpu status`.
+3. Builds the VLM image as `ai-vlm:<tree hash of ai/vlm>`, once per state of
+   `ai/vlm/`, after pulling each `FROM` image of its Dockerfile. Uncommitted
+   changes under `ai/vlm/` refuse the run (exit 2), since the tag would not
+   name them.
+4. Serves the pin with `agent-gpu run --vram 14 --port 8098`, named
+   `<project>-vlm`, with each other `ai-vlm` variable of
+   `docker-compose.prod.yml` at its default.
+5. Reads the VLM's URL from the line `run` prints
+   (`port 8098 -> http://host.docker.internal:<port>`). Any other address, or
+   a port outside the runner's pool (18100-18199), fails the run (exit 1).
+6. Waits for `/health`, records `/props`' `build_info` and `model_path`, and
+   fails the run (exit 1) unless `model_path` is the pin.
+
+From step 4 on, a failure also removes the VLM.
+
+The run then goes as on `--fake`, with these differences:
+
+- The machine snapshot is taken again once the VLM is ready, since the first
+  run builds the image for hours.
+- The backend's `AI_VLM_URL` is that URL. The preflight allows a host address
+  on that one port and no other.
+- After `up`, the run checks that the backend reaches the VLM.
+- The smoke check cannot know the real VLM's verdict. It asserts one event
+  whose verification names the served model (`model_id`
+  `Qwen3VL-8B-Instruct-Q4_K_M`), with a verdict the model gave: `confirmed`,
+  `rejected` or `uncertain`, not `verification_failed`.
+
+After the postflight it stops and removes the VLM, also after a failure. It
+fails unless `agent-gpu ps` then lists none of the run's containers. The
+summary carries what the operator posts:
+
+- the date and the commit;
+- the image tags, with `build_info` and `model_path`;
+- the weights' sha256;
+- the VRAM declared, with `agent-gpu ps` and `agent-gpu status` while serving
+  and at the end;
+- each check's result and the exit code.
+
 ## Pytest Configuration
 
 The pytest configuration is defined in `pyproject.toml:577`:
