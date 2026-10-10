@@ -674,10 +674,9 @@ the walker, its configs, or a row's `modules` column:
 candidates; the table below is the measured list.
 
 <!-- r2-python-dead-list:start -->
-
 Measured at tool-inputs `d1dbe9d14c` by `scripts/r2-python-dead-list.py` — the non-shipping output of `scripts/reachability.py` after the O2.3b ancestor fix (ruling 73: the 19 parent `__init__.py` files a module's import runs are NOT here), minus every module a row claims, which are named below.
 
-**157 non-shipping Python modules (60761 lines).** Deleted as a whole by the `R2` ruling (exceptions named); `B3.2` executes.
+**157 non-shipping Python modules (60798 lines).** Deleted as a whole by the `R2` ruling (exceptions named); `B3.2` executes.
 
 <!-- prettier-ignore -->
 | module | lane | lines | last meaningful commit | notes |
@@ -698,7 +697,7 @@ Measured at tool-inputs `d1dbe9d14c` by `scripts/r2-python-dead-list.py` — the
 | `ai/gateway/export/export_depth.py` | ai | 302 | `8395fb640` 2026-02-11 | non-shipping |
 | `ai/gateway/export/export_fashion_clip.py` | ai | 746 | - | non-shipping |
 | `ai/gateway/export/export_pet.py` | ai | 257 | - | non-shipping |
-| `ai/gateway/export/export_reid.py` | ai | 663 | `08d5ceb9c` 2026-09-28 | non-shipping |
+| `ai/gateway/export/export_reid.py` | ai | 700 | `a56c1cef4` 2026-10-10 | non-shipping |
 | `ai/gateway/export/export_stgcn.py` | ai | 281 | `610882b47` 2026-09-22 | non-shipping |
 | `ai/gateway/export/export_vehicle.py` | ai | 276 | - | non-shipping |
 | `ai/gateway/export/export_yolo26.py` | ai | 551 | `54e927366` 2026-09-28 | non-shipping |
@@ -851,7 +850,6 @@ Measured at tool-inputs `d1dbe9d14c` by `scripts/r2-python-dead-list.py` — the
 | `backend/services/mqtt_command_handler.py` | 531 | F-291 |
 | `backend/services/scene_change_detector.py` | 325 | F-208/F-287 |
 | `backend/services/unified_embedding_service.py` | 575 | F-272 |
-
 <!-- r2-python-dead-list:end -->
 
 ## 5. Client requests no feature reaches
