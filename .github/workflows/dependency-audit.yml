@@ -1,13 +1,13 @@
 name: Dependency Audit
 
 # OB.2 (CI dedupe): this is the ONE dependency-audit workflow. Before this
-# change pip-audit executed in four files (here, nightly.yml, vulnerability-
-# management.yml, weekly-audit.yml) and npm audit in four (here, ci.yml,
-# nightly.yml, vulnerability-management.yml); the package's Done-when is
-# "each concern runs in exactly one workflow". The three advisory copies went
-# (each verdict mapped in the OB.2 PR body); ci.yml's gating npm-audit CHECK
-# moved here as a WP1.2 workflow_call — the same surgery that made gitleaks/
-# sast/trivy blocking ("a green CI Gate was compatible with ... new CVEs").
+# change pip-audit executed in four files and npm audit in four (the retired
+# advisory copies are named in scripts/retired_paths.txt); the package's
+# Done-when is "each concern runs in exactly one workflow". The advisory
+# copies went (each verdict mapped in the OB.2 PR body); ci.yml's gating
+# npm audit CHECK moved here as a WP1.2 workflow_call — the same surgery
+# that made gitleaks/sast/trivy blocking ("a green CI Gate was compatible
+# with ... new CVEs").
 # CI Gate still sees one aggregate verdict: the `security-dependency-audit`
 # call job in ci.yml is a direct ci-gate need with a check_job line, and a
 # `uses:` job's conclusion IS the reusable's aggregate.

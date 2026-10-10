@@ -2,8 +2,12 @@
 # Run all audits locally and generate summary
 # Usage: ./scripts/audit-summary.sh
 #
-# This script runs the same audits as the weekly-audit.yml workflow
-# locally, allowing you to preview findings before they appear in CI.
+# This script previews locally, in one pass, the audits CI runs across its
+# gating workflows: semgrep mirrors sast.yml's job, pip-audit mirrors
+# dependency-audit.yml, vulture mirrors ci.yml's dead-code job. (OB.2 retired
+# the advisory weekly twin that used to be this script's reference — see the
+# OB.2 entry in scripts/retired_paths.txt.) Local preview only: the gating
+# verdicts live in those workflows' checkers, not here.
 
 set -e
 

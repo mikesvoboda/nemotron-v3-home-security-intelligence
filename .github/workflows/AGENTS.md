@@ -32,8 +32,6 @@ workflows/
   trivy.yml                   # Container vulnerability scanning
   zap-security.yml            # OWASP ZAP security scanning
   dependency-audit.yml        # Dependency vulnerability audit
-  vulnerability-management.yml # CVE tracking and management
-  weekly-audit.yml            # Weekly security and code quality audits
   # Quality & Analysis
   bundle-size.yml             # Frontend bundle size tracking
   ci-analytics.yml            # CI metrics and analytics
@@ -362,29 +360,6 @@ rtx-a5500`) is registered but offline. Restore when that runner is online
 **Severity Filter:** CRITICAL, HIGH (fails build)
 
 **Output:** SARIF format uploaded to GitHub Security tab
-
-### weekly-audit.yml - Weekly Audit
-
-**Trigger:** Monday 9 AM UTC (cron: `0 9 * * 1`) + manual dispatch
-
-**Purpose:** Weekly comprehensive security and code quality audit.
-
-**Jobs:**
-
-| Job              | Runner        | Purpose                          |
-| ---------------- | ------------- | -------------------------------- |
-| security-audit   | ubuntu-latest | Semgrep security scan, pip-audit |
-| code-quality     | ubuntu-latest | Vulture, Radon complexity        |
-| frontend-quality | ubuntu-latest | Knip dead code detection         |
-| audit-summary    | ubuntu-latest | Generate summary report          |
-
-**Tools Used:**
-
-- Semgrep (security patterns)
-- pip-audit (Python dependency vulnerabilities)
-- Vulture (Python dead code)
-- Radon (cyclomatic complexity)
-- Knip (TypeScript/JS dead code)
 
 ### test-coverage-gate.yml - Test Coverage Enforcement (NEM-2102)
 

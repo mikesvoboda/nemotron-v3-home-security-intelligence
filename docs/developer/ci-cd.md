@@ -414,7 +414,7 @@ integration tier 37 in the CI merge steps — are in
 | Workflow                 | Schedule | Purpose             |
 | ------------------------ | -------- | ------------------- |
 | `nightly.yml`            | Daily    | Extended test suite |
-| `weekly-audit.yml`       | Weekly   | Security audit      |
+| `dependency-audit.yml`   | Weekly   | Dependency audit    |
 | `weekly-test-report.yml` | Weekly   | Test metrics report |
 
 ---

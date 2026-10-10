@@ -41,7 +41,6 @@ This directory contains GitHub-specific configuration files for the Home Securit
     trivy.yml                 # Container vulnerability scanning
     zap-security.yml          # OWASP ZAP security scanning
     dependency-audit.yml      # Dependency vulnerability audit
-    vulnerability-management.yml # CVE tracking and management
     # Quality & Analysis
     api-compatibility.yml     # API backward compatibility checks
     bundle-size.yml           # Frontend bundle size tracking
@@ -49,7 +48,6 @@ This directory contains GitHub-specific configuration files for the Home Securit
     docs.yml                  # Documentation generation
     docs-drift.yml            # Documentation drift detection
     nightly.yml               # Nightly benchmarks and analysis
-    weekly-audit.yml          # Weekly security and code quality audits
     # Frontend Quality
     accessibility-tests.yml   # Accessibility (a11y) testing
     lighthouse.yml            # Lighthouse performance audits
@@ -209,12 +207,19 @@ those floors, so review such hunks by hand.
 | trivy.yml                    | Trivy           | Push/PR (Dockerfile) | Container vulnerabilities     |
 | zap-security.yml             | OWASP ZAP       | Weekly/Manual        | Dynamic security testing      |
 | dependency-audit.yml         | pip-audit, npm  | PR (via ci.yml)+Weekly | Dependency vulnerability scan |
-| vulnerability-management.yml | Multiple        | Weekly               | CVE tracking and remediation  |
-| weekly-audit.yml             | Multiple        | Weekly (Monday 9 AM) | Security + code quality       |
 
 > **Removed 2026-09-15:** `gpu-tests.yml` — its only runner
 > (`rtx-a5500-runner`, label `gpu`) is permanently offline, so every push to
 > main queued a job to its 6h timeout. Re-add when a GPU runner is online.
+
+> **Removed 2026-10-10 (OB.2):** the two advisory audit workflows — every
+> leg was an advisory duplicate of a gating home (semgrep → sast.yml,
+> pip-audit → dependency-audit.yml, vulture/radon → ci.yml dead-code + lint,
+> knip → ci.yml frontend-lint) or measured dead code (the CVE-tracker file's
+> Python counter read a key pip-audit never emits; its Linear steps were
+> gated on an unset `vars.LINEAR_ENABLED`). Names and rationale: the OB.2
+> entry in `scripts/retired_paths.txt` — living text may not name a retired
+> path (the O1.2 gate), so the registry is where the names live.
 
 ### Nightly Analysis (nightly.yml)
 

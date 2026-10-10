@@ -45,3 +45,13 @@ docs/operator/ai-ghcr-deployment.md
 # `docs/archive/`. (The order itself is in docs/uplevel/, a record tree.)
 archive/
 docs/archive/
+
+# OB.2 (CI dedupe): the two advisory workflows whose every leg duplicated a
+# gating home or was measured dead. weekly-audit's semgrep/pip-audit/vulture/
+# radon/knip legs were || true twins of sast.yml, dependency-audit.yml, and
+# ci.yml's dead-code/lint/frontend-lint jobs; vulnerability-management's
+# Python counter read data.get('vulnerabilities') while pip-audit's root key
+# is dependencies (always 0), and its create-issues steps were gated on
+# vars.LINEAR_ENABLED, which the repo never sets. Verdict map: OB.2 PR body.
+.github/workflows/weekly-audit.yml
+.github/workflows/vulnerability-management.yml

@@ -262,7 +262,6 @@ MISSING_OK: dict[str, str] = {
     "reports/mutation/mutation.json": "stryker report file (generated)",
     "frontend/reports/mutation/mutation-report.html": "stryker HTML report (generated)",
     "frontend/lighthouse-output.txt": "lhci stdout capture (generated)",
-    "frontend/npm-audit-results.json": "npm audit JSON (generated)",
     "results/k6-output.txt": "k6 stdout redirect (generated)",
     "results/k6-results.json": "k6 JSON results (generated)",
     "results/k6-summary.json": "k6 summary JSON (generated)",
