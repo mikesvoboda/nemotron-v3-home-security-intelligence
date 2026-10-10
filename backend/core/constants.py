@@ -262,15 +262,95 @@ def get_prefixed_queue_name(queue_name: str) -> str:
 
 
 # -----------------------------------------------------------------------------
+# API-key scopes (R60, ruling 60)
+# -----------------------------------------------------------------------------
+# One flat key list was the finding: any hash match in API_KEYS opened every
+# gated path, and setup.py mirrors the monitoring key into it, so the key the
+# monitoring stack carries was an operator key. R60 lets an API_KEYS entry
+# carry a scope — either the plain string form (unscoped, today's behavior) or
+# {"key": "...", "scope": "monitoring"} — and this is the ONE place a scope
+# name resolves to paths. Exact (method, path) pairs, no prefixes: a prefix on
+# /api/events would admit events.py's write verbs (:1493/:1617/:1733).
+#
+# The set is what monitoring/ actually calls WITH THE KEY, cited from grep
+# at this commit (the pin test re-derives it from the files, not these cites —
+# test_api_key_scopes.py; edit a config, the equality goes red):
+#   ("GET",  "/api/metrics")                  prometheus.yml:73 metrics_path, the
+#                                             scrape's own http_headers X-API-Key :85
+#   ("GET",  "/api/system/telemetry")          prometheus.yml:223 job hsi-telemetry
+#                                             (metrics_path /probe, target :230;
+#                                             __address__ relabels to
+#                                             json-exporter:7979, so json-exporter
+#                                             is the HTTP client) + its "telemetry"
+#                                             module header, json-exporter-config
+#                                             .yml:45/:56
+#   ("GET",  "/api/system/stats")              same leg: prometheus.yml:240/:247 +
+#                                             module "stats" header :126/:129
+#   ("GET",  "/api/system/gpu")                same leg: prometheus.yml:257/:264 +
+#                                             module "gpu" header :152/:155
+#                                             (module "health" :9 has NO header:
+#                                             /api/system/health is OPEN_PATHS —
+#                                             the control arm the pin excludes by
+#                                             the header condition, not by hand)
+#   ("POST", "/api/webhooks/alerts")           frontend:8081 machine listener,
+#                                             path-exact location
+#                                             frontend/docker-entrypoint.sh:843,
+#                                             X-API-Key injected :853
+#   ("GET",  "/api/events")                    Grafana Backend-API datasource
+#   ("GET",  "/api/events/stats")              (datasources/prometheus.yml:42/:59
+#   ("GET",  "/api/detections/stats")           httpHeaderName1=X-API-Key), panel
+#   ("GET",  "/api/ai-audit/stats")             urlPath values in the dashboards:
+#   ("GET",  "/api/ai-audit/leaderboard")       analytics.json (stats, detections,
+#   ("GET",  "/api/ai-audit/recommendations")    and the ?risk_level=… list read —
+#                                             include_deleted-style sparse reads
+#                                             stay IN scope deliberately: the
+#                                             shipped panel queries exactly that)
+#                                             + consolidated.json (ai-audit trio)
+# A pin test re-derives this set from those files (test_api_key_scopes.py) —
+# edit one, the other goes red.
+MONITORING_SCOPE_PATHS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("GET", "/api/metrics"),
+        ("GET", "/api/system/telemetry"),
+        ("GET", "/api/system/stats"),
+        ("GET", "/api/system/gpu"),
+        ("POST", "/api/webhooks/alerts"),
+        ("GET", "/api/events"),
+        ("GET", "/api/events/stats"),
+        ("GET", "/api/detections/stats"),
+        ("GET", "/api/ai-audit/stats"),
+        ("GET", "/api/ai-audit/leaderboard"),
+        ("GET", "/api/ai-audit/recommendations"),
+    }
+)
+
+API_KEY_SCOPES: dict[str, frozenset[tuple[str, str]]] = {"monitoring": MONITORING_SCOPE_PATHS}
+
+
+def resolve_api_key_scope(name: object) -> frozenset[tuple[str, str]] | None:
+    """Resolve a configured scope name to its path set (R60).
+
+    Exact, case- and whitespace-sensitive: an unrecognized name returns None,
+    and the CALLER decides what that costs the entry — fail-closed, never an
+    implicit unscope (``Monitoring`` or `` monitoring`` falling open to full
+    access would be the exact privilege escalation ruling 60 exists to
+    prevent).
+    """
+    return API_KEY_SCOPES.get(name) if isinstance(name, str) else None
+
+
+# -----------------------------------------------------------------------------
 # All exports
 # -----------------------------------------------------------------------------
 __all__ = [
     "ANALYSIS_QUEUE",
+    "API_KEY_SCOPES",
     "DETECTION_QUEUE",
     "DLQ_ANALYSIS_QUEUE",
     "DLQ_DETECTION_QUEUE",
     "DLQ_OVERFLOW_PREFIX",
     "DLQ_PREFIX",
+    "MONITORING_SCOPE_PATHS",
     "PIPELINE_ERRORS_KEY",
     "PIPELINE_ERRORS_MAX_SIZE",
     "PIPELINE_ERRORS_TTL_SECONDS",
@@ -278,4 +358,5 @@ __all__ = [
     "get_dlq_name",
     "get_dlq_overflow_name",
     "get_prefixed_queue_name",
+    "resolve_api_key_scope",
 ]
