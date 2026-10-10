@@ -559,7 +559,8 @@ def test_the_fixed_banner_spec_at_2600ms_is_green(tmp_path: Path) -> None:
 def test_the_fixed_redis_test_at_232ms_is_green(tmp_path: Path) -> None:
     """And the redis case today, at its real corpus duration, is green.
 
-    0.232 s is what all three green main runs record now that the backoff is
+    0.232 s is the middle of what the three green main runs record (0.188 /
+    0.232 / 0.282 — measured per-run, shard-3, same id) now that the backoff is
     patched away — the pair with the 3.85 s case is the whole point of the gate:
     the fix moves a test from 2.6x over budget to well under it.
     """
