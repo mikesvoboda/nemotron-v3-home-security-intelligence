@@ -232,20 +232,24 @@ rows first.
   `threat-detection-yolov8n/weights/best.pt` (`ai/gateway/export/export_yolo_threat.py:5`), from
   the Hugging Face repo `Subh775/Threat-Detection-YOLOv8n` (`models.yml:197`). Nothing pins a
   revision.
-- **Provenance and license.** The model card declares MIT and names `Ultralytics/YOLOv8` as the
-  base model. Its training config starts from `yolov8n.pt` and a Kaggle dataset,
-  `threat-detection-3849`, whose license the card does not give. The `ultralytics` package the
-  repo installs (`8.4.173`) declares AGPL-3.0 in its metadata. So the card's MIT claim is the
-  uploader's, and the base model's and dataset's licenses are unrecorded.
-- **The class labels do not match.** The gateway names the four outputs `knife, pistol, rifle,
-threat_object` (`ai/gateway/adapters/enrichment_light.py:84`). The model card lists them as
+- **Provenance and license.**
+  - The model card declares MIT and names `Ultralytics/YOLOv8` as the base model.
+  - Its training config starts from `yolov8n.pt` and the Kaggle dataset `threat-detection-3849`.
+    The card credits Roboflow for the dataset and gives no license for it.
+  - The card does not record the license of the `yolov8n.pt` weights. The `ultralytics` package
+    the repo installs (`8.4.173`) declares AGPL-3.0 for its code. Whether that license covers the
+    base weights, and so this fine-tune, is open.
+  - So the MIT claim is the uploader's, and the base weights' and dataset's licenses are
+    unrecorded.
+- **The class labels do not match.** The gateway names the four outputs `knife`, `pistol`,
+  `rifle` and `threat_object` (`ai/gateway/adapters/enrichment_light.py:84`). The model card lists them as
   Gun, Explosive, Grenade and Knife; its "Explosive" class covers "fire, explosion scenarios, and
   explosive devices". Which gateway label a detection gets is unverified until someone reads the
   checkpoint's own `names`.
 - **Trigger source.** The recommendation below says a fast path has no trigger source. For weapons,
-  this model is one. For smoke there is none. For fire, the only candidate is the card's
-  "Explosive" class, which the gateway does not name as such; the card reports 49.7 % test
-  precision for it.
+  this model is one. For smoke there is none. For fire, the ruling's facts say there is
+  none, and this refines that: the only candidate is the card's "Explosive" class. The gateway
+  does not name that class as such, and the card reports 49.7 % test precision for it.
 - Nothing calls the gateway's `/enrich-lt/threat-detect`
   (`ai/gateway/adapters/enrichment_light.py:130`) today; turning the model on also needs a backend
   caller.
@@ -261,8 +265,8 @@ them (§1 recommends this). Alerts surface: F-077 and F-078.
 **Recommendation.** Keep the threat specialist off and delete both fast-path stubs, with F-010,
 F-036 and F-220; keep the Alerts page on high/critical events. The verdict path is the one alert
 path that works, and a second, seconds-fast path needs a trigger source the detector does not
-have (COCO classes carry no weapon, fire or smoke). Ruling 67's facts change that premise for weapons: the
-gateway's `threat` model is a trigger source. The recommendation stands until its labels and its
+have (COCO classes carry no weapon, fire or smoke). Ruling 67's facts change that premise
+for weapons: the gateway's `threat` model is a trigger source. The recommendation stands until its labels and its
 license are settled. A weapons fast path would need both, plus a backend caller for
 `/enrich-lt/threat-detect`.
 
@@ -475,18 +479,23 @@ Added by ruling 67 (issue #6854), which puts it on the R2 sheet to be ruled toge
 OD-17. Nothing changes in code now; any replacement would be a Phase 4 package that measures
 latency and VRAM first. Facts read at `main` `28770b3d8`.
 
+This entry is written from ruling 68's state: `yolo26` and `reid` are both in use. Today, until
+B2.2's switch merges, nothing calls `reid`.
+
 **What Triton serves today.** The `ai-gateway` container runs Triton behind a FastAPI gateway. Its
-model repository holds three models, all ONNX Runtime on the GPU:
+model repository holds three models, all ONNX Runtime on the GPU
+(`ai/triton/model_repository/reid/config.pbtxt:33`, `KIND_GPU`; the other two match):
 
 - `yolo26`, the object detector. The backend calls it for every frame through
-  `/yolo26/detect` (`backend/services/detector_client.py:668`).
+  `/yolo26/detect`: the `/yolo26` base URL is at `backend/core/config.py:1065`, and the `/detect`
+  call at `backend/services/detector_client.py:668`.
 - `reid`, the OSNet-AIN x1.0 re-ID model. Ruling 68 makes it the backend's re-ID path (B2.2);
   until B2.2's switch merges, nothing calls it.
 - `threat`, the weapons detector. It is off by default (`docker-compose.prod.yml:394`), and nothing
   calls it.
 
 The residency set is `yolo26` and `reid`, plus `threat` only when `GATEWAY_ENABLE_THREAT` is on
-(`ai/gateway/residency.py:60`, `:81`).
+(`ai/gateway/residency.py:60`; `GATEWAY_ENABLE_THREAT` is read at `:96`).
 
 **What it would serve under each outcome of OD-7 and OD-17.**
 
@@ -502,7 +511,7 @@ The residency set is `yolo26` and `reid`, plus `threat` only when `GATEWAY_ENABL
 - **The image.** It is built on `nvcr.io/nvidia/tritonserver:26.01-py3` (`ai/gateway/Dockerfile:1`).
   On top of that it installs the export toolchain: `torch`, `transformers`, `ultralytics`, `onnx`,
   `onnxscript`, `onnxruntime-gpu`, `open_clip_torch`, `timm` and `einops`
-  (`ai/gateway/Dockerfile:19`-`35`). There are 14 export scripts in `ai/gateway/export/`;
+  (`ai/gateway/Dockerfile:19`-`35`). There are 12 export scripts (`ai/gateway/export/export_*.py`);
   `export_all.sh` runs three of them (threat, `yolo26`, `reid`;
   `ai/gateway/export/export_all.sh:113`, `:123`, `:137`).
 - **Start-up machinery,** all of it run before Triton starts:
@@ -539,7 +548,11 @@ The residency set is `yolo26` and `reid`, plus `threat` only when `GATEWAY_ENABL
 - the recording rule `job:triton_inference_latency:avg5m`
   (`monitoring/profiling-recording-rules.yml:191`);
 - four Grafana dashboards: `ai-services.json` (F-102, F-115), `consolidated.json` (F-164),
-  `tracing.json` (F-167) and `ai-service-health.json`.
+  `tracing.json` (F-167) and `ai-service-health.json`;
+- the list of `nv_*` names in `scripts/audit_grafana_queries.py:256`-`258`.
+
+The gateway's own scrape job drops `nv_.*` (`monitoring/prometheus.yml:175`) so that the series
+are not counted twice; that drop rule goes with them.
 
 The gateway already exports its own per-endpoint metrics:
 `hsi_ai_inference_duration_seconds` and `hsi_ai_inference_errors_total` (`ai/gateway/main.py:83`,
@@ -551,7 +564,8 @@ ratio and latency panels to the `hsi_ai_inference_*` series, and the GPU panels 
 
 - **Keep Triton as the one model server — no new work.** Route re-ID through it (B2.2, already
   ruled), and threat too if OD-7 turns it on. The costs above stay as they are.
-- **A slim detector service — L** (ops and backend). A FastAPI service runs ONNX Runtime on the
+- **A slim detector service — L** (ops and backend). It is L rather than M because it replaces a
+  production service and must measure before it switches. A FastAPI service runs ONNX Runtime on the
   GPU, loads the same three `.onnx` files and exports the app's own metrics.
   - No model needs re-exporting: Triton already runs each one through its ONNX Runtime backend.
   - It removes the Triton base image, the patching, linking and pruning steps, and the `nv_*`
@@ -572,13 +586,15 @@ ratio and latency panels to the `hsi_ai_inference_*` series, and the GPU panels 
     service having none.
 - **Under either option:** OD-7's threat rows (F-010, F-036, F-220) follow OD-7, not this decision.
 
-**Recommendation.** **Keep Triton through Phase 3, and measure the slim service in Phase 4 before
-deciding.**
+**Recommendation.** **Keep Triton now, and approve the Phase 4 measure-first package. Triton stays
+unless the slim service matches it on latency and VRAM.** A ruling of "keep" alone would leave
+that package unapproved, so this recommendation asks for both.
 
-- Triton costs more than it serves today: three ONNX Runtime models carry a full Triton image, the
-  export toolchain and three start-up steps.
-- But B2.2 is about to rely on its batching and its GPU rate limiting, and B2.2's parity gate is
-  written against the gateway path.
+- Triton costs more than it serves today: two resident ONNX Runtime models (three with `threat`)
+  carry a full Triton image, the export toolchain and three start-up steps.
+- But B2.2 is about to rely on its GPU rate limiting, and on its batching across concurrent events:
+  `/person-reid` takes one crop per request (`ai/gateway/adapters/enrichment_light.py:172`). And
+  B2.2's parity gate is written against the gateway path.
 - A replacement decided before those numbers exist would be a guess. The Phase 4 package measures
   per-request latency, VRAM and image size for both servers with the same ONNX files, and the
   slim service replaces Triton only if it matches on latency and VRAM.
