@@ -23,9 +23,13 @@ assumed:
    to *raise* a suppression count. Refuse loudly rather than write
    byte-identically: a PR reaching for the update flag to widen an exemption
    has to be told no in words.
-3. **Fail closed on zero XML.** A missing or empty results dir is a pipeline
-   break, not a pass — the audit's own WP0.5 reasoning, "no more 'skip + exit
-   0' on missing data … zero XML is a pipeline break -> fail".
+3. **Fail closed on zero evidence.** A missing or empty results dir is a
+   pipeline break, not a pass — the audit's own WP0.5 reasoning, "no more
+   'skip + exit 0' on missing data … zero XML is a pipeline break -> fail".
+   That rule reaches one level deeper than file *count*: XML files that carry
+   no usable duration at all (truncated upload, writer killed mid-flush) are
+   the same broken-upload shape, and an ``--update`` over a corpus that never
+   mentions an exempt id must refuse rather than turn the shrink into a wipe.
 
 Tier classification is NOT reimplemented in either file: the gate calls the
 audit's ``categorize_test``, so the two can never disagree about what tier a
@@ -364,6 +368,86 @@ def test_update_refuses_to_add_an_id(tmp_path: Path) -> None:
     )
     assert "backend.tests.unit.fresh::test_sleeps" in _out(run), (
         "the refusal must name the id it refuses to add"
+    )
+
+
+def test_xml_files_without_durations_fail_the_gate(tmp_path: Path) -> None:
+    """Files present, durations absent → RED, not a vacuous PASS.
+
+    ``xml_count`` counts FILES and is incremented before the parse, so a
+    truncated upload (or a writer killed mid-flush) yields "N files, 0 tests
+    with a recorded duration". Over-budget is then empty and the plain-PASS
+    branch is one line away — the gate would certify a corpus it never read.
+    The WP0.5 rule that covers an empty dir has to reach this shape too.
+    """
+    out = tmp_path / "corpus" / "shard"
+    out.mkdir(parents=True)
+    (out / "unit.xml").write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<testsuite name="s">'
+        '<testcase classname="backend.tests.unit.trunc.test_a" name="test_a" time=""/>'
+        '<testcase classname="backend.tests.unit.trunc.test_b" name="test_b"/>'
+        '<testcase classname="backend.tests.unit.trunc.test_c" name="test_c" time="n/a"/>'
+        "</testsuite>\n",
+        encoding="utf-8",
+    )
+    run = _run(tmp_path / "corpus")
+    assert run.returncode != 0, (
+        "junit files with no usable durations must fail the gate: exit 0 here "
+        "passes vacuously on unread data, the exact fail-open the zero-XML rule "
+        f"exists to prevent\nstdout: {run.stdout}\nstderr: {run.stderr}"
+    )
+    assert "0 test(s) with a recorded duration" in _out(run), (
+        "the message must say what was missing — files found, durations absent — "
+        f"so it is diagnosable as corruption rather than an empty corpus: {_out(run)}"
+    )
+
+
+def test_update_over_a_partial_corpus_refuses_to_wipe_the_baseline(
+    tmp_path: Path,
+) -> None:
+    """``--update`` over a corpus that omits exempt ids must REFUSE, not wipe.
+
+    The add-guard has a mirror nobody wrote until this was measured: an
+    exemption may only drop on EVIDENCE that the test is now fast, and a corpus
+    that never mentions the test is unevidence — it is what running the update
+    against ONE shard looks like. Executed at head ``00d58ce5d`` with a single
+    real unit shard as the corpus, the shipped mode took the baseline 51 → 8
+    and exited 0, dropping genuinely slow ids (the rtsp connect timeout,
+    r8_s2b, the job_progress pair) that simply were not in that shard; the next
+    full run then redden ~43 tests nobody touched. A real deletion is a human's
+    one-line diff, exactly like an addition.
+    """
+    baseline = _baseline(
+        tmp_path,
+        [
+            "backend.tests.unit.steady::test_stays_over",
+            "backend.tests.unit.gone::test_not_in_this_corpus",
+        ],
+    )
+    results = _results(
+        tmp_path,
+        (
+            "unit.xml",
+            _xml([("backend.tests.unit.steady", "test_stays_over", 2.0)]),
+        ),
+    )
+    before = baseline.read_text(encoding="utf-8")
+    run = _run(results, {"SLEEP_GATE_BASELINE": str(baseline), "SLEEP_GATE_UPDATE": "1"})
+    assert run.returncode != 0, (
+        "an update whose corpus does not cover an exempt id must fail: exiting 0 "
+        "over a partial corpus is how a 51-id file becomes an 8-id file, and every "
+        f"later PR pays for it\nstdout: {run.stdout}\nstderr: {run.stderr}"
+    )
+    assert baseline.read_text(encoding="utf-8") == before, (
+        "the refusal must write nothing — an unevidenced shrink is still a wipe"
+    )
+    assert "backend.tests.unit.gone::test_not_in_this_corpus" in _out(run), (
+        "the refusal must name the id whose shrink it cannot evidence"
+    )
+    assert "partial corpus" in _out(run), (
+        "the message must name the real cause, not just the symptom, or the next "
+        f"author reaches for a wider hammer: {_out(run)}"
     )
 
 

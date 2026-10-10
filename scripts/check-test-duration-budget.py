@@ -58,14 +58,22 @@ file, not spread across a second allowlist that no PR has to argue with.
 Fail-closed on zero XML, copied reasoning from the audit's WP0.5 rule: both
 artifact downloads in the job this runs in carry ``continue-on-error: true``, so
 a broken upload looks exactly like an empty corpus — a gate that exits 0 here is
-switched off by the thing it should catch.
+switched off by the thing it should catch. The same rule covers the corrupt
+shape: XML files that PARSE to no durations at all (truncated upload, writer
+killed mid-flush) fail too, because "N files, 0 durations" over-budgets nothing
+and would otherwise PASS vacuously on data it never read.
 
-The baseline may only SHRINK. ``--update`` writes the ids that are still over
-budget and REFUSES, loudly and without writing, any id not already in the file —
-the same adjudication rule as ``scripts/ratchet-check.py``, whose ``--update``
-"refuses to raise … the adjudication must be a human's diff". A new slow test is
-fixed or it is a human's deliberate diff; it is never added by the tool that
-found it.
+The baseline may only SHRINK — and a shrink must be EVIDENCED. ``--update``
+writes the ids that are still over budget and REFUSES, loudly and without
+writing, (a) any id not already in the file — the same adjudication rule as
+``scripts/ratchet-check.py``, whose ``--update`` "refuses to raise … the
+adjudication must be a human's diff" — and (b) any exempt id the corpus holds
+NO duration for, because "absent from this corpus" is unevidence, not a
+measurement: it is exactly what running the update over a PARTIAL corpus (one
+shard) looks like, and measured, it silently took the file 51 -> 8 with rc=0.
+A new slow test is fixed or it is a human's deliberate diff; it is never added
+by the tool that found it — and a test that truly left (deleted, renamed)
+leaves by that same human one-line diff, not by a partial run.
 """
 
 from __future__ import annotations
@@ -141,8 +149,16 @@ def budget_for(category: str, budgets: dict[str, float]) -> float:
     return budgets.get(category, budgets["unit"])
 
 
-def worst_durations(results_dir: Path) -> tuple[dict[str, tuple[float, str]], int]:
+def worst_durations(
+    results_dir: Path,
+) -> tuple[dict[str, tuple[float, str]], int, int]:
     """``test id -> (worst duration, tier)`` over every XML in the corpus.
+
+    Returns ``(worst, xml_file_count, timed_testcase_count)``. The third count
+    is taken BEFORE the benchmark tier is dropped, so the caller can tell "the
+    corpus is corrupt/partial" (files, but no testcase has a usable duration)
+    from "the corpus is legitimately all-benchmark" (durations present, tier
+    filtered out).
 
     Duplicates take the MAX: junit emits one ``<testcase>`` per invocation, so a
     parameterised id appears several times and a shard retry can repeat an id
@@ -154,6 +170,7 @@ def worst_durations(results_dir: Path) -> tuple[dict[str, tuple[float, str]], in
     """
     worst: dict[str, tuple[float, str]] = {}
     xml_count = 0
+    timed_cases = 0
     for xml_file in sorted(results_dir.glob("**/*.xml")):
         xml_count += 1
         try:
@@ -172,6 +189,7 @@ def worst_durations(results_dir: Path) -> tuple[dict[str, tuple[float, str]], in
                     duration = 0.0
                 if duration <= 0:
                     continue
+                timed_cases += 1  # before the benchmark drop — see docstring
                 category = categorize_test(classname, name, str(xml_file))
                 if category == "benchmark":
                     continue  # measured latency on purpose; the audit drops these
@@ -179,7 +197,7 @@ def worst_durations(results_dir: Path) -> tuple[dict[str, tuple[float, str]], in
                 current = worst.get(test_id)
                 if current is None or duration > current[0]:
                     worst[test_id] = (duration, category)
-    return worst, xml_count
+    return worst, xml_count, timed_cases
 
 
 def load_baseline(path: Path) -> list[str]:
@@ -228,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    worst, xml_count = worst_durations(results_dir)
+    worst, xml_count, timed_cases = worst_durations(results_dir)
     if xml_count == 0:
         # WP0.5's rule, inherited: this job's artifact downloads are
         # continue-on-error, so an empty corpus is what a broken upload looks
@@ -236,6 +254,23 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"Error: no JUnit XML found under {results_dir} — the gate ran with no test "
             "data; failing rather than passing vacuously.",
+            file=sys.stderr,
+        )
+        return 1
+    if xml_count and timed_cases == 0:
+        # The same WP0.5 reasoning one level deeper: xml_count counts FILES, and
+        # a file contributes to it before it parses (and even when every
+        # <testcase> inside it carries no usable time= — a truncated upload, a
+        # writer killed mid-flush). Zero timed testcases over N files is that
+        # broken-upload shape with the files present; over-budget stays empty
+        # and the gate would PASS vacuously on data it never read. The predicate
+        # is timed_cases, NOT "worst is empty": a corpus of only benchmark tests
+        # has durations and legitimately an empty subject set (the tier is
+        # excluded by design), and must stay green.
+        print(
+            f"Error: {xml_count} JUnit XML file(s) under {results_dir} yielded 0 "
+            "test(s) with a recorded duration — corrupt or partial junit, not an "
+            "empty corpus; failing rather than passing vacuously.",
             file=sys.stderr,
         )
         return 1
@@ -288,6 +323,32 @@ def main(argv: list[str] | None = None) -> int:
             )
             for tid in additions:
                 print(f"  refused add: {tid}", file=sys.stderr)
+            print(file=sys.stderr)
+            return 1
+        unevidenced = sorted(exempt - set(worst))
+        if unevidenced:
+            # The mirror of the add-guard. An exemption may only drop on
+            # EVIDENCE that the test is now fast, and "the corpus never mentioned
+            # this test" is not evidence — it is what running the gate over a
+            # PARTIAL corpus looks like. One real unit shard as the corpus
+            # (measured, head 00d58ce5d) takes the file 51 -> 8 and exits 0,
+            # dropping genuinely slow ids (the rtsp timeout, r8_s2b, the
+            # job_progress pair) that simply were not in that shard; the next
+            # full run then reddens ~43 tests nobody touched. A deleted test's
+            # line is a human's one-line diff, like an addition — this mode
+            # shrinks only on measured durations.
+            print(
+                f"REFUSING TO UPDATE {baseline_path}: {len(unevidenced)} exempt id(s) "
+                "have NO recorded duration in this corpus, so their shrink would be "
+                "unevidenced. This is what a partial corpus looks like — point the gate "
+                "at the full results dir (every shard), or drop the lines as a reviewed "
+                "edit to the file itself.",
+                file=sys.stderr,
+            )
+            for tid in unevidenced[:20]:
+                print(f"  unevidenced: {tid}", file=sys.stderr)
+            if len(unevidenced) > 20:
+                print(f"  … and {len(unevidenced) - 20} more", file=sys.stderr)
             print(file=sys.stderr)
             return 1
         shrunk = sorted(exempt & over_budget_ids)
