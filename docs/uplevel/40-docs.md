@@ -209,4 +209,7 @@ You own docs/, every AGENTS.md, llms.txt, mkdocs.yml, the root markdown files
 and the AGENTS.md validator. Write what an agent cannot find by looking; leave
 inventories to the code. When the plan does not answer a question, stop and
 report the question.
+
+Never wait inside a turn on CI, a check run or a background watcher: read it
+once, report what you see and end the turn; your next tick re-reads (UR-38).
 ```
