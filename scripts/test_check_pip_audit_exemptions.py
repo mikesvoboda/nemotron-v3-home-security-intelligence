@@ -178,6 +178,53 @@ def test_alias_id_matches(tmp_path: Path) -> None:
     assert r.returncode == 0, r.stdout + r.stderr
 
 
+def test_audit_side_alias_matches_fixture_advisory(tmp_path: Path) -> None:
+    """R61 Done-when half 1: a fixture advisory dismissed under its ALIAS passes.
+
+    The mirror direction of test_alias_id_matches: pip-audit 2.10.1 emits ONE
+    primary id per advisory (its service interface dedups and sorts aliases),
+    so a registry keyed by the CVE - exactly the $schema_note's own example,
+    CVE-2026-0994, alias of PYSEC-2026-1805 - must still cover an advisory the
+    audit reports under the other id with ours in the advisory's aliases
+    array. Before R61 this pair was deterministically DOUBLE-red: the entry
+    got the misleading "stale - remove me" diagnostic while the same advisory
+    also printed UNEXEMPTED. The registry here carries no aliases field on
+    purpose: the match must come from the AUDIT side's aliases.
+    """
+    h = Harness(tmp_path)
+    finding = [
+        {
+            "id": "PYSEC-2026-1805",
+            "pkg": "protobuf",
+            "version": "4.25.1",
+            "aliases": ["CVE-2026-0994"],
+        }
+    ]
+    r = h.run(audit_doc(finding), {"exceptions": [entry("CVE-2026-0994", pkg="protobuf")]})
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_fixture_advisory_dismissed_under_neither_id_is_red(tmp_path: Path) -> None:
+    """R61 Done-when half 2: dismissed under neither id still fails.
+
+    Guards the fix from overshooting: matching on the audit side's aliases is
+    widened exact-id logic, not fuzzy package logic. FIXTURE_ID shares nothing
+    with the reported advisory's primary id or aliases (its package name even
+    matches) - the entry must read stale AND the advisory UNEXEMPTED."""
+    h = Harness(tmp_path)
+    finding = [
+        {
+            "id": "GHSA-2222-3333-4444",
+            "pkg": FIXTURE_PKG,
+            "aliases": ["CVE-2099-000002"],
+        }
+    ]
+    r = h.run(audit_doc(finding), {"exceptions": [entry(FIXTURE_ID)]})
+    assert r.returncode == 1
+    assert "stale" in r.stderr
+    assert "UNEXEMPTED" in r.stderr
+
+
 def test_warn_on_expiry_soon_is_exit_two(tmp_path: Path) -> None:
     from datetime import date, timedelta
 

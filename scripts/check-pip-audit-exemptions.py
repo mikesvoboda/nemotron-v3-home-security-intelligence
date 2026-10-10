@@ -21,8 +21,12 @@ flag). This checker replaces it and fails CLOSED, red when ANY of:
   5. an exempted advisory that pip-audit reports WITH fix_versions (the
      sanctioned premise is "awaiting an upstream fix"; a released fix ends
      the exemption - take the bump),
-  6. the advisory id a registry entry cites is not the id pip-audit reports
-     for the package it names (id drift - e.g. a PYSEC/PYSEC-alias change).
+  6. the advisory id a registry entry cites matches NEITHER the id pip-audit
+     reports nor that advisory's aliases, for the package it names (id drift -
+     e.g. a PYSEC/PYSEC-alias change). Either direction counts: registry-cited
+     alias matching the audit's primary id, or audit-side alias matching the
+     registry's id (R61 - pip-audit emits ONE primary id per advisory, so a
+     CVE-keyed dismissal of a PYSEC-reported advisory is the common case).
 
 Run it on an exported requirements file (the same export the audit job uses):
 
@@ -136,6 +140,15 @@ def main() -> int:
 
         ids = {eid, *(e.get("aliases") or [])}
         hit = next((i for i in ids if i in found), None)
+        if hit is None:
+            # R61: match the OTHER alias direction too. pip-audit emits one
+            # primary id per advisory (aliases deduped into an "aliases"
+            # array), so an audit reporting PYSEC-x with CVE-y in aliases and
+            # a registry keyed by CVE-y is the SAME advisory - without this
+            # second look the pair is double-red: the entry reads stale while
+            # the advisory prints UNEXEMPTED. Exact-id logic, not fuzzy:
+            # the package-attribution check below still adjudicates.
+            hit = next((vid for vid, a in found.items() if ids & a["aliases"]), None)
         if hit is None:
             errors.append(
                 f"{eid}: registered but NO current pip-audit finding matches - "
