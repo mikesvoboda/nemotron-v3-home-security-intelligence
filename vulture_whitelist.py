@@ -27,6 +27,13 @@ _.without_leg
 #     asserts on logs and return values, never on the parameter itself;
 _.no_clock
 _.no_pynvml
+# R60 (PR #6959) scope-suite pins: (a) again — scoped_only/plain_only arm the
+# gate (env + settings cache) and the bodies assert on HTTP responses and
+# exceptions, never on the injected value; setup_complete patches
+# SetupGuardMiddleware._check_setup_complete for the same reason.
+_.scoped_only
+_.plain_only
+_.setup_complete
 # (b) a parametrize value that exists to NAME the four boundary cases (the
 #     disjunct labels of the bbox rejection predicate); pytest injects it as a
 #     kwarg bound to the argname, so it cannot be renamed or dropped, and the
