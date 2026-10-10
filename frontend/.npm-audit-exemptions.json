@@ -11,17 +11,6 @@
       "affectedChain": "braces <- micromatch <- fast-glob <- chokidar <- tailwindcss@3 (dependency) ; braces <- micromatch <- fast-glob <- knip@5 (devDependency)",
       "reason": "No released fix: the advisory covers every published braces (<=3.0.3, and 3.0.3 IS the latest version). npm's only resolution path is a semver-major migration - tailwindcss 3 -> 4 (drops the chokidar/fast-glob chain) and knip 5 -> 6 - which is a separate, owner-sized frontend slice, not a lockfile bump.",
       "exitCriterion": "Remove when tailwind v4 (or another release breaking the chain) lands; scripts/check-npm-audit-exemptions.py already fails CI the moment npm reports a non-major fix path, so this entry cannot silently outlive its premise."
-    },
-    {
-      "id": "GHSA-rj75-hqrm-r3gf",
-      "package": "postcss-selector-parser",
-      "severity": "moderate",
-      "title": "PostCSS: Quadratic complexity in flat selector parsing allows CPU exhaustion",
-      "added": "2026-10-06",
-      "reviewBy": "2027-04-06",
-      "affectedChain": "postcss-selector-parser@6.1.4 <- postcss-nested@^6.2.0 <- tailwindcss@3 (build-time CSS generation only)",
-      "reason": "Fix is postcss-selector-parser 7.1.6, but tailwindcss@3 pins postcss-nested ^6.2.0, which pins postcss-selector-parser ^6.1.x - npm's only fix path is the tailwindcss 3 -> 4.3.3 semver-major migration (the same migration the braces entry above is blocked on). Build-time-only chain: the production image copies /app/dist into nginx, the parser ships in neither the runtime image nor any request path, and the advisory needs attacker-controlled CSS input.",
-      "exitCriterion": "Remove when tailwind v4 lands (shares the exit with the braces entry) or postcss-nested 6.x reopens ^7; the checker fails CI the moment npm reports a non-major fix path."
     }
   ]
 }

@@ -41,8 +41,8 @@ kickoff = """\
 Follow the kickoff prompt in docs/uplevel/30-ops.md. \
 You are cell B of the ops lane; take only packages the coordinator assigns to your cell."""
 
-# Phase 1: the rest of the roster (50-coordination.md, "The roster"). `uplevel-heavy-2` is
-# optional - the coordinator adds its row when the owner opens it.
+# Phase 1: the rest of the roster (50-coordination.md, "The roster"). The owner opened
+# `uplevel-heavy-2` on 2026-10-09; its row follows `uplevel-heavy`'s.
 [[phase]]
 number = 1
 
@@ -94,6 +94,17 @@ kickoff = """\
 Follow the kickoff prompt in docs/uplevel/50-coordination.md. \
 It is "The heavy sandbox's kickoff prompt" under "The roster" in that file."""
 
+# The second heavy sandbox (owner rulings 28 and 50). Both heavy agents paste the same
+# prompt, so the line names this one and its label: a `heavy` PR labelled `cell:heavy-2` is
+# its; every other `heavy` PR is `uplevel-heavy`'s (50-coordination.md, "Two heavy sandboxes").
+[[phase.session]]
+name = "uplevel-heavy-2"
+model = "strongest"
+kickoff = """\
+Follow the kickoff prompt in docs/uplevel/50-coordination.md. \
+It is "The heavy sandbox's kickoff prompt" under "The roster" in that file. \
+You are uplevel-heavy-2; take only heavy PRs labelled cell:heavy-2."""
+
 # UR-30: the only GPU holder. The owner hand-started it for Phase 1; this row lets the
 # launcher create it from the next phase boundary. gpu = true makes `up` add --gpu after
 # the model arguments (the order in 30-ops.md's hand-start line) and requires
@@ -104,10 +115,14 @@ It is "The heavy sandbox's kickoff prompt" under "The roster" in that file."""
 # main's heavy row now carries the section form).
 # 30-ops.md §O1.10 wrote the operator's line positionally ("at the end of ..."); ruling
 # 13 routed that correction into this PR, so the plan text names the section too.
+# The /synthbench mounts are read-only and owner-ruled (rulings 49 and 57): the eval stores,
+# the exports and the corpus, which is its own ZFS dataset and so needs its own mount (a bind
+# of /synthbench would show it empty). None is at or under /srv/agent-models.
 [[phase.session]]
 name = "uplevel-operator"
 model = "fast"
 gpu = true
+mount = ["/synthbench/eval:ro", "/synthbench/exports:ro", "/synthbench/corpus:ro"]
 kickoff = """\
 Follow the kickoff prompt in docs/uplevel/operator.md. \
 It is the section named "Kickoff prompt" in that file."""

@@ -89,6 +89,11 @@ HOST_JUSTIFIED: dict[str, str] = {
     "backend/tests/test_db_isolation.py:66": 'url is os.environ.get("TEST_DATABASE_URL") — env-var guard',
     # Compose binary availability, resolved inside a helper the probe can't see.
     "backend/tests/unit/core/test_compose_render_lists_ai_vlm.py:67": "argv is None when no compose binary (podman/docker) resolves via shutil.which — host-executable guard, not repo content",
+    # O1.11's prometheus boot pin: same docker-availability shape, resolved two
+    # lines above the guard (`docker = shutil.which("docker")`), which the
+    # guard-text probe can't see.
+    "backend/tests/unit/core/test_monitoring_expose_lan_credentials.py:680": 'docker is None where docker = shutil.which("docker") two lines above — host-executable guard, not repo content',
+    "backend/tests/unit/core/test_monitoring_expose_lan_credentials.py:694": "`docker image inspect` returncode != 0 — probes the host daemon's image store, not repo content",
     # Campaign red-check kill-evidence logs: written to /tmp by the campaign
     # runners (red_dead102b.sh / red_dead102c.sh) at red-check time. The guard
     # is FileNotFoundError on an off-repo artifact — a data-chain skip, not a

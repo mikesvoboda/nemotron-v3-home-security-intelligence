@@ -11,6 +11,7 @@
 
 import os
 from collections.abc import Iterator
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -29,7 +30,7 @@ from backend.api.middleware.auth import (
     validate_websocket_api_key,
 )
 from backend.core.config import get_settings
-from backend.services.session_service import SessionService
+from backend.services.session_service import SESSION_COOKIE_NAME, SessionService
 
 VALID_KEY = "test-valid-key-12345"  # pragma: allowlist secret
 
@@ -376,6 +377,178 @@ class TestSessionCookie:
         _use_store(monkeypatch, _BrokenStore())
         response = _client().get("/api/events", headers={"Cookie": "session_id=any"})
         assert response.status_code == 401
+
+
+# =============================================================================
+# authenticate_websocket: route-level hybrid auth (R55 terminal-failure pin)
+# =============================================================================
+
+
+class _HybridSocket:
+    """ASGI-faithful fake for authenticate_websocket: accept-after-close raises.
+
+    A MagicMock can't guard the crash this pins — a mock's accept() never
+    raises, so the pre-R55 fall-through looked green under one. Starlette
+    raises RuntimeError on accept() after close(); this fake does too, so a
+    regression that returns True for an already-closed socket fails loudly at
+    whichever caller accepts next (the route does ``broadcaster.connect`` →
+    accept — the exact live crash from the ruling-55 investigation).
+    """
+
+    def __init__(self, *, cookie: str | None, query: dict[str, str], first_message: str) -> None:
+        self.cookies = {} if cookie is None else {SESSION_COOKIE_NAME: cookie}
+        self.query_params = query
+        self.headers: dict[str, str] = {}
+        self.url = SimpleNamespace(path="/ws/events")
+        # The key-leg refusal logs a masked client IP (auth.py reads
+        # websocket.client.host); a MagicMock resolved this silently — the
+        # fake must carry it explicitly or the refusal path AttributeErrors.
+        self.client = SimpleNamespace(host="10.0.0.50")
+        self._first_message = first_message
+        self.accepts: list[str | None] = []
+        self.closes: list[int] = []
+
+    async def accept(self, subprotocol: str | None = None) -> None:
+        if self.closes:
+            raise RuntimeError("Cannot accept() after close()")
+        self.accepts.append(subprotocol)
+
+    async def close(self, code: int = 1000) -> None:
+        self.closes.append(code)
+
+    async def receive_text(self) -> str:
+        return self._first_message
+
+
+class TestInvalidCredentialCastsNoVote:
+    """R55 round 2 (self-review finding 1): the HTTP gate's rule for sockets.
+
+    A PRESENT-BUT-INVALID credential must not refuse a socket by itself —
+    authenticated_principal() never lets a dead cookie refuse; here the dead
+    cookie simply isn't a valid credential, so the pre-existing API-key
+    hierarchy decides, exactly as for a client that never had a cookie. The
+    round-1 build made every hybrid failure terminal, and that over-refused
+    the single-user default (gate off, keys disabled, sockets open to all):
+    one login + an aged-out Redis session = every socket 4001-forever, while
+    a browser that never logged in kept working — /me is disabled in that
+    mode, so nothing clears the auth state (the cookie itself only a
+    server-side logout removes, which this mode never triggers). These pins
+    hold both halves: invalid
+    credentials never refuse alone, and the key leg's refusal still closes
+    exactly once (the accept-after-close crash stays structurally dead: no
+    validation path touches accept/close anymore — the fake raises if one
+    ever does, which a plain MagicMock could never catch).
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("session_store", "enable_api_key_auth")
+    async def test_stale_cookie_does_not_outvote_a_valid_query_key(self) -> None:
+        from backend.api.middleware.auth import authenticate_websocket
+
+        ws = _HybridSocket(
+            cookie="session-that-expired",  # absent from the empty store
+            query={"api_key": VALID_KEY},
+            first_message="ping",  # never read now: no leg accepts, so none waits
+        )
+        assert await authenticate_websocket(ws) is True
+        # The authenticator never touches the socket on success — the route's
+        # broadcaster.connect() owns the accept.
+        assert ws.accepts == []
+        assert ws.closes == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("session_store", "enable_api_key_auth")
+    async def test_stale_cookie_alone_is_refused_by_the_key_leg_closing_once(
+        self, monkeypatch
+    ) -> None:
+        from backend.api.middleware.auth import authenticate_websocket
+
+        monkeypatch.setenv(
+            "JWT_SECRET", "test-jwt-secret-stale-refusal"
+        )  # pragma: allowlist secret
+        get_settings.cache_clear()
+        ws = _HybridSocket(cookie="session-that-expired", query={}, first_message="ping")
+        # No key offered and keys are enabled → the key-leg refusal, closing
+        # exactly once (one accept, then the hybrid close code 4001 — no
+        # second close, no close before an accept). Without JWT_SECRET the
+        # same refusal closes 1008, the backward-compat code.
+        assert await authenticate_websocket(ws) is False
+        assert ws.accepts == [None]
+        assert ws.closes == [4001]
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("session_store")
+    async def test_stale_cookie_on_single_user_box_is_served(self, monkeypatch) -> None:
+        """The exact dead zone finding 1 measured: loopback box, keys OFF.
+
+        Sockets are open to everyone here by design (the gate is off; the key
+        leg skips when disabled) — a stale cookie must not change that. At
+        base it didn't (dead cookie name); in the round-1 build it did, for
+        up to the cookie's 24h. This test is that regression's pin.
+        """
+        from backend.api.middleware.auth import authenticate_websocket
+
+        monkeypatch.delenv("API_KEY_ENABLED", raising=False)
+        ws = _HybridSocket(cookie="session-that-expired", query={}, first_message="ping")
+        assert await authenticate_websocket(ws) is True
+        assert ws.accepts == []
+        assert ws.closes == []  # and the route's accept() below can't raise
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("enable_api_key_auth")
+    async def test_expired_token_does_not_outvote_a_valid_query_key(self, monkeypatch) -> None:
+        from backend.api.middleware.auth import authenticate_websocket
+
+        monkeypatch.setenv("JWT_SECRET", "test-jwt-secret-cast-no-vote")  # pragma: allowlist secret
+        get_settings.cache_clear()
+        ws = _HybridSocket(
+            cookie=None,
+            query={"token": "eyJhbGciOiJIUzI1NiJ9.garbage.sig", "api_key": VALID_KEY},
+            first_message="ping",
+        )
+        # The ?token= leg cannot decode → casts no vote; the key serves.
+        assert await authenticate_websocket(ws) is True
+        assert ws.accepts == []
+        assert ws.closes == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("enable_api_key_auth")
+    async def test_query_key_without_cookie_is_still_served(self) -> None:
+        from backend.api.middleware.auth import authenticate_websocket
+
+        ws = _HybridSocket(cookie=None, query={"api_key": VALID_KEY}, first_message="ping")
+        assert await authenticate_websocket(ws) is True
+        assert ws.accepts == []  # the route accepts on success, not the authenticator
+        assert ws.closes == []
+
+
+class TestLiveCookieReader:
+    """The LIVE cookie read in authenticate_websocket is pinned here (R55 Note B).
+
+    The older wrong-name negative control (test_websocket_auth.py's
+    cookie_under_the_wrong_name test) drives websocket_auth's
+    authenticate_websocket_cookie — a helper no route imports, reached only
+    from that test file. A regression re-introducing the literal "session"
+    into authenticate_websocket's own cookies.get() therefore survives the
+    whole unit tier as that control was written, caught only by integration
+    tests. This drives the LIVE function with a valid session under the real
+    cookie name and NO key offered on a keys-enabled box: only the cookie leg
+    can serve, so reverting the reader to the literal "session" flips the
+    expected True into the key-leg refusal (False + a 4001 close).
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("session_store", "enable_api_key_auth")
+    async def test_valid_cookie_serves_the_socket_without_any_key(
+        self, session_store: _SessionStore
+    ) -> None:
+        from backend.api.middleware.auth import authenticate_websocket
+
+        session_id = await _login(session_store)
+        ws = _HybridSocket(cookie=session_id, query={}, first_message="ping")
+        assert await authenticate_websocket(ws) is True
+        assert ws.accepts == []  # validation only; the route owns the accept
+        assert ws.closes == []
 
 
 class TestCorsPreflight:

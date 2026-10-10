@@ -342,9 +342,19 @@ class TestPrometheusConfigIncludesRules:
         assert isinstance(prometheus_config["rule_files"], list), "'rule_files' must be a list"
 
     def test_prometheus_config_includes_alerting_rules(self, prometheus_config: dict):
-        """Verify prometheus.yml includes prometheus_rules.yml."""
+        """Verify prometheus.yml includes prometheus_rules.yml.
+
+        Matched on BASENAME: O1.11's boot renders prometheus.yml to /tmp, and
+        rule_files resolves relative to the config file's directory, so the
+        entries are absolute /etc/prometheus paths (a relative entry under the
+        /tmp render loads 0 groups silently — pin
+        test_monitoring_expose_lan_credentials.py::
+        test_prometheus_rule_files_are_absolute_under_the_tmp_boot). This test's
+        claim is inclusion, which holds for either spelling.
+        """
         rule_files = prometheus_config.get("rule_files", [])
-        assert "prometheus_rules.yml" in rule_files, (
+        basenames = [str(entry).rsplit("/", 1)[-1] for entry in rule_files]
+        assert "prometheus_rules.yml" in basenames, (
             "prometheus.yml must include 'prometheus_rules.yml' in rule_files"
         )
 
