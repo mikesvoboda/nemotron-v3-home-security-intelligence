@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import base64
 import io
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import numpy as np
@@ -71,3 +72,69 @@ class TestPreprocessingParity:
         expected = build_reid_transform()(crop).unsqueeze(0).numpy()
         assert sent.shape == expected.shape
         np.testing.assert_allclose(sent, expected, rtol=0, atol=1e-5)
+
+
+#: Ruling 68's gate. Never loosened: a failure here is a stop-and-report.
+PARITY_GATE = 0.999
+
+
+@pytest.fixture(scope="module")
+def osnet() -> Any:
+    """torchreid's osnet_ain_x1_0, as the backend loader builds it, seeded weights."""
+    import torch
+
+    from backend.services import osnet_loader
+
+    osnet_loader._ensure_tensorboard_importable()
+    torch.manual_seed(68)
+    model = osnet_loader._import_build_model()(
+        name="osnet_ain_x1_0", num_classes=1, pretrained=False
+    )
+    return model.eval()
+
+
+@pytest.fixture
+def triton_running(osnet: Any) -> AsyncMock:
+    """Triton's ``reid`` answered by the same module the backend path runs."""
+    import torch
+
+    async def infer(model_name: str, inputs: dict[str, Any], outputs: list[str]) -> dict:
+        assert model_name == "reid"
+        with torch.inference_mode():
+            out = osnet(torch.from_numpy(inputs["input"]))
+        return {"embedding": out.numpy()}
+
+    client = AsyncMock()
+    client.infer = AsyncMock(side_effect=infer)
+    return client
+
+
+class TestParityGate:
+    """The same crop pixels through both paths, the same weights in each."""
+
+    @pytest.mark.parametrize(
+        ("seed", "width", "height"),
+        [(0, 147, 311), (1, 64, 128), (2, 40, 90), (3, 220, 480)],
+    )
+    async def test_final_vectors_agree_to_the_gate(
+        self, osnet: Any, triton_running: AsyncMock, seed: int, width: int, height: int
+    ) -> None:
+        from backend.services.osnet_loader import extract_person_embedding
+        from backend.services.reid_gateway import embed_person_via_gateway
+
+        crop = _crop(seed, width, height)
+        handle = {"model": osnet, "transform": build_reid_transform(), "model_id": "local"}
+        local = await extract_person_embedding(handle, crop)
+
+        app = FastAPI()
+        app.include_router(router)
+        with patch(
+            "ai.gateway.adapters.enrichment_light.get_triton_client",
+            autospec=True,
+            return_value=triton_running,
+        ):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://gw") as c:
+                remote = await embed_person_via_gateway(crop, base_url="http://gw", client=c)
+
+        cosine = float(np.dot(local.embedding, remote.embedding))
+        assert cosine >= PARITY_GATE, f"parity {cosine:.6f} below the gate {PARITY_GATE}"
