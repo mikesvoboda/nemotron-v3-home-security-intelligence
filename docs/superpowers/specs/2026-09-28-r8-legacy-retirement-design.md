@@ -24,7 +24,7 @@ the work:
   items 40–41) and are neither re-measured nor restated as repo claims here.
 
 The reason the deletion matters functionally rather than cosmetically: **the legacy path is
-reachable by environment variable today.** `backend/core/config.py:1084` accepts `"legacy"` and
+reachable by environment variable today.** `backend/core/config.py:1087` accepts `"legacy"` and
 `:1086` only logs a warning [V]. A deployment with a stale `.env` boots the unsupported pipeline.
 
 The owner's stated motive is agent-experience, not code hygiene: _"so we dont confuse future

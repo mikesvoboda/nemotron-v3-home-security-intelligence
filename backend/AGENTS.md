@@ -604,8 +604,8 @@ The three loaders that joined above — `osnet_loader.py`,
 `model_zoo.py`'s `_LOADER_MAP` actually binds today, which is why the old table
 never listed them. The X-CLIP chain
 (`xclip_loader.py`/`action_recognition_service.py`, including the
-`/api/action-events` analyze route it backed) was archived 2026-09-23 to
-`archive/xclip-backend-chain/`, and the models.yml rows for the deleted models
+`/api/action-events` analyze route it backed) was archived 2026-09-23 to the
+archive tree (UR-19 deleted it; recover from git history), and the models.yml rows for the deleted models
 were deleted, not flipped to `enabled: false` (R8 S3 owner ruling — provenance
 is git history plus the ledger).
 

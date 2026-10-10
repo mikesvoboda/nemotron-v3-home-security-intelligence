@@ -1969,6 +1969,7 @@ class TestWp44ComponentWiring:
             docker_client=mock_docker_client,
             on_restart=orchestrator._on_restart,
             on_disabled=orchestrator._on_disabled,
+            on_recovery_failed=orchestrator._on_recovery_failed,
         )
         hm_cls.assert_called_once_with(
             registry=orchestrator._registry,

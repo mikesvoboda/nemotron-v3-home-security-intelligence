@@ -1,5 +1,5 @@
 """Batch-15 battery: webhook_service TEST-GAP clusters from the WP4.4 dossier
-(``archive/wp25-feed/wp44-triage/webhook_service.md``).
+(the deleted archive's ``wp25-feed/wp44-triage/webhook_service.md``).
 
 Clusters killed here (mutmut-adjacent behaviour pinned per cluster):
 C1 bted-values (87), C5 fmt-discord (30), C6 fmt-teams (29), C7 fmt-slack (18),

@@ -141,7 +141,7 @@ nothing declares rather than rejecting it.)
 `osnet_loader.get_reid_handle()` (`:182-203`) and `face_recognizer_loader.get_face_leg_handles()`
 (`:466-490`) are **membership reads that never trigger a load** — by design, mirroring each other.
 The handle exists only if the boot preload sweep put it there, and that sweep is gated on
-`settings.backend_model_preload` (`backend/main.py:1214`). Shipped default: **false**
+`settings.backend_model_preload` (`backend/main.py:1215`). Shipped default: **false**
 (`.env.example:231`, `prod.yml:494`). `setup.py:461-464` auto-sets it **only** when detected VRAM
 is >= 24 GB (inclusive).
 

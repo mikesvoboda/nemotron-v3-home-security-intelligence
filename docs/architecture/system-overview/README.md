@@ -48,7 +48,7 @@ flowchart TB
 | Service          | Port                        | Container      | Source                         | Description                                                        |
 | ---------------- | --------------------------- | -------------- | ------------------------------ | ------------------------------------------------------------------ |
 | **Frontend**     | host 8444 HTTPS / 8080 HTTP | `frontend`     | `frontend/`                    | React dashboard with real-time updates                             |
-| **Backend**      | 8000                        | `backend`      | `backend/main.py:1449`         | FastAPI server with WebSocket support                              |
+| **Backend**      | 8000                        | `backend`      | `backend/main.py:1450`         | FastAPI server with WebSocket support                              |
 | **PostgreSQL**   | 5432                        | `postgres`     | `docker-compose.prod.yml:44`   | Primary database for events, detections                            |
 | **Redis**        | 6379                        | `redis`        | `docker-compose.prod.yml:681`  | Queues, pub/sub, batch state                                       |
 | **ai-gateway**   | 8090 (+8002 metrics)        | `ai-gateway`   | `docker-compose.prod.yml:352`  | Triton serving `{yolo26, reid}`; mounts `/yolo26` and `/enrich-lt` |

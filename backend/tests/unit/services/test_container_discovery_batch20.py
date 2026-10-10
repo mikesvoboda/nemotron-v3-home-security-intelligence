@@ -115,11 +115,13 @@ class TestDiscoverySummaryInfoPayload:
                 name="security-postgres-1",
                 id="pg-abcdef123456",
                 image=SimpleNamespace(tags=["pg:17"]),
+                labels={CD.COMPOSE_PROJECT_LABEL: "security"},
             ),
             SimpleNamespace(
                 name="security-redis-1",
                 id="rd-123456789012",
                 image=SimpleNamespace(tags=["redis:7"]),
+                labels={CD.COMPOSE_PROJECT_LABEL: "security"},
             ),
         ]
         client = MagicMock()
@@ -127,11 +129,12 @@ class TestDiscoverySummaryInfoPayload:
         svc = ContainerDiscoveryService(client)
 
         with patch.object(CD.logger, "info", autospec=True) as li:
-            discovered = await svc.discover_all()
+            discovered = await svc.discover_all(project="security")
 
         assert len(discovered) == 2
         summary = [m for m in li.call_args_list if "Discovered" in str(m.args)]
         assert len(summary) == 1
-        # MEASURED shipped grammar: 'Discovered 2 containers' — pin as shipped.
-        assert summary[0].args == ("Discovered 2 containers",)
-        assert dict(summary[0].kwargs["extra"]) == {"count": 2}
+        # MEASURED shipped grammar, re-pinned at B1.6: the summary names the compose
+        # project discovery was scoped to.
+        assert summary[0].args == ("Discovered 2 containers in compose project 'security'",)
+        assert dict(summary[0].kwargs["extra"]) == {"count": 2, "compose_project": "security"}

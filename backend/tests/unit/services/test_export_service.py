@@ -1503,7 +1503,7 @@ class TestExportDeferredColumns:
 
 
 # =============================================================================
-# WP4.4 kill battery (frozen triage feed archive/wp25-feed/wp44-triage/
+# WP4.4 kill battery (frozen triage feed the deleted archive's wp25-feed/wp44-triage/
 # export_service.md, clusters T1-T6 + SQL-COUNT-W/FILENAME-P/WS-RESULT/
 # WS-FAIL/SINGLETON/DJ/CSV-SEEK/EMPTY/EE-COLUMNS/GF-PREFIX). Root cause per
 # the dossier: every DB-backed method ran through an argument-blind AsyncMock

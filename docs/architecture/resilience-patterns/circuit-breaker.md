@@ -92,7 +92,7 @@ class CircuitBreakerConfig:
 
 ### Pre-Registered Circuit Breakers
 
-The application pre-registers circuit breakers at startup for all known external services (`backend/main.py:266-315`):
+The application pre-registers circuit breakers at startup for all known external services (`backend/main.py:267-316`):
 
 | Service      | Type           | Configuration                              |
 | ------------ | -------------- | ------------------------------------------ |

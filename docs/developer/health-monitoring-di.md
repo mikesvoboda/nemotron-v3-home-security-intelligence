@@ -67,16 +67,16 @@ Services are initialized during application startup in the lifespan context mana
 
 2. **Background Workers** (main.py lifespan):
 
-   - `FileWatcher` - Camera image monitoring (`backend/main.py:937`)
-   - `PerformanceCollector` - Performance metrics (`backend/main.py:1035`)
-   - `GPUMonitor` - GPU resource monitoring (`backend/main.py:1042`)
-   - `CleanupService` - Data cleanup (`backend/main.py:1047`)
-   - `ServiceHealthMonitor` - Auto-recovery monitoring (`backend/main.py:1110`)
+   - `FileWatcher` - Camera image monitoring (`backend/main.py:938`)
+   - `PerformanceCollector` - Performance metrics (`backend/main.py:1036`)
+   - `GPUMonitor` - GPU resource monitoring (`backend/main.py:1043`)
+   - `CleanupService` - Data cleanup (`backend/main.py:1048`)
+   - `ServiceHealthMonitor` - Auto-recovery monitoring (`backend/main.py:1111`)
    - `PipelineWorkerManager` - Detection/analysis workers
    - `SystemBroadcaster` - WebSocket status updates
 
 3. **Registration with Registry**:
-   - Each service registers with `HealthServiceRegistry` after creation (`backend/main.py:1184`)
+   - Each service registers with `HealthServiceRegistry` after creation (`backend/main.py:1185`)
    - This makes services available for health checks
 
 ## Using the Registry

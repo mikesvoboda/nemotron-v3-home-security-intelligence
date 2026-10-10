@@ -305,7 +305,7 @@ session.commit()
 | `LOG_DB_ENABLED`        | `bool` | `True`                   | Enable database logging         |
 | `LOG_DB_MIN_LEVEL`      | `str`  | `"DEBUG"`                | Minimum level for database      |
 
-(Defaults from `backend/core/config.py:1924-1947`.)
+(Defaults from `backend/core/config.py:1927-1950`.)
 
 ## Instance Identification
 

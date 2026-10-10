@@ -60,7 +60,7 @@ flowchart TB
 
 ## Lifespan Management
 
-All background services are managed through FastAPI's lifespan context in `backend/main.py:461-929`. The lifespan manager handles:
+All background services are managed through FastAPI's lifespan context in `backend/main.py:462-930`. The lifespan manager handles:
 
 1. **Startup**: Initialize services in dependency order
 2. **Signal Handling**: Install SIGTERM/SIGINT handlers for graceful shutdown
@@ -71,26 +71,26 @@ All background services are managed through FastAPI's lifespan context in `backe
 The following services are started during application lifespan initialization:
 
 ```python
-# backend/main.py:579-584
+# backend/main.py:580-585
 file_watcher = FileWatcher(
     redis_client=redis_client,
     camera_creator=create_camera_callback,
 )
 await file_watcher.start()
 
-# backend/main.py:587-591
+# backend/main.py:588-592
 pipeline_manager = await get_pipeline_manager(redis_client)
 await pipeline_manager.start()
 
-# backend/main.py:671-673
+# backend/main.py:672-674
 gpu_monitor = GPUMonitor(broadcaster=None)
 await gpu_monitor.start()
 
-# backend/main.py:676-678
+# backend/main.py:677-679
 cleanup_service = CleanupService()
 await cleanup_service.start()
 
-# backend/main.py:750-756
+# backend/main.py:751-757
 service_health_monitor = ServiceHealthMonitor(
     manager=service_manager,
     services=service_configs,
@@ -105,7 +105,7 @@ await service_health_monitor.start()
 Services are stopped in reverse dependency order:
 
 ```python
-# backend/main.py:832-878
+# backend/main.py:833-879
 # 1. Stop ServiceHealthMonitor
 # 2. Stop BackgroundEvaluator
 # 3. Stop SummaryJobScheduler
@@ -187,7 +187,7 @@ Background service intervals and timeouts are configured via environment variabl
 Services register with the health registry for `/api/system/health` endpoint:
 
 ```python
-# backend/main.py:795-804
+# backend/main.py:796-805
 health_registry.register_gpu_monitor(gpu_monitor)
 health_registry.register_cleanup_service(cleanup_service)
 health_registry.register_system_broadcaster(system_broadcaster)

@@ -59,8 +59,8 @@ monitoring/
 > supported stack) — prometheus exits fatally at startup on a listed-but-absent
 > rule file. Add a rule file to `rule_files:` only together with its mount in that
 > compose file. There are no `.template` variants any more: `prometheus.yml.template` and
-> `prometheus_rules.yml.template` had zero consumers (nothing ever ran envsubst over them)
-> and now live under `../archive/` pending the owner's delete ruling.
+> `prometheus_rules.yml.template` had zero consumers (nothing ever ran envsubst over them);
+> the owner's delete ruling arrived as UR-19 — O1.5 deleted them with the archive tree.
 
 ### pyroscope-config.yml (NEM-3928)
 

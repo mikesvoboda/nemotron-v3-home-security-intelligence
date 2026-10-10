@@ -66,7 +66,7 @@ def __init__(
 
 ### Startup
 
-The ServiceHealthMonitor is started during application lifespan (`backend/main.py:750-756`):
+The ServiceHealthMonitor is started during application lifespan (`backend/main.py:751-757`):
 
 ```python
 service_health_monitor = ServiceHealthMonitor(

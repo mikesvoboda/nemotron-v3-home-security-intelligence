@@ -82,4 +82,3 @@ tests/
 .trivyignore
 .bandit.yml
 .bandit.baseline
-archive/

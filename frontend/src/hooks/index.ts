@@ -697,6 +697,16 @@ export type {
   UseSystemHealthWebSocketReturn,
 } from './useSystemHealthWebSocket';
 
+// Verdict-engine status WebSocket hook (F1.2, UR-18)
+export {
+  useVerdictEngineStatus,
+  default as useVerdictEngineStatusDefault,
+} from './useVerdictEngineStatus';
+export type {
+  UseVerdictEngineStatusOptions,
+  UseVerdictEngineStatusReturn,
+} from './useVerdictEngineStatus';
+
 // Memory debug stats hook (NEM-3173)
 export {
   useMemoryStatsQuery,

@@ -2150,7 +2150,7 @@ class TestEnhanceDetections:
 class TestContractSeam:
     """A7.3 (WP6-A): model.py's quality-indicator symbols ARE contract.py's.
 
-    The (2026-09-23-retired, archive/ai-yolo26-image/) container image COPYed
+    The (2026-09-23-retired, in the deleted archive tree) container image COPYed
     contract.py flat next to model.py — the Dockerfile line this class used to
     guard from the repo side — so the inline copies model.py carried for 316
     lines - kept only because the image never shipped contract.py - are gone:

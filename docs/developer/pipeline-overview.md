@@ -21,7 +21,7 @@ Camera FTP -> FileWatcher -> detections:stream -> DetectorClient
   + ai-vlm verdict) -> Event + EventVerification -> WebSocket
 ```
 
-With `USE_REDIS_STREAMS=true` (the default, `backend/core/config.py:2239`)
+With `USE_REDIS_STREAMS=true` (the default, `backend/core/config.py:2242`)
 the two hops are Redis streams; with it false they are the list
 queues `detection_queue`/`analysis_queue` with a retry handler. Both feed the
 same DLQ names the `/api/dlq` routes read.

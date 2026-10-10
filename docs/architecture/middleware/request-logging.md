@@ -7,7 +7,7 @@
 - `backend/api/middleware/observability.py:1-369` - `ObservabilityMiddleware` and `format_request_log`
 - `backend/api/middleware/request_id.py:1-90` - Request ID generation
 - `backend/api/middleware/prometheus.py:64` - `http_request_duration_seconds` histogram
-- `backend/core/config.py:2764-2769` - Configuration settings
+- `backend/core/config.py:2767-2772` - Configuration settings
 
 ## Overview
 
@@ -90,10 +90,10 @@ try:
 
 ### Registration and Placement
 
-In `backend/main.py:1382-1385` the middleware is registered with the structured-log switch fed from settings:
+In `backend/main.py:1383-1386` the middleware is registered with the structured-log switch fed from settings:
 
 ```python
-# From backend/main.py:1380-1385 (NEM-5558)
+# From backend/main.py:1381-1386 (NEM-5558)
 app.add_middleware(
     ObservabilityMiddleware,
     enable_request_logging=get_settings().request_logging_enabled,
@@ -229,10 +229,10 @@ This is the full shape `format_request_log` produces. The middleware's own compl
 | `REQUEST_LOGGING_ENABLED`   | `bool` | `true`  | Feed structured logs through ObservabilityMiddleware |
 | `SLOW_REQUEST_THRESHOLD_MS` | `int`  | `500`   | Threshold for slow request warnings                  |
 
-Configuration is loaded from `backend/core/config.py:2764-2769`:
+Configuration is loaded from `backend/core/config.py:2767-2772`:
 
 ```python
-# From backend/core/config.py:2764-2769
+# From backend/core/config.py:2767-2772
 request_logging_enabled: bool = Field(
     default=True,
     description="Enable structured request/response logging middleware. "
@@ -343,7 +343,7 @@ uv run pytest backend/tests/unit/api/middleware/ --cov=backend.api.middleware
 ### Enabling Request Logging
 
 In the shipped app this is enabled through the unified middleware
-(`backend/main.py:1382-1385` registers `ObservabilityMiddleware(enable_request_logging=...)`,
+(`backend/main.py:1383-1386` registers `ObservabilityMiddleware(enable_request_logging=...)`,
 gated by `request_logging_enabled`). Mounting the middleware directly, e.g. in
 a custom ASGI app, looks like:
 

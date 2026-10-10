@@ -149,6 +149,7 @@ config/gpu-assignments.yml
 .ripgreprc
 .claude/*
 !.claude/skills/
+!.claude/agents/
 site/
 # staged salvage is branch-local working material only — de-tracked 2026-09-15
 # (build dirs alone cost ~1GB; see ledger). Evidence copy lives outside the repo.

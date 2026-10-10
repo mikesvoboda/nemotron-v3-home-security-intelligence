@@ -291,7 +291,7 @@ The `pyroscope_data` volume holds the profile blocks
 ### Correlating with Traces
 
 `ProfilingMiddleware` (`backend/api/middleware/profiling.py`, added at
-`backend/main.py:1513`) wraps every HTTP request in
+`backend/main.py:1510`) wraps every HTTP request in
 `profile_with_trace_context()`, which tags Pyroscope data with the current
 OpenTelemetry `trace_id` (32-char hex) and `span_id` (16-char hex) — NEM-4127.
 
