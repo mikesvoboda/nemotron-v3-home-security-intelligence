@@ -444,6 +444,9 @@ lives in `scripts/feature_check.py`, which uses only the standard library.
 ```bash
 # The CI stack with the fake AI (docker-compose.fake-ai.yml), images at a published tag
 scripts/feature-check.sh --fake --image-tag <sha7>
+
+# The real VLM through agent-gpu: the operator sandbox only (see --real below)
+scripts/feature-check.sh --real --image-tag <sha7>
 ```
 
 `--fake` runs these steps in order:
@@ -484,7 +487,8 @@ a live stack.
     container's network or processes;
   - a network is not the run's own bridge (external, foreign-named, or
     another driver), or a named volume carries `driver_opts`;
-  - a service is configured with a host address;
+  - a service is configured with a host address (on `--real`, on any port
+    but the one `agent-gpu run` printed);
   - a service carries a fixed `container_name`;
   - the backend's orchestrator is not off;
   - the project, a container name, a host port or a volume overlaps what the
@@ -501,13 +505,13 @@ a live stack.
 
 Exit codes:
 
-| exit | meaning                                                                                     |
-| ---- | ------------------------------------------------------------------------------------------- |
-| 0    | green                                                                                       |
-| 1    | a check of the run failed, or teardown left the run's own containers or volumes             |
-| 2    | the preflight refused; nothing started                                                      |
-| 3    | the postflight found a pre-existing container or volume changed: report it, restore nothing |
-| 4    | the mode cannot run here (`--real` before it is built)                                      |
+| exit | meaning                                                                                         |
+| ---- | ----------------------------------------------------------------------------------------------- |
+| 0    | green                                                                                           |
+| 1    | a check of the run failed, or teardown left the run's own containers, volumes or (`--real`) VLM |
+| 2    | the preflight refused; the test deployment never started                                        |
+| 3    | the postflight found a pre-existing container or volume changed: report it, restore nothing     |
+| 4    | the mode cannot run here (`--real` without `agent-gpu`)                                         |
 
 Artifacts land in `<run>/artifacts`:
 
@@ -516,7 +520,8 @@ Artifacts land in `<run>/artifacts`:
 - the compose logs and `ps` output;
 - the smoke check's events;
 - the golden-path reports;
-- `summary.json`.
+- on `--real`, each `agent-gpu` output;
+- `summary.json`, which the run also prints whole.
 
 Run directories go under `$FEATURE_CHECK_ROOT` (default
 `/tmp/hsi-feature-check`). `--engine podman` (or `FEATURE_CHECK_ENGINE`) uses
@@ -557,9 +562,52 @@ To drop a fixture image into a camera folder, run
 - The scenario image chooses the detections and the verdict
   (`backend/ai_contract/fake/AGENTS.md`).
 
-**`--real`** runs the same test deployment with real models served through
-`agent-gpu`, run by the operator (`docs/uplevel/operator.md`). It is not built
-yet; its open questions are on PR #6961.
+**`--real`** (owner ruling 66) runs the same test deployment with the real VLM
+in place of the fake one, and keeps the fake detector. It serves the VLM only
+through `agent-gpu`, so it runs in the `uplevel-operator` sandbox
+(`docs/uplevel/operator.md`, "The agent-gpu path"). Elsewhere it exits 4, and
+it never runs from GitHub. Run it from the checkout at the sandbox's workspace
+root, since `agent-gpu build` reads `workspace:ai/vlm`. The images at
+`--image-tag` are the ones `deploy.yml` publishes for a `main` commit, or ones
+built locally under the same names.
+
+Before the test deployment starts, `--real`:
+
+1. Checks `$AGENT_GPU_LIBRARY/qwen3vl-8b-instruct-q4km/*.gguf` against the
+   production pin's sha256. Unless the files are exactly the pin, it refuses
+   the run (exit 2).
+2. Records `agent-gpu status`.
+3. Builds the VLM image as `ai-vlm:<tree hash of ai/vlm>`, once per state of
+   `ai/vlm/`, after pulling each `FROM` image of its Dockerfile. Uncommitted
+   changes under `ai/vlm/` refuse the run, since the tag would not name them.
+4. Serves the pin with `agent-gpu run --vram 14 --port 8098`, named
+   `<project>-vlm`, with each other `ai-vlm` variable of
+   `docker-compose.prod.yml` at its default.
+5. Reads the VLM's URL from the line `run` prints
+   (`port 8098 -> http://host.docker.internal:<port>`). Any other address, or
+   a port outside the runner's pool (18100-18199), refuses the run.
+6. Waits for `/health`, records `/props`' `build_info` and `model_path`, and
+   stops unless `model_path` is the pin.
+
+The run then goes as on `--fake`, with these differences:
+
+- The backend's `AI_VLM_URL` is that URL. The preflight allows a host address
+  on that one port and no other.
+- After `up`, the run checks that the backend reaches the VLM.
+- The smoke check cannot know the real VLM's verdict. It asserts one event
+  whose verification names the served model (`model_id`
+  `Qwen3VL-8B-Instruct-Q4_K_M`), with a verdict the model gave: `confirmed`,
+  `rejected` or `uncertain`, not `verification_failed`.
+
+After the postflight it stops and removes the VLM, also after a failure. It
+fails unless `agent-gpu ps` then lists none of the run's containers. The
+summary carries what the operator posts:
+
+- the date and the commit;
+- the image tags, with `build_info` and `model_path`;
+- the weights' sha256;
+- the VRAM declared, with `agent-gpu ps` while serving and at the end;
+- each check's result and the exit code.
 
 ## Pytest Configuration
 

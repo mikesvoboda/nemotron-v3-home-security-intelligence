@@ -786,6 +786,7 @@ under a compose project of its own, which touches nothing else on the machine.
 
 ```bash
 ./scripts/feature-check.sh --fake --image-tag <sha7>
+./scripts/feature-check.sh --real --image-tag <sha7>   # operator sandbox: agent-gpu
 ./scripts/feature-check.sh drop <image> <camera>   # inside a golden spec
 ```
 
@@ -795,7 +796,10 @@ The logic is `feature_check.py`, standard library only:
   reach an engine socket or the host, or overlap anything on the machine;
 - the in-run check and the postflight prove the isolation held;
 - the harness smoke check drops one scenario image and expects one event with
-  the scenario's verdict.
+  the scenario's verdict;
+- `--real` (owner ruling 66) serves the real VLM through `agent-gpu` in place
+  of the fake one (`AgentGpu`): the weights' pin first, the runner's port as
+  the only host address the run may reach, and the VLM removed after the run.
 
 The tests are in `backend/tests/unit/scripts/test_feature_check.py`. The
 `Feature Check` workflow runs `--fake` on every PR that changes more than
