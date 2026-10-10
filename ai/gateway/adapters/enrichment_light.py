@@ -16,8 +16,12 @@ current format; the two routes here keep that wire shape byte-for-byte.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
+import re
 import time
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -63,6 +67,10 @@ class ReIDResponse(BaseModel):
     embedding: list[float] = Field(...)
     embedding_dimension: int = Field(...)
     inference_time_ms: float = Field(...)
+    # B2.2: which weights computed the vector, from the export's provenance
+    # record. None when the record is missing or unusable: the backend then
+    # stamps its sentinel, which the matcher refuses, instead of guessing.
+    model_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +177,30 @@ async def threat_detect(request: BBoxRequest) -> ThreatResponse:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
+_SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
+
+
+def reid_model_id() -> str | None:
+    """The ``reid`` model's ID, read from the provenance record the export wrote.
+
+    Same grammar as the backend's ``osnet_model_id()``
+    (``<zoo name>@<weights file stem>@<sha256[:12]>``), so the same weights give
+    the same ID on both paths. Read per call: the file is tiny, and a re-export
+    behind a running gateway is then reported as what it is.
+    """
+    repo = Path(os.getenv("TRITON_MODEL_REPOSITORY", "/models/repository"))
+    try:
+        record = json.loads((repo / "reid" / "1" / "provenance.json").read_text())
+        zoo = str(record["zoo_name"])
+        stem = Path(str(record["source_file"])).stem
+        sha = str(record["source_sha256"]).lower()
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if not zoo or not stem or not _SHA256_HEX.match(sha):
+        return None
+    return f"{zoo}@{stem}@{sha[:12]}"
+
+
 @router.post("/person-reid", response_model=ReIDResponse)
 async def person_reid(request: BBoxRequest) -> ReIDResponse:
     """Generate person re-identification embedding.
@@ -214,6 +246,7 @@ async def person_reid(request: BBoxRequest) -> ReIDResponse:
             embedding=embedding,
             embedding_dimension=len(embedding),
             inference_time_ms=round(inference_time_ms, 2),
+            model_id=reid_model_id(),
         )
     except TritonClientError as e:
         raise HTTPException(status_code=503, detail=f"Person ReID failed: {e}") from e

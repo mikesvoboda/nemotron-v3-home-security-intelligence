@@ -516,3 +516,57 @@ class TestHealthEndpoint:
         assert data["status"] == "degraded"
         assert set(data["models"]) == _light_probe_set()
         assert all(v is False for v in data["models"].values())
+
+
+class TestPersonReIDModelId:
+    """B2.2 (owner ruling 68): the gateway reports the model ID recorded at
+    export, and reports none rather than a guess when the record is missing."""
+
+    @staticmethod
+    def _repo(tmp_path, record) -> None:
+        import json
+
+        version = tmp_path / "reid" / "1"
+        version.mkdir(parents=True)
+        if record is not None:
+            (version / "provenance.json").write_text(
+                record if isinstance(record, str) else json.dumps(record)
+            )
+
+    async def test_reports_the_exported_checkpoints_id(
+        self, client, mock_triton, tmp_path, monkeypatch
+    ) -> None:
+        sha = "ab" * 32
+        self._repo(
+            tmp_path,
+            {"zoo_name": "osnet-ain-x1-0", "source_file": "osnet_ain_x1_0_msmt17.pth",
+             "source_sha256": sha},
+        )
+        monkeypatch.setenv("TRITON_MODEL_REPOSITORY", str(tmp_path))
+        mock_triton.infer.return_value = {"embedding": np.ones((1, 512), np.float32)}
+
+        response = await client.post("/person-reid", json={"image": _make_b64_image()})
+
+        assert response.json()["model_id"] == f"osnet-ain-x1-0@osnet_ain_x1_0_msmt17@{sha[:12]}"
+
+    @pytest.mark.parametrize(
+        "record",
+        [
+            None,
+            "{not json",
+            {"zoo_name": "osnet-ain-x1-0", "source_file": "x.pth", "source_sha256": "short"},
+            {"zoo_name": "osnet-ain-x1-0", "source_file": "x.pth"},
+        ],
+        ids=["absent", "unparseable", "bad-sha", "no-sha"],
+    )
+    async def test_no_usable_record_reports_no_id(
+        self, client, mock_triton, tmp_path, monkeypatch, record
+    ) -> None:
+        self._repo(tmp_path, record)
+        monkeypatch.setenv("TRITON_MODEL_REPOSITORY", str(tmp_path))
+        mock_triton.infer.return_value = {"embedding": np.ones((1, 512), np.float32)}
+
+        response = await client.post("/person-reid", json={"image": _make_b64_image()})
+
+        assert response.status_code == 200
+        assert response.json()["model_id"] is None

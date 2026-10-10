@@ -138,3 +138,33 @@ class TestParityGate:
 
         cosine = float(np.dot(local.embedding, remote.embedding))
         assert cosine >= PARITY_GATE, f"parity {cosine:.6f} below the gate {PARITY_GATE}"
+
+
+class TestModelIdSpace:
+    """The gateway's ID for the pinned weights is the backend's ID for them, so
+    vectors from either path land in one space (and anything else in none)."""
+
+    def test_gateway_id_for_the_pinned_checkpoint_equals_osnet_model_id(
+        self, tmp_path: Any, monkeypatch: Any
+    ) -> None:
+        import json
+
+        from ai.gateway.adapters.enrichment_light import reid_model_id
+
+        from backend.services.osnet_loader import _osnet_zoo_row, osnet_model_id
+
+        row = _osnet_zoo_row()
+        version = tmp_path / "reid" / "1"
+        version.mkdir(parents=True)
+        (version / "provenance.json").write_text(
+            json.dumps(
+                {
+                    "zoo_name": row["name"],
+                    "source_file": row["runtime_file"],
+                    "source_sha256": row["sha256"],
+                }
+            )
+        )
+        monkeypatch.setenv("TRITON_MODEL_REPOSITORY", str(tmp_path))
+
+        assert reid_model_id() == osnet_model_id()

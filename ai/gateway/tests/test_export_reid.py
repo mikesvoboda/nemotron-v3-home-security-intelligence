@@ -241,3 +241,27 @@ class TestStrictLoading:
 
         x = _person_batch(seed=4)
         _assert_parity(_embed(model, x), _embed(reference, x))
+
+
+class TestProvenance:
+    """B2.2 (owner ruling 68): the model ID on a gateway embedding comes from
+    the source checkpoint's sha256, recorded at export."""
+
+    def test_records_the_checkpoints_sha256_next_to_the_onnx(self, tmp_path: Path) -> None:
+        import hashlib
+        import json
+
+        checkpoint = tmp_path / "osnet_ain_x1_0_msmt17.pth"
+        checkpoint.write_bytes(b"not really weights, but bytes with a digest")
+        onnx_path = tmp_path / "reid" / "1" / "model.onnx"
+        onnx_path.parent.mkdir(parents=True)
+
+        written = export_reid.write_provenance(str(checkpoint), str(onnx_path))
+
+        assert written == onnx_path.parent / export_reid.PROVENANCE_FILE
+        record = json.loads(written.read_text())
+        assert record == {
+            "zoo_name": "osnet-ain-x1-0",
+            "source_file": "osnet_ain_x1_0_msmt17.pth",
+            "source_sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+        }
