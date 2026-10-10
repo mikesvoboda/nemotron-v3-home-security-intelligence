@@ -272,7 +272,11 @@ def test_the_script_has_no_previous_run_machinery() -> None:
         "iterdir/listdir/scandir/walk is how a second corpus gets read (a "
         f"wildcard glob was the only permitted scan): {enumerated}"
     )
-    for forbidden in ("baseline_dir", "previous_run", "fetch-ci-artifacts"):
+    # BASELINE_DIR (upper-case) is the AUDIT's env name for its previous-run
+    # directory, read at audit-test-durations.py:371. The lower-case token above
+    # would not catch a gate that grew an os.environ.get("BASELINE_DIR") arm —
+    # the downgrade channel re-entering through the env instead of a flag.
+    for forbidden in ("baseline_dir", "previous_run", "fetch-ci-artifacts", "BASELINE_DIR"):
         assert forbidden not in src, f"{forbidden} is the previous-run machinery the ruling removes"
 
 
@@ -564,6 +568,95 @@ def test_the_fixed_redis_test_at_232ms_is_green(tmp_path: Path) -> None:
     assert run.returncode == 0, (
         f"the fixed redis test is 0.23 s\nstdout: {run.stdout}\nstderr: {run.stderr}"
     )
+
+
+def test_skips_are_not_evidence_of_a_fast_test(tmp_path: Path) -> None:
+    """``time="0"`` / no-``time`` is a SKIP, not a measured-fast pass.
+
+    Both corpus shapes are real: pytest omits the ``time`` attribute on skipped
+    testcases entirely (the script's ``case.get("time", "0")`` default is that
+    arm) and Playwright's reporter emits ``time="0"`` for skipped specs — both
+    verified in the three green main corpora. Dropping duration<=0 (the
+    audit's convention) is load-bearing in two places, and both arms below die
+    if the drop is removed:
+
+    (a) an ALL-skipped corpus — a tier whose tests all skipped is "0 test(s)
+        with a recorded duration", the corrupt-upload shape, RED. Record skips
+        at 0.0 instead and the same corpus becomes a healthy PASS.
+    (b) an exempt id whose only sample this run is a skip, in a corpus that
+        DOES hold a duration for some other test (so the zero-durations guard
+        above is satisfied and the run reaches update mode). ``--update`` must
+        REFUSE — absent from ``worst`` is an unevidenced shrink, the F3 guard —
+        not read the skip as 0.0 s and drop the exemption. A skip laundering an
+        exemption away is exactly the silent-wipe channel F3 closed, arriving
+        through the reporter instead of the corpus dir.
+    """
+    skipped = (
+        '  <testcase classname="backend.tests.unit.skips.test_a" name="test_one"><skipped/></testcase>'
+        '  <testcase classname="backend.tests.unit.skips.test_b" name="test_two" time="0.0"/>'
+    )
+    all_skips = _results(
+        tmp_path,
+        (
+            "unit.xml",
+            f'<?xml version="1.0" encoding="utf-8"?><testsuite name="s">\n{skipped}\n</testsuite>\n',
+        ),
+    )
+    run = _run(all_skips)
+    assert run.returncode != 0, (
+        "an all-skipped corpus recorded 0 durations — fail-closed, not a "
+        f"vacuous pass on skipped tests\n{_out(run)}"
+    )
+    assert "0 test(s) with a recorded duration" in _out(run), (
+        f"the message must name the zero-duration shape\n{_out(run)}"
+    )
+
+    exempt_id = "backend.tests.unit.skips.test_a::test_one"
+    body = '  <testcase classname="backend.tests.unit.skips.test_c" name="test_three" time="0.1"/>'
+    mixed = _results(
+        tmp_path,
+        (
+            "mixed.xml",
+            f'<?xml version="1.0" encoding="utf-8"?><testsuite name="s">\n{skipped}\n{body}\n</testsuite>\n',
+        ),
+    )
+    baseline = _baseline(tmp_path, [exempt_id])
+    before = baseline.read_text(encoding="utf-8")
+    run = _run(mixed, {"SLEEP_GATE_BASELINE": str(baseline), "SLEEP_GATE_UPDATE": "1"})
+    assert run.returncode != 0, (
+        "the exempt id appears ONLY as a skip here — it has no duration, so the "
+        f"update must refuse rather than launder the exemption away\n{_out(run)}"
+    )
+    assert "REFUSING TO UPDATE" in _out(run), f"the refusal must be stated\n{_out(run)}"
+    assert exempt_id in _out(run), f"the refusal must name {exempt_id}\n{_out(run)}"
+    assert baseline.read_text(encoding="utf-8") == before, "a refusal writes nothing"
+
+
+def test_baseline_matching_is_exact_id_not_substring(tmp_path: Path) -> None:
+    """A baseline entry exempts its EXACT id and nothing that merely contains it.
+
+    The match direction is what the shipped code does incidentally (a set of
+    ``classname::name`` strings) but no earlier pin demanded: matching by
+    SUBSTRING or PREFIX would pass every existing exemption test while quietly
+    exempting a neighbour that shares the id's text — the class-name prefix
+    case is a whole second test file disappearing from the gate.
+    """
+    listed = "backend.tests.unit.exact.test_a::test_fast"
+    lookalikes = [
+        "backend.tests.unit.exact.test_a::test_fast_variant",  # name extension
+        "backend.tests.unit.exact.test_a::x_test_fast",  # substring, not prefix
+        "backend.tests.unit.exact_sub.test_a::test_fast",  # near-miss classname
+    ]
+    cases = [(cn, nm, 2.0) for cn, nm in (i.split("::") for i in lookalikes)]
+    results = _results(tmp_path, ("unit.xml", _xml(cases)))
+    baseline = _baseline(tmp_path, [listed])
+    run = _run(results, {"SLEEP_GATE_BASELINE": str(baseline)})
+    assert run.returncode != 0, (
+        "a baseline entry must not exempt tests that merely contain it — the "
+        f"three lookalikes are over budget and unlisted\n{_out(run)}"
+    )
+    for id_ in lookalikes:
+        assert id_ in _out(run), f"the breach report must name {id_}"
 
 
 # --------------------------------------------------------------------------

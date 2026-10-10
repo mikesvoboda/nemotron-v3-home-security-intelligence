@@ -75,10 +75,19 @@ def test_the_gate_reads_the_corpus_the_audit_downloads() -> None:
 
     If the gate pointed at a dir of its own it would be a second, narrower
     measurement, and the "durations CI already records" clause would be false.
+
+    Equality on the argv token, not substring containment: the corpus dir is a
+    PREFIX of the narrowed shapes this pin must kill — pointing the step at
+    ``test-results/unit-only/`` (one shard instead of the merged corpus) keeps
+    the substring "test-results" present while measuring a third of what CI
+    recorded, which is exactly the "narrower measurement" the docstring bans.
     """
     corpus = _corpus_dir()
-    assert corpus.rstrip("/") in _step(STEP_NAME)["run"], (
-        f"the gate must read the downloaded corpus ({corpus}), got {_step(STEP_NAME)['run']}"
+    tokens = _step(STEP_NAME)["run"].split()
+    argv = tokens[tokens.index(SCRIPT) + 1 :]
+    assert argv and argv[0].rstrip("/") == corpus.rstrip("/"), (
+        "the gate's corpus argument must be EXACTLY the downloaded corpus dir "
+        f"({corpus}), got {_step(STEP_NAME)['run']}"
     )
 
 
