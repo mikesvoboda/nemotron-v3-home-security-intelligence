@@ -1,0 +1,97 @@
+name: Feature Check
+
+# O2.2: scripts/feature-check.sh --fake on this commit's images. It brings up
+# the CI stack with the fake AI (docker-compose.fake-ai.yml) as a test
+# deployment, runs the harness smoke check and the golden paths
+# (backend/tests/golden/, the `golden` Playwright project), and proves with a
+# preflight and a postflight that it touched nothing else on the runner.
+# docs/developer/testing.md, "Feature check". The real tier (--real) never
+# runs from GitHub (UR-15).
+#
+# Trigger (O2.2 DECIDE, from its MEASURE): the first run on a PR, 38062007618
+# at bed9693be, took 5m33s of job time: 1m56s freeing disk, 1m25s building
+# backend from the warm GHA cache, 3s frontend, 1m35s the harness. That is
+# under the CI workflow it runs beside, so every pull request runs it; a
+# change that touches only Markdown cannot break a golden path, so it is
+# filtered out. main runs it after every merge.
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: feature-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fake:
+    name: Feature check (fake AI)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Free disk space (minimal)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+
+      # A builder of its own for the two image builds (it reads the GHA cache
+      # that ci.yml's build jobs write); `use: false` leaves the default
+      # builder in place, which sees the loaded images, so compose can build
+      # the fake AI image FROM this commit's backend.
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          use: false
+
+      - name: Image tag
+        run: echo "TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      # The names docker-compose.ci.yml pulls; built here, never pushed.
+      - name: Build backend image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: ./backend/Dockerfile
+          target: prod
+          tags: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:${{ env.TAG }}
+          cache-from: type=gha,scope=backend
+          load: true
+
+      - name: Build frontend image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          target: prod
+          tags: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:${{ env.TAG }}
+          cache-from: type=gha,scope=frontend
+          load: true
+
+      - name: Feature check (--fake)
+        env:
+          FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
+        run: scripts/feature-check.sh --fake --image-tag "$TAG"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: feature-check
+          # Only each run's artifacts/: the run directory also holds the
+          # throwaway admin's password (admin.json) and the camera folders.
+          path: ${{ runner.temp }}/feature-check/*/artifacts
+          retention-days: 14
+          if-no-files-found: warn
