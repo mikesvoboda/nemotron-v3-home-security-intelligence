@@ -137,13 +137,13 @@ def _key_entry_for_digest(digest: str) -> object | None:
     ``hmac.compare_digest`` per comparison, as everywhere a key is compared
     (OWASP A07:2021) — and EXACTLY one pass over every entry per call, with no
     early return, whatever the answer. The first R60 draft stopped at the first
-    unscoped match; measured at review (#6959, reviewer-reproduced), that hit
-    cost ~1.9 µs against ~17.6 µs for a miss (disjoint p5/p95), and because
-    the GATE calls this cold — no membership sweep ahead of it, unlike
-    :func:`require_api_key` and :func:`validate_websocket_api_key`, which sweep
-    first — the gap was a valid-key oracle handed to exactly the callers the
-    gate was about to refuse, the inverse of this module's OWASP posture and
-    new with R60 (base's gate key legs were all full-sweep). A sweep-before-
+    unscoped match: measured at review (#6959, reviewer-reproduced) at a stress
+    setting of N=32 entries, that hit cost ~1.9 µs against ~17.6 µs for a miss,
+    disjoint p5/p95. It reads as a valid-key oracle because the GATE calls this
+    cold — no membership sweep ahead of it, unlike :func:`require_api_key` and
+    :func:`validate_websocket_api_key`, which sweep first — aimed at exactly the
+    callers the gate was about to refuse: the inverse of this module's OWASP
+    posture, and new with R60 (base's gate key legs were all full-sweep). A sweep-before-
     lookup would NOT fix it: the sweep itself short-circuits on match (its
     ``any()``), so a valid key would still cost ~N/2+k compares against an
     invalid key's N. The compare count now depends on nothing but the list
