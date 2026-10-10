@@ -15,7 +15,7 @@ name: ZAP Security Scan
 
 on:
   schedule:
-    - cron: '31 5 * * *' # Daily 05:31 UTC — off the :00 herd, 8 min after visual-tests so the two scans don't share a runner peak
+    - cron: '31 5 * * *' # Daily 05:31 UTC — off the :00 herd; visual-tests opens 05:23 and runs ~18 min, so the two scans stagger their setup bursts (they may still overlap mid-run; both are non-gating)
   # Manual trigger for on-demand security scanning
   workflow_dispatch:
 
