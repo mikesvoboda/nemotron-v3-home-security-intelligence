@@ -275,10 +275,11 @@ Added by ruling 62 (issue #6854). Facts read at `main` `523584583`.
 
 **What the user sees.** `/operations` always shows a **Developer Tools** section: profiling, request
 recording and replay, a configuration inspector, log-level control and test-data seeding
-(`frontend/src/components/system/SystemMonitoringPage.tsx:695`, no condition around it). The same
-tools on `/settings/admin` appear only in debug mode (`frontend/src/components/settings/AdminSettings.tsx:787`,
-`:805`). Behind both, every `/api/debug/*` route answers whether or not the backend runs in debug
-mode.
+(`frontend/src/components/system/SystemMonitoringPage.tsx:695`, no condition around it). On
+`/settings/admin`, Raw Settings and the seed/clear tools appear only in debug mode
+(`frontend/src/components/settings/AdminSettings.tsx:787`, `:805`), but Logging Settings, which reads
+and sets the log level through `/api/debug`, always shows (`:775`). Behind all of them, every
+`/api/debug/*` route answers whether or not the backend runs in debug mode.
 
 **Evidence.**
 
@@ -294,22 +295,32 @@ mode.
 - Who can reach them: with `EXPOSE_LAN` unset the app listens on loopback and the auth gate passes
   every request (`backend/api/middleware/auth.py:381`); with `EXPOSE_LAN=true`, any logged-in
   session or API key reaches them — there is no admin check.
+- Not every caller is a developer tool. Logging Settings on `/settings/admin` (F-195) reads
+  `GET /api/debug/config` and reads and sets `/api/debug/log-level`, with no debug condition; the
+  `/operations` Databases section reads `GET /api/debug/redis/info` for Redis INFO (F-145). A
+  working guard turns both off on a default deployment.
+- The guard covers `/api/debug/*` only. The seed and clear routes of OD-37 sit under `/api/admin`,
+  gated by `ADMIN_ENABLED` alone, which "does NOT consult DEBUG" (`backend/core/config.py:826`).
 
-**To complete — S** (backend and frontend). The guard raises 404 unless `settings.debug`; the
+**To complete — M** (backend and frontend). The guard raises 404 unless `settings.debug`; the
 `/operations` Developer Tools section renders only when the backend reports debug available, as
-`/settings/admin` already does. A test pins a debug route at 404 with debug off. §1's profiling row
-(F-151–F-153, F-157) keeps its own S client fixes.
+`/settings/admin` already does. Logging Settings' config and log-level calls move to a route outside
+the debug router (or are exempted from the guard), so F-195 keeps working with debug off. A test pins
+a debug route at 404 with debug off. §1's profiling row (F-151–F-153, F-157) keeps its own S client
+fixes.
 
 **To retire — M.** The 22 routes in `backend/api/routes/debug.py`, the five `/operations` panels
 and the `/settings/admin` developer tools, with their hooks and tests; profiling, replay and the
-config inspector go with them. §1's profiling row retires with this.
+config inspector go with them. §1's profiling row retires with this. Logging Settings (F-195) loses
+its backend unless its calls move first, and F-145 loses its Redis INFO block.
 
-**Rows it settles.** F-133, F-151–F-162, F-197; §1's profiling row (F-151–F-153, F-157) follows
-this ruling.
+**Rows it settles.** F-133, F-145, F-151–F-159, F-195; §1's profiling row (F-151–F-153, F-157)
+follows this ruling. The test-data rows (F-160–F-162, F-197) are ruled in OD-37, which wins for
+them.
 
 **Recommendation.** **Complete.** The tools are useful in development and the fix is the guard
-the code already describes; turning it on closes the routes on every default deployment. Retire
-only if no one uses them.
+the code already describes; turning it on closes the `/api/debug` routes on every default
+deployment, once Logging Settings has its own route. Retire only if no one uses them.
 
 **Ruling:**
 
@@ -333,23 +344,31 @@ Added by ruling 62. Facts read at `main` `523584583`.
 `delete(Camera)` on every row (`backend/api/routes/admin.py:714`, `:716`). Nothing marks a seeded
 row: the seeded cameras use ordinary ids (`front-door`, `garage`, `backend/api/routes/admin.py:172`)
 and the models carry no seed flag. Seeding cameras with "clear existing" also deletes every camera
-first (`backend/api/routes/admin.py:331`).
+first (`backend/api/routes/admin.py:331`). Deleting a camera cascades: 16 model files hold a
+`cameras.id` foreign key with `CASCADE` (`rg -l 'ForeignKey\("cameras\.id".*CASCADE' backend/models`,
+less `AGENTS.md`) — zones, baselines, calibration, notification preferences, tracks, plate reads,
+face identities, heatmaps, dwell time, scene changes, package events and others — so the reset also
+deletes every camera's configuration and analytics history.
 
 **Options.**
 
-- **Rename — S** (frontend): every label says what happens ("Delete all cameras, events and
-  detections"); "Delete All Events" either deletes only events or goes.
+- **Rename — S** (frontend): every label says what happens ("Delete all cameras with their
+  settings, events and detections"); "Delete All Events" either deletes only events or goes.
 - **Restrict to seeded rows — M** (backend schema and frontend): add a seed marker to cameras and
   events, write it when seeding, delete only marked rows; existing seeded rows stay unmarked.
-- **Retire the seed tools — S**: the seed and clear routes, the Test Data panel and the admin
-  section; `scripts/seed-events.py` stays for development.
+- **Retire the seed tools — S**: the clear route, the Test Data panel and the admin section. The
+  seed routes stay: `scripts/seed-events.py:3337` posts to `/api/admin/seed/pipeline-latency`, and
+  the k6 load tests seed through `/api/admin/seed/cameras` and `/events`
+  (`tests/load/mutations.js:197`, `:230`), run by `.github/workflows/load-tests.yml`.
 
 **Rows it settles.** F-160, F-161, F-162, F-197.
 
-**Recommendation.** **Rename, and keep the tools behind OD-36's debug gate.** A full reset is a
-legitimate development tool; what is wrong is a label that calls it test data, a button that says
-"events" and deletes cameras, and its presence on a default deployment. If OD-36 retires debug
-tooling, retire these with it.
+**Recommendation.** **Rename, and require debug mode for the seed and clear routes — S each**
+(frontend labels; backend: the `/api/admin/seed/*` routes check `settings.debug` as well as
+`ADMIN_ENABLED`, since OD-36's guard does not reach them, and the load-test workflow sets
+`DEBUG=true`). A full reset is a legitimate development tool; what is wrong is a label that calls it
+test data, a button that says "events" and deletes cameras, and its presence on a default
+deployment. If OD-36 retires debug tooling, retire the UI with it.
 
 **Ruling:**
 
@@ -360,8 +379,9 @@ Added by ruling 62. Facts read at `main` `523584583`.
 **What the user sees.** Two "clean up orphaned files" controls, on two pages, with different
 safety rails:
 
-- `/settings/storage`: a preview, then **Clean orphaned files** (`frontend/src/components/system/FileOperationsPanel.tsx:306`)
-  — F-184, F-186. Also on `/operations` (F-163).
+- `/settings/storage`: a preview headed "N Orphaned Files Found", then **Clean Up**, with no
+  confirm step (`frontend/src/components/system/FileOperationsPanel.tsx:289`, `:308`) — F-184,
+  F-186. Also on `/operations` (F-163).
 - `/settings/admin` → Maintenance: an orphan cleanup panel with a minimum-age slider (1–720 h,
   default 24), a size cap and a preview (`frontend/src/components/settings/AdminSettings.tsx:712`)
   — F-194.
@@ -381,6 +401,11 @@ safety rails:
   (`backend/services/detector_client.py:1184`, `:1194`, `:1281`) — so this job deletes every
   capture with no detection once it is a day old. That is a retention policy for raw captures,
   presented as orphan cleanup.
+- Two more cleaners exist and never run: `OrphanCleanupScheduler`
+  (`backend/jobs/orphan_cleanup_job.py:328`, recorded dead in
+  `docs/reference/backend-entry-points.md:1430`) and `OrphanedFileCleanupService`
+  (`backend/services/orphan_cleanup_service.py:88`; its factory `get_orphan_cleanup_service` has no production caller). Every option below
+  removes them.
 
 **Options.** Keep the storage cleaner (derived files only) and retire the admin job — **S**; keep
 the admin job and retire the storage cleaner — **S**, but raw-capture deletion then becomes the only
@@ -696,4 +721,4 @@ Ruling: approve the list for deletion as a whole, naming any exceptions and why.
 
 The frontend lane's record PR copies each ruling and priority into the inventory, writes the OD
 rulings into `docs/vss-integration/17-action-plan.md`, and sets `R2` to `done`. `OD-36`, `OD-37` and `OD-38` (ruling 62) are new numbers with no register rows yet: the record PR
-adds them, as it does `OD-33`…`OD-35`.
+adds them, as it does `OD-33`…`OD-35`. The next free number is `OD-39`.
