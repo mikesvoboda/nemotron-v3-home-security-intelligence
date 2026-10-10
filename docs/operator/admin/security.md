@@ -19,8 +19,9 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   `MONITORING_API_KEY` into `.env` (mirrored into `API_KEYS` as an entry scoped to
   `monitoring` — R60 — so it cannot read operator-only paths), and Prometheus,
   Alertmanager and Grafana's backend API each present it, so scraping and alert
-  delivery keep working with the gate on. An install set up between `O1.11` and R60
-  still lists that key as a plain `API_KEYS` entry, which the gate reads as unscoped. Re-running
+  delivery keep working with the gate on. Any install whose `setup.py` last ran
+  between `O1.11` and R60 still lists that key as a plain `API_KEYS` entry, which the gate reads
+  as unscoped. Re-running
   `python setup.py` interactively converts it — the key value is kept and only its
   `API_KEYS` entry becomes scoped; `--yes` and `--defaults` skip that reuse, minting a
   second key and leaving the old plain entry live. Recreate the backend to apply it:
