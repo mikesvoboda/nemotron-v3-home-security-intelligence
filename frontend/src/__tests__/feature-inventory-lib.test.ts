@@ -200,16 +200,21 @@ describe('appRoutes', () => {
   });
 });
 
+// Fixture sources quote their relative specifiers through `q`, so this file's own text
+// holds no `from './x'` that a repo-wide import scan (R8-S5's dangling-import pin)
+// would read as a live import of a file that does not exist.
+const q = (spec: string): string => `'${spec}'`;
+
 describe('reachableFiles', () => {
   it('follows static, dynamic, re-export and alias imports, and nothing else', () => {
     const root = tree({
-      'src/main.tsx': "import App from './App';\nimport './styles.css';\n",
+      'src/main.tsx': `import App from ${q('./App')};\nimport ${q('./styles.css')};\n`,
       'src/App.tsx':
         "import { a } from '@/lib/a';\nconst Lazy = lazy(() => import('./pages/Lazy'));\nexport default a;\n",
-      'src/lib/a.ts': "export { b as a } from './b';\n",
+      'src/lib/a.ts': `export { b as a } from ${q('./b')};\n`,
       'src/lib/b.ts': 'export const b = 1;\n',
       'src/pages/Lazy.tsx': 'export default 1;\n',
-      'src/dead/Dead.tsx': "import { b } from '../lib/b';\nexport default b;\n",
+      'src/dead/Dead.tsx': `import { b } from ${q('../lib/b')};\nexport default b;\n`,
     });
     const reached = lib.reachableFiles({ root, entry: 'src/main.tsx' });
     expect([...reached].sort()).toEqual(
@@ -231,10 +236,8 @@ describe('callerChain', () => {
     }),
     'src/App.tsx':
       "import { lazy } from 'react';\nconst Page = lazy(() => import('./pages/Page'));\nexport default function App() { return <Page />; }\n",
-    'src/pages/Page.tsx':
-      "import { useThing } from '../hooks/useThing';\nexport default function Page() { const { load } = useThing(); return <button onClick={load} />; }\n",
-    'src/hooks/useThing.ts':
-      "import { fetchUsed, fetchBuilt } from '../api';\nexport function useThing() { return { load: fetchUsed, unused: fetchBuilt }; }\nexport function useOrphan() { return fetchBuilt; }\n",
+    'src/pages/Page.tsx': `import { useThing } from ${q('../hooks/useThing')};\nexport default function Page() { const { load } = useThing(); return <button onClick={load} />; }\n`,
+    'src/hooks/useThing.ts': `import { fetchUsed, fetchBuilt } from ${q('../api')};\nexport function useThing() { return { load: fetchUsed, unused: fetchBuilt }; }\nexport function useOrphan() { return fetchBuilt; }\n`,
     'src/api.ts':
       "export function fetchUsed() { return fetch('/api/a'); }\nexport function fetchBuilt() { return fetch('/api/b'); }\nexport function fetchNobody() { return fetch('/api/c'); }\n",
   };
@@ -251,8 +254,7 @@ describe('callerChain', () => {
       ...files,
       'src/App.tsx':
         "import { lazy } from 'react';\nconst Page = lazy(() => import('./pages'));\nexport default function App() { return <Page />; }\n",
-      'src/pages/index.tsx':
-        "import { useThing } from '../hooks/useThing';\nexport default function Index() { const { load } = useThing(); return <button onClick={load} />; }\n",
+      'src/pages/index.tsx': `import { useThing } from ${q('../hooks/useThing')};\nexport default function Index() { const { load } = useThing(); return <button onClick={load} />; }\n`,
     });
     expect(lib.callerChain({ root, file: 'src/api.ts', name: 'fetchUsed' }).mounted).toBe(true);
   });
