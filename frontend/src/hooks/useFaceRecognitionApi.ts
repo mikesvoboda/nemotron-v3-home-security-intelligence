@@ -91,8 +91,6 @@ export const faceRecognitionQueryKeys = {
 // ============================================================================
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
-const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
-
 /**
  * Build headers for API requests.
  */
@@ -100,9 +98,6 @@ function buildHeaders(): HeadersInit {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY;
-  }
   return headers;
 }
 
@@ -689,9 +684,6 @@ export async function bulkEnrollFaces(
   }
 
   const headers: Record<string, string> = {};
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY;
-  }
 
   const response = await fetch(`${BASE_URL}/api/known-persons/bulk-enroll`, {
     method: 'POST',

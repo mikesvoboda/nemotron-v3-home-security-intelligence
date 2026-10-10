@@ -209,22 +209,22 @@ describe('endpoint contract (D2)', () => {
       audit.scan.opaqueMethod.map((o) => `${o.path}  ${o.file}:${o.line}  ${o.reason}`).join('\n'),
       `${audit.scan.opaqueMethod.length} claim(s) send a verb the scan cannot read`
     ).toMatchInlineSnapshot(`
-      "/api/cameras  src/services/api.ts:1454  options passed by name: options
-      /api/system/health  src/services/api.ts:2053  options passed by name: options
-      /api/system/health/full  src/services/api.ts:2128  options passed by name: options
-      /api/system/gpu  src/services/api.ts:2138  options passed by name: options
-      /api/system/health/websocket  src/services/api.ts:2214  options passed by name: options
-      /api/system/health/live  src/services/api.ts:2237  options passed by name: options
-      /api/events  src/services/api.ts:2343  options passed by name: options
-      /api/events/stats  src/services/api.ts:2378  options passed by name: options
-      /api/events/clusters  src/services/api.ts:2425  options passed by name: options
-      /api/events/deleted  src/services/api.ts:2608  options passed by name: options
-      /api/events/search  src/services/api.ts:3873  options passed by name: options
-      /api/audit  src/services/api.ts:4606  options passed by name: options
-      /api/entities  src/services/api.ts:5827  options passed by name: options
-      /api/entities/matches/{}  src/services/api.ts:5923  options passed by name: options
-      /api/logs  src/services/api.ts:9067  options passed by name: options
-      /api/reid/similar/{}  src/services/api.ts:9180  options passed by name: options"
+      "/api/cameras  src/services/api.ts:1405  options passed by name: options
+      /api/system/health  src/services/api.ts:2004  options passed by name: options
+      /api/system/health/full  src/services/api.ts:2079  options passed by name: options
+      /api/system/gpu  src/services/api.ts:2089  options passed by name: options
+      /api/system/health/websocket  src/services/api.ts:2165  options passed by name: options
+      /api/system/health/live  src/services/api.ts:2188  options passed by name: options
+      /api/events  src/services/api.ts:2294  options passed by name: options
+      /api/events/stats  src/services/api.ts:2329  options passed by name: options
+      /api/events/clusters  src/services/api.ts:2376  options passed by name: options
+      /api/events/deleted  src/services/api.ts:2559  options passed by name: options
+      /api/events/search  src/services/api.ts:3812  options passed by name: options
+      /api/audit  src/services/api.ts:4545  options passed by name: options
+      /api/entities  src/services/api.ts:5766  options passed by name: options
+      /api/entities/matches/{}  src/services/api.ts:5862  options passed by name: options
+      /api/logs  src/services/api.ts:9006  options passed by name: options
+      /api/reid/similar/{}  src/services/api.ts:9119  options passed by name: options"
     `);
   });
 
@@ -243,32 +243,32 @@ describe('endpoint contract (D2)', () => {
       audit.scan.dynamic.map((d) => `${d.file}:${d.line}  ${d.reason}`).join('\n'),
       `${audit.scan.dynamic.length} URL position(s) with no statically knowable path`
     ).toMatchInlineSnapshot(`
-      "src/hooks/useWebSocketStatus.ts:141  "url" is not a file-local constant
-      src/hooks/useWebSocketStatus.ts:141  "url" is not a file-local constant
-      src/hooks/useZoneHouseholdConfig.ts:236  built at runtime: url.toString()
+      "src/hooks/useWebSocketStatus.ts:145  "url" is not a file-local constant
+      src/hooks/useWebSocketStatus.ts:145  "url" is not a file-local constant
+      src/hooks/useZoneHouseholdConfig.ts:231  built at runtime: url.toString()
       src/hooks/webSocketManager.ts:503  "url" is not a file-local constant
       src/hooks/webSocketManager.ts:504  "url" is not a file-local constant
-      src/services/aiAuditApi.ts:391  suffix for fetchPromptsApi() at src/services/aiAuditApi.ts:155: not a literal path
-      src/services/api.ts:1606  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:1678  built at runtime: getCameraSnapshotUrl(cameraId)
-      src/services/api.ts:3390  built at runtime: isVideo
-      src/services/backupApi.ts:150  suffix for fetchBackupApi() at src/services/backupApi.ts:120: not a literal path
-      src/services/backupApi.ts:172  suffix for fetchBackupApi() at src/services/backupApi.ts:120: not a literal path
-      src/services/detectorApi.ts:149  built at runtime: url.toString()
+      src/services/aiAuditApi.ts:386  suffix for fetchPromptsApi() at src/services/aiAuditApi.ts:150: not a literal path
+      src/services/api.ts:1557  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:1629  built at runtime: getCameraSnapshotUrl(cameraId)
+      src/services/api.ts:3338  built at runtime: isVideo
+      src/services/backupApi.ts:146  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
+      src/services/backupApi.ts:168  suffix for fetchBackupApi() at src/services/backupApi.ts:116: not a literal path
+      src/services/detectorApi.ts:144  built at runtime: url.toString()
       src/services/errorReporting.ts:113  built at runtime: config.endpoint
       src/services/interceptors.ts:325  "url" is not a file-local constant
       src/services/llmReasoningApi.ts:233  built at runtime: url.toString()
       src/services/logger.ts:180  built at runtime: this.config.batchEndpoint
       src/services/logger.ts:198  built at runtime: this.config.endpoint
       src/services/logger.ts:263  built at runtime: this.config.batchEndpoint || this.config.endpoint
-      src/services/plateReadsApi.ts:175  suffix for fetchPlateReadsApi() at src/services/plateReadsApi.ts:107: not a literal path
-      src/services/promptManagementApi.ts:143  suffix for fetchPromptApi() at src/services/promptManagementApi.ts:115: not a literal path
+      src/services/plateReadsApi.ts:170  suffix for fetchPlateReadsApi() at src/services/plateReadsApi.ts:102: not a literal path
+      src/services/promptManagementApi.ts:138  suffix for fetchPromptApi() at src/services/promptManagementApi.ts:110: not a literal path
       src/services/rum.ts:210  built at runtime: this.config.endpoint
       src/services/rum.ts:262  built at runtime: this.config.endpoint
-      src/services/scheduledReportsApi.ts:154  suffix for fetchScheduledReportsApi() at src/services/scheduledReportsApi.ts:124: not a literal path
-      src/services/scheduledReportsApi.ts:195  suffix for fetchScheduledReportsApi() at src/services/scheduledReportsApi.ts:124: not a literal path
-      src/services/webhookApi.ts:166  suffix for fetchWebhookApi() at src/services/webhookApi.ts:134: not a literal path
-      src/services/webhookApi.ts:185  suffix for fetchWebhookApi() at src/services/webhookApi.ts:134: not a literal path"
+      src/services/scheduledReportsApi.ts:150  suffix for fetchScheduledReportsApi() at src/services/scheduledReportsApi.ts:120: not a literal path
+      src/services/scheduledReportsApi.ts:191  suffix for fetchScheduledReportsApi() at src/services/scheduledReportsApi.ts:120: not a literal path
+      src/services/webhookApi.ts:162  suffix for fetchWebhookApi() at src/services/webhookApi.ts:130: not a literal path
+      src/services/webhookApi.ts:181  suffix for fetchWebhookApi() at src/services/webhookApi.ts:130: not a literal path"
     `);
     expect(
       audit.scan.nonApi.map((n) => `${n.file}:${n.line}  ${n.path}`).join('\n'),

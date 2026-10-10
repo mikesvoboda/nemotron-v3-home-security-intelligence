@@ -13,10 +13,10 @@ import { logger } from '../services/logger';
 export interface WebSocketOptions {
   url: string;
   /**
-   * Sec-WebSocket-Protocol header values for authentication.
-   * When API key authentication is enabled, use ["api-key.{key}"] format
-   * (`buildWebSocketOptions` mints it). As of F1.3 the manager attaches these
-   * to the WebSocket constructor; B1.5's gate reads the key from the handshake.
+   * Sec-WebSocket-Protocol header values, for subprotocol negotiation.
+   * Ruling 44: browser code never mints a credential into this — the manager
+   * attaches whatever is passed (F1.3 plumbing) and the socket authenticates
+   * with the session cookie alone.
    */
   protocols?: string[];
   onMessage?: (data: unknown) => void;

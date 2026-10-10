@@ -136,11 +136,11 @@ export interface ConnectionConfig {
    */
   autoResync?: boolean;
   /**
-   * Sec-WebSocket-Protocol values for the handshake (F1.3).
-   * `buildWebSocketOptions` mints `["api-key.{key}"]` when VITE_API_KEY is
-   * set; `useWebSocket` forwards it here so the manager passes it to the
-   * WebSocket constructor instead of dropping it (B1.5's gate reads it from
-   * the handshake). Omit for cookie-only connections.
+   * Sec-WebSocket-Protocol values for the handshake (F1.3 plumbing: the
+   * manager forwards these to the WebSocket constructor). Ruling 44: browser
+   * callers pass no credential — `buildWebSocketOptions` attaches none and the
+   * session cookie authenticates the handshake. Omit for cookie-only
+   * connections, which is what the browser always is now.
    */
   protocols?: string[];
 }
@@ -496,9 +496,9 @@ class WebSocketManager {
         wsUrl = urlObj.toString();
       }
 
-      // F1.3: attach the credential. B1.5's gate reads the api key from the
-      // Sec-WebSocket-Protocol handshake (auth.py `_presented_api_key`); the
-      // same-origin session cookie rides the handshake automatically.
+      // F1.3 plumbing: forward any negotiated subprotocols to the constructor.
+      // Ruling 44: browser configs carry no credential — the same-origin
+      // session cookie rides the handshake automatically.
       const ws = config.protocols?.length
         ? new WebSocket(wsUrl, config.protocols)
         : new WebSocket(wsUrl);

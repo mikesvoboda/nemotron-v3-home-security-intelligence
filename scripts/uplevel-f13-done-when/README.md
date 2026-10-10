@@ -16,8 +16,6 @@ unreachable from it by project scoping and by port.
 | `docker-compose.f13-expose-true.yml` | run-1 override: sets `EXPOSE_LAN=true`                                 |
 | `backend-overlay.Dockerfile`         | makes the published backend image's venv match HEAD's lock (see below) |
 | `ui-drive.cjs`                       | Playwright pass: login-mode or open-mode, prints the evidence lines    |
-| `ui-key-drive.cjs`                   | Playwright pass, run 3: the `VITE_API_KEY` deployment's WS handshake   |
-| `docker-compose.f13-key-mode.yml`    | run-3 override: one throwaway `API_KEYS` entry on the armed gate       |
 | `ws-probe.cjs`                       | bare-Node WS handshake probe (no `ws` package needed; Node ≥ 22)       |
 
 ## Why the overlay exists
@@ -73,35 +71,25 @@ F13_MODE=open node ui-drive.cjs                        # prints "visited /login 
 cold-start bounce the F1.3 fix targets committed at +143ms historically, which
 a listener attached after navigation would miss.
 
-## Run 3 — key-mode (`VITE_API_KEY` deployment): the browser handshake completes
+## Why there is no key-mode run (ruling 44)
 
-This is the B-2 pass the B-1 follow-up (PR #6927) owed F1.3's harness: the
-authenticated deployment a browser reaches with a baked key. The merged
-frontend uses the key as transport only — there is no key→session bootstrap —
-so the pass asserts what the browser itself enforces: the key authenticates
-REST, and an `api-key.<key>` offer must OPEN and come back echoed
-(`ws.protocol`, RFC 6455 §4.1 — pre-B-1 Chromium closed 1006 before `open`).
-A wrong key must still see the echo first, then the deliberate 4001 — never a
-bare 1006.
+This directory used to carry a third run — `ui-key-drive.cjs` plus a
+`docker-compose.f13-key-mode.yml` override — that drove a browser against a
+deployment with an API key baked into the bundle. It was removed, not fixed:
+**ruling 44 says browsers authenticate only through the cookie login**, because
+Vite inlines every `VITE_*` value into the built JavaScript and the UI has to be
+served. A browser-side key is therefore a public value, and a Done-when run that
+drives one would be pinning the leak back in.
 
-```bash
-docker compose -f docker-compose.f13-stack.yml \
-  -f docker-compose.f13-expose-true.yml -f docker-compose.f13-key-mode.yml \
-  up -d --force-recreate backend
-curl -s http://127.0.0.1:18080/api/auth/setup-status   # auth_required:true (gate armed)
+The credential path still has coverage where it belongs: **non-browser clients**
+(a scripted caller may offer the credential subprotocol or set `X-API-Key`) are
+covered by the raw-handshake echo tests at
+`backend/tests/integration/test_ws_subprotocol_echo_b1.py`. `ws-probe.cjs` stays
+here as the uncredentialed-refusal probe for runs 1 and 2.
 
-node ws-probe.cjs                                    # closed code=4001 (uncredentialed)
-F13_WS_PROTOCOL="api-key.${F13_API_KEY:-f13-throwaway-key-not-a-secret}" \
-  node ws-probe.cjs                                  # open (no close within 2000ms) — Node/undici enforces the echo too
-F13_API_KEY="${F13_API_KEY:-f13-throwaway-key-not-a-secret}" node ui-key-drive.cjs
-# expected: 4 PASS lines + "key-mode: all legs passed"; exit 0
-```
-
-`ui-key-drive.cjs` drives browser primitives inside the page rather than the
-app's components on purpose: the handshake is the unit under test, and which
-view a sessionless bundle renders is frontend behavior outside B-1. It needs
-no frontend rebuild — the offer is a native `new WebSocket(url, protocols)`
-from a real browser origin.
+Do not re-add a browser key-mode run. The frontend guard
+`frontend/src/__tests__/no-browser-api-key.test.ts` fails CI if browser code
+reads a key env var or mints the credential subprotocol again.
 
 ## Teardown
 
