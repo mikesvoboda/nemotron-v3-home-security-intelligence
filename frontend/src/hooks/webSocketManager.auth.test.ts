@@ -4,8 +4,10 @@
  * Two defects, both measured at origin/main e9ec74ef:
  *
  * 1. `webSocketManager.connect` calls `new WebSocket(wsUrl)` with one argument
- *    (webSocketManager.ts:477) — the `api-key.{key}` subprotocol that
- *    `buildWebSocketOptions` mints (api.ts:995-999) and 18 hooks pass down
+ *    (webSocketManager.ts) — whatever `protocols` a caller passes are
+ *    forwarded to the WebSocket constructor; ruling 44 means browser callers
+ *    pass no credential (the cookie authenticates), but the plumbing below
+ *    still pins that any protocols a caller sets are not dropped
  *    through `useWebSocket` is dropped on the floor (useWebSocket.ts:19
  *    admits it: "protocols are not yet supported by the manager"). Only
  *    useWebSocketStatus.ts:138 ever honors them. So every manager-routed

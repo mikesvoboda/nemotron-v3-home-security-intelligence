@@ -1066,13 +1066,13 @@ pytest_skip_imperative:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:542
+  - id: backend/tests/security/test_docker_compose_security.py:543
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: git not available
-  - id: backend/tests/security/test_docker_compose_security.py:552
+  - id: backend/tests/security/test_docker_compose_security.py:553
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
@@ -1109,14 +1109,33 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: no compose binary (podman/docker) on this machine
-    host_justification: argv is None when no compose binary (podman/docker)
-      resolves via shutil.which — host-executable guard, not repo content
+    host_justification:
+      argv is None when no compose binary (podman/docker) resolves via shutil.which — host-executable
+      guard, not repo content
   - id: backend/tests/unit/core/test_dockerfile_config.py:29
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
+  - id: backend/tests/unit/core/test_monitoring_expose_lan_credentials.py:680
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: no docker daemon available for the boot arm
+    host_justification:
+      docker is None where docker = shutil.which("docker") two lines above — host-executable guard,
+      not repo content
+  - id: backend/tests/unit/core/test_monitoring_expose_lan_credentials.py:694
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+    host_justification:
+      "`docker image inspect` returncode != 0 — probes the host daemon's image store, not repo
+      content"
   - id: backend/tests/unit/core/test_nginx_connection_limit_config.py:135
     kind: todo
     owner: mikesvoboda

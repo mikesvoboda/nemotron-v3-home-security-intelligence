@@ -875,8 +875,16 @@ export async function fetchWithTimeout(
 // ============================================================================
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
-const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL as string | undefined;
+
+// Ruling 44: there is deliberately NO API key read here. Vite inlines every
+// VITE_* value into the built JavaScript, so a browser-baked key is served to
+// everyone who can load the UI — and the UI has to be served, since the login
+// page lives in it. Browsers authenticate ONLY through the cookie login
+// (same-origin requests carry the session cookie; fetchApi's 401 seam handles
+// expiry). The X-API-Key header and the scripted WebSocket credential
+// subprotocol are for NON-BROWSER clients, which build their own requests
+// outside this bundle.
 
 // ============================================================================
 // Retry Configuration
@@ -957,24 +965,30 @@ export function clearInFlightRequests(): void {
 export interface WebSocketConnectionOptions {
   /** The WebSocket URL to connect to */
   url: string;
-  /** Optional Sec-WebSocket-Protocol header value for API key authentication */
+  /**
+   * Optional Sec-WebSocket-Protocol values (generic subprotocol negotiation).
+   * Browser code NEVER mints a credential into this (ruling 44): the browser
+   * socket authenticates with the session cookie alone.
+   */
   protocols?: string[];
 }
 
 /**
  * Internal function for building WebSocket connection options. Exported for testing.
  *
- * SECURITY: API keys are passed via the Sec-WebSocket-Protocol header instead of
- * query parameters to prevent exposure in browser history, server logs, and referrer headers.
- * The backend supports both "api-key.{key}" protocol format and query parameters for
- * backward compatibility, but the protocol header is preferred.
+ * RULING 44 — no credential, ever. Browser sockets authenticate with the
+ * session cookie alone, so this builder takes no key parameter and attaches no
+ * credential subprotocol: any key this code could read would have been baked
+ * into the served JavaScript by Vite and readable by every visitor. Tests may
+ * pass explicit base URLs and locations here to pin URL derivation; the
+ * scripted (non-browser) WebSocket client that needs a credential subprotocol
+ * constructs its own options outside this bundle.
  *
  * @internal
  */
 export function buildWebSocketOptionsInternal(
   endpoint: string,
   wsBaseUrl: string | undefined,
-  apiKey: string | undefined,
   windowLocation: { protocol: string; host: string } | undefined
 ): WebSocketConnectionOptions {
   let wsUrl: string;
@@ -989,85 +1003,26 @@ export function buildWebSocketOptionsInternal(
     wsUrl = `${protocol}//${host}${endpoint}`;
   }
 
-  // Build connection options with optional API key protocol
-  const options: WebSocketConnectionOptions = { url: wsUrl };
-
-  if (apiKey) {
-    // Use Sec-WebSocket-Protocol header for API key authentication
-    // Format: "api-key.{key}" - the backend extracts the key after the prefix
-    options.protocols = [`api-key.${apiKey}`];
-  }
-
-  return options;
+  // No credential is attached: the cookie authenticates the browser.
+  return { url: wsUrl };
 }
 
 /**
  * Constructs WebSocket connection options for the given endpoint.
  * Uses VITE_WS_BASE_URL if set, otherwise falls back to window.location.host.
  *
- * SECURITY: If VITE_API_KEY is set, returns a protocols array with "api-key.{key}"
- * for the Sec-WebSocket-Protocol header. This is more secure than query parameters
- * because it doesn't expose the API key in URLs.
+ * RULING 44: never returns a credential. Browser WebSocket clients ride the
+ * session cookie; API keys belong to non-browser clients only.
  *
  * @param endpoint - The WebSocket endpoint path (e.g., '/ws/events')
- * @returns WebSocket connection options with URL and optional protocols
+ * @returns WebSocket connection options (URL; no protocols for browsers)
  */
 export function buildWebSocketOptions(endpoint: string): WebSocketConnectionOptions {
   const windowLocation =
     typeof window !== 'undefined'
       ? { protocol: window.location.protocol, host: window.location.host }
       : undefined;
-  return buildWebSocketOptionsInternal(endpoint, WS_BASE_URL, API_KEY, windowLocation);
-}
-
-/**
- * @deprecated Use buildWebSocketOptions instead. This function exposes API keys in URLs.
- * Kept for backward compatibility but will be removed in a future version.
- *
- * Internal function for building WebSocket URLs. Exported for testing.
- * @internal
- */
-export function buildWebSocketUrlInternal(
-  endpoint: string,
-  wsBaseUrl: string | undefined,
-  apiKey: string | undefined,
-  windowLocation: { protocol: string; host: string } | undefined
-): string {
-  const options = buildWebSocketOptionsInternal(endpoint, wsBaseUrl, apiKey, windowLocation);
-  // For backward compatibility, still append api_key to URL if configured
-  // This maintains existing behavior but is deprecated
-  if (apiKey) {
-    const separator = options.url.includes('?') ? '&' : '?';
-    return `${options.url}${separator}api_key=${encodeURIComponent(apiKey)}`;
-  }
-  return options.url;
-}
-
-/**
- * @deprecated Use buildWebSocketOptions instead. This function exposes API keys in URLs.
- * Kept for backward compatibility but will be removed in a future version.
- *
- * Constructs a WebSocket URL for the given endpoint.
- * Uses VITE_WS_BASE_URL if set, otherwise falls back to window.location.host.
- * Appends api_key query parameter if VITE_API_KEY is set.
- *
- * @param endpoint - The WebSocket endpoint path (e.g., '/ws/events')
- * @returns The full WebSocket URL with optional api_key query parameter
- */
-export function buildWebSocketUrl(endpoint: string): string {
-  const windowLocation =
-    typeof window !== 'undefined'
-      ? { protocol: window.location.protocol, host: window.location.host }
-      : undefined;
-  return buildWebSocketUrlInternal(endpoint, WS_BASE_URL, API_KEY, windowLocation);
-}
-
-/**
- * Returns the API key if configured, otherwise undefined.
- * Useful for components that need to check if API key auth is enabled.
- */
-export function getApiKey(): string | undefined {
-  return API_KEY;
+  return buildWebSocketOptionsInternal(endpoint, WS_BASE_URL, windowLocation);
 }
 
 // ============================================================================
@@ -1393,16 +1348,12 @@ export async function fetchApi<T>(endpoint: string, options?: FetchOptions): Pro
   const url = `${BASE_URL}${endpoint}`;
   const method = options?.method || 'GET';
 
-  // Build headers with optional API key
+  // Browser requests are authenticated by the session cookie (same-origin
+  // credentials). No X-API-Key header is ever attached here — ruling 44.
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...options?.headers,
   };
-
-  // Add API key header if configured
-  if (API_KEY) {
-    (headers as Record<string, string>)['X-API-Key'] = API_KEY;
-  }
 
   const fetchOptions: RequestInit = {
     ...options,
@@ -3380,11 +3331,8 @@ export async function downloadEventMedia(eventId: number): Promise<void> {
     ? getDetectionVideoUrl(detectionId)
     : getDetectionFullImageUrl(detectionId);
 
-  // Build headers with optional API key
+  // Request headers (ruling 44: no credential header — browsers ride the cookie)
   const headers: HeadersInit = {};
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY;
-  }
 
   try {
     const response = await fetch(mediaUrl, { headers });
@@ -3462,7 +3410,7 @@ export async function fetchDlqJobs(
 
 /**
  * Requeue a single job from a DLQ back to its processing queue.
- * Requires API key authentication.
+ * Authenticates via the browser login cookie (keys are non-browser only).
  *
  * @param queueName - The DLQ to requeue from
  * @returns Result of the requeue operation
@@ -3476,7 +3424,7 @@ export async function requeueDlqJob(queueName: DLQQueueName): Promise<GeneratedD
 
 /**
  * Requeue all jobs from a DLQ back to their processing queue.
- * Requires API key authentication.
+ * Authenticates via the browser login cookie (keys are non-browser only).
  *
  * @param queueName - The DLQ to requeue from
  * @returns Result of the requeue operation with count
@@ -3492,7 +3440,7 @@ export async function requeueAllDlqJobs(
 
 /**
  * Clear all jobs from a DLQ.
- * Requires API key authentication.
+ * Authenticates via the browser login cookie (keys are non-browser only).
  * WARNING: This permanently removes all jobs.
  *
  * @param queueName - The DLQ to clear
@@ -3538,11 +3486,8 @@ export async function exportEventsCSV(params?: ExportQueryParams): Promise<void>
   const endpoint = queryString ? `/api/events/export?${queryString}` : '/api/events/export';
   const url = `${BASE_URL}${endpoint}`;
 
-  // Build headers with optional API key
+  // Request headers (ruling 44: no credential header — browsers ride the cookie)
   const headers: HeadersInit = {};
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY;
-  }
 
   try {
     const response = await fetch(url, { headers });
@@ -3610,13 +3555,10 @@ export async function exportEventsJSON(params?: ExportQueryParams): Promise<void
   const endpoint = queryString ? `/api/events/export?${queryString}` : '/api/events/export';
   const url = `${BASE_URL}${endpoint}`;
 
-  // Build headers with API key and Accept header for JSON format
+  // Accept header for JSON (ruling 44: no credential header)
   const headers: HeadersInit = {
     Accept: 'application/json',
   };
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY;
-  }
 
   try {
     const response = await fetch(url, { headers });
@@ -3755,11 +3697,8 @@ export async function getExportDownloadInfo(jobId: string): Promise<ExportDownlo
 export async function downloadExportFile(jobId: string): Promise<void> {
   const url = `${BASE_URL}/api/exports/${jobId}/download`;
 
-  // Build headers with optional API key
+  // Request headers (ruling 44: no credential header — browsers ride the cookie)
   const headers: HeadersInit = {};
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY;
-  }
 
   try {
     const response = await fetch(url, { headers });

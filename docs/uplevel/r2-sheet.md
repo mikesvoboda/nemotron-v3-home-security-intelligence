@@ -144,6 +144,131 @@
 > Everything else measured identically at the first commit, at every revision of this branch since, and
 > — for the claims this header names as held — in a detached worktree at the second merge head.
 
+**`F2.2`'s part** (frontend lane, 2026-10-09): §1, §2 and §3 below, drafted from
+[`docs/reference/feature-inventory.md`](../reference/feature-inventory.md); §2b above is `W2.2`'s
+and is unchanged. `F2.3` finalises §1 and §3: rows its golden paths demote to **half-built** join
+§1, and §3 takes `O2.3`'s Python list.
+
+Each §1 row is one **cause** and lists every inventory row it settles; ruling the row rules all of
+them, unless the owner names an id in the ruling cell to rule it apart. Sizes are estimates: **S** — one lane, a few files, about a day; **M** — two lanes or a new
+wiring path, a few days; **L** — a new pipeline stage or producer, a week or more. The
+recommendation is the drafting agent's; the ruling is the owner's.
+
+## 1. Features to rule
+
+The inventory's 128 **half-built** and **leftover** rows, in 45 rows by cause. Core-loop
+rows first.
+
+<!-- prettier-ignore -->
+| id | feature | status | what the user sees | evidence | core loop | privacy | to complete | to retire | recommendation | ruling | priority |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| F-216, F-217 | Alert rules (create, edit, enable) | half-built | rules save and toggle, but no rule ever raises an alert or a notification | `AlertRuleEngine.evaluate_event` and `create_alerts_for_event` have no production caller (`backend/services/alert_engine.py:166`, `:1039`); OD-1 parked the rules engine on 2026-10-05 | yes | none | M — call the engine from the post-verdict path and deliver its channels; backend (alert_engine, the VLM persist path), frontend golden path | M — `alert_rules`, the rules page, `alert_engine.py`; F-220's conditions and F-263's loitering threshold go with it | **complete** — rule-based alerting is the core loop's last step; OD-1 parked it, so this ruling re-opens OD-1's option (c) | | |
+| F-050, F-079 | Snooze an event or alert | half-built | the snooze badge appears; nothing is suppressed | `snooze_until` is written (`backend/api/routes/events.py:1997`) but `Event.is_snoozed` (`backend/models/event.py:310`) has no caller | yes | none | S — the notification decision reads `snooze_until`; backend | S — the snooze controls and `events.snooze_until` | **complete** — a one-line read in the notify path makes an existing control honest | | |
+| F-044 | Timeline confidence filter | half-built | the filter counts as active; the list does not change | only the sort is applied (`frontend/src/components/events/EventTimeline.tsx:523`) | yes | none | S — apply the filter client-side or pass it to `GET /api/events`; frontend | S — remove the control | **complete** — small, and review is the core loop | | |
+| F-055 | Event detail: detected objects and threat boxes | half-built | an empty objects list and no boxes in the event modal | the timeline hands the modal `detections: []` (`frontend/src/components/events/EventTimeline.tsx:1082`) | yes | none | S — pass the event's detections (the modal already fetches them for other panels); frontend | S — remove the list and overlay | **complete** — the reviewer needs to see what was detected | | |
+| F-058 | Flag an event for follow-up | half-built | a success toast; nothing is saved | `update_event` handles only `reviewed` (`backend/api/routes/events.py:1987`); the schema accepts `flagged` (`backend/api/schemas/events.py:312`) | yes | none | S — persist `flagged` and filter on it; backend and frontend | S — remove the button and the schema field | **retire** — mark-reviewed and notes already cover follow-up; a false success is worse than no button | | |
+| F-078 | Dismiss on the Alerts page | half-built | dismissed alerts stay on the Alerts page | the write lands (the timeline's reviewed filter reads it), but the Alerts list sends only `risk_level`, `limit` and `cursor` (`frontend/src/hooks/useAlertsQuery.ts:155-158`) | yes | none | S — the Alerts query passes `reviewed=false`; frontend | — | **complete** — one query parameter; dismissing is the Alerts page's main action | | |
+| F-290 | Inbound webhooks (alert, arm, disarm, mode) | half-built | every call answers 501 | `_reject_unimplemented` raises 501 (`backend/api/routes/inbound_webhooks.py:192`) | yes (arming) | none | L — the arming module with webhook and MQTT adapters (UR-12, Phase 4) | — | **already ruled: complete (UR-12)** — listed for the record; no ruling needed | complete (UR-12) | |
+| F-291 | MQTT commands (zone arm/disarm, system mode, alert ack, camera sensitivity/PTZ) | half-built | commands published to the topics are never received | the handler logs and records success without acting, and is constructed only in its own docstring (`backend/services/mqtt_command_handler.py:232`) | yes (arming) | none | L — the arming commands are UR-12's MQTT adapter; alert ack and camera sensitivity/PTZ would be added to it | M — the handler, the unstarted MQTT client and its consumers; arming over MQTT then comes only with UR-12's adapter | **complete** the arming commands with UR-12's adapter (UR-12 names an MQTT adapter); **retire** alert ack and camera sensitivity/PTZ until a package needs them | | |
+| F-009, F-292, F-293 | Infrastructure (Prometheus) alerts in the header | half-built | the header's infrastructure-alert badge never lights | the receiver Alertmanager calls sends `infrastructure_alert` (`backend/api/routes/webhooks.py:36`); the header listens for `prometheus.alert` on `/ws/system` (`frontend/src/hooks/usePrometheusAlertWebSocket.ts:197`, `:404`); the second receiver has no caller | no | none | S — align the message type and socket; delete the unused `/api/v1/alertmanager/webhook` receiver and `prometheus_alerts` | S — the badge, drawer and both receivers' broadcasts | **complete** — one type name joins a working receiver to a working badge | | |
+| F-010, F-036 | Recent-threats indicator and dashboard threat banner | half-built | neither ever shows a threat | nothing publishes `threat_detected` (`frontend/src/hooks/useRecentThreats.ts:53`); the banner's only feed is discarded (`frontend/src/components/dashboard/DashboardPage.tsx:107`) | yes | none | M — depends on OD-7's immediate-alert path (§2) | S — the indicator, the banner and `useThreatDetection` | **retire** — unless OD-7 rules for an immediate-alert path, which would re-add them with a real feed | | |
+| F-131 | Risk-threshold calibration | half-built | thresholds save; event severity does not change | the only reader, `SeverityService.classify_risk` (`backend/services/severity.py:222`), has no production caller | yes | none | M — the verdict path classifies with the saved thresholds; conflicts with OD-29's per-camera floor | S — the page, `CalibrationService`, its table | **retire** — OD-29 ruled the alert operating point as the per-camera floor; two threshold mechanisms would disagree | | |
+| F-236 | Notification history | half-built | always "no notifications" | the handler returns a literal empty list (`backend/api/routes/notification.py:412`) | yes | none | M — a delivery-log table written where notifications are sent (ISS-001's path) | S — the panel and route | **complete** — the owner needs to see what was sent; delivery now exists (ISS-001 done) | | |
+| F-051, F-098, F-099 | Exports: download, type, cancel (`/data` and the timeline's export modal) | half-built | the export button's Download link 404s; "Alerts"/"Full Backup" exports contain events; a cancelled export finishes anyway | download path is the status route (`backend/services/export_service.py:888`); type is never passed (`backend/api/routes/exports.py:119`); cancel only flips the row (`backend/api/routes/exports.py:453`, `:181`) | no | the export holds event data | S — serve the file, drop or implement the two types, check cancel in the task; backend | M — the export jobs stack; the CSV/JSON export modal (unverified) would remain | **complete** — each fix is small and exporting is a stated feature | | |
+| F-088 | Trash: delete permanently | half-built | "Delete permanently" fails or re-trashes | the route ignores `soft_delete: false` and soft-deletes again (`backend/api/routes/events.py:2713`) | no | retained events | S — honour hard delete for trashed events; backend | M — the trash page and soft delete | **complete** — a privacy control that does not delete is a defect | | |
+| F-202 | Deleted cameras (trash view) | half-built | the deleted-cameras list is always empty | delete is hard (`backend/api/routes/cameras.py:978`); `Camera.soft_delete` (`backend/models/camera.py:240`) has no caller | no | none | S — make camera delete soft | S — the trash view and restore route | **retire** — hard delete is the shipped behaviour | | |
+| F-101 | Restore from backup | half-built | restore succeeds; camera baselines are silently lost | restore iterates only a `baselines` entry (`backend/services/restore_service.py:54`) while backups write `activity_baselines` and `class_baselines` (`backend/services/backup_service.py:146`, `:147`) | no | none | S — restore the two baseline tables; backend | — | **complete** — a backup that drops data on restore is a defect | | |
+| F-091, F-092, F-093, F-094, F-095, F-096 | Job controls, history and live logs | half-built | the live log viewer stays empty; cancel, abort, retry, delete and history were built but no page shows them | no production log publisher (`backend/services/job_log_emitter.py:165`); `JobActions` and `JobHistoryTimeline` are rendered by no component; retry has no route | no | none | M — mount the actions, add a retry route, make delete delete, publish logs; backend and frontend | S — the unmounted components, the log socket's client, the retry client call | **retire** — jobs are short exports and audits; the controls never shipped | | |
+| F-035 | Dashboard summary export buttons | half-built | the buttons do nothing | the dashboard mounts the panel without `onExport` (`frontend/src/components/dashboard/ExpandableDetailPanel.tsx:242`) | no | none | S — wire `onExport` to the summary export route (whose PDF is a skeleton, backend trace Dead Marks (e)) | S — the buttons | **retire** — the export it would call emits a placeholder PDF | | |
+| F-065, F-066, F-067, F-081, F-082, F-083, F-084, F-085, F-086 | Entities and re-ID (entity list, trust, re-ID dashboard, event re-ID panels) | half-built | empty pages and panels | `entities` has no production writer since R8 S2b removed the enrichment pipeline (`backend/services/entity_clustering_service.py:265`, `backend/services/hybrid_entity_storage.py:233`); entity-matches has no route | no | person re-ID embeddings | L — persist the re-ID matches the VLM specialists already compute (`backend/services/vlm_specialists.py:723`); backend, frontend; ties to OD-17 | M — `entities`, Redis `entity_embeddings:*`, the entities/reid routes and pages, the event panels | **retire** — no writer since R8, it stores biometric-like embeddings, and OD-17 may drop the re-ID model; complete only if cross-camera tracking is a product goal | | |
+| F-276, F-279, F-280, F-281, F-282, F-283, F-284, F-285, F-118 | Face events, appearances and face actions | half-built | the known-persons gallery works; face events, appearances and stranger alerts are always empty; Delete, Enroll, Identify and link-to-member do nothing | `record_face_detection` has no caller (`backend/services/face_recognition_service.py:588`); TODO handlers (`frontend/src/pages/FaceRecognitionPage.tsx:79`, `:120`); no `face_detection` publisher | no | faces | M — write face events where faces are detected, publish them, wire the buttons; backend and frontend | M — `face_detection_events`, the events tab, the unmounted modals, the stranger alerts (the gallery could stay) | **complete** — the gallery and enrollment work; one missing write and four handlers make the rest real | | |
+| F-272, F-273, F-274 | Household links, member detections, property/area editor | half-built | a member↔person link that nothing uses; the other two were built but no page shows them | the link's consumer is unreachable (`backend/services/unified_embedding_service.py:548`); the detection routes do not exist; `PropertyManagement` is unreachable | no | faces, person re-ID embeddings | M — backend routes, mount the components, a consumer for the link | S — the unmounted components, the hierarchy property/area routes and tables, the link field | **retire** — none of the three ever reached a user | | |
+| F-268, F-269 | Plate reads | leftover, half-built | an empty list; stats cards fail | plate OCR retired in R8 S3 (`backend/services/alpr_service.py:559`); `/stats` vs `/statistics` (`backend/api/routes/plate_reads.py:89`) | no | plates | L — a new OCR model | M — `plate_reads`, the routes, the page, the ALPR service | **retire** — its model was retired; F1.1's one-word `/stats` fix is moot | | |
+| F-257, F-259, F-260, F-261, F-262, F-263, F-264, F-265, F-266, F-267, F-212, F-214 | Zone analytics (crossings, dwell, loitering, anomalies, comparison, trust violations, health) | half-built | empty cards and charts; every zone "healthy" | no production writer for `dwell_time_records`, line/polygon counters or `zone_anomalies` (`backend/services/dwell_time_service.py:95`, `backend/services/line_zone_service.py:212`, `backend/services/zone_anomaly_service.py:284`); no UI creates line or polygon zones | no | location (movement within the property) | L — a zone tracker in the pipeline feeding dwell, crossings and anomalies; UI to create analytics zones | L — the analytics-zones routes and tables, zone anomalies, the Zones analytics tabs; camera zones (analyzer context) stay | **retire** — none of it has ever had data; camera zones, which the analyzer uses, are unaffected | | |
+| F-008, F-030, F-208, F-287, F-288 | Scene-change (camera tamper) detection | half-built | no scene changes, ever | `scene_changes` has no production writer (`backend/services/scene_change_detector.py:307`) | yes (camera health) | none | M — run the detector on frames in the pipeline and emit the event; backend | M — the table, routes, page, header alerts, dashboard indicator | **complete** — a blocked or moved camera is a security event and the detector exists | | |
+| F-286 | Movement heatmaps | half-built | an empty heatmap | `HeatmapService.add_detection` has no production caller (`backend/services/heatmap_service.py:197`) | no | location | M — feed detections into the accumulator | S — the page, routes, `heatmap_data` | **retire** — not part of the core loop and never had data | | |
+| F-289 | Object tracks | half-built | no tracks | `TrackService.create_or_update_track` has no caller (`backend/services/track_service.py:78`) | no | location | L — a tracker in the pipeline | S — the page, routes, `tracks` | **retire** — needs a tracker the product does not run | | |
+| F-109, F-110, F-111, F-113, F-120, F-122, F-123, F-124, F-112, F-121 | Prompt management and the prompt playground | half-built, leftover | prompts save, version, test and import; the VLM never reads them; four editors are for retired models | nothing outside the prompt routes reads `prompt_versions` (`backend/api/routes/prompt_management.py:42`); the shipped prompt is inline (`backend/services/vlm_analyzer.py:649`); this answers ISS-084 | no | none | M — the VLM reads the active prompt version; would bypass the replay-measured prompt selection (UR-8, OD-29) | M — the prompt routes, service, `prompt_versions`, both pages (OD-25 option (a)) | **retire** — prompts are chosen on replay numbers (OD-29); an editable store the VLM ignores misleads | | |
+| F-114 | Automatic AI-audit evaluation | half-built | nothing; audits appear only from a manual batch | `EvaluationQueue.enqueue` has no production caller (`backend/services/evaluation_queue.py:45`); the evaluator starts by default (`backend/main.py:1070`) | no | none | S — enqueue events as they close; costs GPU time beside the verdict | S — stop starting it and delete the queue (the audit's D7); manual audit stays | **retire** — the manual batch audit covers the need without GPU contention | | |
+| F-105, F-130, F-127, F-128 | Model Zoo latency chart, management panel, load/unload | half-built | an empty latency chart; a panel with wrong fields; load/unload fail | `record_model_zoo_latency` has no caller (`backend/core/metrics.py:2223`); load/unload end in 501 (`backend/api/routes/model_management.py:751`, `:784`) | no | none | M — latency recording in the gateway; the panel's shape; load/unload cannot exist under `--model-control-mode=none` | S — the chart, the buttons and their routes; fix or drop the panel | **retire** — the read-only cards (unverified) keep what works | | |
+| F-011, F-015, F-037, F-126, F-139, F-140, F-173 | Status displays keyed on retired models (RT-DETRv2, Nemotron, Florence, CLIP) | leftover, half-built | badges, cards and charts stuck on "unknown" or empty | the UI reads `rtdetr`/`nemotron` keys; the backend reports `yolo26`/`ai-vlm` (`backend/api/routes/system.py:1062-1063`) | no | none | S — re-key to `yolo26` and `ai-vlm`; frontend | S — remove the stale badges and cards | **complete** — re-keying gives the owner live status for the two engines that run | | |
+| F-103, F-116, F-119, F-107, F-063 | Retired-model analytics: Grafana panels, model contribution chart, LLM reasoning tab | leftover | panels and tabs that stay empty | Florence-2, the attribute zoo and X-CLIP retired (`backend/services/model_zoo.py:18-19`, `backend/api/routes/action_events.py:10`); `llm_interactions` lost its writer in R8 S2b | no | none | — | S — the panels (ops: `monitoring/`), the chart, the tab and `llm_interactions` | **retire** — their models are gone | | |
+| F-068, F-069, F-220 | Action events, pose overlay, pose/action/threat/smoke rule conditions | leftover | an empty panel, no overlay, conditions the UI already hides | X-CLIP and ST-GCN++ archived/deleted (`backend/models/action_event.py:10`, R8 `602379e29`); pose rows deleted in R8 S3 | no | none | — | S — the panel, overlay, `action_events`, the four condition fields | **retire** — their models are gone | | |
+| F-136, F-144, F-041 | Live queue and worker panels | half-built | queue and worker panels that never update; a dashboard widget showing literal zeros | no production emitter for `queue.status`/`pipeline.throughput` (`backend/core/websocket/event_types.py:248`); `broadcast_worker_event` gets no emitter (`backend/services/pipeline_workers.py:104`); zeros at `frontend/src/components/dashboard/DashboardPage.tsx:531` | no | none | S — wire the emitter or read the REST queue endpoint the other panels use | S — the WS-only panels and the widget | **retire** — the REST-fed operations panels (unverified) already show queues and workers | | |
+| F-151, F-152, F-153, F-157 | Profiling and recording developer tools | half-built | profiling status and download 404; Start/Stop shows the wrong state; Clear all fails | client paths `/api/debug/profile` and `/download` are not served (`backend/api/routes/debug.py:925`); `DELETE /api/debug/recordings` answers 405 (`backend/api/routes/debug.py:1405`) | no | request recordings may hold request bodies | S — point the client at `/profile/stats`, add a download route or drop the button, delete per recording | S — the panels; the debug routes stay for the API | **complete** — client-side fixes; note `require_debug_mode` is a no-op (backend trace Dead Marks (a)) | | |
+| F-168 | Tracing: open Jaeger | half-built | a link to a Jaeger UI that does not exist | prod compose runs Tempo, no Jaeger (`docker-compose.prod.yml:989`) | no | none | S — link to Grafana's Tempo explore | S — remove the link | **complete** — one URL | | |
+| F-177, F-179, F-180, F-181, F-183 | GPU assignment (rescan, assign, apply, import, rollback) | half-built | assignments save and "apply" reports success; nothing restarts; health is always "healthy" | apply is simulated (`backend/api/routes/gpu_config.py:926`, `:943`); health hardcoded (`:1280-1281`); the only assignable service is the retired `ai-yolo26` container | no | none | L — real container recreation; overlaps the orchestrator scoping (`B1.6`, D11) | M — the GPU settings page, `gpu_config` routes, `gpu_configurations`/`gpu_devices` | **retire** — its only target is retired, and recreating containers from the backend is what D11 removed | | |
+| F-188, F-189 | Admin feature toggles: Vision Extraction, Re-ID, Scene Change, Image Quality | leftover, half-built | toggles save; nothing changes | Florence retired (`backend/ai_contract/providers.py:53`); the other three settings have no reader outside the settings route | no | none | — (follows the scene-change and re-ID rulings above) | S — the four toggles and their settings fields | **retire** — re-add a toggle only with the feature it controls | | |
+| F-193 | Admin: flush queues | half-built | "flushed"; the queues are untouched | it clears prefixed keys (`backend/api/routes/admin.py:1264`); the pipeline uses unprefixed `detection_queue` (`backend/services/file_watcher.py:405`) | no | none | S — use the pipeline's key names | S — the button | **complete** — an operator tool reporting a false success | | |
+| F-227, F-210 | Camera anomaly detection (config and timeline) | half-built | a config that resets on restart; an anomaly timeline that is always empty | `get_recent_anomalies` returns `[]` (`backend/services/baseline.py:966`); the threshold lives in memory only (`backend/services/baseline.py:1090`) | no | none | M — compute and store anomalies against the activity baselines | S — the config panel, the timeline, the anomaly half of `baseline.py` | **retire** — baselines (unverified) stay; anomalies were never computed | | |
+| F-239 | Ambient audio and desktop-notification toggles | half-built | toggles save; nothing reads them | the provider reads only `ambientEnabled` and `faviconBadgeEnabled` (`frontend/src/components/common/AmbientStatusProvider.tsx:82`) | no | none | S — implement the sound and desktop notification | S — the toggles | **retire** — the notification settings page already owns desktop and sound | | |
+| F-244 | Detector switching | half-built | nothing: no page renders it | `DetectorSettings` is imported by nothing; the router is mounted without `/api` (`backend/main.py:1618`) | no | none | S — mount the router under `/api` and render the panel | S — the component, hook, client and router | **retire** — one detector (YOLO26) ships | | |
+| F-246 | Outbound webhook event types that never fire | half-built | a webhook subscribed to, say, `event_created` saves and never receives anything | of the eleven types the form offers (`frontend/src/types/webhook.ts:34-46`), `backend/` triggers only the `alert_*` types and `entity_discovered` (`backend/services/entity_clustering_service.py:327`, itself unreached) | no | none | M — fire `event_created`, `anomaly_detected`, `system_health_changed` and the batch types where those things happen; backend | S — drop the seven types from the form and the enum | **retire** the seven types — `alert_*` covers the core loop; re-add a type with its producer | | |
+| F-252, F-253, F-255 | Scheduled reports | half-built | reports save with a "next run"; none ever runs; Run now 404s | nothing reads `next_run_at`/`is_due` (`backend/models/scheduled_report.py:134`, `:170`); `/run` answers "queued" and queues nothing (`backend/api/routes/scheduled_reports.py:419`, `:433`) | no | none | L — a scheduler, a report generator and delivery | S — the page, routes and `scheduled_reports` | **retire** — no generator exists; the summaries cover the reporting need | | |
+| F-019 | Command palette "System" entry | half-built | the 404 page | it targets `/system`; the page moved to `/operations` (`frontend/src/App.tsx:275`) | no | none | S — point it at `/operations` | S — remove the entry | **complete** — one path | | |
+| F-076 | Cost analytics | half-built | zero cost and tokens | `track_llm_usage` (`backend/services/cost_tracker.py:199`) is fed by nothing since the LLM tier left | no | none | M — record VLM token usage | M — the cost view, routes and tracker | **retire** — the VLM runs locally; token cost is not a product number | | |
+
+## 2. Open owner decisions
+
+### OD-7 — threat specialist, immediate-alert fast paths, alerts surface for unverified events
+
+**Facts the inventory found.**
+
+- No immediate-alert path runs: the threat fast path builds `ThreatMonitorService(session=None)` and
+  raises on every call, and the smoke/fire path only updates a tracker; no production caller passes
+  a threat or smoke/fire type, so neither branch fires (register ISS-021, re-read 2026-10-09).
+- The UI surfaces built for that path never receive data: the header's recent-threats indicator
+  waits for `threat_detected`, which nothing publishes (F-010); the dashboard's threat banner has no
+  feed (F-036); the alert-rule threat and smoke/fire conditions are hard-coded off (F-220).
+- The threat specialist is off by default: `GATEWAY_ENABLE_THREAT` defaults to `false`
+  (`docker-compose.prod.yml:394`), so the gateway's resident set is `yolo26` and `reid`
+  (`ai/gateway/residency.py:60`).
+- The Alerts page lists events by risk level (high and critical), not the `alerts` table (F-077,
+  F-078); the rules engine that would write `alerts` does not run (§1, F-216).
+
+**Options, as the register states them** (`docs/vss-integration/17-action-plan.md`, OD-7):
+`GATEWAY_ENABLE_THREAT` on (re-measure S1) or off; delete the fast-path stubs or specify a
+trigger; show unverified events or keep high/critical only.
+
+**Rows each option affects.** Threat on with a trigger specified: F-010 and F-036 are completed
+against it, and F-220's threat condition returns. Stubs deleted: F-010, F-036 and F-220 retire with
+them (§1 recommends this). Alerts surface: F-077 and F-078.
+
+**Recommendation.** Keep the threat specialist off and delete both fast-path stubs, with F-010,
+F-036 and F-220; keep the Alerts page on high/critical events. The verdict path is the one alert
+path that works, and a second, seconds-fast path needs a trigger source the detector does not
+have (COCO classes carry no weapon, fire or smoke).
+
+**Ruling:**
+
+### OD-17 — the Triton `reid`/`threat` lane and `ai-llm-vllm`
+
+**Facts the inventory found.**
+
+- Re-ID runs in the backend, not the gateway: the specialists embed crops with the resident OSNet
+  handle (`backend/services/vlm_specialists.py:723`); no backend code calls the gateway's
+  `/enrich-lt/person-reid` (register ISS-050).
+- What re-ID computes is not persisted: `entities` has no production writer since R8 S2b, so every
+  entity and re-ID surface is empty (§1, F-065, F-081 to F-086).
+- `ai-llm-vllm` (compose profile `vllm`, `docker-compose.prod.yml:283`) backs no UI row; no
+  inventory row's chain reaches it.
+- The Model Zoo cards (F-104, F-129, **unverified**) read the live model manager; neither option
+  changes them.
+
+**Options, as the register states them** (OD-17): the backend calls `/enrich-lt/person-reid`, or
+drop `reid` from the residency sets; pin or remove `ai-llm-vllm`.
+
+**Rows each option affects.** Either re-ID option leaves the entity and re-ID rows (§1) empty
+unless they are also completed; dropping `reid` from the gateway changes no UI row; removing
+`ai-llm-vllm` changes no UI row.
+
+**Recommendation.** Drop `reid` from the gateway's residency sets (one re-ID model, in the
+backend), remove `ai-llm-vllm`, and retire the entity and re-ID surfaces with §1's row — or, if
+cross-camera tracking is wanted, complete that row against the backend's OSNet and still drop the
+gateway copy.
+
+**Ruling:**
+
 ## 2b. Docs-lane rulings (`W2.2`)
 
 ### OD-33 — one home for future plans and specs
@@ -416,3 +541,29 @@ as the feature rows. The frontend lane's record PR copies each ruling into_
 `docs/vss-integration/17-action-plan.md` _per the template's §4 — `OD-33/34/35` are new numbers and
 the register has no rows for them yet, so the record step ADDS those three rows, it does not edit
 existing ones._
+
+## 3. Modules serving no feature
+
+### Frontend
+
+The inventory's §4: 136 production files under `frontend/src/` that `src/main.tsx` cannot reach
+(37583 lines), which no row claims — listed with lines and last meaningful commit in
+[`feature-inventory.md` §4](../reference/feature-inventory.md#4-modules-serving-no-feature). Its §5
+adds the client requests only dead code sends (77). `F3.2` deletes both, with the tests that test
+only them.
+
+### Python
+
+**Pending `O2.3`.** The reachability check has not started; its non-shipping list, minus every
+module a row claims, lands here when it merges (owner ruling 50). The backend trace's
+[Dead Marks](../reference/backend-entry-points.md#dead-marks) and `00-audit.md` §4.1–§4.2 name the
+known candidates; neither is the measured list.
+
+Ruling: approve the list for deletion as a whole, naming any exceptions and why.
+
+**Ruling:**
+
+## 4. After the session
+
+The frontend lane's record PR copies each ruling and priority into the inventory, writes the OD
+rulings into `docs/vss-integration/17-action-plan.md`, and sets `R2` to `done`.
