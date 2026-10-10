@@ -13,7 +13,7 @@ import os
 import sys
 from functools import cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AnyHttpUrl, Field, SecretStr, ValidationInfo, field_validator, model_validator
@@ -1778,6 +1778,13 @@ class Settings(BaseSettings):
         le=10,
         description="Maximum retry attempts for ReID embedding generation on transient failures. "
         "Uses exponential backoff (2^attempt seconds). Default: 3 attempts.",
+    )
+    reid_backend: Literal["local", "gateway"] = Field(
+        default="local",
+        description="Where person re-ID embeddings are computed (B2.2, owner ruling 68). "
+        "'local': the backend's resident OSNet copy. 'gateway': the AI gateway's GPU "
+        "'reid' model at ENRICHMENT_LIGHT_URL/person-reid, the same network and weights. "
+        "Stays 'local' until the owner's parity run is posted; switching back is the rollback.",
     )
 
     scene_change_threshold: float = Field(

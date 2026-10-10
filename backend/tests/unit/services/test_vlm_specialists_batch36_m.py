@@ -1449,6 +1449,57 @@ def test_reid_matches_best_per_member():
         restore()
 
 
+def _reid_leg_with_failures(plan):
+    """Run the leg over two crops whose extractions raise ``plan``; return
+    (text, metrics reasons seen)."""
+    seen = []
+    stubs_o, _ = _osnet_stub(REID_HANDLE, extract_plan=plan)
+    stubs_n, _ = _np_stub([])
+    stubs_h, _ = _hm_stub([], [])
+    restore = _module_stub({**_metrics_stub(seen), **_pil_stub2(), **stubs_o, **stubs_n, **stubs_h})
+
+    async def _gal(sess):
+        return ["row-a", "row-b"]
+
+    try:
+        out = asyncio.run(
+            vs._collect_reid_text(
+                frame_paths=_CROPS_FP,
+                detections=_reid_dets("f1", "f1", det_ids=(1, 2)),
+                settings=REID_SETTINGS,
+                session=SESSION,
+                gallery=_gal,
+            )
+        )
+    finally:
+        restore()
+    return out, seen
+
+
+def test_reid_gateway_down_degrades_with_its_own_reason():
+    """B2.2 (owner ruling 68): "the gateway being down degrades the step with
+    its own reason code; the step's never-raise contract stands"."""
+    from backend.services.reid_gateway import ReidGatewayUnavailable
+
+    out, seen = _reid_leg_with_failures(
+        [ReidGatewayUnavailable("down"), ReidGatewayUnavailable("down")]
+    )
+
+    assert out == DEFAULT_PHRASE
+    assert seen == [("person_reid", "gateway_unavailable")]
+
+
+def test_reid_mixed_failures_stay_extraction_failed():
+    """Only an all-gateway outage is the gateway's reason; a crop that failed
+    for another cause keeps the general one."""
+    from backend.services.reid_gateway import ReidGatewayUnavailable
+
+    out, seen = _reid_leg_with_failures([ReidGatewayUnavailable("down"), ExtractErr("bad crop")])
+
+    assert out == DEFAULT_PHRASE
+    assert seen == [("person_reid", "extraction_failed")]
+
+
 def test_reid_all_extractions_failed():
     records, undo_log = _logs()
     seen = []

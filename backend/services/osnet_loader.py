@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from backend.core.config import get_settings
 from backend.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -218,7 +219,15 @@ def get_reid_handle() -> dict[str, Any] | None:
 
     The import is lazy because model_zoo imports this module: a module-level
     import would be a cycle.
+
+    With ``reid_backend == "gateway"`` (B2.2) the handle names the gateway
+    instead, and the local model is not consulted. Its ``model_id`` is None:
+    the belt is the ID the gateway reports on each embedding, never assumed.
     """
+    settings = get_settings()
+    if getattr(settings, "reid_backend", "local") == "gateway":
+        return {"kind": "gateway", "base_url": settings.enrichment_light_url, "model_id": None}
+
     from backend.services.model_zoo import get_model_manager
 
     loaded = get_model_manager()._loaded_models
@@ -515,8 +524,16 @@ async def extract_person_embedding(
         PersonEmbeddingResult with 512-dimensional embedding
 
     Raises:
-        RuntimeError: If embedding extraction fails
+        RuntimeError: If embedding extraction fails (a gateway handle raises
+            ``ReidGatewayUnavailable``, a RuntimeError, when the gateway is down)
     """
+    if model_dict.get("kind") == "gateway":
+        from backend.services import reid_gateway
+
+        return await reid_gateway.embed_person_via_gateway(
+            image, base_url=model_dict["base_url"], detection_id=detection_id
+        )
+
     try:
         import torch
 
