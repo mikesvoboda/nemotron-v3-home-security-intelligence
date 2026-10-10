@@ -502,7 +502,8 @@ a live stack.
 - **Teardown** is `docker compose -p <project> down -v` and nothing else. It
   runs after a failure too, and after SIGTERM, SIGHUP or Ctrl-C, which end the
   run as a failure (exit 1). A second signal is ignored until teardown ends;
-  SIGKILL is not.
+  SIGKILL is not. A signal the caller already ignores, such as `nohup`'s
+  SIGHUP, stays ignored.
 - **The postflight** asserts that every container and volume from the
   snapshot still exists, and that every container that was running still is,
   with the same start time.

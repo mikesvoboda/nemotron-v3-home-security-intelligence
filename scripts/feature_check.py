@@ -1763,7 +1763,12 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
     status = EXIT_OK
-    handlers = {signum: signal.signal(signum, _interrupt) for signum in STOP_SIGNALS}
+    # A signal the caller ignores stays ignored (nohup's SIGHUP).
+    handlers = {
+        signum: signal.signal(signum, _interrupt)
+        for signum in STOP_SIGNALS
+        if signal.getsignal(signum) is not signal.SIG_IGN
+    }
     handlers[signal.SIGINT] = signal.getsignal(signal.SIGINT)
     try:
         if vlm is not None:
