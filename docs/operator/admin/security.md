@@ -21,7 +21,10 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   delivery keep working with the gate on. `/grafana/` moves from anonymous Admin to
   `auth_request` against the login session plus Grafana `auth.proxy` as Viewer: one
   login serves the UI and the dashboards, and `/grafana/` is refused without a
-  session. Logging in then needs HTTPS in front, because the session cookie is `Secure`.
+  session. Logging in then needs TLS in front
+  — or `SESSION_COOKIE_SECURE=false` on a trusted network, because the session cookie is
+  `Secure` by default and a browser drops it on a plain-`http` origin, looping the login
+  (R55; [the login cookie over http and TLS](../../reference/config/env-reference.md#the-login-cookie-over-http-and-tls)).
   Register the admin before exposing: registration stays open until the first user exists.
 - **Per-route guards for sensitive operations** - the `/api/admin/*` seeding, cache-clearing
   and cleanup routes sit behind `require_admin_access`, which gates on `ADMIN_ENABLED` alone

@@ -637,6 +637,8 @@ The `HealthMonitor` service:
 --8<-- "docs/_includes/auth-model.md"
 <!-- prettier-ignore-end -->
 
+The http/TLS/cookie trade-off behind item 4, including the startup warning, is in [The login cookie over http and TLS](../reference/config/env-reference.md#the-login-cookie-over-http-and-tls).
+
 ### Production Hardening (Recommended)
 
 - Set `EXPOSE_LAN=true` whenever anything beyond this machine reaches the UI (login session or API key required)

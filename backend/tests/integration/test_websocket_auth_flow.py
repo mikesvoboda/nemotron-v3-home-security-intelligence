@@ -383,23 +383,27 @@ class TestWebSocketEventsAuthFlow:
             assert exc_info.value.code == 4001
 
     def test_websocket_events_with_session_cookie(self, auth_client):
-        """Test that /ws/events accepts valid session cookie.
+        """Test that /ws/events accepts a valid session cookie (R55 contract).
 
         Web UI clients send session cookies automatically.
 
         Expected behavior:
-        - Extract session cookie from headers
-        - Validate cookie signature and expiration
+        - Extract the cookie login sets (SESSION_COOKIE_NAME — not the
+          literal "session" no response ever set)
+        - Look the session id up in Redis (patched here; the live lookup is
+          proven unpatched in TestR55CookieAuthenticatesSocketsLive)
         - Accept connection and receive events
         """
-        # Generate valid session cookie
+        from backend.services.session_service import SESSION_COOKIE_NAME
+
+        # Session validation resolves to a username (new str contract)
         with patch(
             "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_validate:
-            mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
+            mock_validate.return_value = "test_user"
 
             # Mock cookie in headers (simulating browser behavior)
-            headers = {"cookie": "session=valid_session_cookie_abc123"}
+            headers = {"cookie": f"{SESSION_COOKIE_NAME}=valid_session_cookie_abc123"}
 
             with auth_client.websocket_connect("/ws/events", headers=headers) as websocket:
                 # Should be connected without close
@@ -594,15 +598,22 @@ class TestWebSocketSessionInvalidation:
         - WebSocket connection is active with valid session
         - Session is invalidated (simulated)
         - WebSocket receives disconnect signal
-        - Connection closes with code 4002 (token expired)
+        - Connection closes with code 4001 (session dead) — R55 reserves 4002
+          for JWT exp; a Redis-TTL'd session cookie is the 4001 family, and the
+          handshake rejection for a stale cookie already closes 4001.
         """
         with patch(
             "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_validate:
-            # Initially valid session
-            mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
+            # Initially valid session (new contract: a username; and under the
+            # name login actually sets — R55. The 4002 assertion below is about
+            # the unbuilt invalidation feature's close code, deliberately left
+            # as the placeholder author wrote it.)
+            mock_validate.return_value = "test_user"
 
-            headers = {"cookie": "session=valid_session_cookie"}
+            from backend.services.session_service import SESSION_COOKIE_NAME
+
+            headers = {"cookie": f"{SESSION_COOKIE_NAME}=valid_session_cookie"}
 
             with session_client.websocket_connect("/ws/events", headers=headers) as websocket:
                 # Connection established
@@ -620,8 +631,9 @@ class TestWebSocketSessionInvalidation:
                 with pytest.raises(WebSocketDisconnect) as exc_info:
                     websocket.receive_text()
 
-                # Should close with 4002 (token/session expired)
-                assert exc_info.value.code == 4002
+                # Should close with 4001 (R55 family: dead session, like the
+                # handshake rejection; 4002 stays reserved for JWT exp)
+                assert exc_info.value.code == 4001
 
 
 # =============================================================================
@@ -710,7 +722,16 @@ class TestWebSocketDetectionsAuthFlow:
         from backend.main import app
 
         original_jwt_secret = os.environ.get("JWT_SECRET")
+        original_api_key = os.environ.get("API_KEY_ENABLED")
+        # API_KEYS is set workspace-wide by integration_env (conftest); save
+        # the original so teardown cannot strip the key other tests validate.
+        original_api_keys = os.environ.get("API_KEYS")
         os.environ["JWT_SECRET"] = "test_jwt_secret_detections"
+        # R55: the key gate must be ON or the cookie leg is never the thing
+        # under test — with api_key_enabled=False the route's key check
+        # returns True unconditionally and any cookie (or none) connects.
+        os.environ["API_KEY_ENABLED"] = "true"
+        os.environ["API_KEYS"] = '["test_api_key_123"]'
 
         get_settings.cache_clear()
 
@@ -732,6 +753,15 @@ class TestWebSocketDetectionsAuthFlow:
         else:
             os.environ.pop("JWT_SECRET", None)
 
+        if original_api_key:
+            os.environ["API_KEY_ENABLED"] = original_api_key
+        else:
+            os.environ.pop("API_KEY_ENABLED", None)
+        if original_api_keys is not None:
+            os.environ["API_KEYS"] = original_api_keys
+        else:
+            os.environ.pop("API_KEYS", None)
+
         get_settings.cache_clear()
 
     def test_websocket_detections_with_cookie_auth(self, detections_auth_client):
@@ -744,12 +774,21 @@ class TestWebSocketDetectionsAuthFlow:
         - Receive detection events
         - Subscribe to detection.* events automatically
         """
+        from backend.services.session_service import SESSION_COOKIE_NAME
+
+        # R55: pre-fix this test only passed because the patched validator
+        # answered valid — the real chain could never have (dead cookie name).
+        # And after the name fix it kept passing for a SECOND wrong reason:
+        # this fixture never enabled API_KEY_ENABLED, so the route's key check
+        # short-circuited disabled and authenticated the socket with no
+        # credential at all. The fixture now enables the key gate (below), so
+        # the cookie is the ONLY thing that can carry this connection.
         with patch(
             "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_validate:
-            mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
+            mock_validate.return_value = "test_user"
 
-            headers = {"cookie": "session=valid_detection_session"}
+            headers = {"cookie": f"{SESSION_COOKIE_NAME}=valid_detection_session"}
 
             with detections_auth_client.websocket_connect(
                 "/ws/detections", headers=headers
@@ -822,17 +861,20 @@ class TestWebSocketAuthPriorityIntegration:
         - Connection uses cookie credentials
         - Query param JWT is ignored
         """
+        from backend.services.session_service import SESSION_COOKIE_NAME
+
         with patch(
             "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_cookie:
             with patch(
                 "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
             ) as mock_jwt:
-                # Both return valid credentials
-                mock_cookie.return_value = {"user_id": "cookie_user", "exp": 9999999999}
+                # Both would authenticate; the cookie must win. New contract:
+                # the session validator answers with a username, not claims.
+                mock_cookie.return_value = "cookie_user"
                 mock_jwt.return_value = {"sub": "jwt_user", "exp": 9999999999}
 
-                headers = {"cookie": "session=valid_cookie"}
+                headers = {"cookie": f"{SESSION_COOKIE_NAME}=valid_cookie"}
 
                 with priority_client.websocket_connect(
                     "/ws/events?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.jwt_token",
@@ -846,3 +888,169 @@ class TestWebSocketAuthPriorityIntegration:
 
                     # JWT should NOT have been checked (cookie took precedence)
                     mock_jwt.assert_not_called()
+
+
+# =============================================================================
+# R55: A login session authenticates a socket — live, no patched validator
+# =============================================================================
+
+
+class TestR55CookieAuthenticatesSocketsLive:
+    """Done-when 1 (owner ruling 55): cookie login -> socket, end to end.
+
+    Every other cookie test in this file patches validate_session_cookie,
+    which is exactly the escape hatch that let the socket cookie path stay
+    dead for so long: with the validator mocked, a suite cannot see that the
+    real chain (cookie name -> Redis lookup) never ran. These two tests
+    patch NONE of the authentication code. The Redis session store is the
+    same boundary test_api_protection.py patches to reach a real server
+    (_real_redis_optional); everything above it — extract_cookie_from_websocket,
+    validate_session_cookie, the gate's _session_username, verify_websocket_auth
+    — is the shipped code under review.
+    """
+
+    @pytest.fixture
+    def live_wired(self, worker_redis_url):
+        """App + REAL Redis session store; no auth code patched.
+
+        Yields (client, session_service, bridge).
+        """
+        import asyncio
+        import os
+
+        import redis as redispy
+
+        from backend.api.middleware import auth as auth_middleware
+        from backend.core.config import get_settings
+        from backend.main import app
+        from backend.services.session_service import SessionService
+
+        originals = {
+            k: os.environ.get(k)
+            for k in ("API_KEY_ENABLED", "API_KEYS", "JWT_SECRET", "SESSION_SECRET")
+        }
+        os.environ["API_KEY_ENABLED"] = "true"
+        os.environ["API_KEYS"] = '["r55_live_key"]'
+        os.environ["JWT_SECRET"] = "test_jwt_secret_r55_live"  # pragma: allowlist secret
+        os.environ["SESSION_SECRET"] = "test_session_secret_r55_live"  # pragma: allowlist secret
+        get_settings.cache_clear()
+
+        sync_store = redispy.Redis.from_url(worker_redis_url)
+
+        class _RealStoreRedis:
+            """Async front for a sync redis-py pool: real bytes, any loop.
+
+            backend.core.redis.RedisClient opens its connection on whichever
+            event loop calls connect(), and TestClient runs the app on its
+            own portal loop — an async client built outside would be pinned
+            to the wrong loop. SessionService only needs get/set/delete, so
+            bridging each over the thread-safe sync pool keeps every read a
+            real Redis read without the pinning. The calls list doubles as
+            the test's evidence that the gate actually consulted Redis.
+            """
+
+            def __init__(self, store):
+                self._store = store
+                self.calls = []
+
+            async def get(self, key):
+                self.calls.append(("get", key))
+                return await asyncio.to_thread(self._store.get, key)
+
+            async def set(self, key, value, expire=None):
+                self.calls.append(("set", key))
+                if expire is not None:
+                    return await asyncio.to_thread(self._store.set, key, value, ex=expire)
+                return await asyncio.to_thread(self._store.set, key, value)
+
+            async def delete(self, *keys):
+                self.calls.append(("delete", *keys))
+                return await asyncio.to_thread(self._store.delete, *keys)
+
+        bridge = _RealStoreRedis(sync_store)
+
+        async def _live_redis_optional():
+            return bridge
+
+        mocks = _get_common_lifespan_mocks()
+        mock_check_rate_limit = AsyncMock(return_value=True)
+
+        with ExitStack() as stack:
+            _apply_common_lifespan_patches(stack, mocks)
+            stack.enter_context(
+                patch(
+                    "backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit
+                )
+            )
+            # The session-store boundary only. This is test_api_protection's
+            # _real_redis_optional idiom; validate_session_cookie and
+            # _session_username are NOT patched — the real lookup runs.
+            stack.enter_context(
+                patch.object(auth_middleware, "get_redis_optional", _live_redis_optional)
+            )
+            client = stack.enter_context(TestClient(app))
+            yield client, SessionService(bridge), bridge
+
+        for key, value in originals.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+        get_settings.cache_clear()
+        sync_store.close()
+
+    def test_real_redis_session_opens_socket_without_patched_validator(self, live_wired):
+        """The ruling's can-fail proof: login's session_id opens /ws/events.
+
+        The session is created with SessionService.create_session — the exact
+        call POST /api/auth/login makes (routes/auth.py), with the same
+        key/value shape Redis holds after a real login. (The HTTP leg itself
+        — that login SETs a cookie named SESSION_COOKIE_SECURE-safe session_id
+        carrying that id — is proven against this same real Redis in
+        test_api_protection.py; this closes the second half.) With the fix,
+        the socket reads it; at the pre-fix name ("session") the extractor
+        found nothing, the cookie leg never ran, and first-message auth
+        timed out into a 4001 — this test fails there, which is why it is
+        worth writing.
+        """
+        import asyncio
+        from datetime import timedelta
+
+        from backend.services.session_service import SESSION_COOKIE_NAME
+
+        client, service, bridge = live_wired
+        session_id = asyncio.run(
+            service.create_session(
+                "r55-user-id",
+                {"username": "r55-user", "is_admin": True},
+                ttl=timedelta(seconds=120),
+            )
+        )
+        try:
+            headers = {"cookie": f"{SESSION_COOKIE_NAME}={session_id}"}
+            with client.websocket_connect("/ws/events", headers=headers) as websocket:
+                websocket.send_text(json.dumps({"type": "ping"}))
+                data = json.loads(websocket.receive_text())
+                assert data["type"] == "pong"
+            # The gate really consulted Redis for THIS session key — no
+            # mocked validator could have answered without it.
+            assert ("get", f"session:{session_id}") in bridge.calls
+        finally:
+            asyncio.run(service.delete_session(session_id))
+
+    def test_fabricated_session_id_closes_4001_through_the_real_gate(self, live_wired):
+        """Negative control against the yes-man pathology.
+
+        A fabricated id through a validator patched to "valid" would connect
+        (that's how the old suite hid the defect); through the real gate it
+        finds no session, falls through, times out first-message auth, and
+        closes 4001.
+        """
+        from backend.services.session_service import SESSION_COOKIE_NAME
+
+        client, _service, bridge = live_wired
+        headers = {"cookie": f"{SESSION_COOKIE_NAME}=r55-fabricated-never-issued-id"}
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect("/ws/events", headers=headers) as websocket:
+                websocket.receive_text()
+        assert exc_info.value.code == 4001

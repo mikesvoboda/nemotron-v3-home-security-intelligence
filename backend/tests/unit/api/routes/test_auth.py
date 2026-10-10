@@ -206,6 +206,48 @@ class TestLogin:
         cookie_header = response.headers["set-cookie"]
         assert "httponly" in cookie_header.lower()
         assert "samesite=lax" in cookie_header.lower()
+        # R55: Secure ships True (the safe default), read from settings per
+        # response — it used to be a module constant, indistinguishable from
+        # the setting in a default test and therefore untestable either way.
+        assert "secure" in cookie_header.lower()
+
+    def test_login_secure_flag_follows_settings(
+        self, app_factory, patched_seams, monkeypatch
+    ) -> None:
+        """Done-when 2 (ruling 55): SESSION_COOKIE_SECURE=false reaches the wire.
+
+        The whole point of making the flag a setting: an EXPOSE_LAN instance
+        served over plain http must be able to hand out a cookie a browser
+        will KEEP. Asserting the header, not response.cookies — httpx refuses
+        to store a Secure cookie over an http base_url, which is exactly the
+        browser behavior the setting exists to escape (and why
+        test_api_protection extracts its cookie explicitly).
+        """
+
+        async def _redis():
+            return AsyncMock()
+
+        monkeypatch.setenv("SESSION_COOKIE_SECURE", "false")
+        get_settings.cache_clear()
+        try:
+            client = TestClient(app_factory(make_user()))
+            with unittest.mock.patch.object(auth_routes, "get_redis_optional", _redis):
+                response = client.post(
+                    "/api/auth/login",
+                    json={
+                        "username": "admin",
+                        "password": "SecurePassword123!",  # pragma: allowlist secret
+                    },
+                )
+        finally:
+            get_settings.cache_clear()
+        assert response.status_code == 200
+        cookie_header = response.headers["set-cookie"]
+        assert "secure" not in cookie_header.lower()
+        # The other flags are untouched by the setting — this asserts only
+        # the Secure delta, but pin httponly so a regression that drops flags
+        # wholesale on the false path cannot pass on a technicality.
+        assert "httponly" in cookie_header.lower()
 
     def test_login_without_redis_succeeds_without_cookie(self, app_factory, patched_seams) -> None:
         """Shipped behavior: login returns 200 (no session cookie) when no
