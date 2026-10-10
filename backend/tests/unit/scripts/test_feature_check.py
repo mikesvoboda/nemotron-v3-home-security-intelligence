@@ -26,6 +26,7 @@ import importlib.util
 import json
 import os
 import re
+import secrets
 import signal
 import socket
 import subprocess
@@ -798,9 +799,11 @@ VLM_URL = "http://host.docker.internal:18123"
 SERVED_MODEL = "Qwen3VL-8B-Instruct-Q4_K_M"
 
 # A stand-in for the agent-gpu CLI: it logs each call as a JSON line, keeps
-# the names `run` started until `rm` removes them, and lists them on `ps`.
+# the names `run` started until `rm` removes them, and lists them on `ps`. It
+# refuses a name as the broker does (its policy and refusal, quoted from the
+# operator's first --real run on #6961).
 AGENT_GPU_STUB = """#!/usr/bin/env python3
-import json, os, sys
+import json, os, re, sys
 log = os.environ["AGENT_GPU_STUB_LOG"]
 state = log + ".running"
 with open(log, "a") as f:
@@ -809,6 +812,9 @@ names = open(state).read().split() if os.path.exists(state) else []
 verb = sys.argv[1]
 if verb == "run":
     name = sys.argv[sys.argv.index("--name") + 1]
+    if not re.fullmatch("[a-z0-9][a-z0-9-]{0,31}", name):
+        print("agent-gpu: refused.policy: name: must match [a-z0-9][a-z0-9-]{0,31}", file=sys.stderr)
+        sys.exit(1)
     if os.environ.get("AGENT_GPU_STUB_RUN_EXIT"):
         print("admission refused: 38 of 40 GiB declared", file=sys.stderr)
         sys.exit(int(os.environ["AGENT_GPU_STUB_RUN_EXIT"]))
@@ -1203,7 +1209,7 @@ def test_the_vlm_is_built_and_served_as_operator_md_says(
     assert calls[5] == [
         "run",
         "--name",
-        f"{run.project}-vlm",
+        vlm.name,
         "--image",
         "ai-vlm:abc1234",
         "--vram",
@@ -1337,7 +1343,7 @@ def test_a_green_real_run_removes_its_vlm_after_the_test_deployment(
     assert order[-2:] == ["collect", "teardown"]
     (summary_file,) = (tmp_path / "runs").glob("hsi-check-*/artifacts/summary.json")
     summary = json.loads(summary_file.read_text(encoding="utf-8"))
-    name = f"{summary['project']}-vlm"
+    name = summary["vlm_name"]
     assert agent_gpu.calls()[-6:] == [
         ["compose-down"],
         ["ps"],
@@ -1383,7 +1389,7 @@ def test_a_vlm_that_outlives_the_run_fails_it(
     (summary_file,) = (tmp_path / "runs").glob("hsi-check-*/artifacts/summary.json")
     summary = json.loads(summary_file.read_text(encoding="utf-8"))
     (problem,) = summary["results"]["agent_gpu"]
-    assert f"{summary['project']}-vlm" in problem
+    assert summary["vlm_name"] in problem
 
 
 def test_a_backend_that_cannot_reach_the_vlm_says_so_when_up_fails(
@@ -1609,7 +1615,7 @@ def test_a_vlm_that_fails_to_start_is_still_removed(
     status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
     assert status == fc.EXIT_FAILED
     assert "render" not in order
-    name = f"{_real_summary(tmp_path / 'runs')['project']}-vlm"
+    name = _real_summary(tmp_path / "runs")["vlm_name"]
     calls = agent_gpu.calls()
     assert ["stop", name] in calls
     assert ["rm", name] in calls
@@ -1805,3 +1811,34 @@ def test_a_signal_the_caller_ignores_stays_ignored(
     assert status == fc.EXIT_OK
     assert "interrupted" not in _real_summary(tmp_path / "runs")
     assert "golden" in order
+
+
+# ---------------------------------------------------------------------------
+# agent-gpu's name policy (#6967): the first --real run on the GB300 was
+# refused, `agent-gpu: refused.policy: name: must match [a-z0-9][a-z0-9-]{0,31}`
+# ---------------------------------------------------------------------------
+
+
+def test_the_vlm_name_fits_agent_gpus_name_policy(tmp_path: Path) -> None:
+    """`<project>-vlm` was 35 characters: the project alone is 31, so the
+    name is the run's id under a short prefix, not the project plus a suffix."""
+    for _ in range(20):
+        run = _run(tmp_path / secrets.token_hex(4))
+        vlm = fc.AgentGpu(run)
+        assert re.fullmatch(r"[a-z0-9][a-z0-9-]{0,31}", vlm.name), vlm.name
+        assert vlm.name == "hsi-vlm-" + run.project.removeprefix(fc.PROJECT_PREFIX)
+        assert run.summary["vlm_name"] == vlm.name
+
+
+def test_a_vlm_name_the_policy_refuses_stops_the_run_before_anything_is_served(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _pin(monkeypatch, PINNED)
+    _library(tmp_path / "library", PINNED)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_tree", lambda *_: "abc1234")
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.name = "hsi-check-20261010181711-802118-vlm"
+    with pytest.raises(fc.Refused) as refused:
+        vlm.prepare()
+    _one_problem(refused.value.problems, vlm.name, "[a-z0-9][a-z0-9-]{0,31}")
+    assert agent_gpu.verbs() == []
