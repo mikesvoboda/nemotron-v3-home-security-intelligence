@@ -208,6 +208,13 @@ jobs:
       # the comment lives HERE (outside the folded scalar) per the WP0.1
       # lesson: a `#` inside `>-` becomes a bash comment mid-command and
       # silently kills every file listed after it.
+      # O2.3 (§M1): the reachability walker's suite joined the list. It is
+      # the ONLY mechanical check of the shipping/non-shipping verdict the
+      # rest of the programme (M2 scoring, R-surface deletions) reads, and
+      # its Done-when says the suite must pass IN CI — six pins against the
+      # real tree (redis_json/scenario_classifier/managed_service/
+      # orphan_cleanup_service dead; vlm_analyzer/backend/evaluation live)
+      # rot the moment they stop running.
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -237,6 +244,7 @@ jobs:
           scripts/audit/test_battery_census.py
           scripts/audit/test_literal_groups.py
           scripts/test_shard_durations.py
+          scripts/test_reachability.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref

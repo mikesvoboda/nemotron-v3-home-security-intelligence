@@ -1,0 +1,69 @@
+# O2.3 (plan 01 §M1): declared roots of the reachability walk.
+#
+# Declaration rule (pinned by scripts/test_reachability.py — an entry list
+# that silently rots misclassifies every module behind it):
+#   1. the application roots: backend/main.py (+ the worker processes it
+#      starts IN-PROCESS via pipeline_workers), ai/gateway/main.py, the
+#      synthbench CLI (python -m synthbench -> __main__.py -> cli.py);
+#   2. every NON-TEST .py path named by a file under .github/workflows/ or by
+#      .pre-commit-config.yaml — that grep is exactly what the pin test
+#      re-runs. Shell wrappers are not followed: a .sh's python payload is
+#      either named by the workflow itself or reached through another entry.
+#      scripts/audit/test_*.py suites are tests (never roots): a module that
+#      only ever executes from inside a test is, by this model's own rule,
+#      not shipping — keep.toml is where a human overrides that, per module,
+#      with a reason.
+#
+# dynamic_allow: the one channel for string/dynamic imports (§M1). An
+# un-allowlisted literal is reported `unresolved`, never silently shipped.
+
+entries = [
+  # --- application roots ---
+  "backend/main.py",
+  "ai/gateway/main.py",
+  "synthbench/__main__.py",
+  "synthbench/cli.py",
+  # --- scripts named by .github/workflows/*.yml ---
+  "scripts/agents_md_linear_sync.py",
+  "scripts/agents_md_validator.py",
+  "scripts/analyze-flaky-tests.py",
+  "scripts/audit-linear-github-sync.py",
+  "scripts/audit-test-durations.py",
+  "scripts/check-ai-provider-parity.py",
+  "scripts/check-api-breaking-changes.py",
+  "scripts/check-docs-drift.py",
+  "scripts/check-flake-allowlist.py",
+  "scripts/check-integration-tests.py",
+  "scripts/check-npm-audit-exemptions.py",
+  "scripts/check-test-collection.py",
+  "scripts/check-test-coverage-gate.py",
+  "scripts/ci-metrics-collector.py",
+  "scripts/create-docs-tasks.py",
+  "scripts/fast_select.py",
+  "scripts/fetch-ci-artifacts.py",
+  "scripts/flake-k-filter.py",
+  "scripts/gen-ai-contract.py",
+  "scripts/generate-api-tests.py",
+  "scripts/generate-openapi.py",
+  "scripts/generate-test-stubs.py",
+  "scripts/generate-ws-types.py",
+  "scripts/load_test.py",
+  "scripts/mutation-score.py",
+  "scripts/ratchet-check.py",
+  "scripts/suppression-census.py",
+  "scripts/suppression-registry-gen.py",
+  "scripts/weekly-test-report.py",
+  # --- scripts named by .pre-commit-config.yaml ---
+  "scripts/check-mock-spec.py",
+  "scripts/check-test-mocks.py",
+  "scripts/check-test-timeouts.py",
+  "scripts/check-validation-drift.py",
+  "scripts/mint-test-durations.py",
+]
+
+dynamic_allow = [
+  # backend/main.py's tiktoken pre-warm imports its counter lazily inside
+  # run_in_executor — a real shipped edge the AST can see but not resolve
+  # statically (the whole point of the allowlist).
+  "backend.services.token_counter",
+]
