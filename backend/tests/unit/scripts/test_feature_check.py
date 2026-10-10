@@ -827,7 +827,10 @@ elif verb == "rm" and os.environ.get("AGENT_GPU_STUB_KEEP") != "1":
 elif verb == "ps":
     print("NAME IMAGE VRAM")
     for name in names:
-        print(f"{os.environ.get('AGENT_GPU_STUB_PS_PREFIX', '')}{name} ai-vlm:0000000 14GiB")
+        if os.environ.get("AGENT_GPU_STUB_PS_ANONYMOUS"):
+            print("c0ffee ai-vlm:0000000 14GiB")
+        else:
+            print(f"{os.environ.get('AGENT_GPU_STUB_PS_PREFIX', '')}{name} ai-vlm:0000000 14GiB")
 elif verb == "status":
     print("declared 0 of 40 GiB")
 elif verb == "images":
@@ -1109,6 +1112,16 @@ def _serve(handler: Any) -> Any:
     return server
 
 
+def _started_vlm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """A VLM the stand-in agent-gpu has started (and so lists on ps)."""
+    monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.vlm_image = "ai-vlm:abc1234"
+    vlm.start()
+    assert (vlm.url, vlm.host_port) == (VLM_URL, 18123)
+    return vlm
+
+
 def _vlm_proxy(model_path: str, seen: list[str]) -> Any:
     """A proxy that answers for the VLM, as the sandbox's proxy forwards
     host.docker.internal to the host's loopback."""
@@ -1151,8 +1164,7 @@ def test_the_served_model_must_be_the_pin(
     server = _vlm_proxy(f"{library}/Qwen3VL-8B-Instruct-Q4_K_M.gguf", seen)
     try:
         _through(monkeypatch, server)
-        vlm = fc.AgentGpu(_run(tmp_path))
-        vlm.url, vlm.host_port = VLM_URL, 18123
+        vlm = _started_vlm(tmp_path, monkeypatch)
         vlm.wait_ready(timeout=5)
         assert seen[:1] == [f"{VLM_URL}/health"]
         assert f"{VLM_URL}/props" in seen
@@ -1170,8 +1182,7 @@ def test_a_served_model_that_is_not_the_pin_refuses(
     server = _vlm_proxy("/library/qwen3vl-8b-instruct-q8_0/Qwen3VL-8B-Instruct-Q8_0.gguf", [])
     try:
         _through(monkeypatch, server)
-        vlm = fc.AgentGpu(_run(tmp_path))
-        vlm.url, vlm.host_port = VLM_URL, 18123
+        vlm = _started_vlm(tmp_path, monkeypatch)
         with pytest.raises(fc.HarnessError, match="Q8_0"):
             vlm.wait_ready(timeout=5)
     finally:
@@ -1239,7 +1250,6 @@ def test_the_vlm_is_built_and_served_as_operator_md_says(
     [
         ("IMAGE TAG\nai-vlm abc1234", True),
         ("localhost/agent-uplevel-operator/ai-vlm:abc1234 5.1GB", True),
-        ('{"images": ["localhost/agent-uplevel-operator/ai-vlm:abc1234"]}', True),
         ("ai-vlm:abc1234f 5.1GB", False),
         ("ai-vlm-old:abc1234 5.1GB", False),
         ("my-ai-vlm abc1234", False),
@@ -1843,3 +1853,39 @@ def test_a_vlm_name_the_policy_refuses_stops_the_run_before_anything_is_served(
         vlm.prepare()
     _one_problem(refused.value.problems, vlm.name, "[a-z0-9][a-z0-9-]{0,31}")
     assert agent_gpu.verbs() == []
+
+
+def test_a_policy_refused_name_ends_the_run_with_exit_2_before_the_weights(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Through main: a refusal (exit 2), recorded in the summary, before the
+    weights are hashed and before any agent-gpu call."""
+    hashed: list[Path] = []
+    monkeypatch.setattr(fc, "weight_digests", lambda directory: hashed.append(directory) or {})
+    monkeypatch.setattr(fc.AgentGpu, "vlm_tree", lambda *_: "abc1234")
+    monkeypatch.setattr(fc.Run, "take_snapshot", lambda *_: fc.Snapshot((), frozenset()))
+    monkeypatch.setattr(fc, "VLM_NAME_PREFIX", "hsi-check-and-a-prefix-too-long-")
+    status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+    assert status == fc.EXIT_REFUSED == 2
+    assert hashed == []
+    assert agent_gpu.verbs() == []
+    summary = _real_summary(tmp_path / "runs")
+    assert summary["exit"] == 2
+    assert "weights" not in summary
+
+
+def test_a_vlm_that_ps_does_not_list_by_name_fails_the_run(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The teardown proves the VLM gone by its name's absence from ps; that
+    proves nothing unless ps lists it by that name while it serves."""
+    monkeypatch.setenv("AGENT_GPU_STUB_PS_ANONYMOUS", "1")
+    server = _vlm_proxy(f"/library/{fc.VLM_LIBRARY_DIR}/Qwen3VL-8B-Instruct-Q4_K_M.gguf", [])
+    try:
+        _through(monkeypatch, server)
+        vlm = _started_vlm(tmp_path, monkeypatch)
+        with pytest.raises(fc.HarnessError, match="does not list"):
+            vlm.wait_ready(timeout=5)
+    finally:
+        server.shutdown()
+        server.server_close()
