@@ -183,8 +183,10 @@ async def person_reid(request: BBoxRequest) -> ReIDResponse:
         image_np = decode_base64_image(request.image)
         from PIL import Image
 
-        # OSNet expects 256x128 input
-        pil_img = Image.fromarray(image_np).resize((128, 256))
+        # OSNet expects 256x128 input. Bilinear, as torchvision's Resize uses on
+        # PIL images in the backend path: PIL's default filter (bicubic) moves
+        # pixels by up to 0.7 after normalisation and breaks B2.2's parity gate.
+        pil_img = Image.fromarray(image_np).resize((128, 256), Image.Resampling.BILINEAR)
         arr = np.array(pil_img, dtype=np.float32) / 255.0
         mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         std = np.array([0.229, 0.224, 0.225], dtype=np.float32)

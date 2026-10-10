@@ -179,6 +179,31 @@ def _enforce_embedding_dim(embedding: np.ndarray) -> np.ndarray:
     return flat
 
 
+# OSNet input geometry and ImageNet normalisation. The gateway's
+# /enrich-lt/person-reid preprocesses with the same values (B2.2 parity gate).
+OSNET_INPUT_HEIGHT = 256
+OSNET_INPUT_WIDTH = 128
+OSNET_MEAN = (0.485, 0.456, 0.406)
+OSNET_STD = (0.229, 0.224, 0.225)
+
+
+def build_reid_transform() -> Any:
+    """The person re-id preprocessing: resize to 256x128, to tensor, normalise.
+
+    torchvision's ``Resize`` on a PIL image resamples bilinearly; the gateway
+    path must match it pixel for pixel, which the B2.2 parity gate checks.
+    """
+    from torchvision import transforms
+
+    return transforms.Compose(
+        [
+            transforms.Resize((OSNET_INPUT_HEIGHT, OSNET_INPUT_WIDTH)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=list(OSNET_MEAN), std=list(OSNET_STD)),
+        ]
+    )
+
+
 def get_reid_handle() -> dict[str, Any] | None:
     """The resident OSNet handle, or None — a membership read, NEVER a load
     trigger (the face get_face_leg_handles pattern).
@@ -289,7 +314,6 @@ async def load_osnet_model(model_path: str, expected_sha256: str | None = None) 
     """
     try:
         import torch
-        from torchvision import transforms
 
         from backend.core.security import PathSecurityError, validate_model_path
 
@@ -443,18 +467,7 @@ async def load_osnet_model(model_path: str, expected_sha256: str | None = None) 
             # Set to eval mode
             model.eval()
 
-            # Define image transforms for person re-id
-            # Standard transforms: resize to 256x128, normalize
-            transform = transforms.Compose(
-                [
-                    transforms.Resize((256, 128)),
-                    transforms.ToTensor(),
-                    transforms.Normalize(
-                        mean=[0.485, 0.456, 0.406],
-                        std=[0.229, 0.224, 0.225],
-                    ),
-                ]
-            )
+            transform = build_reid_transform()
 
             return {
                 "model": model,
