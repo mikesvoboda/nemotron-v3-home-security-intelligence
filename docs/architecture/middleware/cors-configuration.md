@@ -5,7 +5,7 @@
 **Key Files:**
 
 - `backend/main.py:1399-1419` - CORS middleware registration
-- `backend/core/config.py:887-897` - CORS origin configuration
+- `backend/core/config.py:833-843` - CORS origin configuration
 - `backend/api/middleware/security_headers.py` - Security headers
 
 ## Overview
@@ -62,10 +62,10 @@ app.add_middleware(
 
 ### Default Origins
 
-Default allowed origins are configured in `backend/core/config.py:887-897`:
+Default allowed origins are configured in `backend/core/config.py:833-843`:
 
 ```python
-# From backend/core/config.py:887-897
+# From backend/core/config.py:833-843
 # CORS settings
 # HTTPS origins on port 8444 for external browser access
 # Internal HTTP origins for container-to-container communication within Docker network

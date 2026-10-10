@@ -102,7 +102,7 @@ Events are broadcast to connected WebSocket clients via the `EventBroadcaster`:
 
 ## Queue Architecture
 
-Both queues run on Redis Streams by default (`USE_REDIS_STREAMS`, `backend/core/config.py:2242-2245`): `XADD` producers, a consumer group per queue, and `XACK` after the item is processed. The Redis LIST names below stay active when the setting is turned off.
+Both queues run on Redis Streams by default (`USE_REDIS_STREAMS`, `backend/core/config.py:1971-1974`): `XADD` producers, a consumer group per queue, and `XACK` after the item is processed. The Redis LIST names below stay active when the setting is turned off.
 
 ```
 detection_queue (Redis LIST) / detections:stream (Redis Stream)

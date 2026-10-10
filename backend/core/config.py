@@ -71,13 +71,6 @@ class TranscodeCacheSettings(BaseSettings):
         description="Maximum cache size in gigabytes. When exceeded, LRU eviction "
         "removes least recently accessed files until below cleanup_target_percent.",
     )
-    max_file_age_days: int = Field(
-        default=7,
-        ge=1,
-        le=365,
-        description="Maximum age in days before a cached file is eligible for eviction, "
-        "regardless of LRU status. Files older than this are evicted first.",
-    )
 
     # Cleanup thresholds
     cleanup_threshold_percent: float = Field(
@@ -93,15 +86,6 @@ class TranscodeCacheSettings(BaseSettings):
         le=0.95,
         description="Target percentage of max_cache_size_gb after cleanup. "
         "Default: 0.8 (80%). Must be less than cleanup_threshold_percent.",
-    )
-
-    # Locking
-    lock_timeout_seconds: int = Field(
-        default=30,
-        ge=1,
-        le=300,
-        description="Timeout in seconds for cache operation locks. "
-        "Prevents deadlocks when multiple processes access the cache.",
     )
 
     # Feature flag
@@ -177,13 +161,6 @@ class OrchestratorSettings(BaseSettings):
     )
 
     # Self-healing limits
-    max_consecutive_failures: int = Field(
-        5,
-        ge=1,
-        le=50,
-        description="Number of consecutive health check failures before disabling "
-        "automatic restart for a container. Prevents restart loops.",
-    )
     restart_backoff_base: float = Field(
         5.0,
         ge=1.0,
@@ -480,24 +457,6 @@ class Settings(BaseSettings):
         'Generate with: python -c "import secrets; print(secrets.token_urlsafe(48))" '
         "Minimum 32 characters recommended for security.",
     )
-    jwt_access_token_expire_minutes: int = Field(
-        default=30,
-        ge=5,
-        le=1440,
-        description="Access token expiration time in minutes. Default: 30 minutes.",
-    )
-    jwt_refresh_token_expire_days: int = Field(
-        default=7,
-        ge=1,
-        le=30,
-        description="Refresh token expiration time in days. Default: 7 days.",
-    )
-    session_ttl_hours: int = Field(
-        default=24,
-        ge=1,
-        le=168,
-        description="Session TTL in hours for Redis-backed sessions. Default: 24 hours.",
-    )
     # OD-12 (B1.5): the one auth switch. backend/api/middleware/auth.py reads it.
     expose_lan: bool = Field(
         default=False,
@@ -680,19 +639,6 @@ class Settings(BaseSettings):
         description="Comma-separated list of Redis Cluster node host:port pairs. "
         "Example: 'redis-node1:6379,redis-node2:6379,redis-node3:6379'. "
         "At least 3 master nodes recommended for high availability.",
-    )
-    redis_cluster_read_from_replicas: bool = Field(
-        default=True,
-        description="Allow read operations from cluster replica nodes. "
-        "When True, distributes read load across replicas for better performance. "
-        "Set to False if strong read consistency is required.",
-    )
-    redis_cluster_max_connections_per_node: int = Field(
-        default=10,
-        ge=2,
-        le=50,
-        description="Maximum connections per cluster node. "
-        "Total connections = max_connections_per_node * number_of_nodes.",
     )
 
     # HyperLogLog settings for unique entity counting (NEM-3414)
@@ -998,46 +944,6 @@ class Settings(BaseSettings):
         "Prevents memory exhaustion and LLM timeouts with large batches.",
     )
 
-    # Batch coalescing settings (NEM-5464 Phase 5)
-    # Coalesces similar detections within a time window to reduce inference load
-    batch_coalescing_enabled: bool = Field(
-        default=True,
-        description="Enable/disable batch coalescing. When enabled, similar detections "
-        "within a time window are merged to reduce inference load on AI services.",
-    )
-    batch_coalescing_max_size: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        description="Maximum detections per coalesced batch. When reached, the batch "
-        "is processed and a new coalescing window begins.",
-    )
-    batch_coalescing_time_window: float = Field(
-        default=5.0,
-        ge=0.5,
-        le=60.0,
-        description="Time window in seconds for coalescing similar detections. "
-        "Detections arriving within this window may be merged if they match criteria.",
-    )
-
-    # Priority queue settings (NEM-5464 Phase 5)
-    # Enables priority-based ordering for AI inference requests
-    priority_queue_enabled: bool = Field(
-        default=True,
-        description="Enable priority-based request ordering. When enabled, detections "
-        "containing high-priority object types are processed before lower-priority ones.",
-    )
-    priority_high_labels: list[str] = Field(
-        default=["weapon", "intruder", "fire"],
-        description="Object labels that receive high priority for inference. "
-        "Detections containing these labels are processed first.",
-    )
-    priority_medium_labels: list[str] = Field(
-        default=["person", "unknown"],
-        description="Object labels that receive medium priority for inference. "
-        "Processed after high-priority labels but before low-priority ones.",
-    )
-
     # Pipeline worker configuration (NEM-5375)
     detection_worker_count: int = Field(
         default=2,
@@ -1163,70 +1069,6 @@ class Settings(BaseSettings):
         "that forces llama.cpp to load its weights). Generous on purpose: a sleeping "
         "server is exactly the case being paid for, and a failed wake is swallowed "
         "(spec §6) rather than retried.",
-    )
-    florence_read_timeout: float = Field(
-        default=30.0,
-        ge=5.0,
-        le=120.0,
-        description="Maximum time (seconds) to wait for Florence-2 vision-language response. "
-        "Florence-2 is faster than LLMs but processes images, so 30s default allows for "
-        "complex operations like dense captioning and OCR.",
-    )
-    clip_read_timeout: float = Field(
-        default=5.0,
-        ge=1.0,
-        le=60.0,
-        description="Maximum time (seconds) to wait for CLIP embedding generation. "
-        "CLIP is fast for single embeddings but batch operations may take longer. "
-        "Set low to fail fast when CLIP text encoder is unavailable.",
-    )
-    enrichment_read_timeout: float = Field(
-        default=60.0,
-        ge=10.0,
-        le=180.0,
-        description="Maximum time (seconds) to wait for enrichment service response. "
-        "The enrichment service handles multiple AI models (vehicle classification, "
-        "pet classification, clothing analysis, depth estimation, pose analysis), "
-        "so longer timeout accommodates complex multi-model operations.",
-    )
-
-    # Enrichment pipeline parallelization settings
-    enrichment_pipeline_timeout_seconds: float = Field(
-        default=30.0,
-        ge=5.0,
-        le=120.0,
-        description="Hard timeout (seconds) for the entire enrichment pipeline. "
-        "If reached, returns whatever enrichment data has been collected so far. "
-        "Should be well below batch_window_seconds (90s) to leave time for "
-        "Nemotron analysis. Default: 30 seconds.",
-    )
-    enrichment_florence_concurrency: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum concurrent requests to Florence-2 service. "
-        "Limits GPU saturation when processing multiple detections.",
-    )
-    enrichment_clip_concurrency: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum concurrent requests to CLIP service. "
-        "Limits GPU saturation for embedding/classification requests.",
-    )
-    enrichment_service_concurrency: int = Field(
-        default=4,
-        ge=1,
-        le=10,
-        description="Maximum concurrent requests to enrichment HTTP services "
-        "(ai-gateway /enrichment, /enrich-lt routers). Limits GPU saturation.",
-    )
-    enrichment_quality_level: str = Field(
-        default="full",
-        description="Enrichment quality level controlling which models run. "
-        "Options: 'full' (all models), 'standard' (skip Florence enhanced + CLIP classify), "
-        "'minimal' (only detections + threat/pose/action). "
-        "Use lower levels when under load to stay within batch window.",
     )
 
     # AI service retry settings
@@ -1429,15 +1271,6 @@ class Settings(BaseSettings):
         "test_ai_vlm_compose_service.TestShippedServingIdentity.",
     )
 
-    enrichment_max_retries: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum retry attempts for enrichment service on transient failures "
-        "(ConnectError, TimeoutException). Uses exponential backoff with jitter "
-        "(2^attempt seconds with +/-10% jitter, capped at 30s). Default: 3 attempts.",
-    )
-
     # AI service concurrency settings (NEM-1463)
     # Default dynamically set based on Python runtime (free-threading support)
     ai_max_concurrent_inferences: int = Field(
@@ -1455,12 +1288,6 @@ class Settings(BaseSettings):
         le=0.95,
         description="Log warning when context utilization exceeds this threshold (0.5-0.95). "
         "Helps identify prompts approaching context limits before truncation occurs.",
-    )
-    context_truncation_enabled: bool = Field(
-        default=True,
-        description="Enable intelligent truncation of enrichment data when approaching context limits. "
-        "When enabled, less critical enrichment data is removed to fit within context window. "
-        "When disabled, prompts exceeding limits will fail with an error.",
     )
     llm_tokenizer_encoding: str = Field(
         default="cl100k_base",
@@ -1580,11 +1407,6 @@ class Settings(BaseSettings):
                 f"Invalid AI Gateway URL '{url_str}': must be a valid HTTP/HTTPS URL. "
                 f"Example: 'http://ai-gateway:8090'. Error: {e}"
             ) from None
-
-    use_enrichment_service: bool = Field(
-        default=True,
-        description="Use HTTP enrichment service instead of local models for vehicle/pet/clothing classification",
-    )
 
     # go2rtc RTSP-to-WebRTC streaming service (NEM-4958)
     # go2rtc enables low-latency live video streaming from RTSP cameras to browser
@@ -1708,26 +1530,6 @@ class Settings(BaseSettings):
         description="Enable Florence-2 vision extraction for vehicle/person attributes",
     )
 
-    # Florence-2 feature toggles (granular control)
-    florence_scene_captions_enabled: bool = Field(
-        default=True,
-        description="Enable Florence-2 detailed scene captions. When enabled, generates rich "
-        "scene descriptions using DETAILED_CAPTION_TASK for enhanced LLM context. "
-        "Disable to reduce API calls if scene captions are not needed.",
-    )
-    florence_detection_captions_enabled: bool = Field(
-        default=True,
-        description="Enable Florence-2 captions for individual detections (vehicles, persons). "
-        "When enabled, generates descriptive captions for each detected object. "
-        "Disable to reduce API calls when only structured attributes are needed.",
-    )
-    florence_vqa_enabled: bool = Field(
-        default=True,
-        description="Enable Florence-2 Visual Question Answering for detailed attribute extraction. "
-        "When enabled, uses VQA to extract vehicle color, type, person clothing, etc. "
-        "Disable to rely only on basic captions for attribute extraction.",
-    )
-
     image_quality_enabled: bool = Field(
         default=True,
         description="Enable BRISQUE image quality assessment (CPU-based). "
@@ -1751,12 +1553,6 @@ class Settings(BaseSettings):
         "every legitimate OSNet match). PROVISIONAL - calibrate against real household "
         "galleries, same as the face thresholds.",
     )
-    reid_ttl_hours: int = Field(
-        default=24,
-        ge=1,
-        le=168,
-        description="Time-to-live for re-identification embeddings in Redis (hours)",
-    )
     reid_max_concurrent_requests: int = Field(
         default=10,
         ge=1,
@@ -1778,13 +1574,6 @@ class Settings(BaseSettings):
         le=10,
         description="Maximum retry attempts for ReID embedding generation on transient failures. "
         "Uses exponential backoff (2^attempt seconds). Default: 3 attempts.",
-    )
-
-    scene_change_threshold: float = Field(
-        default=0.90,
-        ge=0.5,
-        le=1.0,
-        description="SSIM threshold for scene change detection (below = change detected)",
     )
 
     # Face auto-enrollment settings (NEM-4941)
@@ -2173,66 +1962,6 @@ class Settings(BaseSettings):
         ge=1,
         le=10,
         description="Successful DLQ writes needed to close circuit from half-open state",
-    )
-
-    # Enrichment circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
-    enrichment_cb_failure_threshold: int = Field(
-        default=10,
-        ge=1,
-        le=50,
-        description="Number of Enrichment service failures before opening circuit breaker (per-endpoint)",
-    )
-    enrichment_cb_recovery_timeout: float = Field(
-        default=60.0,
-        ge=10.0,
-        le=600.0,
-        description="Seconds to wait before attempting Enrichment service calls again after circuit opens",
-    )
-    enrichment_cb_half_open_max_calls: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum test calls allowed when Enrichment circuit is half-open",
-    )
-
-    # CLIP circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
-    clip_cb_failure_threshold: int = Field(
-        default=10,
-        ge=1,
-        le=50,
-        description="Number of CLIP service failures before opening circuit breaker (per-endpoint)",
-    )
-    clip_cb_recovery_timeout: float = Field(
-        default=60.0,
-        ge=10.0,
-        le=600.0,
-        description="Seconds to wait before attempting CLIP service calls again after circuit opens",
-    )
-    clip_cb_half_open_max_calls: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum test calls allowed when CLIP circuit is half-open",
-    )
-
-    # Florence circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
-    florence_cb_failure_threshold: int = Field(
-        default=10,
-        ge=1,
-        le=50,
-        description="Number of Florence service failures before opening circuit breaker (per-endpoint)",
-    )
-    florence_cb_recovery_timeout: float = Field(
-        default=60.0,
-        ge=10.0,
-        le=600.0,
-        description="Seconds to wait before attempting Florence service calls again after circuit opens",
-    )
-    florence_cb_half_open_max_calls: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum test calls allowed when Florence circuit is half-open",
     )
 
     # Redis compression settings (Python 3.14 compression.zstd)
@@ -2700,12 +2429,6 @@ class Settings(BaseSettings):
         le=50,
         description="Maximum number of restart attempts for a crashed worker before giving up.",
     )
-    worker_supervisor_restart_window: float = Field(
-        default=300.0,
-        ge=60.0,
-        le=3600.0,
-        description="Time window in seconds for counting restart attempts.",
-    )
 
     # Container orchestrator settings (for Docker/Podman container management)
     # Environment variables use ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED)
@@ -2759,29 +2482,6 @@ class Settings(BaseSettings):
         ge=1.0,
         le=60.0,
         description="How often (in seconds) to check if conditions are met for background evaluation.",
-    )
-
-    # Worker supervisor settings (NEM-2492)
-    worker_health_check_interval: float = Field(
-        default=30.0,
-        ge=1.0,
-        le=300.0,
-        description="Interval in seconds between worker health checks. "
-        "Lower values detect crashes faster but increase overhead.",
-    )
-    worker_max_restart_attempts: int = Field(
-        default=5,
-        ge=0,
-        le=100,
-        description="Maximum number of restart attempts before circuit breaker opens. "
-        "Set to 0 to disable automatic restarts entirely.",
-    )
-    worker_restart_backoff_base: float = Field(
-        default=1.0,
-        ge=0.1,
-        le=60.0,
-        description="Base delay in seconds for exponential backoff on restarts. "
-        "Actual delay = base * (2 ** (restart_count - 1)).",
     )
 
     # Orphan file cleanup settings (NEM-2260)

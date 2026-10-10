@@ -7,7 +7,7 @@
 - `backend/api/middleware/observability.py:1-369` - `ObservabilityMiddleware` and `format_request_log`
 - `backend/api/middleware/request_id.py:1-90` - Request ID generation
 - `backend/api/middleware/prometheus.py:64` - `http_request_duration_seconds` histogram
-- `backend/core/config.py:2767-2772` - Configuration settings
+- `backend/core/config.py:2515-2520` - Configuration settings
 
 ## Overview
 
@@ -229,10 +229,10 @@ This is the full shape `format_request_log` produces. The middleware's own compl
 | `REQUEST_LOGGING_ENABLED`   | `bool` | `true`  | Feed structured logs through ObservabilityMiddleware |
 | `SLOW_REQUEST_THRESHOLD_MS` | `int`  | `500`   | Threshold for slow request warnings                  |
 
-Configuration is loaded from `backend/core/config.py:2767-2772`:
+Configuration is loaded from `backend/core/config.py:2515-2520`:
 
 ```python
-# From backend/core/config.py:2767-2772
+# From backend/core/config.py:2515-2520
 request_logging_enabled: bool = Field(
     default=True,
     description="Enable structured request/response logging middleware. "

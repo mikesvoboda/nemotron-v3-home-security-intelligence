@@ -13,7 +13,7 @@ The analysis queue receives closed batches from the BatchAggregator and routes t
 
 ## Queue Structure
 
-`USE_REDIS_STREAMS` defaults to true (`backend/core/config.py:2259-2262`), so the durable path is a Redis Stream — `analysis:stream`, read by the `analysis-workers` consumer group (`backend/services/redis_streams.py:873-875`). With the setting turned off, the same payloads ride the Redis LIST below over BRPOP.
+`USE_REDIS_STREAMS` defaults to true (`backend/core/config.py:1988-1991`), so the durable path is a Redis Stream — `analysis:stream`, read by the `analysis-workers` consumer group (`backend/services/redis_streams.py:873-875`). With the setting turned off, the same payloads ride the Redis LIST below over BRPOP.
 
 **Queue Name:** `ANALYSIS_QUEUE = "analysis_queue"` (`backend/core/constants.py:149`)
 

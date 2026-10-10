@@ -454,16 +454,15 @@ Service state (failure counts, restart history) is persisted to Redis:
 All orchestrator settings use the `ORCHESTRATOR_` env prefix
 (`OrchestratorSettings` in `backend/core/config.py`):
 
-| Variable                                | Default                   | Description                                                                                       |
-| --------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------- |
-| `ORCHESTRATOR_ENABLED`                  | true                      | Enable container orchestrator                                                                     |
-| `ORCHESTRATOR_COMPOSE_FILE`             | `docker-compose.prod.yml` | Source for service discovery (set empty/None to use hardcoded configs)                            |
-| `ORCHESTRATOR_HEALTH_CHECK_INTERVAL`    | 30                        | Seconds between health checks (5-300)                                                             |
-| `ORCHESTRATOR_HEALTH_CHECK_TIMEOUT`     | 5                         | Per-check HTTP timeout (s)                                                                        |
-| `ORCHESTRATOR_STARTUP_GRACE_PERIOD`     | 60                        | Seconds after start before checking (10-600)                                                      |
-| `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` | 5                         | Failures before auto-disable (AI category; infrastructure defaults to 10 via `CATEGORY_DEFAULTS`) |
-| `ORCHESTRATOR_RESTART_BACKOFF_BASE`     | 5.0                       | Restart backoff base (delay = base \* 2^attempt)                                                  |
-| `ORCHESTRATOR_RESTART_BACKOFF_MAX`      | 300.0                     | Backoff cap (5 min)                                                                               |
+| Variable                             | Default                   | Description                                                            |
+| ------------------------------------ | ------------------------- | ---------------------------------------------------------------------- |
+| `ORCHESTRATOR_ENABLED`               | true                      | Enable container orchestrator                                          |
+| `ORCHESTRATOR_COMPOSE_FILE`          | `docker-compose.prod.yml` | Source for service discovery (set empty/None to use hardcoded configs) |
+| `ORCHESTRATOR_HEALTH_CHECK_INTERVAL` | 30                        | Seconds between health checks (5-300)                                  |
+| `ORCHESTRATOR_HEALTH_CHECK_TIMEOUT`  | 5                         | Per-check HTTP timeout (s)                                             |
+| `ORCHESTRATOR_STARTUP_GRACE_PERIOD`  | 60                        | Seconds after start before checking (10-600)                           |
+| `ORCHESTRATOR_RESTART_BACKOFF_BASE`  | 5.0                       | Restart backoff base (delay = base \* 2^attempt)                       |
+| `ORCHESTRATOR_RESTART_BACKOFF_MAX`   | 300.0                     | Backoff cap (5 min)                                                    |
 
 ---
 

@@ -758,7 +758,7 @@ flowchart TB
 _Queue architecture showing normal processing flow and failure paths to dead letter queues._
 
 Two carriers exist and both end in the same DLQ names. With the shipped
-default `USE_REDIS_STREAMS=true` (`backend/core/config.py:2242`) the hops run over Redis
+default `USE_REDIS_STREAMS=true` (`backend/core/config.py:1971`) the hops run over Redis
 Streams (`detections:stream`, `analysis:stream`) and a message that exceeds
 its max delivery count is moved to the matching stream DLQ
 (`detections:stream:dlq`, `analysis:stream:dlq` —

@@ -6,7 +6,7 @@ This document describes the settings architecture, environment variables, and co
 
 The application uses **Pydantic Settings** for type-safe configuration management with environment variable support.
 
-**Source:** `backend/core/config.py:362-370`
+**Source:** `backend/core/config.py:339-347`
 
 ```python
 class Settings(BaseSettings):
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 Settings are loaded once and cached using the `@cache` decorator. The cache is cold again after the
 settings API writes `data/runtime.env` (`backend/api/routes/settings_api.py:279`).
 
-**Source:** `backend/core/config.py:3367-3373`
+**Source:** `backend/core/config.py:3067-3073`
 
 ```python
 @cache
@@ -58,7 +58,7 @@ print(settings.database_url)
 | `DATABASE_POOL_TIMEOUT`  | 30                         | Seconds to wait for connection    |
 | `DATABASE_POOL_RECYCLE`  | 1800                       | Connection recycle interval       |
 
-**Source:** `backend/core/config.py:377-420`
+**Source:** `backend/core/config.py:354-397`
 
 ### Redis Configuration
 
@@ -75,7 +75,7 @@ print(settings.database_url)
 | `REDIS_POOL_SIZE_PUBSUB`       | 10                         | Pub/sub pool connections        |
 | `REDIS_POOL_SIZE_RATELIMIT`    | 10                         | Rate limit pool connections     |
 
-**Source:** `backend/core/config.py:465-567`
+**Source:** `backend/core/config.py:442-526`
 
 ### Redis SSL/TLS Settings
 
@@ -88,7 +88,7 @@ print(settings.database_url)
 | `REDIS_SSL_KEYFILE`        | None       | Client key path               |
 | `REDIS_SSL_CHECK_HOSTNAME` | true       | Verify hostname               |
 
-**Source:** `backend/core/config.py:597-628`
+**Source:** `backend/core/config.py:556-587`
 
 ### Cache TTL Settings
 
@@ -101,7 +101,7 @@ print(settings.database_url)
 | `CACHE_SWR_ENABLED`   | true    | Enable SWR pattern            |
 | `SNAPSHOT_CACHE_TTL`  | 3600    | Camera snapshot cache TTL     |
 
-**Source:** `backend/core/config.py:702-740`
+**Source:** `backend/core/config.py:648-686`
 
 ### AI Service Endpoints
 
@@ -123,7 +123,7 @@ In containers the same routes use `http://ai-gateway:8090/...` and `AI_VLM_URL=h
 
 | Variable                | Default | Description                                                                                                             |
 | ----------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `PIPELINE_MODE`         | `vlm`   | Only `vlm` parses; any other value raises at boot (`backend/core/config.py:1064-1066`)                                  |
+| `PIPELINE_MODE`         | `vlm`   | Only `vlm` parses; any other value raises at boot (`backend/core/config.py:970-972`)                                    |
 | `GATEWAY_MODEL_SET`     | `vlm`   | Triton residency set; only `vlm` is accepted, anything else raises at container start (`ai/gateway/residency.py:79-83`) |
 | `GATEWAY_ENABLE_THREAT` | false   | Opt the `threat` model into the Triton set                                                                              |
 | `BACKEND_MODEL_PRELOAD` | false   | Boot sweep that loads `preload: true` rows from `models.yml`                                                            |
@@ -141,7 +141,7 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 | `AI_VLM_READ_TIMEOUT`         | 25.0    | Per-read idle budget for an attempt    |
 | `AI_VLM_WAKE_TIMEOUT_SECONDS` | 90.0    | Read timeout for the wake-on-open ping |
 
-**Source:** `backend/core/config.py:1109-1154`; the VLM pair is threaded in `docker-compose.prod.yml:561-562`.
+**Source:** `backend/core/config.py:1015-1059`; the VLM pair is threaded in `docker-compose.prod.yml:561-562`.
 
 ### Batch Processing
 
@@ -152,7 +152,7 @@ the compose defaults by `test_gateway_model_set_compose.py`.
 | `BATCH_CHECK_INTERVAL_SECONDS` | 5.0     | Timeout check frequency      |
 | `BATCH_MAX_DETECTIONS`         | 500     | Max detections before split  |
 
-**Source:** `backend/core/config.py:928-987`
+**Source:** `backend/core/config.py:874-933`
 
 ### Fast Path Configuration
 
@@ -167,7 +167,7 @@ empty, so no detection takes the fast path — every detection reaches the analy
 batch gate regardless of the threshold. The threshold's own field default (2.0) is above any
 possible confidence, which is the second guard.
 
-**Source:** `backend/core/config.py:1912-1928`
+**Source:** `backend/core/config.py:1701-1717`
 
 ### Application Settings
 
@@ -181,7 +181,7 @@ possible confidence, which is the second guard.
 | `API_PORT`       | 8000         | API port                                                           |
 | `RETENTION_DAYS` | 30           | Data retention period                                              |
 
-**Source:** `backend/core/config.py:816-925`
+**Source:** `backend/core/config.py:762-871`
 
 ### CORS Settings
 
@@ -189,7 +189,7 @@ possible confidence, which is the second guard.
 | -------------- | ----------- | -------------------- |
 | `CORS_ORIGINS` | (see below) | Allowed CORS origins |
 
-Default CORS origins (see `backend/core/config.py:877-887`):
+Default CORS origins (see `backend/core/config.py:823-833`):
 
 ```python
 [
@@ -225,14 +225,13 @@ These four resolve to their `Settings` defaults in every deployment — none app
 | --------------------------------------- | ------------- | ------------------------------------------------------------------- |
 | `nemotron_max_output_tokens`            | 1536          | Tokens reserved for output; prompts validated against window − this |
 | `context_utilization_warning_threshold` | 0.80          | Warning threshold                                                   |
-| `context_truncation_enabled`            | true          | Enable smart truncation                                             |
 | `llm_tokenizer_encoding`                | `cl100k_base` | Token counting encoding                                             |
 
 With the shipped values the per-request budget resolves to `262144 // 8 = 32768` tokens:
 `CTX_SIZE` is read through a `validation_alias` and divided by the slot count before it becomes what
-the token counter uses (`backend/core/config.py:1271-1290`), so the number in `.env` is not the number applied.
+the token counter uses (`backend/core/config.py:1113-1132`), so the number in `.env` is not the number applied.
 
-**Source:** `backend/core/config.py:1233-1457`, `.env.example:324,326,358,359`
+**Source:** `backend/core/config.py:1075-1284`, `.env.example:324,326,358,359`
 
 ### Feature Toggles
 
@@ -248,8 +247,8 @@ nothing reads them:
 | `REID_ENABLED`              | true    | nothing — reported and mapped only             |
 | `IMAGE_QUALITY_ENABLED`     | true    | nothing — no BRISQUE model ships in this stack |
 
-**Sources:** the fields at `backend/core/config.py:1694`, `backend/core/config.py:1724`, and
-`backend/core/config.py:1719`; the response assembles them at
+**Sources:** the fields at `backend/core/config.py:1516`, `backend/core/config.py:1526`, and
+`backend/core/config.py:1521`; the response assembles them at
 `backend/api/routes/settings_api.py:126-133`; the shipped-stack note on BRISQUE is at
 `backend/api/routes/system.py:4845`.
 
@@ -267,26 +266,24 @@ loads them (`backend/services/osnet_loader.py:182-203`, `backend/services/face_r
 
 Container orchestrator configuration for Docker/Podman management.
 
-**Source:** `backend/core/config.py:115-359`
+**Source:** `backend/core/config.py:99-336`
 
-| Variable                                | Default | Description             |
-| --------------------------------------- | ------- | ----------------------- |
-| `ORCHESTRATOR_ENABLED`                  | true    | Enable orchestration    |
-| `ORCHESTRATOR_DOCKER_HOST`              | None    | Docker/Podman host URL  |
-| `ORCHESTRATOR_HEALTH_CHECK_INTERVAL`    | 30      | Health check interval   |
-| `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` | 5       | Failures before disable |
+| Variable                             | Default | Description            |
+| ------------------------------------ | ------- | ---------------------- |
+| `ORCHESTRATOR_ENABLED`               | true    | Enable orchestration   |
+| `ORCHESTRATOR_DOCKER_HOST`           | None    | Docker/Podman host URL |
+| `ORCHESTRATOR_HEALTH_CHECK_INTERVAL` | 30      | Health check interval  |
 
 ### TranscodeCacheSettings
 
 Video transcoding cache configuration.
 
-**Source:** `backend/core/config.py:42-112`
+**Source:** `backend/core/config.py:42-88`
 
 | Variable                            | Default                | Description     |
 | ----------------------------------- | ---------------------- | --------------- |
 | `TRANSCODE_CACHE_DIR`               | `data/transcode_cache` | Cache directory |
 | `TRANSCODE_CACHE_MAX_CACHE_SIZE_GB` | 10.0                   | Max cache size  |
-| `TRANSCODE_CACHE_MAX_FILE_AGE_DAYS` | 7                      | Max file age    |
 | `TRANSCODE_CACHE_ENABLED`           | true                   | Enable caching  |
 
 ## Configuration Validation
@@ -299,7 +296,7 @@ AI service URLs are validated using `AnyHttpUrl`.
 
 Both AI service URL fields — `yolo26_url` and `ai_vlm_url` — go through one validator.
 
-**Source:** `backend/core/config.py:1474-1507`
+**Source:** `backend/core/config.py:1301-1334`
 
 ```python
 @field_validator("yolo26_url", "ai_vlm_url", mode="before")
@@ -324,7 +321,7 @@ def validate_ai_service_urls(cls, v: Any) -> str:
 
 Grafana URLs include SSRF protection.
 
-**Source:** `backend/core/config.py:1608-1639`
+**Source:** `backend/core/config.py:1430-1461`
 
 ```python
 @field_validator("grafana_url", mode="before")

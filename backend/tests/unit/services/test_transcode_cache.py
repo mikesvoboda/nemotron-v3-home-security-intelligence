@@ -39,10 +39,8 @@ def mock_config(temp_dir):
     return TranscodeCacheSettings(
         cache_dir=temp_dir,
         max_cache_size_gb=1.0,
-        max_file_age_days=7,
         cleanup_threshold_percent=0.9,
         cleanup_target_percent=0.8,
-        lock_timeout_seconds=30,
         enabled=True,
     )
 
@@ -696,10 +694,8 @@ def test_transcode_cache_settings_defaults():
 
     assert config.cache_dir == "data/transcode_cache"
     assert config.max_cache_size_gb == 10.0
-    assert config.max_file_age_days == 7
     assert config.cleanup_threshold_percent == 0.9
     assert config.cleanup_target_percent == 0.8
-    assert config.lock_timeout_seconds == 30
     assert config.enabled is True
 
 
@@ -708,19 +704,15 @@ def test_transcode_cache_settings_custom_values():
     config = TranscodeCacheSettings(
         cache_dir="/custom/cache",
         max_cache_size_gb=50.0,
-        max_file_age_days=30,
         cleanup_threshold_percent=0.95,
         cleanup_target_percent=0.85,
-        lock_timeout_seconds=60,
         enabled=False,
     )
 
     assert config.cache_dir == "/custom/cache"
     assert config.max_cache_size_gb == 50.0
-    assert config.max_file_age_days == 30
     assert config.cleanup_threshold_percent == 0.95
     assert config.cleanup_target_percent == 0.85
-    assert config.lock_timeout_seconds == 60
     assert config.enabled is False
 
 

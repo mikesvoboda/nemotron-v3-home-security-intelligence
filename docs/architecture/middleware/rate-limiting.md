@@ -5,7 +5,7 @@
 **Key Files:**
 
 - `backend/api/middleware/rate_limit.py:1-536` - Rate limiting implementation
-- `backend/core/config.py:2121-2188` - Rate limit configuration
+- `backend/core/config.py:1910-1952` - Rate limit configuration
 - `backend/api/exception_handlers.py:506-548` - Rate limit error handling
 
 ## Overview
@@ -71,10 +71,10 @@ class RateLimitTier(str, Enum):
 
 ## Configuration
 
-Rate limit settings are defined in `backend/core/config.py:2121-2188`:
+Rate limit settings are defined in `backend/core/config.py:1910-1952`:
 
 ```python
-# From backend/core/config.py:2121-2188 (abridged)
+# From backend/core/config.py:1910-1952 (abridged)
 rate_limit_enabled: bool = Field(
     default=True,
     description="Enable rate limiting for API endpoints",

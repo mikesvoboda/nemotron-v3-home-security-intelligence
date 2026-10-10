@@ -80,7 +80,7 @@ Batch detections into **90-second time windows** with **30-second idle timeout**
 #         * 30 seconds with no new detections (idle timeout)
 ```
 
-**Configuration Source:** `backend/core/config.py:928-937`
+**Configuration Source:** `backend/core/config.py:874-883`
 
 ```python
 batch_window_seconds: int = Field(
@@ -113,7 +113,7 @@ batch_idle_timeout_seconds: int = Field(
 
 `BatchAggregator` has a fast-path branch that would skip the window for a high-confidence detection,
 but it ships inert: `FAST_PATH_OBJECT_TYPES` defaults to an empty list, so the branch never matches
-(`backend/core/config.py:1895-1911`). Every detection reaches the analyzer through the normal batch
+(`backend/core/config.py:1684-1700`). Every detection reaches the analyzer through the normal batch
 gate.
 
 ---
@@ -131,7 +131,7 @@ The system needs a database for storing security events, detections, camera conf
 
 Use **PostgreSQL** with `asyncpg` async driver via SQLAlchemy 2.0.
 
-**Source:** `backend/core/config.py:377-381`
+**Source:** `backend/core/config.py:354-358`
 
 ```python
 database_url: str = Field(
@@ -140,7 +140,7 @@ database_url: str = Field(
 )
 ```
 
-**Pool Configuration Source:** `backend/core/config.py:396-408`
+**Pool Configuration Source:** `backend/core/config.py:373-385`
 
 ```python
 database_pool_size: int = Field(
@@ -209,7 +209,7 @@ class PoolType(str, Enum):
     """Fallback pool when dedicated pools are disabled."""
 ```
 
-**Pool Size Configuration Source:** `backend/core/config.py:540-567`
+**Pool Size Configuration Source:** `backend/core/config.py:499-526`
 
 ```python
 redis_pool_dedicated_enabled: bool = Field(
@@ -340,7 +340,7 @@ to all connected clients using Redis pub/sub as the event backbone.
 """
 ```
 
-**Channel Configuration Source:** `backend/core/config.py:512-516`
+**Channel Configuration Source:** `backend/core/config.py:471-475`
 
 ```python
 redis_event_channel: str = Field(

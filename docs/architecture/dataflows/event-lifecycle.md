@@ -98,7 +98,7 @@ analyzer derives it through `SeverityService.risk_score_to_severity()`
 (`backend/services/severity.py:137-163`) and `Event.computed_risk_level`
 (`backend/models/event.py:379-411`) re-derives it from the same configurable
 thresholds (`severity_low_max`/`severity_medium_max`/`severity_high_max`,
-`backend/core/config.py:2426-2443`):
+`backend/core/config.py:2155-2172`):
 
 | Score Range | Risk Level |
 | ----------- | ---------- |
@@ -309,8 +309,8 @@ Retention comes from settings, not constants
 (`backend/services/cleanup_service.py:141, 487`):
 
 ```python
-settings.retention_days        # default 30 — events, detections (config.py:918-922)
-settings.log_retention_days    # default 7  — logs (config.py:2083-2085)
+settings.retention_days        # default 30 — events, detections (config.py:864-868)
+settings.log_retention_days    # default 7  — logs (config.py:1872-1874)
 ```
 
 Cutoff is `now(UTC) - timedelta(days=retention_days)`; events are matched on

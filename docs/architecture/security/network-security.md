@@ -6,7 +6,7 @@
 
 ## Key Files
 
-- `backend/core/config.py:877-887` - CORS origins configuration
+- `backend/core/config.py:823-833` - CORS origins configuration
 - `backend/main.py:1536-1549` - CORS middleware setup
 - `backend/core/url_validation.py` (450 lines) - SSRF protection utilities
 - `backend/core/sanitization.py:563-648` - URL validation for monitoring services
@@ -77,7 +77,7 @@ project AGENTS.md).
 CORS is configured to allow common local development origins:
 
 ```python
-# From backend/core/config.py:877-887
+# From backend/core/config.py:823-833
 cors_origins: list[str] = Field(
     default=[
         # HTTPS origins for external browser access
@@ -296,7 +296,7 @@ class RateLimitTier(str, Enum):
 ```
 
 Each tier's limit comes from a `rate_limit_*` setting in
-`backend/core/config.py:2256-2327` (`get_tier_limits()` maps tier →
+`backend/core/config.py:1985-2056` (`get_tier_limits()` maps tier →
 `(requests_per_minute, burst_allowance)`; the generic burst default is 10, the
 export tier has no burst allowance).
 
@@ -346,10 +346,10 @@ from .rate_limit import check_websocket_rate_limit
 ### Internal Service URLs
 
 AI services use internal Docker network URLs. The two AI containers each have
-one settings field (`backend/core/config.py:1039-1048`):
+one settings field (`backend/core/config.py:945-954`):
 
 ```python
-# From backend/core/config.py:1039-1048
+# From backend/core/config.py:945-954
 yolo26_url: str = Field(
     default="http://ai-gateway:8090/yolo26",
     description="URL of the YOLO26 detection service",
@@ -365,10 +365,10 @@ ai_vlm_url: str = Field(
 Detection runs inside the single `ai-gateway` service on port 8090, which
 mounts exactly two routers — `/yolo26` and `/enrich-lt`
 (`ai/gateway/main.py:276-277`); `enrichment_light_url`
-(`backend/core/config.py:1504-1507`) carries the readiness-lane address. The
+(`backend/core/config.py:1331-1334`) carries the readiness-lane address. The
 verdict engine runs on its own `ai-vlm` container (port 8098, in the default
 compose set). The `ai_gateway_url` / `use_ai_gateway` settings
-(`backend/core/config.py:1513-1523`) route detection clients through the gateway
+(`backend/core/config.py:1340-1350`) route detection clients through the gateway
 — both are enabled in the deployed stack (`docker-compose.prod.yml:600-601`,
 `.env.example:196-197`).
 
@@ -377,7 +377,7 @@ compose set). The `ai_gateway_url` / `use_ai_gateway` settings
 AI services can require API key authentication:
 
 ```python
-# From backend/core/config.py:1090-1093
+# From backend/core/config.py:996-999
 yolo26_api_key: SecretStr | None = Field(
     default=None,
     description="Optional API key for YOLO26 service authentication",

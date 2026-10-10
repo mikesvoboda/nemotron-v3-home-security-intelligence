@@ -20,7 +20,7 @@ The GPU monitor:
 | --------------------------- | ------- | ------------------------------------- |
 | `GPU_POLL_INTERVAL_SECONDS` | 5.0     | Interval between GPU stat collections |
 
-Configuration is loaded via `backend/core/config.py:1073-1079`:
+Configuration is loaded via `backend/core/config.py:979-985`:
 
 ```python
 gpu_poll_interval_seconds: float = Field(

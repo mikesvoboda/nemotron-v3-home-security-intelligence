@@ -22,13 +22,13 @@ pass, file:line cited; **[A]** asserted from a source I did not re-measure.
 
 The retired engine **is** Nemotron. Nothing was migrated _to_ it. **[V]**
 
-|                   | Retired by R8 (2026-09-29)                                                | Shipping today                                                                                        |
-| ----------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Serving container | `ai-llm` (absent from `docker-compose.prod.yml` outright)                 | `ai-vlm` (`prod.yml:141`)                                                                             |
-| Engine            | llama.cpp + Nemotron-3-Nano-30B-A3B Q4_K_M                                | llama.cpp `llama-server` + **Qwen3VL-8B**-Instruct-Q4_K_M + mmproj Q8_0                               |
-| Analyzer          | `nemotron_analyzer.py` (deleted)                                          | `backend/services/vlm_analyzer.py`                                                                    |
-| Selection         | `PIPELINE_MODE=legacy`                                                    | `PIPELINE_MODE=vlm` — **the only accepted value**; legacy hard-raises at boot (`config.py:1079-1083`) |
-| Per-model zoo     | `ai/{florence,clip,enrichment,enrichment-light,nemotron}` (deleted trees) | gateway serves **only** `/yolo26` + `/enrich-lt`                                                      |
+|                   | Retired by R8 (2026-09-29)                                                | Shipping today                                                                                      |
+| ----------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Serving container | `ai-llm` (absent from `docker-compose.prod.yml` outright)                 | `ai-vlm` (`prod.yml:141`)                                                                           |
+| Engine            | llama.cpp + Nemotron-3-Nano-30B-A3B Q4_K_M                                | llama.cpp `llama-server` + **Qwen3VL-8B**-Instruct-Q4_K_M + mmproj Q8_0                             |
+| Analyzer          | `nemotron_analyzer.py` (deleted)                                          | `backend/services/vlm_analyzer.py`                                                                  |
+| Selection         | `PIPELINE_MODE=legacy`                                                    | `PIPELINE_MODE=vlm` — **the only accepted value**; legacy hard-raises at boot (`config.py:985-989`) |
+| Per-model zoo     | `ai/{florence,clip,enrichment,enrichment-light,nemotron}` (deleted trees) | gateway serves **only** `/yolo26` + `/enrich-lt`                                                    |
 
 So "we should still have a specialist pipeline with a VLM" is satisfied by design: the VLM path is
 not a survivor of the refactor, it is the **only** path. What was removed is the thing you are
@@ -47,7 +47,7 @@ camera / FTP / seed-events.py  ->  file drop under FOSCAM_BASE_PATH (host /expor
      URL = {AI_GATEWAY_URL}/yolo26 when USE_AI_GATEWAY=true  (detector_client.py:283-287)
   -> POST ai-gateway:8090/yolo26/detect  -> Triton YOLO26 TensorRT   adapters/yolo26.py:332
   -> Detection rows -> BatchAggregator.add_detection   batch_aggregator.py:446
-     closes on 90s window | 30s idle | 500 detections   (config.py:925,930,964)
+     closes on 90s window | 30s idle | 500 detections   (config.py:871,876,910)
   -> XADD analysis:stream                             batch_aggregator.py:948
   -> AnalysisQueueWorker (2 workers)                  pipeline_workers.py:765
   -> build_pipeline_analyzer()                        pipeline_factory.py:28   (no mode branch)
@@ -202,7 +202,7 @@ The enrichment era's `Event.entities`, `.flags`, `.confidence_factors`, `.recomm
 empty/None) and search/export still read `object_types`/`search_vector`. Permanently
 NULL-shaped residue.
 
-Severity bands ship as 0-29 / 30-59 / 60-84 / 85-100 (`config.py:2423-2436`; not set in
+Severity bands ship as 0-29 / 30-59 / 60-84 / 85-100 (`config.py:2152-2165`; not set in
 `.env.example` or compose) and are **runtime-mutable** via `api/routes/system.py:3483` and the
 update route near `:3548`. `api/schemas/events.py:21-23` keeps a **second, hardcoded copy**
 (`_DEFAULT_LOW_MAX=29`/`_MEDIUM_MAX=59`/`_HIGH_MAX=84`) for the REST-computed `risk_level`, which

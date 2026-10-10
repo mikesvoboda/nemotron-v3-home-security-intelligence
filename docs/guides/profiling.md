@@ -191,7 +191,7 @@ Every value below is the one the backend container gets
 | `PYROSCOPE_MEMORY_ENABLED` | `true`                  | passed to the container; no Python reader (see Memory Profile Availability) |
 | `PROFILE_INTERVAL`         | `30`                    | py-spy loop, seconds per recording                                          |
 | `ENVIRONMENT`              | `development`           | SDK profile tag `environment`                                               |
-| `PYROSCOPE_PORT`           | `4040`                  | host publish port and backend health checks (`backend/core/config.py:311`)  |
+| `PYROSCOPE_PORT`           | `4040`                  | host publish port and backend health checks (`backend/core/config.py:288`)  |
 
 The Alloy eBPF sampler is configured in `monitoring/alloy/config.alloy`, not by
 environment variables.

@@ -186,7 +186,7 @@ The tracing dashboard (`monitoring/grafana/dashboards/tracing.json`, 1605 lines)
 TraceQL (`queryType: "traceql"`, datasource uid `tempo`). The trace-table panels have no colour
 thresholds; they list recent spans for click-through to the trace view. The service selector is
 `resource.service.name = "nemotron-backend"`, which is the value of `OTEL_SERVICE_NAME`
-(`backend/core/config.py:1958`).
+(`backend/core/config.py:1747`).
 
 ### Pipeline Analysis Traces (`monitoring/grafana/dashboards/tracing.json:967`)
 

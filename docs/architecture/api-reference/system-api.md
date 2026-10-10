@@ -217,7 +217,7 @@ The AI service entries are the two rows of `AI_SERVICES_CONFIG`
 the gateway at `http://ai-gateway:8090/yolo26`, and `ai-vlm` (non-critical) is
 the verdict engine at `http://ai-vlm:8098`. Each entry's `url` is the value of
 the setting named by its `url_attr` — `yolo26_url` and `ai_vlm_url`
-(`backend/core/config.py:1039-1047`).
+(`backend/core/config.py:945-953`).
 
 ```json
 {

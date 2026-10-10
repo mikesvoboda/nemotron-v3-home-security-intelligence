@@ -6,7 +6,7 @@
 
 ## Key Files
 
-- `backend/core/config.py:1093-1101` - Current API key authentication settings
+- `backend/core/config.py:999-1007` - Current API key authentication settings
 - `backend/api/middleware/auth.py` - Current AuthMiddleware implementation
 - `backend/api/middleware/websocket_auth.py` - WebSocket token validation
 
@@ -31,7 +31,7 @@ This document outlines the current authentication state and provides a roadmap f
 The system supports optional API key authentication:
 
 ```python
-# From backend/core/config.py:1093-1101
+# From backend/core/config.py:999-1007
 api_key_enabled: bool = Field(
     default=False,
     description="Enable API key authentication (default: False for development)",
