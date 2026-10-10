@@ -12,7 +12,7 @@ One row per feature whose inventory status is **half-built** or **leftover**.
 
 | column             | what goes in it                                                                              |
 | ------------------ | -------------------------------------------------------------------------------------------- |
-| id                 | the inventory row id (`F-012`)                                                               |
+| id                 | the inventory row id (`F-012`), or the ids of a group ruled by cause (`F-216, F-217`)        |
 | feature            | what a user would call it, not a component name                                              |
 | status             | **half-built** or **leftover**                                                               |
 | what the user sees | what happens today when someone uses it: an error, an empty panel, a false success           |

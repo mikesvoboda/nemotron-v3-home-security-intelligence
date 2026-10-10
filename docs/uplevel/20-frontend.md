@@ -84,7 +84,10 @@ deliberately mocked spec in it fails the guard.
 
 ### F2.2 Feature inventory (UR-13)
 
-**Files:** create `docs/reference/feature-inventory.md`. Read-only everywhere else.
+**Files:** create `docs/reference/feature-inventory.md`; edit `frontend/knip.json`, fill
+`docs/uplevel/r2-sheet.md` (it exists; fill it around its §2b, never copy the template over it)
+and set the `next` fields of `frontend/src/__tests__/api-endpoint-contract-known-missing.json`
+(owner, 2026-10-09). Read-only everywhere else.
 
 The long-lived map of the product. Start from the seeds in `00 §10`; re-verify each one.
 
@@ -230,4 +233,7 @@ and question you cite comes from output you ran in the same turn.
 You own frontend/ and docs/reference/feature-inventory.md. The README's
 cross-lane rule governs every other file you touch. When the plan does not
 answer a question, stop and report the question.
+
+Never wait inside a turn on CI, a check run or a background watcher: read it
+once, report what you see and end the turn; your next tick re-reads (UR-38).
 ```

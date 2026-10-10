@@ -48,9 +48,10 @@ function readinessBody(state: 'available' | 'unavailable') {
 }
 
 test.describe('verdict-engine banner (F1.2)', () => {
-  // The hook polls readiness every 15 s (backend caches the probe for the same
-  // window), and this spec waits through two poll convergences.
-  test.setTimeout(120_000);
+  // Headroom for dev-server cold start only (ruling 52). The two poll
+  // convergences are no longer real waits: the page runs on Playwright's fake
+  // clock, so each one is advanced past one 15 s interval in milliseconds.
+  test.setTimeout(30_000);
 
   test('banner appears when the engine goes down and clears when it recovers', async ({ page }) => {
     let engineState: 'available' | 'unavailable' = 'available';
@@ -90,6 +91,16 @@ test.describe('verdict-engine banner (F1.2)', () => {
       });
     });
 
+    // Ruling 52: run on Playwright's fake clock. The hook's only page-side
+    // timer is the 15 s readiness setInterval (useVerdictEngineStatus.ts:202);
+    // the fetch itself is fulfilled by page.route() in the Node process, which
+    // the fake clock does not touch, so one fastForward() past the interval
+    // replaces each former multi-second real wait (fastForward fires the due
+    // poll once — the lid-closed semantics — instead of stepping through the
+    // window's unrelated 1 s timers as runFor would). The timeouts below stay
+    // as safety caps; they are no longer the mechanism that makes this pass.
+    await page.clock.install();
+
     await page.goto('/');
 
     const banner = page.getByTestId('verdict-engine-banner');
@@ -99,16 +110,19 @@ test.describe('verdict-engine banner (F1.2)', () => {
     await expect(banner).toHaveCount(0);
 
     // 2. Engine goes down (the `docker compose stop ai-vlm` equivalent). The
-    //    banner arrives on the next readiness poll, so allow > one interval.
+    //    banner arrives on the next readiness poll, so jump one interval over.
     engineState = 'unavailable';
+    await page.clock.fastForward(16_000);
     await expect(banner).toBeVisible({ timeout: 25_000 });
     await expect(banner).toContainText(/verdict engine unavailable/i);
     await expect(banner).toContainText(/need.{0,20}review/i);
     await expect(page.getByTestId('verdict-engine-since')).toContainText(/unavailable for/);
     await expect(page.getByTestId('verdict-engine-reason')).toContainText(/connection refused/i);
 
-    // 3. Engine comes back (the `start ai-vlm` equivalent): the banner clears.
+    // 3. Engine comes back (the `start ai-vlm` equivalent): the banner clears
+    //    on the next poll — again one fake interval, not a real 15 s wait.
     engineState = 'available';
+    await page.clock.fastForward(16_000);
     await expect(banner).toHaveCount(0, { timeout: 25_000 });
   });
 });

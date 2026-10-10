@@ -74,6 +74,7 @@ BACKEND = "uplevel-backend"
 FRONTEND = "uplevel-frontend"
 DOCS = "uplevel-docs"
 HEAVY = "uplevel-heavy"
+HEAVY_2 = "uplevel-heavy-2"
 OPERATOR = "uplevel-operator"
 
 RUNNING = {"head": MAIN_SHA, "sandbox": "running"}
@@ -328,6 +329,7 @@ def test_manifest_declares_the_roster() -> None:
         FRONTEND,
         DOCS,
         HEAVY,
+        HEAVY_2,
         OPERATOR,
     }
 
@@ -362,13 +364,31 @@ def test_operator_is_the_only_gpu_session_in_every_phase() -> None:
         assert gpu == (set() if number == 0 else {OPERATOR}), f"phase {number}"
 
 
-def test_the_operator_row_declares_no_mount() -> None:
-    """The launcher adds no --mount for the model library: agent-dgx --gpu mounts
-    /srv/agent-models itself and refuses any mount at or under it, so a mount on this
-    row would hand the owner an agent-dgx-level failure at create time."""
+def test_the_operator_row_mounts_only_synthbench_read_only() -> None:
+    """The operator mounts the three /synthbench datasets the owner ruled (rulings 49 and
+    57), each read-only, and nothing for the model library: agent-dgx --gpu mounts
+    /srv/agent-models itself and refuses any mount at or under it, so such a mount on
+    this row would hand the owner an agent-dgx-level failure at create time."""
     phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
     operator = next(s for s in phases[1] if s.name == OPERATOR)
-    assert operator.mounts == ()
+    assert operator.mounts == (
+        "/synthbench/eval:ro",
+        "/synthbench/exports:ro",
+        "/synthbench/corpus:ro",
+    )
+    assert not any(m.startswith("/srv/agent-models") for m in operator.mounts)
+
+
+def test_the_second_heavy_kickoff_names_itself_and_its_label() -> None:
+    """Both heavy agents paste the same prompt, so heavy-2's line carries the sentence
+    that tells it which heavy PRs are its (50-coordination.md, "Two heavy sandboxes")."""
+    phases = launch.load_manifest(REPO_ROOT / "scripts" / "uplevel" / "sandboxes.toml")
+    lines = {s.name: (s.model, s.kickoff) for s in phases[1]}
+    assert lines[HEAVY_2][0] == "strongest"
+    assert (
+        "You are uplevel-heavy-2; take only heavy PRs labelled cell:heavy-2." in lines[HEAVY_2][1]
+    )
+    assert "cell:heavy-2" not in lines[HEAVY][1]
 
 
 def test_operator_kickoff_names_the_prompt_section_not_a_position() -> None:
@@ -858,7 +878,9 @@ def test_up_adds_gpu_to_the_operator_and_no_other_session(
     operator = next(line for line in lines if OPERATOR in line)
     assert operator.split().index("--gpu") == operator.split().index("--split") - 1
     assert operator.endswith(f"--split   (in {tmp_path / 'checkout'})")
-    assert "--mount" not in operator
+    # the owner-ruled read-only /synthbench mounts (rulings 49 and 57) come before --gpu,
+    # and nothing mounts the model library, which agent-dgx --gpu mounts itself
+    assert "/srv/agent-models" not in operator
     # The owner's ruled form, whole, not just the flag's position: "the flag is exactly
     # `--gpu`, and the operator's line keeps `--split`" (#6854, 2026-10-08, from the
     # stack repo's docs/operations/agent-gpu-runner.md, checked live). Position asserts
@@ -867,7 +889,9 @@ def test_up_adds_gpu_to_the_operator_and_no_other_session(
     command = operator.split(": ", 1)[1]
     tokens = command.split()
     assert " ".join(tokens[: tokens.index("--split") + 1]) == (
-        "agent-dgx run uplevel-operator --agent claude --endpoint dgx --gpu --split"
+        "agent-dgx run uplevel-operator --agent claude --endpoint dgx"
+        " --mount /synthbench/eval:ro --mount /synthbench/exports:ro"
+        " --mount /synthbench/corpus:ro --gpu --split"
     ), operator
     assert sum("--gpu" in line for line in lines) == 1, lines
 
@@ -897,7 +921,9 @@ def test_a_gpu_session_already_up_needs_no_runner(
     finds it already there - nothing to grant - and a shell without the runner still
     reports the roster instead of refusing. Distinguishing the two is the same rule as
     the commit check's "for what this run creates"."""
-    started = dict.fromkeys((CO, OPS_A, OPS_B, BACKEND, FRONTEND, DOCS, HEAVY, OPERATOR), RUNNING)
+    started = dict.fromkeys(
+        (CO, OPS_A, OPS_B, BACKEND, FRONTEND, DOCS, HEAVY, HEAVY_2, OPERATOR), RUNNING
+    )
     fake = FakeHost(sessions=started)
     launch.up(host(tmp_path, fake, gpu_runner=False), phase=1)  # no refusal
     assert not fake.changes()
