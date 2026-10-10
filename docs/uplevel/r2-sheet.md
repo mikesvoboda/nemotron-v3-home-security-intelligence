@@ -226,6 +226,30 @@ rows first.
 - The Alerts page lists events by risk level (high and critical), not the `alerts` table (F-077,
   F-078); the rules engine that would write `alerts` does not run (§1, F-216).
 
+**Facts added by ruling 67** (re-read at `main` `28770b3d8`):
+
+- The gateway's `threat` model is a YOLOv8n fine-tune for weapons. Its weights are
+  `threat-detection-yolov8n/weights/best.pt` (`ai/gateway/export/export_yolo_threat.py:5`), from
+  the Hugging Face repo `Subh775/Threat-Detection-YOLOv8n` (`models.yml:197`). Nothing pins a
+  revision.
+- **Provenance and license.** The model card declares MIT and names `Ultralytics/YOLOv8` as the
+  base model. Its training config starts from `yolov8n.pt` and a Kaggle dataset,
+  `threat-detection-3849`, whose license the card does not give. The `ultralytics` package the
+  repo installs (`8.4.173`) declares AGPL-3.0 in its metadata. So the card's MIT claim is the
+  uploader's, and the base model's and dataset's licenses are unrecorded.
+- **The class labels do not match.** The gateway names the four outputs `knife, pistol, rifle,
+threat_object` (`ai/gateway/adapters/enrichment_light.py:84`). The model card lists them as
+  Gun, Explosive, Grenade and Knife; its "Explosive" class covers "fire, explosion scenarios, and
+  explosive devices". Which gateway label a detection gets is unverified until someone reads the
+  checkpoint's own `names`.
+- **Trigger source.** The recommendation below says a fast path has no trigger source. For weapons,
+  this model is one. For smoke there is none. For fire, the only candidate is the card's
+  "Explosive" class, which the gateway does not name as such; the card reports 49.7 % test
+  precision for it.
+- Nothing calls the gateway's `/enrich-lt/threat-detect`
+  (`ai/gateway/adapters/enrichment_light.py:130`) today; turning the model on also needs a backend
+  caller.
+
 **Options, as the register states them** (`docs/vss-integration/17-action-plan.md`, OD-7):
 `GATEWAY_ENABLE_THREAT` on (re-measure S1) or off; delete the fast-path stubs or specify a
 trigger; show unverified events or keep high/critical only.
@@ -237,11 +261,19 @@ them (§1 recommends this). Alerts surface: F-077 and F-078.
 **Recommendation.** Keep the threat specialist off and delete both fast-path stubs, with F-010,
 F-036 and F-220; keep the Alerts page on high/critical events. The verdict path is the one alert
 path that works, and a second, seconds-fast path needs a trigger source the detector does not
-have (COCO classes carry no weapon, fire or smoke).
+have (COCO classes carry no weapon, fire or smoke). Ruling 67's facts change that premise for weapons: the
+gateway's `threat` model is a trigger source. The recommendation stands until its labels and its
+license are settled. A weapons fast path would need both, plus a backend caller for
+`/enrich-lt/threat-detect`.
 
 **Ruling:**
 
 ### OD-17 — the Triton `reid`/`threat` lane and `ai-llm-vllm`
+
+> **The re-ID half is ruled (ruling 68, 2026-10-10).** The backend's person re-ID moves to the
+> gateway's `reid` model on the GPU, as package `B2.2` (`uplevel-heavy-2`). What stays open here is
+> the rest of OD-17: the entity and re-ID surfaces, and `ai-llm-vllm`. The facts and options below
+> are kept as the inventory wrote them; the re-ID option they weigh is settled.
 
 **Facts the inventory found.**
 
@@ -255,6 +287,19 @@ have (COCO classes carry no weapon, fire or smoke).
 - The Model Zoo cards (F-104, F-129, **unverified**) read the live model manager; neither option
   changes them.
 
+**Facts added by ruling 67** (re-read at `main` `28770b3d8`):
+
+- **The gateway's `reid` is the backend's model:** the same network and weights, OSNet-AIN x1.0
+  trained on MSMT17 (`ai/gateway/export/export_reid.py:2-21`). The export script is a standalone
+  port of torchreid's network. `ai/gateway/tests/test_export_reid.py` checks it against torchreid
+  itself.
+- **The backend's copy runs on the CPU.** Its torch is the CPU wheel (`uv.lock:4430`,
+  `torch 2.14.0+cpu`), and the backend has a 2-CPU limit (`docker-compose.prod.yml:685`), although
+  compose reserves a GPU for it (`docker-compose.prod.yml:690`-`693`). The backend embeds person
+  crops on every event that has them (`backend/services/vlm_specialists.py:754`).
+- **The gateway's copy is resident on the GPU** (`ai/gateway/residency.py:60`), served at
+  `/enrich-lt/person-reid` (`ai/gateway/adapters/enrichment_light.py:172`), and nothing calls it.
+
 **Options, as the register states them** (OD-17): the backend calls `/enrich-lt/person-reid`, or
 drop `reid` from the residency sets; pin or remove `ai-llm-vllm`.
 
@@ -262,10 +307,11 @@ drop `reid` from the residency sets; pin or remove `ai-llm-vllm`.
 unless they are also completed; dropping `reid` from the gateway changes no UI row; removing
 `ai-llm-vllm` changes no UI row.
 
-**Recommendation.** Drop `reid` from the gateway's residency sets (one re-ID model, in the
-backend), remove `ai-llm-vllm`, and retire the entity and re-ID surfaces with §1's row — or, if
-cross-camera tracking is wanted, complete that row against the backend's OSNet and still drop the
-gateway copy.
+**Recommendation.** For the half still open: remove `ai-llm-vllm`, and retire the entity and
+re-ID surfaces with §1's row. If cross-camera tracking is wanted, complete that row against the
+gateway's `reid` that B2.2 moves re-ID to. The inventory's original recommendation was to drop
+`reid` from the gateway and keep the backend's OSNet. Ruling 68 decided the opposite, so that
+recommendation is superseded.
 
 **Ruling:**
 
@@ -420,6 +466,122 @@ detection should be deleted is a retention decision, and today no retention rule
 retention cleanup deletes images only through their `Detection` rows
 (`backend/services/cleanup_service.py:377`). If the owner wants them deleted, that is a retention
 setting with its own name, not an "orphan" button.
+
+**Ruling:**
+
+### OD-39 — Triton's future
+
+Added by ruling 67 (issue #6854), which puts it on the R2 sheet to be ruled together with OD-7 and
+OD-17. Nothing changes in code now; any replacement would be a Phase 4 package that measures
+latency and VRAM first. Facts read at `main` `28770b3d8`.
+
+**What Triton serves today.** The `ai-gateway` container runs Triton behind a FastAPI gateway. Its
+model repository holds three models, all ONNX Runtime on the GPU:
+
+- `yolo26`, the object detector. The backend calls it for every frame through
+  `/yolo26/detect` (`backend/services/detector_client.py:668`).
+- `reid`, the OSNet-AIN x1.0 re-ID model. Ruling 68 makes it the backend's re-ID path (B2.2);
+  until B2.2's switch merges, nothing calls it.
+- `threat`, the weapons detector. It is off by default (`docker-compose.prod.yml:394`), and nothing
+  calls it.
+
+The residency set is `yolo26` and `reid`, plus `threat` only when `GATEWAY_ENABLE_THREAT` is on
+(`ai/gateway/residency.py:60`, `:81`).
+
+**What it would serve under each outcome of OD-7 and OD-17.**
+
+| Outcome                                          | Triton serves                                                                          |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| OD-7: threat off (its recommendation)            | `yolo26`, `reid`                                                                       |
+| OD-7: threat on with a trigger                   | `yolo26`, `reid`, `threat`, plus a backend caller for `threat` that does not exist yet |
+| OD-17, the re-ID half (ruled by 68)              | `reid` in use. If B2.2 is reverted, `reid` is resident and uncalled again              |
+| OD-17, the rest (entity surfaces, `ai-llm-vllm`) | no change: neither touches Triton                                                      |
+
+**What Triton costs.**
+
+- **The image.** It is built on `nvcr.io/nvidia/tritonserver:26.01-py3` (`ai/gateway/Dockerfile:1`).
+  On top of that it installs the export toolchain: `torch`, `transformers`, `ultralytics`, `onnx`,
+  `onnxscript`, `onnxruntime-gpu`, `open_clip_torch`, `timm` and `einops`
+  (`ai/gateway/Dockerfile:19`-`35`). There are 14 export scripts in `ai/gateway/export/`;
+  `export_all.sh` runs three of them (threat, `yolo26`, `reid`;
+  `ai/gateway/export/export_all.sh:113`, `:123`, `:137`).
+- **Start-up machinery,** all of it run before Triton starts:
+  - per-model config patching from `models.yml` (`ai/gateway/entrypoint.sh:87`);
+  - linking the exported files from the cache into the repository (`:110`);
+  - pruning the repository to the residency set (`:131`).
+
+  Triton then runs with `--model-control-mode=none` (`:147`), so it has no load API; F-128's
+  buttons return 501 for that reason.
+
+- **Volumes:**
+  - the model cache, `${AI_MODELS_PATH}/triton` (`docker-compose.prod.yml:374`);
+  - two named caches, `triton-kernel-cache` (`:377`) and `triton-tmp-cache` (`:379`);
+  - the Hugging Face cache (`:381`).
+- **Resources:** a limit of 8 CPUs and 20 GB, with 10 GB of memory and one GPU reserved
+  (`docker-compose.prod.yml:417`-`423`).
+- **The real-tier gap.** The `agent-gpu` library holds no Triton models (ruling 67, citing ruling
+  66). `O2.2`'s `--real` serves only the VLM and keeps the fake detector, so no agent run exercises
+  `yolo26`, `reid` or `threat`. B2.2's parity check is an owner run on the host for that reason.
+  Neither option below closes the gap by itself: a real-tier run of either server needs its ONNX
+  files in the library.
+
+**What Triton provides beyond running ONNX Runtime:**
+
+- a shared rate limiter that serialises GPU work across the three models, with priorities
+  (`ai/triton/model_repository/reid/config.pbtxt:35`, `:39`);
+- dynamic batching for `reid`, with a queue delay of up to 100 ms (`:44`-`46`);
+- the `nv_inference_*` and `nv_gpu_*` metrics on port 8002.
+
+**What would replace its metrics.** Prometheus scrapes Triton at `ai-gateway:8002`
+(`monitoring/prometheus.yml:136`, `:142`). The `nv_*` series feed:
+
+- the `GPUInferenceFailures` alert (`monitoring/ai-pipeline-alerts.yml:51`);
+- the recording rule `job:triton_inference_latency:avg5m`
+  (`monitoring/profiling-recording-rules.yml:191`);
+- four Grafana dashboards: `ai-services.json` (F-102, F-115), `consolidated.json` (F-164),
+  `tracing.json` (F-167) and `ai-service-health.json`.
+
+The gateway already exports its own per-endpoint metrics:
+`hsi_ai_inference_duration_seconds` and `hsi_ai_inference_errors_total` (`ai/gateway/main.py:83`,
+`:90`). The GPU-memory alerts already read the `hsi_gpu_*` exporter
+(`monitoring/ai-pipeline-alerts.yml:69`), not Triton. A slim service would re-point the failure
+ratio and latency panels to the `hsi_ai_inference_*` series, and the GPU panels to `hsi_gpu_*`.
+
+**Options.**
+
+- **Keep Triton as the one model server — no new work.** Route re-ID through it (B2.2, already
+  ruled), and threat too if OD-7 turns it on. The costs above stay as they are.
+- **A slim detector service — L** (ops and backend). A FastAPI service runs ONNX Runtime on the
+  GPU, loads the same three `.onnx` files and exports the app's own metrics.
+  - No model needs re-exporting: Triton already runs each one through its ONNX Runtime backend.
+  - It removes the Triton base image, the patching, linking and pruning steps, and the `nv_*`
+    metrics.
+  - It must replace the rate limiter and `reid`'s dynamic batching, or show by measurement that
+    they aren't needed.
+  - B2.2's client and parity gate move with it.
+  - Per ruling 67, it is a Phase 4 package that measures latency and VRAM before it switches
+    anything.
+
+**Rows each option affects.**
+
+- **Keep:** none.
+- **Slim service:**
+  - F-102, F-115, F-164 and F-167: their dashboards' `nv_*` panels are re-pointed.
+  - F-125: its readiness source, the gateway's health, keeps the same shape.
+  - F-128: there is still no load API; the reason changes from Triton's control mode to the
+    service having none.
+- **Under either option:** OD-7's threat rows (F-010, F-036, F-220) follow OD-7, not this decision.
+
+**Recommendation.** **Keep Triton through Phase 3, and measure the slim service in Phase 4 before
+deciding.**
+
+- Triton costs more than it serves today: three ONNX Runtime models carry a full Triton image, the
+  export toolchain and three start-up steps.
+- But B2.2 is about to rely on its batching and its GPU rate limiting, and B2.2's parity gate is
+  written against the gateway path.
+- A replacement decided before those numbers exist would be a guess. The Phase 4 package measures
+  per-request latency, VRAM and image size for both servers with the same ONNX files, and the
+  slim service replaces Triton only if it matches on latency and VRAM.
 
 **Ruling:**
 
@@ -721,4 +883,5 @@ Ruling: approve the list for deletion as a whole, naming any exceptions and why.
 
 The frontend lane's record PR copies each ruling and priority into the inventory, writes the OD
 rulings into `docs/vss-integration/17-action-plan.md`, and sets `R2` to `done`. `OD-36`, `OD-37` and `OD-38` (ruling 62) are new numbers with no register rows yet: the record PR
-adds them, as it does `OD-33`…`OD-35`. The next free number is `OD-39`.
+adds them, as it does `OD-33`…`OD-35`. `OD-39` (ruling 67) is new in the same way. The next
+free number is `OD-40`.
