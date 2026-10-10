@@ -480,24 +480,6 @@ class Settings(BaseSettings):
         'Generate with: python -c "import secrets; print(secrets.token_urlsafe(48))" '
         "Minimum 32 characters recommended for security.",
     )
-    jwt_access_token_expire_minutes: int = Field(
-        default=30,
-        ge=5,
-        le=1440,
-        description="Access token expiration time in minutes. Default: 30 minutes.",
-    )
-    jwt_refresh_token_expire_days: int = Field(
-        default=7,
-        ge=1,
-        le=30,
-        description="Refresh token expiration time in days. Default: 7 days.",
-    )
-    session_ttl_hours: int = Field(
-        default=24,
-        ge=1,
-        le=168,
-        description="Session TTL in hours for Redis-backed sessions. Default: 24 hours.",
-    )
     # OD-12 (B1.5): the one auth switch. backend/api/middleware/auth.py reads it.
     expose_lan: bool = Field(
         default=False,
@@ -986,46 +968,6 @@ class Settings(BaseSettings):
         "Prevents memory exhaustion and LLM timeouts with large batches.",
     )
 
-    # Batch coalescing settings (NEM-5464 Phase 5)
-    # Coalesces similar detections within a time window to reduce inference load
-    batch_coalescing_enabled: bool = Field(
-        default=True,
-        description="Enable/disable batch coalescing. When enabled, similar detections "
-        "within a time window are merged to reduce inference load on AI services.",
-    )
-    batch_coalescing_max_size: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        description="Maximum detections per coalesced batch. When reached, the batch "
-        "is processed and a new coalescing window begins.",
-    )
-    batch_coalescing_time_window: float = Field(
-        default=5.0,
-        ge=0.5,
-        le=60.0,
-        description="Time window in seconds for coalescing similar detections. "
-        "Detections arriving within this window may be merged if they match criteria.",
-    )
-
-    # Priority queue settings (NEM-5464 Phase 5)
-    # Enables priority-based ordering for AI inference requests
-    priority_queue_enabled: bool = Field(
-        default=True,
-        description="Enable priority-based request ordering. When enabled, detections "
-        "containing high-priority object types are processed before lower-priority ones.",
-    )
-    priority_high_labels: list[str] = Field(
-        default=["weapon", "intruder", "fire"],
-        description="Object labels that receive high priority for inference. "
-        "Detections containing these labels are processed first.",
-    )
-    priority_medium_labels: list[str] = Field(
-        default=["person", "unknown"],
-        description="Object labels that receive medium priority for inference. "
-        "Processed after high-priority labels but before low-priority ones.",
-    )
-
     # Pipeline worker configuration (NEM-5375)
     detection_worker_count: int = Field(
         default=2,
@@ -1495,11 +1437,6 @@ class Settings(BaseSettings):
                 f"Invalid AI Gateway URL '{url_str}': must be a valid HTTP/HTTPS URL. "
                 f"Example: 'http://ai-gateway:8090'. Error: {e}"
             ) from None
-
-    use_enrichment_service: bool = Field(
-        default=True,
-        description="Use HTTP enrichment service instead of local models for vehicle/pet/clothing classification",
-    )
 
     # go2rtc RTSP-to-WebRTC streaming service (NEM-4958)
     # go2rtc enables low-latency live video streaming from RTSP cameras to browser
@@ -2535,12 +2472,6 @@ class Settings(BaseSettings):
         le=50,
         description="Maximum number of restart attempts for a crashed worker before giving up.",
     )
-    worker_supervisor_restart_window: float = Field(
-        default=300.0,
-        ge=60.0,
-        le=3600.0,
-        description="Time window in seconds for counting restart attempts.",
-    )
 
     # Container orchestrator settings (for Docker/Podman container management)
     # Environment variables use ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED)
@@ -2594,29 +2525,6 @@ class Settings(BaseSettings):
         ge=1.0,
         le=60.0,
         description="How often (in seconds) to check if conditions are met for background evaluation.",
-    )
-
-    # Worker supervisor settings (NEM-2492)
-    worker_health_check_interval: float = Field(
-        default=30.0,
-        ge=1.0,
-        le=300.0,
-        description="Interval in seconds between worker health checks. "
-        "Lower values detect crashes faster but increase overhead.",
-    )
-    worker_max_restart_attempts: int = Field(
-        default=5,
-        ge=0,
-        le=100,
-        description="Maximum number of restart attempts before circuit breaker opens. "
-        "Set to 0 to disable automatic restarts entirely.",
-    )
-    worker_restart_backoff_base: float = Field(
-        default=1.0,
-        ge=0.1,
-        le=60.0,
-        description="Base delay in seconds for exponential backoff on restarts. "
-        "Actual delay = base * (2 ** (restart_count - 1)).",
     )
 
     # Orphan file cleanup settings (NEM-2260)
