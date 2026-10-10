@@ -18,6 +18,10 @@ For WebSocket connections, there are also two methods:
 
 **Always prefer header-based authentication over query parameters.**
 
+Browsers use neither form: the session cookie from the login authenticates
+the browser (ruling 44 — no API key may exist inside the served bundle), so
+everything below describes **non-browser clients** (scripts, services, CLIs).
+
 ---
 
 ## Security Risks of Query Parameter API Keys
@@ -178,19 +182,14 @@ if not api_key:
 
 ### Frontend API Client (`frontend/src/services/api.ts`)
 
-The frontend has two methods for building WebSocket connections:
+The frontend's WebSocket builder mints no credential at all:
 
 ```typescript
-// RECOMMENDED: Uses Sec-WebSocket-Protocol header
-export function buildWebSocketOptions(endpoint: string): WebSocketConnectionOptions {
-  // Returns { url: string, protocols?: string[] }
-  // API key is passed in protocols array as "api-key.{key}"
-}
-
-// DEPRECATED: Exposes API key in URL
-export function buildWebSocketUrl(endpoint: string): string {
-  // Returns URL with ?api_key=... query parameter
-  // This function is marked @deprecated
+// Ruling 44: Vite inlines VITE_* values into the served bundle, so no key may
+// exist in frontend code to attach. The browser socket is authenticated by the
+// session cookie the login endpoint sets.
+export function buildWebSocketOptions(endpoint: string): { url: string } {
+  // Returns { url } only — no protocols, no key.
 }
 ```
 
@@ -210,7 +209,7 @@ curl -H "X-API-Key: your-api-key" https://localhost:8000/api/events
 curl "https://localhost:8000/api/events?api_key=your-api-key"
 ```
 
-### For WebSocket Connections
+### For WebSocket Connections (non-browser clients)
 
 Use the Sec-WebSocket-Protocol header:
 
@@ -222,15 +221,20 @@ const ws = new WebSocket('ws://localhost:8000/ws/events', ['api-key.your-api-key
 const ws = new WebSocket('ws://localhost:8000/ws/events?api_key=your-api-key');
 ```
 
-The frontend's `buildWebSocketOptions()` function automatically uses the secure header method:
+In the browser there is nothing to attach — the cookie jar authenticates the
+handshake:
 
 ```typescript
 import { buildWebSocketOptions } from '../services/api';
 
-// Returns { url: 'ws://localhost:8000/ws/events', protocols: ['api-key.xxx'] }
+// Returns { url: 'ws://localhost:8000/ws/events' } — no protocols (ruling 44).
 const options = buildWebSocketOptions('/ws/events');
-const ws = new WebSocket(options.url, options.protocols);
+const ws = new WebSocket(options.url);
 ```
+
+The `api-key.…` protocol form above is for scripted non-browser clients that
+hold a key: they pass it explicitly, and the server echoes it back (the B-1
+behaviour pinned by `backend/tests/integration/test_ws_subprotocol_echo_b1.py`).
 
 ### For Documentation and Examples
 
@@ -259,26 +263,18 @@ The backend sanitizes sensitive data in logs (`backend/core/sanitization.py`):
 (re.compile(r"api[_-]?key[=:]\s*\S+", re.IGNORECASE), "api_key=[REDACTED]")
 ```
 
-### 2. Frontend Security Comments
+### 2. Browser Code Carries No Credential
 
-Frontend hooks include security comments reminding developers to use header-based auth:
+The hooks that open sockets (e.g. `frontend/src/hooks/useEventStream.ts`) say
+plainly that keys are for non-browser clients and the browser socket rides the
+session cookie. `frontend/src/__tests__/no-browser-api-key.test.ts` fails CI if
+browser code reads the key env var or mints the subprotocol form again.
 
-```typescript
-// frontend/src/hooks/useEventStream.ts
-// SECURITY: API key is passed via Sec-WebSocket-Protocol header, not URL query param
-const wsOptions = buildWebSocketOptions('/ws/events');
-```
+### 3. The Query-Parameter Builder Is Deleted, Not Deprecated
 
-### 3. Deprecated API Functions
-
-The `buildWebSocketUrl()` function that uses query parameters is marked deprecated:
-
-```typescript
-/**
- * @deprecated Use buildWebSocketOptions instead. This function exposes API keys in URLs.
- */
-export function buildWebSocketUrl(endpoint: string): string { ... }
-```
+`buildWebSocketUrl()` no longer exists in the frontend. It existed only to move
+a baked-in key into a URL, so ruling 44 removed it outright — a deprecated
+function is one refactor away from being called again.
 
 ### 4. Header Priority
 

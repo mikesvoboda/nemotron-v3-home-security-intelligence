@@ -8,7 +8,10 @@
  * Environment Variables:
  * - VITE_API_BASE_URL: Base URL for REST API (optional, defaults to relative URLs)
  * - VITE_WS_BASE_URL: Base URL for WebSocket connections (optional, falls back to window.location)
- * - VITE_API_KEY: API key for authentication (optional)
+ *
+ * Ruling 44: no API-key variable is read here, deliberately. Vite inlines
+ * VITE_* values into the built JavaScript, and the served UI is readable by
+ * anyone who can reach it — browsers authenticate via the session cookie.
  *
  * @example
  * ```typescript
@@ -33,8 +36,6 @@ export interface EnvConfig {
   apiBaseUrl: string;
   /** Base URL for WebSocket connections (undefined = use window.location) */
   wsBaseUrl: string | undefined;
-  /** API key for authentication (undefined = no auth) */
-  apiKey: string | undefined;
   /** Current Vite mode (development, production, test) */
   mode: string;
   /** True if running in development mode */
@@ -109,7 +110,6 @@ function isWebSocketUrl(url: string): boolean {
 interface RawEnv {
   VITE_API_BASE_URL?: string;
   VITE_WS_BASE_URL?: string;
-  VITE_API_KEY?: string;
   MODE?: string;
   DEV?: boolean;
   PROD?: boolean;
@@ -129,7 +129,6 @@ export function validateEnv(env: RawEnv): EnvConfig {
   // Get values with defaults
   const apiBaseUrl = env.VITE_API_BASE_URL ?? '';
   const wsBaseUrl = env.VITE_WS_BASE_URL;
-  const apiKey = env.VITE_API_KEY;
   const mode = env.MODE ?? 'development';
 
   // Validate VITE_API_BASE_URL (optional, but if provided must be valid URL)
@@ -155,7 +154,6 @@ export function validateEnv(env: RawEnv): EnvConfig {
   return {
     apiBaseUrl,
     wsBaseUrl: wsBaseUrl || undefined,
-    apiKey: apiKey || undefined,
     mode,
     isDevelopment: mode === 'development',
     isProduction: mode === 'production',
@@ -207,14 +205,6 @@ export function getBaseUrl(): string {
  */
 export function getWsBaseUrl(): string | undefined {
   return getEnvConfig().wsBaseUrl;
-}
-
-/**
- * Gets the API key for authentication.
- * @returns API key or undefined if not configured
- */
-export function getApiKey(): string | undefined {
-  return getEnvConfig().apiKey;
 }
 
 /**

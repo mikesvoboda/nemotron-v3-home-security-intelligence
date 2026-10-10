@@ -190,10 +190,11 @@ export function useRecentThreats(options: UseRecentThreatsOptions = {}): UseRece
 
   // Configure WebSocket options
   // F1.3: route through buildWebSocketOptions so this endpoint gets the same
-  // origin resolution (VITE_WS_BASE_URL / window.location) and the optional
-  // `api-key.{key}` subprotocol as every other hook. The previous default read
-  // VITE_WS_URL — a variable the deploy docs never define — and hardcoded
-  // localhost:8000, so the socket bypassed nginx entirely in a deployed stack.
+  // origin resolution (VITE_WS_BASE_URL / window.location) as every other
+  // hook. Ruling 44: that builder attaches no credential — the browser socket
+  // rides the session cookie. The previous default read VITE_WS_URL — a
+  // variable the deploy docs never define — and hardcoded localhost:8000, so
+  // the socket bypassed nginx entirely in a deployed stack.
   const { url: wsUrl, protocols } = buildWebSocketOptions('/ws/events');
   const wsOptions: WebSocketOptions = {
     url: wsUrl,

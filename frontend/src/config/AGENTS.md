@@ -28,8 +28,14 @@ frontend/src/config/
 | ------------------- | -------- | ------ | ------------------ | --------------------------------------- |
 | `VITE_API_BASE_URL` | No       | URL    | `''` (relative)    | Base URL for REST API calls             |
 | `VITE_WS_BASE_URL`  | No       | WS URL | `undefined` (auto) | Base URL for WebSocket connections      |
-| `VITE_API_KEY`      | No       | string | `undefined`        | API key for authentication              |
 | `MODE`              | Auto     | string | `'development'`    | Vite mode (development/production/test) |
+
+**There is no API-key variable, on purpose (ruling 44).** Vite inlines every
+`VITE_*` value into the built JavaScript, so a browser-baked key is served to
+everyone who can load the UI — and the UI has to be served, because the login
+page lives inside it. Browsers authenticate **only** through the cookie login.
+API keys are for non-browser clients (scripted callers that set their own
+`X-API-Key` header outside this bundle).
 
 ### Configuration Interface
 
@@ -37,7 +43,6 @@ frontend/src/config/
 export interface EnvConfig {
   apiBaseUrl: string;
   wsBaseUrl: string | undefined;
-  apiKey: string | undefined;
   mode: string;
   isDevelopment: boolean;
   isProduction: boolean;
@@ -105,7 +110,6 @@ const config = getEnvConfig(); // EnvConfig
 // Individual getters
 const baseUrl = getBaseUrl(); // string
 const wsBaseUrl = getWsBaseUrl(); // string | undefined
-const apiKey = getApiKey(); // string | undefined
 const isDev = isDevelopment(); // boolean
 const isProd = isProduction(); // boolean
 const isTestMode = isTest(); // boolean
@@ -147,17 +151,11 @@ Environment validation failed:
 ### Basic Configuration Access
 
 ```typescript
-import { getBaseUrl, getApiKey, isDevelopment } from '@/config/env';
+import { getBaseUrl, isDevelopment } from '@/config/env';
 
-// Use in API client
+// Use in API client — the same-origin session cookie authenticates the
+// request; fetchApi adds no API-key header (ruling 44).
 const apiUrl = `${getBaseUrl()}/api/cameras`;
-
-// Add API key if configured
-const headers: HeadersInit = {};
-const apiKey = getApiKey();
-if (apiKey) {
-  headers['X-API-Key'] = apiKey;
-}
 
 // Development-only features
 if (isDevelopment()) {
@@ -175,7 +173,6 @@ function logConfig() {
   console.log({
     api: config.apiBaseUrl || 'relative',
     ws: config.wsBaseUrl || 'auto-detect',
-    auth: config.apiKey ? 'enabled' : 'disabled',
     mode: config.mode,
   });
 }
@@ -247,7 +244,6 @@ Comprehensive tests covering:
 ```
 VITE_API_BASE_URL=''                    # Relative URLs (Vite proxy)
 VITE_WS_BASE_URL=''                     # Auto-detect from window.location
-VITE_API_KEY=''                         # No auth
 ```
 
 ### Production (`MODE=production`)
@@ -255,7 +251,7 @@ VITE_API_KEY=''                         # No auth
 ```
 VITE_API_BASE_URL=https://api.example.com
 VITE_WS_BASE_URL=wss://api.example.com
-VITE_API_KEY=secret-key-123
+# No API key here, ever: a VITE_* value ships inside the served JS bundle.
 ```
 
 ### Testing (`MODE=test`)
@@ -263,7 +259,6 @@ VITE_API_KEY=secret-key-123
 ```
 VITE_API_BASE_URL=http://localhost:8000
 VITE_WS_BASE_URL=ws://localhost:8000
-VITE_API_KEY=test-key
 ```
 
 ## Related Files
@@ -271,12 +266,13 @@ VITE_API_KEY=test-key
 - `/frontend/.env` - Default environment variables
 - `/frontend/.env.development` - Development overrides
 - `/frontend/.env.production` - Production overrides
-- `/frontend/src/services/api.ts` - Uses `getBaseUrl()` and `getApiKey()`
+- `/frontend/src/services/api.ts` - Uses `getBaseUrl()`; browser auth is the session cookie
 - `/frontend/vite.config.ts` - Vite loads `.env` files
 
 ## Notes for AI Agents
 
 - Validation happens once at startup (cached)
+- Do not re-add an API-key env var: `../__tests__/no-browser-api-key.test.ts` fails CI if `frontend/src` reads one again
 - Use convenience getters (`getBaseUrl()`) instead of direct `import.meta.env` access
 - Empty strings are valid for optional URLs (triggers fallback behavior)
 - `resetEnvCache()` is for testing only - don't use in production code
@@ -285,7 +281,7 @@ VITE_API_KEY=test-key
 
 ## Entry Points
 
-1. **Start with convenience getters** - `getBaseUrl()`, `getApiKey()`, `isDevelopment()`
+1. **Start with convenience getters** - `getBaseUrl()`, `isDevelopment()`
 2. **Full config**: `getEnvConfig()` for complete configuration object
 3. **Validation**: `validateEnv()` for custom validation (rarely needed)
 4. **Error handling**: Check for `EnvValidationError` instances
