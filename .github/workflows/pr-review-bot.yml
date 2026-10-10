@@ -208,6 +208,10 @@ jobs:
           done
 
           exit $EXIT_CODE
+        # OB.2 reason: the verdict is data — the summary job quotes this job's
+        # result as one line (Naming Convention: <verdict>) in the PR comment;
+        # a hard red here would blank the whole comment, and a naming nit is
+        # comment material, not a gate.
         continue-on-error: true
 
   # ============================================================================

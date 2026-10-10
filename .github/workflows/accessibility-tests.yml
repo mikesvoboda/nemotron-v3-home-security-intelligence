@@ -53,6 +53,9 @@ jobs:
 
       - name: Run Accessibility Tests
         id: a11y-tests
+        # OB.2 reason: same advisory doctrine as this workflow's job-level
+        # COE above — an a11y finding is a report item, not a merge blocker;
+        # the always() Playwright-report upload below is where findings ship.
         run: |
           cd frontend && npx playwright test --project=chromium tests/e2e/specs/accessibility.spec.ts --reporter=html,list
         continue-on-error: true

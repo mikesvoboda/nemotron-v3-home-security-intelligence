@@ -192,6 +192,10 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Check if tests can be generated
+        # OB.2 reason: capability probe — the inner `|| true` already swallows
+        # the script, so this step can only fail on the runner itself; the
+        # always() upload below carries the spec out either way. Kept per
+        # clause (it is a literal true key with a real owner).
         run: |
           python3 scripts/generate-api-tests.py \
             --save-spec \
