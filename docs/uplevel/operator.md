@@ -116,8 +116,8 @@ hand-written command yourself:
 2. **Render what it would start, and read the mounts.** Run the command's compose invocation with
    `config` in place of `up`. Send it back if any writable bind mount points outside a directory
    made for this run — the prod file bind-mounts the checkout's `./backend/data` with `U`, which
-   re-owns live files (`docker-compose.prod.yml:454`) — or if any service mounts the Podman socket
-   (`:468`). The backend's orchestrator is on by default. Since `B1.6` it adopts only containers in
+   re-owns live files (`docker-compose.prod.yml:459`) — or if any service mounts the Podman socket
+   (`:473`). The backend's orchestrator is on by default. Since `B1.6` it adopts only containers in
    its own compose project (`container_discovery.py:732`) and nothing when it cannot resolve one
    (`:723`) — but your test stack _is_ its own project, and a failing health check restarts that
    container with backoff, so a test stack must still run with `ORCHESTRATOR_ENABLED=false` and no
@@ -151,12 +151,26 @@ compose projects on the engine in front of you, each holding two `alpine` contai
 that was already running, mounts nothing, and needs no `.env`, no published port and no camera
 directory, so the one rule's hazards cannot arise here. It needs no `ORCHESTRATOR_ENABLED=false`
 guard either — this run's whole point is the shipped default, and post-`B1.6` a backend adopts only
-its own project (see gate 2). **Read the command before running it** as usual: if your engine has no
+its own project (step 2 of "The owner on the host" explains the residual hazard). **Read the command before running it** as usual: if your engine has no
 Docker socket reachable from the checkout, stop and post that instead of adapting anything.
 
-1. **Snapshot before:** `docker ps -a --format '{{.Names}} {{.Status}} {{.StartedAt}}' > /tmp/orch01-before.txt`
-   and `docker volume ls -q > /tmp/orch01-vols-before.txt`. The run must leave every line of both files
-   intact — containers it does not own are not its to touch, which is exactly what it claims.
+1. **Snapshot before:**
+
+   ```bash
+   for c in $(docker ps -aq); do
+     docker inspect -f '{{.Name}} restarts={{.RestartCount}} started={{.State.StartedAt}}' "$c"
+   done | sort > /tmp/orch01-before.txt
+   docker volume ls -q > /tmp/orch01-vols-before.txt
+   ```
+
+   Snapshot with `docker inspect`, not with a `docker ps` template: `docker ps` has no `{{.StartedAt}}`
+   placeholder (that one is podman's, and step 4 of "The owner on the host" uses it correctly), and a
+   bad template exits 1 while the redirect still leaves a **0-byte** file — which then diffs clean, so
+   the snapshot would certify nothing. Check the capture: `wc -l < /tmp/orch01-before.txt` must equal
+   `docker ps -aq | wc -l`. The run must leave every line of both files identical — a changed line, a
+   **missing** line (a container or volume removed) and a new line are all findings. Containers it does
+   not own are not its to touch, which is exactly what this run claims.
+
 2. **Run it,** from the checkout at the commit the PR names:
 
    ```bash
@@ -175,9 +189,12 @@ Docker socket reachable from the checkout, stop and post that instead of adaptin
    not `removed` — the recovery restarted the one service in place and left the other project's
    containers and start times alone.
 4. **Tear down and prove it:** the fixture removes its own four containers, so
-   `docker ps -a --filter name=b16- --format '{{.Names}} {{.Status}}'` must print nothing, and
-   `diff /tmp/orch01-before.txt <(docker ps -a --format '{{.Names}} {{.Status}} {{.StartedAt}}')`
-   must be empty. If a `b16-*` container outlived the run, `docker rm -f` it and say so on the PR.
+   `docker ps -a --filter name=b16- --format '{{.Names}} {{.Status}}'` must print nothing. Re-run step
+   1's two snapshot commands into `/tmp/orch01-after.txt` and `/tmp/orch01-vols-after.txt` (same
+   pipeline, including `sort`, so the diff is order-stable) and diff both pairs; both must be empty.
+   Confirm the after-file is not empty before calling an empty diff clean:
+   `wc -l < /tmp/orch01-after.txt` must equal `docker ps -aq | wc -l`. If a `b16-*` container outlived
+   the run, `docker rm -f` it and say so on the PR.
 5. **Post it** under "Posting results", with one addition: quote the two assertion lines from the
    test file, and paste the log lines the command prints, of which these are the shape to expect —
 
