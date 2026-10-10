@@ -142,17 +142,16 @@ class ModuleView:
             names = frozenset(a.asname or a.name for a in node.names if a.name != "*")
             self.demands.append((target, names or None))
 
-        # String imports are collected in ONE whole-tree pass. The import-
-        # import-time model below recurses statement-by-statement, and an
-        # earlier version scanned calls per statement with ast.walk — but a
+        # String imports are collected in ONE whole-tree pass. The
+        # import-time model below recurses statement-by-statement; an
+        # earlier version scanned calls per statement with ast.walk, but a
         # statement's subtree contains its nested statements, so every call
-        # was re-walked once per enclosing statement: O(depth x size), 8.4s
-        # of a 10s walk, which blew the suite's 5s timeout pin on CI
-        # runners. Dynamic imports have no import-time context to respect
-        # (they ship only via the allowlist wherever they appear), so the
-        # flat walk is the same set — strictly a superset of the old union
-        # of subtree walks, because it also sees calls in expressions the
-        # statement walk descended past.
+        # was re-walked once per enclosing statement — O(depth x size), 8.4s
+        # of a 10s walk, over the root pytest timeout=5 pin on CI runners
+        # (job 114166488241). Dynamic imports have no import-time context to
+        # respect (they ship only via the allowlist wherever they appear), so
+        # the flat walk is the same set — a superset of the old union, since
+        # it also sees calls in expressions the statement walk skipped.
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
