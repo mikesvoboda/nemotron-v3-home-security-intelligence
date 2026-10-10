@@ -52,6 +52,7 @@ except ImportError:
     # Expected to fail in RED phase
     pass
 
+from backend.services.session_service import SESSION_COOKIE_NAME
 
 # =============================================================================
 # Cookie-Based Authentication Tests (Web UI)
@@ -68,23 +69,30 @@ class TestWebSocketCookieAuth:
         Web UI clients send session cookies automatically via browser.
         This is the primary authentication method for web clients.
 
-        Expected behavior:
-        - Extract session cookie from WebSocket headers
-        - Validate cookie signature and expiration
-        - Accept connection if cookie is valid
+        Expected behavior (R55, ruling 55):
+        - Extract the cookie POST /api/auth/login actually sets
+          (SESSION_COOKIE_NAME — the old test fed the literal "session",
+          a name no login ever wrote, which is why the real lookup never ran)
+        - Look the id up in Redis (validate_session_cookie -> the HTTP gate's
+          _session_username; mocked here, proven live in
+          test_websocket_auth_flow's no-patch tests)
+        - Accept connection if Redis holds the session
         """
-        # Mock WebSocket with valid session cookie
+        # Mock WebSocket carrying the login cookie under its real name
         mock_websocket = MagicMock(spec=WebSocket)
-        mock_websocket.headers = {"cookie": "session=valid_session_token_abc123; Path=/; HttpOnly"}
-        mock_websocket.cookies = {"session": "valid_session_token_abc123"}
+        mock_websocket.headers = {
+            "cookie": f"{SESSION_COOKIE_NAME}=valid_session_token_abc123; Path=/; HttpOnly"
+        }
+        mock_websocket.cookies = {SESSION_COOKIE_NAME: "valid_session_token_abc123"}
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
-        # Mock session validation to return valid user
+        # Session validation resolves to a username (the new contract:
+        # str for a session Redis holds, None for one it does not)
         with patch(
             "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_validate:
-            mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
+            mock_validate.return_value = "test_user"
 
             result = await authenticate_websocket_cookie(mock_websocket)
 
@@ -96,18 +104,18 @@ class TestWebSocketCookieAuth:
     async def test_websocket_rejects_invalid_session_cookie(self):
         """Test that WebSocket rejects connection with invalid session cookie.
 
-        Invalid cookies include:
-        - Malformed cookie strings
-        - Invalid signatures
-        - Tampered cookie data
+        Cookies that authenticate nobody include:
+        - Random bytes no login ever issued
+        - A tampered id whose session Redis does not hold
+        - Any value under a name login does not set
 
         Expected behavior:
         - Extract cookie and attempt validation
-        - Close with code 4001 if signature is invalid
+        - Close with code 4001 when the Redis lookup finds no session
         """
         mock_websocket = MagicMock(spec=WebSocket)
-        mock_websocket.headers = {"cookie": "session=invalid_tampered_token"}
-        mock_websocket.cookies = {"session": "invalid_tampered_token"}
+        mock_websocket.headers = {"cookie": f"{SESSION_COOKIE_NAME}=invalid_tampered_token"}
+        mock_websocket.cookies = {SESSION_COOKIE_NAME: "invalid_tampered_token"}
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
@@ -124,31 +132,33 @@ class TestWebSocketCookieAuth:
 
     @pytest.mark.asyncio
     async def test_websocket_rejects_expired_session_cookie(self):
-        """Test that WebSocket rejects connection with expired session cookie.
+        """Test that a lapsed session closes 4001, not 4002 (R55).
 
-        Expired cookies should be rejected even if signature is valid.
-
-        Expected behavior:
-        - Extract and validate cookie signature
-        - Check expiration timestamp
-        - Close with code 4002 if expired
+        The cookie path carries no expiry of its own to read: sessions live
+        in Redis with a TTL, so an expired session is indistinguishable from
+        an unknown one (SessionService raises SessionExpiredError, the gate's
+        _session_username turns it into None) and the close code is the
+        generic 4001 auth failure. 4002 stays reserved for the JWT legs,
+        which do carry an exp claim — this test asserted 4002 for a cookie
+        only because the old validator decoded the session id as a JWT and
+        could conjure an exp that login never wrote.
         """
         mock_websocket = MagicMock(spec=WebSocket)
-        mock_websocket.headers = {"cookie": "session=expired_but_valid_signature"}
-        mock_websocket.cookies = {"session": "expired_but_valid_signature"}
+        mock_websocket.headers = {"cookie": f"{SESSION_COOKIE_NAME}=lapsed_session_id"}
+        mock_websocket.cookies = {SESSION_COOKIE_NAME: "lapsed_session_id"}
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
         with patch(
             "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_validate:
-            mock_validate.return_value = {"user_id": "test_user", "exp": 0}  # Expired
+            mock_validate.return_value = None  # TTL lapsed: Redis no longer holds it
 
             result = await authenticate_websocket_cookie(mock_websocket)
 
             assert result is False
             mock_websocket.accept.assert_called_once()
-            mock_websocket.close.assert_called_once_with(code=4002)
+            mock_websocket.close.assert_called_once_with(code=4001)
 
 
 # =============================================================================
@@ -356,7 +366,7 @@ class TestWebSocketAuthPriority:
         - Use cookie credentials for connection
         """
         mock_websocket = MagicMock(spec=WebSocket)
-        mock_websocket.cookies = {"session": "valid_cookie_token"}
+        mock_websocket.cookies = {SESSION_COOKIE_NAME: "valid_cookie_token"}
         mock_websocket.query_params = {"token": "valid_jwt_token"}
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
@@ -367,7 +377,7 @@ class TestWebSocketAuthPriority:
             with patch(
                 "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
             ) as mock_jwt:
-                mock_cookie.return_value = {"user_id": "user_from_cookie", "exp": 9999999999}
+                mock_cookie.return_value = "user_from_cookie"  # new contract: a username
                 mock_jwt.return_value = {"sub": "user_from_jwt", "exp": 9999999999}
 
                 result, method = await verify_websocket_auth(mock_websocket)
@@ -550,9 +560,16 @@ class TestWebSocketAuthHelpers:
     """Tests for WebSocket authentication helper functions."""
 
     def test_extract_cookie_from_websocket(self):
-        """Test extraction of session cookie from WebSocket headers."""
+        """Extraction reads the name LOGIN sets (R55).
+
+        This is the defect in miniature: it used to read the literal
+        "session", which no response ever set, so the extractor answered
+        None on every real browser handshake and the cookie leg was dead
+        code. Asserting against SESSION_COOKIE_NAME — not a second literal —
+        keeps the test and the login path pinned to one constant.
+        """
         mock_websocket = MagicMock(spec=WebSocket)
-        mock_websocket.cookies = {"session": "cookie_value_123"}
+        mock_websocket.cookies = {SESSION_COOKIE_NAME: "cookie_value_123"}
 
         cookie = extract_cookie_from_websocket(mock_websocket)
 
@@ -585,30 +602,65 @@ class TestWebSocketAuthHelpers:
 
         assert jwt is None
 
-    def test_validate_session_cookie_constant_time_comparison(self):
-        """Test that cookie validation uses constant-time comparison.
+    @pytest.mark.asyncio
+    async def test_validate_session_cookie_delegates_to_the_http_gate(self):
+        """The cookie validator IS the HTTP gate's lookup (R55).
 
-        Security requirement: prevent timing attacks by using hmac.compare_digest.
-        This was already implemented for API keys (NEM-5315).
+        The old test here asserted hmac.compare_digest use inside a validator
+        that decoded the session id as a JWT — a no-op comparison
+        (compare_digest(cookie, cookie)) dressed as a security property, and
+        a contract no login could satisfy. A session id is an opaque 256-bit
+        token that Redis LOOKS UP; there is no secret to time-leak against,
+        so the meaningful property is transport parity: a socket consults the
+        same function authenticated_principal does.
         """
-        valid_cookie = "secure_session_token_123"
+        with patch("backend.api.middleware.auth._session_username", autospec=True) as mock_gate:
+            mock_gate.return_value = "gate_user"
+            assert await validate_session_cookie("some_session_id") == "gate_user"
+            mock_gate.assert_awaited_once_with("some_session_id")
 
-        # This test verifies the function uses constant-time comparison
-        # Implementation should use hmac.compare_digest()
-        # We need to mock decode_token since the cookie isn't a real JWT
+    @pytest.mark.asyncio
+    async def test_validate_session_cookie_empty_id_short_circuits(self):
+        """An empty cookie never reaches Redis."""
+        with patch("backend.api.middleware.auth._session_username", autospec=True) as mock_gate:
+            assert await validate_session_cookie("") is None
+            mock_gate.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_validate_session_cookie_swallows_gate_failures(self):
+        """A Redis outage reads as 'no session', never as an exception.
+
+        The exception lives INSIDE the gate's own lookup (_session_username
+        catches everything around the Redis call), so this drives the real
+        failure boundary — auth.get_redis_optional raising — through both
+        layers. The socket path depends on totality: a None here falls
+        through to JWT/first-message instead of crashing the handshake.
+        """
         with patch(
-            "backend.api.middleware.websocket_auth.decode_token", autospec=True
-        ) as mock_decode:
-            with patch(
-                "backend.api.middleware.websocket_auth.hmac.compare_digest",
-                return_value=True,
-                autospec=True,
-            ) as mock_compare:
-                mock_decode.return_value = {"user_id": "test", "exp": 9999999999}
-                result = validate_session_cookie(valid_cookie)
+            "backend.api.middleware.auth.get_redis_optional",
+            autospec=True,
+            side_effect=ConnectionError("redis down"),
+        ):
+            assert await validate_session_cookie("some_session_id") is None
 
-                assert result is not None
-                mock_compare.assert_called()
+    @pytest.mark.asyncio
+    async def test_cookie_under_the_wrong_name_authenticates_nothing(self):
+        """Negative control for the R55 name fix.
+
+        A session id delivered under the literal "session" (the name the
+        sockets used to read) must not authenticate: the extractor finds
+        nothing, so validate_session_cookie is never consulted. Without this
+        half, a green test suite could not tell the fixed reader from the
+        broken one.
+        """
+        mock_websocket = MagicMock(spec=WebSocket)
+        mock_websocket.cookies = {"session": "a_real_session_id"}
+
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
+        ) as mock_validate:
+            assert await authenticate_websocket_cookie(mock_websocket) is False
+            mock_validate.assert_not_awaited()
 
     def test_validate_websocket_jwt_constant_time_comparison(self):
         """Test that JWT validation uses constant-time comparison.

@@ -634,6 +634,12 @@ services:
       # which is what pydantic parses; :-[] default fails closed (no keys ->
       # only session cookies pass, exactly as before this line).
       - API_KEYS=${API_KEYS:-[]}
+      # R55: the login cookie's Secure flag. Threaded like EXPOSE_LAN because
+      # a bare .env never reaches this container (no env_file:, .env is
+      # dockerignored, setup.py writes no override file) — without this line
+      # the documented SESSION_COOKIE_SECURE=false remedy for the plain-http
+      # login loop is unsettable in the shipped stack. Default true.
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
       - FAST_PATH_ENABLED=${FAST_PATH_ENABLED:-false}
       - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
       # OpenTelemetry distributed tracing (NEM-1629)

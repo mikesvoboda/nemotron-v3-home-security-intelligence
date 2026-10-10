@@ -372,6 +372,7 @@ Risk score ranges for severity levels. See [Risk Levels Reference](risk-levels.m
 | `GRAFANA_ANONYMOUS_ENABLED`  | No       | `true` (compose)                          | Derived from `EXPOSE_LAN` by `setup.py`: `true` unexposed, `false` when exposed, so `/grafana/` never serves anonymously to the LAN. A hand-set `GF_AUTH_ANONYMOUS_ENABLED` still wins over this derived value (compose renders `${GF_AUTH_ANONYMOUS_ENABLED:-${GRAFANA_ANONYMOUS_ENABLED:-true}}` — hand-set > derived > `true`), which is the security-safe direction: a legacy hand-set `false` is never resurrected by the new channel.                                                                                                                                                                                                           |
 | `GRAFANA_AUTH_PROXY_ENABLED` | No       | `false`                                   | Derived from `EXPOSE_LAN` by `setup.py` (`true` when exposed): Grafana trusts the `X-Auth-User` header nginx sets after its `auth_request` session check, so one login serves the UI and the dashboards. `GRAFANA_AUTH_PROXY_AUTO_SIGN_UP` is derived with it — auth.proxy without auto-sign-up 401s even a valid identity header.                                                                                                                                                                                                                                                                                                                    |
 | `ALERT_SINK_URL`             | No       | `http://backend:8000/api/webhooks/alerts` | Where Alertmanager posts alerts. Derived from `EXPOSE_LAN` by `setup.py`: `http://frontend:8081/api/webhooks/alerts` when exposed (that internal listener adds the machine key Alertmanager cannot send; it is not a published port), the backend URL otherwise.                                                                                                                                                                                                                                                                                                                                                                                      |
+| `SESSION_COOKIE_SECURE` | No       | `true`  | The login cookie's `Secure` flag (R55). Keep `true`; set `false` ONLY when the UI is reached over plain `http://` — a browser drops a `Secure` cookie on an http origin, so login then loops with no error. The backend warns at startup when `EXPOSE_LAN=true`, this is `true`, and no TLS mode is set. See [the http-vs-TLS cookie story](#the-login-cookie-over-http-and-tls) |
 
 **Example:**
 
@@ -379,6 +380,57 @@ Risk score ranges for severity levels. See [Risk Levels Reference](risk-levels.m
 API_KEY_ENABLED=true
 API_KEYS=["key1-here", "key2-here"]
 ```
+
+### The login cookie over http and TLS
+
+This is the one place the http/TLS/cookie interaction is explained; the
+`SESSION_COOKIE_SECURE` and `EXPOSE_LAN` rows and `.env.example` all point
+here. (Owner ruling 55, R55.)
+
+`POST /api/auth/login` stores a session id in Redis and hands the browser a
+`session_id` cookie carrying it — over HTTP and over WebSockets alike (both
+transports look the id up in the same Redis session; a socket read of some
+other name or a JWT decode of an opaque id was the R55 defect). The cookie
+carries `Secure` by default: correct almost everywhere, because the only
+supported plain-http deployment shape is loopback, where browsers exempt
+`localhost` from the Secure rule.
+
+`Secure` means "send me only over encrypted origins". Open the UI at
+`http://192.168.1.10:8080` — a LAN address over plain http — and the browser
+receives the `Set-Cookie`, **discards it**, and the UI bounces back to the
+sign-in screen after every successful login. Nothing errors; the network tab
+shows a 200 and no `Cookie` header on the next request. That is the login
+loop R55 names, and `EXPOSE_LAN=true` with no TLS is how an operator builds it
+by accident. The backend shouts at startup when it sees that configuration
+(`backend/main.py::_warn_if_secure_cookie_loops_login`).
+
+Two ways out, in preference order:
+
+1. **Turn TLS on** — `TLS_MODE=self_signed` (or `provided` with real certs).
+   The cookie stays `Secure`, the transport earns it.
+2. **Turn the flag off** — `SESSION_COOKIE_SECURE=false`, only when the
+   instance is genuinely confined to a trusted network and you accept that
+   the session id then crosses plain http.
+
+| Reach                               | TLS                    | Setting                                |
+| ----------------------------------- | ---------------------- | -------------------------------------- |
+| `http://localhost` / tunnel (https) | any                    | default (`SESSION_COOKIE_SECURE=true`) |
+| LAN address, plain http             | none                   | `SESSION_COOKIE_SECURE=false`          |
+| LAN address                         | `TLS_MODE=self_signed` | default                                |
+
+**How each knob actually reaches the running process** (R55 round 2, because the
+table above is a lie in the shipped stack if you read it loosely): only variables
+the backend container's `environment:` list passes can reach `Settings` — the
+service declares no `env_file:` and `.env` is dockerignored. `EXPOSE_LAN` and
+`SESSION_COOKIE_SECURE` are threaded there (both pinned by compose tests), so
+remedy 2 is settable. `TLS_MODE` is **not** threaded, and even if it were, the
+backend image's `CMD` runs `uvicorn backend.main:app` directly, which never
+enters the `python -m backend.main` branch where the TLS mode is applied. Under
+compose the TLS switch is therefore the **frontend** service's
+`SSL_ENABLED=${SSL_ENABLED:-false}` — nginx terminates TLS there. Consequence
+for the startup warning: when nginx terminates TLS, the backend still sees no
+local TLS and keeps firing the warning — a false positive; ignore it while
+logins work.
 
 ---
 

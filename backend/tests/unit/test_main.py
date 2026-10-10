@@ -501,3 +501,75 @@ class TestAiServiceHealthMonitorConfigs:
             "an inline nemotron ServiceConfig is back - the retired engine "
             "would be probed and restarted again"
         )
+
+
+class TestSecureCookieLoginLoopWarning:
+    """R55 (owner ruling 55): the startup warning for the http login loop.
+
+    _warn_if_secure_cookie_loops_login is pure over settings (by design —
+    get_tls_config() would auto-generate certificates and raise on missing
+    files, machinery a startup log line must never carry), so a
+    SimpleNamespace stands in for Settings and the logger is asserted
+    directly instead of through caplog propagation.
+    """
+
+    @staticmethod
+    def _settings(*, expose_lan, secure, tls_enabled=False, tls_mode="disabled"):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            expose_lan=expose_lan,
+            session_cookie_secure=secure,
+            tls_enabled=tls_enabled,
+            tls_mode=tls_mode,
+        )
+
+    def _warning_text(self, settings):
+        from unittest.mock import patch
+
+        from backend.main import _warn_if_secure_cookie_loops_login
+
+        fake = MagicMock()
+        with patch("backend.main.get_logger", autospec=True, return_value=fake):
+            _warn_if_secure_cookie_loops_login(settings)
+        return [c.args[0] for c in fake.warning.call_args_list]
+
+    def test_warns_on_expose_lan_secure_cookie_without_tls(self) -> None:
+        """The ruling's symptom named, both remedies offered."""
+        warnings = self._warning_text(self._settings(expose_lan=True, secure=True))
+        assert len(warnings) == 1
+        text = warnings[0]
+        assert "DROP the login" in text and "loop" in text  # symptom
+        assert "TLS_MODE" in text and "SESSION_COOKIE_SECURE=false" in text  # remedies
+        # The remedy must be a value Settings' validator actually accepts
+        # (config.py: valid_modes = disabled|self_signed|provided). "auto-
+        # generated" reads like the tls_mode description but raises on boot —
+        # an operator following this line verbatim would never see the second
+        # startup. Assert the valid value is present and the invalid one isn't.
+        assert "TLS_MODE=self_signed" in text
+        assert "auto-generated" not in text
+
+    @pytest.mark.parametrize(
+        ("kwargs", "why"),
+        [
+            ({"expose_lan": False, "secure": True}, "not exposed: cookie unused on LAN"),
+            ({"expose_lan": True, "secure": False}, "operator opted out: intentional http"),
+            (
+                {"expose_lan": True, "secure": True, "tls_mode": "self_signed"},
+                "TLS via the mode knob",
+            ),
+            (
+                {"expose_lan": True, "secure": True, "tls_enabled": True},
+                "TLS via the legacy knob",
+            ),
+        ],
+    )
+    def test_stays_silent_on_every_safe_configuration(self, kwargs, why) -> None:
+        assert self._warning_text(self._settings(**kwargs)) == [], why
+
+    def test_lifespan_calls_the_warning(self) -> None:
+        """The guard must run at startup, not just exist beside it."""
+        from pathlib import Path
+
+        src = Path("backend/main.py").read_text()
+        assert "_warn_if_secure_cookie_loops_login(settings)" in src
