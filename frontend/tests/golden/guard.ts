@@ -3,10 +3,25 @@
  *
  * A golden path is an unmocked spec that drives a feature end to end against
  * the stack the feature-check harness (scripts/feature-check.sh, O2.2) brings
- * up. The guard makes "unmocked" mechanical: every page in the `golden`
- * project gets `route`/`unroute`/`routeFromHAR` replaced with a throw, and the
- * page's `context` is replaced with a proxy that throws on the context-level
- * route entry points too, while passing everything else through untouched.
+ * up. The guard makes "unmocked" mechanical: every Page and BrowserContext a
+ * golden spec can reach gets the interception entry points —
+ * route/unroute/routeFromHAR **and routeWebSocket** — replaced with a throw,
+ * and pages spawned from an armed context are armed themselves.
+ *
+ * Why routeWebSocket: page.route() does not intercept WebSocket upgrades in
+ * Playwright — routeWebSocket() is the API that mocks /ws. Guarding only the
+ * route family would satisfy the letter of "fails any spec calling page.route
+ * on /api or /ws" while leaving the one call that CAN fake the live event
+ * feed wide open.
+ *
+ * Why instance patching instead of wrapping: Playwright hands out the SAME
+ * BrowserContext object through every acquisition path ({ context } fixture,
+ * page.context()), so shadowing the methods as own properties on the instance
+ * (probed on Playwright 1.63: instances are extensible and the methods live on
+ * the prototype, so own properties win at every ordinary call site) arms all
+ * paths at once. A wrapper object would have to be injected at each path and
+ * can be missed — the fresh-context review measured exactly that miss with the
+ * destructured context fixture.
  *
  * Why the guard throws *from* the interception call instead of failing the run
  * afterwards: the Done-when asks for a green `golden` run AND a deliberately
@@ -15,10 +30,11 @@
  * green test. A post-hoc run failure would turn that proof into a permanently
  * red project.
  *
- * A spec can still defeat the guard (walk the prototype, spawn its own
- * browser). That is the same trust a `test.skip` already gets from this repo;
- * the guard's job is to make the accidental and the lazy mock impossible and
- * the deliberate mock loud, not to be a hostile-code sandbox.
+ * A spec can still defeat the guard (walk the prototype, build its own context
+ * from the browser fixture, spawn its own browser). That is the same trust a
+ * `test.skip` already gets from this repo; the guard's job is to make the
+ * accidental and the lazy mock impossible and the deliberate mock loud, not to
+ * be a hostile-code sandbox.
  */
 import { test as base, type BrowserContext, type Page } from '@playwright/test';
 
@@ -26,59 +42,65 @@ import { test as base, type BrowserContext, type Page } from '@playwright/test';
 export const GUARD_MESSAGE =
   'golden paths are unmocked: route interception is blocked in the golden project (20-frontend.md F2.1)';
 
-/** The entry points that can install an interception on live traffic. */
-const PAGE_ROUTE_METHODS = ['route', 'unroute', 'routeFromHAR'] as const;
-const CONTEXT_ROUTE_METHODS = ['route', 'unroute', 'routeFromHAR'] as const;
+/** Every entry point that can install an interception on live traffic. */
+const INTERCEPTION_METHODS = ['route', 'unroute', 'routeFromHAR', 'routeWebSocket'] as const;
+
+/** Idempotence mark: the page fixture and the patched context.newPage can both reach a page. */
+const ARMED = Symbol('goldenGuardArmed');
 
 function guarded(): never {
   throw new Error(GUARD_MESSAGE);
 }
 
-/**
- * Shadow `page.route`-family methods by assignment (measured on Playwright
- * 1.63: the Page instance is extensible and the methods live on the
- * prototype, so an own property wins for every ordinary call site), and wrap
- * `page.context()` in a Proxy that blocks the context-level route entry
- * points — `context.route()` intercepts every page of the context, so patching
- * pages alone would leave the widest mocking door open.
- */
-function armGuard(page: Page): void {
-  for (const method of PAGE_ROUTE_METHODS) {
-    (page as unknown as Record<string, unknown>)[method] = guarded;
+function armContext(context: BrowserContext): void {
+  const instance = context as BrowserContext & { [ARMED]?: true };
+  if (instance[ARMED]) return;
+  instance[ARMED] = true;
+  for (const method of INTERCEPTION_METHODS) {
+    (instance as unknown as Record<string, unknown>)[method] = guarded;
   }
-  const originalContext = page.context.bind(page);
-  const guardTrap = () => guarded();
-  const guardedContext = new Proxy(originalContext(), {
-    get(target, property, receiver) {
-      if ((CONTEXT_ROUTE_METHODS as readonly string[]).includes(String(property))) return guardTrap;
-      const value = Reflect.get(target, property, receiver);
-      if (property === 'newPage') {
-        // Pages spawned from the context get armed too, so the proxy can't be
-        // used as a side door to an unarmed page.
-        return async () => {
-          const spawned = await target.newPage();
-          armGuard(spawned);
-          return spawned;
-        };
-      }
-      return typeof value === 'function' ? value.bind(target) : value;
-    },
-  }) as BrowserContext;
-  page.context = () => guardedContext;
+  const realNewPage = context.newPage.bind(context);
+  context.newPage = async () => {
+    const spawned = await realNewPage();
+    armPage(spawned);
+    return spawned;
+  };
+}
+
+function armPage(page: Page): void {
+  const instance = page as Page & { [ARMED]?: true };
+  if (instance[ARMED]) return;
+  instance[ARMED] = true;
+  for (const method of INTERCEPTION_METHODS) {
+    (instance as unknown as Record<string, unknown>)[method] = guarded;
+  }
+  const realContext = page.context.bind(page);
+  page.context = () => {
+    const context = realContext();
+    armContext(context); // lazy: the context is armed even if only page.context() is ever called
+    return context;
+  };
 }
 
 /**
  * The golden project's `test`. Same API surface as @playwright/test, plus the
- * armed `page` fixture. Deliberately does NOT inherit the e2e fixtures in
- * tests/e2e/fixtures — those auto-mock, which is what this guard exists to
- * forbid. The tour-disabling localStorage is the real state the app itself
- * writes (the same keys the e2e globalSetup bakes into storageState.json),
- * seeded with addInitScript so golden pages never show the Joyride overlay —
- * a genuine user action replayed, not an API mock.
+ * armed `page` and `context` fixtures. Deliberately does NOT inherit the e2e
+ * fixtures in tests/e2e/fixtures — those auto-mock, which is what this guard
+ * exists to forbid. Both fixtures arm the REAL instances (the built-in page
+ * fixture is born from the same context this override returns), so a spec
+ * cannot dodge the guard by choosing a different fixture. The tour-disabling
+ * localStorage is the real state the app itself writes (the same keys the e2e
+ * globalSetup bakes into storageState.json), seeded with addInitScript so
+ * golden pages never show the Joyride overlay — a genuine user action
+ * replayed, not an API mock.
  */
-export const test = base.extend<{ page: Page }>({
+export const test = base.extend<{ page: Page; context: BrowserContext }>({
+  context: async ({ context }, use) => {
+    armContext(context);
+    await use(context);
+  },
   page: async ({ page }, use) => {
-    armGuard(page);
+    armPage(page);
     await page.addInitScript(() => {
       try {
         if (window.location.protocol.startsWith('http')) {

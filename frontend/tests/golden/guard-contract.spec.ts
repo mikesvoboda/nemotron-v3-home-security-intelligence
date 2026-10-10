@@ -48,6 +48,30 @@ test.describe('golden guard contract @smoke', () => {
     ).toThrow(GUARD_MESSAGE);
   });
 
+  test('page.routeWebSocket() throws the guard', async ({ page }) => {
+    // page.route() cannot intercept WebSocket upgrades — routeWebSocket() is
+    // the call that CAN mock /ws, so the /ws half of the F2.1 mandate lives
+    // and dies here. (Fresh-context review, 2026-10-10: unguarded, this mocked
+    // the live event feed with every route-family tripwire still green.)
+    expect(() => page.routeWebSocket('**/ws/**', async () => {})).toThrow(GUARD_MESSAGE);
+  });
+
+  test('context.routeWebSocket() throws the guard', async ({ page }) => {
+    expect(() => page.context().routeWebSocket('**/ws/**', async () => {})).toThrow(GUARD_MESSAGE);
+  });
+
+  test('the context fixture itself is armed, not just page.context()', async ({
+    page,
+    context,
+  }) => {
+    // House idiom is `test('…', async ({ page, context }) => …)` (see e.g.
+    // tests/e2e/specs/ai-audit.spec.ts). Destructuring the context fixture must
+    // be as guarded as reaching it through the page.
+    expect(context).toBe(page.context());
+    expect(() => context.route('**/api/**', (route) => route.abort())).toThrow(GUARD_MESSAGE);
+    expect(() => context.routeWebSocket('**/ws/**', async () => {})).toThrow(GUARD_MESSAGE);
+  });
+
   test('page.context() cannot smuggle an unarmed page', async ({ page }) => {
     const second = await page.context().newPage();
     expect(() => second.route('**/api/**', (route) => route.abort())).toThrow(GUARD_MESSAGE);

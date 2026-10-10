@@ -188,12 +188,19 @@ test.describe('golden path: camera drop to dashboard event @critical', () => {
     // 1. The drop, through O2.2's own helper (the documented contract —
     // docs/developer/testing.md, "Feature check" — not a bare copy, so folder
     // layout changes can't silently split from it).
-    execFileSync('scripts/feature-check.sh', ['drop', h.scenarioImagePath, scenario.name], {
-      cwd: repoRoot,
-      env: { ...process.env, FEATURE_CHECK_CAMERA_ROOT: h.cameraRoot },
-      encoding: 'utf8',
-      timeout: 30_000,
-    });
+    // Absolute program path: Node documents that a relative program path may
+    // not resolve against the `cwd` option, so don't rely on it — the cwd is
+    // still what feature-check.sh needs for its repo-root-relative paths.
+    execFileSync(
+      path.join(repoRoot, 'scripts/feature-check.sh'),
+      ['drop', h.scenarioImagePath, scenario.name],
+      {
+        cwd: repoRoot,
+        env: { ...process.env, FEATURE_CHECK_CAMERA_ROOT: h.cameraRoot },
+        encoding: 'utf8',
+        timeout: 30_000,
+      }
+    );
 
     // 2. The backend side, asserted before the UI on purpose: an event that
     // never arrived would otherwise only prove the dashboard renders.
