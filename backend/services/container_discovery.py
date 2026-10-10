@@ -32,12 +32,14 @@ Pre-configured Service Categories:
 Usage:
     async with DockerClient() as docker:
         discovery = ContainerDiscoveryService(docker, orchestrator_settings)
-        all_services = await discovery.discover_all()
-        ai_services = await discovery.discover_by_category(ServiceCategory.AI)
+        project = await resolve_own_compose_project(docker)  # None: adopt nothing
+        all_services = await discovery.discover_all(project=project)
+        ai_services = await discovery.discover_by_category(ServiceCategory.AI, project=project)
 """
 
 from __future__ import annotations
 
+import socket
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -49,6 +51,68 @@ if TYPE_CHECKING:
     from backend.core.docker_client import DockerClient
 
 logger = get_logger(__name__)
+
+# The label compose writes on every container it creates, naming its project.
+# podman-compose and docker compose both set it; `scripts/bootstrap-gb300.sh`
+# filters the stack's own containers on the same label.
+COMPOSE_PROJECT_LABEL = "com.docker.compose.project"
+
+
+async def resolve_own_compose_project(
+    docker_client: DockerClient, hostname: str | None = None
+) -> str | None:
+    """The compose project the backend itself runs in (B1.6, D11), or None.
+
+    The backend mounts the host's container socket, so it can see every
+    container on the machine; this is what keeps the orchestrator inside its
+    own stack. The project is read from the backend's OWN container: by
+    default a container's hostname is its short id, so the backend looks
+    itself up by hostname and reads `COMPOSE_PROJECT_LABEL`. Reading it off the
+    running container means no launcher has to pass it, and it cannot disagree
+    with the stack the backend was actually started in.
+
+    The container found must be configured with that same hostname
+    (`Config.Hostname`), so a hostname that happens to name ANOTHER container
+    cannot hand the backend that container's project.
+
+    None (logged, with the reason) when the backend's own container cannot be
+    found - for instance a backend run on the host, or a compose `hostname:`
+    override - or carries no compose project label. The orchestrator then
+    adopts nothing: an unknown project never widens to every project.
+    """
+    hostname = hostname or socket.gethostname()
+    own = await docker_client.get_container(hostname)
+    if own is None:
+        logger.warning(
+            "Container orchestrator cannot find its own container (hostname %r), so its "
+            "compose project is unknown; it will adopt no containers",
+            hostname,
+            extra={"hostname": hostname},
+        )
+        return None
+    configured = ((getattr(own, "attrs", None) or {}).get("Config") or {}).get("Hostname")
+    if configured != hostname:
+        logger.warning(
+            "Container orchestrator looked itself up by hostname %r but found a container "
+            "configured with hostname %r, so it is not this backend and its compose project "
+            "is unknown; it will adopt no containers",
+            hostname,
+            configured,
+            extra={"hostname": hostname},
+        )
+        return None
+    labels = getattr(own, "labels", None) or {}
+    project = labels.get(COMPOSE_PROJECT_LABEL)
+    if not project:
+        logger.warning(
+            "Container orchestrator's own container (hostname %r) has no %s label, so its "
+            "compose project is unknown; it will adopt no containers",
+            hostname,
+            COMPOSE_PROJECT_LABEL,
+            extra={"hostname": hostname},
+        )
+        return None
+    return str(project)
 
 
 def build_configs_from_compose(
@@ -594,11 +658,12 @@ class ContainerDiscoveryService:
             # Without settings (uses default ports for backward compatibility)
             discovery = ContainerDiscoveryService(docker)
 
-            # Discover all services
-            all_services = await discovery.discover_all()
+            # Discover the backend's own compose project's services
+            project = await resolve_own_compose_project(docker)
+            all_services = await discovery.discover_all(project=project)
 
             # Discover by category
-            ai_services = await discovery.discover_by_category(ServiceCategory.AI)
+            ai_services = await discovery.discover_by_category(ServiceCategory.AI, project=project)
 
             # Check if a container name matches any pattern
             config_key = discovery.match_container_name("security-postgres-1")
@@ -636,20 +701,36 @@ class ContainerDiscoveryService:
             # Fallback to static configs
             self._configs = ALL_CONFIGS
 
-    async def discover_all(self) -> list[ManagedService]:
-        """Discover all containers matching known service patterns.
+    async def discover_all(self, *, project: str | None) -> list[ManagedService]:
+        """Discover the containers of `project` that match known service patterns.
 
-        Lists all containers (running and stopped) and matches them against
-        pre-configured service patterns. Creates ManagedService objects for
-        each matched container.
+        Lists all containers (running and stopped), keeps only those labelled
+        with `project` (`COMPOSE_PROJECT_LABEL`), and matches their names against
+        pre-configured service patterns. A name match alone never adopts a
+        container: another stack on the same host can run a `postgres` too
+        (B1.6, D11). `project` is required so no caller can discover unscoped;
+        None adopts nothing.
+
+        Args:
+            project: The backend's own compose project
+                (`resolve_own_compose_project`), or None when it is unknown.
 
         Returns:
             List of ManagedService objects for discovered containers
         """
+        if not project:
+            logger.warning(
+                "No compose project known for this backend: the orchestrator adopts no "
+                "containers rather than match names across every project on the host"
+            )
+            return []
         containers = await self._docker_client.list_containers(all=True)
         discovered: list[ManagedService] = []
 
         for container in containers:
+            labels = getattr(container, "labels", None) or {}
+            if labels.get(COMPOSE_PROJECT_LABEL) != project:
+                continue
             config_key = self.match_container_name(container.name)
             if config_key is None:
                 continue
@@ -669,22 +750,25 @@ class ContainerDiscoveryService:
             )
 
         logger.info(
-            f"Discovered {len(discovered)} containers",
-            extra={"count": len(discovered)},
+            f"Discovered {len(discovered)} containers in compose project {project!r}",
+            extra={"count": len(discovered), "compose_project": project},
         )
 
         return discovered
 
-    async def discover_by_category(self, category: ServiceCategory) -> list[ManagedService]:
-        """Discover containers matching patterns in a specific category.
+    async def discover_by_category(
+        self, category: ServiceCategory, *, project: str | None
+    ) -> list[ManagedService]:
+        """Discover containers of `project` matching patterns in a specific category.
 
         Args:
             category: ServiceCategory to filter by
+            project: The backend's own compose project, or None (adopts nothing)
 
         Returns:
             List of ManagedService objects in the specified category
         """
-        all_services = await self.discover_all()
+        all_services = await self.discover_all(project=project)
         return [s for s in all_services if s.category == category]
 
     def get_config(self, name: str) -> ServiceConfig | None:
