@@ -196,14 +196,14 @@ those floors, so review such hunks by hand.
 
 ### Security Workflows
 
-| Workflow                     | Tool            | Trigger              | Purpose                       |
-| ---------------------------- | --------------- | -------------------- | ----------------------------- |
-| sast.yml                     | Bandit, Semgrep | Push/PR              | Python security + OWASP       |
-| codeql.yml                   | CodeQL          | Push/PR/Weekly       | Deep code analysis            |
-| gitleaks.yml                 | Gitleaks        | Push/PR              | Secret detection              |
-| trivy.yml                    | Trivy           | Push/PR (Dockerfile) | Container vulnerabilities     |
-| zap-security.yml             | OWASP ZAP       | Weekly/Manual        | Dynamic security testing      |
-| dependency-audit.yml         | pip-audit, npm  | PR (via ci.yml)+Weekly | Dependency vulnerability scan |
+| Workflow             | Tool            | Trigger                | Purpose                       |
+| -------------------- | --------------- | ---------------------- | ----------------------------- |
+| sast.yml             | Bandit, Semgrep | Push/PR                | Python security + OWASP       |
+| codeql.yml           | CodeQL          | Push/PR/Weekly         | Deep code analysis            |
+| gitleaks.yml         | Gitleaks        | Push/PR                | Secret detection              |
+| trivy.yml            | Trivy           | Push/PR (Dockerfile)   | Container vulnerabilities     |
+| zap-security.yml     | OWASP ZAP       | Weekly/Manual          | Dynamic security testing      |
+| dependency-audit.yml | pip-audit, npm  | PR (via ci.yml)+Weekly | Dependency vulnerability scan |
 
 > **Removed 2026-09-15:** `gpu-tests.yml` — its only runner
 > (`rtx-a5500-runner`, label `gpu`) is permanently offline, so every push to
@@ -238,7 +238,7 @@ those floors, so review such hunks by hand.
 | docs.yml              | Push/PR       | Generate and deploy documentation       |
 | load-tests.yml        | Weekly/Manual | Load and stress testing                 |
 | mutation-testing.yml  | Weekly/Manual | Mutation testing to verify test quality |
-| release.yml           | Push to main  | The one release mechanism (OB.2)          |
+| release.yml           | Push to main  | The one release mechanism (OB.2)        |
 
 ### Frontend Quality Workflows
 

@@ -277,10 +277,10 @@ npm run docs:watch  # Watch mode
 
 **Jobs:**
 
-| Job                 | Runner          | Purpose                                            |
-| ------------------- | --------------- | -------------------------------------------------- |
-| extended-benchmarks | self-hosted GPU | **skipped** — runner offline; job no-ops by design |
-| complexity-trends   | ubuntu-latest   | Wily code complexity reports                       |
+| Job                 | Runner          | Purpose                                                             |
+| ------------------- | --------------- | ------------------------------------------------------------------- |
+| extended-benchmarks | self-hosted GPU | **skipped** — runner offline; job no-ops by design                  |
+| complexity-trends   | ubuntu-latest   | Wily code complexity reports                                        |
 | security-audit      | ubuntu-latest   | Bandit full scan (OB.2: dep audits left — see dependency-audit.yml) |
 
 **Artifacts Generated:**

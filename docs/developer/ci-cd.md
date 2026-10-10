@@ -277,12 +277,12 @@ second generator to race it.
 
 ### Version Bumping (conventional commits)
 
-| Commit shape                  | Version effect |
-| ----------------------------- | -------------- |
+| Commit shape                  | Version effect  |
+| ----------------------------- | --------------- |
 | `feat!:` / `BREAKING CHANGE:` | major (`x.0.0`) |
-| `feat:`                       | minor          |
-| `fix:`                        | patch          |
-| none of the above             | no release     |
+| `feat:`                       | minor           |
+| `fix:`                        | patch           |
+| none of the above             | no release      |
 
 ### Changelog Generation
 
