@@ -211,6 +211,39 @@ def test_an_overlapping_camera_path_refuses(base: dict[str, Any], live: Any) -> 
     _one_problem(problems, "backend", "/export/foscam")
 
 
+def test_a_live_read_only_view_of_the_whole_filesystem_does_not_refuse(
+    deployment: dict[str, Any], live: Any
+) -> None:
+    """node-exporter mounts / read-only (docker-compose.prod.yml), so every
+    path on the host is inside one of its binds; reading is not sharing."""
+    assert "/" in live.running_bind_sources
+    assert _preflight(deployment, live) == []
+
+
+def test_a_run_inside_a_live_read_only_bind_refuses(deployment: dict[str, Any]) -> None:
+    """A live container that reads a narrower directory may ingest what the
+    run writes there (a camera folder watched read-only, say)."""
+    raw = _read("live-machine.json")
+    reader = copy.deepcopy(raw["containers"][0])
+    reader["Id"] = "0" * 60 + "0042"
+    reader["Name"] = "/live-reader"
+    reader["Mounts"] = [{"Type": "bind", "Source": "/runs", "Destination": "/in", "RW": False}]
+    reader["NetworkSettings"] = {"Ports": {}}
+    snapshot = fc.Snapshot.from_engine([*raw["containers"], reader], raw["volumes"])
+    _one_problem(_preflight(deployment, snapshot), "backend", "/runs")
+
+
+def test_a_run_that_contains_a_live_bind_refuses(base: dict[str, Any], live: Any) -> None:
+    """A run directory above a live bind: the run could write into it."""
+    run_dir = Path("/export")
+    deployment = fc.as_test_deployment(base, project=PROJECT, run_dir=run_dir)
+    deployment["services"]["backend"]["volumes"].append(
+        {"type": "bind", "source": "/export", "target": "/scratch"}
+    )
+    problems = fc.preflight(deployment, project=PROJECT, run_dir=run_dir, snapshot=live)
+    _one_problem(problems, "backend", "/export/foscam")
+
+
 def test_a_writable_bind_mount_outside_the_run_dir_refuses(
     deployment: dict[str, Any], live: Any
 ) -> None:
@@ -242,6 +275,9 @@ def test_a_read_only_bind_mount_outside_the_run_dir_is_allowed(
         "/var/run/docker.sock",
         "/run/containerd/containerd.sock",
         "/var/run",
+        # compose renders a doubled leading slash as written; POSIX keeps it.
+        "//run",
+        "//var/run",
     ],
 )
 def test_a_mounted_engine_socket_refuses(
@@ -279,6 +315,70 @@ def test_host_level_access_refuses(
 ) -> None:
     deployment["services"]["redis"][key] = value
     _one_problem(_preflight(deployment, live), "redis", key)
+
+
+LIVE_BACKEND = "nemotron-v3-home-security-intelligence_backend_1"
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("volumes_from", [f"container:{LIVE_BACKEND}"]),
+        ("network_mode", f"container:{LIVE_BACKEND}"),
+        ("ipc", "host"),
+        ("pid", f"container:{LIVE_BACKEND}"),
+        ("userns_mode", "host"),
+        ("cgroup", "host"),
+        ("cap_add", ["SYS_ADMIN"]),
+        ("devices", ["/dev/sda:/dev/sda"]),
+        ("security_opt", ["no-new-privileges:true", "seccomp:unconfined"]),
+        ("build", {"context": "/checkout", "network": "host"}),
+    ],
+)
+def test_a_setting_the_preflight_does_not_vet_refuses(
+    deployment: dict[str, Any], live: Any, key: str, value: Any
+) -> None:
+    """Fail closed: a key or value the preflight has no rule for is refused,
+    so a setting added to a compose file later cannot slip through."""
+    deployment["services"]["redis"][key] = value
+    _one_problem(_preflight(deployment, live), "redis", key)
+
+
+def test_a_bind_backed_named_volume_refuses(deployment: dict[str, Any], live: Any) -> None:
+    """The local driver's bind options make a named volume a host bind."""
+    deployment["volumes"] = {
+        "cams": {
+            "name": f"{PROJECT}_cams",
+            "driver": "local",
+            "driver_opts": {"type": "none", "o": "bind", "device": "/export/foscam"},
+        }
+    }
+    deployment["services"]["redis"]["volumes"] = [
+        {"type": "volume", "source": "cams", "target": "/data"}
+    ]
+    _one_problem(_preflight(deployment, live), "volume cams", "driver_opts")
+
+
+@pytest.mark.parametrize(
+    "network",
+    [
+        {"name": "nemotron-v3-home-security-intelligence_security-net", "external": True},
+        {"name": "nemotron-v3-home-security-intelligence_security-net"},
+        {"name": f"{PROJECT}_lan", "driver": "macvlan"},
+    ],
+)
+def test_a_network_that_is_not_the_runs_own_refuses(
+    deployment: dict[str, Any], live: Any, network: dict[str, Any]
+) -> None:
+    deployment["networks"]["live"] = network
+    _one_problem(_preflight(deployment, live), "network live")
+
+
+def test_a_top_level_section_the_preflight_does_not_vet_refuses(
+    deployment: dict[str, Any], live: Any
+) -> None:
+    deployment["secrets"] = {"token": {"file": "/srv/hsi/.env"}}
+    _one_problem(_preflight(deployment, live), "secrets")
 
 
 def test_a_host_address_refuses(deployment: dict[str, Any], live: Any) -> None:
@@ -431,10 +531,34 @@ def test_a_restarted_live_container_fails(live: Any) -> None:
     )
 
 
-def test_a_stopped_container_that_stays_stopped_passes(live: Any) -> None:
-    assert fc.postflight(live, _after(), project=PROJECT) == []
+def test_a_stopped_container_is_held_only_to_existing(live: Any) -> None:
+    """The package asks that a running container keep running with its start
+    time; a stopped one only has to still exist (it may be started and
+    stopped again in the meantime)."""
     stopped = [c for c in live.containers if not c.running]
     assert [c.name for c in stopped] == ["test-orchestrator-ai-yolo26-151714443697"]
+
+    def cycle(cs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        cs[-1]["State"]["StartedAt"] = "2026-10-10T15:04:41.000000Z"
+        return cs
+
+    assert fc.postflight(live, _after(cycle), project=PROJECT) == []
+
+
+def test_another_runs_teardown_is_not_a_live_change(
+    run_containers: list[dict[str, Any]],
+) -> None:
+    """Two runs on one machine: the other run's containers and volumes come
+    and go; they belong to a test deployment, not to anything live."""
+    raw = _read("live-machine.json")
+    other = copy.deepcopy(run_containers[0])
+    other["Name"] = "/hsi-check-other-postgres-1"
+    other["Config"]["Labels"]["com.docker.compose.project"] = "hsi-check-other"
+    before = fc.Snapshot.from_engine(
+        [*raw["containers"], other], [*raw["volumes"], "hsi-check-other_pgdata"]
+    )
+    after = fc.Snapshot.from_engine(raw["containers"], raw["volumes"])
+    assert fc.postflight(before, after, project=PROJECT) == []
 
 
 def test_a_missing_live_volume_fails(live: Any) -> None:
@@ -447,12 +571,20 @@ def test_a_missing_live_volume_fails(live: Any) -> None:
     )
 
 
-def test_a_teardown_that_leaves_run_containers_fails(
+def test_a_teardown_that_leaves_run_containers_fails_but_is_not_urgent(
     live: Any, run_containers: list[dict[str, Any]]
 ) -> None:
+    """The run's own leftovers fail the run (exit 1); exit 3 and the urgent
+    path are for something that existed before the run."""
     raw = _read("live-machine.json")
-    after = fc.Snapshot.from_engine([*raw["containers"], run_containers[0]], raw["volumes"])
-    _one_problem(fc.postflight(live, after, project=PROJECT), f"{PROJECT}-postgres-1")
+    after = fc.Snapshot.from_engine(
+        [*raw["containers"], run_containers[0]], [*raw["volumes"], f"{PROJECT}_pgdata"]
+    )
+    assert fc.postflight(live, after, project=PROJECT) == []
+    problems = fc.leftovers(live, after, project=PROJECT)
+    assert len(problems) == 2, problems
+    assert f"{PROJECT}-postgres-1" in problems[0]
+    assert f"{PROJECT}_pgdata" in problems[1]
 
 
 # ---------------------------------------------------------------------------
@@ -543,3 +675,86 @@ def test_drop_refuses_a_camera_root_that_does_not_exist(tmp_path: Path) -> None:
 def test_the_harness_talks_only_to_its_own_loopback_ports(url: str) -> None:
     with pytest.raises(fc.HarnessError, match=r"127\.0\.0\.1"):
         fc._http("GET", url)
+
+
+def test_the_harness_ignores_proxy_settings_for_its_own_ports(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """urllib honours HTTP_PROXY; a NO_PROXY without 127.0.0.1 would send the
+    harness's calls to the proxy instead of the run's own published ports."""
+    import http.server
+    import threading
+
+    class Answer(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            body = b'{"ok": true}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args: Any) -> None:
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Answer)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        for name in ("HTTP_PROXY", "http_proxy"):
+            monkeypatch.setenv(name, "http://127.0.0.1:9")
+        for name in ("NO_PROXY", "no_proxy"):
+            monkeypatch.delenv(name, raising=False)
+        url = f"http://127.0.0.1:{server.server_address[1]}/"
+        assert fc._http("GET", url, timeout=2) == (200, {"ok": True})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+# ---------------------------------------------------------------------------
+# Exit codes and the summary
+# ---------------------------------------------------------------------------
+
+
+def test_real_is_not_built_yet_and_says_so_with_its_own_exit_code() -> None:
+    """Exit 2 means the preflight refused; --real before it exists is 4."""
+    assert fc.main(["--real"]) == fc.EXIT_UNAVAILABLE == 4
+
+
+def test_an_unexpected_error_still_tears_down_and_records_its_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Whatever breaks once the stack may be up, teardown and the postflight
+    run, and summary.json records the exit the process returns."""
+    calls: list[str] = []
+    empty = fc.Snapshot(containers=(), volumes=frozenset())
+
+    def prepare(self: Any) -> Any:
+        for path in (self.dir, self.cameras, self.artifacts):
+            path.mkdir(parents=True, exist_ok=True)
+        return empty
+
+    def up(self: Any) -> None:
+        self.started = True
+        raise KeyError("id")
+
+    def collect(self: Any) -> None:
+        calls.append("collect")
+        raise TimeoutError("compose logs")
+
+    def teardown(self: Any, before: Any) -> tuple[list[str], list[str]]:
+        calls.append("teardown")
+        return [], []
+
+    monkeypatch.setattr(fc.Run, "prepare", prepare)
+    monkeypatch.setattr(fc.Run, "render", lambda *_: None)
+    monkeypatch.setattr(fc.Run, "up", up)
+    monkeypatch.setattr(fc.Run, "collect", collect)
+    monkeypatch.setattr(fc.Run, "teardown", teardown)
+
+    status = fc.main(["--fake", "--root", str(tmp_path), "--image-tag", "test"])
+    assert status == 1
+    assert calls == ["collect", "teardown"]
+    (summary,) = tmp_path.glob("hsi-check-*/artifacts/summary.json")
+    assert json.loads(summary.read_text(encoding="utf-8"))["exit"] == 1
