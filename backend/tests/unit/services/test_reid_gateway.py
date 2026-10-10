@@ -130,6 +130,15 @@ class TestFailure:
             with pytest.raises(ReidGatewayUnavailable):
                 await embed_person_via_gateway(_crop(), base_url=BASE_URL, client=client)
 
+    async def test_a_rejected_crop_is_not_an_outage(self) -> None:
+        """The gateway answers 400 for an image it cannot decode: that crop is
+        bad, the gateway is up, so it must not read as gateway_unavailable."""
+        async with _client(lambda _r: httpx.Response(400, json={"detail": "bad image"})) as client:
+            with pytest.raises(RuntimeError) as err:
+                await embed_person_via_gateway(_crop(), base_url=BASE_URL, client=client)
+
+        assert not isinstance(err.value, ReidGatewayUnavailable)
+
     def test_gateway_unavailable_is_a_runtime_error(self) -> None:
         # extract_person_embedding's contract is RuntimeError on failure;
         # both callers catch on that.

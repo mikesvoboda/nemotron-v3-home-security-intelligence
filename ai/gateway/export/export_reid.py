@@ -671,16 +671,20 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    # A provenance record vouches for the model.onnx beside it (B2.2): drop any
+    # old one first, and write the new one only once the export is validated.
+    (Path(args.output_path).parent / PROVENANCE_FILE).unlink(missing_ok=True)
+
     try:
         model = load_pytorch_model(args.model_path)
         export_to_onnx(model, args.output_path)
-        write_provenance(args.model_path, args.output_path)
 
         if not args.skip_validation:
             if not validate_onnx(model, args.output_path):
                 logger.error("Validation failed — exported ONNX may produce incorrect results")
                 return 1
 
+        write_provenance(args.model_path, args.output_path)
         logger.info("Person Re-ID export complete")
         return 0
 

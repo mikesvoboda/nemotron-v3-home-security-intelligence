@@ -36,8 +36,9 @@ if TYPE_CHECKING:
 EMBEDDING_DIM = 512
 
 #: Per-request timeout. One crop is one request; the GPU path answers in
-#: milliseconds, so this bounds a hung gateway, not normal latency.
-DEFAULT_TIMEOUT_SECONDS = 10.0
+#: milliseconds, so this bounds a hung gateway, not normal latency. The leg
+#: stops at the first outage, so a hung gateway costs one timeout per event.
+DEFAULT_TIMEOUT_SECONDS = 3.0
 
 
 class ReidGatewayUnavailable(RuntimeError):
@@ -87,6 +88,11 @@ async def embed_person_via_gateway(
             response = await client.post(url, json=payload, timeout=timeout)
         response.raise_for_status()
         body: dict[str, Any] = response.json()
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code < 500:
+            # The gateway is up and refused this crop (400: undecodable image).
+            raise RuntimeError(f"person re-ID gateway rejected the crop: {e}") from e
+        raise ReidGatewayUnavailable(f"person re-ID gateway call failed: {e}") from e
     except (httpx.HTTPError, ValueError) as e:
         raise ReidGatewayUnavailable(f"person re-ID gateway call failed: {e}") from e
 

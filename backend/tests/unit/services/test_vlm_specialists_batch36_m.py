@@ -1453,7 +1453,7 @@ def _reid_leg_with_failures(plan):
     """Run the leg over two crops whose extractions raise ``plan``; return
     (text, metrics reasons seen)."""
     seen = []
-    stubs_o, _ = _osnet_stub(REID_HANDLE, extract_plan=plan)
+    stubs_o, calls_o = _osnet_stub(REID_HANDLE, extract_plan=plan)
     stubs_n, _ = _np_stub([])
     stubs_h, _ = _hm_stub([], [])
     restore = _module_stub({**_metrics_stub(seen), **_pil_stub2(), **stubs_o, **stubs_n, **stubs_h})
@@ -1473,6 +1473,7 @@ def _reid_leg_with_failures(plan):
         )
     finally:
         restore()
+    _reid_leg_with_failures.calls = len(calls_o["extract"])
     return out, seen
 
 
@@ -1489,15 +1490,26 @@ def test_reid_gateway_down_degrades_with_its_own_reason():
     assert seen == [("person_reid", "gateway_unavailable")]
 
 
-def test_reid_mixed_failures_stay_extraction_failed():
-    """Only an all-gateway outage is the gateway's reason; a crop that failed
-    for another cause keeps the general one."""
+def test_reid_gateway_outage_stops_sending_crops():
+    """A down gateway is down for every crop: the leg stops at the first
+    outage instead of paying the request timeout once per crop."""
     from backend.services.reid_gateway import ReidGatewayUnavailable
 
-    out, seen = _reid_leg_with_failures([ReidGatewayUnavailable("down"), ExtractErr("bad crop")])
+    out, seen = _reid_leg_with_failures([ReidGatewayUnavailable("down"), None])
+
+    assert _reid_leg_with_failures.calls == 1
+    assert out == DEFAULT_PHRASE
+    assert seen == [("person_reid", "gateway_unavailable")]
+
+
+def test_reid_a_bad_crop_then_an_outage_is_the_gateways_reason():
+    """Nothing was probed and the gateway is down: the outage is the reason."""
+    from backend.services.reid_gateway import ReidGatewayUnavailable
+
+    out, seen = _reid_leg_with_failures([ExtractErr("bad crop"), ReidGatewayUnavailable("down")])
 
     assert out == DEFAULT_PHRASE
-    assert seen == [("person_reid", "extraction_failed")]
+    assert seen == [("person_reid", "gateway_unavailable")]
 
 
 def test_reid_all_extractions_failed():

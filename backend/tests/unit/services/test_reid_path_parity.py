@@ -166,5 +166,9 @@ class TestModelIdSpace:
             )
         )
         monkeypatch.setenv("TRITON_MODEL_REPOSITORY", str(tmp_path))
+        reid_model_id.cache_clear()
 
-        assert reid_model_id() == osnet_model_id()
+        try:
+            assert reid_model_id() == osnet_model_id()
+        finally:
+            reid_model_id.cache_clear()

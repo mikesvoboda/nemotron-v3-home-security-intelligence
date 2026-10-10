@@ -38,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 PARITY_GATE = 0.999
 
 #: Crops per event for the per-event figure. The leg embeds an event's crops one
-#: after another (backend/services/vlm_specialists.py:754).
+#: after another (backend/services/vlm_specialists.py:756).
 DEFAULT_CROPS_PER_EVENT = 3
 
 _IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
@@ -74,9 +74,8 @@ def _crops(directory: Path) -> list[Path]:
 
 
 async def _run(args: argparse.Namespace) -> int:
-    from PIL import Image
-
     from backend.services import osnet_loader, reid_gateway
+    from PIL import Image
 
     paths = _crops(args.crops)
     if not paths:
@@ -120,7 +119,7 @@ async def _run(args: argparse.Namespace) -> int:
     for name, s in (("cpu (backend OSNet)", cpu), ("gpu (gateway reid)", gpu)):
         print(
             f"{name:20s} per crop median {s['median_ms']:.1f} ms  p95 {s['p95_ms']:.1f} ms  "
-            f"per event ({args.crops_per_event} crops) {s['per_event_ms']:.1f} ms"
+            f"per event ({args.crops_per_event} crops, derived) {s['per_event_ms']:.1f} ms"
         )
     print(f"model id: backend {expected_id}  gateway {sorted(gateway_ids)}")
     result = verdict(cosines, model_ids_match=ids_match)

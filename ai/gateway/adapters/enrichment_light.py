@@ -16,6 +16,7 @@ current format; the two routes here keep that wire shape byte-for-byte.
 
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import os
@@ -180,13 +181,16 @@ async def threat_detect(request: BBoxRequest) -> ThreatResponse:
 _SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 
 
+@functools.cache
 def reid_model_id() -> str | None:
     """The ``reid`` model's ID, read from the provenance record the export wrote.
 
     Same grammar as the backend's ``osnet_model_id()``
     (``<zoo name>@<weights file stem>@<sha256[:12]>``), so the same weights give
-    the same ID on both paths. Read per call: the file is tiny, and a re-export
-    behind a running gateway is then reported as what it is.
+    the same ID on both paths. Read once (``main``'s lifespan reads it at start)
+    and kept: Triton runs ``--model-control-mode=none`` and serves the graph it
+    loaded at start, so a record rewritten later by a re-export would describe
+    weights this process is not serving.
     """
     repo = Path(os.getenv("TRITON_MODEL_REPOSITORY", "/models/repository"))
     try:

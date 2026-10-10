@@ -265,3 +265,43 @@ class TestProvenance:
             "source_file": "osnet_ain_x1_0_msmt17.pth",
             "source_sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
         }
+
+
+class TestProvenanceOnlyForAValidatedExport:
+    """A provenance record vouches for model.onnx, so it exists only beside an
+    export that finished: a stale one is removed first, and a failed validation
+    leaves none."""
+
+    @staticmethod
+    def _run(tmp_path: Path, *, valid: bool) -> tuple[int, Path]:
+        from unittest.mock import patch
+
+        checkpoint = tmp_path / "w.pth"
+        checkpoint.write_bytes(b"weights")
+        onnx_path = tmp_path / "reid" / "1" / "model.onnx"
+        onnx_path.parent.mkdir(parents=True)
+        stale = onnx_path.parent / export_reid.PROVENANCE_FILE
+        stale.write_text('{"stale": true}')
+        argv = ["export_reid", "--model-path", str(checkpoint), "--output-path", str(onnx_path)]
+        with (
+            patch.object(sys, "argv", argv),
+            patch.object(export_reid, "load_pytorch_model", autospec=True),
+            patch.object(export_reid, "export_to_onnx", autospec=True),
+            patch.object(export_reid, "validate_onnx", autospec=True, return_value=valid),
+        ):
+            rc = export_reid.main()
+        return rc, stale
+
+    def test_a_failed_validation_leaves_no_record(self, tmp_path: Path) -> None:
+        rc, record = self._run(tmp_path, valid=False)
+
+        assert rc == 1
+        assert not record.exists()
+
+    def test_a_validated_export_replaces_the_stale_record(self, tmp_path: Path) -> None:
+        import json
+
+        rc, record = self._run(tmp_path, valid=True)
+
+        assert rc == 0
+        assert "source_sha256" in json.loads(record.read_text())

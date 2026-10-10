@@ -612,6 +612,9 @@ async def extract_person_embeddings_batch(
     Returns:
         List of PersonEmbeddingResult, one per input image
     """
+    if model_dict.get("kind") == "gateway":
+        # No production caller batches today; the gateway path is per crop.
+        raise RuntimeError("batch person embedding is local-only; a gateway handle embeds per crop")
     if not images:
         return []
 

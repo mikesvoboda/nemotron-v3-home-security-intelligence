@@ -758,7 +758,10 @@ async def _collect_reid_text(  # noqa: PLR0911 - one return per leg state is the
             # one bad crop must not kill the leg over the crops that worked
             logger.warning("person_reid crop failed", exc_info=True, extra={"det_id": det_id})
             if isinstance(exc, ReidGatewayUnavailable):
+                # Down for one crop is down for all: stop, rather than pay the
+                # request timeout once per remaining crop on the verdict path.
                 gateway_down += 1
+                break
             continue
         probed += 1
         probe = np.asarray(result.embedding, dtype=np.float32)
@@ -784,13 +787,13 @@ async def _collect_reid_text(  # noqa: PLR0911 - one return per leg state is the
                 detail=f"{comparison.skipped} gallery rows not comparable to the probe space",
             )
 
-    if probed == 0 and gateway_down == len(crops):
-        # B2.2: every crop failed because the re-ID gateway was unreachable or
+    if probed == 0 and gateway_down:
+        # B2.2: nothing was embedded and the re-ID gateway is unreachable or
         # erroring - its own reason, so an outage is not read as bad crops.
         return _unavailable_line(
             "person_reid",
             "gateway_unavailable",
-            detail=f"re-ID gateway unavailable for all {len(crops)} person crops",
+            detail=f"re-ID gateway unavailable ({len(crops)} person crops)",
         )
     if probed == 0:
         # Every crop failed — "no matches" would report an observation the

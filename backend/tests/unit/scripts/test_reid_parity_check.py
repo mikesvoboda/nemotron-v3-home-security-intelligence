@@ -49,7 +49,7 @@ class TestTimings:
 
         assert summary["median_ms"] == pytest.approx(25.0)
         assert summary["p95_ms"] == pytest.approx(38.5)
-        # An event embeds its crops one after another (vlm_specialists.py:754).
+        # An event embeds its crops one after another (vlm_specialists.py:756).
         assert summary["per_event_ms"] == pytest.approx(75.0)
 
 

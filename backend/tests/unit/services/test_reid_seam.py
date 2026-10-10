@@ -95,3 +95,12 @@ class TestExtract:
             await osnet_loader.extract_person_embedding(
                 {"kind": "gateway", "base_url": GW, "model_id": None}, Image.new("RGB", (8, 8))
             )
+
+
+class TestBatch:
+    async def test_batch_extraction_refuses_a_gateway_handle(self) -> None:
+        """Nothing calls the batch path today; it is local-only, and says so."""
+        with pytest.raises(RuntimeError, match="gateway"):
+            await osnet_loader.extract_person_embeddings_batch(
+                {"kind": "gateway", "base_url": GW, "model_id": None}, [Image.new("RGB", (8, 8))]
+            )
