@@ -178,7 +178,7 @@ explain is itself an inventory finding.
 ### B2.2 Re-ID on the GPU (OD-17, re-ID half)
 
 Approved by owner ruling 68 (issue #6854, comment `6099657064`, 2026-10-10). The text below is the
-ruling's, verbatim.
+ruling's, verbatim: its package bullet first, then its **Why** bullet.
 
 > **Package `B2.2` — Re-ID on the GPU (OD-17, re-ID half).** Lane backend; Phase 2; flags `heavy · owner` (production safety: it changes the verdict path); label `cell:heavy-2`; depends on `O2.1` (merged).
 >
