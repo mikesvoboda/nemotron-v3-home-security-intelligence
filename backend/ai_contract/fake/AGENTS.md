@@ -6,15 +6,18 @@ The WP8.2 deterministic FakeProvider: a FastAPI app + seeded generators implemen
 
 ## Key Files
 
-| File            | Purpose                                                                                                          |
-| --------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `__init__.py`   | Exports `create_fake_app`, `fake_provider_ops`, generators helpers, class vocabularies                           |
-| `app.py`        | One route per registry operation, mounted FROM `OPERATIONS` (a registry rename moves the fake's surface with it) |
-| `generators.py` | Snapshot-walked response generators; `GEN_GAPS` block documents the 7 ops without a committed schema             |
+| File                 | Purpose                                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `__init__.py`        | Exports `create_fake_app`, `fake_provider_ops`, generators helpers, class vocabularies                                                                                                                       |
+| `app.py`             | One route per registry operation, mounted FROM `OPERATIONS` (a registry rename moves the fake's surface with it), plus the engine and health surface below; `create_served_app()` is the container's factory |
+| `generators.py`      | Snapshot-walked response generators; `GEN_GAPS` block documents the 7 ops without a committed schema                                                                                                         |
+| `scenarios.py`       | The scenario book: the fixture image chooses the detections and the verdict (O2.1)                                                                                                                           |
+| `scenario_fixtures/` | The committed scenario images and `scenarios.json`, their outcomes                                                                                                                                           |
+| `remote.py`          | `remote_app(url)`: an ASGI app forwarding to a running fake, so ASGITransport callers drive the container                                                                                                    |
 
 ## The Determinism Contract
 
-Every response is `create_response_bytes(value generated from sha256(op_id | path | profile))` serialized through ONE `json.dumps(sort_keys=True)` call - no wall-clock, no `id()`, no set iteration. Two identical requests are byte-identical because there is no channel for a difference to enter. That is the plan's literal Done-when; never introduce process state into a generator.
+Every response is `create_response_bytes(value generated from sha256(op_id | path | profile))` serialized through ONE `json.dumps(sort_keys=True)` call - no wall-clock, no `id()`, no set iteration. Two identical requests are byte-identical because there is no channel for a difference to enter. That is the plan's literal Done-when; never introduce process state into a generator. The engine-wire and scenario replies (O2.1, below) keep the same contract by other means: each is a pure function of the request bytes and the committed scenario book.
 
 ## Patterns and Gotchas
 
@@ -22,6 +25,27 @@ Every response is `create_response_bytes(value generated from sha256(op_id | pat
 - **Profiles are the point:** the yolo-family vocabulary defaults to `"gateway"` (the UNFILTERED 80 COCO names the deployed adapter returns); an `X-Fake-Profile: security` request header switches to the 9 `SECURITY_CLASSES` the native server filters to. `/fake/profiles/classes` exposes both tables as data.
 - **Class vocabularies are carried as DATA mirrors** of `ai/yolo26/model.py` / `ai/triton/client.py`; an AST mirror test in `backend/tests/contracts/ai_providers/test_fake_provider.py` pins equality with the sources, so an upstream rename reddens there.
 - **Never use respx** in consumers of this app - every hop is `httpx.ASGITransport` (goal rule; the fake IS an app).
+
+## The Engine and Health Surface (O2.1)
+
+The backend never dials the contract path `/vlm/chat/completions`; its `VlmClient` speaks llama.cpp's wire. So the app also serves:
+
+- `GET /props`: `build_info` (the `build_info=` argument; the container reads `FAKE_VLM_BUILD_INFO`) and `model_path`. The backend's startup gate checks `VLM_REQUIRED_BUILD` against it.
+- `POST /v1/chat/completions` **with** `response_format.json_schema`: answered as an enforcing grammar would. The reply validates against the schema the request carried, every top-level `const` is echoed (the startup probe's nonce, `constrained_decoding.build_probe_schema`), and it rides in the chat envelope (`choices[0].message.content`, `finish_reason: "stop"`). **Without** `response_format` (the batch-open wake call) the path is still the `llm_chat_completion` op, byte for byte.
+- `GET /health` (llama-server and the gateway's aggregate) and `GET /yolo26/health` (the adapter's). The backend reads only the status code. These are not registry ops.
+
+## The Scenario Book (O2.1)
+
+The fixture image chooses the outcome. `scenario_fixtures/scenarios.json` names an image and the detections and verdict the fake answers for it. The fake hashes the bytes it **receives**: the detector's multipart upload and the VLM's data URI are both the file the camera wrote. Digests are computed at load, never written down.
+
+- An image no scenario names gets the generator answers, so this tier's byte pins are unchanged. The verdict is seeded by the image's sha256 (spec §3).
+- `reply_delay_seconds` delays the verdict reply, never the enforcement probe the client sends first with the same image. This is the slow-reply failure mode, and it must stay above the shipped `ai_vlm_read_timeout` (pinned).
+- **One event per image per 5 minutes:** the backend's file watcher dedupes on the same sha256 for 300 s (`backend/services/dedupe.py`), across cameras. A second drop of the same bytes inside that window is ignored, on any camera.
+- **Adding a scenario:** drop a JPEG of at least 10 KB (the file watcher's floor) into `scenario_fixtures/` and add its entry. Every scenario needs its own image bytes.
+
+## Running It as a Service
+
+`docker/fake-ai/Dockerfile` builds it, and `docker-compose.fake-ai.yml` (an overlay on `docker-compose.ci.yml`, never a default) runs it as `ai-vlm:8098` and `ai-gateway:8090`. To run this tier's assertions against the container, set `FAKE_AI_URL` (see `../../tests/contracts/ai_providers/AGENTS.md`).
 
 ## Related
 

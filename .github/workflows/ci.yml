@@ -201,6 +201,11 @@ jobs:
       # O1.4 (D9): the workflow-path gate joined the list — every repository
       # path addressed in .github/workflows/*.yml and .pre-commit-config.yaml
       # must exist (the deploy.yml phantom-artifact class made permanent).
+      # O1.8: the pip-audit exemption checker's own suite joined the list.
+      # Its test_unexempted_fixture_advisory_is_red IS the package's Done-when
+      # clause ("the CI audit fails on a fixture advisory that is not on the
+      # dismissal list") — a Done-when that only runs locally is a Done-when
+      # that rots, same doctrine as every other suite in this argv.
       # O1.7 (rule 3): the five committed measurement scanners joined the
       # list — a census nobody runs in CI is a census that rots, and these
       # five produce the [C] baselines B3.3, W1.1, W3.3, O3.3, BB.1 and
@@ -235,6 +240,7 @@ jobs:
           scripts/test_check_gate_reachability.py
           scripts/test_ai_surface_census.py
           scripts/test_check_npm_audit_exemptions.py
+          scripts/test_check_pip_audit_exemptions.py
           scripts/test_agents_md_validator.py
           scripts/test_retired_paths.py
           scripts/test_workflow_paths.py

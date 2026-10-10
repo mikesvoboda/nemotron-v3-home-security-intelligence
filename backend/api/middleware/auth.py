@@ -31,19 +31,17 @@ from starlette.requests import HTTPConnection
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from backend.api.dependencies import get_redis_optional
-from backend.api.middleware.websocket_auth import (
-    WebSocketAuthMethod,
-    verify_websocket_auth,
-)
+from backend.api.middleware import websocket_auth
 from backend.core import get_settings
 from backend.core.logging import get_logger, mask_ip
 from backend.core.websocket.subprotocol import offered_key_subprotocol
-from backend.services.session_service import SessionService
+from backend.services.session_service import SESSION_COOKIE_NAME, SessionService
 
 logger = get_logger(__name__)
 
-# Session cookie name - must match auth.py
-SESSION_COOKIE_NAME = "session_id"
+# R55 (ruling 55): the cookie name is ONE constant in session_service — the
+# second definition here is deleted; every consumer (routes/auth.py, both
+# socket paths, this gate) imports it.
 
 # Reachable without a credential when EXPOSE_LAN=true. Exact paths, no prefixes.
 # Monitoring is not here: it is denied by default like everything else (UR-33);
@@ -226,21 +224,28 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     2. JWT token in query parameter (API/mobile clients)
     3. API key (existing functionality for backward compatibility)
 
-    If authentication fails, the connection is first accepted and then closed
-    with an appropriate code. This is required because in the WebSocket protocol,
+    R55 round 2: an INVALID credential casts no vote and refuses nothing on
+    its own — any one valid credential serves, exactly like the HTTP gate's
+    authenticated_principal. A request whose present credentials all fail
+    falls through to the API-key leg, which is the pre-existing hierarchy for
+    a client with no cookie at all (keys disabled -> served: single-user
+    mode is open by design; keys enabled and no valid key -> refused).
+
+    On refusal the connection is first accepted and then closed with an
+    appropriate code. This is required because in the WebSocket protocol,
     you cannot send a close frame without first completing the handshake.
 
     Note: Attempting to close without accepting would result in the HTTP layer
     returning a 403 Forbidden, which is not a proper WebSocket close.
 
-    Close codes:
+    Close codes (key-leg refusal only, R55 round 2):
     - 4001: Authentication failure (when hybrid auth is configured - JWT_SECRET set)
-    - 4002: Token expired (hybrid auth)
     - 1008: Policy violation (API key only - backward compatible when no JWT_SECRET)
 
     IMPORTANT: This function does NOT accept the WebSocket on success.
     The caller (route) is responsible for accepting via broadcaster.connect()
-    or websocket.accept().
+    or websocket.accept(). No validation path here accepts or closes —
+    accept-after-close crashes are structurally impossible in this function.
 
     Args:
         websocket: WebSocket connection to authenticate
@@ -253,29 +258,66 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     # Check if hybrid auth is configured (JWT_SECRET is set)
     hybrid_auth_enabled = bool(settings.jwt_secret)
 
-    # Check if hybrid auth credentials are present (cookie or JWT token)
-    # Use isinstance check to handle MagicMock in tests (which is not None but also not a string)
-    cookie_value = websocket.cookies.get("session")
+    # R55: SESSION_COOKIE_NAME, not the literal "session" no login ever set —
+    # this dead read is why the cookie leg never ran on a real login.
+    # The inline isinstance checks do double duty: they exclude the MagicMock
+    # some tests hand back (not None, but not a string either) and they
+    # narrow the Optional getters for mypy inside each and-chain (a boolean
+    # "has_cookie" variable would do neither).
+    cookie_value = websocket.cookies.get(SESSION_COOKIE_NAME)
     token_value = websocket.query_params.get("token")
-    has_cookie = isinstance(cookie_value, str) and bool(cookie_value)
-    has_jwt_token = isinstance(token_value, str) and bool(token_value)
 
-    # Try hybrid auth first if credentials are present
-    if has_cookie or has_jwt_token:
-        success, auth_method = await verify_websocket_auth(websocket, timeout=5.0)
-        if success:
-            logger.info(
-                f"WebSocket authenticated via {auth_method.value}",
-                extra={
-                    "path": str(websocket.url.path),
-                    "auth_method": auth_method.value,
-                },
-            )
-            # Do NOT accept here - let the route/broadcaster handle it
-            return True
-        # verify_websocket_auth already closed the connection on failure
-        if auth_method != WebSocketAuthMethod.NONE:
-            return False
+    # R55 round 2 (self-review finding 1, both fresh-context reviews): a
+    # present-but-INVALID credential must not refuse the socket by itself —
+    # literally the HTTP gate's rule. authenticated_principal() passes a
+    # request when ANY credential it checks is valid; a dead cookie simply
+    # isn't one, and it never refuses merely for existing. The first R55
+    # build made every hybrid failure terminal, and that over-refused: a
+    # single-user box (gate off, keys disabled, sockets open to everyone)
+    # killed every socket for a browser that once logged in and aged out —
+    # 4001 is terminal in the frontend and /me is disabled in single-user
+    # mode (AuthContext: enabled: authRequired !== false), so nothing 401s
+    # to clear the auth state (the cookie itself is only ever removed by a
+    # server-side logout, which this mode also never triggers): a browser
+    # that never logged in worked, one that did was dead for up to 24h. So:
+    # validate each present credential,
+    # first valid one wins (cookie before ?token=, the order the priority
+    # test pins); an invalid one casts no vote and the API-key leg below —
+    # the pre-existing hierarchy — decides, exactly as it does for a client
+    # with no cookie at all. EXPOSE_LAN mode is untouched by this: the gate
+    # runs BEFORE these routes and still refuses a stale-cookie+no-key
+    # handshake with 4001 there, where /me's 401 clears the auth state and
+    # the login screen returns (and a fresh login replaces the cookie).
+    # Gate-off refusal was the bug; gate-on was not.
+    #
+    # No validation path here accepts or closes the socket (the first
+    # accept-then-close owner inside this function is deleted with the
+    # verify_websocket_auth delegation): success hands an unaccepted socket
+    # to the route (broadcaster.connect accepts), and the ONLY close stays
+    # the key-leg refusal below, which accepts-then-closes exactly once.
+    # That is also why the accept-after-close RuntimeError cannot come back
+    # through here: nothing else in this function can close.
+    if (
+        isinstance(cookie_value, str)
+        and cookie_value
+        and (await websocket_auth.validate_session_cookie(cookie_value)) is not None
+    ):
+        logger.info(
+            "WebSocket authenticated via cookie",
+            extra={"path": str(websocket.url.path), "auth_method": "cookie"},
+        )
+        # Do NOT accept here - let the route/broadcaster handle it
+        return True
+    if (
+        isinstance(token_value, str)
+        and token_value
+        and (websocket_auth.validate_websocket_jwt(token_value) is not None)
+    ):
+        logger.info(
+            "WebSocket authenticated via query_param",
+            extra={"path": str(websocket.url.path), "auth_method": "query_param"},
+        )
+        return True
 
     # Fall back to API key authentication
     if not await validate_websocket_api_key(websocket):
