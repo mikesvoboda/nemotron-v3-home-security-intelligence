@@ -17,12 +17,16 @@ export interface ChannelStatus {
 export interface WebSocketStatusOptions {
   url: string;
   /**
-   * Sec-WebSocket-Protocol header values for authentication.
-   * When API key authentication is enabled, use ["api-key.{key}"] format.
-   * This is more secure than passing the API key in the URL query string.
-   * The backend reads an api-key.* token as the credential and echoes it back
-   * in the 101 response — RFC 6455 requires that echo, and without it the
-   * browser fails the handshake before onOpen ever fires.
+   * Sec-WebSocket-Protocol values offered at the handshake, for subprotocol
+   * negotiation only. Ruling 44: browser code never mints a credential here —
+   * the session cookie authenticates the socket, and an API key belongs to
+   * non-browser clients.
+   *
+   * Why `protocols` still exists: whatever the client offers, the server must
+   * echo the selected one in its 101 response — RFC 6455 requires that echo,
+   * and a negotiated subprotocol the server fails to echo fails the browser
+   * handshake before onOpen ever fires. So a caller that offers a subprotocol
+   * must be sure the other end selects it.
    */
   protocols?: string[];
   channelName: string;
@@ -137,7 +141,7 @@ export function useWebSocketStatus(options: WebSocketStatusOptions): UseWebSocke
 
     try {
       // Pass protocols to WebSocket constructor for Sec-WebSocket-Protocol header
-      // This is used for API key authentication without exposing the key in the URL
+      // Ruling 44: browser callers pass no credential; the socket rides the cookie.
       const ws = protocols ? new WebSocket(url, protocols) : new WebSocket(url);
       wsRef.current = ws;
 

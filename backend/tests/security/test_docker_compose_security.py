@@ -267,7 +267,8 @@ TRACKED_COMPOSE_FILES: tuple[str, ...] = (
     "docker-compose.prod.yml",
     "docker-compose.test.yml",
     "scripts/uplevel-f13-done-when/docker-compose.f13-expose-true.yml",
-    "scripts/uplevel-f13-done-when/docker-compose.f13-key-mode.yml",
+    # (the run-3 key-mode override was deleted with ruling 44 — browsers no
+    # longer carry keys, so the deployment it described no longer exists)
     "scripts/uplevel-f13-done-when/docker-compose.f13-stack.yml",
     "scripts/uplevel-real-tier/docker-compose.b14-real.yml",
 )

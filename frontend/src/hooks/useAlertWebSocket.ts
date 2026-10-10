@@ -53,15 +53,14 @@ export type AlertDeletedEventHandler = (data: WebSocketAlertDeletedData) => void
 export interface UseAlertWebSocketOptions {
   /**
    * WebSocket URL to connect to. Defaults to `buildWebSocketOptions('/ws/events')`,
-   * which resolves `VITE_WS_BASE_URL` or the page origin. When you pass a URL
-   * explicitly, no api-key subprotocol is attached — pass `protocols` too if
-   * you need one.
+   * which resolves `VITE_WS_BASE_URL` or the page origin.
    */
   url?: string;
 
   /**
-   * Sec-WebSocket-Protocol values (e.g. `['api-key.{key}']`). Defaults to what
-   * `buildWebSocketOptions` mints from `VITE_API_KEY` when `url` is omitted.
+   * Sec-WebSocket-Protocol values, for subprotocol negotiation only. Ruling 44:
+   * the browser never mints a credential into this — the session cookie
+   * authenticates the socket, and `buildWebSocketOptions` attaches no protocols.
    */
   protocols?: string[];
 
@@ -186,7 +185,8 @@ export function useAlertWebSocket(options: UseAlertWebSocketOptions = {}): UseAl
   } = options;
   // F1.3: with no explicit url, resolve through buildWebSocketOptions — the
   // same origin rules the REST client uses (VITE_WS_BASE_URL, else the page
-  // origin) — and pick up its api-key subprotocol. The removed DEFAULT_WS_URL
+  // origin). Ruling 44: no credential rides here — the cookie authenticates.
+  // The removed DEFAULT_WS_URL
   // read VITE_WS_URL (never defined by the deploy docs) and hardcoded
   // localhost:8000, bypassing the nginx front door in a deployed stack.
   const resolved =
