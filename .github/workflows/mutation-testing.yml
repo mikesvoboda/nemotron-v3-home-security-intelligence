@@ -215,6 +215,10 @@ jobs:
         # run has (never fewer metas than it restored -- see the pack's
         # save_ok guard) and the next run resumes.
         timeout-minutes: 240
+        # OB.2 reason: the 240-min budget ending the run as a step timeout is
+        # NORMAL operation (comment above) — the verdict comes from the score
+        # step after, and pack+save+score need this step's red not to skip
+        # them (they carry their own if: always()).
         continue-on-error: true
         run: ./scripts/mutation-run.sh "${{ github.event.inputs.backend_module }}"
 

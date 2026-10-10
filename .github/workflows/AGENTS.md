@@ -12,9 +12,7 @@ workflows/
   # Core CI/CD
   ci.yml                      # Main CI pipeline
   deploy.yml                  # Docker image build and push to GHCR
-  release.yml                 # Release workflow
-  semantic-release.yml        # Semantic versioning releases
-  release-drafter.yml         # Draft release notes
+  release.yml                 # The one release mechanism (OB.2)
   # API
   api-compatibility.yml       # API backward compatibility checks
   api-contract.yml            # API contract testing
@@ -33,8 +31,6 @@ workflows/
   trivy.yml                   # Container vulnerability scanning
   zap-security.yml            # OWASP ZAP security scanning
   dependency-audit.yml        # Dependency vulnerability audit
-  vulnerability-management.yml # CVE tracking and management
-  weekly-audit.yml            # Weekly security and code quality audits
   # Quality & Analysis
   bundle-size.yml             # Frontend bundle size tracking
   ci-analytics.yml            # CI metrics and analytics
@@ -282,11 +278,11 @@ npm run docs:watch  # Watch mode
 
 **Jobs:**
 
-| Job                 | Runner          | Purpose                                            |
-| ------------------- | --------------- | -------------------------------------------------- |
-| extended-benchmarks | self-hosted GPU | **skipped** — runner offline; job no-ops by design |
-| complexity-trends   | ubuntu-latest   | Wily code complexity reports                       |
-| security-audit      | ubuntu-latest   | pip-audit, npm audit, Bandit                       |
+| Job                 | Runner          | Purpose                                                             |
+| ------------------- | --------------- | ------------------------------------------------------------------- |
+| extended-benchmarks | self-hosted GPU | **skipped** — runner offline; job no-ops by design                  |
+| complexity-trends   | ubuntu-latest   | Wily code complexity reports                                        |
+| security-audit      | ubuntu-latest   | Bandit full scan (OB.2: dep audits left — see dependency-audit.yml) |
 
 **Artifacts Generated:**
 
@@ -363,29 +359,6 @@ rtx-a5500`) is registered but offline. Restore when that runner is online
 **Severity Filter:** CRITICAL, HIGH (fails build)
 
 **Output:** SARIF format uploaded to GitHub Security tab
-
-### weekly-audit.yml - Weekly Audit
-
-**Trigger:** Monday 9 AM UTC (cron: `0 9 * * 1`) + manual dispatch
-
-**Purpose:** Weekly comprehensive security and code quality audit.
-
-**Jobs:**
-
-| Job              | Runner        | Purpose                          |
-| ---------------- | ------------- | -------------------------------- |
-| security-audit   | ubuntu-latest | Semgrep security scan, pip-audit |
-| code-quality     | ubuntu-latest | Vulture, Radon complexity        |
-| frontend-quality | ubuntu-latest | Knip dead code detection         |
-| audit-summary    | ubuntu-latest | Generate summary report          |
-
-**Tools Used:**
-
-- Semgrep (security patterns)
-- pip-audit (Python dependency vulnerabilities)
-- Vulture (Python dead code)
-- Radon (cyclomatic complexity)
-- Knip (TypeScript/JS dead code)
 
 ### test-coverage-gate.yml - Test Coverage Enforcement (NEM-2102)
 

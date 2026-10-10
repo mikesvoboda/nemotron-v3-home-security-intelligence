@@ -186,6 +186,10 @@ jobs:
 
       - name: Run contract breaking change detection
         id: breaking-changes
+        # OB.2 reason: the verdict is DATA here — contract_result + the JSON
+        # ride into the summary-comment step (steps.breaking-changes.outputs
+        # .contract_result) so the PR shows the breaking-change table; a red
+        # at this step would skip the comment that reports it.
         continue-on-error: true
         run: |
           echo "Checking for breaking changes in API contract..."

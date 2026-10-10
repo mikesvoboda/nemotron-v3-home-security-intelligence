@@ -236,6 +236,7 @@ jobs:
           scripts/test_check_pip_audit_exemptions.py
           scripts/test_agents_md_validator.py
           scripts/test_retired_paths.py
+          scripts/test_check_coe_reasons.py
           scripts/test_workflow_paths.py
           scripts/audit/test_retired_names.py
           scripts/audit/test_settings_orphans.py
@@ -2862,6 +2863,11 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Download all test results
+        # OB.2 reason: best-effort inputs — the per-run junit artifacts exist
+        # only if the shard jobs uploaded them; a missing/broken download
+        # degrades this report's detail, it must not red the job. The job's
+        # own gate verdict stays on the calibration fetch below, which fails
+        # CLOSED (WP1.3) — that asymmetry is deliberate.
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: test-results-*
@@ -2870,6 +2876,7 @@ jobs:
         continue-on-error: true
 
       - name: Download E2E test results
+        # OB.2 reason: same best-effort doctrine as the download above.
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: playwright-test-results-*
@@ -3259,39 +3266,10 @@ jobs:
   # and .trivyignore expiry checks). Surface-equivalence proof and rationale:
   # ledger 2026-09-12-context-map-doc-updates.md, WP0.3 row.
 
-  npm-audit:
-    name: npm Audit (Frontend)
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: cd frontend && npm ci
-
-      # Audit gate = checker + registry (frontend/.npm-audit-exemptions.json),
-      # mirroring .trivyignore doctrine: every exemption carries a REVIEW BY
-      # date and the checker fails CLOSED - unexempted findings, expired or
-      # missing review dates, stale entries, and in-range fixes appearing for
-      # exempted advisories are ALL red. A bare `npm audit --audit-level=high`
-      # here would fail open the day an advisory lands with no released fix
-      # (the braces DoS chain: every published version affected, the only
-      # path is a tailwind v4 migration) or block every unrelated PR on
-      # upstream's schedule. Registry, checker, and this step land together.
-      # python3, not uv run: this job is Node-only (no setup-uv step, 5-min
-      # timeout budget) and the checker is stdlib-only Python.
-      - name: Audit check (exemption registry)
-        run: python3 scripts/check-npm-audit-exemptions.py --frontend frontend --warn-days 14
-        continue-on-error: false
-
+  # OB.2: this job's `npm Audit (Frontend)` leg moved to
+  # .github/workflows/dependency-audit.yml (the one dependency-audit
+  # workflow) and returns here as security-dependency-audit below —
+  # WP1.2's call-job wiring, so ci-gate still carries the verdict.
   security-tests:
     name: Security Test Suite
     runs-on: ubuntu-latest
@@ -3422,6 +3400,20 @@ jobs:
     secrets: inherit # pragma: allowlist secret
     uses: ./.github/workflows/trivy.yml
 
+  # OB.2: dependency audit joins the WP1.2 call set (four workflows now).
+  # This call job REPLACES ci.yml's own npm-audit job — the check moved into
+  # .github/workflows/dependency-audit.yml so pip-audit and npm audit each
+  # execute in exactly one file. The job id keeps the security-* prefix
+  # because scripts/test_ci_job_graph.py's WP0.6 invariant reads it by class:
+  # direct need + check_job line below, and a `uses:` job's conclusion IS the
+  # reusable's aggregate (one inner-job red reddens this job).
+  security-dependency-audit:
+    name: Security - Dependency Audit
+    permissions:
+      contents: read
+    secrets: inherit # pragma: allowlist secret
+    uses: ./.github/workflows/dependency-audit.yml
+
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
   # WP0.6 invariant (scripts/test_ci_job_graph.py enforces it): a job either
@@ -3456,7 +3448,6 @@ jobs:
       - dead-code
       - security-tests
       - api-coverage
-      - npm-audit
       - build-backend
       - build-frontend
       - test-performance-audit
@@ -3487,6 +3478,9 @@ jobs:
       - security-gitleaks
       - security-sast
       - security-trivy
+      # OB.2: the dependency-audit call job (replaces the old direct npm-audit
+      # need — the check itself now executes in dependency-audit.yml).
+      - security-dependency-audit
       # WP2.5 (AUDIT §2.1): the three coverage-merge jobs compute the R-1
       # absolute floors and `exit 1` on a breach — but sat OUTSIDE this
       # closure, so a floor-red merge reddened a job ci-gate never saw: floors
@@ -3540,7 +3534,9 @@ jobs:
           check_job "Dead Code Detection" "${{ needs.dead-code.result }}"
           check_job "Security Test Suite" "${{ needs.security-tests.result }}"
           check_job "API Endpoint Coverage" "${{ needs.api-coverage.result }}"
-          check_job "npm Audit (Frontend)" "${{ needs.npm-audit.result }}"
+          # OB.2: the npm-audit check_job line moved down with the audit —
+          # ci-gate now carries the reusable's aggregate verdict.
+          check_job "Dependency Audit (pip-audit + npm)" "${{ needs.security-dependency-audit.result }}"
           check_job "Build Docker (backend)" "${{ needs.build-backend.result }}"
           check_job "Build Docker (frontend)" "${{ needs.build-frontend.result }}"
           check_job "Test Performance Audit" "${{ needs.test-performance-audit.result }}"

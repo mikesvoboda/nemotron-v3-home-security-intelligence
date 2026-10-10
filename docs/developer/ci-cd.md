@@ -12,7 +12,7 @@ The CI/CD pipeline consists of multiple workflows that run on different triggers
 | ---------------------- | --------------- | --------------------------------- |
 | **CI**                 | Push/PR to main | Run tests, linting, type checking |
 | **Deploy**             | Push to main    | Build and push container images   |
-| **Release**            | Tag push (v\*)  | Create GitHub releases            |
+| **Release**            | Push to main    | Version, tag, publish release     |
 | **SAST**               | Push/PR to main | Security static analysis          |
 | **Test Coverage Gate** | PR to main      | Enforce coverage requirements     |
 
@@ -266,38 +266,34 @@ ruling that also deleted `.github/workflows/rollback.yml`.
 
 ## Release Workflow
 
-**File:** `.github/workflows/release.yml`
+**File:** `.github/workflows/release.yml` (OB.2: the one release mechanism —
+its two competitors are registered in `scripts/retired_paths.txt`)
 
-Triggered on tag pushes matching `v*` pattern.
+Triggered on pushes to `main` (and manual dispatch with `release_type` /
+`dry_run` inputs). The engine analyzes conventional commits since the last
+tag, decides the next version, tags the analyzed SHA, and publishes the
+GitHub Release in the same job — one writer, one changelog, no tag-triggered
+second generator to race it.
+
+### Version Bumping (conventional commits)
+
+| Commit shape                  | Version effect  |
+| ----------------------------- | --------------- |
+| `feat!:` / `BREAKING CHANGE:` | major (`x.0.0`) |
+| `feat:`                       | minor           |
+| `fix:`                        | patch           |
+| none of the above             | no release      |
 
 ### Changelog Generation
 
-Automatically categorizes commits:
+Groups the range's commits under Features / Bug Fixes / Performance /
+Documentation (+ Breaking Changes on majors), lists referenced Linear issues
+(NEM-XXX), and links the full compare view.
 
-| Prefix         | Category      |
-| -------------- | ------------- |
-| `feat:`        | Features      |
-| `fix:`         | Bug Fixes     |
-| `security:`    | Security      |
-| `docs:`        | Documentation |
-| `chore(deps):` | Dependencies  |
-| `perf:`        | Performance   |
-| `refactor:`    | Refactoring   |
-| `test:`        | Tests         |
-| `ci:`          | CI/CD         |
-| `chore:`       | Other Changes |
+### Manual Release
 
-### Linear Integration
-
-Extracts and links Linear issue references (NEM-XXX pattern) in release notes.
-
-### Pre-release Detection
-
-Automatically marks as pre-release if tag contains:
-
-- `-alpha`
-- `-beta`
-- `-rc`
+Actions → Release → Run workflow: enter `major`/`minor`/`patch` or a specific
+version (`1.2.3`), optionally `dry_run` to preview the analysis only.
 
 ---
 
@@ -414,7 +410,7 @@ integration tier 37 in the CI merge steps — are in
 | Workflow                 | Schedule | Purpose             |
 | ------------------------ | -------- | ------------------- |
 | `nightly.yml`            | Daily    | Extended test suite |
-| `weekly-audit.yml`       | Weekly   | Security audit      |
+| `dependency-audit.yml`   | Weekly   | Dependency audit    |
 | `weekly-test-report.yml` | Weekly   | Test metrics report |
 
 ---

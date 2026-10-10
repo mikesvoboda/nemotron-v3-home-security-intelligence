@@ -280,7 +280,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | BB.\*   | backend                 | 4          | Background track                               |               | not started |     |
 | F4.\*   | frontend                | 4          | Feature track, frontend parts                  | design: heavy | not started |     |
 | FB.\*   | frontend                | 4          | Background track                               |               | not started |     |
-| OB.2    | ops                     | after 1    | CI dedupe                                      |               | not started |     |
+| OB.2    | ops                     | after 1    | CI dedupe                                      |               | done        | #6963 |
 | OB.3    | ops                     | after 1    | Image weight                                   |               | not started |     |
 | OB.4    | ops                     | on trigger | Lane map and cross-lane check                  |               | not started |     |
 | W1.1    | docs                    | 1          | The validator with teeth                       |               | done        | #6870 |

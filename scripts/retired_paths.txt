@@ -45,3 +45,27 @@ docs/operator/ai-ghcr-deployment.md
 # `docs/archive/`. (The order itself is in docs/uplevel/, a record tree.)
 archive/
 docs/archive/
+
+# OB.2 (CI dedupe): the two advisory workflows whose every leg duplicated a
+# gating home or was measured dead. weekly-audit's semgrep/pip-audit/vulture/
+# radon/knip legs were || true twins of sast.yml, dependency-audit.yml, and
+# ci.yml's dead-code/lint/frontend-lint jobs; vulnerability-management's
+# Python counter read data.get('vulnerabilities') while pip-audit's root key
+# is dependencies (always 0), and its create-issues steps were gated on
+# vars.LINEAR_ENABLED, which the repo never sets. Verdict map: OB.2 PR body.
+.github/workflows/weekly-audit.yml ; weekly-audit
+.github/workflows/vulnerability-management.yml ; vulnerability-management
+
+# OB.2 (CI dedupe): the two losing release mechanisms. The tag-push
+# generator never ran (zero runs ever across v0.1.0..v0.41.3 — its
+# changelog template appears in 0 published bodies; the engine's appears in
+# 4/4 sampled), and the PR-label draft bot categorized on labels the
+# labeler never applies (0 of 100 recent PRs carry one), maintaining a
+# floating draft no publisher consumed. The surviving engine — conventional-
+# commit analysis, tag at the analyzed SHA, publish in one job — was folded
+# into the canonical release path (.github/workflows/release.yml) verbatim;
+# its name is not retired, only the two competitors'. The bot's config
+# retired with it. Evidence: OB.2 PR body.
+.github/workflows/semantic-release.yml ; semantic-release
+.github/workflows/release-drafter.yml ; release-drafter
+.github/release-drafter.yml

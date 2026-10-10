@@ -89,6 +89,10 @@ jobs:
       - name: Run unit tests (Run ${{ matrix.run }})
         # Run tests with timeout disabled and rerun failures up to 2 times
         # This helps identify tests that pass inconsistently
+        # OB.2 reason: failures ARE the product here — a flaky hunt records
+        # every matrix run's junit (the always() upload below) and a hard red
+        # on run 2 of 3 would skip collection; the verdict is assembled from
+        # the XMLs, not from any step status.
         run: |
           uv run pytest backend/tests/unit/ \
             -n auto --dist=worksteal \
@@ -173,6 +177,8 @@ jobs:
 
       - name: Run integration tests (Run ${{ matrix.run }})
         # Run tests serially with reruns enabled
+        # OB.2 reason: same flaky-hunt doctrine as the unit leg — matrix-run
+        # failures are data collected by the always() upload, not verdicts.
         run: |
           uv run pytest backend/tests/integration/ \
             -n0 \
@@ -427,6 +433,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download flaky test report
+        # OB.2 reason: best-effort input — if the analysis jobs' upload is
+        # missing (they ran, found nothing, uploaded nothing), this summary
+        # job still posts its zero-flakes roll-up.
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: flaky-test-report
@@ -443,4 +452,7 @@ jobs:
           # - CloudWatch
           # - Datadog
           # - Custom dashboard
-        continue-on-error: true
+          # (OB.2: the decorative continue-on-error that used to sit under
+          # this TODO block is gone — the step only echoes, so the key could
+          # never fire; a COE on an un-failable step dilutes the vocabulary
+          # of the ones that carry load.)

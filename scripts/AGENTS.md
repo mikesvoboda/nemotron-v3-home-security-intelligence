@@ -673,7 +673,7 @@ uv run python scripts/download_yolo26.py
 
 #### audit-summary.sh
 
-**Purpose:** Run weekly-audit.yml checks locally to preview findings.
+**Purpose:** Run the CI audit checks locally to preview findings (semgrep as in sast.yml, pip-audit as in dependency-audit.yml, vulture as in ci.yml's dead-code job).
 
 **What it runs:**
 

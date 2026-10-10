@@ -280,6 +280,10 @@ jobs:
           cat lychee.toml
 
       - name: Check markdown links
+        # OB.2 reason: advisory — lychee's fail:true would red the docs job
+        # on any outbound link a third-party site is briefly refusing
+        # (403/rate-limit), which no author can fix. Findings are in the step
+        # log; link rot is swept by the docs-drift lane, not every PR.
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
           args: --verbose --config lychee.toml './docs/**/*.md'
@@ -287,6 +291,7 @@ jobs:
         continue-on-error: true
 
       - name: Check HTML links
+        # OB.2 reason: same advisory doctrine as the markdown leg above.
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
           args: --verbose --config lychee.toml './docs-site/**/*.html'
