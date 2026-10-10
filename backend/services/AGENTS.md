@@ -147,7 +147,7 @@ defined inside `model_zoo.py` itself.
 
 | Service                     | Purpose                                             | Exported via `__init__.py` |
 | --------------------------- | --------------------------------------------------- | -------------------------- |
-| `container_discovery.py`    | Discover Docker containers by name pattern          | No (import directly)       |
+| `container_discovery.py`    | Discover own-project containers by name pattern     | No (import directly)       |
 | `lifecycle_manager.py`      | Self-healing restart logic with exponential backoff | No (import directly)       |
 | `container_orchestrator.py` | Coordinate discovery, health, lifecycle, broadcast  | No (import directly)       |
 
@@ -1120,10 +1120,11 @@ await collector.close()
 
 ### container_discovery.py
 
-**Purpose:** Discovers Docker containers by name pattern and creates ManagedService objects with proper configuration for the container orchestrator.
+**Purpose:** Discovers the containers of the backend's own compose project by name pattern and creates ManagedService objects with proper configuration for the container orchestrator.
 
 **Key Features:**
 
+- Project-scoped (B1.6, D11): only containers labelled `com.docker.compose.project` with the backend's own project are adopted. `resolve_own_compose_project` reads that project from the backend's own container at startup. An unknown project adopts nothing; a name match alone never adopts another stack's container.
 - Pattern-based container name matching (e.g., "postgres" matches "security-postgres-1")
 - Pre-configured service definitions for infrastructure, AI, and monitoring services
 - Category-based discovery filtering (infrastructure, AI, monitoring)
@@ -1152,6 +1153,7 @@ pre-R8 `ai-llm` container if one survives on the host.
 ```python
 from backend.services.container_discovery import (
     ContainerDiscoveryService,
+    resolve_own_compose_project,
     ServiceConfig,
     ManagedService,
     ALL_CONFIGS,
@@ -1160,14 +1162,15 @@ from backend.services.container_discovery import (
     MONITORING_CONFIGS,
 )
 
-# Create discovery service
+# Create discovery service; read the backend's own compose project (None adopts nothing)
 service = ContainerDiscoveryService(docker_client)
+project = await resolve_own_compose_project(docker_client)
 
-# Discover all containers matching known patterns
-all_services = await service.discover_all()
+# Discover the own project's containers matching known patterns
+all_services = await service.discover_all(project=project)
 
 # Discover by category
-ai_services = await service.discover_by_category(ServiceCategory.AI)
+ai_services = await service.discover_by_category(ServiceCategory.AI, project=project)
 
 # Get config for a service name
 config = service.get_config("postgres")
@@ -1186,6 +1189,7 @@ config_key = service.match_container_name("security-postgres-1")  # Returns "pos
 - Category-specific defaults for Infrastructure, AI, and Monitoring services
 - Automatic disabling of services after max_failures consecutive failures
 - Callbacks for restart and disabled events
+- In-place recovery (B1.6, D11): `recover_in_place` restarts the service's own container and never removes or recreates it. A failed recovery keeps the container, tries a restore start, and raises the alert through `on_recovery_failed`.
 - State persistence to Redis for durability across backend restarts
 
 **Self-Healing Decision Tree:**
@@ -1302,7 +1306,7 @@ await registry.load_state()
 
 **Key Features:**
 
-- Service discovery using container name patterns
+- Service discovery using container name patterns, within its own compose project
 - Health monitoring with configurable intervals
 - Self-healing restart logic with exponential backoff
 - WebSocket broadcast of service status changes

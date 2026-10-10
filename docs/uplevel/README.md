@@ -236,9 +236,9 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | B1.3    | backend                 | 1          | Honest inbound webhooks (D3)                   |               | done        | #6880 |
 | B1.4    | backend                 | 1          | Verdict-engine status (UR-18)                  |               | done        | #6886 |
 | B1.5    | backend                 | 1          | Exposure and auth, backend part (D8, D10)      | heavy · owner | done        | #6861 |
-| B1.6    | backend                 | 1          | Scope the orchestrator and its recovery (D11)  | heavy · owner | not started |     |
+| B1.6    | backend                 | 1          | Scope the orchestrator and its recovery (D11)  | heavy · owner | awaiting real tier | #6929 |
 | F1.1    | frontend                | 1          | Endpoint truth (D2)                            |               | done        | #6869 |
-| F1.2    | frontend                | 1          | Verdict-engine banner (UR-18)                  |               | not started |     |
+| F1.2    | frontend                | 1          | Verdict-engine banner (UR-18)                  |               | awaiting real tier | #6909 |
 | F1.3    | frontend                | 1          | Exposure and auth, frontend part (D10)         | owner         | done        | #6922 |
 | O1.1    | ops                     | 1          | Mutation hold and supersede (UR-2, UR-7)       |               | done        | #6863 |
 | O1.2    | ops                     | 1          | Retire ghcr (UR-17)                            |               | done        | #6907 |
@@ -246,7 +246,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O1.4    | ops                     | 1          | Broken workflows (D9)                          |               | done        | #6926 |
 | O1.5    | ops                     | 1          | Delete the archives (UR-19)                    |               | done        | #6931 |
 | O1.6    | ops                     | 1          | Exposure and auth, compose part (D10)          | owner         | done        | #6925 |
-| O1.7    | ops                     | 1          | Audit measurement scripts                      |               | not started |     |
+| O1.7    | ops                     | 1          | Audit measurement scripts                      |               | done        | #6934 |
 | O1.8    | ops                     | 1          | Dependabot alerts                              | owner         | not started |     |
 | O1.9    | ops                     | 1          | Deploy green on `main`                         |               | done        | #6875 |
 | O1.10   | ops                     | 1          | The operator sandbox (UR-30)                   | owner         | done        | #6867 |

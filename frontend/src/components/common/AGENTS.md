@@ -6,104 +6,106 @@ Contains reusable UI components shared across multiple features. These are low-l
 
 ## Files
 
-| File                              | Purpose                                                  | Status     |
-| --------------------------------- | -------------------------------------------------------- | ---------- |
-| `AlertBadge.tsx`                  | Alert status badge component                             | Active     |
-| `AlertBadge.test.tsx`             | Test suite for AlertBadge                                | Active     |
-| `AlertDrawer.tsx`                 | Slide-out drawer for alert details                       | Active     |
-| `AlertDrawer.test.tsx`            | Test suite for AlertDrawer                               | Active     |
-| `AmbientBackground.tsx`           | Ambient background effects with visual status cues       | Active     |
-| `AmbientBackground.test.tsx`      | Test suite for AmbientBackground                         | Active     |
-| `AmbientStatusProvider.tsx`       | Context provider for ambient status state                | Active     |
-| `AnimatedList.tsx`                | Animated list with enter/exit transitions                | Active     |
-| `AnimatedList.test.tsx`           | Test suite for AnimatedList                              | Active     |
-| `AnimatedModal.tsx`               | Modal with entrance/exit animations                      | Active     |
-| `AnimatedModal.test.tsx`          | Test suite for AnimatedModal                             | Active     |
-| `BottomSheet.tsx`                 | Mobile-friendly bottom sheet modal                       | Active     |
-| `BottomSheet.test.tsx`            | Test suite for BottomSheet                               | Active     |
-| `Button.tsx`                      | Styled button component                                  | Active     |
-| `Button.test.tsx`                 | Test suite for Button                                    | Active     |
-| `ChartLegend.tsx`                 | Legend component for charts                              | Active     |
-| `ChartLegend.test.tsx`            | Test suite for ChartLegend                               | Active     |
-| `ChunkLoadErrorBoundary.tsx`      | Error boundary for dynamic import/chunk loading failures | Active     |
-| `ChunkLoadErrorBoundary.test.tsx` | Test suite for ChunkLoadErrorBoundary                    | Active     |
-| `CommandPalette.tsx`              | Command palette (Cmd+K) for quick navigation             | Active     |
-| `CommandPalette.test.tsx`         | Test suite for CommandPalette                            | Active     |
-| `ConfidenceBadge.tsx`             | Detection confidence score badge with color coding       | Active     |
-| `ConfidenceBadge.test.tsx`        | Test suite for ConfidenceBadge                           | Active     |
-| `EmptyState.tsx`                  | Reusable empty state component with icon and actions     | Active     |
-| `EmptyState.test.tsx`             | Test suite for EmptyState                                | Active     |
-| `ErrorBoundary.tsx`               | React error boundary for catching component errors       | Active     |
-| `ErrorBoundary.test.tsx`          | Test suite for ErrorBoundary                             | Active     |
-| `FaviconBadge.tsx`                | Dynamic favicon badge for notification counts            | Active     |
-| `FaviconBadge.test.tsx`           | Test suite for FaviconBadge                              | Active     |
-| `FeatureErrorBoundary.tsx`        | Feature-specific error isolation boundary                | Active     |
-| `FeatureErrorBoundary.test.tsx`   | Test suite for FeatureErrorBoundary                      | Active     |
-| `IconButton.tsx`                  | Icon-only button component                               | Active     |
-| `IconButton.test.tsx`             | Test suite for IconButton                                | Active     |
-| `InfiniteScrollStatus.tsx`        | Status indicator for infinite scroll loading             | Active     |
-| `InfiniteScrollStatus.test.tsx`   | Test suite for InfiniteScrollStatus                      | Active     |
-| `Lightbox.tsx`                    | Full-size image viewer with navigation                   | Active     |
-| `Lightbox.test.tsx`               | Test suite for Lightbox                                  | Active     |
-| `LiveRegion.tsx`                  | ARIA live region for screen reader announcements         | Active     |
-| `LiveRegion.test.tsx`             | Test suite for LiveRegion                                | Active     |
-| `LoadingSpinner.tsx`              | Simple loading spinner for Suspense fallbacks            | Active     |
-| `LoadingSpinner.test.tsx`         | Test suite for LoadingSpinner                            | Active     |
-| `NavigationTracker.tsx`           | Navigation tracking for analytics                        | Active     |
-| `NavigationTracker.test.tsx`      | Test suite for NavigationTracker                         | Active     |
-| `ObjectTypeBadge.tsx`             | Detection object type badge                              | Active     |
-| `ObjectTypeBadge.test.tsx`        | Test suite for ObjectTypeBadge                           | Active     |
-| `OfflineFallback.tsx`             | Offline state display component                          | Active     |
-| `OfflineFallback.test.tsx`        | Test suite for OfflineFallback                           | Active     |
-| `PageTransition.tsx`              | Animated page transitions                                | Active     |
-| `PageTransition.test.tsx`         | Test suite for PageTransition                            | Active     |
-| `ProductTour.tsx`                 | Interactive onboarding tour for first-time users         | Active     |
-| `ProductTour.test.tsx`            | Test suite for ProductTour                               | Active     |
-| `ProfiledComponent.tsx`           | React Profiler wrapper for performance monitoring        | Active     |
-| `ProfiledComponent.test.tsx`      | Test suite for ProfiledComponent                         | Active     |
-| `PullToRefresh.tsx`               | Pull-to-refresh component for mobile                     | Active     |
-| `PullToRefresh.test.tsx`          | Test suite for PullToRefresh                             | Active     |
-| `RateLimitIndicator.tsx`          | API rate limit status indicator                          | Active     |
-| `RateLimitIndicator.test.tsx`     | Test suite for RateLimitIndicator                        | Active     |
-| `ResponsiveChart.tsx`             | Responsive chart wrapper component                       | Active     |
-| `ResponsiveChart.test.tsx`        | Test suite for ResponsiveChart                           | Active     |
-| `ResponsiveModal.tsx`             | Responsive modal that adapts to screen size              | Active     |
-| `RiskBadge.tsx`                   | Risk level badge with icon and optional score            | Active     |
-| `RiskBadge.test.tsx`              | Test suite for RiskBadge                                 | Active     |
-| `RouteLoadingFallback.tsx`        | Loading indicator for lazy-loaded routes                 | Active     |
-| `RouteLoadingFallback.test.tsx`   | Test suite for RouteLoadingFallback                      | Active     |
-| `SafeErrorMessage.tsx`            | Safe error message display without sensitive data        | Active     |
-| `SafeErrorMessage.test.tsx`       | Test suite for SafeErrorMessage                          | Active     |
-| `SceneChangeAlert.tsx`            | Alert component for camera scene changes                 | Active     |
-| `SceneChangeAlert.test.tsx`       | Test suite for SceneChangeAlert                          | Active     |
-| `ScheduleSelector.tsx`            | Time-based schedule configuration for alerts             | Active     |
-| `ScheduleSelector.test.tsx`       | Test suite for ScheduleSelector                          | Active     |
-| `SecureContextWarning.tsx`        | Banner for insecure context (HTTP) detection             | Active     |
-| `SecureContextWarning.test.tsx`   | Test suite for SecureContextWarning                      | Active     |
-| `ServiceStatusAlert.tsx`          | Service health notification banner                       | Deprecated |
-| `ServiceStatusAlert.test.tsx`     | Test suite for ServiceStatusAlert                        | Deprecated |
-| `ServiceStatusIndicator.tsx`      | Service health status indicator dot                      | Active     |
-| `ServiceStatusIndicator.test.tsx` | Test suite for ServiceStatusIndicator                    | Active     |
-| `ShortcutsHelpModal.tsx`          | Keyboard shortcuts help dialog                           | Active     |
-| `ShortcutsHelpModal.test.tsx`     | Test suite for ShortcutsHelpModal                        | Active     |
-| `Skeleton.tsx`                    | Content placeholder during loading                       | Active     |
-| `Skeleton.test.tsx`               | Test suite for Skeleton                                  | Active     |
-| `SkipLink.tsx`                    | Skip to content link for accessibility                   | Active     |
-| `SkipLink.test.tsx`               | Test suite for SkipLink                                  | Active     |
-| `ThumbnailImage.tsx`              | Optimized thumbnail image component                      | Active     |
-| `ThumbnailImage.test.tsx`         | Test suite for ThumbnailImage                            | Active     |
-| `ToastProvider.tsx`               | Global toast notification system                         | Active     |
-| `ToastProvider.test.tsx`          | Test suite for ToastProvider                             | Active     |
-| `Tooltip.tsx`                     | Tooltip component for hover hints                        | Active     |
-| `Tooltip.test.tsx`                | Test suite for Tooltip                                   | Active     |
-| `TruncatedText.tsx`               | Text truncation with expand/collapse functionality       | Active     |
-| `TruncatedText.test.tsx`          | Test suite for TruncatedText                             | Active     |
-| `WebSocketStatus.tsx`             | WebSocket connection status indicator                    | Active     |
-| `WebSocketStatus.test.tsx`        | Test suite for WebSocketStatus                           | Active     |
-| `WorkerStatusIndicator.tsx`       | Background worker status indicator                       | Active     |
-| `WorkerStatusIndicator.test.tsx`  | Test suite for WorkerStatusIndicator                     | Active     |
-| `index.ts`                        | Barrel exports for common components                     | Active     |
-| `.gitkeep`                        | Placeholder file                                         | -          |
+| File                                 | Purpose                                                       | Status     |
+| ------------------------------------ | ------------------------------------------------------------- | ---------- |
+| `AlertBadge.tsx`                     | Alert status badge component                                  | Active     |
+| `AlertBadge.test.tsx`                | Test suite for AlertBadge                                     | Active     |
+| `AlertDrawer.tsx`                    | Slide-out drawer for alert details                            | Active     |
+| `AlertDrawer.test.tsx`               | Test suite for AlertDrawer                                    | Active     |
+| `AmbientBackground.tsx`              | Ambient background effects with visual status cues            | Active     |
+| `AmbientBackground.test.tsx`         | Test suite for AmbientBackground                              | Active     |
+| `AmbientStatusProvider.tsx`          | Context provider for ambient status state                     | Active     |
+| `AnimatedList.tsx`                   | Animated list with enter/exit transitions                     | Active     |
+| `AnimatedList.test.tsx`              | Test suite for AnimatedList                                   | Active     |
+| `AnimatedModal.tsx`                  | Modal with entrance/exit animations                           | Active     |
+| `AnimatedModal.test.tsx`             | Test suite for AnimatedModal                                  | Active     |
+| `BottomSheet.tsx`                    | Mobile-friendly bottom sheet modal                            | Active     |
+| `BottomSheet.test.tsx`               | Test suite for BottomSheet                                    | Active     |
+| `Button.tsx`                         | Styled button component                                       | Active     |
+| `Button.test.tsx`                    | Test suite for Button                                         | Active     |
+| `ChartLegend.tsx`                    | Legend component for charts                                   | Active     |
+| `ChartLegend.test.tsx`               | Test suite for ChartLegend                                    | Active     |
+| `ChunkLoadErrorBoundary.tsx`         | Error boundary for dynamic import/chunk loading failures      | Active     |
+| `ChunkLoadErrorBoundary.test.tsx`    | Test suite for ChunkLoadErrorBoundary                         | Active     |
+| `CommandPalette.tsx`                 | Command palette (Cmd+K) for quick navigation                  | Active     |
+| `CommandPalette.test.tsx`            | Test suite for CommandPalette                                 | Active     |
+| `ConfidenceBadge.tsx`                | Detection confidence score badge with color coding            | Active     |
+| `ConfidenceBadge.test.tsx`           | Test suite for ConfidenceBadge                                | Active     |
+| `EmptyState.tsx`                     | Reusable empty state component with icon and actions          | Active     |
+| `EmptyState.test.tsx`                | Test suite for EmptyState                                     | Active     |
+| `ErrorBoundary.tsx`                  | React error boundary for catching component errors            | Active     |
+| `ErrorBoundary.test.tsx`             | Test suite for ErrorBoundary                                  | Active     |
+| `FaviconBadge.tsx`                   | Dynamic favicon badge for notification counts                 | Active     |
+| `FaviconBadge.test.tsx`              | Test suite for FaviconBadge                                   | Active     |
+| `FeatureErrorBoundary.tsx`           | Feature-specific error isolation boundary                     | Active     |
+| `FeatureErrorBoundary.test.tsx`      | Test suite for FeatureErrorBoundary                           | Active     |
+| `IconButton.tsx`                     | Icon-only button component                                    | Active     |
+| `IconButton.test.tsx`                | Test suite for IconButton                                     | Active     |
+| `InfiniteScrollStatus.tsx`           | Status indicator for infinite scroll loading                  | Active     |
+| `InfiniteScrollStatus.test.tsx`      | Test suite for InfiniteScrollStatus                           | Active     |
+| `Lightbox.tsx`                       | Full-size image viewer with navigation                        | Active     |
+| `Lightbox.test.tsx`                  | Test suite for Lightbox                                       | Active     |
+| `LiveRegion.tsx`                     | ARIA live region for screen reader announcements              | Active     |
+| `LiveRegion.test.tsx`                | Test suite for LiveRegion                                     | Active     |
+| `LoadingSpinner.tsx`                 | Simple loading spinner for Suspense fallbacks                 | Active     |
+| `LoadingSpinner.test.tsx`            | Test suite for LoadingSpinner                                 | Active     |
+| `NavigationTracker.tsx`              | Navigation tracking for analytics                             | Active     |
+| `NavigationTracker.test.tsx`         | Test suite for NavigationTracker                              | Active     |
+| `ObjectTypeBadge.tsx`                | Detection object type badge                                   | Active     |
+| `ObjectTypeBadge.test.tsx`           | Test suite for ObjectTypeBadge                                | Active     |
+| `OfflineFallback.tsx`                | Offline state display component                               | Active     |
+| `OfflineFallback.test.tsx`           | Test suite for OfflineFallback                                | Active     |
+| `PageTransition.tsx`                 | Animated page transitions                                     | Active     |
+| `PageTransition.test.tsx`            | Test suite for PageTransition                                 | Active     |
+| `ProductTour.tsx`                    | Interactive onboarding tour for first-time users              | Active     |
+| `ProductTour.test.tsx`               | Test suite for ProductTour                                    | Active     |
+| `ProfiledComponent.tsx`              | React Profiler wrapper for performance monitoring             | Active     |
+| `ProfiledComponent.test.tsx`         | Test suite for ProfiledComponent                              | Active     |
+| `PullToRefresh.tsx`                  | Pull-to-refresh component for mobile                          | Active     |
+| `PullToRefresh.test.tsx`             | Test suite for PullToRefresh                                  | Active     |
+| `RateLimitIndicator.tsx`             | API rate limit status indicator                               | Active     |
+| `RateLimitIndicator.test.tsx`        | Test suite for RateLimitIndicator                             | Active     |
+| `ResponsiveChart.tsx`                | Responsive chart wrapper component                            | Active     |
+| `ResponsiveChart.test.tsx`           | Test suite for ResponsiveChart                                | Active     |
+| `ResponsiveModal.tsx`                | Responsive modal that adapts to screen size                   | Active     |
+| `RiskBadge.tsx`                      | Risk level badge with icon and optional score                 | Active     |
+| `RiskBadge.test.tsx`                 | Test suite for RiskBadge                                      | Active     |
+| `RouteLoadingFallback.tsx`           | Loading indicator for lazy-loaded routes                      | Active     |
+| `RouteLoadingFallback.test.tsx`      | Test suite for RouteLoadingFallback                           | Active     |
+| `SafeErrorMessage.tsx`               | Safe error message display without sensitive data             | Active     |
+| `SafeErrorMessage.test.tsx`          | Test suite for SafeErrorMessage                               | Active     |
+| `SceneChangeAlert.tsx`               | Alert component for camera scene changes                      | Active     |
+| `SceneChangeAlert.test.tsx`          | Test suite for SceneChangeAlert                               | Active     |
+| `ScheduleSelector.tsx`               | Time-based schedule configuration for alerts                  | Active     |
+| `ScheduleSelector.test.tsx`          | Test suite for ScheduleSelector                               | Active     |
+| `SecureContextWarning.tsx`           | Banner for insecure context (HTTP) detection                  | Active     |
+| `SecureContextWarning.test.tsx`      | Test suite for SecureContextWarning                           | Active     |
+| `ServiceStatusAlert.tsx`             | Service health notification banner                            | Deprecated |
+| `ServiceStatusAlert.test.tsx`        | Test suite for ServiceStatusAlert                             | Deprecated |
+| `ServiceStatusIndicator.tsx`         | Service health status indicator dot                           | Active     |
+| `ServiceStatusIndicator.test.tsx`    | Test suite for ServiceStatusIndicator                         | Active     |
+| `ShortcutsHelpModal.tsx`             | Keyboard shortcuts help dialog                                | Active     |
+| `ShortcutsHelpModal.test.tsx`        | Test suite for ShortcutsHelpModal                             | Active     |
+| `Skeleton.tsx`                       | Content placeholder during loading                            | Active     |
+| `Skeleton.test.tsx`                  | Test suite for Skeleton                                       | Active     |
+| `SkipLink.tsx`                       | Skip to content link for accessibility                        | Active     |
+| `SkipLink.test.tsx`                  | Test suite for SkipLink                                       | Active     |
+| `ThumbnailImage.tsx`                 | Optimized thumbnail image component                           | Active     |
+| `ThumbnailImage.test.tsx`            | Test suite for ThumbnailImage                                 | Active     |
+| `ToastProvider.tsx`                  | Global toast notification system                              | Active     |
+| `ToastProvider.test.tsx`             | Test suite for ToastProvider                                  | Active     |
+| `Tooltip.tsx`                        | Tooltip component for hover hints                             | Active     |
+| `Tooltip.test.tsx`                   | Test suite for Tooltip                                        | Active     |
+| `TruncatedText.tsx`                  | Text truncation with expand/collapse functionality            | Active     |
+| `TruncatedText.test.tsx`             | Test suite for TruncatedText                                  | Active     |
+| `VerdictEngineStatusBanner.tsx`      | Persistent banner for verdict-engine (ai-vlm) downtime (F1.2) | Active     |
+| `VerdictEngineStatusBanner.test.tsx` | Test suite for VerdictEngineStatusBanner                      | Active     |
+| `WebSocketStatus.tsx`                | WebSocket connection status indicator                         | Active     |
+| `WebSocketStatus.test.tsx`           | Test suite for WebSocketStatus                                | Active     |
+| `WorkerStatusIndicator.tsx`          | Background worker status indicator                            | Active     |
+| `WorkerStatusIndicator.test.tsx`     | Test suite for WorkerStatusIndicator                          | Active     |
+| `index.ts`                           | Barrel exports for common components                          | Active     |
+| `.gitkeep`                           | Placeholder file                                              | -          |
 
 ## Subdirectories
 

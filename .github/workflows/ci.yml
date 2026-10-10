@@ -42,6 +42,10 @@ jobs:
           # '!frontend/**/*.md' matches every file outside frontend/: frontend was
           # true on every PR, so docs- and backend-only PRs ran all 18 frontend jobs.
           predicate-quantifier: 'some-with-excludes'
+          # '.test_durations' rides the backend filter (batch-9 row 2): the
+          # committed shard-planning file steers the backend shards' pytest-split
+          # groups, so a refresh must re-run the tier it re-plans (and the gate
+          # that reads it). A root dotfile matches no other backend pattern.
           filters: |
             backend:
               - 'backend/**'
@@ -50,6 +54,7 @@ jobs:
               - 'ai/**'
               - 'scripts/**/*.py'
               - 'synthbench/**'
+              - '.test_durations'
             frontend:
               - 'frontend/**'
               - '!frontend/**/*.md'
@@ -196,6 +201,13 @@ jobs:
       # O1.4 (D9): the workflow-path gate joined the list — every repository
       # path addressed in .github/workflows/*.yml and .pre-commit-config.yaml
       # must exist (the deploy.yml phantom-artifact class made permanent).
+      # O1.7 (rule 3): the five committed measurement scanners joined the
+      # list — a census nobody runs in CI is a census that rots, and these
+      # five produce the [C] baselines B3.3, W1.1, W3.3, O3.3, BB.1 and
+      # Phase 4 measure against. scripts/audit/AGENTS.md has the doctrine;
+      # the comment lives HERE (outside the folded scalar) per the WP0.1
+      # lesson: a `#` inside `>-` becomes a bash comment mid-command and
+      # silently kills every file listed after it.
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -219,6 +231,12 @@ jobs:
           scripts/test_agents_md_validator.py
           scripts/test_retired_paths.py
           scripts/test_workflow_paths.py
+          scripts/audit/test_retired_names.py
+          scripts/audit/test_settings_orphans.py
+          scripts/audit/test_env_dead_vars.py
+          scripts/audit/test_battery_census.py
+          scripts/audit/test_literal_groups.py
+          scripts/test_shard_durations.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
@@ -695,6 +713,7 @@ jobs:
           uv run pytest backend/tests/unit/ \
             -n auto --dist=worksteal \
             --splits 4 --group ${{ matrix.shard }} \
+            --splitting-algorithm=least_duration \
             --randomly-seed=${{ github.run_id }} \
             --timeout=60 \
             --cov=backend \
@@ -950,9 +969,14 @@ jobs:
         # Ideal duration-balanced 4-way is 653.4s junit (~6.2m wall) -- roughly
         # 5x cap headroom instead of ~2x.
         #
-        # pytest-split still count-balances (no .test_durations in tree);
-        # measured imbalance at 2-way was 1.22x. A durations file would close
-        # that and is tracked separately -- it is not required for this split.
+        # 2026-10-09 (batch-9 row 2): the tracked durations file landed. With
+        # no .test_durations pytest-split count-balanced, and because
+        # pytest-randomly permutes whole module files as blocks, count-balance
+        # was not time-balance: run 37940703535's shards held 7851/7851/7851/
+        # 7849 tests but 168.2/166.8/148.3/76.2s of junit time (2.207x spread).
+        # The committed file plus --splitting-algorithm=least_duration closes
+        # that AND makes placement a function of the tree, not the seed (the
+        # per-run reshuffle measured 76.9%); see scripts/test_shard_durations.py.
         shard: [1, 2, 3, 4]
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)

@@ -45,6 +45,7 @@ frontend/tests/e2e/
 │   ├── ai-audit.spec.ts    # AI pipeline audit tests
 │   ├── system.spec.ts      # System monitoring tests
 │   ├── settings.spec.ts    # Settings page tests
+│   ├── verdict-engine-banner.spec.ts # F1.2 banner appears/clears
 │   ├── zones.spec.ts       # Camera zones configuration tests
 │   ├── responsive.spec.ts  # Responsive design tests
 │   ├── accessibility.spec.ts # WCAG 2.1 AA compliance tests

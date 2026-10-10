@@ -217,7 +217,7 @@ class HealthMonitor:
                               Called with (service, is_healthy).
             on_network_isolation: Optional callback invoked when network isolation is
                                   detected (container reachable via localhost but not
-                                  via hostname). Used to trigger compose-based restart.
+                                  via hostname). Used to trigger an in-place restart.
             max_events: Maximum number of health events to track (default: 100)
         """
         self._registry = registry
@@ -433,7 +433,7 @@ class HealthMonitor:
         """Handle case when service fails health check.
 
         Checks for network isolation (container reachable via localhost but not
-        via hostname) and triggers compose-based restart if detected.
+        via hostname) and triggers an in-place restart if detected.
 
         Args:
             service: ManagedService that failed health check
@@ -448,8 +448,7 @@ class HealthMonitor:
             )
             if is_isolated:
                 logger.warning(
-                    f"Network isolation detected for {service.name}, "
-                    "triggering compose-based restart"
+                    f"Network isolation detected for {service.name}, triggering an in-place restart"
                 )
                 self._registry.update_status(service.name, ContainerServiceStatus.UNHEALTHY)
                 self._record_event(
