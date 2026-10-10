@@ -31,6 +31,9 @@ from typing import Any
 
 import numpy as np
 
+# Run as a script, sys.path[0] is scripts/; the backend package lives one level up.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 #: Ruling 68's gate. A failure is a stop-and-report; it is never loosened.
 PARITY_GATE = 0.999
 
@@ -75,16 +78,16 @@ async def _run(args: argparse.Namespace) -> int:
 
     from backend.services import osnet_loader, reid_gateway
 
+    paths = _crops(args.crops)
+    if not paths:
+        print(f"no images in {args.crops}", file=sys.stderr)
+        return 2
+
     row = osnet_loader._osnet_zoo_row()
     handle: dict[str, Any] = await osnet_loader.load_osnet_model(
         str(args.weights), expected_sha256=row.get("sha256") or None
     )
     expected_id = osnet_loader.osnet_model_id()
-
-    paths = _crops(args.crops)
-    if not paths:
-        print(f"no images in {args.crops}", file=sys.stderr)
-        return 2
 
     cosines: list[float] = []
     cpu_ms: list[float] = []
