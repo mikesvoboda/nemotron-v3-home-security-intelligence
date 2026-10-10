@@ -27,10 +27,19 @@ A test deployment touches nothing else on the machine (``docs/uplevel/30-ops.md`
   from the snapshot still exists, and every container that was running still
   is, with the same start time.
 
+``--real`` (owner ruling 66) is the same test deployment with the real VLM in
+place of the fake one, served on the GB300 through ``agent-gpu``
+(:class:`AgentGpu`; ``docs/uplevel/operator.md``, "The agent-gpu path"); the
+fake detector stays. It checks the weights against the production pin before
+serving, lets the backend reach the host only on the port ``agent-gpu run``
+printed, and removes the VLM after the run, also after a failure.
+
 Exit codes: 0 green; 1 a check of the run failed, or teardown left the run's
-own containers or volumes; 2 the preflight refused and nothing started; 3 the
-postflight found a pre-existing container or volume changed (report it on the
-urgent path; the harness restores nothing); 4 the mode cannot run here.
+own containers or volumes (or, on ``--real``, its VLM); 2 the preflight
+refused and the test deployment never started; 3 the postflight found a
+pre-existing container or volume changed (report it on the urgent path; the
+harness restores nothing); 4 the mode cannot run here (``--real`` without
+``agent-gpu``).
 
 Standard library only, so it runs in CI, in the operator sandbox and on a host
 without the project's virtualenv.
@@ -40,6 +49,8 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
+import html
 import json
 import os
 import re
@@ -74,15 +85,43 @@ PROJECT_PREFIX = "hsi-check-"
 
 EXIT_OK = 0
 EXIT_FAILED = 1  # a check of the run failed
-EXIT_REFUSED = 2  # the preflight refused; nothing started
+EXIT_REFUSED = 2  # the preflight refused; the test deployment never started
 EXIT_CHANGED = 3  # the postflight found a pre-existing container or volume changed
-EXIT_UNAVAILABLE = 4  # the mode cannot run here (--real before it is built)
+EXIT_UNAVAILABLE = 4  # the mode cannot run here (--real without agent-gpu)
 
 # The harness smoke check: one scenario image in, one event out. Its scenario
 # has image bytes of its own: the backend deduplicates images by content for
 # 300 s across cameras, so a golden path dropping any other scenario image
 # right after the smoke check still gets its event.
 SMOKE_SCENARIO = "harness-smoke"
+
+# --real (owner ruling 66, #6854): the real VLM, served on the GB300 through
+# agent-gpu (docs/uplevel/operator.md, "The agent-gpu path"), with the fake
+# detector kept. Its test deployment is --fake's without the fake ai-vlm.
+REAL_SERVICES = tuple(name for name in FAKE_SERVICES if name != "ai-vlm")
+PROD_STACK = REPO_ROOT / "docker-compose.prod.yml"
+VLM_DOCKERFILE = REPO_ROOT / "ai" / "vlm" / "Dockerfile"
+# The production pin and its sha256 (operator.md step 1). The library also
+# holds a Q8_0 build of the model itself; it is not the pin.
+VLM_LIBRARY_DIR = "qwen3vl-8b-instruct-q4km"
+VLM_MODEL = "Qwen3VL-8B-Instruct-Q4_K_M.gguf"
+VLM_MMPROJ = "mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf"
+VLM_WEIGHTS = {
+    VLM_MODEL: "67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2",  # pragma: allowlist secret
+    VLM_MMPROJ: "c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd",  # pragma: allowlist secret
+}
+# operator.md steps 2-3: the GB300's CUDA architecture, the VLM's container
+# port, its VRAM declaration (it measured 9,056 MiB actual) and its lease.
+VLM_CUDA_ARCHITECTURES = "103"
+VLM_PORT = 8098
+VLM_VRAM_GIB = 14
+VLM_TTL = 12
+# The runner publishes a container port on the host from this pool and prints
+# `port <container port> -> http://host.docker.internal:<host port>`.
+AGENT_GPU_PORTS = range(18100, 18200)
+# The verdicts a model gives: the event verification schema's enum
+# (backend/api/schemas/event_verification.py) less verification_failed.
+MODEL_VERDICTS = frozenset({"confirmed", "rejected", "uncertain"})
 
 # GET /api/system/services with no orchestrator on app.state
 # (backend/api/routes/services.py, get_orchestrator).
@@ -341,12 +380,23 @@ class Snapshot:
         )
 
 
+def snapshot_brief(snapshot: Snapshot) -> dict[str, list[str]]:
+    """The preflight snapshot as the summary prints it: each container's name,
+    state and start time, and each volume (the full one is in artifacts/)."""
+    return {
+        "containers": [f"{c.name} {c.status} {c.started_at}" for c in snapshot.containers],
+        "volumes": sorted(snapshot.volumes),
+    }
+
+
 # ---------------------------------------------------------------------------
 # The test deployment
 # ---------------------------------------------------------------------------
 
 
-def as_test_deployment(base: Mapping[str, Any], *, project: str, run_dir: Path) -> dict[str, Any]:
+def as_test_deployment(
+    base: Mapping[str, Any], *, project: str, run_dir: Path, vlm_url: str | None = None
+) -> dict[str, Any]:
     """Turn the rendered CI + fake stack into this run's test deployment.
 
     Keeps only :data:`FAKE_SERVICES`; moves every published port to an
@@ -355,9 +405,16 @@ def as_test_deployment(base: Mapping[str, Any], *, project: str, run_dir: Path) 
     ``<run_dir>/cameras`` and turns its orchestrator off. Everything else
     (a fixed ``container_name``, a bind mount) is left for the preflight to
     judge, so nothing is silently dropped.
+
+    With ``vlm_url`` (``--real``) the fake ai-vlm stays out and the backend
+    calls the VLM ``agent-gpu run`` serves there; the fake detector stays.
+    No ``extra_hosts`` entry is added: host.docker.internal resolves in the
+    sandbox's Docker on its own, and ``host-gateway`` would name the sandbox,
+    not the host the runner publishes on.
     """
+    keep = FAKE_SERVICES if vlm_url is None else REAL_SERVICES
     services = base.get("services") or {}
-    missing = [name for name in FAKE_SERVICES if name not in services]
+    missing = [name for name in keep if name not in services]
     if missing:
         raise HarnessError(f"the rendered stack lacks {', '.join(missing)}")
 
@@ -371,10 +428,13 @@ def as_test_deployment(base: Mapping[str, Any], *, project: str, run_dir: Path) 
                 entry["name"] = f"{project}_{key}"
 
     deployment["services"] = {}
-    for name in FAKE_SERVICES:
+    for name in keep:
         service = copy.deepcopy(services[name])
-        for dependency in service.get("depends_on") or {}:
-            if dependency not in FAKE_SERVICES:
+        depends_on = service.get("depends_on")
+        if vlm_url is not None and isinstance(depends_on, dict):
+            depends_on.pop("ai-vlm", None)
+        for dependency in depends_on or {}:
+            if dependency not in keep:
                 raise HarnessError(f"{name} depends on {dependency}, which a test deployment omits")
         ports = [
             {
@@ -393,6 +453,8 @@ def as_test_deployment(base: Mapping[str, Any], *, project: str, run_dir: Path) 
     environment = backend.setdefault("environment", {})
     environment["ORCHESTRATOR_ENABLED"] = "false"
     environment["FOSCAM_BASE_PATH"] = CAMERA_TARGET
+    if vlm_url is not None:
+        environment["AI_VLM_URL"] = vlm_url
     backend["tmpfs"] = [
         entry for entry in backend.get("tmpfs") or [] if entry.split(":", 1)[0] != CAMERA_TARGET
     ]
@@ -753,6 +815,206 @@ def leftovers(before: Snapshot, after: Snapshot, *, project: str) -> list[str]:
     return problems
 
 
+_TESTCASE = re.compile(r"<testcase\b([^>]*?)(?:/>|>(.*?)</testcase>)", re.DOTALL)
+_ATTRIBUTE = re.compile(r'([\w:-]+)="([^"]*)"')
+_CDATA = re.compile(r"<!\[CDATA\[.*?\]\]>", re.DOTALL)
+
+
+def junit_results(path: Path) -> dict[str, str]:
+    """Each spec of a golden suite's JUnit report: passed, failed or skipped.
+
+    The report is this run's own. It is read with patterns, not an XML
+    parser, so no DTD or entity in it is ever processed; a spec's printed
+    output (CDATA) is not mistaken for its outcome. No report, no specs.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    results = {}
+    for match in _TESTCASE.finditer(text):
+        attributes = {key: html.unescape(value) for key, value in _ATTRIBUTE.findall(match[1])}
+        body = _CDATA.sub("", match[2] or "")
+        name = f"{attributes.get('classname', '')}::{attributes.get('name', '')}"
+        if re.search(r"<(?:failure|error)\b", body):
+            results[name] = "failed"
+        elif re.search(r"<skipped\b", body):
+            results[name] = "skipped"
+        else:
+            results[name] = "passed"
+    return results
+
+
+def smoke_problems(
+    events: Sequence[Mapping[str, Any]],
+    *,
+    camera: str,
+    scenario: Mapping[str, Any] | None = None,
+    served_model: str | None = None,
+) -> list[str]:
+    """The harness smoke check's judgement of the events on its camera.
+
+    On ``--fake``, one event with the ``scenario``'s verdict and risk score.
+    On ``--real`` the verdict is the model's own, not the scenario's (Q2 on
+    #6961), so: one event whose verification names ``served_model`` (the stem
+    of /props' model_path, as the backend records it) with a verdict the
+    model gave (:data:`MODEL_VERDICTS`).
+    """
+    if len(events) != 1:
+        return [f"smoke: expected one event on {camera}, found {len(events)}"]
+    event = events[0]
+    verification = event.get("verification") or {}
+    verdict = verification.get("verdict")
+    problems = []
+    if scenario is not None:
+        expected = scenario["verdict"]
+        if verdict != expected["verdict"]:
+            problems.append(f"smoke: verdict {verdict!r}, scenario says {expected['verdict']!r}")
+        if event.get("risk_score") != expected["risk_score"]:
+            problems.append(
+                f"smoke: risk_score {event.get('risk_score')!r}, "
+                f"scenario says {expected['risk_score']!r}"
+            )
+    if served_model is not None:
+        if verdict not in MODEL_VERDICTS:
+            problems.append(
+                f"smoke: verdict {verdict!r}; a model's verdict is one of "
+                f"{', '.join(sorted(MODEL_VERDICTS))}"
+            )
+        model = verification.get("model_id")
+        if model != served_model:
+            problems.append(
+                f"smoke: the verdict names model {model!r}, not the served {served_model!r}"
+            )
+    return problems
+
+
+# ---------------------------------------------------------------------------
+# The real tier: the VLM through agent-gpu
+# ---------------------------------------------------------------------------
+
+
+def real_unavailable(environ: Mapping[str, str]) -> str | None:
+    """Why ``--real`` cannot run here, or None. It serves models only through
+    ``agent-gpu`` (owner ruling 66); there is no host-GPU mode."""
+    if shutil.which("agent-gpu", path=environ.get("PATH")) is None:
+        return (
+            "--real serves the VLM only through agent-gpu (owner ruling 66), and "
+            "agent-gpu is not on PATH here. It runs in the uplevel-operator sandbox: "
+            'docs/uplevel/operator.md, "The agent-gpu path".'
+        )
+    if not environ.get("AGENT_GPU_LIBRARY"):
+        return (
+            "--real reads the VLM's weights from $AGENT_GPU_LIBRARY, the shared model "
+            "library, which is not set here (agent-dgx --gpu sets it)."
+        )
+    return None
+
+
+def weight_digests(directory: Path) -> dict[str, str]:
+    """sha256 of each ``*.gguf`` in ``directory``, as ``sha256sum *.gguf``."""
+    digests = {}
+    for path in sorted(directory.glob("*.gguf")):
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1 << 20), b""):
+                digest.update(chunk)
+        digests[path.name] = digest.hexdigest()
+    return digests
+
+
+def weight_problems(found: Mapping[str, str]) -> list[str]:
+    """operator.md step 1: stop unless the files are exactly the pin."""
+    problems = []
+    for name, digest in VLM_WEIGHTS.items():
+        if name not in found:
+            problems.append(f"weights: {name} is missing from the library's {VLM_LIBRARY_DIR}/")
+        elif found[name] != digest:
+            problems.append(f"weights: {name} has sha256 {found[name]}; the pin is {digest}")
+    for name in sorted(set(found) - set(VLM_WEIGHTS)):
+        problems.append(f"weights: {VLM_LIBRARY_DIR}/ also holds {name}, which is not the pin")
+    return problems
+
+
+_DEFAULTED = re.compile(r"\$\{(\w+)(:?-)([^}]*)\}")
+
+
+def vlm_run_environment(prod: Sequence[str] | Mapping[str, Any]) -> list[str]:
+    """``--env`` for ``agent-gpu run`` (operator.md step 3): the library's pin,
+    then each other ai-vlm variable of docker-compose.prod.yml verbatim, at its
+    default, since the run's env file sets none of them. ``prod`` is that
+    environment as written (``config --no-interpolate``)."""
+    if isinstance(prod, Mapping):
+        entries = [key if value is None else f"{key}={value}" for key, value in prod.items()]
+    else:
+        entries = [str(entry) for entry in prod]
+    library = f"/library/{VLM_LIBRARY_DIR}"
+    environment = [f"MODEL_PATH={library}/{VLM_MODEL}", f"MMPROJ_PATH={library}/{VLM_MMPROJ}"]
+    for entry in entries:
+        key, sep, value = entry.partition("=")
+        if key in ("MODEL_PATH", "MMPROJ_PATH"):
+            continue
+        resolved = _DEFAULTED.sub(lambda match: match.group(3), value)
+        if not sep or "$" in resolved:
+            raise HarnessError(
+                f"ai-vlm's {entry} has no default in {PROD_STACK.name}, and the run sets "
+                "no VLM variable"
+            )
+        environment.append(f"{key}={resolved}")
+    return environment
+
+
+def dockerfile_bases(text: str) -> list[str]:
+    """The images a Dockerfile's FROM lines pull, in order, less the stages it
+    builds itself: ``agent-gpu build`` never pulls (operator.md step 2)."""
+    bases: list[str] = []
+    stages: set[str] = set()
+    for match in re.finditer(r"(?im)^\s*FROM\s+(?:--\S+\s+)*(\S+)(?:\s+AS\s+(\S+))?", text):
+        image, stage = match.group(1), match.group(2)
+        if "$" in image:
+            raise HarnessError(f"FROM {image} names its base through a build argument")
+        if image.lower() not in stages and image not in bases:
+            bases.append(image)
+        if stage:
+            stages.add(stage.lower())
+    return bases
+
+
+def agent_gpu_url(output: str, container_port: int = VLM_PORT) -> tuple[str, int]:
+    """The URL ``agent-gpu run`` printed for ``container_port``, and its port.
+
+    The runner publishes from :data:`AGENT_GPU_PORTS` on the host's loopback,
+    reached as host.docker.internal. Anything else could be the live stack's
+    API, database or engine, so the run refuses it.
+    """
+    match = re.search(rf"(?m)^\s*port {container_port} -> (\S+)\s*$", output)
+    if match is None:
+        raise HarnessError(
+            f"agent-gpu run printed no 'port {container_port} -> <url>' line: "
+            f"{output.strip()[-500:]!r}"
+        )
+    url = match.group(1)
+    parts = urllib.parse.urlsplit(url)
+    try:
+        port = parts.port
+    except ValueError:
+        port = None
+    if (
+        parts.scheme != "http"
+        or parts.hostname != "host.docker.internal"
+        or port is None
+        or port not in AGENT_GPU_PORTS
+        or parts.path not in ("", "/")
+        or parts.query
+        or parts.fragment
+    ):
+        raise HarnessError(
+            f"agent-gpu run printed {url}; a run reaches only "
+            f"http://host.docker.internal:<{AGENT_GPU_PORTS.start}-{AGENT_GPU_PORTS.stop - 1}>"
+        )
+    return f"http://host.docker.internal:{port}", port
+
+
 # ---------------------------------------------------------------------------
 # Compose invocation
 # ---------------------------------------------------------------------------
@@ -898,19 +1160,24 @@ class Run:
         for scenario in _scenarios():
             (self.cameras / scenario["name"]).mkdir()
         _log(f"run {self.project} in {self.dir}")
+        commit = self._run(["git", "rev-parse", "HEAD"], check=False, echo=False, env=os.environ)
+        self.summary["commit"] = commit.stdout.strip() or None
         before = self.snapshot()
         self._write("snapshot-before.json", before.to_json())
+        self.summary["snapshot_before"] = snapshot_brief(before)
         _log(
             f"snapshot: {len(before.containers)} containers "
             f"({sum(c.running for c in before.containers)} running), {len(before.volumes)} volumes"
         )
         return before
 
-    def render(self, before: Snapshot) -> None:
+    def render(self, before: Snapshot, vlm: AgentGpu | None = None) -> None:
         base = json.loads(
             self.compose([CI_STACK, FAKE_OVERLAY], "config", "--format", "json").stdout
         )
-        deployment = as_test_deployment(base, project=self.project, run_dir=self.dir)
+        deployment = as_test_deployment(
+            base, project=self.project, run_dir=self.dir, vlm_url=vlm.url if vlm else None
+        )
         self.compose_file.write_text(json.dumps(deployment, indent=2) + "\n", encoding="utf-8")
         rendered = json.loads(self.deployment("config", "--format", "json").stdout)
         self._write("rendered.json", rendered)
@@ -920,6 +1187,8 @@ class Run:
             run_dir=self.dir,
             snapshot=before,
             host_addresses=self.host_addresses(),
+            # On --real, the one port agent-gpu run printed; none on --fake.
+            allowed_host_ports=frozenset({vlm.host_port}) if vlm and vlm.host_port else frozenset(),
         )
         self.summary["results"]["preflight"] = problems or "ok"
         if problems:
@@ -929,17 +1198,48 @@ class Run:
             name: service.get("image") for name, service in rendered["services"].items()
         }
 
-    def up(self) -> None:
+    def up(self, vlm: AgentGpu | None = None) -> None:
         self.started = True
-        self.deployment("up", "-d", "--wait", "--wait-timeout", "900", timeout=1500)
+        try:
+            self.deployment("up", "-d", "--wait", "--wait-timeout", "900", timeout=1500)
+        except HarnessError:
+            # The backend's health check calls the VLM, so on --real an
+            # unreachable VLM fails `up --wait` first; name that reason if so.
+            if vlm is not None:
+                self.check_vlm_reach(str(vlm.url))
+            raise
         self.api = self._address("backend", 8000)
         self.ui = self._address("frontend", 8080)
         _log(f"up: api {self.api}, ui {self.ui}")
         self.summary["urls"] = {"api": self.api, "ui": self.ui}
+        if vlm is not None:
+            self.check_vlm_reach(str(vlm.url))
+            return
         props = _http("GET", self._address("ai-vlm", 8098) + "/props")
         if props[0] == 200 and isinstance(props[1], Mapping):
             self.summary["build_info"] = props[1].get("build_info")
             self.summary["model_path"] = props[1].get("model_path")
+
+    def check_vlm_reach(self, url: str) -> None:
+        """The backend reaches the VLM agent-gpu serves (operator.md step 4);
+        without this, an unreachable VLM shows only as a missing verdict."""
+        probe = self.deployment(
+            "exec",
+            "-T",
+            "backend",
+            "python",
+            "-c",
+            "import sys, urllib.request; "
+            "print(urllib.request.urlopen(sys.argv[1] + '/health', timeout=10).status)",
+            url,
+            check=False,
+        )
+        if probe.stdout.strip().splitlines()[-1:] != ["200"]:
+            raise HarnessError(
+                f"the backend cannot reach the VLM at {url}: "
+                f"{(probe.stderr or probe.stdout).strip()[-1000:]}"
+            )
+        _log(f"the backend reaches the VLM at {url}")
 
     def _address(self, service: str, port: int) -> str:
         out = self.deployment("port", service, str(port), echo=False).stdout.strip()
@@ -1016,14 +1316,13 @@ class Run:
         _log("in-run check: " + ("ok" if not problems else f"{len(problems)} problem(s)"))
         return problems
 
-    def smoke(self) -> list[str]:
-        """One fixture image in, one event out with the scenario's verdict."""
+    def smoke(self, vlm: AgentGpu | None = None) -> list[str]:
+        """One fixture image in, one event out (:func:`smoke_problems`)."""
         scenario = _scenario(SMOKE_SCENARIO)
         camera = self.camera_ids[SMOKE_SCENARIO]
         image = drop(SCENARIO_DIR / scenario["image"], SMOKE_SCENARIO, self.cameras)
         _log(f"smoke: dropped {image.relative_to(self.dir)}; waiting for its event")
-        expected = scenario["verdict"]
-        deadline = time.monotonic() + 300
+        deadline = time.monotonic() + (300 if vlm is None else 600)
         events: list[Any] = []
         while time.monotonic() < deadline:
             status, body = _http("GET", self.api + f"/api/events?camera_id={camera}")
@@ -1032,26 +1331,19 @@ class Run:
                 break
             time.sleep(5)
         self._write("smoke-events.json", events)
-        problems = []
-        if len(events) != 1:
-            problems.append(f"smoke: expected one event on {camera}, found {len(events)}")
-        else:
+        problems = smoke_problems(
+            events,
+            camera=camera,
+            scenario=scenario if vlm is None else None,
+            served_model=vlm.served_model if vlm else None,
+        )
+        if not problems:
             event = events[0]
-            verdict = (event.get("verification") or {}).get("verdict")
-            if verdict != expected["verdict"]:
-                problems.append(
-                    f"smoke: verdict {verdict!r}, scenario says {expected['verdict']!r}"
-                )
-            if event.get("risk_score") != expected["risk_score"]:
-                problems.append(
-                    f"smoke: risk_score {event.get('risk_score')!r}, "
-                    f"scenario says {expected['risk_score']!r}"
-                )
-            if not problems:
-                _log(
-                    f"smoke: ok, event {event.get('id')} verdict {verdict} "
-                    f"risk_score {event.get('risk_score')}"
-                )
+            verification = event.get("verification") or {}
+            _log(
+                f"smoke: ok, event {event.get('id')} verdict {verification.get('verdict')} "
+                f"risk_score {event.get('risk_score')} model {verification.get('model_id')}"
+            )
         self.summary["results"]["smoke"] = problems or "ok"
         return problems
 
@@ -1088,6 +1380,7 @@ class Run:
                 result.stdout + result.stderr, encoding="utf-8"
             )
             results["backend"] = "ok" if result.returncode == 0 else f"exit {result.returncode}"
+            results["backend_specs"] = junit_results(junit)
             if result.returncode != 0:
                 problems.append(f"golden: backend/tests/golden exited {result.returncode}")
         else:
@@ -1096,17 +1389,26 @@ class Run:
             r"name:\s*['\"]golden['\"]", PLAYWRIGHT_CONFIG.read_text(encoding="utf-8")
         ):
             report = self.artifacts / "golden-playwright"
+            junit = self.artifacts / "golden-playwright.xml"
             result = self._run(
-                ["npx", "playwright", "test", "--project=golden", f"--output={report}"],
+                [
+                    "npx",
+                    "playwright",
+                    "test",
+                    "--project=golden",
+                    f"--output={report}",
+                    "--reporter=list,junit",
+                ],
                 check=False,
                 timeout=1800,
-                env=env,
+                env={**env, "PLAYWRIGHT_JUNIT_OUTPUT_FILE": str(junit)},
                 cwd=REPO_ROOT / "frontend",
             )
             (self.artifacts / "golden-playwright.log").write_text(
                 result.stdout + result.stderr, encoding="utf-8"
             )
             results["playwright"] = "ok" if result.returncode == 0 else f"exit {result.returncode}"
+            results["playwright_specs"] = junit_results(junit)
             if result.returncode != 0:
                 problems.append(f"golden: the golden Playwright project exited {result.returncode}")
         else:
@@ -1150,24 +1452,207 @@ class Refused(HarnessError):
         self.problems = problems
 
 
+class AgentGpu:
+    """The real VLM of a ``--real`` run, served on the GB300 through
+    ``agent-gpu`` (operator.md, "The agent-gpu path", steps 1-3 and 6): the
+    weights checked against the pin, the image built once per state of
+    ``ai/vlm/``, the container under the run's own name, and its removal."""
+
+    vlm_image: str | None = None
+
+    def __init__(self, run: Run) -> None:
+        self.run = run
+        self.name = f"{run.project}-vlm"
+        self.started = False
+        self.url: str | None = None
+        self.host_port: int | None = None
+        self.served_model: str | None = None
+
+    def _cli(
+        self, *args: str, check: bool = True, timeout: float | None = 300
+    ) -> subprocess.CompletedProcess[str]:
+        # The caller's whole environment: agent-gpu reaches its runner with it.
+        return self.run._run(["agent-gpu", *args], check=check, timeout=timeout, env=os.environ)
+
+    def _record(self, name: str, text: str) -> str:
+        (self.run.artifacts / name).write_text(text, encoding="utf-8")
+        return text
+
+    def vlm_tree(self) -> str:
+        """``ai/vlm/``'s tree hash, which tags its image; uncommitted changes
+        there would build an image the tag does not name."""
+        git = ["git", "-C", str(REPO_ROOT)]
+        dirty = self.run._run([*git, "status", "--porcelain", "--", "ai/vlm"], env=os.environ)
+        if dirty.stdout.strip():
+            raise HarnessError(f"ai/vlm/ has uncommitted changes:\n{dirty.stdout.strip()}")
+        return self.run._run(
+            [*git, "rev-parse", "--short", "HEAD:ai/vlm"], env=os.environ
+        ).stdout.strip()
+
+    def prod_environment(self) -> Sequence[str] | Mapping[str, Any]:
+        """ai-vlm's environment as docker-compose.prod.yml writes it (rendered
+        without interpolation, never started)."""
+        rendered = json.loads(
+            self.run.compose(
+                [PROD_STACK], "config", "--no-interpolate", "--format", "json", echo=False
+            ).stdout
+        )
+        return rendered["services"]["ai-vlm"].get("environment") or []
+
+    def prepare(self) -> None:
+        """Steps 1-2: the weights against the pin, the budget, the image."""
+        library = Path(os.environ["AGENT_GPU_LIBRARY"]) / VLM_LIBRARY_DIR
+        _log(f"weights: sha256 of {library}/*.gguf")
+        found = weight_digests(library)
+        self.run.summary["weights"] = [f"{digest}  {name}" for name, digest in found.items()]
+        problems = weight_problems(found)
+        if problems:
+            raise Refused(problems)
+        _log("weights: the production pin")
+        status = self._cli("status").stdout
+        self.run.summary["agent_gpu"] = {
+            "status_before": self._record("agent-gpu-status-before.txt", status)
+        }
+        tree = self.vlm_tree()
+        self.vlm_image = f"ai-vlm:{tree}"
+        images = self._cli("images", check=False).stdout
+        if any("ai-vlm" in line and tree in line for line in images.splitlines()):
+            _log(f"image: {self.vlm_image} is built for this state of ai/vlm/")
+        else:
+            for base in dockerfile_bases(VLM_DOCKERFILE.read_text(encoding="utf-8")):
+                self._cli("pull", base, timeout=3600)
+            self._cli(
+                "build",
+                "--context",
+                "workspace:ai/vlm",
+                "--tag",
+                self.vlm_image,
+                "--build-arg",
+                f"CUDA_ARCHITECTURES={VLM_CUDA_ARCHITECTURES}",
+                timeout=4 * 3600,
+            )
+        self.run.summary["vlm_image"] = self.vlm_image
+        self.run.summary["vram"] = {"declared_gib": VLM_VRAM_GIB}
+
+    def start(self) -> None:
+        """Step 3: serve the pin from the library; read the URL run prints."""
+        args = [
+            "run",
+            "--name",
+            self.name,
+            "--image",
+            str(self.vlm_image),
+            "--vram",
+            str(VLM_VRAM_GIB),
+            "--port",
+            str(VLM_PORT),
+            "--ttl",
+            str(VLM_TTL),
+            "--mount",
+            "library:/library",
+        ]
+        for entry in vlm_run_environment(self.prod_environment()):
+            args += ["--env", entry]
+        self.started = True  # from here on, the run removes it whatever happens
+        result = self._cli(*args, check=False, timeout=900)
+        output = self._record("agent-gpu-run.txt", result.stdout + result.stderr)
+        if result.returncode != 0:
+            raise HarnessError(
+                f"agent-gpu run exited {result.returncode} (admission is the runner's; "
+                f"agent-gpu-status-before.txt has the budget): {output.strip()[-1000:]}"
+            )
+        self.url, self.host_port = agent_gpu_url(output)
+        _log(f"vlm: {self.name} serves at {self.url}")
+
+    def wait_ready(self, timeout: float = 900) -> None:
+        """Step 3: /health answers 200, and /props' model_path is the pin."""
+        url = str(self.url)
+        deadline = time.monotonic() + timeout
+        while True:
+            status, _ = _http("GET", f"{url}/health", timeout=10, origin=url)
+            if status == 200 or time.monotonic() >= deadline:
+                break
+            time.sleep(5)
+        if status != 200:
+            raise HarnessError(f"the VLM at {url} did not answer /health with 200 ({status})")
+        status, props = _http("GET", f"{url}/props", timeout=10, origin=url)
+        props = props if status == 200 and isinstance(props, Mapping) else {}
+        model_path = str(props.get("model_path") or "")
+        self.run.summary["build_info"] = props.get("build_info")
+        self.run.summary["model_path"] = model_path
+        expected = f"/library/{VLM_LIBRARY_DIR}/{VLM_MODEL}"
+        if model_path != expected:
+            raise HarnessError(
+                f"the VLM serves {model_path or 'no model_path'}; the pin is {expected}"
+            )
+        self.served_model = PurePosixPath(model_path).stem
+        serving = self._cli("ps", check=False).stdout
+        vram = self.run.summary.setdefault("vram", {"declared_gib": VLM_VRAM_GIB})
+        vram["serving"] = self._record("agent-gpu-ps-serving.txt", serving)
+        _log(f"vlm: ready, build {props.get('build_info')}, model {model_path}")
+
+    def teardown(self) -> list[str]:
+        """Step 6: stop and remove the VLM; ``agent-gpu ps`` must then list
+        none of the run's containers."""
+        end = self._cli("ps", check=False).stdout
+        vram = self.run.summary.setdefault("vram", {"declared_gib": VLM_VRAM_GIB})
+        vram["at_end"] = self._record("agent-gpu-ps-end.txt", end)
+        self._cli("stop", self.name, check=False, timeout=600)
+        self._cli("rm", self.name, check=False, timeout=600)
+        after = self._cli("ps", check=False)
+        listing = self._record("agent-gpu-ps-after.txt", after.stdout + after.stderr)
+        self.run.summary.setdefault("agent_gpu", {})["ps_after"] = listing
+        problems = []
+        if after.returncode != 0:
+            problems.append(
+                f"agent-gpu ps exited {after.returncode}, so whether {self.name} is gone is unknown"
+            )
+        elif re.search(rf"(?<![\w.-]){re.escape(self.name)}(?![\w.-])", after.stdout):
+            problems.append(
+                f"agent-gpu ps still lists {self.name}; remove it with agent-gpu rm {self.name}"
+            )
+        self.run.summary["results"]["agent_gpu"] = problems or "ok"
+        _log(
+            "agent-gpu: "
+            + ("ok, agent-gpu ps lists none of this run's containers" if not problems else "LEFT")
+        )
+        return problems
+
+
 # No proxies: urllib honours HTTP_PROXY, and a NO_PROXY without 127.0.0.1
 # would send the harness's calls to a proxy instead of the run's own ports.
 _LOOPBACK = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
-def _http(method: str, url: str, payload: Any = None, timeout: float = 15) -> tuple[int, Any]:
+def _http(
+    method: str,
+    url: str,
+    payload: Any = None,
+    timeout: float = 15,
+    *,
+    origin: str | None = None,
+) -> tuple[int, Any]:
     """(status, JSON body or text); status 0 when nothing answered.
 
-    Only the run's own published ports, which all bind 127.0.0.1.
+    Only the run's own published ports, which all bind 127.0.0.1, and on
+    ``--real`` the one ``origin`` that ``agent-gpu run`` printed. That one is
+    the host's loopback, which a sandbox reaches through its proxy, so the
+    caller's proxy settings apply to it.
     """
-    if urllib.parse.urlsplit(url).hostname != "127.0.0.1":
-        raise HarnessError(f"the harness talks only to its own 127.0.0.1 ports, not {url}")
+    parts = urllib.parse.urlsplit(url)
+    if origin is not None and f"{parts.scheme}://{parts.netloc}" == origin:
+        opener = urllib.request.build_opener()
+    elif parts.hostname == "127.0.0.1":
+        opener = _LOOPBACK
+    else:
+        also = f" and {origin}" if origin else ""
+        raise HarnessError(f"the harness talks only to its own 127.0.0.1 ports{also}, not {url}")
     data = json.dumps(payload).encode() if payload is not None else None
-    request = urllib.request.Request(  # noqa: S310 (127.0.0.1, checked above)
+    request = urllib.request.Request(  # noqa: S310 (127.0.0.1 or the VLM, checked above)
         url, data=data, method=method, headers={"Content-Type": "application/json"}
     )
     try:
-        with _LOOPBACK.open(request, timeout=timeout) as response:
+        with opener.open(request, timeout=timeout) as response:
             status, raw = response.status, response.read()
     except urllib.error.HTTPError as error:
         status, raw = error.code, error.read()
@@ -1207,17 +1692,22 @@ def drop(image: Path, camera: str, camera_root: Path) -> Path:
     return target
 
 
-def run_fake(args: argparse.Namespace) -> int:
-    run = Run(engine=args.engine, root=args.root, image_tag=args.image_tag, mode="fake")
+def run_check(args: argparse.Namespace, *, mode: str) -> int:
+    run = Run(engine=args.engine, root=args.root, image_tag=args.image_tag, mode=mode)
     before = run.prepare()
+    vlm = AgentGpu(run) if mode == "real" else None
     status = EXIT_OK
     try:
-        run.render(before)
-        run.up()
+        if vlm is not None:
+            vlm.prepare()
+            vlm.start()
+            vlm.wait_ready()
+        run.render(before, vlm)
+        run.up(vlm)
         run.register_admin()
         run.seed_cameras()
         problems = run.check_isolation()
-        problems += run.smoke()
+        problems += run.smoke(vlm)
         if not problems:
             problems += run.golden()
         if problems:
@@ -1234,8 +1724,12 @@ def run_fake(args: argparse.Namespace) -> int:
     finally:
         if run.started:
             status = max(status, _finish(run, before))
+        if vlm is not None and vlm.started:
+            status = max(status, _finish_vlm(vlm))
         run.summary["exit"] = status
         run._write("summary.json", run.summary)
+        # Printed whole, for the operator to paste (operator.md, "Posting results").
+        print(json.dumps(run.summary, indent=2), flush=True)
         _log(f"summary: {run.artifacts / 'summary.json'} (exit {status})")
     return status
 
@@ -1258,6 +1752,21 @@ def _finish(run: Run, before: Snapshot) -> int:
         _log(f"FAIL {problem}")
     if changed:
         return EXIT_CHANGED
+    return EXIT_FAILED if left else EXIT_OK
+
+
+def _finish_vlm(vlm: AgentGpu) -> int:
+    """Remove the run's VLM after the test deployment is down, also after a
+    failure (operator.md step 6)."""
+    try:
+        left = vlm.teardown()
+    except Exception as error:  # noqa: BLE001 - say so, and leave the rm to the operator
+        problem = f"removing {vlm.name} did not complete ({type(error).__name__}: {error})"
+        _log(f"FAIL {problem}; agent-gpu rm {vlm.name}")
+        vlm.run.summary["results"]["agent_gpu"] = [problem]
+        return EXIT_FAILED
+    for problem in left:
+        _log(f"FAIL {problem}")
     return EXIT_FAILED if left else EXIT_OK
 
 
@@ -1298,14 +1807,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(drop(args.image, args.camera, Path(root)))
         return 0
     if args.real:
-        _log(
-            "--real is not built yet: it waits on the owner's answers to the real-tier "
-            "questions on PR #6961 (the detector, the smoke check, the host)"
-        )
-        return EXIT_UNAVAILABLE
+        unavailable = real_unavailable(os.environ)
+        if unavailable:
+            _log(unavailable)
+            return EXIT_UNAVAILABLE
+        return run_check(args, mode="real")
     if not args.fake:
         parser.error("choose --fake or --real")
-    return run_fake(args)
+    return run_check(args, mode="fake")
 
 
 if __name__ == "__main__":
