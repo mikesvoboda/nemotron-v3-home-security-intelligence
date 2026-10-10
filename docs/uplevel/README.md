@@ -250,7 +250,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O1.5    | ops                     | 1          | Delete the archives (UR-19)                    |               | done        | #6931 |
 | O1.6    | ops                     | 1          | Exposure and auth, compose part (D10)          | owner         | done        | #6925 |
 | O1.7    | ops                     | 1          | Audit measurement scripts                      |               | done        | #6934 |
-| O1.8    | ops                     | 1          | Dependabot alerts                              | owner         | not started |     |
+| O1.8    | ops                     | 1          | Dependabot alerts                              | owner         | done        | #6947 |
 | O1.9    | ops                     | 1          | Deploy green on `main`                         |               | done        | #6875 |
 | O1.10   | ops                     | 1          | The operator sandbox (UR-30)                   | owner         | done        | #6867 |
 | O1.11 | ops | 1 | Monitoring behind the gate (UR-33) | owner | awaiting real tier | #6930 |
@@ -259,7 +259,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | F2.1    | frontend                | 2          | Golden-path harness                            |               | not started |     |
 | F2.2    | frontend                | 2          | Feature inventory                              | heavy         | not started |     |
 | F2.3    | frontend                | 2          | Golden paths for every working feature         |               | not started |     |
-| O2.1    | ops                     | 2          | Fake AI stack                                  |               | not started |     |
+| O2.1    | ops                     | 2          | Fake AI stack                                  |               | done        | #6946 |
 | O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | not started |     |
 | O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | not started |     |
 | R2      | owner; frontend records | 2          | Phase 2 RULING session (after `F2.3`)          | owner         | not started |     |
