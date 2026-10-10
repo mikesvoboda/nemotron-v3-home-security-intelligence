@@ -1118,7 +1118,7 @@ pytest_skip_imperative:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/unit/core/test_monitoring_expose_lan_credentials.py:680
+  - id: backend/tests/unit/core/test_monitoring_expose_lan_credentials.py:787
     kind: environment
     owner: mikesvoboda
     tracking: null
@@ -1127,7 +1127,7 @@ pytest_skip_imperative:
     host_justification:
       docker is None where docker = shutil.which("docker") two lines above — host-executable guard,
       not repo content
-  - id: backend/tests/unit/core/test_monitoring_expose_lan_credentials.py:694
+  - id: backend/tests/unit/core/test_monitoring_expose_lan_credentials.py:801
     kind: environment
     owner: mikesvoboda
     tracking: null
