@@ -298,7 +298,7 @@ def analyze(
             live.add(view.rel)
             if first:
                 fresh.append((view.rel, view))
-            if whole:
+            if whole or ns is None:
                 work.extend(view.demands)
             else:
                 for n in ns:
@@ -337,8 +337,8 @@ def analyze(
     while changed:
         changed = False
         for rel in list(live):
-            view = views.get(rel)
-            if view is not None and run_dynamic(rel, view):
+            swept = views.get(rel)
+            if swept is not None and run_dynamic(rel, swept):
                 changed = True
 
     # keep list: ship by declaration; a pattern matching nothing is NOT a hit.
@@ -361,7 +361,7 @@ def analyze(
 
     not_shipping = sorted(
         ({"module": rel, "lines": v.lines} for rel, v in views.items() if rel not in live),
-        key=lambda r: r["module"],
+        key=lambda r: str(r["module"]),
     )
     return {
         "shipping": sorted(live),
