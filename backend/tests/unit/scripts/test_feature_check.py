@@ -1787,3 +1787,21 @@ def test_the_real_snapshot_is_taken_once_the_vlm_is_ready(
     monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
     assert fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"]) == 0
     assert order.index("vlm.wait_ready") < order.index("take_snapshot") < order.index("render")
+
+
+def test_a_signal_the_caller_ignores_stays_ignored(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Under nohup, SIGHUP is ignored on purpose: a closed terminal must not
+    end the run, so the harness keeps an ignore it inherits."""
+    previous = signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    try:
+        order: list[str] = []
+        _green_real_run(monkeypatch, order, log=agent_gpu.log, kill=signal.SIGHUP)
+        status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+        assert signal.getsignal(signal.SIGHUP) is signal.SIG_IGN
+    finally:
+        signal.signal(signal.SIGHUP, previous)
+    assert status == fc.EXIT_OK
+    assert "interrupted" not in _real_summary(tmp_path / "runs")
+    assert "golden" in order
