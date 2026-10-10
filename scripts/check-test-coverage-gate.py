@@ -433,12 +433,26 @@ def _kill_process_group(proc: subprocess.Popen) -> None:
     except (ProcessLookupError, PermissionError, OSError):
         return  # already gone; nothing to escalate
     try:
-        proc.wait(timeout=10)  # grace: pytest-cov may be mid-report-write
+        # Grace for the DIRECT child only (pytest-cov may be mid-write):
+        # this wait is NOT the escalation trigger - see the unconditional
+        # SIGKILL below.
+        proc.wait(timeout=10)
     except subprocess.TimeoutExpired:
-        try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except (ProcessLookupError, PermissionError, OSError):
-            pass
+        pass
+    # UNCONDITIONAL escalation, addressed by numeric pgid (== proc.pid via
+    # start_new_session, so still valid after the group leader is reaped;
+    # os.getpgid raises ProcessLookupError post-reap - measured twice, the
+    # reviewer and this lane). Gating SIGKILL on ANY observable that dies
+    # with the direct child is the refuted shape (self-review 2026-10-10,
+    # nit 1): uv's default TERM disposition makes proc.wait() return
+    # instantly, so a wait-gated (or drain-gated) kill never fires exactly
+    # for the likeliest hang class - a TERM-trapping pytest/xdist worker
+    # (mid-C-call workers trap it; and once its output is redirected to
+    # disk our drain returns CLEAN, so no timeout exists to key on).
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        pass  # the whole group was already gone - fine
 """Real drops are points-wide; the baseline itself is noise below that.
 
 WP2.3 set this to 2.0pp on the observed 68.70 -> 70.33 -> 70.32 lineage
@@ -567,19 +581,30 @@ def check_coverage_diff(
                 return False, f"Coverage collection failed to launch: {e}"
             try:
                 stdout, stderr = proc.communicate(timeout=_collect_timeout_limit())
-            except subprocess.TimeoutExpired:
+            except subprocess.TimeoutExpired as exc:
                 _kill_process_group(proc)
+                # Partial output the timed-out drain ALREADY read - the
+                # collector's last words before it wedged - kept as the
+                # fallback tail. (Nit 2, self-review 2026-10-10:
+                # TimeoutExpired.output carries BYTES even under text=True -
+                # measured - so decode here; raw concat would TypeError the
+                # f-string and the named failure would never post.)
+                def _decoded(e: subprocess.TimeoutExpired) -> str:
+                    raw = e.output if isinstance(e.output, (bytes, bytearray)) else b""
+                    return raw.decode("utf-8", "replace")
+
+                fallback = _decoded(exc)
                 try:
                     # reap + drain whatever the killed group leaves, bounded
                     # again so a half-dead pipe cannot re-hang us here. 10s,
-                    # not a repeat of the full limit: after a GROUP kill every
-                    # writer is dead and the pipes close in milliseconds — a
-                    # drain still open at 10s means the kill did not take
-                    # (a direct-kill-only wrapper leaks the grandchild, which
-                    # holds them until ITS lifetime ends; measured).
+                    # not a repeat of the full limit: after the now-
+                    # unconditional group SIGKILL every writer is dead and
+                    # the pipes close in milliseconds — a drain still open
+                    # at 10s means the kill did not take (measured shapes +
+                    # the vacuous-pass analysis live in the test file).
                     stdout, stderr = proc.communicate(timeout=10)
-                except subprocess.TimeoutExpired:
-                    stdout, stderr = "", ""
+                except subprocess.TimeoutExpired as exc2:
+                    stdout, stderr = _decoded(exc2), fallback
                 return False, (
                     f"Coverage collection timed out: the inline "
                     f"`pytest backend/tests/unit/ --cov` collection step "

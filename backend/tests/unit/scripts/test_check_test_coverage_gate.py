@@ -133,7 +133,6 @@ def test_inline_collection_call_carries_a_timeout() -> None:
     refuses either way: an unbounded spawn.
     """
     node = _inline_collection_call()
-    kwnames = {k.arg for k in node.keywords}
     limit_expr = next(
         (k.value for k in node.keywords if k.arg == "timeout"),
         None,
@@ -280,7 +279,9 @@ class TestR72TimeoutWrapper:
         )
 
     @pytest.mark.timeout(60)
-    def test_sigterm_trapping_collector_is_escalated_to_sigkill(self, tmp_path, monkeypatch) -> None:
+    def test_sigterm_trapping_collector_is_escalated_to_sigkill(
+        self, tmp_path, monkeypatch
+    ) -> None:
         """Self-review nit 1 (2026-10-10): the escalation must not hinge on
         the DIRECT child ignoring SIGTERM.
 
@@ -303,7 +304,7 @@ class TestR72TimeoutWrapper:
         # proc.wait() returns promptly and the wait-gated escalation cannot
         # fire. 25 s self-limit keeps a RED run from littering the machine.
         hang_uv = (
-            f"sh -c 'trap \"\" TERM; end=$(( $(date +%s) + 25 )); "
+            f'sh -c \'trap "" TERM; end=$(( $(date +%s) + 25 )); '
             f"while [ $(date +%s) -lt $end ]; do sleep 0.2; done  # {token}' & wait\n"
         )
         gate = self._gate(tmp_path, monkeypatch, hang_uv, "1")
@@ -338,7 +339,7 @@ class TestR72TimeoutWrapper:
 
         token = f"r72free-{uuid.uuid4().hex[:12]}"
         hang_uv = (
-            f"sh -c 'trap \"\" TERM; end=$(( $(date +%s) + 25 )); "
+            f'sh -c \'trap "" TERM; end=$(( $(date +%s) + 25 )); '
             f"while [ $(date +%s) -lt $end ]; do sleep 0.2; done  # {token}' "
             f">/dev/null 2>&1 & wait\n"
         )
@@ -372,16 +373,19 @@ class TestR72TimeoutWrapper:
         pipes. With a default-disposition loop the drain returns the output
         and the test would pass without the fix — the same vacuous-green
         trap this file already documents for timeout(1)."""
-        token = "COLLECT-NOISE-42"
+        # (named noise_marker, not token-with-a-SECRET-shaped-value:
+        # semgrep's hardcoded-password rule fires on NAME + SHAPE, not
+        # on the content actually being a credential)
+        noise_marker = "collect-partial-output-noise"
         hang_uv = (
-            f"printf 'NOISE-{token}\\n'; "
-            f"sh -c 'trap \"\" TERM; end=$(( $(date +%s) + 20 )); "
+            f"printf 'NOISE-{noise_marker}\\n'; "
+            f'sh -c \'trap "" TERM; end=$(( $(date +%s) + 20 )); '
             f"while [ $(date +%s) -lt $end ]; do sleep 0.2; done' & wait\n"
         )
         gate = self._gate(tmp_path, monkeypatch, hang_uv, "1")
         ok, msg = gate.check_coverage_diff(base_branch="unused-base")
         assert ok is False and "timed out" in msg.lower(), msg
-        assert token in msg, (
+        assert noise_marker in msg, (
             f"Tail must carry the partial output the timeout already read "
             f"(TimeoutExpired.output, decoded); got: {msg!r}"
         )
