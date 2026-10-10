@@ -576,7 +576,8 @@ root, since `agent-gpu build` reads `workspace:ai/vlm`. The images at
 `--image-tag` are the ones `deploy.yml` publishes for a `main` commit, or ones
 built locally under the same names.
 
-Before the test deployment starts, `--real`:
+Before the test deployment starts, `--real` checks that the VLM's name fits
+the runner's name policy (at most 32 characters; exit 2 if not), then:
 
 1. Checks `$AGENT_GPU_LIBRARY/qwen3vl-8b-instruct-q4km/*.gguf` against the
    production pin's sha256. Unless the files are exactly the pin, it refuses
@@ -587,14 +588,16 @@ Before the test deployment starts, `--real`:
    changes under `ai/vlm/` refuse the run (exit 2), since the tag would not
    name them.
 4. Serves the pin with `agent-gpu run --vram 14 --port 8098`, named
-   `hsi-vlm-<run id>` (the runner admits names of at most 32 characters, so
+   `hsi-vlm-<run-id>` (the runner admits names of at most 32 characters, so
    not `<project>-vlm`), with each other `ai-vlm` variable of
    `docker-compose.prod.yml` at its default.
 5. Reads the VLM's URL from the line `run` prints
    (`port 8098 -> http://host.docker.internal:<port>`). Any other address, or
    a port outside the runner's pool (18100-18199), fails the run (exit 1).
-6. Waits for `/health`, records `/props`' `build_info` and `model_path`, and
-   fails the run (exit 1) unless `model_path` is the pin.
+6. Waits for `/health` and records `/props`' `build_info` and `model_path`. It
+   fails the run (exit 1) if `model_path` is not the pin, or if `agent-gpu ps`
+   does not list the VLM by its name, on which the teardown's proof that it is
+   gone rests.
 
 From step 4 on, a failure also removes the VLM.
 
