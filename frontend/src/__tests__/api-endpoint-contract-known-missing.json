@@ -20,42 +20,42 @@
   "entries": [
     {
       "path": "/api/jobs/{id}/retry",
-      "calledFrom": "src/services/api.ts:4141",
+      "calledFrom": "src/services/api.ts:4134",
       "cited": "00-audit.md §3 D2",
       "backend": "jobs router serves /api/jobs/{job_id}/abort; there is no retry route",
       "next": "docs/reference/feature-inventory.md F-095: job retry"
     },
     {
       "path": "/api/events/{id}/entity-matches",
-      "calledFrom": "src/services/api.ts:5895",
+      "calledFrom": "src/services/api.ts:5888",
       "cited": "00-audit.md §3 D2",
       "backend": "no entity-matches route under /api/events",
       "next": "docs/reference/feature-inventory.md F-066: event entity matches"
     },
     {
       "path": "/api/debug/profile/download",
-      "calledFrom": "src/services/api.ts:7669",
+      "calledFrom": "src/services/api.ts:7662",
       "cited": "00-audit.md §3 D2",
       "backend": "debug router serves /api/debug/profile/start|stop|stats only",
       "next": "docs/reference/feature-inventory.md F-153: profiler controls"
     },
     {
       "path": "/api/debug/profile",
-      "calledFrom": "src/services/api.ts:7605",
+      "calledFrom": "src/services/api.ts:7598",
       "cited": "found by F1.1's scan; D2 listed only the /download sibling",
       "backend": "debug router serves /api/debug/profile/stats, not the bare path",
       "next": "docs/reference/feature-inventory.md F-151: profiler controls"
     },
     {
       "path": "/api/household/members/{id}/detections",
-      "calledFrom": "src/hooks/useHouseholdApi.ts:723",
+      "calledFrom": "src/hooks/useHouseholdApi.ts:718",
       "cited": "00-audit.md §3 D2",
       "backend": "household member router serves /embeddings, /link-person; no detections",
       "next": "docs/reference/feature-inventory.md F-273: household member detections"
     },
     {
       "path": "/api/household/members/{id}/detections/{detectionId}",
-      "calledFrom": "src/hooks/useHouseholdApi.ts:653",
+      "calledFrom": "src/hooks/useHouseholdApi.ts:648",
       "cited": "found by F1.1's scan; same call family as the D2 entry above",
       "backend": "no detections routes under /api/household/members",
       "next": "docs/reference/feature-inventory.md F-273: household member detections"
@@ -76,35 +76,35 @@
     },
     {
       "path": "/api/system/detectors/active",
-      "calledFrom": "src/services/detectorApi.ts:163",
+      "calledFrom": "src/services/detectorApi.ts:158",
       "cited": "found by F1.1's scan; not in D2's list",
-      "backend": "detector.router is mounted with no prefix (backend/main.py:1601), so the route is /system/detectors/active — the client's /api prefix is not served",
+      "backend": "detector.router is mounted with no prefix (backend/main.py:1618), so the route is /system/detectors/active — the client's /api prefix is not served",
       "next": "owner: mount detector.router under /api or drop the prefix client-side (docs/reference/feature-inventory.md F-244: detector switching)"
     },
     {
       "path": "/api/system/detectors/{detector_type}",
-      "calledFrom": "src/services/detectorApi.ts:196",
+      "calledFrom": "src/services/detectorApi.ts:191",
       "cited": "found by F1.1's scan; not in D2's list",
       "backend": "same missing /api mount as /api/system/detectors/active",
       "next": "owner: same ruling as /api/system/detectors/active (docs/reference/feature-inventory.md F-244: detector switching)"
     },
     {
       "path": "/api/system/detectors/{detector_type}/health",
-      "calledFrom": "src/services/detectorApi.ts:214",
+      "calledFrom": "src/services/detectorApi.ts:209",
       "cited": "found by F1.1's scan; not in D2's list",
       "backend": "same missing /api mount as /api/system/detectors/active",
       "next": "owner: same ruling as /api/system/detectors/active (docs/reference/feature-inventory.md F-244: detector switching)"
     },
     {
       "path": "/api/plate-reads/stats",
-      "calledFrom": "src/services/plateReadsApi.ts:151",
+      "calledFrom": "src/services/plateReadsApi.ts:146",
       "cited": "found by F1.1's scan; not in D2's list",
       "backend": "plate_reads.py:89 serves /api/plate-reads/statistics",
       "next": "one-word client fix; docs/reference/feature-inventory.md F-269 decides whether F1.1's successor applies it"
     },
     {
       "path": "/api/scheduled-reports/{id}/trigger",
-      "calledFrom": "src/services/scheduledReportsApi.ts:262",
+      "calledFrom": "src/services/scheduledReportsApi.ts:258",
       "cited": "found by F1.1's scan; not in D2's list",
       "backend": "scheduled_reports.py:378 serves /{report_id}/run (summary: \"Manually trigger a report\")",
       "next": "one-word client fix; docs/reference/feature-inventory.md F-255 decides whether F1.1's successor applies it"
@@ -112,15 +112,15 @@
     {
       "method": "GET",
       "path": "/api/prompts/history/{model}",
-      "calledFrom": "src/services/api.ts:5633 (fetchModelHistory)",
+      "calledFrom": "src/services/api.ts:5626 (fetchModelHistory)",
       "cited": "found by F1.1's scan once it read verbs as well as paths; not in D2's list",
-      "backend": "prompt_management.py (prefix /api/prompts, :44) declares GET /history (model is an optional Query param, :115), POST /history/{version_id}, and GET+PUT /{model}; there is no GET on a two-segment /history/… path, so the request lands on the POST route's path. Observed against a running backend: this request answers 405, the declared /api/prompts/history answers 200, and an unknown two-segment path answers 404 — so the 405 is the verb, not a missing route.",
-      "next": "owner: prompt lane. Three sibling calls already use the served form: fetchAllPromptsHistory (src/services/api.ts:5613) and fetchPromptHistory (src/services/promptManagementApi.ts:222, composed onto /api/prompts at :107) both hit the declared GET /api/prompts/history with model as a query param, and restorePromptVersion (src/services/api.ts:5650) POSTs the declared /history/{version}. Only fetchModelHistory invents a path segment, and it has no caller outside a coverage test (src/services/api.missing-coverage.test.ts:188). Fix the read to the ?model= form or retire the wrapper. Its caller `fetchModelHistory` is dead code: docs/reference/feature-inventory.md, §5 Client requests no feature reaches."
+      "backend": "prompt_management.py (prefix /api/prompts, :44) declares GET /history (model is an optional Query param, :114), POST /history/{version_id}, and GET+PUT /{model}; there is no GET on a two-segment /history/… path, so the request lands on the POST route's path. Observed against a running backend: this request answers 405, the declared /api/prompts/history answers 200, and an unknown two-segment path answers 404 — so the 405 is the verb, not a missing route.",
+      "next": "owner: prompt lane. Three sibling calls already use the served form: fetchAllPromptsHistory (src/services/api.ts:5600) and fetchPromptHistory (src/services/promptManagementApi.ts:199, composed onto /api/prompts at :102) both hit the declared GET /api/prompts/history with model as a query param, and restorePromptVersion (src/services/api.ts:5637) POSTs the declared /history/{version}. Only fetchModelHistory invents a path segment, and it has no caller outside a coverage test (src/services/api.missing-coverage.test.ts:188). Fix the read to the ?model= form or retire the wrapper. Its caller `fetchModelHistory` is dead code: docs/reference/feature-inventory.md, §5 Client requests no feature reaches."
     },
     {
       "method": "DELETE",
       "path": "/api/debug/recordings",
-      "calledFrom": "src/services/api.ts:7420 (clearAllRecordings)",
+      "calledFrom": "src/services/api.ts:7413 (clearAllRecordings)",
       "cited": "found by F1.1's scan once it read verbs as well as paths; not in D2's list",
       "backend": "debug.py:1405 serves GET /api/debug/recordings; the only DELETE is debug.py:1651 /api/debug/recordings/{recording_id}, which removes one recording. There is no bulk-delete route. Observed against a running backend: this request answers 405 where the declared GET answers 200.",
       "next": "owner: debug/recordings lane. Either add the bulk DELETE or make clearAllRecordings delete per recording (it returns deleted_count, which suggests the bulk route was intended). docs/reference/feature-inventory.md F-157: recording cleanup."
