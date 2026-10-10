@@ -487,8 +487,9 @@ a live stack.
     container's network or processes;
   - a network is not the run's own bridge (external, foreign-named, or
     another driver), or a named volume carries `driver_opts`;
-  - a service is configured with a host address (on `--real`, on any port
-    but the one `agent-gpu run` printed);
+  - a service names a host address in its environment, command, entrypoint
+    or healthcheck (on `--real`, on any port but the one `agent-gpu run`
+    printed), or maps a name to the host in `extra_hosts`;
   - a service carries a fixed `container_name`;
   - the backend's orchestrator is not off;
   - the project, a container name, a host port or a volume overlaps what the
@@ -498,7 +499,10 @@ a live stack.
     of the whole filesystem (node-exporter's `/:/host:ro`) only reads.
 - **The in-run check** fails the run when a container holds an engine socket,
   or when the backend reports its orchestrator on.
-- **Teardown** is `docker compose -p <project> down -v` and nothing else.
+- **Teardown** is `docker compose -p <project> down -v` and nothing else. It
+  runs after a failure too, and after SIGTERM, SIGHUP or Ctrl-C, which end the
+  run as a failure (exit 1). A second signal is ignored until teardown ends;
+  SIGKILL is not.
 - **The postflight** asserts that every container and volume from the
   snapshot still exists, and that every container that was running still is,
   with the same start time.
@@ -579,18 +583,23 @@ Before the test deployment starts, `--real`:
 2. Records `agent-gpu status`.
 3. Builds the VLM image as `ai-vlm:<tree hash of ai/vlm>`, once per state of
    `ai/vlm/`, after pulling each `FROM` image of its Dockerfile. Uncommitted
-   changes under `ai/vlm/` refuse the run, since the tag would not name them.
+   changes under `ai/vlm/` refuse the run (exit 2), since the tag would not
+   name them.
 4. Serves the pin with `agent-gpu run --vram 14 --port 8098`, named
    `<project>-vlm`, with each other `ai-vlm` variable of
    `docker-compose.prod.yml` at its default.
 5. Reads the VLM's URL from the line `run` prints
    (`port 8098 -> http://host.docker.internal:<port>`). Any other address, or
-   a port outside the runner's pool (18100-18199), refuses the run.
+   a port outside the runner's pool (18100-18199), fails the run (exit 1).
 6. Waits for `/health`, records `/props`' `build_info` and `model_path`, and
-   stops unless `model_path` is the pin.
+   fails the run (exit 1) unless `model_path` is the pin.
+
+From step 4 on, a failure also removes the VLM.
 
 The run then goes as on `--fake`, with these differences:
 
+- The machine snapshot is taken again once the VLM is ready, since the first
+  run builds the image for hours.
 - The backend's `AI_VLM_URL` is that URL. The preflight allows a host address
   on that one port and no other.
 - After `up`, the run checks that the backend reaches the VLM.
@@ -606,7 +615,8 @@ summary carries what the operator posts:
 - the date and the commit;
 - the image tags, with `build_info` and `model_path`;
 - the weights' sha256;
-- the VRAM declared, with `agent-gpu ps` while serving and at the end;
+- the VRAM declared, with `agent-gpu ps` and `agent-gpu status` while serving
+  and at the end;
 - each check's result and the exit code.
 
 ## Pytest Configuration
