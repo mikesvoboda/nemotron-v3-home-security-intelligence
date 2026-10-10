@@ -250,7 +250,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O1.8    | ops                     | 1          | Dependabot alerts                              | owner         | not started |     |
 | O1.9    | ops                     | 1          | Deploy green on `main`                         |               | done        | #6875 |
 | O1.10   | ops                     | 1          | The operator sandbox (UR-30)                   | owner         | done        | #6867 |
-| O1.11 | ops | 1 | Monitoring behind the gate (UR-33) | owner | not started | |
+| O1.11 | ops | 1 | Monitoring behind the gate (UR-33) | owner | awaiting real tier | #6930 |
 | O1.12 | ops | 1 | The hooks run in the gate (UR-37) | | done | #6901 |
 | B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | done     | #6921 |
 | F2.1    | frontend                | 2          | Golden-path harness                            |               | not started |     |

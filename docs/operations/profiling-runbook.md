@@ -803,7 +803,9 @@ the datasource by uid, so renaming it breaks them.
 `editable: false` means UI edits are refused — change the file, not the datasource.
 Grafana serves from `/grafana/`, so its API lives at
 `http://localhost:3002/grafana/api/...`; anonymous access is on by default
-(`GF_AUTH_ANONYMOUS_ENABLED=true`), and the admin pair is
+(`GF_AUTH_ANONYMOUS_ENABLED=true`; `setup.py` derives it off — via the newer
+`GRAFANA_ANONYMOUS_ENABLED` — when `EXPOSE_LAN=true`, in which case these API
+calls need the machine key or a login session), and the admin pair is
 `GF_ADMIN_USER`/`GF_ADMIN_PASSWORD` (both default `admin`). The provisioning
 directory is bind-mounted read-only
 (`docker-compose.prod.yml:1074`).

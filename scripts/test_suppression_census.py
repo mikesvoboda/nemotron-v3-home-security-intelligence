@@ -555,6 +555,14 @@ def test_real_tree_matches_spec_baselines():
     the #46 row above: every CI checkout HAS docs/ and RUNS the test; only the mutant
     home skips. Classified todo by the generator; registry row + baseline raised the
     same commit (the same recipe as #6864, whose guard this learned the gate from).
+    pytest_skip_imperative 87→89 (2026-10-10, O1.11/UR-33 PR #6930): the prometheus boot
+    pin's two docker-availability arms in test_monitoring_expose_lan_credentials.py:680
+    and :694 — skip when docker resolves to nothing (the shutil.which sits two lines
+    above the guard, invisible to the site-line probe) or the image is absent from the
+    host daemon's store. Adjudicated environment via HOST_JUSTIFIED + regenerated
+    registry row + baseline raised (4ae36510f, re-minted c185366f7) — the increase path,
+    fourth precedent. The PR's own verification missed it the same way d8482861 did: it
+    ran the census/ratchet/mint trio, not the repo-root scripts/ mirror test.
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -566,7 +574,7 @@ def test_real_tree_matches_spec_baselines():
         "pytest_skip": 32,
         "pytest_skipif": 59,
         "pytest_xfail": 4,
-        "pytest_skip_imperative": 87,
+        "pytest_skip_imperative": 89,
         "frontend_skip": 54,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
