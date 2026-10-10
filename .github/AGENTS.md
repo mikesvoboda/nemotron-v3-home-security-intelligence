@@ -13,21 +13,18 @@ This directory contains GitHub-specific configuration files for the Home Securit
   copilot-instructions.md     # GitHub Copilot context
   dependabot.yml              # Automated dependency updates
   pull_request_template.md    # PR template with checklist
-  release-drafter.yml         # Release notes configuration
   codeql/                     # CodeQL configuration
     AGENTS.md                 # CodeQL directory guide
     codeql-config.yml         # Query configuration and path exclusions
   prompts/                    # AI prompt templates
     AGENTS.md                 # Prompts directory guide
     code-review.prompt.md     # System prompt for AI code review
-  workflows/                  # GitHub Actions workflow definitions (38 workflows)
+  workflows/                  # GitHub Actions workflow definitions (34 workflows)
     AGENTS.md                 # Workflows directory guide
     # Core CI/CD
     ci.yml                    # Main CI pipeline
     deploy.yml                # Docker image build and push
-    release.yml               # Release workflow
-    semantic-release.yml      # Semantic versioning releases
-    release-drafter.yml       # Draft release notes (workflow trigger)
+    release.yml               # The one release mechanism (OB.2)
     # API
     api-contract.yml          # API contract testing
     # Testing
@@ -241,9 +238,7 @@ those floors, so review such hunks by hand.
 | docs.yml              | Push/PR       | Generate and deploy documentation       |
 | load-tests.yml        | Weekly/Manual | Load and stress testing                 |
 | mutation-testing.yml  | Weekly/Manual | Mutation testing to verify test quality |
-| release.yml           | Tag push      | Create releases with artifacts          |
-| semantic-release.yml  | Push to main  | Semantic versioning and changelog       |
-| release-drafter.yml   | PR merged     | Draft release notes from PR labels      |
+| release.yml           | Push to main  | The one release mechanism (OB.2)          |
 
 ### Frontend Quality Workflows
 

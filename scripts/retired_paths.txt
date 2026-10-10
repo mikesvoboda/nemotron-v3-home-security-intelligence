@@ -55,3 +55,17 @@ docs/archive/
 # vars.LINEAR_ENABLED, which the repo never sets. Verdict map: OB.2 PR body.
 .github/workflows/weekly-audit.yml
 .github/workflows/vulnerability-management.yml
+
+# OB.2 (CI dedupe): the two losing release mechanisms. The tag-push
+# generator never ran (zero runs ever across v0.1.0..v0.41.3 — its
+# changelog template appears in 0 published bodies; the engine's appears in
+# 4/4 sampled), and the PR-label draft bot categorized on labels the
+# labeler never applies (0 of 100 recent PRs carry one), maintaining a
+# floating draft no publisher consumed. The surviving engine — conventional-
+# commit analysis, tag at the analyzed SHA, publish in one job — was folded
+# into the canonical release path (.github/workflows/release.yml) verbatim;
+# its name is not retired, only the two competitors'. The bot's config
+# retired with it. Evidence: OB.2 PR body.
+.github/workflows/semantic-release.yml
+.github/workflows/release-drafter.yml
+.github/release-drafter.yml

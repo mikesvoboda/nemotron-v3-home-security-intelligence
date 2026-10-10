@@ -12,9 +12,7 @@ workflows/
   # Core CI/CD
   ci.yml                      # Main CI pipeline
   deploy.yml                  # Docker image build and push to GHCR
-  release.yml                 # Release workflow
-  semantic-release.yml        # Semantic versioning releases
-  release-drafter.yml         # Draft release notes
+  release.yml                 # The one release mechanism (OB.2)
   # API
   api-compatibility.yml       # API backward compatibility checks
   api-contract.yml            # API contract testing
