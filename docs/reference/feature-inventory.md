@@ -674,6 +674,7 @@ the walker, its configs, or a row's `modules` column:
 candidates; the table below is the measured list.
 
 <!-- r2-python-dead-list:start -->
+
 Measured at tool-inputs `d1dbe9d14c` by `scripts/r2-python-dead-list.py` — the non-shipping output of `scripts/reachability.py` after the O2.3b ancestor fix (ruling 73: the 19 parent `__init__.py` files a module's import runs are NOT here), minus every module a row claims, which are named below.
 
 **157 non-shipping Python modules (60798 lines).** Deleted as a whole by the `R2` ruling (exceptions named); `B3.2` executes.
@@ -850,6 +851,7 @@ Measured at tool-inputs `d1dbe9d14c` by `scripts/r2-python-dead-list.py` — the
 | `backend/services/mqtt_command_handler.py` | 531 | F-291 |
 | `backend/services/scene_change_detector.py` | 325 | F-208/F-287 |
 | `backend/services/unified_embedding_service.py` | 575 | F-272 |
+
 <!-- r2-python-dead-list:end -->
 
 ## 5. Client requests no feature reaches
