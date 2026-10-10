@@ -48,16 +48,22 @@ from backend.core.logging import get_logger
 from backend.models.api_key import APIKey
 from backend.models.user import User
 from backend.services.auth_service import AuthService
-from backend.services.session_service import SessionExpiredError, SessionService
+from backend.services.session_service import (
+    SESSION_COOKIE_NAME,
+    SessionExpiredError,
+    SessionService,
+)
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# Session cookie configuration
-SESSION_COOKIE_NAME = "session_id"
+# Session cookie configuration. The NAME comes from session_service (R55: one
+# constant every consumer imports — the sockets used to read a different name).
+# The Secure flag is NOT a module constant (ruling 55): a hardcoded True dropped
+# the cookie on plain-http origins and looped login, so it is read from
+# settings.session_cookie_secure per response (default True).
 SESSION_COOKIE_MAX_AGE = 24 * 60 * 60  # 24 hours in seconds
-SESSION_COOKIE_SECURE = True  # Set to False in development if not using HTTPS
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
 
@@ -329,14 +335,14 @@ async def login(
             ttl=timedelta(hours=24),
         )
 
-        # Set session cookie
+        # Set session cookie (Secure follows settings.session_cookie_secure, R55)
         response.set_cookie(
             key=SESSION_COOKIE_NAME,
             value=session_id,
             max_age=SESSION_COOKIE_MAX_AGE,
             httponly=SESSION_COOKIE_HTTPONLY,
             samesite=SESSION_COOKIE_SAMESITE,
-            secure=SESSION_COOKIE_SECURE,
+            secure=get_settings().session_cookie_secure,
         )
 
     logger.info(
@@ -392,12 +398,12 @@ async def logout(
             session_service = SessionService(redis_client)
             await session_service.delete_session(session_id)
 
-    # Clear session cookie
+    # Clear session cookie (Secure follows settings, R55 — same source as login)
     response.delete_cookie(
         key=SESSION_COOKIE_NAME,
         httponly=SESSION_COOKIE_HTTPONLY,
         samesite=SESSION_COOKIE_SAMESITE,
-        secure=SESSION_COOKIE_SECURE,
+        secure=get_settings().session_cookie_secure,
     )
 
     logger.info("User logged out", extra={"had_session": session_id is not None})
