@@ -120,6 +120,10 @@ VLM_TTL = 12
 # The runner publishes a container port on the host from this pool and prints
 # `port <container port> -> http://host.docker.internal:<host port>`.
 AGENT_GPU_PORTS = range(18100, 18200)
+# Its container-name policy, from the broker's own refusal on the first
+# --real run (#6961): at most 32 characters.
+AGENT_GPU_NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
+VLM_NAME_PREFIX = "hsi-vlm-"
 # The verdicts a model gives: the event verification schema's enum
 # (backend/api/schemas/event_verification.py) less verification_failed.
 MODEL_VERDICTS = frozenset({"confirmed", "rejected", "uncertain"})
@@ -1475,7 +1479,10 @@ class AgentGpu:
 
     def __init__(self, run: Run) -> None:
         self.run = run
-        self.name = f"{run.project}-vlm"
+        # The run's id under a prefix of its own: the project alone is 31
+        # characters, so `<project>-vlm` broke the runner's name policy.
+        self.name = VLM_NAME_PREFIX + run.project.removeprefix(PROJECT_PREFIX)
+        run.summary["vlm_name"] = self.name
         self.started = False
         self.url: str | None = None
         self.host_port: int | None = None
@@ -1541,6 +1548,13 @@ class AgentGpu:
 
     def prepare(self) -> None:
         """Steps 1-2: the weights against the pin, the budget, the image."""
+        if not AGENT_GPU_NAME.fullmatch(self.name):
+            raise Refused(
+                [
+                    f"the VLM's name {self.name} breaks agent-gpu's name policy "
+                    f"({AGENT_GPU_NAME.pattern})"
+                ]
+            )
         library = Path(os.environ["AGENT_GPU_LIBRARY"]) / VLM_LIBRARY_DIR
         _log(f"weights: sha256 of {library}/*.gguf")
         found = weight_digests(library)

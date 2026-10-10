@@ -1239,6 +1239,7 @@ def test_the_vlm_is_built_and_served_as_operator_md_says(
     [
         ("IMAGE TAG\nai-vlm abc1234", True),
         ("localhost/agent-uplevel-operator/ai-vlm:abc1234 5.1GB", True),
+        ('{"images": ["localhost/agent-uplevel-operator/ai-vlm:abc1234"]}', True),
         ("ai-vlm:abc1234f 5.1GB", False),
         ("ai-vlm-old:abc1234 5.1GB", False),
         ("my-ai-vlm abc1234", False),
