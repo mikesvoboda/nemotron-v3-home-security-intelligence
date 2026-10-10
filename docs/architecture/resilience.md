@@ -490,7 +490,7 @@ All endpoints are on the `/api/dlq` router (`backend/api/routes/dlq.py:38`):
 
 ### DLQ Overflow Protection
 
-The `RetryHandler` wraps its own DLQ writes in a dedicated `dlq_overflow` circuit breaker so a Redis outage cannot turn DLQ writes into an unbounded retry loop (`backend/services/retry_handler.py:236-246`). Its settings come from `backend/core/config.py:2124-2146`: failure threshold 5, recovery timeout 60.0s, half-open max calls 3, success threshold 2. While the breaker is open, DLQ writes are rejected (`is_dlq_circuit_open()`); after manually draining a DLQ, `reset_dlq_circuit_breaker()` closes it again.
+The `RetryHandler` wraps its own DLQ writes in a dedicated `dlq_overflow` circuit breaker so a Redis outage cannot turn DLQ writes into an unbounded retry loop (`backend/services/retry_handler.py:236-246`). Its settings come from `backend/core/config.py:1913-1935`: failure threshold 5, recovery timeout 60.0s, half-open max calls 3, success threshold 2. While the breaker is open, DLQ writes are rejected (`is_dlq_circuit_open()`); after manually draining a DLQ, `reset_dlq_circuit_breaker()` closes it again.
 
 ---
 
@@ -550,7 +550,7 @@ flowchart TB
 
 </details>
 
-The monitored set is exactly `yolo26` (`build_ai_service_health_configs`, `backend/main.py:672-730`): health is checked at the ai-gateway's aggregated `/health` endpoint when `USE_AI_GATEWAY` is on, restarts run `docker restart ai-gateway` in containerized deployments or `ai/start_detector.sh` locally, and `AI_RESTART_ENABLED=false` (`backend/core/config.py:2640`) keeps monitoring while disabling restarts. Redis is deliberately not in the monitored list - the application already handles Redis failures gracefully. ai-vlm is deliberately not a probe target either: probing would wake a sleeping llama.cpp, so its health arrives by breaker-push from `VlmClient` to the DegradationManager instead (`backend/main.py:1135-1151`).
+The monitored set is exactly `yolo26` (`build_ai_service_health_configs`, `backend/main.py:672-730`): health is checked at the ai-gateway's aggregated `/health` endpoint when `USE_AI_GATEWAY` is on, restarts run `docker restart ai-gateway` in containerized deployments or `ai/start_detector.sh` locally, and `AI_RESTART_ENABLED=false` (`backend/core/config.py:2369`) keeps monitoring while disabling restarts. Redis is deliberately not in the monitored list - the application already handles Redis failures gracefully. ai-vlm is deliberately not a probe target either: probing would wake a sleeping llama.cpp, so its health arrives by breaker-push from `VlmClient` to the DegradationManager instead (`backend/main.py:1135-1151`).
 
 ### Health Monitor Implementation
 
@@ -750,13 +750,13 @@ The shipped resilience parameters are code defaults and class constants, not ded
 
 | Setting                                   | Default | Where                                                        |
 | ----------------------------------------- | ------- | ------------------------------------------------------------ |
-| `AI_RESTART_ENABLED`                      | true    | Detector auto-restart switch (`backend/core/config.py:2640`) |
-| `DLQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD`   | 5       | DLQ overflow breaker (`backend/core/config.py:2124`)         |
-| `DLQ_CIRCUIT_BREAKER_RECOVERY_TIMEOUT`    | 60.0    | DLQ overflow breaker (`backend/core/config.py:2129`)         |
-| `DLQ_CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS` | 3       | DLQ overflow breaker (`backend/core/config.py:2134`)         |
-| `DLQ_CIRCUIT_BREAKER_SUCCESS_THRESHOLD`   | 2       | DLQ overflow breaker (`backend/core/config.py:2139`)         |
+| `AI_RESTART_ENABLED`                      | true    | Detector auto-restart switch (`backend/core/config.py:2369`) |
+| `DLQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD`   | 5       | DLQ overflow breaker (`backend/core/config.py:1913`)         |
+| `DLQ_CIRCUIT_BREAKER_RECOVERY_TIMEOUT`    | 60.0    | DLQ overflow breaker (`backend/core/config.py:1918`)         |
+| `DLQ_CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS` | 3       | DLQ overflow breaker (`backend/core/config.py:1923`)         |
+| `DLQ_CIRCUIT_BREAKER_SUCCESS_THRESHOLD`   | 2       | DLQ overflow breaker (`backend/core/config.py:1928`)         |
 
-Field names on `Settings` map to env vars by name (case-insensitive, no prefix), so `DLQ_CIRCUIT_BREAKER_*` are settable; `ORCHESTRATOR_HEALTH_CHECK_INTERVAL` (30s, `backend/core/config.py:157`) belongs to the container orchestrator's own health loop, not `ServiceHealthMonitor`.
+Field names on `Settings` map to env vars by name (case-insensitive, no prefix), so `DLQ_CIRCUIT_BREAKER_*` are settable; `ORCHESTRATOR_HEALTH_CHECK_INTERVAL` (30s, `backend/core/config.py:141`) belongs to the container orchestrator's own health loop, not `ServiceHealthMonitor`.
 
 Code-level defaults worth knowing:
 

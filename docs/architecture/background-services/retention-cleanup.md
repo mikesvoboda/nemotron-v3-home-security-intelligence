@@ -22,7 +22,7 @@ The cleanup service handles:
 | `RETENTION_DAYS`     | 30      | Number of days to retain data |
 | `LOG_RETENTION_DAYS` | 7       | Number of days to retain logs |
 
-Configuration is loaded via `backend/core/config.py:623-635`:
+Configuration is loaded via `backend/core/config.py:582-594`:
 
 ```python
 retention_days: int = Field(

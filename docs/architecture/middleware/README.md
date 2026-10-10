@@ -16,7 +16,7 @@ The middleware architecture follows defense-in-depth principles, with multiple l
 | ------------------------------------------------ | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | [request-logging.md](./request-logging.md)       | Structured request/response logging for observability | `backend/api/middleware/observability.py`, `backend/api/middleware/request_id.py`               |
 | [error-handling.md](./error-handling.md)         | Global exception handlers and error response formats  | `backend/api/exception_handlers.py`, `backend/api/middleware/error_handler.py`                  |
-| [cors-configuration.md](./cors-configuration.md) | CORS settings for frontend integration                | `backend/main.py:1414-1419`, `backend/core/config.py:919-931`                                   |
+| [cors-configuration.md](./cors-configuration.md) | CORS settings for frontend integration                | `backend/main.py:1414-1419`, `backend/core/config.py:865-877`                                   |
 | [request-validation.md](./request-validation.md) | Pydantic validation, path parameter parsing           | `backend/api/middleware/content_type_validator.py`, `backend/api/exception_handlers.py:305-374` |
 | [rate-limiting.md](./rate-limiting.md)           | Rate limit configuration and tiers                    | `backend/api/middleware/rate_limit.py`                                                          |
 
@@ -119,16 +119,16 @@ Several middleware components use Python context variables to share state across
 
 ## Configuration
 
-| Setting                          | Location                         | Default             | Description                              |
-| -------------------------------- | -------------------------------- | ------------------- | ---------------------------------------- |
-| `api_key_enabled`                | `backend/core/config.py:1907`    | `false`             | Enable API key authentication            |
-| `cors_origins`                   | `backend/core/config.py:919-931` | HTTPS :8444 origins | Allowed CORS origins                     |
-| `rate_limit_enabled`             | `backend/core/config.py:2228`    | `true`              | Enable rate limiting                     |
-| `rate_limit_requests_per_minute` | `backend/core/config.py:2232`    | `60`                | Default rate limit                       |
-| `request_logging_enabled`        | `backend/core/config.py:2767`    | `true`              | Feed structured logs via ObservabilityMW |
-| `request_recording_enabled`      | `backend/core/config.py:2776`    | `false`             | Enable request recording (debug)         |
-| `idempotency_enabled`            | `backend/core/config.py:2309`    | `true`              | Enable idempotency middleware            |
-| `hsts_preload`                   | `backend/core/config.py:2799`    | `false`             | HSTS preload directive                   |
+| Setting                          | Location                           | Default             | Description                              |
+| -------------------------------- | ---------------------------------- | ------------------- | ---------------------------------------- |
+| `api_key_enabled`                | `backend/core/config.py:1696`      | `false`             | Enable API key authentication            |
+| `cors_origins`                   | `backend/core/config.py:865-877`   | HTTPS :8444 origins | Allowed CORS origins                     |
+| `rate_limit_enabled`             | `backend/core/config.py:1957`      | `true`              | Enable rate limiting                     |
+| `rate_limit_requests_per_minute` | `backend/core/config.py:1961`      | `60`                | Default rate limit                       |
+| `request_logging_enabled`        | `backend/core/config.py:2515-2520` | `true`              | Feed structured logs via ObservabilityMW |
+| `request_recording_enabled`      | `backend/core/config.py:2476`      | `false`             | Enable request recording (debug)         |
+| `idempotency_enabled`            | `backend/core/config.py:2038`      | `true`              | Enable idempotency middleware            |
+| `hsts_preload`                   | `backend/core/config.py:2499`      | `false`             | HSTS preload directive                   |
 
 ## Middleware Registration
 

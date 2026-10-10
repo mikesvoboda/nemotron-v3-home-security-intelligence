@@ -117,7 +117,7 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
 
 ### Configuration Options
 
-Defaults are from `backend/core/config.py:1952-2059` (the effective production values are set by
+Defaults are from `backend/core/config.py:1741-1848` (the effective production values are set by
 `docker-compose.prod.yml:630-633`, which mirrors these defaults; the development template
 `.env.example:939-1015` disables tracing and points the endpoint at `http://localhost:4317`).
 
@@ -133,7 +133,7 @@ Defaults are from `backend/core/config.py:1952-2059` (the effective production v
 | `OTEL_BATCH_SCHEDULE_DELAY_MS`     | `int`   | `2000`                | Delay between exports (ms)           |
 | `OTEL_BATCH_EXPORT_TIMEOUT_MS`     | `int`   | `30000`               | Export timeout (ms)                  |
 
-`OTEL_SERVICE_NAME` keeps its default (`backend/core/config.py:1958-1962`) in every deployment:
+`OTEL_SERVICE_NAME` keeps its default (`backend/core/config.py:1747-1751`) in every deployment:
 the backend is the only service that produces spans, so all pipeline traces arrive under the single
 service name `nemotron-backend` — including the calls to `ai-gateway:8090` and `ai-vlm:8098`, which
 are client spans inside a backend trace rather than separate services.
