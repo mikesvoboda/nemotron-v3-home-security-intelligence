@@ -280,6 +280,113 @@ class TestR72TimeoutWrapper:
         )
 
     @pytest.mark.timeout(60)
+    def test_sigterm_trapping_collector_is_escalated_to_sigkill(self, tmp_path, monkeypatch) -> None:
+        """Self-review nit 1 (2026-10-10): the escalation must not hinge on
+        the DIRECT child ignoring SIGTERM.
+
+        uv's own disposition is to die on TERM; the SIGTERM-ignoring hang
+        class is the GRANDCHILD (a pytest worker mid-C-call, a trap-holding
+        shell). With the shipped wrapper the direct child's prompt death
+        makes `proc.wait()` return immediately, the wait-timeout-gated
+        SIGKILL never fires, and the second drain just gives up at 10 s:
+        loud, bounded, and leaky — the orphan lives its full life (measured
+        by the reviewer: return at 11.01 s, orphan dead 29.2 s later). This
+        fake traps TERM in the grandchild and holds the pipes, exactly the
+        nit-1 shape; the guarantee "no runaway collector" must still hold.
+        """
+        import time
+        import uuid
+
+        token = f"r72term-{uuid.uuid4().hex[:12]}"
+        # trap '' TERM inside the -c string: group SIGTERM bounces off the
+        # grandchild; fake uv itself keeps default disposition (dies), so
+        # proc.wait() returns promptly and the wait-gated escalation cannot
+        # fire. 25 s self-limit keeps a RED run from littering the machine.
+        hang_uv = (
+            f"sh -c 'trap \"\" TERM; end=$(( $(date +%s) + 25 )); "
+            f"while [ $(date +%s) -lt $end ]; do sleep 0.2; done  # {token}' & wait\n"
+        )
+        gate = self._gate(tmp_path, monkeypatch, hang_uv, "1")
+        ok, msg = gate.check_coverage_diff(base_branch="unused-base")
+        assert ok is False and "timed out" in msg.lower(), msg
+        deadline = time.monotonic() + 5.0
+        while _orphan_probe_alive(token) and time.monotonic() < deadline:
+            time.sleep(0.1)
+        assert not _orphan_probe_alive(token), (
+            "the wrapper escalated to SIGKILL only when the DIRECT child "
+            "ignored TERM; uv does not ignore it, so a TERM-trapping "
+            "collector outlived the gate (the ruling-72 production "
+            "guarantee, missed for its likeliest hang class)"
+        )
+
+    @pytest.mark.timeout(60)
+    def test_sigterm_trapping_collector_that_released_the_pipes_is_killed(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """The discriminating case between "SIGKILL when the drain times
+        out" and "escalate unconditionally": a TERM-trapping grandchild
+        that REDIRECTED its own output (pytest writing reports to disk does
+        exactly this) closes the pipes, so the second drain returns in
+        milliseconds, never times out, and a drain-timeout-gated SIGKILL
+        never fires. The runaway lives with nothing left to even delay the
+        gate. Escalation must be unconditional after the group SIGTERM,
+        addressed by numeric pgid (== proc.pid under start_new_session,
+        still valid after the group leader is reaped; os.getpgid fails
+        post-reap — the reviewer measured both)."""
+        import time
+        import uuid
+
+        token = f"r72free-{uuid.uuid4().hex[:12]}"
+        hang_uv = (
+            f"sh -c 'trap \"\" TERM; end=$(( $(date +%s) + 25 )); "
+            f"while [ $(date +%s) -lt $end ]; do sleep 0.2; done  # {token}' "
+            f">/dev/null 2>&1 & wait\n"
+        )
+        gate = self._gate(tmp_path, monkeypatch, hang_uv, "1")
+        t0 = time.monotonic()
+        ok, msg = gate.check_coverage_diff(base_branch="unused-base")
+        assert ok is False and "timed out" in msg.lower(), msg
+        # the gate itself comes back promptly — the leak is invisible to any
+        # message/timing assertion; only the process probe sees it.
+        assert time.monotonic() - t0 < 8.0, "a released-pipe drain must not stall"
+        deadline = time.monotonic() + 5.0
+        while _orphan_probe_alive(token) and time.monotonic() < deadline:
+            time.sleep(0.1)
+        assert not _orphan_probe_alive(token), (
+            "TERM-trapping collector that released the pipes outlived the "
+            "gate: the drain returned clean, no drain-timeout fired, and "
+            "the escalation never ran"
+        )
+
+    @pytest.mark.timeout(60)
+    def test_timeout_message_carries_the_partial_output_tail(self, tmp_path, monkeypatch) -> None:
+        """Nit 2: TimeoutExpired.output carries what WAS read (bytes, even
+        under text=True — measured), and the slow-drain case is exactly
+        where the operator needs it: the collector's last words before it
+        wedged. The shipped branch discarded them (`stdout, stderr = "",
+        ""`), so `Tail:` was empty precisely when it mattered.
+
+        Shape note that makes this a real probe: the discard is only
+        reachable when the SECOND drain also times out, which needs the
+        grandchild to survive the group SIGTERM (trap) and still hold the
+        pipes. With a default-disposition loop the drain returns the output
+        and the test would pass without the fix — the same vacuous-green
+        trap this file already documents for timeout(1)."""
+        token = "COLLECT-NOISE-42"
+        hang_uv = (
+            f"printf 'NOISE-{token}\\n'; "
+            f"sh -c 'trap \"\" TERM; end=$(( $(date +%s) + 20 )); "
+            f"while [ $(date +%s) -lt $end ]; do sleep 0.2; done' & wait\n"
+        )
+        gate = self._gate(tmp_path, monkeypatch, hang_uv, "1")
+        ok, msg = gate.check_coverage_diff(base_branch="unused-base")
+        assert ok is False and "timed out" in msg.lower(), msg
+        assert token in msg, (
+            f"Tail must carry the partial output the timeout already read "
+            f"(TimeoutExpired.output, decoded); got: {msg!r}"
+        )
+
+    @pytest.mark.timeout(60)
     def test_fast_collection_still_flows_under_the_wrapper(self, tmp_path, monkeypatch) -> None:
         """The wrapper must not break the normal path: fake uv writes the
         coverage file and exits 0 -> the gate diffs normally (80 < 90 -> a
