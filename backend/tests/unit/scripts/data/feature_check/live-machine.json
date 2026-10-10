@@ -1,0 +1,287 @@
+{
+  "about": "A machine running the live stack, as the harness snapshots it: `inspect` of every container (running and stopped) and `volume ls -q`. Hand-written in `docker inspect`'s shape (keys measured on this sandbox's Docker 29.8.1); names, mounts and ports follow docker-compose.prod.yml: the live project, the camera directory /export/foscam, the checkout's backend/data, the Podman socket, the Triton cache, the fixed name hsi-go2rtc, the monitoring binds node-exporter (/:/host:ro) and alloy (the Podman socket, /proc, /sys/fs/cgroup) carry, and one stopped container. Container ids are placeholders.",
+  "containers": [
+    {
+      "Id": "0000000000000000000000000000000000000000000000000000000000000001",
+      "Name": "/nemotron-v3-home-security-intelligence_backend_1",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-08T04:12:09.118243Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "nemotron-v3-home-security-intelligence",
+          "com.docker.compose.service": "backend"
+        }
+      },
+      "Mounts": [
+        {
+          "Type": "bind",
+          "Source": "/export/foscam",
+          "Destination": "/cameras",
+          "RW": true
+        },
+        {
+          "Type": "bind",
+          "Source": "/srv/hsi/backend/data",
+          "Destination": "/app/data",
+          "RW": true
+        },
+        {
+          "Type": "bind",
+          "Source": "/run/user/1000/podman/podman.sock",
+          "Destination": "/var/run/podman/podman.sock",
+          "RW": true
+        }
+      ],
+      "NetworkSettings": {
+        "Ports": {
+          "8000/tcp": [
+            {
+              "HostIp": "0.0.0.0",
+              "HostPort": "8000"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "0000000000000000000000000000000000000000000000000000000000000002",
+      "Name": "/nemotron-v3-home-security-intelligence_postgres_1",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-08T04:11:58.402117Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "nemotron-v3-home-security-intelligence",
+          "com.docker.compose.service": "postgres"
+        }
+      },
+      "Mounts": [
+        {
+          "Type": "volume",
+          "Source": "/home/hsi/.local/share/containers/storage/volumes/nemotron-v3-home-security-intelligence_postgres_data/_data",
+          "Destination": "/var/lib/postgresql/data",
+          "RW": true
+        }
+      ],
+      "NetworkSettings": {
+        "Ports": {
+          "5432/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "5432"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "0000000000000000000000000000000000000000000000000000000000000003",
+      "Name": "/nemotron-v3-home-security-intelligence_ai-vlm_1",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-08T04:11:31.950320Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "nemotron-v3-home-security-intelligence",
+          "com.docker.compose.service": "ai-vlm"
+        }
+      },
+      "Mounts": [
+        {
+          "Type": "bind",
+          "Source": "/export/ai_models/vlm",
+          "Destination": "/models",
+          "RW": false
+        }
+      ],
+      "NetworkSettings": {
+        "Ports": {
+          "8098/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "8098"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "0000000000000000000000000000000000000000000000000000000000000004",
+      "Name": "/nemotron-v3-home-security-intelligence_ai-gateway_1",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-08T04:11:33.067554Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "nemotron-v3-home-security-intelligence",
+          "com.docker.compose.service": "ai-gateway"
+        }
+      },
+      "Mounts": [
+        {
+          "Type": "bind",
+          "Source": "/export/ai_models/triton",
+          "Destination": "/models/cache",
+          "RW": true
+        },
+        {
+          "Type": "volume",
+          "Source": "/home/hsi/.local/share/containers/storage/volumes/nemotron-v3-home-security-intelligence_triton-kernel-cache/_data",
+          "Destination": "/root/.nv",
+          "RW": true
+        }
+      ],
+      "NetworkSettings": {
+        "Ports": {
+          "8090/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "8090"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "0000000000000000000000000000000000000000000000000000000000000005",
+      "Name": "/hsi-go2rtc",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-08T04:12:20.771906Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "nemotron-v3-home-security-intelligence",
+          "com.docker.compose.service": "go2rtc"
+        }
+      },
+      "Mounts": [],
+      "NetworkSettings": {
+        "Ports": {
+          "1984/tcp": [
+            {
+              "HostIp": "0.0.0.0",
+              "HostPort": "1984"
+            }
+          ],
+          "8554/tcp": [
+            {
+              "HostIp": "0.0.0.0",
+              "HostPort": "8554"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "0000000000000000000000000000000000000000000000000000000000000007",
+      "Name": "/node-exporter",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-08T04:12:31.000000Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "nemotron-v3-home-security-intelligence",
+          "com.docker.compose.service": "node-exporter"
+        }
+      },
+      "Mounts": [
+        {
+          "Type": "bind",
+          "Source": "/",
+          "Destination": "/host",
+          "RW": false
+        }
+      ],
+      "NetworkSettings": {
+        "Ports": {
+          "9100/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "9100"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "0000000000000000000000000000000000000000000000000000000000000008",
+      "Name": "/alloy",
+      "State": {
+        "Status": "running",
+        "Running": true,
+        "StartedAt": "2026-10-08T04:12:32.000000Z"
+      },
+      "Config": {
+        "Labels": {
+          "com.docker.compose.project": "nemotron-v3-home-security-intelligence",
+          "com.docker.compose.service": "alloy"
+        }
+      },
+      "Mounts": [
+        {
+          "Type": "bind",
+          "Source": "/run/user/1000/podman/podman.sock",
+          "Destination": "/run/user/1000/podman/podman.sock",
+          "RW": true
+        },
+        {
+          "Type": "bind",
+          "Source": "/proc",
+          "Destination": "/host/proc",
+          "RW": false
+        },
+        {
+          "Type": "bind",
+          "Source": "/sys/fs/cgroup",
+          "Destination": "/sys/fs/cgroup",
+          "RW": false
+        }
+      ],
+      "NetworkSettings": {
+        "Ports": {
+          "12345/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "12345"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "0000000000000000000000000000000000000000000000000000000000000006",
+      "Name": "/test-orchestrator-ai-yolo26-151714443697",
+      "State": {
+        "Status": "exited",
+        "Running": false,
+        "StartedAt": "2026-10-09T15:17:17.337626Z"
+      },
+      "Config": {
+        "Labels": {}
+      },
+      "Mounts": [],
+      "NetworkSettings": {
+        "Ports": {}
+      }
+    }
+  ],
+  "volumes": [
+    "nemotron-v3-home-security-intelligence_postgres_data",
+    "nemotron-v3-home-security-intelligence_redis_data",
+    "nemotron-v3-home-security-intelligence_triton-kernel-cache",
+    "000000000000000000000000000000000000000000000000000000000000beef"
+  ]
+}

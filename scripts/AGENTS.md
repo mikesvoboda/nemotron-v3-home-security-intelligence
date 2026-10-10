@@ -36,6 +36,8 @@ scripts/
   test-prod-connectivity.sh          # Production connectivity tests
   test-in-container.sh               # Container-first integration testing
   smoke-test.sh                      # End-to-end pipeline smoke test
+  feature-check.sh                   # Golden paths against an isolated test deployment (O2.2)
+  feature_check.py                   # feature-check.sh's logic: preflight, in-run check, postflight
   find-slow-tests.sh                 # Test performance debugging
   audit-test-durations.py            # CI test duration auditing
   audit-summary.sh                   # Local weekly audit runner
@@ -773,6 +775,36 @@ from the incident's own job log). The expected set lives in
 `scripts/ci-smoke-contract.json`, not in shell: the CI stack starts no AI
 service, so a 503 naming only `yolo26` is the PASSING answer there, and the file
 says why. Delete it when O2.1's fake AI stack runs here instead.
+
+#### feature-check.sh
+
+**Purpose:** O2.2's harness. It runs the golden paths against a **test
+deployment**: the CI stack with the fake AI (`docker-compose.fake-ai.yml`)
+under a compose project of its own, which touches nothing else on the machine.
+
+**Usage:**
+
+```bash
+./scripts/feature-check.sh --fake --image-tag <sha7>
+./scripts/feature-check.sh --real --image-tag <sha7>   # operator sandbox: agent-gpu
+./scripts/feature-check.sh drop <image> <camera>   # inside a golden spec
+```
+
+The logic is `feature_check.py`, standard library only:
+
+- the preflight refuses a run that could write outside its run directory,
+  reach an engine socket or the host, or overlap anything on the machine;
+- the in-run check and the postflight prove the isolation held;
+- the harness smoke check drops one scenario image and expects one event with
+  the scenario's verdict;
+- `--real` (owner ruling 66) serves the real VLM through `agent-gpu` in place
+  of the fake one (`AgentGpu`): the weights' pin first, the runner's port as
+  the only host address the run may reach, and the VLM removed after the run.
+
+The tests are in `backend/tests/unit/scripts/test_feature_check.py`. The
+`Feature Check` workflow runs `--fake` on every PR that changes more than
+Markdown, and on `main`. Usage and the golden-path
+contract are in `docs/developer/testing.md`, "Feature Check".
 
 #### close-rollback-issues.sh
 

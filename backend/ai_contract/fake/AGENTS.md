@@ -42,6 +42,7 @@ The fixture image chooses the outcome. `scenario_fixtures/scenarios.json` names 
 - `reply_delay_seconds` delays the verdict reply, never the enforcement probe the client sends first with the same image. This is the slow-reply failure mode, and it must stay above the shipped `ai_vlm_read_timeout` (pinned).
 - **One event per image per 5 minutes:** the backend's file watcher dedupes on the same sha256 for 300 s (`backend/services/dedupe.py`), across cameras. A second drop of the same bytes inside that window is ignored, on any camera.
 - **Adding a scenario:** drop a JPEG of at least 10 KB (the file watcher's floor) into `scenario_fixtures/` and add its entry. Every scenario needs its own image bytes.
+- **`harness-smoke` belongs to `scripts/feature-check.sh` (O2.2).** Its smoke check drops this image. The image is `person-at-door.jpg` with a JPEG comment added, so its bytes are its own. Golden paths use the other scenarios, so the dedupe above never swallows their images after the smoke check.
 
 ## Running It as a Service
 
