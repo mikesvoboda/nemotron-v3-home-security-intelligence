@@ -1,0 +1,122 @@
+# The fake AI stack (O2.1): a deterministic fake VLM and fake detector, so a
+# stack with no GPU boots a backend that passes its startup gates and scores
+# events. An OVERLAY on the CI stack, never a default (UR-18):
+#
+#   docker compose -f docker-compose.ci.yml -f docker-compose.fake-ai.yml up -d --build
+#
+# One image (docker/fake-ai/Dockerfile), run as two services named and
+# numbered like prod's, so the backend's AI environment below is prod's
+# (docker-compose.prod.yml: AI_VLM_URL, USE_AI_GATEWAY, AI_GATEWAY_URL,
+# YOLO26_URL, ENRICHMENT_LIGHT_URL):
+#   - ai-vlm (8098) answers the engine wire: GET /props with the pinned build,
+#     POST /v1/chat/completions honouring response_format, GET /health;
+#   - ai-gateway (8090) answers the detector: POST /yolo26/detect, GET /health
+#     and /yolo26/health.
+# Two services, so the "engine down" failure mode stops the verdict engine
+# alone (`docker compose ... stop ai-vlm`) while detection keeps running and
+# the event still lands, marked verification_failed. The "slow reply" mode is
+# a scenario image: backend/ai_contract/fake/scenario_fixtures/slow-reply.jpg.
+# Every outcome comes from the scenario book there; see
+# backend/ai_contract/fake/AGENTS.md.
+#
+# The services join ci-net only, so layered on any other base this file fails
+# to render rather than mixing with the real GPU services of the same names.
+
+x-fake-ai: &fake-ai
+  build:
+    context: .
+    dockerfile: docker/fake-ai/Dockerfile
+    args:
+      BACKEND_IMAGE: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/backend:${IMAGE_TAG:-latest}
+  image: hsi-fake-ai:${IMAGE_TAG:-latest}
+  environment:
+    # /props reports this build; the backend's pin below is the same value, so
+    # its build check runs (an empty pin would skip it). b7972 is the llama.cpp
+    # build ai/vlm/Dockerfile serves (LLAMA_CPP_REF).
+    - FAKE_VLM_BUILD_INFO=${VLM_REQUIRED_BUILD:-b7972}-fake-ai
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  read_only: true
+  tmpfs:
+    - /tmp
+  networks:
+    - ci-net
+  deploy:
+    resources:
+      limits:
+        cpus: '0.5'
+        memory: 512M
+
+services:
+  ai-vlm:
+    <<: *fake-ai
+    command:
+      [
+        'uvicorn',
+        '--factory',
+        'backend.ai_contract.fake.app:create_served_app',
+        '--host',
+        '0.0.0.0',
+        '--port',
+        '8098',
+        '--no-server-header',
+      ]
+    ports:
+      - '127.0.0.1:${FAKE_AI_VLM_PORT:-8098}:8098'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import httpx; r = httpx.get('http://localhost:8098/health'); exit(0 if r.status_code == 200 else 1)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  ai-gateway:
+    <<: *fake-ai
+    command:
+      [
+        'uvicorn',
+        '--factory',
+        'backend.ai_contract.fake.app:create_served_app',
+        '--host',
+        '0.0.0.0',
+        '--port',
+        '8090',
+        '--no-server-header',
+      ]
+    ports:
+      - '127.0.0.1:${FAKE_AI_GATEWAY_PORT:-8090}:8090'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import httpx; r = httpx.get('http://localhost:8090/health'); exit(0 if r.status_code == 200 else 1)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  backend:
+    environment:
+      - AI_VLM_URL=http://ai-vlm:8098
+      - VLM_ENFORCEMENT_PROBE_ENABLED=true
+      - VLM_REQUIRED_BUILD=${VLM_REQUIRED_BUILD:-b7972}
+      - USE_AI_GATEWAY=true
+      - AI_GATEWAY_URL=http://ai-gateway:8090
+      - YOLO26_URL=http://ai-gateway:8090/yolo26
+      - ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
+    depends_on:
+      ai-vlm:
+        condition: service_healthy
+      ai-gateway:
+        condition: service_healthy
