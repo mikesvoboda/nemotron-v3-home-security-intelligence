@@ -267,7 +267,7 @@ jobs:
                 "input": {
                   "teamId": "998946a2-aa75-491b-a39d-189660131392",
                   "title": "ZAP security scan found vulnerabilities on main",
-                  "description": "## ZAP Security Scan Failure\n\nThe OWASP ZAP security scan found potential vulnerabilities after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Download the zap-security-report artifact from the workflow run\n2. Review the HTML report for vulnerability details\n3. Prioritize HIGH and CRITICAL findings\n4. Either fix the vulnerability or add to `zap-rules.tsv` if false positive\n\n### Resources\n\n- [OWASP ZAP Documentation](https://www.zaproxy.org/docs/)\n- [ZAP Alert Reference](https://www.zaproxy.org/docs/alerts/)",
+                  "description": "## ZAP Security Scan Failure\n\nThe OWASP ZAP security scan found potential vulnerabilities on the nightly scan of main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Download the zap-security-report artifact from the workflow run\n2. Review the HTML report for vulnerability details\n3. Prioritize HIGH and CRITICAL findings\n4. Either fix the vulnerability or add to `zap-rules.tsv` if false positive\n\n### Resources\n\n- [OWASP ZAP Documentation](https://www.zaproxy.org/docs/)\n- [ZAP Alert Reference](https://www.zaproxy.org/docs/alerts/)",
                   "priority": 2,
                   "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
                 }
