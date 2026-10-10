@@ -406,11 +406,11 @@ commands and output); the conformance suite passes against the container.
       refuse; an in-run container exposing an engine socket fails the run; a postflight that finds
       a live container missing, stopped or restarted (new start time) fails loudly.
 - [ ] `--real` runs in the `uplevel-operator` sandbox (UR-30): the same test deployment in the
-      sandbox's own Docker, with each GPU model served through `agent-gpu` and reached at the port
-      `run` prints (`operator.md`, "The agent-gpu path"). **DECIDE** per real model — the VLM, the
-      detector — its image and VRAM declaration, within the runner's 40 GiB cap,
-      which every GPU session on the host shares. The
-      preflight also refuses any configured host address but those ports. It prints a summary
+      sandbox's own Docker, with the VLM served through `agent-gpu` and reached at the port `run`
+      prints (`operator.md`, "The agent-gpu path"); the detector stays the fake one (owner ruling
+      66). **DECIDE** the VLM's image and VRAM declaration, within the runner's 40 GiB cap, which
+      every GPU session on the host shares. The preflight also refuses any configured host address
+      but that port. It prints a summary
       (date, commit, image tags and `build_info`, VRAM declared and actual, per-spec result, the
       preflight snapshot, the postflight result) for the operator to paste into the PR or the
       inventory, and removes its `agent-gpu` containers, also after a failure. It never runs from

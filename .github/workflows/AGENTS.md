@@ -23,6 +23,7 @@ workflows/
   mutation-testing.yml        # Mutation testing for test quality
   benchmarks.yml              # Performance benchmarks
   test-coverage-gate.yml      # PR gate for test coverage requirements
+  feature-check.yml           # scripts/feature-check.sh --fake on this commit's images (O2.2)
   pr-review-bot.yml           # PR review bot for missing tests
   weekly-test-report.yml      # Weekly test coverage and quality report
   # Security
