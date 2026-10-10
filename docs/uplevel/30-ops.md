@@ -580,4 +580,7 @@ You own ai/, compose, scripts/, .github/, setup.py, setup_lib/, root config
 and archive/. The README's cross-lane rule governs every other file you
 touch. Real-model checks run on the GB300 by the operator, never from CI. When
 the plan does not answer a question, stop and report the question.
+
+Never wait inside a turn on CI, a check run or a background watcher: read it
+once, report what you see and end the turn; your next tick re-reads (UR-38).
 ```

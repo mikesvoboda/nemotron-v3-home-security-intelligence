@@ -508,6 +508,18 @@ class Settings(BaseSettings):
         "publishes the frontend on 0.0.0.0. Unset, it requires no credential and "
         "the frontend's published ports bind 127.0.0.1.",
     )
+    # R55 (ruling 55): the login cookie's Secure flag, previously hardcoded True.
+    # backend/api/routes/auth.py reads it for set/delete_cookie; backend/main.py
+    # warns at startup when it is True while EXPOSE_LAN runs without TLS — a
+    # browser on a plain-http origin then DROPS the cookie and login loops.
+    session_cookie_secure: bool = Field(
+        default=True,
+        description="Set the login session cookie's Secure flag. Keep true whenever "
+        "the UI is served over HTTPS (the safe default: an insecure auth cookie "
+        "can be sniffed). Set false ONLY for a plain-http origin — a LAN http:// "
+        "deployment without TLS — where a browser would otherwise drop the cookie "
+        "and loop login forever.",
+    )
 
     redis_event_channel: str = Field(
         default="security_events",

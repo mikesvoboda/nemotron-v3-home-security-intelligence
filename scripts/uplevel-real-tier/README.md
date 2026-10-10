@@ -9,12 +9,13 @@ small TCP proxy in the test project.
 
 Read `docs/uplevel/operator.md` first; this README is the command sheet, that file is the role.
 
-| file                          | what it is                                                           |
-| ----------------------------- | -------------------------------------------------------------------- |
-| `render-test-compose.sh`      | renders the test stack's compose config and REFUSES unsafe values    |
-| `docker-compose.b14-real.yml` | override: pins the backend to a prebuilt image, strips its GPU       |
-| `vlm-proxy.mjs`               | TCP proxy the backend dials instead of the engine (ruling 22 step 4) |
-| `vlm-mock.mjs`                | fake engine for rehearsing the check without a GPU (demo profile)    |
+| file                          | what it is                                                              |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| `render-test-compose.sh`      | renders the test stack's compose config and REFUSES unsafe values       |
+| `docker-compose.b14-real.yml` | override: pins the backend to a prebuilt image, strips its GPU          |
+| `vlm-proxy.mjs`               | TCP proxy the backend dials instead of the engine (ruling 22 step 4)    |
+| `vlm-mock.mjs`                | fake engine for rehearsing the check without a GPU (demo profile)       |
+| `render-nginx-seams.sh`       | renders the nginx seams; proves the default render is unchanged (O1.11) |
 
 ## Two things this stack is NOT
 

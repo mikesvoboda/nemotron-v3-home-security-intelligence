@@ -4,8 +4,12 @@
 # PORT CONFIGURATION NOTE:
 # All webhook URLs use Docker service names (e.g., backend:8000) which use internal
 # container ports that are FIXED and independent of .env port variables.
-# No envsubst templating is needed for this file.
 # See docs/developer/PORT_STANDARDIZATION.md for details.
+#
+# TEMPLATING NOTE (changed by O1.11): this file is NOT consumed directly any
+# more — the alertmanager service renders __HSI_ALERT_SINK__ at boot (plain
+# sed into tmpfs /tmp, because Alertmanager expands no env vars itself) and
+# boots from the rendered copy. Everything else stays literal.
 
 global:
   # Default settings
@@ -173,17 +177,25 @@ inhibit_rules:
     equal: ['slo']
 
 # Receivers define how alerts are delivered
+#
+# O1.11 (UR-33): every webhook url below is __HSI_ALERT_SINK__, rendered at
+# boot by the alertmanager service in docker-compose.prod.yml: the direct
+# backend URL in the default mode (byte-equivalent to today), or the
+# frontend's compose-network machine listener when EXPOSE_LAN=true — that
+# listener injects the X-API-Key the B1.5 gate demands, because Alertmanager
+# cannot send the header itself in any release (probed v0.27.0 through
+# v0.34.1: http_headers and http_config.headers are both rejected).
 receivers:
   # Default receiver - webhook or logging
   - name: 'default-receiver'
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: '__HSI_ALERT_SINK__'
         send_resolved: true
 
   # Critical alerts - all channels
   - name: 'critical-receiver'
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: '__HSI_ALERT_SINK__'
         send_resolved: true
     # Uncomment and configure for production:
     # slack_configs:
@@ -199,7 +211,7 @@ receivers:
   # SLO burn rate alerts
   - name: 'slo-receiver'
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: '__HSI_ALERT_SINK__'
         send_resolved: true
     # slack_configs:
     #   - api_url: 'https://hooks.slack.com/services/xxx/yyy/zzz'
@@ -210,29 +222,29 @@ receivers:
   # Pipeline health alerts
   - name: 'pipeline-receiver'
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: '__HSI_ALERT_SINK__'
         send_resolved: true
 
   # Infrastructure alerts (database, Redis)
   - name: 'infrastructure-receiver'
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: '__HSI_ALERT_SINK__'
         send_resolved: true
 
   # GPU alerts
   - name: 'gpu-receiver'
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: '__HSI_ALERT_SINK__'
         send_resolved: true
 
   # Warning alerts
   - name: 'warning-receiver'
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: '__HSI_ALERT_SINK__'
         send_resolved: true
 
   # Info alerts - logging only
   - name: 'info-receiver'
     webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
+      - url: '__HSI_ALERT_SINK__'
         send_resolved: false
