@@ -139,32 +139,39 @@ class ModuleView:
                 for alias in node.names:
                     if alias.name != "*":
                         self.reexports[alias.asname or alias.name] = target
-            names = frozenset(
-                a.asname or a.name for a in node.names if a.name != "*"
-            )
+            names = frozenset(a.asname or a.name for a in node.names if a.name != "*")
             self.demands.append((target, names or None))
 
-        def scan_calls(stmt: ast.stmt) -> None:
-            for sub in ast.walk(stmt):
-                if not isinstance(sub, ast.Call):
-                    continue
-                fn = sub.func
-                fname = (
-                    fn.attr
-                    if isinstance(fn, ast.Attribute)
-                    else fn.id
-                    if isinstance(fn, ast.Name)
-                    else ""
-                )
-                if fname in ("import_module", "__import__") and sub.args:
-                    first = sub.args[0]
-                    if isinstance(first, ast.Constant) and isinstance(first.value, str):
-                        self.dynamic.append(first.value)
+        # String imports are collected in ONE whole-tree pass. The import-
+        # import-time model below recurses statement-by-statement, and an
+        # earlier version scanned calls per statement with ast.walk — but a
+        # statement's subtree contains its nested statements, so every call
+        # was re-walked once per enclosing statement: O(depth x size), 8.4s
+        # of a 10s walk, which blew the suite's 5s timeout pin on CI
+        # runners. Dynamic imports have no import-time context to respect
+        # (they ship only via the allowlist wherever they appear), so the
+        # flat walk is the same set — strictly a superset of the old union
+        # of subtree walks, because it also sees calls in expressions the
+        # statement walk descended past.
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            fname = (
+                fn.attr
+                if isinstance(fn, ast.Attribute)
+                else fn.id
+                if isinstance(fn, ast.Name)
+                else ""
+            )
+            if fname in ("import_module", "__import__") and node.args:
+                first = node.args[0]
+                if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                    self.dynamic.append(first.value)
 
         def visit_body(body: list[ast.stmt], toplevel: bool, in_tc: bool) -> None:
             for stmt in body:
                 if isinstance(stmt, ast.Import):
-                    scan_calls(stmt)
                     if in_tc:
                         continue
                     for alias in stmt.names:
@@ -172,22 +179,16 @@ class ModuleView:
                         self.demands.append((alias.name, None))
                     continue
                 if isinstance(stmt, ast.ImportFrom):
-                    scan_calls(stmt)
                     if in_tc:
                         continue
                     record_from(stmt, toplevel)
                     continue
-                if isinstance(stmt, ast.Call):
-                    scan_calls(stmt)
-                    continue
                 if isinstance(stmt, ast.If):
-                    scan_calls(stmt)
                     tc = _is_type_checking_test(stmt.test)
                     visit_body(stmt.body, toplevel, in_tc or tc)
                     visit_body(stmt.orelse, toplevel, in_tc)
                     continue
                 if isinstance(stmt, ast.Try):
-                    scan_calls(stmt)
                     visit_body(stmt.body, toplevel, in_tc)
                     for handler in stmt.handlers:
                         visit_body(handler.body, toplevel, in_tc)
@@ -195,16 +196,13 @@ class ModuleView:
                     visit_body(stmt.finalbody, toplevel, in_tc)
                     continue
                 if isinstance(stmt, ast.ClassDef):
-                    scan_calls(stmt)
                     visit_body(stmt.body, toplevel, in_tc)  # class body: import time
                     continue
                 if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    scan_calls(stmt)  # decorators/defaults run at def time
                     visit_body(stmt.body, False, in_tc)
                     continue
                 # anything else (with/for/while/async with/...) — descend,
-                # keeping the import-time context, and catch embedded calls.
-                scan_calls(stmt)
+                # keeping the import-time context.
                 for field in getattr(stmt, "_fields", ()):
                     child = getattr(stmt, field)
                     if isinstance(child, list) and all(isinstance(c, ast.stmt) for c in child):
@@ -321,9 +319,7 @@ def analyze(
         if not (root / entry).is_file():
             entry_missing.append(entry)
             continue
-        view = ModuleView(
-            entry, (root / entry).read_text(encoding="utf-8", errors="replace")
-        )
+        view = ModuleView(entry, (root / entry).read_text(encoding="utf-8", errors="replace"))
         live.add(entry)
         for target, ns in view.demands:
             demand(target, ns, entry)

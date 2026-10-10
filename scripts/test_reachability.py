@@ -86,7 +86,11 @@ def fixture_root(tmp_path: Path) -> Path:
       pkg/tests/__init__.py, pkg/tests/test_real.py  a tests dir — same.
     """
     r = tmp_path
-    _write(r, "pkg/main.py", '"""entry"""\nfrom pkg import keep_name\n\n\ndef go():\n    from pkg.func_mod import helper\n    return helper\n\n\ndef load():\n    import importlib\n    return importlib.import_module("pkg.dyn_mod")\n')
+    _write(
+        r,
+        "pkg/main.py",
+        '"""entry"""\nfrom pkg import keep_name\n\n\ndef go():\n    from pkg.func_mod import helper\n    return helper\n\n\ndef load():\n    import importlib\n    return importlib.import_module("pkg.dyn_mod")\n',
+    )
     _write(
         r,
         "pkg/__init__.py",
@@ -232,6 +236,14 @@ def test_entry_list_is_what_ci_and_hooks_actually_name():
         assert (REPO_ROOT / e).is_file(), f"declared entry point missing on disk: {e}"
 
 
+# The four real-tree tests below share the module-scoped real_out walk. A
+# first consumer's setup pays the full-tree parse (~1.7s dev, measured; the
+# shared anti-rot runner ran it over the 5s pin before the O(n²) call-scan
+# fix — job 114166488241, 4 errors at setup). -p randomly makes WHICH
+# consumer pays it vary per run, so every consumer carries the mark; the
+# 120s is the test_coverage_floors.py precedent value for "mints a real
+# artifact, needs headroom", against pyproject global timeout=5.
+@pytest.mark.timeout(120)
 def test_keep_entries_all_match_a_real_module(real_out):
     """A keep entry matching nothing ships nothing (by design) — but a keep
     list of typos is how a dead keep rots. Real tree: every entry must hit.
@@ -279,6 +291,7 @@ def _matches(shipping_paths: set[str], fragment: str) -> list[str]:
     return hits
 
 
+@pytest.mark.timeout(120)  # shares the real_out walk
 def test_done_when_not_shipping_modules_are_reported_dead(real_out):
     mods_dead = {m["module"] for m in real_out["not_shipping"]}
     for name in (
@@ -291,12 +304,14 @@ def test_done_when_not_shipping_modules_are_reported_dead(real_out):
         assert hits, f"{name} must be reported NOT shipping (found in neither list)"
 
 
+@pytest.mark.timeout(120)  # shares the real_out walk
 def test_done_when_shipping_modules_are_reported_live(real_out):
     shipping = set(real_out["shipping"])
     for name in ("vlm_analyzer", "backend/evaluation"):
         assert _matches(shipping, name), f"{name} must be reported shipping"
 
 
+@pytest.mark.timeout(120)  # shares the real_out walk
 def test_output_shape_and_json_round_trip(real_out):
     assert {"shipping", "not_shipping", "keep_hits", "unresolved"} <= set(real_out)
     assert all(isinstance(m["lines"], int) and m["lines"] > 0 for m in real_out["not_shipping"])
