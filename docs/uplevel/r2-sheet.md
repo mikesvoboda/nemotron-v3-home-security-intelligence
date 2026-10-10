@@ -195,7 +195,7 @@ rows first.
 | F-103, F-116, F-119, F-107, F-063 | Retired-model analytics: Grafana panels, model contribution chart, LLM reasoning tab | leftover | panels and tabs that stay empty | Florence-2, the attribute zoo and X-CLIP retired (`backend/services/model_zoo.py:18-19`, `backend/api/routes/action_events.py:10`); `llm_interactions` lost its writer in R8 S2b | no | none | — | S — the panels (ops: `monitoring/`), the chart, the tab and `llm_interactions` | **retire** — their models are gone | | |
 | F-068, F-069, F-220 | Action events, pose overlay, pose/action/threat/smoke rule conditions | leftover | an empty panel, no overlay, conditions the UI already hides | X-CLIP and ST-GCN++ archived/deleted (`backend/models/action_event.py:10`, R8 `602379e29`); pose rows deleted in R8 S3 | no | none | — | S — the panel, overlay, `action_events`, the four condition fields | **retire** — their models are gone | | |
 | F-136, F-144, F-041 | Live queue and worker panels | half-built | queue and worker panels that never update; a dashboard widget showing literal zeros | no production emitter for `queue.status`/`pipeline.throughput` (`backend/core/websocket/event_types.py:248`); `broadcast_worker_event` gets no emitter (`backend/services/pipeline_workers.py:104`); zeros at `frontend/src/components/dashboard/DashboardPage.tsx:531` | no | none | S — wire the emitter or read the REST queue endpoint the other panels use | S — the WS-only panels and the widget | **retire** — the REST-fed operations panels (unverified) already show queues and workers | | |
-| F-151, F-152, F-153, F-157 | Profiling and recording developer tools | half-built | profiling status and download 404; Start/Stop shows the wrong state; Clear all fails | client paths `/api/debug/profile` and `/download` are not served (`backend/api/routes/debug.py:925`); `DELETE /api/debug/recordings` answers 405 (`backend/api/routes/debug.py:1405`) | no | request recordings may hold request bodies | S — point the client at `/profile/stats`, add a download route or drop the button, delete per recording | S — the panels; the debug routes stay for the API | **complete** — client-side fixes; note `require_debug_mode` is a no-op (backend trace Dead Marks (a)) | | |
+| F-151, F-152, F-153, F-157 | Profiling and recording developer tools | half-built | profiling status and download 404; Start/Stop shows the wrong state; Clear all fails | client paths `/api/debug/profile` and `/download` are not served (`backend/api/routes/debug.py:925`); `DELETE /api/debug/recordings` answers 405 (`backend/api/routes/debug.py:1405`) | no | request recordings may hold request bodies | S — point the client at `/profile/stats`, add a download route or drop the button, delete per recording | S — the panels; the debug routes stay for the API | **complete** — client-side fixes; follows **OD-36** (§2): retired with the debug tooling if OD-36 retires it | | |
 | F-168 | Tracing: open Jaeger | half-built | a link to a Jaeger UI that does not exist | prod compose runs Tempo, no Jaeger (`docker-compose.prod.yml:989`) | no | none | S — link to Grafana's Tempo explore | S — remove the link | **complete** — one URL | | |
 | F-177, F-179, F-180, F-181, F-183 | GPU assignment (rescan, assign, apply, import, rollback) | half-built | assignments save and "apply" reports success; nothing restarts; health is always "healthy" | apply is simulated (`backend/api/routes/gpu_config.py:926`, `:943`); health hardcoded (`:1280-1281`); the only assignable service is the retired `ai-yolo26` container | no | none | L — real container recreation; overlaps the orchestrator scoping (`B1.6`, D11) | M — the GPU settings page, `gpu_config` routes, `gpu_configurations`/`gpu_devices` | **retire** — its only target is retired, and recreating containers from the backend is what D11 removed | | |
 | F-188, F-189 | Admin feature toggles: Vision Extraction, Re-ID, Scene Change, Image Quality | leftover, half-built | toggles save; nothing changes | Florence retired (`backend/ai_contract/providers.py:53`); the other three settings have no reader outside the settings route | no | none | — (follows the scene-change and re-ID rulings above) | S — the four toggles and their settings fields | **retire** — re-add a toggle only with the feature it controls | | |
@@ -266,6 +266,135 @@ unless they are also completed; dropping `reid` from the gateway changes no UI r
 backend), remove `ai-llm-vllm`, and retire the entity and re-ID surfaces with §1's row — or, if
 cross-camera tracking is wanted, complete that row against the backend's OSNet and still drop the
 gateway copy.
+
+**Ruling:**
+
+### OD-36 — debug tooling in production
+
+Added by ruling 62 (issue #6854). Facts read at `main` `523584583`.
+
+**What the user sees.** `/operations` always shows a **Developer Tools** section: profiling, request
+recording and replay, a configuration inspector, log-level control and test-data seeding
+(`frontend/src/components/system/SystemMonitoringPage.tsx:695`, no condition around it). The same
+tools on `/settings/admin` appear only in debug mode (`frontend/src/components/settings/AdminSettings.tsx:787`,
+`:805`). Behind both, every `/api/debug/*` route answers whether or not the backend runs in debug
+mode.
+
+**Evidence.**
+
+- The guard all 22 debug routes depend on does nothing: `require_debug_mode`
+  (`backend/api/routes/debug.py:57`) promises a 404 when debug is off, and its body is `pass` under
+  "Debug endpoints always available in this deployment" (`backend/api/routes/debug.py:72`).
+  `settings.debug` defaults to `False` (`backend/core/config.py:816`), so on a default deployment the
+  guard's own premise says these routes should be hidden.
+- Ten of the 22 change state: log level, profiling start/stop, garbage collection, tracemalloc
+  start/stop, replaying a recorded request against the live app (`backend/api/routes/debug.py:1522`),
+  deleting a recording, injecting a detection into the batch aggregator (`/batch/add-detection`) and
+  resetting batch metrics.
+- Who can reach them: with `EXPOSE_LAN` unset the app listens on loopback and the auth gate passes
+  every request (`backend/api/middleware/auth.py:381`); with `EXPOSE_LAN=true`, any logged-in
+  session or API key reaches them — there is no admin check.
+
+**To complete — S** (backend and frontend). The guard raises 404 unless `settings.debug`; the
+`/operations` Developer Tools section renders only when the backend reports debug available, as
+`/settings/admin` already does. A test pins a debug route at 404 with debug off. §1's profiling row
+(F-151–F-153, F-157) keeps its own S client fixes.
+
+**To retire — M.** The 22 routes in `backend/api/routes/debug.py`, the five `/operations` panels
+and the `/settings/admin` developer tools, with their hooks and tests; profiling, replay and the
+config inspector go with them. §1's profiling row retires with this.
+
+**Rows it settles.** F-133, F-151–F-162, F-197; §1's profiling row (F-151–F-153, F-157) follows
+this ruling.
+
+**Recommendation.** **Complete.** The tools are useful in development and the fix is the guard
+the code already describes; turning it on closes the routes on every default deployment. Retire
+only if no one uses them.
+
+**Ruling:**
+
+### OD-37 — "Clear All Test Data" deletes all data
+
+Added by ruling 62. Facts read at `main` `523584583`.
+
+**What the user sees.** Three buttons call one route, `DELETE /api/admin/seed/clear`:
+
+- `/settings/admin` (debug mode only): **Clear Test Data**, "Delete all cameras, events, and
+  detections" (`frontend/src/components/settings/AdminSettings.tsx:900`, `:903`), confirmed in a
+  dialog titled "Clear All Test Data" (`:983`) — F-197.
+- `/operations` → Developer Tools → Test Data: **Delete All Events**, "Permanently deletes all events
+  and detections from the database" (`frontend/src/components/developer-tools/TestDataPanel.tsx:203`,
+  `:204`), and **Full Database Reset** (`:211`) — F-162. "Delete All Events" sends the same request
+  (`:110`), so it deletes every camera too: its description is false.
+
+**Evidence.** The route (`backend/api/routes/admin.py:658`, `clear_seeded_data` at `:671`) needs
+`ADMIN_ENABLED` — which defaults to `True` (`backend/core/config.py:836`) — and the body
+`{"confirm": "DELETE_ALL_DATA"}`, then runs `delete(Event)`, `delete(Detection)` and
+`delete(Camera)` on every row (`backend/api/routes/admin.py:714`, `:716`). Nothing marks a seeded
+row: the seeded cameras use ordinary ids (`front-door`, `garage`, `backend/api/routes/admin.py:172`)
+and the models carry no seed flag. Seeding cameras with "clear existing" also deletes every camera
+first (`backend/api/routes/admin.py:331`).
+
+**Options.**
+
+- **Rename — S** (frontend): every label says what happens ("Delete all cameras, events and
+  detections"); "Delete All Events" either deletes only events or goes.
+- **Restrict to seeded rows — M** (backend schema and frontend): add a seed marker to cameras and
+  events, write it when seeding, delete only marked rows; existing seeded rows stay unmarked.
+- **Retire the seed tools — S**: the seed and clear routes, the Test Data panel and the admin
+  section; `scripts/seed-events.py` stays for development.
+
+**Rows it settles.** F-160, F-161, F-162, F-197.
+
+**Recommendation.** **Rename, and keep the tools behind OD-36's debug gate.** A full reset is a
+legitimate development tool; what is wrong is a label that calls it test data, a button that says
+"events" and deletes cameras, and its presence on a default deployment. If OD-36 retires debug
+tooling, retire these with it.
+
+**Ruling:**
+
+### OD-38 — two orphan cleaners side by side
+
+Added by ruling 62. Facts read at `main` `523584583`.
+
+**What the user sees.** Two "clean up orphaned files" controls, on two pages, with different
+safety rails:
+
+- `/settings/storage`: a preview, then **Clean orphaned files** (`frontend/src/components/system/FileOperationsPanel.tsx:306`)
+  — F-184, F-186. Also on `/operations` (F-163).
+- `/settings/admin` → Maintenance: an orphan cleanup panel with a minimum-age slider (1–720 h,
+  default 24), a size cap and a preview (`frontend/src/components/settings/AdminSettings.tsx:712`)
+  — F-194.
+
+**Evidence. They delete different files.**
+
+- The storage cleaner (`run_orphaned_file_cleanup`, `backend/api/routes/system.py:3403`) scans the
+  **thumbnails and clips** directories (`backend/services/cleanup_service.py:763`, `:768`): derived
+  files whose `Detection` or `Event` row is gone. No age or size limit. Guarded by `verify_api_key`
+  (`backend/api/routes/system.py:3401`), which passes everyone while `API_KEY_ENABLED` is off, its
+  default.
+- The admin job (`cleanup_orphans`, `backend/api/routes/admin.py:785`) scans the **camera upload
+  folder**, `foscam_base_path` (`backend/services/orphan_scanner_service.py:144`, `:365`), and
+  deletes files no `Detection.file_path` names, older than 24 h by default and up to 10 GB a run
+  (`backend/jobs/orphan_cleanup_job.py:36`, `:37`). A camera image in which the detector finds
+  nothing gets no `Detection` row — rows are created per detected object above the threshold
+  (`backend/services/detector_client.py:1184`, `:1194`, `:1281`) — so this job deletes every
+  capture with no detection once it is a day old. That is a retention policy for raw captures,
+  presented as orphan cleanup.
+
+**Options.** Keep the storage cleaner (derived files only) and retire the admin job — **S**; keep
+the admin job and retire the storage cleaner — **S**, but raw-capture deletion then becomes the only
+cleaner; or merge them into one cleaner with the admin job's age and size rails and the storage
+cleaner's directories — **M**.
+
+**Rows it settles.** F-163, F-184, F-186, F-194.
+
+**Recommendation.** **Merge into one cleaner over the derived directories, with the admin job's
+age and size rails, and retire the scan of the camera folder.** Whether raw captures with no
+detection should be deleted is a retention decision, and today no retention rule covers them: the
+retention cleanup deletes images only through their `Detection` rows
+(`backend/services/cleanup_service.py:377`). If the owner wants them deleted, that is a retention
+setting with its own name, not an "orphan" button.
 
 **Ruling:**
 
@@ -566,4 +695,5 @@ Ruling: approve the list for deletion as a whole, naming any exceptions and why.
 ## 4. After the session
 
 The frontend lane's record PR copies each ruling and priority into the inventory, writes the OD
-rulings into `docs/vss-integration/17-action-plan.md`, and sets `R2` to `done`.
+rulings into `docs/vss-integration/17-action-plan.md`, and sets `R2` to `done`. `OD-36`, `OD-37` and `OD-38` (ruling 62) are new numbers with no register rows yet: the record PR
+adds them, as it does `OD-33`…`OD-35`.
