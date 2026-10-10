@@ -35,6 +35,7 @@ entries = [
   "scripts/check-flake-allowlist.py",
   "scripts/check-integration-tests.py",
   "scripts/check-npm-audit-exemptions.py",
+  "scripts/check-pip-audit-exemptions.py",
   "scripts/check-test-collection.py",
   "scripts/check-test-coverage-gate.py",
   "scripts/ci-metrics-collector.py",
