@@ -119,7 +119,7 @@ hand-written command yourself:
    re-owns live files (`docker-compose.prod.yml:459`) — or if any service mounts the Podman socket
    (`:473`). The backend's orchestrator is on by default. Since `B1.6` it adopts only containers in
    its own compose project (`container_discovery.py:732`) and nothing when it cannot resolve one
-   (`:723`) — but your test stack _is_ its own project, and a failing health check restarts that
+   (`:721`) — but your test stack _is_ its own project, and a failing health check restarts that
    container with backoff, so a test stack must still run with `ORCHESTRATOR_ENABLED=false` and no
    socket.
 3. **Check GPU headroom.** Run `nvidia-smi --query-gpu=index,memory.used,memory.total --format=csv`.
@@ -151,8 +151,10 @@ compose projects on the engine in front of you, each holding two `alpine` contai
 that was already running, mounts nothing, and needs no `.env`, no published port and no camera
 directory, so the one rule's hazards cannot arise here. It needs no `ORCHESTRATOR_ENABLED=false`
 guard either — this run's whole point is the shipped default, and post-`B1.6` a backend adopts only
-its own project (step 2 of "The owner on the host" explains the residual hazard). **Read the command before running it** as usual: if your engine has no
-Docker socket reachable from the checkout, stop and post that instead of adapting anything.
+its own project (step 2 of "The owner on the host" explains the residual hazard).
+
+**Read the command before running it,** as usual: if your engine has no Docker socket reachable from
+the checkout, stop and post that instead of adapting anything.
 
 1. **Snapshot before:**
 
@@ -167,7 +169,17 @@ Docker socket reachable from the checkout, stop and post that instead of adaptin
    placeholder (that one is podman's, and step 4 of "The owner on the host" uses it correctly), and a
    bad template exits 1 while the redirect still leaves a **0-byte** file — which then diffs clean, so
    the snapshot would certify nothing. Check the capture: `wc -l < /tmp/orch01-before.txt` must equal
-   `docker ps -aq | wc -l`. The run must leave every line of both files identical — a changed line, a
+   `docker ps -aq | wc -l` **and that number must be non-zero** — on a fresh sandbox with no bystander
+   containers both files are 0 bytes, `0 == 0` passes, and the diff is clean because nothing was
+   observed. Say so in that case and post the run as vacuous: there were no containers to protect, so
+   the diff proves nothing about them. Each half of that guard is load-bearing against a different
+   failure: a `docker inspect` that fails mid-loop (measured: it emits one **blank** line and exits 1),
+   so a dead id in the loop makes the capture disagree with the fresh `docker ps -aq` count, and a
+   failure against a container that still exists writes a blank line where a populated one belongs —
+   which the before/after diff catches because the other file's line has text. What neither half
+   catches is everything-empty-at-once (daemon unreachable while you snapshot, or no bystanders), and
+   that is exactly what the non-zero clause is for.
+   The run must leave every line of both files identical — a changed line, a
    **missing** line (a container or volume removed) and a new line are all findings. Containers it does
    not own are not its to touch, which is exactly what this run claims.
 
@@ -180,7 +192,9 @@ Docker socket reachable from the checkout, stop and post that instead of adaptin
 
    Expect `1 passed`. The first run pulls `alpine:latest`, so allow for the pull; the test itself
    measured 13.29 s and 12.94 s on the sandbox's Docker (daemon 29.8.1) at `ad9d187c6`, and it needs
-   no database and no Redis service — its state store is a mock.
+   no database and no Redis service — its state store is a mock. The `--timeout=120` on that line is
+   not the ceiling you are actually held to: the test carries `@pytest.mark.timeout(60)`
+   (`test_orchestrator_integration.py:1187`) and a marker overrides the CLI flag, so 60 s governs.
 
 3. **Read the two assertions the test makes** (they are the Done-when, not a summary you write):
    `adopted == stack_a` — the orchestrator adopted exactly its own project's two services, so it
@@ -189,12 +203,18 @@ Docker socket reachable from the checkout, stop and post that instead of adaptin
    not `removed` — the recovery restarted the one service in place and left the other project's
    containers and start times alone.
 4. **Tear down and prove it:** the fixture removes its own four containers, so
-   `docker ps -a --filter name=b16- --format '{{.Names}} {{.Status}}'` must print nothing. Re-run step
-   1's two snapshot commands into `/tmp/orch01-after.txt` and `/tmp/orch01-vols-after.txt` (same
-   pipeline, including `sort`, so the diff is order-stable) and diff both pairs; both must be empty.
-   Confirm the after-file is not empty before calling an empty diff clean:
-   `wc -l < /tmp/orch01-after.txt` must equal `docker ps -aq | wc -l`. If a `b16-*` container outlived
-   the run, `docker rm -f` it and say so on the PR.
+   `docker ps -a --filter 'name=^b16-' --format '{{.Names}} {{.Status}}'` must print nothing. Anchor
+   the filter with `^`: `--filter name=` is a **substring** match (measured here: with `b16-probe-own`
+   and `host-b16-probe-stranger` present, `name=b16-` printed both and `name=^b16-` printed only the
+   owned one), and this section's only destructive command is the `docker rm -f` below — an unanchored
+   filter there could force-delete a stranger whose name merely contains `b16-`. Re-run step 1's two
+   snapshot
+   commands into `/tmp/orch01-after.txt` and `/tmp/orch01-vols-after.txt` (same pipeline, including
+   `sort`, so the diff is order-stable) and diff both pairs; both must be empty. Confirm the after-file
+   captured as much as the engine holds and that the engine held something:
+   `wc -l < /tmp/orch01-after.txt` must equal `docker ps -aq | wc -l`, and that count must be non-zero
+   for the same reason as step 1. If a `b16-*` container outlived the run, `docker rm -f` **it by
+   name** and say so on the PR.
 5. **Post it** under "Posting results", with one addition: quote the two assertion lines from the
    test file, and paste the log lines the command prints, of which these are the shape to expect —
 
@@ -206,8 +226,11 @@ Docker socket reachable from the checkout, stop and post that instead of adaptin
    ```
 
    The first names **one** project and the last two name one service, which is what "touches only its
-   own project's containers" has to look like. If you see `Discovered … 'b16-stackb-…'`, or a
-   `Recovering` line for anything outside `b16-stacka-…`, that is a finding: post the output and stop.
+   own project's containers" has to look like. Count the discovery lines by their **module**, not by
+   the sentence: `container_orchestrator.py:541` logs the same words verbatim, so two `Discovered`
+   lines are not two projects seen — only the `container_discovery` one is the adoption count. If you
+   see `Discovered … 'b16-stackb-…'`, or a `Recovering` line for anything outside `b16-stacka-…`, that
+   is a finding: post the output and stop.
 
 6. **What this run does not close.** `B1.6`'s row also asks that the backend's hostname resolve its
    own container on the podman deployment, and `#6929`'s "Real tier" block (`podman exec`,
