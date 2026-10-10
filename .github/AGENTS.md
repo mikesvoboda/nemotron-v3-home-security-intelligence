@@ -242,10 +242,10 @@ those floors, so review such hunks by hand.
 
 ### Frontend Quality Workflows
 
-| Workflow                | Trigger   | Purpose                                  |
-| ----------------------- | --------- | ---------------------------------------- |
-| accessibility-tests.yml | PR        | Run accessibility (a11y) tests           |
-| lighthouse.yml          | PR/Weekly | Lighthouse performance and SEO audits    |
+| Workflow                | Trigger        | Purpose                                  |
+| ----------------------- | -------------- | ---------------------------------------- |
+| accessibility-tests.yml | PR             | Run accessibility (a11y) tests           |
+| lighthouse.yml          | PR/Weekly      | Lighthouse performance and SEO audits    |
 | visual-tests.yml        | Nightly/Manual | Visual regression testing with snapshots |
 
 ## Usage
