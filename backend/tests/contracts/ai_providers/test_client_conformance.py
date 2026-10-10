@@ -1309,8 +1309,19 @@ async def test_rename_of_a_key_reaches_the_client_as_a_changed_value(
         f"({control_value!r}) — this rename case names a key the client does not read"
     )
 
+    # The rename has to sit on the path the CLIENT dials. VlmClient dials the
+    # engine wire (CHAT_PATH), where the verdict rides inside the chat
+    # envelope, never the contract path; renaming there only ever reached a
+    # client that was failing for another reason (the fake answered the engine
+    # wire with the llm op's prose until O2.1), so `renamed` proves it fired.
+    from backend.services.vlm_client import CHAT_PATH
+
+    engine_wire = op_id == "vlm_assess"
+    target = CHAT_PATH if engine_wire else OPERATIONS[op_id].path
+    renamed: list[str] = []
+
     async def _renamed_app(scope: Any, receive: Any, send: Any) -> None:
-        if scope["type"] != "http" or scope["path"] != OPERATIONS[op_id].path:
+        if scope["type"] != "http" or scope["path"] != target:
             await _fake_app()(scope, receive, send)
             return
         chunks: list[bytes] = []
@@ -1320,7 +1331,9 @@ async def test_rename_of_a_key_reaches_the_client_as_a_changed_value(
                 chunks.append(msg.get("body", b""))
 
         await _fake_app()(scope, receive, _send)
-        payload = json.loads(b"".join(chunks))
+        envelope = json.loads(b"".join(chunks))
+        message = envelope["choices"][0]["message"] if engine_wire else None
+        payload = json.loads(message["content"]) if message is not None else envelope
         # The rename SITE follows the KEY grammar, not the value's runtime type:
         # an element key renames inside the first row, a bare key renames the
         # top-level member. Renaming every row would also work, but one row is
@@ -1331,7 +1344,10 @@ async def test_rename_of_a_key_reaches_the_client_as_a_changed_value(
             rows = payload[root]
             assert isinstance(rows, list) and rows, f"{op_id}.{root} has no rows to rename in"
             rows[0][renamed_field] = rows[0].pop(leaf)
-        body = json.dumps(payload).encode()
+        if message is not None:
+            message["content"] = json.dumps(payload)
+        renamed.append(target)
+        body = json.dumps(envelope).encode()
         await send(
             {
                 "type": "http.response.start",
@@ -1347,6 +1363,7 @@ async def test_rename_of_a_key_reaches_the_client_as_a_changed_value(
     tampered = await _replay_through_rename(
         method, key, _renamed_app, vlm_engine_app, vlm_settings, big_image_file
     )
+    assert renamed, f"the rename never fired: the client never dialled {target}"
     assert tampered != control_value, (
         f"renaming {op_id}.{key} -> {renamed_field} left the client's parsed "
         f"{leaf or root!r} at {tampered!r}: the happy-path leg is NOT sensitive to this "
@@ -2075,8 +2092,10 @@ def _deleted_registry_ops() -> frozenset[str]:
 #    healthy" — was an EnrichmentClient property and died with it: there is no
 #    heavy/light client-side split left to probe. What survives is the
 #    surrounding fact the plan's recon depended on, now pinned for both
-#    surviving bindings: the fake serves NO /health, and a failed liveness
-#    probe reads as "down"/"did not wake" rather than surfacing anything.
+#    surviving bindings: a failed liveness probe reads as "down"/"did not
+#    wake" rather than surfacing anything. Since O2.1 the fake serves the
+#    gateway adapter's /yolo26/health (it boots a backend as ai-gateway), so
+#    the "down" leg runs against an app with no such route.
 # ---------------------------------------------------------------------------
 
 
@@ -2089,14 +2108,18 @@ async def test_detector_health_probe_reads_down_against_the_fake(
     /health looks EXACTLY like this. DetectorClient.health_check()
     (detector_client.py:415-448) catches HTTPStatusError and returns False —
     the WP7.3 recon note claiming the error ESCAPED was checked against the
-    source and corrected. If a /health op ever enters the registry this
-    reddens and every health pin in the file should be revisited."""
+    source and corrected. O2.1 gave the fake the adapter's /yolo26/health, so
+    the same client reads it UP, and the 404 leg points at an app with no
+    health route. Health routes are not registry ops; if one ever enters the
+    registry, revisit every health pin in this file."""
     from backend.services import detector_client as dcmod
 
     _patch_settings(monkeypatch, "backend.services.detector_client", settings_factory())
     det = dcmod.DetectorClient(max_retries=1)
-    _point_at(det, fake_app)
+    _point_at(det, FastAPI())
     assert await det.health_check() is False
+    _point_at(det, fake_app)
+    assert await det.health_check() is True
     # Non-vacuity: the same client is NOT unable to talk to the fake — the
     # 404 is the /health absence, not a broken seam.
     #

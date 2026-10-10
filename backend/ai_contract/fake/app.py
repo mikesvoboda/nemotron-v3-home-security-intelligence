@@ -23,6 +23,19 @@ import of the fake's consts). The plan text's "81" is the 80-name table
 plus the adapter's synthetic class_{id} fallback (adapters/yolo26.py:186) -
 the fake mirrors the adapter exactly; recorded in the ledger.
 
+The ENGINE half (O2.1): the backend's VlmClient never dials the contract
+path /vlm/chat/completions; it speaks llama.cpp's wire, GET /props for the
+pinned build and POST /v1/chat/completions with a response_format
+json_schema. A constrained chat on that path is answered the way an
+enforcing grammar answers it: a verdict that validates against the schema
+the request carried, every `const` echoed (the startup probe's nonce,
+constrained_decoding.build_probe_schema), wrapped in the chat envelope. An
+unconstrained chat there (the batch-open wake call) is still the llm op.
+GET /health and GET /yolo26/health answer the pollers. The verdict, and the
+detector's detections, come from the scenario book (scenarios.py) when the
+received image is a scenario's, else from the generators seeded by the
+image's sha256 - spec §3's "deterministic verdict keyed on an image hash".
+
 This module is imported by the contract suite; importing it never imports
 ai.* (package rule) and never touches network/GPU/weights.
 """
@@ -30,7 +43,11 @@ ai.* (package rule) and never touches network/GPU/weights.
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
+import hashlib
 import json
+import os
 from collections.abc import Awaitable, Callable
 from functools import lru_cache
 from typing import Any
@@ -45,6 +62,7 @@ from backend.ai_contract.fake.generators import (
     create_response_bytes,
     generate,
 )
+from backend.ai_contract.fake.scenarios import ScenarioBook
 from backend.ai_contract.operations import OPERATIONS
 from backend.ai_contract.provider import operations_for_slot
 
@@ -57,6 +75,14 @@ PROFILE_HEADER = "x-fake-profile"
 FAULT_HEADER = "x-fake-fault"
 
 _TABLE = {"security": tuple(sorted(SECURITY_CLASSES)), "gateway": GATEWAY_CLASSES}
+
+# The engine identity /props reports. The container takes its build from
+# FAKE_VLM_BUILD_INFO (docker-compose.fake-ai.yml derives it from the same
+# VLM_REQUIRED_BUILD the backend pins), so the backend's build check runs
+# against the fake rather than being skipped.
+BUILD_INFO_ENV = "FAKE_VLM_BUILD_INFO"
+DEFAULT_BUILD_INFO = "fake-ai"
+MODEL_PATH = "/models/fake-ai-vlm.gguf"
 
 
 def _response(obj: Any) -> Response:
@@ -74,16 +100,157 @@ def _response_property(op_id: str, kind: str) -> str | None:
     return req[0] if req else None
 
 
-def create_fake_app(profile: str = "gateway") -> FastAPI:
+def _images_of(payload: dict[str, Any]) -> list[bytes]:
+    """The image bytes a chat request carries as data-URI parts, in order."""
+    images: list[bytes] = []
+    for message in payload.get("messages") or []:
+        content = message.get("content") if isinstance(message, dict) else None
+        for part in content if isinstance(content, list) else []:
+            url = ((part or {}).get("image_url") or {}).get("url", "")
+            if isinstance(url, str) and url.startswith("data:") and ";base64," in url:
+                try:
+                    images.append(base64.b64decode(url.split(";base64,", 1)[1], validate=True))
+                except binascii.Error, ValueError:
+                    continue
+    return images
+
+
+def _constrained_schema(payload: Any) -> dict[str, Any] | None:
+    """The json_schema a chat request constrains its reply to, if any."""
+    if not isinstance(payload, dict):
+        return None
+    response_format = payload.get("response_format")
+    if not isinstance(response_format, dict) or response_format.get("type") != "json_schema":
+        return None
+    schema = (response_format.get("json_schema") or {}).get("schema")
+    return schema if isinstance(schema, dict) else None
+
+
+def _has_const(schema: dict[str, Any]) -> bool:
+    return any(
+        isinstance(node, dict) and "const" in node
+        for node in (schema.get("properties") or {}).values()
+    )
+
+
+def _fill(schema: dict[str, Any], verdict: dict[str, Any]) -> dict[str, Any]:
+    """The object an enforcing grammar emits: the schema's properties, each
+    `const` echoed, the rest taken from the verdict."""
+    out: dict[str, Any] = {}
+    for name, node in (schema.get("properties") or {}).items():
+        if isinstance(node, dict) and "const" in node:
+            out[name] = node["const"]
+        elif name in verdict:
+            out[name] = verdict[name]
+    return out
+
+
+def create_fake_app(
+    profile: str = "gateway",
+    *,
+    scenarios: ScenarioBook | None = None,
+    build_info: str = DEFAULT_BUILD_INFO,
+) -> FastAPI:
     """A fresh app instance. Two instances must replay identically (the
-    suite asserts it) because nothing is seeded from process state."""
+    suite asserts it) because nothing is seeded from process state.
+
+    `scenarios` defaults to the committed book; `build_info` is what /props
+    reports as the serving build."""
     app = FastAPI(title="WP8.2 FakeProvider", docs_url=None, redoc_url=None)
+    book = scenarios if scenarios is not None else ScenarioBook.load()
+    provenance = {"engine": build_info, "model_id": MODEL_PATH.rsplit("/", 1)[-1][: -len(".gguf")]}
 
     @app.get("/fake/profiles/classes")
     async def _class_profiles() -> Response:
         # Vocabulary tables as DATA so the conformance suite (WP8.3) can
         # assert the 9-vs-80 divergence without importing the fake's consts.
         return _response({"security": list(_TABLE["security"]), "gateway": list(_TABLE["gateway"])})
+
+    # --- the engine and gateway health surface the backend polls (O2.1) ---
+
+    @app.get("/health")
+    async def _health() -> Response:
+        # llama-server answers 200 {"status":"ok"} once loaded; the gateway's
+        # aggregate /health answers 200 too. The backend reads the status code.
+        return _response({"status": "ok"})
+
+    @app.get("/yolo26/health")
+    async def _yolo26_health() -> Response:
+        # The gateway adapter's own shape (ai/gateway/adapters/yolo26.py).
+        return _response({"status": "healthy", "model": "fake-ai-yolo26", "model_loaded": True})
+
+    @app.get("/props")
+    async def _props() -> Response:
+        # llama-server's /props: the backend's build pin reads build_info and
+        # its provenance reads the model file's stem (vlm_client.py).
+        return _response({"build_info": build_info, "model_path": MODEL_PATH})
+
+    async def _engine_chat(payload: dict[str, Any], schema: dict[str, Any], prof: str) -> Response:
+        images = _images_of(payload)
+        scenario = next((s for s in map(book.for_image, images) if s is not None), None)
+        if scenario is not None:
+            # The slow-reply mode delays the VERDICT reply. A probe (a schema
+            # carrying a const nonce, constrained_decoding.build_probe_schema)
+            # rides the batch's first image too and is never delayed, so the
+            # gate passes and the slow leg is the assess the mode exists for.
+            if scenario.reply_delay_seconds and not _has_const(schema):
+                await asyncio.sleep(scenario.reply_delay_seconds)
+            verdict = dict(scenario.verdict)
+        else:
+            # spec §3: a deterministic verdict keyed on an image hash. The
+            # generator's vlm override seeds on its image keys; digests are
+            # the keys the engine wire has.
+            keys = [f"sha256:{hashlib.sha256(image).hexdigest()}" for image in images]
+            verdict = generate("vlm_assess", {"image_paths": keys} if keys else None, prof)
+        verdict["provenance"] = dict(provenance)
+        content = _fill(schema, verdict)
+        import jsonschema
+
+        try:
+            jsonschema.validate(content, schema)
+        except jsonschema.ValidationError as exc:
+            # A grammar would never emit this; the fake says so loudly.
+            raise HTTPException(
+                status_code=500, detail=f"fake cannot satisfy the requested schema: {exc.message}"
+            ) from exc
+        return _response(
+            {
+                "id": "chatcmpl-fake-ai",
+                "object": "chat.completion",
+                "created": 0,
+                "model": provenance["model_id"],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": create_response_bytes(content).decode(),
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
+        )
+
+    async def _scenario_detect(request: Request, prof: str) -> Response | None:
+        """The detector's multipart upload, answered from the book when the
+        uploaded file is a scenario's image."""
+        if not request.headers.get("content-type", "").startswith("multipart/form-data"):
+            return None
+        upload = (await request.form()).get("file")
+        if upload is None or isinstance(upload, str):
+            return None
+        scenario = book.for_image(await upload.read())
+        if scenario is None:
+            return None
+        value = generate("yolo26_detect", None, prof)
+        value.update(
+            detections=list(scenario.detections),
+            image_width=scenario.width,
+            image_height=scenario.height,
+        )
+        return _response(value)
 
     def _make_handler(op_id: str) -> Callable[[Request], Awaitable[Response]]:
         async def _handler(request: Request) -> Response:
@@ -117,6 +284,14 @@ def create_fake_app(profile: str = "gateway") -> FastAPI:
                 except ValueError:
                     delay = 2.0
                 await asyncio.sleep(delay)
+            if op_id == "llm_chat_completion":
+                schema = _constrained_schema(payload)
+                if schema is not None:
+                    return await _engine_chat(payload, schema, prof)
+            if op_id == "yolo26_detect":
+                answered = await _scenario_detect(request, prof)
+                if answered is not None:
+                    return answered
             value = generate(op_id, payload, prof)
             if fault == "schema-invalid":
                 key = _response_property(op_id, "response")
@@ -130,6 +305,13 @@ def create_fake_app(profile: str = "gateway") -> FastAPI:
     for op_id, op in OPERATIONS.items():
         app.add_route(op.path, _make_handler(op_id), methods=[op.method])
     return app
+
+
+def create_served_app() -> FastAPI:
+    """The container's app (``uvicorn --factory``,
+    docker/fake-ai/Dockerfile): the committed scenario book, and the build
+    the compose overlay names in FAKE_VLM_BUILD_INFO."""
+    return create_fake_app(build_info=os.environ.get(BUILD_INFO_ENV) or DEFAULT_BUILD_INFO)
 
 
 # --- provider-contract callables (the WP8.1 Protocol side) ---------------
