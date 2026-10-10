@@ -6,8 +6,9 @@ system broadcaster to the global WebSocket emitter
 Without it, ``_dispatch_event`` sends every default-channel-"system" event
 into its final ``else`` -- "No broadcaster available" logged, ``emit()``
 still returns True -- so every system-channel producer wired to the emitter
-(health changes, system errors, verdict-engine transitions) is dropped with a
-warning and the frontend's ``/ws/system`` listeners never fire.
+(health changes and verdict-engine transitions today; system errors are wired
+to the emitter but have no production caller) is dropped with a warning and the
+frontend's ``/ws/system`` listeners never fire.
 
 Why this test is a NEW file with its own fixture instead of a case in
 ``test_websocket.py``: that file's lifespan fixtures patch
@@ -41,7 +42,6 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from _pytest.fixtures import FixtureRequest
 from starlette.testclient import TestClient
 
 from backend.services.system_broadcaster import get_system_broadcaster
@@ -64,7 +64,7 @@ _MAX_FRAMES_TO_SKIP = 20
 
 
 @pytest.fixture
-def live_broadcaster_client(request: FixtureRequest) -> Generator[TestClient]:
+def live_broadcaster_client(request: pytest.FixtureRequest) -> Generator[TestClient]:
     """TestClient whose lifespan attaches the REAL system broadcaster.
 
     Boots the real lifespan with the tier's standard fast-boot patch set
