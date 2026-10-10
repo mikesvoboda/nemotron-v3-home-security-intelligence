@@ -7,12 +7,13 @@
 
 ## What you are asked to run
 
-| when    | what                                                     | from                         |
-| ------- | -------------------------------------------------------- | ---------------------------- |
-| Phase 1 | hand-written commands in the PRs for `B1.1` and `B1.2`   | the PR's "Real tier" section |
-| Phase 2 | the first `scripts/feature-check.sh --real` run (`O2.2`) | `O2.2`'s PR                  |
-| Phase 2 | the real-tier date for every inventory row (`F2.3`)      | `F2.3`'s PR                  |
-| Phase 4 | each completed feature's real-tier check                 | that feature's build PR      |
+| when    | what                                                                        | from                         |
+| ------- | --------------------------------------------------------------------------- | ---------------------------- |
+| Phase 1 | hand-written commands in the PRs for `B1.1` and `B1.2`                      | the PR's "Real tier" section |
+| Phase 1 | `B1.6`'s two-stack form (`ORCHESTRATOR-01`) — no GPU; below, "A no-GPU run" | `#6969`                      |
+| Phase 2 | the first `scripts/feature-check.sh --real` run (`O2.2`)                    | `O2.2`'s PR                  |
+| Phase 2 | the real-tier date for every inventory row (`F2.3`)                         | `F2.3`'s PR                  |
+| Phase 4 | each completed feature's real-tier check                                    | that feature's build PR      |
 
 A package waiting on you shows `awaiting real tier` in the README status table on `main`. Work
 those rows oldest first; each names the PR whose "Real tier" section holds the command.
@@ -116,8 +117,10 @@ hand-written command yourself:
    `config` in place of `up`. Send it back if any writable bind mount points outside a directory
    made for this run — the prod file bind-mounts the checkout's `./backend/data` with `U`, which
    re-owns live files (`docker-compose.prod.yml:454`) — or if any service mounts the Podman socket
-   (`:468`). The backend's orchestrator is on by default and restarts any container whose name
-   matches, in every project; a test stack must run with `ORCHESTRATOR_ENABLED=false` and no
+   (`:468`). The backend's orchestrator is on by default. Since `B1.6` it adopts only containers in
+   its own compose project (`container_discovery.py:732`) and nothing when it cannot resolve one
+   (`:723`) — but your test stack _is_ its own project, and a failing health check restarts that
+   container with backoff, so a test stack must still run with `ORCHESTRATOR_ENABLED=false` and no
    socket.
 3. **Check GPU headroom.** Run `nvidia-smi --query-gpu=index,memory.used,memory.total --format=csv`.
    If a live `ai-vlm` runs on the GPU the command would use and a second engine would not fit
@@ -131,6 +134,70 @@ hand-written command yourself:
    exist, and every container that was running must still be running with the same start time.
    Live data is protected by step 2, not by this diff: live files change all the time (camera
    uploads, thumbnails, logs), so a changed file is not on its own a sign of interference.
+
+## A no-GPU run: `ORCHESTRATOR-01` (`B1.6`'s two stacks)
+
+`B1.6` scoped the orchestrator to its own compose project, and its row reads `awaiting real tier`
+because the scoping was proven on Docker while production runs rootless podman. Ruling 75's branch 1
+(`6100322952` on #6854) rules the answer to whether that needs podman — it does not: every scoping
+site is shared Engine-API surface, so the lane writes this form and the operator runs it against the
+sandbox's own Docker. That is the **one real-tier run that needs no GPU and no `agent-gpu`**: the
+engine under your feet is the subject. Run it before any GPU step, and run it wherever you are —
+this is the sandbox's Docker, not the deployment, so nothing on the GB300 or the host is involved.
+
+**Why this satisfies "a test deployment, never the live stack."** The command starts two throwaway
+compose projects on the engine in front of you, each holding two `alpine` containers running
+`sleep infinity`, and hands the shipped orchestrator one of them as its own. It touches no stack
+that was already running, mounts nothing, and needs no `.env`, no published port and no camera
+directory, so the one rule's hazards cannot arise here. It needs no `ORCHESTRATOR_ENABLED=false`
+guard either — this run's whole point is the shipped default, and post-`B1.6` a backend adopts only
+its own project (see gate 2). **Read the command before running it** as usual: if your engine has no
+Docker socket reachable from the checkout, stop and post that instead of adapting anything.
+
+1. **Snapshot before:** `docker ps -a --format '{{.Names}} {{.Status}} {{.StartedAt}}' > /tmp/orch01-before.txt`
+   and `docker volume ls -q > /tmp/orch01-vols-before.txt`. The run must leave every line of both files
+   intact — containers it does not own are not its to touch, which is exactly what it claims.
+2. **Run it,** from the checkout at the commit the PR names:
+
+   ```bash
+   uv run pytest "backend/tests/integration/test_orchestrator_integration.py::test_two_stacks_the_orchestrator_touches_only_its_own" \
+     -n0 --timeout=120 --log-cli-level=INFO -q
+   ```
+
+   Expect `1 passed`. The first run pulls `alpine:latest`, so allow for the pull; the test itself
+   measured 13.29 s and 12.94 s on the sandbox's Docker (daemon 29.8.1) at `ad9d187c6`, and it needs
+   no database and no Redis service — its state store is a mock.
+
+3. **Read the two assertions the test makes** (they are the Done-when, not a summary you write):
+   `adopted == stack_a` — the orchestrator adopted exactly its own project's two services, so it
+   adopted nothing from the second project or from any container that was already running; and
+   `restarted == {own project's postgres}`, with every one of the four containers still present and
+   not `removed` — the recovery restarted the one service in place and left the other project's
+   containers and start times alone.
+4. **Tear down and prove it:** the fixture removes its own four containers, so
+   `docker ps -a --filter name=b16- --format '{{.Names}} {{.Status}}'` must print nothing, and
+   `diff /tmp/orch01-before.txt <(docker ps -a --format '{{.Names}} {{.Status}} {{.StartedAt}}')`
+   must be empty. If a `b16-*` container outlived the run, `docker rm -f` it and say so on the PR.
+5. **Post it** under "Posting results", with one addition: quote the two assertion lines from the
+   test file, and paste the log lines the command prints, of which these are the shape to expect —
+
+   ```text
+   INFO backend.services.container_discovery:container_discovery.py:752 Discovered 2 containers in compose project 'b16-stacka-<run-id>'
+   WARNING backend.services.container_orchestrator:container_orchestrator.py:303 Network isolation detected for postgres, restarting it in place
+   INFO backend.services.lifecycle_manager:lifecycle_manager.py:254 Recovering postgres by restarting its container in place
+   INFO backend.services.lifecycle_manager:lifecycle_manager.py:266 Recovered postgres in place
+   ```
+
+   The first names **one** project and the last two name one service, which is what "touches only its
+   own project's containers" has to look like. If you see `Discovered … 'b16-stackb-…'`, or a
+   `Recovering` line for anything outside `b16-stacka-…`, that is a finding: post the output and stop.
+
+6. **What this run does not close.** `B1.6`'s row also asks that the backend's hostname resolve its
+   own container on the podman deployment, and `#6929`'s "Real tier" block (`podman exec`,
+   `podman inspect`, `podman logs`) is that check, on the deployment, which stays with you (or the
+   owner for the runs `agent-gpu` cannot make). `ORCHESTRATOR-01` proves the shared-API behavior on
+   Docker; it does not make the podman hostname premise true. Keep the row at `awaiting real tier`
+   until both are posted.
 
 ## Posting results
 
