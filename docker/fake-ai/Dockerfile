@@ -14,7 +14,12 @@
 #
 # docker-compose.fake-ai.yml builds it and runs it twice, as ai-vlm and
 # ai-gateway. It is never a default; name the overlay with -f.
-ARG BACKEND_IMAGE=ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
+#
+# BACKEND_IMAGE has no default: the overlay passes the backend image of the
+# stack under test (the CI stack's ${IMAGE_TAG}), so the fake and the backend
+# it answers share one dependency set. A standalone build must name it:
+#   docker build -f docker/fake-ai/Dockerfile --build-arg BACKEND_IMAGE=<image:tag> .
+ARG BACKEND_IMAGE
 FROM ${BACKEND_IMAGE}
 
 USER root
