@@ -29,6 +29,13 @@ jobs:
     runs-on: ubuntu-latest
     # Non-blocking for now while baselines are established
     continue-on-error: true
+    # The TRUE test verdict, exported for the summary job: a job-level
+    # continue-on-error masks needs.<this job>.result to "success" even on a
+    # 97/108 failure (measured at run 38070247080 — the summary received
+    # "success"), but step outcomes are NOT masked, so the verdict travels
+    # through this output. Same idiom as accessibility-tests.yml.
+    outputs:
+      test-outcome: ${{ steps.visual-run.outcome }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,6 +66,7 @@ jobs:
         run: cd frontend && npx playwright install-deps chromium
 
       - name: Run Visual Regression Tests
+        id: visual-run
         if: github.event.inputs.update_snapshots != 'true'
         run: cd frontend && npx playwright test --project=visual-chromium
 
@@ -109,18 +117,26 @@ jobs:
     steps:
       - name: Check visual test results
         run: |
-          if [ "${{ needs.visual-regression.result }}" == "failure" ]; then
+          # Reads the test STEP's outcome via the job output, not
+          # needs.visual-regression.result: continue-on-error masks the job
+          # result to "success" whatever the suite did (measured), so a
+          # result-based guard could never announce the nightly red this
+          # workflow now exists to surface.
+          outcome="${{ needs.visual-regression.outputs.test-outcome }}"
+          if [ "$outcome" == "failure" ]; then
             echo "::warning::Visual regression tests detected differences. Review the artifacts for details."
             echo "If the changes are intentional, update the baselines by running:"
             echo "  npx playwright test --project=visual-chromium --update-snapshots"
             echo ""
             echo "Or trigger the workflow manually with 'Update baseline snapshots' checked."
-          else
+          elif [ "$outcome" == "success" ]; then
             echo "Visual regression tests passed!"
+          else
+            echo "::warning::Visual regression suite produced no verdict (test step outcome: ${outcome:-none} — baseline-update dispatch or cancellation)."
           fi
 
       - name: Create Linear issue on failure
-        if: vars.LINEAR_ENABLED == 'true' && (needs.visual-regression.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
+        if: vars.LINEAR_ENABLED == 'true' && (needs.visual-regression.outputs.test-outcome == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |

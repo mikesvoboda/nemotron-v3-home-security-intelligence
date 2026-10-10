@@ -237,8 +237,12 @@ jobs:
     steps:
       - name: Check ZAP scan results
         run: |
-          if [ "${{ needs.zap-api-scan.result }}" == "failure" ]; then
-            echo "::warning::ZAP security scan detected issues. Review the artifacts for details."
+          # != success, not == failure: ZAP's dominant red is CANCELLED (its
+          # own 20-min timeout; census: 40/40 recent runs), and a cancelled
+          # need arrives as "cancelled" — a == "failure" guard printed
+          # "completed successfully!" on every cancelled scan (measured).
+          if [ "${{ needs.zap-api-scan.result }}" != "success" ]; then
+            echo "::warning::ZAP security scan did not complete successfully (result: ${{ needs.zap-api-scan.result }}). Review the artifacts for details."
             echo ""
             echo "To investigate ZAP findings:"
             echo "  1. Download the zap-security-report artifact"
@@ -249,7 +253,7 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        if: vars.LINEAR_ENABLED == 'true' && (needs.zap-api-scan.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
+        if: vars.LINEAR_ENABLED == 'true' && (needs.zap-api-scan.result != 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
