@@ -146,6 +146,7 @@ from backend.services.service_managers import (
     ShellServiceManager,
 )
 from backend.services.system_broadcaster import get_system_broadcaster, stop_system_broadcaster
+from backend.services.websocket_emitter import get_websocket_emitter
 from backend.services.worker_supervisor import (
     SupervisorConfig,
     get_worker_supervisor,
@@ -1025,6 +1026,20 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     system_broadcaster = get_system_broadcaster(redis_client=redis_client)
     await system_broadcaster.start_broadcasting(interval=5.0)
     lifespan_logger.info("System status broadcaster initialized (5s interval)")
+
+    # Attach the system broadcaster to the event emitter (owner ruling 47, #6940).
+    # Until this line ran, every event whose default channel is "system" fell
+    # through every branch of _dispatch_event (in production the singleton's
+    # event_broadcaster/redis_client are also None -- no call site ever passes
+    # them) into the final else, which only logs "No broadcaster available"
+    # while emit() still returns True: dropped with a warning. Even the Redis
+    # fallback branch would not have delivered: it publishes on channel
+    # "system" while SystemBroadcaster listens on "system_status". Recipe from
+    # websocket_emitter.get_websocket_emitter's own docstring; it rewrites the
+    # singleton in place, so already-held references (e.g.
+    # health_event_emitter.set_emitter) pick the wiring up without re-fetching.
+    await get_websocket_emitter(system_broadcaster=system_broadcaster)
+    lifespan_logger.info("Event emitter wired to system broadcaster (system-channel events live)")
 
     # Initialize job tracker with WebSocket broadcasting (NEM-2261)
     # This enables export progress updates to be sent to connected clients
