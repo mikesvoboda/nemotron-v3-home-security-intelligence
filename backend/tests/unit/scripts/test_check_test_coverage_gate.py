@@ -14,23 +14,34 @@ subprocess is CI-only glue, and what we are pinning is the argv it builds.
 import ast
 from pathlib import Path
 
+import pytest
+
 _SCRIPT = Path(__file__).resolve().parents[4] / "scripts" / "check-test-coverage-gate.py"
 
 
-def _inline_collection_argv() -> list[str]:
-    """argv elements of the subprocess.run([...pytest...]) call inside
-    check_coverage_diff - the inline full-unit collection."""
+def _check_coverage_diff_func() -> ast.FunctionDef:
     tree = ast.parse(_SCRIPT.read_text(encoding="utf-8"))
-    func = next(
+    return next(
         n
         for n in ast.walk(tree)
         if isinstance(n, ast.FunctionDef) and n.name == "check_coverage_diff"
     )
-    for node in ast.walk(func):
+
+
+def _inline_collection_call() -> ast.Call:
+    """The subprocess call node inside check_coverage_diff running pytest -
+    the inline full-unit collection. Matches subprocess.run OR Popen: the
+    shipped wrapper uses Popen+communicate because run()'s own timeout path
+    kills only the DIRECT child and then drains the pipes - an orphaned
+    pytest/xdist worker (uv's grandchild) holding stdout open blocks that
+    drain, turning a "bounded" step back into a hang (measured 2026-10-10:
+    un-wrapped, the fake hung collector returned after the FULL 40s with a
+    silent rc-based message)."""
+    for node in ast.walk(_check_coverage_diff_func()):
         if (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "run"
+            and node.func.attr in ("run", "Popen")
             and isinstance(node.func.value, ast.Name)
             and node.func.value.id == "subprocess"
             and node.args
@@ -42,8 +53,18 @@ def _inline_collection_argv() -> list[str]:
                 if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
             ]
             if "pytest" in argv:
-                return argv
-    raise AssertionError("no subprocess.run([...pytest...]) call in check_coverage_diff")
+                return node
+    raise AssertionError("no subprocess run/Popen([...pytest...]) call in check_coverage_diff")
+
+
+def _inline_collection_argv() -> list[str]:
+    """argv elements of the inline collection call (see _inline_collection_call)."""
+    node = _inline_collection_call()
+    return [
+        elt.value
+        for elt in node.args[0].elts
+        if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+    ]
 
 
 def test_inline_collection_carries_rerun_parity() -> None:
@@ -73,6 +94,152 @@ def test_inline_collection_still_extraction_only() -> None:
         "collection EXISTS to extract the seam number; enforcement belongs "
         "to the shard jobs' floors, not here"
     )
+
+
+# ---------------------------------------------------------------------------
+# R72: the fall-through collection gets a timeout wrapper.
+#
+# Owner ruling 72 (2026-10-10): "A run that hits the limit fails with a
+# message naming the step and the limit; it never passes silently."
+# MEASURE (GitHub Actions steps API, 12 success-only runs of the
+# "Check test coverage requirements" step on 2026-10-10): median 463 s,
+# max 495 s, min 321 s. DECIDE: 900 s = ~1.8x the observed max. The job
+# has NO timeout-minutes, so today a hung collection burns the 6 h runner
+# default — the 2026-10-10 #6969 incident (inline collection died with a
+# pytest INTERNALERROR rc=3) is the sibling failure mode: this step has
+# died before; it must die LOUDLY and BOUNDED, never silently or forever.
+#
+# The kill must take the whole process group (uv spawns pytest as a
+# grandchild): subprocess.run's own timeout kills only the DIRECT child,
+# and an orphaned pytest holding the stdout pipe would keep communicate()
+# blocked — the wrapper would "time out" into another hang. The test's
+# fake uv therefore spawns a pipe-holding child that only a group kill
+# reaches; a direct-kill-only implementation stays red past the limit.
+# ---------------------------------------------------------------------------
+
+
+def test_inline_collection_call_carries_a_timeout() -> None:
+    """R72 pin: the collection subprocess cannot run unbounded.
+
+    The timeout may sit on the spawn call (subprocess.run(timeout=N)) or on
+    the pipe drain (Popen + communicate(timeout=N)) - the shipped form is
+    the latter, because run()'s timeout kills only the direct child and
+    then drains pipes an orphaned grandchild still holds (see
+    test_timeout_path_fails_loudly_and_kills_the_group). What the pin
+    refuses either way: an unbounded spawn.
+    """
+    node = _inline_collection_call()
+    kwnames = {k.arg for k in node.keywords}
+    limit_expr = next(
+        (k.value for k in node.keywords if k.arg == "timeout"),
+        None,
+    )
+    if limit_expr is None:
+        assert node.func.attr == "Popen", (
+            f"spawn method {node.func.attr} without timeout= is unbounded"
+        )
+        # Popen shape: the bound must be on a .communicate(timeout=...) in
+        # the same function, else the Popen is just as unbounded.
+        limit_expr = next(
+            (
+                k.value
+                for n in ast.walk(_check_coverage_diff_func())
+                if isinstance(n, ast.Call)
+                and isinstance(n.func, ast.Attribute)
+                and n.func.attr == "communicate"
+                for k in n.keywords
+                if k.arg == "timeout"
+            ),
+            None,
+        )
+        assert limit_expr is not None, (
+            "ruling 72: Popen without communicate(timeout=...) is the "
+            "unbounded shape this pin exists to refuse"
+        )
+    assert "COLLECT_TIMEOUT" in ast.dump(limit_expr) or (
+        isinstance(limit_expr, ast.Constant) and limit_expr.value >= 600
+    ), (
+        "the limit must trace to the MEASURE-decided constant (900s: median "
+        "463s / max 495s over 12 success-only runs) - a tight literal "
+        "manufactures reds on loaded runners"
+    )
+    src = _SCRIPT.read_text(encoding="utf-8")
+    assert "TimeoutExpired" in src, (
+        "hitting the limit must be caught and turned into a named failure, "
+        "not an uncaught exception (that reddens with a traceback, not the "
+        "step+limit message the ruling requires)"
+    )
+
+
+class TestR72TimeoutWrapper:
+    """Behavior: a collection that outlives the limit fails LOUDLY —
+    message names the step and the limit — and never passes silently.
+
+    Env override COVERAGE_GATE_COLLECT_TIMEOUT is the seam that makes the
+    path testable in seconds instead of 900 (also an operator knob for a
+    deliberately slow experiment); the constant 900 is the shipped default.
+    """
+
+    @staticmethod
+    def _gate(tmp_path, monkeypatch, uv_body: str, limit: str):
+        import os
+
+        gate = _load_gate(tmp_path)
+        bin_ = tmp_path / "bin"
+        bin_.mkdir()
+        uv = bin_ / "uv"
+        uv.write_text(f"#!/bin/sh\n{uv_body}\n")
+        uv.chmod(0o755)
+        base = tmp_path / "base.json"
+        base.write_text('{"percent_covered": 90.0}')
+        monkeypatch.setenv("COVERAGE_BASE_JSON", str(base))
+        monkeypatch.delenv("COVERAGE_JSON", raising=False)
+        monkeypatch.setenv("COVERAGE_GATE_COLLECT_TIMEOUT", limit)
+        monkeypatch.setenv("PATH", f"{bin_}:{os.environ['PATH']}")
+        monkeypatch.chdir(tmp_path)  # no ./coverage.json seam exists
+        return gate
+
+    @pytest.mark.timeout(60)  # marker beats addopts (measured 2026-10-10); red run waits out the fake
+    def test_timeout_path_fails_loudly_and_kills_the_group(self, tmp_path, monkeypatch) -> None:
+        """Fake uv: spawns a pipe-holding grandchild and never exits. A
+        direct-kill-only wrapper leaves the grandchild holding the pipe and
+        this returns LATE with a non-timeout message (or never)."""
+        gate = self._gate(tmp_path, monkeypatch, "sleep 40 & wait", "1")
+        ok, msg = gate.check_coverage_diff(base_branch="unused-base")
+        assert ok is False, f"timed-out collection must fail the gate, got: {msg}"
+        assert "timed out" in msg.lower(), (
+            f"message must name the timeout class, got: {msg}"
+        )
+        assert "1s" in msg or "1 s" in msg, f"message must name the LIMIT, got: {msg}"
+        assert "pytest" in msg.lower(), f"message must name the STEP, got: {msg}"
+        assert not (tmp_path / "coverage.json").exists()
+
+    @pytest.mark.timeout(60)
+    def test_fast_collection_still_flows_under_the_wrapper(self, tmp_path, monkeypatch) -> None:
+        """The wrapper must not break the normal path: fake uv writes the
+        coverage file and exits 0 -> the gate diffs normally (80 < 90 -> a
+        real drop verdict, not a timeout message)."""
+        gate = self._gate(
+            tmp_path,
+            monkeypatch,
+            "echo '{\"totals\": {\"percent_covered\": 80.0}}' > coverage.json; exit 0",
+            "30",
+        )
+        ok, msg = gate.check_coverage_diff(base_branch="unused-base")
+        assert "timed out" not in msg.lower(), msg
+        assert ok is False and "80" in msg, (
+            f"normal collection under the wrapper must still produce the "
+            f"drop verdict (80 vs base 90), got: ({ok}, {msg})"
+        )
+
+    def test_default_limit_is_the_measured_decision(self) -> None:
+        """The shipped default is the DECIDE half of ruling 72, pinned to
+        the MEASURE: 900 s, recorded with its census in the PR body."""
+        src = _SCRIPT.read_text(encoding="utf-8")
+        assert "COLLECT_TIMEOUT_SECONDS = 900" in src, (
+            "900s = ~1.8x the measured max 495s over 12 success-only runs; "
+            "changing the limit is a re-measurement, not a tweak"
+        )
 
 
 def _load_gate(root: Path):
