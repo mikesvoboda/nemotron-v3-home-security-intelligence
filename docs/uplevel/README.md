@@ -261,7 +261,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | F2.3    | frontend                | 2          | Golden paths for every working feature         |               | not started |     |
 | O2.1    | ops                     | 2          | Fake AI stack                                  |               | done        | #6946 |
 | O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | not started |     |
-| O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | not started |     |
+| O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | done        | #6954 |
 | R2      | owner; frontend records | 2          | Phase 2 RULING session (after `F2.3`)          | owner         | not started |     |
 | B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy · owner | not started |     |
 | B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started |     |

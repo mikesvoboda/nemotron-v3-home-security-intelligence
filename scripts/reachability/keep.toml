@@ -1,0 +1,8 @@
+# O2.3 (plan 01 §M1): modules that ship BY DECLARATION, one reason each.
+# A keep entry that matches no candidate is not counted as a hit, so a stale
+# entry is visible in the tool's keep-hits report. Keep is the human channel;
+# every entry must survive a reviewer reading the reason.
+
+[[keep]]
+module = "backend/ai_contract/fake"
+reason = "fake AI provider selected via the ai_contract seam at runtime; the contract tests and any AI_CONTRACT=fake deployment import it by path the static walk cannot see (§M1's named first entry)"
