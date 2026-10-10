@@ -211,8 +211,7 @@ The settings API and the frontend console expose these switches, and the values
 persist and read back correctly. Nothing in the event pipeline branches on them, so
 flipping one changes what the console displays, not what the system does:
 `VISION_EXTRACTION_ENABLED`, `REID_ENABLED`, `SCENE_CHANGE_ENABLED`,
-`IMAGE_QUALITY_ENABLED`, plus the tuning values `REID_TTL_HOURS` and
-`SCENE_CHANGE_THRESHOLD`.
+`IMAGE_QUALITY_ENABLED`.
 
 ### AI Service Retries
 
@@ -617,10 +616,8 @@ Settings come from `TranscodeCacheSettings` (`env_prefix="TRANSCODE_CACHE_"`).
 | ------------------------------------------- | -------- | ---------------------- | -------- | ------------------------------------------------------ |
 | `TRANSCODE_CACHE_DIR`                       | No       | `data/transcode_cache` | -        | Directory for transcoded media cache                   |
 | `TRANSCODE_CACHE_MAX_CACHE_SIZE_GB`         | No       | `10.0`                 | 0.1-1000 | Max cache size in GB (LRU eviction above this)         |
-| `TRANSCODE_CACHE_MAX_FILE_AGE_DAYS`         | No       | `7`                    | 1-365    | Age after which cached files are eligible for eviction |
 | `TRANSCODE_CACHE_CLEANUP_THRESHOLD_PERCENT` | No       | `0.9`                  | 0.5-0.99 | Trigger cleanup at this fraction of max size           |
 | `TRANSCODE_CACHE_CLEANUP_TARGET_PERCENT`    | No       | `0.8`                  | 0.3-0.95 | Cleanup removes files until this fraction              |
-| `TRANSCODE_CACHE_LOCK_TIMEOUT_SECONDS`      | No       | `30`                   | 1-300    | Timeout for cache operation locks                      |
 | `TRANSCODE_CACHE_ENABLED`                   | No       | `true`                 | -        | Enable the transcode cache                             |
 
 ---

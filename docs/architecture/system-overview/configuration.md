@@ -225,7 +225,6 @@ These four resolve to their `Settings` defaults in every deployment — none app
 | --------------------------------------- | ------------- | ------------------------------------------------------------------- |
 | `nemotron_max_output_tokens`            | 1536          | Tokens reserved for output; prompts validated against window − this |
 | `context_utilization_warning_threshold` | 0.80          | Warning threshold                                                   |
-| `context_truncation_enabled`            | true          | Enable smart truncation                                             |
 | `llm_tokenizer_encoding`                | `cl100k_base` | Token counting encoding                                             |
 
 With the shipped values the per-request budget resolves to `262144 // 8 = 32768` tokens:
@@ -274,19 +273,17 @@ Container orchestrator configuration for Docker/Podman management.
 | `ORCHESTRATOR_ENABLED`                  | true    | Enable orchestration    |
 | `ORCHESTRATOR_DOCKER_HOST`              | None    | Docker/Podman host URL  |
 | `ORCHESTRATOR_HEALTH_CHECK_INTERVAL`    | 30      | Health check interval   |
-| `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` | 5       | Failures before disable |
 
 ### TranscodeCacheSettings
 
 Video transcoding cache configuration.
 
-**Source:** `backend/core/config.py:42-112`
+**Source:** `backend/core/config.py:42-96`
 
 | Variable                            | Default                | Description     |
 | ----------------------------------- | ---------------------- | --------------- |
 | `TRANSCODE_CACHE_DIR`               | `data/transcode_cache` | Cache directory |
 | `TRANSCODE_CACHE_MAX_CACHE_SIZE_GB` | 10.0                   | Max cache size  |
-| `TRANSCODE_CACHE_MAX_FILE_AGE_DAYS` | 7                      | Max file age    |
 | `TRANSCODE_CACHE_ENABLED`           | true                   | Enable caching  |
 
 ## Configuration Validation

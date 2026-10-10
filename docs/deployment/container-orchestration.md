@@ -523,7 +523,6 @@ prefix (`OrchestratorSettings` in `backend/core/config.py`):
 | `ORCHESTRATOR_HEALTH_CHECK_INTERVAL`    | `30` (5-300)                                                                     | Seconds between health checks                                                      |
 | `ORCHESTRATOR_HEALTH_CHECK_TIMEOUT`     | `5` (1-60)                                                                       | Timeout for health check requests                                                  |
 | `ORCHESTRATOR_STARTUP_GRACE_PERIOD`     | `60` (10-600)                                                                    | Global default grace period (per-service values come from compose)                 |
-| `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` | `5` (1-50)                                                                       | Failures before auto-restart is disabled (per-service may override)                |
 | `ORCHESTRATOR_RESTART_BACKOFF_BASE`     | `5.0` (1.0-60.0)                                                                 | Global backoff base (per-service comes from compose labels/category)               |
 | `ORCHESTRATOR_RESTART_BACKOFF_MAX`      | `300.0`                                                                          | Global backoff cap                                                                 |
 | `ORCHESTRATOR_MONITORING_ENABLED`       | `true`                                                                           | Include monitoring services                                                        |

@@ -180,7 +180,6 @@ the verdict's output (`_ASSESS_MAX_TOKENS = 1024`) and the attached stills
 | Threshold                               | Default | Behavior                                                                               |
 | --------------------------------------- | ------- | -------------------------------------------------------------------------------------- |
 | `CONTEXT_UTILIZATION_WARNING_THRESHOLD` | `0.80`  | Warns (and bumps `hsi_prompts_high_utilization_total`) inside `validate_prompt()` only |
-| `CONTEXT_TRUNCATION_ENABLED`            | `true`  | Declared in `config.py`; the live row fitter does not consult it                       |
 
 ### Prometheus Metrics
 
@@ -445,7 +444,6 @@ GPU_POLL_INTERVAL_SECONDS=5.0
 
 # Token Tracking (enabled by default)
 CONTEXT_UTILIZATION_WARNING_THRESHOLD=0.80
-CONTEXT_TRUNCATION_ENABLED=true
 
 # Distributed Tracing (already on by default in docker-compose.prod.yml)
 OTEL_ENABLED=true

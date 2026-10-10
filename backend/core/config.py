@@ -71,13 +71,6 @@ class TranscodeCacheSettings(BaseSettings):
         description="Maximum cache size in gigabytes. When exceeded, LRU eviction "
         "removes least recently accessed files until below cleanup_target_percent.",
     )
-    max_file_age_days: int = Field(
-        default=7,
-        ge=1,
-        le=365,
-        description="Maximum age in days before a cached file is eligible for eviction, "
-        "regardless of LRU status. Files older than this are evicted first.",
-    )
 
     # Cleanup thresholds
     cleanup_threshold_percent: float = Field(
@@ -93,15 +86,6 @@ class TranscodeCacheSettings(BaseSettings):
         le=0.95,
         description="Target percentage of max_cache_size_gb after cleanup. "
         "Default: 0.8 (80%). Must be less than cleanup_threshold_percent.",
-    )
-
-    # Locking
-    lock_timeout_seconds: int = Field(
-        default=30,
-        ge=1,
-        le=300,
-        description="Timeout in seconds for cache operation locks. "
-        "Prevents deadlocks when multiple processes access the cache.",
     )
 
     # Feature flag
@@ -177,13 +161,6 @@ class OrchestratorSettings(BaseSettings):
     )
 
     # Self-healing limits
-    max_consecutive_failures: int = Field(
-        5,
-        ge=1,
-        le=50,
-        description="Number of consecutive health check failures before disabling "
-        "automatic restart for a container. Prevents restart loops.",
-    )
     restart_backoff_base: float = Field(
         5.0,
         ge=1.0,
@@ -650,19 +627,6 @@ class Settings(BaseSettings):
         description="Comma-separated list of Redis Cluster node host:port pairs. "
         "Example: 'redis-node1:6379,redis-node2:6379,redis-node3:6379'. "
         "At least 3 master nodes recommended for high availability.",
-    )
-    redis_cluster_read_from_replicas: bool = Field(
-        default=True,
-        description="Allow read operations from cluster replica nodes. "
-        "When True, distributes read load across replicas for better performance. "
-        "Set to False if strong read consistency is required.",
-    )
-    redis_cluster_max_connections_per_node: int = Field(
-        default=10,
-        ge=2,
-        le=50,
-        description="Maximum connections per cluster node. "
-        "Total connections = max_connections_per_node * number_of_nodes.",
     )
 
     # HyperLogLog settings for unique entity counting (NEM-3414)
@@ -1313,12 +1277,6 @@ class Settings(BaseSettings):
         description="Log warning when context utilization exceeds this threshold (0.5-0.95). "
         "Helps identify prompts approaching context limits before truncation occurs.",
     )
-    context_truncation_enabled: bool = Field(
-        default=True,
-        description="Enable intelligent truncation of enrichment data when approaching context limits. "
-        "When enabled, less critical enrichment data is removed to fit within context window. "
-        "When disabled, prompts exceeding limits will fail with an error.",
-    )
     llm_tokenizer_encoding: str = Field(
         default="cl100k_base",
         description="Tiktoken encoding to use for token counting. Options: 'cl100k_base' (GPT-4/ChatGPT), "
@@ -1583,12 +1541,6 @@ class Settings(BaseSettings):
         "every legitimate OSNet match). PROVISIONAL - calibrate against real household "
         "galleries, same as the face thresholds.",
     )
-    reid_ttl_hours: int = Field(
-        default=24,
-        ge=1,
-        le=168,
-        description="Time-to-live for re-identification embeddings in Redis (hours)",
-    )
     reid_max_concurrent_requests: int = Field(
         default=10,
         ge=1,
@@ -1610,13 +1562,6 @@ class Settings(BaseSettings):
         le=10,
         description="Maximum retry attempts for ReID embedding generation on transient failures. "
         "Uses exponential backoff (2^attempt seconds). Default: 3 attempts.",
-    )
-
-    scene_change_threshold: float = Field(
-        default=0.90,
-        ge=0.5,
-        le=1.0,
-        description="SSIM threshold for scene change detection (below = change detected)",
     )
 
     # Face auto-enrollment settings (NEM-4941)

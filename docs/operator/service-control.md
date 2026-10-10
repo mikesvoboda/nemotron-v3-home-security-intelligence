@@ -461,7 +461,6 @@ All orchestrator settings use the `ORCHESTRATOR_` env prefix
 | `ORCHESTRATOR_HEALTH_CHECK_INTERVAL`    | 30                        | Seconds between health checks (5-300)                                                             |
 | `ORCHESTRATOR_HEALTH_CHECK_TIMEOUT`     | 5                         | Per-check HTTP timeout (s)                                                                        |
 | `ORCHESTRATOR_STARTUP_GRACE_PERIOD`     | 60                        | Seconds after start before checking (10-600)                                                      |
-| `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` | 5                         | Failures before auto-disable (AI category; infrastructure defaults to 10 via `CATEGORY_DEFAULTS`) |
 | `ORCHESTRATOR_RESTART_BACKOFF_BASE`     | 5.0                       | Restart backoff base (delay = base \* 2^attempt)                                                  |
 | `ORCHESTRATOR_RESTART_BACKOFF_MAX`      | 300.0                     | Backoff cap (5 min)                                                                               |
 

@@ -55,7 +55,6 @@ The SSIM algorithm compares structural patterns, luminance, and contrast between
 | Variable                 | Default | Range   | Description                              |
 | ------------------------ | ------- | ------- | ---------------------------------------- |
 | `SCENE_CHANGE_ENABLED`   | `true`  | -       | Enable/disable scene change detection    |
-| `SCENE_CHANGE_THRESHOLD` | `0.90`  | 0.5-1.0 | SSIM threshold (below = change detected) |
 
 ### Threshold Selection Guide
 
@@ -288,7 +287,6 @@ For maximum sensitivity to tampering:
 
 ```bash
 SCENE_CHANGE_ENABLED=true
-SCENE_CHANGE_THRESHOLD=0.95
 ```
 
 - Review all alerts promptly
@@ -300,7 +298,6 @@ For cameras with natural lighting changes:
 
 ```bash
 SCENE_CHANGE_ENABLED=true
-SCENE_CHANGE_THRESHOLD=0.80
 ```
 
 - Accept some false negatives
