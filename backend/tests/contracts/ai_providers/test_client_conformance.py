@@ -469,7 +469,6 @@ def settings_factory():
             "use_ai_gateway": False,
             "ai_gateway_url": None,
             "detector_max_retries": 1,
-            "enrichment_max_retries": 1,
         }
         base.update(overrides)
         # _env_file=None so the sandbox .env cannot bleed prod values into

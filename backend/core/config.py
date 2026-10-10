@@ -1152,70 +1152,6 @@ class Settings(BaseSettings):
         "server is exactly the case being paid for, and a failed wake is swallowed "
         "(spec §6) rather than retried.",
     )
-    florence_read_timeout: float = Field(
-        default=30.0,
-        ge=5.0,
-        le=120.0,
-        description="Maximum time (seconds) to wait for Florence-2 vision-language response. "
-        "Florence-2 is faster than LLMs but processes images, so 30s default allows for "
-        "complex operations like dense captioning and OCR.",
-    )
-    clip_read_timeout: float = Field(
-        default=5.0,
-        ge=1.0,
-        le=60.0,
-        description="Maximum time (seconds) to wait for CLIP embedding generation. "
-        "CLIP is fast for single embeddings but batch operations may take longer. "
-        "Set low to fail fast when CLIP text encoder is unavailable.",
-    )
-    enrichment_read_timeout: float = Field(
-        default=60.0,
-        ge=10.0,
-        le=180.0,
-        description="Maximum time (seconds) to wait for enrichment service response. "
-        "The enrichment service handles multiple AI models (vehicle classification, "
-        "pet classification, clothing analysis, depth estimation, pose analysis), "
-        "so longer timeout accommodates complex multi-model operations.",
-    )
-
-    # Enrichment pipeline parallelization settings
-    enrichment_pipeline_timeout_seconds: float = Field(
-        default=30.0,
-        ge=5.0,
-        le=120.0,
-        description="Hard timeout (seconds) for the entire enrichment pipeline. "
-        "If reached, returns whatever enrichment data has been collected so far. "
-        "Should be well below batch_window_seconds (90s) to leave time for "
-        "Nemotron analysis. Default: 30 seconds.",
-    )
-    enrichment_florence_concurrency: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum concurrent requests to Florence-2 service. "
-        "Limits GPU saturation when processing multiple detections.",
-    )
-    enrichment_clip_concurrency: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum concurrent requests to CLIP service. "
-        "Limits GPU saturation for embedding/classification requests.",
-    )
-    enrichment_service_concurrency: int = Field(
-        default=4,
-        ge=1,
-        le=10,
-        description="Maximum concurrent requests to enrichment HTTP services "
-        "(ai-gateway /enrichment, /enrich-lt routers). Limits GPU saturation.",
-    )
-    enrichment_quality_level: str = Field(
-        default="full",
-        description="Enrichment quality level controlling which models run. "
-        "Options: 'full' (all models), 'standard' (skip Florence enhanced + CLIP classify), "
-        "'minimal' (only detections + threat/pose/action). "
-        "Use lower levels when under load to stay within batch window.",
-    )
 
     # AI service retry settings
     detector_max_retries: int = Field(
@@ -1415,15 +1351,6 @@ class Settings(BaseSettings):
         "together — override both when serving a different quant). Pinned "
         "against .env.example and the compose defaults by "
         "test_ai_vlm_compose_service.TestShippedServingIdentity.",
-    )
-
-    enrichment_max_retries: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum retry attempts for enrichment service on transient failures "
-        "(ConnectError, TimeoutException). Uses exponential backoff with jitter "
-        "(2^attempt seconds with +/-10% jitter, capped at 30s). Default: 3 attempts.",
     )
 
     # AI service concurrency settings (NEM-1463)
@@ -1694,26 +1621,6 @@ class Settings(BaseSettings):
     vision_extraction_enabled: bool = Field(
         default=True,
         description="Enable Florence-2 vision extraction for vehicle/person attributes",
-    )
-
-    # Florence-2 feature toggles (granular control)
-    florence_scene_captions_enabled: bool = Field(
-        default=True,
-        description="Enable Florence-2 detailed scene captions. When enabled, generates rich "
-        "scene descriptions using DETAILED_CAPTION_TASK for enhanced LLM context. "
-        "Disable to reduce API calls if scene captions are not needed.",
-    )
-    florence_detection_captions_enabled: bool = Field(
-        default=True,
-        description="Enable Florence-2 captions for individual detections (vehicles, persons). "
-        "When enabled, generates descriptive captions for each detected object. "
-        "Disable to reduce API calls when only structured attributes are needed.",
-    )
-    florence_vqa_enabled: bool = Field(
-        default=True,
-        description="Enable Florence-2 Visual Question Answering for detailed attribute extraction. "
-        "When enabled, uses VQA to extract vehicle color, type, person clothing, etc. "
-        "Disable to rely only on basic captions for attribute extraction.",
     )
 
     image_quality_enabled: bool = Field(
@@ -2161,66 +2068,6 @@ class Settings(BaseSettings):
         ge=1,
         le=10,
         description="Successful DLQ writes needed to close circuit from half-open state",
-    )
-
-    # Enrichment circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
-    enrichment_cb_failure_threshold: int = Field(
-        default=10,
-        ge=1,
-        le=50,
-        description="Number of Enrichment service failures before opening circuit breaker (per-endpoint)",
-    )
-    enrichment_cb_recovery_timeout: float = Field(
-        default=60.0,
-        ge=10.0,
-        le=600.0,
-        description="Seconds to wait before attempting Enrichment service calls again after circuit opens",
-    )
-    enrichment_cb_half_open_max_calls: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum test calls allowed when Enrichment circuit is half-open",
-    )
-
-    # CLIP circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
-    clip_cb_failure_threshold: int = Field(
-        default=10,
-        ge=1,
-        le=50,
-        description="Number of CLIP service failures before opening circuit breaker (per-endpoint)",
-    )
-    clip_cb_recovery_timeout: float = Field(
-        default=60.0,
-        ge=10.0,
-        le=600.0,
-        description="Seconds to wait before attempting CLIP service calls again after circuit opens",
-    )
-    clip_cb_half_open_max_calls: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum test calls allowed when CLIP circuit is half-open",
-    )
-
-    # Florence circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
-    florence_cb_failure_threshold: int = Field(
-        default=10,
-        ge=1,
-        le=50,
-        description="Number of Florence service failures before opening circuit breaker (per-endpoint)",
-    )
-    florence_cb_recovery_timeout: float = Field(
-        default=60.0,
-        ge=10.0,
-        le=600.0,
-        description="Seconds to wait before attempting Florence service calls again after circuit opens",
-    )
-    florence_cb_half_open_max_calls: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum test calls allowed when Florence circuit is half-open",
     )
 
     # Redis compression settings (Python 3.14 compression.zstd)
