@@ -52,9 +52,9 @@ The SSIM algorithm compares structural patterns, luminance, and contrast between
 
 ### Environment Variables
 
-| Variable                 | Default | Range   | Description                              |
-| ------------------------ | ------- | ------- | ---------------------------------------- |
-| `SCENE_CHANGE_ENABLED`   | `true`  | -       | Enable/disable scene change detection    |
+| Variable               | Default | Range | Description                           |
+| ---------------------- | ------- | ----- | ------------------------------------- |
+| `SCENE_CHANGE_ENABLED` | `true`  | -     | Enable/disable scene change detection |
 
 ### Threshold Selection Guide
 

@@ -515,17 +515,17 @@ Named volumes: `postgres_data`, `redis_data`, `tempo_data`, `hf_cache`,
 The orchestrator is configured via environment variables with the `ORCHESTRATOR_`
 prefix (`OrchestratorSettings` in `backend/core/config.py`):
 
-| Variable                                | Default                                                                          | Description                                                                        |
-| --------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `ORCHESTRATOR_ENABLED`                  | `true`                                                                           | Enable container orchestrator                                                      |
-| `ORCHESTRATOR_DOCKER_HOST`              | unset (Docker/Podman default; compose sets `unix:///var/run/podman/podman.sock`) | Docker/Podman API endpoint                                                         |
-| `ORCHESTRATOR_COMPOSE_FILE`             | `docker-compose.prod.yml`                                                        | Compose file parsed for dynamic service discovery; `None` = hardcoded configs only |
-| `ORCHESTRATOR_HEALTH_CHECK_INTERVAL`    | `30` (5-300)                                                                     | Seconds between health checks                                                      |
-| `ORCHESTRATOR_HEALTH_CHECK_TIMEOUT`     | `5` (1-60)                                                                       | Timeout for health check requests                                                  |
-| `ORCHESTRATOR_STARTUP_GRACE_PERIOD`     | `60` (10-600)                                                                    | Global default grace period (per-service values come from compose)                 |
-| `ORCHESTRATOR_RESTART_BACKOFF_BASE`     | `5.0` (1.0-60.0)                                                                 | Global backoff base (per-service comes from compose labels/category)               |
-| `ORCHESTRATOR_RESTART_BACKOFF_MAX`      | `300.0`                                                                          | Global backoff cap                                                                 |
-| `ORCHESTRATOR_MONITORING_ENABLED`       | `true`                                                                           | Include monitoring services                                                        |
+| Variable                             | Default                                                                          | Description                                                                        |
+| ------------------------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `ORCHESTRATOR_ENABLED`               | `true`                                                                           | Enable container orchestrator                                                      |
+| `ORCHESTRATOR_DOCKER_HOST`           | unset (Docker/Podman default; compose sets `unix:///var/run/podman/podman.sock`) | Docker/Podman API endpoint                                                         |
+| `ORCHESTRATOR_COMPOSE_FILE`          | `docker-compose.prod.yml`                                                        | Compose file parsed for dynamic service discovery; `None` = hardcoded configs only |
+| `ORCHESTRATOR_HEALTH_CHECK_INTERVAL` | `30` (5-300)                                                                     | Seconds between health checks                                                      |
+| `ORCHESTRATOR_HEALTH_CHECK_TIMEOUT`  | `5` (1-60)                                                                       | Timeout for health check requests                                                  |
+| `ORCHESTRATOR_STARTUP_GRACE_PERIOD`  | `60` (10-600)                                                                    | Global default grace period (per-service values come from compose)                 |
+| `ORCHESTRATOR_RESTART_BACKOFF_BASE`  | `5.0` (1.0-60.0)                                                                 | Global backoff base (per-service comes from compose labels/category)               |
+| `ORCHESTRATOR_RESTART_BACKOFF_MAX`   | `300.0`                                                                          | Global backoff cap                                                                 |
+| `ORCHESTRATOR_MONITORING_ENABLED`    | `true`                                                                           | Include monitoring services                                                        |
 
 Per-service overrides are available as compose labels (interpreted by
 `ComposeParser`): `orchestrator.enabled`, `orchestrator.category`,

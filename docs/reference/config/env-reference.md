@@ -612,13 +612,13 @@ When the queue reaches `QUEUE_MAX_SIZE`, the system applies the configured overf
 
 Settings come from `TranscodeCacheSettings` (`env_prefix="TRANSCODE_CACHE_"`).
 
-| Variable                                    | Required | Default                | Range    | Description                                            |
-| ------------------------------------------- | -------- | ---------------------- | -------- | ------------------------------------------------------ |
-| `TRANSCODE_CACHE_DIR`                       | No       | `data/transcode_cache` | -        | Directory for transcoded media cache                   |
-| `TRANSCODE_CACHE_MAX_CACHE_SIZE_GB`         | No       | `10.0`                 | 0.1-1000 | Max cache size in GB (LRU eviction above this)         |
-| `TRANSCODE_CACHE_CLEANUP_THRESHOLD_PERCENT` | No       | `0.9`                  | 0.5-0.99 | Trigger cleanup at this fraction of max size           |
-| `TRANSCODE_CACHE_CLEANUP_TARGET_PERCENT`    | No       | `0.8`                  | 0.3-0.95 | Cleanup removes files until this fraction              |
-| `TRANSCODE_CACHE_ENABLED`                   | No       | `true`                 | -        | Enable the transcode cache                             |
+| Variable                                    | Required | Default                | Range    | Description                                    |
+| ------------------------------------------- | -------- | ---------------------- | -------- | ---------------------------------------------- |
+| `TRANSCODE_CACHE_DIR`                       | No       | `data/transcode_cache` | -        | Directory for transcoded media cache           |
+| `TRANSCODE_CACHE_MAX_CACHE_SIZE_GB`         | No       | `10.0`                 | 0.1-1000 | Max cache size in GB (LRU eviction above this) |
+| `TRANSCODE_CACHE_CLEANUP_THRESHOLD_PERCENT` | No       | `0.9`                  | 0.5-0.99 | Trigger cleanup at this fraction of max size   |
+| `TRANSCODE_CACHE_CLEANUP_TARGET_PERCENT`    | No       | `0.8`                  | 0.3-0.95 | Cleanup removes files until this fraction      |
+| `TRANSCODE_CACHE_ENABLED`                   | No       | `true`                 | -        | Enable the transcode cache                     |
 
 ---
 

@@ -54,7 +54,7 @@ class Outer(Middle):
 
     @model_validator(mode="after")
     def _divide(self):
-        # the real-world idiom at config.py:1185 — a dict lookup by string
+        # the real-world idiom in Settings._derive_slot_context_window — a dict lookup by string
         # key, which no cross-file grep and no self.X scan can see
         info_data = {}
         slots = info_data.get("slot_count") or 8

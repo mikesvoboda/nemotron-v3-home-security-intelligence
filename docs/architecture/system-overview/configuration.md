@@ -268,11 +268,11 @@ Container orchestrator configuration for Docker/Podman management.
 
 **Source:** `backend/core/config.py:115-359`
 
-| Variable                                | Default | Description             |
-| --------------------------------------- | ------- | ----------------------- |
-| `ORCHESTRATOR_ENABLED`                  | true    | Enable orchestration    |
-| `ORCHESTRATOR_DOCKER_HOST`              | None    | Docker/Podman host URL  |
-| `ORCHESTRATOR_HEALTH_CHECK_INTERVAL`    | 30      | Health check interval   |
+| Variable                             | Default | Description            |
+| ------------------------------------ | ------- | ---------------------- |
+| `ORCHESTRATOR_ENABLED`               | true    | Enable orchestration   |
+| `ORCHESTRATOR_DOCKER_HOST`           | None    | Docker/Podman host URL |
+| `ORCHESTRATOR_HEALTH_CHECK_INTERVAL` | 30      | Health check interval  |
 
 ### TranscodeCacheSettings
 
