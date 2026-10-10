@@ -264,6 +264,7 @@ class TestComposeConfigValidation:
 TRACKED_COMPOSE_FILES: tuple[str, ...] = (
     "config/docker-compose.gb300.yml",
     "docker-compose.ci.yml",
+    "docker-compose.fake-ai.yml",
     "docker-compose.prod.yml",
     "docker-compose.test.yml",
     "scripts/uplevel-f13-done-when/docker-compose.f13-expose-true.yml",

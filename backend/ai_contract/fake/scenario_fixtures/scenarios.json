@@ -1,0 +1,140 @@
+{
+  "about": "The fake AI stack's scenario book (O2.1). Each image here chooses its own outcome: the fake hashes the bytes it receives (the detector's multipart upload, the VLM's data URI) and answers with this file's detections and verdict for the scenario whose image matches. Drop an image into a camera folder and the event carries that verdict. reply_delay_seconds delays the verdict reply (the slow-reply failure mode). The backend's file watcher dedupes by the same sha256 for 5 minutes (backend/services/dedupe.py), so on one stack an image yields one event per 5 minutes. See backend/ai_contract/fake/AGENTS.md.",
+  "scenarios": [
+    {
+      "name": "person-at-door",
+      "image": "person-at-door.jpg",
+      "detections": [
+        {
+          "class": "person",
+          "confidence": 0.91,
+          "bbox": { "x": 260, "y": 120, "width": 110, "height": 300 }
+        }
+      ],
+      "verdict": {
+        "verdict": "confirmed",
+        "risk_score": 82,
+        "summary": "Unknown person at the front door",
+        "reasoning": "A person stands at the door outside the expected hours and does not approach the bell.",
+        "description": "One adult in dark clothing stands at the front door facing the entrance.",
+        "criteria": [
+          {
+            "name": "person_present",
+            "passed": true,
+            "evidence": "A person is visible at the door in the first frame."
+          }
+        ],
+        "provenance": { "engine": "fake-ai", "model_id": "fake-ai-vlm" }
+      },
+      "reply_delay_seconds": 0
+    },
+    {
+      "name": "cat-on-porch",
+      "image": "cat-on-porch.jpg",
+      "detections": [
+        {
+          "class": "cat",
+          "confidence": 0.88,
+          "bbox": { "x": 380, "y": 330, "width": 120, "height": 90 }
+        }
+      ],
+      "verdict": {
+        "verdict": "rejected",
+        "risk_score": 4,
+        "summary": "A cat crosses the porch",
+        "reasoning": "The only moving object is a household cat; nothing suggests a security concern.",
+        "description": "A small orange cat walks across the porch boards.",
+        "criteria": [
+          {
+            "name": "person_present",
+            "passed": false,
+            "evidence": "No person is visible; the detection is an animal."
+          }
+        ],
+        "provenance": { "engine": "fake-ai", "model_id": "fake-ai-vlm" }
+      },
+      "reply_delay_seconds": 0
+    },
+    {
+      "name": "car-in-driveway",
+      "image": "car-in-driveway.jpg",
+      "detections": [
+        {
+          "class": "car",
+          "confidence": 0.77,
+          "bbox": { "x": 120, "y": 220, "width": 360, "height": 180 }
+        }
+      ],
+      "verdict": {
+        "verdict": "uncertain",
+        "risk_score": 45,
+        "summary": "An unfamiliar car idles in the driveway",
+        "reasoning": "A car is parked in the driveway with its engine running; its occupant cannot be seen.",
+        "description": "A dark sedan sits in the driveway with its lights on.",
+        "criteria": [
+          {
+            "name": "vehicle_known",
+            "passed": false,
+            "evidence": "The vehicle does not match one seen at this camera before."
+          }
+        ],
+        "provenance": { "engine": "fake-ai", "model_id": "fake-ai-vlm" }
+      },
+      "reply_delay_seconds": 0
+    },
+    {
+      "name": "slow-reply",
+      "image": "slow-reply.jpg",
+      "detections": [
+        {
+          "class": "person",
+          "confidence": 0.86,
+          "bbox": { "x": 280, "y": 140, "width": 100, "height": 280 }
+        }
+      ],
+      "verdict": {
+        "verdict": "confirmed",
+        "risk_score": 70,
+        "summary": "A person walks up the path",
+        "reasoning": "A person approaches the house along the front path.",
+        "description": "One person walks up the path towards the door.",
+        "criteria": [
+          {
+            "name": "person_present",
+            "passed": true,
+            "evidence": "A person is visible on the path."
+          }
+        ],
+        "provenance": { "engine": "fake-ai", "model_id": "fake-ai-vlm" }
+      },
+      "reply_delay_seconds": 40
+    },
+    {
+      "name": "harness-smoke",
+      "image": "harness-smoke.jpg",
+      "detections": [
+        {
+          "class": "person",
+          "confidence": 0.89,
+          "bbox": { "x": 260, "y": 120, "width": 110, "height": 300 }
+        }
+      ],
+      "verdict": {
+        "verdict": "confirmed",
+        "risk_score": 61,
+        "summary": "Harness smoke check: a person at the front door",
+        "reasoning": "The feature-check harness's own scenario (O2.2): a person stands at the door, so the event is confirmed.",
+        "description": "One adult stands at the front door facing the entrance.",
+        "criteria": [
+          {
+            "name": "person_present",
+            "passed": true,
+            "evidence": "A person is visible at the door in the first frame."
+          }
+        ],
+        "provenance": { "engine": "fake-ai", "model_id": "fake-ai-vlm" }
+      },
+      "reply_delay_seconds": 0
+    }
+  ]
+}

@@ -287,8 +287,8 @@ function methodForCall(short, arg) {
  * Why `GET` is a sound default when the argument is missing or has no `method`
  * property: `fetch` itself defaults to `GET`, and each wrapper in this client
  * re-states that default before touching the network — `fetchApi`'s
- * `options?.method || 'GET'` (src/services/api.ts:1340) and `fetchWithRetry`'s
- * `options.method || 'GET'` (:1263) — while every per-domain client spreads its
+ * `options?.method || 'GET'` (src/services/api.ts:1349) and `fetchWithRetry`'s
+ * `options.method || 'GET'` (:1272) — while every per-domain client spreads its
  * caller's `options` into `fetch` verbatim without naming a `method` of its own.
  *
  * Why a pass-through bag is *not* defaulted to `GET`: at
