@@ -201,8 +201,8 @@ describe('appRoutes', () => {
 });
 
 // Fixture sources quote their relative specifiers through `q`, so this file's own text
-// holds no `from './x'` that a repo-wide import scan (R8-S5's dangling-import pin)
-// would read as a live import of a file that does not exist.
+// holds no relative `from`/`import` specifier that a repo-wide import scan (R8-S5's
+// dangling-import pin) would read as a live import of a file that does not exist.
 const q = (spec: string): string => `'${spec}'`;
 
 describe('reachableFiles', () => {
