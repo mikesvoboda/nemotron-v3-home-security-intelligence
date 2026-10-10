@@ -24,6 +24,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -607,6 +608,15 @@ def test_a_snapshot_reads_published_ports_and_running_bind_paths(live: Any) -> N
 # ---------------------------------------------------------------------------
 
 
+def test_the_script_runs_on_python_3_10() -> None:
+    """It runs on the operator sandbox's and the runners' own python3, not the
+    project's 3.14: a formatter targeting 3.14 strips the parentheses from
+    ``except (A, B):``, which no earlier Python parses."""
+    import ast
+
+    ast.parse(SCRIPT.read_text(encoding="utf-8"), feature_version=(3, 10))
+
+
 def test_compose_runs_with_the_runs_env_file_and_project(tmp_path: Path) -> None:
     command = fc.compose_command(
         engine="docker",
@@ -717,9 +727,24 @@ def test_the_harness_ignores_proxy_settings_for_its_own_ports(
 # ---------------------------------------------------------------------------
 
 
-def test_real_is_not_built_yet_and_says_so_with_its_own_exit_code() -> None:
-    """Exit 2 means the preflight refused; --real before it exists is 4."""
-    assert fc.main(["--real"]) == fc.EXIT_UNAVAILABLE == 4
+def test_real_refuses_where_agent_gpu_is_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--real serves models only through agent-gpu (owner ruling 66); on a
+    machine without it, the run says so with its own exit code (exit 2 means
+    the preflight refused) and creates nothing."""
+    monkeypatch.setenv("PATH", str(tmp_path / "no-agent-gpu"))
+    monkeypatch.setenv("AGENT_GPU_LIBRARY", str(tmp_path))
+    assert fc.main(["--real", "--root", str(tmp_path / "runs")]) == fc.EXIT_UNAVAILABLE == 4
+    assert not (tmp_path / "runs").exists()
+
+
+def test_real_refuses_without_the_model_library(
+    agent_gpu: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("AGENT_GPU_LIBRARY")
+    assert fc.main(["--real", "--root", str(tmp_path / "runs")]) == fc.EXIT_UNAVAILABLE
+    assert not (tmp_path / "runs").exists()
 
 
 def test_an_unexpected_error_still_tears_down_and_records_its_exit(
@@ -735,7 +760,7 @@ def test_an_unexpected_error_still_tears_down_and_records_its_exit(
             path.mkdir(parents=True, exist_ok=True)
         return empty
 
-    def up(self: Any) -> None:
+    def up(self: Any, vlm: Any = None) -> None:
         self.started = True
         raise KeyError("id")
 
@@ -758,3 +783,643 @@ def test_an_unexpected_error_still_tears_down_and_records_its_exit(
     assert calls == ["collect", "teardown"]
     (summary,) = tmp_path.glob("hsi-check-*/artifacts/summary.json")
     assert json.loads(summary.read_text(encoding="utf-8"))["exit"] == 1
+
+
+# ---------------------------------------------------------------------------
+# The real tier (owner ruling 66): the real VLM through agent-gpu, the fake
+# detector kept
+# ---------------------------------------------------------------------------
+
+VLM_URL = "http://host.docker.internal:18123"
+SERVED_MODEL = "Qwen3VL-8B-Instruct-Q4_K_M"
+
+# A stand-in for the agent-gpu CLI: it logs each call as a JSON line, keeps
+# the names `run` started until `rm` removes them, and lists them on `ps`.
+AGENT_GPU_STUB = """#!/usr/bin/env python3
+import json, os, sys
+log = os.environ["AGENT_GPU_STUB_LOG"]
+state = log + ".running"
+with open(log, "a") as f:
+    f.write(json.dumps(sys.argv[1:]) + "\\n")
+names = open(state).read().split() if os.path.exists(state) else []
+verb = sys.argv[1]
+if verb == "run":
+    name = sys.argv[sys.argv.index("--name") + 1]
+    open(state, "w").write("\\n".join([*names, name]))
+    print(f"{name}: admitted")
+    print("port 8098 -> http://host.docker.internal:18123")
+elif verb == "rm" and os.environ.get("AGENT_GPU_STUB_KEEP") != "1":
+    open(state, "w").write("\\n".join(n for n in names if n != sys.argv[2]))
+elif verb == "ps":
+    print("NAME IMAGE VRAM")
+    for name in names:
+        print(f"{name} ai-vlm:0000000 14GiB")
+elif verb == "status":
+    print("declared 0 of 40 GiB")
+elif verb == "images":
+    print(os.environ.get("AGENT_GPU_STUB_IMAGES", ""))
+"""
+
+
+class AgentGpuStub:
+    def __init__(self, bin_dir: Path, log: Path) -> None:
+        self.bin_dir = bin_dir
+        self.log = log
+
+    def calls(self) -> list[list[str]]:
+        if not self.log.exists():
+            return []
+        return [json.loads(line) for line in self.log.read_text(encoding="utf-8").splitlines()]
+
+    def verbs(self) -> list[str]:
+        return [call[0] for call in self.calls()]
+
+
+@pytest.fixture
+def agent_gpu(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AgentGpuStub:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    stub = bin_dir / "agent-gpu"
+    stub.write_text(AGENT_GPU_STUB, encoding="utf-8")
+    stub.chmod(0o755)
+    log = tmp_path / "agent-gpu.log"
+    monkeypatch.setenv("PATH", f"{bin_dir}:{Path(sys.executable).parent}:/usr/bin:/bin")
+    monkeypatch.setenv("AGENT_GPU_LIBRARY", str(tmp_path / "library"))
+    monkeypatch.setenv("AGENT_GPU_STUB_LOG", str(log))
+    return AgentGpuStub(bin_dir, log)
+
+
+@pytest.fixture
+def real_deployment(base: dict[str, Any]) -> dict[str, Any]:
+    return fc.as_test_deployment(base, project=PROJECT, run_dir=RUN_DIR, vlm_url=VLM_URL)
+
+
+def _run(tmp_path: Path, mode: str = "real") -> Any:
+    run = fc.Run(engine="docker", root=tmp_path / "runs", image_tag="test", mode=mode)
+    run.artifacts.mkdir(parents=True)
+    return run
+
+
+def test_the_real_tier_takes_the_vlm_from_agent_gpu_and_keeps_the_fake_detector(
+    real_deployment: dict[str, Any],
+) -> None:
+    services = real_deployment["services"]
+    assert "ai-vlm" not in services
+    assert "ai-gateway" in services
+    backend = services["backend"]
+    assert backend["environment"]["AI_VLM_URL"] == VLM_URL
+    assert "ai-vlm" not in backend["depends_on"]
+    assert "ai-gateway" in backend["depends_on"]
+    # host.docker.internal resolves in the sandbox's Docker on its own; a
+    # host-gateway entry would name the sandbox, not the GB300's runner.
+    assert "extra_hosts" not in backend
+
+
+def test_the_real_test_deployment_reaches_the_host_only_on_the_agent_gpu_port(
+    real_deployment: dict[str, Any], live: Any
+) -> None:
+    assert _preflight(real_deployment, live, allowed_host_ports=frozenset({18123})) == []
+    _one_problem(
+        _preflight(real_deployment, live, allowed_host_ports=frozenset({18124})),
+        "backend",
+        "host.docker.internal:18123",
+    )
+
+
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        (
+            "vlm: admitted\nport 8098 -> http://host.docker.internal:18123\n",
+            ("http://host.docker.internal:18123", 18123),
+        ),
+        (
+            "port 8098 -> http://host.docker.internal:18199/",
+            ("http://host.docker.internal:18199", 18199),
+        ),
+    ],
+)
+def test_the_vlm_url_is_the_one_agent_gpu_run_prints(
+    output: str, expected: tuple[str, int]
+) -> None:
+    assert fc.agent_gpu_url(output) == expected
+
+
+@pytest.mark.parametrize(
+    "output",
+    [
+        "vlm: admitted",
+        "port 8099 -> http://host.docker.internal:18123",
+        "port 8098 -> http://host.docker.internal:8000",
+        "port 8098 -> http://192.168.1.20:18123",
+        "port 8098 -> https://host.docker.internal:18123",
+        "port 8098 -> http://host.docker.internal:18123/v1",
+    ],
+)
+def test_a_vlm_url_outside_the_runners_pool_refuses(output: str) -> None:
+    """The runner publishes from 18100-18199 on the host's loopback; any other
+    address could be the live stack's API, database or engine."""
+    with pytest.raises(fc.HarnessError, match="agent-gpu run"):
+        fc.agent_gpu_url(output)
+
+
+def test_the_weight_pins_are_operator_mds() -> None:
+    runbook = (REPO_ROOT / "docs" / "uplevel" / "operator.md").read_text(encoding="utf-8")
+    assert set(fc.VLM_WEIGHTS) == {fc.VLM_MODEL, fc.VLM_MMPROJ}
+    for name, digest in fc.VLM_WEIGHTS.items():
+        assert f"{digest}  {name}" in runbook
+    assert f"$AGENT_GPU_LIBRARY/{fc.VLM_LIBRARY_DIR}" in runbook
+
+
+def _library(root: Path, files: dict[str, bytes]) -> Path:
+    directory = root / fc.VLM_LIBRARY_DIR
+    directory.mkdir(parents=True)
+    for name, content in files.items():
+        (directory / name).write_bytes(content)
+    return directory
+
+
+def _pin(monkeypatch: pytest.MonkeyPatch, files: dict[str, bytes]) -> dict[str, str]:
+    import hashlib
+
+    pins = {name: hashlib.sha256(content).hexdigest() for name, content in files.items()}
+    monkeypatch.setattr(fc, "VLM_WEIGHTS", pins)
+    return pins
+
+
+PINNED = {
+    "Qwen3VL-8B-Instruct-Q4_K_M.gguf": b"model",
+    "mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf": b"mmproj",
+}
+
+
+def test_weights_that_match_the_pin_pass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pins = _pin(monkeypatch, PINNED)
+    found = fc.weight_digests(_library(tmp_path, PINNED))
+    assert found == pins
+    assert fc.weight_problems(found) == []
+
+
+@pytest.mark.parametrize(
+    ("files", "needle"),
+    [
+        (
+            {**PINNED, "Qwen3VL-8B-Instruct-Q4_K_M.gguf": b"another build"},
+            "Qwen3VL-8B-Instruct-Q4_K_M.gguf has sha256",
+        ),
+        (
+            {"mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf": b"mmproj"},
+            "Qwen3VL-8B-Instruct-Q4_K_M.gguf is missing",
+        ),
+        (
+            {**PINNED, "Qwen3VL-8B-Instruct-Q8_0.gguf": b"q8"},
+            "Qwen3VL-8B-Instruct-Q8_0.gguf, which is not the pin",
+        ),
+    ],
+)
+def test_weights_that_are_not_the_pin_refuse(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, files: dict[str, bytes], needle: str
+) -> None:
+    """operator.md step 1: stop unless sha256sum prints exactly the pin."""
+    _pin(monkeypatch, PINNED)
+    _one_problem(fc.weight_problems(fc.weight_digests(_library(tmp_path, files))), needle)
+
+
+def test_the_vlm_runs_with_prods_environment_and_the_librarys_weights() -> None:
+    """operator.md step 3: the library's pin, then each other ai-vlm variable
+    from docker-compose.prod.yml verbatim (its defaults: the run's env file
+    sets none of them)."""
+    yaml = pytest.importorskip("yaml")
+    prod = yaml.safe_load((REPO_ROOT / "docker-compose.prod.yml").read_text(encoding="utf-8"))
+    raw = prod["services"]["ai-vlm"]["environment"]
+    environment = fc.vlm_run_environment(raw)
+    library = f"/library/{fc.VLM_LIBRARY_DIR}"
+    assert environment[:2] == [
+        f"MODEL_PATH={library}/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+        f"MMPROJ_PATH={library}/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf",
+    ]
+    assert len(environment) == len(raw)
+    values = dict(entry.split("=", 1) for entry in environment)
+    assert values["PORT"] == str(fc.VLM_PORT) == "8098"
+    assert values["CTX_SIZE"] == "32768"
+    assert values["PARALLEL"] == "2"
+    assert values["LLAMA_ARG_IMAGE_MAX_TOKENS"] == "1280"
+    assert values["CACHE_TYPE_K"] == values["CACHE_TYPE_V"] == "q8_0"
+    assert not [entry for entry in environment if "$" in entry]
+
+
+@pytest.mark.parametrize("entry", ["GPU_LAYERS=${VLM_GPU_LAYERS}", "X=${Y:?set it}", "X=$Y"])
+def test_a_vlm_variable_with_no_default_refuses(entry: str) -> None:
+    """The run's env file sets no VLM variable, so a reference with no
+    default would have the harness make up a value."""
+    with pytest.raises(fc.HarnessError, match="no default"):
+        fc.vlm_run_environment([entry])
+
+
+def test_the_vlm_image_pulls_each_base_of_its_dockerfile() -> None:
+    text = (REPO_ROOT / "ai" / "vlm" / "Dockerfile").read_text(encoding="utf-8")
+    named = re.findall(r"(?im)^FROM\s+(\S+)", text)
+    assert fc.dockerfile_bases(text) == named
+    assert fc.dockerfile_bases(
+        "FROM a:1 AS builder\nFROM builder AS test\nFROM --platform=linux/arm64 b:2\nFROM a:1\n"
+    ) == ["a:1", "b:2"]
+    with pytest.raises(fc.HarnessError, match="BASE"):
+        fc.dockerfile_bases("ARG BASE=x\nFROM ${BASE}\n")
+
+
+def _event(**overrides: Any) -> dict[str, Any]:
+    verification = {
+        "verdict": "confirmed",
+        "engine": "llama.cpp@b7972-1a2b3c4",
+        "model_id": SERVED_MODEL,
+    }
+    verification.update(overrides.pop("verification", {}))
+    return {"id": 7, "risk_score": 61, "verification": verification, **overrides}
+
+
+def test_the_fake_smoke_check_wants_the_scenarios_verdict_and_score() -> None:
+    scenario = fc._scenario(fc.SMOKE_SCENARIO)
+    assert fc.smoke_problems([_event()], camera="harness_smoke", scenario=scenario) == []
+    _one_problem(
+        fc.smoke_problems([_event(risk_score=12)], camera="harness_smoke", scenario=scenario),
+        "risk_score 12",
+    )
+
+
+@pytest.mark.parametrize("verdict", ["confirmed", "rejected", "uncertain"])
+def test_the_real_smoke_check_wants_a_verdict_from_the_served_model(verdict: str) -> None:
+    """Q2 (heavy's DECIDE): the real VLM's verdict is not the scenario's, so
+    the check asserts that the served model gave one."""
+    event = _event(risk_score=3, verification={"verdict": verdict})
+    assert fc.smoke_problems([event], camera="harness_smoke", served_model=SERVED_MODEL) == []
+
+
+@pytest.mark.parametrize(
+    ("verification", "needle"),
+    [
+        ({"verdict": "verification_failed"}, "verification_failed"),
+        ({"model_id": "Qwen3VL-8B-Instruct-Q8_0"}, "Qwen3VL-8B-Instruct-Q8_0"),
+        ({"model_id": "fake-ai-vlm"}, "fake-ai-vlm"),
+        ({"verdict": None}, "None"),
+    ],
+)
+def test_a_real_smoke_event_the_served_model_did_not_judge_fails(
+    verification: dict[str, Any], needle: str
+) -> None:
+    event = _event(verification=verification)
+    problems = fc.smoke_problems([event], camera="harness_smoke", served_model=SERVED_MODEL)
+    _one_problem(problems, needle)
+
+
+@pytest.mark.parametrize("count", [0, 2])
+def test_the_smoke_check_wants_exactly_one_event(count: int) -> None:
+    events = [_event(id=n) for n in range(count)]
+    _one_problem(
+        fc.smoke_problems(events, camera="harness_smoke", served_model=SERVED_MODEL),
+        f"found {count}",
+    )
+
+
+def test_the_harness_reaches_no_host_port_but_the_vlms() -> None:
+    for url in ("http://host.docker.internal:18124/health", "http://host.docker.internal:8000/"):
+        with pytest.raises(fc.HarnessError, match=r"127\.0\.0\.1"):
+            fc._http("GET", url, origin=VLM_URL)
+
+
+def _serve(handler: Any) -> Any:
+    import http.server
+    import threading
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def _vlm_proxy(model_path: str, seen: list[str]) -> Any:
+    """A proxy that answers for the VLM, as the sandbox's proxy forwards
+    host.docker.internal to the host's loopback."""
+    import http.server
+
+    class Proxy(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            seen.append(self.path)
+            payload: Any = {"status": "ok"}
+            if self.path.endswith("/props"):
+                payload = {"build_info": "b7972-1a2b3c4", "model_path": model_path}
+            body = json.dumps(payload).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args: Any) -> None:
+            pass
+
+    return _serve(Proxy)
+
+
+def _through(monkeypatch: pytest.MonkeyPatch, server: Any) -> None:
+    for name in ("HTTP_PROXY", "http_proxy"):
+        monkeypatch.setenv(name, f"http://127.0.0.1:{server.server_address[1]}")
+    for name in ("NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(name, raising=False)
+
+
+def test_the_served_model_must_be_the_pin(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """operator.md step 3: wait for /health, record /props, and stop unless
+    model_path names the Q4_K_M file. The sandbox reaches the runner's port
+    through its proxy, so the harness does too."""
+    seen: list[str] = []
+    library = f"/library/{fc.VLM_LIBRARY_DIR}"
+    server = _vlm_proxy(f"{library}/Qwen3VL-8B-Instruct-Q4_K_M.gguf", seen)
+    try:
+        _through(monkeypatch, server)
+        vlm = fc.AgentGpu(_run(tmp_path))
+        vlm.url, vlm.host_port = VLM_URL, 18123
+        vlm.wait_ready(timeout=5)
+        assert seen[:1] == [f"{VLM_URL}/health"]
+        assert f"{VLM_URL}/props" in seen
+        assert vlm.served_model == SERVED_MODEL
+        assert vlm.run.summary["build_info"] == "b7972-1a2b3c4"
+        assert vlm.run.summary["model_path"] == f"{library}/Qwen3VL-8B-Instruct-Q4_K_M.gguf"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_served_model_that_is_not_the_pin_refuses(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    server = _vlm_proxy("/library/qwen3vl-8b-instruct-q8_0/Qwen3VL-8B-Instruct-Q8_0.gguf", [])
+    try:
+        _through(monkeypatch, server)
+        vlm = fc.AgentGpu(_run(tmp_path))
+        vlm.url, vlm.host_port = VLM_URL, 18123
+        with pytest.raises(fc.HarnessError, match="Q8_0"):
+            vlm.wait_ready(timeout=5)
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_the_vlm_is_built_and_served_as_operator_md_says(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pins = _pin(monkeypatch, PINNED)
+    _library(tmp_path / "library", PINNED)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_tree", lambda *_: "abc1234")
+    monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
+    run = _run(tmp_path)
+    vlm = fc.AgentGpu(run)
+    vlm.prepare()
+    vlm.start()
+
+    calls = agent_gpu.calls()
+    assert [call[0] for call in calls] == ["status", "images", "pull", "pull", "build", "run"]
+    assert [call[1] for call in calls[2:4]] == fc.dockerfile_bases(
+        (REPO_ROOT / "ai" / "vlm" / "Dockerfile").read_text(encoding="utf-8")
+    )
+    assert calls[4] == [
+        "build",
+        "--context",
+        "workspace:ai/vlm",
+        "--tag",
+        "ai-vlm:abc1234",
+        "--build-arg",
+        "CUDA_ARCHITECTURES=103",
+    ]
+    library = f"/library/{fc.VLM_LIBRARY_DIR}"
+    assert calls[5] == [
+        "run",
+        "--name",
+        f"{run.project}-vlm",
+        "--image",
+        "ai-vlm:abc1234",
+        "--vram",
+        "14",
+        "--port",
+        "8098",
+        "--ttl",
+        "12",
+        "--mount",
+        "library:/library",
+        "--env",
+        f"MODEL_PATH={library}/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+        "--env",
+        f"MMPROJ_PATH={library}/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf",
+        "--env",
+        "PORT=8098",
+    ]
+    assert (vlm.url, vlm.host_port) == (VLM_URL, 18123)
+    assert run.summary["weights"] == [f"{digest}  {name}" for name, digest in pins.items()]
+    assert run.summary["vlm_image"] == "ai-vlm:abc1234"
+    assert run.summary["vram"]["declared_gib"] == 14
+    assert "declared 0 of 40 GiB" in run.summary["agent_gpu"]["status_before"]
+
+
+def test_the_vlm_image_is_built_once_per_state_of_ai_vlm(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _pin(monkeypatch, PINNED)
+    _library(tmp_path / "library", PINNED)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_tree", lambda *_: "abc1234")
+    monkeypatch.setenv("AGENT_GPU_STUB_IMAGES", "IMAGE TAG\nai-vlm abc1234")
+    fc.AgentGpu(_run(tmp_path)).prepare()
+    assert agent_gpu.verbs() == ["status", "images"]
+
+
+def test_weights_that_are_not_the_pin_refuse_before_anything_is_served(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _pin(monkeypatch, PINNED)
+    _library(tmp_path / "library", {**PINNED, "Qwen3VL-8B-Instruct-Q4_K_M.gguf": b"q8 build"})
+    monkeypatch.setattr(fc.AgentGpu, "vlm_tree", lambda *_: "abc1234")
+    vlm = fc.AgentGpu(_run(tmp_path))
+    with pytest.raises(fc.Refused) as refused:
+        vlm.prepare()
+    _one_problem(refused.value.problems, "Qwen3VL-8B-Instruct-Q4_K_M.gguf has sha256")
+    assert agent_gpu.verbs() == []
+    assert not vlm.started
+
+
+def _green_real_run(monkeypatch: pytest.MonkeyPatch, order: list[str], fail: str = "") -> None:
+    """Every phase of a real run stubbed green but the agent-gpu calls; the
+    phase named ``fail`` raises."""
+    empty = fc.Snapshot(containers=(), volumes=frozenset())
+
+    def prepare(self: Any) -> Any:
+        for path in (self.dir, self.cameras, self.artifacts):
+            path.mkdir(parents=True, exist_ok=True)
+        return empty
+
+    def phase(name: str, result: Any = None) -> Any:
+        def call(self: Any, *args: Any, **kwargs: Any) -> Any:
+            order.append(name)
+            if name == "up":
+                self.started = True
+            if name == fail:
+                raise RuntimeError(f"{name} broke")
+            return result
+
+        return call
+
+    monkeypatch.setattr(fc.Run, "prepare", prepare)
+    monkeypatch.setattr(fc.AgentGpu, "prepare", phase("vlm.prepare"))
+    monkeypatch.setattr(fc.AgentGpu, "wait_ready", phase("vlm.wait_ready"))
+    monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
+    for name, result in (
+        ("render", None),
+        ("up", None),
+        ("register_admin", None),
+        ("seed_cameras", None),
+        ("check_isolation", []),
+        ("smoke", []),
+        ("golden", []),
+        ("collect", None),
+        ("teardown", ([], [])),
+    ):
+        monkeypatch.setattr(fc.Run, name, phase(name, result))
+
+
+def test_a_green_real_run_removes_its_vlm_after_the_test_deployment(
+    agent_gpu: AgentGpuStub,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    order: list[str] = []
+    _green_real_run(monkeypatch, order)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
+    status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+    assert status == fc.EXIT_OK, capsys.readouterr().out
+    assert order[-2:] == ["collect", "teardown"]
+    (summary_file,) = (tmp_path / "runs").glob("hsi-check-*/artifacts/summary.json")
+    summary = json.loads(summary_file.read_text(encoding="utf-8"))
+    name = f"{summary['project']}-vlm"
+    assert agent_gpu.calls()[-4:] == [["ps"], ["stop", name], ["rm", name], ["ps"]]
+    assert summary["results"]["agent_gpu"] == "ok"
+    assert summary["exit"] == 0
+    assert summary["mode"] == "real"
+    assert '"exit": 0' in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("fail", ["vlm.wait_ready", "render", "up", "smoke"])
+def test_a_real_run_that_breaks_still_removes_its_vlm(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fail: str
+) -> None:
+    """operator.md step 6: tear down, also after a failure."""
+    order: list[str] = []
+    _green_real_run(monkeypatch, order, fail=fail)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
+    status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+    assert status == fc.EXIT_FAILED
+    assert agent_gpu.verbs()[-3:] == ["stop", "rm", "ps"]
+    (summary_file,) = (tmp_path / "runs").glob("hsi-check-*/artifacts/summary.json")
+    summary = json.loads(summary_file.read_text(encoding="utf-8"))
+    assert summary["results"]["agent_gpu"] == "ok"
+    assert summary["exit"] == 1
+    assert ("teardown" in order) == (fail not in ("vlm.wait_ready", "render"))
+
+
+def test_a_vlm_that_outlives_the_run_fails_it(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """operator.md step 6: agent-gpu ps must list none of the run's containers."""
+    monkeypatch.setenv("AGENT_GPU_STUB_KEEP", "1")
+    order: list[str] = []
+    _green_real_run(monkeypatch, order)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_image", "ai-vlm:abc1234", raising=False)
+    status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+    assert status == fc.EXIT_FAILED
+    (summary_file,) = (tmp_path / "runs").glob("hsi-check-*/artifacts/summary.json")
+    summary = json.loads(summary_file.read_text(encoding="utf-8"))
+    (problem,) = summary["results"]["agent_gpu"]
+    assert f"{summary['project']}-vlm" in problem
+
+
+def test_a_backend_that_cannot_reach_the_vlm_says_so_when_up_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The backend's health check calls the VLM, so an unreachable VLM fails
+    `up --wait` before the reach check runs; the run still names the reason."""
+    import subprocess
+
+    def deployment(self: Any, *args: str, **kwargs: Any) -> Any:
+        if args[0] == "up":
+            raise fc.HarnessError("docker compose ... exited 1: dependency backend failed to start")
+        return subprocess.CompletedProcess(args, 1, "", "ConnectionResetError: [Errno 104]")
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.url = VLM_URL
+    with pytest.raises(fc.HarnessError, match=r"cannot reach the VLM at .*Errno 104"):
+        vlm.run.up(vlm)
+
+
+def test_a_failed_up_with_a_reachable_vlm_keeps_its_own_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import subprocess
+
+    def deployment(self: Any, *args: str, **kwargs: Any) -> Any:
+        if args[0] == "up":
+            raise fc.HarnessError("docker compose ... exited 1: frontend is unhealthy")
+        return subprocess.CompletedProcess(args, 0, "200\n", "")
+
+    monkeypatch.setattr(fc.Run, "deployment", deployment)
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.url = VLM_URL
+    with pytest.raises(fc.HarnessError, match="frontend is unhealthy"):
+        vlm.run.up(vlm)
+
+
+# ---------------------------------------------------------------------------
+# The summary the operator posts (30-ops.md §O2.2: the preflight snapshot and
+# each golden spec's result)
+# ---------------------------------------------------------------------------
+
+
+def test_the_summary_carries_the_preflight_snapshot(live: Any) -> None:
+    brief = fc.snapshot_brief(live)
+    assert brief["volumes"] == sorted(live.volumes)
+    assert len(brief["containers"]) == len(live.containers)
+    for container, line in zip(live.containers, brief["containers"], strict=True):
+        state = "running" if container.running else container.status
+        assert line == f"{container.name} {state} {container.started_at}"
+
+
+def test_the_summary_lists_each_golden_spec(tmp_path: Path) -> None:
+    junit = tmp_path / "golden.xml"
+    junit.write_text(
+        '<?xml version="1.0"?><testsuites><testsuite name="golden">'
+        '<testcase classname="backend.tests.golden.test_events" name="test_one"/>'
+        '<testcase classname="backend.tests.golden.test_events" name="test_two">'
+        '<failure message="boom"/></testcase>'
+        '<testcase classname="backend.tests.golden.test_events" name="test_three">'
+        "<skipped/></testcase>"
+        '<testcase classname="backend.tests.golden.test_events" name="test_four">'
+        '<error message="setup"/></testcase>'
+        '<testcase classname="golden.spec.ts" name="prints &quot;&lt;failure&gt;&quot;">'
+        "<system-out><![CDATA[a passing spec that prints <failure> text]]></system-out>"
+        "</testcase>"
+        "</testsuite></testsuites>",
+        encoding="utf-8",
+    )
+    spec = "backend.tests.golden.test_events::"
+    assert fc.junit_results(junit) == {
+        f"{spec}test_one": "passed",
+        f"{spec}test_two": "failed",
+        f"{spec}test_three": "skipped",
+        f"{spec}test_four": "failed",
+        'golden.spec.ts::prints "<failure>"': "passed",
+    }
+
+
+def test_a_golden_suite_with_no_report_lists_no_specs(tmp_path: Path) -> None:
+    assert fc.junit_results(tmp_path / "missing.xml") == {}
+    broken = tmp_path / "broken.xml"
+    broken.write_text("<testsuites><testsuite", encoding="utf-8")
+    assert fc.junit_results(broken) == {}
