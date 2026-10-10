@@ -182,6 +182,61 @@ def test_keep_list_ships_by_declaration_and_reports_hits(tmp_path):
     assert out2["keep_hits"] == []
 
 
+def test_keep_ships_a_kept_module_s_own_import_edges(tmp_path):
+    """A keep line says a module RUNS, so what it imports ships too.
+
+    The block used to stop at ``live.add(rel)``, shipping keep'd modules as
+    islands: their imports stayed on the non-shipping list — the OVER-DEAD
+    direction, the dangerous one for M2 scoring and B3.2's deletion list.
+    """
+    _write(tmp_path, "pkg/main.py", "x = 1\n")
+    _write(tmp_path, "pkg/fake/__init__.py", "")  # empty: not a candidate
+    _write(tmp_path, "pkg/fake/app.py", "from pkg.real.svc import Svc\n")
+    _write(tmp_path, "pkg/real/svc.py", "Svc = object()\n")
+    _write(tmp_path, "pkg/real/unused.py", "N = 1\n")
+    out = _analyze(tmp_path, keep=["pkg/fake"])
+    shipping = set(out["shipping"])
+    assert "pkg/fake/app.py" in shipping
+    assert "pkg/real/svc.py" in shipping, "keep shipped a module but not its import edge"
+    # and the sweep must stay selective — keep is not a whole-tree mark
+    assert "pkg/real/unused.py" in {m["module"] for m in out["not_shipping"]}
+
+
+def test_keep_edges_keep_name_level_selectivity(tmp_path):
+    """§M1's rule is not an entry-point-only rule: a keep'd file that asks a
+    package for ONE of two re-exported names ships one sub, not both."""
+    _write(tmp_path, "pkg/main.py", "x = 1\n")
+    _write(
+        tmp_path,
+        "pkg/__init__.py",
+        "from pkg.live_sub import keep_name\nfrom pkg.dead_sub import unused_name\n",
+    )
+    _write(tmp_path, "pkg/live_sub.py", "keep_name = 'keep'\n")
+    _write(tmp_path, "pkg/dead_sub.py", "unused_name = 'unused'\n")
+    _write(tmp_path, "pkg/fake/app.py", "from pkg import keep_name\n")
+    # keep vocabulary is a module stem, not a file path (keep.toml:
+    # "backend/ai_contract/fake", no .py) — the matcher appends the suffixes.
+    out = _analyze(tmp_path, keep=["pkg/fake/app"])
+    assert "pkg/live_sub.py" in set(out["shipping"])
+    assert "pkg/dead_sub.py" in {m["module"] for m in out["not_shipping"]}, (
+        "keep replayed the package __init__ whole instead of by name"
+    )
+
+
+def test_keep_ships_edges_reaching_out_of_the_kept_dir(tmp_path):
+    """A NON-EMPTY kept __init__ is itself a running module: what it imports
+    outside its own directory ships too (the real keep entry's
+    fake/__init__.py re-exports from app.py the same way)."""
+    _write(tmp_path, "pkg/main.py", "x = 1\n")
+    _write(tmp_path, "pkg/fake/__init__.py", "from pkg.outside.helper import h\n")
+    _write(tmp_path, "pkg/fake/inner.py", "I = 1\n")
+    _write(tmp_path, "pkg/outside/helper.py", "def h():\n    return 1\n")
+    _write(tmp_path, "pkg/outside/sibling.py", "S = 1\n")
+    out = _analyze(tmp_path, keep=["pkg/fake"])
+    assert "pkg/outside/helper.py" in set(out["shipping"])
+    assert "pkg/outside/sibling.py" in {m["module"] for m in out["not_shipping"]}
+
+
 def test_line_counts_are_real(tmp_path):
     _write(tmp_path, "pkg/main.py", "x = 1\n")
     body = "\n".join(f"n{i} = {i}" for i in range(37))
@@ -309,6 +364,28 @@ def test_done_when_shipping_modules_are_reported_live(real_out):
     shipping = set(real_out["shipping"])
     for name in ("vlm_analyzer", "backend/evaluation"):
         assert _matches(shipping, name), f"{name} must be reported shipping"
+
+
+@pytest.mark.timeout(120)  # shares the real_out walk
+def test_keep_edges_ship_in_the_real_tree(real_out):
+    """The same invariant on today's keep.toml, whose one entry is
+    backend/ai_contract/fake. fake/app.py:48-49 imports operations and
+    provider at module level, so both must ship — before the fix they were
+    the list's headline casualties (operations 150, provider 263,
+    providers 199, ai_contract/__init__ 45 = 657 lines reported dead next to
+    a keep'd module that imports three of them)."""
+    shipping = set(real_out["shipping"])
+    dead = {m["module"] for m in real_out["not_shipping"]}
+    for rel in (
+        "backend/ai_contract/operations.py",
+        "backend/ai_contract/provider.py",
+    ):
+        assert rel in shipping, f"{rel} is imported by keep'd fake/app.py"
+        assert rel not in dead
+    # name-level selectivity still holds on the real tree: providers.py is
+    # reached only through ai_contract/__init__, which fake/app.py's edges
+    # ask for no names from.
+    assert "backend/ai_contract/providers.py" in dead
 
 
 @pytest.mark.timeout(120)  # shares the real_out walk

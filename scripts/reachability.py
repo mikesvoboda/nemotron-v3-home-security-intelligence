@@ -268,11 +268,11 @@ def analyze(
                     unresolved.append({"module": rel, "target": lit})
                 continue
             before = len(live)
-            demand(lit, None, rel)
+            demand(lit, None)
             grew = grew or len(live) > before
         return grew
 
-    def demand(target: str, names: frozenset[str] | None, site: str) -> None:
+    def demand(target: str, names: frozenset[str] | None) -> None:
         """Ship `target` for the given names (None = whole module)."""
         work: list[tuple[str, frozenset[str] | None]] = [(target, names)]
         seen: set[tuple[str, frozenset[str] | None]] = set()
@@ -321,7 +321,7 @@ def analyze(
         view = ModuleView(entry, (root / entry).read_text(encoding="utf-8", errors="replace"))
         live.add(entry)
         for target, ns in view.demands:
-            demand(target, ns, entry)
+            demand(target, ns)
         run_dynamic(entry, view)
 
     # Entry files are not in `views` (entries may sit outside the candidate
@@ -337,22 +337,50 @@ def analyze(
                 changed = True
 
     # keep list: ship by declaration; a pattern matching nothing is NOT a hit.
+    # Declaring a module live means it RUNS, so its own import edges run too —
+    # the sweep below replays them exactly as the entry loop does. Without it
+    # keep published islands: the real keep entry (backend/ai_contract/fake)
+    # left the operations/provider modules its app.py imports at module level
+    # on the NON-shipping list, the over-dead direction, and the dangerous one
+    # now that M2 scoring and B3.2's deletion list read this verdict.
     keep_hits: list[str] = []
+    keep_added: list[str] = []
     for pattern in keep:
         prefix = pattern.rstrip("/")
         hit = False
         for rel in views:
             stem = rel.removesuffix(".py")
             if stem == prefix or stem.startswith(prefix + "/"):
+                if rel not in live:
+                    keep_added.append(rel)
                 live.add(rel)
                 hit = True
         for suffix in (".py", "/__init__.py"):
             direct = f"{prefix}{suffix}"
             if (root / direct).is_file() and not _is_test_path(direct):
+                if direct not in live and direct not in views:
+                    # keep can name a file the candidate walk skipped (an
+                    # entry outside the dirs is impossible here, but a
+                    # candidate-dir-relative path that is empty is): parse it
+                    # on demand so its edges are not lost.
+                    keep_added.append(direct)
                 live.add(direct)
                 hit = True
         if hit:
             keep_hits.append(pattern)
+
+    for rel in dict.fromkeys(keep_added):
+        # Replay the kept module's import edges exactly as the entry loop
+        # does: every module-level line it holds runs (a plain module is
+        # whole regardless of who asks, and demand() enforces that), but a
+        # package it reaches by NAME still ships only the line binding that
+        # name — §M1 selectivity is not an entry-point-only rule. Kept files
+        # sit outside `views` only when the candidate walk skipped them (an
+        # empty __init__, a path outside the dirs), so parse on demand.
+        view = views.get(rel) or ModuleView(rel, (root / rel).read_text("utf-8", "replace"))
+        for target, ns in view.demands:
+            demand(target, ns)
+        run_dynamic(rel, view)
 
     not_shipping = sorted(
         ({"module": rel, "lines": v.lines} for rel, v in views.items() if rel not in live),
