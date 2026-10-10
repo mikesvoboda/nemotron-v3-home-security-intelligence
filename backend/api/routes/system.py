@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_baseline_service_dep, get_cache_service_dep
 from backend.api.middleware import RateLimiter, RateLimitTier
+from backend.api.middleware.auth import _validate_key_hash_constant_time
 from backend.api.schemas.baseline import (
     AnomalyConfig,
     AnomalyConfigUpdate,
@@ -301,7 +302,22 @@ async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
         key_value: str = k.get_secret_value() if hasattr(k, "get_secret_value") else str(k)
         valid_hashes.add(hashlib.sha256(key_value.encode()).hexdigest())
 
-    if key_hash not in valid_hashes:
+    # R60 (ruling 60) touches this copy for the TIMING FIX ONLY: this compare
+    # is the one place the copy-paste diverged from the middleware's standard.
+    # auth.py compares digests with hmac.compare_digest (its
+    # _validate_key_hash_constant_time, "OWASP A07:2021"); a set ``in`` probe
+    # returns as soon as the probe chain ends, so its runtime is set-table
+    # state rather than a fixed sweep. Being precise about the payoff: both
+    # sides here are SHA-256 digests, so no timing signal helps an attacker
+    # recover a key (that would need a preimage) — the point is that three
+    # copies of one check should not carry three different comparison rules,
+    # which is exactly how the next divergence gets introduced. Stated scope
+    # of this leg: the copies stay UNSCOPED — the gate (AuthMiddleware) is the
+    # outermost door this dependency can run behind, scope checks belong to
+    # it, and ~40 existing tests patch THIS module's get_settings binding with
+    # mocks carrying only api_keys/api_key_enabled. Flag-off early return
+    # above stays verbatim.
+    if not _validate_key_hash_constant_time(key_hash, valid_hashes):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
 
 
