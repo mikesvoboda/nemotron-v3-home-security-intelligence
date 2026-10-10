@@ -1,5 +1,6 @@
 {
   "embedding": [1.0],
   "embedding_dimension": 1,
-  "inference_time_ms": 1.0
+  "inference_time_ms": 1.0,
+  "model_id": "sample_model_id"
 }
