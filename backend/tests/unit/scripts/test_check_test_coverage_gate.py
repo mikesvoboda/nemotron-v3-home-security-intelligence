@@ -110,11 +110,15 @@ def test_inline_collection_still_extraction_only() -> None:
 # died before; it must die LOUDLY and BOUNDED, never silently or forever.
 #
 # The kill must take the whole process group (uv spawns pytest as a
-# grandchild): subprocess.run's own timeout kills only the DIRECT child,
-# and an orphaned pytest holding the stdout pipe would keep communicate()
-# blocked — the wrapper would "time out" into another hang. The test's
-# fake uv therefore spawns a pipe-holding child that only a group kill
-# reaches; a direct-kill-only implementation stays red past the limit.
+# grandchild). Measured 2026-10-10 against a direct-kill-only scratch
+# mutant: a bounded second drain keeps the RETURN time bounded anyway
+# (returned at ~31s: 1s limit + 30s drain), with the correct named
+# message — but the orphaned collector stays ALIVE on the runner for its
+# full lifetime (a runaway ~27.5k-test pytest burning CI minutes after
+# the gate already gave up). Message pins cannot see that; the process-
+# existence pin below can, and it is the production guarantee. The fake
+# uv spawns its grandchild under a unique env token so the pin can grep
+# exactly it.
 # ---------------------------------------------------------------------------
 
 
@@ -156,7 +160,7 @@ def test_inline_collection_call_carries_a_timeout() -> None:
             "ruling 72: Popen without communicate(timeout=...) is the "
             "unbounded shape this pin exists to refuse"
         )
-    assert "COLLECT_TIMEOUT" in ast.dump(limit_expr) or (
+    assert "collect_timeout" in ast.dump(limit_expr).lower() or (
         isinstance(limit_expr, ast.Constant) and limit_expr.value >= 600
     ), (
         "the limit must trace to the MEASURE-decided constant (900s: median "
@@ -169,6 +173,35 @@ def test_inline_collection_call_carries_a_timeout() -> None:
         "not an uncaught exception (that reddens with a traceback, not the "
         "step+limit message the ruling requires)"
     )
+
+
+def _orphan_probe_alive(token: str) -> bool:
+    """True while a sh process carrying `token` in its command line lives.
+
+    /proc scan, no ps(1) dependency: every /proc/<pid>/cmdline for our own
+    uid contains the token only while the fake collector's grandchild (or
+    its timeout(1) parent) is alive. Reaped/zombie processes are excluded —
+    a zombie is already dead, just unwaited.
+    """
+    proc_root = Path("/proc")
+    for entry in proc_root.iterdir():
+        if not entry.name.isdigit():
+            continue
+        # entry.name came from the /proc listing filtered to digits: no
+        # component here is user-controlled, the traversal this rule warns
+        # about is structurally impossible.
+        try:
+            cmd = (entry / "cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8", "replace")
+            if token not in cmd:
+                continue
+            # field 3 of /proc/<pid>/stat is the state; Z = zombie = dead
+            # but unreaped (the killed group's members before init reaps).
+            state = (entry / "stat").read_text().rsplit(") ", 1)[1].split()[0]
+            if state != "Z":
+                return True
+        except OSError:
+            continue  # raced with exit / not ours to read
+    return False
 
 
 class TestR72TimeoutWrapper:
@@ -199,20 +232,52 @@ class TestR72TimeoutWrapper:
         monkeypatch.chdir(tmp_path)  # no ./coverage.json seam exists
         return gate
 
-    @pytest.mark.timeout(60)  # marker beats addopts (measured 2026-10-10); red run waits out the fake
+    @pytest.mark.timeout(
+        60
+    )  # marker beats addopts (measured 2026-10-10); red run waits out the fake
     def test_timeout_path_fails_loudly_and_kills_the_group(self, tmp_path, monkeypatch) -> None:
-        """Fake uv: spawns a pipe-holding grandchild and never exits. A
-        direct-kill-only wrapper leaves the grandchild holding the pipe and
-        this returns LATE with a non-timeout message (or never)."""
-        gate = self._gate(tmp_path, monkeypatch, "sleep 40 & wait", "1")
-        ok, msg = gate.check_coverage_diff(base_branch="unused-base")
-        assert ok is False, f"timed-out collection must fail the gate, got: {msg}"
-        assert "timed out" in msg.lower(), (
-            f"message must name the timeout class, got: {msg}"
+        """Fake uv: spawns a pipe-holding grandchild and never exits. The
+        timeout must (a) fail with a message naming step + limit, and (b)
+        leave NO orphaned collector alive — the group kill."""
+        import time
+        import uuid
+
+        token = f"r72orphan-{uuid.uuid4().hex[:12]}"
+        # Fake uv: spawns the loop as a background child (same process
+        # group, exactly like uv spawning pytest) and waits. NO timeout(1)
+        # wrapper here — measured 2026-10-10: GNU timeout re-groups the
+        # monitored command, so the loop would sit OUTSIDE the killable
+        # group and the orphan pin would pass vacuously. The loop
+        # self-limits to ~25s instead, so a red run of THIS test cannot
+        # litter the machine. The token sits INSIDE the -c string (as the
+        # loop's own comment): uv's argv never contains it, so the probe
+        # greps exactly the grandchild and nothing else — and `#` outside
+        # the quotes would comment out the `&` and break the backgrounding.
+        hang_uv = (
+            f"sh -c 'end=$(( $(date +%s) + 25 )); "
+            f"while [ $(date +%s) -lt $end ]; do sleep 0.2; done  # {token}' & wait\n"
         )
+        gate = self._gate(tmp_path, monkeypatch, hang_uv, "1")
+        t0 = time.monotonic()
+        ok, msg = gate.check_coverage_diff(base_branch="unused-base")
+        elapsed = time.monotonic() - t0
+        assert ok is False, f"timed-out collection must fail the gate, got: {msg}"
+        assert "timed out" in msg.lower(), f"message must name the timeout class, got: {msg}"
         assert "1s" in msg or "1 s" in msg, f"message must name the LIMIT, got: {msg}"
         assert "pytest" in msg.lower(), f"message must name the STEP, got: {msg}"
         assert not (tmp_path / "coverage.json").exists()
+        # The production guarantee the message pins cannot express: no
+        # runaway collector left burning runner minutes after the gate
+        # gave up. (Measured: a direct-kill-only mutant passes ALL the
+        # message assertions and leaks the grandchild alive.)
+        deadline = time.monotonic() + 5.0
+        while _orphan_probe_alive(token) and time.monotonic() < deadline:
+            time.sleep(0.1)  # grace for SIGTERM delivery
+        assert not _orphan_probe_alive(token), (
+            f"the collector outlived the timeout: the wrapper killed only its "
+            f"direct child and left the grandchild alive (returned in "
+            f"{elapsed:.1f}s with the right message — loud but leaky)"
+        )
 
     @pytest.mark.timeout(60)
     def test_fast_collection_still_flows_under_the_wrapper(self, tmp_path, monkeypatch) -> None:
@@ -222,7 +287,7 @@ class TestR72TimeoutWrapper:
         gate = self._gate(
             tmp_path,
             monkeypatch,
-            "echo '{\"totals\": {\"percent_covered\": 80.0}}' > coverage.json; exit 0",
+            'echo \'{"totals": {"percent_covered": 80.0}}\' > coverage.json; exit 0',
             "30",
         )
         ok, msg = gate.check_coverage_diff(base_branch="unused-base")
