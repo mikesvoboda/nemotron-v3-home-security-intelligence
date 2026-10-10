@@ -587,7 +587,8 @@ Before the test deployment starts, `--real`:
    changes under `ai/vlm/` refuse the run (exit 2), since the tag would not
    name them.
 4. Serves the pin with `agent-gpu run --vram 14 --port 8098`, named
-   `<project>-vlm`, with each other `ai-vlm` variable of
+   `hsi-vlm-<run id>` (the runner admits names of at most 32 characters, so
+   not `<project>-vlm`), with each other `ai-vlm` variable of
    `docker-compose.prod.yml` at its default.
 5. Reads the VLM's URL from the line `run` prints
    (`port 8098 -> http://host.docker.internal:<port>`). Any other address, or
