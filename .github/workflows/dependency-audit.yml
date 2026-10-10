@@ -1,24 +1,45 @@
 name: Dependency Audit
 
+# OB.2 (CI dedupe): this is the ONE dependency-audit workflow. Before this
+# change pip-audit executed in four files (here, nightly.yml, vulnerability-
+# management.yml, weekly-audit.yml) and npm audit in four (here, ci.yml,
+# nightly.yml, vulnerability-management.yml); the package's Done-when is
+# "each concern runs in exactly one workflow". The three advisory copies went
+# (each verdict mapped in the OB.2 PR body); ci.yml's gating npm-audit CHECK
+# moved here as a WP1.2 workflow_call — the same surgery that made gitleaks/
+# sast/trivy blocking ("a green CI Gate was compatible with ... new CVEs").
+# CI Gate still sees one aggregate verdict: the `security-dependency-audit`
+# call job in ci.yml is a direct ci-gate need with a check_job line, and a
+# `uses:` job's conclusion IS the reusable's aggregate.
+#
+# Job-id spelling is PINNED: scripts/test_check_pip_audit_exemptions.py
+# splits this file on the two job-id keys below (with trailing colon) and
+# asserts the checker + registry live inside the python leg and --ignore-vuln
+# does not. Renaming either job = edit that test in the same commit — and
+# never cite those two literals colon-suffixed in a comment ABOVE the jobs:
+# the split finds the first occurrence, and a comment that comes first
+# becomes the "leg" (measured: this package's own header did exactly that).
+#
+# on: keeps schedule + workflow_call. The weekly scan is what catches NEW
+# advisories against UNCHANGED code — a PR-time-only audit goes blind to the
+# advisory published Wednesday against last week's lock. On a PR the audit
+# runs only through ci.yml's call job (no standalone push/PR trigger: that
+# would race the parent inside the shared concurrency group — see below).
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - 'frontend/package.json'
-      - 'frontend/package-lock.json'
-  pull_request:
-    branches: [main]
+  workflow_call:
   schedule:
-    - cron: '0 6 * * 1' # Weekly on Monday at 6 AM UTC
+    - cron: '0 6 * * 1' # Weekly on Monday at 6 AM UTC (kept: new-advisory discovery on unchanged code)
+  workflow_dispatch:
 
-# WP3.4: repeated pushes to a PR branch piled up redundant runs of this
-# workflow that all competed for the measured ~20-job scheduler ceiling
-# (spec WP3.1: concurrency 20 pinned). Same pattern as ci.yml:10-12.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# WP1.2 fix (probe3, run 35492418369): root `concurrency:` is BANNED in a
+# called workflow. The child run renders `${{ github.workflow }}` as the
+# CALLER's name, so with ci.yml's group every child registered the PARENT's
+# own group; cancel-in-progress then killed the call job at initialization
+# (no check-run, no logs, needs.*.result=failure — proven one-variable: w5
+# dies, w6 same-parent green). Precedent: gitleaks.yml, sast.yml, trivy.yml,
+# integration-shard.yml. The standalone push/PR triggers the old file carried
+# are gone with the deletion, so a group here would guard nothing on the
+# schedule leg either (cron does not pile up runs the way PR pushes did).
 
 env:
   PYTHON_VERSION: '3.14'
@@ -101,11 +122,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Same gate as ci.yml's `npm Audit (Frontend)`: the registry checker,
-      # not a bare `npm audit --audit-level=high` (which fails open on an
-      # advisory with no released fix - the braces chain). python3 because
-      # this job is Node-only and the checker is stdlib-only. working-directory
-      # is frontend/, hence ../scripts and --frontend . here.
+      # Same gate as ci.yml's `npm Audit (Frontend)` leg this job absorbs:
+      # the registry checker, not a bare `npm audit --audit-level=high`
+      # (which fails open on an advisory with no released fix - the braces
+      # chain). python3 because this job is Node-only and the checker is
+      # stdlib-only. working-directory is frontend/, hence ../scripts and
+      # --frontend . here.
       - name: Audit check (exemption registry)
         run: python3 ../scripts/check-npm-audit-exemptions.py --frontend . --warn-days 14
         continue-on-error: false

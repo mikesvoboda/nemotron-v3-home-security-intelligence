@@ -208,7 +208,7 @@ those floors, so review such hunks by hand.
 | gitleaks.yml                 | Gitleaks        | Push/PR              | Secret detection              |
 | trivy.yml                    | Trivy           | Push/PR (Dockerfile) | Container vulnerabilities     |
 | zap-security.yml             | OWASP ZAP       | Weekly/Manual        | Dynamic security testing      |
-| dependency-audit.yml         | pip-audit, npm  | Push/PR/Weekly       | Dependency vulnerability scan |
+| dependency-audit.yml         | pip-audit, npm  | PR (via ci.yml)+Weekly | Dependency vulnerability scan |
 | vulnerability-management.yml | Multiple        | Weekly               | CVE tracking and remediation  |
 | weekly-audit.yml             | Multiple        | Weekly (Monday 9 AM) | Security + code quality       |
 
