@@ -474,15 +474,24 @@ a live stack.
   port on `127.0.0.1`.
 - **Its own camera directory.** The camera directory is `<run>/cameras`.
 - **No orchestrator.** The backend runs with `ORCHESTRATOR_ENABLED=false`.
-- **The preflight** refuses the run when any of these hold:
+- **The preflight** fails closed: any compose setting it has no rule for
+  (`volumes_from`, `devices`, `cap_add`, `ipc`, a `build` option, a
+  top-level section ...) refuses the run. It also refuses the run when any of
+  these hold:
   - a writable bind mount points outside the run directory;
   - a service mounts an engine socket;
-  - a service gets the host's network, processes or devices;
+  - a service gets the host's network, processes or devices, or another
+    container's network or processes;
+  - a network is not the run's own bridge (external, foreign-named, or
+    another driver), or a named volume carries `driver_opts`;
   - a service is configured with a host address;
   - a service carries a fixed `container_name`;
   - the backend's orchestrator is not off;
-  - the project, a container name, a host port, a volume or a writable host
-    path overlaps what the machine snapshot found.
+  - the project, a container name, a host port or a volume overlaps what the
+    machine snapshot found;
+  - a writable host path of the run contains a running container's bind, or
+    sits inside one that is writable or narrower than `/`. A read-only view
+    of the whole filesystem (node-exporter's `/:/host:ro`) only reads.
 - **The in-run check** fails the run when a container holds an engine socket,
   or when the backend reports its orchestrator on.
 - **Teardown** is `docker compose -p <project> down -v` and nothing else.
@@ -495,9 +504,10 @@ Exit codes:
 | exit | meaning                                                                                     |
 | ---- | ------------------------------------------------------------------------------------------- |
 | 0    | green                                                                                       |
-| 1    | a check of the run failed                                                                   |
+| 1    | a check of the run failed, or teardown left the run's own containers or volumes             |
 | 2    | the preflight refused; nothing started                                                      |
 | 3    | the postflight found a pre-existing container or volume changed: report it, restore nothing |
+| 4    | the mode cannot run here (`--real` before it is built)                                      |
 
 Artifacts land in `<run>/artifacts`:
 
@@ -510,7 +520,9 @@ Artifacts land in `<run>/artifacts`:
 
 Run directories go under `$FEATURE_CHECK_ROOT` (default
 `/tmp/hsi-feature-check`). `--engine podman` (or `FEATURE_CHECK_ENGINE`) uses
-`podman compose`.
+`podman compose`. The snapshot is the engine's view of the machine: rootless
+podman lists only the calling user's containers, so run the harness as the
+user that runs any live stack, or its checks see nothing to protect.
 
 **Golden paths.** The harness runs them in two places:
 
@@ -530,6 +542,7 @@ environment variables:
 | `FEATURE_CHECK_SCENARIOS`                                      | the fake AI's scenario book                   |
 | `FEATURE_CHECK_ADMIN_USERNAME`, `FEATURE_CHECK_ADMIN_PASSWORD` | the first admin the harness registered        |
 | `FEATURE_CHECK_MODE`                                           | `fake` or `real`                              |
+| `FEATURE_CHECK_RUN_DIR`                                        | the run's directory                           |
 
 To drop a fixture image into a camera folder, run
 `scripts/feature-check.sh drop <image> <camera>`, or copy the image into

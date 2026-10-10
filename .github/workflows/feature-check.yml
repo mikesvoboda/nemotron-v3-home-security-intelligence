@@ -79,6 +79,8 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: feature-check
-          path: ${{ runner.temp }}/feature-check
+          # Only each run's artifacts/: the run directory also holds the
+          # throwaway admin's password (admin.json) and the camera folders.
+          path: ${{ runner.temp }}/feature-check/*/artifacts
           retention-days: 14
           if-no-files-found: warn

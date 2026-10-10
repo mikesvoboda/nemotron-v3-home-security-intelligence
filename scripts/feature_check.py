@@ -27,9 +27,10 @@ A test deployment touches nothing else on the machine (``docs/uplevel/30-ops.md`
   from the snapshot still exists, and every container that was running still
   is, with the same start time.
 
-Exit codes: 0 green; 1 a check of the run failed; 2 the preflight refused and
-nothing started; 3 the postflight found a pre-existing container or volume
-changed (report it on the urgent path; the harness restores nothing).
+Exit codes: 0 green; 1 a check of the run failed, or teardown left the run's
+own containers or volumes; 2 the preflight refused and nothing started; 3 the
+postflight found a pre-existing container or volume changed (report it on the
+urgent path; the harness restores nothing); 4 the mode cannot run here.
 
 Standard library only, so it runs in CI, in the operator sandbox and on a host
 without the project's virtualenv.
@@ -69,6 +70,13 @@ PLAYWRIGHT_CONFIG = REPO_ROOT / "frontend" / "playwright.config.ts"
 FAKE_SERVICES = ("postgres", "redis", "backend", "frontend", "ai-vlm", "ai-gateway")
 CAMERA_TARGET = "/cameras"
 PROJECT_LABEL = "com.docker.compose.project"
+PROJECT_PREFIX = "hsi-check-"
+
+EXIT_OK = 0
+EXIT_FAILED = 1  # a check of the run failed
+EXIT_REFUSED = 2  # the preflight refused; nothing started
+EXIT_CHANGED = 3  # the postflight found a pre-existing container or volume changed
+EXIT_UNAVAILABLE = 4  # the mode cannot run here (--real before it is built)
 
 # The harness smoke check: one scenario image in, one event out. Its scenario
 # has image bytes of its own: the backend deduplicates images by content for
@@ -108,6 +116,39 @@ HOST_LEVEL_ACCESS = {
     "privileged": (True, "every host device and capability"),
 }
 
+# The preflight fails closed: a test deployment may use only the keys it has a
+# rule for. These are the keys the CI stack and the fake-AI overlay render
+# (plus container_name and extra_hosts, which have refusal rules of their
+# own); anything else (volumes_from, devices, cap_add, ipc, userns_mode,
+# cgroup, secrets ...) is refused until a rule for it is written here.
+SERVICE_KEYS = frozenset(
+    {
+        "build",
+        "cap_drop",
+        "command",
+        "container_name",
+        "depends_on",
+        "deploy",
+        "entrypoint",
+        "environment",
+        "extra_hosts",
+        "healthcheck",
+        "image",
+        "networks",
+        "ports",
+        "pull_policy",
+        "read_only",
+        "security_opt",
+        "sysctls",
+        "tmpfs",
+        "user",
+        "volumes",
+    }
+) | frozenset(HOST_LEVEL_ACCESS)
+TOP_LEVEL_KEYS = frozenset({"name", "services", "networks", "volumes"})
+BUILD_KEYS = frozenset({"context", "dockerfile", "args", "target"})
+SECURITY_OPTS = frozenset({"no-new-privileges:true", "no-new-privileges"})
+
 _ENGINE_SOCKET = re.compile(
     r"(?:^|/)(?:docker|podman|containerd|crio|cri-dockerd|buildkitd)\.sock$"
 )
@@ -122,11 +163,17 @@ class HarnessError(RuntimeError):
     """The harness cannot go on; the message says why."""
 
 
+def _normal(path: str) -> str:
+    """normpath, with a doubled leading slash collapsed too (POSIX keeps it,
+    and compose renders ``//run`` as written)."""
+    return os.path.normpath(re.sub(r"/{2,}", "/", path))
+
+
 def is_engine_socket(path: str | None) -> bool:
     """True for a container-engine socket or a directory that holds one."""
     if not path:
         return False
-    normal = os.path.normpath(path)
+    normal = _normal(path)
     return (
         normal in ("/", "/var")
         or _ENGINE_SOCKET.search(normal) is not None
@@ -135,8 +182,8 @@ def is_engine_socket(path: str | None) -> bool:
 
 
 def _inside(path: str, root: str) -> bool:
-    candidate = PurePosixPath(os.path.normpath(path))
-    base = PurePosixPath(os.path.normpath(root))
+    candidate = PurePosixPath(_normal(path))
+    base = PurePosixPath(_normal(root))
     return candidate == base or base in candidate.parents
 
 
@@ -233,6 +280,17 @@ class Snapshot:
         """Host paths that running containers bind-mount (a live stack's data)."""
         return frozenset(
             m.source
+            for c in self.containers
+            if c.running
+            for m in c.mounts
+            if m.kind == "bind" and m.source
+        )
+
+    @property
+    def running_binds(self) -> frozenset[tuple[str, bool]]:
+        """(host path, writable) for every bind a running container holds."""
+        return frozenset(
+            (m.source, m.writable)
             for c in self.containers
             if c.running
             for m in c.mounts
@@ -400,6 +458,86 @@ def _host_references(text: str, hosts: Iterable[str]) -> list[tuple[str, int | N
     return found
 
 
+def _live_clashes(source: str, live_binds: Iterable[tuple[str, bool]]) -> list[str]:
+    """Live bind paths a run's writable ``source`` would share.
+
+    The run's path containing a live bind means the run could write into it.
+    The run's path inside a live bind shares it when that bind is writable,
+    or when it is a read-only view narrower than the whole filesystem: a
+    live container reading a directory (a watched camera folder) may ingest
+    what the run writes there. A read-only bind of ``/`` (node-exporter's
+    ``/:/host:ro``) only reads, and would otherwise refuse every run.
+    """
+    clashes = set()
+    for live, live_writable in live_binds:
+        if _inside(live, source) or (
+            _inside(source, live) and (live_writable or _normal(live) != "/")
+        ):
+            clashes.add(live)
+    return sorted(clashes)
+
+
+def _service_setting_problems(name: str, service: Mapping[str, Any], services: Any) -> list[str]:
+    """What fails the allowlist: unknown keys, and values of known keys that
+    reach beyond the run (another container's network, an unconfined profile,
+    a build that runs with the host's network)."""
+    problems = []
+    for key in sorted(service):
+        if key not in SERVICE_KEYS:
+            problems.append(
+                f"{name}: {key} is a setting the preflight has no rule for; "
+                "a test deployment refuses it"
+            )
+    mode = service.get("network_mode")
+    if mode not in (None, "host", "none", "bridge", "default") and not (
+        str(mode).startswith("service:") and str(mode).split(":", 1)[1] in services
+    ):
+        problems.append(f"{name}: network_mode: {mode} joins a network the run does not own")
+    pid = service.get("pid")
+    if pid not in (None, "host"):
+        problems.append(f"{name}: pid: {pid} shares another container's processes")
+    for entry in service.get("security_opt") or []:
+        if str(entry) not in SECURITY_OPTS:
+            problems.append(f"{name}: security_opt {entry} is not one the preflight allows")
+    build = service.get("build")
+    if isinstance(build, Mapping):
+        for key in sorted(set(build) - BUILD_KEYS):
+            problems.append(f"{name}: build.{key} is a build setting the preflight has no rule for")
+    return problems
+
+
+def _top_level_problems(rendered: Mapping[str, Any], project: str) -> list[str]:
+    problems = []
+    for key in sorted(rendered):
+        if key not in TOP_LEVEL_KEYS and not key.startswith("x-"):
+            problems.append(f"{key}: a top-level section the preflight has no rule for")
+    for key, network in sorted((rendered.get("networks") or {}).items()):
+        network = network or {}
+        own = f"{project}_{key}"
+        if network.get("external"):
+            problems.append(f"network {key}: external, shared beyond this run")
+        elif network.get("name", own) != own:
+            problems.append(f"network {key}: named {network.get('name')}, not the run's own {own}")
+        elif network.get("driver") not in (None, "bridge"):
+            problems.append(
+                f"network {key}: driver {network.get('driver')}; a test deployment uses bridge"
+            )
+    for key, volume in sorted((rendered.get("volumes") or {}).items()):
+        volume = volume or {}
+        if volume.get("external"):
+            continue  # refused where a service mounts it
+        if volume.get("driver_opts"):
+            problems.append(
+                f"volume {key}: driver_opts can make a named volume a host bind; "
+                "a test deployment refuses them"
+            )
+        elif volume.get("driver") not in (None, "local"):
+            problems.append(
+                f"volume {key}: driver {volume.get('driver')}; a test deployment uses local"
+            )
+    return problems
+
+
 def preflight(
     rendered: Mapping[str, Any],
     *,
@@ -411,18 +549,21 @@ def preflight(
 ) -> list[str]:
     """Every reason the rendered run must not start; empty means go.
 
-    Refuses a writable bind mount outside ``run_dir``, any engine socket, the
-    host's network, processes or devices, a configured host address on any
-    port but ``allowed_host_ports`` (the ports ``agent-gpu run`` printed; none
-    on ``--fake``), a backend whose orchestrator is not off, and any overlap
-    with the snapshot: the project, a container name, a host port, a volume,
-    or a writable host path a running container also mounts.
+    Fails closed: any service key, build key, top-level section, network or
+    volume option without a rule here is refused. Refuses a writable bind
+    mount outside ``run_dir``, any engine socket, the host's network,
+    processes or devices, a network or namespace the run does not own, a
+    configured host address on any port but ``allowed_host_ports`` (the ports
+    ``agent-gpu run`` printed; none on ``--fake``), a backend whose
+    orchestrator is not off, and any overlap with the snapshot: the project,
+    a container name, a host port, a volume, or a host path a running
+    container also mounts (:func:`_live_clashes`).
     """
-    problems: list[str] = []
+    problems: list[str] = _top_level_problems(rendered, project)
     run_root = str(run_dir)
     live_names = snapshot.names
     live_ports = snapshot.host_ports
-    live_binds = snapshot.running_bind_sources
+    live_binds = snapshot.running_binds
     volumes = rendered.get("volumes") or {}
 
     if project in snapshot.projects:
@@ -434,6 +575,7 @@ def preflight(
     services = rendered.get("services") or {}
     for name in sorted(services):
         service = services[name] or {}
+        problems += _service_setting_problems(name, service, services)
 
         fixed = service.get("container_name")
         if fixed:
@@ -472,7 +614,7 @@ def preflight(
                         f"directory {run_root}"
                     )
                 elif writable:
-                    clashes = sorted(live for live in live_binds if _overlaps(source, live))
+                    clashes = _live_clashes(source, live_binds)
                     if clashes:
                         problems.append(
                             f"{name}: writable bind mount {source} overlaps "
@@ -559,12 +701,22 @@ def in_run_check(
     return problems
 
 
+def _test_deployment_name(name: str | None) -> bool:
+    return bool(name) and str(name).startswith(PROJECT_PREFIX)
+
+
 def postflight(before: Snapshot, after: Snapshot, *, project: str) -> list[str]:
-    """Every pre-existing container or volume the run changed, and anything
-    of the run's own that teardown left behind."""
+    """Every pre-existing container or volume the run changed (exit 3).
+
+    Another test deployment's containers and volumes (another run on the same
+    machine) come and go on their own; they are not live, so they are not
+    held to the snapshot.
+    """
     problems = []
     now_by_id = {c.id: c for c in after.containers}
     for container in before.containers:
+        if _test_deployment_name(container.project):
+            continue
         now = now_by_id.get(container.id)
         if now is None:
             problems.append(
@@ -581,13 +733,23 @@ def postflight(before: Snapshot, after: Snapshot, *, project: str) -> list[str]:
                 f"now {now.started_at})"
             )
     for volume in sorted(before.volumes - after.volumes):
-        problems.append(f"volume {volume}: missing after the run")
-    for container in after.containers:
-        if container.project == project:
-            problems.append(f"{container.name}: the run's container is still here after teardown")
-    for volume in sorted(after.volumes - before.volumes):
-        if volume.startswith(f"{project}_"):
-            problems.append(f"volume {volume}: the run's volume is still here after teardown")
+        if not _test_deployment_name(volume):
+            problems.append(f"volume {volume}: missing after the run")
+    return problems
+
+
+def leftovers(before: Snapshot, after: Snapshot, *, project: str) -> list[str]:
+    """What of the run's own teardown left behind (a failed run, exit 1)."""
+    problems = [
+        f"{container.name}: the run's container is still here after teardown"
+        for container in after.containers
+        if container.project == project
+    ]
+    problems += [
+        f"volume {volume}: the run's volume is still here after teardown"
+        for volume in sorted(after.volumes - before.volumes)
+        if volume.startswith(f"{project}_")
+    ]
     return problems
 
 
@@ -626,7 +788,7 @@ class Run:
 
     def __init__(self, *, engine: str, root: Path, image_tag: str, mode: str) -> None:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-        self.project = f"hsi-check-{stamp}-{secrets.token_hex(3)}"
+        self.project = f"{PROJECT_PREFIX}{stamp}-{secrets.token_hex(3)}"
         self.engine = engine
         self.mode = mode
         self.image_tag = image_tag
@@ -959,21 +1121,24 @@ class Run:
         ps = self.deployment("ps", "-a", "--format", "json", check=False, echo=False)
         (self.artifacts / "ps.json").write_text(ps.stdout, encoding="utf-8")
 
-    def teardown(self, before: Snapshot) -> list[str]:
+    def teardown(self, before: Snapshot) -> tuple[list[str], list[str]]:
+        """``down -v`` for this project only; then (postflight, leftovers)."""
         self.deployment("down", "-v", check=False, timeout=600)
         after = self.snapshot()
         self._write("snapshot-after.json", after.to_json())
-        problems = postflight(before, after, project=self.project)
-        self.summary["results"]["postflight"] = problems or "ok"
+        changed = postflight(before, after, project=self.project)
+        left = leftovers(before, after, project=self.project)
+        self.summary["results"]["postflight"] = changed or "ok"
+        self.summary["results"]["teardown"] = left or "ok"
         _log(
             "postflight: "
             + (
                 "ok, every pre-existing container and volume untouched"
-                if not problems
+                if not changed
                 else "CHANGED"
             )
         )
-        return problems
+        return changed, left
 
     def _write(self, name: str, data: Any) -> None:
         (self.artifacts / name).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
@@ -983,6 +1148,11 @@ class Refused(HarnessError):
     def __init__(self, problems: list[str]) -> None:
         super().__init__("preflight refused the run")
         self.problems = problems
+
+
+# No proxies: urllib honours HTTP_PROXY, and a NO_PROXY without 127.0.0.1
+# would send the harness's calls to a proxy instead of the run's own ports.
+_LOOPBACK = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 def _http(method: str, url: str, payload: Any = None, timeout: float = 15) -> tuple[int, Any]:
@@ -997,8 +1167,7 @@ def _http(method: str, url: str, payload: Any = None, timeout: float = 15) -> tu
         url, data=data, method=method, headers={"Content-Type": "application/json"}
     )
     try:
-        # nosemgrep: ssrf-requests - only the run's own 127.0.0.1 ports, checked above
-        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+        with _LOOPBACK.open(request, timeout=timeout) as response:
             status, raw = response.status, response.read()
     except urllib.error.HTTPError as error:
         status, raw = error.code, error.read()
@@ -1041,7 +1210,7 @@ def drop(image: Path, camera: str, camera_root: Path) -> Path:
 def run_fake(args: argparse.Namespace) -> int:
     run = Run(engine=args.engine, root=args.root, image_tag=args.image_tag, mode="fake")
     before = run.prepare()
-    status = 0
+    status = EXIT_OK
     try:
         run.render(before)
         run.up()
@@ -1054,25 +1223,42 @@ def run_fake(args: argparse.Namespace) -> int:
         if problems:
             for problem in problems:
                 _log(f"FAIL {problem}")
-            status = 1
+            status = EXIT_FAILED
     except Refused as refused:
         for problem in refused.problems:
             _log(f"REFUSED {problem}")
-        status = 2
-    except (HarnessError, subprocess.TimeoutExpired) as error:
-        _log(f"FAIL {error}")
-        status = 1
+        status = EXIT_REFUSED
+    except Exception as error:  # noqa: BLE001 - whatever broke, teardown and the summary follow
+        _log(f"FAIL {type(error).__name__}: {error}")
+        status = EXIT_FAILED
     finally:
         if run.started:
-            run.collect()
-            if run.teardown(before):
-                for problem in run.summary["results"]["postflight"]:
-                    _log(f"URGENT {problem}")
-                status = 3
+            status = max(status, _finish(run, before))
         run.summary["exit"] = status
         run._write("summary.json", run.summary)
         _log(f"summary: {run.artifacts / 'summary.json'} (exit {status})")
     return status
+
+
+def _finish(run: Run, before: Snapshot) -> int:
+    """Collect, tear down and run the postflight; nothing here may stop the
+    teardown, and a postflight that cannot run counts as a change."""
+    try:
+        run.collect()
+    except Exception as error:  # noqa: BLE001 - artifacts are best effort; teardown is not
+        _log(f"collecting artifacts failed ({type(error).__name__}: {error}); tearing down")
+    try:
+        changed, left = run.teardown(before)
+    except Exception as error:  # noqa: BLE001
+        _log(f"URGENT teardown or postflight did not complete ({type(error).__name__}: {error})")
+        return EXIT_CHANGED
+    for problem in changed:
+        _log(f"URGENT {problem}")
+    for problem in left:
+        _log(f"FAIL {problem}")
+    if changed:
+        return EXIT_CHANGED
+    return EXIT_FAILED if left else EXIT_OK
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -1116,7 +1302,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "--real is not built yet: it waits on the owner's answers to the real-tier "
             "questions on PR #6961 (the detector, the smoke check, the host)"
         )
-        return 2
+        return EXIT_UNAVAILABLE
     if not args.fake:
         parser.error("choose --fake or --real")
     return run_fake(args)
