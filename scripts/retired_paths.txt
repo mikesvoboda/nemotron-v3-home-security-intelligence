@@ -53,8 +53,8 @@ docs/archive/
 # Python counter read data.get('vulnerabilities') while pip-audit's root key
 # is dependencies (always 0), and its create-issues steps were gated on
 # vars.LINEAR_ENABLED, which the repo never sets. Verdict map: OB.2 PR body.
-.github/workflows/weekly-audit.yml
-.github/workflows/vulnerability-management.yml
+.github/workflows/weekly-audit.yml ; weekly-audit
+.github/workflows/vulnerability-management.yml ; vulnerability-management
 
 # OB.2 (CI dedupe): the two losing release mechanisms. The tag-push
 # generator never ran (zero runs ever across v0.1.0..v0.41.3 — its
@@ -66,6 +66,6 @@ docs/archive/
 # into the canonical release path (.github/workflows/release.yml) verbatim;
 # its name is not retired, only the two competitors'. The bot's config
 # retired with it. Evidence: OB.2 PR body.
-.github/workflows/semantic-release.yml
-.github/workflows/release-drafter.yml
+.github/workflows/semantic-release.yml ; semantic-release
+.github/workflows/release-drafter.yml ; release-drafter
 .github/release-drafter.yml

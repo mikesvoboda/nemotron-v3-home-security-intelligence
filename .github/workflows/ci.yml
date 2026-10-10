@@ -236,6 +236,7 @@ jobs:
           scripts/test_check_pip_audit_exemptions.py
           scripts/test_agents_md_validator.py
           scripts/test_retired_paths.py
+          scripts/test_check_coe_reasons.py
           scripts/test_workflow_paths.py
           scripts/audit/test_retired_names.py
           scripts/audit/test_settings_orphans.py
