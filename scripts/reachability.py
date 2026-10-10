@@ -372,15 +372,24 @@ def analyze(
     }
 
 
+def _read_toml(path: Path) -> dict[str, Any]:
+    # CLI-reachable path: resolve + require a real file before reading
+    # (the ratchet-check.py pattern for the semgrep path-traversal rule).
+    resolved = Path(path).resolve()
+    if not resolved.is_file():
+        raise SystemExit(f"reachability: config file not found: {resolved}")
+    return tomllib.loads(resolved.read_text(encoding="utf-8"))
+
+
 def load_entry_points(path: Path) -> tuple[list[str], list[str]]:
-    data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
+    data = _read_toml(path)
     entries = [str(e) for e in data.get("entries", [])]
     allow = [str(a) for a in data.get("dynamic_allow", [])]
     return entries, allow
 
 
 def load_keep(path: Path) -> list[str]:
-    data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
+    data = _read_toml(path)
     out = []
     for row in data.get("keep", []):
         out.append(str(row["module"]))
