@@ -262,6 +262,10 @@ podman compose -f docker-compose.prod.yml restart backend
 # Enable in .env
 API_KEY_ENABLED=true
 API_KEYS=["your-secure-api-key-here", "another-key-if-needed"]
+# R60: an entry can also be an object limited to a named scope —
+# {"key": "monitoring-key-here", "scope": "monitoring"} serves exactly the
+# monitoring endpoints and 401s everywhere else. See API_KEYS in the
+# Environment Reference for the scoped syntax and its fail-closed rules.
 ```
 
 **Making authenticated requests:**

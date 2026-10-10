@@ -310,7 +310,7 @@ the daily batch.
 
 - security and auth: `B1.5`, `B1.6`, `F1.3`, `O1.6`;
 - risk acceptance: `O1.8`'s alert dismissals;
-- production safety: `O2.2`;
+- production safety: `O2.2`, `B2.2`;
 - privileged host tooling: `O0.1`, the launcher;
 - destructive work: `B3.1` with `F3.1`, `B3.2`;
 - plan text: any PR whose edits in `docs/uplevel/` change a ruling (the UR table, or an owner

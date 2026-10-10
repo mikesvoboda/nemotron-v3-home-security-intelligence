@@ -461,13 +461,23 @@ def generate_env_content(config: dict) -> str:
         # hand-edited .env that sets EXPOSE_LAN without re-running setup.py).
         f"MONITORING_API_KEY={config.get('monitoring_api_key', '')}",
         # merge_api_keys keeps the generated key first and any keys already in
-        # the .env after it (empty existing value → json.dumps([key]) exactly
-        # as before; a fresh install has no operator keys to keep).
-        "API_KEYS="
+        # the .env after it. R60 (ruling 60): the generated entry is emitted
+        # SCOPED ({"key": ..., "scope": "monitoring"}) so the monitoring
+        # mirror can no longer act as an operator key, and the whole value is
+        # SINGLE-QUOTED. The quote is load-bearing, not style: scripts/*.sh
+        # source this .env, and an unquoted {…,…} JSON array brace-expands
+        # there (measured: API_KEYS=[{key:a,scope:monitoring},b] → bash sets
+        # value=[[{key:a,scope:monitoring},b]] — mangled, exit 0). Every
+        # reader strips the one quote pair — this file's raw read-back (above),
+        # load_existing_env, python-dotenv, docker compose — and the pin test
+        # sources the generated line under set -e in both modes.
+        "API_KEYS='"
         + merge_api_keys(
             str(config.get("existing_api_keys") or ""),
             str(config.get("monitoring_api_key") or ""),
-        ),
+            "monitoring",
+        )
+        + "'",
         "GRAFANA_ANONYMOUS_ENABLED="
         + derive_grafana_anonymous_enabled("true" if config.get("expose_lan", False) else "false"),
         "GRAFANA_AUTH_PROXY_ENABLED="
