@@ -57,6 +57,7 @@ import re
 import secrets
 import shlex
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -694,13 +695,17 @@ def preflight(
         hosts = set(HOST_ALIASES) | set(host_addresses)
         for alias, target in _extra_hosts(service):
             if target in HOST_ALIASES or target in host_addresses:
+                # Refused in both modes: an alias carries every built-in URL
+                # that uses the name (the backend's alloy, prometheus, go2rtc
+                # defaults are not in its environment) to the host.
                 hosts.add(alias)
-                if not allowed_host_ports:
-                    problems.append(f"{name}: extra_hosts maps {alias} to the host ({target})")
+                problems.append(f"{name}: extra_hosts maps {alias} to the host ({target})")
         environment = service.get("environment") or {}
         where_text = [(f"{key}", value) for key, value in environment.items() if value]
         where_text += [("command", s) for s in _strings(service.get("command"))]
         where_text += [("entrypoint", s) for s in _strings(service.get("entrypoint"))]
+        healthcheck = service.get("healthcheck") or {}
+        where_text += [("healthcheck", s) for s in _strings(healthcheck.get("test"))]
         for where, text in where_text:
             for host, port in _host_references(str(text), hosts):
                 if port is None:
@@ -1127,11 +1132,14 @@ class Run:
     def host_addresses(self) -> frozenset[str]:
         """This machine's own addresses, as a container could configure them."""
         found: set[str] = set()
-        try:
-            for info in socket.getaddrinfo(socket.gethostname(), None):
-                found.add(str(info[4][0]))
-        except OSError:
-            pass
+        # This machine's name, and what the host aliases resolve to here (a
+        # literal such as Docker Desktop's 192.168.65.254 is the host too).
+        for name in (socket.gethostname(), *sorted(HOST_ALIASES)):
+            try:
+                for info in socket.getaddrinfo(name, None):
+                    found.add(str(info[4][0]))
+            except OSError:
+                pass
         result = self._run(
             [self.engine, "network", "inspect", "bridge", "podman"], check=False, echo=False
         )
@@ -1162,6 +1170,11 @@ class Run:
         _log(f"run {self.project} in {self.dir}")
         commit = self._run(["git", "rev-parse", "HEAD"], check=False, echo=False, env=os.environ)
         self.summary["commit"] = commit.stdout.strip() or None
+        return self.take_snapshot()
+
+    def take_snapshot(self) -> Snapshot:
+        """The machine before the test deployment: what the preflight judges
+        and the postflight compares with."""
         before = self.snapshot()
         self._write("snapshot-before.json", before.to_json())
         self.summary["snapshot_before"] = snapshot_brief(before)
@@ -1236,7 +1249,7 @@ class Run:
         )
         if probe.stdout.strip().splitlines()[-1:] != ["200"]:
             raise HarnessError(
-                f"the backend cannot reach the VLM at {url}: "
+                f"the backend cannot reach the VLM at {url}, or is not running: "
                 f"{(probe.stderr or probe.stdout).strip()[-1000:]}"
             )
         _log(f"the backend reaches the VLM at {url}")
@@ -1475,8 +1488,30 @@ class AgentGpu:
         return self.run._run(["agent-gpu", *args], check=check, timeout=timeout, env=os.environ)
 
     def _record(self, name: str, text: str) -> str:
-        (self.run.artifacts / name).write_text(text, encoding="utf-8")
+        try:
+            (self.run.artifacts / name).write_text(text, encoding="utf-8")
+        except OSError as error:
+            _log(f"recording {name} failed ({error}); the summary keeps it")
         return text
+
+    def _try(self, *args: str, timeout: float = 300) -> subprocess.CompletedProcess[str] | None:
+        """An agent-gpu call that must not stop the teardown; None if it did
+        not complete."""
+        try:
+            return self._cli(*args, check=False, timeout=timeout)
+        except Exception as error:  # noqa: BLE001 - say so, and go on removing the VLM
+            _log(f"agent-gpu {args[0]} did not complete ({type(error).__name__}: {error})")
+            return None
+
+    def _reading(self, label: str) -> None:
+        """``agent-gpu ps`` and ``status``, the runner's own view of the VLM
+        and its VRAM, into the summary and artifacts/."""
+        reading = {}
+        for verb in ("ps", "status"):
+            result = self._try(verb)
+            text = result.stdout if result is not None else f"agent-gpu {verb} did not complete"
+            reading[verb] = self._record(f"agent-gpu-{verb}-{label}.txt", text)
+        self.run.summary.setdefault("vram", {"declared_gib": VLM_VRAM_GIB})[label] = reading
 
     def vlm_tree(self) -> str:
         """``ai/vlm/``'s tree hash, which tags its image; uncommitted changes
@@ -1484,7 +1519,12 @@ class AgentGpu:
         git = ["git", "-C", str(REPO_ROOT)]
         dirty = self.run._run([*git, "status", "--porcelain", "--", "ai/vlm"], env=os.environ)
         if dirty.stdout.strip():
-            raise HarnessError(f"ai/vlm/ has uncommitted changes:\n{dirty.stdout.strip()}")
+            raise Refused(
+                [
+                    "ai/vlm/ has uncommitted changes, which its image tag would not name: "
+                    + "; ".join(dirty.stdout.strip().splitlines())
+                ]
+            )
         return self.run._run(
             [*git, "rev-parse", "--short", "HEAD:ai/vlm"], env=os.environ
         ).stdout.strip()
@@ -1516,7 +1556,8 @@ class AgentGpu:
         tree = self.vlm_tree()
         self.vlm_image = f"ai-vlm:{tree}"
         images = self._cli("images", check=False).stdout
-        if any("ai-vlm" in line and tree in line for line in images.splitlines()):
+        # `ai-vlm:<tree>` or `ai-vlm  <tree>`, under any registry prefix.
+        if re.search(rf"(?<![\w.-])ai-vlm(?::|[ \t]+){re.escape(tree)}(?![\w.-])", images):
             _log(f"image: {self.vlm_image} is built for this state of ai/vlm/")
         else:
             for base in dockerfile_bases(VLM_DOCKERFILE.read_text(encoding="utf-8")):
@@ -1586,28 +1627,28 @@ class AgentGpu:
                 f"the VLM serves {model_path or 'no model_path'}; the pin is {expected}"
             )
         self.served_model = PurePosixPath(model_path).stem
-        serving = self._cli("ps", check=False).stdout
-        vram = self.run.summary.setdefault("vram", {"declared_gib": VLM_VRAM_GIB})
-        vram["serving"] = self._record("agent-gpu-ps-serving.txt", serving)
+        self._reading("serving")
         _log(f"vlm: ready, build {props.get('build_info')}, model {model_path}")
 
     def teardown(self) -> list[str]:
         """Step 6: stop and remove the VLM; ``agent-gpu ps`` must then list
-        none of the run's containers."""
-        end = self._cli("ps", check=False).stdout
-        vram = self.run.summary.setdefault("vram", {"declared_gib": VLM_VRAM_GIB})
-        vram["at_end"] = self._record("agent-gpu-ps-end.txt", end)
-        self._cli("stop", self.name, check=False, timeout=600)
-        self._cli("rm", self.name, check=False, timeout=600)
-        after = self._cli("ps", check=False)
-        listing = self._record("agent-gpu-ps-after.txt", after.stdout + after.stderr)
-        self.run.summary.setdefault("agent_gpu", {})["ps_after"] = listing
+        none of the run's containers. No step here can skip the removal."""
+        self._reading("at_end")
+        self._try("stop", self.name, timeout=600)
+        self._try("rm", self.name, timeout=600)
+        after = self._try("ps")
+        listing = "" if after is None else after.stdout + after.stderr
+        self.run.summary.setdefault("agent_gpu", {})["ps_after"] = self._record(
+            "agent-gpu-ps-after.txt", listing
+        )
         problems = []
-        if after.returncode != 0:
+        if after is None or after.returncode != 0:
             problems.append(
-                f"agent-gpu ps exited {after.returncode}, so whether {self.name} is gone is unknown"
+                f"agent-gpu ps did not answer, so whether {self.name} is gone is unknown; "
+                f"agent-gpu rm {self.name}"
             )
-        elif re.search(rf"(?<![\w.-]){re.escape(self.name)}(?![\w.-])", after.stdout):
+        elif self.name in after.stdout:
+            # Any listing that contains the name, however the runner decorates it.
             problems.append(
                 f"agent-gpu ps still lists {self.name}; remove it with agent-gpu rm {self.name}"
             )
@@ -1619,9 +1660,16 @@ class AgentGpu:
         return problems
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A redirect could lead past the allowlist; the harness follows none."""
+
+    def redirect_request(self, *_args: Any, **_kwargs: Any) -> None:
+        return None
+
+
 # No proxies: urllib honours HTTP_PROXY, and a NO_PROXY without 127.0.0.1
 # would send the harness's calls to a proxy instead of the run's own ports.
-_LOOPBACK = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+_LOOPBACK = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
 
 
 def _http(
@@ -1641,7 +1689,7 @@ def _http(
     """
     parts = urllib.parse.urlsplit(url)
     if origin is not None and f"{parts.scheme}://{parts.netloc}" == origin:
-        opener = urllib.request.build_opener()
+        opener = urllib.request.build_opener(_NoRedirect)
     elif parts.hostname == "127.0.0.1":
         opener = _LOOPBACK
     else:
@@ -1692,16 +1740,39 @@ def drop(image: Path, camera: str, camera_root: Path) -> Path:
     return target
 
 
+class Interrupted(Exception):
+    """A signal asked the run to stop; teardown and the summary still follow."""
+
+    def __init__(self, signum: int) -> None:
+        self.signal = signal.Signals(signum).name
+        super().__init__(f"interrupted by {self.signal}")
+
+
+# What a caller sends to stop a run: an operator's timed-out tool call, a
+# closed terminal. Python's default for both ends the process with no
+# `finally`, which would leave the test deployment and the VLM up.
+STOP_SIGNALS = (signal.SIGTERM, signal.SIGHUP)
+
+
+def _interrupt(signum: int, _frame: Any) -> None:
+    raise Interrupted(signum)
+
+
 def run_check(args: argparse.Namespace, *, mode: str) -> int:
     run = Run(engine=args.engine, root=args.root, image_tag=args.image_tag, mode=mode)
     before = run.prepare()
     vlm = AgentGpu(run) if mode == "real" else None
     status = EXIT_OK
+    handlers = {signum: signal.signal(signum, _interrupt) for signum in STOP_SIGNALS}
+    handlers[signal.SIGINT] = signal.getsignal(signal.SIGINT)
     try:
         if vlm is not None:
             vlm.prepare()
             vlm.start()
             vlm.wait_ready()
+            # The first run builds the image for hours: judge the machine as
+            # it is when the test deployment starts.
+            before = run.take_snapshot()
         run.render(before, vlm)
         run.up(vlm)
         run.register_admin()
@@ -1718,19 +1789,32 @@ def run_check(args: argparse.Namespace, *, mode: str) -> int:
         for problem in refused.problems:
             _log(f"REFUSED {problem}")
         status = EXIT_REFUSED
+    except (Interrupted, KeyboardInterrupt) as stop:
+        name = stop.signal if isinstance(stop, Interrupted) else "SIGINT"
+        _log(f"FAIL interrupted by {name}; tearing down")
+        run.summary["interrupted"] = name
+        status = EXIT_FAILED
     except Exception as error:  # noqa: BLE001 - whatever broke, teardown and the summary follow
         _log(f"FAIL {type(error).__name__}: {error}")
         status = EXIT_FAILED
     finally:
-        if run.started:
-            status = max(status, _finish(run, before))
-        if vlm is not None and vlm.started:
-            status = max(status, _finish_vlm(vlm))
-        run.summary["exit"] = status
-        run._write("summary.json", run.summary)
-        # Printed whole, for the operator to paste (operator.md, "Posting results").
-        print(json.dumps(run.summary, indent=2), flush=True)
-        _log(f"summary: {run.artifacts / 'summary.json'} (exit {status})")
+        # Teardown runs to its end: a second signal is ignored until it has
+        # (SIGKILL is not), and the commands it starts inherit that.
+        for signum in handlers:
+            signal.signal(signum, signal.SIG_IGN)
+        try:
+            if run.started:
+                status = max(status, _finish(run, before))
+            if vlm is not None and vlm.started:
+                status = max(status, _finish_vlm(vlm))
+            run.summary["exit"] = status
+            run._write("summary.json", run.summary)
+            # Printed whole, for the operator to paste (operator.md, "Posting results").
+            print(json.dumps(run.summary, indent=2), flush=True)
+            _log(f"summary: {run.artifacts / 'summary.json'} (exit {status})")
+        finally:
+            for signum, handler in handlers.items():
+                signal.signal(signum, handler)
     return status
 
 
