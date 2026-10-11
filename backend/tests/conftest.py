@@ -2694,3 +2694,95 @@ def pytest_collection_finish(session: pytest.Session) -> None:
 def pytest_runtest_logreport(report: pytest.TestReport) -> None:
     """Repair leaked freezegun state after every test phase (see block above)."""
     _repair_freeze_leaks(report.when, report.nodeid)
+
+
+# Third-party levels setup_logging() lowers (backend/core/logging.py:912-916).
+# Named explicitly rather than snapshotting the whole loggerDict: those three are
+# the whole of what the shipped call mutates outside the root logger, and a
+# whole-dict snapshot would restore names no test should be touching anyway.
+_SETUP_LOGGING_THIRD_PARTY = ("uvicorn.access", "sqlalchemy.engine", "watchdog")
+
+
+def _root_logging_state() -> tuple[list, list, int, dict]:
+    """Snapshot of the root-logger state ``setup_logging()`` mutates.
+
+    ``backend/core/logging.py:852-916`` clears root.handlers, adds a root
+    filter, sets the root level, arms console/file/db handlers carrying a
+    ``TraceContextFormatter`` whose format string contains ``%(asctime)s``, and
+    drops three third-party levels. This reads exactly that back, so
+    :func:`_restore_root_logging` can put it back.
+
+    Handlers are held by IDENTITY (logging defines no __eq__), which is what the
+    restore's membership test needs: pytest's own handlers must survive, an
+    app-installed look-alike must not.
+    """
+    root = logging.getLogger()
+    third_party = {n: logging.getLogger(n).level for n in _SETUP_LOGGING_THIRD_PARTY}
+    return list(root.handlers), list(root.filters), root.level, third_party
+
+
+def _restore_root_logging(state: tuple[list, list, int, dict]) -> int:
+    """Put root logging back to ``state``; return how many handlers were closed.
+
+    Handlers added since the snapshot are removed from root AND closed: the
+    shipped file handler is a ``RotatingFileHandler`` holding a real open fd,
+    and detaching alone leaks one fd per lifespan-booting test per worker.
+    ``logging.StreamHandler`` defines no ``close()`` override (verified against
+    CPython: the base implementation only clears the name registry), so closing
+    the console handler cannot close ``sys.stdout``; ``RotatingFileHandler`` and
+    the module's ``DatabaseHandler`` release their own resources on close.
+
+    Root handlers are restored in place (``[:] =``) and by identity+order, so
+    pytest's live/capture handlers keep their positions. Level goes back via
+    ``setLevel()`` — a direct ``.level =`` leaves py3.13+'s cached
+    ``isEnabledFor`` stale (the same trap 2026-09-26's c19 CI flake documents at
+    backend/tests/unit/core/test_logging.py:73).
+    """
+    handlers_before, filters_before, level_before, third_party_before = state
+    root = logging.getLogger()
+    installed = [h for h in root.handlers if h not in handlers_before]
+    root.handlers[:] = handlers_before
+    for handler in installed:
+        try:
+            handler.close()
+        except Exception:
+            pass
+    for flt in [f for f in root.filters if f not in filters_before]:
+        root.removeFilter(flt)
+    root.setLevel(level_before)
+    for name, level in third_party_before.items():
+        logging.getLogger(name).setLevel(level)
+    return len(installed)
+
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_runtest_protocol(item: pytest.Item, nextitem: pytest.Item | None):
+    """Restore root logging armed by one test before the next one runs (r109).
+
+    The Nightly Full Gate unit tier runs unit + contracts + security in one
+    process per xdist worker in randomized order (repo addopts carry
+    ``-p randomly``), and a single lifespan-booting test — the security suite's
+    ``security_client`` fixture (backend/tests/security/conftest.py:264) enters
+    ``TestClient(app)``, whose lifespan calls ``setup_logging()``
+    (backend/main.py:808) — leaves asctime-stamping handlers on the ROOT logger
+    for the rest of that worker's run. ``Formatter.formatTime`` caches
+    ``record.asctime`` onto the record object caplog keeps, so the batch28_*
+    logging ratchets (which compare ``record.__dict__`` minus a baseline against
+    the shipped ``extra=``) report "extra payload mutated" / "the shipped
+    WARNING passes no extra=" on whichever victims the random order puts after
+    it. Measured 2026-10-11 on PR #7003: this sandbox's red set (19) and nightly
+    run 26's (19) carry the identical ``'asctime'`` key but not the same files.
+
+    setup_logging() is correct for production — the shipped process wants its
+    logging — so the fix is test hygiene, matching how this conftest already
+    repairs leaked freezegun state and the severity singleton.
+
+    A protocol-boundary hookwrapper rather than an autouse fixture because
+    caplog's own capture handler is added and removed INSIDE the fixture layer:
+    snapshotting outside all fixture teardown cannot race it, and the boundary
+    state is provably clean (the diagnostic run for this finding saw pytest's
+    two handlers only, at session start and between tests).
+    """
+    state = _root_logging_state()
+    yield
+    _restore_root_logging(state)
