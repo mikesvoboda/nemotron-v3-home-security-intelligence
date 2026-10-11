@@ -164,7 +164,7 @@ def main() -> int:
         # next(...) over the set would pick by string-hash order, and the same
         # red input would print different violations on different seeds.
         ids = {gid, *(e.get("aliases") or [])}
-        hit = gid if gid in found else next((i for i in ids if i in found), None)
+        hit = gid if gid in found else next((i for i in sorted(ids) if i in found), None)
         if hit is None:
             errors.append(
                 f"{gid}: registered but NO current audit finding matches - stale, remove it"

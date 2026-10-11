@@ -82,7 +82,13 @@ class Harness:
         self.frontend = tmp_path / "frontend"
         self.frontend.mkdir()
 
-    def run(self, audit_json: str, registry: dict | None, registry_exists: bool = True):
+    def run(
+        self,
+        audit_json: str,
+        registry: dict | None,
+        registry_exists: bool = True,
+        seed: int | None = None,
+    ):
         reg = self.frontend / ".npm-audit-exemptions.json"
         if registry_exists:
             reg.write_text(json.dumps(registry if registry is not None else {"exceptions": []}))
@@ -95,6 +101,9 @@ class Harness:
             if json.loads(audit_json)["metadata"]["vulnerabilities"]["total"]
             else "0",
         }
+        if seed is not None:
+            # Fix str-hash order for this child; without it each run randomizes.
+            env["PYTHONHASHSEED"] = str(seed)
         return subprocess.run(  # noqa: PLW1510 - the whole point is checking rc
             [
                 sys.executable,
@@ -288,6 +297,7 @@ def test_warn_on_expiry_soon_is_exit_two(tmp_path: Path) -> None:
 # advisories arrive only as the single GHSA URL in via[].url - so both alias
 # directions ruling 76 pins are necessarily expressed registry-side.
 G3 = "GHSA-1111-2222-3333"
+G4 = "GHSA-5555-6666-7777"
 
 
 def test_audit_side_alias_covers_registry_primary(tmp_path: Path) -> None:
@@ -342,7 +352,11 @@ def test_overlapping_alias_adjudicates_deterministically(tmp_path: Path) -> None
     a DIFFERENT violation list on different seeds (reproduced: 1 error vs 2
     errors across seeds, always rc=1). The checker now prefers the entry's
     own id, so the over-listed alias deterministically leaves the OTHER
-    advisory UNEXEMPTED - fail-closed and reproducible."""
+    advisory UNEXEMPTED - fail-closed and reproducible.
+
+    Scope note (ops-a review on #6966): this input reports the entry's own id,
+    so `gid in found` short-circuits and the 20 runs never reach the set
+    fallback. The fallback branch gets its own pin below."""
     h = Harness(tmp_path)
     e = entry(G1, "braces")
     e["aliases"] = [G3]  # G3 is a DIFFERENT advisory actually reported here
@@ -364,3 +378,47 @@ def test_overlapping_alias_adjudicates_deterministically(tmp_path: Path) -> None
     assert rc == 1
     assert f"{G3}" in err and "UNEXEMPTED" in err
     assert "stale" not in err  # G1 is reported and matched as hit, never stale
+
+
+def test_alias_hit_fallback_adjudicates_deterministically(tmp_path: Path) -> None:
+    """ops-a review request on #6966 (reproduced in my shell at 0f39d2ffc):
+    the entry's OWN id is not reported, so adjudication falls through to
+    `next((i for i in ids if i in found), None)` over a SET - set iteration
+    order is PYTHONHASHSEED order, and with two aliases both reported the
+    hit wobbled between runs: 12 seed-fixed runs gave the UNEXEMPTED-only
+    variant on every seed but 8, where hit landed on the lodash advisory and
+    the SAME input printed 2 violations (attribution error on the entry + the
+    reported braces advisory printed UNEXEMPTED). rc=1 either way - fail-closed
+    held - but a waffling report is the F1 class this PR exists to close, and
+    the pin above couldn't reach it because its audit reports the entry's own
+    id.
+    Fix: `sorted(ids)` gives the fallback a deterministic candidate order
+    (digits sort before letters, so G3 leads). Pinned BOTH ways: the two
+    formerly-diverging fixed seeds (0 and 8) and 20 fresh-seed runs all print
+    the identical list - hit=G3 on braces, G4/lodash UNEXEMPTED, no
+    attribution flip, never stale."""
+    h = Harness(tmp_path)
+    e = entry(G1, "braces")
+    e["aliases"] = [G3, G4]  # BOTH are distinct reported advisories
+    both = [
+        {
+            "pkg": "braces",
+            "gid": G3,
+            "sev": "high",
+            "fix": {"name": "tailwindcss", "version": "4.3.3", "isSemVerMajor": True},
+        },
+        {"pkg": "lodash", "gid": G4, "sev": "low"},
+    ]
+    doc = audit_doc(both)
+    runs = [
+        h.run(doc, {"exceptions": [e]}, seed=0),
+        h.run(doc, {"exceptions": [e]}, seed=8),  # the divergent seed pre-fix
+        *(h.run(doc, {"exceptions": [e]}) for _ in range(20)),
+    ]
+    outs = {(r.returncode, r.stderr) for r in runs}
+    assert len(outs) == 1, f"fallback hit varies across hash seeds: {outs}"
+    rc, err = next(iter(outs))
+    assert rc == 1  # fail-closed, as before the fix
+    assert f"{G4}" in err and "UNEXEMPTED" in err and "lodash" in err
+    assert "registered for" not in err  # G3 hit on braces: attribution clean
+    assert "stale" not in err  # G1's absence prints nothing - G3 is its alias
