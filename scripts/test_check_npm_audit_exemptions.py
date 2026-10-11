@@ -276,3 +276,56 @@ def test_warn_on_expiry_soon_is_exit_two(tmp_path: Path) -> None:
     r = h.run(audit_doc(BRACES), {"exceptions": [entry(G1, "braces", soon)]})
     assert r.returncode == 2
     assert "WARN" in r.stdout
+
+
+# --- R76: alias matching (R61's twin for the npm checker) --------------------
+
+# A second 4-4-4 id standing in for the advisory's OTHER alias (a CVE or a
+# reassigned GHSA). npm audit --json gives no aliases array - advisories
+# arrive only as the single GHSA URL in via[].url - so both alias directions
+# ruling 76 pins are necessarily expressed registry-side.
+G3 = "GHSA-1111-2222-3333"
+
+
+def test_audit_side_alias_covers_registry_primary(tmp_path: Path) -> None:
+    """Ruling 76 direction (a): the audit reports the alias, the exemption is
+    keyed by the primary. Before R76 this pair was double-red: the GHSA the
+    audit reported (alias) printed UNEXEMPTED while the registry-cited id
+    printed stale - the SAME advisory slipping the allowlist on id drift.
+    Registry-cited G1 with aliases [G3]; audit reports G3."""
+    h = Harness(tmp_path)
+    e = entry(G1, "braces")
+    e["aliases"] = [G3]
+    reported = [
+        {
+            "pkg": "braces",
+            "gid": G3,
+            "sev": "high",
+            "fix": {"name": "tailwindcss", "version": "4.3.3", "isSemVerMajor": True},
+        }
+    ]
+    r = h.run(audit_doc(reported), {"exceptions": [e]})
+    assert r.returncode == 0, r.stderr
+
+
+def test_registry_side_alias_covers_audit_primary(tmp_path: Path) -> None:
+    """Ruling 76 direction (b): the audit reports the primary, the exemption
+    is keyed by (or cites) the alias. Registry-cited G3 with aliases [G1];
+    audit reports G1."""
+    h = Harness(tmp_path)
+    e = entry(G3, "braces")
+    e["aliases"] = [G1]
+    r = h.run(audit_doc(BRACES), {"exceptions": [e]})
+    assert r.returncode == 0, r.stderr
+
+
+def test_alias_does_not_overshoot(tmp_path: Path) -> None:
+    """Overshoot guard (R61's twin): an entry whose id AND aliases name
+    nothing the audit reported stays red both ways - the fix must not turn
+    the registry into a wildcard."""
+    h = Harness(tmp_path)
+    e = entry(G3, "braces")
+    e["aliases"] = ["GHSA-9999-8888-7777"]
+    r = h.run(audit_doc(BRACES), {"exceptions": [e]})
+    assert r.returncode == 1
+    assert "stale" in r.stderr and "UNEXEMPTED" in r.stderr
