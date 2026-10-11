@@ -72,8 +72,6 @@
  *   key. F-238's reads therefore hit v1 and run before any later mount could
  *   migrate — see ambient.spec.ts.
  */
-import { fileURLToPath } from 'node:url';
-
 import type { BrowserContext, Page } from '@playwright/test';
 
 import { GUARD_MESSAGE, expect } from '../guard';
