@@ -178,9 +178,8 @@ test.describe('DO-3 known persons golden path', () => {
       // The count the UI leg must render, taken from the same response rather
       // than hard-coded, so the card assert compares the page against the API
       // instead than against a literal I could drift away from.
-      const seededCount = typeof created.body?.embedding_count === 'number'
-        ? created.body.embedding_count
-        : -1;
+      const seededCount =
+        typeof created.body?.embedding_count === 'number' ? created.body.embedding_count : -1;
       expect(created.status, 'POST /api/known-persons answers 201').toBe(201);
       expect(created.body?.name, 'the create response echoes the name').toBe(PERSON);
       expect(created.body?.is_household_member, 'it echoes the household flag').toBe(false);
