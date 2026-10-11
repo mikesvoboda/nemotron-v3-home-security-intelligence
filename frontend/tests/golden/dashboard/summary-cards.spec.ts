@@ -406,8 +406,14 @@ test.describe('golden path: dashboard hourly and daily summary cards @critical',
         `${type}: the badge aria-label does not mirror severity + event_count`
       ).toHaveAttribute('aria-label', `Severity: ${sev.label}, ${ariaCount}`);
       // The badge's text is label + "(n)" (the label span and the count span are
-      // both its children, :219-225), so the full string is mirrored.
-      await expect(L.badge).toHaveText(`${sev.label.toUpperCase()} (${n})`);
+      // both its children, :219-225), so the full string is mirrored — but with
+      // NO SPACE at the join: textContent concatenates the two spans directly,
+      // and the visible gap is the count span's `ml-0.5` CSS margin (:222), not
+      // a text node. Witnessed on the shipped DOM, run hsi-check-20261011220452-
+      // 6a1a48: this mirror was red 3/3 as `Expected "ALL CLEAR (0)" / Received
+      // "ALL CLEAR(0)"`. toHaveText normalizes whitespace RUNS (JSX
+      // indentation); it does not create one where the DOM has none.
+      await expect(L.badge).toHaveText(`${sev.label.toUpperCase()}(${n})`);
 
       // event_count's TWO surfaces (footer sentence :238-240, badge "(n)"
       // :221-225) read the same API field — a card showing two different
