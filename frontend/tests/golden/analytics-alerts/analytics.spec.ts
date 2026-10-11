@@ -15,7 +15,7 @@
  *         dashboard; the external link exists; refresh RELOADS the iframe —
  *         pinned by watching a second request for the same dashboard URL land
  *         after the click (the handler blanks src and restores it 100 ms later,
- *         AnalyticsPage.tsx:82-96, so catching the empty attribute would be a
+ *         AnalyticsPage.tsx:82-98, so catching the empty attribute would be a
  *         race, and asserting the src again afterwards is the reviewer's noted
  *         stale-pass); the toggle switches to the Native view.
  *  F-071  Native: the camera selector offers the harness camera; selecting it
@@ -62,8 +62,13 @@ function isoDaysBack(days: number): string {
 
 /** card testid + its loading skeleton testid, per the components' own states.
  *  The empty-state id is the card id with '-card' swapped to '-empty' —
- *  verified against each component's returns, EXCEPT the latency panel, which
- *  renders none of these (it has its own states; handled separately below). */
+ *  verified against each component's returns, with TWO exceptions:
+ *  - the latency panel renders none of these (it has its own states; handled
+ *    separately below), and
+ *  - WeekOverWeekCard has NO empty state at all (its static testids are
+ *    -loading :294, -error :306, -card :317), so for 'week-over-week' the
+ *    .or() below collapses to -card only. That is a strictly weaker pin for
+ *    that one card, stated here rather than left for a reader to discover. */
 const RESOLVING_CARDS = [
   'detection-trends',
   'object-distribution',
@@ -121,7 +126,6 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
     ).toBe(bookPercent);
 
     for (const path of [
-      `/api/analytics/detection-trends?start_date=${weekAgo}&end_date=${today}`,
       `/api/analytics/risk-history?start_date=${weekAgo}&end_date=${today}`,
       `/api/analytics/risk-score-distribution?start_date=${weekAgo}&end_date=${today}`,
       `/api/analytics/risk-score-trends?start_date=${weekAgo}&end_date=${today}`,
@@ -131,6 +135,24 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
       const res = await api.getJson(path);
       expect(res.status, `${path.split('?')[0]} answers the page window`).toBe(200);
     }
+
+    // Detection trends gets its own read because the UI leg pins the card's
+    // total against THIS number (DetectionTrendsCard renders
+    // `total_detections` of the same response, DetectionTrendsCard.tsx:132 via
+    // useDetectionTrendsQuery.ts:162-164). Pinning the card against the store's
+    // own answer is the claim "reflects stored detections"; a digit regex would
+    // also pass on "0", which is the card DENYING the data.
+    const trendsRes = await api.getJson(
+      `/api/analytics/detection-trends?start_date=${weekAgo}&end_date=${today}`
+    );
+    expect(trendsRes.status, 'detection-trends answers the page window').toBe(200);
+    const apiTrendsTotal = Number(trendsRes.body?.total_detections ?? NaN);
+    expect(Number.isFinite(apiTrendsTotal), 'the response carries total_detections').toBe(true);
+    // Non-emptiness BEFORE equality: this batch stored detections, so a 0 here
+    // is the store refusing the data — that must fail here, not silently pair
+    // with a card that also renders 0.
+    expect(apiTrendsTotal, 'the window contains this batch detections').toBeGreaterThanOrEqual(1);
+
     const latency = await api.getJson('/api/system/pipeline-latency');
     expect(latency.status, 'pipeline-latency answers').toBe(200);
 
@@ -163,7 +185,8 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
       .toBeGreaterThan(0);
 
     // Refresh (F-070): the handler blanks the src and restores it in a 100 ms
-    // setTimeout (AnalyticsPage.tsx:82-96). Re-asserting the src afterwards would
+    // setTimeout (AnalyticsPage.tsx:82-98, the `, 100);` at :94). Re-asserting
+    // the src afterwards would
     // pass on a dead button, and racing the empty attribute is flaky by design,
     // so pin the reload by its observable: a SECOND request for the same
     // dashboard URL, appearing only after the click.
@@ -268,14 +291,18 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
       ).toBeVisible({ timeout: 25_000 });
       await expect(page.getByTestId(`${base}-loading`), `${base} never strands`).toHaveCount(0);
     }
-    // Where the batch data MUST show, pin it rather than accept an empty state:
-    // the trends window contains this drop's detection, so the totals carry a
-    // number (the API leg proved the row exists; the card must not deny it).
+    // Where the batch data MUST show, pin it rather than accept an empty state.
+    // The total must EQUAL what the API leg read from the store for the same
+    // window — /\d/ would also pass on "0", which is the card denying the very
+    // data the store holds (formatNumber renders 0 as the string "0").
     const trendsCard = page.getByTestId('detection-trends-card');
     await expect(trendsCard, 'the trends card has real data to show').toBeVisible({
       timeout: 25_000,
     });
-    await expect(page.getByTestId('detection-trends-total')).toContainText(/\d/);
+    await expect(
+      page.getByTestId('detection-trends-total'),
+      'the card total equals the store total for the same window'
+    ).toHaveText(apiTrendsTotal.toLocaleString()); // DetectionTrendsCard.tsx:47-49
 
     // 5. F-075: latency chrome + the ring the pipeline filled. The drop's
     //    pipeline ran in THIS stack, so the file watcher's samples must put at
@@ -293,8 +320,22 @@ test.describe('DO-1 golden path: /analytics surfaces over the batch data @critic
       page.getByTestId('stage-bar-detect_to_batch'),
       'the detector recorded detect→batch latency for the drop'
     ).toBeVisible();
-    await refresh.click(); // a real refetch; the bars must survive it
-    await expect(page.getByTestId('stage-bar-watch_to_detect')).toBeVisible({ timeout: 15_000 });
+    // Clicking refresh and pinning SURVIVAL — deliberately weaker than the
+    // alerts half's request-count pin, and stated rather than left implied:
+    // AnalyticsPage mounts this panel with refreshInterval={30000}
+    // (AnalyticsPage.tsx:278; the panel arms a setInterval when the prop is > 0,
+    // PipelineLatencyPanel.tsx:96-99), so a /api/system/pipeline-latency request
+    // appearing after the click is NOT attributable to the click — it could be
+    // the timer. The alerts page has no such interval (useAlertsQuery's
+    // refetchInterval defaults false, :237, and AlertsPage passes none), which
+    // is why that half pins the request and this one pins the bars. A dead
+    // onClick here would still fail on the bars only if the data also went
+    // stale; the click's request itself is not claimed.
+    await refresh.click();
+    await expect(
+      page.getByTestId('stage-bar-watch_to_detect'),
+      'the bars survive the manual refresh'
+    ).toBeVisible({ timeout: 15_000 });
 
     // 6. Still the harness UI; the guard survived every read above.
     await assertGuardSurvives(page, h);

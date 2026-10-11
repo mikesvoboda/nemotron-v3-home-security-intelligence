@@ -117,8 +117,26 @@ export function readHarness(): Harness | { ready: false; why: string } {
   let scenarios: Scenario[];
   let cameras: Record<string, string>;
   try {
-    scenarios = (JSON.parse(readFileSync(bookPath, 'utf8')) as { scenarios: Scenario[] }).scenarios;
-    cameras = JSON.parse(readFileSync(camerasPath, 'utf8')) as Record<string, string>;
+    // Parse to unknown FIRST, then validate the shape. Reading `.scenarios`
+    // inside the cast (as dashboard-drop.spec.ts does) yields undefined for a
+    // file that parses but lacks the key, and the .find() below would then
+    // throw OUTSIDE this try — breaking the collection-time rule this module's
+    // own header states. Same for cameras: JSON.parse("null") is fine JS and a
+    // null here would blow up cameras[name].
+    const book = JSON.parse(readFileSync(bookPath, 'utf8')) as { scenarios?: Scenario[] };
+    if (!Array.isArray(book.scenarios)) {
+      return { ready: false, why: `${bookPath} has no "scenarios" array` };
+    }
+    scenarios = book.scenarios;
+    const parsedCameras = JSON.parse(readFileSync(camerasPath, 'utf8')) as unknown;
+    if (
+      typeof parsedCameras !== 'object' ||
+      parsedCameras === null ||
+      Array.isArray(parsedCameras)
+    ) {
+      return { ready: false, why: `${camerasPath} is not a JSON object` };
+    }
+    cameras = parsedCameras as Record<string, string>;
   } catch (error) {
     return { ready: false, why: `harness JSON unreadable: ${String(error)}` };
   }
@@ -320,7 +338,19 @@ export function assertSoleAlertIsSmoke(
   h: Harness,
   dropEventId: string
 ): string {
-  expect(high.length, '/alerts pages only high+critical: the medium drop must stay off').toBe(1);
+  // This count is store-GLOBAL, and that is the spec's one real coupling to
+  // stack order (named in this file's header and alerts.spec.ts's): exactly one
+  // high/critical event exists because the harness smoke drop is the only
+  // high-tier fixture the stack has seen by now — person-at-door is 82 → high
+  // too, but dashboard-drop.spec.ts sorts AFTER this file. The message therefore
+  // names both directions of the failure so a red points at its actual cause
+  // instead of at the band filter.
+  expect(
+    high.length,
+    high.length === 0
+      ? 'no high/critical event at all: the harness smoke drop (61 → high) is missing — golden() is supposed to run after smoke()'
+      : `${high.length} high/critical events, expected 1: another spec dropped a high-tier fixture before this one (file-order coupling named in alerts.spec.ts's header), so the "sole alert" pins cannot hold`
+  ).toBe(1);
   const alert = high[0];
   expect(String(alert.id), 'the drop is not an alert').not.toBe(dropEventId);
   expect(String(alert.camera_id), 'the one alert is the harness smoke camera').toBe(

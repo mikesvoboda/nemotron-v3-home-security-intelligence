@@ -33,6 +33,8 @@
  * first (AlertsPage.tsx:125-134), so with one alert it is that alert — pinned
  * by testid, and the drop's card is pinned ABSENT.
  */
+import type { Page } from '@playwright/test';
+
 import { expect, test } from '../guard';
 import {
   adminSession,
@@ -54,8 +56,26 @@ test.skip(
   `golden path needs the feature-check stack (${harness.ready ? '' : harness.why})`
 );
 
+/** Counts requests this PAGE sends to GET /api/events — the alerts hook's own
+ *  endpoint (fetchEvents builds `/api/events?…`, services/api.ts:2292; the
+ *  pathname is exact, so /api/events/stats and /api/events/<id>/… never
+ *  inflate it). Installed before the /alerts navigation; a delta is a refetch. */
+function installEventsCounter(page: Page): () => number {
+  let count = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/events') count += 1;
+  });
+  return () => count;
+}
+
 test.describe('DO-1 golden path: /alerts severity band, chrome and detail modal @critical', () => {
-  test.setTimeout(200_000); // no reply delay on this scenario; 150 s proven poll + page drives
+  // Budget, itemised: 165 s for awaitVerdictedEvents (the drop's verdict) + the
+  // page drive. The sibling green run needed 38.5 s of drive, but the poll runs
+  // BEFORE it, so the worst case is a near-deadline drop plus a full drive —
+  // 165 + 60 (drive headroom over the measured 38.5) = 225, +15 s margin.
+  // 200 s could time out on a slow-but-successful pipeline and read as a spec
+  // defect when it is a harness delay.
+  test.setTimeout(240_000);
 
   test('a medium-risk drop stays off /alerts, the high harness alert carries its chrome, and the detail modal round-trips', async ({
     page,
@@ -63,6 +83,10 @@ test.describe('DO-1 golden path: /alerts severity band, chrome and detail modal 
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
+
+    // Installed before ANY navigation on this page so no /api/events request
+    // can slip past the listener — the refresh leg below reads a delta.
+    const countEventsRequests = installEventsCounter(page);
 
     // 1. The drop, through O2.2's own helper (documented contract, as
     //    dashboard-drop.spec.ts does).
@@ -102,9 +126,10 @@ test.describe('DO-1 golden path: /alerts severity band, chrome and detail modal 
     await expect(page.getByTestId('alerts-page')).toBeVisible({ timeout: 30_000 });
 
     // Severity summary renders a bucket only for a non-zero count, over the
-    // LOADED alerts (AlertsPage riskCounts :113-123, buckets :391-425): so High
-    // shows and Critical does not — and neither does Medium, which is the band
-    // filter visible in the chrome even though the drop exists.
+    // LOADED alerts (AlertsPage riskCounts :113-122, the summary block
+    // :390-420): so High shows and Critical does not — and neither does
+    // Medium, which is the band filter visible in the chrome even though the
+    // drop exists.
     const summary = page.getByTestId('alert-severity-summary');
     await expect(summary, 'the high alert produces a severity summary').toBeVisible();
     await expect(summary.getByText('High', { exact: true })).toBeVisible();
@@ -134,7 +159,8 @@ test.describe('DO-1 golden path: /alerts severity band, chrome and detail modal 
     ).toHaveCount(0);
 
     // Severity filter: Critical empties to the band truth and the empty-state
-    // copy names the filter it found nothing for (AlertsPage.tsx:527).
+    // copy names the filter it found nothing for — the template literal at
+    // AlertsPage.tsx:528 (the 'all' sentence beside it is :527).
     await page.locator('#risk-filter').selectOption('critical');
     await expect(
       page.getByText('There are no critical risk events to review.'),
@@ -150,11 +176,39 @@ test.describe('DO-1 golden path: /alerts severity band, chrome and detail modal 
     await page.locator('#risk-filter').selectOption('all');
     await expect(alertGroup, 'All restores the alerts').toBeVisible({ timeout: 15_000 });
 
-    // Refresh (F-077's "refreshes" clause): the button refetches
-    // (AlertsPage.handleRefresh :350 → refetch()). Pin the click by what must
-    // SURVIVE it, not by a spinner that may already be gone.
+    // Refresh (F-077's "refreshes" clause). handleRefresh (AlertsPage.tsx:350-352)
+    // is `void refetch()`, so the click's observable is an events REQUEST — and
+    // it is attributable to the click here: useAlertsInfiniteQuery's
+    // refetchInterval defaults to false (useAlertsQuery.ts:237) and AlertsPage
+    // passes no interval, so nothing else on this page asks for /api/events on
+    // a timer. A survival-only assertion would pass on a dead onClick, which is
+    // the stale-pass this leg exists to prevent.
+    // Baseline only once the request stream is QUIET. Each selectOption above
+    // changes the query key, and each change refetches /api/events; the 'all'
+    // leg's visibility wait can return while that refetch is still in flight
+    // (the group never went hidden between 'high' and 'all'). A filter request
+    // counted as the baseline would let a dead onClick pass on the retry, and a
+    // late one would pass on the delta — so require 3 equal samples (1.5 s)
+    // first. Bounded at 15 s: a stream that never settles fails loudly here
+    // instead of silently attributing someone else's request to the click.
+    let eventsRequestsBefore = countEventsRequests();
+    let quietSamples = 0;
+    for (let sample = 0; sample < 30 && quietSamples < 3; sample++) {
+      await page.waitForTimeout(500);
+      const now = countEventsRequests();
+      quietSamples = now === eventsRequestsBefore ? quietSamples + 1 : 0;
+      eventsRequestsBefore = now;
+    }
+    expect(quietSamples, 'the events stream settled before the click').toBe(3);
+
     await page.getByLabel('Refresh alerts').click();
-    await expect(alertGroup, 'the alert survives the refresh').toBeVisible({ timeout: 15_000 });
+    await expect
+      .poll(() => countEventsRequests(), {
+        message: 'the refresh button issued another events request',
+        timeout: 15_000,
+      })
+      .toBeGreaterThan(eventsRequestsBefore);
+    await expect(alertGroup, 'and the alert survives the refresh').toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('alerts-grouped-view')).toBeVisible();
 
     // Grid view: one card, pinned by testid, and the drop's card absent. The
@@ -206,7 +260,12 @@ test.describe('DO-1 golden path: /alerts severity band, chrome and detail modal 
       h.smokeScenario.detections[0].class
     );
 
-    await expect(page.getByTestId('risk-score')).toContainText(
+    // risk-score is scoped to the modal ON PURPOSE: StatsRow.tsx:231 carries a
+    // second data-testid="risk-score" in frontend/src. It is dashboard-only and
+    // not mounted on /alerts today (that is why a page-wide locator passed the
+    // CI run), but a shared shell that ever renders StatsRow would turn every
+    // page-wide pin below into a strict-mode violation. The modal owns this one.
+    await expect(modal.getByTestId('risk-score'), 'the modal shows the stored score').toContainText(
       String(h.smokeScenario.verdict.risk_score)
     );
     await expect(page.getByTestId('ai-analysis-section')).toContainText(
@@ -214,7 +273,9 @@ test.describe('DO-1 golden path: /alerts severity band, chrome and detail modal 
     );
     // detection-camera is the modal's title = the event's camera_name, which
     // AlertsPage resolves from /api/cameras; feature_check.py seeds each
-    // camera with the scenario's own name (scripts/feature_check.py:1287).
+    // camera with the scenario's own name — seed_cameras at
+    // scripts/feature_check.py:1282-1296, name bound at :1286 and POSTed as the
+    // camera's name at :1289.
     await expect(page.getByTestId('detection-camera')).toContainText(h.smokeScenario.name);
 
     // 5. Prev/next on a one-alert stack (F-080): the buttons exist and are
@@ -223,7 +284,7 @@ test.describe('DO-1 golden path: /alerts severity band, chrome and detail modal 
     //    HOLD. Arrow keys run the same handler (:413-427) and must hold too.
     //    This is the shipped behaviour pinned honestly; the two-alert case is
     //    the PR body's harness ask, not a claim made here.
-    const score = page.getByTestId('risk-score');
+    const score = modal.getByTestId('risk-score'); // scoped for the reason above
     const smokeScoreText = String(h.smokeScenario.verdict.risk_score);
     await modal.getByRole('button', { name: 'Previous event' }).click();
     await expect(score, 'Previous is a bounds no-op on the only alert').toContainText(
