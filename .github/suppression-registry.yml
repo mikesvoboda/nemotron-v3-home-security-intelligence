@@ -813,6 +813,33 @@ pytest_skip_imperative:
     expires: null
     reason: null
     host_justification: service-connectivity probe failed — backing service absent
+  - id: backend/tests/golden/external/conftest.py:131
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/golden/external/conftest.py:61
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+    host_justification: missing = _missing_env() — FEATURE_CHECK_* harness env absent, host state behind a local alias
+  - id: backend/tests/golden/external/conftest.py:70
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+    host_justification: missing = _missing_env() — FEATURE_CHECK_* harness env absent, host state behind a local alias
+  - id: backend/tests/golden/external/test_webhook_deliveries.py:132
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: no events on this stack; an alert needs a real events.id
+    host_justification: no events rows on the live stack — DB data chain, not repo content
   - id: backend/tests/gpu/test_detector_integration.py:216
     kind: environment
     owner: mikesvoboda

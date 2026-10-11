@@ -107,9 +107,9 @@ bookkeeping the batch owes (for example, status rows).
   ruling moves one ahead of it (ruling 65 did).
 - A plan PR that changes a hardcoded roster or command also changes `backend/tests/unit/scripts/test_uplevel_launch.py`.
 
-**Owed to the next owner plan PR** (as of 2026-10-11): the coordinator's merge-queue amendment to §4 and ruling 63
-(rulings 98 and 100 part 2), once it posts it on the batch issue. The plan PR of 2026-10-11 carried rulings 70, 73,
-82 to 84, 87, 88 and 97.
+**Owed to the next owner plan PR** (as of 2026-10-11 14:30Z): nothing. The plan PR of 2026-10-11 afternoon carried
+rulings 103, 104, 106 (B2.2's parked note), 107, 109 and 111. Ruling 110 (docs' shared register) may add plan text once
+docs reports its facts.
 
 ## Stalls and recovery
 
@@ -191,21 +191,21 @@ Check for these first; each has happened.
   will call it under B2.2) and `threat` (off; OD-7). The backend's torch is the CPU wheel. The `agent-gpu` library holds
   only the VLM, so the real tier runs a fake detector.
 
-## State at handoff — 2026-10-11 03:39Z
+## State at handoff — 2026-10-11 14:30Z
 
-`main` is at `b1e3af4e0`. Rulings run to 100. Batch 11 is due 2026-10-11 13:00Z.
+`main` is at `33735c95f`. Rulings run to 111. Batch 11 posted 12:46Z; every item in it is answered (rulings 108–111).
 
-| Agent       | On                                                           | Next                                                                |
-| ----------- | ------------------------------------------------------------ | ------------------------------------------------------------------- |
-| coordinator | merge queue: #6987, #6981, #6972, #6988                      | batch 11; the merge-queue amendment (ruling 98)                     |
-| backend     | #6979 BE-1 golden pytest, green at its head                  | more `F2.3` API batches; B2.2's cleanup PR after the owner's run    |
-| frontend    | #6981 guard pin (CI rerun); #6978 FE-1 to FE-4               | `F2.3` UI batches; the `F2.2` follow-up (ruling 92)                 |
-| ops-a       | #6986 OP-1 to OP-4 (`F2.3`, ruling 97)                       | —                                                                   |
-| ops-b       | #6972 real-sleep gate (ruling 93), waiting on the merge slot | rulings 97 part 2, 100 part 1, 96 item 8, 98 + 100 part 2, in order |
-| docs        | review queue; #6988 OD table follow-up                       | `F2.3` UI batches; #6939 and #6928 parked until `R2b`               |
-| operator    | idle                                                         | real-tier rows as they appear                                       |
-| heavy       | paused, stopped by the owner (ruling 90)                     | restart for Phase 3 heavy packages                                  |
-| heavy-2     | paused, stopped by the owner (ruling 90)                     | restart for Phase 3 heavy packages                                  |
+| Agent       | On                                                              | Next                                                      |
+| ----------- | --------------------------------------------------------------- | --------------------------------------------------------- |
+| coordinator | merge queue: #7000, #6998, #6979; assigning `O2.4` (ruling 107) | the nightly read (ruling 109)                             |
+| backend     | #6979 BE-1, about to merge                                      | `[r109]` Nightly Full Gate fixes; more `F2.3` API batches |
+| frontend    | #6978 FE-1 (F-017, F-020 demoted, ruling 108); #6998 status     | `F2.3` UI batches                                         |
+| ops-a       | #6986 OP-1 to OP-4                                              | `O2.4` if it is free first                                |
+| ops-b       | ruling 105 (feature check feeds `CI Gate`)                      | `O2.4` if it is free first                                |
+| docs        | DO-2; ruling 110's register report                              | `F2.3` UI batches                                         |
+| operator    | O2.2 `--real` re-run after #6999 merged                         | per-batch real-tier dates (ruling 103)                    |
+| heavy       | paused (ruling 90)                                              | restart for Phase 3 heavy packages                        |
+| heavy-2     | paused (ruling 90)                                              | restart for `B2.3` when `O2.4` passes                     |
 
-**Waiting on the owner:** B2.2's host parity run (command in #6970's body); the operator's owner legs (B1.1, F1.2,
-O1.11); turning on the merge queue after ops-b's `merge_group` package merges (ruling 98).
+**Waiting on the owner:** the `O2.4` parity re-run (`dist/b22-owner-run.sh`, `--sha <head>`); Phase 1's real-tier runs
+(B1.1 S4, F1.2, O1.11); ruling 110's follow-up once docs answers.
