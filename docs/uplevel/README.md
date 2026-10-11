@@ -268,7 +268,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | awaiting real tier | #6961 |
 | O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | done        | #6954 |
 | O2.3b   | ops                     | 2          | Reachability: ancestor packages ship           |               | done        | #6973 |
-| O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | not started |     |
+| O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | awaiting real tier | #7002 |
 | R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
 | R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | not started |     |
 | B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy · owner | not started |     |

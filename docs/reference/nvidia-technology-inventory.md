@@ -278,13 +278,15 @@ raises otherwise (`ai/gateway/residency.py:60-90`), so the entrypoint's own
 ### Model Repository (3 models)
 
 `ai/triton/model_repository/` contains exactly `yolo26`, `reid` and `threat`.
-All three declare `backend: "onnxruntime"` and one `KIND_GPU` instance group
-with a `global` rate-limiter resource. **No model uses a TensorRT backend.**
+All three run on `KIND_GPU` with a `global` rate-limiter resource. Two declare
+`backend: "onnxruntime"`; **`reid` declares `backend: "tensorrt"`** since O2.4
+(owner ruling 107) — ONNX Runtime's CUDA execution provider fails on the GB300
+(ruling 106), so it serves a `1/model.plan` compiled on the serving GPU.
 
 | Model    | Backend     | Input           | Output       | Max Batch    | Dynamic Batching         | Priority | Source         |
 | -------- | ----------- | --------------- | ------------ | ------------ | ------------------------ | -------- | -------------- |
 | `yolo26` | onnxruntime | `[1,3,640,640]` | `[1,300,6]`  | 0 (static=1) | No                       | 1 (high) | `config.pbtxt` |
-| `reid`   | onnxruntime | `[3,256,128]`   | `[512]`      | 16           | preferred 1,4,8 / 100 ms | 2        | `config.pbtxt` |
+| `reid`   | tensorrt    | `[3,256,128]`   | `[512]`      | 16           | preferred 1,4,8 / 100 ms | 2        | `config.pbtxt` |
 | `threat` | onnxruntime | `[1,3,640,640]` | `[1,8,8400]` | 0 (static=1) | No                       | 1 (high) | `config.pbtxt` |
 
 `yolo26` returns post-NMS detections (`x1,y1,x2,y2,score,class`, 300 slots, 80
@@ -765,9 +767,14 @@ Probes the host against three CUDA base images — `nvidia/cuda:12.0.0-base-ubun
 
 ## Why ONNX Runtime, Not TensorRT
 
-Both shipped Triton inference models and the resident re-ID model run
-`backend: "onnxruntime"` on GPU, and none of the three uses a TensorRT backend.
-The reasons are recorded in the files themselves, where they were discovered:
+Both shipped Triton inference models (`yolo26`, `threat`) run
+`backend: "onnxruntime"` on GPU; the reasons are recorded in the files
+themselves, where they were discovered. `reid` no longer belongs to that group:
+since O2.4 (owner ruling 107) it runs `backend: "tensorrt"`, because ONNX
+Runtime's CUDA execution provider cannot load it on the GB300 at all (ruling
+106) — the reasons below never applied to re-ID, which has no INT8 export, no
+Ultralytics envelope, and a 9 MB graph that builds inside the same 1 GB
+workspace the others use.
 
 1. **INT8 `ConvInteger` is CPU-only in ONNX Runtime.** The quantized YOLO26
    export inserted `ConvInteger` nodes the CUDA EP cannot run, so the config

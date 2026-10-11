@@ -139,6 +139,43 @@ run_export "OSNet-AIN x1.0 Re-ID -> ONNX" "${CACHE_DIR}/reid/1/model.onnx" \
         --model-path "${MODELS_ZOO}/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth" \
         --output-path "${CACHE_DIR}/reid/1/model.onnx"
 
+# Person Re-ID -> TensorRT plan (O2.4, owner ruling 107)
+#
+# The gateway's `reid` config asks for backend "tensorrt" now: the ONNX Runtime
+# CUDA execution provider fails on the GB300 (ruling 106), so the GPU path is a
+# plan compiled ON the serving GPU. Engines are architecture-specific, so this is
+# a per-host bake, never an image build or CI step.
+#
+# It COMPILES the model.onnx above and refuses to run unless that ONNX's
+# provenance record vouches for these exact weights (B2.2), which is also why it
+# must come after the ONNX export. A host with no TensorRT skips it (the CPU bake
+# still produces every ONNX, and that is the point of those runs) but says out
+# loud that reid will not load without the plan; a host that HAS trtexec and fails
+# the compile counts as a failed export, because a stale/unvouched ONNX is exactly
+# what #6970's precondition warns about and a quiet skip would hide it.
+REID_PLAN="${CACHE_DIR}/reid/1/model.plan"
+if [ -f "$REID_PLAN" ]; then
+    echo "  -> OSNet-AIN Re-ID -> TensorRT plan... CACHED (skipping)"
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+else
+    echo "  -> OSNet-AIN Re-ID -> TensorRT plan..."
+    mkdir -p "$(dirname "$REID_PLAN")"
+    if ! command -v trtexec > /dev/null 2>&1 && [ ! -x /usr/src/tensorrt/bin/trtexec ]; then
+        echo "     SKIPPED - no trtexec on this host (no GPU bake here)"
+        echo "     WARNING: reid/config.pbtxt serves backend \"tensorrt\"; without a"
+        echo "     plan built ON the serving GPU, reid will not load."
+        SKIP_COUNT=$((SKIP_COUNT + 1))
+    elif python3 "${SCRIPT_DIR}/export_reid.py" \
+            --model-path "${MODELS_ZOO}/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth" \
+            --output-path "$REID_PLAN"; then
+        echo "     OK"
+        PASS_COUNT=$((PASS_COUNT + 1))
+    else
+        echo "     FAILED"
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+    fi
+fi
+
 # ---------------------------------------------------------------------------
 # Phase 3: Verify config files
 # ---------------------------------------------------------------------------
@@ -172,6 +209,10 @@ echo "  ONNX models (.onnx):"
 check_file "${CACHE_DIR}/yolo26/1/model.onnx"                 "yolo26"              || true
 check_file "${CACHE_DIR}/threat/1/model.onnx"                 "threat"              || true
 check_file "${CACHE_DIR}/reid/1/model.onnx"                   "reid"                || true
+
+echo ""
+echo "  TensorRT plans (.plan, built ON the serving GPU — O2.4):"
+check_file "${CACHE_DIR}/reid/1/model.plan"                   "reid (tensorrt)"     || true
 
 # ---------------------------------------------------------------------------
 # Summary
