@@ -39,6 +39,28 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * @see https://playwright.dev/docs/test-configuration
  */
+/**
+ * F2.1 golden-path mode (20-frontend.md §F2.1).
+ *
+ * The `golden` project drives the real stack the feature-check harness brings
+ * up (scripts/feature-check.sh, O2.2) with NO API mocking. Detection is either
+ * the harness's FEATURE_CHECK_* env (it exports them for the golden run) or an
+ * explicit --project=golden on the command line. When detected:
+ *
+ * - `webServer` is dropped: the harness's compose stack already serves the UI
+ *   at FEATURE_CHECK_UI_URL; booting Vite beside it would be dead weight.
+ * - `globalSetup` is dropped: it mocks /api/auth/* to warm the dev server —
+ *   the exact thing golden paths are forbidden to do.
+ * - The project is only ADDED to `projects` under golden mode, so a plain
+ *   `npm run test:e2e` never runs golden specs without a stack under them.
+ */
+const GOLDEN_UI = process.env.FEATURE_CHECK_UI_URL;
+const goldenRequested =
+  process.argv.includes('--project=golden') ||
+  (process.argv.includes('--project') &&
+    process.argv[process.argv.indexOf('--project') + 1] === 'golden');
+const goldenMode = Boolean(GOLDEN_UI) || goldenRequested;
+
 export default defineConfig({
   // Test directory - includes both specs and visual test directories
   // Visual tests are matched by the visual-chromium project using testMatch
@@ -63,14 +85,25 @@ export default defineConfig({
   // Reporter Configuration (NEM-1477: Flaky Test Detection)
   // CI: github (annotations), html (artifacts), junit (duration auditing), json (flaky analysis)
   // The JSON reporter enables post-run analysis of flaky tests (tests that pass on retry)
-  reporter: process.env.CI
+  // Golden mode writes NO html report and points junit exactly where the
+  // feature-check harness asked for it (PLAYWRIGHT_JUNIT_OUTPUT_FILE, set by
+  // scripts/feature_check.py golden()) — that file is its per-spec artifact.
+  reporter: goldenMode
     ? [
+        ['list'],
         ['github'],
-        ['html', { outputFolder: 'playwright-report' }],
-        ['junit', { outputFile: 'test-results/e2e-results.xml' }],
-        ['json', { outputFile: 'test-results/e2e-results.json' }],
+        ...(process.env.PLAYWRIGHT_JUNIT_OUTPUT_FILE
+          ? [['junit', { outputFile: process.env.PLAYWRIGHT_JUNIT_OUTPUT_FILE }] as const]
+          : []),
       ]
-    : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
+    : process.env.CI
+      ? [
+          ['github'],
+          ['html', { outputFolder: 'playwright-report' }],
+          ['junit', { outputFile: 'test-results/e2e-results.xml' }],
+          ['json', { outputFile: 'test-results/e2e-results.json' }],
+        ]
+      : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
 
   // Output directory for test artifacts (screenshots, videos, traces)
   outputDir: './test-results',
@@ -80,7 +113,9 @@ export default defineConfig({
 
   // Global setup script - disables product tour and sets up shared state
   // This runs once before all tests, preventing Joyride overlay from blocking interactions
-  globalSetup: './tests/e2e/global-setup.ts',
+  // Dropped in golden mode: it mocks /api/auth/* to warm the dev server, which
+  // is exactly what golden paths must not do (and there is no dev server).
+  globalSetup: goldenMode ? undefined : './tests/e2e/global-setup.ts',
 
   // Expect timeout - keep short for fast feedback
   // Error state tests use explicit longer timeouts where needed
@@ -232,19 +267,53 @@ export default defineConfig({
       // Only run specs, exclude visual tests
       testMatch: /specs\/.*\.spec\.ts$/,
     },
+    // Golden-path harness (F2.1, 20-frontend.md §F2.1).
+    // scripts/feature_check.py detects this project by TEXT (a regex for
+    // `name: 'golden'` over this file) and then runs `--project=golden`; the
+    // literal above stays present so detection works. It is only ADDED to the
+    // run in golden mode (see goldenMode), so `npm run test:e2e` never runs
+    // these specs against a stack that isn't there. It lives outside the
+    // ./tests/e2e graph (its own testDir) so a plain e2e run can never pick it
+    // up by accident, and it reuses the guard fixture, not the auto-mocking
+    // e2e fixtures.
+    ...(goldenMode
+      ? [
+          {
+            name: 'golden',
+            testDir: './tests/golden',
+            // One worker, serial: the dashboard path drops a fixture and waits
+            // on the backend's content-hash dedupe window, so its wait must not
+            // interleave with another spec competing for the same camera.
+            fullyParallel: false,
+            workers: 1,
+            // The harness's stack serves the UI on an engine-assigned port;
+            // point every navigation there instead of the fixed e2e baseURL.
+            use: {
+              ...devices['Desktop Chrome'],
+              baseURL: GOLDEN_UI,
+              launchOptions: { args: ['--disable-gpu', '--disable-dev-shm-usage'] },
+            },
+          },
+        ]
+      : []),
   ],
 
   // Run your local dev server before starting the tests
   // Uses dev:e2e which runs Vite without the API proxy, allowing Playwright's
   // page.route() to intercept API requests directly instead of Vite's proxy
   // trying to forward them to localhost:8000 (causing ECONNREFUSED in CI)
-  webServer: {
-    command: 'npm run dev:e2e',
-    // Uses HTTP for E2E tests to avoid TLS handshake issues with self-signed certs
-    url: 'http://localhost:8444',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  },
+  // Dropped in golden mode: the feature-check harness's compose stack already
+  // serves the UI at FEATURE_CHECK_UI_URL; booting a Vite dev server beside
+  // the real thing would be 120 s of dead weight pointing at nothing.
+  webServer: goldenMode
+    ? undefined
+    : {
+        command: 'npm run dev:e2e',
+        // Uses HTTP for E2E tests to avoid TLS handshake issues with self-signed certs
+        url: 'http://localhost:8444',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120000,
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
 });

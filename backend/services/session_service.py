@@ -17,6 +17,14 @@ _DEFAULT_SESSION_TTL = timedelta(hours=24)
 # Redis key prefix for sessions
 _SESSION_KEY_PREFIX = "session:"
 
+# R55 (ruling 55): the ONE login-cookie name. Login sets it, the HTTP auth gate
+# reads it, and both WebSocket paths read it too — it used to be defined twice
+# (routes/auth.py, middleware/auth.py) while the sockets read a different,
+# never-set literal "session", so a cookie login could never authenticate a
+# socket. Lives here because this module owns the session:<id> convention the
+# cookie carries; every consumer imports it from this single home.
+SESSION_COOKIE_NAME = "session_id"
+
 
 class SessionExpiredError(Exception):
     """Raised when a session has expired or doesn't exist."""

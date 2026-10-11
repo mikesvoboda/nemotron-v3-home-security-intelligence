@@ -94,11 +94,12 @@ File Upload -> Detection -> Batching -> Specialists -> Analysis -> Event Creatio
 The zoo's loader set is what `model_zoo.py`'s `_LOADER_MAP` binds — one generic
 YOLO loader plus the resident specialist loaders:
 
-| Service                     | Purpose                                                             | Exported via `__init__.py` |
-| --------------------------- | ------------------------------------------------------------------- | -------------------------- |
-| `osnet_loader.py`           | Load OSNet-AIN x1.0 person re-ID embeddings                         | No (import directly)       |
-| `face_recognizer_loader.py` | Load the SCRFD face detector + ArcFace recognizer (CPU onnxruntime) | No (import directly)       |
-| `fast_alpr_loader.py`       | Load the FastALPR plate reader                                      | No (import directly)       |
+| Service                     | Purpose                                                                                        | Exported via `__init__.py`          |
+| --------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `osnet_loader.py`           | Load OSNet-AIN x1.0 person re-ID embeddings                                                    | No (import directly)                |
+| `reid_gateway.py`           | Person re-ID through the gateway's `/enrich-lt/person-reid` when `REID_BACKEND=gateway` (B2.2) | No (reached through `osnet_loader`) |
+| `face_recognizer_loader.py` | Load the SCRFD face detector + ArcFace recognizer (CPU onnxruntime)                            | No (import directly)                |
+| `fast_alpr_loader.py`       | Load the FastALPR plate reader                                                                 | No (import directly)                |
 
 The YOLO rows (`yolo26-general`, `yolo11-face`, `yolo11-license-plate`) load
 through `load_yolo_model` and the OCR row through `load_paddle_ocr`, both

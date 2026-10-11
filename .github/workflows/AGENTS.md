@@ -4,6 +4,14 @@
 
 This directory contains GitHub Actions workflow definitions for the Home Security Intelligence project. Workflows automate CI/CD, testing, security scanning, and code quality checks.
 
+> **Draft PRs skip the CI jobs** (owner ruling 97 part 2). Every workflow with a `pull_request`
+> trigger lists `ready_for_review` in its activity types and guards each PR-capable job with
+> `(github.event_name != 'pull_request' || github.event.pull_request.draft != true) && …`, so a
+> draft push spends no runners and marking a PR ready runs the suite in full at its head. When you
+> add a job to one of these workflows, it must carry the same guard, and when you add a new
+> `pull_request`-triggered workflow, it needs both — `scripts/test_workflow_draft_guards.py` fails
+> CI otherwise. See `docs/developer/ci-cd.md` for why the skip lives per-job, not per-workflow.
+
 ## Directory Contents
 
 ```
@@ -12,9 +20,7 @@ workflows/
   # Core CI/CD
   ci.yml                      # Main CI pipeline
   deploy.yml                  # Docker image build and push to GHCR
-  release.yml                 # Release workflow
-  semantic-release.yml        # Semantic versioning releases
-  release-drafter.yml         # Draft release notes
+  release.yml                 # The one release mechanism (OB.2)
   # API
   api-compatibility.yml       # API backward compatibility checks
   api-contract.yml            # API contract testing
@@ -23,6 +29,7 @@ workflows/
   mutation-testing.yml        # Mutation testing for test quality
   benchmarks.yml              # Performance benchmarks
   test-coverage-gate.yml      # PR gate for test coverage requirements
+  feature-check.yml           # scripts/feature-check.sh --fake on this commit's images (O2.2)
   pr-review-bot.yml           # PR review bot for missing tests
   weekly-test-report.yml      # Weekly test coverage and quality report
   # Security
@@ -32,8 +39,6 @@ workflows/
   trivy.yml                   # Container vulnerability scanning
   zap-security.yml            # OWASP ZAP security scanning
   dependency-audit.yml        # Dependency vulnerability audit
-  vulnerability-management.yml # CVE tracking and management
-  weekly-audit.yml            # Weekly security and code quality audits
   # Quality & Analysis
   bundle-size.yml             # Frontend bundle size tracking
   ci-analytics.yml            # CI metrics and analytics
@@ -53,7 +58,8 @@ workflows/
 
 ### ci.yml - Main CI Pipeline
 
-**Trigger:** Push/PR to main branch
+**Trigger:** Push/PR to main branch — draft PRs skip the jobs (per-job `if` guard, ruling 97 p2);
+`ready_for_review` runs the full suite at the head
 
 **Purpose:** Primary continuous integration - linting, type checking, testing, building.
 
@@ -145,7 +151,7 @@ npm run docs:watch  # Watch mode
 
 ### docs-drift.yml - Documentation Drift Detection
 
-**Trigger:** Push/PR to main branch
+**Trigger:** Push/PR to main branch (opened, synchronize, ready_for_review) — drafts skip
 
 **Purpose:** Automatically detect when code changes may require documentation updates.
 
@@ -281,11 +287,11 @@ npm run docs:watch  # Watch mode
 
 **Jobs:**
 
-| Job                 | Runner          | Purpose                                            |
-| ------------------- | --------------- | -------------------------------------------------- |
-| extended-benchmarks | self-hosted GPU | **skipped** — runner offline; job no-ops by design |
-| complexity-trends   | ubuntu-latest   | Wily code complexity reports                       |
-| security-audit      | ubuntu-latest   | pip-audit, npm audit, Bandit                       |
+| Job                 | Runner          | Purpose                                                             |
+| ------------------- | --------------- | ------------------------------------------------------------------- |
+| extended-benchmarks | self-hosted GPU | **skipped** — runner offline; job no-ops by design                  |
+| complexity-trends   | ubuntu-latest   | Wily code complexity reports                                        |
+| security-audit      | ubuntu-latest   | Bandit full scan (OB.2: dep audits left — see dependency-audit.yml) |
 
 **Artifacts Generated:**
 
@@ -363,32 +369,9 @@ rtx-a5500`) is registered but offline. Restore when that runner is online
 
 **Output:** SARIF format uploaded to GitHub Security tab
 
-### weekly-audit.yml - Weekly Audit
-
-**Trigger:** Monday 9 AM UTC (cron: `0 9 * * 1`) + manual dispatch
-
-**Purpose:** Weekly comprehensive security and code quality audit.
-
-**Jobs:**
-
-| Job              | Runner        | Purpose                          |
-| ---------------- | ------------- | -------------------------------- |
-| security-audit   | ubuntu-latest | Semgrep security scan, pip-audit |
-| code-quality     | ubuntu-latest | Vulture, Radon complexity        |
-| frontend-quality | ubuntu-latest | Knip dead code detection         |
-| audit-summary    | ubuntu-latest | Generate summary report          |
-
-**Tools Used:**
-
-- Semgrep (security patterns)
-- pip-audit (Python dependency vulnerabilities)
-- Vulture (Python dead code)
-- Radon (cyclomatic complexity)
-- Knip (TypeScript/JS dead code)
-
 ### test-coverage-gate.yml - Test Coverage Enforcement (NEM-2102)
 
-**Trigger:** Pull request to main branch (opened, synchronized, reopened)
+**Trigger:** Pull request to main branch (opened, synchronize, reopened, ready_for_review) — drafts skip
 
 **Purpose:** Enforce test coverage requirements on new/modified code to prevent untested features from merging.
 
@@ -444,7 +427,7 @@ If your PR is blocked:
 
 ### pr-review-bot.yml - PR Review Bot (NEM-2102)
 
-**Trigger:** Pull request events (opened, synchronized)
+**Trigger:** Pull request events (opened, synchronize, ready_for_review) — drafts skip
 
 **Purpose:** Automated PR review bot that checks for test coverage and provides helpful guidance.
 

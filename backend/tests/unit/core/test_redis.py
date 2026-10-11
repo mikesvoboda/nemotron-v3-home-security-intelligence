@@ -2422,7 +2422,11 @@ async def test_get_redis_optional_returns_none_on_connection_error(
     """Test get_redis_optional returns None on connection error."""
     mock_redis_client.ping.side_effect = ConnectionError("Connection failed")
 
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
+    # Zero connect()'s real backoff (1 s, then 2 s, plus jitter) - speed up test
+    with (
+        patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True),
+        patch.object(RedisClient, "_calculate_backoff_delay", autospec=True, return_value=0.0),
+    ):
         redis_generator = get_redis_optional()
         client = await anext(redis_generator)
 
@@ -2442,7 +2446,11 @@ async def test_get_redis_optional_returns_none_on_timeout_error(
 
     mock_redis_client.ping.side_effect = RedisTimeoutError("Timeout")
 
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
+    # Zero connect()'s real backoff (1 s, then 2 s, plus jitter) - speed up test
+    with (
+        patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True),
+        patch.object(RedisClient, "_calculate_backoff_delay", autospec=True, return_value=0.0),
+    ):
         redis_generator = get_redis_optional()
         client = await anext(redis_generator)
 

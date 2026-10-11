@@ -13,7 +13,7 @@ import os
 import sys
 from functools import cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AnyHttpUrl, Field, SecretStr, ValidationInfo, field_validator, model_validator
@@ -336,6 +336,41 @@ class OrchestratorSettings(BaseSettings):
     )
 
 
+class ScopedApiKey(SecretStr):
+    """An ``API_KEYS`` entry that carries a scope (R60, ruling 60).
+
+    ``Settings.api_keys`` entries are either plain strings (unscoped — every
+    gated path, today's behavior) or objects ``{"key": ..., "scope": ...}``.
+    The before-validator on :attr:`Settings.api_keys` turns the object form
+    into this class; everything that only reads the secret (``str()``,
+    ``repr()``, ``get_secret_value()``, log-redaction, ``model_dump``) keeps
+    ``SecretStr`` semantics because this IS a ``SecretStr`` — the scope rides
+    on a private attribute plain ``SecretStr`` consumers never touch.
+
+    ``scope`` is the resolved ``(method, path)`` set, never a name:
+    ``frozenset()`` refuses every gated path (an unrecognized scope name is
+    fail-closed, never an implicit unscope). ``auth._key_scope`` reads the
+    ``scoped_paths`` attribute and accepts it ONLY as a ``frozenset`` — that
+    type gate is what keeps ``MagicMock`` test entries unscoped.
+    """
+
+    _scoped_paths: frozenset[tuple[str, str]] | None
+
+    def __init__(
+        self,
+        secret_value: str,
+        scope: frozenset[tuple[str, str]] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(secret_value, **kwargs)
+        self._scoped_paths = scope
+
+    @property
+    def scoped_paths(self) -> frozenset[tuple[str, str]] | None:
+        """The resolved path set, or None only for a directly-built unscoped key."""
+        return self._scoped_paths
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -466,6 +501,18 @@ class Settings(BaseSettings):
         "first-run setup and login; monitoring needs a credential too. It also "
         "publishes the frontend on 0.0.0.0. Unset, it requires no credential and "
         "the frontend's published ports bind 127.0.0.1.",
+    )
+    # R55 (ruling 55): the login cookie's Secure flag, previously hardcoded True.
+    # backend/api/routes/auth.py reads it for set/delete_cookie; backend/main.py
+    # warns at startup when it is True while EXPOSE_LAN runs without TLS — a
+    # browser on a plain-http origin then DROPS the cookie and login loops.
+    session_cookie_secure: bool = Field(
+        default=True,
+        description="Set the login session cookie's Secure flag. Keep true whenever "
+        "the UI is served over HTTPS (the safe default: an insecure auth cookie "
+        "can be sniffed). Set false ONLY for a plain-http origin — a LAN http:// "
+        "deployment without TLS — where a browser would otherwise drop the cookie "
+        "and loop login forever.",
     )
 
     redis_event_channel: str = Field(
@@ -1563,6 +1610,13 @@ class Settings(BaseSettings):
         description="Maximum retry attempts for ReID embedding generation on transient failures. "
         "Uses exponential backoff (2^attempt seconds). Default: 3 attempts.",
     )
+    reid_backend: Literal["local", "gateway"] = Field(
+        default="local",
+        description="Where person re-ID embeddings are computed (B2.2, owner ruling 68). "
+        "'local': the backend's resident OSNet copy. 'gateway': the AI gateway's GPU "
+        "'reid' model at ENRICHMENT_LIGHT_URL/person-reid, the same network and weights. "
+        "Stays 'local' until the owner's parity run is posted; switching back is the rollback.",
+    )
 
     # Face auto-enrollment settings (NEM-4941)
     face_auto_enroll_enabled: bool = Field(
@@ -1744,8 +1798,81 @@ class Settings(BaseSettings):
     )
     api_keys: list[SecretStr] = Field(
         default=[],
-        description="List of valid API keys (plain text, hashed on startup)",
+        description=(
+            "List of valid API keys (plain text, hashed per request). Each entry "
+            "is a plain string (unscoped: every gated path) or an object "
+            '{"key": "...", "scope": "monitoring"} (R60, ruling 60: the key is '
+            "accepted only on the paths its scope names; see "
+            "backend/core/constants.py API_KEY_SCOPES)"
+        ),
     )
+
+    @field_validator("api_keys", mode="before")
+    @classmethod
+    def parse_api_key_scopes(cls, v: Any) -> Any:
+        """Turn scoped ``API_KEYS`` objects into :class:`ScopedApiKey` (R60).
+
+        Entry-scoped fail-closed, the policy ruling 60's review panel settled
+        (design note on the R60 PR):
+
+        - plain string / ``SecretStr`` entries pass through byte-for-byte —
+          unscoped, today's behavior, the backward-compat arm the ruling names;
+        - an object with a string ``key`` and a recognized ``scope`` becomes a
+          ``ScopedApiKey`` carrying that scope's (method, path) set;
+        - an object whose ``scope`` is missing, not a string, or not a
+          registered name authenticates its key with an EMPTY path set (401 on
+          every gated path) and warns — never unscoped (a typo'd
+          ``montitoring`` silently gaining full access is the exact privilege
+          escalation this ruling closes) and never a boot error (one typo
+          entry must not crash-loop the container; compose runs
+          ``restart: unless-stopped`` against a 10s/3-retry healthcheck);
+        - an object without a usable ``key`` is dropped with a warning — there
+          is nothing to authenticate;
+        - a syntactically corrupt whole value never reaches here: pydantic-settings
+          JSON-decodes the env string first and raises SettingsError before any
+          validator runs (today's pre-existing behavior for a broken JSON list).
+
+        Warnings name entry indices only — never key material (SecretStr
+        doctrine; pydantic's own error echo prints input values).
+
+        Args:
+            v: The raw parsed value (typically the JSON-decoded env list).
+
+        Returns:
+            The same list with scoped objects replaced by ``ScopedApiKey``.
+        """
+        if not isinstance(v, list) or not any(isinstance(e, dict) for e in v):
+            return v  # today's shape untouched; no dict, nothing to parse
+        import warnings
+
+        from backend.core.constants import resolve_api_key_scope
+
+        out: list[Any] = []
+        for index, entry in enumerate(v):
+            if not isinstance(entry, dict):
+                out.append(entry)
+                continue
+            key = entry.get("key")
+            if not isinstance(key, str) or not key:
+                warnings.warn(
+                    f"API_KEYS entry {index} is an object without a usable 'key' "
+                    "field; it was dropped and authenticates nothing.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                continue
+            scope = resolve_api_key_scope(entry.get("scope"))
+            if entry.get("scope") is None or scope is None:
+                warnings.warn(
+                    f"API_KEYS entry {index} carries a scope this build does not "
+                    "recognize; the key is refused on every gated path "
+                    "(fail-closed). Known scopes: see API_KEY_SCOPES.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                scope = frozenset()  # fail-closed: refuse, never unscope
+            out.append(ScopedApiKey(key, scope=scope))
+        return out
 
     # File deduplication settings
     dedupe_ttl_seconds: int = Field(

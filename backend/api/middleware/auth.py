@@ -12,6 +12,13 @@ A credential is either
 - the ``session_id`` cookie ``POST /api/auth/login`` sets, looked up in Redis; or
 - a key from ``settings.api_keys``: the ``X-API-Key`` header over HTTP, the
   ``api_key`` query parameter or an ``api-key.<key>`` subprotocol on a WebSocket.
+  R60 (ruling 60): an entry may carry a ``scope`` — ``{"key": ..., "scope":
+  "monitoring"}`` — and is then accepted ONLY on its scope's (method, path)
+  set (``backend/core/constants.py``). A valid key whose scope does not admit
+  the call casts no vote, exactly like a present-but-invalid credential: the
+  cookie leg still serves it if a valid session rides along, and with no
+  other credential the normal refusal lands (401 / 4001). Plain-string
+  entries are unscoped: every gated path, today's behavior unchanged.
 
 When exposed, a response to an authenticated HTTP request is marked
 ``Cache-Control: private`` so no shared cache (a tunnel, a CDN) can store it.
@@ -24,26 +31,24 @@ import hashlib
 import hmac
 from typing import Annotated
 
-from fastapi import Header, HTTPException, WebSocket, status
+from fastapi import Header, HTTPException, Request, WebSocket, status
 from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.requests import HTTPConnection
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from backend.api.dependencies import get_redis_optional
-from backend.api.middleware.websocket_auth import (
-    WebSocketAuthMethod,
-    verify_websocket_auth,
-)
+from backend.api.middleware import websocket_auth
 from backend.core import get_settings
 from backend.core.logging import get_logger, mask_ip
 from backend.core.websocket.subprotocol import offered_key_subprotocol
-from backend.services.session_service import SessionService
+from backend.services.session_service import SESSION_COOKIE_NAME, SessionService
 
 logger = get_logger(__name__)
 
-# Session cookie name - must match auth.py
-SESSION_COOKIE_NAME = "session_id"
+# R55 (ruling 55): the cookie name is ONE constant in session_service — the
+# second definition here is deleted; every consumer (routes/auth.py, both
+# socket paths, this gate) imports it.
 
 # Reachable without a credential when EXPOSE_LAN=true. Exact paths, no prefixes.
 # Monitoring is not here: it is denied by default like everything else (UR-33);
@@ -94,6 +99,154 @@ def _get_valid_key_hashes() -> set[str]:
     return hashes
 
 
+# -----------------------------------------------------------------------------
+# R60 (ruling 60): scopes. One flat key list was the finding — any hash match
+# opened every gated path, and setup.py mirrors the monitoring key into that
+# list, so the monitoring credential was an operator credential. An API_KEYS
+# entry may now carry a scope; the check below is the only place a scope is
+# consulted, and the scope->paths table lives in backend/core/constants.py.
+# -----------------------------------------------------------------------------
+
+
+def _key_scope(key_entry: object) -> frozenset[tuple[str, str]] | None:
+    """The scope paths a configured entry carries, or None when unscoped.
+
+    Reads ONLY ``settings.api_keys`` entries (R60's design constraint: no new
+    Settings attribute, so ``SimpleNamespace(api_keys=[...])`` fixtures keep
+    working) and accepts the attribute ONLY when it is a ``frozenset``:
+
+    - plain string / ``SecretStr`` entries have no such attribute → None
+      (unscoped: every gated path, today's behavior — the backward-compat arm
+      the ruling names);
+    - a ``MagicMock`` entry answers ANY attribute name, and the type gate is
+      what stops those fixtures from becoming scoped-with-an-empty-set, which
+      would read as "refuse everything" and turn ~40 green tests red without a
+      reason (or, read the other way, silently disable auth in tests);
+    - ``config.ScopedApiKey`` holds the resolved set, INCLUDING the empty set
+      an unrecognized scope name gets — fail-closed. An empty set must stay
+      distinguishable from "no scope", so the type test (not truthiness) is
+      what distinguishes them.
+    """
+    scope = getattr(key_entry, "scoped_paths", None)
+    return scope if isinstance(scope, frozenset) else None
+
+
+def _key_entry_for_digest(digest: str) -> object | None:
+    """The settings entry that answers a presented key, if any (R60 lookup).
+
+    ``hmac.compare_digest`` per comparison, as everywhere a key is compared
+    (OWASP A07:2021) — and EXACTLY one pass over every entry per call, with no
+    early return, whatever the answer. The first R60 draft stopped at the first
+    unscoped match: measured at review (#6959, reviewer-reproduced) at a stress
+    setting of N=32 entries, that hit cost ~1.9 µs against ~17.6 µs for a miss,
+    disjoint p5/p95. It reads as a valid-key oracle because the GATE calls this
+    cold — no membership sweep ahead of it, unlike :func:`require_api_key` and
+    :func:`validate_websocket_api_key`, which sweep first — aimed at exactly the
+    callers the gate was about to refuse: the inverse of this module's OWASP
+    posture, and new with R60 (base's gate key legs were all full-sweep). A sweep-before-
+    lookup would NOT fix it: the sweep itself short-circuits on match (its
+    ``any()``), so a valid key would still cost ~N/2+k compares against an
+    invalid key's N. The compare count now depends on nothing but the list
+    length — which the caller already knows — for valid, invalid, and every
+    position in between. N is a deployment's key-list length (single digits);
+    the extra microseconds sit under an HTTP round-trip's noise floor.
+
+    ABSORPTION RULE (ratified amendment 10, and what ``merge_api_keys``'s
+    cross-form dedupe relies on): one value listed BOTH plainly and inside an
+    object — reachable by hand-edit, since setup.py's dedupe exists precisely
+    to stop it happening on its own output — is answered by the PLAIN entry,
+    i.e. the value is unscoped, WHATEVER THE LIST ORDER. An earlier draft took
+    the first match, which made the rule depend on whether setup.py's generated
+    object or the operator's hand listing happened to come first; the merge
+    docstring's promise ("a surviving plain entry would leave the value
+    unscoped") would then have been false half the time. The scan now keeps
+    going PAST a plain hit for the timing reason above; that changes cost, not
+    answer — any plain match answers, else the first scoped match, in every
+    order, exactly as before. Deliberately NOT a parse-time map: R60 derives
+    everything from ``settings.api_keys`` at request time so the
+    SimpleNamespace/MagicMock fixtures keep working.
+    """
+    plain_hit: object | None = None
+    scoped_fallback: object | None = None
+    for entry in get_settings().api_keys:
+        value = entry.get_secret_value() if hasattr(entry, "get_secret_value") else entry
+        if not hmac.compare_digest(_hash_key(str(value)), digest):
+            continue
+        if _key_scope(entry) is None:
+            # An unscoped entry absorbs any scoped twin. Recorded, not
+            # returned: the scan must run its full length for the cost shape
+            # above. Answer unchanged — plain wins whenever one matched.
+            if plain_hit is None:
+                plain_hit = entry
+        elif scoped_fallback is None:
+            scoped_fallback = entry
+    return plain_hit if plain_hit is not None else scoped_fallback
+
+
+def _call_name(conn: HTTPConnection) -> tuple[str, str]:
+    """The (method, path) a connection's call is named by, for scope lookup.
+
+    ``method`` is read with ``.get`` because a WEBSOCKET scope carries none
+    (that is why ``AuthMiddleware._refuse`` logs ``scope.get("method",
+    "WEBSOCKET")``); a handshake is a GET for naming purposes. ``path`` never
+    carries a query string — ASGI splits ``?limit=20`` into
+    ``scope["query_string"]`` — so a Grafana panel calling
+    ``/api/events?risk_level=high&limit=20`` matches the ``("GET",
+    "/api/events")`` entry. Exact match, no prefixes: a prefix on
+    ``/api/events`` would admit that module's ``/export``, ``/{event_id}`` and
+    write verbs.
+    """
+    return (conn.scope.get("method") or "GET", conn.scope["path"])
+
+
+def _websocket_call(websocket: WebSocket) -> tuple[str, str]:
+    """The (method, path) a WebSocket handshake is named by (R60 scope lookup).
+
+    A handshake is a GET for naming purposes — an ASGI websocket scope carries
+    no ``method`` key at all — and the path comes from ``websocket.url.path``,
+    the same read this function's security logging already uses. Neither side
+    is indexed: the two fakes this module's suite hands in
+    (``MagicMock(spec=WebSocket)``, which copies CLASS attributes only and
+    ``scope`` is set in ``WebSocket.__init__``; and the accept-after-close
+    ASGI-faithful fake) carry no ``scope`` attribute, so reading one here would
+    AttributeError on a valid key instead of checking it.
+    """
+    return ("GET", str(websocket.url.path))
+
+
+def _key_admits(key_entry: object, call: tuple[str, str]) -> bool:
+    """Whether a matched key entry may serve this call — R60's one predicate.
+
+    Unscoped → True (today, byte-for-byte). Scoped → the exact (method, path)
+    must be in its set; an empty set refuses every gated path.
+    """
+    scope = _key_scope(key_entry)
+    return True if scope is None else call in scope
+
+
+async def _api_key_principal(conn: HTTPConnection) -> str | None:
+    """``api-key`` when the presented key is valid AND entitled to this call.
+
+    R60's no-vote rule, deliberately the same shape as R55 round 2's
+    hierarchy: a key matching no entry is not a credential, and a key that
+    matches an entry whose scope does not admit this call is not a credential
+    **for this call**. Either way this returns None and the caller falls
+    through to the session cookie, so a monitoring key presented beside a
+    valid login cookie still serves on a non-monitoring path (the cookie is
+    the credential), and a monitoring key presented ALONE there gets today's
+    normal refusal — one ``auth_required`` security event from ``_refuse``,
+    no new status code, no new close code, and the audit actor stays
+    ``api-key`` / username / ``anonymous`` with no added value.
+    """
+    key = _presented_api_key(conn)
+    if not key:
+        return None
+    entry = _key_entry_for_digest(_hash_key(key))
+    if entry is None:
+        return None
+    return API_KEY_PRINCIPAL if _key_admits(entry, _call_name(conn)) else None
+
+
 def _validate_key_hash_constant_time(key_hash: str, valid_hashes: set[str]) -> bool:
     """Validate API key hash using constant-time comparison.
 
@@ -112,6 +265,7 @@ def _validate_key_hash_constant_time(key_hash: str, valid_hashes: set[str]) -> b
 
 
 def require_api_key(
+    request: Request,
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
 ) -> str:
     """Validate an API key against ``settings.api_keys``, unconditionally.
@@ -129,7 +283,16 @@ def require_api_key(
     module's helpers; the two older copies compare digests with ``in``, which
     leaks timing (OWASP A07:2021).
 
+    R60 (ruling 60): ``request`` is a REQUIRED first argument, not an optional
+    one with a None default — a default would let every direct caller (and
+    this module's own unit suite) exercise the unscoped branch and ship the
+    scope check unpinned. The inbound routes are outside every scope, so a
+    scoped key is refused here; the refusal carries the SAME detail as an
+    unknown key on purpose, so a 401 never reveals that the key was real and
+    merely unentitled.
+
     Args:
+        request: The request being authorized (for its method and path).
         x_api_key: API key from the ``X-API-Key`` header.
 
     Returns:
@@ -137,7 +300,7 @@ def require_api_key(
 
     Raises:
         HTTPException: 401 if the header is absent, or if the key is not in
-            ``settings.api_keys``.
+            ``settings.api_keys``, or if a scoped key does not admit this path.
     """
     if not x_api_key:
         raise HTTPException(
@@ -146,6 +309,15 @@ def require_api_key(
         )
 
     if not _validate_key_hash_constant_time(_hash_key(x_api_key), _get_valid_key_hashes()):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
+
+    # R60: the key is real — is it entitled to THIS call? (Checked after the
+    # membership test so the pinned digest-comparison call shape is unchanged.)
+    entry = _key_entry_for_digest(_hash_key(x_api_key))
+    if entry is not None and not _key_admits(entry, _call_name(request)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
@@ -204,6 +376,18 @@ async def validate_websocket_api_key(websocket: WebSocket) -> bool:
     valid_hashes = _get_valid_key_hashes()
     is_valid = _validate_key_hash_constant_time(key_hash, valid_hashes)
 
+    # R60 (ruling 60): a real key whose scope does not admit this handshake is
+    # not valid FOR THIS CALL. The check sits deliberately AFTER the flag-off
+    # return above, so this rule is flag-on-only; the gate in
+    # AuthMiddleware is the flag-independent door and already refuses a scoped
+    # key on every /ws/* path (none is in the monitoring scope) whenever
+    # EXPOSE_LAN=true. Nothing about the refusal shape changes: the caller
+    # still accepts-then-closes with 4001 (JWT_SECRET set) or 1008 (not).
+    if is_valid:
+        entry = _key_entry_for_digest(key_hash)
+        if entry is not None and not _key_admits(entry, _websocket_call(websocket)):
+            is_valid = False
+
     if not is_valid:
         logger.warning(
             "WebSocket authentication attempt with invalid API key",
@@ -226,21 +410,28 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     2. JWT token in query parameter (API/mobile clients)
     3. API key (existing functionality for backward compatibility)
 
-    If authentication fails, the connection is first accepted and then closed
-    with an appropriate code. This is required because in the WebSocket protocol,
+    R55 round 2: an INVALID credential casts no vote and refuses nothing on
+    its own — any one valid credential serves, exactly like the HTTP gate's
+    authenticated_principal. A request whose present credentials all fail
+    falls through to the API-key leg, which is the pre-existing hierarchy for
+    a client with no cookie at all (keys disabled -> served: single-user
+    mode is open by design; keys enabled and no valid key -> refused).
+
+    On refusal the connection is first accepted and then closed with an
+    appropriate code. This is required because in the WebSocket protocol,
     you cannot send a close frame without first completing the handshake.
 
     Note: Attempting to close without accepting would result in the HTTP layer
     returning a 403 Forbidden, which is not a proper WebSocket close.
 
-    Close codes:
+    Close codes (key-leg refusal only, R55 round 2):
     - 4001: Authentication failure (when hybrid auth is configured - JWT_SECRET set)
-    - 4002: Token expired (hybrid auth)
     - 1008: Policy violation (API key only - backward compatible when no JWT_SECRET)
 
     IMPORTANT: This function does NOT accept the WebSocket on success.
     The caller (route) is responsible for accepting via broadcaster.connect()
-    or websocket.accept().
+    or websocket.accept(). No validation path here accepts or closes —
+    accept-after-close crashes are structurally impossible in this function.
 
     Args:
         websocket: WebSocket connection to authenticate
@@ -253,29 +444,66 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     # Check if hybrid auth is configured (JWT_SECRET is set)
     hybrid_auth_enabled = bool(settings.jwt_secret)
 
-    # Check if hybrid auth credentials are present (cookie or JWT token)
-    # Use isinstance check to handle MagicMock in tests (which is not None but also not a string)
-    cookie_value = websocket.cookies.get("session")
+    # R55: SESSION_COOKIE_NAME, not the literal "session" no login ever set —
+    # this dead read is why the cookie leg never ran on a real login.
+    # The inline isinstance checks do double duty: they exclude the MagicMock
+    # some tests hand back (not None, but not a string either) and they
+    # narrow the Optional getters for mypy inside each and-chain (a boolean
+    # "has_cookie" variable would do neither).
+    cookie_value = websocket.cookies.get(SESSION_COOKIE_NAME)
     token_value = websocket.query_params.get("token")
-    has_cookie = isinstance(cookie_value, str) and bool(cookie_value)
-    has_jwt_token = isinstance(token_value, str) and bool(token_value)
 
-    # Try hybrid auth first if credentials are present
-    if has_cookie or has_jwt_token:
-        success, auth_method = await verify_websocket_auth(websocket, timeout=5.0)
-        if success:
-            logger.info(
-                f"WebSocket authenticated via {auth_method.value}",
-                extra={
-                    "path": str(websocket.url.path),
-                    "auth_method": auth_method.value,
-                },
-            )
-            # Do NOT accept here - let the route/broadcaster handle it
-            return True
-        # verify_websocket_auth already closed the connection on failure
-        if auth_method != WebSocketAuthMethod.NONE:
-            return False
+    # R55 round 2 (self-review finding 1, both fresh-context reviews): a
+    # present-but-INVALID credential must not refuse the socket by itself —
+    # literally the HTTP gate's rule. authenticated_principal() passes a
+    # request when ANY credential it checks is valid; a dead cookie simply
+    # isn't one, and it never refuses merely for existing. The first R55
+    # build made every hybrid failure terminal, and that over-refused: a
+    # single-user box (gate off, keys disabled, sockets open to everyone)
+    # killed every socket for a browser that once logged in and aged out —
+    # 4001 is terminal in the frontend and /me is disabled in single-user
+    # mode (AuthContext: enabled: authRequired !== false), so nothing 401s
+    # to clear the auth state (the cookie itself is only ever removed by a
+    # server-side logout, which this mode also never triggers): a browser
+    # that never logged in worked, one that did was dead for up to 24h. So:
+    # validate each present credential,
+    # first valid one wins (cookie before ?token=, the order the priority
+    # test pins); an invalid one casts no vote and the API-key leg below —
+    # the pre-existing hierarchy — decides, exactly as it does for a client
+    # with no cookie at all. EXPOSE_LAN mode is untouched by this: the gate
+    # runs BEFORE these routes and still refuses a stale-cookie+no-key
+    # handshake with 4001 there, where /me's 401 clears the auth state and
+    # the login screen returns (and a fresh login replaces the cookie).
+    # Gate-off refusal was the bug; gate-on was not.
+    #
+    # No validation path here accepts or closes the socket (the first
+    # accept-then-close owner inside this function is deleted with the
+    # verify_websocket_auth delegation): success hands an unaccepted socket
+    # to the route (broadcaster.connect accepts), and the ONLY close stays
+    # the key-leg refusal below, which accepts-then-closes exactly once.
+    # That is also why the accept-after-close RuntimeError cannot come back
+    # through here: nothing else in this function can close.
+    if (
+        isinstance(cookie_value, str)
+        and cookie_value
+        and (await websocket_auth.validate_session_cookie(cookie_value)) is not None
+    ):
+        logger.info(
+            "WebSocket authenticated via cookie",
+            extra={"path": str(websocket.url.path), "auth_method": "cookie"},
+        )
+        # Do NOT accept here - let the route/broadcaster handle it
+        return True
+    if (
+        isinstance(token_value, str)
+        and token_value
+        and (websocket_auth.validate_websocket_jwt(token_value) is not None)
+    ):
+        logger.info(
+            "WebSocket authenticated via query_param",
+            extra={"path": str(websocket.url.path), "auth_method": "query_param"},
+        )
+        return True
 
     # Fall back to API key authentication
     if not await validate_websocket_api_key(websocket):
@@ -322,10 +550,14 @@ async def _session_username(session_id: str) -> str | None:
 
 
 async def authenticated_principal(conn: HTTPConnection) -> str | None:
-    """Who presented a valid credential: a username, ``api-key``, or None."""
-    key = _presented_api_key(conn)
-    if key and _validate_key_hash_constant_time(_hash_key(key), _get_valid_key_hashes()):
-        return API_KEY_PRINCIPAL
+    """Who presented a valid credential: a username, ``api-key``, or None.
+
+    R60: the key leg goes through :func:`_api_key_principal`, so a valid key
+    whose scope does not admit this call casts no vote — the cookie leg still
+    runs and can serve, exactly as for a present-but-invalid key.
+    """
+    if principal := await _api_key_principal(conn):
+        return principal
     if session_id := conn.cookies.get(SESSION_COOKIE_NAME):
         return await _session_username(session_id)
     return None

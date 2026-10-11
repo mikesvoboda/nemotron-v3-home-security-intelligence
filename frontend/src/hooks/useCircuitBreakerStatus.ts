@@ -262,7 +262,7 @@ export function useCircuitBreakerStatus(): UseCircuitBreakerStatusReturn {
   }, []);
 
   // Build WebSocket options using helper (respects VITE_WS_BASE_URL)
-  // SECURITY: API key is passed via Sec-WebSocket-Protocol header, not URL query param
+  // SECURITY (ruling 44): browsers open this socket cookie-authenticated; no key
   // Note: Circuit breaker updates are broadcast via /ws/system (SystemBroadcaster)
   const wsOptions = buildWebSocketOptions('/ws/system');
 

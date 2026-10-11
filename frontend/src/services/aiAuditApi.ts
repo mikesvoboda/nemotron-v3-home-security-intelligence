@@ -39,8 +39,6 @@ import type {
 // ============================================================================
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
-const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
-
 // ============================================================================
 // Error Handling
 // ============================================================================
@@ -65,15 +63,12 @@ export class AiAuditApiError extends Error {
 // ============================================================================
 
 /**
- * Build headers with optional API key authentication.
+ * Build JSON request headers (ruling 44: browsers ride the cookie, no key header).
  */
 function buildHeaders(): HeadersInit {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY;
-  }
   return headers;
 }
 

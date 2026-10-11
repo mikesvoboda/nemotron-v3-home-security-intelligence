@@ -210,30 +210,25 @@ const soakTestStages = [
 
 ## CI/CD Integration
 
-### PR Gates (Blocking)
+### Nightly + Manual (Report-Only, owner ruling 100)
 
-The following performance tests block PRs on failure:
+No performance workflow gates anything: none of these has a push or PR
+trigger, and the branch-protection required set only ever held
+`CI Gate (Required Checks)`. Results report through run summaries,
+artifacts, and Linear issues.
 
-| Test                     | Threshold            | Workflow         |
-| ------------------------ | -------------------- | ---------------- |
-| **Benchmark Tests**      | > 20% regression     | `benchmarks.yml` |
-| **Memory Profiling**     | > 500MB per endpoint | `benchmarks.yml` |
-| **Slow Query Detection** | > 50ms query time    | `benchmarks.yml` |
-
-### Main Branch Gates (Blocking)
-
-The following tests block merges to main on failure:
-
-| Test              | Threshold      | Workflow         |
-| ----------------- | -------------- | ---------------- |
-| **k6 Load Tests** | All thresholds | `load-tests.yml` |
+| Test                   | Threshold            | Workflow         | Runs                     |
+| ---------------------- | -------------------- | ---------------- | ------------------------ |
+| **Benchmark Tests**    | > 20% regression     | `benchmarks.yml` | Daily 04:47 UTC / manual |
+| **Memory Profiling**   | > 500MB per endpoint | `benchmarks.yml` | Daily 04:47 UTC / manual |
+| **k6 Load Tests**      | All thresholds       | `load-tests.yml` | Daily 01:12 UTC / manual |
+| **Memory Stress Test** | Leak detection       | `load-tests.yml` | Daily 01:12 UTC / manual |
 
 ### Non-Blocking (Informational)
 
 | Test                | Purpose                     | Schedule  |
 | ------------------- | --------------------------- | --------- |
-| **Stress Tests**    | Capacity planning           | Weekly    |
-| **Soak Tests**      | Memory leak detection       | Weekly    |
+| **Soak Tests**      | Long-duration behavior      | On demand |
 | **WebSocket Scale** | Connection limit validation | On demand |
 
 ## Running Load Tests

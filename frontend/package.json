@@ -79,7 +79,8 @@
     "minimatch": ">=10.2.1",
     "@mswjs/interceptors": "0.41.8",
     "qs": ">=6.15.2",
-    "serialize-javascript": ">=7.1.2"
+    "serialize-javascript": ">=7.1.2",
+    "postcss-selector-parser": "^7.1.6"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",

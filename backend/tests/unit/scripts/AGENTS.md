@@ -9,6 +9,8 @@ The `backend/tests/unit/scripts/` directory contains unit tests for migration an
 ```
 backend/tests/unit/scripts/
 ├── AGENTS.md                       # This file
+├── test_feature_check.py           # O2.2 harness: preflight, in-run check, postflight
+├── data/feature_check/             # Fixture renderings and machine snapshots for it
 ├── test_generate_openapi.py        # OpenAPI schema generation tests (25KB)
 └── test_migrate_beads_to_linear.py # Beads to Linear migration tests (11KB)
 ```

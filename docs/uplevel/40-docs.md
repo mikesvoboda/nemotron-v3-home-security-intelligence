@@ -148,7 +148,9 @@ agent has approved its own files.
 
 **Done when:** a grep for `florence`, `nemotron` and `enrichment` in living docs finds only explicit
 history notes (the PR reports before/after counts from `O1.7`'s script), every living doc is in
-the nav, and the link checker passes.
+the nav, and the link checker passes. A hit on the repository's own GitHub slug,
+`mikesvoboda/nemotron-v3-home-security-intelligence`, in a URL or bare, counts as a history note,
+as `.agents-md-validator.yml` already treats the repository's own name (owner ruling 70).
 
 ### W3.4 Carry out the docs rulings
 
@@ -209,4 +211,7 @@ You own docs/, every AGENTS.md, llms.txt, mkdocs.yml, the root markdown files
 and the AGENTS.md validator. Write what an agent cannot find by looking; leave
 inventories to the code. When the plan does not answer a question, stop and
 report the question.
+
+Never wait inside a turn on CI, a check run or a background watcher: read it
+once, report what you see and end the turn; your next tick re-reads (UR-38).
 ```

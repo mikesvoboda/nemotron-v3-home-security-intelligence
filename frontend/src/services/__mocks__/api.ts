@@ -95,9 +95,7 @@ export interface MockApi {
   deleteAlertRule: ReturnType<typeof vi.fn>;
 
   // Utility functions
-  buildWebSocketUrl: ReturnType<typeof vi.fn>;
   buildWebSocketOptions: ReturnType<typeof vi.fn>;
-  getApiKey: ReturnType<typeof vi.fn>;
   isAbortError: ReturnType<typeof vi.fn>;
   isTimeoutError: ReturnType<typeof vi.fn>;
 }
@@ -827,12 +825,10 @@ export function createMockApi(): MockApi {
     deleteAlertRule: vi.fn().mockResolvedValue(undefined),
 
     // Utility functions
-    buildWebSocketUrl: vi.fn().mockReturnValue('ws://localhost:8000/ws/events'),
     buildWebSocketOptions: vi.fn().mockReturnValue({
       url: 'ws://localhost:8000/ws/events',
       protocols: [],
     }),
-    getApiKey: vi.fn().mockReturnValue(undefined),
     isAbortError: vi.fn().mockReturnValue(false),
     isTimeoutError: vi.fn().mockReturnValue(false),
   };
@@ -997,12 +993,10 @@ export const updateAlertRule: Mock = vi.fn().mockResolvedValue({});
 export const deleteAlertRule: Mock = vi.fn().mockResolvedValue(undefined);
 
 // Utility functions
-export const buildWebSocketUrl: Mock = vi.fn().mockReturnValue('ws://localhost:8000/ws/events');
 export const buildWebSocketOptions: Mock = vi.fn().mockReturnValue({
   url: 'ws://localhost:8000/ws/events',
   protocols: [],
 });
-export const getApiKey: Mock = vi.fn().mockReturnValue(undefined);
 export const isAbortError: Mock = vi.fn().mockReturnValue(false);
 export const isTimeoutError: Mock = vi.fn().mockReturnValue(false);
 export const getCameraSnapshotUrl: Mock = vi.fn().mockReturnValue('');

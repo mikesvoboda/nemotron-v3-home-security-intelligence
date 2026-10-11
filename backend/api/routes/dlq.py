@@ -15,6 +15,7 @@ from enum import Enum
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
+from backend.api.middleware.auth import _validate_key_hash_constant_time
 from backend.api.schemas.dlq import (
     DLQClearResponse,
     DLQJobsResponse,
@@ -82,7 +83,16 @@ async def verify_api_key(
         key_value: str = k.get_secret_value() if hasattr(k, "get_secret_value") else str(k)
         valid_hashes.add(hashlib.sha256(key_value.encode()).hexdigest())
 
-    if key_hash not in valid_hashes:
+    # R60 (ruling 60): TIMING FIX ONLY, same as the copy in routes/system.py.
+    # The three copies of this check should carry one comparison rule; the
+    # middleware's helper is that rule (hmac.compare_digest over the digest
+    # set). No key-recovery signal exists either way — both operands are
+    # SHA-256 digests — but a divergent fourth copy is how the next, worse
+    # divergence arrives. This copy stays UNSCOPED by design (the gate is the
+    # outermost door; tests patch this module's get_settings with mocks that
+    # carry only api_keys/api_key_enabled), and the flag-off early return
+    # above is untouched.
+    if not _validate_key_hash_constant_time(key_hash, valid_hashes):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",

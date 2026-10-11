@@ -1,27 +1,17 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": [
-    "src/main.tsx",
-    "src/App.tsx"
+  "entry": ["src/main.tsx!"],
+  "project": [
+    "src/**/*.{ts,tsx}!",
+    "!src/**/*.test.{ts,tsx}!",
+    "!src/**/__tests__/**!",
+    "!src/**/__mocks__/**!",
+    "!src/mocks/**!",
+    "!src/test/**!",
+    "!src/test-utils/**!"
   ],
-  "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"],
-  "ignore": [
-    "src/types/generated/**",
-    "src/**/index.ts",
-    "src/test/mocks/index.ts",
-    "src/hooks/useFullHealthQuery.ts",
-    "src/components/exports/ExportModal.tsx",
-    "src/components/settings/GlobalNotificationPreferences.tsx",
-    "src/components/settings/QuietHoursScheduler.tsx",
-    "src/schemas/alert.ts",
-    "src/schemas/generated/alerts.generated.ts",
-    "src/schemas/generated/events.generated.ts",
-    "src/schemas/generated/zone.generated.ts",
-    "src/types/entity.ts"
-  ],
-  "ignoreDependencies": [
-    "openapi-typescript"
-  ],
+  "ignore": ["src/types/generated/**"],
+  "ignoreDependencies": ["openapi-typescript"],
   "ignoreExportsUsedInFile": true,
   "rules": {
     "files": "error",
@@ -30,7 +20,7 @@
     "optionalPeerDependencies": "off",
     "unlisted": "error",
     "unresolved": "error",
-    "exports": "off",
+    "exports": "error",
     "types": "off",
     "duplicates": "off",
     "enumMembers": "off",
@@ -39,14 +29,15 @@
     "nsTypes": "off"
   },
   "stryker": {
-    "config": ["stryker.config.mjs"]
+    "config": ["stryker.config.mjs"],
+    "entry": []
   },
   "playwright": {
     "config": ["playwright.config.ts"],
-    "entry": ["tests/e2e/**/*.{ts,tsx}"]
+    "entry": []
   },
   "vitest": {
     "config": ["vite.config.ts", "vite.config.e2e.ts"],
-    "entry": ["src/**/*.test.{ts,tsx}"]
+    "entry": []
   }
 }

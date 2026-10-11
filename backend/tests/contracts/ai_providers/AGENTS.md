@@ -12,6 +12,8 @@ The conformance tier for the AI-tier contract (`backend/ai_contract/`): the regi
 | `test_ai_provider.py`                                                      | Declared `AIProvider` interface: omitting a declared operation fails AT IMPORT, naming it         |
 | `test_fake_provider.py`                                                    | FakeProvider: all 38 ops, byte-determinism, AST mirror tests for class vocabularies               |
 | `test_schema_snapshots.py`                                                 | WP7.2: renaming a key in a contract model reddens CI naming the key (not a blob diff)             |
+| `test_fake_ai_stack.py`                                                    | O2.1: the backend's startup gates pass against the fake; the scenario book chooses the outcome    |
+| `conftest.py`                                                              | O2.1: with `FAKE_AI_URL` set, the whole tier drives a running fake container instead              |
 | `test_client_conformance.py`                                               | WP8.4: drives the six real backend AI clients through the FakeProvider (client parse methods)     |
 | `test_conformance_ops.py`                                                  | WP8.3 op-specific targets + the availability-matrix spine (absent / NOT-WIRED / wired states)     |
 | `test_conformance_{geometry,numeric,semantics,vocabulary,dbvocabulary}.py` | WP8.3/8.5 per-property clusters                                                                   |
@@ -31,7 +33,8 @@ Regenerate with `uv run python scripts/gen-ai-contract.py`; the `api-types-check
 - **No xfail / skip / importorskip anywhere in this tier** (goal rule); a RULING-blocked finding is pinned as a characterization test, never left red. This is also why per-op absence is a GREEN GUARD, not a skip.
 - **Never respx:** the fake is a real ASGI app - every hop is `httpx.ASGITransport` (`backend/ai_contract/fake/app.py`).
 - Headers still carrying `DRAFT` / `UNVERIFIED` status notes are historical drafting context from the 72h plan; the in-tree pytest run is the arbiter.
-- The tier inherits `ENVIRONMENT=test` and autouse settings-cache reset from `backend/tests/conftest.py`; there is no local conftest here.
+- The tier inherits `ENVIRONMENT=test` and autouse settings-cache reset from `backend/tests/conftest.py`.
+- **Against the container (O2.1):** `FAKE_AI_URL=http://127.0.0.1:8090 uv run pytest backend/tests/contracts/ai_providers/` runs the same assertions against the fake that `docker-compose.fake-ai.yml` starts. The local `conftest.py` makes the argument-less `create_fake_app()` return `remote_app(FAKE_AI_URL)`. Calls with arguments stay in-process. The run fails if no request reached the container. Unset, it changes nothing.
 
 ## Related
 

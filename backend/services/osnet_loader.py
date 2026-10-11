@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from backend.core.config import get_settings
 from backend.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -179,6 +180,31 @@ def _enforce_embedding_dim(embedding: np.ndarray) -> np.ndarray:
     return flat
 
 
+# OSNet input geometry and ImageNet normalisation. The gateway's
+# /enrich-lt/person-reid preprocesses with the same values (B2.2 parity gate).
+OSNET_INPUT_HEIGHT = 256
+OSNET_INPUT_WIDTH = 128
+OSNET_MEAN = (0.485, 0.456, 0.406)
+OSNET_STD = (0.229, 0.224, 0.225)
+
+
+def build_reid_transform() -> Any:
+    """The person re-id preprocessing: resize to 256x128, to tensor, normalise.
+
+    torchvision's ``Resize`` on a PIL image resamples bilinearly; the gateway
+    path must match it pixel for pixel, which the B2.2 parity gate checks.
+    """
+    from torchvision import transforms
+
+    return transforms.Compose(
+        [
+            transforms.Resize((OSNET_INPUT_HEIGHT, OSNET_INPUT_WIDTH)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=list(OSNET_MEAN), std=list(OSNET_STD)),
+        ]
+    )
+
+
 def get_reid_handle() -> dict[str, Any] | None:
     """The resident OSNet handle, or None — a membership read, NEVER a load
     trigger (the face get_face_leg_handles pattern).
@@ -193,7 +219,15 @@ def get_reid_handle() -> dict[str, Any] | None:
 
     The import is lazy because model_zoo imports this module: a module-level
     import would be a cycle.
+
+    With ``reid_backend == "gateway"`` (B2.2) the handle names the gateway
+    instead, and the local model is not consulted. Its ``model_id`` is None:
+    the belt is the ID the gateway reports on each embedding, never assumed.
     """
+    settings = get_settings()
+    if getattr(settings, "reid_backend", "local") == "gateway":
+        return {"kind": "gateway", "base_url": settings.enrichment_light_url, "model_id": None}
+
     from backend.services.model_zoo import get_model_manager
 
     loaded = get_model_manager()._loaded_models
@@ -289,7 +323,6 @@ async def load_osnet_model(model_path: str, expected_sha256: str | None = None) 
     """
     try:
         import torch
-        from torchvision import transforms
 
         from backend.core.security import PathSecurityError, validate_model_path
 
@@ -443,18 +476,7 @@ async def load_osnet_model(model_path: str, expected_sha256: str | None = None) 
             # Set to eval mode
             model.eval()
 
-            # Define image transforms for person re-id
-            # Standard transforms: resize to 256x128, normalize
-            transform = transforms.Compose(
-                [
-                    transforms.Resize((256, 128)),
-                    transforms.ToTensor(),
-                    transforms.Normalize(
-                        mean=[0.485, 0.456, 0.406],
-                        std=[0.229, 0.224, 0.225],
-                    ),
-                ]
-            )
+            transform = build_reid_transform()
 
             return {
                 "model": model,
@@ -502,8 +524,16 @@ async def extract_person_embedding(
         PersonEmbeddingResult with 512-dimensional embedding
 
     Raises:
-        RuntimeError: If embedding extraction fails
+        RuntimeError: If embedding extraction fails (a gateway handle raises
+            ``ReidGatewayUnavailable``, a RuntimeError, when the gateway is down)
     """
+    if model_dict.get("kind") == "gateway":
+        from backend.services import reid_gateway
+
+        return await reid_gateway.embed_person_via_gateway(
+            image, base_url=model_dict["base_url"], detection_id=detection_id
+        )
+
     try:
         import torch
 
@@ -582,6 +612,9 @@ async def extract_person_embeddings_batch(
     Returns:
         List of PersonEmbeddingResult, one per input image
     """
+    if model_dict.get("kind") == "gateway":
+        # No production caller batches today; the gateway path is per crop.
+        raise RuntimeError("batch person embedding is local-only; a gateway handle embeds per crop")
     if not images:
         return []
 

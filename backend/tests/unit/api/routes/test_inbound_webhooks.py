@@ -65,6 +65,19 @@ def _request(host: str | None = "203.0.113.7") -> SimpleNamespace:
     )
 
 
+def _guard_request(
+    method: str = "POST", path: str = "/api/webhooks/inbound/arm"
+) -> SimpleNamespace:
+    """The request ``require_api_key`` names the call by (R60 scope lookup).
+
+    R60 made ``request`` a required first argument of the guard — an optional
+    one would let direct callers exercise only the unscoped branch — so the
+    direct-call tests below name a call the same way ASGI would: a scope dict
+    with type/method/path (no query string; ASGI splits it out).
+    """
+    return SimpleNamespace(scope={"type": "http", "method": method, "path": path})
+
+
 # =============================================================================
 # require_api_key — fail-closed, unconditionally
 # =============================================================================
@@ -76,7 +89,7 @@ class TestRequireApiKey:
     def test_missing_header_is_401(self):
         """No header at all is refused before any key comparison happens."""
         with pytest.raises(HTTPException) as excinfo:
-            require_api_key(None)
+            require_api_key(_guard_request(), None)
 
         assert excinfo.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "Missing X-API-Key" in excinfo.value.detail
@@ -84,7 +97,7 @@ class TestRequireApiKey:
     def test_empty_header_is_401(self):
         """An empty header is the same refusal — it is not a zero-length key."""
         with pytest.raises(HTTPException) as excinfo:
-            require_api_key("")
+            require_api_key(_guard_request(), "")
 
         assert excinfo.value.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -100,7 +113,7 @@ class TestRequireApiKey:
             "backend.api.middleware.auth.get_settings", autospec=True, return_value=settings
         ):
             with pytest.raises(HTTPException) as excinfo:
-                require_api_key("abcdefghijklmn0p")  # 16 chars, unregistered
+                require_api_key(_guard_request(), "abcdefghijklmn0p")  # 16 chars, unregistered
 
         assert excinfo.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "Invalid API key" in excinfo.value.detail
@@ -112,7 +125,9 @@ class TestRequireApiKey:
         with patch(
             "backend.api.middleware.auth.get_settings", autospec=True, return_value=settings
         ):
-            assert require_api_key("registered-key-value") == "registered-key-value"
+            assert (
+                require_api_key(_guard_request(), "registered-key-value") == "registered-key-value"
+            )
 
     def test_no_keys_configured_refuses_everything(self):
         """The shipped default (empty api_keys) is fail-CLOSED.
@@ -129,7 +144,7 @@ class TestRequireApiKey:
             "backend.api.middleware.auth.get_settings", autospec=True, return_value=shipped_default
         ):
             with pytest.raises(HTTPException) as excinfo:
-                require_api_key("any-length-key-at-all")
+                require_api_key(_guard_request(), "any-length-key-at-all")
 
         assert excinfo.value.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -146,7 +161,7 @@ class TestRequireApiKey:
                 "backend.api.middleware.auth._validate_key_hash_constant_time", autospec=True
             ) as compare:
                 compare.return_value = True
-                require_api_key(key)
+                require_api_key(_guard_request(), key)
 
         compared_hash, valid_hashes = compare.call_args.args
         assert compared_hash == digest

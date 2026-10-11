@@ -1,20 +1,20 @@
 ---
 title: Frontend Hooks Architecture
-last_updated: 2026-10-02
+last_updated: 2026-10-09
 source_refs:
-  - frontend/src/hooks/useWebSocket.ts:useWebSocket:22
-  - frontend/src/hooks/useWebSocketStatus.ts:useWebSocketStatus:33
-  - frontend/src/hooks/useEventStream.ts:useEventStream:62
-  - frontend/src/hooks/useSystemStatus.ts:useSystemStatus:64
-  - frontend/src/hooks/useConnectionStatus.ts:useConnectionStatus:102
+  - frontend/src/hooks/useWebSocket.ts:useWebSocket:56
+  - frontend/src/hooks/useWebSocketStatus.ts:useWebSocketStatus:69
+  - frontend/src/hooks/useEventStream.ts:useEventStream:63
+  - frontend/src/hooks/useSystemStatus.ts:useSystemStatus:50
+  - frontend/src/hooks/useConnectionStatus.ts:useConnectionStatus:117
   - frontend/src/hooks/useGpuHistory.ts:useGpuHistory:55
-  - frontend/src/hooks/useHealthStatus.ts:useHealthStatus:55
-  - frontend/src/hooks/useStorageStats.ts:useStorageStats:66
-  - frontend/src/hooks/webSocketManager.ts:webSocketManager:420
+  - frontend/src/hooks/useHealthStatus.ts:useHealthStatus:76
+  - frontend/src/hooks/useStorageStats.ts:useStorageStats:67
+  - frontend/src/hooks/webSocketManager.ts:webSocketManager:992
   - frontend/src/hooks/useSidebarContext.ts:useSidebarContext:12
   - frontend/src/hooks/usePerformanceMetrics.ts:usePerformanceMetrics
   - frontend/src/hooks/useAIMetrics.ts:useAIMetrics
-  - frontend/src/hooks/useServiceStatus.ts:useServiceStatus:115
+  - frontend/src/hooks/useServiceStatus.ts:useServiceStatus:161
   - frontend/src/hooks/useDetectionEnrichment.ts:useDetectionEnrichment
   - frontend/src/hooks/useModelZooStatus.ts:useModelZooStatus
   - frontend/src/hooks/useSavedSearches.ts:useSavedSearches
@@ -35,7 +35,7 @@ The hook architecture follows a layered design:
 5. **REST Layer**: Polling-based hooks for health, GPU history, storage stats, and AI model status
 6. **UI Layer**: Context hooks and localStorage persistence (`useSidebarContext`, `useSavedSearches`)
 
-All WebSocket URLs are constructed via `buildWebSocketUrl()` from the API service, which respects environment variables (`VITE_WS_BASE_URL`, `VITE_API_KEY`) and provides SSR-safe connection handling.
+All WebSocket URLs are constructed via `buildWebSocketOptions()` from the API service, which respects `VITE_WS_BASE_URL`, falls back to the page origin, and provides SSR-safe connection handling. It attaches **no credential**: browsers authenticate through the cookie login only (ruling 44), because Vite inlines `VITE_*` values into the served JavaScript bundle.
 
 ## Hook Hierarchy
 
@@ -101,7 +101,7 @@ flowchart TB
 
 **Purpose**: Low-level WebSocket connection manager with automatic reconnection logic.
 
-**Source**: `frontend/src/hooks/useWebSocket.ts:22`
+**Source**: `frontend/src/hooks/useWebSocket.ts:56`
 
 **Features**:
 
@@ -158,7 +158,7 @@ if (isConnected) {
 
 **Purpose**: Enhanced WebSocket hook that tracks detailed channel status including reconnection state and message timestamps.
 
-**Source**: `frontend/src/hooks/useWebSocketStatus.ts:33`
+**Source**: `frontend/src/hooks/useWebSocketStatus.ts:69`
 
 **Features**:
 
@@ -206,7 +206,7 @@ interface UseWebSocketStatusReturn {
 
 ```typescript
 const { channelStatus, lastMessage } = useWebSocketStatus({
-  url: buildWebSocketUrl('/ws/events'),
+  url: buildWebSocketOptions('/ws/events').url,
   channelName: 'Events',
   onMessage: handleMessage,
 });
@@ -224,7 +224,7 @@ console.log(
 
 **Purpose**: High-level hook for receiving security events via WebSocket (`/ws/events` endpoint).
 
-**Source**: `frontend/src/hooks/useEventStream.ts:62`
+**Source**: `frontend/src/hooks/useEventStream.ts:63`
 
 **Features**:
 
@@ -234,7 +234,7 @@ console.log(
 - Maintains in-memory buffer of last 100 events (newest first, constant `MAX_EVENTS`)
 - Provides `latestEvent` computed value via `useMemo`
 - `clearEvents()` method to reset buffer
-- Uses `buildWebSocketUrl()` from api service for URL construction
+- Uses `buildWebSocketOptions()` from api service for URL construction
 
 **Type Definitions**:
 
@@ -294,7 +294,7 @@ return (
 
 **Purpose**: High-level hook for receiving system health updates via WebSocket (`/ws/system` endpoint).
 
-**Source**: `frontend/src/hooks/useSystemStatus.ts:64`
+**Source**: `frontend/src/hooks/useSystemStatus.ts:50`
 
 **Features**:
 
@@ -302,7 +302,7 @@ return (
 - Tracks GPU metrics: utilization, temperature, memory (used/total), inference FPS
 - Tracks active camera count and overall system health
 - Type guard function `isBackendSystemStatus()` for message validation
-- Uses `buildWebSocketUrl()` from api service for URL construction
+- Uses `buildWebSocketOptions()` from api service for URL construction
 
 **Type Definitions**:
 
@@ -373,7 +373,7 @@ if (status) {
 
 **Purpose**: Unified hook that manages both `/ws/events` and `/ws/system` WebSocket channels, providing aggregated connection status and data from both sources.
 
-**Source**: `frontend/src/hooks/useConnectionStatus.ts:102`
+**Source**: `frontend/src/hooks/useConnectionStatus.ts:117`
 
 **Features**:
 
@@ -506,7 +506,7 @@ return (
 
 **Purpose**: Hook for REST-based health status polling from `GET /api/system/health`.
 
-**Source**: `frontend/src/hooks/useHealthStatus.ts:55`
+**Source**: `frontend/src/hooks/useHealthStatus.ts:76`
 
 **Features**:
 
@@ -578,7 +578,7 @@ return (
 
 **Purpose**: Hook for polling storage statistics and previewing cleanup operations.
 
-**Source**: `frontend/src/hooks/useStorageStats.ts:66`
+**Source**: `frontend/src/hooks/useStorageStats.ts:67`
 
 **Features**:
 
@@ -679,7 +679,7 @@ return (
 
 **Purpose**: Singleton WebSocket connection manager that provides connection deduplication with reference counting.
 
-**Source**: `frontend/src/hooks/webSocketManager.ts:420`
+**Source**: `frontend/src/hooks/webSocketManager.ts:992`
 
 **Features**:
 
@@ -969,17 +969,19 @@ function isBackendEventMessage(data: unknown): data is BackendEventMessage {
 
 ### URL Construction Pattern
 
-All WebSocket hooks use `buildWebSocketUrl()` for consistent URL construction:
+All WebSocket hooks use `buildWebSocketOptions()` for consistent URL construction:
 
 ```typescript
-import { buildWebSocketUrl } from '../services/api';
+import { buildWebSocketOptions } from '../services/api';
 
 // Automatically handles:
 // - VITE_WS_BASE_URL environment variable
 // - Falls back to window.location.host
-// - Appends api_key query param if VITE_API_KEY is set
 // - Converts ws:// or wss:// protocol based on location
-const wsUrl = buildWebSocketUrl('/ws/events');
+// Attaches no credential (ruling 44): the session cookie authenticates the
+// socket, so a key never needs to exist inside the bundle. API keys are for
+// non-browser clients only.
+const { url: wsUrl } = buildWebSocketOptions('/ws/events');
 
 const { isConnected } = useWebSocket({ url: wsUrl });
 ```

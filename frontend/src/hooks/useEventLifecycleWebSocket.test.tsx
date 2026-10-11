@@ -3,8 +3,9 @@
  *
  * This hook joined the credential path in e0cd9333: with no explicit `url` it
  * now resolves through buildWebSocketOptions (VITE_WS_BASE_URL or the page
- * origin, plus the optional `api-key.{key}` subprotocol), while an explicit
- * `url` option still wins and opts out of the minted credential. Its removed
+ * origin). Ruling 44: the browser builder attaches no credential subprotocol —
+ * the socket rides the session cookie — while an explicit `url` option still
+ * wins. Its removed
  * DEFAULT_WS_URL hardcoded ws://localhost:8000 — invisible to nginx in a
  * deployed stack — and CI's Test Coverage Gate named this missing test file
  * at PR #6922's head. Beyond the wiring, the suite covers the message
@@ -85,30 +86,29 @@ describe('useEventLifecycleWebSocket', () => {
     mocks.buildWebSocketOptions.mockReset();
     mocks.buildWebSocketOptions.mockReturnValue({
       url: 'ws://stack.example.test/ws/events',
-      protocols: ['api-key.test-credential'],
     });
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
   });
 
-  describe('credential path (F1.3)', () => {
+  describe('socket wiring (F1.3 path, ruling-44 credential-free)', () => {
     it('asks buildWebSocketOptions for /ws/events when no url is given', () => {
       renderHook(() => useEventLifecycleWebSocket(), { wrapper: wrap(queryClient) });
       expect(mocks.buildWebSocketOptions).toHaveBeenCalledWith('/ws/events');
     });
 
-    it('forwards the builder url and api-key subprotocol', () => {
-      // Pre-fix this asserted nothing and the socket hit localhost:8000
-      // directly, uncredentialed → B1.5 close 4001.
+    it('forwards the builder url with no minted credential', () => {
+      // Pre-fix the socket hit localhost:8000 directly, bypassing nginx.
+      // Ruling 44: the browser builder attaches no protocol — cookie auth.
       renderHook(() => useEventLifecycleWebSocket(), { wrapper: wrap(queryClient) });
       expect(mocks.wsOptions).toMatchObject({
         url: 'ws://stack.example.test/ws/events',
-        protocols: ['api-key.test-credential'],
         reconnect: true,
       });
+      expect(mocks.wsOptions?.protocols).toBeUndefined();
     });
 
-    it('an explicit url option wins and carries no minted protocols', () => {
+    it('an explicit url option wins and the builder is not consulted', () => {
       renderHook(() => useEventLifecycleWebSocket({ url: 'ws://explicit.test/ws/events' }), {
         wrapper: wrap(queryClient),
       });
@@ -124,13 +124,13 @@ describe('useEventLifecycleWebSocket', () => {
         () =>
           useEventLifecycleWebSocket({
             url: 'ws://explicit.test/ws/events',
-            protocols: ['api-key.manual'],
+            protocols: ['messaging.v1'],
           }),
         { wrapper: wrap(queryClient) }
       );
       expect(mocks.wsOptions).toMatchObject({
         url: 'ws://explicit.test/ws/events',
-        protocols: ['api-key.manual'],
+        protocols: ['messaging.v1'],
       });
     });
   });

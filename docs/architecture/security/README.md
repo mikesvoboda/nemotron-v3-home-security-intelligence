@@ -12,6 +12,8 @@ This hub documents the security considerations and implementations for the Home 
 --8<-- "docs/_includes/auth-model.md"
 <!-- prettier-ignore-end -->
 
+The http/TLS/cookie trade-off behind item 4 of the Authentication Model above, including the startup warning, is in [The login cookie over http and TLS](../../reference/config/env-reference.md#the-login-cookie-over-http-and-tls).
+
 The system implements defense-in-depth security measures including input validation, secure HTTP headers, path traversal protection, and SSRF prevention.
 
 **Key Assumptions:**

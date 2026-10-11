@@ -461,8 +461,8 @@ describe('method rules', () => {
     // reporting must not eat the pass-through site with it. The old key put the
     // guessed GET in the method slot, so the two collided, the upgrade branch
     // swallowed the opaque claim, and `opaqueMethod` lost a real blind spot in
-    // silence: measured on the real tree, `fetchEntities` (api.ts:5773) was
-    // hidden exactly this way by `fetchTrackedEntities` (:6407). Unknown verbs
+    // silence: measured on the real tree, `fetchEntities` (api.ts:5766) was
+    // hidden exactly this way by `fetchTrackedEntities` (:6400). Unknown verbs
     // key on their own slot now, so the obligation is held to the literal verb
     // AND the blind spot stays on the report.
     const scan = scanSource('collision.ts', [

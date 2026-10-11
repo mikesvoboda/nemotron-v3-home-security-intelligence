@@ -226,6 +226,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if not_loaded:
         logger.warning(f"Models NOT loaded: {not_loaded}")
 
+    # B2.2: pin the reid model ID to what Triton loaded at start (it never
+    # reloads, --model-control-mode=none).
+    from ai.gateway.adapters.enrichment_light import reid_model_id
+
+    logger.info(f"reid model id: {reid_model_id()}")
+
     yield
 
     # Shutdown

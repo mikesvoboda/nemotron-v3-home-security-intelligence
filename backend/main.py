@@ -108,7 +108,12 @@ from backend.core.config_validation import log_config_summary, validate_config
 from backend.core.database import warm_connection_pool
 from backend.core.docker_client import DockerClient
 from backend.core.free_threading import get_threading_mode, verify_free_threading
-from backend.core.logging import enable_deferred_db_logging, redact_url, setup_logging
+from backend.core.logging import (
+    enable_deferred_db_logging,
+    get_logger,
+    redact_url,
+    setup_logging,
+)
 from backend.core.redis import close_redis, init_redis
 from backend.core.telemetry import init_profiling, setup_telemetry, shutdown_telemetry
 from backend.jobs.summary_job import (
@@ -835,6 +840,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             f"Configuration validation found {len(config_result.errors)} error(s). "
             "Check logs for details."
         )
+
+    _warn_if_secure_cookie_loops_login(settings)
 
     # Initialize OpenTelemetry tracing (NEM-1629)
     # Must be done early, before other services are initialized
@@ -1770,6 +1777,68 @@ async def ready() -> Response:
             content=SimpleReadinessResponse(ready=False, status="not_ready").model_dump(),
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+
+def _warn_if_secure_cookie_loops_login(settings: Settings) -> None:
+    """R55 (owner ruling 55): warn on the Secure-cookie / plain-http login loop.
+
+    The login cookie carries Secure by default
+    (``settings.session_cookie_secure``). A browser DROPS a Secure cookie when
+    the page origin is plain ``http://``, so an EXPOSE_LAN deployment served
+    without TLS logs in, receives a Set-Cookie the browser discards, and loops
+    back to the sign-in screen — with no error anywhere naming the cause. Loud
+    on purpose: this line is what an operator greps for when "login won't
+    stick". Pure over settings (see _tls_configured), so it neither generates
+    certificates nor raises on the misconfigured box it describes.
+    """
+    if settings.expose_lan and settings.session_cookie_secure and not _tls_configured(settings):
+        # The lifespan's logger is a local of the async context manager; a
+        # module-level function reaches for its own (same __name__ → same
+        # logger identity from the registry — the name just reads as the
+        # startup channel in these lines).
+        get_logger(__name__).warning(
+            "EXPOSE_LAN is on with the session cookie's Secure flag set, but TLS is not "
+            "configured here: a browser opening this origin over http:// will DROP the login "
+            "cookie and loop on the sign-in screen. Fix one of them — when this process "
+            "serves TLS itself (python -m backend.main) it needs TLS_MODE=provided with "
+            "TLS_CERT_PATH AND TLS_KEY_PATH set to existing files; TLS_MODE=self_signed "
+            "without both paths still binds plain here (get_ssl_context generates a "
+            "certificate the uvicorn bind never receives — see _tls_configured). The compose "
+            "image's CMD never reads TLS_MODE; if TLS terminates in front of this backend (the frontend "
+            "image's SSL_ENABLED=true, or any TLS proxy) this warning is a false positive — "
+            "the backend cannot see that termination — and you can ignore it while logins "
+            "work. Or set "
+            "SESSION_COOKIE_SECURE=false if and only if this instance is reached over "
+            "plain http on a trusted network."
+        )
+
+
+def _tls_configured(settings: Settings) -> bool:
+    """Whether THIS process's bind can serve TLS, WITHOUT building or generating certs.
+
+    ``get_tls_config()`` is the authoritative TLS entry point, but it
+    auto-generates a self-signed certificate as a side effect and raises when
+    configured cert files are missing — far too much machinery for a startup
+    log line, which must also stay silent-safe on a misconfigured box it is
+    about to describe. This reads the knobs the ``python -m backend.main``
+    bind actually consumes — ``tls_mode`` plus the ``tls_cert_path`` /
+    ``tls_key_path`` fields passed verbatim as uvicorn's ``ssl_certfile`` /
+    ``ssl_keyfile`` — and NOT the legacy ``tls_enabled``: when a mode is set
+    but the paths are not, ``get_ssl_context`` happily returns a context from
+    certificates it generated under ``data/certs/``, yet the bind hands
+    uvicorn two ``None``s, so the process listens plain while believing it is
+    HTTPS — the exact http-login-loop shape this warning names, and a
+    suppression here would hide it. When the paths ARE set, the bind serves
+    TLS and silence is right. The legacy edge is no loss: a compose box cannot
+    suppress this warning through the backend's TLS at all (TLS_MODE is not
+    threaded into the backend container — see env-reference.md), so every
+    setting where the old predicate said "TLS" but no bind serves it now warns.
+    """
+    return (
+        settings.tls_mode != "disabled"
+        and bool(settings.tls_cert_path)
+        and bool(settings.tls_key_path)
+    )
 
 
 def get_ssl_context() -> ssl.SSLContext | None:

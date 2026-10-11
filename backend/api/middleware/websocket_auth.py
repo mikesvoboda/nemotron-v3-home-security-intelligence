@@ -55,6 +55,7 @@ from fastapi import Query, WebSocket, WebSocketException, status
 from backend.core.config import get_settings
 from backend.core.websocket.subprotocol import offered_key_subprotocol
 from backend.services.auth_service import InvalidTokenError, TokenExpiredError, decode_token
+from backend.services.session_service import SESSION_COOKIE_NAME
 
 
 class WebSocketAuthMethod(Enum):
@@ -133,7 +134,7 @@ def extract_cookie_from_websocket(websocket: WebSocket) -> str | None:
     Returns:
         Session cookie value or None if not present.
     """
-    return websocket.cookies.get("session")
+    return websocket.cookies.get(SESSION_COOKIE_NAME)
 
 
 def extract_jwt_from_query(websocket: WebSocket) -> str | None:
@@ -148,30 +149,28 @@ def extract_jwt_from_query(websocket: WebSocket) -> str | None:
     return websocket.query_params.get("token")
 
 
-def validate_session_cookie(cookie: str) -> dict[str, Any] | None:
-    """Validate a session cookie and return its claims.
+async def validate_session_cookie(session_id: str) -> str | None:
+    """The user a login cookie holds, or None — literally the HTTP gate's check.
 
-    Uses constant-time comparison for security.
-
-    Args:
-        cookie: The session cookie value.
-
-    Returns:
-        Dictionary with session claims if valid, None otherwise.
+    This used to decode the cookie as a JWT, but login stores an opaque Redis
+    session id (routes/auth.py set_cookie), which no JWT validator can ever
+    accept — the socket cookie path could only pass tests that patched this
+    function away. The fix delegates to the gate's OWN function
+    (middleware/auth.py::_session_username, used by authenticated_principal at
+    :329), so a cookie that authenticates HTTP also authenticates a socket, and
+    a Redis rebinding patch on the gate controls both transports.
+    Deferred import: middleware/auth.py imports THIS module at import time
+    (its own cookie leg calls this function), so a module-level import back
+    into auth would be a cycle; inside the function the graph resolves at
+    call time.
+    Redis TTL is the expiry: an expired session is simply not in Redis, like
+    for the HTTP gate (the cookie leg therefore has no separate 4002 path).
     """
-    if not cookie:
+    if not session_id:
         return None
+    from backend.api.middleware.auth import _session_username
 
-    try:
-        # Decode the session cookie as a JWT
-        claims = decode_token(cookie)
-        # Use constant-time comparison for security
-        # The decode_token already validates signature, but we ensure timing safety
-        if hmac.compare_digest(cookie, cookie):  # Timing-safe operation
-            return claims
-        return None
-    except InvalidTokenError, TokenExpiredError:
-        return None
+    return await _session_username(session_id)
 
 
 def validate_websocket_jwt(token: str) -> dict[str, Any] | None:
@@ -229,15 +228,12 @@ async def authenticate_websocket_cookie(websocket: WebSocket) -> bool:
     if not cookie:
         return False
 
-    claims = validate_session_cookie(cookie)
-    if claims is None:
+    # R55: the Redis session lookup, awaited — no claims/exp for the cookie
+    # path (Redis TTL is the expiry, like the HTTP gate; 4002 stays for JWT).
+    username = await validate_session_cookie(cookie)
+    if username is None:
         await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
         await websocket.close(code=4001)
-        return False
-
-    if _is_token_expired(claims):
-        await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
-        await websocket.close(code=4002)
         return False
 
     return True
@@ -412,15 +408,15 @@ async def verify_websocket_auth(
     Returns:
         Tuple of (success, authentication_method_used).
     """
-    # Try cookie authentication first
+    # Try cookie authentication first (R55: the awaited Redis session lookup,
+    # the HTTP gate's method; no claims/exp — Redis TTL is the expiry). A
+    # present-but-invalid cookie falls through to the next method exactly as
+    # before: this function's close semantics belong to the JWT legs (4002) and
+    # to the first-message timeout (4001); tightening the fallthrough here
+    # would be a behavior change ruling 55 did not ask for.
     cookie = extract_cookie_from_websocket(websocket)
     if cookie:
-        claims = validate_session_cookie(cookie)
-        if claims is not None:
-            if _is_token_expired(claims):
-                await websocket.accept(subprotocol=offered_key_subprotocol(websocket))
-                await websocket.close(code=4002)
-                return False, WebSocketAuthMethod.COOKIE
+        if await validate_session_cookie(cookie) is not None:
             return True, WebSocketAuthMethod.COOKIE
 
     # Try query parameter authentication second

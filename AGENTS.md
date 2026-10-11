@@ -161,20 +161,21 @@ Everything binds `127.0.0.1`, the frontend nginx included — unless `EXPOSE_LAN
 
 ### Configuration Files
 
-| File                      | Purpose                                                                |
-| ------------------------- | ---------------------------------------------------------------------- |
-| `pyproject.toml`          | Python project config with Ruff, mypy, pytest, and coverage settings   |
-| `.pre-commit-config.yaml` | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)      |
-| `docker-compose.prod.yml` | Production Docker services with multi-stage builds and resource limits |
-| `docker-compose.ci.yml`   | CI-specific Docker configuration for GitHub Actions                    |
-| `docker-compose.test.yml` | Test containers (postgres-test, redis-test) for CI                     |
-| `.env.example`            | Environment variable template                                          |
-| `semgrep.yml`             | Semgrep security scanning configuration                                |
-| `vulture_whitelist.py`    | False positive suppressions for Vulture dead code detection            |
-| `lychee.toml`             | Lychee link checker configuration                                      |
-| `.prettierrc`             | Prettier code formatting configuration                                 |
-| `codecov.yml`             | Codecov coverage reporting configuration                               |
-| `commitlint.config.js`    | Commit message linting configuration                                   |
+| File                         | Purpose                                                                 |
+| ---------------------------- | ----------------------------------------------------------------------- |
+| `pyproject.toml`             | Python project config with Ruff, mypy, pytest, and coverage settings    |
+| `.pre-commit-config.yaml`    | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)       |
+| `docker-compose.prod.yml`    | Production Docker services with multi-stage builds and resource limits  |
+| `docker-compose.ci.yml`      | CI-specific Docker configuration for GitHub Actions                     |
+| `docker-compose.fake-ai.yml` | Fake AI stack overlay on the CI stack (never a default; name with `-f`) |
+| `docker-compose.test.yml`    | Test containers (postgres-test, redis-test) for CI                      |
+| `.env.example`               | Environment variable template                                           |
+| `semgrep.yml`                | Semgrep security scanning configuration                                 |
+| `vulture_whitelist.py`       | False positive suppressions for Vulture dead code detection             |
+| `lychee.toml`                | Lychee link checker configuration                                       |
+| `.prettierrc`                | Prettier code formatting configuration                                  |
+| `codecov.yml`                | Codecov coverage reporting configuration                                |
+| `commitlint.config.js`       | Commit message linting configuration                                    |
 
 ### Documentation
 

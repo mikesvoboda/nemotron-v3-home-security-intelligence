@@ -10,8 +10,11 @@ and fails when ANY of:
   1. a REVIEW BY (reviewBy) date has passed (or expires within --warn-days),
   2. a missing/malformed reviewBy on any entry,
   3. an audit finding (advisory GHSA id derived from via[].url) is NOT covered
-     by an active exemption (the registry being the allowlist),
-  4. an exemption matches NOTHING in the current audit (stale entry - remove it),
+     by an active exemption (the registry being the allowlist; an exemption
+     covers a finding when its id or any entry in its "aliases" list names
+     that finding's GHSA id - R76, mirroring R61's pip-checker alias fix),
+  4. an exemption matches NOTHING in the current audit - neither its id nor
+     any of its "aliases" (stale entry - remove it),
   5. an exempted advisory where npm reports an IN-RANGE fix path (fixAvailable
      truthy without isSemVerMajor at either the advisory or the vulnerability
      level) => a real fix shipped; the exception is invalid, take the fix.
@@ -145,13 +148,30 @@ def main() -> int:
         elif review <= today + timedelta(days=args.warn_days):
             warns.append(f"{gid}: REVIEW BY {rb} expires within {args.warn_days}d")
 
-        if gid not in found:
+        # R76 (R61's twin): an exemption naming ANY alias of a reported advisory
+        # counts as matching it, so id drift (a GHSA reassigned, an advisory
+        # also published under another GHSA) cannot double-redden the pair -
+        # stale entry + UNEXEMPTED finding - and let the advisory slip past the
+        # allowlist. npm's audit side is alias-blind: `npm audit --json` emits
+        # advisories only as the single GHSA URL in via[].url (no aliases
+        # array, unlike pip-audit), so the audit-side second look of R61 is
+        # structurally impossible here and every alias must be spelled out in
+        # the entry's "aliases" list. Exact-id logic, not fuzzy: the
+        # package-attribution check below still adjudicates.
+        # Prefer the entry's OWN id when the audit reports it: an entry whose
+        # aliases over-list (naming a second, genuinely distinct reported
+        # advisory) then adjudicates identically on every run — a bare
+        # next(...) over the set would pick by string-hash order, and the same
+        # red input would print different violations on different seeds.
+        ids = {gid, *(e.get("aliases") or [])}
+        hit = gid if gid in found else next((i for i in sorted(ids) if i in found), None)
+        if hit is None:
             errors.append(
                 f"{gid}: registered but NO current audit finding matches - stale, remove it"
             )
             continue
-        covered.add(gid)
-        a = found[gid]
+        covered.add(hit)
+        a = found[hit]
         if a["in_range_fix"]:
             errors.append(
                 f"{gid}: exemption premise broken - npm reports an in-range fix "

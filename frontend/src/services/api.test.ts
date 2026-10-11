@@ -4,11 +4,9 @@ import {
   ApiError,
   type ProblemDetails,
   isProblemDetails,
-  buildWebSocketUrl,
-  buildWebSocketUrlInternal,
   buildWebSocketOptions,
   buildWebSocketOptionsInternal,
-  getApiKey,
+  fetchApi,
   fetchCameras,
   fetchCamera,
   createCamera,
@@ -295,244 +293,139 @@ function createMockProblemDetailsResponse(problemDetails: ProblemDetails): Respo
   } as Response;
 }
 
-describe('buildWebSocketUrlInternal', () => {
+describe('buildWebSocketOptionsInternal (ruling 44: browser socket is credential-free)', () => {
   describe('without VITE_WS_BASE_URL', () => {
-    it('builds WS URL from window.location.host when wsBaseUrl not set', () => {
-      const url = buildWebSocketUrlInternal('/ws/events', undefined, undefined, {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
-      expect(url).toBe('ws://localhost:5173/ws/events');
-    });
-
-    it('uses ws: protocol for http: pages', () => {
-      const url = buildWebSocketUrlInternal('/ws/system', undefined, undefined, {
-        protocol: 'http:',
-        host: 'example.com',
-      });
-      expect(url).toBe('ws://example.com/ws/system');
-    });
-
-    it('uses wss: protocol for https: pages', () => {
-      const url = buildWebSocketUrlInternal('/ws/events', undefined, undefined, {
-        protocol: 'https:',
-        host: 'secure.example.com',
-      });
-      expect(url).toBe('wss://secure.example.com/ws/events');
-    });
-
-    it('falls back to localhost:8000 when no window location', () => {
-      const url = buildWebSocketUrlInternal('/ws/events', undefined, undefined, undefined);
-      expect(url).toBe('ws://localhost:8000/ws/events');
-    });
-  });
-
-  describe('with VITE_WS_BASE_URL', () => {
-    it('uses configured WS base URL', () => {
-      const url = buildWebSocketUrlInternal('/ws/events', 'ws://backend:8000', undefined, {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
-      expect(url).toBe('ws://backend:8000/ws/events');
-    });
-
-    it('strips trailing slash from WS base URL', () => {
-      const url = buildWebSocketUrlInternal('/ws/events', 'wss://api.example.com/', undefined, {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
-      expect(url).toBe('wss://api.example.com/ws/events');
-    });
-
-    it('ignores window.location when WS base URL is set', () => {
-      const url = buildWebSocketUrlInternal('/ws/system', 'wss://production.api.com', undefined, {
-        protocol: 'http:',
-        host: 'localhost:3000',
-      });
-      expect(url).toBe('wss://production.api.com/ws/system');
-    });
-  });
-
-  describe('with API key', () => {
-    it('appends api_key query parameter when apiKey is set', () => {
-      const url = buildWebSocketUrlInternal('/ws/events', undefined, 'secret-key-123', {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
-      expect(url).toBe('ws://localhost:5173/ws/events?api_key=secret-key-123');
-    });
-
-    it('appends api_key to URL with existing query params using &', () => {
-      const url = buildWebSocketUrlInternal('/ws/events?filter=active', undefined, 'my-api-key', {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
-      expect(url).toBe('ws://localhost:5173/ws/events?filter=active&api_key=my-api-key');
-    });
-
-    it('URL-encodes special characters in API key', () => {
-      const url = buildWebSocketUrlInternal(
-        '/ws/events',
-        undefined,
-        'key with spaces&special=chars',
-        {
-          protocol: 'http:',
-          host: 'localhost:5173',
-        }
-      );
-      expect(url).toContain('api_key=key%20with%20spaces%26special%3Dchars');
-    });
-
-    it('works with both WS base URL and API key', () => {
-      const url = buildWebSocketUrlInternal('/ws/events', 'wss://api.example.com', 'secure-token', {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
-      expect(url).toBe('wss://api.example.com/ws/events?api_key=secure-token');
-    });
-
-    it('does not append api_key when apiKey is undefined', () => {
-      const url = buildWebSocketUrlInternal('/ws/events', undefined, undefined, {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
-      expect(url).not.toContain('api_key');
-    });
-
-    it('does not append api_key when apiKey is empty string', () => {
-      const url = buildWebSocketUrlInternal('/ws/events', undefined, '', {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
-      expect(url).not.toContain('api_key');
-    });
-  });
-});
-
-describe('buildWebSocketUrl', () => {
-  it('builds WS URL using window.location in browser environment', () => {
-    // In jsdom test environment, this should use window.location
-    const url = buildWebSocketUrl('/ws/events');
-    expect(url).toContain('/ws/events');
-    expect(url).toMatch(/^wss?:\/\//);
-  });
-
-  it('returns URL with correct structure', () => {
-    const url = buildWebSocketUrl('/ws/system');
-    // Should have protocol, host, and endpoint
-    expect(url).toMatch(/^wss?:\/\/[^/]+\/ws\/system$/);
-  });
-});
-
-describe('buildWebSocketOptionsInternal (secure API key handling)', () => {
-  describe('without API key', () => {
-    it('returns url without protocols when no apiKey is set', () => {
-      const options = buildWebSocketOptionsInternal('/ws/events', undefined, undefined, {
+    it('builds the WS URL from window.location.host when wsBaseUrl is unset', () => {
+      const options = buildWebSocketOptionsInternal('/ws/events', undefined, {
         protocol: 'http:',
         host: 'localhost:5173',
       });
       expect(options.url).toBe('ws://localhost:5173/ws/events');
-      expect(options.protocols).toBeUndefined();
     });
 
-    it('uses wss: protocol for https: pages', () => {
-      const options = buildWebSocketOptionsInternal('/ws/events', undefined, undefined, {
-        protocol: 'https:',
-        host: 'secure.example.com',
-      });
-      expect(options.url).toBe('wss://secure.example.com/ws/events');
-      expect(options.protocols).toBeUndefined();
+    it('uses ws: for http: pages and wss: for https: pages', () => {
+      expect(
+        buildWebSocketOptionsInternal('/ws/system', undefined, {
+          protocol: 'http:',
+          host: 'example.com',
+        }).url
+      ).toBe('ws://example.com/ws/system');
+      expect(
+        buildWebSocketOptionsInternal('/ws/events', undefined, {
+          protocol: 'https:',
+          host: 'secure.example.com',
+        }).url
+      ).toBe('wss://secure.example.com/ws/events');
+    });
+
+    it('falls back to localhost:8000 when there is no window location', () => {
+      expect(buildWebSocketOptionsInternal('/ws/events', undefined, undefined).url).toBe(
+        'ws://localhost:8000/ws/events'
+      );
     });
   });
 
   describe('with VITE_WS_BASE_URL', () => {
-    it('uses configured WS base URL', () => {
-      const options = buildWebSocketOptionsInternal('/ws/events', 'ws://backend:8000', undefined, {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
-      expect(options.url).toBe('ws://backend:8000/ws/events');
-    });
-
-    it('strips trailing slash from WS base URL', () => {
-      const options = buildWebSocketOptionsInternal(
-        '/ws/events',
-        'wss://api.example.com/',
-        undefined,
-        {
+    it('uses the configured WS base URL and strips its trailing slash', () => {
+      expect(
+        buildWebSocketOptionsInternal('/ws/events', 'ws://backend:8000', {
           protocol: 'http:',
           host: 'localhost:5173',
-        }
-      );
-      expect(options.url).toBe('wss://api.example.com/ws/events');
+        }).url
+      ).toBe('ws://backend:8000/ws/events');
+      expect(
+        buildWebSocketOptionsInternal('/ws/events', 'wss://api.example.com/', {
+          protocol: 'http:',
+          host: 'localhost:5173',
+        }).url
+      ).toBe('wss://api.example.com/ws/events');
+    });
+
+    it('ignores window.location when a WS base URL is set', () => {
+      expect(
+        buildWebSocketOptionsInternal('/ws/system', 'wss://production.api.com', {
+          protocol: 'http:',
+          host: 'localhost:3000',
+        }).url
+      ).toBe('wss://production.api.com/ws/system');
     });
   });
 
-  describe('with API key (secure protocol-based auth)', () => {
-    it('returns protocols array with api-key prefix instead of query param', () => {
-      const options = buildWebSocketOptionsInternal('/ws/events', undefined, 'secret-key-123', {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
-      // URL should NOT contain api_key query param
-      expect(options.url).toBe('ws://localhost:5173/ws/events');
-      expect(options.url).not.toContain('api_key');
-      // Protocols array should contain api-key.{key} format
-      expect(options.protocols).toEqual(['api-key.secret-key-123']);
-    });
-
-    it('works with both WS base URL and API key', () => {
-      const options = buildWebSocketOptionsInternal(
-        '/ws/events',
-        'wss://api.example.com',
-        'secure-token',
-        {
-          protocol: 'http:',
-          host: 'localhost:5173',
-        }
-      );
-      expect(options.url).toBe('wss://api.example.com/ws/events');
-      expect(options.url).not.toContain('api_key');
-      expect(options.protocols).toEqual(['api-key.secure-token']);
-    });
-
-    it('does not set protocols when apiKey is undefined', () => {
-      const options = buildWebSocketOptionsInternal('/ws/events', undefined, undefined, {
+  describe('no credential is ever attached (unit-level leg B)', () => {
+    it('returns options with NO protocols — the cookie authenticates the socket', () => {
+      // The builder takes no apiKey parameter anymore (ruling 44): the browser
+      // socket rides the session cookie, so `protocols` is always undefined.
+      // This is the per-call mirror of the no-browser-api-key.test.ts guard.
+      const options = buildWebSocketOptionsInternal('/ws/events', undefined, {
         protocol: 'http:',
         host: 'localhost:5173',
       });
       expect(options.protocols).toBeUndefined();
+      expect('protocols' in options).toBe(false);
     });
 
-    it('does not set protocols when apiKey is empty string', () => {
-      const options = buildWebSocketOptionsInternal('/ws/events', undefined, '', {
+    it('never puts a credential in the URL either (no query append)', () => {
+      const options = buildWebSocketOptionsInternal('/ws/events', undefined, {
         protocol: 'http:',
         host: 'localhost:5173',
       });
-      expect(options.protocols).toBeUndefined();
+      expect(options.url).not.toMatch(/[?&]api_key/);
     });
   });
 });
 
 describe('buildWebSocketOptions', () => {
-  it('builds WebSocket options using window.location in browser environment', () => {
+  it('builds WebSocket options from window.location in a browser environment', () => {
     const options = buildWebSocketOptions('/ws/events');
     expect(options.url).toContain('/ws/events');
     expect(options.url).toMatch(/^wss?:\/\//);
+    // Ruling 44: browser env attaches no credential subprotocol.
+    expect(options.protocols).toBeUndefined();
   });
 
-  it('returns options with correct url structure', () => {
+  it('returns options with the correct url structure', () => {
     const options = buildWebSocketOptions('/ws/system');
-    // Should have protocol, host, and endpoint
     expect(options.url).toMatch(/^wss?:\/\/[^/]+\/ws\/system$/);
   });
 });
 
-describe('getApiKey', () => {
-  it('returns undefined when VITE_API_KEY is not set', () => {
-    // In test environment, VITE_API_KEY is not set by default
-    const apiKey = getApiKey();
-    expect(apiKey).toBeUndefined();
+describe('fetchApi sends NO credential header (ruling 44)', () => {
+  // Behavioural counterpart to the filesystem guard in
+  // src/__tests__/no-browser-api-key.test.ts. A text grep for the header name
+  // is the wrong instrument here — 24 legitimate mentions of it survive in
+  // types/generated (it documents what the BACKEND accepts), in a webhook-form
+  // placeholder, and in a redaction list. This asserts on the headers actually
+  // handed to fetch, so a credential set from ANY source trips it, and prose
+  // cannot trip it spuriously.
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    clearInFlightRequests();
+  });
+
+  it('passes only Content-Type — no credential on the wire', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse({ ok: true }));
+
+    await fetchApi<{ ok: boolean }>('/api/ping');
+
+    const init = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(Object.keys(headers).map((h) => h.toLowerCase())).not.toContain('x-api-key');
+  });
+
+  it('caller headers ride along, and still no credential is added', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse({ ok: true }));
+
+    await fetchApi<{ ok: boolean }>('/api/ping', { headers: { 'X-Trace': 'abc' } });
+
+    const init = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers['X-Trace']).toBe('abc');
+    expect(Object.keys(headers).map((h) => h.toLowerCase())).not.toContain('x-api-key');
   });
 });
 

@@ -406,11 +406,11 @@ commands and output); the conformance suite passes against the container.
       refuse; an in-run container exposing an engine socket fails the run; a postflight that finds
       a live container missing, stopped or restarted (new start time) fails loudly.
 - [ ] `--real` runs in the `uplevel-operator` sandbox (UR-30): the same test deployment in the
-      sandbox's own Docker, with each GPU model served through `agent-gpu` and reached at the port
-      `run` prints (`operator.md`, "The agent-gpu path"). **DECIDE** per real model — the VLM, the
-      detector — its image and VRAM declaration, within the runner's 40 GiB cap,
-      which every GPU session on the host shares. The
-      preflight also refuses any configured host address but those ports. It prints a summary
+      sandbox's own Docker, with the VLM served through `agent-gpu` and reached at the port `run`
+      prints (`operator.md`, "The agent-gpu path"); the detector stays the fake one (owner ruling
+      66). **DECIDE** the VLM's image and VRAM declaration, within the runner's 40 GiB cap, which
+      every GPU session on the host shares. The preflight also refuses any configured host address
+      but that port. It prints a summary
       (date, commit, image tags and `build_info`, VRAM declared and actual, per-spec result, the
       preflight snapshot, the postflight result) for the operator to paste into the PR or the
       inventory, and removes its `agent-gpu` containers, also after a failure. It never runs from
@@ -427,6 +427,19 @@ empty `agent-gpu ps` (`awaiting real tier` until then). `F2.1` then adds its gol
 
 Specified in [`01-mutation-policy.md`](01-mutation-policy.md) §M1. Its output feeds `F2.2`'s list
 of modules serving no feature.
+
+### O2.3b Reachability: ancestor packages ship
+
+Cell A; depends on `O2.3` (owner ruling 73). `O2.3`'s tool listed 19 parent `__init__.py` files
+(1,099 lines) of shipping modules as non-shipping, though importing a module runs its parent
+packages.
+
+- [ ] The tool counts every ancestor package of a shipping module as shipping.
+
+**Done when:** a test pins that a shipping module's ancestor packages are shipping, the real-tree
+count drops by those 19 files (re-measured at the PR's head), and `R2`'s "modules serving no
+feature" input is regenerated from the fixed tool. It lands before the `R2` sheet's §3 is
+finalised (`F2.3`).
 
 ---
 
@@ -580,4 +593,7 @@ You own ai/, compose, scripts/, .github/, setup.py, setup_lib/, root config
 and archive/. The README's cross-lane rule governs every other file you
 touch. Real-model checks run on the GB300 by the operator, never from CI. When
 the plan does not answer a question, stop and report the question.
+
+Never wait inside a turn on CI, a check run or a background watcher: read it
+once, report what you see and end the turn; your next tick re-reads (UR-38).
 ```

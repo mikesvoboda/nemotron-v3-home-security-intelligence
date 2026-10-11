@@ -15,8 +15,24 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   bindings are the security boundary (`O1.6` landed — `setup.py` derives `FRONTEND_BIND_ADDRESS`). Set `EXPOSE_LAN=true` whenever anything beyond this machine can reach the UI (the
   LAN, a tunnel, a port forward): `AuthMiddleware` then refuses every request without the
   login session cookie or an `API_KEYS` key, except health probes, setup and login.
-  Monitoring needs a credential too (UR-33), so Prometheus, Alertmanager and Grafana's
-  backend panels go blank until `O1.11` gives them one. Logging in then needs HTTPS in front, because the session cookie is `Secure`.
+  Monitoring needs a credential too (UR-33, landed in `O1.11`): `setup.py` writes a
+  `MONITORING_API_KEY` into `.env` (mirrored into `API_KEYS` as an entry scoped to
+  `monitoring` — R60 — so it cannot read operator-only paths), and Prometheus,
+  Alertmanager and Grafana's backend API each present it, so scraping and alert
+  delivery keep working with the gate on. Any install whose `.env` `API_KEYS` list
+  was last written by `setup.py` between `O1.11` and R60 still lists that key as a plain
+  entry, which the gate reads as unscoped. Re-running
+  `python setup.py` interactively converts it — the key value is kept and only its
+  `API_KEYS` entry becomes scoped; `--yes` and `--defaults` skip that reuse, minting a
+  second key and leaving the old plain entry live. Recreate the backend to apply it:
+  `podman compose -f docker-compose.prod.yml up -d --force-recreate backend` — a plain
+  `restart` keeps serving the old value. `/grafana/` moves from anonymous Admin to
+  `auth_request` against the login session plus Grafana `auth.proxy` as Viewer: one
+  login serves the UI and the dashboards, and `/grafana/` is refused without a
+  session. Logging in then needs TLS in front
+  — or `SESSION_COOKIE_SECURE=false` on a trusted network, because the session cookie is
+  `Secure` by default and a browser drops it on a plain-`http` origin, looping the login
+  (R55; [the login cookie over http and TLS](../../reference/config/env-reference.md#the-login-cookie-over-http-and-tls)).
   Register the admin before exposing: registration stays open until the first user exists.
 - **Per-route guards for sensitive operations** - the `/api/admin/*` seeding, cache-clearing
   and cleanup routes sit behind `require_admin_access`, which gates on `ADMIN_ENABLED` alone
@@ -151,6 +167,10 @@ Enable API key authentication for protected access:
 # .env
 API_KEY_ENABLED=true
 API_KEYS=["your-secure-api-key-here", "another-key-if-needed"]
+# R60: an entry can also be an object limited to a named scope —
+# {"key": "monitoring-key-here", "scope": "monitoring"} serves exactly the
+# monitoring endpoints and 401s everywhere else. See API_KEYS in the
+# Environment Reference for the scoped syntax and its fail-closed rules.
 ```
 
 #### Making Authenticated Requests
@@ -453,7 +473,7 @@ CORS_ORIGINS=["https://your-domain.com"]
 
 ## Metrics Endpoint Security
 
-The `/api/metrics` endpoint exposes Prometheus-format metrics. With `EXPOSE_LAN` unset it is unauthenticated, so Prometheus can scrape it; with `EXPOSE_LAN=true` it needs a credential like every other path (UR-33), and Prometheus gets one in `O1.11`. The metrics include detections per class and events per risk level, which show when activity happens.
+The `/api/metrics` endpoint exposes Prometheus-format metrics. With `EXPOSE_LAN` unset it is unauthenticated, so Prometheus can scrape it; with `EXPOSE_LAN=true` it needs a credential like every other path (UR-33). Prometheus presents the `MONITORING_API_KEY` from `.env` as an `X-API-Key` header on that scrape (`O1.11`), so the job keeps working in both modes. The metrics include detections per class and events per risk level, which show when activity happens.
 
 ### Information Disclosed
 

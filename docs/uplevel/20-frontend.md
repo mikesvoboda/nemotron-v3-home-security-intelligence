@@ -84,7 +84,10 @@ deliberately mocked spec in it fails the guard.
 
 ### F2.2 Feature inventory (UR-13)
 
-**Files:** create `docs/reference/feature-inventory.md`. Read-only everywhere else.
+**Files:** create `docs/reference/feature-inventory.md`; edit `frontend/knip.json`, fill
+`docs/uplevel/r2-sheet.md` (it exists; fill it around its §2b, never copy the template over it)
+and set the `next` fields of `frontend/src/__tests__/api-endpoint-contract-known-missing.json`
+(owner, 2026-10-09). Read-only everywhere else.
 
 The long-lived map of the product. Start from the seeds in `00 §10`; re-verify each one.
 
@@ -121,6 +124,25 @@ status with evidence; the module list is attached; the `R2` sheet is drafted (`F
 - [ ] The operator runs the real tier (`scripts/feature-check.sh --real`) and the inventory records
       the date per row.
 
+**Lanes** (owner ruling 87). `F2.3` is split by feature area across the fast-model agents; the
+heavy agents take none of it.
+
+- **Frontend** owns `F2.3`: the shared harness, the split and the UI batches it keeps. On `F2.1`'s
+  merge it posts the split on the batch issue: the **unverified** rows grouped into area batches,
+  each named with its rows and its agent.
+- **Backend** takes the rows whose evidence is an external API behaviour, as pytest specs in
+  `backend/tests/golden/` (the contract in `O2.2`'s PR body, #6961).
+- **ops-a** (after `O2.3b`) and **docs** take UI batches as `golden` Playwright specs.
+- **One claim PR per agent** (owner ruling 97): each agent carries all its batches in one draft
+  claim PR.
+- **Files:** a batch touches only `frontend/tests/golden/<area>/` or `backend/tests/golden/<area>/`
+  and its own rows in the inventory. Frontend reviews every batch; a batch that needs a harness
+  change asks frontend for it.
+- **The guard stands:** `F2.1`'s no-mocking guard applies to every batch. A path that cannot pass
+  demotes its row as above, for `R2b`.
+- **Operator:** records real-tier dates per batch as batches merge, under `O2.2`'s `--real` (the
+  real VLM, a fake detector; owner ruling 66).
+
 **Done when:** no row says **unverified**; every **works** row cites a green golden path and a
 real-tier date; the `R2` sheet is final.
 
@@ -130,6 +152,13 @@ After the owner's ruling session, this lane writes the record in one PR: each ru
 into the inventory's ruling column, the OD-7 and OD-17 rulings into
 `docs/vss-integration/17-action-plan.md`, and `R2` set to `done` in the README status table. Every
 Phase 3 package waits on this PR.
+
+**Ruling 86 split the session into `R2a` and `R2b`.** This section ran for `R2a` — the sheet as it
+stood — on 2026-10-10 (#6980): rulings and tiers into the inventory, and OD-7, OD-17 and OD-33 – OD-39
+into `docs/vss-integration/17-action-plan.md`. A Phase 3 package may start once that PR and the owner’s
+plan PR carrying ruling 86 have merged, if it touches only `R2a`-ruled features and modules. `R2b` —
+the rows `F2.3` demotes plus the sheet’s §3 — is recorded the same way after the owner’s `R2b` session;
+`R2` is `done` only when both records are.
 
 ---
 
@@ -230,4 +259,7 @@ and question you cite comes from output you ran in the same turn.
 You own frontend/ and docs/reference/feature-inventory.md. The README's
 cross-lane rule governs every other file you touch. When the plan does not
 answer a question, stop and report the question.
+
+Never wait inside a turn on CI, a check run or a background watcher: read it
+once, report what you see and end the turn; your next tick re-reads (UR-38).
 ```
