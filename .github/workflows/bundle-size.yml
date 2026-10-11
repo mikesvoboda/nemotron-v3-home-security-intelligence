@@ -19,10 +19,29 @@ jobs:
   bundle-size:
     name: Bundle Size Analysis
     runs-on: ubuntu-latest
-    # Non-blocking - bundle size regressions should not block PRs
+    # Non-blocking - bundle size regressions should not block PRs.
+    # Ruling 96 item 8: mask stays (owner intent), consumers move to the
+    # verdict job output below.
     continue-on-error: true
     outputs:
+      # Ruling 96 item 8 kept the output NAME and expression but made it
+      # finally truthful. steps.size-check.outcome read "success" forever
+      # because the step ended in `|| true` -- which was load-bearing for the
+      # exact condition that IS the verdict: size-limit --json writes its
+      # report and exits non-zero when any check is over limit (measured
+      # locally on v12 and v14; the current main bundle trips three checks,
+      # dispatch run 38114776416). The step now captures and rethrows the rc,
+      # so this output says what the bundle actually does. Measured (probe
+      # run 38116237952): a step's outcome survives a job-level
+      # continue-on-error untouched, and the needs context has no .outcome
+      # key at all -- verdicts travel via job outputs, the visual-tests.yml
+      # idiom. needs.bundle-size.result is COE-masked and is read nowhere
+      # in this file anymore.
       result: ${{ steps.size-check.outcome }}
+      # Which engine said no: the size-report step's independent find/stat
+      # check against the same limits. true = a threshold was crossed (not a
+      # broken measurement).
+      exceeded: ${{ steps.size-report.outputs.failed }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -50,8 +69,16 @@ jobs:
         id: size-check
         run: |
           cd frontend
-          npx size-limit --json > size-report.json 2>&1 || true
+          # Ruling 96 item 8 replaced `npx size-limit --json > size-report.json 2>&1 || true`.
+          # `|| true` laundered the verdict (see the job outputs comment). The
+          # capture shape keeps the step alive through the report and cat,
+          # then rethrows the true rc so the STEP records the verdict; the
+          # job-level COE keeps the RUN green, and later plain steps keep
+          # running (measured, probe run 38116237952).
+          rc=0
+          npx size-limit --json > size-report.json 2>&1 || rc=$?
           cat size-report.json
+          exit $rc
 
       - name: Generate size report
         id: size-report
@@ -186,8 +213,17 @@ jobs:
     if: always()
     steps:
       - name: Check bundle size results
+        # Ruling 96 item 8: reads the truthful result output, not the
+        # COE-masked needs.bundle-size.result. exceeded says which case it
+        # was: true = a threshold was crossed (a real regression), false =
+        # the check broke before deciding (build/measurement problem).
         run: |
-          if [ "${{ needs.bundle-size.result }}" == "failure" ]; then
+          if [ "${{ needs.bundle-size.outputs.result }}" == "failure" ]; then
+            if [ "${{ needs.bundle-size.outputs.exceeded }}" == "true" ]; then
+              echo "::warning::Bundle size exceeded a threshold (JavaScript 500 KB / CSS 100 KB / Total JS 1 MB; see the size-limit report in the job log). Review the build stats artifact for details."
+            else
+              echo "::warning::Bundle size check failed before deciding (likely a build or measurement problem). Review the job log."
+            fi
             echo "::warning::Bundle size check detected issues. Review the build stats artifact for details."
             echo "Consider:"
             echo "  - Code splitting for large components"
@@ -198,12 +234,11 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        # Event clause re-keyed push -> schedule||workflow_dispatch (ruling 100).
-        # Interim known state: the job's continue-on-error: true masks
-        # needs.bundle-size.result, and its job output `result` reads
-        # steps.size-check.outcome, which is "success" forever — the size-check
-        # step ends in `|| true`. Both masks are ruling 96 item 8's targets.
-        if: vars.LINEAR_ENABLED == 'true' && (needs.bundle-size.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
+        # Ruling 96 item 8 (on top of ruling 100's event re-key): guard reads
+        # the truthful result output instead of the COE-masked needs result.
+        # This replaces the interim "cannot fire" note left by the r100
+        # package, which sequenced this rewire here.
+        if: vars.LINEAR_ENABLED == 'true' && (needs.bundle-size.outputs.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |

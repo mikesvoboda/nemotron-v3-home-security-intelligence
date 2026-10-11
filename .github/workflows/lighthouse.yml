@@ -19,8 +19,17 @@ jobs:
   lighthouse:
     name: Lighthouse Performance Audit
     runs-on: ubuntu-latest
-    # Non-blocking for now while baselines are established
+    # Non-blocking for now while baselines are established.
+    # Ruling 96 item 8 keeps this mask — the owner's "non-blocking" intent is
+    # about the RUN, not about hiding verdicts. continue-on-error rewrites
+    # needs.lighthouse.result to "success" (measured: docs steps-context +
+    # this repo's own visual-tests.yml:33-36 record the mechanism), so the
+    # verdict now travels via the test-outcome job output below, the shipped
+    # visual-tests.yml idiom. (needs.<job>.outcome is deliberately NOT used:
+    # the needs context publishes result/outputs only, per visual-tests.)
     continue-on-error: true
+    outputs:
+      test-outcome: ${{ steps.lighthouse.outcome }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -103,8 +112,12 @@ jobs:
     if: always()
     steps:
       - name: Check Lighthouse results
+        # Reads the audit STEP's outcome via the job output, not
+        # needs.lighthouse.result (COE-masked; visual-tests.yml:120-125
+        # precedent). The run step is a bare pipe under bash -o pipefail, so
+        # a real lhci failure reaches the step outcome.
         run: |
-          if [ "${{ needs.lighthouse.result }}" == "failure" ]; then
+          if [ "${{ needs.lighthouse.outputs.test-outcome }}" == "failure" ]; then
             echo "::warning::Lighthouse performance tests detected issues. Review the artifacts for details."
             echo "Consider optimizing:"
             echo "  - Image sizes and formats"
@@ -116,12 +129,11 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        # Event clause re-keyed push -> schedule||workflow_dispatch (ruling 100).
-        # Interim known state: the lighthouse job's continue-on-error: true
-        # masks needs.lighthouse.result to "success", so this guard cannot fire
-        # on a real audit failure until the guard reads the step outcome —
-        # owner ruling 96 item 8, sequenced immediately after this package.
-        if: vars.LINEAR_ENABLED == 'true' && (needs.lighthouse.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
+        # Ruling 96 item 8 (on top of ruling 100's event re-key): guard reads
+        # the truthful job output instead of the COE-masked needs result. The
+        # interim "cannot fire" note this replaces was written in the r100
+        # package, which sequenced this rewire here.
+        if: vars.LINEAR_ENABLED == 'true' && (needs.lighthouse.outputs.test-outcome == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
