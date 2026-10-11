@@ -7,8 +7,9 @@ file folds the load-bearing ones into the repo so a reviewer can re-measure ever
 claim after that sandbox is gone. Precedent: 8521f42bb committed B1.1's latency probe.
 
 Placement is deliberate. backend/tests/evidence/ is OUTSIDE the nightly unit tier
-(nightly-full-gate.yml:106 passes the explicit dirs unit/contracts/security) and
-outside the PR-gate shard (ci.yml:755 runs pytest backend/tests/unit/). It IS
+(nightly-full-gate.yml's "Backend unit+contracts+security tier" step passes the
+explicit dirs unit/contracts/security) and outside the PR-gate shard (ci.yml's
+`unit-tests` job runs pytest backend/tests/unit/). It IS
 collected by a bare `pytest` (testpaths covers backend/tests, pyproject.toml:539),
 and two probes write real hundreds-of-MB payloads, so every probe here is gated on
 EVIDENCE_R109=1; a bare run gets clean skips and the tier cost stays zero.
@@ -20,8 +21,8 @@ Honest boundary (PROVENANCE): these probes re-measure the CLAIMS and re-derive t
 comparisons from git blobs, so nothing here is retyped from memory. They do NOT
 re-create the one-off exploratory orderings — the seed-pinned full-tier reds and the
 seed-paired -n 8 / -n 2 control were single draws, labelled as such in the body.
-Nor do they reproduce the hosted log shape: nightly-full-gate.yml:110 redirects the
-tier's output to a file and :112 publishes only `tail -80`, so the run's real
+Nor do they reproduce the hosted log shape: nightly-full-gate.yml's unit-tier step
+redirects the tier's output to a file and publishes only `tail -80`, so the run's real
 collection header is not in the hosted artifact at all (a REST refetch of run 26's
 job log returns the same 67,774 bytes the tail contains). Any collection count
 quoted in the body from a LOCAL run says so at the point of use.
@@ -348,7 +349,8 @@ def test_stat_based_cleanup_survives_the_fat_shape_and_breaks_the_lean_one(tmp_p
 # (-n 8 --dist=worksteal, pyproject.toml:545), and the difference that hid the
 # r109 failures is the per-test budget — the nightly passes no --timeout, so
 # pyproject's `timeout = 5` (:546) governs, while the PR shard raises it to 60s
-# (ci.yml:760) and never co-invokes contracts/security with unit. Asserted from
+# (its own `--timeout=60` flag, asserted below) and never co-invokes
+# contracts/security with unit. Asserted from
 # the workflow files so a future edit that changes the shape fails HERE instead of
 # quietly invalidating the PR body.
 # ---------------------------------------------------------------------------
