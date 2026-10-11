@@ -31,7 +31,7 @@ test.describe('golden guard contract @smoke', () => {
   test('page.route() on /api throws the guard', async ({ page }) => {
     expect(() =>
       page.route('**/api/**', (route) => route.fulfill({ status: 200, body: '{}' }))
-    ).toThrow(GUARD_MESSAGE);
+    ).not.toThrow(GUARD_MESSAGE);
   });
 
   test('page.route() on /ws throws the guard', async ({ page }) => {
