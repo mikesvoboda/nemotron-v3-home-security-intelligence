@@ -640,7 +640,7 @@ def test_dependency_is_fail_closed_with_no_keys_configured():
     from types import SimpleNamespace
     from unittest.mock import patch
 
-    from fastapi import HTTPException
+    from fastapi import HTTPException, Request
 
     from backend.api.middleware.auth import require_api_key
 
@@ -648,12 +648,15 @@ def test_dependency_is_fail_closed_with_no_keys_configured():
         api_keys=[],  # the shipped default: no keys configured
         api_key_enabled=False,  # the flag the dlq/system copies would obey
     )
+    # R60 made ``request`` a required first argument of the guard (the scope
+    # lookup names the call from it); a bare ASGI scope dict is enough.
+    request = Request({"type": "http", "method": "POST", "path": "/api/webhooks/inbound/arm"})
 
     with patch(
         "backend.api.middleware.auth.get_settings", autospec=True, return_value=empty_settings
     ):
         try:
-            require_api_key(x_api_key="a-perfectly-well-formed-key")  # pragma: allowlist secret
+            require_api_key(request, "a-perfectly-well-formed-key")  # pragma: allowlist secret
         except HTTPException as exc:
             assert exc.status_code == 401
             assert "Invalid API key" in exc.detail

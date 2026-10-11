@@ -3,8 +3,11 @@
 This module exposes the /api/metrics endpoint for Prometheus scraping.
 The endpoint returns all registered metrics in Prometheus exposition format.
 
-The endpoint does not require authentication to allow Prometheus to
-scrape metrics without additional configuration.
+Authentication follows the exposure mode (OD-12/UR-33): with EXPOSE_LAN
+unset the path is open (today's scrape works with no configuration); with
+EXPOSE_LAN=true the auth gate covers it like every non-open path, and the
+shipped scrape presents the MONITORING_API_KEY as X-API-Key — a key R60
+scopes to this (method, path) among the monitoring set.
 
 Usage with Prometheus:
     scrape_configs:
@@ -12,6 +15,8 @@ Usage with Prometheus:
         static_configs:
           - targets: ['localhost:8000']
         metrics_path: '/api/metrics'
+        http_headers:
+          X-API-Key: 'your-monitoring-key'  # needed only when EXPOSE_LAN=true
 """
 
 from fastapi import APIRouter
