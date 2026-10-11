@@ -53,13 +53,13 @@
  *   both widths instead of pretending: Layout gates the Sidebar itself behind
  *   !isMobile (Layout.tsx:93) while the hamburger that opens the slide-out is
  *   hidden by CSS only at ≥768 (Header.tsx md:hidden), and the drawer's own
- *   translate lives INSIDE Sidebar (:264-266). At 375 the hamburger therefore
+ *   translate lives INSIDE Sidebar (the ternary at :267). At 375 the hamburger therefore
  *   toggles state and the backdrop (Layout :95-104, `mobile-overlay`) appears
  *   over an UNMOUNTED drawer — nothing slides out. At 700 the drawer exists
  *   and slides. The two mobile halves are never both true at one width. The
  *   slide position is asserted as geometry (boundingBox().x off-canvas vs 0)
  *   because the class list carries `md:translate-x-0` UNCONDITIONALLY
- *   (:264-266) — a /translate-x-0/ regex would pass while the drawer was
+ *   (the ternary at :267) — a /translate-x-0/ regex would pass while the drawer was
  *   still off-screen. Ruling 86: the false half is filed in the inventory row
  *   as failure-as-evidence, not asserted vacuously.
  */

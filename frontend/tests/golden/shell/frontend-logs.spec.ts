@@ -78,9 +78,11 @@
  *   alongside the WebSocketManager chatter that a logged-in dashboard
  *   generates on its own); both endpoints answered 200 with
  *   {"success":true,"count":N}; the rejection's single POST always carries
- *   message "Unknown error" (handleRejection reads event.message, which a
- *   PromiseRejectionEvent does not have — errorReporting.ts:138 — the reason
- *   rides in extra.reason only, hence no DB oracle for it); the NotFound
+ *   message "Unknown error" — but NOT because handleRejection reads a missing
+ *   event.message (it reads event.reason, errorReporting.ts:186): it builds its
+ *   errorData WITHOUT a message key (:223-229), so reportToBackend's
+ *   `message: errorData.message || 'Unknown error'` fallback (:119) fires; the
+ *   reason rides in extra.reason only, hence no DB oracle for it); the NotFound
  *   page's "Return to Dashboard" button (src/pages/NotFoundPage.tsx:30-44,
  *   useNavigate('/')) produced the navigation batch entry
  *     level=INFO component=user_event message=navigation
@@ -298,10 +300,12 @@ test.describe('golden path: frontend error/log reporting → backend ingest @cri
     expect(uncaught.extra?.type).toBe('uncaught_exception');
     expect(uncaught.extra?.url, 'extra.url carries the boot path').toBe(h.ui + BOOT_PATH);
 
-    // The rejection quirk, pinned as shipped: handleRejection reads
-    // event.message, which a PromiseRejectionEvent does not have
-    // (errorReporting.ts:138), so the ingested message is the fixed fallback
-    // and the reason survives only in extra.reason — which the DB sink drops.
+    // The rejection quirk, pinned as shipped (mechanism corrected per ops-b
+    // for-the-record #1, 2026-10-11): handleRejection reads event.reason
+    // (errorReporting.ts:186) and posts an errorData with NO message key
+    // (:223-229), so the ingested message is reportToBackend's
+    // `errorData.message || 'Unknown error'` fallback (:119) — and the reason
+    // survives only in extra.reason, which the DB sink drops.
     const rejection = parseBody(rejectionPost);
     expect(rejection.extra?.type).toBe('unhandled_rejection');
     expect(String(rejection.extra?.reason)).toContain(MARK_REJECT);
@@ -399,6 +403,16 @@ test.describe('golden path: frontend error/log reporting → backend ingest @cri
     await quietBoot(page, h, NAV_PATH);
     await page.waitForLoadState('load');
 
+    // The watermark goes DOWN before the navigation fires (ops-b blocker,
+    // 2026-10-11): in the gate-open world the INFO row would land with an id
+    // ABOVE this newest-ERROR watermark, so the absence check at the end has
+    // a positive witness it could actually find. Watermarking after the
+    // ingest poll (the previous shape) let ordinary ERROR churn pass the nav
+    // row's id before the read — the some() could then never see the row it
+    // claimed to hunt. Same pre-event shape as test 1's :261.
+    const session = await adminSession(h);
+    const watermark = await errorWatermark(h, session);
+
     // NavigationTracker skips the first render on purpose
     // (NavigationTracker.tsx:33-36), so a boot alone must produce no
     // navigation entry — this click is the first route change that counts.
@@ -445,15 +459,14 @@ test.describe('golden path: frontend error/log reporting → backend ingest @cri
     // DB sink is leveled at the root WARNING, so this entry — unlike the
     // ERROR legs — never lands in the queryable table. A row for it WOULD
     // read "[user_event] navigation" (routes/logs.py:193,198 build the
-    // message as "[component] message" from the ENTRY's component).
+    // message as "[component] message" from the ENTRY's component), and its
+    // id would be ABOVE the watermark taken before the click above.
     // Read the EXACT bucket the row would join (component=frontend comes from
     // record.name, so a landing navigation row would be level=INFO there):
     // newest frontend INFO rows. An unfiltered limit=100 window would sit
     // entirely above the watermark — ERROR churn alone exceeds 100 rows in the
     // window — and the some() would then be measuring WebSocket noise instead
     // of the absence it claims.
-    const session = await adminSession(h);
-    const watermark = await errorWatermark(h, session);
     await page.waitForTimeout(1_000);
     const asRow = (
       await api<LogsPage>(h, session, '/api/logs?component=frontend&level=INFO&limit=50')

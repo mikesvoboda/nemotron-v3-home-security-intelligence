@@ -189,7 +189,7 @@ test.describe('golden path: setup page first-admin bootstrap @critical', () => {
     // Per-rule clauses on the second submit (:81-112):
     await fillSetupForm(page, {
       email: 'nope',
-      password: 'short1A', // 7 chars — under MIN_PASSWORD_LENGTH :65 (pragma: allowlist secret)
+      password: 'short1A', // pragma: allowlist secret — 7 chars under MIN_PASSWORD_LENGTH :65
       confirm: 'different1A',
     });
     await submitSetup(page);
