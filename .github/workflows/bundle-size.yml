@@ -1,13 +1,12 @@
 name: Bundle Size Tracking
 
-# Runs on merge to main only (not PRs) to save runner capacity.
+# Nightly + on demand only (not on push, not on PRs) to save runner capacity
+# — owner ruling 100, following ruling 71's #6968 pattern.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/bundle-size.yml'
+  schedule:
+    - cron: '49 6 * * *' # Daily 06:49 UTC — off the :00 herd; last of the frontend trio (a11y opens 06:41), cheapest suite (~3 min) so it trails the two long ones (owner ruling 100)
+  workflow_dispatch:
 
 concurrency:
   group: bundle-size-${{ github.workflow }}-${{ github.ref }}
@@ -20,10 +19,29 @@ jobs:
   bundle-size:
     name: Bundle Size Analysis
     runs-on: ubuntu-latest
-    # Non-blocking - bundle size regressions should not block PRs
+    # Non-blocking - bundle size regressions should not block PRs.
+    # Ruling 96 item 8: mask stays (owner intent), consumers move to the
+    # verdict job output below.
     continue-on-error: true
     outputs:
+      # Ruling 96 item 8 kept the output NAME and expression but made it
+      # finally truthful. steps.size-check.outcome read "success" forever
+      # because the step ended in `|| true` -- which was load-bearing for the
+      # exact condition that IS the verdict: size-limit --json writes its
+      # report and exits non-zero when any check is over limit (measured
+      # locally on v12 and v14; the current main bundle trips three checks,
+      # dispatch run 38114776416). The step now captures and rethrows the rc,
+      # so this output says what the bundle actually does. Measured (probe
+      # run 38116237952): a step's outcome survives a job-level
+      # continue-on-error untouched, and the needs context has no .outcome
+      # key at all -- verdicts travel via job outputs, the visual-tests.yml
+      # idiom. needs.bundle-size.result is COE-masked and is read nowhere
+      # in this file anymore.
       result: ${{ steps.size-check.outcome }}
+      # Which engine said no: the size-report step's independent find/stat
+      # check against the same limits. true = a threshold was crossed (not a
+      # broken measurement).
+      exceeded: ${{ steps.size-report.outputs.failed }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -51,11 +69,39 @@ jobs:
         id: size-check
         run: |
           cd frontend
-          npx size-limit --json > size-report.json 2>&1 || true
+          # Ruling 96 item 8 replaced `npx size-limit --json > size-report.json 2>&1 || true`.
+          # `|| true` laundered the verdict (see the job outputs comment): the
+          # rc IS the verdict, and size-limit --json exits non-zero precisely
+          # when a check is over limit. The capture keeps the step alive
+          # through the cat so the report still lands in the log, then
+          # rethrows the true rc so the STEP records the verdict; the job-level
+          # COE keeps the RUN green. This is accessibility-tests.yml's shape
+          # (a red step under a green run), so the three steps below need
+          # explicit if: always() -- see their comments.
+          rc=0
+          npx size-limit --json > size-report.json 2>&1 || rc=$?
           cat size-report.json
+          exit $rc
 
       - name: Generate size report
         id: size-report
+        # if: always() is load-bearing, not decoration. The rethrow above
+        # makes this the first step AFTER a genuinely failing step, and here
+        # the failed step DID strand its successors: dispatch run 38116867530
+        # (bundle-size on this branch, three real over-limit checks) showed
+        #   Run size-limit check => failure
+        #   Generate size report => skipped
+        #   Create build stats JSON => skipped
+        #   Upload build stats artifact => skipped
+        # so the report, the artifact AND the `failed` output (which feeds the
+        # summary's exceeded== regression branch) all went missing -- a real
+        # regression would have been mislabelled "failed before deciding".
+        # always() is the same protection lighthouse.yml / accessibility-
+        # tests.yml / zap-security.yml already give their post-verdict steps,
+        # and the lighthouse half of the same proof run confirmed it works
+        # under a job-level COE (Run Lighthouse CI => failure, yet
+        # Generate Lighthouse Summary => success and both uploads => success).
+        if: always()
         run: |
           cd frontend
 
@@ -147,6 +193,9 @@ jobs:
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
 
       - name: Create build stats JSON
+        # if: always() — see Generate size report above; this is the same
+        # stranded-successor class (skipped in run 38116867530).
+        if: always()
         run: |
           cd frontend
           cat > build-stats.json << EOF
@@ -164,12 +213,19 @@ jobs:
               "css": 102400,
               "total_js": 1048576
             },
-            "passed": ${{ steps.size-report.outputs.failed != 'true' }}
+            "passed": ${{ steps.size-report.outputs.failed == 'false' }}
           }
           EOF
           cat build-stats.json
+        # Note the != 'true' -> == 'false' flip here (ruling 96 item 8, same
+        # class as the guards). Under the old expression a run where
+        # size-report never produced `failed` (cancelled, or it broke itself)
+        # emitted "passed": true into the archived artifact — a false green.
+        # An absent verdict is no longer evidence of success.
 
       - name: Upload build stats artifact
+        # if: always() — see Generate size report above (skipped in 38116867530).
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: bundle-size-stats
@@ -187,8 +243,17 @@ jobs:
     if: always()
     steps:
       - name: Check bundle size results
+        # Ruling 96 item 8: reads the truthful result output, not the
+        # COE-masked needs.bundle-size.result. exceeded says which case it
+        # was: true = a threshold was crossed (a real regression), false =
+        # the check broke before deciding (build/measurement problem).
         run: |
-          if [ "${{ needs.bundle-size.result }}" == "failure" ]; then
+          if [ "${{ needs.bundle-size.outputs.result }}" == "failure" ]; then
+            if [ "${{ needs.bundle-size.outputs.exceeded }}" == "true" ]; then
+              echo "::warning::Bundle size exceeded a threshold (JavaScript 500 KB / CSS 100 KB / Total JS 1 MB; see the size-limit report in the job log). Review the build stats artifact for details."
+            else
+              echo "::warning::Bundle size check failed before deciding (likely a build or measurement problem). Review the job log."
+            fi
             echo "::warning::Bundle size check detected issues. Review the build stats artifact for details."
             echo "Consider:"
             echo "  - Code splitting for large components"
@@ -199,7 +264,11 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        if: vars.LINEAR_ENABLED == 'true' && (needs.bundle-size.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+        # Ruling 96 item 8 (on top of ruling 100's event re-key): guard reads
+        # the truthful result output instead of the COE-masked needs result.
+        # This replaces the interim "cannot fire" note left by the r100
+        # package, which sequenced this rewire here.
+        if: vars.LINEAR_ENABLED == 'true' && (needs.bundle-size.outputs.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |

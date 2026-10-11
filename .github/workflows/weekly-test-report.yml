@@ -77,6 +77,10 @@ jobs:
 
       - name: Run backend unit tests
         id: backend-unit
+        # OB.2 reason: this workflow REPORTS suite health, it does not gate
+        # it (ci.yml owns the gate) — the json-report files are the deliverable
+        # and the report generator below must run on every outcome, red
+        # included; that is the whole point of a weekly trend.
         run: |
           uv run pytest backend/tests/unit/ \
             --cov=backend \
@@ -88,6 +92,7 @@ jobs:
 
       - name: Run backend integration tests
         id: backend-integration
+        # OB.2 reason: same report-not-gate doctrine as the unit step above.
         run: |
           uv run pytest backend/tests/integration/ \
             -n0 \
@@ -101,6 +106,7 @@ jobs:
 
       - name: Run frontend tests
         id: frontend-test
+        # OB.2 reason: same report-not-gate doctrine as the backend steps.
         working-directory: frontend
         run: |
           npm test -- --run --reporter=verbose
@@ -108,6 +114,10 @@ jobs:
 
       - name: Generate weekly report
         id: report
+        # OB.2 reason: the generator tolerates missing/partial upstream
+        # reports by design (a week where one suite exploded still gets a
+        # trend row); a hard red here would blank the artifact and break the
+        # history the weekly-test-report artifact series exists to build.
         run: |
           python3 scripts/weekly-test-report.py \
             --output weekly-test-report.json \
@@ -209,6 +219,9 @@ jobs:
                 }
               ]
             }
+        # OB.2 reason: external notification — a Slack outage (or an expired
+        # webhook) must not redden the weekly REPORT run; the report artifact
+        # is the deliverable, the channel post is courtesy.
         continue-on-error: true
 
   # ============================================================================
@@ -247,7 +260,10 @@ jobs:
           if [ -f reports/backend-integration-report.json ]; then
             echo "Backend integration tests: Available"
           fi
-        continue-on-error: true
+        # (OB.2: the continue-on-error that used to sit here is gone — this
+        # step only echoes; with bash's if-compound returning 0 on a false
+        # condition the key could never fire, and a decorative COE dilutes
+        # the ones that carry load.)
 
       - name: Comment on flaky tests (if found)
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -257,7 +273,7 @@ jobs:
             // This would create an issue or discussion about flaky tests
             // when patterns are detected in the test reports
             console.log("Flaky test analysis complete");
-        continue-on-error: true
+        # (OB.2: continue-on-error removed — a console.log cannot fail.)
 
   # ============================================================================
   # Enforce coverage thresholds
@@ -289,7 +305,9 @@ jobs:
           echo ""
           echo "Note: Thresholds are enforced in CI workflow"
           echo "Weekly report tracks trends over time"
-        continue-on-error: true
+        # (OB.2: continue-on-error removed — every line above is an echo, so
+        # the step cannot fail and the key was decoration. The note itself is
+        # honest: the enforcement lives in ci.yml/test-coverage-gate.yml.)
 
   # ============================================================================
   # Cleanup old reports
@@ -323,4 +341,7 @@ jobs:
                 });
               }
             }
+        # OB.2 reason: housekeeping — deleting an artifact the API already
+        # reaped (or a pagination edge) must not redden the weekly report
+        # run; nothing downstream reads this job's status.
         continue-on-error: true

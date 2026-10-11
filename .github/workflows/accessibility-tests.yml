@@ -1,13 +1,12 @@
 name: Accessibility Tests
 
-# Runs on merge to main only (not PRs) to save runner capacity.
+# Nightly + on demand only (not on push, not on PRs) to save runner capacity
+# — owner ruling 100, following ruling 71's #6968 pattern.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/accessibility-tests.yml'
+  schedule:
+    - cron: '41 6 * * *' # Daily 06:41 UTC — off the :00 herd; 8 min behind lighthouse (06:33) so the two frontend suites stagger their install bursts (owner ruling 100)
+  workflow_dispatch:
 
 concurrency:
   group: a11y-${{ github.workflow }}-${{ github.ref }}
@@ -20,8 +19,24 @@ jobs:
   accessibility-tests:
     name: Accessibility Tests
     runs-on: ubuntu-latest
-    # Non-blocking - accessibility issues should not block PRs
+    # Non-blocking - accessibility issues should not block PRs.
+    # Ruling 96 item 8 keeps the mask (it is the owner's non-blocking intent)
+    # but moves every consumer off the masked needs.accessibility-tests.result.
+    # Truth channel: the STEP's `outcome` (docs: outcome is the result BEFORE
+    # continue-on-error is applied; measured: step fields survive a job-level
+    # COE untouched, while needs.*.result reads "success" and the needs
+    # context has no .outcome key at all -- probe run 38116237952). The old
+    # r100 comment here claimed the step-level COE pinned outcome too; that
+    # was wrong -- outcome is pre-COE by definition.
     continue-on-error: true
+    outputs:
+      # Caveat item 8 surfaced: accessibility.spec.ts:22 file-level
+      # test.skip(() => !!process.env.CI) skips 30/30 tests in CI (measured:
+      # dispatch run 38114775291 printed "30 skipped", zero executed), so
+      # today's outcome is truthfully "success" over a VACUOUS suite. The
+      # guard below is structurally honest now; making the suite actually run
+      # in CI is a separate owner-tier call on the flakiness claim.
+      a11y-outcome: ${{ steps.a11y-tests.outcome }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -53,9 +68,16 @@ jobs:
 
       - name: Run Accessibility Tests
         id: a11y-tests
+        # Ruling 96 item 8 removed this step's continue-on-error: true. It was
+        # vestigial the moment the job-level COE existed (the run already
+        # cannot fail the job) and it only pinned the step's post-COE
+        # conclusion to green. With it gone the failed test step is VISIBLE
+        # in the run UI while the job-level COE keeps the run green — the
+        # "report, don't gate" shape the owner's comments ask for. The
+        # always() report/upload steps and the Set job outcome step below now
+        # finally see real outcomes.
         run: |
           cd frontend && npx playwright test --project=chromium tests/e2e/specs/accessibility.spec.ts --reporter=html,list
-        continue-on-error: true
 
       - name: Upload Playwright report
         if: always()
@@ -107,8 +129,11 @@ jobs:
     if: always()
     steps:
       - name: Check accessibility test results
+        # Ruling 96 item 8: the job output carries the step's pre-COE outcome;
+        # needs.accessibility-tests.result is masked to "success" by the job's
+        # continue-on-error (visual-tests.yml:120-125 precedent for this idiom).
         run: |
-          if [ "${{ needs.accessibility-tests.result }}" == "failure" ]; then
+          if [ "${{ needs.accessibility-tests.outputs.a11y-outcome }}" == "failure" ]; then
             echo "::warning::Accessibility tests detected violations. Review the artifacts for details."
             echo ""
             echo "Download the accessibility-test-report artifact and open index.html to see:"
@@ -120,7 +145,14 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        if: vars.LINEAR_ENABLED == 'true' && (needs.accessibility-tests.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+        # Ruling 96 item 8 (on top of ruling 100's event re-key): guard reads
+        # the truthful a11y-outcome job output. This replaces the interim
+        # "double-masked, outcome also success" note from the r100 package --
+        # that note overstated the step-COE mask: outcome is pre-COE (docs +
+        # probe). What genuinely keeps this guard quiet on today's nightlies
+        # is the spec's CI self-skip (placebo suite), documented above and in
+        # the PR body as an owner-tier finding.
+        if: vars.LINEAR_ENABLED == 'true' && (needs.accessibility-tests.outputs.a11y-outcome == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |

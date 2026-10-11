@@ -182,9 +182,14 @@ jobs:
 
       - name: Check for expired CVE review dates
         id: expiry-check
+        # OB.2 reason: the verdict is the LINEAR ISSUE — the step below fires
+        # on steps.expiry-check.outcome == 'failure', which only exists if
+        # this step's red is recorded, not propagated. The schedule leg's
+        # escalation path depends on the COE; the WP1.2 call-job aggregate
+        # stays green by design here (expiry is triaged, not merge-blocking).
+        continue-on-error: true
         run: |
           ./scripts/check-trivyignore-expiry.sh --warn-days 14
-        continue-on-error: true
 
       - name: Create Linear issue on expired CVEs
         if: vars.LINEAR_ENABLED == 'true' && (steps.expiry-check.outcome == 'failure')
