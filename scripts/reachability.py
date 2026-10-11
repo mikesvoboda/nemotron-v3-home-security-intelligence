@@ -19,6 +19,14 @@ live. The rules, each pinned by scripts/test_reachability.py:
   edges. The caller holds the namespace itself; its re-exports are the
   module's public surface. The real tree has zero namespace-package imports
   (measured at claim time), so this arm stays rare.
+* ancestor packages ship (O2.3b, ruling 73): importing ``a.b.c`` RUNS
+  ``a/__init__.py`` and ``a/b/__init__.py`` first, whatever the caller asks
+  them for — so no parent ``__init__`` may be listed non-shipping while a
+  module inside it ships. The ancestor ships AS A FILE; WHICH lines of it
+  ship stays the per-name decision above (the same machinery that keeps
+  ``managed_service`` dead under the live ``services/__init__.py``). A
+  newly-live ancestor's ALLOWLISTED string imports still run (a running
+  file's ``importlib`` call really executes) — that arm re-enters the walk.
 * TYPE_CHECKING-guarded imports do NOT ship (erased at runtime).
 * function-level imports DO ship (they execute when the function runs).
 * string / dynamic imports ship only through the ``entry_points.toml``
@@ -381,6 +389,38 @@ def analyze(
         for target, ns in view.demands:
             demand(target, ns)
         run_dynamic(rel, view)
+
+    # O2.3b (ruling 73): importing a.b.c RUNS a/__init__.py and
+    # a/b/__init__.py before c's own lines, whatever the caller asks them
+    # for — so a parent __init__ can never be listed non-shipping while a
+    # module inside it ships (the R2 deletion list may not delete a file the
+    # import system executes). The ancestor ships AS A FILE: WHICH of its
+    # lines ship stays §M1's per-name decision — the identical shape to
+    # managed_service, dead under the live services/__init__ because no
+    # caller asked that package for the name its line binds. Replaying an
+    # ancestor's edges here would be the package-level walk §M1 exists to
+    # reject (measured at probe time: +13 files beyond the ruling's exact
+    # 19). Allowlisted dynamic literals are NOT edges-by-name — a running
+    # file's importlib call really runs — so a newly-live ancestor's
+    # literals go through run_dynamic (the unresolved arm keeps the
+    # never-silently-dropped rule). Today's 19 carry zero literals
+    # (measured); the fixed point exists for the day one does. Empty
+    # __init__s are not candidates (nothing runs); a namespace-package
+    # ancestor has no __init__ to run — views.get skips both honestly.
+    grew = True
+    while grew:
+        grew = False
+        for rel in list(live):
+            if not rel.endswith(".py"):
+                continue
+            parts = rel.split("/")
+            for i in range(1, len(parts)):
+                anc = "/".join(parts[:i]) + "/__init__.py"
+                if anc in live or anc not in views:
+                    continue
+                live.add(anc)
+                grew = True
+                run_dynamic(anc, views[anc])
 
     not_shipping = sorted(
         ({"module": rel, "lines": v.lines} for rel, v in views.items() if rel not in live),

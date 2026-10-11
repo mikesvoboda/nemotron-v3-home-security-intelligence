@@ -664,11 +664,195 @@ this list is measured at this head by the two methods above, which agree, and is
 
 ### Python
 
-**Pending `O2.3`.** The Python half of this list is the non-shipping output of the reachability
-check (`O2.3`, `docs/uplevel/30-ops.md`), minus every module a row claims; `O2.3` has not started,
-and this section takes its list when it merges (owner ruling 50, issue #6854). Until then the
-backend trace's [Dead Marks](backend-entry-points.md#dead-marks) and `00-audit.md` §4.1–§4.2 hold
-the known candidates; neither is the measured list.
+The Python half of this list is the non-shipping output of the reachability check (`O2.3`,
+`docs/uplevel/30-ops.md`), minus every module a row claims; owner ruling 50 (issue #6854)
+pre-authorized this section to take that list when the check merged, and `O2.3b` (ruling 73)
+fixed the ancestor-package rule the list is measured under. Regenerate it after any change to
+the walker, its configs, or a row's `modules` column:
+`uv run python scripts/r2-python-dead-list.py`. The backend trace's
+[Dead Marks](backend-entry-points.md#dead-marks) and `00-audit.md` §4.1–§4.2 name older
+candidates; the table below is the measured list.
+
+<!-- r2-python-dead-list:start -->
+
+Measured at tool-inputs `d1dbe9d14c` by `scripts/r2-python-dead-list.py` — the non-shipping output of `scripts/reachability.py` after the O2.3b ancestor fix (ruling 73: the 19 parent `__init__.py` files a module's import runs are NOT here), minus every module a row claims, which are named below.
+
+**157 non-shipping Python modules (60798 lines).** Deleted as a whole by the `R2` ruling (exceptions named); `B3.2` executes.
+
+<!-- prettier-ignore -->
+| module | lane | lines | last meaningful commit | notes |
+| --- | --- | --- | --- | --- |
+| `ai/batch_utils.py` | ai | 531 | `c9389a190` 2026-02-02 | non-shipping |
+| `ai/common/__init__.py` | ai | 74 | `c7f5bae1b` 2026-01-26 | non-shipping |
+| `ai/common/tensorrt_inference.py` | ai | 686 | `647ce020d` 2026-01-28 | non-shipping |
+| `ai/common/tensorrt_utils.py` | ai | 809 | `647ce020d` 2026-01-28 | non-shipping |
+| `ai/compile_utils.py` | ai | 451 | `c9389a190` 2026-02-02 | non-shipping |
+| `ai/cuda_graph_manager.py` | ai | 515 | `d697b216b` 2026-01-26 | non-shipping |
+| `ai/cuda_streams.py` | ai | 802 | `c9389a190` 2026-02-02 | non-shipping |
+| `ai/flash_attention_config.py` | ai | 318 | `cd8071600` 2026-01-28 | non-shipping |
+| `ai/gateway/export/__init__.py` | ai | 1 | - | non-shipping |
+| `ai/gateway/export/copy_yolo26_engine.py` | ai | 261 | - | non-shipping |
+| `ai/gateway/export/export_clip.py` | ai | 120 | `3710a98c7` 2026-02-08 | non-shipping |
+| `ai/gateway/export/export_clip_text.py` | ai | 121 | `3710a98c7` 2026-02-08 | non-shipping |
+| `ai/gateway/export/export_demographics.py` | ai | 357 | - | non-shipping |
+| `ai/gateway/export/export_depth.py` | ai | 302 | `8395fb640` 2026-02-11 | non-shipping |
+| `ai/gateway/export/export_fashion_clip.py` | ai | 746 | - | non-shipping |
+| `ai/gateway/export/export_pet.py` | ai | 257 | - | non-shipping |
+| `ai/gateway/export/export_reid.py` | ai | 700 | `a56c1cef4` 2026-10-10 | non-shipping |
+| `ai/gateway/export/export_stgcn.py` | ai | 281 | `610882b47` 2026-09-22 | non-shipping |
+| `ai/gateway/export/export_vehicle.py` | ai | 276 | - | non-shipping |
+| `ai/gateway/export/export_yolo26.py` | ai | 551 | `54e927366` 2026-09-28 | non-shipping |
+| `ai/gateway/export/export_yolo_pose.py` | ai | 389 | - | non-shipping |
+| `ai/gateway/export/export_yolo_threat.py` | ai | 437 | - | non-shipping |
+| `ai/gateway/patch_triton_configs.py` | ai | 140 | `3396d3ef8` 2026-02-25 | non-shipping |
+| `ai/gpu_memory_pool.py` | ai | 722 | `cd8071600` 2026-01-28 | non-shipping |
+| `ai/gpu_oom_handler.py` | ai | 393 | - | non-shipping |
+| `ai/hub_cache_config.py` | ai | 281 | `cd8071600` 2026-01-28 | non-shipping |
+| `ai/quantization_config.py` | ai | 346 | `cd8071600` 2026-01-28 | non-shipping |
+| `ai/shared/__init__.py` | ai | 10 | `cd8071600` 2026-01-28 | non-shipping |
+| `ai/shared/gpu_profiler.py` | ai | 140 | `cd8071600` 2026-01-28 | non-shipping |
+| `ai/static_kv_cache.py` | ai | 607 | `cd8071600` 2026-01-28 | non-shipping |
+| `ai/tensorrt_prebuild.py` | ai | 211 | - | non-shipping |
+| `ai/torch_optimizations.py` | ai | 664 | `c9389a190` 2026-02-02 | non-shipping |
+| `ai/triton/__init__.py` | ai | 67 | `75d6aa356` 2026-01-26 | non-shipping |
+| `ai/triton/client.py` | ai | 869 | `75d6aa356` 2026-01-26 | non-shipping |
+| `ai/triton/scripts/quantize_cpu_models.py` | ai | 43 | - | non-shipping |
+| `ai/warmup_utils.py` | ai | 446 | `c9389a190` 2026-02-02 | non-shipping |
+| `ai/yolo26/__init__.py` | ai | 4 | `a5e47aa22` 2026-01-26 | non-shipping |
+| `ai/yolo26/build_engine.py` | ai | 258 | - | non-shipping |
+| `ai/yolo26/contract.py` | ai | 342 | `e947e7aea` 2026-09-19 | non-shipping |
+| `ai/yolo26/metrics.py` | ai | 284 | `033deba8f` 2026-01-27 | non-shipping |
+| `ai/yolo26/model.py` | ai | 1793 | `2ab66ff13` 2026-09-19 | non-shipping |
+| `ai/yolo26/pose_estimation.py` | ai | 965 | `bc3ae4e45` 2026-09-30 | non-shipping |
+| `ai/yolo26/security.py` | ai | 191 | `62753b76e` 2026-01-31 | non-shipping |
+| `backend/ai_contract/providers.py` | backend | 199 | `ce9d8aa45` 2026-10-07 | non-shipping |
+| `backend/api/middleware/accept_header.py` | backend | 304 | `a2ec5a3e2` 2026-01-09 | non-shipping |
+| `backend/api/middleware/content_negotiation.py` | backend | 102 | `cb3f490aa` 2026-01-11 | non-shipping |
+| `backend/api/middleware/deprecation.py` | backend | 301 | `a2ec5a3e2` 2026-01-09 | non-shipping |
+| `backend/api/middleware/deprecation_logger.py` | backend | 181 | `1de2d0644` 2026-01-09 | non-shipping |
+| `backend/api/middleware/error_handler.py` | backend | 356 | `985ed9148` 2026-01-14 | non-shipping |
+| `backend/api/middleware/etag.py` | backend | 324 | `d697b216b` 2026-01-26 | non-shipping |
+| `backend/api/middleware/exception_handler.py` | backend | 100 | `f5c888457` 2026-01-08 | non-shipping |
+| `backend/api/middleware/file_validator.py` | backend | 443 | `f1d2f4cd1` 2026-01-07 | non-shipping |
+| `backend/api/schemas/discriminated_union_errors.py` | backend | 422 | `75d6aa356` 2026-01-26 | non-shipping |
+| `backend/api/schemas/errors.py` | backend | 538 | `841887955` 2026-02-05 | non-shipping |
+| `backend/api/schemas/llm.py` | backend | 506 | `fb452403d` 2026-01-13 | non-shipping |
+| `backend/api/schemas/openapi_customization.py` | backend | 284 | `75d6aa356` 2026-01-26 | non-shipping |
+| `backend/api/schemas/openapi_docs.py` | backend | 541 | `fe5a676fb` 2026-01-15 | non-shipping |
+| `backend/api/schemas/query_params.py` | backend | 455 | `4bd98d9da` 2026-01-23 | non-shipping |
+| `backend/api/schemas/serialization.py` | backend | 222 | `d697b216b` 2026-01-26 | non-shipping |
+| `backend/api/schemas/strict_request_schemas.py` | backend | 401 | `d697b216b` 2026-01-26 | non-shipping |
+| `backend/api/schemas/trusted.py` | backend | 179 | - | non-shipping |
+| `backend/config/__init__.py` | backend | 115 | `2d9c9fbbe` 2026-01-26 | non-shipping |
+| `backend/config/ab_rollout_production.py` | backend | 378 | `91a841507` 2026-01-23 | non-shipping |
+| `backend/config/prompt_ab_config.py` | backend | 182 | `2d9c9fbbe` 2026-01-26 | non-shipping |
+| `backend/config/prompt_ab_rollout.py` | backend | 711 | `91a841507` 2026-01-23 | non-shipping |
+| `backend/config/prompt_experiment.py` | backend | 209 | `771351157` 2026-01-19 | non-shipping |
+| `backend/config/shadow_mode_deployment.py` | backend | 669 | `91a841507` 2026-01-23 | non-shipping |
+| `backend/core/audit_events.py` | backend | 455 | `4bd98d9da` 2026-01-23 | non-shipping |
+| `backend/core/circuit_breaker.py` | backend | 68 | `1243debec` 2026-01-08 | non-shipping |
+| `backend/core/config_nested.py` | backend | 547 | `75d6aa356` 2026-01-26 | non-shipping |
+| `backend/core/eager_loading.py` | backend | 227 | `75d6aa356` 2026-01-26 | non-shipping |
+| `backend/core/error_context.py` | backend | 482 | `6d896e11a` 2026-01-06 | non-shipping |
+| `backend/core/prepared_statements.py` | backend | 385 | `75d6aa356` 2026-01-26 | non-shipping |
+| `backend/core/protocols.py` | backend | 463 | `ad1570747` 2026-01-08 | non-shipping |
+| `backend/core/query_explain.py` | backend | 330 | `c41a5c466` 2026-01-06 | non-shipping |
+| `backend/core/query_optimization.py` | backend | 334 | `4bd98d9da` 2026-01-23 | non-shipping |
+| `backend/core/redis_cluster.py` | backend | 596 | `d697b216b` 2026-01-26 | non-shipping |
+| `backend/core/redis_lua_scripts.py` | backend | 584 | `d697b216b` 2026-01-26 | non-shipping |
+| `backend/core/retry.py` | backend | 535 | `65fc59b1d` 2026-01-21 | non-shipping |
+| `backend/core/template_strings.py` | backend | 407 | `09b8181fc` 2026-01-24 | non-shipping |
+| `backend/core/websocket/connection_health.py` | backend | 472 | `d697b216b` 2026-01-26 | non-shipping |
+| `backend/core/websocket/message_batcher.py` | backend | 456 | `c9389a190` 2026-02-02 | non-shipping |
+| `backend/core/write_only_collections.py` | backend | 263 | `4bd98d9da` 2026-01-23 | non-shipping |
+| `backend/examples/redis_example.py` | backend | 209 | `cf2a8fea6` 2026-01-03 | non-shipping |
+| `backend/jobs/timeout_checker_job.py` | backend | 223 | `fb452403d` 2026-01-13 | non-shipping |
+| `backend/repositories/alert_repository.py` | backend | 394 | `111c58177` 2026-01-18 | non-shipping |
+| `backend/repositories/camera_repository.py` | backend | 243 | `75d6aa356` 2026-01-26 | non-shipping |
+| `backend/repositories/detection_repository.py` | backend | 277 | `2c8f7d85a` 2026-09-28 | non-shipping |
+| `backend/repositories/zone_repository.py` | backend | 225 | `d5eb7b54c` 2026-01-18 | non-shipping |
+| `backend/scripts/benchmark_vram.py` | backend | 320 | `fb452403d` 2026-01-13 | non-shipping |
+| `backend/scripts/init_schema.py` | backend | 136 | `841887955` 2026-02-05 | non-shipping |
+| `backend/services/ai_fallback.py` | backend | 653 | `c9389a190` 2026-02-02 | non-shipping |
+| `backend/services/ai_quality_metrics.py` | backend | 535 | `86e54eb6a` 2026-01-30 | non-shipping |
+| `backend/services/alert_dedup.py` | backend | 363 | `6d896e11a` 2026-01-06 | non-shipping |
+| `backend/services/audit_logger.py` | backend | 481 | `d597fc10f` 2026-01-21 | non-shipping |
+| `backend/services/bulk_detection_service.py` | backend | 469 | `75d6aa356` 2026-01-26 | non-shipping |
+| `backend/services/cache_warming.py` | backend | 393 | `d697b216b` 2026-01-26 | non-shipping |
+| `backend/services/camera_service.py` | backend | 528 | `fb0de6b3d` 2026-01-13 | non-shipping |
+| `backend/services/credential_service.py` | backend | 71 | - | non-shipping |
+| `backend/services/depth_calibration_service.py` | backend | 443 | `94d0ad356` 2026-02-02 | non-shipping |
+| `backend/services/feedback_processor.py` | backend | 432 | `91a841507` 2026-01-23 | non-shipping |
+| `backend/services/file_cleanup_service.py` | backend | 442 | `18d2f8aaf` 2026-01-12 | non-shipping |
+| `backend/services/frame_extractor.py` | backend | 270 | - | non-shipping |
+| `backend/services/frigate_integration.py` | backend | 336 | `ccea65a95` 2026-02-02 | non-shipping |
+| `backend/services/guided_constraints.py` | backend | 172 | `2d9c9fbbe` 2026-01-26 | non-shipping |
+| `backend/services/ha_discovery.py` | backend | 495 | `ccea65a95` 2026-02-02 | non-shipping |
+| `backend/services/household_matcher_service.py` | backend | 61 | `52a23cc7a` 2026-02-01 | non-shipping |
+| `backend/services/job_progress_reporter.py` | backend | 423 | `2c673a7f1` 2026-01-12 | non-shipping |
+| `backend/services/job_timeout_service.py` | backend | 518 | `7d314b3c5` 2026-01-13 | non-shipping |
+| `backend/services/managed_service.py` | backend | 734 | `a743cd643` 2026-02-13 | non-shipping |
+| `backend/services/model_loader_base.py` | backend | 158 | `3710a98c7` 2026-02-08 | non-shipping |
+| `backend/services/monitoring_stack_validator.py` | backend | 554 | `7fbaba40e` 2026-01-13 | non-shipping |
+| `backend/services/mqtt_publisher.py` | backend | 371 | `ccea65a95` 2026-02-02 | non-shipping |
+| `backend/services/orphan_cleanup_service.py` | backend | 575 | `0b3f70c85` 2026-01-14 | non-shipping |
+| `backend/services/partition_manager.py` | backend | 972 | `75d6aa356` 2026-01-26 | non-shipping |
+| `backend/services/pg_notify_listener.py` | backend | 541 | `4bd98d9da` 2026-01-23 | non-shipping |
+| `backend/services/privacy_masking_service.py` | backend | 375 | `0dc46569c` 2026-01-28 | non-shipping |
+| `backend/services/prompt_parser.py` | backend | 197 | `f2f6e946a` 2026-01-05 | non-shipping |
+| `backend/services/prompt_storage.py` | backend | 724 | `d597fc10f` 2026-01-21 | non-shipping |
+| `backend/services/prompt_version_service.py` | backend | 405 | `69703c800` 2026-01-04 | non-shipping |
+| `backend/services/quantization.py` | backend | 595 | `3710a98c7` 2026-02-08 | non-shipping |
+| `backend/services/read_through_cache.py` | backend | 446 | `d697b216b` 2026-01-26 | non-shipping |
+| `backend/services/redis_json.py` | backend | 654 | - | non-shipping |
+| `backend/services/redis_memory_service.py` | backend | 379 | - | non-shipping |
+| `backend/services/reid_matcher.py` | backend | 484 | `3710a98c7` 2026-02-08 | non-shipping |
+| `backend/services/risk_rubrics.py` | backend | 260 | `2d9c9fbbe` 2026-01-26 | non-shipping |
+| `backend/services/scenario_classifier.py` | backend | 1031 | `4aae73d6e` 2026-01-31 | non-shipping |
+| `backend/services/service_provider_matcher.py` | backend | 789 | - | non-shipping |
+| `backend/services/service_registry.py` | backend | 70 | `0b599b893` 2026-01-08 | non-shipping |
+| `backend/services/stream_manager.py` | backend | 497 | `55e266a8d` 2026-02-02 | non-shipping |
+| `backend/services/threat_categories.py` | backend | 116 | `2d9c9fbbe` 2026-01-26 | non-shipping |
+| `backend/services/trajectory_analyzer.py` | backend | 543 | - | non-shipping |
+| `backend/services/transcode_cache.py` | backend | 462 | - | non-shipping |
+| `backend/services/transcoding.py` | backend | 549 | - | non-shipping |
+| `backend/services/typed_prompt_config.py` | backend | 406 | `7bb26cabd` 2026-01-08 | non-shipping |
+| `backend/services/unique_counter_service.py` | backend | 442 | `a743cd643` 2026-02-13 | non-shipping |
+| `backend/services/websocket_service.py` | backend | 576 | - | non-shipping |
+| `backend/services/zone_baseline_service.py` | backend | 74 | `d54f28ed6` 2026-01-21 | non-shipping |
+| `backend/services/zone_crossing_service.py` | backend | 733 | `64aa963e7` 2026-01-28 | non-shipping |
+| `synthbench/contract/truth.py` | synthbench | 74 | `27d87993e` 2026-09-28 | non-shipping |
+| `synthbench/generate/comfy/smoke.py` | synthbench | 71 | `fa123f2d1` 2026-09-28 | non-shipping |
+| `synthbench/generate/comfy/snapshot.py` | synthbench | 39 | `e316ad797` 2026-09-28 | non-shipping |
+| `synthbench/generate/comfy/validate.py` | synthbench | 143 | `e316ad797` 2026-09-28 | non-shipping |
+| `synthbench/generate/window.py` | synthbench | 407 | `fa123f2d1` 2026-09-28 | non-shipping |
+| `synthbench/host/agent.py` | synthbench | 326 | `45d850160` 2026-09-30 | non-shipping |
+| `synthbench/host/guard.py` | synthbench | 230 | `c0ad17f8d` 2026-09-29 | non-shipping |
+| `synthbench/host/renderer.py` | synthbench | 168 | `b8c3068ee` 2026-09-28 | non-shipping |
+| `synthbench/host/units.py` | synthbench | 153 | `12da4ba10` 2026-09-29 | non-shipping |
+| `synthbench/spikes/__init__.py` | synthbench | 1 | `e316ad797` 2026-09-28 | non-shipping |
+| `synthbench/spikes/p1_bakeoff/__init__.py` | synthbench | 1 | `e316ad797` 2026-09-28 | non-shipping |
+| `synthbench/spikes/p1_bakeoff/cases.py` | synthbench | 206 | `e316ad797` 2026-09-28 | non-shipping |
+| `synthbench/spikes/p1_bakeoff/judge.py` | synthbench | 660 | `e316ad797` 2026-09-28 | non-shipping |
+| `synthbench/spikes/p1_bakeoff/measure.py` | synthbench | 315 | `e316ad797` 2026-09-28 | non-shipping |
+| `synthbench/spikes/p1_bakeoff/plan.py` | synthbench | 114 | `e316ad797` 2026-09-28 | non-shipping |
+| `synthbench/spikes/p1_bakeoff/report.py` | synthbench | 944 | `e316ad797` 2026-09-28 | non-shipping |
+| `synthbench/spikes/p1_bakeoff/run.py` | synthbench | 357 | `e316ad797` 2026-09-28 | non-shipping |
+| `synthbench/spikes/p1_bakeoff/sheet.py` | synthbench | 278 | `e316ad797` 2026-09-28 | non-shipping |
+
+**Claimed by a row, excluded from the list (6):**
+
+<!-- prettier-ignore -->
+| module | lines | claimed by |
+| --- | --- | --- |
+| `backend/services/calibration_service.py` | 558 | F-131 |
+| `backend/services/camera_status_service.py` | 325 | F-029 |
+| `backend/services/mqtt_client.py` | 828 | F-291 |
+| `backend/services/mqtt_command_handler.py` | 531 | F-291 |
+| `backend/services/scene_change_detector.py` | 325 | F-208/F-287 |
+| `backend/services/unified_embedding_service.py` | 575 | F-272 |
+
+<!-- r2-python-dead-list:end -->
 
 ## 5. Client requests no feature reaches
 
