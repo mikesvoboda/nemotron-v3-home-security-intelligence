@@ -30,6 +30,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  NODE_VERSION: '24'
+
 jobs:
   fake:
     name: Feature check (fake AI)
@@ -79,6 +82,38 @@ jobs:
           tags: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:${{ env.TAG }}
           cache-from: type=gha,scope=frontend
           load: true
+
+      # F2.1: the harness's golden() stage runs `npx playwright test
+      # --project=golden` from frontend/ against the live stack, so the job
+      # needs the same Node + Chromium provisioning the other Playwright
+      # workflows use (visual-tests.yml). Deliberately after the image builds:
+      # node_modules and the browser live on the runner disk, and O2.2's MEASURE
+      # (a 5m33s job) freed disk before building — this way the browser never
+      # competes with the backend build for the space that step reclaims.
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: cd frontend && npx playwright install chromium --with-deps
+
+      - name: Install Playwright deps (cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: cd frontend && npx playwright install-deps chromium
 
       - name: Feature check (--fake)
         env:
