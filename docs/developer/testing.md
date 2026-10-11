@@ -490,9 +490,38 @@ unchanged. An existing install is never touched: `npm ci` deletes
 install is reported in `summary.json` as its own `npm_ci` result, and it is not
 given the run's admin password. A Playwright browser binary is a further
 precondition the install does not fetch — `@playwright/test` has no install
-script, so `npm ci` brings the runner, not Chromium — so a tree that has never
-run `npx playwright install chromium` still fails, now with Playwright's own
-browser-missing message rather than a module error.
+script, so `npm ci` brings the runner, not Chromium.
+
+**Chromium browsers (ruling 116).** That missing binary is the next thing an
+operator's tree hits, so the golden step now installs it. It asks the
+lock-resolved runner — `frontend/node_modules/.bin/playwright`, never a bare
+`npx` that would resolve the _latest_ package and plan a build the locked
+runner cannot launch — what `install chromium` would do, and treats the
+`Install location:` directories in that plan as the answer to "is it there?":
+`--dry-run` prints the same plan whether the builds exist or not, so the
+filesystem decides, and reading the paths instead of hardcoding
+`~/.cache/ms-playwright/...` keeps the check correct across a Playwright bump
+(a bump changes the build number) and honours a custom
+`PLAYWRIGHT_BROWSERS_PATH`. When every path exists nothing is installed or
+re-downloaded. When one is absent the step runs
+`npx playwright install chromium` once, up to 1800 s, and reports the outcome
+in `summary.json` as its own `playwright_browsers` result — `present`,
+`installed chromium v1243 …`, `exit <n>`, or `probe exit <n>` — under the
+engine's environment plus that one browser variable, so it is never given the
+run's admin password. Judging absence at the path the runner will launch from
+matters: the test command runs with the caller's whole environment, so a moved
+cache that the probe judged at the default root would either be re-downloaded
+needlessly or, if the default root happened to look complete, be declared
+present and left uninstalled. A failed install is a named problem that lists
+the hosts the plan named (`cdn.playwright.dev` and its
+`playwright.download.prss.microsoft.com` fallback) and keeps the tail of the
+installer's own output — not a workaround: if the sandbox cannot reach them,
+the owner allows the host. Note the plan is not the whole network story: the
+Chrome-for-testing URLs answer `307` and the bytes come from
+`storage.googleapis.com`, so a block can land one hop past any host the plan
+prints, and the installer's own message is what names the host that refused.
+The test command runs either way, so Playwright's browser-missing message is
+still in the output when the install did not happen.
 
 **Isolation.** A run touches nothing else on the machine, so it is safe beside
 a live stack.

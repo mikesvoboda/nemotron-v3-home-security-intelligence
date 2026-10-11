@@ -1046,6 +1046,22 @@ def compose_environment(caller: Mapping[str, str]) -> dict[str, str]:
     return {key: caller[key] for key in ENGINE_ENVIRONMENT if key in caller}
 
 
+# The one caller-set variable the Playwright browser steps need beyond
+# ENGINE_ENVIRONMENT, and the only reason they get an env at all. The golden
+# TEST leg runs with the caller's whole environment, so it launches from a
+# moved cache; a probe judged at the default root would call that cache absent
+# (or, worse, call a stale default root present) and disagree with the runner.
+BROWSER_ENVIRONMENT = ("PLAYWRIGHT_BROWSERS_PATH",)
+
+
+def browser_environment(caller: Mapping[str, str]) -> dict[str, str]:
+    """``compose_environment`` plus the browser-cache location: the npm/npx
+    install steps' env. Still never the run env — no admin password."""
+    env = compose_environment(caller)
+    env.update({key: caller[key] for key in BROWSER_ENVIRONMENT if key in caller})
+    return env
+
+
 # ---------------------------------------------------------------------------
 # A run
 # ---------------------------------------------------------------------------
@@ -1366,6 +1382,81 @@ class Run:
         self.summary["results"]["smoke"] = problems or "ok"
         return problems
 
+    # The install plan lines ruling 116's absence check parses: a header per
+    # build ("(playwright <browser> <vNNNN>)"), then its Install location and
+    # its Download url/fallback hosts. (playwright 1.63's shape, measured).
+    _PLAN_BUILD = re.compile(r"\(playwright (\S+) (v\d+)\)")
+    _PLAN_LOCATION = re.compile(r"^\s*Install location:\s+(\S+)")
+    _PLAN_URL = re.compile(r"^\s*Download (?:url|fallback \d+):\s+https://([^/:]+)/")
+
+    def _ensure_chromium(self, results: dict[str, Any], problems: list[str]) -> None:
+        """Install Playwright Chromium when the lock-resolved runner's own dry
+        run names builds that are absent on disk (ruling 116). Accounted, never
+        raised — see the call site in golden() for the three measured facts
+        behind every choice here."""
+        env = browser_environment(os.environ)
+        plan = self._run(
+            ["npx", "playwright", "install", "--dry-run", "chromium"],
+            check=False,
+            cwd=FRONTEND,
+            env=env,
+        )
+        wanted: list[tuple[str, str, Path]] = []
+        hosts: set[str] = set()
+        pending: tuple[str, str] | None = None
+        for line in plan.stdout.splitlines():
+            build = self._PLAN_BUILD.search(line)
+            if build:
+                pending = (build.group(1), build.group(2))
+                continue
+            location = self._PLAN_LOCATION.match(line)
+            if location is not None and pending is not None:
+                wanted.append((pending[0], pending[1], Path(location.group(1))))
+                continue
+            url = self._PLAN_URL.match(line)
+            if url is not None:
+                hosts.add(url.group(1))
+        if plan.returncode != 0 or not wanted:
+            # An unreadable (or unparseable) plan means we cannot know which
+            # builds the locked runner wants; a speculative install could drag
+            # the wrong build down minutes of download. The test npx below
+            # still runs and names the launch failure in its own output.
+            results["playwright_browsers"] = (
+                f"probe exit {plan.returncode}" if plan.returncode != 0 else "probe empty"
+            )
+            return
+        missing = sorted(
+            f"{name} {version}" for name, version, where in wanted if not where.is_dir()
+        )
+        if not missing:
+            results["playwright_browsers"] = "present"
+            return
+        _log(f"golden: chromium builds absent ({', '.join(missing)}); installing")
+        install = self._run(
+            ["npx", "playwright", "install", "chromium"],
+            check=False,
+            timeout=1800,
+            cwd=FRONTEND,
+            env=env,
+        )
+        if install.returncode == 0:
+            results["playwright_browsers"] = f"installed {' '.join(missing)}"
+            return
+        results["playwright_browsers"] = f"exit {install.returncode}"
+        # Ruling 116's firewall: the failure names the download hosts the plan
+        # offers, so the owner has something to allow; the harness does not work
+        # around a block. "named by" is load-bearing, not hedging -- the Chrome
+        # for Testing URLs 307 to storage.googleapis.com (measured 2026-10-11:
+        # cdn.playwright.dev/builds/cft/... -> storage.googleapis.com/
+        # chrome-for-testing-public/...), so a block can happen one hop past any
+        # host the plan prints, and the operator's own error tail (kept below)
+        # is what names the host that actually refused.
+        problems.append(
+            f"golden: npx playwright install chromium exited {install.returncode} "
+            f"(hosts named by the plan: {', '.join(sorted(hosts))}): "
+            f"{(install.stderr or install.stdout).strip()[-400:]}"
+        )
+
     def golden(self) -> list[str]:
         env = {
             **os.environ,
@@ -1438,6 +1529,50 @@ class Run:
                         f"golden: npm ci in frontend/ exited {install.returncode}: "
                         f"{(install.stderr or install.stdout).strip()[-400:]}"
                     )
+            # Ruling 116: npm ci brings the RUNNER, not Chromium. The operator's
+            # --real re-run then failed every spec in about 3 ms on
+            #   browserType.launch: Executable doesn't exist at
+            #   ~/.cache/ms-playwright/chromium_headless_shell-1243/…
+            # (testing.md, merged with #6999, predicts exactly this). So an
+            # absent browser set is installed once here. Three measured facts
+            # shape it (2026-10-11, this sandbox, the repo's own lock):
+            #   * the gate is node_modules/.bin/playwright, not node_modules --
+            #     `npx playwright` with the locked package missing resolves to
+            #     the LATEST package, whose plan names a DIFFERENT build (v1248
+            #     vs the lock's v1243), so a half-installed tree would install
+            #     browsers the locked runner cannot launch; a failed npm ci
+            #     therefore skips this block entirely (the named npm_ci step
+            #     above already says why);
+            #   * absence is read from the dry-run plan's own "Install
+            #     location:" lines rather than a hardcoded ~/.cache/... path:
+            #     that keeps the check version-aware (a Playwright bump changes
+            #     the build number) and follows a custom
+            #     PLAYWRIGHT_BROWSERS_PATH, because the plan prints the very
+            #     locations the install would use -- which is what the env bullet
+            #     below has to preserve. The dry-run is a PLAN printer --
+            #     identical output whether the builds exist or not -- so the
+            #     filesystem, not the probe's exit code, is the presence oracle;
+            #   * env: browser_environment(os.environ), not the default
+            #     compose_environment and not golden()'s run env. Ruling 102's
+            #     discipline still holds -- FEATURE_CHECK_ADMIN_PASSWORD never
+            #     reaches an npm/npx child -- but the bare engine view is not
+            #     enough here, because the TEST npx below runs with the caller's
+            #     WHOLE environment (the specs log in), so it honours a caller-set
+            #     PLAYWRIGHT_BROWSERS_PATH. Measured on this repo's own 1.63.0
+            #     CLI: with that variable set, every "Install location:" line in
+            #     the plan moves under it. Judged at the default root, a moved
+            #     cache would read absent and download builds the runner never
+            #     uses -- and a stale-but-complete default root would read
+            #     present and install nothing, which is ruling 116's own bug all
+            #     over again. So the two browser steps carry the engine's view
+            #     PLUS that one variable, and nothing else.
+            # A failure is ACCOUNTED, not worked around (the ruling's firewall:
+            # "If the operator sandbox cannot reach Playwright's download host,
+            # the PR names the host and the owner allows it. The harness does
+            # not work around a block."), and the test npx still runs so its own
+            # output carries Playwright's browser-missing message.
+            if (FRONTEND_MODULES / ".bin" / "playwright").exists():
+                self._ensure_chromium(results, problems)
             result = self._run(
                 [
                     "npx",

@@ -801,6 +801,12 @@ The logic is `feature_check.py`, standard library only:
   `frontend/node_modules` is absent (`npm ci` in `frontend/`, ruling 102), so
   an operator's tree runs the documented command unchanged; an existing
   install is never touched;
+- the same step installs Playwright's Chromium when the locked runner's own
+  `install --dry-run` plan names build directories that are absent on disk
+  (ruling 116) — `npm ci` brings the runner, not the browser — accounted as
+  `playwright_browsers`, once, never over an existing install, and a failed
+  download is a named problem listing the hosts to allow rather than a
+  workaround;
 - `--real` (owner ruling 66) serves the real VLM through `agent-gpu` in place
   of the fake one (`AgentGpu`): the weights' pin first, the runner's port as
   the only host address the run may reach, and the VLM removed after the run.
