@@ -78,6 +78,56 @@ def isolate_redis_module_global() -> Generator[None]:
         redis_module._redis_init_lock = None
 
 
+def _clear_database_module_state() -> None:
+    """Null every ``backend.core.database`` singleton the shipped code owns.
+
+    Same sweep as :func:`isolate_redis_module_global`, for the engine singletons:
+    ``init_db()`` caches ``_engine``/``_async_session_factory``/``_bound_loop_id``
+    (and the read-replica pair) as module globals, which under xdist persist across
+    test MODULES on a worker. ``TestPgbouncerDatabaseInit``
+    (core/test_pgbouncer_config.py:128-195) calls the real ``init_db()`` with only
+    ``create_async_engine`` patched to a bare ``MagicMock``; ``with patch(...)``
+    restores the function but not the globals, so the mock engine survives. The next
+    test that calls ``get_session()`` hits ``_check_loop_mismatch()`` (the leaked
+    ``_bound_loop_id`` no longer matches its fresh loop), which awaits ``init_db()``
+    → ``old_engine.dispose()`` on that mock → main run 38162912077's
+    ``TypeError: 'MagicMock' object can't be awaited``. A LEAK/INHERIT probe of the
+    full unit tier recorded the triple surviving into 1,279 later tests on one worker.
+
+    Unconditional at BOTH ends, like the redis sweep: entry, so residue can never
+    reach a unit test, and exit, so no unit test can poison the next module. Safe to
+    clear rather than snapshot-restore because the probe measured zero
+    ``None -> AsyncEngine`` leaks — no unit test boots a real engine (every writer
+    mocks one in) — and no unit test requests backend/tests/conftest.py's
+    ``isolated_db``, which legitimately holds REAL engines in the tiers this file
+    does not govern. Nulling without disposing cannot leak a pool for a mock, and the
+    shipped ``get_session()`` answers ``RuntimeError("Database not initialized")``
+    rather than serving a stale engine, which is the honest failure for a unit test.
+    """
+    import backend.core.database as db_module
+
+    db_module._engine = None
+    db_module._async_session_factory = None
+    db_module._read_engine = None
+    db_module._read_session_factory = None
+    db_module._bound_loop_id = None
+
+
+@pytest.fixture(autouse=True)
+def isolate_database_module_state() -> Generator[None]:
+    """Sweep backend.core.database module globals before and after every unit test.
+
+    See :func:`_clear_database_module_state` for the mechanism and provenance. Kept
+    a thin fixture over a named helper so the pinned behavior is directly testable
+    (core/test_database_state_isolation.py) without driving the fixture layer.
+    """
+    _clear_database_module_state()
+    try:
+        yield
+    finally:
+        _clear_database_module_state()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def enable_api_key_auth_for_unit_tests() -> Generator[None]:
     """Enable API key authentication for all unit tests.
