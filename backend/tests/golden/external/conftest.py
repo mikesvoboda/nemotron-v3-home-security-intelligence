@@ -85,6 +85,7 @@ def cameras_by_scenario() -> dict[str, str]:
     path = os.environ.get("FEATURE_CHECK_CAMERAS", "")
     if not path or not os.path.exists(path):
         return {}
+    # nosemgrep: path-traversal-open - the path is the harness's FEATURE_CHECK_CAMERAS env var, not user input
     with open(path, encoding="utf-8") as handle:
         loaded: Any = json.load(handle)
     if not isinstance(loaded, dict):
