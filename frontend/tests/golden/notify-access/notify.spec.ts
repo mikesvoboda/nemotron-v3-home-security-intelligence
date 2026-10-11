@@ -3,9 +3,16 @@
  * F-234's permission arms, which live in permission.spec.ts; claim #6996).
  *
  * DROPS NOTHING (harness.ts header: this batch is settings/permission/storage,
- * not events) and runs LAST in the golden project by path sort — every
- * mutation this file makes is restored in the same test it belongs to, so a
- * gate re-run against the same stack starts from the same state.
+ * not events), and every mutation this file makes is restored in the same test
+ * it belongs to — by the final-status leg (the flip-back PUT 200, the
+ * camera-row PUT 200 carrying its prior threshold back, the quiet-hours DELETE
+ * 204), with a swallowed belt-and-braces DELETE behind it for the case where
+ * an assert threw first. That restore discipline is what makes a gate re-run
+ * against the same stack start from the same state, and it does not depend on
+ * position: this file sorts LAST in the golden project at the current head,
+ * but the pending #6986/#6978 batches add operations/ and shell/ after
+ * 'notify-access' (harness.ts header has the counts), so "last" is a fact
+ * about today's tree and is deliberately not load-bearing here.
  *
  * What it proves per row (every backend fact read BEFORE the UI that renders
  * it, so a blank screen can never pass as "renders"):

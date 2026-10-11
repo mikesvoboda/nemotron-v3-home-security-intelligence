@@ -17,13 +17,50 @@
  * Wiring facts this layout depends on (all read at this head):
  * - feature_check.py golden() runs `playwright --project=golden`; the golden
  *   project is testDir ./tests/golden with workers: 1, fullyParallel: false.
- * - Playwright's default file order sorts by path, so with DO-1 shipped the
- *   run order is analytics-alerts/*, dashboard-drop.spec.ts,
- *   guard-contract.spec.ts, then notify-access/* ('a' < 'd' < 'g' < 'n' at the
- *   first path character). DO-2 specs therefore run LAST in the golden project:
- *   they cannot pollute an earlier spec's store, but they MUST clean up what
- *   they create (quiet-hours rows are deleted inside the spec that creates
- *   them) so a gate re-run on the same stack sees the same starting state.
+ * - Playwright's default file order sorts by path, so at THIS head (this
+ *   branch, which is strictly ahead of main) the golden project is 8 spec
+ *   files and the run order is
+ *   analytics-alerts/*, dashboard-drop.spec.ts, guard-contract.spec.ts, then
+ *   notify-access/* ('a' < 'd' < 'g' < 'n' at the first path character).
+ *   DO-2 sorts last TODAY and will not stay last. Read from those two PR
+ *   heads: #6986 adds 27 specs in ai-pages/ (1), data-ui/ (3),
+ *   gpu-storage-admin/ (7) — all three sort BEFORE 'n' — and operations/ (16),
+ *   which sorts after; #6978 adds 16 specs in shell/, also after. The combined
+ *   set is 51 files with notify-access at positions 16-19, so 32 specs run
+ *   AFTER this lane once both batches merge.
+ *   Which means "last" was never the property worth relying on, and it is not
+ *   the one this lane uses. Two invariants do the work instead, and both are
+ *   position-independent:
+ *     (1) no client state crosses a test: every test gets a fresh context.
+ *         Nothing under tests/golden calls storageState({path}) or newContext
+ *         (guard.ts's own `context` fixture override wraps the built-in
+ *         per-test instance rather than making one), and the single seed the
+ *         config inherits (playwright.config.ts:162 ->
+ *         tests/e2e/.auth/storage-state.json) carries ONLY the two
+ *         nemotron-tour-* keys and an empty cookie jar — no 'settings' key —
+ *         so a localStorage write dies with its context;
+ *     (2) every test that sends a non-GET request restores what it created
+ *         inside its OWN finally block. The two files that write do it
+ *         differently and both readings are deliberate: notify.spec.ts asserts
+ *         the restore's exact status (the flip-back PUT 200, the camera-row PUT
+ *         200 with its prior threshold, the quiet-hours DELETE 204) and ends
+ *         with a belt-and-braces DELETE whose result is swallowed, since that
+ *         leg only runs when an earlier assert already threw; access.spec.ts
+ *         deletes server rows whose 404 is itself the proof the row is gone, so
+ *         all 7 of its legs accept 204-or-404.
+ *         Why ambient and permission carry no finally: they send ZERO non-GET
+ *         legs (client-only rows by their own inventory contract), so there is
+ *         no SERVER row to delete. That is not the same as "no cleanup", and
+ *         the two files differ here — ambient really does write the v1
+ *         'security-dashboard-settings' key, and it restores that in-line (the
+ *         switch-back-on leg at the end of its first test) rather than in a
+ *         finally, because a finally buys nothing for state that invariant
+ *         (1) already makes unobservable to the next test; permission grants
+ *         browser permission on its own context and moves only in-memory
+ *         React state, so it writes nothing that outlives the test at all.
+ *   So (2) is what keeps a gate re-run on the SAME stack starting from the
+ *   same server state, and (1) is what keeps one spec's client writes from
+ *   reaching another — and both hold whether DO-2 runs last or 16th.
  * - The page/context guard comes from ../guard — never the tests/e2e fixtures,
  *   which auto-mock. addCookies (login) and grantPermissions (notifications)
  *   are real browser state, not interception, so the guard does not — and

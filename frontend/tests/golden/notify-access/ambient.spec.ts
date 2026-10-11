@@ -95,7 +95,13 @@ test.describe('DO-2 ambient status golden path (F-238)', () => {
     // storage read above.
     await expect(page.getByText('Ambient Status Awareness')).toBeVisible();
 
-    // --- Enable All restores the shipped default; DO-2 runs LAST, leave it clean ---
+    // --- Enable All puts both flags back to the shipped default. It is not
+    // the test's restore — the single-switch leg below flips ambient off
+    // again and that leg restores it itself (see the switch-back-on at the
+    // end of this test). What bounds the blast radius of any of this is not
+    // run order: this file sends zero non-GET legs, and every write it makes
+    // is a per-context localStorage write that dies with its context
+    // (harness.ts header, invariant 1). ---
     await page.getByRole('button', { name: 'Enable All', exact: true }).click();
     const enabled = await readV1Settings(page);
     expect(enabled.ambientStatus?.ambient?.enabled, 'Enable All round-trips ambient on').toBe(true);
