@@ -34,8 +34,19 @@ jobs:
   zap-api-scan:
     name: ZAP API Scan
     runs-on: ubuntu-latest
-    # Non-blocking: failures are informational
+    # Non-blocking: failures are informational.
+    # Ruling 96 item 8 keeps the mask but publishes the scan step's truthful
+    # outcome below: needs.zap-api-scan.result is rewritten to "success" by
+    # this COE whenever a step genuinely fails (the 40/40-cancelled census
+    # #6968 fixed was the OTHER red shape; step failures masked to success
+    # were the hole it left). Step fields survive a job-level COE untouched
+    # (measured, probe run 38116237952).
     continue-on-error: true
+    outputs:
+      # 'cancelled'/'skipped'/'' all satisfy the summary's != 'success' test,
+      # so the #6968 cancel-capture semantics survive the rewire: on a cancel
+      # this output is empty-or-cancelled, never 'success'.
+      scan-outcome: ${{ steps.zap_scan.outcome }}
     timeout-minutes: 20
 
     services:
@@ -241,8 +252,12 @@ jobs:
           # own 20-min timeout; census: 40/40 recent runs), and a cancelled
           # need arrives as "cancelled" — a == "failure" guard printed
           # "completed successfully!" on every cancelled scan (measured).
-          if [ "${{ needs.zap-api-scan.result }}" != "success" ]; then
-            echo "::warning::ZAP security scan did not complete successfully (result: ${{ needs.zap-api-scan.result }}). Review the artifacts for details."
+          # Ruling 96 item 8: reads the scan step's truthful outcome instead
+          # of needs.zap-api-scan.result, which the job's continue-on-error
+          # rewrites to "success" on genuine scan failures — the same != shape
+          # now catches BOTH reds (cancelled AND masked step failure).
+          if [ "${{ needs.zap-api-scan.outputs.scan-outcome }}" != "success" ]; then
+            echo "::warning::ZAP security scan did not complete successfully (scan step outcome: ${{ needs.zap-api-scan.outputs.scan-outcome }}). Review the artifacts for details."
             echo ""
             echo "To investigate ZAP findings:"
             echo "  1. Download the zap-security-report artifact"
@@ -253,7 +268,13 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        if: vars.LINEAR_ENABLED == 'true' && (needs.zap-api-scan.result != 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
+        # Ruling 96 item 8: truthful scan outcome replaces the COE-masked
+        # needs result; event clause is ruling 100's re-key. Note (not fixed
+        # here, out of item 8's mask-fix scope): HIGH/CRITICAL alerts do not
+        # fail the scan step — check_alerts reports them as outputs — so an
+        # alerting-but-completed scan still does not open an issue. That is
+        # pre-existing behavior, logged for the owner.
+        if: vars.LINEAR_ENABLED == 'true' && (needs.zap-api-scan.outputs.scan-outcome != 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |

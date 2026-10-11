@@ -439,8 +439,13 @@ npm run analyze
 
 ### Budgets (`.size-limit.json`, reported nightly by `bundle-size.yml`)
 
-Report-only: the CI job runs nightly/on demand, its size-check step
-soft-fails by design (`|| true`), and nothing gates on it (owner ruling 100).
+Report-only: the CI job runs nightly/on demand and nothing gates on it
+(owner ruling 100). The size-check step used to launder its verdict with
+`|| true`; since ruling 96 item 8 it captures and rethrows the real exit
+code, and the summary/Linear guards read the truthful result output while
+the job's continue-on-error keeps the run green. (Measured today: three of
+the five checks below are over limit on main — visible now instead of
+masked.)
 
 | Check              | Limit  | Gzipped |
 | ------------------ | ------ | ------- |
