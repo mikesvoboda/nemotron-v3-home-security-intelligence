@@ -229,12 +229,12 @@ those floors, so review such hunks by hand.
 
 | Workflow              | Trigger       | Purpose                                 |
 | --------------------- | ------------- | --------------------------------------- |
-| api-compatibility.yml | PR            | Check API backward compatibility        |
-| benchmarks.yml        | Push/PR/Daily | Performance benchmarks                  |
-| bundle-size.yml       | PR            | Track frontend bundle size changes      |
+| api-compatibility.yml | Nightly/Manual | Check API backward compatibility        |
+| benchmarks.yml        | Nightly/Manual | Performance benchmarks (report-only)    |
+| bundle-size.yml       | Nightly/Manual | Track frontend bundle size changes      |
 | ci-analytics.yml      | Workflow runs | Collect and report CI metrics           |
 | docs.yml              | Push/PR       | Generate and deploy documentation       |
-| load-tests.yml        | Weekly/Manual | Load and stress testing                 |
+| load-tests.yml        | Nightly/Manual | Load and stress testing (report-only)   |
 | mutation-testing.yml  | Weekly/Manual | Mutation testing to verify test quality |
 | release.yml           | Tag push      | Create releases with artifacts          |
 | semantic-release.yml  | Push to main  | Semantic versioning and changelog       |
@@ -244,8 +244,8 @@ those floors, so review such hunks by hand.
 
 | Workflow                | Trigger        | Purpose                                  |
 | ----------------------- | -------------- | ---------------------------------------- |
-| accessibility-tests.yml | PR             | Run accessibility (a11y) tests           |
-| lighthouse.yml          | PR/Weekly      | Lighthouse performance and SEO audits    |
+| accessibility-tests.yml | Nightly/Manual | Run accessibility (a11y) tests           |
+| lighthouse.yml          | Nightly/Manual | Lighthouse performance and SEO audits    |
 | visual-tests.yml        | Nightly/Manual | Visual regression testing with snapshots |
 
 ## Usage

@@ -1,13 +1,12 @@
 name: Lighthouse Performance Tests
 
-# Runs on merge to main only (not PRs) to save runner capacity.
+# Nightly + on demand only (not on push, not on PRs) to save runner capacity
+# — owner ruling 100, following ruling 71's #6968 pattern.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/lighthouse.yml'
+  schedule:
+    - cron: '33 6 * * *' # Daily 06:33 UTC — off the :00 herd; ~30 min behind the 06:00 cluster's short jobs, 8 min ahead of accessibility-tests so the frontend suites stagger their build bursts (owner ruling 100)
+  workflow_dispatch:
 
 concurrency:
   group: lighthouse-${{ github.workflow }}-${{ github.ref }}
@@ -117,7 +116,12 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        if: vars.LINEAR_ENABLED == 'true' && (needs.lighthouse.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+        # Event clause re-keyed push -> schedule||workflow_dispatch (ruling 100).
+        # Interim known state: the lighthouse job's continue-on-error: true
+        # masks needs.lighthouse.result to "success", so this guard cannot fire
+        # on a real audit failure until the guard reads the step outcome —
+        # owner ruling 96 item 8, sequenced immediately after this package.
+        if: vars.LINEAR_ENABLED == 'true' && (needs.lighthouse.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |

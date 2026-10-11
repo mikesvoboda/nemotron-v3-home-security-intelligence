@@ -1,15 +1,14 @@
 name: API Compatibility
 
-# Main only: Detects breaking API changes post-merge.
-# Removed from PRs to reduce CI time - breaking changes are rare and caught in review.
+# Nightly + on demand only (not on push, not on PRs): detects breaking API
+# changes post-merge — owner ruling 100, following ruling 71's #6968 pattern.
+# Breaking changes are rare and caught in review; the nightly run is the
+# safety net, workflow_dispatch the on-demand check.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/api/**'
-      - 'backend/models/**'
-      - 'backend/main.py'
+  schedule:
+    - cron: '13 5 * * *' # Daily 05:13 UTC — off the :00 herd; ~6-min run ends clear of visual-tests at 05:23, and the api pair is split across the zap-security 05:31 slot (contract follows at 05:43) (owner ruling 100)
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -329,14 +328,18 @@ jobs:
           echo "Proceeding with merge."
 
   # ============================================================================
-  # Issue Creation Job (only on main branch failures)
+  # Issue Creation Job (only on main nightly/manual failures)
   # ============================================================================
 
   create-issue-on-failure:
     name: Create Linear Issue
     runs-on: ubuntu-latest
     needs: [api-compatibility]
-    if: needs.api-compatibility.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Event clause re-keyed push -> schedule||workflow_dispatch (ruling 100).
+    # Unlike the COE-masked workflows, the api-compatibility job has no
+    # continue-on-error, so needs.api-compatibility.result is truthful and
+    # this guard fires on a real breaking-change failure.
+    if: needs.api-compatibility.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     steps:
       - name: Create Linear issue on failure
         if: vars.LINEAR_ENABLED == 'true'

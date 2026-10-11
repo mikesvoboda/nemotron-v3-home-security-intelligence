@@ -1,13 +1,12 @@
 name: Accessibility Tests
 
-# Runs on merge to main only (not PRs) to save runner capacity.
+# Nightly + on demand only (not on push, not on PRs) to save runner capacity
+# — owner ruling 100, following ruling 71's #6968 pattern.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/accessibility-tests.yml'
+  schedule:
+    - cron: '41 6 * * *' # Daily 06:41 UTC — off the :00 herd; 8 min behind lighthouse (06:33) so the two frontend suites stagger their install bursts (owner ruling 100)
+  workflow_dispatch:
 
 concurrency:
   group: a11y-${{ github.workflow }}-${{ github.ref }}
@@ -120,7 +119,14 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        if: vars.LINEAR_ENABLED == 'true' && (needs.accessibility-tests.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+        # Event clause re-keyed push -> schedule||workflow_dispatch (ruling 100).
+        # Interim known state, double-masked until ruling 96 item 8: the job's
+        # continue-on-error: true masks needs.accessibility-tests.result, AND
+        # the a11y run step carries its own continue-on-error: true — so
+        # steps.a11y-tests.outcome is also "success" on violations. The truthful
+        # channel there is the Playwright report/artifacts, not a step outcome;
+        # item 8 owns that rewire.
+        if: vars.LINEAR_ENABLED == 'true' && (needs.accessibility-tests.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |

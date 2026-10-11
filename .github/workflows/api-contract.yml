@@ -1,17 +1,13 @@
 name: API Contract Tests
 
-# Main only: Enforces API contract stability post-merge.
-# Removed from PRs to reduce CI time - contract tests are expensive.
+# Nightly + on demand only (not on push, not on PRs): enforces API contract
+# stability post-merge — owner ruling 100, following ruling 71's #6968
+# pattern. Contract tests are expensive; the nightly run is the safety net.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/api/**'
-      - 'backend/models/**'
-      - 'backend/main.py'
-      - 'docs/openapi.json'
-      - 'scripts/generate-openapi.py'
+  schedule:
+    - cron: '43 5 * * *' # Daily 05:43 UTC — off the :00 herd; trails zap-security's 05:31 opener so the two backend-heavy scans stagger setup bursts, and api-compatibility took 05:13 (owner ruling 100)
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
