@@ -30,6 +30,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       docs-only: ${{ steps.filter.outputs.docs-only }}
       workflow: ${{ steps.filter.outputs.workflow }}
+      feature: ${{ steps.filter.outputs.feature }}
       should-run-all: ${{ github.ref == 'refs/heads/main' || steps.filter.outputs.workflow == 'true' }}
     if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
@@ -67,6 +68,23 @@ jobs:
               - '!backend/**'
             workflow:
               - '.github/workflows/ci.yml'
+            # Ruling 105: the feature-check job's filter — the retired
+            # standalone workflow's `paths-ignore: '**.md'` as a named set,
+            # i.e. every path the run actually executes: the harness and its
+            # scripts, backend and frontend code, the compose files defining
+            # the fake stack, the uv-pinned env. A docs-only PR matches none.
+            feature:
+              - 'backend/**'
+              - 'frontend/**'
+              - '!frontend/**/*.md'
+              - 'ai/**'
+              - 'synthbench/**'
+              - 'scripts/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'docker-compose.ci.yml'
+              - 'docker-compose.fake-ai.yml'
+              - '.github/workflows/ci.yml'
 
       - name: Log detected changes
         run: |
@@ -78,6 +96,7 @@ jobs:
           echo "| Frontend | ${{ steps.filter.outputs.frontend }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Docs Only | ${{ steps.filter.outputs.docs-only }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Workflow | ${{ steps.filter.outputs.workflow }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Feature check | ${{ steps.filter.outputs.feature }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Is Main Branch | ${{ github.ref == 'refs/heads/main' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ github.ref }}" == "refs/heads/main" ] || [ "${{ steps.filter.outputs.workflow }}" == "true" ]; then
@@ -3537,6 +3556,137 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     uses: ./.github/workflows/dependency-audit.yml
 
+  # Ruling 105: the fake-stack feature check joins the graph as a job here and
+  # ci-gate needs it — a red golden path (F2.3's proof that a feature works)
+  # could not block a merge while it lived in a separate workflow the gate did
+  # not read. This job is that workflow's `fake` job, step for step, plus
+  # setup-uv (ruling 105's first bullet: the harness's BACKEND_GOLDEN stage
+  # runs `uv run pytest`, and the old runner had no uv — FileNotFoundError
+  # since main first carried backend/tests/golden/**). The standalone workflow
+  # retired so it does not run twice; scripts/retired_paths.txt records it.
+  # workflow_dispatch stays reachable (ruling 105 bullet 4): dispatching THIS
+  # workflow runs the feature check regardless of the change filter.
+  feature-check:
+    name: Feature check (fake AI)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: detect-changes
+    # O2.2's filter, expressed through detect-changes: a change that touches
+    # only Markdown cannot break a golden path, so `feature` (below) is the
+    # old workflow's paths-ignore: '**.md' turned into a named set — everything
+    # the run executes: the harness, the backend, the frontend, the compose
+    # files that define the stack, and the uv-pinned env.
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
+      github.event_name == 'workflow_dispatch' ||
+      !cancelled() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.feature == 'true')
+      )
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Ruling 105's setup-uv: scripts/feature_check.py's golden() opens the
+      # BACKEND_GOLDEN guard whenever backend/tests/golden/**/test_*.py exist
+      # (since #6979) and invokes uv for the pytest leg. Same canonical
+      # invocation as every other backend job (version from the env block).
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Free disk space (minimal)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+
+      # A builder of its own for the two image builds (it reads the GHA cache
+      # that ci.yml's build jobs write); `use: false` leaves the default
+      # builder in place, which sees the loaded images, so compose can build
+      # the fake AI image FROM this commit's backend.
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          use: false
+
+      - name: Image tag
+        run: echo "TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      # The names docker-compose.ci.yml pulls; built here, never pushed.
+      - name: Build backend image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: ./backend/Dockerfile
+          target: prod
+          tags: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:${{ env.TAG }}
+          cache-from: type=gha,scope=backend
+          load: true
+
+      - name: Build frontend image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          target: prod
+          tags: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:${{ env.TAG }}
+          cache-from: type=gha,scope=frontend
+          load: true
+
+      # F2.1: the harness's golden() stage runs `npx playwright test
+      # --project=golden` from frontend/ against the live stack, so the job
+      # needs the same Node + Chromium provisioning the other Playwright
+      # workflows use (visual-tests.yml). Deliberately after the image builds:
+      # node_modules and the browser live on the runner disk, and O2.2's MEASURE
+      # (a 5m33s job) freed disk before building — this way the browser never
+      # competes with the backend build for the space that step reclaims.
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: cd frontend && npx playwright install chromium --with-deps
+
+      - name: Install Playwright deps (cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: cd frontend && npx playwright install-deps chromium
+
+      - name: Feature check (--fake)
+        env:
+          FEATURE_CHECK_ROOT: ${{ runner.temp }}/feature-check
+        run: scripts/feature-check.sh --fake --image-tag "$TAG"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: feature-check
+          # Only each run's artifacts/: the run directory also holds the
+          # throwaway admin's password (admin.json) and the camera folders.
+          path: ${{ runner.temp }}/feature-check/*/artifacts
+          retention-days: 14
+          if-no-files-found: warn
+
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
   # WP0.6 invariant (scripts/test_ci_job_graph.py enforces it): a job either
@@ -3621,6 +3771,17 @@ jobs:
       # below — the WP0.6 wiring. Runs unconditionally on every PR (hooks
       # self-select by files:/types:), so it is never `skipped` on PRs.
       - precommit-hooks
+      # Ruling 105: the fake-stack feature check. Direct need + check_job
+      # below — the WP0.6 wiring (needs-but-never-inspects is the invisibility
+      # class). This is the change's whole point: `CI Gate (Required Checks)`
+      # is the ONLY context branch protection requires, and until now a red
+      # golden path — the check that answers "does the feature work" — could
+      # not block a merge. Skipped (docs-only PR via the `feature` filter) is
+      # forgiven by check_job, same semantics as every filtered job above.
+      # This need lands the direct-needs count on 30 — the cap
+      # scripts/test_check_gate_reachability.py pins; the next edge is a
+      # review, not a silent edit.
+      - feature-check
     if: always()
     steps:
       - name: Check required job results
@@ -3675,6 +3836,8 @@ jobs:
           check_job "Backend Unit Coverage Floor" "${{ needs.unit-tests-coverage-merge.result }}"
           check_job "Backend Integration Coverage Floor" "${{ needs.integration-coverage-merge.result }}"
           check_job "Frontend Coverage Floors" "${{ needs.frontend-coverage-merge.result }}"
+          # Ruling 105: the golden paths' verdict, first time inside the gate.
+          check_job "Feature Check (Fake AI)" "${{ needs.feature-check.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 

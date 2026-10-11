@@ -69,3 +69,15 @@ docs/archive/
 .github/workflows/semantic-release.yml ; semantic-release
 .github/workflows/release-drafter.yml ; release-drafter
 .github/release-drafter.yml
+
+# Ruling 105 (CI dedupe): the standalone fake-stack feature check. Every leg
+# moved verbatim into ci.yml's feature-check job (the workflow's `fake` job:
+# same steps, same images, same artifacts), and CI Gate needs that job now —
+# which is the point: the gate is the ONLY required context, and while the
+# check lived here a red golden path could not block a merge. The workflow
+# also carried no setup-uv, so its pytest leg died at FileNotFoundError the
+# moment main first carried backend/tests/golden/** (#6979). No declared
+# alias: the harness script feature-check.sh and the ci.yml job id share the
+# stem and both stay alive, so a `feature-check` term would flag living text
+# (same trap the header's derived-stem paragraph warns about).
+.github/workflows/feature-check.yml
