@@ -72,6 +72,18 @@ test.describe('golden guard contract @smoke', () => {
     expect(() => context.routeWebSocket('**/ws/**', async () => {})).toThrow(GUARD_MESSAGE);
   });
 
+  test('the context fixture arms on its own, with no page fixture', async ({ context }) => {
+    // The `{ context }` fixture override's armContext(context) line (guard.ts) is
+    // load-bearing but the other nine tripwires cannot prove it: they all
+    // destructure `page` too, so the page fixture's armPage arms the context
+    // lazily through the wrapped page.context() — and deletion of that line is
+    // masked. Destructuring ONLY context runs no page fixture and calls no
+    // page.context(), so the context is armed iff the override arms it itself.
+    // (F2.1 review's non-blocking finding, landed as this pin.)
+    expect(() => context.route('**/api/**', (route) => route.abort())).toThrow(GUARD_MESSAGE);
+    expect(() => context.routeWebSocket('**/ws/**', async () => {})).toThrow(GUARD_MESSAGE);
+  });
+
   test('page.context() cannot smuggle an unarmed page', async ({ page }) => {
     const second = await page.context().newPage();
     expect(() => second.route('**/api/**', (route) => route.abort())).toThrow(GUARD_MESSAGE);
