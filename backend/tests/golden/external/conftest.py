@@ -113,9 +113,13 @@ def api(api_url: str) -> Iterator[httpx.Client]:
         yield client
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def logged_in_api(api_url: str, admin_credentials: dict[str, str]) -> Iterator[httpx.Client]:
     """A client carrying the session cookie ``POST /api/auth/login`` sets.
+
+    Session-scoped for the same reason as :func:`api` — the job specs hold a
+    module-scoped fixture (one job, several assertions) and a module fixture may
+    not depend on a function-scoped one.
 
     Login is in ``OPEN_PATHS`` so it answers without a credential in either
     mode; the cookie then authenticates the write/read paths the job rows use.
