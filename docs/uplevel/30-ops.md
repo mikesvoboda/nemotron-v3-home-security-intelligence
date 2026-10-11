@@ -441,6 +441,21 @@ count drops by those 19 files (re-measured at the PR's head), and `R2`'s "module
 feature" input is regenerated from the fixed tool. It lands before the `R2` sheet's §3 is
 finalised (`F2.3`).
 
+### O2.4 Re-ID on the GB300 GPU via TensorRT
+
+Approved by owner ruling 107 (issue #6854, comment `6109720693`, 2026-10-11). The coordinator
+assigns it to the first free ops cell; it edits `ai/gateway/` (cell A's files), so if ops cell B
+takes it, ops-a reviews. Not heavy; not owner-tier at merge.
+
+- [ ] Serve the gateway's `reid` through TensorRT, a plan built for the serving GPU as `yolo26`'s
+      is, not ONNX Runtime's CUDA execution provider, which fails on GB300 (owner ruling 106).
+- [ ] Keep `B2.2`'s provenance and model-ID behaviour unchanged; `test_reid_path_parity.py` stays
+      green in CI.
+
+**Done when:** the owner's host run (`B2.2`'s command, #6970) prints `RESULT: PASS` on the GB300
+host with OSNet-AIN at the PR's head, posted on the PR; the row reads `awaiting real tier` until
+then. It does not flip `REID_BACKEND`; production stays `local`.
+
 ---
 
 ## Phase 3 — The tree matches the rulings

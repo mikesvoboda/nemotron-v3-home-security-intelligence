@@ -203,8 +203,9 @@ assign each assignment-only agent (`uplevel-heavy`, `uplevel-heavy-2`, the ops c
 roster package once that package's dependencies are merged (owner, 2026-10-09); check for packages
 that are ready but unclaimed (below); park any open claim of a Phase 3 package before `R2` is
 `done` — draft, with "Parked by owner ruling 54 until R2 is done." as its body's first line (owner,
-2026-10-10) — unless it touches only `R2a`-ruled features and modules (owner ruling 86); label
-ready PRs for review; merge what meets
+2026-10-10) — unless it touches only `R2a`-ruled features and modules (owner ruling 86); on the
+first tick after the nightly schedule, read the latest Nightly Full Gate conclusion (owner ruling
+109); label ready PRs for review; merge what meets
 the merge rule, one at a time; post the daily batch when its time comes; otherwise say so in one
 line and end the turn.
 
@@ -406,7 +407,7 @@ Files many packages change. The coordinator sequences their merges; authors foll
 ## Heavy packages (UR-24)
 
 `heavy` marks a package whose mistakes are costly and whose correctness turns on judgment: `B1.2`,
-`B1.5`, `B1.6`, `O2.2`, `O3.6`, `F2.2`, `B3.1` with `F3.1`, `B3.2`, and every Phase 4 design session. The
+`B1.5`, `B1.6`, `O2.2`, `B2.3`, `O3.6`, `F2.2`, `B3.1` with `F3.1`, `B3.2`, and every Phase 4 design session. The
 coordinator gives them to the strongest model available, or pairs them with the owner. The
 remaining packages are specified tightly enough for a fast local model. If neither a strong model
 nor the owner is free, a heavy package waits; it is never handed to a fast model by default.
@@ -440,6 +441,11 @@ head. The permission covers a fix that changes tests, CI, or the least product c
 points to. It never deletes, skips or `xfail`s a test, never raises a limit or a baseline, and
 never touches an owner-tier area (§3); a fix outside these limits comes to the owner on the urgent
 path.
+
+**A red Nightly Full Gate** (owner ruling 109) is handled the same way: the coordinator raises it
+with the failing tests it read that tick and routes it to the owning lane, which fixes it within
+the same limits. It does not freeze the merge queue, because `CI Gate (Required Checks)` stays the
+definition of green (§4).
 
 ## Coordinator kickoff prompt
 
