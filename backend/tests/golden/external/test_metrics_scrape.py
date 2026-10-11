@@ -77,12 +77,21 @@ def _metric_lines(body: str) -> list[str]:
 
 
 def _type_lines(body: str) -> dict[str, str]:
-    """Map family name -> declared type, from the ``# TYPE`` lines."""
+    """Map family name -> declared type, from the ``# TYPE`` lines.
+
+    A ``# TYPE`` line has exactly four whitespace-separated tokens: ``#``,
+    ``TYPE``, the family name, the type. Splitting first means the marker is two
+    tokens, so it is matched as ``parts[0] == "#" and parts[1] == "TYPE"`` — the
+    name is then ``parts[2]``, not ``parts[1]``. (Caught live, not in review: the
+    first version of this helper compared ``parts[0]`` to the two-token string
+    ``"# TYPE"``, which never matches, so every declaration assertion failed
+    against an empty dict while the scrape itself was fine.)
+    """
     declared: dict[str, str] = {}
     for line in body.splitlines():
         parts = line.split()
-        if len(parts) == 4 and parts[0] == "# TYPE":
-            declared[parts[1]] = parts[3]
+        if len(parts) == 4 and parts[0] == "#" and parts[1] == "TYPE":
+            declared[parts[2]] = parts[3]
     return declared
 
 
