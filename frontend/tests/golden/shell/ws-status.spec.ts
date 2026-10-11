@@ -200,7 +200,7 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     // WITNESS the break before asserting the machine: on the CI feature-check
     // host Chromium's offline emulation NEVER surfaced on the ESTABLISHED
     // loopback sockets — the chip still read Connected 60 s after partition,
-    // identical across 9 attempts (3 runs; junit + failure DOM snapshots, run
+    // identical across all 3 attempts (initial + 2 retries; junit + per-attempt DOM snapshots, run
     // 38146684985). Standalone probe stacks surface it (~2 s local). Same
     // disk-warning precedent: where the instrument cannot run, the spec
     // self-skips at RUNTIME carrying the measurement — never a silent pass,
@@ -221,7 +221,7 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
         tornAtMs < 0,
         'setOffline(true) never surfaced on the established loopback WebSockets within 15 s — ' +
           'this host does not break established sockets on offline emulation (CI feature-check ' +
-          'host, measured 2026-10-11: 9/9 attempts, chip still Connected after 60 s); ' +
+          'host, measured 2026-10-11: 3/3 attempts — initial + 2 retries — chip still Connected after 60 s); ' +
           'ruling 86: the leg is unexecutable here, not failed'
       );
 
