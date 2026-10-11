@@ -156,12 +156,16 @@ recommendation is the drafting agent's; the ruling is the owner's.
 
 ## 1. Features to rule
 
-130 of the inventory's 136 **half-built** and **leftover** rows, in 46 rows by cause. Core-loop
-rows first. (The six not here — `F-017`, `F-020`, `F-021`, `F-022`, `F-023`, `F-100` — were demoted
+130 of the inventory's 137 **half-built** and **leftover** rows, in 46 rows by cause. Core-loop
+rows first. (Six of the seven not here — `F-017`, `F-020`, `F-021`, `F-022`, `F-023`, `F-100` — were demoted
 to half-built by their own batches after this sheet's 128 were measured — each carries its demotion
-evidence in its inventory row — and their lanes have not filed §1 rows. Re-measured 2026-10-11 in the
-tree this row lands in: 136 live, 130 enumerated here, 0 of the six in this section. Its parent
-`9daf43977` counts 134 live, because `F-275`/`F-277` join as half-built in this same commit, per
+evidence in its inventory row — and their lanes have not filed §1 rows. The seventh, `F-256`, is
+demoted by _this_ sheet's own batch for a reason §1 does not rule on: its golden path is GREEN and its
+chain is intact, but the row's "filters by … time range" is a clause the page does not implement, so
+what needs a ruling is the inventory's action text, not a complete-vs-retire call — see #7011
+Question 3, and the `R2b` note in that PR's Real tier section. Re-measured 2026-10-11 at
+`f4106fe2a`: 137 live, 130 enumerated here, 0 of the seven in this section. Its parent
+`9daf43977` counts 134 live, because `F-275`/`F-277` join as half-built in this same batch, per
 ruling 118.)
 
 <!-- prettier-ignore -->
