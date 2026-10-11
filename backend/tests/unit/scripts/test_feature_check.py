@@ -1562,6 +1562,7 @@ def _golden_only_run(
     probe_rc: int = 0,
     browsers_path: Path | None = None,
     default_cache_complete: bool = False,
+    partial_builds: tuple[str, ...] = (),
 ) -> Any:
     """A Run whose golden() reaches the Playwright branch with every filesystem
     fact pointed at tmp_path, and whose _run is recorded, not executed.
@@ -1589,18 +1590,31 @@ def _golden_only_run(
         _seed_runner_cli(modules)
     default_cache = tmp_path / "ms-playwright"
     cache = browsers_path or default_cache
+
+    # A completed Playwright build is a directory carrying INSTALLATION_COMPLETE,
+    # which the CLI writes LAST, after extracting (measured in the pinned
+    # 1.63.0 bundle: oopDownloadBrowserMain removes the dir, extractZip, chmod,
+    # then writeFile(marker)). So a build seeded WITHOUT that marker is what an
+    # interrupted download actually leaves behind — a directory the runner
+    # cannot launch. The marker is seeded here because the fixture must be able
+    # to tell those two filesystem states apart.
+    def seed(root: Path, build: str, *, complete: bool = True) -> None:
+        (root / build).mkdir(parents=True, exist_ok=True)
+        if complete:
+            (root / build / "INSTALLATION_COMPLETE").write_text("", encoding="utf-8")
+
     if browsers:
         for build in ("chromium-1243", "ffmpeg-1011", "chromium_headless_shell-1243"):
-            (cache / build).mkdir(parents=True)
+            seed(cache, build, complete=build not in partial_builds)
     else:
         # The shape this sandbox's real cache had: ffmpeg survived, the two
         # chromium builds never arrived. Absence is per-build, not all-or-nothing.
-        (cache / "ffmpeg-1011").mkdir(parents=True)
+        seed(cache, "ffmpeg-1011")
     if default_cache_complete:
         # The misleading state: the DEFAULT root holds a full set while the root
         # the runner will actually use does not.
         for build in ("chromium-1243", "ffmpeg-1011", "chromium_headless_shell-1243"):
-            (default_cache / build).mkdir(parents=True, exist_ok=True)
+            seed(default_cache, build)
     if browsers_path is not None:
         # A caller who moved the browser cache (an operator whose root
         # filesystem is full — this box measured 176 MB free) sets the variable
@@ -1866,6 +1880,36 @@ def test_a_moved_browser_cache_is_judged_where_the_runner_will_look(
     assert installs[0]["env"].get("PLAYWRIGHT_BROWSERS_PATH") == str(moved2), (
         "the install must land where the test run will look"
     )
+
+
+def test_a_partial_download_is_not_present(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A build directory without INSTALLATION_COMPLETE is a half-finished download.
+
+    Measured in the pinned 1.63.0 bundle: the CLI's own "already downloaded"
+    predicate is ``<dir>/INSTALLATION_COMPLETE`` (browserFetcher's early return),
+    and the downloader removes the directory, extracts, chmods, and writes that
+    marker LAST — so a killed download leaves a populated directory the runner
+    cannot launch. Judging presence by ``is_dir()`` therefore reports
+    ``present`` and installs nothing, which is ruling 116's bug preserved inside
+    its own fix. The marker is not Playwright-version folklore either: the only
+    build this sandbox's real cache has (ffmpeg-1011) carries one.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(
+        tmp_path,
+        monkeypatch,
+        True,
+        calls,
+        browsers=True,
+        partial_builds=("chromium_headless_shell-1243",),
+    )
+    problems = run.golden()
+    assert problems == []
+    assert (
+        run.summary["results"]["golden"]["playwright_browsers"]
+        == "installed chromium-headless-shell v1243"
+    ), "the sibling complete builds must not be re-downloaded"
+    assert BROWSER_INSTALL in [c for c, _ in calls]
 
 
 # ---------------------------------------------------------------------------

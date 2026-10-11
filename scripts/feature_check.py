@@ -1388,6 +1388,14 @@ class Run:
     _PLAN_BUILD = re.compile(r"\(playwright (\S+) (v\d+)\)")
     _PLAN_LOCATION = re.compile(r"^\s*Install location:\s+(\S+)")
     _PLAN_URL = re.compile(r"^\s*Download (?:url|fallback \d+):\s+https://([^/:]+)/")
+    # A build directory counts as installed only when it carries the marker the
+    # CLI itself writes LAST, after extracting (1.63.0: browserFetcher's
+    # "already downloaded" early return tests <dir>/INSTALLATION_COMPLETE, and
+    # oopDownloadBrowserMain removes the dir → extractZip → chmod → writeFile
+    # (marker)). An interrupted download therefore leaves a directory WITHOUT
+    # it, which the runner cannot launch; is_dir() alone would call that
+    # "present" and skip the install, i.e. ruling 116's bug inside its own fix.
+    _BROWSER_MARKER = "INSTALLATION_COMPLETE"
 
     def _ensure_chromium(self, results: dict[str, Any], problems: list[str]) -> None:
         """Install Playwright Chromium when the lock-resolved runner's own dry
@@ -1426,7 +1434,9 @@ class Run:
             )
             return
         missing = sorted(
-            f"{name} {version}" for name, version, where in wanted if not where.is_dir()
+            f"{name} {version}"
+            for name, version, where in wanted
+            if not (where / self._BROWSER_MARKER).is_file()
         )
         if not missing:
             results["playwright_browsers"] = "present"
