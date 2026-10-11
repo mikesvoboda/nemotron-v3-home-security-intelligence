@@ -8,13 +8,13 @@ This document describes the GitHub Actions CI/CD pipeline for Home Security Inte
 
 The CI/CD pipeline consists of multiple workflows that run on different triggers:
 
-| Workflow               | Trigger         | Purpose                           |
-| ---------------------- | --------------- | --------------------------------- |
-| **CI**                 | Push/PR to main | Run tests, linting, type checking |
-| **Deploy**             | Push to main    | Build and push container images   |
-| **Release**            | Tag push (v\*)  | Create GitHub releases            |
-| **SAST**               | Push/PR to main | Security static analysis          |
-| **Test Coverage Gate** | PR to main      | Enforce coverage requirements     |
+| Workflow               | Trigger         | Purpose                                                                |
+| ---------------------- | --------------- | ---------------------------------------------------------------------- |
+| **CI**                 | Push/PR to main | Run tests, linting, type checking (draft PRs skip; ready runs in full) |
+| **Deploy**             | Push to main    | Build and push container images                                        |
+| **Release**            | Tag push (v\*)  | Create GitHub releases                                                 |
+| **SAST**               | Push/PR to main | Security static analysis                                               |
+| **Test Coverage Gate** | PR to main      | Enforce coverage requirements                                          |
 
 ---
 
@@ -22,7 +22,11 @@ The CI/CD pipeline consists of multiple workflows that run on different triggers
 
 **File:** `.github/workflows/ci.yml`
 
-The main CI workflow is the most comprehensive, running on every push to main and all pull requests.
+The main CI workflow is the most comprehensive, running on every push to main and on every
+non-draft pull request. Draft PRs skip the heavy jobs (owner ruling 97 part 2): the runner pool is
+a measured ~20-job scheduler ceiling shared with draft pushes, and a draft cannot merge, so a draft
+push no longer spends the suite. Marking a PR **ready for review** fires `ready_for_review`, which
+starts a full run at the PR head — that run, not any draft run, is the CI evidence a merge reads.
 
 ### Workflow Triggers
 
@@ -32,8 +36,19 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch: # Manual trigger
 ```
+
+The skip is a per-job `if` guard — GitHub Actions has no workflow-level `if` — spelled
+`(github.event_name != 'pull_request' || github.event.pull_request.draft != true) && (…)` on every
+job that can start on a pull_request event, so push/schedule/dispatch runs are untouched. Two jobs
+stay unguarded on purpose: `ci-gate` (pinned to `always()`, and its script forgives `skipped`
+results — so a draft run still publishes the required `CI Gate (Required Checks)` context, green
+but with everything skipped: on a draft it proves the workflows parsed, not that the code passed)
+and the main/schedule-only advisory jobs, which no PR event can start. The invariant is pinned by
+`scripts/test_workflow_draft_guards.py`, which also fails any `pull_request`-triggered workflow
+that loses `ready_for_review` or drops a default activity type.
 
 ### Environment Configuration
 

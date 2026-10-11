@@ -3,7 +3,7 @@ name: PR Review Bot - Test Enforcement
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize]
+    types: [opened, synchronize, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -22,6 +22,7 @@ jobs:
   check-missing-tests:
     name: Review Tests in PR Changes
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - name: Checkout PR
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -171,6 +172,7 @@ jobs:
   test-naming-convention:
     name: Test File Naming Convention
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -218,7 +220,7 @@ jobs:
     name: PR Test Review Summary
     runs-on: ubuntu-latest
     needs: [check-missing-tests, test-naming-convention]
-    if: always()
+    if: (github.event_name != 'pull_request' || github.event.pull_request.draft != true) && always()
     permissions:
       pull-requests: write
     steps:

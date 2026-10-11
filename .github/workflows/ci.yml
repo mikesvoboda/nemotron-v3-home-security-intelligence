@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   # Ruling 98 (1): the merge queue waits for every check named in
   # CI Gate (Required Checks), and this file is the only workflow that
   # produces one — CI Gate's 29 needs are all jobs here (measured: the
@@ -49,6 +50,7 @@ jobs:
       # cannot cover it; the event_name clause is what makes
       # should-run-all true on the queue.
       should-run-all: ${{ github.ref == 'refs/heads/main' || github.event_name == 'merge_group' || steps.filter.outputs.workflow == 'true' }}
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -115,6 +117,7 @@ jobs:
     # 10 -> 15 (WP0.8): the gate-test step now collects the whole unit tier
     # (the governance test's real-tree sweep), which imports every module.
     timeout-minutes: 15
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -272,6 +275,7 @@ jobs:
           scripts/test_agents_md_validator.py
           scripts/test_retired_paths.py
           scripts/test_workflow_paths.py
+          scripts/test_workflow_draft_guards.py
           scripts/audit/test_retired_names.py
           scripts/audit/test_settings_orphans.py
           scripts/audit/test_env_dead_vars.py
@@ -398,6 +402,7 @@ jobs:
       # Pinned like everything else in this job (the config's rev: pins, the
       # SHA-pinned actions); 4.6.2 is what the O1.12 sandbox evidence ran.
       PRE_COMMIT_VERSION: 4.6.2
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -591,8 +596,11 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       needs.detect-changes.outputs.should-run-all == 'true' ||
       needs.detect-changes.outputs.backend == 'true'
+      )
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -622,10 +630,13 @@ jobs:
     timeout-minutes: 5
     needs: [detect-changes, build-backend-deps]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
+      )
     strategy:
       fail-fast: false
       matrix:
@@ -663,10 +674,13 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, build-backend-deps]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
+      )
     strategy:
       fail-fast: false
       matrix:
@@ -705,11 +719,14 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, lint, build-backend-deps]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
       needs.build-backend-deps.result != 'failure'
+      )
     services:
       postgres:
         image: postgres:16-alpine
@@ -830,9 +847,12 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, unit-tests]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
+      )
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -982,7 +1002,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, unit-tests, collection-sanity]
-    if: ${{ !cancelled() }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.draft != true) && !cancelled() }}
     steps:
       - name: Check unit test shard results
         run: |
@@ -1062,10 +1082,13 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
        needs.build-backend-deps.result != 'failure'
+      )
     with:
       shard: ${{ matrix.shard }}
       python-version: ${{ matrix.python-version }}
@@ -1093,8 +1116,11 @@ jobs:
         shard: [1, 2, 3, 4]
     needs: [integration-tests-api]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       needs.integration-tests-api.result == 'cancelled'
+      )
     with:
       shard: ${{ matrix.shard }}
       python-version: ${{ matrix.python-version }}
@@ -1112,10 +1138,13 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
+      )
     services:
       postgres:
         image: postgres:16-alpine
@@ -1226,10 +1255,13 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
+      )
     services:
       postgres:
         image: postgres:16-alpine
@@ -1354,10 +1386,13 @@ jobs:
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
+      )
     services:
       postgres:
         image: postgres:16-alpine
@@ -1476,9 +1511,12 @@ jobs:
         integration-tests-models,
       ]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
+      )
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1582,7 +1620,7 @@ jobs:
         integration-tests-services,
         integration-tests-models,
       ]
-    if: ${{ !cancelled() }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.draft != true) && !cancelled() }}
     steps:
       - name: Check integration test results
         run: |
@@ -1646,11 +1684,14 @@ jobs:
     # detect-changes like unit-tests so docs-only PRs don't pay for it.
     needs: [detect-changes, lint, build-backend-deps]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
       needs.build-backend-deps.result != 'failure'
+      )
     services:
       postgres:
         image: postgres:16-alpine
@@ -1788,11 +1829,14 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, lint, build-backend-deps]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
       needs.build-backend-deps.result != 'failure'
+      )
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1881,9 +1925,12 @@ jobs:
     needs: [detect-changes]
     # Run when backend or frontend changes (contract spans both)
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       needs.detect-changes.outputs.should-run-all == 'true' ||
       needs.detect-changes.outputs.backend == 'true' ||
       needs.detect-changes.outputs.frontend == 'true'
+      )
     env:
       DATABASE_URL: postgresql://user:pass@localhost/db # pragma: allowlist secret
     steps:
@@ -1936,8 +1983,11 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       needs.detect-changes.outputs.should-run-all == 'true' ||
       needs.detect-changes.outputs.frontend == 'true'
+      )
     env:
       NODE_VERSION: '24'
     steps:
@@ -1968,8 +2018,11 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       needs.detect-changes.outputs.should-run-all == 'true' ||
       needs.detect-changes.outputs.frontend == 'true'
+      )
     env:
       NODE_VERSION: '24'
     steps:
@@ -2000,10 +2053,13 @@ jobs:
     # Skip if only backend/docs changed (checked via detect-changes)
     needs: [detect-changes, frontend-lint]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true') &&
       needs.frontend-lint.result != 'failure'
+      )
     strategy:
       fail-fast: false
       matrix:
@@ -2161,10 +2217,13 @@ jobs:
     # ai/** is already inside detect-changes' `backend` paths filter - no new
     # output key invented; same if-shape as the other backend jobs.
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.build-backend-deps.result != 'failure'
+      )
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -2226,9 +2285,12 @@ jobs:
     timeout-minutes: 10
     needs: [detect-changes, frontend-tests]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true')
+      )
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -2303,7 +2365,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, frontend-tests, collection-sanity]
-    if: ${{ !cancelled() }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.draft != true) && !cancelled() }}
     steps:
       - name: Check shard results
         run: |
@@ -2329,6 +2391,7 @@ jobs:
     name: API Endpoint Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -2349,10 +2412,13 @@ jobs:
     # Skip if only backend/docs changed (checked via detect-changes)
     needs: [detect-changes, frontend-lint]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true') &&
       needs.frontend-lint.result != 'failure'
+      )
     strategy:
       fail-fast: false
       matrix:
@@ -2462,7 +2528,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [detect-changes, frontend-e2e]
-    if: ${{ !cancelled() }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.draft != true) && !cancelled() }}
     steps:
       - name: Check shard results
         run: |
@@ -2672,9 +2738,12 @@ jobs:
     # green on PRs in this repo.
     needs: [detect-changes]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true')
+      )
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -2784,9 +2853,12 @@ jobs:
     # Path-gated on the frontend surface so backend-only PRs pay nothing.
     needs: [detect-changes]
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.frontend == 'true')
+      )
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -2914,11 +2986,14 @@ jobs:
     # must SKIP honestly; when the tier ran, its artifacts are here (uploaded
     # if: always()) and zero XML is a pipeline break -> fail.
     if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.draft != true)
+      && (
       !cancelled() &&
       (needs.detect-changes.outputs.should-run-all == 'true' ||
        needs.detect-changes.outputs.backend == 'true') &&
       needs.lint.result != 'failure' &&
       needs.build-backend-deps.result != 'failure'
+      )
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -3361,6 +3436,7 @@ jobs:
     name: npm Audit (Frontend)
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -3425,6 +3501,7 @@ jobs:
       REDIS_PORT: 6379
       LOG_DB_ENABLED: 'false'
       ENVIRONMENT: development # Avoid production password validation in CI
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -3472,6 +3549,7 @@ jobs:
     name: Version Consistency
     runs-on: ubuntu-latest
     timeout-minutes: 2
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -3503,6 +3581,7 @@ jobs:
       contents: read
       pull-requests: read
     secrets: inherit # pragma: allowlist secret
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     uses: ./.github/workflows/gitleaks.yml
 
   security-sast:
@@ -3510,6 +3589,7 @@ jobs:
     permissions:
       contents: read
     secrets: inherit # pragma: allowlist secret
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     uses: ./.github/workflows/sast.yml
 
   security-trivy:
@@ -3518,6 +3598,7 @@ jobs:
       contents: read
       security-events: write
     secrets: inherit # pragma: allowlist secret
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     uses: ./.github/workflows/trivy.yml
 
   # CI Gate - Aggregates all required checks for branch protection
