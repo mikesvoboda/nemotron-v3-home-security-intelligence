@@ -168,7 +168,7 @@ async function waitControlled(page: Page, scope: string): Promise<void> {
 test.describe('golden path: service worker + offline cache on the built stack @critical', () => {
   test.setTimeout(120_000);
 
-  test('the shipped artifact: the served /sw.js carries the row\'s exact cache contract — api-cache network-first 10 s / 50 entries / 300 s, skipWaiting, index.html navigation fallback — and its index precache entry is content-addressed to the bytes actually served', async ({
+  test("the shipped artifact: the served /sw.js carries the row's exact cache contract — api-cache network-first 10 s / 50 entries / 300 s, skipWaiting, index.html navigation fallback — and its index precache entry is content-addressed to the bytes actually served", async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
@@ -186,7 +186,7 @@ test.describe('golden path: service worker + offline cache on the built stack @c
     // The row's numbers, as compiled into the real runtime (measured token
     // spellings): vite.config.ts:102-109's /api NetworkFirst route.
     expect(sw, 'the /api route must be NetworkFirst').toMatch(/NetworkFirst/);
-    expect(sw, 'the row\'s api cache name must exist').toContain('cacheName:"api-cache"');
+    expect(sw, "the row's api cache name must exist").toContain('cacheName:"api-cache"');
     expect(sw).toContain('networkTimeoutSeconds:10');
     expect(sw).toContain('maxEntries:50');
     expect(sw, 'the row\'s "5 min" is 300 s in the artifact').toContain('maxAgeSeconds:300');
@@ -199,10 +199,9 @@ test.describe('golden path: service worker + offline cache on the built stack @c
     // is the md5 of its content, so the live index and the manifest must
     // agree byte-for-byte — the precache provably holds what ships TODAY.
     const md5 = createHash('md5').update(indexHtml).digest('hex');
-    expect(
-      sw,
-      'precache must pin the index revision to the md5 of the served index'
-    ).toContain(`{url:"index.html",revision:"${md5}"}`);
+    expect(sw, 'precache must pin the index revision to the md5 of the served index').toContain(
+      `{url:"index.html",revision:"${md5}"}`
+    );
 
     // Every script the index actually loads is precached, by exact name —
     // (a route-split build names ~20 lazy chunks assets/index-*.js too, so
@@ -301,7 +300,13 @@ test.describe('golden path: service worker + offline cache on the built stack @c
         indexKey,
         bare: !!(await c.match('/index.html')),
         stored: indexKey ? !!(await c.match(indexKey)) : false,
-      } as { name: string | null; n: number; indexKey: string | null; bare: boolean; stored?: boolean };
+      } as {
+        name: string | null;
+        n: number;
+        indexKey: string | null;
+        bare: boolean;
+        stored?: boolean;
+      };
     });
     expect(pre.name, 'the Workbox precache cache must exist').toMatch(/^workbox-precache-v2-/);
     expect(pre.n, 'the shell precache must hold the built asset set').toBeGreaterThan(100);

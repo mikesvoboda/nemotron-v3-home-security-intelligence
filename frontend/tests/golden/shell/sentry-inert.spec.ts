@@ -113,7 +113,7 @@ const DSN_SHAPE = /https?:\/\/[^"'`\s]*@o\d+\.[^\s"'`]*/;
 test.describe('golden path: Sentry error tracking shipped-but-inert on the built stack @critical', () => {
   test.setTimeout(120_000);
 
-  test('the wire negative: two REAL errors ride only the app\'s own backend POSTs — zero requests to any other origin, no Sentry URL, no Sentry client', async ({
+  test("the wire negative: two REAL errors ride only the app's own backend POSTs — zero requests to any other origin, no Sentry URL, no Sentry client", async ({
     page,
   }) => {
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
@@ -230,10 +230,7 @@ test.describe('golden path: Sentry error tracking shipped-but-inert on the built
 
     // …with zero enabling material anywhere in it. All three measured 0 in
     // probe1; together they are the row's "inert in every shipped build":
-    expect(
-      (shipped.match(DSN_SHAPE) ?? []).length,
-      'no DSN-shaped literal may ship'
-    ).toBe(0);
+    expect((shipped.match(DSN_SHAPE) ?? []).length, 'no DSN-shaped literal may ship').toBe(0);
     expect((shipped.match(/sentry\.io/g) ?? []).length, 'no Sentry ingest host may ship').toBe(0);
     expect(
       (shipped.match(/VITE_SENTRY_DSN/g) ?? []).length,
