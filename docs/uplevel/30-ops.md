@@ -428,6 +428,19 @@ empty `agent-gpu ps` (`awaiting real tier` until then). `F2.1` then adds its gol
 Specified in [`01-mutation-policy.md`](01-mutation-policy.md) §M1. Its output feeds `F2.2`'s list
 of modules serving no feature.
 
+### O2.3b Reachability: ancestor packages ship
+
+Cell A; depends on `O2.3` (owner ruling 73). `O2.3`'s tool listed 19 parent `__init__.py` files
+(1,099 lines) of shipping modules as non-shipping, though importing a module runs its parent
+packages.
+
+- [ ] The tool counts every ancestor package of a shipping module as shipping.
+
+**Done when:** a test pins that a shipping module's ancestor packages are shipping, the real-tree
+count drops by those 19 files (re-measured at the PR's head), and `R2`'s "modules serving no
+feature" input is regenerated from the fixed tool. It lands before the `R2` sheet's §3 is
+finalised (`F2.3`).
+
 ---
 
 ## Phase 3 — The tree matches the rulings
