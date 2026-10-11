@@ -137,10 +137,10 @@
  *
  * Deliberately NOT here: the health color dot (heuristic getZoneHealth, no
  * row text behind it), the analytics/comparison tabs (different rows, and
- * Tremor territory per harness.ts:44-46), the matrix's OWN zone-type/member/
- * vehicle filter selects (ZoneTrustMatrix.tsx:312-354 — the page-level filter
- * already pins the filteredZones path), and the F-258 DELETE route for a config (cleanup
- * plumbing, not row surface).
+ * Tremor territory per harness.ts:44-46), and the matrix's OWN filters: two
+ * <select>s (zone type :312, trust level :337) and member/vehicle CHECKBOXES
+ * (:372, :407), all in ZoneTrustMatrix.tsx:312-407 — the page-level filter
+ * already pins filteredZones; its DELETE route is cleanup, not row surface.
  */
 import type { Download, Locator, Page } from '@playwright/test';
 
@@ -170,9 +170,9 @@ const ZONE_B = 'Golden DO-3 Yard';
 const MEMBER = 'Golden DO-3 Member';
 const VEHICLE = 'Golden DO-3 Vehicle';
 
-/** The schema demands >=3 points, normalized 0-1, no duplicate neighbours,
- *  positive area, no self-intersection (_validate_polygon_geometry,
- *  backend/api/schemas/zone.py:115-:134) — a unit square satisfies all five. */
+/** The schema demands >=3 points (min_length=3, backend/api/schemas/zone.py:180)
+ *  and five geometry checks (_validate_polygon_geometry, :115-:134): 2 values per
+ *  point, normalized 0-1, no duplicate neighbours, positive area, no self-cross. */
 const COORDS = [
   [0.1, 0.1],
   [0.5, 0.1],
@@ -218,9 +218,9 @@ async function downloadText(download: Download): Promise<string> {
  *  of 2. Counting CARDS means counting the per-zone divs, and the only stable
  *  per-zone handle is the testid ZonesPage.tsx:307 mints from the
  *  server-minted uuid, which a spec can only know from its own POST — so this
- *  takes the ids the caller created. An empty id list throws instead of
- *  matching: a locator over no ids would match every card on the page and
- *  read as a passing population check over the wrong set. */
+ *  takes the ids the caller created. An empty id list THROWS rather than
+ *  returning a locator: the join yields ^zone-card-()$, which matches only the
+ *  literal "zone-card-" and no real testid — so it reads as a count of 0. */
 function zoneCards(page: Page, ids: string[]): Locator {
   if (ids.length === 0) throw new Error('zoneCards() needs at least one created zone id');
   const escaped = ids.map((id) => id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
@@ -354,7 +354,7 @@ test.describe('DO-3 zones golden path', () => {
       await expect(zoneCards(page, [zoneA, zoneB])).toHaveCount(2);
 
       // 6. Full screen: the overview panel's toggle, and the trust panel
-      //    UNMOUNTING (single-panel state, :662 + the :768 render guard) and
+      //    UNMOUNTING (single-panel state, :661 + the :768 render guard) and
       //    returning. This is what "toggles a panel to full screen" ships as.
       const overview = page.getByTestId('panel-overview');
       await overview.getByRole('button', { name: 'Enter full screen' }).click();
