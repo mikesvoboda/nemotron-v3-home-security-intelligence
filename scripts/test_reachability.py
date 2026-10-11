@@ -128,6 +128,17 @@ def _analyze(root: Path, *, allow: tuple[str, ...] = (), keep: tuple[str, ...] =
     )
 
 
+def _analyze_tree(root: Path, *, entry: str = "app/main.py", candidate: str = "app"):
+    """Same walk over a caller-shaped tree (the ancestor tests use app/)."""
+    return reach.analyze(
+        root,
+        entries=[entry],
+        candidate_dirs=[candidate],
+        keep=[],
+        dynamic_allow=[],
+    )
+
+
 def test_reexport_selectivity_ships_only_the_asked_for_sub(fixture_root):
     """THE 00 §4.1 pin: one requested name out of two re-exports."""
     out = _analyze(fixture_root)
@@ -158,6 +169,76 @@ def test_string_import_requires_allowlist(fixture_root):
     allowed = _analyze(fixture_root, allow=["pkg.dyn_mod"])
     assert "pkg/dyn_mod.py" in set(allowed["shipping"])
     assert not any("dyn_mod" in u["target"] for u in allowed["unresolved"])
+
+
+def test_ancestor_packages_of_shipping_modules_ship(tmp_path):
+    """O2.3b (ruling 73): importing a module RUNS its parent packages, so a
+    parent __init__ can never be listed non-shipping while a module inside it
+    ships. Here NOTHING asks `pkg` or `pkg.deep` for a name — the entry dives
+    straight to `pkg.deep.mod` — so pre-fix both __init__s were candidates
+    reported dead. (fixture_root's pkg/__init__ is demanded BY NAME, so it
+    ships through the selective channel and does not exercise this rule.)
+    """
+    _write(tmp_path, "app/main.py", "import app.deep.mod\n")
+    _write(tmp_path, "app/__init__.py", "CONST = 1\n")
+    _write(tmp_path, "app/deep/__init__.py", "import app.deep.sibling\n")
+    _write(tmp_path, "app/deep/mod.py", "VALUE = 2\n")
+    _write(tmp_path, "app/deep/sibling.py", "SIDE = 3\n")
+    out = _analyze_tree(tmp_path)
+    shipping = set(out["shipping"])
+    assert "app/__init__.py" in shipping
+    assert "app/deep/__init__.py" in shipping
+    # The ancestor ships AS A FILE; its unasked module-level line is still
+    # §M1-unshipped — the identical shape to managed_service, which stays
+    # dead while the live services/__init__ imports it. The deletion wave
+    # (B3.2) removes the line with the module, never the module alone.
+    mods_dead = {m["module"] for m in out["not_shipping"]}
+    assert "app/deep/sibling.py" in mods_dead
+
+
+def test_ancestor_ships_whole_but_name_demand_stays_selective(tmp_path):
+    """The ruling-73 contrast in ONE tree. `import app.deep.mod` runs
+    app/deep/__init__.py outright — the caller holds the namespace, the §M1
+    whole-module rule — so EVERY module-level line of that __init__ runs and
+    both its imports ship. `from app.shallow import only_this` asks a package
+    for ONE name, so §M1 selectivity still holds: only the line binding that
+    name ships, the unasked one does not. A fix that collapses into the
+    package-level walk (re-lighting managed_service) fails the second arm;
+    a fix that only leaf-adds the __init__ file fails the first."""
+    _write(
+        tmp_path,
+        "app/main.py",
+        "import app.deep.mod\n\nfrom app.shallow import only_this\n",
+    )
+    _write(
+        tmp_path,
+        "app/deep/__init__.py",
+        "from app.deep.helper import thing\nfrom app.deep.unrun import other\n",
+    )
+    _write(tmp_path, "app/deep/mod.py", "VALUE = 1\n")
+    _write(tmp_path, "app/deep/helper.py", "thing = 2\n")
+    _write(tmp_path, "app/deep/unrun.py", "other = 3\n")
+    _write(
+        tmp_path,
+        "app/shallow/__init__.py",
+        "from app.shallow.right import only_this\nfrom app.shallow.wrong import unused\n",
+    )
+    _write(tmp_path, "app/shallow/right.py", "only_this = 4\n")
+    _write(tmp_path, "app/shallow/wrong.py", "unused = 5\n")
+    out = _analyze_tree(tmp_path)
+    shipping = set(out["shipping"])
+    mods_dead = {m["module"] for m in out["not_shipping"]}
+    assert "app/deep/__init__.py" in shipping, "ancestor runs; it must ship as a file"
+    # …but WHICH of its lines ship is still per-name: the caller asked
+    # app.deep for `mod`, not for helper/unrun (same machinery that keeps
+    # managed_service dead under the live services/__init__).
+    assert "app/deep/helper.py" in mods_dead
+    assert "app/deep/unrun.py" in mods_dead
+    assert "app/shallow/__init__.py" in shipping, "demanded by name; it executes"
+    assert "app/shallow/right.py" in shipping, "the name the caller asked for"
+    assert "app/shallow/wrong.py" in mods_dead, (
+        "name-level selectivity (§M1) must not collapse into a package-level walk"
+    )
 
 
 def test_tests_are_never_candidates(fixture_root):
