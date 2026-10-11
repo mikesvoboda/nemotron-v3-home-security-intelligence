@@ -138,7 +138,8 @@ those floors, so review such hunks by hand.
 
 ### CI Pipeline (ci.yml)
 
-**Trigger:** Push/PR to main branch
+**Trigger:** Push/PR to main branch; merge_group once the queue is on (ruling 98 — required checks
+must answer the queue's event; no `branches:` filter, the queue fires from its own ref)
 
 **Jobs:**
 

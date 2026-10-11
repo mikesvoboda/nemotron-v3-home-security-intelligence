@@ -56,6 +56,15 @@ The workflow uses intelligent change detection to only run relevant tests:
 | Docs only             | No            | No             |
 | Workflow file changes | Yes           | Yes            |
 | Push to main          | Yes           | Yes            |
+| Merge group (queue)   | Yes           | Yes            |
+
+A merge-group run (`merge_group`, owner ruling 98) is deliberately in the run-everything column the
+way a main push is: the group commit can carry any combination of the group's PRs, so no PR's
+narrow path filter may let a change ride through untested — ruling 100 part 2's "on `merge_group`,
+`ci.yml` runs the full suite (`should-run-all` true, as on `main` today)". The clause lives in
+`detect-changes`'s `should-run-all` output, keyed on `github.event_name == 'merge_group'`, because
+the queue fires with `github.ref` set to its own `refs/heads/gh-readonly-queue/...` ref, never
+`refs/heads/main`.
 
 Detected file patterns:
 

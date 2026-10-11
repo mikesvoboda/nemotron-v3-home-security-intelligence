@@ -54,7 +54,9 @@ workflows/
 
 ### ci.yml - Main CI Pipeline
 
-**Trigger:** Push/PR to main branch
+**Trigger:** Push/PR to main branch; merge_group once the queue is on (ruling 98 — the queue waits
+on every check CI Gate names, so the workflow that produces it must answer the queue's event; a
+`branches:` filter could never match: the queue fires from its own gh-readonly-queue ref)
 
 **Purpose:** Primary continuous integration - linting, type checking, testing, building.
 

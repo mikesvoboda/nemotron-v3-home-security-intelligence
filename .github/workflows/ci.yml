@@ -5,6 +5,18 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Ruling 98 (1): the merge queue waits for every check named in
+  # CI Gate (Required Checks), and this file is the only workflow that
+  # produces one — CI Gate's 29 needs are all jobs here (measured: the
+  # same-named ids in api-contract.yml and dependency-audit.yml carry
+  # distinct `name:`s, "API Contract Testing" / "NPM Dependency Audit",
+  # so they are separate, non-required checks). Without this trigger the
+  # queue would wait forever on a check that never reports.
+  #
+  # No branches filter: merge_group fires with github.ref set to the
+  # queue's own refs/heads/gh-readonly-queue/main/… ref, so a
+  # `branches: [main]` filter here would never match.
+  merge_group:
   workflow_dispatch:
 
 concurrency:
@@ -29,7 +41,14 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       docs-only: ${{ steps.filter.outputs.docs-only }}
       workflow: ${{ steps.filter.outputs.workflow }}
-      should-run-all: ${{ github.ref == 'refs/heads/main' || steps.filter.outputs.workflow == 'true' }}
+      # Ruling 100 (2): a merge group runs the FULL suite, the way main
+      # does today — the group commit can carry any combination of the
+      # group's PRs, so path filtering would let a change ride in on
+      # someone else's narrow filter. github.ref is the gh-readonly-queue
+      # ref under merge_group, never refs/heads/main, so main's clause
+      # cannot cover it; the event_name clause is what makes
+      # should-run-all true on the queue.
+      should-run-all: ${{ github.ref == 'refs/heads/main' || github.event_name == 'merge_group' || steps.filter.outputs.workflow == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -504,6 +523,35 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             pre-commit run --from-ref "origin/${{ github.base_ref }}" --to-ref HEAD
             rc=$?
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            # Ruling 98 (1): the queue's group commit is a chain — its FIRST
+            # parent is the previous group member's state, so the HEAD^ branch
+            # below would hook-check only the LAST PR of the group while the
+            # gate claims it checked the combined tree. The whole group's
+            # delta is base..HEAD. The base comes from the event payload
+            # (github.event.merge_group.base_ref) rather than a hardcoded
+            # origin/main, so the same branch is correct on any queue — the
+            # scratch dry-run branch's queue included. fetch-depth: 0 above
+            # carries every origin/* branch ref.
+            # No-merge-base fails the job: an unchecked tree is not a green
+            # required check.
+            # UR-29 witness line: the scratch-branch dry run (see PR body)
+            # reads these back — base_ref must interpolate the queue's base
+            # (refs/heads/...), not the empty string. An empty interpolation
+            # would mean the fallback below is doing the real work and the
+            # payload claim below is false; fix the expression, don't bank
+            # the fallback.
+            echo "merge_group payload: ref=${{ github.ref }} base_ref=${{ github.event.merge_group.base_ref }} head_ref=${{ github.event.merge_group.head_ref }}"
+            queue_base="${{ github.event.merge_group.base_ref }}"
+            queue_base="${queue_base#refs/heads/}"
+            queue_base="${queue_base:-main}"
+            if base=$(git merge-base HEAD "origin/$queue_base"); then
+              pre-commit run --from-ref "$base" --to-ref HEAD
+              rc=$?
+            else
+              echo "::error::merge_group: no merge-base with origin/$queue_base — refusing to claim a hooks verdict"
+              rc=1
+            fi
           elif git rev-parse --verify -q 'HEAD^' >/dev/null; then
             pre-commit run --from-ref 'HEAD^' --to-ref HEAD
             rc=$?
@@ -906,7 +954,15 @@ jobs:
       # latest successful main run as COVERAGE_BASE_JSON, so PRs diff against
       # main's real merged number without re-running the suite on base.
       - name: Publish coverage baseline (main)
-        if: steps.combine.outputs.merged == 'true' && github.ref == 'refs/heads/main'
+        # Ruling 100 (2) follow: the merge queue is the future publisher.
+        # Once the owner turns the queue on, the follow-up trigger-removal
+        # PR takes `push: [main]` away — a ref-only condition would then
+        # publish NO baseline ever, and every PR's coverage diff (WP0.9,
+        # test-coverage-gate.yml) would degrade to its honest skip forever.
+        # merge_group fires with the gh-readonly-queue ref, so it needs its
+        # own clause; the merged==true guard is untouched (never publish a
+        # baseline from the vacuous `touch .coverage` fill branch).
+        if: steps.combine.outputs.merged == 'true' && (github.ref == 'refs/heads/main' || github.event_name == 'merge_group')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-baseline
