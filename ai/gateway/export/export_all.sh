@@ -154,21 +154,54 @@ run_export "OSNet-AIN x1.0 Re-ID -> ONNX" "${CACHE_DIR}/reid/1/model.onnx" \
 # the compile counts as a failed export, because a stale/unvouched ONNX is exactly
 # what #6970's precondition warns about and a quiet skip would hide it.
 REID_PLAN="${CACHE_DIR}/reid/1/model.plan"
-if [ -f "$REID_PLAN" ]; then
+# fp16 is the shipped default (yolo26's engine idiom); the owner's parity gate
+# is cosine >= 0.999 (scripts/reid_parity_check.py) and was proven against an
+# FP32 path, so the bake exposes the lever: REID_PLAN_PRECISION=fp32 rebuilds
+# the plan at full precision — a one-flag retry, not a new package, if the
+# owner's run lands just under the gate.
+REID_PLAN_PRECISION="${REID_PLAN_PRECISION:-fp16}"
+# Engines are architecture-specific (copy_yolo26_engine.py's warning; the B2.2
+# note in export_reid.py). A cache copied from a DIFFERENT card still has a
+# .plan — but for the wrong GPU, and Triton will not load it. Record which GPU
+# built the plan and treat a mismatch as stale instead of cached. (The sidecar
+# rides inside the version dir; §0c links it and Triton ignores extras, exactly
+# like provenance.json.)
+GPU_NAME="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1 || true)"
+
+# Build the plan from the vouched ONNX on THIS GPU. Returns 0/1; the caller
+# classifies the outcome into PASS/FAIL/SKIP exactly once.
+build_reid_plan() {
+    python3 "${SCRIPT_DIR}/export_reid.py" \
+        --model-path "${MODELS_ZOO}/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth" \
+        --output-path "$REID_PLAN" \
+        --precision "$REID_PLAN_PRECISION"
+}
+
+skip_reid_plan() {
+    echo "     SKIPPED - no trtexec on this host (no GPU bake here)"
+    echo "     WARNING: reid/config.pbtxt serves backend \"tensorrt\"; without a"
+    echo "     plan built ON the serving GPU, reid will not load."
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+}
+
+if [ -f "$REID_PLAN" ] && [ "$(cat "${REID_PLAN}.device" 2>/dev/null || true)" = "$GPU_NAME" ]; then
     echo "  -> OSNet-AIN Re-ID -> TensorRT plan... CACHED (skipping)"
     SKIP_COUNT=$((SKIP_COUNT + 1))
 else
-    echo "  -> OSNet-AIN Re-ID -> TensorRT plan..."
+    if [ -f "$REID_PLAN" ]; then
+        # A plan built for a different card: Triton cannot load it, and leaving
+        # it "cached" would make a GPU migration fail silently.
+        echo "  -> OSNet-AIN Re-ID -> TensorRT plan... STALE (built for '$(cat "${REID_PLAN}.device" 2>/dev/null || echo 'unrecorded GPU')', this host is '${GPU_NAME:-no GPU}') — rebuilding"
+        rm -f "$REID_PLAN"
+    else
+        echo "  -> OSNet-AIN Re-ID -> TensorRT plan..."
+    fi
     mkdir -p "$(dirname "$REID_PLAN")"
     if ! command -v trtexec > /dev/null 2>&1 && [ ! -x /usr/src/tensorrt/bin/trtexec ]; then
-        echo "     SKIPPED - no trtexec on this host (no GPU bake here)"
-        echo "     WARNING: reid/config.pbtxt serves backend \"tensorrt\"; without a"
-        echo "     plan built ON the serving GPU, reid will not load."
-        SKIP_COUNT=$((SKIP_COUNT + 1))
-    elif python3 "${SCRIPT_DIR}/export_reid.py" \
-            --model-path "${MODELS_ZOO}/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth" \
-            --output-path "$REID_PLAN"; then
+        skip_reid_plan
+    elif build_reid_plan; then
         echo "     OK"
+        echo "$GPU_NAME" > "${REID_PLAN}.device"
         PASS_COUNT=$((PASS_COUNT + 1))
     else
         echo "     FAILED"
@@ -224,6 +257,7 @@ echo "================================================================"
 echo ""
 echo "  Passed: ${PASS_COUNT}"
 echo "  Failed: ${FAIL_COUNT}"
+echo "  Skipped: ${SKIP_COUNT}"
 echo "  Finished at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo ""
 
@@ -233,7 +267,16 @@ if [ "$FAIL_COUNT" -gt 0 ]; then
     exit 1
 fi
 
-echo "  All exports succeeded."
+if [ ! -f "${CACHE_DIR}/reid/1/model.plan" ]; then
+    # The step line warned; the VERDICT must not erase it. A plan-less cache is
+    # not "all exports succeeded" — reid/config.pbtxt loads backend "tensorrt"
+    # and has nothing to load (O2.4, ruling 107).
+    echo "  WARNING: no reid plan in this cache — reid will NOT load" \
+         "(backend \"tensorrt\" needs 1/model.plan built ON the serving GPU)."
+    echo "  ONNX exports complete; the GPU step is pending, not passed."
+else
+    echo "  All exports succeeded."
+fi
 echo "  Run 'tritonserver --model-repository=${REPO_DIR}' to load models."
 echo ""
 echo "=== Export complete ==="

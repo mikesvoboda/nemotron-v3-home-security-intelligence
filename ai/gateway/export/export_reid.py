@@ -612,7 +612,15 @@ def validate_onnx(
     onnx.checker.check_model(onnx_model)
     logger.info("ONNX model structure check passed")
 
-    providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    # CPU EP, explicitly. This session is the graph-fidelity proof — cosine
+    # similarity of the ONNX's embeddings against PyTorch's — and the image
+    # ships onnxruntime-gpu (ai/gateway/Dockerfile:32), so an implicit provider
+    # list would ride CUDAExecutionProvider whenever a GPU is merely visible.
+    # On the GB300 that is the provider ruling 106 proved cannot run this graph
+    # (cudaErrorSymbolNotFound), which would turn the export's own validation
+    # step into the very failure TensorRT was ordered to replace. The plan's
+    # numeric proof is a separate matter: the owner's reid_parity_check.py run.
+    providers = ["CPUExecutionProvider"]
     session = ort.InferenceSession(onnx_path, providers=providers)
 
     test_batch_sizes = [1, 2, 4, 8]
@@ -779,7 +787,15 @@ def build_tensorrt_engine(
         f"--minShapes=input:1x{shape}",
         f"--optShapes=input:{opt_batch}x{shape}",
         f"--maxShapes=input:{max_batch}x{shape}",
-        f"--workspace={workspace_gb * 1024}",
+        # ``--memPoolSize=workspace:<MiB>``, NOT the ``--workspace=<MiB>``
+        # spelling export_fashion_clip.py carries: that flag was deprecated in
+        # TensorRT 8 and is GONE in TensorRT 10, which is what the serving base
+        # image ships (nvcr.io/nvidia/tritonserver:26.01-py3,
+        # ai/gateway/Dockerfile:1), and trtexec rejects unknown arguments. The
+        # fashion_clip helper is never wired into export_all.sh, so no command
+        # line in this repo has ever executed either flag — the owner's step 2b
+        # is the first. memPoolSize is accepted by TRT 8 and 10 alike.
+        f"--memPoolSize=workspace:{workspace_gb * 1024}",
     ]
     if precision == "fp16":
         cmd.append("--fp16")
@@ -855,6 +871,16 @@ def compile_plan_from_validated_onnx(
     plan = Path(plan_path)
     version_dir = plan.parent
     onnx = version_dir / "model.onnx"
+
+    if plan.name != PLAN_FILE:
+        # Triton's tensorrt backend loads exactly ``1/model.plan`` — it takes the
+        # filename as given, so a plan written as ``reid.plan`` or ``model.planx``
+        # exits 0, export_all.sh reports OK, and Triton then finds no model at
+        # all. Refuse the destination instead of shipping an invisible no-op.
+        raise RuntimeError(
+            f"a TensorRT plan must be named {PLAN_FILE} (Triton's fixed filename "
+            f"for the tensorrt backend), not {plan.name!r}"
+        )
 
     if not onnx.is_file():
         raise RuntimeError(

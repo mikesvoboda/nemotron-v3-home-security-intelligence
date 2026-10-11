@@ -115,13 +115,31 @@ says which one it hit:
 - **no `trtexec` on this host** (the CPU bake, and CI): the step is skipped and
   prints `WARNING: reid/config.pbtxt serves backend "tensorrt"; without a plan
   built ON the serving GPU, reid will not load.` The bake still produces every
-  ONNX, which is what those runs are for.
+  ONNX, which is what those runs are for — and its summary says
+  `the GPU step is pending, not passed` rather than `All exports succeeded`,
+  because a skipped GPU step is not a passed one.
 - **`trtexec` present and the compile fails**: counted as a failed export — the
   bake reports it and exits non-zero. A refusal from the provenance guard is the
   loud case it exists to make loud.
 
+Two more things the bake does, both because an engine is GPU-specific:
+
+- **It records which GPU built the plan** (`model.plan.device`, beside the plan).
+  A cache copied from a different card still has a `.plan`, and Triton cannot
+  load it; the bake calls that `STALE … rebuilding` instead of `CACHED`.
+- **`REID_PLAN_PRECISION`** selects the compile precision (`fp16` default, like
+  yolo26's shipped engine). If the owner's parity run lands just under the 0.999
+  gate, `REID_PLAN_PRECISION=fp32` is the one-flag retry — the gate was proven
+  against an FP32 path.
+
+One limit of the guard, stated so nobody assumes more than it does: the record
+proves the ONNX was exported from THESE weights, and `validate_onnx` proves that
+ONNX matches the PyTorch model — but `--skip-validation` still writes a record,
+so a record is not proof that validation ran. The plan step cannot see past the
+record it is given.
+
 Re-derive a plan after moving to different GPU hardware, or after anything
-touches the ONNX:
+touches the ONNX (the `.device` sidecar makes this automatic on a new card):
 
 ```bash
 rm -f "${CACHE_DIR}/reid/1/model.plan"
