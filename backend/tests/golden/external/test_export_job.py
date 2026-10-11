@@ -119,7 +119,13 @@ def test_completed_job_reports_result_with_size(completed_export: dict) -> None:
     result = completed_export.get("result")
     assert result is not None, f"completed job has no result block: {completed_export!r}"
     assert result["output_path"], result
-    assert result["output_size_bytes"] >= 0, result
+    # Strictly positive, not merely non-negative: ``events_to_csv``
+    # (``export_service.py:337``) writes the header row before it iterates the
+    # rows (``writer.writerow(header_row)``, ``:359``), so a header-only export
+    # is already 87 bytes (measured: ``len(events_to_csv([]).encode())``).
+    # ``>= 0`` here would pass on a completed job that wrote nothing at all,
+    # which is the vacuous shape the ratchet-side review of this PR caught.
+    assert result["output_size_bytes"] > 0, result
     assert result["format"] == "csv", result
 
 
