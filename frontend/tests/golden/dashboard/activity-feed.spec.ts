@@ -157,7 +157,14 @@ test.describe('golden path: dashboard recent activity feed @critical', () => {
       const b = items[i];
       const ta = String(a.started_at ?? '');
       const tb = String(b.started_at ?? '');
-      const cmp = ta === tb ? Number(b.id) - Number(a.id) : ta < tb ? 1 : ta > tb ? -1 : 0;
+      // Sorter semantics, NOT violation semantics: return what a correct
+      // `started_at DESC, id DESC` comparator yields for THIS pair, so a
+      // correctly-ordered page yields >=0. Reading the branches as "what do I
+      // return for a violation" inverts the whole guard — it then fails good
+      // rows and PASSES a reversed page (measured: run 38173376883 red 3/3
+      // attempts on rows 0/1 = 20:48:59/id2 then 20:47:38/id1, which IS
+      // newest-first; the instrument was the bug, not the API).
+      const cmp = ta === tb ? Number(a.id) - Number(b.id) : ta > tb ? 1 : -1;
       expect(
         cmp,
         `rows ${i - 1}/${i} violate started_at DESC, id DESC: ${a.started_at}/${a.id} then ${b.started_at}/${b.id}`
