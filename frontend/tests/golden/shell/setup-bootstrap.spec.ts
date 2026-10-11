@@ -97,7 +97,7 @@ interface SetupStatus {
 const PROBE = {
   username: 'golden-f002-spec',
   email: 'golden-f002-spec@example.com',
-  password: 'GoldenF002Probe1',
+  password: 'GoldenF002Probe1', // pragma: allowlist secret
 } as const;
 
 /** Fill the four shipped fields (labels: Email, Username, Password, Confirm
@@ -189,7 +189,7 @@ test.describe('golden path: setup page first-admin bootstrap @critical', () => {
     // Per-rule clauses on the second submit (:81-112):
     await fillSetupForm(page, {
       email: 'nope',
-      password: 'short1A', // 7 chars — under MIN_PASSWORD_LENGTH :65
+      password: 'short1A', // 7 chars — under MIN_PASSWORD_LENGTH :65 (pragma: allowlist secret)
       confirm: 'different1A',
     });
     await submitSetup(page);
