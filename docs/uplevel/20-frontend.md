@@ -118,9 +118,10 @@ status with evidence; the module list is attached; the `R2` sheet is drafted (`F
 
 **Depends on:** `F2.1`.
 
-- [ ] Write a golden path for every **unverified** row. A green golden path promotes the row to
-      **works** once the real tier confirms it; a golden path that cannot pass demotes the row to
-      **half-built**, with the failure as its evidence, and adds it to the `R2` sheet.
+- [ ] Write a golden path for every **unverified** row. A green golden path moves the row to
+      **awaiting real tier**, citing the spec (owner ruling 103), and the real tier promotes it to
+      **works**; a golden path that cannot pass demotes the row to **half-built**, with the failure
+      as its evidence, and adds it to the `R2` sheet.
 - [ ] The operator runs the real tier (`scripts/feature-check.sh --real`) and the inventory records
       the date per row.
 
@@ -137,7 +138,13 @@ heavy agents take none of it.
   claim PR.
 - **Files:** a batch touches only `frontend/tests/golden/<area>/` or `backend/tests/golden/<area>/`
   and its own rows in the inventory. Frontend reviews every batch; a batch that needs a harness
-  change asks frontend for it.
+  change asks frontend for it. For its own skips and `xfail`s only, a batch may also touch the
+  suppression files they require — `.github/suppression-baseline.json`,
+  `.github/suppression-registry.yml` and `.secrets.baseline` (regenerated, never hand-merged),
+  one `HOST_JUSTIFIED` entry per skip site in `scripts/suppression-registry-gen.py`, and the
+  matching count in `scripts/test_suppression_census.py` — and the shared
+  `backend/tests/golden/__init__.py` (owner rulings 104 and 111). A batch touching `scripts/` or
+  `.github/` also gets ops-b's review of those hunks.
 - **The guard stands:** `F2.1`'s no-mocking guard applies to every batch. A path that cannot pass
   demotes its row as above, for `R2b`.
 - **Operator:** records real-tier dates per batch as batches merge, under `O2.2`'s `--real` (the
