@@ -15,6 +15,7 @@ on:
     paths:
       - 'requirements-base.txt'
       - 'docker/base.Dockerfile'
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 env:
@@ -28,6 +29,7 @@ jobs:
       contents: read
       packages: write
 
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
