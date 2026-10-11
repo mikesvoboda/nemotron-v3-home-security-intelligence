@@ -62,14 +62,17 @@ Lanes move through the phases independently, with two shared gates: **Phase 2's 
 gates Phase 3 in every lane** (deletion follows rulings), and Phase 4's order comes from that same
 session. **A blocked lane moves ahead:** when every remaining package in a lane's current phase
 waits on another lane, the lane takes the next phase's first package whose dependencies have
-landed — except that no Phase 3 package starts before `R2` is `done`.
+landed — except that no Phase 3 package starts before `R2` is `done` (`R2a` and `R2b`, ruling 86:
+`R2a` is recorded — #6980, 2026-10-10 — and a package scoped to `R2a`-ruled features and modules may
+start once the owner’s plan PR carrying ruling 86 merges; `R2` is `done` when `R2b` is recorded).
 
-**`R2`, the Phase 2 RULING session.** Runs after `F2.3`, so features its golden paths demoted are
+**`R2`, the Phase 2 RULING session.** Ruling 86 split it: `R2a` ran after `F2.1`, over the sheet as it
+stood (recorded #6980, 2026-10-10); `R2b` runs after `F2.3`, so features its golden paths demoted are
 ruled too. The owner walks the sheet `F2.2` prepares. Each half-built or leftover feature is ruled
 **complete** or **retire**; the completes get a priority order; the list of modules serving no
 feature is approved; OD-7 and OD-17 are ruled. **The frontend lane records the session:** one PR
 writes the rulings into the inventory's ruling column and the OD rulings into
-`docs/vss-integration/17-action-plan.md`, and sets `R2` to `done`.
+`docs/vss-integration/17-action-plan.md`, and sets the recorded half (`R2a`, then `R2b`) to `done`.
 
 **Phase 4 runs two tracks.** The **feature track** takes features in ruled priority. Each feature
 package opens with a design session for that feature; then a **test-only PR** consolidates the
@@ -112,7 +115,8 @@ order.
 **Cross-lane dependencies:** `B1.4` → `F1.2` (engine status, then the banner). `B1.5` → `F1.3` and
 `O1.6` (OD-12 has parts in all three; the B-1 follow-up (#6927) is the closing entry that marks
 ISS-029 done).
-`O2.1` → `O2.2` → `F2.1` → `F2.3` → `R2` (the stack, its harness, its specs, then the rulings).
+`O2.1` → `O2.2` → `F2.1` → `R2a` → `F2.3` → `R2b` (the stack, its harness, its specs, then the
+rulings, split by ruling 86; `R2a` recorded 2026-10-10 in #6980).
 `O1.5` and `B1.5` → `O1.8` (they close 18 of its 21 alerts). `O2.3` → `F2.2`'s module list. `B3.1` and `F3.1` land each retired feature in one PR. The docs
 lane's Phase 3 starts on a lane's directories only after that lane's Phase 3 is `done`.
 
@@ -257,13 +261,14 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O1.12 | ops | 1 | The hooks run in the gate (UR-37) | | done | #6901 |
 | B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | done     | #6921 |
 | B2.2 | backend | 2 | Re-ID on the GPU (OD-17 re-ID half) | heavy · owner | awaiting real tier | #6970 |
-| F2.1    | frontend                | 2          | Golden-path harness                            |               | not started |     |
+| F2.1    | frontend                | 2          | Golden-path harness                            |               | done        | #6976 |
 | F2.2    | frontend                | 2          | Feature inventory                              | heavy         | not started |     |
 | F2.3    | frontend                | 2          | Golden paths for every working feature         |               | not started |     |
 | O2.1    | ops                     | 2          | Fake AI stack                                  |               | done        | #6946 |
 | O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | not started |     |
 | O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | done        | #6954 |
-| R2      | owner; frontend records | 2          | Phase 2 RULING session (after `F2.3`)          | owner         | not started |     |
+| R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
+| R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | not started |     |
 | B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy · owner | not started |     |
 | B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started |     |
 | B3.3    | backend                 | 3          | Settings and residue truth                     |               | not started |     |

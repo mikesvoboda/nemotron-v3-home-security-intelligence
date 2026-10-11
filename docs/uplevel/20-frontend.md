@@ -134,6 +134,13 @@ into the inventory's ruling column, the OD-7 and OD-17 rulings into
 `docs/vss-integration/17-action-plan.md`, and `R2` set to `done` in the README status table. Every
 Phase 3 package waits on this PR.
 
+**Ruling 86 split the session into `R2a` and `R2b`.** This section ran for `R2a` — the sheet as it
+stood — on 2026-10-10 (#6980): rulings and tiers into the inventory, and OD-7, OD-17 and OD-33 – OD-39
+into `docs/vss-integration/17-action-plan.md`. A Phase 3 package may start once that PR and the owner’s
+plan PR carrying ruling 86 have merged, if it touches only `R2a`-ruled features and modules. `R2b` —
+the rows `F2.3` demotes plus the sheet’s §3 — is recorded the same way after the owner’s `R2b` session;
+`R2` is `done` only when both records are.
+
 ---
 
 ## Phase 3 — The tree matches the rulings

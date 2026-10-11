@@ -146,10 +146,10 @@ When UI changes are intentional:
 
 Visual tests run in `.github/workflows/visual-tests.yml`:
 
-- **Triggers:** push to main with `frontend/**` changes only (not PRs), plus
-  a manual `workflow_dispatch` with an `update_snapshots` boolean input that
-  reruns with `--update-snapshots` and uploads the new baselines as an
-  artifact
+- **Triggers:** nightly `schedule` (daily 05:23 UTC — owner ruling 71 moved
+  it off push-to-main; not PRs), plus a manual `workflow_dispatch` with an
+  `update_snapshots` boolean input that reruns with `--update-snapshots` and
+  uploads the new baselines as an artifact
 - **Browser:** Chromium only (for consistency)
 - **Artifacts (generated during CI runs):**
   - HTML report (output in CI artifacts)
