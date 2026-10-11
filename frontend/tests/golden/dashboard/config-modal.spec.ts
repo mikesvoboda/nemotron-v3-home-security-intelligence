@@ -147,31 +147,52 @@ test.describe('golden path: dashboard Configure widgets modal @critical', () => 
     await toggleInModal(page, 'pipeline-queues', true);
     await toggleInModal(page, 'gpu-stats', true);
 
-    // Reorder inside the modal: queues ABOVE gpu-stats (both start in
-    // defaults order gpu-stats before pipeline-queues). Move-up once swaps
-    // adjacent rows (handleMoveUp → moveWidgetUp, modal :112-115).
-    const queuesRow = page.getByTestId('widget-row-pipeline-queues');
-    const gpuRow = page.getByTestId('widget-row-gpu-stats');
-    const rowOrder = async () =>
-      page.evaluate(() => {
-        const q = document.querySelector('[data-testid="widget-row-pipeline-queues"]')!;
-        const g = document.querySelector('[data-testid="widget-row-gpu-stats"]')!;
-        return q.compareDocumentPosition(g) & Node.DOCUMENT_POSITION_FOLLOWING
-          ? 'queues-first'
-          : 'gpu-first';
-      });
-    // Poll the ORDER, click outside the poller: if an unexpected position
-    // ever shows up, more clicks can't converge it to the expectation — the
-    // poll fails with the observed order instead of hiding behind them.
-    await expect
-      .poll(async () => {
-        await page.getByTestId('widget-move-up-pipeline-queues').click();
-        return rowOrder();
-      })
-      .toBe('queues-first');
-    // The list-head bound moved with the row (same disabled={isFirst} prop
-    // stats-row's check pinned before the swap): now-queues-first is inert.
+    // Reorder inside the modal: drive queues from defaults-LAST to the list
+    // HEAD. One move-up click swaps exactly one adjacent pair (handleMoveUp →
+    // moveWidgetUp, modal :112-115), and the head is index 0 of the seven
+    // defaults (store :118-159), so the honest drive is a KNOWN number of
+    // clicks, not "click until something looks right". Run 38166150838 proved
+    // why: my first version clicked inside an expect.poll until the
+    // queues/gpu pair flipped — the poll kept clicking past the pair swap on
+    // CI timing and the row landed mid-list, where disabled={isFirst}
+    // (modal :300) is CORRECTLY enabled, and my toBeDisabled died with the
+    // button's own markup in the log. The assert was right about the head and
+    // the code never took the row there.
+    const rowIndex = () =>
+      page.evaluate(
+        () =>
+          [...document.querySelectorAll('[data-testid^="widget-row-"]')].findIndex(
+            (el) => el.getAttribute('data-testid') === 'widget-row-pipeline-queues'
+          )
+      );
+    const start = await rowIndex();
+    expect(start, 'defaults ship queues last of the seven rows').toBe(6);
+    for (let i = start; i > 0; i--) {
+      await page.getByTestId('widget-move-up-pipeline-queues').click();
+    }
+    // expect.poll, not expect(page.evaluate(...)): the latter compares the
+    // Promise object, never its value. The poll retries the READ (React needs a
+    // tick after the last click); it never retries a click.
+    await expect.poll(rowIndex).toBe(0);
+    // The bound moved WITH the row: queues at the head is now inert…
     await expect(page.getByTestId('widget-move-up-pipeline-queues')).toBeDisabled();
+    // …and stats-row, demoted to index 1, is no longer at the head — the
+    // same disabled={isFirst} rule read from the other side.
+    await expect(page.getByTestId('widget-move-up-stats-row')).toBeEnabled();
+    // Queues above gpu-stats is now implied by queues-first; pin it anyway
+    // so a future sort that keeps the disabled flags but reorders rows fails
+    // HERE instead of at the saved-layout assert.
+    await expect
+      .poll(async () =>
+        page.evaluate(() => {
+          const q = document.querySelector('[data-testid="widget-row-pipeline-queues"]')!;
+          const g = document.querySelector('[data-testid="widget-row-gpu-stats"]')!;
+          return q.compareDocumentPosition(g) & Node.DOCUMENT_POSITION_FOLLOWING
+            ? 'queues-first'
+            : 'gpu-first';
+        })
+      )
+      .toBe('queues-first');
 
     // SAVE.
     await page.getByTestId('save-button').click();

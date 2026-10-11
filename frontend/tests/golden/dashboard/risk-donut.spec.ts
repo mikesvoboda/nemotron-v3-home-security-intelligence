@@ -183,13 +183,19 @@ test.describe('golden path: dashboard risk distribution donut @critical', () => 
     await page.getByTestId(`legend-${level}`).click();
     await expect(page).toHaveURL(new RegExp(`/timeline\\?risk_level=${level}`));
 
-    // The timeline CONSUMES the param (EventTimeline.tsx:307-316): the
-    // filters panel's select reflects it (panel is collapsed by default —
-    // "Show Filters" at :1253).
-    await expect(page.getByRole('button', { name: /Show Filters|Hide Filters/i })).toBeVisible({
-      timeout: 20_000,
-    });
-    await page.getByRole('button', { name: /Show Filters/i }).click();
+    // The timeline CONSUMES the param (EventTimeline.tsx:307-325). Measured at
+    // run 38166150838's failure artifact: the app EXPANDS the panel itself when
+    // it arrives with URL params — setShowFilters(true) at :324, and the panel
+    // starts collapsed (useState(false) at :102). So the deep-link path lands
+    // with the toggle already reading "Hide Filters" [expanded] (its aria-label
+    // composes that way at :1218-1223), and the panel body is open without any
+    // click. My first version waited for "Show Filters" and clicked it — that
+    // button never exists on this path, so the click timed out while the
+    // behaviour it was meant to reveal had already happened. Assert the
+    // auto-expanded state directly; the select's value is the consumption.
+    await expect(
+      page.getByRole('button', { name: /Hide Filters/i })
+    ).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('#risk-filter')).toHaveValue(level);
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
