@@ -1,0 +1,494 @@
+/**
+ * F2.3 DO-3 golden path — the zones surface. Inventory rows
+ * docs/reference/feature-inventory.md:462 (F-256) and :464 (F-258).
+ * Route: /zones (`path="/zones"` frontend/src/App.tsx:312).
+ *
+ * What the rows promise, verbatim, and what this file does about it:
+ *  F-256  "opens the page; sees a card per zone with type, enabled state and
+ *         priority; filters by zone type and time range; clicks Export CSV
+ *         (built in the browser); toggles a panel to full screen"
+ *  F-258  "sees a grid of household members (or vehicles) against zones with
+ *         trust levels; clicks a cell and picks full/partial/monitor/none"
+ *
+ * Why this file CREATES its rows instead of reading seeded ones: the no-env
+ * fake-AI stack seeds only cameras (harness.ts:15-24, verified there), so the
+ * passive /zones mount is the EMPTY branch — EmptyState title "No zones
+ * configured" (ZonesPage.tsx:651) behind `zones.length === 0` (:639, the third
+ * of the page's three early returns, after loading :604 and error :613) — and
+ * every card this spec
+ * asserts must be created by its API leg and deleted in its finally. The
+ * empty-mount asserts (zones [], members [], vehicles []) are ALSO the proof
+ * that no earlier golden spec in the same stack leaked household rows.
+ *
+ * Which camera: the page shows ONE camera's zones — `const firstCameraId =
+ * cameras[0]?.id` (ZonesPage.tsx:416) — and the inventory's own F-256 evidence
+ * says so ("Only the first camera's zones are shown"). feature_check seeds one
+ * camera per scenario folder (seed_cameras, scripts/feature_check.py:1284),
+ * their ids are server-minted UUIDs, and GET /api/cameras has no ORDER BY
+ * (list_cameras at backend/api/routes/cameras.py:151 — the file's only
+ * order_by calls are :568 and :1798, other routes). So the spec must not fix
+ * an id or a name: it takes items[0].id from the same endpoint the client
+ * reads, which pins SPEC-PAGE AGREEMENT without assuming any order.
+ *
+ * Locator ground truth (every cite re-read at the head this file lands in;
+ * this repo mixes frameworks per-element, harness.ts:40-64, so each was
+ * checked against the element it targets):
+ *  - zone card: data-testid={`zone-card-${zone.id}`} ZonesPage.tsx:307,
+ *    <h3>{zone.name}</h3> :316, Type row :327-328 (labelled by the zoneType
+ *    labels map at :296-303: 'driveway' renders "Driveway"), Status
+ *    :331-333 (enabled renders "Active"), Priority :337-339.
+ *  - grid container: data-testid="zone-grid" :753, and it maps
+ *    filteredZones (:755, filter at :507-512) inside an empty-of-filter
+ *    branch ("No zones match the selected filter." :746-748) — so a filter
+ *    change is observable as a COUNT change, and it's the same filteredZones
+ *    the CSV export reads (handleExport :534-541), which makes "the export
+ *    honors the filter" a real end-to-end leg, not a guess.
+ *  - type filter: NATIVE <select> data-testid="zone-type-select" :219-227
+ *    (Playwright maps a single <select> to role combobox; selectOption, never
+ *    click-then-click — harness.ts:47-51).
+ *  - time range: role="group" aria-label="Time range selection" (:240, group
+ *    from :238),
+ *    buttons with aria-pressed (:248), default state '24h' (:459), options
+ *    1h/6h/24h/7d (:109-114). SHIPPED-HONESTY NOTE: the row says "filters by
+ *    … time range", but the state lands in hoursLookback (:660) and its only
+ *    consumer is the ANALYTICS tab panel prop (:790) — it does not filter
+ *    overview cards. This spec pins what ships: the pressed state moves and
+ *    the overview grid count does NOT change. Pinning a card-count change
+ *    here would be writing the test the row wishes were true.
+ *  - export: data-testid="export-button" :270 is common/Button, which spreads
+ *    props onto the native <button> (components/common/Button.tsx:146,:168),
+ *    so getByTestId resolves to a clickable button. The file is a client-side
+ *    Blob: headers ['ID','Name','Type','Enabled','Priority','Color','Created
+ *    At'], rows from filteredZones with zone_type raw and enabled as Yes/No,
+ *    name `zones-export-${ISO date}.csv` (ZonesPage.tsx:534-560). The repo
+ *    precedent for catching it is waitForEvent('download') set BEFORE the
+ *    click (tests/e2e/specs/event-export.spec.ts:482).
+ *  - full screen: each panel is data-testid={`panel-${panelType}`} :376 with
+ *    an aria-labelled toggle "Enter full screen"/"Exit full screen" :385-387.
+ *    The state is a SINGLE panel (fullScreenPanel !== null, :462/:662) and
+ *    enabling one UNMOUNTS the others — the Trust Matrix panel renders only
+ *    `fullScreenPanel === null || fullScreenPanel === 'trust'` (:768-769) —
+ *    so the observable pin is panel-trust disappearing and returning.
+ *  - trust matrix: rendered on the overview tab, which is the default
+ *    (activeTab state 'overview' :463; ZonesTrustMatrix mounted at :776).
+ *    <h3>Zone Trust Matrix</h3> ZoneTrustMatrix.tsx:580; Members/Vehicles
+ *    toggle buttons :584-:606 with viewMode default 'members' (:455 prop
+ *    default). Cell = <button> aria-label `${entityName} has ${Label} trust
+ *    in ${zoneName}` :172-177 — the whole pin rides on that string; labels
+ *    are Full/Partial/Monitor/None (:78-:126), member entityName is
+ *    member.name and vehicle's is vehicle.description (useZoneTrustMatrix
+ *    .ts:454,:478). Editor on click: "Select Trust Level" + one button per
+ *    level (:198-:240); VEHICLES get only Partial/None (:199-:202) — shipped
+ *    limitation, pinned as shipped.
+ *  - the trust WRITE: level pick → PUT /api/zones/{id}/household
+ *    (upsertZoneHouseholdConfig, useZoneTrustMatrix.ts:231, PUT at :236; handler
+ *    upsert_zone_household_config zone_household.py:71, 200 on create-or-
+ *    update). The level→config mapping, read both directions:
+ *      full    → owner_id = memberId          (hook :543-544)
+ *      partial → allowed_member_ids          (hook :546-548)
+ *      monitor → access_schedules entry      (hook :549-559)
+ *      none    → removed from all lists      (hook :560-562)
+ *    and computeTrustLevelForMember (:320) derives None when no config exists
+ *    (:325), so a fresh zone's first cell reads "has None trust".
+ *  - the cell REPAINT after the write is not luck: the mutation invalidates
+ *    zoneTrustQueryKeys.config(zoneId) (useZoneTrustMatrix.ts:301-303), the
+ *    same key the matrix's configs query reads (:391), so the button's
+ *    aria-label changing is an honest assert, not a prayer.
+ *  - /api/household/members returns a BARE LIST (response_model=list[...]
+ *    household.py:61) and the client's fetchMembers returns it verbatim
+ *    (useHouseholdApi.ts:250-251) — client and server AGREE here, so the
+ *    trust matrix is NOT a second instance of the F-275 envelope-`.length`
+ *    break (ruling 118). That falsification was run before writing this and
+ *    came back clean; the spec still asserts the bare shape so a future
+ *    envelope change breaks LOUDLY instead of silently emptying the matrix.
+ *
+ * Deliberately NOT here: the health color dot (heuristic getZoneHealth, no
+ * row text behind it), the analytics/comparison tabs (different rows, and
+ * Tremor territory per harness.ts:44-46), the matrix's OWN zone-type/member/
+ * vehicle filter selects (:312-:354 — the page-level filter already pins the
+ * filteredZones path), and the F-258 DELETE route for a config (cleanup
+ * plumbing, not row surface).
+ */
+import type { Download } from '@playwright/test';
+
+import { expect, test } from '../guard';
+import {
+  adminSession,
+  apiPath,
+  assertGuardSurvives,
+  authedFetch,
+  login,
+  readHarness,
+  type Harness,
+} from './harness';
+
+const harness = readHarness();
+test.skip(
+  !harness.ready,
+  `golden path needs the feature-check stack (${harness.ready ? '' : harness.why})`
+);
+
+/** Names no other test can collide with. Uniqueness matters because the
+ *  empty-state legs assert 0-length lists: a leaked row from any earlier spec
+ *  would fail THIS spec for someone else's reason. */
+const ZONE_A = 'Golden DO-3 Driveway';
+const ZONE_B = 'Golden DO-3 Yard';
+const MEMBER = 'Golden DO-3 Member';
+const VEHICLE = 'Golden DO-3 Vehicle';
+
+/** The schema demands >=3 points, normalized 0-1, no duplicate neighbours,
+ *  positive area, no self-intersection (_validate_polygon_geometry,
+ *  backend/api/schemas/zone.py:115-:134) — a unit square satisfies all five. */
+const COORDS = [
+  [0.1, 0.1],
+  [0.5, 0.1],
+  [0.5, 0.5],
+  [0.1, 0.5],
+];
+
+function newZone(name: string, zoneType: string, priority: number) {
+  return {
+    name,
+    zone_type: zoneType,
+    coordinates: COORDS,
+    color: '#3B82F6',
+    enabled: true,
+    priority,
+  };
+}
+
+async function signIn(page: Parameters<typeof login>[0], h: Harness) {
+  const session = await adminSession(h);
+  await login(page, h, session);
+  return authedFetch(h, session);
+}
+
+/** Read a caught download's bytes as text. createReadStream() can answer
+ *  null (the type says so) — an assert, because a null read here would
+ *  otherwise show up as an empty CSV and read like a product defect. */
+async function downloadText(download: Download): Promise<string> {
+  const stream = await download.createReadStream();
+  if (!stream) throw new Error(`download ${download.suggestedFilename()} has no readable stream`);
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk as ArrayBuffer));
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+test.describe('DO-3 zones golden path', () => {
+  test('F-256 grid: empty mount, cards with type/status/priority, type filter, browser-built CSV, full screen', async ({
+    page,
+  }) => {
+    const h = harness as Harness;
+    const api = await signIn(page, h);
+
+    // --- API leg first, so a blank screen cannot pass as "renders". ---
+    const cameras = await api.getJson('/api/cameras');
+    expect(cameras.status, 'GET /api/cameras answers 200').toBe(200);
+    const items = cameras.body?.items;
+    expect(
+      Array.isArray(items) && items.length > 0,
+      `the stack seeds cameras, got ${JSON.stringify(cameras.body)}`
+    ).toBe(true);
+    // items[0] is the camera the PAGE will show (cameras[0] at
+    // ZonesPage.tsx:416) — same endpoint, same index, no ORDER BY anywhere
+    // in the route (cameras.py:151), so agreement is by construction.
+    const cameraId = String(items[0].id);
+
+    const before = await api.getJson(`/api/cameras/${cameraId}/zones`);
+    expect(before.status, 'GET /api/cameras/{id}/zones answers 200').toBe(200);
+    expect(before.body?.items, 'the fake-AI stack seeds no zones').toHaveLength(0);
+    expect(before.body?.pagination?.total, 'pagination.total agrees with the empty list').toBe(0);
+
+    const createdA = await api.send(
+      `/api/cameras/${cameraId}/zones`,
+      'POST',
+      newZone(ZONE_A, 'driveway', 7)
+    );
+    expect(createdA.status, 'POST zone A answers 201').toBe(201);
+    const zoneA = String(createdA.body?.id);
+    expect(zoneA, 'the POST response carries the server-minted id (zones.py:89 uuid4)').not.toBe(
+      'undefined'
+    );
+    const createdB = await api.send(
+      `/api/cameras/${cameraId}/zones`,
+      'POST',
+      newZone(ZONE_B, 'yard', 3)
+    );
+    expect(createdB.status, 'POST zone B answers 201').toBe(201);
+    const zoneB = String(createdB.body?.id);
+
+    try {
+      await page.goto(`${h.ui}/zones`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('zones-page')).toBeVisible();
+
+      // 1. Cards: the empty copy is gone, and both cards show the three
+      //    fields the row promises.
+      await expect(page.getByText('No zones configured')).toHaveCount(0);
+      const cardA = page.getByTestId(`zone-card-${zoneA}`);
+      const cardB = page.getByTestId(`zone-card-${zoneB}`);
+      await expect(cardA).toBeVisible();
+      await expect(cardB).toBeVisible();
+      await expect(cardA.getByRole('heading', { name: ZONE_A, level: 3 })).toBeVisible();
+      // Type renders through the labels map (:296-303): 'driveway' → "Driveway".
+      await expect(cardA.getByText('Driveway', { exact: true })).toBeVisible();
+      await expect(cardB.getByText('Yard', { exact: true })).toBeVisible();
+      // enabled: true renders "Active" (:333); priority renders raw (7 at POST).
+      await expect(cardA.getByText('Active', { exact: true })).toBeVisible();
+      await expect(cardA.getByText('7', { exact: true })).toBeVisible();
+
+      // 2. Type filter: NATIVE select; the grid re-renders from
+      //    filteredZones, so counts move with the selection.
+      const typeSelect = page.getByTestId('zone-type-select');
+      await typeSelect.selectOption('driveway');
+      await expect(page.getByTestId('zone-grid')).toHaveCount(1);
+      await expect(cardA).toBeVisible();
+      await expect(cardB).toHaveCount(0);
+
+      // 3. CSV WHILE FILTERED: the export reads filteredZones, so the yard
+      //    row is not just absent from the cards — it is absent from the
+      //    file. Header pinned verbatim from ZonesPage.tsx:537.
+      const filteredPromise = page.waitForEvent('download');
+      await page.getByTestId('export-button').click();
+      const filteredCsv = await downloadText(await filteredPromise);
+      const filteredLines = filteredCsv.split('\n');
+      expect(filteredLines[0], 'CSV header, verbatim from handleExport').toBe(
+        'ID,Name,Type,Enabled,Priority,Color,Created At'
+      );
+      expect(filteredLines, 'filtered export: header + exactly the driveway row').toHaveLength(2);
+      expect(
+        filteredLines[1],
+        'the row is the WHOLE zone: id,name,type,Yes,priority,color,created'
+      ).toBe(`${zoneA},${ZONE_A},driveway,Yes,7,#3B82F6,${createdA.body?.created_at}`);
+
+      // 4. Filter back to all; the unfiltered export then carries BOTH rows.
+      await typeSelect.selectOption('all');
+      await expect(page.getByTestId('zone-grid')).toHaveCount(1 + 1);
+      const allPromise = page.waitForEvent('download');
+      await page.getByTestId('export-button').click();
+      const allCsv = await downloadText(await allPromise);
+      expect(allCsv.split('\n'), 'unfiltered export: header + both rows').toHaveLength(3);
+      expect(allCsv, 'the yard row rides when unfiltered').toContain(`${zoneB},${ZONE_B},yard`);
+
+      // 5. Time range: the pressed state moves (aria-pressed, :248) and the
+      //    overview grid deliberately does NOT care (hoursLookback feeds only
+      //    the analytics panel, :660/:790). Pinned as shipped — see header.
+      const range = page.getByRole('group', { name: 'Time range selection' });
+      await expect(range.getByRole('button', { name: '24h', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
+      await range.getByRole('button', { name: '6h', exact: true }).click();
+      await expect(range.getByRole('button', { name: '6h', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
+      await expect(range.getByRole('button', { name: '24h', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
+      await expect(page.getByTestId('zone-grid')).toHaveCount(2);
+
+      // 6. Full screen: the overview panel's toggle, and the trust panel
+      //    UNMOUNTING (single-panel state, :662 + the :768 render guard) and
+      //    returning. This is what "toggles a panel to full screen" ships as.
+      const overview = page.getByTestId('panel-overview');
+      await overview.getByRole('button', { name: 'Enter full screen' }).click();
+      await expect(overview.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
+      await expect(
+        page.getByTestId('panel-trust'),
+        'full screen unmounts the other panels'
+      ).toHaveCount(0);
+      await overview.getByRole('button', { name: 'Exit full screen' }).click();
+      await expect(
+        page.getByTestId('panel-trust'),
+        'exiting remounts the trust panel'
+      ).toBeVisible();
+    } finally {
+      const delA = await api.send(`/api/cameras/${cameraId}/zones/${zoneA}`, 'DELETE');
+      const delB = await api.send(`/api/cameras/${cameraId}/zones/${zoneB}`, 'DELETE');
+      expect(delA.status, 'DELETE zone A answers 204').toBe(204);
+      expect(delB.status, 'DELETE zone B answers 204').toBe(204);
+      const after = await api.getJson(`/api/cameras/${cameraId}/zones`);
+      expect(
+        after.body?.items,
+        'the list is back to empty — proven by re-read, not by the 204s'
+      ).toHaveLength(0);
+    }
+
+    await assertGuardSurvives(page, h);
+  });
+
+  test('F-258 trust matrix: None by default, cell editor writes Full/Partial/None, vehicles cap at Partial', async ({
+    page,
+  }) => {
+    const h = harness as Harness;
+    const api = await signIn(page, h);
+
+    // --- API leg. Bare lists here, and asserted BARE: household.py:61 ships
+    //     list[...], useHouseholdApi.ts:250 consumes it verbatim — if either
+    //     ever moves to an envelope, these toHaveLength(0) asserts break
+    //     loudly instead of the matrix silently losing every column. ---
+    const membersBefore = await api.getJson('/api/household/members');
+    expect(membersBefore.status, 'GET /api/household/members answers 200').toBe(200);
+    expect(Array.isArray(membersBefore.body), 'members is a BARE list').toBe(true);
+    expect(membersBefore.body, 'the stack seeds no household members').toHaveLength(0);
+
+    const member = await api.send('/api/household/members', 'POST', {
+      name: MEMBER,
+      role: 'resident',
+      trusted_level: 'full',
+    });
+    expect(member.status, 'POST member answers 201').toBe(201);
+    const memberId = member.body?.id as number;
+    expect(typeof memberId, 'member id is a server integer').toBe('number');
+
+    const vehicle = await api.send('/api/household/vehicles', 'POST', {
+      description: VEHICLE,
+      vehicle_type: 'car',
+    });
+    expect(vehicle.status, 'POST vehicle answers 201').toBe(201);
+    const vehicleId = vehicle.body?.id as number;
+
+    const cameras = await api.getJson('/api/cameras');
+    const cameraId = String(cameras.body?.items?.[0]?.id);
+    const zone = await api.send(
+      `/api/cameras/${cameraId}/zones`,
+      'POST',
+      newZone(ZONE_A, 'driveway', 7)
+    );
+    expect(zone.status, 'POST zone answers 201').toBe(201);
+    const zoneId = String(zone.body?.id);
+
+    const noConfig = await api.getJson(`/api/zones/${zoneId}/household`);
+    expect(noConfig.status, 'GET /api/zones/{id}/household answers 200').toBe(200);
+    // A fresh zone has NO config, and the route says so with 200 + null body
+    // (zone_household.py:60-61) — NOT a 404. The matrix's "None" cells are
+    // built on exactly this null.
+    expect(
+      noConfig.body,
+      'GET /api/zones/{id}/household answers 200 null for a fresh zone'
+    ).toBeNull();
+
+    const cellButton = (entity: string, level: string) =>
+      page.getByRole('button', { name: `${entity} has ${level} trust in ${ZONE_A}`, exact: true });
+    const configOf = async () =>
+      (await api.getJson(`/api/zones/${zoneId}/household`)).body as {
+        owner_id: number | null;
+        allowed_member_ids: number[];
+        allowed_vehicle_ids: number[];
+        access_schedules: { member_ids: number[] }[];
+      };
+
+    try {
+      await page.goto(`${h.ui}/zones`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('zones-page')).toBeVisible();
+      const matrix = page.getByTestId('panel-trust');
+      await expect(
+        matrix.getByRole('heading', { name: 'Zone Trust Matrix', level: 3 })
+      ).toBeVisible();
+
+      // 1. Default cell: no config ⇒ "None" (computeTrustLevelForMember's
+      //    !config branch). The aria-label IS the grid readout.
+      await expect(cellButton(MEMBER, 'None')).toBeVisible();
+      // The click fetches the current config (handleCellClick, :486-:491);
+      // settle it before opening the editor so the write starts from the
+      // same null the API leg proved.
+      await Promise.all([
+        page.waitForResponse(
+          (r) => apiPath(r.url()) === `/api/zones/${zoneId}/household` && r.status() === 200
+        ),
+        cellButton(MEMBER, 'None').click(),
+      ]);
+      await expect(page.getByText('Select Trust Level')).toBeVisible();
+
+      // 2. FULL ⇒ owner_id. (hook case 'full' :543-544)
+      await Promise.all([
+        page.waitForResponse(
+          (r) =>
+            apiPath(r.url()) === `/api/zones/${zoneId}/household` && r.request().method() === 'PUT'
+        ),
+        page.getByRole('button', { name: 'Full', exact: true }).click(),
+      ]).then(async ([put]) => expect(put.status(), 'the trust PUT answers 200').toBe(200));
+      await expect(
+        cellButton(MEMBER, 'Full'),
+        'the cell repaints via the invalidated config key'
+      ).toBeVisible();
+      let config = await configOf();
+      expect(config.owner_id, 'full trust ⇒ owner_id = memberId').toBe(memberId);
+      expect(config.allowed_member_ids, 'full does NOT also add to allowed').toEqual([]);
+
+      // 3. PARTIAL ⇒ allowed_member_ids, owner released.
+      await cellButton(MEMBER, 'Full').click();
+      await expect(page.getByText('Select Trust Level')).toBeVisible();
+      await page.getByRole('button', { name: 'Partial', exact: true }).click();
+      await expect(cellButton(MEMBER, 'Partial')).toBeVisible();
+      config = await configOf();
+      expect(config.owner_id, 'partial clears ownership').toBeNull();
+      expect(config.allowed_member_ids, 'partial ⇒ allowed_member_ids = [member]').toEqual([
+        memberId,
+      ]);
+
+      // 4. MONITOR ⇒ an access_schedules entry, allowed cleared. This leg is
+      //    what gives leg 5 its teeth: without a populated schedule, "none
+      //    clears every schedule" is an assert over an already-empty list.
+      await cellButton(MEMBER, 'Partial').click();
+      await expect(page.getByText('Select Trust Level')).toBeVisible();
+      await page.getByRole('button', { name: 'Monitor', exact: true }).click();
+      await expect(cellButton(MEMBER, 'Monitor')).toBeVisible();
+      config = await configOf();
+      expect(config.allowed_member_ids, 'monitor clears the allowed list').toEqual([]);
+      expect(
+        config.access_schedules.map((s) => s.member_ids),
+        'monitor ⇒ exactly one schedule, carrying this member'
+      ).toEqual([[memberId]]);
+
+      // 5. NONE ⇒ removed from every list, INCLUDING the schedule leg 4 wrote.
+      await cellButton(MEMBER, 'Monitor').click();
+      await expect(page.getByText('Select Trust Level')).toBeVisible();
+      await page.getByRole('button', { name: 'None', exact: true }).click();
+      await expect(cellButton(MEMBER, 'None')).toBeVisible();
+      config = await configOf();
+      expect(config.owner_id, 'none clears ownership').toBeNull();
+      expect(config.allowed_member_ids, 'none clears allowed').toEqual([]);
+      expect(config.access_schedules, 'none clears the schedule monitor wrote').toHaveLength(0);
+
+      // 6. Vehicles view: same grid shape, and the editor OFFERS ONLY
+      //    Partial/None (:199-202) — the shipped cap, pinned as shipped.
+      await matrix.getByRole('button', { name: 'Vehicles', exact: true }).click();
+      await expect(cellButton(VEHICLE, 'None')).toBeVisible();
+      await cellButton(VEHICLE, 'None').click();
+      await expect(page.getByText('Select Trust Level')).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'Full', exact: true }),
+        'vehicle editor offers no Full'
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole('button', { name: 'Monitor', exact: true }),
+        'vehicle editor offers no Monitor'
+      ).toHaveCount(0);
+      await page.getByRole('button', { name: 'Partial', exact: true }).click();
+      await expect(cellButton(VEHICLE, 'Partial')).toBeVisible();
+      config = await configOf();
+      expect(
+        config.allowed_vehicle_ids,
+        'vehicle partial ⇒ allowed_vehicle_ids = [vehicle]'
+      ).toEqual([vehicleId]);
+    } finally {
+      // Order matters: the config references member+vehicle ids.
+      const cfg = await api.send(`/api/zones/${zoneId}/household`, 'DELETE');
+      expect(cfg.status, 'DELETE the household config answers 204').toBe(204);
+      const dz = await api.send(`/api/cameras/${cameraId}/zones/${zoneId}`, 'DELETE');
+      expect(dz.status, 'DELETE the zone answers 204').toBe(204);
+      const dv = await api.send(`/api/household/vehicles/${vehicleId}`, 'DELETE');
+      expect(dv.status, 'DELETE the vehicle answers 204').toBe(204);
+      const dm = await api.send(`/api/household/members/${memberId}`, 'DELETE');
+      expect(dm.status, 'DELETE the member answers 204').toBe(204);
+      const membersAfter = await api.getJson('/api/household/members');
+      expect(membersAfter.body, 'members back to [] — proven by re-read').toHaveLength(0);
+      const zonesAfter = await api.getJson(`/api/cameras/${cameraId}/zones`);
+      expect(zonesAfter.body?.items, 'zones back to [] — proven by re-read').toHaveLength(0);
+    }
+
+    await assertGuardSurvives(page, h);
+  });
+});
