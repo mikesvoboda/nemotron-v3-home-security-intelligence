@@ -1,8 +1,10 @@
-"""F-294 — ``External › Prometheus scrape``: the metrics endpoint really serves
-a Prometheus document that the dashboard's parser can read.
+"""F-294 — the external Prometheus-scrape row: the metrics endpoint really
+serves a Prometheus document that the dashboard's parser can read.
 
 Inventory row: ``docs/reference/feature-inventory.md`` §3, grep anchor
-``External › Prometheus scrape``.
+``Prometheus scrapes backend metrics every 15 s`` (count 1 in the doc; the row's
+own title contains the same words as F-026's RUM row, so the title alone is not
+a unique anchor).
 
 This is the external-artefact half of the row. The scrape is produced by
 ``backend/core/metrics.py`` ``get_metrics_response()`` and served by
@@ -182,7 +184,7 @@ def test_dashboard_labelled_counters_declare_their_labels(scrape_body: str) -> N
             match = SAMPLE_LINE.match(line)
             if not match or match.group("name") != name:
                 continue
-            assert f'{label}=' in (match.group("labels") or ""), (
+            assert f"{label}=" in (match.group("labels") or ""), (
                 f"{name} sample {line!r} lacks label {label!r}"
             )
 
@@ -206,7 +208,7 @@ def test_dashboard_histograms_keep_their_label_names(scrape_body: str) -> None:
             match = SAMPLE_LINE.match(line)
             if not match or match.group("name") != name:
                 continue
-            assert f'{label}=' in (match.group("labels") or ""), (
+            assert f"{label}=" in (match.group("labels") or ""), (
                 f"{name} sample {line!r} lacks label {label!r}; "
                 "metricsParser.ts:343-354 selects on it"
             )

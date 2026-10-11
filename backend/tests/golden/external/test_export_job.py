@@ -1,8 +1,8 @@
-"""F-097 — ``Data management page /data › Export events``: an export job writes
+"""F-097 — the data-management export-events row: an export job writes
 a real row and a real file, and both are readable back over HTTP.
 
 Inventory row: ``docs/reference/feature-inventory.md`` §3, grep anchor
-``Data management page /data › Export events``.
+``Export events`` (count 1 in the doc).
 
 The row's own evidence says what must be true: "The written ``export_jobs`` row
 and file are read back by ``list_exports`` … and ``download_export``". That is
@@ -161,8 +161,7 @@ def test_download_returns_csv_with_service_header(
     """
     download = logged_in_api.get(f"/api/exports/{completed_export['_job_id']}/download")
     assert download.status_code == 200, (
-        f"download of a completed export answered {download.status_code}: "
-        f"{download.text[:300]}"
+        f"download of a completed export answered {download.status_code}: {download.text[:300]}"
     )
     content_type = download.headers.get("content-type", "")
     assert content_type.startswith("text/csv"), content_type
