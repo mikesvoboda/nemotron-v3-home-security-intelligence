@@ -1046,12 +1046,17 @@ def compose_environment(caller: Mapping[str, str]) -> dict[str, str]:
     return {key: caller[key] for key in ENGINE_ENVIRONMENT if key in caller}
 
 
-# The one caller-set variable the Playwright browser steps need beyond
+# The caller-set variables the Playwright browser steps need beyond
 # ENGINE_ENVIRONMENT, and the only reason they get an env at all. The golden
 # TEST leg runs with the caller's whole environment, so it launches from a
 # moved cache; a probe judged at the default root would call that cache absent
 # (or, worse, call a stale default root present) and disagree with the runner.
-BROWSER_ENVIRONMENT = ("PLAYWRIGHT_BROWSERS_PATH",)
+# Both of the variables that move that root are here: PLAYWRIGHT_BROWSERS_PATH
+# wins outright, else XDG_CACHE_HOME/ms-playwright (measured on the pinned
+# 1.63.0 CLI — with only XDG_CACHE_HOME set every "Install location:" line
+# moves under it, and chromium.executablePath() follows the same order, which
+# is what makes forwarding both safe: the probe reads the CLI's own answer).
+BROWSER_ENVIRONMENT = ("PLAYWRIGHT_BROWSERS_PATH", "XDG_CACHE_HOME")
 
 
 def browser_environment(caller: Mapping[str, str]) -> dict[str, str]:
@@ -1065,6 +1070,66 @@ def browser_environment(caller: Mapping[str, str]) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # A run
 # ---------------------------------------------------------------------------
+
+# How a step that hit its deadline is reported: the conventional "the timer
+# expired" exit code, and this word in the stderr. One producer and one reader,
+# both here, because the test fixture has to build the SAME value _run does --
+# a fixture that re-spelled this wording could drift while every consumer's pin
+# stayed green.
+_TIMEOUT_RC = 124
+_TIMEOUT_NOTE = "timed out"
+
+
+def _as_text(value: str | bytes | None) -> str:
+    """A subprocess stream as text: TimeoutExpired hands back raw BYTES even
+    when run() was called with text=True (measured on 3.14.4), and the harness
+    only ever captures text."""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value or ""
+
+
+def _stalled_result(stalled: subprocess.TimeoutExpired) -> subprocess.CompletedProcess[str]:
+    """What a step that never finished reports, in place of the raise.
+
+    subprocess.run raises TimeoutExpired whatever check says (measured on
+    3.14.4), and by then it has killed the child but kept the buffered output --
+    e.stdout carries the bytes the child flushed before the deadline (measured:
+    a print before a hang arrives as b'...'), while e.stderr is None unless the
+    child wrote to stderr. A download stalled at 80% therefore still says which
+    build was in flight, so the stream is kept and DECODED: the exception hands
+    back raw bytes even when run() was called with text=True (measured), so a
+    str-only guard would throw away exactly what is worth keeping here.
+    """
+    partial_out = _as_text(stalled.stdout)
+    partial_err = _as_text(stalled.stderr)
+    note = f"{_TIMEOUT_NOTE} after {stalled.timeout} seconds"
+    return subprocess.CompletedProcess(
+        list(stalled.cmd),
+        _TIMEOUT_RC,
+        partial_out,
+        note + (f"\n{partial_err}" if partial_err else ""),
+    )
+
+
+def _stalled(result: subprocess.CompletedProcess[str]) -> bool:
+    """Was this result a step that hit its deadline?
+
+    An exit 124 whose own stderr says "timed out" counts even when it came from
+    the child's internal timer rather than ours -- both readings are "this step
+    ran out of time", which is exactly the distinction the account names.
+    """
+    return result.returncode == _TIMEOUT_RC and _TIMEOUT_NOTE in (result.stderr or "")
+
+
+def _exit_word(result: subprocess.CompletedProcess[str]) -> str:
+    """What a failed step's account names as its outcome: the literal word for a
+    step that ran out of time, otherwise the number. A stall and a refusal must
+    not read alike in summary.json -- the stall is the firewall's realistic
+    failure (a proxy that accepts the connection then streams nothing) and the
+    refusal is the one an allow fixes, so ruling 116's "name the host" step has
+    to stay tellable from "the operator should allow a host"."""
+    return _TIMEOUT_NOTE if _stalled(result) else str(result.returncode)
 
 
 def _log(message: str) -> None:
@@ -1111,15 +1176,30 @@ class Run:
     ) -> subprocess.CompletedProcess[str]:
         if echo:
             _log("$ " + shlex.join(command))
-        result = subprocess.run(
-            list(command),
-            cwd=cwd,
-            env=dict(env) if env is not None else compose_environment(os.environ),
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
+        try:
+            result = subprocess.run(
+                list(command),
+                cwd=cwd,
+                env=dict(env) if env is not None else compose_environment(os.environ),
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as stalled:
+            # A stall is an outcome a caller that said check=False has to be
+            # able to read, and raising here is strictly worse than returning:
+            # the raise flies past golden() to the harness's catch-all, which
+            # discards golden()'s results dict (it is only committed on the way
+            # out) and skips every step after the stall — so a stalled browser
+            # download would also erase ruling 102's npm_ci entry. A caller who
+            # asked check=True wants the exception; a caller who said
+            # check=False gets _stalled_result, which says WHAT happened in the
+            # stderr instead of just a number.
+            if check:
+                raise
+            _log(f"! {_TIMEOUT_NOTE} after {stalled.timeout} s")
+            result = _stalled_result(stalled)
         if check and result.returncode != 0:
             raise HarnessError(
                 f"{' '.join(command[:4])} ... exited {result.returncode}: "
@@ -1429,8 +1509,11 @@ class Run:
             # builds the locked runner wants; a speculative install could drag
             # the wrong build down minutes of download. The test npx below
             # still runs and names the launch failure in its own output.
+            # A stall reads as exit "timed out", not "exit 124": an operator
+            # comparing a summary against a firewall notice has to be able to
+            # tell "the probe never came back" from "the probe refused".
             results["playwright_browsers"] = (
-                f"probe exit {plan.returncode}" if plan.returncode != 0 else "probe empty"
+                f"probe exit {_exit_word(plan)}" if plan.returncode != 0 else "probe empty"
             )
             return
         missing = sorted(
@@ -1452,7 +1535,9 @@ class Run:
         if install.returncode == 0:
             results["playwright_browsers"] = f"installed {' '.join(missing)}"
             return
-        results["playwright_browsers"] = f"exit {install.returncode}"
+        # "exit timed out" rather than "exit 124": see _exit_word -- a stalled
+        # download must not read like a refusal in summary.json.
+        results["playwright_browsers"] = f"exit {_exit_word(install)}"
         # Ruling 116's firewall: the failure names the download hosts the plan
         # offers, so the owner has something to allow; the harness does not work
         # around a block. "named by" is load-bearing, not hedging -- the Chrome
@@ -1532,7 +1617,7 @@ class Run:
                     cwd=FRONTEND,
                 )
                 results["npm_ci"] = (
-                    "ok" if install.returncode == 0 else f"exit {install.returncode}"
+                    "ok" if install.returncode == 0 else f"exit {_exit_word(install)}"
                 )
                 if install.returncode != 0:
                     problems.append(

@@ -504,18 +504,25 @@ directory — so a download killed mid-extract is re-installed rather than
 believed): `--dry-run` prints the same plan whether the builds exist or not, so
 the filesystem decides, and reading the paths instead of hardcoding
 `~/.cache/ms-playwright/...` keeps the check correct across a Playwright bump
-(a bump changes the build number) and honours a custom
-`PLAYWRIGHT_BROWSERS_PATH`. When every path carries the marker nothing is
-installed or re-downloaded. When one lacks it the step runs
+(a bump changes the build number) and honours a browser root the caller moved
+with `PLAYWRIGHT_BROWSERS_PATH` or `XDG_CACHE_HOME`. When every path carries the
+marker nothing is installed or re-downloaded. When one lacks it the step runs
 `npx playwright install chromium` once, up to 1800 s, and reports the outcome
 in `summary.json` as its own `playwright_browsers` result — `present`,
-`installed chromium v1243 …`, `exit <n>`, or `probe exit <n>` — under the
-engine's environment plus that one browser variable, so it is never given the
-run's admin password. Judging absence at the path the runner will launch from
-matters: the test command runs with the caller's whole environment, so a moved
-cache that the probe judged at the default root would either be re-downloaded
-needlessly or, if the default root happened to look complete, be declared
-present and left uninstalled. A failed install is a named problem that lists
+`installed chromium v1243 …`, `exit <n>` (or `exit timed out` when the step hit
+its deadline), or `probe exit <n>` / `probe exit timed out` — under the engine's
+environment plus the two browser-root variables, so it is never given the run's
+admin password. A step that stalls is accounted, never raised: the download
+getting its timeout is an outcome the step reads and names, so the whole golden
+section (ruling 102's `npm_ci` entry included) survives in `summary.json` and
+the test command still runs. Judging absence at the path the runner will launch
+from matters: the test command runs with the caller's whole environment, so a
+moved cache that the probe judged at the default root would either be
+re-downloaded needlessly or, if the default root happened to look complete, be
+declared present and left uninstalled — which is why both variables that move
+that root are forwarded (measured: the CLI reads `PLAYWRIGHT_BROWSERS_PATH`
+first, else `XDG_CACHE_HOME/ms-playwright`, the same order at launch). A failed
+install is a named problem that lists
 the hosts the plan named (`cdn.playwright.dev` and its
 `playwright.download.prss.microsoft.com` fallback) and keeps the tail of the
 installer's own output — not a workaround: if the sandbox cannot reach them,
