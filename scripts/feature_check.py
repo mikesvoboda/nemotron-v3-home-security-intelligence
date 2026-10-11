@@ -76,7 +76,9 @@ CI_STACK = REPO_ROOT / "docker-compose.ci.yml"
 FAKE_OVERLAY = REPO_ROOT / "docker-compose.fake-ai.yml"
 SCENARIO_DIR = REPO_ROOT / "backend" / "ai_contract" / "fake" / "scenario_fixtures"
 BACKEND_GOLDEN = REPO_ROOT / "backend" / "tests" / "golden"
-PLAYWRIGHT_CONFIG = REPO_ROOT / "frontend" / "playwright.config.ts"
+FRONTEND = REPO_ROOT / "frontend"
+FRONTEND_MODULES = FRONTEND / "node_modules"
+PLAYWRIGHT_CONFIG = FRONTEND / "playwright.config.ts"
 
 # The services the golden paths need: the CI stack and the two fakes.
 FAKE_SERVICES = ("postgres", "redis", "backend", "frontend", "ai-vlm", "ai-gateway")
@@ -1407,6 +1409,35 @@ class Run:
         ):
             report = self.artifacts / "golden-playwright"
             junit = self.artifacts / "golden-playwright.xml"
+            # Ruling 102: an operator's tree has no frontend/node_modules -- the
+            # harness runs no build, and the repo keeps no committed install. The
+            # documented --real leg then exited 1 at ERR_MODULE_NOT_FOUND before a
+            # spec could run (the owner's O2.2 operator run). An
+            # existing install is NEVER touched: `npm ci` deletes node_modules on
+            # entry, so it runs only where there is nothing to delete. The install
+            # stays INSIDE the golden-project guard, so a tree without one (every
+            # --fake run until a golden project exists) still pays nothing. No
+            # `env=` on purpose: compose_environment carries PATH/HOME and nothing
+            # else, which keeps FEATURE_CHECK_ADMIN_PASSWORD out of a child that
+            # does not need it. Timeout 1800s, not the 300s default -- a cold
+            # install of this lock (1176 resolved packages) is minutes on a
+            # cold cache. The result is accounted, not raised: an operator who
+            # cannot reach the registry sees a named step in summary.json.
+            if not FRONTEND_MODULES.is_dir():
+                install = self._run(
+                    ["npm", "ci"],
+                    check=False,
+                    timeout=1800,
+                    cwd=FRONTEND,
+                )
+                results["npm_ci"] = (
+                    "ok" if install.returncode == 0 else f"exit {install.returncode}"
+                )
+                if install.returncode != 0:
+                    problems.append(
+                        f"golden: npm ci in frontend/ exited {install.returncode}: "
+                        f"{(install.stderr or install.stdout).strip()[-400:]}"
+                    )
             result = self._run(
                 [
                     "npx",
@@ -1419,7 +1450,7 @@ class Run:
                 check=False,
                 timeout=1800,
                 env={**env, "PLAYWRIGHT_JUNIT_OUTPUT_FILE": str(junit)},
-                cwd=REPO_ROOT / "frontend",
+                cwd=FRONTEND,
             )
             (self.artifacts / "golden-playwright.log").write_text(
                 result.stdout + result.stderr, encoding="utf-8"

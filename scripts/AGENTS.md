@@ -797,6 +797,10 @@ The logic is `feature_check.py`, standard library only:
 - the in-run check and the postflight prove the isolation held;
 - the harness smoke check drops one scenario image and expects one event with
   the scenario's verdict;
+- the golden step installs the frontend's dependencies when
+  `frontend/node_modules` is absent (`npm ci` in `frontend/`, ruling 102), so
+  an operator's tree runs the documented command unchanged; an existing
+  install is never touched;
 - `--real` (owner ruling 66) serves the real VLM through `agent-gpu` in place
   of the fake one (`AgentGpu`): the weights' pin first, the runner's port as
   the only host address the run may reach, and the VLM removed after the run.
