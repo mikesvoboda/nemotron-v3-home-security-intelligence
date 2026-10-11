@@ -1,6 +1,12 @@
 /**
  * FE-1 golden paths (F2.3): the header's own chrome — F-005 (system health
- * indicator + tooltip), F-013 (page documentation link), F-014 (theme toggle).
+ * indicator + tooltip), F-006 (GPU quick stats), F-013 (page documentation
+ * link), F-014 (theme toggle).
+ *
+ * Every navigation here goes through quietBoot()/BOOT_QUIET_MS (harness.ts):
+ * the SPA's API calls ride the frontend container's nginx, which throttles
+ * /api per client IP, and the golden project's single worker always presents
+ * the same IP — an unthrottled suite boot starves its own setup-status.
  *
  * Decided from shipped code before writing (each claim cites where):
  *
@@ -12,6 +18,14 @@
  *   golden path mirrors the API's own verdict rather than hardcoding "LIVE"
  *   (a CI runner with a flaky probe could legitimately render Degraded). The
  *   tooltip is "health-tooltip" (:125) — the row's hover clause.
+ * - F-006: Header.tsx:417-421 renders the GPU block as two plain divs (no
+ *   testid): label div "GPU:" + value div formatGpuStats() (:248-271,
+ *   `round% | round°C | fps.toFixed(1) FPS`, '--' while the socket or the
+ *   sample is missing). The value comes from useConnectionStatus's /ws/system
+ *   feed (:171, :201-210), whose source row GPUMonitor rewrites every 5 s
+ *   (gpu_poll_interval_seconds, backend/core/config.py:1985) — so the mirror
+ *   reads /api/system/gpu/history and asserts membership in the newest rows,
+ *   never one pinned row (that would race the writer).
  * - F-013: PageDocsLink.tsx renders <a href={GITHUB_BASE_URL + docPath}
  *   target="_blank"> with text "{label} Documentation" for routes configured
  *   in pageDocumentation.ts ('/' → 'Dashboard' → docs/ui/dashboard.md); it
@@ -29,8 +43,10 @@
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
 import {
+  BOOT_QUIET_MS,
   closedByGuard,
   loginAsAdmin,
+  quietBoot,
   readShellHarness,
   seedTourDismissed,
   type ShellHarness,
@@ -50,7 +66,7 @@ interface HealthBody {
 async function openShell(page: import('@playwright/test').Page, h: ShellHarness) {
   await seedTourDismissed(page);
   await loginAsAdmin(page, h);
-  await page.goto(h.ui, { waitUntil: 'domcontentloaded' });
+  await quietBoot(page, h);
   await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
 }
 
@@ -105,6 +121,65 @@ test.describe('golden path: header chrome @critical', () => {
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
 
+  test('F-006: the GPU quick stats render the broadcaster feed, not the placeholder', async ({
+    page,
+  }) => {
+    test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
+    if (!harness.ready) return;
+    const h = harness;
+    await openShell(page, h);
+
+    // The block has no data-testid (Header.tsx:417-421 renders two plain
+    // divs), so the label anchors the locator and the value is its sibling —
+    // structure the row itself describes ("GPU: 42% | 61°C | 3.2 FPS").
+    const label = page.getByText('GPU:', { exact: true });
+    await expect(label).toBeVisible();
+    const value = label.locator('xpath=following-sibling::div[1]');
+
+    // '--' is the shipped placeholder while the socket or the sample is
+    // missing (Header.tsx:249-250); the row's claim is the real triple, so
+    // wait for the feed rather than asserting the fallback.
+    await expect
+      .poll(() => value.innerText(), { timeout: 30_000, message: 'GPU feed never arrived' })
+      .not.toBe('--');
+
+    // Mirror the truth from the same table the broadcaster reads, across a
+    // window of rows: gpu_monitor rewrites gpu_stats every
+    // gpu_poll_interval_seconds (default 5.0, backend/core/config.py:1985) and
+    // the header shows the newest push (Header.tsx:248-271 formatting is
+    // `${round(util)}% | ${round(temp)}°C | ${fps.toFixed(1)} FPS`), so pinning
+    // ONE row would race the writer. Membership in the last 12 rows (a minute
+    // of samples) proves the header renders a real, current row.
+    const expected = await page.evaluate(async () => {
+      const r = await fetch('/api/system/gpu/history?limit=12');
+      if (r.status !== 200) throw new Error(`gpu/history answered ${r.status}`);
+      const body = (await r.json()) as {
+        items?: Array<{
+          utilization: number | null;
+          temperature: number | null;
+          inference_fps: number | null;
+        }>;
+      };
+      return (body.items ?? []).map((row) => {
+        const parts: string[] = [];
+        if (row.utilization !== null) parts.push(`${Math.round(row.utilization)}%`);
+        if (row.temperature !== null) parts.push(`${Math.round(row.temperature)}°C`);
+        if (row.inference_fps !== null) parts.push(`${row.inference_fps.toFixed(1)} FPS`);
+        return parts.length > 0 ? parts.join(' | ') : '--';
+      });
+    });
+    expect(expected.length).toBeGreaterThan(0);
+    const window = new Set(expected);
+    // await BEFORE the Set lookup: passing the Promise to has() would compare
+    // an object against strings and can never be true — a false-green trap
+    // ruling 86 calls out.
+    await expect
+      .poll(async () => window.has((await value.innerText()).trim()), { timeout: 15_000 })
+      .toBe(true);
+
+    expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
+  });
+
   test('F-013: the docs link is route-contextual and points at the repo doc for the page', async ({
     page,
   }) => {
@@ -124,7 +199,10 @@ test.describe('golden path: header chrome @critical', () => {
     await expect(link).toHaveAttribute('target', '_blank');
 
     // Route-contextual: on /timeline the SAME slot changes text and path —
-    // that is the row's "<Page>" clause, not just a static link.
+    // that is the row's "<Page>" clause, not just a static link. page.goto
+    // is a document load, so this boot needs the same drain as openShell's
+    // (harness.ts: the shared nginx burst).
+    await page.waitForTimeout(BOOT_QUIET_MS);
     await page.goto(`${h.ui}/timeline`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('link', { name: 'Timeline Documentation' })).toHaveAttribute(
       'href',
@@ -161,29 +239,12 @@ test.describe('golden path: header chrome @critical', () => {
       )
       .toBe('dark');
 
-    // The row's persistence clause, measured the user's way: reload.
-    //
-    // The pause is measured necessity, not flake-padding. The SPA is served
-    // through the frontend container's nginx, which throttles /api by client
-    // IP: zone=api rate=10r/s with burst=20 (frontend/nginx.conf:24 + the
-    // rendered conf.d `limit_req zone=api burst=20 nodelay`). Every golden
-    // test in a file boots the app (~12 API calls), and Playwright's requests
-    // all share ONE client IP from the runner's perspective, so by this fourth
-    // boot the zone is empty of burst tokens and nginx sheds requests with
-    // 429 Server: nginx (measured on the probe stack 2026-10-11: the reload's
-    // GET /api/auth/setup-status answered `429 /api/auth/setup-status` while
-    // the SAME request direct to the backend answered 200 — and a
-    // backend-bucket raise changed nothing, proving the shedder is nginx).
-    // A shed setup-status makes ProtectedRoute fail closed (`setupRequired
-    // === null && error` → Navigate to="/setup",
-    // src/components/auth/ProtectedRoute.tsx:79) and an authenticated admin
-    // reload lands on "Create your admin account" — a real fail-closed
-    // fragility, which F-003's auth-gate row owns and reports (the gate's
-    // own decision table, same file); this spec must not trip it while
-    // asserting ITS OWN clause. A human reload is a lone
-    // boot after quiet, which fits burst=20; a 10 s wait (> the zone's 100
-    // token drain at 10r/s) reproduces exactly that shape here.
-    await page.waitForTimeout(10_000);
+    // The row's persistence clause, measured the user's way: a reload, sent
+    // as a lone boot arriving at a full nginx burst window (BOOT_QUIET_MS +
+    // the measurement behind it live in harness.ts — the shedder is the
+    // frontend container's nginx, and the fail-closed-on-shed-setup-status
+    // fragility it can cause is filed on the F-003 row, not this one).
+    await page.waitForTimeout(BOOT_QUIET_MS);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('header-branding')).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('html')).toHaveClass(/dark/);

@@ -32,7 +32,13 @@
  *   "Return to Dashboard" button (frontend/src/pages/NotFoundPage.tsx:55).
  */
 import { GUARD_MESSAGE, expect, test } from '../guard';
-import { closedByGuard, loginAsAdmin, readShellHarness, seedTourDismissed } from './harness';
+import {
+  closedByGuard,
+  loginAsAdmin,
+  quietBoot,
+  readShellHarness,
+  seedTourDismissed,
+} from './harness';
 
 const harness = readShellHarness();
 test.skip(
@@ -63,7 +69,9 @@ test.describe('golden path: auth gate, login form, 404 @critical', () => {
     );
     expect(typeof status.setup_required).toBe('boolean');
 
-    await page.goto(`${h.ui}/login`, { waitUntil: 'domcontentloaded' });
+    // quietBoot: this boot's setup-status must not be shed by the shared
+    // nginx burst (harness.ts); a shed boot fails ProtectedRoute closed.
+    await quietBoot(page, h, '/login');
 
     // Wrong password: the form survives and says so — role=alert from
     // LoginPage's apiError branch; still on /login, not a blank page.
@@ -123,7 +131,7 @@ test.describe('golden path: auth gate, login form, 404 @critical', () => {
     const status = await fetch(`${h.api}/api/auth/setup-status`).then(
       (r) => r.json() as Promise<SetupStatus>
     );
-    await page.goto(`${h.ui}/timeline`, { waitUntil: 'domcontentloaded' });
+    await quietBoot(page, h, '/timeline');
 
     if (status.auth_required !== false) {
       // Gate up: bounced to /login WITH the destination in location state
@@ -169,7 +177,7 @@ test.describe('golden path: auth gate, login form, 404 @critical', () => {
     // ProtectedRoute), so authenticate first — cookie from a real login, the
     // same way every other golden path here does.
     await loginAsAdmin(page, h);
-    await page.goto(`${h.ui}/no-such-page`, { waitUntil: 'domcontentloaded' });
+    await quietBoot(page, h, '/no-such-page');
     await expect(page.getByTestId('not-found-page')).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'Return to Dashboard' }).click();
     await expect(page).toHaveURL(`${h.ui}/`, { timeout: 15_000 });

@@ -127,6 +127,37 @@ export async function seedTourDismissed(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Boot the app through the UI origin the way a real user navigates: one lone
+ * request wave arriving at a full nginx burst window.
+ *
+ * Why the pause is part of the harness, not decoration: the SPA is served
+ * through the frontend container's nginx, which throttles /api by client IP —
+ * zone=api rate=10r/s, `limit_req zone=api burst=20 nodelay`
+ * (frontend/nginx.conf:24, rendered conf.d; the golden project runs ONE worker
+ * over ONE client IP, so every spec's boot drains the same bucket). A suite
+ * that boots the app twice a second keeps the bucket empty and nginx sheds
+ * boot requests with `429 Server: nginx` (measured 2026-10-11: burst of 20 +
+ * the 10/s refill passes ~22 of a 60-request flood; after a flood, 20
+ * consecutive 200s return ~1.3 s later; a single boot's ~12 calls costs ~1.2
+ * s of refill). A shed GET /api/auth/setup-status is not cosmetic:
+ * ProtectedRoute fails closed on it (`setupRequired === null && error` →
+ * Navigate to="/setup", src/components/auth/ProtectedRoute.tsx:79) and an
+ * authenticated admin lands on "Create your admin account" (the F-003 row
+ * carries the fragility). A human is a lone boot after quiet: 2 s of quiet at
+ * 10 r/s restores the full 20-token burst, which covers a single boot's
+ * ~12-call wave in one nodelay pass — the 10 s pause F-014's probe first used
+ * was insurance for a drain nobody had measured yet; this constant is the
+ * measured one (and the run got faster: F-014 21.9 s failing → 5.1 s green).
+ */
+export const BOOT_QUIET_MS = 2_000;
+
+/** Quiet (drain the shared nginx burst), then navigate the UI origin. */
+export async function quietBoot(page: Page, h: ShellHarness, path = '/'): Promise<void> {
+  await page.waitForTimeout(BOOT_QUIET_MS);
+  await page.goto(h.ui + path, { waitUntil: 'domcontentloaded' });
+}
+
 /** The tripwire closing every golden spec (F2.1's; OP-1 calls it closedByGuard). */
 export function closedByGuard(page: Page): void {
   void page.route('**/api/**', () => undefined);
