@@ -65,7 +65,8 @@
  * depend on); the Test Email/Webhook buttons (they do not render in this
  * stack at all — the guidance REPLACES them, :1113-1119); the quiet-hours UI
  * form drive (Add Period TOGGLES a form, NotificationSettings.tsx:898/902 —
- * its input round-trip is the next file's job; this one pins the routes).
+ * its input round-trip is quiet-hours.spec.ts's job, written after this
+ * file; this one pins the routes).
  */
 import { expect, test } from '../guard';
 import {

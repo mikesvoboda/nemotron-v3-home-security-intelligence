@@ -18,16 +18,20 @@
  * - feature_check.py golden() runs `playwright --project=golden`; the golden
  *   project is testDir ./tests/golden with workers: 1, fullyParallel: false.
  * - Playwright's default file order sorts by path, so at THIS head (this
- *   branch, which is strictly ahead of main) the golden project is 8 spec
+ *   branch, which is strictly ahead of main) the golden project is 9 spec
  *   files and the run order is
  *   analytics-alerts/*, dashboard-drop.spec.ts, guard-contract.spec.ts, then
  *   notify-access/* ('a' < 'd' < 'g' < 'n' at the first path character).
  *   DO-2 sorts last TODAY and will not stay last. Read from those two PR
- *   heads: #6986 adds 27 specs in ai-pages/ (1), data-ui/ (3),
- *   gpu-storage-admin/ (7) — all three sort BEFORE 'n' — and operations/ (16),
- *   which sorts after; #6978 adds 16 specs in shell/, also after. The combined
- *   set is 51 files with notify-access at positions 16-19, so 32 specs run
- *   AFTER this lane once both batches merge.
+ *   heads (re-fetched and re-counted THIS tick, not from the last reading —
+ *   the PRs can move, and both HAD moved since the reading this comment
+ *   first cited): #6986 at da4bb698d adds 27 specs in ai-pages/ (1),
+ *   data-ui/ (3), gpu-storage-admin/ (7) — all three sort BEFORE 'n' — and
+ *   operations/ (16), which sorts after; #6978 at 675fedfc4 adds 16 specs in
+ *   shell/, also after (both counts = added spec.ts files minus the 4 DO
+ *   files each batch inherits — the raw ls-tree totals are 31 and 20). The
+ *   union set is 52 files with notify-access at positions 16-20, so 32 specs
+ *   run AFTER this lane once both batches merge.
  *   Which means "last" was never the property worth relying on, and it is not
  *   the one this lane uses. Two invariants do the work instead, and both are
  *   position-independent:
