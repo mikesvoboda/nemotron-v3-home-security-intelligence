@@ -221,6 +221,12 @@ def _yolo_bbox_dict(i: int, op_id: str) -> dict[str, int]:
 _OVERRIDES: dict[tuple[str, str], tuple[str, Any]] = {}
 _OVERRIDES[("enrich_lt_person_reid", "embedding")] = ("unit_embedding", 512)
 _OVERRIDES[("enrich_lt_person_reid", "embedding_dimension")] = ("const", 512)
+# B2.2 (owner ruling 68): the fake's re-ID vectors carry a model ID that never
+# matches a real one, so a gallery enrolled from real weights answers
+# space_mismatch against the fake instead of scoring fake vectors. Real IDs are
+# osnet_model_id()'s grammar, "osnet-ain-x1-0@<weights stem>@<sha256[:12]>".
+FAKE_REID_MODEL_ID = "fake-ai-reid@deterministic@not-a-checkpoint"
+_OVERRIDES[("enrich_lt_person_reid", "model_id")] = ("const", FAKE_REID_MODEL_ID)
 # R8 S3 (2026-09-29, owner rulings 1 + 5) pruned every override entry keyed on
 # a retired op id: clip_embed's 768-dim CLIP embedding, the six florence
 # 4-coord bbox entries, florence_phrase_grounding's list-of-quads and

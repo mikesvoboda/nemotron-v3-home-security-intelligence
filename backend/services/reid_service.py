@@ -556,9 +556,9 @@ class ReIdentificationService:
                 processed_image = image.crop((x1, y1, x2, y2))
 
             # Implement retry logic with exponential backoff (NEM-1085).
-            # Extraction is CPU inference on the resident handle, so retrying
-            # a transient failure is still meaningful (memory pressure, a
-            # busy worker); an absent handle already refused above.
+            # Extraction is CPU inference on the resident handle, or a gateway
+            # call with REID_BACKEND=gateway (B2.2); retrying a transient
+            # failure is meaningful for both. An absent handle refused above.
             last_exception: Exception | None = None
             for attempt in range(self._max_retries):
                 try:
