@@ -148,6 +148,35 @@ def _out(run: subprocess.CompletedProcess[str]) -> str:
     return run.stdout + run.stderr
 
 
+def _run_defaults(
+    results_dir: Path,
+    env_extra: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run the script with EVERY ``SLEEP_GATE_*`` key stripped from the env.
+
+    ``_run`` injects the full budget dict, so it always measures the gate
+    against test-supplied numbers and never against the script's own
+    ``DEFAULT_*`` constants. That is a coverage hole with teeth: the ``ci.yml``
+    step deliberately leaves ``SLEEP_GATE_SLOW_BUDGET`` unset (its comment
+    says the 60 s cap is the script default, one place to keep in sync), so in
+    production the tracked-slow cap the whole interpretation argument rests on
+    is ``DEFAULT_SLOW_BUDGET`` itself — and injecting it in a test proves
+    nothing about that constant. This helper runs with none set, so the
+    verdicts are produced by the module-level defaults and a drift of any one
+    of them reddens a pin.
+    """
+    env = {k: v for k, v in os.environ.items() if not k.startswith("SLEEP_GATE_")}
+    env.pop("GITHUB_STEP_SUMMARY", None)  # same isolation as _run
+    env.update(env_extra or {})
+    return subprocess.run(  # noqa: S603  # intentional - tests our own script, offline
+        [sys.executable, str(SCRIPT), str(results_dir)],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+
+
 # --------------------------------------------------------------------------
 # Ruling 93's Done-when pair: a test over 4.0 s fails, one under passes.
 # --------------------------------------------------------------------------
@@ -878,3 +907,97 @@ def test_the_script_docstring_records_the_thresholds() -> None:
     for number in ("4.0", "10.0", "1.5", "60"):
         assert number in doc, f"{number} belongs in the usage text: {doc[:400]}"
     assert "93" in doc, "the header must cite the ruling that set these numbers"
+
+
+# --------------------------------------------------------------------------
+# The script's own DEFAULT_* constants are executed, not just documented
+# (self-review F1: every other test injects the full env dict, so a mutant
+# of any DEFAULT_* survived 37/37).
+# --------------------------------------------------------------------------
+
+
+def test_the_shipped_defaults_are_the_ruling_93_numbers(tmp_path: Path) -> None:
+    """One corpus, no env: the module defaults alone must produce ruling 93's
+    verdicts at every tier.
+
+    Why this exists: ``ci.yml`` deliberately sets only four envs — the step's
+    comment says ``SLEEP_GATE_SLOW_BUDGET`` stays unset because the 60 s cap
+    is the script default — so in production the tracked-slow cap IS
+    ``DEFAULT_SLOW_BUDGET``. And an unknown future tier falls to
+    ``budgets["unit"]``, which the body's interpretation limb calls "the
+    strictest default" — true only while that constant is 4.0. Injecting the
+    numbers in every test (as ``_run`` does) measures the injection, not the
+    constants; three mutants (slow 60→5, unit 4→2, warn 1.5→3) each survived
+    the whole suite before this pin existed.
+
+    Durations chosen so each tier's verdict flips ONLY its own default:
+    2.0 s unit (warns at 1.5, green under 4.0 — kills the warn→3.0 mutant and
+    the unit→2.0 mutant via the strictness cross-check below), 6.007 s rtsp
+    (green at the 60 cap, red at 5 — kills slow→5.0), 5.5 s gpu-classified
+    (green at 10.0, red at 2.0 — a second integration/unit witness). The
+    header line is asserted too: it PRINTS the budgets, so the numbers are
+    read back, not merely inferred from a verdict.
+    """
+    results = _results(
+        tmp_path,
+        (
+            "unit.xml",
+            _xml(
+                [
+                    (*REDIS_CASE, 2.0),
+                    (*RTSP_CASE, 6.007),
+                    (
+                        "backend.tests.unit.services.test_gpu_monitor_batch28_12",
+                        "test_statement_is_executed_once",
+                        5.5,
+                    ),
+                ]
+            ),
+        ),
+    )
+    run = _run_defaults(results)
+    out = _out(run)
+    assert run.returncode == 0, (
+        f"with NO env set, the shipped defaults must be exactly ruling 93's "
+        f"numbers — every case above is legal under them\n{out}"
+    )
+    # The header line PRINTS the budgets it used, so the shipped defaults are
+    # read back here rather than inferred from a verdict. Formatting is the
+    # script's own f-string: unit=4.0s, integration=10.0s, slow=60.0s,
+    # warn(unit)=1.5s.
+    assert "unit=4.0s" in out, f"unit default must BE 4.0, saw: {out}"
+    assert "integration=10.0s" in out, f"integration default must BE 10.0, saw: {out}"
+    assert "slow=60.0s" in out, (
+        "the 60 s tracked-slow default is load-bearing: ci.yml leaves "
+        f"SLEEP_GATE_SLOW_BUDGET unset ON PURPOSE, saw: {out}"
+    )
+    assert "warn(unit)=1.5" in out, f"the 1.5 s WARN default is ruling 93's own number, saw: {out}"
+    assert f"{REDIS_CASE[1]}" in out and "WARN" in out, (
+        "a 2.0 s unit test must sit in the WARN band produced by the DEFAULT "
+        f"warn budget — a warn-default of 3.0 hides it\n{out}"
+    )
+
+
+def test_the_default_unit_budget_is_the_strictest(tmp_path: Path) -> None:
+    """The unknown-tier limb, executed: the unit default is the floor the
+    fall-through lands on. ``budget_for`` sends unrecognised tiers to
+    ``budgets["unit"]``; 'strictest sensible default' is only true if 4.0 is
+    under every other default, asserted from the constants the script ships.
+    """
+    src = SCRIPT.read_text(encoding="utf-8")
+
+    def _const(name: str) -> float:
+        line = next(entry for entry in src.splitlines() if entry.startswith(name))
+        return float(line.split("=")[1].strip())
+
+    unit = _const("DEFAULT_UNIT_BUDGET")
+    for other in ("DEFAULT_INTEGRATION_BUDGET", "DEFAULT_E2E_BUDGET", "DEFAULT_SLOW_BUDGET"):
+        assert unit <= _const(other), (
+            f"unknown tiers fall to the unit budget ({unit}); if it stopped "
+            f"being the strictest ({other}={_const(other)}), the "
+            "strictest-default claim in the docstring is false"
+        )
+    assert _const("DEFAULT_WARN_BUDGET") < unit, (
+        "the WARN default must stay under the hard unit default or the "
+        "warn band is empty by construction"
+    )
