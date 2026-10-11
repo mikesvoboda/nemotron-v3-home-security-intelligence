@@ -38,12 +38,12 @@
  * 2. SHIPPED TESTID HAZARD: `SummaryCards.tsx:151` passes
  *    `data-testid={`summary-badge-${type}`}` to `SeverityBadge`, but that
  *    component destructures ONLY `level/count/pulsing/size/className`
- *    (`SeverityBadge.tsx:171-177`) with no rest spread, so the prop is DROPPED
+ *    (`SeverityBadge.tsx:171-176`) with no rest spread, so the prop is DROPPED
  *    and no `summary-badge-hourly`/`-daily` element can exist. A spec that
  *    trusted the call site would time out on a testid the DOM cannot have
  *    (same-hazard precedent here: the Tremor `Switch` whose aria-label lands on
  *    a wrapper div). The badge is located as the component's OWN hardcoded
- *    `severity-badge` (:217), scoped to its card. By contrast `data-severity`
+ *    `severity-badge` (:211), scoped to its card. By contrast `data-severity`
  *    and the card's own testid DO land: Tremor's `Card` rest-spreads everything
  *    it does not name onto its div
  *    (`node_modules/@tremor/react/dist/components/layout-elements/Card/Card.js`
@@ -398,7 +398,7 @@ test.describe('golden path: dashboard hourly and daily summary cards @critical',
       ).toHaveAttribute('data-severity', sev.level);
 
       // Surface 2: the badge's own aria-label and visible label, both shipped
-      // from SEVERITY_CONFIGS via getSeverityConfig (SeverityBadge.tsx:179-225).
+      // from SEVERITY_CONFIGS via getSeverityConfig (SeverityBadge.tsx:183-218).
       const n = m.eventCount;
       const ariaCount = `${n} ${n === 1 ? 'event' : 'events'}`;
       await expect(
@@ -406,9 +406,9 @@ test.describe('golden path: dashboard hourly and daily summary cards @critical',
         `${type}: the badge aria-label does not mirror severity + event_count`
       ).toHaveAttribute('aria-label', `Severity: ${sev.label}, ${ariaCount}`);
       // The badge's text is label + "(n)" (the label span and the count span are
-      // both its children, :219-225), so the full string is mirrored — but with
+      // both its children, :215-218), so the full string is mirrored — but with
       // NO SPACE at the join: textContent concatenates the two spans directly,
-      // and the visible gap is the count span's `ml-0.5` CSS margin (:222), not
+      // and the visible gap is the count span's `ml-0.5` CSS margin (:217), not
       // a text node. Witnessed on the shipped DOM, run hsi-check-20261011220452-
       // 6a1a48: this mirror was red 3/3 as `Expected "ALL CLEAR (0)" / Received
       // "ALL CLEAR(0)"`. toHaveText normalizes whitespace RUNS (JSX
