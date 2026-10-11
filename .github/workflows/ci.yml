@@ -213,6 +213,22 @@ jobs:
       # the comment lives HERE (outside the folded scalar) per the WP0.1
       # lesson: a `#` inside `>-` becomes a bash comment mid-command and
       # silently kills every file listed after it.
+      # O2.3 (§M1): the reachability walker's suite joined the list. It is
+      # the ONLY mechanical check of the shipping/non-shipping verdict the
+      # rest of the programme (M2 scoring, R-surface deletions) reads, and
+      # its Done-when says the suite must pass IN CI — six pins against the
+      # real tree (redis_json/scenario_classifier/managed_service/
+      # orphan_cleanup_service dead; vlm_analyzer/backend/evaluation live)
+      # rot the moment they stop running.
+      # O2.3b (ruling 73): the R2-input generator's suite joined the list,
+      # same doctrine — a committed deletion list that stops matching the
+      # tool is how B3.2 deletes a shipping file. The job has no path filter
+      # (verified at claim time), so the freshness gate runs on docs-only
+      # PRs too: the regions cannot be hand-edited past it. The generator is
+      # named here by role, not by scripts/ path: the entries pin in
+      # scripts/test_reachability.py scans THIS file's comments for non-test
+      # script paths and demands each be a declared entry point, and naming
+      # it would change the tool-inputs stamp for a walk-neutral reason.
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -244,6 +260,8 @@ jobs:
           scripts/audit/test_battery_census.py
           scripts/audit/test_literal_groups.py
           scripts/test_shard_durations.py
+          scripts/test_reachability.py
+          scripts/test_r2_python_dead_list.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref
@@ -2932,6 +2950,30 @@ jobs:
           E2E_TEST_THRESHOLD: '10.0'
           SLOW_TEST_THRESHOLD: '60.0'
           WARN_THRESHOLD_PERCENT: '80'
+
+      - name: Real-sleep budget gate (ruling 93)
+        # Owner ruling 93 (amending 74): the same post-run gate over the
+        # durations CI already records, at the audit's OWN limits above
+        # (unit 4.0 / integration 10.0 / e2e 10.0) and with no "healthy in the
+        # previous main run" downgrade. That missing downgrade is the gate's
+        # entire content over the audit — a real sleep is the same value every
+        # run, so forgiving a duration by history forgives exactly what is
+        # being hunted. No baseline file: the 1.5 s line that ruled 74's hard
+        # budget sits inside the runner's noise band (the over-1.5 victim set
+        # rotates 12/13/10 ids between same-code green runs), so it is demoted
+        # to a WARN — every unit test over 1.5 s is listed in this job's
+        # summary and never fails. Hard budgets flip ZERO ids across the three
+        # measured green corpora. The tracked-slow bucket keeps its 60 s cap
+        # (SLOW_TEST_THRESHOLD above; the census entry IS the adjudication).
+        # Reuses the audit's tier classifier so the two never disagree about a
+        # test's tier. Zero XML fails closed here too — both downloads above
+        # are continue-on-error.
+        run: uv run python scripts/check-test-duration-budget.py test-results/
+        env:
+          SLEEP_GATE_UNIT_BUDGET: '4.0'
+          SLEEP_GATE_INTEGRATION_BUDGET: '10.0'
+          SLEEP_GATE_E2E_BUDGET: '10.0'
+          SLEEP_GATE_WARN_BUDGET: '1.5'
 
       - name: Create Linear issue on failure
         # WP0.5: the job now gates PRs too — a PR failure is a red check the

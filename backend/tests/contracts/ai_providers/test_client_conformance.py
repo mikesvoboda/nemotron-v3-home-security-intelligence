@@ -2757,3 +2757,19 @@ def test_every_registry_declared_client_method_is_driven() -> None:
 # * GET /health against a real Triton-backed server needs the native service;
 #   the fake + adapter-routers-under-patch carry every leg asserted at
 #   unit-ASGI level here.
+
+
+async def test_fake_person_reid_model_id_never_matches_a_real_one() -> None:
+    """B2.2 (owner ruling 68): "the fake-AI overlay serves /enrich-lt/person-reid
+    with deterministic vectors under a fake model ID that never matches a real
+    one". A real ID is osnet_model_id()'s grammar, rooted at the zoo name."""
+    from backend.ai_contract.fake.generators import FAKE_REID_MODEL_ID
+    from backend.services.osnet_loader import OSNET_ZOO_NAME, osnet_model_id
+
+    first = await _served_body("enrich_lt_person_reid")
+    second = await _served_body("enrich_lt_person_reid")
+
+    assert first["model_id"] == FAKE_REID_MODEL_ID
+    assert first["embedding"] == second["embedding"]
+    assert osnet_model_id() != FAKE_REID_MODEL_ID
+    assert not FAKE_REID_MODEL_ID.startswith(f"{OSNET_ZOO_NAME}@")

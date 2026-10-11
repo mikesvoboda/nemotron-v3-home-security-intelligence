@@ -215,7 +215,12 @@ class TestConfidenceDerivation:
         _plant(firsts, 0, box=(55.0, 110.0, 90.0, 180.0), class_index=1, score=0.9)
         transposed = _threat_output(layout="channels_last")
         _plant(
-            transposed, 0, box=(55.0, 110.0, 90.0, 180.0), class_index=1, score=0.9, layout="channels_last"
+            transposed,
+            0,
+            box=(55.0, 110.0, 90.0, 180.0),
+            class_index=1,
+            score=0.9,
+            layout="channels_last",
         )
 
         a = _postprocess_threat(firsts)
@@ -297,9 +302,7 @@ class TestThreatDetectEndpoint:
         assert data["max_confidence"] == 0.92
         assert len(data["threats_detected"]) == 1
 
-    async def test_requests_the_resident_threat_model_only(
-        self, client, mock_triton
-    ) -> None:
+    async def test_requests_the_resident_threat_model_only(self, client, mock_triton) -> None:
         """The wire call names the KEPT Triton model and its output.
 
         Residency is by repository contents, so a stale ``model_name`` here is a
@@ -516,3 +519,93 @@ class TestHealthEndpoint:
         assert data["status"] == "degraded"
         assert set(data["models"]) == _light_probe_set()
         assert all(v is False for v in data["models"].values())
+
+
+class TestPersonReIDModelId:
+    """B2.2 (owner ruling 68): the gateway reports the model ID recorded at
+    export, and reports none rather than a guess when the record is missing."""
+
+    @pytest.fixture(autouse=True)
+    def _fresh_cache(self):
+        from ai.gateway.adapters.enrichment_light import reid_model_id
+
+        reid_model_id.cache_clear()
+        yield
+        reid_model_id.cache_clear()
+
+    async def test_a_reexport_behind_a_running_gateway_does_not_relabel(
+        self, client, mock_triton, tmp_path, monkeypatch
+    ) -> None:
+        """Triton runs --model-control-mode=none: it keeps serving the graph it
+        loaded at start, so the ID must be the one read then, not a newer record."""
+        import json
+
+        first, second = "ab" * 32, "cd" * 32
+        self._repo(
+            tmp_path,
+            {"zoo_name": "osnet-ain-x1-0", "source_file": "w.pth", "source_sha256": first},
+        )
+        monkeypatch.setenv("TRITON_MODEL_REPOSITORY", str(tmp_path))
+        mock_triton.infer.return_value = {"embedding": np.ones((1, 512), np.float32)}
+        await client.post("/person-reid", json={"image": _make_b64_image()})
+        (tmp_path / "reid" / "1" / "provenance.json").write_text(
+            json.dumps(
+                {"zoo_name": "osnet-ain-x1-0", "source_file": "w.pth", "source_sha256": second}
+            )
+        )
+
+        response = await client.post("/person-reid", json={"image": _make_b64_image()})
+
+        assert response.json()["model_id"] == f"osnet-ain-x1-0@w@{first[:12]}"
+
+    @staticmethod
+    def _repo(tmp_path, record) -> None:
+        import json
+
+        version = tmp_path / "reid" / "1"
+        version.mkdir(parents=True)
+        if record is not None:
+            (version / "provenance.json").write_text(
+                record if isinstance(record, str) else json.dumps(record)
+            )
+
+    async def test_reports_the_exported_checkpoints_id(
+        self, client, mock_triton, tmp_path, monkeypatch
+    ) -> None:
+        sha = "ab" * 32
+        self._repo(
+            tmp_path,
+            {
+                "zoo_name": "osnet-ain-x1-0",
+                "source_file": "osnet_ain_x1_0_msmt17.pth",
+                "source_sha256": sha,
+            },
+        )
+        monkeypatch.setenv("TRITON_MODEL_REPOSITORY", str(tmp_path))
+        mock_triton.infer.return_value = {"embedding": np.ones((1, 512), np.float32)}
+
+        response = await client.post("/person-reid", json={"image": _make_b64_image()})
+
+        assert response.json()["model_id"] == f"osnet-ain-x1-0@osnet_ain_x1_0_msmt17@{sha[:12]}"
+
+    @pytest.mark.parametrize(
+        "record",
+        [
+            None,
+            "{not json",
+            {"zoo_name": "osnet-ain-x1-0", "source_file": "x.pth", "source_sha256": "short"},
+            {"zoo_name": "osnet-ain-x1-0", "source_file": "x.pth"},
+        ],
+        ids=["absent", "unparseable", "bad-sha", "no-sha"],
+    )
+    async def test_no_usable_record_reports_no_id(
+        self, client, mock_triton, tmp_path, monkeypatch, record
+    ) -> None:
+        self._repo(tmp_path, record)
+        monkeypatch.setenv("TRITON_MODEL_REPOSITORY", str(tmp_path))
+        mock_triton.infer.return_value = {"embedding": np.ones((1, 512), np.float32)}
+
+        response = await client.post("/person-reid", json={"image": _make_b64_image()})
+
+        assert response.status_code == 200
+        assert response.json()["model_id"] is None

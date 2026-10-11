@@ -16,9 +16,17 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   LAN, a tunnel, a port forward): `AuthMiddleware` then refuses every request without the
   login session cookie or an `API_KEYS` key, except health probes, setup and login.
   Monitoring needs a credential too (UR-33, landed in `O1.11`): `setup.py` writes a
-  `MONITORING_API_KEY` into `.env` (also mirrored into `API_KEYS`), and Prometheus,
+  `MONITORING_API_KEY` into `.env` (mirrored into `API_KEYS` as an entry scoped to
+  `monitoring` — R60 — so it cannot read operator-only paths), and Prometheus,
   Alertmanager and Grafana's backend API each present it, so scraping and alert
-  delivery keep working with the gate on. `/grafana/` moves from anonymous Admin to
+  delivery keep working with the gate on. Any install whose `.env` `API_KEYS` list
+  was last written by `setup.py` between `O1.11` and R60 still lists that key as a plain
+  entry, which the gate reads as unscoped. Re-running
+  `python setup.py` interactively converts it — the key value is kept and only its
+  `API_KEYS` entry becomes scoped; `--yes` and `--defaults` skip that reuse, minting a
+  second key and leaving the old plain entry live. Recreate the backend to apply it:
+  `podman compose -f docker-compose.prod.yml up -d --force-recreate backend` — a plain
+  `restart` keeps serving the old value. `/grafana/` moves from anonymous Admin to
   `auth_request` against the login session plus Grafana `auth.proxy` as Viewer: one
   login serves the UI and the dashboards, and `/grafana/` is refused without a
   session. Logging in then needs TLS in front
@@ -159,6 +167,10 @@ Enable API key authentication for protected access:
 # .env
 API_KEY_ENABLED=true
 API_KEYS=["your-secure-api-key-here", "another-key-if-needed"]
+# R60: an entry can also be an object limited to a named scope —
+# {"key": "monitoring-key-here", "scope": "monitoring"} serves exactly the
+# monitoring endpoints and 401s everywhere else. See API_KEYS in the
+# Environment Reference for the scoped syntax and its fail-closed rules.
 ```
 
 #### Making Authenticated Requests

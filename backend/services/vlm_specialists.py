@@ -691,7 +691,7 @@ async def collect_reid_text(
         return _unavailable_line("person_reid", "leg_failed", detail=str(e))
 
 
-async def _collect_reid_text(  # noqa: PLR0911 - one return per leg state is the pinned shape (no_frames/no_person_crops/weights_absent/no_session/space_mismatch/extraction_failed/no_gallery/match-or-none)
+async def _collect_reid_text(  # noqa: PLR0911 - one return per leg state is the pinned shape (no_frames/no_person_crops/weights_absent/no_session/space_mismatch/gateway_unavailable/extraction_failed/no_gallery/match-or-none)
     *,
     frame_paths: Sequence[Any],
     detections: Sequence[Any] | None,
@@ -708,6 +708,7 @@ async def _collect_reid_text(  # noqa: PLR0911 - one return per leg state is the
         compare_person_vectors,
         get_household_matcher,
     )
+    from backend.services.reid_gateway import ReidGatewayUnavailable
 
     picks = set(_face_frames(frame_paths))
     crops = _person_crops(detections, picks)
@@ -749,12 +750,18 @@ async def _collect_reid_text(  # noqa: PLR0911 - one return per leg state is the
     best_by_member: dict[int | None, Any] = {}
     outcome_seen: PersonMatchOutcome | None = None
     probed = 0
+    gateway_down = 0
     for image, det_id in crops:
         try:
             result = await osnet_loader.extract_person_embedding(handle, image)
-        except Exception:
+        except Exception as exc:
             # one bad crop must not kill the leg over the crops that worked
             logger.warning("person_reid crop failed", exc_info=True, extra={"det_id": det_id})
+            if isinstance(exc, ReidGatewayUnavailable):
+                # Down for one crop is down for all: stop, rather than pay the
+                # request timeout once per remaining crop on the verdict path.
+                gateway_down += 1
+                break
             continue
         probed += 1
         probe = np.asarray(result.embedding, dtype=np.float32)
@@ -780,6 +787,14 @@ async def _collect_reid_text(  # noqa: PLR0911 - one return per leg state is the
                 detail=f"{comparison.skipped} gallery rows not comparable to the probe space",
             )
 
+    if probed == 0 and gateway_down:
+        # B2.2: nothing was embedded and the re-ID gateway is unreachable or
+        # erroring - its own reason, so an outage is not read as bad crops.
+        return _unavailable_line(
+            "person_reid",
+            "gateway_unavailable",
+            detail=f"re-ID gateway unavailable ({len(crops)} person crops)",
+        )
     if probed == 0:
         # Every crop failed — "no matches" would report an observation the
         # leg never made. The failures were each logged; the count rides the

@@ -1449,6 +1449,69 @@ def test_reid_matches_best_per_member():
         restore()
 
 
+def _reid_leg_with_failures(plan):
+    """Run the leg over two crops whose extractions raise ``plan``; return
+    (text, metrics reasons seen)."""
+    seen = []
+    stubs_o, calls_o = _osnet_stub(REID_HANDLE, extract_plan=plan)
+    stubs_n, _ = _np_stub([])
+    stubs_h, _ = _hm_stub([], [])
+    restore = _module_stub({**_metrics_stub(seen), **_pil_stub2(), **stubs_o, **stubs_n, **stubs_h})
+
+    async def _gal(sess):
+        return ["row-a", "row-b"]
+
+    try:
+        out = asyncio.run(
+            vs._collect_reid_text(
+                frame_paths=_CROPS_FP,
+                detections=_reid_dets("f1", "f1", det_ids=(1, 2)),
+                settings=REID_SETTINGS,
+                session=SESSION,
+                gallery=_gal,
+            )
+        )
+    finally:
+        restore()
+    _reid_leg_with_failures.calls = len(calls_o["extract"])
+    return out, seen
+
+
+def test_reid_gateway_down_degrades_with_its_own_reason():
+    """B2.2 (owner ruling 68): "the gateway being down degrades the step with
+    its own reason code; the step's never-raise contract stands"."""
+    from backend.services.reid_gateway import ReidGatewayUnavailable
+
+    out, seen = _reid_leg_with_failures(
+        [ReidGatewayUnavailable("down"), ReidGatewayUnavailable("down")]
+    )
+
+    assert out == DEFAULT_PHRASE
+    assert seen == [("person_reid", "gateway_unavailable")]
+
+
+def test_reid_gateway_outage_stops_sending_crops():
+    """A down gateway is down for every crop: the leg stops at the first
+    outage instead of paying the request timeout once per crop."""
+    from backend.services.reid_gateway import ReidGatewayUnavailable
+
+    out, seen = _reid_leg_with_failures([ReidGatewayUnavailable("down"), None])
+
+    assert _reid_leg_with_failures.calls == 1
+    assert out == DEFAULT_PHRASE
+    assert seen == [("person_reid", "gateway_unavailable")]
+
+
+def test_reid_a_bad_crop_then_an_outage_is_the_gateways_reason():
+    """Nothing was probed and the gateway is down: the outage is the reason."""
+    from backend.services.reid_gateway import ReidGatewayUnavailable
+
+    out, seen = _reid_leg_with_failures([ExtractErr("bad crop"), ReidGatewayUnavailable("down")])
+
+    assert out == DEFAULT_PHRASE
+    assert seen == [("person_reid", "gateway_unavailable")]
+
+
 def test_reid_all_extractions_failed():
     records, undo_log = _logs()
     seen = []

@@ -6,7 +6,7 @@
 
 ## Key Files
 
-- `backend/core/config.py:1093-1101` - Current API key authentication settings
+- `backend/core/config.py:1999-2012` - Current API key authentication settings
 - `backend/api/middleware/auth.py` - Current AuthMiddleware implementation
 - `backend/api/middleware/websocket_auth.py` - WebSocket token validation
 
@@ -31,14 +31,20 @@ This document outlines the current authentication state and provides a roadmap f
 The system supports optional API key authentication:
 
 ```python
-# From backend/core/config.py:1093-1101
+# From backend/core/config.py:1999-2012
 api_key_enabled: bool = Field(
     default=False,
     description="Enable API key authentication (default: False for development)",
 )
-api_keys: list[str] = Field(
+api_keys: list[SecretStr] = Field(
     default=[],
-    description="List of valid API keys (plain text, hashed on startup)",
+    description=(
+        "List of valid API keys (plain text, hashed per request). Each entry "
+        "is a plain string (unscoped: every gated path) or an object "
+        '{"key": "...", "scope": "monitoring"} (R60, ruling 60: the key is '
+        "accepted only on the paths its scope names; see "
+        "backend/core/constants.py API_KEY_SCOPES)"
+    ),
 )
 ```
 
@@ -48,7 +54,9 @@ api_keys: list[str] = Field(
 # Enable authentication
 export API_KEY_ENABLED=true
 
-# Configure API keys (comma-separated or JSON array)
+# Configure API keys (comma-separated or JSON array). Since R60 an entry can
+# also be an object scoped to a named path set:
+#   {"key": "...", "scope": "monitoring"}
 export API_KEYS='["your-secret-key-1","your-secret-key-2"]'
 ```
 
@@ -322,7 +330,8 @@ If authentication becomes required:
 ### 1. Enable API Key Authentication
 
 ```bash
-# Minimal change - add API key requirement
+# Minimal change - add API key requirement (R60 also allows a scoped object
+# entry, {"key": "...", "scope": "monitoring"}, for machine callers)
 export API_KEY_ENABLED=true
 export API_KEYS='["your-generated-key"]'
 ```

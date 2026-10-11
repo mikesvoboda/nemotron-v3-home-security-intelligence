@@ -202,7 +202,7 @@ those floors, so review such hunks by hand.
 | codeql.yml           | CodeQL          | Push/PR/Weekly         | Deep code analysis            |
 | gitleaks.yml         | Gitleaks        | Push/PR                | Secret detection              |
 | trivy.yml            | Trivy           | Push/PR (Dockerfile)   | Container vulnerabilities     |
-| zap-security.yml     | OWASP ZAP       | Weekly/Manual          | Dynamic security testing      |
+| zap-security.yml     | OWASP ZAP       | Nightly/Manual         | Dynamic security testing      |
 | dependency-audit.yml | pip-audit, npm  | PR (via ci.yml)+Weekly | Dependency vulnerability scan |
 
 > **Removed 2026-09-15:** `gpu-tests.yml` — its only runner
@@ -242,11 +242,11 @@ those floors, so review such hunks by hand.
 
 ### Frontend Quality Workflows
 
-| Workflow                | Trigger   | Purpose                                  |
-| ----------------------- | --------- | ---------------------------------------- |
-| accessibility-tests.yml | PR        | Run accessibility (a11y) tests           |
-| lighthouse.yml          | PR/Weekly | Lighthouse performance and SEO audits    |
-| visual-tests.yml        | PR        | Visual regression testing with snapshots |
+| Workflow                | Trigger        | Purpose                                  |
+| ----------------------- | -------------- | ---------------------------------------- |
+| accessibility-tests.yml | PR             | Run accessibility (a11y) tests           |
+| lighthouse.yml          | PR/Weekly      | Lighthouse performance and SEO audits    |
+| visual-tests.yml        | Nightly/Manual | Visual regression testing with snapshots |
 
 ## Usage
 

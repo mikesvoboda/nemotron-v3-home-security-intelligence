@@ -334,6 +334,9 @@ export default defineConfig(({ mode }) => {
       restoreMocks: true,
       // Exclude Playwright E2E tests - they should only be run via `npm run test:e2e`
       // Also exclude contract tests (Playwright-based API contract validation)
+      // And golden paths (F2.1) — Playwright specs under tests/golden/, same
+      // reason: vitest's default include catches **/*.spec.ts, and under jsdom
+      // their top-level code throws (no node:child_process/fs, no harness env).
       //
       // R-T7-VITEST quarantine (2026-09-12, ledger
       // .superpowers/sdd/2026-09-12-arm64-gb300-milestone1/progress.md): the 13 files
@@ -358,6 +361,7 @@ export default defineConfig(({ mode }) => {
         ...configDefaults.exclude,
         'tests/e2e/**',
         'tests/contract/**',
+        'tests/golden/**',
         'src/components/settings/NotificationSettings.test.tsx',
         'src/components/events/EventTimeline.test.tsx',
         'src/components/alerts/AlertsPage.test.tsx',

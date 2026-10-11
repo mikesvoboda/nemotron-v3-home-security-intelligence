@@ -673,7 +673,7 @@ class TestJsonBodyInferenceRoutes:
 
         assert resp.status_code == 200
         body = resp.json()
-        assert set(body) == {"embedding", "embedding_dimension", "inference_time_ms"}
+        assert set(body) == {"embedding", "embedding_dimension", "inference_time_ms", "model_id"}
         assert body["embedding_dimension"] == len(body["embedding"]) == raw.shape[1]
         norm = math.sqrt(sum(x * x for x in body["embedding"]))
         assert abs(norm - 1.0) < 1e-3

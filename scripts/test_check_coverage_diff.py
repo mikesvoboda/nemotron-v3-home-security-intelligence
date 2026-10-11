@@ -482,10 +482,30 @@ def test_cli_exit_code_on_drop(isolated_cwd, monkeypatch):
 
 
 class _FakeProc:
+    """Stands in for the ``subprocess.Popen`` the gate's inline collection uses.
+
+    Ruling 72 replaced ``subprocess.run(timeout=)`` with ``Popen`` +
+    ``communicate(timeout=)`` so the bound lands on the pipe drain, not just the
+    direct child. Faking ``subprocess.run`` after that stopped intercepting
+    anything — a REAL pytest launched against the synthetic root (which has no
+    ``backend/tests/unit/``), the gate read its rc=4, and these two tests
+    diverged the way bypassed fakes always do: the assert-on-failure one turned
+    red (CI Collection Sanity caught it) and the assert-on-message one went
+    silently green on the real run's coincidental rc. Fake the seam the code
+    actually calls; the ``rc=2`` sentinel assertion below is what keeps a future
+    un-fake from passing on coincidence again.
+    """
+
     def __init__(self, returncode: int, stdout: str = "", stderr: str = ""):
         self.returncode = returncode
         self.stdout = stdout
         self.stderr = stderr
+
+    def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+        return self.stdout, self.stderr
+
+    def poll(self) -> int:
+        return self.returncode
 
 
 @pytest.fixture()
@@ -528,19 +548,21 @@ def test_failing_tests_do_not_fail_the_coverage_gate(
     root, mod = synthetic_coverage_root
     target = root / "coverage.json"
 
-    def fake_run(*args, **kwargs):
-        # pytest-cov writes the report even when tests fail.
+    def fake_popen(*args, **kwargs):
+        argv = list(args[0]) if args else list(kwargs.get("args", []))
+        # Pin the fake to THIS seam: the inline unit-tier collection call. A fake
+        # that intercepts anything else would pass while testing nothing.
+        assert "pytest" in argv and "backend/tests/unit/" in argv, argv
+        assert "--cov-report=json" in argv, argv
+        # pytest-cov writes the report even when tests fail — that is the whole
+        # premise of separating the tier's verdict from this gate's.
         write_coverage_json(target, 75.0)
-        # Honour the real API: subprocess.run raises INTERNALLY on check=True.
-        # A fake that ignores `check` makes this test vacuous — it passed
-        # against the pre-fix code until that was corrected.
-        if kwargs.get("check"):
-            raise subprocess.CalledProcessError(
-                1, args[0] if args else "pytest", output="= 3 failed, 27503 passed ="
-            )
+        # rc=1 is a red unit suite. check=False parity means the gate must read
+        # the number anyway, not raise: pre-fix `check=True` raised here and
+        # reddened the REQUIRED gate for a reason it does not adjudicate.
         return _FakeProc(1, stdout="= 3 failed, 27503 passed =")
 
-    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+    monkeypatch.setattr(mod.subprocess, "Popen", fake_popen)
 
     ok, msg = mod.check_coverage_diff("origin/main")
     assert ok, f"a red unit suite must not fail the COVERAGE gate: {msg}"
@@ -563,12 +585,24 @@ def test_no_coverage_data_produced_fails_and_is_not_a_skip(
     # assert against real data — #6826's CI failure.
     assert not (root / "coverage.json").exists()
 
-    def fake_run(*args, **kwargs):
-        return _FakeProc(2, stderr="collection died")
+    def fake_popen(*args, **kwargs):
+        argv = list(args[0]) if args else list(kwargs.get("args", []))
+        assert "pytest" in argv and "backend/tests/unit/" in argv, argv
+        # rc=2 + a sentinel stderr the REAL pytest could never emit from this
+        # synthetic root: a previous shape of this fake faked `subprocess.run`,
+        # which ruling 72's Popen rewrite left un-intercepted — the real launch
+        # died with rc=4 ("file or directory not found") and this test still
+        # passed, because "no coverage data produced" is what a real failed
+        # launch ALSO produces. Pinning the sentinel makes that coincidence red.
+        return _FakeProc(2, stderr="SENTINEL-collection-died")
 
-    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+    monkeypatch.setattr(mod.subprocess, "Popen", fake_popen)
 
     ok, msg = mod.check_coverage_diff("origin/main")
     assert not ok, f"absent coverage data must not pass vacuously: {msg}"
     assert "no coverage data produced" in msg, msg
+    assert "SENTINEL-collection-died" in msg, (
+        f"the message must carry the collector's own output, not just the "
+        f"boilerplate — otherwise a real failed launch satisfies it: {msg}"
+    )
     assert not (root / "coverage.json").exists()

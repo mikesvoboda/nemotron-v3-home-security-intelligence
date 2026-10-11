@@ -165,8 +165,10 @@ def test_setup_writes_monitoring_key_into_generated_env() -> None:
 def test_generated_env_carries_key_and_derived_mode_lines() -> None:
     """End-to-end through the real generator (the region test above only
     proves the literals exist; this proves what setup.py WRITES, both modes).
-    API_KEYS is json.dumps([key]) — the form pydantic parses; the key itself
-    is hsi_+token_urlsafe, whose alphabet is JSON- and shell-safe."""
+    R60 (ruling 60): API_KEYS is the single-quoted compact JSON list with the
+    generated entry SCOPED — ``'[{"key":...,"scope":"monitoring"}]'`` — the
+    form pydantic parses AND the form bash can source. The key itself is
+    hsi_+token_urlsafe, whose alphabet is JSON- and shell-safe."""
     import setup
 
     base = {"monitoring_api_key": "hsi_TESTKEY123"}  # pragma: allowlist secret
@@ -174,8 +176,8 @@ def test_generated_env_carries_key_and_derived_mode_lines() -> None:
     unexposed = setup.generate_env_content({**base, "expose_lan": False})
     for content in (exposed, unexposed):
         assert "MONITORING_API_KEY=hsi_TESTKEY123" in content
-        assert 'API_KEYS=["hsi_TESTKEY123"]' in content, (
-            "the key mirrors into API_KEYS in BOTH modes"
+        assert """API_KEYS='[{"key":"hsi_TESTKEY123","scope":"monitoring"}]'""" in content, (
+            "the key mirrors into API_KEYS, scoped and single-quoted, in BOTH modes"
         )
     assert "GRAFANA_ANONYMOUS_ENABLED=false" in exposed
     assert "GRAFANA_AUTH_PROXY_ENABLED=true" in exposed
@@ -183,6 +185,45 @@ def test_generated_env_carries_key_and_derived_mode_lines() -> None:
     assert "GRAFANA_ANONYMOUS_ENABLED=true" in unexposed
     assert "GRAFANA_AUTH_PROXY_ENABLED=false" in unexposed
     assert "ALERT_SINK_URL=http://backend:8000/api/webhooks/alerts" in unexposed
+
+
+def test_generated_env_api_keys_line_sources_in_bash(tmp_path: Path) -> None:
+    """The R60 emission hazard, pinned at the shell (amendment 5, measured).
+
+    Two scripts ``source`` the generated .env under ``set -e``
+    (quick-rebuild.sh:73, verify-observability.sh:19) and compose:636
+    interpolates the value. Measured pre-fix: the spaced two-key line
+    json.dumps defaults to ALREADY aborts those scripts with exit 127, and
+    unquoted compact JSON with objects brace-EXPANDS — ``[{key:a,...},b]``
+    lands as ``[[{key:a,...},b]]``, mangled with a silent exit 0. The
+    generation path here is the real one (object entry + a second operator
+    key, the worst case), sourced with ``set -e`` active, and the echoed
+    value must be BYTE-IDENTICAL to what the file says — not just exit 0.
+    """
+    import subprocess
+
+    import setup
+
+    content = setup.generate_env_content(
+        {
+            "monitoring_api_key": "hsi_TESTKEY123",  # pragma: allowlist secret
+            "existing_api_keys": '["operator-key-a"]',
+        }
+    )
+    env_file = tmp_path / ".env"
+    env_file.write_text(content, encoding="utf-8")
+    line = next(ln for ln in content.splitlines() if ln.startswith("API_KEYS="))
+
+    probe = subprocess.run(  # noqa: S603 — argv is a literal list; bash is the interpreter  # real
+        ["bash", "-c", f'set -e\nsource "{env_file}"\nprintf %s "$API_KEYS"'],  # noqa: S607 — bash from PATH on purpose; argv is literal
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert probe.returncode == 0, f"sourcing the .env aborted: {probe.stderr}"
+    assert probe.stdout == line.removeprefix("API_KEYS=").strip("'"), (
+        "bash mangled the value on source (brace expansion / word splitting)"
+    )
 
 
 def test_env_documents_the_machine_key() -> None:
@@ -544,6 +585,72 @@ def test_setup_merges_operator_api_keys_instead_of_replacing() -> None:
     # A hand-corrupted value must not take setup.py down: keep the new key,
     # drop the unparseable list, stay a valid JSON array for pydantic.
     assert json.loads(merge("not-json", "hsi_NEW")) == ["hsi_NEW"]  # pragma: allowlist secret
+
+
+def test_setup_merge_is_object_aware_under_r60() -> None:
+    """R60 (ruling 60), the second-run privilege bug the design panel caught.
+
+    The ``str(item)`` round-trip above is a silent privilege bug once objects
+    exist: json.loads hands back a dict, str(dict) writes single-quoted Python
+    repr, and a re-run re-emits the monitoring key as an UNSCOPED plain string
+    plus a junk entry whose SHA-256 hashes as a valid unscoped key. Measured
+    pre-fix: ``merge('[{"key":"hsi_NEW","scope":"monitoring"}]', "hsi_NEW")``
+    → '["hsi_NEW", "{\'key\': \'hsi_NEW\', \'scope\': \'monitoring\'}"]'.
+
+    Identity is the KEY VALUE across BOTH forms, which is what lets a pre-R60
+    .env (plain-string mirror) be UPGRADED to the scoped object instead of
+    duplicated — a surviving plain entry would leave the value unscoped at the
+    gate (R60 precedence: a plain entry for a value means that value is
+    unscoped), so R60 would un-fix itself one re-run after it shipped.
+    """
+    merge = _setup_fn("merge_api_keys")
+
+    # The panel's repro, post-fix, and byte-stable on the run after it.
+    once = merge('[{"key":"hsi_NEW","scope":"monitoring"}]', "hsi_NEW", "monitoring")
+    assert json.loads(once) == [{"key": "hsi_NEW", "scope": "monitoring"}]
+    assert merge(once, "hsi_NEW", "monitoring") == once, "byte-stable re-run"
+
+    # Pre-R60 .env: the mirror is a PLAIN string. New setup.py upgrades it.
+    upgraded = json.loads(
+        merge('["hsi_NEW","operator-a","operator-b"]', "hsi_NEW", "monitoring")
+    )  # pragma: allowlist secret
+    assert upgraded == [{"key": "hsi_NEW", "scope": "monitoring"}, "operator-a", "operator-b"], (
+        "no surviving plain duplicate — that duplicate would be the un-fix"
+    )
+
+    # setup.py's own reader keeps the surrounding quotes (raw read-back), so
+    # the quoted line must round-trip through the next merge unchanged.
+    quoted = """'[{"key":"hsi_NEW","scope":"monitoring"}]'"""
+    assert json.loads(merge(quoted, "hsi_NEW", "monitoring")) == [
+        {"key": "hsi_NEW", "scope": "monitoring"}
+    ]
+
+    # An existing object keeps the scope setup.py did NOT generate, verbatim —
+    # including a name the backend will fail closed (preserve-existing). Two
+    # distinct malformations, two outcomes, measured at the code:
+    #   {"key": "bad"} (usable key, no scope) SURVIVES as-is — setup.py never
+    #     deletes a key it didn't mint; the absent scope is the backend's
+    #     fail-closed-with-warning arm, not setup.py's business;
+    #   {"key": ""} (no usable key) is DROPPED — it can never match a digest.
+    kept = json.loads(
+        merge(
+            '[{"key":"op","scope":"operator"},{"key":"bad"},{"key":"","scope":"monitoring"}]',
+            "hsi_NEW",
+            "monitoring",
+        )
+    )  # pragma: allowlist secret
+    assert kept == [
+        {"key": "hsi_NEW", "scope": "monitoring"},
+        {"key": "op", "scope": "operator"},
+        {"key": "bad"},
+    ]
+
+    # Compact separators (no ", " / ": " padding) so a sourcing shell neither
+    # word-splits nor brace-expands the line; the generated entry leads.
+    assert ", " not in merge('["a","b"]', "hsi_NEW", "monitoring")  # pragma: allowlist secret
+    assert json.loads(merge("", "hsi_NEW", "monitoring")) == [
+        {"key": "hsi_NEW", "scope": "monitoring"}
+    ]  # pragma: allowlist secret
 
 
 def test_grafana_gets_the_key_and_the_mode_flips(compose_services: dict) -> None:
