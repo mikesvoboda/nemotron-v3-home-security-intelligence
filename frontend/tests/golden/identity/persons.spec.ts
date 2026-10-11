@@ -11,7 +11,8 @@
  *          (a) PASSED mount, no writes: GET /api/known-persons → 200 with
  *              {items: [], total: 0}. It is empty because the no-env fake-AI
  *              stack seeds ONLY cameras — scripts/feature_check.py calls
- *              seed_cameras() (:1284) and greps 0 for known-persons (harness.ts
+ *              seed_cameras() (call :1836; the def is :1284) and greps 0 for
+ *              known-persons (harness.ts
  *              header, positive control `cameras` = 16). No other golden spec
  *              touches persons either: `grep -rniE 'known.?person|face.?embedding
  *              |/face-recognition' frontend/tests/golden/` returns only this
@@ -24,8 +25,9 @@
  *              present (:218-224).
  *           (b) A seeded row, created and deleted by THIS test: POST
  *               /api/known-persons → 201 echoing name/notes and embedding_count
- *               0 (routes/face_recognition.py:135-170, the handler returns the
- *               literal 0 at :166); the GET list then sees it; the card paints
+ *               0 (routes/face_recognition.py:135-169 — decorator :135, handler
+ *               :140, return :161-169 — and the handler returns the literal 0 at
+ *               :166); the GET list then sees it; the card paints
  *               with role="button" + aria-label "View details for <name>" and a
  *               static data-testid="known-person-card" (KnownPersonsTab.tsx:60-67),
  *               and its embedding-count text is {person.embedding_count} (:82)
@@ -35,16 +37,21 @@
  *               detailPersonId + isOpen from the click) whose gallery heading is
  *               `Face Embeddings (0)` (KnownPersonDetailModal.tsx:296-297,
  *               rendered UNCONDITIONALLY once its own query settles — the only
- *               conditional above it is the isLoading branch at :284).
+ *               conditional above it is the isLoading branch at :285).
  *
  *  F-277  "clicks Add Person (or Edit in the detail modal); enters name,
  *         household flag and notes; saves" — the modal FORM DRIVE is not in
  *         this file yet (see Deliberate non-legs); the leg here is the route
  *         contract the save depends on: POST 201 with the body round-tripping,
  *         and PATCH /api/known-persons/{id} changing name/notes and NOT
- *         inventing one. Both mutations are undone here (DELETE 204 at
- *         :254-257; a second DELETE of the now-unknown id → 404 at :272-274,
- *         which doubles as the proof the row is gone).
+ *         inventing one. Both mutations are undone here (the restore DELETE in
+ *         each test's finally; a second DELETE of the now-unknown id → 204 or
+ *         404, which doubles as the proof the row is gone). Deliberately NOT
+ *         line-numbered: these are SELF-cites, and a self-cite goes stale the
+ *         moment the file above it grows — which is exactly what the two ranges
+ *         written here before this edit had done (`:254-257` and `:272-274` in a
+ *         file that is 251 lines). The rule holds for other files' lines, where
+ *         grep -n re-reads them; it does not for this file's own.
  *
  * What this file deliberately does NOT claim:
  *  - It does not put a real face embedding anywhere. F-278's promise is
@@ -126,10 +133,27 @@ test.describe('DO-3 known persons golden path', () => {
     await expect(page.getByText('No known persons')).toBeVisible(); // :231
     await expect(page.getByText('Add your first person to start tracking faces')).toBeVisible(); // :232
     // Text-named: the button has NO name attribute (:218-224), so its accessible
-    // name is its own text plus an aria-hidden icon. exact:true because
-    // getByRole's name matching is a SUBSTRING match by default and this mount
-    // has near-misses — UnknownStrangersPanel.tsx:204 renders "Add as New
-    // Person", which a loose /Add Person/i would bind.
+    // name is its own text plus an aria-hidden icon — assert the text.
+    // exact:true is INSURANCE here, not disambiguation, and the earlier version
+    // of this comment overstated it: it blamed a near-miss at
+    // UnknownStrangersPanel.tsx:204 ("Add as New Person"), which cannot fire
+    // twice over — (1) that component is never mounted (its only export is
+    // commented out, components/face-recognition/index.ts:105), and (2) even
+    // mounted it is not a substring match, since "Add as New Person" does not
+    // CONTAIN "Add Person" and getByRole's loose name match is a substring test.
+    // The real candidate set, measured repo-wide for visible strings containing
+    // "add person" case-insensitively: this button (:223) and, once the modal is
+    // open, AddPersonModal's Dialog.Title "Add Person" (:216) — a HEADING, so
+    // getByRole('button') could not bind it either. Other tabs are not mounted at
+    // all: Tab.Panel with the default `unmount` renders an aria-hidden stub
+    // instead of its children for an inactive tab (@headlessui/react 2.2.9,
+    // dist/components/tabs/tabs.js — `!selected && (unmount ?? true)`), and
+    // selectedTabIndex starts at 0 (FaceRecognitionPage.tsx:235). Keeping
+    // exact:true anyway: Playwright locators are ALWAYS strict — the day a second
+    // "Add Person" BUTTON lands on this mount, a loose locator resolves to two
+    // nodes and throws `strict mode violation` on every action, in whoever's PR
+    // adds the button, naming a spec they never touched. exact:true pins this
+    // locator to my element regardless of what else shares the label.
     const addPerson = page.getByRole('button', { name: 'Add Person', exact: true });
     await expect(addPerson).toBeVisible();
     // The grid must NOT exist while the list is empty — this is what makes the
@@ -145,6 +169,18 @@ test.describe('DO-3 known persons golden path', () => {
         is_household_member: false,
         notes: 'golden DO-3 fixture',
       });
+      // Capture the id BEFORE asserting anything about the response. The row
+      // exists server-side the moment the POST returns it; an assert that throws
+      // before the capture would leak the fixture, and the leak surfaces as the
+      // NEXT test's empty-state leg failing for this test's reason. A loose
+      // capture (typeof guard, no cast) so a malformed body cannot throw here.
+      createdId = typeof created.body?.id === 'number' ? created.body.id : null;
+      // The count the UI leg must render, taken from the same response rather
+      // than hard-coded, so the card assert compares the page against the API
+      // instead than against a literal I could drift away from.
+      const seededCount = typeof created.body?.embedding_count === 'number'
+        ? created.body.embedding_count
+        : -1;
       expect(created.status, 'POST /api/known-persons answers 201').toBe(201);
       expect(created.body?.name, 'the create response echoes the name').toBe(PERSON);
       expect(created.body?.is_household_member, 'it echoes the household flag').toBe(false);
@@ -152,7 +188,6 @@ test.describe('DO-3 known persons golden path', () => {
       // card's count must render, so pin it at the source before the UI.
       expect(created.body?.embedding_count, 'a fresh person has 0 embeddings').toBe(0);
       expect(typeof created.body?.id, 'the create response carries an id').toBe('number');
-      createdId = created.body.id as number;
 
       const after = await api.getJson('/api/known-persons');
       expect(after.body?.items, 'the list now sees the new person').toHaveLength(1);
@@ -164,10 +199,17 @@ test.describe('DO-3 known persons golden path', () => {
       await expect(card).toBeVisible();
       await expect(card).toHaveAttribute('data-testid', 'known-person-card');
       // The row's "with their enrolled-face count": the card prints
-      // {person.embedding_count} (KnownPersonsTab.tsx:81). Text equality, not
-      // a count of nodes — a card showing "2" would pass a hasText: /embed/i
-      // style assert and lie about the number.
-      await expect(card).toContainText('0');
+      // {person.embedding_count} (KnownPersonsTab.tsx:82) in its OWN <span>, so
+      // assert a node whose ENTIRE text is the number the API reported — scoped
+      // to this card. Two weaker forms this replaces, both measured: the
+      // `toContainText('0')` that was here is a substring test over the whole
+      // concatenated card (measured card textContent "Golden DO-3 Person0" —
+      // name + count + Household badge with NO separator), so it also passes on
+      // 10 or 100; and a page-wide getByText('0',{exact:true}) is not the fix
+      // either, because the header badge renders "(0)" and joins the match.
+      // Binding to seededCount (not a literal 0) so the UI leg compares against
+      // the value the API leg pinned.
+      await expect(card.getByText(`${seededCount}`, { exact: true })).toHaveText(`${seededCount}`);
       await expect(page.getByTestId('known-persons-grid')).toBeVisible();
       // The empty copy must be GONE once the grid branch is live: without this,
       // a page that rendered BOTH branches would pass every assert above.
@@ -182,7 +224,15 @@ test.describe('DO-3 known persons golden path', () => {
         page.getByRole('heading', { name: 'Face Embeddings (0)', level: 3, exact: true })
       ).toBeVisible();
       await expect(page.getByTestId('face-embeddings-gallery')).toBeVisible();
-      await expect(page.getByText('No face embeddings yet.')).toBeVisible();
+      // The shipped copy in full: KnownPersonDetailModal.tsx:311 is
+      // "No face embeddings yet. Add one from a detection event." — one plain
+      // text node in a plain <div> (no <strong> to break the string). The
+      // previous leg here matched only the first sentence, so a copy that lost
+      // its second sentence — the part that names the sanctioned write path —
+      // still passed. Assert the whole thing.
+      await expect(
+        page.getByText('No face embeddings yet. Add one from a detection event.')
+      ).toBeVisible();
     } finally {
       // Restore the stack to the state the empty-state leg found. Swallow the
       // failure: if the DELETE itself is what broke, the assertion above that
@@ -205,23 +255,35 @@ test.describe('DO-3 known persons golden path', () => {
     const h = harness as Harness;
     const api = await signIn(page, h);
 
-    const created = await api.send('/api/known-persons', 'POST', {
-      name: PERSON,
-      is_household_member: false,
-      notes: 'before',
-    });
-    expect(created.status, 'POST /api/known-persons answers 201').toBe(201);
-    const id = created.body?.id as number;
-    expect(typeof id, 'the create response carries a numeric id').toBe('number');
-
+    // The id is null until the POST answers, and the finally below runs either
+    // way: the try opens BEFORE the request so a POST that creates the row and
+    // then throws in transit still gets cleaned up, and the delete is skipped
+    // (not sent to /null) when no id was ever learned.
+    let id: number | null = null;
     try {
+      const created = await api.send('/api/known-persons', 'POST', {
+        name: PERSON,
+        is_household_member: false,
+        notes: 'before',
+      });
+      id = typeof created.body?.id === 'number' ? created.body.id : null;
+      expect(created.status, 'POST /api/known-persons answers 201').toBe(201);
+      expect(typeof id, 'the create response carries a numeric id').toBe('number');
+
       // PATCH is the route the modal's Edit save uses (row F-277 lists
-      // PATCH /api/known-persons/{person_id}; :209 is the handler).
+      // PATCH /api/known-persons/{person_id}; decorator :209, handler :210).
       const edited = await api.send(`/api/known-persons/${id}`, 'PATCH', {
         name: 'Golden DO-3 Renamed',
         notes: 'after',
       });
-      expect(edited.status, 'PATCH /api/known-persons/{id} answers 200').toBeLessThan(300);
+      // 200, not merely "2xx": the decorator (face_recognition.py:209) declares
+      // no status_code, so 200 is FastAPI's default for a body-returning route —
+      // and it is pinned in a committed artifact, the generated client's
+      // responses map (types/generated/api.ts:54603 lists 200 and 422 only). A
+      // 202 "accepted, applied asynchronously" would satisfy toBeLessThan(300)
+      // while this message says 200, and the async variant would break the
+      // read-back below rather than here.
+      expect(edited.status, 'PATCH /api/known-persons/{id} answers 200').toBe(200);
       expect(edited.body?.name, 'the patch changed the name').toBe('Golden DO-3 Renamed');
       expect(edited.body?.notes, 'the patch changed the notes').toBe('after');
 
@@ -229,9 +291,19 @@ test.describe('DO-3 known persons golden path', () => {
       expect(seen.status, 'GET /api/known-persons/{id} answers 200').toBe(200);
       expect(seen.body?.name, 'the store agrees the name changed').toBe('Golden DO-3 Renamed');
 
-      // A PATCH that sends nothing must not invent a value.
+      // A PATCH that sends nothing must not invent a value. Pinned at 200 for the
+      // same reason as the leg above, plus one that is specific to THIS body:
+      // KnownPersonUpdate (backend/api/schemas/face_recognition.py:64-78) defaults
+      // all three fields to None, so {} validates (the name field's min_length=1
+      // never applies to an absent field) — which rules out 422 — and the handler
+      // has only two exits, 404 at :237-241 and 200 at :243, so a found row leaves
+      // 200 standing. What the leg is really about is the next line: the service
+      // guard (backend/services/face_recognition_service.py:213-218) applies each
+      // field under `if … is not None`, so an empty PATCH must be a no-op and not
+      // a wipe. A toBeLessThan(300) here would also pass on a 202 or a 204-with-
+      // no-body, and the name assert would then fail for the wrong reason.
       const noop = await api.send(`/api/known-persons/${id}`, 'PATCH', {});
-      expect(noop.status, 'an empty PATCH still 2xx').toBeLessThan(300);
+      expect(noop.status, 'an empty PATCH answers 200').toBe(200);
       expect(noop.body?.name, 'an empty PATCH leaves the name alone').toBe('Golden DO-3 Renamed');
     } finally {
       await api.send(`/api/known-persons/${id}`, 'DELETE').catch(() => null);

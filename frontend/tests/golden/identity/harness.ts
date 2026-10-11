@@ -14,7 +14,7 @@
  *
  * What DO-3 IS relative to DO-2: these are CRUD surfaces. The no-env fake-AI
  * stack seeds ONLY cameras — scripts/feature_check.py calls seed_cameras()
- * (:1284) and nothing else; grepping `household`, `known-persons`,
+ * (call :1836; the def is :1284) and nothing else; grepping `household`, `known-persons`,
  * `camera_zones` and `registered_vehicles` over feature_check.py and
  * feature-check.sh returns 0 for each (positive control: `cameras` = 16 hits
  * in the same file, 0 in the .sh). The rich seeders in scripts/seed-events.py
@@ -64,14 +64,16 @@
  *     {name:'Add Person'}) works only because of the text. Assert the text.
  *
  * Wiring facts this layout depends on (all read at this head):
- * - feature_check.py golden() runs `playwright --project=golden`; the golden
- *   project is testDir ./tests/golden with workers: 1, fullyParallel: false
- *   (frontend/playwright.config.ts:282-288).
+ * - feature_check.py golden() (scripts/feature_check.py:1369) runs `playwright
+ *   --project=golden`; the golden project is testDir ./tests/golden with
+ *   workers: 1, fullyParallel: false (frontend/playwright.config.ts:282-288).
  * - `retries: process.env.CI ? 2 : 0` (playwright.config.ts:79) is NOT
  *   overridden by the golden project, so CI gives each test two attempts and a
  *   local run gives it none. junit merges a retry-absorbed failure into
- *   `passed`, and golden() reads only junit — so a green Feature-check row can
- *   mean "passed on retry". Promotion evidence for a DO-3 row is the run's
+ *   `passed`, and golden() reads only junit (its two junit_results calls:
+ *   :1402 for the backend specs, :1459 for Playwright; junit_results itself is
+ *   :834) — so a green Feature-check row can mean "passed on retry". Promotion
+ *   evidence for a DO-3 row is the run's
  *   golden-playwright.log (it prints `flaky` and `(retry #1)`), not the verdict.
  * - The page/context guard comes from ../guard, never the tests/e2e fixtures
  *   (which auto-mock). addCookies (login) and the API legs below are real
@@ -232,7 +234,7 @@ export async function assertGuardSurvives(page: Page, h: Harness): Promise<void>
  *     the POST response it just made.
  *   - known-person card: static data-testid="known-person-card" plus
  *     role="button" and aria-label={`View details for ${person.name}`}
- *     (KnownPersonsTab.tsx:58-66). Use getByRole('button', {name:
+ *     (KnownPersonsTab.tsx:60-67). Use getByRole('button', {name:
  *     `View details for …`}) — accessible, and it also pins the a11y surface.
  *
  *  Naming it after the two rows that need it keeps a later DO-3 spec from
