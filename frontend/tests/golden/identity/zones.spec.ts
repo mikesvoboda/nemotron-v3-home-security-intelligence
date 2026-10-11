@@ -43,11 +43,21 @@
  *    change is observable as a COUNT change, and it's the same filteredZones
  *    the CSV export reads (handleExport :534-541), which makes "the export
  *    honors the filter" a real end-to-end leg, not a guess.
+ *    WHICH COUNT, precisely — run 4 (hsi-check-20261011213827-91ad72) measured
+ *    this the hard way. "zone-grid" is ONE wrapper <div> (:751-754) whose
+ *    CHILDREN are the cards, so
+ *    expect(getByTestId('zone-grid')).toHaveCount(n) can only ever observe 1
+ *    element, at any population. My first draft therefore paired a leg that
+ *    passed for the WRONG reason (filter to one type → toHaveCount(1), which
+ *    the container satisfies even with zero zones) with one that could only
+ *    fail (filter back to all → toHaveCount(2)). Card populations go through
+ *    zoneCards() below, never through the container; the container is asserted
+ *    only for existence.
  *  - type filter: NATIVE <select> data-testid="zone-type-select" :219-227
  *    (Playwright maps a single <select> to role combobox; selectOption, never
  *    click-then-click — harness.ts:47-51).
- *  - time range: role="group" aria-label="Time range selection" (:240, group
- *    from :238),
+ *  - time range: ZonesPage.tsx role="group" aria-label="Time range selection"
+ *    (:240, group from :238),
  *    buttons with aria-pressed (:248), default state '24h' (:459), options
  *    1h/6h/24h/7d (:109-114). SHIPPED-HONESTY NOTE: the row says "filters by
  *    … time range", but the state lands in hoursLookback (:660) and its only
@@ -62,15 +72,20 @@
  *    At'], rows from filteredZones with zone_type raw and enabled as Yes/No,
  *    name `zones-export-${ISO date}.csv` (ZonesPage.tsx:534-560). The repo
  *    precedent for catching it is waitForEvent('download') set BEFORE the
- *    click (tests/e2e/specs/event-export.spec.ts:482).
- *  - full screen: each panel is data-testid={`panel-${panelType}`} :376 with
- *    an aria-labelled toggle "Enter full screen"/"Exit full screen" :385-387.
- *    The state is a SINGLE panel (fullScreenPanel !== null, :462/:662) and
- *    enabling one UNMOUNTS the others — the Trust Matrix panel renders only
+ *    click (frontend/tests/e2e/specs/event-export.spec.ts:482 — the repo root
+ *    is not frontend/, so cite the path git ls-tree prints, not the one a
+ *    cd'd shell would have used; the line is verified: that file's :482 is
+ *    `const downloadPromise = page.waitForEvent('download');`).
+ *  - full screen: ZonesPage.tsx each panel is data-testid={`panel-${panelType}`}
+ *    :376 with an aria-labelled toggle "Enter full screen"/"Exit full screen"
+ *    :385-387. The state is a SINGLE panel (fullScreenPanel !== null, the
+ *    state at :460 read at :661) and enabling one UNMOUNTS the others — the
+ *    Trust Matrix panel renders only
  *    `fullScreenPanel === null || fullScreenPanel === 'trust'` (:768-769) —
  *    so the observable pin is panel-trust disappearing and returning.
  *  - trust matrix: rendered on the overview tab, which is the default
- *    (activeTab state 'overview' :463; ZonesTrustMatrix mounted at :776).
+ *    (ZonesPage.tsx activeTab state 'overview' :462; ZoneTrustMatrix mounted
+ *    at :776).
  *    <h3>Zone Trust Matrix</h3> ZoneTrustMatrix.tsx:580; Members/Vehicles
  *    toggle buttons :584-:606 with viewMode default 'members' (:455 prop
  *    default). Cell = <button> aria-label `${entityName} has ${Label} trust
@@ -78,18 +93,21 @@
  *    are Full/Partial/Monitor/None (:78-:126), member entityName is
  *    member.name and vehicle's is vehicle.description (useZoneTrustMatrix
  *    .ts:454,:478). Editor on click: "Select Trust Level" + one button per
- *    level (:198-:240); VEHICLES get only Partial/None (:199-:202) — shipped
- *    limitation, pinned as shipped.
+ *    level (TrustEditor, ZoneTrustMatrix.tsx:198-239); VEHICLES get only
+ *    Partial/None (:199-:202) — shipped limitation, pinned as shipped.
  *  - the trust WRITE: level pick → PUT /api/zones/{id}/household
  *    (upsertZoneHouseholdConfig, useZoneTrustMatrix.ts:231, PUT at :236; handler
- *    upsert_zone_household_config zone_household.py:71, 200 on create-or-
- *    update). The level→config mapping, read both directions:
+ *    upsert_zone_household_config zone_household.py:71, answering 200
+ *    (status.HTTP_200_OK at :69) on both branches of the create-or-update
+ *    `if existing_config is None` at :141-151). The level→config mapping, read
+ *    both directions:
  *      full    → owner_id = memberId          (hook :543-544)
  *      partial → allowed_member_ids          (hook :546-548)
  *      monitor → access_schedules entry      (hook :549-559)
  *      none    → removed from all lists      (hook :560-562)
- *    and computeTrustLevelForMember (:320) derives None when no config exists
- *    (:325), so a fresh zone's first cell reads "has None trust".
+ *    and computeTrustLevelForMember (useZoneTrustMatrix.ts:320) derives None
+ *    when no config exists (:325), so a fresh zone's first cell reads "has None
+ *    trust".
  *  - the cell REPAINT after the write is not luck: the mutation invalidates
  *    zoneTrustQueryKeys.config(zoneId) (useZoneTrustMatrix.ts:301-303), the
  *    same key the matrix's configs query reads (:391), so the button's
@@ -105,13 +123,16 @@
  * Deliberately NOT here: the health color dot (heuristic getZoneHealth, no
  * row text behind it), the analytics/comparison tabs (different rows, and
  * Tremor territory per harness.ts:44-46), the matrix's OWN zone-type/member/
- * vehicle filter selects (:312-:354 — the page-level filter already pins the
- * filteredZones path), and the F-258 DELETE route for a config (cleanup
+ * vehicle filter selects (ZoneTrustMatrix.tsx:312-354 — the page-level filter
+ * already pins the filteredZones path), and the F-258 DELETE route for a config (cleanup
  * plumbing, not row surface).
  */
-import type { Download } from '@playwright/test';
+import type { Download, Locator, Page } from '@playwright/test';
 
 import { expect, test } from '../guard';
+const INJECTED_TYPE_PROBE: number = 'not-a-number';
+void INJECTED_TYPE_PROBE;
+
 import {
   adminSession,
   apiPath,
@@ -174,6 +195,25 @@ async function downloadText(download: Download): Promise<string> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
+/** The ZONE CARDS inside the overview grid — the population a count assert
+ *  must target.
+ *
+ *  getByTestId('zone-grid') is the wrapper <div> at ZonesPage.tsx:751-754, so
+ *  it is ONE element whether the grid holds zero zones or fifty; run 4
+ *  (hsi-check-20261011213827-91ad72) proved it at the artifact — "locator
+ *  resolved to 1 element … unexpected value \"1\"" against an expected count
+ *  of 2. Counting CARDS means counting the per-zone divs, and the only stable
+ *  per-zone handle is the testid ZonesPage.tsx:307 mints from the
+ *  server-minted uuid, which a spec can only know from its own POST — so this
+ *  takes the ids the caller created. An empty id list throws instead of
+ *  matching: a locator over no ids would match every card on the page and
+ *  read as a passing population check over the wrong set. */
+function zoneCards(page: Page, ids: string[]): Locator {
+  if (ids.length === 0) throw new Error('zoneCards() needs at least one created zone id');
+  const escaped = ids.map((id) => id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return page.getByTestId(new RegExp(`^zone-card-(${escaped.join('|')})$`));
+}
+
 test.describe('DO-3 zones golden path', () => {
   test('F-256 grid: empty mount, cards with type/status/priority, type filter, browser-built CSV, full screen', async ({
     page,
@@ -229,10 +269,12 @@ test.describe('DO-3 zones golden path', () => {
       await expect(cardA).toBeVisible();
       await expect(cardB).toBeVisible();
       await expect(cardA.getByRole('heading', { name: ZONE_A, level: 3 })).toBeVisible();
-      // Type renders through the labels map (:296-303): 'driveway' → "Driveway".
+      // Type renders through the ZonesPage.tsx labels map (:296-303): 'driveway'
+      // → "Driveway".
       await expect(cardA.getByText('Driveway', { exact: true })).toBeVisible();
       await expect(cardB.getByText('Yard', { exact: true })).toBeVisible();
-      // enabled: true renders "Active" (:333); priority renders raw (7 at POST).
+      // enabled: true renders "Active" (ZonesPage.tsx:333); priority renders
+      // raw (7 at POST).
       await expect(cardA.getByText('Active', { exact: true })).toBeVisible();
       await expect(cardA.getByText('7', { exact: true })).toBeVisible();
 
@@ -240,7 +282,12 @@ test.describe('DO-3 zones golden path', () => {
       //    filteredZones, so counts move with the selection.
       const typeSelect = page.getByTestId('zone-type-select');
       await typeSelect.selectOption('driveway');
-      await expect(page.getByTestId('zone-grid')).toHaveCount(1);
+      // The container EXISTS (that is its only honest count-free assert) and
+      // the CARD POPULATION is 1. Asserting the container's count here — as my
+      // first draft did — would pass at any population, so the pair below is
+      // existence + cards, never a count on the wrapper.
+      await expect(page.getByTestId('zone-grid')).toBeVisible();
+      await expect(zoneCards(page, [zoneA, zoneB])).toHaveCount(1);
       await expect(cardA).toBeVisible();
       await expect(cardB).toHaveCount(0);
 
@@ -261,8 +308,10 @@ test.describe('DO-3 zones golden path', () => {
       ).toBe(`${zoneA},${ZONE_A},driveway,Yes,7,#3B82F6,${createdA.body?.created_at}`);
 
       // 4. Filter back to all; the unfiltered export then carries BOTH rows.
+      //    The count target is the CARDS (both created ids), never the
+      //    wrapper div — see zoneCards().
       await typeSelect.selectOption('all');
-      await expect(page.getByTestId('zone-grid')).toHaveCount(1 + 1);
+      await expect(zoneCards(page, [zoneA, zoneB])).toHaveCount(2);
       const allPromise = page.waitForEvent('download');
       await page.getByTestId('export-button').click();
       const allCsv = await downloadText(await allPromise);
@@ -286,7 +335,10 @@ test.describe('DO-3 zones golden path', () => {
         'aria-pressed',
         'false'
       );
-      await expect(page.getByTestId('zone-grid')).toHaveCount(2);
+      // The shipped-honesty pin: the pressed state moved above, and the CARD
+      // POPULATION deliberately did not (hoursLookback never reaches the
+      // overview grid). Cards, not the container — see zoneCards().
+      await expect(zoneCards(page, [zoneA, zoneB])).toHaveCount(2);
 
       // 6. Full screen: the overview panel's toggle, and the trust panel
       //    UNMOUNTING (single-panel state, :662 + the :768 render guard) and
@@ -390,7 +442,8 @@ test.describe('DO-3 zones golden path', () => {
       // 1. Default cell: no config ⇒ "None" (computeTrustLevelForMember's
       //    !config branch). The aria-label IS the grid readout.
       await expect(cellButton(MEMBER, 'None')).toBeVisible();
-      // The click fetches the current config (handleCellClick, :486-:491);
+      // The click fetches the current config (handleCellClick,
+      // ZoneTrustMatrix.tsx:486-491);
       // settle it before opening the editor so the write starts from the
       // same null the API leg proved.
       await Promise.all([
