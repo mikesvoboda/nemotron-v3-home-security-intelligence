@@ -217,12 +217,12 @@ trigger, and the branch-protection required set only ever held
 `CI Gate (Required Checks)`. Results report through run summaries,
 artifacts, and Linear issues.
 
-| Test                     | Threshold            | Workflow         | Runs                     |
-| ------------------------ | -------------------- | ---------------- | ------------------------ |
-| **Benchmark Tests**      | > 20% regression     | `benchmarks.yml` | Daily 04:47 UTC / manual |
-| **Memory Profiling**     | > 500MB per endpoint | `benchmarks.yml` | Daily 04:47 UTC / manual |
-| **k6 Load Tests**        | All thresholds       | `load-tests.yml` | Daily 01:12 UTC / manual |
-| **Memory Stress Test**   | Leak detection       | `load-tests.yml` | Daily 01:12 UTC / manual |
+| Test                   | Threshold            | Workflow         | Runs                     |
+| ---------------------- | -------------------- | ---------------- | ------------------------ |
+| **Benchmark Tests**    | > 20% regression     | `benchmarks.yml` | Daily 04:47 UTC / manual |
+| **Memory Profiling**   | > 500MB per endpoint | `benchmarks.yml` | Daily 04:47 UTC / manual |
+| **k6 Load Tests**      | All thresholds       | `load-tests.yml` | Daily 01:12 UTC / manual |
+| **Memory Stress Test** | Leak detection       | `load-tests.yml` | Daily 01:12 UTC / manual |
 
 ### Non-Blocking (Informational)
 

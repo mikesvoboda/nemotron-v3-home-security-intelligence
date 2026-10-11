@@ -227,18 +227,18 @@ those floors, so review such hunks by hand.
 
 ### Additional Workflows
 
-| Workflow              | Trigger       | Purpose                                 |
-| --------------------- | ------------- | --------------------------------------- |
+| Workflow              | Trigger        | Purpose                                 |
+| --------------------- | -------------- | --------------------------------------- |
 | api-compatibility.yml | Nightly/Manual | Check API backward compatibility        |
 | benchmarks.yml        | Nightly/Manual | Performance benchmarks (report-only)    |
 | bundle-size.yml       | Nightly/Manual | Track frontend bundle size changes      |
-| ci-analytics.yml      | Workflow runs | Collect and report CI metrics           |
-| docs.yml              | Push/PR       | Generate and deploy documentation       |
+| ci-analytics.yml      | Workflow runs  | Collect and report CI metrics           |
+| docs.yml              | Push/PR        | Generate and deploy documentation       |
 | load-tests.yml        | Nightly/Manual | Load and stress testing (report-only)   |
-| mutation-testing.yml  | Weekly/Manual | Mutation testing to verify test quality |
-| release.yml           | Tag push      | Create releases with artifacts          |
-| semantic-release.yml  | Push to main  | Semantic versioning and changelog       |
-| release-drafter.yml   | PR merged     | Draft release notes from PR labels      |
+| mutation-testing.yml  | Weekly/Manual  | Mutation testing to verify test quality |
+| release.yml           | Tag push       | Create releases with artifacts          |
+| semantic-release.yml  | Push to main   | Semantic versioning and changelog       |
+| release-drafter.yml   | PR merged      | Draft release notes from PR labels      |
 
 ### Frontend Quality Workflows
 
