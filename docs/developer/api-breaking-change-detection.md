@@ -10,20 +10,26 @@ The API breaking change detection system automatically detects and reports break
 
 ### CI Workflow
 
-The `api-compatibility.yml` workflow runs on all PRs that modify:
-
-- `backend/api/**`
-- `backend/models/**`
-- `backend/main.py`
+The `api-compatibility.yml` workflow runs **nightly (daily 05:13 UTC) and on
+manual dispatch** (owner ruling 100 — it has no push or PR trigger; the
+former "runs on all PRs" text was stale even before that change, as the file
+has had no PR trigger since it was moved post-merge). The comparison is
+between the `main` branch spec generated in the run and the spec of whatever
+ref the workflow runs on, and a failure on main opens a Linear issue.
 
 The workflow:
 
-1. Generates OpenAPI spec from the main branch
-2. Generates OpenAPI spec from the PR branch
+1. Generates OpenAPI spec from the `main` branch (the base, fetched in-run)
+2. Generates OpenAPI spec from the ref the workflow runs on
 3. Compares the specs using `oasdiff` to detect breaking changes
-4. Posts a comment on the PR with details of any breaking changes
-5. **Blocks the PR** if breaking changes are detected (unless approved)
-6. Allows the PR to proceed if the `breaking-change-approved` label is added
+4. On a breaking change: the job fails, and the `create-issue-on-failure`
+   job opens a Linear issue (nightly/manual runs from main only)
+
+The workflow still carries PR-comment and label-check steps guarded by
+`github.event_name == 'pull_request'`; no trigger can produce that event, so
+they never run (pre-existing since the file went post-merge-only; a separate
+cleanup may remove them). The manual procedure below describes how to run the
+same comparison locally for a branch under review.
 
 ### Breaking Changes Detected
 
@@ -208,27 +214,22 @@ python scripts/check-api-breaking-changes.py --base <base-spec> --current <curre
 ### Workflow Flow
 
 ```
-PR Created/Updated
+Nightly schedule (05:13 UTC) / workflow_dispatch
     ↓
 Workflow Triggered
     ↓
-Generate Main Spec ────────┐
-    ↓                      │
-Generate PR Spec           │
-    ↓                      │
-Compare Specs ←────────────┘
+Generate Main Spec ─────────┐
+    ↓                       │
+Generate Current-Ref Spec   │
+    ↓                       │
+Compare Specs ←─────────────┘
     ↓
 Breaking Changes? ──→ No ──→ ✅ Pass
     ↓
    Yes
     ↓
-Post PR Comment
-    ↓
-Has 'breaking-change-approved' label? ──→ Yes ──→ ✅ Pass
-    ↓
-   No
-    ↓
-❌ Fail (Block PR)
+❌ Job fails → create-issue-on-failure opens a Linear issue
+   (report-only: nothing merges-blocks on this workflow)
 ```
 
 ### Change Detection Logic
