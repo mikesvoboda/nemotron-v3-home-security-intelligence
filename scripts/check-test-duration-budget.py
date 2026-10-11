@@ -27,9 +27,12 @@ missing downgrade, not a stricter line:
     warn  unit         1.5 s   (listed in the job summary, never fails)
 
 Why the hard line moved from ruling 74's 1.5 s to 4.0 s: the measured over-1.5
-victim set rotates between same-code runs (12/13/10 ids across three green
-main runs; up to 20 ids straddle the line) — a hard threshold inside the
-runner's noise band is a lottery, not a signal, and with the file gone there is
+victim set rotates between same-code runs — over the three shipping green-main
+corpora it is 31/22/17 ids with an intersection of only 10, and up to 20 ids
+newly cross the line in one direction between two runs (29 in symmetric
+difference; 12/13/10 NEWCOMERS per PR run was the first-flight baseline
+figure, a different measurement) — so a hard threshold inside the runner's
+noise band is a lottery, not a signal, and with the file gone there is
 nothing to hold the rotation. 4.0 s is where all three green corpora flip ZERO
 ids (measured max unit duration 6.01 s, and that one is tracked-slow). The 1.5 s
 line keeps its information value exactly where ruling 93 put it: loudly listed,

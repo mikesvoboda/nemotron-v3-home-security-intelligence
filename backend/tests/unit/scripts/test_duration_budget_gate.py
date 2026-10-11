@@ -19,7 +19,8 @@ assumed:
 2. **No exemption channel at all.** Ruling 93 retired ruling 74's shrink-only
    baseline: the gate has no ``--baseline``, no ``--update``, and ships no
    baseline file. A committed 51-id file could not cover a victim set that
-   rotates (measured: 12/13/10 ids across same-code runs, one shared); with
+   rotates (over the three shipping green-main corpora: 31/22/17 ids over
+   1.5 s, intersection 10 — re-measured by self-review F6); with
    nothing to hold today's slow tests, the only sane hard line is the audit's
    own limit, where the measured corpus flips zero ids.
 3. **Fail closed on zero evidence.** A missing or empty results dir is a
@@ -217,8 +218,9 @@ def test_a_unit_test_in_the_warn_band_passes_and_is_warned(tmp_path: Path) -> No
     2.0 s is over WARN (1.5) and under the hard budget (4.0): rc=0, and the
     id is LISTED (the "listed in the job summary" limb — stdout is the local
     rendering of it). Under the old 1.5 s hard budget this exact shape
-    reddened innocent tests; the measured over-1.5 set rotated 12/13/10 ids
-    between same-code runs, which is what ruling 93 fixed.
+    reddened innocent tests; the measured over-1.5 set rotated 31/22/17 ids
+    (intersection 10) across the three shipping green-main corpora, which is
+    what ruling 93 fixed.
     """
     results = _results(
         tmp_path,
