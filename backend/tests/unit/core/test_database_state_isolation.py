@@ -6,14 +6,19 @@ main run 38162912077 (merge a195b0984) went red on the coordinator's urgent path
     TypeError: 'MagicMock' object can't be awaited
 
 The victim never touches ``_engine``. A LEAK/INHERIT probe over the full unit tier
-(-n 8 --dist=worksteal, seed recorded in the PR) attributes the poison:
+(-n 8 --dist=worksteal, probe committed at backend/tests/evidence/
+``r109c_leakprobe.py``; NO seed was recorded for that run, and self-review F2 caught this file
+claiming otherwise) attributes the poison:
 ``TestPgbouncerDatabaseInit`` (backend/tests/unit/core/test_pgbouncer_config.py:128-195)
 calls the REAL ``init_db()`` with only ``create_async_engine`` patched to a bare
 ``MagicMock`` (line 146/181) — init_db writes the module singletons
 (``_engine``/``_async_session_factory``/``_bound_loop_id``, database.py:126-137) and
 ``with patch(...)`` restores the function, never the globals. The probe recorded
-that triple surviving into 1,279 later tests on one worker, every one inheriting a
-bare-MagicMock ``_engine``.
+that triple surviving into 1,278 of the 1,279 INHERIT lines on one worker (gw7) —
+32 % of that worker's ~3,964 tests (31,714 passed / 8 workers), not "most of its tier"
+(self-review F4). Only 778 of gw7's 1,278 carried ``_bound_loop_id`` as a real int; the
+other 500-odd inherited ``loop=None``, which cannot fire the predicate (``database.py:463``)
+— so the firing-capable carry is ~20 %, not 32 %.
 
 Why the victim then dies: ``get_session()`` asks ``_check_loop_mismatch()``
 (database.py:457-470), which returns True iff ``_engine`` and ``_bound_loop_id`` are
@@ -31,10 +36,24 @@ The fix mirrors the shipped precedent two screens away in this tier's conftest:
 xdist-persistence reason. ``backend.core.database`` had no such sweep. The sweep is
 test hygiene, not a product change: ``init_db()`` disposing a stale-loop engine is
 correct for the shipped process, and the engine was only a mock because a test
-leaked it. Placement in the UNIT conftest is deliberate: the probe measured zero
-``None -> AsyncEngine`` leaks (no unit test boots a real engine — writers all mock),
-while backend/tests/conftest.py's ``isolated_db`` legitimately holds REAL engines for
-the contracts/integration tiers the unit conftest does not govern.
+leaked it. Placement in the UNIT conftest is deliberate: no unit-tier file constructs
+an engine at all. The re-runnable call-site audit is the evidence: every hit of
+``grep -rn "create_async_engine(" backend/tests/unit/`` and of the same for
+``AsyncEngine(`` is itself a line containing ``grep -rn`` — a docstring quoting this
+command, never a construction (add that ``grep -v grep`` to check it; the hit COUNT
+grows as docstrings cite it, so the claim is "all hits are citations", not "N hits").
+The real references to ``create_async_engine`` are all ``patch(...)`` targets and
+prose. The probe could NOT establish
+this on its own, for two separate reasons (self-review F5): the run behind the figures
+used the probe's original fixture form, whose INHERIT arm filtered real ``AsyncEngine``
+out so an all-MagicMock result was tautological; and its LEAK arm is a before/after
+delta, so a test that booted a real engine and restored the old value in its own
+``finally`` is invisible to it. See
+backend/tests/evidence/r109c_leakprobe.py, which is now a hook wrapper for a third
+reason F5's follow-up found — under this very sweep a fixture-form probe reports zero
+deltas for every test. backend/tests/conftest.py's ``isolated_db`` is left alone here:
+it legitimately holds REAL engines for the contracts/integration tiers the unit
+conftest does not govern.
 """
 
 from __future__ import annotations
@@ -98,8 +117,8 @@ def poison_database_state(stale: int) -> None:
     """
     db._engine = MagicMock()  # bare, exactly like create_async_engine's mock return
     db._async_session_factory = MagicMock()
-    db._read_engine = None
-    db._read_session_factory = None
+    db._read_engine = MagicMock()
+    db._read_session_factory = MagicMock()
     db._bound_loop_id = stale
 
 
@@ -165,7 +184,9 @@ class TestTheSweep:
     ) -> None:
         # The guard's guarantee restated as behavior: a later get_session() on swept
         # state takes the shipped "not initialized" path (get_session_factory,
-        # database.py:666-670 territory) instead of awaiting a leaked mock.
+        # database.py:154-166, raising at :164) instead of
+        # awaiting a leaked mock. (This cite read ":666-670", which is get_session's
+        # docstring Raises block — wrong range, fixed per self-review F9.)
         poison_database_state(stale_loop_id())
         try:
             unit_conftest._clear_database_module_state()
