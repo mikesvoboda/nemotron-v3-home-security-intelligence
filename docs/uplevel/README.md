@@ -262,11 +262,12 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | done     | #6921 |
 | B2.2 | backend | 2 | Re-ID on the GPU (OD-17 re-ID half) | heavy · owner | awaiting real tier | #6970 |
 | F2.1    | frontend                | 2          | Golden-path harness                            |               | done        | #6976 |
-| F2.2    | frontend                | 2          | Feature inventory                              | heavy         | not started |     |
+| F2.2    | frontend                | 2          | Feature inventory                              | heavy         | done        | #6941 |
 | F2.3    | frontend                | 2          | Golden paths for every working feature         |               | not started |     |
 | O2.1    | ops                     | 2          | Fake AI stack                                  |               | done        | #6946 |
-| O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | not started |     |
+| O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | awaiting real tier | #6961 |
 | O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | done        | #6954 |
+| O2.3b   | ops                     | 2          | Reachability: ancestor packages ship           |               | done        | #6973 |
 | R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
 | R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | not started |     |
 | B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy · owner | not started |     |
@@ -311,6 +312,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | [`40-docs.md`](40-docs.md)                                   | docs lane plan, kickoff prompt (the AGENTS.md standard moved to docs/developer/)  |
 | [`50-coordination.md`](50-coordination.md)                   | roles, claiming, review and merge, hot files, the daily batch, coordinator prompt |
 | [`operator.md`](operator.md)                                 | the operator's runbook for the real tier                                          |
+| [`owner-partner.md`](owner-partner.md)                       | the owner's design partner: role, relay form and handoff state                    |
 | [`templates/r2-sheet.md`](templates/r2-sheet.md)             | the `R2` ruling sheet, filled by `F2.2` and `F2.3`                                |
 | [`templates/feature-design.md`](templates/feature-design.md) | the Phase 4 design, one per feature                                               |
 | `.github/PULL_REQUEST_TEMPLATE/uplevel.md`                   | the PR template every package uses                                                |

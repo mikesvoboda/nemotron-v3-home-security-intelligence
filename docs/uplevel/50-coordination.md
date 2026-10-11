@@ -28,13 +28,13 @@
 
 ## How many agents
 
-| phase | agents                                                                                                                      | what limits it                                             |
-| ----- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| 0     | 2, started by hand: the coordinator and `uplevel-ops-b`, which builds the launcher                                          | nothing: the owner starts Phase 1 by hand (UR-28)          |
-| 1     | 9: on the fast model ops ×2, backend, frontend, docs, the coordinator and the operator; 2 heavy, the second from 2026-10-09 | `B1.5`'s auth design unblocks three packages               |
-| 2     | 4: ops, frontend (inventory), backend (supporting the inventory), docs                                                      | one serial chain, `O2.1` → `O2.2` → `F2.1` → `F2.3` → `R2` |
-| 3     | 6: backend ×2, frontend, ops ×2, docs                                                                                       | the hot files                                              |
-| 4     | 2–3 feature packages at once, plus one background agent                                                                     | the owner's design sessions, and modules that overlap      |
+| phase | agents                                                                                                                      | what limits it                                                      |
+| ----- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| 0     | 2, started by hand: the coordinator and `uplevel-ops-b`, which builds the launcher                                          | nothing: the owner starts Phase 1 by hand (UR-28)                   |
+| 1     | 9: on the fast model ops ×2, backend, frontend, docs, the coordinator and the operator; 2 heavy, the second from 2026-10-09 | `B1.5`'s auth design unblocks three packages                        |
+| 2     | 4: ops, frontend (inventory), backend (supporting the inventory), docs                                                      | one serial chain, `O2.1` → `O2.2` → `F2.1` → `R2a` → `F2.3` → `R2b` |
+| 3     | 6: backend ×2, frontend, ops ×2, docs                                                                                       | the hot files                                                       |
+| 4     | 2–3 feature packages at once, plus one background agent                                                                     | the owner's design sessions, and modules that overlap               |
 
 More agents do not go faster: CI jobs already queue about six times their runtime
 (`.github/workflows/ci.yml:2023-2025`), `main` requires branches to be up to date before merge, and
@@ -108,13 +108,13 @@ HOST (owner)               agent-dgx · sbx · the launcher (O0.1) · the local 
 | --------------------- | --------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------- |
 | `uplevel-coordinator` | fast      | labels, pinned issue | assignments, reviews, merges, the daily batch                                                                               | this file            |
 | `uplevel-ops-b`       | fast      | `O0.1`, the launcher | `O1.1`, `O1.9`, `O1.12`, `O1.10`, `O1.2`, `O1.4`, `O1.5`, `O1.7`, `O1.8`                                                    | `30-ops.md` + cell B |
-| `uplevel-ops-a`       | fast      | —                    | `O1.3`, `O1.6` (after `B1.5`), `O1.11` (after `O1.6`); then `O2.3`                                                          | `30-ops.md` + cell A |
-| `uplevel-backend`     | fast      | —                    | `B1.1`, `B1.3`, `B1.4`; then `B2.1` and the inventory's backend tracing                                                     | `10-backend.md`      |
+| `uplevel-ops-a`       | fast      | —                    | `O1.3`, `O1.6` (after `B1.5`), `O1.11` (after `O1.6`); then `O2.3`, `O2.3b`, and `F2.3` UI batches                          | `30-ops.md` + cell A |
+| `uplevel-backend`     | fast      | —                    | `B1.1`, `B1.3`, `B1.4`; then `B2.1`, the inventory's backend tracing, `F2.3`'s API batches and `B2.2`'s cleanup             | `10-backend.md`      |
 | `uplevel-frontend`    | fast      | —                    | `F1.1`; `F1.2` after `B1.4`; `F1.3` after `B1.5`                                                                            | `20-frontend.md`     |
-| `uplevel-docs`        | fast      | —                    | `W1.1`, `W1.3`, `W1.2`                                                                                                      | `40-docs.md`         |
-| `uplevel-heavy`       | strongest | —                    | `B1.5`, `B1.2`, `B1.6`; then `O2.1`, `O2.2`                                                                                 | below                |
+| `uplevel-docs`        | fast      | —                    | `W1.1`, `W1.3`, `W1.2`; then `F2.3` UI batches                                                                              | `40-docs.md`         |
+| `uplevel-heavy`       | strongest | —                    | `B1.5`, `B1.2`, `B1.6`; then `O2.1`, `O2.2`; paused from 2026-10-10 (owner ruling 88)                                       | below                |
 | `uplevel-operator`    | fast      | —                    | real-tier runs: `B1.2`, and `B1.1`'s reply-length tail (its S4 p95 stays the owner's, on the A5500); then `O2.2`'s `--real` | `operator.md`        |
-| `uplevel-heavy-2`     | strongest | —                    | `F2.2`, the inventory, from mid-Phase 1; then heavy packages labelled `cell:heavy-2`                                        | below                |
+| `uplevel-heavy-2`     | strongest | —                    | `F2.2`, the inventory, from mid-Phase 1; then `B2.2`; paused from 2026-10-10 (owner ruling 88)                              | below                |
 
 The heavy queue runs in that order for a reason. `B1.5` unblocks `F1.3` and `O1.6` and removes the
 critical `python-jose` alert. `B1.2` lifts the pause on VLM prompt work (UR-8). `B1.6` hardens
@@ -200,11 +200,22 @@ the turn; the next tick reads it again. Long work inside a turn is fine; waiting
 issue; read the new comments on every open programme PR and on the batch issue; read every
 heartbeat and raise the urgent path for a stalled agent; route what needs routing; after any merge,
 assign each assignment-only agent (`uplevel-heavy`, `uplevel-heavy-2`, the ops cells) its next
-roster package once that package's dependencies are merged (owner, 2026-10-09); park any open claim
-of a Phase 3 package before `R2` is `done` — draft, with "Parked by owner ruling 54 until R2 is
-done." as its body's first line (owner, 2026-10-10); label ready PRs for review; merge what meets
+roster package once that package's dependencies are merged (owner, 2026-10-09); check for packages
+that are ready but unclaimed (below); park any open claim of a Phase 3 package before `R2` is
+`done` — draft, with "Parked by owner ruling 54 until R2 is done." as its body's first line (owner,
+2026-10-10) — unless it touches only `R2a`-ruled features and modules (owner ruling 86); label
+ready PRs for review; merge what meets
 the merge rule, one at a time; post the daily batch when its time comes; otherwise say so in one
 line and end the turn.
+
+**Ready but unclaimed** (owner ruling 82). Each coordinator tick lists every package in the README
+status table whose dependencies have landed and whose row is not `done` or `awaiting real tier`. A
+dependency has landed when its PR has merged, a merge as `awaiting real tier` included. Phase 3
+packages are left out until `R2` is `done`, except those scoped to `R2a`-ruled features and modules.
+For each such package with no open claim PR and no assignment on record, the coordinator posts one
+comment on the batch issue naming the package, its owning agent and the dependency that landed,
+addressed to that agent. If it is still unclaimed two ticks later, the coordinator raises the
+urgent path.
 
 **The operator tick:** update your heartbeat; take the oldest README row on `main` that says
 `awaiting real tier` and run it (`operator.md`); otherwise say so in one line and end the turn.
@@ -215,7 +226,7 @@ place, never a new one, so the owner gets no notifications. The comment is two l
 
 ```text
 <!-- heartbeat:<sandbox> -->
-<sandbox> · <HH:MMZ, read from date -u> · idle | working #<n> | waiting on <what>
+<sandbox> · <HH:MMZ, read from date -u> · idle | working #<n> | waiting on <what> | paused · <why>
 ```
 
 Find the issue with `gh issue list --state open --search "Uplevel heartbeats in:title"`, find your
@@ -223,11 +234,18 @@ comment by its first line, and edit it with
 `gh api -X PATCH repos/<owner>/<repo>/issues/comments/<id> -f body=<the two lines>`. Post it once if
 you have none.
 
+**Paused** (owner ruling 88). A heavy agent whose queue is empty posts a final heartbeat
+`paused · queue empty (ruling 88)`, ends its turn, and the owner stops its loop; it costs nothing
+while it waits. When the owner stops an agent, the owner's session may write the line for it. Heavy
+work that appears while both heavy agents are paused goes on the urgent path to the owner, who
+restarts the agent with `agent-dgx run <name> --agent claude --split`, its kickoff from
+`scripts/uplevel/sandboxes.toml`, and `/loop 15m`.
+
 **Stalled agents (UR-38).** An agent is stalled when its heartbeat is older than three of its
 intervals — 45 minutes for lane and heavy agents, 90 for the operator — and it has pushed no commit
 and posted no comment since. The coordinator raises the urgent path for it, naming the agent and
-its open PRs. The coordinator is stalled when its heartbeat is older than 20 minutes: an agent that
-sees this posts one comment on the batch issue with an @-mention of the owner, unless a comment
+its open PRs. An agent whose heartbeat reads `paused` is not stalled and gets no assignment. The
+coordinator is stalled when its heartbeat is older than 20 minutes: an agent that sees this posts one comment on the batch issue with an @-mention of the owner, unless a comment
 from the last hour already says so. Recovery is the owner's: Esc in the agent's pane, a catch-up
 prompt that names its open work, and a new tick only if the agent lists none. No agent reaches
 into another's sandbox.
@@ -249,9 +267,13 @@ never run twice.
    `gh pr create --draft --template uplevel.md --label lane:<lane>` (owner, 2026-10-09). The open
    draft PR is the claim; the coordinator's status summary reads claims from open PRs. The README
    status table on `main` changes only when the PR merges.
-3. **Depend only on merged work.** A dependency is met when its PR is merged to `main`. Branch from
-   `main`, never from another agent's open branch.
+3. **Depend only on merged work.** A dependency is met when its PR is merged to `main`, a merge as
+   `awaiting real tier` included: claim your next package on that tick (owner ruling 82). Branch
+   from `main`, never from another agent's open branch.
 4. **Release** a claim you abandon: close the draft PR with a comment saying why.
+
+**One package, one claim PR** — except `F2.3`, where each agent carries all its area batches in
+one draft claim PR (owner ruling 97).
 
 Packages marked `heavy` in the status table are assigned by the coordinator; a lane agent claims
 only unmarked packages on its own.
@@ -323,6 +345,15 @@ the daily batch.
 
 The status table marks the fixed ones `owner`.
 
+**Pre-approval** (owner ruling 84). A ruling that specifies a follow-up's content may end with
+"Pre-approved: merges on lane review and green CI." Only a ruling carrying that exact line
+pre-approves. The coordinator merges such a PR without the owner's word when its lane review states
+that the diff does what the ruling specifies and nothing more, and `CI Gate (Required Checks)` is
+green at its head; if the reviewer cannot state that, the PR comes to the owner. Never pre-approved,
+whatever the ruling says: destructive work (`B3.1`, `F3.1`, `B3.2`); security or auth changes
+beyond what the ruling states; plan text beyond what the ruling approves; any PR with an entry
+under "Questions for the owner".
+
 **4. Merge.** The coordinator merges a PR when CI is green, its review says approve, and — for the
 owner tier — the owner has approved. **Green** means the required check
 `CI Gate (Required Checks)` is present and passed at the PR's head (UR-34). A check list with no
@@ -341,8 +372,9 @@ rebase their own PRs to resolve conflicts. The requirement stays (owner,
 latest of: `CI Gate` passing at its current head, the approving review of that head, and, in the
 owner tier, the owner's approval. Any new head, a conflict fix included, resets the time; a red run
 or a re-opened review takes the PR out until it is ready again. The coordinator gives the slot to
-the oldest ready PR; a PR waiting on its author cannot hold the slot. Only an owner ruling moves a PR
-ahead of that order. Activity on a thread, newness or the coordinator's own reading of the critical
+the oldest ready PR; a PR waiting on its author cannot hold the slot. Only an owner ruling, or a
+fix for red `main` (below, "The urgent path"), moves a PR ahead of that order. Activity on a
+thread, newness or the coordinator's own reading of the critical
 path do not; to propose a jump, the coordinator asks in the batch with the reason.
 
 **The owner's PRs** carry auto-merge and join the same queue (owner, 2026-10-08). The coordinator
@@ -368,6 +400,7 @@ Files many packages change. The coordinator sequences their merges; authors foll
 | `.github/workflows/*.yml`                                  | before pushing, run `actionlint` (`docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest -shellcheck= -pyflakes= .github/workflows/*.yml`) and compare its findings with `main`'s (UR-34); a YAML parse does not check GitHub's expressions |
 | `.pre-commit-config.yaml`, `backend/main.py`               | small hunks; one at a time                                                                                                                                                                                                                             |
 | `scripts/retired_paths.txt`                                | append-only                                                                                                                                                                                                                                            |
+| `docs/reference/feature-inventory.md`                      | during `F2.3`, edit only your own batch's rows (owner ruling 87); frontend owns the rest                                                                                                                                                               |
 | `.github/suppression-baseline.json`, `.secrets.baseline`   | counts and line numbers: regenerate after rebasing, immediately before merge; never hand-merge a count — two PRs that each add one marker both write the same number, and git merges them silently                                                     |
 
 ## Heavy packages (UR-24)
@@ -393,9 +426,20 @@ Once a day at 09:00 US Eastern — 13:00Z until 2026-10-31, 14:00Z from 2026-11-
    the owner keeps, already vetted against `operator.md`.
 
 **The urgent path** interrupts the owner between batches only for a security exposure, anything
-that touches or threatens the live deployment, `main` red — `CI` or `Deploy` failing on `main` —
-for more than one merge, unless an open package already owns that failure (`Deploy`, until `O1.9`
-lands), or a stalled agent (UR-38).
+that touches or threatens the live deployment, `main` red — `CI` or `Deploy` failing on `main`,
+from the first red `CI Gate` run (owner ruling 83), unless an open package already owns that
+failure — or a stalled agent (UR-38). Each urgent comment's first line starts `URGENT PATH` (owner
+ruling 81).
+
+**A fix for red `main` merges first, without the owner** (owner ruling 83). The coordinator raises
+the urgent path on the **first** red `CI Gate` run on `main`, with the failing job and the log
+lines it read that tick. The lane that owns the failing file fixes it on its next tick; if that
+lane is stalled or the owner of the file is unclear, the coordinator assigns the fix to an idle
+agent. The fix PR merges next, ahead of the queue, on its lane review and a green `CI Gate` at its
+head. The permission covers a fix that changes tests, CI, or the least product code the failure
+points to. It never deletes, skips or `xfail`s a test, never raises a limit or a baseline, and
+never touches an owner-tier area (§3); a fix outside these limits comes to the owner on the urgent
+path.
 
 ## Coordinator kickoff prompt
 

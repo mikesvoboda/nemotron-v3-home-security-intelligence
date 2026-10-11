@@ -107,9 +107,9 @@ bookkeeping the batch owes (for example, status rows).
   ruling moves one ahead of it (ruling 65 did).
 - A plan PR that changes a hardcoded roster or command also changes `backend/tests/unit/scripts/test_uplevel_launch.py`.
 
-**Owed to the next owner plan PR** (as of 2026-10-10 18:01Z; open it after heavy-2's B2.2 claim PR merges, to avoid
-conflicting edits): `O2.3b`'s row and section (ruling 73); B2.2's row, section and "production safety" listing, if its
-claim PR leaves any out (ruling 68); W3.3's slug exemption at `40-docs.md:149`, unless #6939 carries it (ruling 70).
+**Owed to the next owner plan PR** (as of 2026-10-11): the coordinator's merge-queue amendment to §4 and ruling 63
+(rulings 98 and 100 part 2), once it posts it on the batch issue. The plan PR of 2026-10-11 carried rulings 70, 73,
+82 to 84, 87, 88 and 97.
 
 ## Stalls and recovery
 
@@ -184,27 +184,28 @@ Check for these first; each has happened.
   `agent-gpu` user's home. `/synthbench/corpus` is a nested ZFS dataset, so mount it explicitly. The B1.2 eval store
   copy is `/synthbench/eval/dogfood-2026-10-06/eval.sqlite`. A SQLite file in `journal_mode delete` with no `-wal`
   copies safely with `cp`; read it with `file:…?mode=ro`.
-- **The R2 chain** (what Phase 3 waits on): `O2.1` (done) → `O2.2` → `F2.1` → `F2.3` → `R2`. No Phase 3 package starts
-  before `R2` is `done`; the coordinator parks early Phase 3 claims.
+- **The R2 chain** (what Phase 3 waits on): `O2.1` → `O2.2` → `F2.1` → `R2a` (recorded, #6980) → `F2.3` → `R2b`.
+  Ruling 86: a Phase 3 package scoped to `R2a`-ruled features and modules may start now; whole-tree work waits for
+  `R2b`, and the coordinator parks the rest.
 - **AI stack facts behind rulings 66 to 68:** Triton (`ai-gateway`) serves `yolo26` (used), `reid` (resident; the backend
   will call it under B2.2) and `threat` (off; OD-7). The backend's torch is the CPU wheel. The `agent-gpu` library holds
   only the VLM, so the real tier runs a fake detector.
 
-## State at handoff — 2026-10-10 18:01Z
+## State at handoff — 2026-10-11 03:39Z
 
-`main` is at `f9007fe9a`. Rulings run to 77. Batch 10 is fully answered (rulings 69 to 77).
+`main` is at `b1e3af4e0`. Rulings run to 100. Batch 11 is due 2026-10-11 13:00Z.
 
-| Agent       | On                                                       | Next                                                           |
-| ----------- | -------------------------------------------------------- | -------------------------------------------------------------- |
-| coordinator | merge queue; restore its heartbeat marker (ruling 77)    | batch 11, due 2026-10-11 13:00Z                                |
-| backend     | #6959 R60 API-key scopes (owner-tier at ready)           | B1.6's podman question on #6929 (ruling 75)                    |
-| ops-a       | #6954 O2.3, gate-green, waiting on backend's re-cast     | `O2.3b` (ruling 73)                                            |
-| ops-b       | #6966 npm alias fix (ruling 76); #6963 OB.2 draft        | rulings 71, 72, 74, in that order                              |
-| heavy       | #6961 O2.2, approved conditionally (ruling 69)           | merge as `awaiting real tier`, then the operator runs `--real` |
-| heavy-2     | #6964 OD-39 entry (ruling 67)                            | B2.2, re-ID on the GPU (ruling 68)                             |
-| frontend    | idle                                                     | F2.1 after O2.2 merges                                         |
-| docs        | stalled since 16:24Z; recovery prompt given to the owner | peer letters; #6939 and #6928 parked until R2                  |
-| operator    | idle                                                     | O2.2's `--real` run; B1.6 if ruling 75 makes it runnable       |
+| Agent       | On                                                           | Next                                                                |
+| ----------- | ------------------------------------------------------------ | ------------------------------------------------------------------- |
+| coordinator | merge queue: #6987, #6981, #6972, #6988                      | batch 11; the merge-queue amendment (ruling 98)                     |
+| backend     | #6979 BE-1 golden pytest, green at its head                  | more `F2.3` API batches; B2.2's cleanup PR after the owner's run    |
+| frontend    | #6981 guard pin (CI rerun); #6978 FE-1 to FE-4               | `F2.3` UI batches; the `F2.2` follow-up (ruling 92)                 |
+| ops-a       | #6986 OP-1 to OP-4 (`F2.3`, ruling 97)                       | —                                                                   |
+| ops-b       | #6972 real-sleep gate (ruling 93), waiting on the merge slot | rulings 97 part 2, 100 part 1, 96 item 8, 98 + 100 part 2, in order |
+| docs        | review queue; #6988 OD table follow-up                       | `F2.3` UI batches; #6939 and #6928 parked until `R2b`               |
+| operator    | idle                                                         | real-tier rows as they appear                                       |
+| heavy       | paused, stopped by the owner (ruling 90)                     | restart for Phase 3 heavy packages                                  |
+| heavy-2     | paused, stopped by the owner (ruling 90)                     | restart for Phase 3 heavy packages                                  |
 
-**Waiting on the owner:** the docs pane's recovery; approval of #6959 when ready; B2.2's merge (owner-flagged) and its
-host parity run; B1.6's host run if ruling 75 lands there; the owner plan PR above.
+**Waiting on the owner:** B2.2's host parity run (command in #6970's body); the operator's owner legs (B1.1, F1.2,
+O1.11); turning on the merge queue after ops-b's `merge_group` package merges (ruling 98).
