@@ -17,6 +17,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parent
 CHECKER = REPO / "check-npm-audit-exemptions.py"
 
@@ -344,6 +346,7 @@ def test_alias_does_not_overshoot(tmp_path: Path) -> None:
     assert "stale" in r.stderr and "UNEXEMPTED" in r.stderr
 
 
+@pytest.mark.timeout(30)  # 20 real checker subprocesses; 1.3s alone, >5s on a loaded runner
 def test_overlapping_alias_adjudicates_deterministically(tmp_path: Path) -> None:
     """Self-review F1 pin: an entry whose {id, aliases} names TWO distinct
     reported advisories must adjudicate identically on every run. The harness
@@ -380,6 +383,7 @@ def test_overlapping_alias_adjudicates_deterministically(tmp_path: Path) -> None
     assert "stale" not in err  # G1 is reported and matched as hit, never stale
 
 
+@pytest.mark.timeout(30)  # 22 real checker subprocesses (2 pinned seeds + 20 fresh); 1.3s alone
 def test_alias_hit_fallback_adjudicates_deterministically(tmp_path: Path) -> None:
     """ops-a review request on #6966 (reproduced in my shell at 0f39d2ffc):
     the entry's OWN id is not reported, so adjudication falls through to
