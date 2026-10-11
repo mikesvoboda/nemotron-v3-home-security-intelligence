@@ -16,9 +16,15 @@
  * configured" (ZonesPage.tsx:651) behind `zones.length === 0` (:639, the third
  * of the page's three early returns, after loading :604 and error :613) — and
  * every card this spec
- * asserts must be created by its API leg and deleted in its finally. The
- * empty-mount asserts (zones [], members [], vehicles []) are ALSO the proof
- * that no earlier golden spec in the same stack leaked household rows.
+ * asserts must be created by its API leg and deleted in its finally. The three
+ * empty-mount asserts — zones [] (F-256's leg, `pagination.total` 0) and
+ * members [] / vehicles [] (F-258's leg, both bare lists: household.py:61 and
+ * household.py:218) — are ALSO the proof that no earlier golden spec leaked
+ * rows into this stack. The vehicles GET is declared as a bare list too
+ * (list_vehicles, household.py:218-221) and the F-258 leg below is what pins
+ * its 200 and its emptiness — run 4 never issued this GET, so nothing above
+ * this line had measured it. The seeding absence is measured, not assumed
+ * (harness.ts:15-24 carries the controls).
  *
  * Which camera: the page shows ONE camera's zones — `const firstCameraId =
  * cameras[0]?.id` (ZonesPage.tsx:416) — and the inventory's own F-256 evidence
@@ -35,14 +41,15 @@
  * checked against the element it targets):
  *  - zone card: data-testid={`zone-card-${zone.id}`} ZonesPage.tsx:307,
  *    <h3>{zone.name}</h3> :316, Type row :327-328 (labelled by the zoneType
- *    labels map at :296-303: 'driveway' renders "Driveway"), Status
+ *    labels map at :296-302: 'driveway' renders "Driveway"), Status
  *    :331-333 (enabled renders "Active"), Priority :337-339.
  *  - grid container: data-testid="zone-grid" :753, and it maps
  *    filteredZones (:755, filter at :507-512) inside an empty-of-filter
  *    branch ("No zones match the selected filter." :746-748) — so a filter
  *    change is observable as a COUNT change, and it's the same filteredZones
- *    the CSV export reads (handleExport :534-541), which makes "the export
- *    honors the filter" a real end-to-end leg, not a guess.
+ *    the CSV export reads (handleExport :534-561, mapping filteredZones at
+ *    :539), which makes "the export honors the filter" a real end-to-end leg,
+ *    not a guess.
  *    WHICH COUNT, precisely — run 4 (hsi-check-20261011213827-91ad72) measured
  *    this the hard way. "zone-grid" is ONE wrapper <div> (:751-754) whose
  *    CHILDREN are the cards, so
@@ -56,13 +63,18 @@
  *  - type filter: NATIVE <select> data-testid="zone-type-select" :219-227
  *    (Playwright maps a single <select> to role combobox; selectOption, never
  *    click-then-click — harness.ts:47-51).
- *  - time range: ZonesPage.tsx role="group" aria-label="Time range selection"
- *    (:240, group from :238),
+ *  - time range: ZonesPage.tsx role="group" (:239) with
+ *    aria-label="Time range selection" (:240), the group <div> opening at :237,
  *    buttons with aria-pressed (:248), default state '24h' (:459), options
  *    1h/6h/24h/7d (:109-114). SHIPPED-HONESTY NOTE: the row says "filters by
  *    … time range", but the state lands in hoursLookback (:660) and its only
- *    consumer is the ANALYTICS tab panel prop (:790) — it does not filter
- *    overview cards. This spec pins what ships: the pressed state moves and
+ *    consumer is the hoursLookback prop passed to <ZoneAnomalyFeed> at :790 —
+ *    which sits INSIDE THE OVERVIEW Tab.Panel (:733-797; the analytics panel
+ *    opens at :800), wrapped by the alerts PanelWrapper (panelType="alerts"
+ *    :785). It does not filter the overview CARDS, and it is not an analytics
+ *    prop — my first draft called it "the ANALYTICS tab panel prop", which got
+ *    the line right and the label wrong. This spec pins what ships: the
+ *    pressed state moves and
  *    the overview grid count does NOT change. Pinning a card-count change
  *    here would be writing the test the row wishes were true.
  *  - export: data-testid="export-button" :270 is common/Button, which spreads
@@ -70,7 +82,8 @@
  *    so getByTestId resolves to a clickable button. The file is a client-side
  *    Blob: headers ['ID','Name','Type','Enabled','Priority','Color','Created
  *    At'], rows from filteredZones with zone_type raw and enabled as Yes/No,
- *    name `zones-export-${ISO date}.csv` (ZonesPage.tsx:534-560). The repo
+ *    name `zones-export-${ISO date}.csv` (the assignment is ZonesPage.tsx:555,
+ *    inside handleExport :534-561). The repo
  *    precedent for catching it is waitForEvent('download') set BEFORE the
  *    click (frontend/tests/e2e/specs/event-export.spec.ts:482 — the repo root
  *    is not frontend/, so cite the path git ls-tree prints, not the one a
@@ -87,8 +100,10 @@
  *    (ZonesPage.tsx activeTab state 'overview' :462; ZoneTrustMatrix mounted
  *    at :776).
  *    <h3>Zone Trust Matrix</h3> ZoneTrustMatrix.tsx:580; Members/Vehicles
- *    toggle buttons :584-:606 with viewMode default 'members' (:455 prop
- *    default). Cell = <button> aria-label `${entityName} has ${Label} trust
+ *    toggle buttons :584-:606 with viewMode default 'members' — the default is
+ *    the destructured `initialViewMode = 'members'` at ZoneTrustMatrix.tsx:451,
+ *    which :455 only consumes. Cell = <button> aria-label
+ *    `${entityName} has ${Label} trust
  *    in ${zoneName}` :172-177 — the whole pin rides on that string; labels
  *    are Full/Partial/Monitor/None (:78-:126), member entityName is
  *    member.name and vehicle's is vehicle.description (useZoneTrustMatrix
@@ -130,8 +145,6 @@
 import type { Download, Locator, Page } from '@playwright/test';
 
 import { expect, test } from '../guard';
-const INJECTED_TYPE_PROBE: number = 'not-a-number';
-void INJECTED_TYPE_PROBE;
 
 import {
   adminSession,
@@ -293,7 +306,7 @@ test.describe('DO-3 zones golden path', () => {
 
       // 3. CSV WHILE FILTERED: the export reads filteredZones, so the yard
       //    row is not just absent from the cards — it is absent from the
-      //    file. Header pinned verbatim from ZonesPage.tsx:537.
+      //    file. Header array pinned verbatim from ZonesPage.tsx:538.
       const filteredPromise = page.waitForEvent('download');
       await page.getByTestId('export-button').click();
       const filteredCsv = await downloadText(await filteredPromise);
@@ -384,6 +397,15 @@ test.describe('DO-3 zones golden path', () => {
     expect(membersBefore.status, 'GET /api/household/members answers 200').toBe(200);
     expect(Array.isArray(membersBefore.body), 'members is a BARE list').toBe(true);
     expect(membersBefore.body, 'the stack seeds no household members').toHaveLength(0);
+
+    // The vehicles list is asserted for the same two reasons — the row's
+    // "vehicles cap at Partial" leg is worthless if a leaked vehicle is
+    // already in the grid — and BARE for the same envelope reason
+    // (list_vehicles, household.py:218, no early raise: empty stack ⇒ []).
+    const vehiclesBefore = await api.getJson('/api/household/vehicles');
+    expect(vehiclesBefore.status, 'GET /api/household/vehicles answers 200').toBe(200);
+    expect(Array.isArray(vehiclesBefore.body), 'vehicles is a BARE list').toBe(true);
+    expect(vehiclesBefore.body, 'the stack seeds no vehicles').toHaveLength(0);
 
     const member = await api.send('/api/household/members', 'POST', {
       name: MEMBER,
@@ -538,6 +560,8 @@ test.describe('DO-3 zones golden path', () => {
       expect(dm.status, 'DELETE the member answers 204').toBe(204);
       const membersAfter = await api.getJson('/api/household/members');
       expect(membersAfter.body, 'members back to [] — proven by re-read').toHaveLength(0);
+      const vehiclesAfter = await api.getJson('/api/household/vehicles');
+      expect(vehiclesAfter.body, 'vehicles back to [] — proven by re-read').toHaveLength(0);
       const zonesAfter = await api.getJson(`/api/cameras/${cameraId}/zones`);
       expect(zonesAfter.body?.items, 'zones back to [] — proven by re-read').toHaveLength(0);
     }
