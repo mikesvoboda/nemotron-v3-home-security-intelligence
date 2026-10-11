@@ -1521,6 +1521,13 @@ def _golden_only_run(
     def fake(self: Any, command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         calls.append((list(command), kwargs))
         rc = install_rc if command[:2] == ["npm", "ci"] else 0
+        # Ruling 114 makes a golden leg that executed nothing a problem, so a
+        # fixture that claims "the golden step was healthy" has to WRITE a spec.
+        # Without this the pins below would each carry a vacuity problem the
+        # npm ci question never meant to assert about.
+        report = kwargs.get("env", {}).get("PLAYWRIGHT_JUNIT_OUTPUT_FILE")
+        if report:
+            Path(report).write_text(_RAN_JUNIT, encoding="utf-8")
         return subprocess.CompletedProcess(command, rc, "", "")
 
     monkeypatch.setattr(fc.Run, "_run", fake)
@@ -1559,6 +1566,120 @@ def test_the_golden_step_installs_frontend_deps_only_when_absent(
         # without this, the line above would pass even if no call ever had one.
         assert "env" in calls[-1][1], "npx keeps its run env — the recorder sees env="
         assert run.summary["results"]["golden"]["npm_ci"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Ruling 114: a golden run that executes nothing is a Feature Check problem
+# ---------------------------------------------------------------------------
+
+_EMPTY_JUNIT = '<?xml version="1.0"?><testsuites><testsuite name="golden"/></testsuites>'
+_SKIPPED_JUNIT = (
+    '<?xml version="1.0"?><testsuites><testsuite name="golden">'
+    '<testcase classname="golden" name="one"><skipped/></testcase>'
+    '<testcase classname="golden" name="two"><skipped/></testcase>'
+    "</testsuite></testsuites>"
+)
+_RAN_JUNIT = (
+    '<?xml version="1.0"?><testsuites><testsuite name="golden">'
+    '<testcase classname="golden" name="one"/>'
+    "</testsuite></testsuites>"
+)
+
+
+def _golden_leg(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    leg: str,
+    junit_text: str | None,
+) -> Any:
+    """A Run whose golden() runs ONE leg to a successful exit, leaving
+    ``junit_text`` as that leg's junit report (``None``: it writes none).
+
+    Both legs judge their suite the same way, so each is exercised on its own:
+    the backend leg needs a ``test_*.py`` under BACKEND_GOLDEN to enter at all,
+    the Playwright leg needs the config's ``name: 'golden'`` text (see
+    ``_golden_only_run`` for why that text, and not a real tree, is the trigger).
+    The exit code is deliberately 0 in every case — the whole point of ruling 114
+    is that a golden suite which collected nothing, or skipped everything, exits 0
+    and therefore looks exactly like a golden suite that ran.
+    """
+    run = _run(tmp_path, mode="fake")
+    run.api, run.ui = "http://api.invalid", "http://ui.invalid"
+    # The password's VALUE is never what these pins read — the Playwright leg is
+    # the only consumer and it is not asserted on here.
+    run.admin = {"username": "u", "password": "hunter2"}  # pragma: allowlist secret
+    backend_golden = tmp_path / "golden-py"
+    backend_golden.mkdir()
+    (backend_golden / "test_golden_events.py").write_text("def test_one():\n", encoding="utf-8")
+    config = tmp_path / "playwright.config.ts"
+    config.write_text("{ name: 'golden', testDir: './tests/golden' }\n", encoding="utf-8")
+    modules = tmp_path / "frontend" / "node_modules"
+    modules.mkdir(parents=True)  # so the Playwright leg never runs `npm ci`
+    monkeypatch.setattr(
+        fc, "PLAYWRIGHT_CONFIG", config if leg == "playwright" else tmp_path / "none.ts"
+    )
+    monkeypatch.setattr(
+        fc, "BACKEND_GOLDEN", backend_golden if leg == "backend" else tmp_path / "none-py"
+    )
+    # golden() passes the suite as a path RELATIVE to REPO_ROOT, so the relocated
+    # suite needs a REPO_ROOT that contains it. Safe to move here because _run is
+    # faked: nothing else in golden() reads REPO_ROOT.
+    monkeypatch.setattr(fc, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(fc, "FRONTEND", tmp_path / "frontend")
+    monkeypatch.setattr(fc, "FRONTEND_MODULES", modules)
+
+    def fake(self: Any, command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if junit_text is not None:
+            report = kwargs.get("env", {}).get("PLAYWRIGHT_JUNIT_OUTPUT_FILE") or next(
+                arg.split("=", 1)[1] for arg in command if arg.startswith("--junitxml=")
+            )
+            Path(report).write_text(junit_text, encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(fc.Run, "_run", fake)
+    return run
+
+
+@pytest.mark.parametrize("leg", ["backend", "playwright"])
+@pytest.mark.parametrize(
+    ("junit_text", "needle"),
+    [
+        (_EMPTY_JUNIT, "no tests"),
+        (_SKIPPED_JUNIT, "skipped"),
+        (None, "no tests"),
+    ],
+)
+def test_a_golden_project_that_executed_nothing_is_a_problem(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, leg: str, junit_text: str | None, needle: str
+) -> None:
+    """Ruling 114: "When a golden project reports zero executed tests, `golden()`
+    adds a problem and Feature Check goes red. That covers a project that never
+    started, empty junit results, and all-skipped results."
+
+    Before this the leg's exit code was the only verdict, and 0 is what all three
+    shapes return, so a golden section of `summary.json` could read
+    ``{"backend": "ok", "backend_specs": {}}`` on a run that proved nothing — the
+    most expensive kind of green, because the section the operator posts looks
+    accounted for.
+    """
+    run = _golden_leg(tmp_path, monkeypatch, leg, junit_text)
+    problems = run.golden()
+    _one_problem(problems, f"golden: the {leg} golden project executed", needle)
+
+
+@pytest.mark.parametrize("leg", ["backend", "playwright"])
+def test_a_golden_project_that_ran_a_spec_is_not_a_problem(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, leg: str
+) -> None:
+    """Positive witness for the pin above: the new check must fire on vacuity, not
+    on every golden run. One executed spec, exit 0, is the green this programme
+    already has, and it still has to produce zero problems and an ``ok`` account.
+    """
+    run = _golden_leg(tmp_path, monkeypatch, leg, _RAN_JUNIT)
+    assert run.golden() == []
+    results = run.summary["results"]["golden"]
+    assert results[leg] == "ok"
+    assert list(results[f"{leg}_specs"].values()) == ["passed"]
 
 
 def test_a_failed_frontend_install_is_a_named_step_not_a_crash(
