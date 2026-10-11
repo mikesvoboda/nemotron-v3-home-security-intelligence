@@ -120,6 +120,10 @@ VLM_TTL = 12
 # The runner publishes a container port on the host from this pool and prints
 # `port <container port> -> http://host.docker.internal:<host port>`.
 AGENT_GPU_PORTS = range(18100, 18200)
+# Its container-name policy, from the broker's own refusal on the first
+# --real run (#6961): at most 32 characters.
+AGENT_GPU_NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
+VLM_NAME_PREFIX = "hsi-vlm-"
 # The verdicts a model gives: the event verification schema's enum
 # (backend/api/schemas/event_verification.py) less verification_failed.
 MODEL_VERDICTS = frozenset({"confirmed", "rejected", "uncertain"})
@@ -1475,7 +1479,10 @@ class AgentGpu:
 
     def __init__(self, run: Run) -> None:
         self.run = run
-        self.name = f"{run.project}-vlm"
+        # The run's id under a prefix of its own: the project alone is 31
+        # characters, so `<project>-vlm` broke the runner's name policy.
+        self.name = VLM_NAME_PREFIX + run.project.removeprefix(PROJECT_PREFIX)
+        run.summary["vlm_name"] = self.name
         self.started = False
         self.url: str | None = None
         self.host_port: int | None = None
@@ -1503,7 +1510,7 @@ class AgentGpu:
             _log(f"agent-gpu {args[0]} did not complete ({type(error).__name__}: {error})")
             return None
 
-    def _reading(self, label: str) -> None:
+    def _reading(self, label: str) -> dict[str, str]:
         """``agent-gpu ps`` and ``status``, the runner's own view of the VLM
         and its VRAM, into the summary and artifacts/."""
         reading = {}
@@ -1512,6 +1519,7 @@ class AgentGpu:
             text = result.stdout if result is not None else f"agent-gpu {verb} did not complete"
             reading[verb] = self._record(f"agent-gpu-{verb}-{label}.txt", text)
         self.run.summary.setdefault("vram", {"declared_gib": VLM_VRAM_GIB})[label] = reading
+        return reading
 
     def vlm_tree(self) -> str:
         """``ai/vlm/``'s tree hash, which tags its image; uncommitted changes
@@ -1541,6 +1549,13 @@ class AgentGpu:
 
     def prepare(self) -> None:
         """Steps 1-2: the weights against the pin, the budget, the image."""
+        if not AGENT_GPU_NAME.fullmatch(self.name):
+            raise Refused(
+                [
+                    f"the VLM's name {self.name} breaks agent-gpu's name policy "
+                    f"({AGENT_GPU_NAME.pattern})"
+                ]
+            )
         library = Path(os.environ["AGENT_GPU_LIBRARY"]) / VLM_LIBRARY_DIR
         _log(f"weights: sha256 of {library}/*.gguf")
         found = weight_digests(library)
@@ -1627,7 +1642,13 @@ class AgentGpu:
                 f"the VLM serves {model_path or 'no model_path'}; the pin is {expected}"
             )
         self.served_model = PurePosixPath(model_path).stem
-        self._reading("serving")
+        # The teardown proves the VLM gone by its name's absence from ps,
+        # which proves nothing unless ps lists it by that name now.
+        if self.name not in self._reading("serving")["ps"]:
+            raise HarnessError(
+                f"agent-gpu ps does not list {self.name} while it serves, so the "
+                "teardown could not prove it gone; see agent-gpu-ps-serving.txt"
+            )
         _log(f"vlm: ready, build {props.get('build_info')}, model {model_path}")
 
     def teardown(self) -> list[str]:
