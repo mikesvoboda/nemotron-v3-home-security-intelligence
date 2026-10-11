@@ -119,7 +119,13 @@ vi.mock('./ActivityFeed', () => ({
     maxItems,
     onEventClick,
   }: {
-    events: Array<{ id: string; camera_name: string; risk_score?: number | null }>;
+    events: Array<{
+      id: string;
+      camera_name: string;
+      risk_score?: number | null;
+      verdict?: string | null;
+      notify?: boolean | null;
+    }>;
     maxItems?: number;
     onEventClick?: (eventId: string) => void;
   }) => (
@@ -131,6 +137,11 @@ vi.mock('./ActivityFeed', () => ({
       // here renders "Low" for an event that was never scored. Exposed so the
       // mapping (not just the gauge) is pinned.
       data-risk-scores={events.map((e) => String(e.risk_score)).join(',')}
+      // FE-2 F-031: same seam for the two fields the verdict chip and the
+      // notify chip render from. `String(undefined)` is the literal "undefined"
+      // — a mapper that drops the field is OBSERVABLE, which is the point.
+      data-verdicts={events.map((e) => String(e.verdict)).join(',')}
+      data-notifies={events.map((e) => String(e.notify)).join(',')}
       data-has-click-handler={onEventClick ? 'true' : 'false'}
     >
       {events.slice(0, maxItems || 10).map((event) => (
@@ -1073,6 +1084,112 @@ describe('DashboardPage', () => {
       expect(screen.getByTestId('stats-row')).toHaveAttribute('data-risk-score', '40');
       // ...and the history plots only scored events, never a fabricated point.
       expect(screen.getByTestId('stats-row')).toHaveAttribute('data-risk-history', '40');
+    });
+  });
+
+  // FE-2 F-031 (witnessed red, run 38176486293 head 0dbb08224): ActivityFeed
+  // decides the verdict chip from `event.verdict` (ActivityFeed.tsx:207-209)
+  // and the notify chip from `event.notify`, but the REST mapper rebuilt every
+  // event as a SIX-field literal — id, camera_id, risk_score, risk_level,
+  // summary, started_at — dropping `verification` (and `notify`) on the floor.
+  // Every sibling surface passes the value explicitly (TopEventsCarousel.tsx:440
+  // reads event.verification?.verdict; TimeGroupedEvents and DeletedEventCard
+  // likewise), so only the dashboard's glue lost it. ActivityFeed's own
+  // ActivityEvent contract says producers map verdict from EventResponse/WS
+  // (ActivityFeed.tsx:29) — this mapper IS that producer and was violating the
+  // contract of its own consumer. The generated REST schema DOES send both
+  // fields (types/generated/api.ts EventResponse: `verification` "VLM
+  // verification provenance (spec §4); absent on legacy events", `notify`
+  // "absent when none was made"), so this is a frontend mapper bug, not a
+  // backend gap. The dashboard golden spec (FE-2 batch 5) asserts the API's
+  // truth end-to-end and stays red until this rides.
+  describe('a REST event carries its verdict and notify decision to the feed (F-031)', () => {
+    it('maps verification.verdict and notify from the REST row', async () => {
+      // A SCORED rejected event: the case 1.6's comment says the chip exists
+      // for ("a scored `rejected` event gets Rejected — the interim chip's
+      // score-keying hid exactly that case"). With the verdict dropped, the
+      // feed's own rule (`risk === null || hasVerdict && verdict !==
+      // 'confirmed'`) evaluates hasVerdict=false on a non-null score and
+      // renders NO chip — the hidden case, reproduced from shipped code.
+      (api.fetchEvents as Mock).mockResolvedValue({
+        items: [
+          {
+            id: 91,
+            camera_id: 'cam1',
+            started_at: '2025-01-01T12:30:00Z',
+            ended_at: '2025-01-01T12:31:00Z',
+            risk_score: 72,
+            risk_level: 'high',
+            summary: 'Person at the side gate',
+            reviewed: false,
+            notes: null,
+            detection_count: 2,
+            verification: {
+              verdict: 'rejected',
+              engine: 'llama.cpp',
+              model_id: 'nemotron-test',
+            },
+            notify: true,
+          },
+        ],
+        pagination: { total: 1, limit: 50, offset: 0, has_more: false },
+      });
+      (useEventStreamHook.useEventStream as Mock).mockReturnValue({
+        events: [],
+        isConnected: true,
+        latestEvent: null,
+        clearEvents: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('activity-feed')).toHaveAttribute('data-event-count', '1');
+      });
+      // The literal 'rejected', not the literal 'undefined': ActivityFeed
+      // renders the chip from exactly this field, so the mapper must not erase
+      // it (the same observability the data-risk-scores pin exists for).
+      expect(screen.getByTestId('activity-feed')).toHaveAttribute('data-verdicts', 'rejected');
+      expect(screen.getByTestId('activity-feed')).toHaveAttribute('data-notifies', 'true');
+    });
+
+    it('leaves both absent — not false — for a legacy row without them', async () => {
+      // Absence is a contract, not a default: both wire schemas omit the key
+      // when no decision exists, and the feed renders nothing for absence.
+      // `String(undefined)` on the exposed attributes is exactly how this test
+      // distinguishes "not sent" from "sent as false/null" — a mapper that
+      // wrote `notify: false` for a silent event would fabricate a decision.
+      (api.fetchEvents as Mock).mockResolvedValue({
+        items: [
+          {
+            id: 92,
+            camera_id: 'cam1',
+            started_at: '2025-01-01T12:40:00Z',
+            ended_at: '2025-01-01T12:41:00Z',
+            risk_score: 12,
+            risk_level: 'low',
+            summary: 'Wind moved the plants',
+            reviewed: false,
+            notes: null,
+            detection_count: 1,
+          },
+        ],
+        pagination: { total: 1, limit: 50, offset: 0, has_more: false },
+      });
+      (useEventStreamHook.useEventStream as Mock).mockReturnValue({
+        events: [],
+        isConnected: true,
+        latestEvent: null,
+        clearEvents: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('activity-feed')).toHaveAttribute('data-event-count', '1');
+      });
+      expect(screen.getByTestId('activity-feed')).toHaveAttribute('data-verdicts', 'undefined');
+      expect(screen.getByTestId('activity-feed')).toHaveAttribute('data-notifies', 'undefined');
     });
   });
 
