@@ -652,6 +652,40 @@ def test_compose_sees_only_the_engine_environment() -> None:
     }
 
 
+def test_the_browser_steps_see_the_browsers_path_and_nothing_else() -> None:
+    """R116's env rule, pinned directly: the browser probe and install get
+    compose's engine view PLUS the variables the golden TEST leg would otherwise
+    disagree with (a moved cache changes where the runner launches), and still
+    never the run env's credential or the run's own paths. An exact dict, so a
+    future key added to either list is a decision made here — which is why
+    XDG_CACHE_HOME appears in both the list and this dict: it moves the same
+    root and is read at launch, so leaving it out is the divergence one variable
+    away from the one already fixed."""
+    caller = {
+        "PATH": "/usr/bin",
+        "HOME": "/home/agent",
+        "DOCKER_HOST": "unix:///run/docker.sock",
+        "PLAYWRIGHT_BROWSERS_PATH": "/mnt/big/ms-playwright",
+        "XDG_CACHE_HOME": "/mnt/big",
+        "FEATURE_CHECK_ADMIN_PASSWORD": "hunter2",  # pragma: allowlist secret
+        "FEATURE_CHECK_API_URL": "http://api.invalid",
+        "IMAGE_TAG": "leaked",
+    }
+    assert fc.browser_environment(caller) == {
+        "PATH": "/usr/bin",
+        "HOME": "/home/agent",
+        "DOCKER_HOST": "unix:///run/docker.sock",
+        "PLAYWRIGHT_BROWSERS_PATH": "/mnt/big/ms-playwright",
+        "XDG_CACHE_HOME": "/mnt/big",
+    }
+    # Absent in the caller, absent from the child: the default root then holds,
+    # and the dry-run plan says so — nothing is invented here.
+    assert fc.browser_environment({"PATH": "/usr/bin", "HOME": "/home/agent"}) == {
+        "PATH": "/usr/bin",
+        "HOME": "/home/agent",
+    }
+
+
 # ---------------------------------------------------------------------------
 # The smoke check and the drop helper
 # ---------------------------------------------------------------------------
@@ -1488,12 +1522,57 @@ def test_a_golden_suite_with_no_report_lists_no_specs(tmp_path: Path) -> None:
     assert fc.junit_results(broken) == {}
 
 
+BROWSER_INSTALL = ["npx", "playwright", "install", "chromium"]
+
+
+def _seed_runner_cli(modules: Path) -> None:
+    """Make a fake node_modules hold a LOCK-RESOLVED playwright CLI, which is
+    the fact the r116 browser block gates on: `npx playwright` only resolves to
+    the build the lock wants (v1243) when the locked package is importable. A
+    bare node_modules without it would send npx to the LATEST package — a
+    different build (v1248, measured) — so the CLI, not the directory, is the
+    right gate. Real `npm ci` leaves this file; so does the fake."""
+    (modules / ".bin").mkdir(parents=True, exist_ok=True)
+    (modules / ".bin" / "playwright").write_text("#!/bin/sh\n", encoding="utf-8")
+
+
+# Playwright 1.63.0's real `install --dry-run chromium` output on this sandbox
+# (linux/arm64), paths rewritten to tmp_path. The golden-project spec set boots
+# devices['Desktop Chrome'], which launches the HEADLESS SHELL, so the
+# chromium_headless_shell line is the one whose absence killed the operator's
+# run; all three builds are checked.
+DRY_RUN_PLAN = """Chrome for Testing 153.0.8010.12 (playwright chromium v1243)
+  Install location:    {cache}/chromium-1243
+  Download url:        https://cdn.playwright.dev/builds/cft/153.0.8010.12/linux-arm64/chrome-linux-arm64.zip
+
+FFmpeg (playwright ffmpeg v1011)
+  Install location:    {cache}/ffmpeg-1011
+  Download url:        https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux-arm64.zip
+  Download fallback 1: https://playwright.download.prss.microsoft.com/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux-arm64.zip
+  Download fallback 2: https://cdn.playwright.dev/builds/ffmpeg/1011/ffmpeg-linux-arm64.zip
+
+Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243)
+  Install location:    {cache}/chromium_headless_shell-1243
+  Download url:        https://cdn.playwright.dev/builds/cft/153.0.8010.12/linux-arm64/chrome-headless-shell-linux-arm64.zip
+"""
+
+
 def _golden_only_run(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     node_modules: bool,
     calls: list[tuple[list[str], dict[str, Any]]],
     install_rc: int = 0,
+    browsers: bool = False,
+    browser_rc: int = 0,
+    probe_rc: int = 0,
+    browsers_path: Path | None = None,
+    xdg_cache: Path | None = None,
+    default_cache_complete: bool = False,
+    partial_builds: tuple[str, ...] = (),
+    install_hangs: bool = False,
+    probe_hangs: bool = False,
+    probe_stdout: str | None = None,
 ) -> Any:
     """A Run whose golden() reaches the Playwright branch with every filesystem
     fact pointed at tmp_path, and whose _run is recorded, not executed.
@@ -1502,6 +1581,12 @@ def _golden_only_run(
     regex for ``name: 'golden'``), so the fixture spells that text; the real
     repo's tree is never consulted, so the result cannot depend on whether
     this machine happens to have a frontend install.
+
+    R116 pieces: the fake answers the browser probe (``install --dry-run``)
+    with the 1.63.0 plan text — three build lines whose Install-location paths
+    live under tmp_path, so browser PRESENCE is a filesystem fact this fixture
+    controls (``browsers=True`` creates the directories). ``browser_rc`` drives
+    the real install's exit; ``probe_rc`` an unreadable probe.
     """
     run = _run(tmp_path, mode="fake")
     run.api, run.ui = "http://api.invalid", "http://ui.invalid"
@@ -1512,7 +1597,51 @@ def _golden_only_run(
     config.write_text("{ name: 'golden', testDir: './tests/golden' }\n", encoding="utf-8")
     modules = tmp_path / "frontend" / "node_modules"
     if node_modules:
-        modules.mkdir(parents=True)
+        _seed_runner_cli(modules)
+    default_cache = tmp_path / "ms-playwright"
+    # The real CLI's resolution order, measured: PLAYWRIGHT_BROWSERS_PATH wins
+    # outright; otherwise the root is XDG_CACHE_HOME/ms-playwright (with only
+    # XDG_CACHE_HOME set, every "Install location:" line moves under it; with
+    # both set the Playwright variable wins in the plan AND in
+    # chromium.executablePath()). The fixture mirrors that order, so a probe that
+    # forwards the wrong variable is caught by the plan text rather than by a
+    # guess about where browsers live.
+    cache = browsers_path or (xdg_cache / "ms-playwright" if xdg_cache else default_cache)
+
+    # A completed Playwright build is a directory carrying INSTALLATION_COMPLETE,
+    # which the CLI writes LAST, after extracting (measured in the pinned
+    # 1.63.0 bundle: oopDownloadBrowserMain removes the dir, extractZip, chmod,
+    # then writeFile(marker)). So a build seeded WITHOUT that marker is what an
+    # interrupted download actually leaves behind — a directory the runner
+    # cannot launch. The marker is seeded here because the fixture must be able
+    # to tell those two filesystem states apart.
+    def seed(root: Path, build: str, *, complete: bool = True) -> None:
+        (root / build).mkdir(parents=True, exist_ok=True)
+        if complete:
+            (root / build / "INSTALLATION_COMPLETE").write_text("", encoding="utf-8")
+
+    if browsers:
+        for build in ("chromium-1243", "ffmpeg-1011", "chromium_headless_shell-1243"):
+            seed(cache, build, complete=build not in partial_builds)
+    else:
+        # The shape this sandbox's real cache had: ffmpeg survived, the two
+        # chromium builds never arrived. Absence is per-build, not all-or-nothing.
+        seed(cache, "ffmpeg-1011")
+    if default_cache_complete:
+        # The misleading state: the DEFAULT root holds a full set while the root
+        # the runner will actually use does not.
+        for build in ("chromium-1243", "ffmpeg-1011", "chromium_headless_shell-1243"):
+            seed(default_cache, build)
+    if browsers_path is not None:
+        # A caller who moved the browser cache (an operator whose root
+        # filesystem is full — this box measured 176 MB free) sets the variable
+        # the real CLI reads, and the dry-run plan follows it. Measured on the
+        # repo's own 1.63.0 CLI: with the var set, every "Install location:"
+        # line moves under it; unset, it prints ~/.cache/ms-playwright.
+        monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", str(browsers_path))
+    if xdg_cache is not None:
+        # The other variable that moves the same root, also read at launch time.
+        monkeypatch.setenv("XDG_CACHE_HOME", str(xdg_cache))
     monkeypatch.setattr(fc, "PLAYWRIGHT_CONFIG", config)
     monkeypatch.setattr(fc, "FRONTEND", tmp_path / "frontend")
     monkeypatch.setattr(fc, "FRONTEND_MODULES", modules)
@@ -1520,7 +1649,54 @@ def _golden_only_run(
 
     def fake(self: Any, command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         calls.append((list(command), kwargs))
+        # A stalled step: the real subprocess.run raises TimeoutExpired on a
+        # timeout whatever check says (measured on 3.14.4 — child killed, the
+        # child's flushed stdout kept, stderr None), and check=False only skips
+        # the raise for a NONZERO EXIT. fc._run now converts that raise for
+        # check=False callers, so the faithful fake raises first and converts
+        # exactly the way the real helper does — through fc._stalled_result, so
+        # if that producer's shape changes these tests change with it instead
+        # of staying green on a hand-typed copy.
+        deadline = {"probe": probe_hangs, "install": install_hangs}
+        if command[:4] == ["npx", "playwright", "install", "--dry-run"]:
+            which, default = "probe", 300
+        elif command == BROWSER_INSTALL:
+            which, default = "install", 1800
+        else:
+            which, default = "", 0
+        if deadline.get(which, False):
+            try:
+                raise subprocess.TimeoutExpired(command, kwargs.get("timeout", default))
+            except subprocess.TimeoutExpired as stalled:
+                if kwargs.get("check", True):
+                    raise
+                return fc._stalled_result(stalled)
+        if command[:4] == ["npx", "playwright", "install", "--dry-run"]:
+            # Faithful to the measured CLI: the plan names the locations the
+            # CHILD'S environment says browsers live at. So a probe that loses
+            # PLAYWRIGHT_BROWSERS_PATH on the way to the child prints the
+            # default root while the test run below (which gets the caller's
+            # whole environment) will look elsewhere.
+            child_env = kwargs.get("env") or {}
+            # Resolved the way the real CLI resolves it (the precedence comment
+            # above), from the CHILD's env only — so a variable the harness fails
+            # to forward shows up as the plan pointing somewhere else.
+            if child_env.get("PLAYWRIGHT_BROWSERS_PATH"):
+                root = child_env["PLAYWRIGHT_BROWSERS_PATH"]
+            elif child_env.get("XDG_CACHE_HOME"):
+                root = str(Path(child_env["XDG_CACHE_HOME"]) / "ms-playwright")
+            else:
+                root = str(default_cache)
+            text = DRY_RUN_PLAN if probe_stdout is None else probe_stdout
+            return subprocess.CompletedProcess(command, probe_rc, text.format(cache=root), "")
+        if command == BROWSER_INSTALL:
+            return subprocess.CompletedProcess(command, browser_rc, "", "")
         rc = install_rc if command[:2] == ["npm", "ci"] else 0
+        if command[:2] == ["npm", "ci"] and rc == 0:
+            # A successful npm ci really does leave the locked playwright CLI
+            # behind; the r116 gate reads that filesystem fact, so the fake has
+            # to leave it too.
+            _seed_runner_cli(modules)
         # Ruling 114 makes a golden leg that executed nothing a problem, so a
         # fixture that claims "the golden step was healthy" has to WRITE a spec.
         # Without this the pins below would each carry a vacuity problem the
@@ -1697,9 +1873,392 @@ def test_a_failed_frontend_install_is_a_named_step_not_a_crash(
     assert any("npm ci in frontend/ exited 243" in p for p in problems)
 
 
+@pytest.mark.parametrize("browsers", [False, True])
+def test_the_golden_step_installs_chromium_only_when_the_plan_is_unmet(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, browsers: bool
+) -> None:
+    """Ruling 116: ``npm ci`` brings the RUNNER, not Chromium, so the operator's
+    ``--real`` re-run died in ~3 ms on every spec —
+    ``browserType.launch: Executable doesn't exist at
+    ~/.cache/ms-playwright/chromium_headless_shell-1243/…`` — a failure the
+    merged testing.md itself predicts. golden() now installs when absent and
+    leaves a working install ALONE.
+
+    The absent test is the filesystem, not a directory guess: the probe's own
+    ``Install location:`` lines name the builds the LOCK-resolved runner wants
+    (v1243 at the pinned 1.63.0), so a Playwright bump cannot rot a hardcoded
+    build number here, and a custom PLAYWRIGHT_BROWSERS_PATH is honoured for
+    free — the probe prints the paths it would use.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, browsers=browsers)
+    problems = run.golden()
+    commands = [command for command, _ in calls]
+    assert problems == []
+    assert commands[-1][:4] == ["npx", "playwright", "test", "--project=golden"]
+    probes = [c for c in commands if c[:4] == ["npx", "playwright", "install", "--dry-run"]]
+    installs = [c for c in commands if c == BROWSER_INSTALL]
+    if browsers:
+        assert installs == [], "an installed browser set must never be re-installed over"
+        assert run.summary["results"]["golden"]["playwright_browsers"] == "present"
+    else:
+        assert installs == [BROWSER_INSTALL]
+        assert probes[0] in commands[:2], "the probe must come BEFORE the install"
+        assert commands.index(BROWSER_INSTALL) < len(commands) - 1, "…and before the test run"
+        assert (
+            run.summary["results"]["golden"]["playwright_browsers"]
+            == "installed chromium v1243 chromium-headless-shell v1243"
+        ), "the version the operator's error named, per build"
+    # The probe runs either way: it is how absence is decided.
+    assert len(probes) == 1
+    probe_kwargs = calls[commands.index(probes[0])][1]
+    assert probe_kwargs["cwd"] == tmp_path / "frontend"
+    # Ruling 102's discipline, restated after r116: these steps carry an env, but
+    # it is browser_environment(os.environ) — the engine's PATH/HOME plus the
+    # browser-cache location — NOT golden()'s run env. The password is the fact
+    # that must stay out, so that is what is pinned by name.
+    assert "FEATURE_CHECK_ADMIN_PASSWORD" not in probe_kwargs.get("env", {})
+    # Positive witness that the absence above is not vacuous: the recorder sees
+    # the credential on the leg that is GIVEN the run env (the test npx, which
+    # needs it to log in), so its absence from the browser steps is a choice.
+    assert calls[-1][1]["env"]["FEATURE_CHECK_ADMIN_PASSWORD"] == run.admin["password"]
+    install_seen = [kw for cmd, kw in calls if cmd == BROWSER_INSTALL]
+    if install_seen:
+        assert "FEATURE_CHECK_ADMIN_PASSWORD" not in install_seen[0].get("env", {})
+        assert install_seen[0]["cwd"] == tmp_path / "frontend"
+        assert install_seen[0]["timeout"] == 1800, "a cold browser download is minutes"
+
+
+def test_a_browsers_absent_tree_installs_after_the_runner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Order matters twice over: ``npx playwright`` with no node_modules fetches
+    the LATEST package, whose plan names a DIFFERENT build than the lock's (the
+    operator's tree wants v1243; latest wanted v1248 — measured 2026-10-11),
+    and a failed ``npm ci`` means the locked CLI does not exist at all. So the
+    probe and the install ride behind ``npm ci``, and neither runs when it
+    fails — the named npm_ci step already says why."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    tree = tmp_path / "cold"
+    tree.mkdir()
+    run = _golden_only_run(tree, monkeypatch, False, calls)
+    run.golden()
+    commands = [command for command, _ in calls]
+    assert commands[0] == ["npm", "ci"]
+    assert commands[1][:4] == ["npx", "playwright", "install", "--dry-run"]
+    assert commands[2] == BROWSER_INSTALL
+    assert commands[3][:4] == ["npx", "playwright", "test", "--project=golden"]
+
+    failed: list[tuple[list[str], dict[str, Any]]] = []
+    broken = tmp_path / "npm-failed"
+    broken.mkdir()
+    run2 = _golden_only_run(broken, monkeypatch, False, failed, install_rc=243)
+    problems = run2.golden()
+    assert [c[:2] for c, _ in failed] == [["npm", "ci"], ["npx", "playwright"]]
+    assert "playwright_browsers" not in run2.summary["results"]["golden"]
+    assert any("npm ci in frontend/ exited 243" in p for p in problems)
+
+
+def test_a_failed_browser_install_is_a_named_step_not_a_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ruling 116's firewall: "If the operator sandbox cannot reach Playwright's
+    download host, the PR names the host and the owner allows it. The harness
+    does not work around a block." So a failed install is ACCOUNTED — a named
+    step in summary.json plus the download host the owner has to allow — and
+    the run continues to the test npx, which will produce Playwright's own
+    browser-missing message. Not a crash, not a silent skip."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, browsers=False, browser_rc=1)
+    problems = run.golden()
+    assert [c[:3] for c, _ in calls] == [
+        ["npx", "playwright", "install"],
+        ["npx", "playwright", "install"],
+        ["npx", "playwright", "test"],
+    ]
+    assert run.summary["results"]["golden"]["playwright_browsers"] == "exit 1"
+    named = [p for p in problems if "exited 1" in p and "playwright install chromium" in p]
+    assert len(named) == 1, problems
+    assert "cdn.playwright.dev" in named[0], "the firewall clause needs the host to allow"
+    assert "playwright.download.prss.microsoft.com" in named[0], "and the fallback host too"
+
+
+def test_an_unreadable_probe_installs_nothing_and_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The probe is the only thing that knows which builds the lock wants. If it
+    cannot answer, guessing means a speculative multi-minute download on the
+    operator's box; skipping is honest and cheap, and the test run still names
+    the real problem in its own output."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, browsers=False, probe_rc=1)
+    problems = run.golden()
+    assert [c[:3] for c, _ in calls] == [
+        ["npx", "playwright", "install"],
+        ["npx", "playwright", "test"],
+    ]
+    assert run.summary["results"]["golden"]["playwright_browsers"] == "probe exit 1"
+    assert problems == [], "an unreadable probe is not itself a golden failure"
+
+
+def test_a_moved_browser_cache_is_judged_where_the_runner_will_look(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The test leg gets the caller's WHOLE environment, so a caller who moved
+    Playwright's cache with ``PLAYWRIGHT_BROWSERS_PATH`` — an operator whose root
+    filesystem is full is exactly who runs this on the GPU box — launches from
+    there. Absence must therefore be judged AT THAT PATH, which means the
+    variable has to reach these two children as well.
+
+    Both directions are pinned because they fail differently. A probe that loses
+    the variable reads the DEFAULT root: with a complete moved cache it wastes
+    minutes downloading builds the runner will never use; with a misleadingly
+    complete DEFAULT cache it reports ``present`` and installs nothing,
+    reproducing ruling 116's own bug silently.
+    """
+    moved = tmp_path / "complete" / "moved"
+    moved.mkdir(parents=True)
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(
+        tmp_path / "complete", monkeypatch, True, calls, browsers=True, browsers_path=moved
+    )
+    run.golden()
+    assert run.summary["results"]["golden"]["playwright_browsers"] == "present", (
+        "the root the runner launches from is complete, so nothing is missing"
+    )
+    assert BROWSER_INSTALL not in [c for c, _ in calls], "…and nothing may be downloaded"
+
+    misleading = tmp_path / "misleading"
+    misleading.mkdir()
+    moved2 = misleading / "moved"
+    later: list[tuple[list[str], dict[str, Any]]] = []
+    run2 = _golden_only_run(
+        misleading,
+        monkeypatch,
+        True,
+        later,
+        browsers=False,
+        browsers_path=moved2,
+        default_cache_complete=True,
+    )
+    run2.golden()
+    installs = [kw for cmd, kw in later if cmd == BROWSER_INSTALL]
+    assert len(installs) == 1, (
+        "the moved root lacks both chromium builds; the default root's "
+        "completeness is not the runner's answer"
+    )
+    assert installs[0]["env"].get("PLAYWRIGHT_BROWSERS_PATH") == str(moved2), (
+        "the install must land where the test run will look"
+    )
+
+
+def test_an_xdg_cache_home_is_judged_where_the_runner_will_look(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """XDG_CACHE_HOME moves the SAME root PLAYWRIGHT_BROWSERS_PATH moves, and it
+    is read at launch time too — so a probe that loses it reproduces the moved-
+    cache divergence one variable away from the one already fixed.
+
+    Measured on the repo's pinned 1.63.0 CLI: with only XDG_CACHE_HOME set, every
+    ``Install location:`` line lands under ``$XDG_CACHE_HOME/ms-playwright``; with
+    both set, PLAYWRIGHT_BROWSERS_PATH wins in the plan AND in
+    ``chromium.executablePath()``. That agreement is why forwarding both is safe:
+    the probe's oracle is the CLI's own answer, not a hand-written path guess.
+    """
+    moved = tmp_path / "xdg" / "ms-playwright"
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(
+        tmp_path, monkeypatch, True, calls, browsers=True, xdg_cache=tmp_path / "xdg"
+    )
+    run.golden()
+    assert run.summary["results"]["golden"]["playwright_browsers"] == "present", (
+        "the launch root under XDG_CACHE_HOME is complete, so nothing is missing"
+    )
+    assert BROWSER_INSTALL not in [c for c, _ in calls], (
+        "a probe that lost XDG_CACHE_HOME would read the default root and spend "
+        "minutes downloading builds this run will never launch"
+    )
+    probes = [kw for cmd, kw in calls if cmd[:4] == ["npx", "playwright", "install", "--dry-run"]]
+    assert probes[0]["env"].get("XDG_CACHE_HOME") == str(tmp_path / "xdg"), (
+        "the variable has to reach the child that prints the plan — the probe's "
+        "env is the compose whitelist, so a root variable must be added to it by name"
+    )
+
+
+def test_a_probe_that_prints_no_plan_is_accounted_and_installs_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The rc-0-but-unparseable-plan branch, pinned (it was reachable but untested).
+
+    A CLI that exits 0 and prints nothing usable is not the same as a plan that
+    says everything is present: with no build lines there is no answer to "which
+    builds does the LOCKED runner want", so the harness must not download a
+    guess (an install of the wrong build is minutes of bytes and still leaves the
+    runner unable to launch). It accounts ``probe empty`` and lets the test leg
+    name the real launch failure in its own output.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, browsers=False, probe_stdout="")
+    problems = run.golden()
+    assert problems == [], "an unreadable plan is not itself a golden failure"
+    assert run.summary["results"]["golden"]["playwright_browsers"] == "probe empty"
+    assert BROWSER_INSTALL not in [c for c, _ in calls]
+    assert calls[-1][0][:4] == ["npx", "playwright", "test", "--project=golden"]
+
+
+def test_a_partial_download_is_not_present(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A build directory without INSTALLATION_COMPLETE is a half-finished download.
+
+    Measured in the pinned 1.63.0 bundle: the CLI's own "already downloaded"
+    predicate is ``<dir>/INSTALLATION_COMPLETE`` (browserFetcher's early return),
+    and the downloader removes the directory, extracts, chmods, and writes that
+    marker LAST — so a killed download leaves a populated directory the runner
+    cannot launch. Judging presence by ``is_dir()`` therefore reports
+    ``present`` and installs nothing, which is ruling 116's bug preserved inside
+    its own fix. The marker is not Playwright-version folklore either: the only
+    build this sandbox's real cache has (ffmpeg-1011) carries one.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(
+        tmp_path,
+        monkeypatch,
+        True,
+        calls,
+        browsers=True,
+        partial_builds=("chromium_headless_shell-1243",),
+    )
+    problems = run.golden()
+    assert problems == []
+    assert (
+        run.summary["results"]["golden"]["playwright_browsers"]
+        == "installed chromium-headless-shell v1243"
+    ), "the sibling complete builds must not be re-downloaded"
+    assert BROWSER_INSTALL in [c for c, _ in calls]
+
+
 # ---------------------------------------------------------------------------
-# The second self-review's findings (the --real diff), each reproduced here
+# A stalled browser step is accounted and the run continues (ruling 116)
 # ---------------------------------------------------------------------------
+
+
+def test_a_stalled_step_is_an_ordinary_failure_for_a_check_false_caller(
+    tmp_path: Path,
+) -> None:
+    """_run's own conversion, against a real child that never finishes.
+
+    Every golden() test above replaces _run with a recorder, so the deadline
+    handling inside _run is reachable from here only. The child is a bare sleep
+    on a short deadline on purpose: rc 124 does not depend on the child having
+    started, so this asserts the conversion without racing interpreter startup
+    against the deadline, and it stays far under the 1.5 s unit WARN band that
+    the duration gate measures (an 1.8 s version of this pin was measured here —
+    a new WARN entry of my own, in the band red 2 is about).
+    """
+    run = _run(tmp_path)
+    stalled = run._run(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        check=False,
+        timeout=0.2,
+        echo=False,
+    )
+    assert stalled.returncode == 124, "the conventional deadline exit"
+    assert stalled.stderr.startswith("timed out"), "the log names the cause, not a bare number"
+    assert fc._stalled(stalled), "the reader agrees with the producer"
+    assert fc._exit_word(stalled) == "timed out", "so the account says a word, not 124"
+    # The other half of the contract: a caller that DID ask for a raise still
+    # gets one. Without this, the conversion could silently swallow failures in
+    # the compose/teardown steps that rely on check=True.
+    with pytest.raises(subprocess.TimeoutExpired):
+        run._run([sys.executable, "-c", "import time; time.sleep(60)"], timeout=0.2, echo=False)
+
+
+def test_a_stalled_result_keeps_the_partial_stream_the_child_flushed() -> None:
+    """A download stalled at 80% still says WHICH build was in flight.
+
+    Pinned at the pure-function level because the fact that matters is a shape:
+    TimeoutExpired hands back raw BYTES even when run() was called with
+    text=True (measured on 3.14.4 — e.stdout is b'...', e.stderr is None). The
+    first draft of _stalled_result guarded with isinstance(v, str) as a
+    defensive nicety and silently threw that stream away; the assertion below is
+    the trap it fell into, so it is pinned alongside the behaviour.
+    """
+    exception = subprocess.TimeoutExpired(
+        ["npx", "playwright", "install", "chromium"], 1800, output=b"downloading chromium 80%\n"
+    )
+    assert isinstance(exception.stdout, bytes), "the shape that made a str-only guard lossy"
+    result = fc._stalled_result(exception)
+    assert result.returncode == 124
+    assert result.stdout == "downloading chromium 80%\n", "decoded, not dropped"
+    assert result.stderr.startswith("timed out after 1800"), "the cause leads the text"
+
+
+def test_a_stalled_browser_probe_installs_nothing_and_continues(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A dry-run that never returns is accounted, not raised (ruling 116).
+
+    ``check=False`` does not cover this: subprocess.run raises TimeoutExpired
+    on a timeout whatever check says (measured on 3.14.4 — stdout None, child
+    killed). Raised here, golden() aborts before its return, and because it
+    commits its results dict only on the way out, the WHOLE golden section —
+    ruling 102's ``npm_ci`` entry included — vanishes from summary.json, the
+    test npx never runs, and the harness's top-level handler reports one line
+    naming neither the Playwright step nor the browser.
+    """
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, True, calls, browsers=False, probe_hangs=True)
+    problems = run.golden()
+    assert problems == [], "an unreadable probe is not itself a golden failure"
+    assert run.summary["results"]["golden"]["playwright_browsers"] == "probe exit timed out", (
+        "the shipped template is 'probe exit <outcome>' (see the 'probe exit 1' pin), so "
+        "the stall fills that slot with a word instead of a number — named, and "
+        "distinguishable from a refusal, which is what ruling 116's firewall needs to tell apart"
+    )
+    assert BROWSER_INSTALL not in [c for c, _ in calls], (
+        "a plan that never came back cannot say which builds are wanted, so a "
+        "speculative download is exactly what must not start"
+    )
+    # Positive witness for the absence assertion above: the SAME absent-browsers
+    # tree with a responsive probe does install, so "not in calls" above is the
+    # stall's doing and not an artefact of how the recorder collects commands.
+    later: list[tuple[list[str], dict[str, Any]]] = []
+    _golden_only_run(
+        tmp_path / "witness", monkeypatch, True, later, browsers=False, probe_hangs=False
+    ).golden()
+    assert BROWSER_INSTALL in [c for c, _ in later]
+    # golden() continued to the test leg, so Playwright's own browser-missing
+    # message still reaches the log (ruling 116: "... and continues").
+    assert calls[-1][0][:4] == ["npx", "playwright", "test", "--project=golden"]
+
+
+def test_a_stalled_browser_install_is_accounted_and_the_run_continues(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A download that hangs (accepted connection, no bytes) is a named problem.
+
+    The firewall clause's realistic failure is not a refused connect — that
+    exits nonzero and is already accounted — but a proxy that accepts and then
+    streams nothing, which stalls until the deadline. The step must stay
+    ACCOUNTED (a named problem, a ``playwright_browsers`` value) and golden()
+    must still reach the test npx, because ruling 116's sentence is "installs
+    it once, logs the installed version, and CONTINUES".
+    """
+    # node_modules=False is the fresh-clone shape this box actually had: npm ci
+    # runs (and succeeds) first, so ruling 102's entry is IN the dict before the
+    # download stalls. That is what makes the npm_ci assertion below mean what it
+    # says — with node_modules seeded, npm ci is skipped and the key never exists.
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, False, calls, browsers=False, install_hangs=True)
+    problems = run.golden()
+    golden_results = run.summary["results"]["golden"]
+    assert golden_results["playwright_browsers"] == "exit timed out"
+    assert golden_results["npm_ci"] == "ok", "earlier steps keep their accounting"
+    assert len(problems) == 1 and "timed out" in problems[0]
+    assert "cdn.playwright.dev" in problems[0], "the firewall clause still names hosts"
+    install = [kw for cmd, kw in calls if cmd == BROWSER_INSTALL]
+    assert len(install) == 1, "the install was attempted, then hit its deadline"
+    assert install[0]["timeout"] == 1800, "the deadline stays the parent's, unchanged"
+    assert calls[-1][0][:4] == ["npx", "playwright", "test", "--project=golden"]
 
 
 def _real_summary(root: Path) -> dict[str, Any]:
