@@ -93,10 +93,26 @@ jobs:
         run: uv sync --extra dev --frozen
 
       # D14-split mirror of scripts/validate.sh (unit+contracts+security in
-      # one process, integration in another; identical --ignore x4; one
-      # COVERAGE_FILE per invocation; both --cov-fail-under=0 so the 80%
-      # gate fires only on the merged COMBINED file — validate.sh's preserved
-      # semantics). Output via redirection to log files, never `cmd | tee`.
+      # one pytest INVOCATION, integration in another — "one" is the process
+      # boundary the OOM split respects, not serial execution: each
+      # invocation fans out to pytest-xdist workers inside it; identical
+      # --ignore x4; one COVERAGE_FILE per invocation; both
+      # --cov-fail-under=0 so the 80% gate fires only on the merged COMBINED
+      # file — validate.sh's preserved semantics). Output via redirection to
+      # log files, never `cmd | tee`.
+      # Worker count (r109b / ruling 113): a flag-free invocation silently
+      # inherits pyproject.toml's addopts "-n 8 --dist=worksteal" — 8 workers
+      # on this job's 4-core ubuntu-latest runner. The tier passes no
+      # --timeout flag, but the ini `timeout = 5` still fires per test, and
+      # 2x-oversubscribed wall time is the R109 nightly timeout class. The
+      # unit tier now passes `-n auto --dist=worksteal` explicitly, following
+      # ci.yml's canonical unit invocation (4 workers = the runner's cores:
+      # worksteal keeps the same tests on half as many concurrent workers, so
+      # the aggregate RSS the split above guards against halves too). The
+      # integration tier stays flag-free as validate.sh's mirror (it carries
+      # its own --timeout=30); addopts' -n 8 stays the local-dev default. A
+      # later CLI -n wins over addopts (measured 2026-10-11: addopts -n 8
+      # alone -> "created: 8/8 workers"; addopts + CLI -n auto -> 16/16).
       - name: Backend unit+contracts+security tier (validate.sh semantics)
         id: unit_tier
         run: |
@@ -104,6 +120,7 @@ jobs:
           mkdir -p /tmp/fcl-cov
           if ! COVERAGE_FILE=/tmp/fcl-cov/.coverage.unit \
             uv run pytest backend/tests/unit backend/tests/contracts backend/tests/security \
+            -n auto --dist=worksteal \
             --cov=backend --cov-report= --cov-fail-under=0 \
             --ignore=backend/tests/load --ignore=backend/tests/benchmarks \
             --ignore=backend/tests/e2e --ignore=backend/tests/chaos \
