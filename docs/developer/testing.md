@@ -467,6 +467,21 @@ asserts through `/api/events` that exactly one event arrives carrying the
 scenario's verdict and risk score. The smoke scenario has image bytes of its
 own, so the backend's content dedupe never swallows a golden path's image.
 
+**Frontend dependencies (ruling 102).** The golden step runs the Playwright
+`golden` project with `npx playwright test --project=golden` from `frontend/`.
+An operator's tree has no `frontend/node_modules` — the harness builds the
+images but installs no dependencies into the checkout, and the `Feature Check`
+workflow's `npm ci` step is a different process — so on such a tree the harness
+now runs `npm ci` in `frontend/` itself first, and the documented command runs
+unchanged. An existing install is never touched: `npm ci` deletes
+`node_modules` on entry, so it runs only where there is nothing to delete. The
+install is reported in `summary.json` as its own `npm_ci` result, and it is not
+given the run's admin password. A Playwright browser binary is a further
+precondition the install does not fetch — `@playwright/test` has no install
+script, so `npm ci` brings the runner, not Chromium — so a tree that has never
+run `npx playwright install chromium` still fails, now with Playwright's own
+browser-missing message rather than a module error.
+
 **Isolation.** A run touches nothing else on the machine, so it is safe beside
 a live stack.
 
