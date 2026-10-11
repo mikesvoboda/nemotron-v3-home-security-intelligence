@@ -23,21 +23,36 @@
  *              to start tracking faces</p> (KnownPersonsTab.tsx:231-232), the
  *              count badge reads (0) (:214-216), and the Add Person button is
  *              present (:218-224).
- *           (b) A seeded row, created and deleted by THIS test: POST
- *               /api/known-persons → 201 echoing name/notes and embedding_count
- *               0 (routes/face_recognition.py:135-169 — decorator :135, handler
- *               :140, return :161-169 — and the handler returns the literal 0 at
- *               :166); the GET list then sees it; the card paints
- *               with role="button" + aria-label "View details for <name>" and a
- *               static data-testid="known-person-card" (KnownPersonsTab.tsx:60-67),
- *               and its embedding-count text is {person.embedding_count} (:82)
- *               — so the "enrolled-face count" the row promises is pinned to the
- *               API's embedding_count, not to a decoration. Clicking the card
- *               opens the detail modal (FaceRecognitionPage.tsx:57-60 sets
- *               detailPersonId + isOpen from the click) whose gallery heading is
- *               `Face Embeddings (0)` (KnownPersonDetailModal.tsx:296-297,
- *               rendered UNCONDITIONALLY once its own query settles — the only
- *               conditional above it is the isLoading branch at :285).
+ *           (b) A seeded row, created and deleted by THIS test. THE LEGS SPLIT:
+ *               the API legs are a GREEN witness, the UI legs are a MEASURED RED
+ *               kept on purpose as failure-as-evidence (rulings 86/118 — this is
+ *               why row F-275 is half-built, not awaiting real tier).
+ *               GREEN: POST /api/known-persons → 201 echoing name/notes and
+ *               embedding_count 0 (routes/face_recognition.py:135-169 — decorator
+ *               :135, handler :140, return :161-169 — and the handler returns the
+ *               literal 0 at :166), and the GET list then sees it.
+ *               RED, by design, and the FIRST UI assertion after the seed: the
+ *               card never paints, so nothing downstream of it can be reached.
+ *               KnownPersonsTab.tsx:176 reads knownPersons?.length ?? 0 on the
+ *               list the route answers as the ENVELOPE
+ *               KnownPersonListResponse(items,total) (face_recognition.py:132,
+ *               and useFaceRecognitionApi.ts:124 passes it through unwrapped),
+ *               so a seeded row still counts 0 and the empty copy at :231 stands.
+ *               The spec's own expect(card).toBeVisible() is the pin on that
+ *               break (Break A, report #6996 `6113183779`); it is the failure the
+ *               frontend fix package exists to clear.
+ *               Therefore the UI claims below are the CONTRACT the fix must
+ *               satisfy, read as design notes until Break A clears — the card's
+ *               role="button" + aria-label "View details for <name>" and static
+ *               data-testid="known-person-card" (KnownPersonsTab.tsx:60-67); its
+ *               embedding-count text {person.embedding_count} (:82), pinning the
+ *               "enrolled-face count" the row promises to the API's
+ *               embedding_count, not a decoration; and the detail modal the click
+ *               opens (FaceRecognitionPage.tsx:57-60 sets detailPersonId + isOpen)
+ *               with heading `Face Embeddings (0)`
+ *               (KnownPersonDetailModal.tsx:296-297, rendered UNCONDITIONALLY once
+ *               its own query settles — the only conditional above it is the
+ *               isLoading branch at :285).
  *
  *  F-277  "clicks Add Person (or Edit in the detail modal); enters name,
  *         household flag and notes; saves" — the modal FORM DRIVE is not in
@@ -305,7 +320,13 @@ test.describe('DO-3 known persons golden path', () => {
       expect(noop.status, 'an empty PATCH answers 200').toBe(200);
       expect(noop.body?.name, 'an empty PATCH leaves the name alone').toBe('Golden DO-3 Renamed');
     } finally {
-      await api.send(`/api/known-persons/${id}`, 'DELETE').catch(() => null);
+      // Mirror test 1's `createdId !== null` guard: when the POST never returned
+      // an id the expect() above THREW, so this finally is the only exit that
+      // runs — the afterDelete leg below is unreachable — and an unguarded send
+      // here is a real DELETE /api/known-persons/null on the wire.
+      if (id !== null) {
+        await api.send(`/api/known-persons/${id}`, 'DELETE').catch(() => null);
+      }
     }
 
     const afterDelete = await api.send(`/api/known-persons/${id}`, 'DELETE');
