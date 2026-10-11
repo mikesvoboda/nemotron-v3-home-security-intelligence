@@ -202,11 +202,15 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
     // covers both measured surfacing timings (~2 s and ~10.3 s) and flap
     // cycles. Sequential locator expects instead would race the mid-suite
     // flap that killed this leg's second draft (role found, text gone).
-    let s: Snap | null = null;
+    const box: { s?: Snap } = {}; // box, not `let s: Snap | null` — a
+    // closure-assigned let leaves TS 6.0.3 narrowing the post-poll use to
+    // `never` (TS2339 'counter' on never); a property read stays Snap|
+    // undefined and unwraps with a normal guard below.
     await expect
       .poll(
         async () => {
-          s = await snapshot(page);
+          const s = await snapshot(page);
+          box.s = s;
           return (
             s.bannerRole === 'alert' &&
             /Reconnecting/.test(s.bannerText ?? '') &&
@@ -217,8 +221,9 @@ test.describe('golden path: WebSocket status and disconnect banner @critical', (
         { timeout: 60_000, message: 'no coherent banner+Reconnecting+Attempt n/30 sample' }
       )
       .toBe(true);
-    if (!s) throw new Error('poll never sampled'); // unreachable; type guard
-    const first = Number((s.counter ?? '0 0').match(/\d+/)?.[0] ?? '0');
+    const s0 = box.s;
+    if (!s0) throw new Error('poll never sampled'); // unreachable; type guard
+    const first = Number((s0.counter ?? '0 0').match(/\d+/)?.[0] ?? '0');
 
     // The counter is LIVE, not static: while partitioned the machine keeps
     // scheduling attempts (probe: 1→5 across 27 s). A transient 'connected'
