@@ -49,6 +49,7 @@ import {
   login,
   readHarness,
   readV1Settings,
+  sectionTitle,
   type Harness,
 } from './harness';
 
@@ -67,7 +68,10 @@ test.describe('DO-2 ambient status golden path (F-238)', () => {
     await login(page, h, session);
 
     await page.goto(`${h.ui}/settings/ambient`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Ambient Status Awareness' })).toBeVisible();
+    // sectionTitle, NOT getByRole('heading'): Tremor's <Title> renders a <p>
+    // and the tab shell owns the page's only <h1> ("Settings") — harness.ts
+    // documents the CI failure that proved it.
+    await expect(sectionTitle(page, 'Ambient Status Awareness')).toBeVisible();
 
     // Pre-state: defaults are CODE-side; a fresh context has no key, a
     // same-context re-run has the all-true object Enable All left. Both
@@ -98,11 +102,12 @@ test.describe('DO-2 ambient status golden path (F-238)', () => {
       'favicon.enabled reaches the v1 key as false'
     ).toBe(false);
     // The page survived the state flip (no error boundary ate it): the
-    // Title is still painted. The Eye→EyeOff icon branch (:93-97) is the
-    // real paint evidence but svgs carry no accessible text, so the paint
-    // claim here is deliberately this weak — the CONTRACT pin is the
-    // storage read above.
-    await expect(page.getByText('Ambient Status Awareness')).toBeVisible();
+    // section Title is still painted. The Eye→EyeOff icon branch (:93-97) is
+    // the real paint evidence but svgs carry no accessible text, so the paint
+    // claim here is deliberately this weak — the CONTRACT pin is the storage
+    // read above. Exact-text for the same reason as the mount leg: a
+    // substring locator over this page binds more than the title.
+    await expect(sectionTitle(page, 'Ambient Status Awareness')).toBeVisible();
 
     // --- Enable All puts both flags back to the shipped default. It is not
     // the test's restore — the single-switch leg below flips ambient off
@@ -145,7 +150,7 @@ test.describe('DO-2 ambient status golden path (F-238)', () => {
     const session = await adminSession(h);
     await login(page, h, session);
     await page.goto(`${h.ui}/settings/ambient`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Ambient Status Awareness' })).toBeVisible();
+    await expect(sectionTitle(page, 'Ambient Status Awareness')).toBeVisible();
     await assertGuardSurvives(page, h);
   });
 });

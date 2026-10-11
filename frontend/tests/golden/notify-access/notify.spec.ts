@@ -74,6 +74,7 @@ import {
   authedFetch,
   login,
   readHarness,
+  sectionTitle,
   type Harness,
 } from './harness';
 
@@ -121,7 +122,10 @@ test.describe('DO-2 notifications golden path', () => {
 
     // --- UI leg on the SETTINGS tab mount ---
     await page.goto(`${h.ui}/settings/notifications`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Notification Settings' })).toBeVisible();
+    // sectionTitle, NOT getByRole('heading'): Tremor's <Title> renders a <p>
+    // and the tab shell owns the page's only <h1> ("Settings") — harness.ts
+    // documents the CI failure that proved it.
+    await expect(sectionTitle(page, 'Notification Settings')).toBeVisible();
     await expect(page.getByText('Global Preferences')).toBeVisible();
     const toggle = page.getByRole('switch', { name: 'Toggle notifications' });
     await expect(toggle).toBeVisible();
@@ -168,8 +172,8 @@ test.describe('DO-2 notifications golden path', () => {
     // --- F-237: the standalone route is the SAME component + its own back link ---
     await page.goto(`${h.ui}/notifications`, { waitUntil: 'domcontentloaded' });
     await expect(
-      page.getByRole('heading', { name: 'Notification Settings' }),
-      '/notifications mounts the same NotificationSettings heading'
+      sectionTitle(page, 'Notification Settings'),
+      '/notifications mounts the same NotificationSettings section title'
     ).toBeVisible();
     await expect(page.getByText('Global Preferences')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to Settings' })).toBeVisible();

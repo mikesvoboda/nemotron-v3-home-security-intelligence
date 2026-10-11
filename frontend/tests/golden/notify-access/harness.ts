@@ -72,7 +72,7 @@
  *   key. F-238's reads therefore hit v1 and run before any later mount could
  *   migrate — see ambient.spec.ts.
  */
-import type { BrowserContext, Page } from '@playwright/test';
+import type { BrowserContext, Locator, Page } from '@playwright/test';
 
 import { GUARD_MESSAGE, expect } from '../guard';
 
@@ -224,4 +224,30 @@ export async function grantNotifications(context: BrowserContext): Promise<void>
 export async function assertGuardSurvives(page: Page, h: Harness): Promise<void> {
   expect(new URL(page.url()).host).toBe(new URL(h.ui).host);
   expect(() => page.route('**/api/**', (route) => route.abort())).toThrow(GUARD_MESSAGE);
+}
+
+/** A settings-section TITLE, by the text it really paints.
+ *
+ *  NOT getByRole('heading'). Both DO-2 section titles are Tremor <Title>
+ *  (NotificationSettings.tsx:484-487, AmbientStatusSettings.tsx:64) and
+ *  Tremor's Title renders a <p>, so neither carries a heading role; the
+ *  snapshot in the feature-check artifact for the failing run shows the ONLY
+ *  heading on /settings/<tab> is the tab shell's own <h1>Settings</h1>. CI
+ *  proved this the hard way: the first real execution of these specs (run
+ *  38145962360) failed five tests (ambient ×2, permission ×2, notify F-230
+ *  ×1) on exactly this locator family and on nothing else, while this file's
+ *  own in-page getByText leg in the SAME test passed seconds earlier — so the
+ *  panel rendered and only the role was wrong.
+ *
+ *  exact: true is load-bearing, not tidiness. getByText() is a substring
+ *  match, and the notification tab mount also paints "Audio Notification
+ *  Settings" (:723) — a substring locator for "Notification Settings" binds
+ *  BOTH and dies on Playwright strict mode. The same snapshot shows each
+ *  exact string occurs once.
+ *
+ *  Why not the data-testid instead: AmbientStatusSettings.tsx:60 has one
+ *  (ambient-status-settings) and NotificationSettings has none, and ruling 87
+ *  keeps this PR out of src/, so a shared helper cannot lean on it. */
+export function sectionTitle(page: Page, text: string): Locator {
+  return page.getByText(text, { exact: true });
 }

@@ -25,7 +25,12 @@
  *   threshold badge prints "{threshold}%" (:868) — a bare "50%" or "Enabled"
  *   locator can bind the wrong row. All state pins therefore scope to their
  *   row container (ancestor::div[3] from the exact section label; DOM order
- *   and nesting read at this head) or use page-unique subtitle strings.
+ *   and nesting read at this head). NO subtitle string is a safe page-wide
+ *   locator either: the DENIED copy 'Permission denied - enable in browser
+ *   settings' is rendered by BOTH permission sections (:633 and :685), which
+ *   the CI artifact's own accessibility snapshot shows twice on one page —
+ *   a page-wide locator there is a strict-mode violation on two matches, in
+ *   the exact branch headless Chromium runs.
  * - Two volume controls, two storages (the trap this file refuses): the
  *   slider here is useIntegratedNotifications' AUDIO state (useAudio
  *   Notifications.ts:137 useState, seeded 0.5 via useIntegratedNotifications
@@ -52,6 +57,7 @@ import {
   grantNotifications,
   login,
   readHarness,
+  sectionTitle,
   type Harness,
 } from './harness';
 
@@ -77,7 +83,10 @@ test.describe('DO-2 browser permissions golden path (F-234)', () => {
     const h = harness as Harness;
     await signIn(page, h);
     await page.goto(`${h.ui}/settings/notifications`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Notification Settings' })).toBeVisible();
+    // sectionTitle, NOT getByRole('heading'): Tremor's <Title> renders a <p>
+    // and the tab shell owns the page's only <h1> ("Settings") — harness.ts
+    // documents the CI failure that proved it.
+    await expect(sectionTitle(page, 'Notification Settings')).toBeVisible();
 
     // Runtime read, not a remembered default: the UI's ternaries all key off
     // this same value, so the assertion below is the view-faithfulness proof
@@ -86,15 +95,27 @@ test.describe('DO-2 browser permissions golden path (F-234)', () => {
     const desktopRow = rowOf(page, 'Desktop Notifications');
     const pushRow = rowOf(page, 'Push Notifications');
 
+    // All three subtitle branches scope to desktopRow, not page: the DENIED
+    // copy 'Permission denied - enable in browser settings' is rendered by
+    // BOTH the desktop (:633) and push (:685) sections — a page-wide locator
+    // on it matches two nodes and dies on strict mode. (headless CI runs
+    // denied, so that is exactly the branch a green heading fix would walk
+    // straight into next; the sibling Badge/percent scoping above exists for
+    // the same reason.) The granted/default copies are page-unique, but they
+    // scope identically so the three branches stay one shape.
     if (permission === 'granted') {
       await expect(desktopRow.getByText('Enabled', { exact: true })).toBeVisible();
-      await expect(page.getByText('Permission granted - notifications enabled')).toBeVisible();
+      await expect(
+        desktopRow.getByText('Permission granted - notifications enabled')
+      ).toBeVisible();
     } else if (permission === 'denied') {
       await expect(desktopRow.getByText('Denied', { exact: true })).toBeVisible();
-      await expect(page.getByText('Permission denied - enable in browser settings')).toBeVisible();
+      await expect(
+        desktopRow.getByText('Permission denied - enable in browser settings')
+      ).toBeVisible();
     } else {
       await expect(desktopRow.getByText('Not Set', { exact: true })).toBeVisible();
-      await expect(page.getByText('Permission required for desktop alerts')).toBeVisible();
+      await expect(desktopRow.getByText('Permission required for desktop alerts')).toBeVisible();
     }
 
     // The singleton law, un-granted side: push shows the SAME state string
@@ -129,7 +150,7 @@ test.describe('DO-2 browser permissions golden path (F-234)', () => {
     await grantNotifications(context); // context-wide, before any mount reads permission
     await signIn(page, h);
     await page.goto(`${h.ui}/settings/notifications`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Notification Settings' })).toBeVisible();
+    await expect(sectionTitle(page, 'Notification Settings')).toBeVisible();
 
     const desktopRow = rowOf(page, 'Desktop Notifications');
     const pushRow = rowOf(page, 'Push Notifications');
