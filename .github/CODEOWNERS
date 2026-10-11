@@ -21,7 +21,6 @@
 # CI/CD Configuration
 .github/workflows/ @mikesvoboda
 .github/dependabot.yml @mikesvoboda
-.github/release-drafter.yml @mikesvoboda
 .github/CODEOWNERS @mikesvoboda
 
 # Security-critical files
