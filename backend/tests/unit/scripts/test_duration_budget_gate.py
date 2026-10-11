@@ -72,6 +72,7 @@ failed it" (the number the corpus actually reddened on was 4.11/4.31, not
 from __future__ import annotations
 
 import ast
+import importlib.util
 import os
 import subprocess
 import sys
@@ -80,6 +81,18 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SCRIPT = REPO_ROOT / "scripts" / "check-test-duration-budget.py"
 BASELINE_FILE = REPO_ROOT / "scripts" / "duration-budget-baseline.json"
+
+# The gate's OWN classifier, loaded the way the gate loads the audit's: by
+# path, offline. The M8 pin below asks the real categorize_test whether a
+# fixture id is outside the tracked set instead of assuming it — an
+# assumption there was exactly how the first M8 probe "passed" for the
+# wrong reason (the id classified as integration, so the fallback never ran).
+_spec = importlib.util.spec_from_file_location("_r93_gate_under_test", SCRIPT)
+assert _spec is not None and _spec.loader is not None
+_gate = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_gate)
+categorize_test = _gate.categorize_test
+KNOWN_TIERS = frozenset({"unit", "integration", "e2e", "slow", "benchmark"})
 
 # Same knob set the script reads; the CI step sets the same five values
 # (ruling 93: the audit's CI-set limits + the 1.5 s WARN).
@@ -1011,4 +1024,134 @@ def test_the_default_unit_budget_is_the_strictest(tmp_path: Path) -> None:
     assert _const("DEFAULT_WARN_BUDGET") < unit, (
         "the WARN default must stay under the hard unit default or the "
         "warn band is empty by construction"
+    )
+
+
+# --------------------------------------------------------------------------
+# Self-review N4 (round 2): the two promises a mutation probe proved
+# UNPINNED. Both mutants survived the whole suite, so neither limb was
+# coverage — reproduced in this lane's shell before either test was written.
+# --------------------------------------------------------------------------
+
+
+def test_exactly_at_a_budget_is_not_a_breach(tmp_path: Path) -> None:
+    """Ruling 93's word is "over", and "over" means STRICTLY over.
+
+    M9 (mutant, survived before this test): flipping the breach predicate
+    ``duration > budget_for(...)`` to ``>=`` passed the whole suite — no test
+    placed a testcase at exactly a budget, so "over 4.0" vs "4.0 or more" was
+    adjudicated by nothing. This corpus makes the pair do the work: 4.0 s
+    sits exactly on the unit budget, 3.95 s just under it. Correctly, the run
+    is GREEN and the WARN list's TOP entry is the 3.95 s test — under ``>=``
+    the 4.00 s test is instead a BREACH, rc=1, and heads the report. The
+    discriminator is the entry AT the budget, not the list's existence, so
+    both list entries must be asserted by identity.
+    """
+    results = _results(
+        tmp_path,
+        (
+            "unit.xml",
+            _xml(
+                [
+                    ("backend.tests.unit.edge.test_edge", "test_at_the_line", 4.0),
+                    ("backend.tests.unit.edge.test_edge", "test_under_the_line", 3.95),
+                ]
+            ),
+        ),
+    )
+    run = _run(results)
+    out = _out(run)
+    assert run.returncode == 0, (
+        "a unit test at EXACTLY 4.0 s is not OVER 4.0 s — ruling 93's word "
+        f"is 'over'; rc!=0 here means the boundary closed to >=\n{out}"
+    )
+    assert "BREACH" not in out, f"nothing here is over budget; BREACH in output means >=\n{out}"
+    # The gate prints each WARN as a duration line then an id line, so the
+    # rows are checked in that shape: both tests listed (the boundary test
+    # is still over 1.5 s), at their own durations, and the 4.00 row — not a
+    # BREACH row — is where the pair lands under a correct gate.
+    assert "WARN 4.00s" in out, (
+        f"the 4.00 s test must WARN, not breach — the WARN row is the proof "
+        f"the boundary held. saw:\n{out}"
+    )
+    assert "test_at_the_line" in out and "WARN 3.95s" in out, f"pair must both warn:\n{out}"
+
+
+def test_exactly_at_the_warn_budget_is_not_warned(tmp_path: Path) -> None:
+    """The same strictness at the WARN line: "over 1.5 s", so exactly 1.5 is
+    silent.
+
+    The warn predicate (``duration > warn_budget``) shares M9's shape. The
+    pair is 1.50 s (AT the line — must not appear) with 1.55 s (over it —
+    must appear): the 1.55 row is the positive witness that the WARN tier
+    is running at all, so the absence check can't be satisfied by a WARN
+    tier that lists nothing. (First draft paired 1.50 with 1.45 and the
+    file's own run caught it — 1.45 < 1.5 warns nothing, leaving the
+    absence assertion vacuous. Pair ABOVE the line, not below.)
+    """
+    results = _results(
+        tmp_path,
+        (
+            "unit.xml",
+            _xml(
+                [
+                    ("backend.tests.unit.edge.test_edge", "test_at_warn_line", 1.5),
+                    ("backend.tests.unit.edge.test_edge", "test_over_warn_line", 1.55),
+                ]
+            ),
+        ),
+    )
+    run = _run(results)
+    out = _out(run)
+    assert run.returncode == 0, f"both durations are under 4.0 s; nothing here breaches\n{out}"
+    assert "WARN 1.55s" in out and "test_over_warn_line" in out, (
+        f"the 1.55 s test must be WARNed — the positive witness; saw:\n{out}"
+    )
+    assert "1.50s" not in out, (
+        "a test at exactly the 1.5 s warn budget is not OVER it; a 1.50s "
+        f"row in the output means the WARN predicate closed to >=\n{out}"
+    )
+
+
+def test_an_untracked_tier_falls_to_the_strictest_budget() -> None:
+    """M8 (mutant, survived before this test): ``budget_for``'s
+    ``budgets.get(category, budgets["unit"])`` re-pointed at
+    ``budgets["slow"]`` passed the whole suite — the shipped docstring's
+    promise that an unknown future tier falls to the STRICTEST budget (a loud
+    review conversation, not a silent 60 s exemption) enforced nothing.
+
+    Direct-call only, and that is not a shortcut: writing the CLI version was
+    tried first, and the guard in its first draft proved why it cannot exist —
+    ``categorize_test`` emits ONLY the five tracked tier names, so no fixture
+    id can ever arrive at ``budget_for`` as an untracked category. The
+    fallback is reachable exclusively by a future classifier change, which is
+    exactly the case the docstring speaks of. So the pin has two limbs:
+    (a) untracked names must land on 4.0, and (b) the budget dict must cover
+    every tier the classifier CAN emit (benchmark excepted — it is dropped
+    before budgeting), which is what makes limb (a)'s scenario a review
+    conversation instead of dead code the day the audit grows a tier.
+    """
+    budgets = {"unit": 4.0, "integration": 10.0, "e2e": 10.0, "slow": 60.0}
+    for probe in ("whatever", "future_tier", "unit-adjacent"):
+        assert _gate.budget_for(probe, budgets) == budgets["unit"], (
+            f"untracked tier {probe!r} must fall to the unit budget (4.0) — "
+            "the docstring's 'strictest sensible default'; 60.0 here is the "
+            "silent exemption the same docstring forbids"
+        )
+    # Limb (b): every name categorize_test can return either has its own
+    # budget or is benchmark (dropped at parse time, never budgeted). A new
+    # tier in the audit reddens THIS assert — the loud conversation, pinned.
+    assert set(budgets) | {"benchmark"} == KNOWN_TIERS, (
+        f"budgets cover {sorted(budgets)}, classifier emits {sorted(KNOWN_TIERS)}; "
+        "a tier in neither place falls silently to the unit budget while "
+        "reading like it was accounted for"
+    )
+    # Structural witness for the mutant itself: the fallback expression
+    # resolves to the unit entry in the shipped source.
+    src = SCRIPT.read_text(encoding="utf-8")
+    fallback = next(
+        line for line in src.splitlines() if line.strip().startswith("return budgets.get(")
+    )
+    assert 'budgets["unit"]' in fallback, (
+        f"the fallback target must be the unit budget in the source; saw: {fallback.strip()}"
     )
