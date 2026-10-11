@@ -3534,6 +3534,7 @@ jobs:
     permissions:
       contents: read
     secrets: inherit # pragma: allowlist secret
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft != true
     uses: ./.github/workflows/dependency-audit.yml
 
   # CI Gate - Aggregates all required checks for branch protection
