@@ -2756,7 +2756,7 @@ def _restore_root_logging(state: tuple[list, list, int, dict]) -> int:
 
 
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)
-def pytest_runtest_protocol(item: pytest.Item, nextitem: pytest.Item | None):
+def pytest_runtest_protocol():
     """Restore root logging armed by one test before the next one runs (r109).
 
     The Nightly Full Gate unit tier runs unit + contracts + security in one

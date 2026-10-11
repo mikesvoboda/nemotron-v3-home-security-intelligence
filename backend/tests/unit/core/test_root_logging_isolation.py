@@ -21,12 +21,23 @@ backend/tests/test_db_isolation.py (helper-level, hermetic, no app boot).
 from __future__ import annotations
 
 import logging
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
 
 import backend.tests.conftest as root_conftest
 from backend.tests.conftest import _restore_root_logging, _root_logging_state
 
 # A logger name nothing ships: the pin's records must not be anyone else's.
 PIN_LOGGER = "r109.root.logging.isolation.pin"
+
+# This file is backend/tests/unit/core/<name>.py, so parents[4] is the repo root
+# (verified by pyproject.toml living there). The child session must start there:
+# that is where pytest resolves rootdir/inifile and therefore where the root
+# conftest chain that registers the hookunder test gets booted.
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 def boot_fake_production_logging() -> logging.Handler:
@@ -37,8 +48,9 @@ def boot_fake_production_logging() -> logging.Handler:
     function reads Settings, opens ``data/logs`` and logs two startup records,
     which makes the pin depend on environment. The leak this pins is carried by
     the shape (asctime-bearing root handler), not by the function's identity;
-    ``test_autouse_fixture_is_installed`` plus the full-tier repro tie the shape
-    back to the shipped call.
+    ``test_hook_is_installed_in_the_root_conftest`` ties the helper to the root
+    conftest, and ``TestLiveWiring`` — which boots a real child session that calls
+    the shipped ``setup_logging()`` — ties the shape back to the shipped call.
     """
     root = logging.getLogger()
     handler = logging.StreamHandler()
@@ -157,4 +169,86 @@ class TestFixtureWiring:
         opts = getattr(hook, "pytest_impl", None)
         assert isinstance(opts, dict) and opts.get("hookwrapper"), (
             f"pytest_runtest_protocol must be registered with hookwrapper=True, got {opts!r}"
+        )
+
+
+class TestLiveWiring:
+    """Drive the hook through a REAL pytest session, not by hand.
+
+    Everything above this class calls ``_restore_root_logging()`` directly, and
+    ``test_hook_is_installed_in_the_root_conftest`` only checks that the hook
+    attribute exists and carries ``hookwrapper=True``. None of them notices if
+    the hook stops CALLING the helper — verified 2026-10-11 by deleting the
+    hook's restore body, which left every test in this file green. A helper
+    cannot pin its own caller, so this test runs a child ``python -m pytest``
+    over ``r109_live_wiring_probe.py`` and asserts on what the child saw.
+
+    Child invocation is deliberately narrow, and each flag is load-bearing:
+
+    * ``sys.executable`` — NOT a literal ``'python'``. Tests that shell out to
+      ``python`` red locally and pass in CI, because CI activates the venv and a
+      bare ``.venv/bin/python -m pytest`` does not put ``python`` on PATH (this
+      cost a false 11-red draw on PR #7003 the same day).
+    * ``-o addopts=`` — repo addopts carry ``-n 8 --dist=worksteal -p randomly``
+      and ``--strict-markers``. Dropping them keeps the INI (so the child boots
+      the same root conftest chain the shipped tier does) while stopping a 2-test
+      child from booting 8 xdist workers and stopping ``-p randomly`` from
+      reordering the probe pair.
+    * ``-p no:randomly`` / ``-p no:cacheprovider`` — order is the experiment, and
+      a cache write would make the child dirty non-deterministically.
+    * ``@pytest.mark.slow`` — the ini ``timeout = 5`` is repo-wide, and a child
+      pytest boot measured ~6 s here, so an unmarked parent is killed by its own
+      watchdog before the child finishes. Repo conftest rule 3 gives slow-marked
+      tests 30 s (backend/tests/conftest.py:472,:486); the inner wall is set to
+      20 s, BELOW pytest's, so a hung child fails with the child's captured
+      output rather than a bare SIGALRM with nothing in it.
+    """
+
+    PROBE = Path(__file__).with_name("r109_live_wiring_probe.py")
+    # Below the 30 s the ``slow`` marker buys, so the inner wall fires first.
+    CHILD_WALL_SECONDS = 20
+
+    @pytest.mark.slow
+    def test_child_session_restores_root_logging_between_tests(self) -> None:
+        assert self.PROBE.exists(), f"probe file missing: {self.PROBE}"
+        argv = [
+            sys.executable,
+            "-m",
+            "pytest",
+            str(self.PROBE),
+            "-o",
+            "addopts=",
+            "-p",
+            "no:randomly",
+            "-p",
+            "no:cacheprovider",
+            "-q",
+            "--no-header",
+            "-rN",
+        ]
+        try:
+            proc = subprocess.run(  # real: boots a child pytest session — the point of the test  # noqa: S603
+                argv,
+                cwd=_REPO_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=self.CHILD_WALL_SECONDS,
+                check=False,  # the child's exit code IS the assertion; raising would skip it
+            )
+        except subprocess.TimeoutExpired as exc:
+            partial = (exc.stdout or "") + (exc.stderr or "")
+            pytest.fail(
+                f"the child session exceeded {self.CHILD_WALL_SECONDS}s; the probe never "
+                f"reached a verdict:\n{partial[-2000:]}"
+            )
+        output = proc.stdout + proc.stderr
+        # The child must run BOTH probe tests and neither may skip: a skipped or
+        # deselected pair is the vacuous-green this whole file guards against.
+        assert "2 passed" in output, (
+            "the child session did not run the probe pair as 2 passing tests, so it "
+            f"cannot witness the boundary restore:\n{output[-2000:]}"
+        )
+        assert proc.returncode == 0, (
+            "the child session went red across the protocol boundary — the root-logging "
+            f"restore did not run between the probe's two tests:\n{output[-2000:]}"
         )
