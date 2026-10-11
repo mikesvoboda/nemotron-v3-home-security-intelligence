@@ -159,11 +159,10 @@ test.describe('golden path: dashboard Configure widgets modal @critical', () => 
     // button's own markup in the log. The assert was right about the head and
     // the code never took the row there.
     const rowIndex = () =>
-      page.evaluate(
-        () =>
-          [...document.querySelectorAll('[data-testid^="widget-row-"]')].findIndex(
-            (el) => el.getAttribute('data-testid') === 'widget-row-pipeline-queues'
-          )
+      page.evaluate(() =>
+        [...document.querySelectorAll('[data-testid^="widget-row-"]')].findIndex(
+          (el) => el.getAttribute('data-testid') === 'widget-row-pipeline-queues'
+        )
       );
     const start = await rowIndex();
     expect(start, 'defaults ship queues last of the seven rows').toBe(6);

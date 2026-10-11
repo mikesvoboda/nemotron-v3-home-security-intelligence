@@ -193,9 +193,9 @@ test.describe('golden path: dashboard risk distribution donut @critical', () => 
     // button never exists on this path, so the click timed out while the
     // behaviour it was meant to reveal had already happened. Assert the
     // auto-expanded state directly; the select's value is the consumption.
-    await expect(
-      page.getByRole('button', { name: /Hide Filters/i })
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: /Hide Filters/i })).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(page.locator('#risk-filter')).toHaveValue(level);
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
