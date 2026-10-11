@@ -263,7 +263,7 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | B2.2 | backend | 2 | Re-ID on the GPU (OD-17 re-ID half) | heavy · owner | awaiting real tier | #6970 |
 | F2.1    | frontend                | 2          | Golden-path harness                            |               | done        | #6976 |
 | F2.2    | frontend                | 2          | Feature inventory                              | heavy         | done        | #6941 |
-| F2.3    | frontend                | 2          | Golden paths for every working feature         |               | not started |     |
+| F2.3    | frontend                | 2          | Golden paths for every working feature         |               | in progress | #6997 |
 | O2.1    | ops                     | 2          | Fake AI stack                                  |               | done        | #6946 |
 | O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | awaiting real tier | #6961 |
 | O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | done        | #6954 |
