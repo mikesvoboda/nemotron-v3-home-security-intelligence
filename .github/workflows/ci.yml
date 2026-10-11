@@ -2934,26 +2934,29 @@ jobs:
           SLOW_TEST_THRESHOLD: '60.0'
           WARN_THRESHOLD_PERCENT: '80'
 
-      - name: Real-sleep budget gate (ruling 74)
-        # Owner ruling 74: real sleeps in unit tests are caught by a post-run
-        # gate over the durations CI already records, at a budget WELL UNDER the
-        # audit's own limits, and with no "healthy in the previous run"
-        # downgrade. That downgrade (this job's WP1.3 --baseline-dir above) is
-        # the right answer to runner noise and the wrong answer to a
-        # hand-written sleep: a real sleep is the same value every run, so
-        # forgiving a duration by history forgives exactly what is being hunted.
-        # Hence a second, separate gate instead of a knob on the first — it reuses
-        # the audit's tier classifier so the two never disagree about a test's
-        # tier, and one shrink-only exemption file (scripts/duration-budget-
-        # baseline.json, 51 ids measured from the 3 greenest main runs) rather
-        # than a second allowlist. Budgets are ~0.375x/0.6x/0.5x the limits above;
-        # unit 1.5 s is ~2.8x the measured p99 (0.53 s). Zero XML fails closed
-        # here too — both downloads above are continue-on-error.
+      - name: Real-sleep budget gate (ruling 93)
+        # Owner ruling 93 (amending 74): the same post-run gate over the
+        # durations CI already records, at the audit's OWN limits above
+        # (unit 4.0 / integration 10.0 / e2e 10.0) and with no "healthy in the
+        # previous main run" downgrade. That missing downgrade is the gate's
+        # entire content over the audit — a real sleep is the same value every
+        # run, so forgiving a duration by history forgives exactly what is
+        # being hunted. No baseline file: the 1.5 s line that ruled 74's hard
+        # budget sits inside the runner's noise band (the over-1.5 victim set
+        # rotates 12/13/10 ids between same-code green runs), so it is demoted
+        # to a WARN — every unit test over 1.5 s is listed in this job's
+        # summary and never fails. Hard budgets flip ZERO ids across the three
+        # measured green corpora. The tracked-slow bucket keeps its 60 s cap
+        # (SLOW_TEST_THRESHOLD above; the census entry IS the adjudication).
+        # Reuses the audit's tier classifier so the two never disagree about a
+        # test's tier. Zero XML fails closed here too — both downloads above
+        # are continue-on-error.
         run: uv run python scripts/check-test-duration-budget.py test-results/
         env:
-          SLEEP_GATE_UNIT_BUDGET: '1.5'
-          SLEEP_GATE_INTEGRATION_BUDGET: '6.0'
-          SLEEP_GATE_E2E_BUDGET: '5.0'
+          SLEEP_GATE_UNIT_BUDGET: '4.0'
+          SLEEP_GATE_INTEGRATION_BUDGET: '10.0'
+          SLEEP_GATE_E2E_BUDGET: '10.0'
+          SLEEP_GATE_WARN_BUDGET: '1.5'
 
       - name: Create Linear issue on failure
         # WP0.5: the job now gates PRs too — a PR failure is a red check the
