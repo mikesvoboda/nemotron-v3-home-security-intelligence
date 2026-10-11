@@ -1,23 +1,21 @@
 name: ZAP Security Scan
 
 # Dynamic Application Security Testing (DAST) using OWASP ZAP.
-# Runs on merge to main only (not PRs) to save runner capacity.
+# Runs nightly + on demand only (not on push, not on PRs) to save runner
+# capacity — owner ruling 71.
 #
-# Why main-only?
+# Why nightly-only?
 # - Some ZAP findings may be false positives requiring investigation
 # - Low/Medium alerts are informational and don't block deployment
 # - Only HIGH/CRITICAL alerts should warrant immediate attention
-# - Saves CI runner capacity for required checks on PRs
+# - Saves CI runner capacity for required checks on PRs and keeps main pushes
+#   clear of a scan whose findings are triaged, not gating
 #
 # Use the results to identify and prioritize security improvements.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/zap-security.yml'
-      - 'zap-rules.tsv'
+  schedule:
+    - cron: '31 5 * * *' # Daily 05:31 UTC — off the :00 herd; visual-tests opens 05:23 and runs ~18 min, so the two scans stagger their setup bursts (they may still overlap mid-run; both are non-gating)
   # Manual trigger for on-demand security scanning
   workflow_dispatch:
 
@@ -239,8 +237,12 @@ jobs:
     steps:
       - name: Check ZAP scan results
         run: |
-          if [ "${{ needs.zap-api-scan.result }}" == "failure" ]; then
-            echo "::warning::ZAP security scan detected issues. Review the artifacts for details."
+          # != success, not == failure: ZAP's dominant red is CANCELLED (its
+          # own 20-min timeout; census: 40/40 recent runs), and a cancelled
+          # need arrives as "cancelled" — a == "failure" guard printed
+          # "completed successfully!" on every cancelled scan (measured).
+          if [ "${{ needs.zap-api-scan.result }}" != "success" ]; then
+            echo "::warning::ZAP security scan did not complete successfully (result: ${{ needs.zap-api-scan.result }}). Review the artifacts for details."
             echo ""
             echo "To investigate ZAP findings:"
             echo "  1. Download the zap-security-report artifact"
@@ -251,11 +253,11 @@ jobs:
           fi
 
       - name: Create Linear issue on failure
-        if: vars.LINEAR_ENABLED == 'true' && (needs.zap-api-scan.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: vars.LINEAR_ENABLED == 'true' && (needs.zap-api-scan.result != 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          # Only create issue for failures on main branch pushes (not PRs)
+          # Only create issue for failures on main's scheduled/dispatch runs (not PRs)
           response=$(curl -s -w "\n%{http_code}" -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
@@ -265,7 +267,7 @@ jobs:
                 "input": {
                   "teamId": "998946a2-aa75-491b-a39d-189660131392",
                   "title": "ZAP security scan found vulnerabilities on main",
-                  "description": "## ZAP Security Scan Failure\n\nThe OWASP ZAP security scan found potential vulnerabilities after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Download the zap-security-report artifact from the workflow run\n2. Review the HTML report for vulnerability details\n3. Prioritize HIGH and CRITICAL findings\n4. Either fix the vulnerability or add to `zap-rules.tsv` if false positive\n\n### Resources\n\n- [OWASP ZAP Documentation](https://www.zaproxy.org/docs/)\n- [ZAP Alert Reference](https://www.zaproxy.org/docs/alerts/)",
+                  "description": "## ZAP Security Scan Failure\n\nThe OWASP ZAP security scan found potential vulnerabilities on the nightly scan of main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Download the zap-security-report artifact from the workflow run\n2. Review the HTML report for vulnerability details\n3. Prioritize HIGH and CRITICAL findings\n4. Either fix the vulnerability or add to `zap-rules.tsv` if false positive\n\n### Resources\n\n- [OWASP ZAP Documentation](https://www.zaproxy.org/docs/)\n- [ZAP Alert Reference](https://www.zaproxy.org/docs/alerts/)",
                   "priority": 2,
                   "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
                 }
