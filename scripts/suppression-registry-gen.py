@@ -87,6 +87,18 @@ HOST_JUSTIFIED: dict[str, str] = {
     "backend/tests/gpu/test_detector_integration.py:450": "nvidia-smi TimeoutExpired — GPU host state",
     # Environment variable itself, read via a local alias the probe can't see.
     "backend/tests/test_db_isolation.py:66": 'url is os.environ.get("TEST_DATABASE_URL") — env-var guard',
+    # BE-1's golden-tree fixtures (PR #6979): the same local-alias shape two
+    # functions away — `_missing_env()` reads the harness's FEATURE_CHECK_*
+    # variables, so the absent-live-stack guard is host state the probe can't
+    # see through. These skips are the harness contract (collection must never
+    # crash without a stack), so `todo`'s expiry would fire on a skip that
+    # legitimately can never be removed.
+    "backend/tests/golden/external/conftest.py:61": "missing = _missing_env() — FEATURE_CHECK_* harness env absent, host state behind a local alias",
+    "backend/tests/golden/external/conftest.py:70": "missing = _missing_env() — FEATURE_CHECK_* harness env absent, host state behind a local alias",
+    # The golden webhook spec needs a real events.id (Alert.event_id is a
+    # non-nullable FK); an empty events table is the stack's data state, the
+    # same data-chain shape as test_risk_score_validation.py:199 above.
+    "backend/tests/golden/external/test_webhook_deliveries.py:132": "no events rows on the live stack — DB data chain, not repo content",
     # Compose binary availability, resolved inside a helper the probe can't see.
     "backend/tests/unit/core/test_compose_render_lists_ai_vlm.py:67": "argv is None when no compose binary (podman/docker) resolves via shutil.which — host-executable guard, not repo content",
     # O1.11's prometheus boot pin: same docker-availability shape, resolved two
