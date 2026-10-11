@@ -138,7 +138,8 @@ those floors, so review such hunks by hand.
 
 ### CI Pipeline (ci.yml)
 
-**Trigger:** Push/PR to main branch
+**Trigger:** Push/PR to main branch — draft PRs skip the jobs (per-job guard); marking ready
+(`ready_for_review`) runs the full suite at the head
 
 **Jobs:**
 
