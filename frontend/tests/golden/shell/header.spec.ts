@@ -178,8 +178,9 @@ test.describe('golden path: header chrome @critical', () => {
     // === null && error` → Navigate to="/setup",
     // src/components/auth/ProtectedRoute.tsx:79) and an authenticated admin
     // reload lands on "Create your admin account" — a real fail-closed
-    // fragility, which F-002's session row owns and reports; this spec must
-    // not trip it while asserting ITS OWN clause. A human reload is a lone
+    // fragility, which F-003's auth-gate row owns and reports (the gate's
+    // own decision table, same file); this spec must not trip it while
+    // asserting ITS OWN clause. A human reload is a lone
     // boot after quiet, which fits burst=20; a 10 s wait (> the zone's 100
     // token drain at 10r/s) reproduces exactly that shape here.
     await page.waitForTimeout(10_000);
