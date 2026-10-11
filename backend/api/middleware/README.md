@@ -12,10 +12,10 @@ _HTTP request/response flow through the middleware chain showing execution order
 
 ### Configuration
 
-| Variable     | Default | Effect                                                                                       |
-| ------------ | ------- | -------------------------------------------------------------------------------------------- |
-| `EXPOSE_LAN` | `false` | `true`: every request needs the login session cookie or an `API_KEYS` key, except open paths |
-| `API_KEYS`   | `[]`    | Keys the gate accepts (JSON array); `verify_api_key` routes also need `API_KEY_ENABLED=true` |
+| Variable     | Default | Effect                                                                                                                                                                                                                                                                                  |
+| ------------ | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EXPOSE_LAN` | `false` | `true`: every request needs the login session cookie or an `API_KEYS` key, except open paths                                                                                                                                                                                            |
+| `API_KEYS`   | `[]`    | Keys the gate accepts (JSON array); `verify_api_key` routes also need `API_KEY_ENABLED=true`. R60: an entry may be an object `{"key": ..., "scope": "monitoring"}` admitted only on its scope's exact `(method, path)` pairs (`backend/core/constants.py`); plain entries stay unscoped |
 
 With `EXPOSE_LAN` unset the gate passes every request; with `O1.6` landed the `127.0.0.1` binding is the boundary.
 

@@ -213,6 +213,22 @@ jobs:
       # the comment lives HERE (outside the folded scalar) per the WP0.1
       # lesson: a `#` inside `>-` becomes a bash comment mid-command and
       # silently kills every file listed after it.
+      # O2.3 (§M1): the reachability walker's suite joined the list. It is
+      # the ONLY mechanical check of the shipping/non-shipping verdict the
+      # rest of the programme (M2 scoring, R-surface deletions) reads, and
+      # its Done-when says the suite must pass IN CI — six pins against the
+      # real tree (redis_json/scenario_classifier/managed_service/
+      # orphan_cleanup_service dead; vlm_analyzer/backend/evaluation live)
+      # rot the moment they stop running.
+      # O2.3b (ruling 73): the R2-input generator's suite joined the list,
+      # same doctrine — a committed deletion list that stops matching the
+      # tool is how B3.2 deletes a shipping file. The job has no path filter
+      # (verified at claim time), so the freshness gate runs on docs-only
+      # PRs too: the regions cannot be hand-edited past it. The generator is
+      # named here by role, not by scripts/ path: the entries pin in
+      # scripts/test_reachability.py scans THIS file's comments for non-test
+      # script paths and demands each be a declared entry point, and naming
+      # it would change the tool-inputs stamp for a walk-neutral reason.
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -243,6 +259,8 @@ jobs:
           scripts/audit/test_battery_census.py
           scripts/audit/test_literal_groups.py
           scripts/test_shard_durations.py
+          scripts/test_reachability.py
+          scripts/test_r2_python_dead_list.py
           -q
       # Docs level-1: every source citation in the scoped docs dirs names a
       # file that exists. Level 1 only (--no-ast --no-code-match --no-cross-ref

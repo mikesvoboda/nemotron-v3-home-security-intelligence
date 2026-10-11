@@ -256,12 +256,13 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O1.11 | ops | 1 | Monitoring behind the gate (UR-33) | owner | awaiting real tier | #6930 |
 | O1.12 | ops | 1 | The hooks run in the gate (UR-37) | | done | #6901 |
 | B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | done     | #6921 |
+| B2.2 | backend | 2 | Re-ID on the GPU (OD-17 re-ID half) | heavy · owner | awaiting real tier | #6970 |
 | F2.1    | frontend                | 2          | Golden-path harness                            |               | not started |     |
 | F2.2    | frontend                | 2          | Feature inventory                              | heavy         | not started |     |
 | F2.3    | frontend                | 2          | Golden paths for every working feature         |               | not started |     |
 | O2.1    | ops                     | 2          | Fake AI stack                                  |               | done        | #6946 |
 | O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | not started |     |
-| O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | not started |     |
+| O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | done        | #6954 |
 | R2      | owner; frontend records | 2          | Phase 2 RULING session (after `F2.3`)          | owner         | not started |     |
 | B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy · owner | not started |     |
 | B3.2    | backend                 | 3          | Delete the approved module list                | heavy · owner | not started |     |
