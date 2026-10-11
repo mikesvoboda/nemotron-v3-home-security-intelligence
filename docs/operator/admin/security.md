@@ -19,7 +19,14 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   `MONITORING_API_KEY` into `.env` (mirrored into `API_KEYS` as an entry scoped to
   `monitoring` — R60 — so it cannot read operator-only paths), and Prometheus,
   Alertmanager and Grafana's backend API each present it, so scraping and alert
-  delivery keep working with the gate on. `/grafana/` moves from anonymous Admin to
+  delivery keep working with the gate on. Any install whose `.env` `API_KEYS` list
+  was last written by `setup.py` between `O1.11` and R60 still lists that key as a plain
+  entry, which the gate reads as unscoped. Re-running
+  `python setup.py` interactively converts it — the key value is kept and only its
+  `API_KEYS` entry becomes scoped; `--yes` and `--defaults` skip that reuse, minting a
+  second key and leaving the old plain entry live. Recreate the backend to apply it:
+  `podman compose -f docker-compose.prod.yml up -d --force-recreate backend` — a plain
+  `restart` keeps serving the old value. `/grafana/` moves from anonymous Admin to
   `auth_request` against the login session plus Grafana `auth.proxy` as Viewer: one
   login serves the UI and the dashboards, and `/grafana/` is refused without a
   session. Logging in then needs TLS in front
