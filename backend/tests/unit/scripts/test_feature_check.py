@@ -26,6 +26,7 @@ import importlib.util
 import json
 import os
 import re
+import secrets
 import signal
 import socket
 import subprocess
@@ -798,9 +799,11 @@ VLM_URL = "http://host.docker.internal:18123"
 SERVED_MODEL = "Qwen3VL-8B-Instruct-Q4_K_M"
 
 # A stand-in for the agent-gpu CLI: it logs each call as a JSON line, keeps
-# the names `run` started until `rm` removes them, and lists them on `ps`.
+# the names `run` started until `rm` removes them, and lists them on `ps`. It
+# refuses a name as the broker does (its policy and refusal, quoted from the
+# operator's first --real run on #6961).
 AGENT_GPU_STUB = """#!/usr/bin/env python3
-import json, os, sys
+import json, os, re, sys
 log = os.environ["AGENT_GPU_STUB_LOG"]
 state = log + ".running"
 with open(log, "a") as f:
@@ -809,6 +812,9 @@ names = open(state).read().split() if os.path.exists(state) else []
 verb = sys.argv[1]
 if verb == "run":
     name = sys.argv[sys.argv.index("--name") + 1]
+    if not re.fullmatch("[a-z0-9][a-z0-9-]{0,31}", name):
+        print("agent-gpu: refused.policy: name: must match [a-z0-9][a-z0-9-]{0,31}", file=sys.stderr)
+        sys.exit(1)
     if os.environ.get("AGENT_GPU_STUB_RUN_EXIT"):
         print("admission refused: 38 of 40 GiB declared", file=sys.stderr)
         sys.exit(int(os.environ["AGENT_GPU_STUB_RUN_EXIT"]))
@@ -821,7 +827,10 @@ elif verb == "rm" and os.environ.get("AGENT_GPU_STUB_KEEP") != "1":
 elif verb == "ps":
     print("NAME IMAGE VRAM")
     for name in names:
-        print(f"{os.environ.get('AGENT_GPU_STUB_PS_PREFIX', '')}{name} ai-vlm:0000000 14GiB")
+        if os.environ.get("AGENT_GPU_STUB_PS_ANONYMOUS"):
+            print("c0ffee ai-vlm:0000000 14GiB")
+        else:
+            print(f"{os.environ.get('AGENT_GPU_STUB_PS_PREFIX', '')}{name} ai-vlm:0000000 14GiB")
 elif verb == "status":
     print("declared 0 of 40 GiB")
 elif verb == "images":
@@ -1103,6 +1112,16 @@ def _serve(handler: Any) -> Any:
     return server
 
 
+def _started_vlm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """A VLM the stand-in agent-gpu has started (and so lists on ps)."""
+    monkeypatch.setattr(fc.AgentGpu, "prod_environment", lambda *_: ["PORT=8098"])
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.vlm_image = "ai-vlm:abc1234"
+    vlm.start()
+    assert (vlm.url, vlm.host_port) == (VLM_URL, 18123)
+    return vlm
+
+
 def _vlm_proxy(model_path: str, seen: list[str]) -> Any:
     """A proxy that answers for the VLM, as the sandbox's proxy forwards
     host.docker.internal to the host's loopback."""
@@ -1145,8 +1164,7 @@ def test_the_served_model_must_be_the_pin(
     server = _vlm_proxy(f"{library}/Qwen3VL-8B-Instruct-Q4_K_M.gguf", seen)
     try:
         _through(monkeypatch, server)
-        vlm = fc.AgentGpu(_run(tmp_path))
-        vlm.url, vlm.host_port = VLM_URL, 18123
+        vlm = _started_vlm(tmp_path, monkeypatch)
         vlm.wait_ready(timeout=5)
         assert seen[:1] == [f"{VLM_URL}/health"]
         assert f"{VLM_URL}/props" in seen
@@ -1164,8 +1182,7 @@ def test_a_served_model_that_is_not_the_pin_refuses(
     server = _vlm_proxy("/library/qwen3vl-8b-instruct-q8_0/Qwen3VL-8B-Instruct-Q8_0.gguf", [])
     try:
         _through(monkeypatch, server)
-        vlm = fc.AgentGpu(_run(tmp_path))
-        vlm.url, vlm.host_port = VLM_URL, 18123
+        vlm = _started_vlm(tmp_path, monkeypatch)
         with pytest.raises(fc.HarnessError, match="Q8_0"):
             vlm.wait_ready(timeout=5)
     finally:
@@ -1203,7 +1220,7 @@ def test_the_vlm_is_built_and_served_as_operator_md_says(
     assert calls[5] == [
         "run",
         "--name",
-        f"{run.project}-vlm",
+        vlm.name,
         "--image",
         "ai-vlm:abc1234",
         "--vram",
@@ -1337,7 +1354,7 @@ def test_a_green_real_run_removes_its_vlm_after_the_test_deployment(
     assert order[-2:] == ["collect", "teardown"]
     (summary_file,) = (tmp_path / "runs").glob("hsi-check-*/artifacts/summary.json")
     summary = json.loads(summary_file.read_text(encoding="utf-8"))
-    name = f"{summary['project']}-vlm"
+    name = summary["vlm_name"]
     assert agent_gpu.calls()[-6:] == [
         ["compose-down"],
         ["ps"],
@@ -1383,7 +1400,7 @@ def test_a_vlm_that_outlives_the_run_fails_it(
     (summary_file,) = (tmp_path / "runs").glob("hsi-check-*/artifacts/summary.json")
     summary = json.loads(summary_file.read_text(encoding="utf-8"))
     (problem,) = summary["results"]["agent_gpu"]
-    assert f"{summary['project']}-vlm" in problem
+    assert summary["vlm_name"] in problem
 
 
 def test_a_backend_that_cannot_reach_the_vlm_says_so_when_up_fails(
@@ -1609,7 +1626,7 @@ def test_a_vlm_that_fails_to_start_is_still_removed(
     status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
     assert status == fc.EXIT_FAILED
     assert "render" not in order
-    name = f"{_real_summary(tmp_path / 'runs')['project']}-vlm"
+    name = _real_summary(tmp_path / "runs")["vlm_name"]
     calls = agent_gpu.calls()
     assert ["stop", name] in calls
     assert ["rm", name] in calls
@@ -1805,3 +1822,70 @@ def test_a_signal_the_caller_ignores_stays_ignored(
     assert status == fc.EXIT_OK
     assert "interrupted" not in _real_summary(tmp_path / "runs")
     assert "golden" in order
+
+
+# ---------------------------------------------------------------------------
+# agent-gpu's name policy (#6967): the first --real run on the GB300 was
+# refused, `agent-gpu: refused.policy: name: must match [a-z0-9][a-z0-9-]{0,31}`
+# ---------------------------------------------------------------------------
+
+
+def test_the_vlm_name_fits_agent_gpus_name_policy(tmp_path: Path) -> None:
+    """`<project>-vlm` was 35 characters: the project alone is 31, so the
+    name is the run's id under a short prefix, not the project plus a suffix."""
+    for _ in range(20):
+        run = _run(tmp_path / secrets.token_hex(4))
+        vlm = fc.AgentGpu(run)
+        assert re.fullmatch(r"[a-z0-9][a-z0-9-]{0,31}", vlm.name), vlm.name
+        assert vlm.name == "hsi-vlm-" + run.project.removeprefix(fc.PROJECT_PREFIX)
+        assert run.summary["vlm_name"] == vlm.name
+
+
+def test_a_vlm_name_the_policy_refuses_stops_the_run_before_anything_is_served(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _pin(monkeypatch, PINNED)
+    _library(tmp_path / "library", PINNED)
+    monkeypatch.setattr(fc.AgentGpu, "vlm_tree", lambda *_: "abc1234")
+    vlm = fc.AgentGpu(_run(tmp_path))
+    vlm.name = "hsi-check-20261010181711-802118-vlm"
+    with pytest.raises(fc.Refused) as refused:
+        vlm.prepare()
+    _one_problem(refused.value.problems, vlm.name, "[a-z0-9][a-z0-9-]{0,31}")
+    assert agent_gpu.verbs() == []
+
+
+def test_a_policy_refused_name_ends_the_run_with_exit_2_before_the_weights(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Through main: a refusal (exit 2), recorded in the summary, before the
+    weights are hashed and before any agent-gpu call."""
+    hashed: list[Path] = []
+    monkeypatch.setattr(fc, "weight_digests", lambda directory: hashed.append(directory) or {})
+    monkeypatch.setattr(fc.AgentGpu, "vlm_tree", lambda *_: "abc1234")
+    monkeypatch.setattr(fc.Run, "take_snapshot", lambda *_: fc.Snapshot((), frozenset()))
+    monkeypatch.setattr(fc, "VLM_NAME_PREFIX", "hsi-check-and-a-prefix-too-long-")
+    status = fc.main(["--real", "--root", str(tmp_path / "runs"), "--image-tag", "test"])
+    assert status == fc.EXIT_REFUSED == 2
+    assert hashed == []
+    assert agent_gpu.verbs() == []
+    summary = _real_summary(tmp_path / "runs")
+    assert summary["exit"] == 2
+    assert "weights" not in summary
+
+
+def test_a_vlm_that_ps_does_not_list_by_name_fails_the_run(
+    agent_gpu: AgentGpuStub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The teardown proves the VLM gone by its name's absence from ps; that
+    proves nothing unless ps lists it by that name while it serves."""
+    monkeypatch.setenv("AGENT_GPU_STUB_PS_ANONYMOUS", "1")
+    server = _vlm_proxy(f"/library/{fc.VLM_LIBRARY_DIR}/Qwen3VL-8B-Instruct-Q4_K_M.gguf", [])
+    try:
+        _through(monkeypatch, server)
+        vlm = _started_vlm(tmp_path, monkeypatch)
+        with pytest.raises(fc.HarnessError, match="does not list"):
+            vlm.wait_ready(timeout=5)
+    finally:
+        server.shutdown()
+        server.server_close()
