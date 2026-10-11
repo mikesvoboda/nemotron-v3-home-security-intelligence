@@ -467,11 +467,23 @@ asserts through `/api/events` that exactly one event arrives carrying the
 scenario's verdict and risk score. The smoke scenario has image bytes of its
 own, so the backend's content dedupe never swallows a golden path's image.
 
+**Where CI runs it (ruling 105).** The `--fake` tier runs as the
+`Feature check (fake AI)` job in `ci.yml`, which `CI Gate (Required Checks)`
+needs: a red golden path blocks a merge like any other required verdict. The
+job is skipped on a PR whose diff cannot affect the run (the `detect-changes`
+`feature` filter — Markdown-only among them) and runs on `main` after every
+merge. The operator's and owner's manual run stays available: dispatch `CI`
+with `workflow_dispatch` and the feature-check job runs regardless of the
+filter. The check previously lived in a standalone `Feature Check` workflow;
+ruling 105 moved it into `ci.yml` and retired the standalone file, so it does
+not run twice. The `--real` tier never runs from GitHub (UR-15) — that is the
+operator's `--real` on the GPU sandbox.
+
 **Frontend dependencies (ruling 102).** The golden step runs the Playwright
 `golden` project with `npx playwright test --project=golden` from `frontend/`.
 An operator's tree has no `frontend/node_modules` — the harness builds the
-images but installs no dependencies into the checkout, and the `Feature Check`
-workflow's `npm ci` step is a different process — so on such a tree the harness
+images but installs no dependencies into the checkout, and the CI feature-check
+job's `npm ci` step is a different process — so on such a tree the harness
 now runs `npm ci` in `frontend/` itself first, and the documented command runs
 unchanged. An existing install is never touched: `npm ci` deletes
 `node_modules` on entry, so it runs only where there is nothing to delete. The

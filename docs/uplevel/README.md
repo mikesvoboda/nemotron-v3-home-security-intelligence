@@ -260,14 +260,15 @@ PR that opens `B4.2` or `FB.1` adds its row under the matching `*` line.
 | O1.11 | ops | 1 | Monitoring behind the gate (UR-33) | owner | awaiting real tier | #6930 |
 | O1.12 | ops | 1 | The hooks run in the gate (UR-37) | | done | #6901 |
 | B2.1    | backend                 | 2          | Interface bar and accepted survivors (`01` M3) |               | done     | #6921 |
-| B2.2 | backend | 2 | Re-ID on the GPU (OD-17 re-ID half) | heavy · owner | awaiting real tier | #6970 |
+| B2.2 | backend | 2 | Re-ID on the GPU (OD-17 re-ID half) — parked: GPU path fails on GB300 (ruling 106); CPU path measured | heavy · owner | done | #6970 |
 | F2.1    | frontend                | 2          | Golden-path harness                            |               | done        | #6976 |
 | F2.2    | frontend                | 2          | Feature inventory                              | heavy         | done        | #6941 |
-| F2.3    | frontend                | 2          | Golden paths for every working feature         |               | not started |     |
+| F2.3    | frontend                | 2          | Golden paths for every working feature         |               | in progress | #6997 |
 | O2.1    | ops                     | 2          | Fake AI stack                                  |               | done        | #6946 |
 | O2.2    | ops                     | 2          | Feature-check harness (fake and real)          | heavy · owner | awaiting real tier | #6961 |
 | O2.3    | ops                     | 2          | Reachability check (`01` M1)                   |               | done        | #6954 |
 | O2.3b   | ops                     | 2          | Reachability: ancestor packages ship           |               | done        | #6973 |
+| O2.4    | ops                     | 2          | Re-ID on the GB300 GPU via TensorRT            |               | not started |     |
 | R2a     | owner; frontend records | 2          | Phase 2 RULING session, part 1 (as it stood)   | owner         | done        | #6980 |
 | R2b     | owner; frontend records | 2          | Phase 2 RULING session, part 2 (after `F2.3`)  | owner         | not started |     |
 | B3.1    | backend                 | 3          | Retire ruled-out features, backend part        | heavy · owner | not started |     |
