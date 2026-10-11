@@ -494,6 +494,19 @@ script, so `npm ci` brings the runner, not Chromium — so a tree that has never
 run `npx playwright install chromium` still fails, now with Playwright's own
 browser-missing message rather than a module error.
 
+**A golden run that executes nothing (ruling 114).** A leg's exit code says the
+runner finished, not that a spec ran. The shape that hides is the one that exits
+`0`: a suite where every spec skipped. (A `pytest` run that _collected_ nothing
+exits `5`, so the leg's exit-code check already reddens that one.) A report that
+lists no spec at all is the same hole, and a golden section could read
+`{"backend": "ok", "backend_specs": {}}` — accounted, and proving nothing. Now a
+golden project whose report lists no spec, or lists only skips, adds a problem
+and Feature Check goes red. Only _all_-skipped is red: some golden specs skip
+themselves honestly when their precondition is absent (the `test_backup` specs,
+a permission spec the runner didn't grant), and a run with any executed spec is
+the green this programme wants. An absent golden project is a separate state and
+stays `"no specs yet"`, never a problem.
+
 **Isolation.** A run touches nothing else on the machine, so it is safe beside
 a live stack.
 
