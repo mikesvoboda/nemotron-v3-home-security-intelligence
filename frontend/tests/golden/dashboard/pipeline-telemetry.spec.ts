@@ -104,16 +104,96 @@ async function openDashboard(page: import('@playwright/test').Page, h: Dashboard
   await expect(page.getByTestId('dashboard-layout')).toBeVisible({ timeout: 20_000 });
 }
 
-/** Turn a widget ON through the shipped Configure modal (F-042's path), then save. */
+/** Live jar state for one widget: undefined = the id is absent from the jar. */
+function jarVisible(page: import('@playwright/test').Page, widgetId: string) {
+  return page.evaluate((id) => {
+    const raw = localStorage.getItem('dashboard-config-v2');
+    if (!raw) return 'NO_JAR' as const;
+    const st = JSON.parse(raw) as { state?: { widgets?: { id: string; visible: boolean }[] } };
+    const w = (st?.state?.widgets ?? []).find((x) => x.id === id);
+    return w === undefined ? ('ABSENT' as const) : w.visible;
+  }, widgetId);
+}
+
+/**
+ * Turn a widget ON through the shipped Configure modal (F-042's path) and
+ * return an event-driven locator for the rendered widget.
+ *
+ * The re-drive is load-bearing, not padding. Run 38168556142 measured this
+ * leg FLAKY (attempt 1 and retry #1 both red; junit's "passed" is retry #2),
+ * and both signatures point at one shipped race, not at the instrument:
+ * DashboardConfigModal.tsx:109-113 re-seeds its unsaved in-editor draft from
+ * the `config` prop on ANY change to that prop's identity, and DashboardLayout
+ * .tsx:268 builds that prop as a fresh object literal on every render
+ * (`const config: DashboardConfig = { widgets, version }`, handed down :377)
+ * while the dashboard re-renders continuously. A background re-render landing
+ * between Save's click and its commit therefore discards the draft, and the
+ * save commits the PRE-EDIT state. Observed at 31d17e13a, both halves:
+ *   - retry #1: the toggle refused to latch — aria-checked stayed "false"
+ *     across 10 reads (the click's draft discarded before its own assert);
+ *   - attempt 1: enableWidget RETURNED (so Save closed the modal, as its own
+ *     close assert proved) yet the widget was ABSENT from a fully booted
+ *     dashboard (aria snapshot: stats row, camera grid, donut all present, no
+ *     dialog). PipelineTelemetry carries its data-testid in BOTH the loading
+ *     (:317) and error (:338) states, so "element(s) not found" can only mean
+ *     the store still said visible:false — a save that reported success it
+ *     did not achieve.
+ * The UI reports success it did not achieve: that hazard is F-042's own
+ * clause ("the layout persists across reloads"), so it stays on the record in
+ * the inventory row rather than being hidden by this helper — and the helper
+ * still never papers over it: a lossy save fails HERE, on the jar, with both
+ * observed values.
+ */
 async function enableWidget(page: import('@playwright/test').Page, widgetId: string) {
   await page.getByTestId('configure-dashboard-button').click();
   await expect(page.getByTestId('widget-list')).toBeVisible();
-  const sw = page.getByTestId(`widget-toggle-${widgetId}`);
-  await expect(sw).toHaveAttribute('role', 'switch');
-  if ((await sw.getAttribute('aria-checked')) !== 'true') await sw.click();
-  await expect(sw).toHaveAttribute('aria-checked', 'true');
-  await page.getByTestId('save-button').click();
-  await expect(page.getByTestId('widget-list')).toHaveCount(0);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const sw = page.getByTestId(`widget-toggle-${widgetId}`);
+    await expect(sw, 'the shipped toggle is a real switch').toHaveAttribute('role', 'switch');
+    if ((await sw.getAttribute('aria-checked')) !== 'true') await sw.click();
+    // Poll the REAL attribute (never `sw.click()` — expect.poll retries reads,
+    // not actions): the draft can be re-seeded after the click lands.
+    let latched = true;
+    try {
+      await expect
+        .poll(async () => sw.getAttribute('aria-checked'), {
+          message: `toggle latches on (attempt ${attempt})`,
+          timeout: 8_000,
+        })
+        .toBe('true');
+    } catch {
+      latched = false;
+    }
+    if (!latched) {
+      // Let the in-flight re-render finish, then re-read the draft and retry.
+      await page.waitForTimeout(1_000);
+      continue;
+    }
+    await page.getByTestId('save-button').click();
+    await expect(page.getByTestId('widget-list'), 'Save closes the modal').toHaveCount(0);
+    // COMMITMENT, not intent: the jar is what the reload reads back.
+    let saved = true;
+    try {
+      await expect
+        .poll(() => jarVisible(page, widgetId), {
+          message: 'the jar carries this widget visible:true',
+          timeout: 10_000,
+        })
+        .toBe(true);
+    } catch {
+      saved = false;
+    }
+    if (saved) break;
+    if (attempt === 3) {
+      throw new Error(
+        `Save reported success but the jar never carried ${widgetId} visible:true across 3 ` +
+          'drives — the modal draft-lossy path (DashboardConfigModal.tsx:109-113 with ' +
+          'DashboardLayout.tsx:268) discarded the edit. This is a product hazard, not an ' +
+          'instrument failure.'
+      );
+    }
+  }
+  return page.getByTestId(widgetId);
 }
 
 test.describe('golden path: dashboard pipeline telemetry widget @critical', () => {
@@ -123,15 +203,17 @@ test.describe('golden path: dashboard pipeline telemetry widget @critical', () =
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
-    test.setTimeout(90_000);
+    // Same headroom as the reload leg: enableWidget's 3 drives can cost ~57 s
+    // worst case, and a re-drive must never be paid for with a timeout.
+    test.setTimeout(150_000);
 
     await openDashboard(page, h);
     // Off by default: NOT in the DOM before enabling (DEFAULT_WIDGETS
     // visible:false, store :118-159) — the row's first word is asserted.
     await expect(page.getByTestId('pipeline-telemetry')).toHaveCount(0);
 
-    await enableWidget(page, 'pipeline-telemetry');
-    await expect(page.getByTestId('pipeline-telemetry')).toBeVisible({ timeout: 15_000 });
+    const widget = await enableWidget(page, 'pipeline-telemetry');
+    await expect(widget, 'the saved jar paints the widget').toBeVisible({ timeout: 15_000 });
 
     // Ground truth: fresh Node GETs of the SAME paramless endpoint (it has no
     // cache layer — system.py:3113-3161). Each agreement poll re-reads it, so
@@ -202,11 +284,13 @@ test.describe('golden path: dashboard pipeline telemetry widget @critical', () =
     test.info().skip(!harness.ready, harness.ready ? '' : harness.why);
     if (!harness.ready) return;
     const h = harness;
-    test.setTimeout(90_000);
+    // Headroom for the documented worst case: 3 re-drives of the modal path
+    // (each ≤ ~19 s of latch/jar polls) + boot + reload + the 45 s paint wait.
+    test.setTimeout(150_000);
 
     await openDashboard(page, h);
-    await enableWidget(page, 'pipeline-telemetry');
-    await expect(page.getByTestId('pipeline-telemetry')).toBeVisible({ timeout: 15_000 });
+    const widget = await enableWidget(page, 'pipeline-telemetry');
+    await expect(widget, 'a jar-committed enable renders live').toBeVisible({ timeout: 15_000 });
     // The jar is what carries it (F-042's mechanism, asserted here because
     // THIS row's "off by default" only means something if the ENABLE
     // persists). Key 'dashboard-config-v2' is zustand persist's own name
@@ -227,7 +311,12 @@ test.describe('golden path: dashboard pipeline telemetry widget @critical', () =
     await quietBoot(page, h);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('dashboard-layout')).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId('pipeline-telemetry')).toBeVisible({ timeout: 15_000 });
+    // Event-driven, not a fixed guess: the rehydrate→paint gap is exactly the
+    // interval that produced the measured flake. If a jar-committed enable
+    // still fails to paint, that is the persistence clause failing — said here.
+    await expect(widget, 'the committed enable survives the reload').toBeVisible({
+      timeout: 45_000,
+    });
 
     expect(() => closedByGuard(page)).toThrow(GUARD_MESSAGE);
   });
