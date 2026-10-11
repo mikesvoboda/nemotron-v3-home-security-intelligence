@@ -1488,6 +1488,94 @@ def test_a_golden_suite_with_no_report_lists_no_specs(tmp_path: Path) -> None:
     assert fc.junit_results(broken) == {}
 
 
+def _golden_only_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    node_modules: bool,
+    calls: list[tuple[list[str], dict[str, Any]]],
+    install_rc: int = 0,
+) -> Any:
+    """A Run whose golden() reaches the Playwright branch with every filesystem
+    fact pointed at tmp_path, and whose _run is recorded, not executed.
+
+    The branch is guarded by the TEXT of ``frontend/playwright.config.ts`` (a
+    regex for ``name: 'golden'``), so the fixture spells that text; the real
+    repo's tree is never consulted, so the result cannot depend on whether
+    this machine happens to have a frontend install.
+    """
+    run = _run(tmp_path, mode="fake")
+    run.api, run.ui = "http://api.invalid", "http://ui.invalid"
+    # The password's VALUE is never what the pins read — they only check that
+    # the npm call carries no env at all — so this stays a deliberate dummy.
+    run.admin = {"username": "u", "password": "hunter2"}  # pragma: allowlist secret
+    config = tmp_path / "playwright.config.ts"
+    config.write_text("{ name: 'golden', testDir: './tests/golden' }\n", encoding="utf-8")
+    modules = tmp_path / "frontend" / "node_modules"
+    if node_modules:
+        modules.mkdir(parents=True)
+    monkeypatch.setattr(fc, "PLAYWRIGHT_CONFIG", config)
+    monkeypatch.setattr(fc, "FRONTEND", tmp_path / "frontend")
+    monkeypatch.setattr(fc, "FRONTEND_MODULES", modules)
+    monkeypatch.setattr(fc, "BACKEND_GOLDEN", tmp_path / "no-backend-golden")
+
+    def fake(self: Any, command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((list(command), kwargs))
+        rc = install_rc if command[:2] == ["npm", "ci"] else 0
+        return subprocess.CompletedProcess(command, rc, "", "")
+
+    monkeypatch.setattr(fc.Run, "_run", fake)
+    return run
+
+
+@pytest.mark.parametrize("node_modules", [False, True])
+def test_the_golden_step_installs_frontend_deps_only_when_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, node_modules: bool
+) -> None:
+    """Ruling 102: the operator's documented ``--real`` run died at
+    ERR_MODULE_NOT_FOUND because nothing ever installed frontend/node_modules
+    on their tree (the harness builds no images for it; feature-check.yml's
+    ``npm ci`` step is not this process). golden() now installs when absent —
+    and an existing install is LEFT ALONE, because ``npm ci`` deletes
+    node_modules on entry and would blow away an operator's (or a CI
+    runner's) working install, its Playwright browsers included."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, node_modules, calls)
+    problems = run.golden()
+    commands = [command for command, _ in calls]
+    assert problems == []
+    assert commands[-1][:4] == ["npx", "playwright", "test", "--project=golden"]
+    installs = [c for c in commands if c[:2] == ["npm", "ci"]]
+    if node_modules:
+        assert installs == [], "an existing install must never be re-run over"
+        assert "npm_ci" not in run.summary["results"]["golden"]
+    else:
+        assert installs == [["npm", "ci"]]
+        assert commands[0] == ["npm", "ci"], "the install must come BEFORE npx"
+        install_kwargs = calls[0][1]
+        assert install_kwargs["cwd"] == tmp_path / "frontend"
+        assert install_kwargs["timeout"] == 1800, "the 300 s default cannot survive a cold install"
+        assert "env" not in install_kwargs, "npm must not see the run env (admin password)"
+        # Positive witness that the recorder captures env= when it IS passed:
+        # without this, the line above would pass even if no call ever had one.
+        assert "env" in calls[-1][1], "npx keeps its run env — the recorder sees env="
+        assert run.summary["results"]["golden"]["npm_ci"] == "ok"
+
+
+def test_a_failed_frontend_install_is_a_named_step_not_a_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The operator posts summary.json verbatim (O2.2). An unreachable registry
+    must therefore NAME its step in the summary and problems — with check=False
+    the run continues, so the npx exit that follows is context, not a crash,
+    and the harness still reaches collect/teardown."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    run = _golden_only_run(tmp_path, monkeypatch, False, calls, install_rc=243)
+    problems = run.golden()
+    assert [c[:2] for c, _ in calls] == [["npm", "ci"], ["npx", "playwright"]]
+    assert run.summary["results"]["golden"]["npm_ci"] == "exit 243"
+    assert any("npm ci in frontend/ exited 243" in p for p in problems)
+
+
 # ---------------------------------------------------------------------------
 # The second self-review's findings (the --real diff), each reproduced here
 # ---------------------------------------------------------------------------
