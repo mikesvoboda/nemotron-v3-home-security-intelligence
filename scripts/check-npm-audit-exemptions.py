@@ -158,8 +158,13 @@ def main() -> int:
         # structurally impossible here and every alias must be spelled out in
         # the entry's "aliases" list. Exact-id logic, not fuzzy: the
         # package-attribution check below still adjudicates.
+        # Prefer the entry's OWN id when the audit reports it: an entry whose
+        # aliases over-list (naming a second, genuinely distinct reported
+        # advisory) then adjudicates identically on every run — a bare
+        # next(...) over the set would pick by string-hash order, and the same
+        # red input would print different violations on different seeds.
         ids = {gid, *(e.get("aliases") or [])}
-        hit = next((i for i in ids if i in found), None)
+        hit = gid if gid in found else next((i for i in ids if i in found), None)
         if hit is None:
             errors.append(
                 f"{gid}: registered but NO current audit finding matches - stale, remove it"

@@ -280,10 +280,13 @@ def test_warn_on_expiry_soon_is_exit_two(tmp_path: Path) -> None:
 
 # --- R76: alias matching (R61's twin for the npm checker) --------------------
 
-# A second 4-4-4 id standing in for the advisory's OTHER alias (a CVE or a
-# reassigned GHSA). npm audit --json gives no aliases array - advisories
-# arrive only as the single GHSA URL in via[].url - so both alias directions
-# ruling 76 pins are necessarily expressed registry-side.
+# A second 4-4-4 id standing in for the advisory's OTHER GHSA (the GitHub
+# advisory DB reassigning ids, or one vulnerability published under two
+# GHSA entries). A CVE-valued alias would be inert here: every key in the
+# checker's `found` map is GHSA-form (GHSA_RE gates parse), so only GHSA
+# aliases can ever match. npm audit --json gives no aliases array -
+# advisories arrive only as the single GHSA URL in via[].url - so both alias
+# directions ruling 76 pins are necessarily expressed registry-side.
 G3 = "GHSA-1111-2222-3333"
 
 
@@ -329,3 +332,35 @@ def test_alias_does_not_overshoot(tmp_path: Path) -> None:
     r = h.run(audit_doc(BRACES), {"exceptions": [e]})
     assert r.returncode == 1
     assert "stale" in r.stderr and "UNEXEMPTED" in r.stderr
+
+
+def test_overlapping_alias_adjudicates_deterministically(tmp_path: Path) -> None:
+    """Self-review F1 pin: an entry whose {id, aliases} names TWO distinct
+    reported advisories must adjudicate identically on every run. The harness
+    scrubs env, so each subprocess gets a fresh PYTHONHASHSEED; a bare
+    next(...) over the id set picked `hit` by string-hash order and printed
+    a DIFFERENT violation list on different seeds (reproduced: 1 error vs 2
+    errors across seeds, always rc=1). The checker now prefers the entry's
+    own id, so the over-listed alias deterministically leaves the OTHER
+    advisory UNEXEMPTED - fail-closed and reproducible."""
+    h = Harness(tmp_path)
+    e = entry(G1, "braces")
+    e["aliases"] = [G3]  # G3 is a DIFFERENT advisory actually reported here
+    both = [
+        {
+            "pkg": "braces",
+            "gid": G1,
+            "sev": "high",
+            "fix": {"name": "tailwindcss", "version": "4.3.3", "isSemVerMajor": True},
+        },
+        {"pkg": "serialize-javascript", "gid": G3, "sev": "low", "fix": True},
+    ]
+    outs = {
+        (r.returncode, r.stderr)
+        for r in (h.run(audit_doc(both), {"exceptions": [e]}) for _ in range(20))
+    }
+    assert len(outs) == 1, f"adjudication varies across hash seeds: {outs}"
+    rc, err = next(iter(outs))
+    assert rc == 1
+    assert f"{G3}" in err and "UNEXEMPTED" in err
+    assert "stale" not in err  # G1 is reported and matched as hit, never stale
