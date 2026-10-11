@@ -83,10 +83,10 @@ one run — the gateway's `reid` model serves a TensorRT **plan** now (owner
 ruling 107), and an engine is only valid on the GPU architecture that built it.
 So the export splits the way `export_all.sh`'s phases already imply:
 
-| Step | Where it runs | What it does | Guard |
-| ---- | ------------- | ------------ | ----- |
-| `--output-path .../reid/1/model.onnx` | any host (CPU fine) | exports OSNet-AIN x1.0 from the `.pth`, validates the ONNX against PyTorch, then writes `provenance.json` (B2.2) | provenance only after a validated export |
-| `--output-path .../reid/1/model.plan` | **only the serving GPU** | compiles that `model.onnx` with `trtexec` (fp16, batch profiles 1/8/16) | refuses without a provenance record whose `source_sha256` is these weights |
+| Step                                  | Where it runs            | What it does                                                                                                     | Guard                                                                      |
+| ------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `--output-path .../reid/1/model.onnx` | any host (CPU fine)      | exports OSNet-AIN x1.0 from the `.pth`, validates the ONNX against PyTorch, then writes `provenance.json` (B2.2) | provenance only after a validated export                                   |
+| `--output-path .../reid/1/model.plan` | **only the serving GPU** | compiles that `model.onnx` with `trtexec` (fp16, batch profiles 1/8/16)                                          | refuses without a provenance record whose `source_sha256` is these weights |
 
 The plan step is a **compile, not a re-export**: it reads the sibling
 `model.onnx` and never loads a checkpoint, exports, or runs inference. That is
@@ -95,7 +95,7 @@ why the numeric proof sits where it always has:
 - **the graph** is proved by `validate_onnx` in the ONNX step — PyTorch against
   ONNX Runtime's **CPU** execution provider, cosine > 0.999, no GPU needed;
 - **the plan** is proved by the owner's host run, `scripts/reid_parity_check.py`
-  on the GB300 (ruling 107's *Done when*). Nothing in this directory
+  on the GB300 (ruling 107's _Done when_). Nothing in this directory
   re-validates an engine, because nothing here has a GPU to run one on; the plan
   is a deterministic compile of an already-vouched graph.
 - **`provenance.json` is never rewritten by the plan step.** It stays where the
@@ -113,11 +113,11 @@ declares `backend: "tensorrt"`, so `reid` does not load without a
 says which one it hit:
 
 - **no `trtexec` on this host** (the CPU bake, and CI): the step is skipped and
-  prints `WARNING: reid/config.pbtxt serves backend "tensorrt"; without a plan
-  built ON the serving GPU, reid will not load.` The bake still produces every
-  ONNX, which is what those runs are for — and its summary says
-  `the GPU step is pending, not passed` rather than `All exports succeeded`,
-  because a skipped GPU step is not a passed one.
+  prints a warning naming `reid/config.pbtxt serves backend "tensorrt"` and
+  that without a plan built ON the serving GPU, reid will not load. The bake
+  still produces every ONNX, which is what those runs are for — and its summary
+  says `the GPU step is pending, not passed` rather than
+  `All exports succeeded`, because a skipped GPU step is not a passed one.
 - **`trtexec` present and the compile fails**: counted as a failed export — the
   bake reports it and exits non-zero. A refusal from the provenance guard is the
   loud case it exists to make loud.
@@ -152,4 +152,3 @@ python3 export_reid.py \
     --model-path "${MODELS_ZOO}/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth" \
     --output-path "${CACHE_DIR}/reid/1/model.plan"
 ```
-
