@@ -39,7 +39,6 @@ PY_LINE=$(tr -dc '0-9.' < "$ROOT/.python-version")
 PYTHON_ALLOWLIST="
 .github/workflows/agents-md.yml:3.11
 .github/workflows/build-setup.yml:3.12
-.github/workflows/vulnerability-management.yml:3.11
 .github/workflows/linear-github-sync.yml:3.12
 "
 

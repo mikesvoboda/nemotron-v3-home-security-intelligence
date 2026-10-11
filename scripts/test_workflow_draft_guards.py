@@ -136,9 +136,15 @@ def check_triggers() -> list[str]:
                 f"{path.name}: explicit types: list {types} dropped a default "
                 f"pull_request activity type — that trigger class is now dead"
             )
-    if seen != 8:
+    # Pinned fleet size. 8 until OB.2 (#6963): dependency-audit.yml's
+    # standalone pull_request trigger was deleted there — on a PR the audit
+    # now runs only through ci.yml's security-dependency-audit call job
+    # (WP1.2: a standalone PR run raced the parent inside the shared
+    # concurrency group). Moving a workflow off the PR fleet moves this pin;
+    # that is the tripwire's design, not an exemption.
+    if seen != 7:
         failures.append(
-            f"expected 8 workflows with a pull_request trigger, found {seen} — "
+            f"expected 7 workflows with a pull_request trigger, found {seen} — "
             "a new PR-triggered workflow needs the guard and ready_for_review too"
         )
     return failures
