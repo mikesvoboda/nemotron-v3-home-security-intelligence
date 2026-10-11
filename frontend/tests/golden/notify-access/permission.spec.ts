@@ -9,10 +9,17 @@
  * - ONE permission singleton, two sections: both hooks seed from the same
  *   mount-time read of Notification.permission (useDesktopNotifications
  *   .ts:210-214 and usePushNotifications.ts:115-120). context
- *   .grantPermissions(['notifications']) therefore flips BOTH badges — the
- *   inventory's claim that "push" here is the same browser permission, never
- *   a server subscription, is pinned by asserting both subtitles go green on
- *   one grant.
+ *   .grantPermissions(['notifications']) therefore flips BOTH badges TOGETHER
+ *   — the inventory's claim that "push" here is the same browser permission,
+ *   never a server subscription, is pinned by asserting both subtitles go
+ *   green on one grant. MEASURED CAVEAT, this tick: that grant does not take
+ *   in the feature-check image at all — CI run 38148818888's granted-test
+ *   accessibility snapshot paints Denied twice (error-context :160/:163), and
+ *   the frontend lane's solo probe stack measured the same with the per-origin
+ *   variant. So the singleton law is pinned on the UN-granted side by the
+ *   mirror test (both rows print the same state string whatever the runner
+ *   says), and the granted test self-skips with its own measurement when the
+ *   image cannot enter the granted world — see harness.ts grantNotifications.
  * - The runner's un-granted default is the runner's business: headless
  *   Chromium ships 'denied' while a headed/flagged profile may sit at
  *   'default'. So the state leg does NOT hardcode a default — it reads
@@ -151,6 +158,26 @@ test.describe('DO-2 browser permissions golden path (F-234)', () => {
     await signIn(page, h);
     await page.goto(`${h.ui}/settings/notifications`, { waitUntil: 'domcontentloaded' });
     await expect(sectionTitle(page, 'Notification Settings')).toBeVisible();
+
+    // RUNTIME SELF-SKIP, stated not faked (owner note 6103539478's self-skip
+    // law): the feature-check image's Chromium does not honour the grant —
+    // CI run 38148818888 painted Denied inside THIS test after
+    // grantNotifications, and the lane's solo probe stack measured the same
+    // with the per-origin form. So measure before asserting: if the browser
+    // will not enter the granted world, say what it reports and skip the
+    // granted arm (which the row's real tier owns) rather than bank a red
+    // that indicts the product. If a future image DOES honour it, this line
+    // stops firing and every assert below runs — nothing here is widened or
+    // loosened to accommodate the failure. The mirror test above pins the
+    // one-singleton law in both worlds regardless.
+    const granted = await page.evaluate(() => Notification.permission);
+    test.skip(
+      granted !== 'granted',
+      `granted world unattainable in this image: context.grantPermissions(` +
+        `['notifications']) ran and Notification.permission reports ` +
+        `'${granted}'. Granted-arm pins are real-tier-only; the un-granted ` +
+        `singleton law is pinned by the mirror test above.`
+    );
 
     const desktopRow = rowOf(page, 'Desktop Notifications');
     const pushRow = rowOf(page, 'Push Notifications');

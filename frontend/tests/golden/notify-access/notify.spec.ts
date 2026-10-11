@@ -71,6 +71,7 @@
 import { expect, test } from '../guard';
 import {
   adminSession,
+  apiPath,
   assertGuardSurvives,
   authedFetch,
   login,
@@ -136,9 +137,16 @@ test.describe('DO-2 notifications golden path', () => {
     // --- one click PUTs exactly { enabled: flip }; API confirms; UI follows ---
     let flipped = false;
     try {
+      // apiPath(), NOT endsWith(): the shipped PUT sends the trailing-slash
+      // form (api.ts:4381 via fetchApi's verbatim concat at :1348), and the
+      // slashless endsWith() here timed out in CI run 38148818888 — flipped
+      // stayed false, the finally skipped the restore, and the leaked flip
+      // failed the retry at the shipped-default assert. harness.ts documents
+      // the class.
       const put = page
         .waitForResponse(
-          (r) => r.url().endsWith('/api/notification-preferences') && r.request().method() === 'PUT'
+          (r) =>
+            apiPath(r.url()) === '/api/notification-preferences' && r.request().method() === 'PUT'
         )
         .then(async (r) => ({ status: r.status(), body: await r.json().catch(() => null) }));
       await toggle.click();
@@ -160,7 +168,7 @@ test.describe('DO-2 notifications golden path', () => {
         const restore = page
           .waitForResponse(
             (r) =>
-              r.url().endsWith('/api/notification-preferences') && r.request().method() === 'PUT'
+              apiPath(r.url()) === '/api/notification-preferences' && r.request().method() === 'PUT'
           )
           .then((r) => r.status());
         await toggle.click();

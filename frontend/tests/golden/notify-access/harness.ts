@@ -218,9 +218,40 @@ export async function readV1Settings(page: Page): Promise<Record<string, any>> {
  *  deterministic route to the granted arm of the push/desktop badges
  *  (F-234). grantPermissions is state a user can genuinely produce; it is not
  *  route interception, so the guard leaves it alone (same footing as the
- *  login cookie). */
+ *  login cookie).
+ *
+ *  Measured caveat, this tick: in the feature-check image's Chromium the
+ *  grant does NOT take — CI run 38148818888's granted-test accessibility
+ *  snapshot paints Denied (error-context lines 160-164), and the frontend
+ *  lane's solo probe stack reproduced it with the per-origin variant
+ *  (grantPermissions(['notifications'], { origin })) too. permission.spec.ts
+ *  therefore MEASURES Notification.permission after granting and self-skips
+ *  with that measurement when the runner cannot enter the granted world —
+ *  stated, not faked, not left red (the self-skip law of owner note
+ *  6103539478: a batch spec that hard-fails outside the harness breaks
+ *  --list for every lane). */
 export async function grantNotifications(context: BrowserContext): Promise<void> {
   await context.grantPermissions(['notifications']);
+}
+
+/** The URL PATH a Playwright request/response carried, normalized: origin and
+ *  query stripped, ONE optional trailing slash removed.
+ *
+ *  Why a primitive instead of endsWith(): the shipped preferences PUT is
+ *  fetchApi('/api/notification-preferences/', …) (api.ts:4381) and fetchApi
+ *  concatenates BASE_URL + endpoint verbatim (:1348), so the browser really
+ *  sends the TRAILING-SLASH form. A waitForResponse predicate of
+ *  endsWith('/api/notification-preferences') can therefore NEVER fire — it
+ *  timed out in CI (run 38148818888, notify F-230), left flipped=false, and
+ *  the finally skipped the restore, leaking the flip into the retry. A
+ *  matcher that can never match is worse than a wrong assert: the assert
+ *  fails loudly, the matcher silently skips the code that restores state.
+ *  Exact-path equality after normalization is immune to either slash shape
+ *  AND cannot suffix-match the sibling routes (/…/cameras, /…/quiet-hours)
+ *  the same prefix owns. */
+export function apiPath(url: string): string {
+  const p = new URL(url).pathname;
+  return p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p;
 }
 
 /** End-of-spec honesty, the guard surviving the whole drive (F2.1's pin,

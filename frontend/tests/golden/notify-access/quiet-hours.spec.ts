@@ -53,6 +53,7 @@
 import { expect, test } from '../guard';
 import {
   adminSession,
+  apiPath,
   assertGuardSurvives,
   authedFetch,
   login,
@@ -102,9 +103,15 @@ test.describe('DO-2 quiet-hours UI form drive (F-232/F-233 UI half)', () => {
     await expect(sectionTitle(page, 'Notification Settings')).toBeVisible();
 
     // Network witness: every quiet-hours POST this page attempts, recorded.
+    // apiPath() equality, NOT endsWith(): an absence witness is exactly the
+    // place a never-matching predicate is invisible — a matcher that cannot
+    // fire makes `posts` empty for the WRONG reason, and toEqual([]) then
+    // passes on a page that POSTed twice. api.ts:4448 ships this route
+    // slashless today, so endsWith() works by accident; equality is immune to
+    // a future slash flip on either side.
     const posts: string[] = [];
     page.on('request', (req) => {
-      if (req.method() === 'POST' && req.url().endsWith(QUIET_URL)) posts.push(req.url());
+      if (req.method() === 'POST' && apiPath(req.url()) === QUIET_URL) posts.push(req.url());
     });
 
     const addPeriod = page.getByRole('button', { name: 'Add Period', exact: true });
@@ -183,7 +190,7 @@ test.describe('DO-2 quiet-hours UI form drive (F-232/F-233 UI half)', () => {
       const sentDays = ['tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
       const posted = page
-        .waitForResponse((r) => r.url().endsWith(QUIET_URL) && r.request().method() === 'POST')
+        .waitForResponse((r) => apiPath(r.url()) === QUIET_URL && r.request().method() === 'POST')
         .then(async (r) => ({ status: r.status(), body: await r.json().catch(() => null) }));
       await page.getByRole('button', { name: 'Save', exact: true }).click();
       const res = await posted;
@@ -221,10 +228,14 @@ test.describe('DO-2 quiet-hours UI form drive (F-232/F-233 UI half)', () => {
       expect(listed, 'the store sees the browser-created row').toContain(createdId);
 
       // Delete through the ROW, not the API: the trash button's accessible
-      // name is the shipped template (`Delete ${label}` :1025).
+      // name is the shipped template (`Delete ${label}` :1025). Exact-path
+      // equality on the id — the client encodes the id through
+      // encodeURIComponent (api.ts:4461), a no-op for a uuid's unreserved
+      // chars, so the normalized path and this literal agree.
       const deleted = page
         .waitForResponse(
-          (r) => r.url().includes(`/quiet-hours/${createdId}`) && r.request().method() === 'DELETE'
+          (r) =>
+            apiPath(r.url()) === `${QUIET_URL}/${createdId}` && r.request().method() === 'DELETE'
         )
         .then((r) => r.status());
       await page.getByRole('button', { name: `Delete ${UI_LABEL}`, exact: true }).click();
