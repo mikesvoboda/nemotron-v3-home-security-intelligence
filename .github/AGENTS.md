@@ -19,7 +19,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
   prompts/                    # AI prompt templates
     AGENTS.md                 # Prompts directory guide
     code-review.prompt.md     # System prompt for AI code review
-  workflows/                  # GitHub Actions workflow definitions (34 workflows)
+  workflows/                  # GitHub Actions workflow definitions (35 workflows)
     AGENTS.md                 # Workflows directory guide
     # Core CI/CD
     ci.yml                    # Main CI pipeline
