@@ -574,7 +574,24 @@ def test_real_tree_matches_spec_baselines():
         "pytest_skip": 32,
         "pytest_skipif": 59,
         "pytest_xfail": 4,
-        "pytest_skip_imperative": 89,
+        # 89→93 (2026-10-11, BE-1 / ruling 87, PR #6979): the four harness-contract
+        # skips of the first backend golden tree — conftest.py:61/70 (the
+        # FEATURE_CHECK_* env is absent: the guard is `if missing:` over
+        # _missing_env(), an env read two functions up that the site-line probe
+        # can't see through — the test_db_isolation.py:66 shape), conftest.py:131
+        # (login answered non-200, probe-caught via `status_code`), and
+        # test_webhook_deliveries.py:132 (no events rows on the live stack —
+        # Alert.event_id is a non-nullable FK, so this is the data-chain shape of
+        # test_risk_score_validation.py:199). All four adjudicated environment via
+        # HOST_JUSTIFIED + regenerated registry + baseline raised (12aab2728 raised
+        # the baseline; THIS commit moves the mirror — the mirror lagged one commit
+        # inside the same PR, the ea79a858 pattern, not one found on main).
+        # The adjudication, not just the count, is the point: `todo` would have
+        # minted these a 2026-12-31 expiry that WP1.4 fires naming the owner, on
+        # skips that exist because collection must never crash without a live
+        # stack — a contract that can never be "fixed", so their deadline must be
+        # null. Increase path, fifth precedent.
+        "pytest_skip_imperative": 93,
         "frontend_skip": 54,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
