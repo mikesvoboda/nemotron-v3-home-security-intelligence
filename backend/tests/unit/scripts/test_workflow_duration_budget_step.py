@@ -1,4 +1,4 @@
-"""The real-sleep budget gate is wired into CI (owner ruling 74).
+"""The real-sleep budget gate is wired into CI (owner rulings 74 + 93).
 
 ""Done when: **the script is in the gate**"" — which is the one limb of the
 ruling that a code review of ``scripts/`` cannot check. Pinned against the
@@ -16,10 +16,15 @@ analysis step" — asserted as an ordering, not a presence, because a step that
 ran BEFORE the audit's analysis would read the same corpus and say nothing the
 audit did not already say.
 
-The three budget envs are asserted because they are the only place the owner's
-measured numbers are written for CI. A step that fell back to the script's
-defaults would still be green and still be untraceable to the PR that decided
-them.
+The budget envs are asserted because they are the only place the owner's
+numbers are written for CI. Under ruling 93 those numbers are the audit's own
+CI-set limits (unit 4.0 / integration 10.0 / e2e 10.0 — the exact values the
+audit's "Analyze test durations" step sets as ``UNIT_TEST_THRESHOLD`` et al.)
+plus the 1.5 s WARN; what the gate adds over the audit is the downgrade's
+absence, not a stricter line. ``SLEEP_GATE_SLOW_BUDGET`` is deliberately NOT
+set here: the tracked-slow 60 s cap is the script's default, identical to the
+audit's ``SLOW_TEST_THRESHOLD: '60.0'`` two steps above, so a second copy in
+this step's env would be a second place to keep in sync.
 """
 
 from __future__ import annotations
@@ -31,7 +36,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 CI = REPO_ROOT / ".github" / "workflows" / "ci.yml"
-STEP_NAME = "Real-sleep budget gate (ruling 74)"
+STEP_NAME = "Real-sleep budget gate (ruling 93)"
 SCRIPT = "scripts/check-test-duration-budget.py"
 
 
@@ -108,18 +113,20 @@ def test_the_gate_runs_after_the_audit_analysis() -> None:
 
 
 def test_the_gate_states_its_budgets_in_ci() -> None:
-    """The owner's measured numbers, written once, in the workflow.
+    """The owner's numbers, written once, in the workflow.
 
-    Values asserted rather than mere presence: a step that set the knobs to the
-    audit's 4.0/10.0/10.0 would look wired and gate nothing at all — the whole
-    point is a budget "well under" those limits.
+    Values asserted rather than mere presence. Under ruling 93 the hard
+    budgets EQUAL the audit's CI-set limits and the WARN is 1.5 s; a step that
+    set them to anything else (the old 1.5/6.0/5.0, or nothing at all) would
+    look wired while gating a different rule than the one the owner ruled.
     """
     env = _step(STEP_NAME).get("env") or {}
     assert env == {
-        "SLEEP_GATE_UNIT_BUDGET": "1.5",
-        "SLEEP_GATE_INTEGRATION_BUDGET": "6.0",
-        "SLEEP_GATE_E2E_BUDGET": "5.0",
-    }, f"budgets are the MEASURE/DECIDE record; got {env}"
+        "SLEEP_GATE_UNIT_BUDGET": "4.0",
+        "SLEEP_GATE_INTEGRATION_BUDGET": "10.0",
+        "SLEEP_GATE_E2E_BUDGET": "10.0",
+        "SLEEP_GATE_WARN_BUDGET": "1.5",
+    }, f"budgets are the ruling-93 record; got {env}"
 
 
 def test_the_gate_is_the_only_added_step_in_the_audit_job() -> None:
@@ -141,17 +148,18 @@ def test_the_gate_is_the_only_added_step_in_the_audit_job() -> None:
 
 
 def test_the_gate_step_has_no_baseline_fetch_behind_it() -> None:
-    """The ruling's "no 'healthy in the previous run' downgrade" at CI level.
+    """Ruling 93's "no 'healthy in the previous main run' downgrade" at CI level.
 
     The audit's downgrade is powered by the "Fetch baseline junit" step feeding
-    it a ``--baseline-dir``. This gate must have no equivalent, so what is
-    banned here is a DIRECTORY-valued previous-run argument: ``--baseline-dir``,
-    ``--previous``, ``--ref``. Note the script's own ``--baseline`` is a
-    different thing (its one shrink-only exemption FILE) and is deliberately
-    NOT flagged — pinning it would fail a step that spelled out the correct
-    default path, and the script's own suite is what pins that file's meaning.
+    it a ``--baseline-dir``. This gate must have no equivalent — and after
+    ruling 93 the ban is wider than ruling 74's: the script has NO baseline
+    flag of any kind, so the step may not carry a previous-run DIRECTORY
+    (``--baseline-dir``, ``--previous``, ``--ref``) OR the exemption FILE flag
+    (``--baseline``) that ruling 74 allowed. The whole channel is gone, and a
+    step that grew any part of it back would downgrade breaches in a job whose
+    whole purpose is refusing to.
     """
     run = _step(STEP_NAME)["run"]
-    assert not re.search(r"--baseline-dir|--previous|--ref\b|--against", run), (
-        f"a previous-run flag on the gate step reinstalls the downgrade: {run}"
+    assert not re.search(r"--baseline|--previous|--ref\b|--against", run), (
+        f"a previous-run or exemption flag on the gate step reinstalls the downgrade: {run}"
     )
