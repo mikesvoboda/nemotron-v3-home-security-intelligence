@@ -100,6 +100,14 @@ jobs:
     runs-on: ubuntu-latest
     # Non-blocking: failures are informational (score is a trend, not a gate)
     continue-on-error: true
+    # Ruling 96 item 8 (the "table echo" half): the summary job's table read
+    # needs.backend-mutation.result, which this COE pins to "success" on every
+    # real failure. The verdict now travels via the score step's outcome —
+    # the WP4.3 design already routes real breakage through that step ("rc=1
+    # on nothing-measured", no step-level COE), and step fields survive a
+    # job-level COE (measured, probe run 38116237952).
+    outputs:
+      verdict: ${{ steps.score.outcome }}
     if: ${{ github.event.inputs.frontend_only != 'true' }}
     # Widened set: thousands of mutants, each a single-process pytest boot.
     # Generous ceiling; last week's wall-clock is a trend line WP4.3 prints.
@@ -270,6 +278,7 @@ jobs:
           overwrite: true
 
       - name: Per-module score + step summary
+        id: score
         # --repair FIRST: a budget-killed run can truncate a meta mid-save
         # and the scorer's own loader crashes on that (mutmut's guard is
         # FileNotFoundError-only). Same repair the pre-run step applies;
@@ -424,6 +433,12 @@ jobs:
     runs-on: ubuntu-latest
     # Non-blocking: failures are informational
     continue-on-error: true
+    # Ruling 96 item 8: verdict travels via the harness-health guard step —
+    # the red-detecting gate (2026-09-22 silent-red fix) with no step-level
+    # COE, so its outcome is truthful despite the job mask (see the
+    # backend-mutation outputs comment).
+    outputs:
+      verdict: ${{ steps.harness_guard.outcome }}
     if: ${{ github.event.inputs.backend_only != 'true' }}
     timeout-minutes: 30
 
@@ -459,6 +474,7 @@ jobs:
       # stays informational, exactly like scripts/mutation-score.py rc=1
       # on an empty cache is the backend's equivalent of this check.
       - name: Guard harness health (measured-nothing must be loud)
+        id: harness_guard
         run: |
           cd frontend
           node scripts/mutation-guard.mjs reports/mutation/mutation.json
@@ -497,10 +513,17 @@ jobs:
         run: |
           echo "# Mutation Testing Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          # Ruling 96 item 8 (the named "table echo"): these cells read the
+          # verdict job outputs (the decisive step's outcome), NOT
+          # needs.*.result — both jobs are continue-on-error (WP4.3: flipping
+          # that is an owner decision), which pinned .result to "success" and
+          # made this table a permanent two-green echo. An empty verdict means
+          # the job broke (or an input option skipped it) before the verdict
+          # step ran — said out loud instead of laundered to green.
+          echo "| Component | Verdict step |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend (mutmut) | ${{ needs.backend-mutation.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend (Stryker) | ${{ needs.frontend-mutation.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend (mutmut) | ${{ needs.backend-mutation.outputs.verdict || 'no verdict — job broke before scoring or was skipped by input' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend (Stryker) | ${{ needs.frontend-mutation.outputs.verdict || 'no verdict — job broke before the harness guard or was skipped by input' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
